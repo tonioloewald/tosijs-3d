@@ -77,6 +77,9 @@ interface SceneEffects {
     fade: number
   }>
   voices: Set<{ voice: Voice; audible: number }>
+  /** Voices the pool can still take, and the quietest one in it when full. */
+  voiceRoom: number
+  voiceFloor: number
   observer: BABYLON.Observer<BABYLON.Scene>
   effectLights: Set<BABYLON.Light>
 }
@@ -89,6 +92,8 @@ function sceneEffects(scene: BABYLON.Scene): SceneEffects {
     players: new Set(),
     lights: [],
     voices: new Set(),
+    voiceRoom: Infinity,
+    voiceFloor: 0,
     effectLights: new Set(),
     observer: scene.onBeforeRenderObservable.add(() => tick(scene, fresh)),
   }
@@ -167,6 +172,12 @@ function tick(scene: BABYLON.Scene, s: SceneEffects): void {
       s.voices.delete(v)
     }
   }
+  // What a voice that yielded must beat to come back (see `sound`).
+  s.voiceRoom = budget.effectVoices - s.voices.size
+  s.voiceFloor =
+    s.voiceRoom > 0
+      ? 0
+      : Math.min(...[...s.voices].map((v) => v.audible), Infinity)
 }
 
 const color4 = (hex: string) =>
@@ -588,7 +599,17 @@ export class EffectPlayer {
       k === 1 ? l0 : { ...l0, refDistance: (l0.refDistance ?? 10) * k }
     let voice: { voice: Voice; audible: number } | null = null
     let prevHeard = -Infinity
+    /*
+    YIELDED, it stays quiet. A voice the pool evicted used to be started
+    again on the next frame, as loud as before and so evicted again: a new
+    WebAudio graph (and, for a `url` voice, a fetch) every frame for every
+    voice over budget. It comes back when the pool has room, or when it
+    would now clearly outrank the quietest voice playing; switching the
+    layer off and on starts it fresh.
+    */
+    let yielded = false
     const stopVoice = () => {
+      yielded = false
       if (voice != null) {
         voice.voice.stop()
         this.shared.voices.delete(voice)
@@ -612,8 +633,21 @@ export class EffectPlayer {
           stopVoice()
           return
         }
-        if (voice != null && !this.shared.voices.has(voice)) voice = null
+        if (voice != null && !this.shared.voices.has(voice)) {
+          voice = null
+          yielded = true
+        }
+        const ref = l.refDistance ?? 10
+        const audible = gain * (dist <= ref ? 1 : ref / dist)
+        if (
+          voice == null &&
+          yielded &&
+          this.shared.voiceRoom <= 0 &&
+          audible <= this.shared.voiceFloor * 1.2
+        )
+          return
         if (voice == null) {
+          yielded = false
           const v = startVoice(l.voice, {
             refDistance: l.refDistance,
             url: l.url,
@@ -629,8 +663,7 @@ export class EffectPlayer {
           s.channel.cutoff ?? 1,
           distanceCutoff(dist)
         )
-        const ref = l.refDistance ?? 10
-        voice.audible = gain * (dist <= ref ? 1 : ref / dist)
+        voice.audible = audible
       },
       halt: stopVoice,
       dispose: stopVoice,

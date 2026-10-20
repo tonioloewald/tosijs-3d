@@ -175,14 +175,27 @@ export function seamOverlay(
   const material = seamMaterial(scene, options)
   twin.material = material
   twin.isPickable = false
-  // Shadows fall on it (from an `inspectStage`'s light, say) as on the mesh.
-  twin.receiveShadows = true
+  /*
+  IN THE MESH'S PLACE IN EVERY SHADOW MAP. The mesh is hidden, so it stops
+  casting; the twin casts wherever the mesh did and receives as it did, and
+  dispose() hands both back.
+  */
+  twin.receiveShadows = mesh.receiveShadows
+  const casts: BABYLON.ShadowGenerator[] = []
+  for (const light of scene.lights) {
+    const gen = light.getShadowGenerator() as BABYLON.ShadowGenerator | null
+    if (gen?.getShadowMap()?.renderList?.includes(mesh)) {
+      gen.addShadowCaster(twin, false)
+      casts.push(gen)
+    }
+  }
   const shown = mesh.isVisible
   mesh.isVisible = false
   return {
-    /** The twin drawn in its place (a scene's sun needs it as a caster). */
+    /** The twin drawn in its place (casting wherever the mesh did). */
     mesh: twin,
     dispose() {
+      for (const gen of casts) gen.removeShadowCaster(twin, false)
       twin.dispose()
       material.dispose()
       mesh.isVisible = shown
@@ -207,10 +220,9 @@ export interface InspectStage {
 
 /**
  * A neutral floor to look at a model on: light grey, ruled every metre and
- * faintly every quarter, with a key light from above and in front. Shadows
- * are not on yet: in the rig tool's scene every shadow generator tried (a
- * plain one, a cascaded one, the scene's own sun) drew no shadow or turned
- * the floor black, which is being looked into.
+ * faintly every quarter, with a key light from above and in front. The floor
+ * receives shadows: for them, give the scene a sun (`<tosi-b3d-sun>`) and
+ * pass `light: false` so there is one key light, not two.
  */
 export function inspectStage(
   scene: BABYLON.Scene,

@@ -1371,12 +1371,7 @@ export function mountRigTool(
       if (inspect.face === 'free' || model == null) return
       for (const m of model.root.getChildMeshes(false))
         if (m.getTotalVertices() > 0 && m.isEnabled())
-          {
-            const x = seamOverlay(m)
-            seamed.push(x)
-            // It stands in for the hidden mesh, shadow and all.
-            if (x.mesh != null) castShadows(x.mesh)
-          }
+          seamed.push(seamOverlay(m))
     }
     function snapView(v: RigView) {
       inspect.face = v

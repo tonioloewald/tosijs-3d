@@ -9,6 +9,31 @@ This file ships **inside the package**, because a migration table you can only
 read on GitHub does not exist for someone who has already installed the thing
 and is staring at an error.
 
+## 0.10.x → 0.11.0
+
+Nothing was removed, and the peer ranges are unchanged. 0.11 collects the
+0.10.x line's new features (retargeting, auto-rig, spring bones, effects, the
+rig and effect tools); see the CHANGELOG's 0.11.0 summary. A few behaviours
+changed that you may see without touching your code:
+
+1. **Retargeting no longer lines up the body's axis.** The hips, spine, chest,
+   neck and head now take the clip's turn as it is; only limbs are lined up
+   with the source's rest pose. A character whose neck or torso leans at rest
+   (a weasel's neck forward to its snout) keeps that lean in every clip
+   instead of being pulled upright, which tipped its head back by about 14°.
+   Nothing to do, unless you had corrected for the old tilt in your own code.
+2. **A biped sprints.** Near full speed it plays the rig's `sprint` state
+   (UAL's `Sprint_Loop`, already in `ualAnimationStates()`) instead of the
+   jog sped up. A rig with no sprint clip jogs as before. To keep the jog,
+   leave `sprint` out of your animation states.
+3. **Effects release their shared parts with the last player.** The per-scene
+   driver observer, pooled lights and sprite textures go when a scene's last
+   `EffectPlayer` is disposed, and are made again by the next effect. Code that
+   held on to a sprite texture from `effectSprite()` past that point holds a
+   disposed texture.
+4. **`InspectStage.light` can be null** (new in 0.10.19): `inspectStage(scene,
+   { light: false })` adds no key light, for a scene with a sun of its own.
+
 ## 0.9.0 → 0.10.0
 
 ### 1. The deprecated callback names are gone: `onX` → `handleX`

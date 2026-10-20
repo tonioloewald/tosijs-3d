@@ -8,8 +8,27 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ## Unreleased
 
+**0.11 in one paragraph.** Any character plays the Universal Animation
+Library: `retarget` reads which bone is which across UE, Mixamo, Kenney and
+Blender names and transfers clips across A- and T-poses; a mesh with no
+skeleton is auto-rigged from eight markers (`fitSkeleton`, fingers, mittens
+and tails found from its shape, `boneHeat` binding, `buildRig`); hair and
+tails hang on spring bones; the rig tool does it all in the browser and saves
+a recipe (`applyRigRecipe`), and mounts in a host's scene (`mountRigTool`).
+Effects are particles, light and sound as layers on one clock
+(`<tosi-b3d-effect>`, presets from volcano to sparks, procedural sprites and
+voices), edited in the effect tool (`mountEffectTool`). Around them:
+`inspectView` (held orthographic views), `seamMaterial`, `barMenu`, slider
+stops, landform schemas, the biped's sprint. Nothing was removed; see
+Migration.md for the behaviours that changed. Size over the 0.10 line: see
+the release's Size line.
+
+
 ### Fixed
 
+- **An effect voice that yielded to the budget stays quiet** (0.11.0 gate): over `effectVoices`, the quietest voice was stopped and then started again on the next frame, as loud as before and so stopped again: a new WebAudio graph every frame for each voice over budget, and for a `url` voice a fetch. It now comes back when the pool has room or when it would clearly outrank the quietest voice playing; turning its layer off and on starts it fresh. A NullEngine test counts the starts (21 where 9 belong, before the fix).
+- **`seamOverlay`'s twin casts wherever the mesh did** (0.11.0 gate): the mesh is hidden while its twin is drawn, so it stopped casting and the twin never started. The twin now takes the mesh's place in every shadow map it was in (and receives as it did), and gives it back on dispose; the rig tool's own workaround for the twin is gone.
+- **The README names the 0.11 features** (0.11.0 gate): retargeting, auto-rig, spring bones and the rig tool; effects and the effect tool. Migration.md has a 0.10 → 0.11 section (nothing removed; the behaviours that changed).
 - **A water that is not ready says so** (#3335): eight seconds after its scene is up, a water surface that is missing, disposed, out of the scene, not ready to draw or failing to compile posts what it found to the debug sink (`water-not-ready`), so the next first-visit sighting of missing water can be read rather than guessed at.
 - **The rig tool casts shadows** (#3420): the standalone page declares a sun in its scene, as the playground does, and hands the character (and, in a face view, its seam twin) to the sun's shadow generator. `inspectStage({ light: false })` leaves out the stage's key light for a scene with a sun of its own; `seamOverlay` returns its twin as `mesh`. Hosted, the figure is in the host's lighting. What is still not understood: a shadow generator made after the scene is up, plain or cascaded, drew nothing in this scene.
 
