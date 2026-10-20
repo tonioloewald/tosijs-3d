@@ -221,7 +221,7 @@ export { B3dHud, b3dHud } from './b3d-hud.js'
 // Scene components
 export { B3dLoader, b3dLoader } from './b3d-loader.js'
 export { B3dLibrary, b3dLibrary } from './b3d-library.js'
-export { B3dSun, b3dSun } from './b3d-shadows.js'
+export { B3dSun, b3dSun, cascadesFollowCamera } from './b3d-shadows.js'
 export { B3dReflections, b3dReflections } from './b3d-reflections.js'
 export { B3dSkybox, b3dSkybox } from './b3d-skybox.js'
 export { B3dWater, b3dWater } from './b3d-water.js'
