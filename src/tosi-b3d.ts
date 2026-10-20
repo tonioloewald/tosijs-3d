@@ -1252,6 +1252,30 @@ export class B3d extends Component {
   takeInputFocus(): void {
     B3d._active = this
   }
+  /*
+  A TOUCH THAT ENDS OFF THE CANVAS GIVES ITS SLOT BACK.
+
+  Babylon's canvas input keeps a slot per touch (`navigator.maxTouchPoints`,
+  else 2), and a touch pointer it sees MOVE without a press takes one
+  retroactively. If that pointer's release lands elsewhere (the glass pad
+  captures its own), the canvas never hears it, the slot is never freed, and
+  once they are all held Babylon ignores every new press ("Max number of
+  touches exceeded"): the system bar went dead after two pad drags in the
+  headset's flat browser, until a DOM click blurred the canvas (Tonio). So a
+  touch or pen released anywhere else is cancelled on the canvas too; one
+  Babylon is not tracking is ignored there.
+  */
+  private _freeTouchSlot = (e: PointerEvent): void => {
+    if (e.pointerType === 'mouse') return
+    const canvas = this.engine?.getRenderingCanvas()
+    if (canvas == null || e.target === canvas) return
+    canvas.dispatchEvent(
+      new PointerEvent('pointercancel', {
+        pointerId: e.pointerId,
+        pointerType: e.pointerType,
+      })
+    )
+  }
   /** Reference frames (world/rig/body/neck/face) for spatial UI, live only while
    * an XR session is running. Parent in-scene UI to `xrFrames.body` etc. */
   xrFrames: XrFrames | null = null
@@ -5082,6 +5106,8 @@ export class B3d extends Component {
     this.addEventListener('panelcontent', this._swapSystemContent)
     this.addEventListener('panelanchor', this._reanchorSystemPanel)
     this.addEventListener('pointerdown', () => this.takeInputFocus())
+    window.addEventListener('pointerup', this._freeTouchSlot, true)
+    window.addEventListener('pointercancel', this._freeTouchSlot, true)
     /*
     NEVER TWO ENGINES ON ONE CANVAS.
 
@@ -7651,6 +7677,8 @@ export class B3d extends Component {
     this._disposeWidgets('xr')
     this._errorCaptureOff?.()
     this._errorCaptureOff = null
+    window.removeEventListener('pointerup', this._freeTouchSlot, true)
+    window.removeEventListener('pointercancel', this._freeTouchSlot, true)
     this._pauseWatch?.()
     this._pauseWatch = null
     if (B3d._active === this) B3d._active = null
