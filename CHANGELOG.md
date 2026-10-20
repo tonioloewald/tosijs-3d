@@ -23,6 +23,13 @@ stops, landform schemas, the biped's sprint. Nothing was removed; see
 Migration.md for the behaviours that changed. Size over the 0.10 line: see
 the release's Size line.
 
+### Added
+
+- **System panels from code, and a button that asks to be looked at** (#3436, Manta's objectives list): `<tosi-b3d-panel>` has `show()`, `hide()`, `toggle()` and `isOpen`, and fires `paneltoggle` (`detail.open`) whenever it opens or closes, by code or by its button, so a list can put itself away after a while. `attention(ms?)` blinks its button on the system bar, flat and in a headset (and on the HTML lozenge with `flat-ui="dom"`). Before the scene is up, `show()` means open at start.
+
+### Changed
+
+- **The glass gamepad stays up while system panels are open** (#3436). It still stands aside for the settings panel and for modals. System panels are an app's own chrome, often open in play, and on a phone hiding the pad took the controls away; give one that stays open a `screenAnchor` clear of the pad.
 
 ### Fixed
 

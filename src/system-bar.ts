@@ -53,6 +53,11 @@ const GAP = BAR_GAP
 const PAD = BAR_PAD
 /** How long a press is held before it is a `systemhold` instead of a click (ms). */
 export const HOLD_MS = 600
+/**
+ * A button asking to be looked at: its `data-attention` attribute (the scene
+ * blinks it for `panel.attention()`), drawn in this fill on both bars.
+ */
+export const ATTENTION_FILL = 'rgba(255,190,60,0.8)'
 
 export interface SystemBar {
   /** The toolbar's SVG, with `handlePointer` for a frame panel to route to. */
@@ -132,7 +137,11 @@ export function systemBar(buttons: HTMLButtonElement[]): SystemBar {
             width: SIZE,
             height: SIZE,
             rx: SIZE / 2,
-            fill: lit ? 'rgba(74,158,255,0.55)' : 'rgba(255,255,255,0.06)',
+            fill: b.hasAttribute('data-attention')
+              ? ATTENTION_FILL
+              : lit
+              ? 'rgba(74,158,255,0.55)'
+              : 'rgba(255,255,255,0.06)',
           }),
           ...(icon ? [icon] : [])
         )
@@ -194,6 +203,7 @@ export function systemBar(buttons: HTMLButtonElement[]): SystemBar {
         'style',
         'class',
         'part',
+        'data-attention',
       ],
       childList: true,
     })

@@ -226,7 +226,7 @@ The `<tosi-b3d-panel>` children are the set (none ship by default):
 | `title` | `''` | Placeholder card title (ignored if `url` set) |
 | `icon` | `''` | Puts it on the scene's system bar: its button's picture, an `svgIcons` name (e.g. `personStanding`, `book`, `map`); unknown draws a square. Its `title` is the button's tooltip and the panel's caption |
 | `exclusive` | `'on'` | On the system bar: one system panel is open at a time. `'off'` lets this one stay open beside the others and leaves them open when it opens (an app's main chrome: a tool palette, a properties panel). The settings panel and exclusive panels still close each other |
-| `open` | `false` | On the system bar: open when the scene starts (and again in a headset, if it was open flat) |
+| `open` | `false` | On the system bar: open when the scene starts (and again in a headset, if it was open flat). To open or close it later, `el.show()` / `el.hide()` |
 | `chrome` | `''` | On the system bar: the panel opens with the settings panel's title bar (move, its title, ×; flat, a drag moves it and it reopens where you left it; holding its button on the bar puts it back). `'none'` for content with chrome of its own |
 | `url` | `''` | SVG URL (e.g. a reticle) |
 | `width` | `0.26` | Panel width (m); height follows aspect |
@@ -255,6 +255,27 @@ dropped yourself. The setter fires a bubbling `panelcontent` event.
 title bar, its spot is its `screenAnchor`, so setting a new one moves an open
 panel (a column re-stacked as a panel above it grows). Once dragged it stays
 where it was put, until its button is held on the bar.
+
+**A game can open, close and flag one.** `el.show()`, `el.hide()` and
+`el.toggle()` open and close a system panel as its button does, and
+`el.isOpen` says which it is. `el.attention()` blinks its button on the bar,
+flat and in a headset, for a moment (pass milliseconds for longer): an
+objective met while the list was closed. A `paneltoggle` event (`detail.open`)
+fires on the element whenever it opens or closes, by code or by a press, so a
+list can put itself away a while after it opened:
+
+```javascript
+let away
+objectives.addEventListener('paneltoggle', (e) => {
+  clearTimeout(away)
+  if (e.detail.open) away = setTimeout(() => objectives.hide(), 8000)
+})
+game.on('objective', () => objectives.attention())
+```
+
+The glass gamepad stays up while system panels are open (it hides for the
+settings panel and for modals), so give one that stays open in play a
+`screenAnchor` clear of the pad's controls.
 
 **Clicking one from a test.** The content is drawn on a texture, so nothing in
 it has a box on the page. `el.contentToClient(x, y)` says where a point of the
@@ -367,6 +388,41 @@ export class B3dPanel extends Component {
   }
   private _screenAnchor: ScreenAnchor | null = null
 
+  /*
+  A SYSTEM PANEL FROM CODE (#3436). `open` says what it does when the scene
+  starts; these say what it does now. A person can still open and close it
+  with its button; `paneltoggle` (`detail.open`) fires on this element either
+  way, so a game can hide a list a while after it opened.
+  */
+  /** Is it open now (a system panel)? */
+  get isOpen(): boolean {
+    return this._host()?._systemPanelOpen(this) ?? false
+  }
+  /** Open it (a system panel). Before the scene is up, it opens at start. */
+  show(): void {
+    const h = this._host()
+    if (h == null) this.open = true
+    else h._setSystemPanel(this, true)
+  }
+  /** Close it (a system panel). */
+  hide(): void {
+    const h = this._host()
+    if (h == null) this.open = false
+    else h._setSystemPanel(this, false)
+  }
+  /** Open it if closed, close it if open. */
+  toggle(): void {
+    if (this.isOpen) this.hide()
+    else this.show()
+  }
+  /**
+   * Blink its button on the system bar, flat and in a headset, for `ms`
+   * (default 1600): something in it changed that is worth a look.
+   */
+  attention(ms?: number): void {
+    this._host()?._systemAttention(this, ms)
+  }
+
   /** The scene this panel is on, if it shows system panels. */
   private _host(): {
     _systemContentToClient: (
@@ -374,6 +430,9 @@ export class B3dPanel extends Component {
       x: number,
       y: number
     ) => { x: number; y: number } | null
+    _systemPanelOpen: (el: Element) => boolean
+    _setSystemPanel: (el: Element, open: boolean) => void
+    _systemAttention: (el: Element, ms?: number) => void
   } | null {
     for (let n: Node | null = this.parentNode; n != null; ) {
       if (typeof (n as any)._systemContentToClient === 'function')

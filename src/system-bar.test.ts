@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, test } from 'bun:test'
 import { Window } from 'happy-dom'
 
 let systemBar: typeof import('./system-bar.js').systemBar
+let ATTENTION_FILL = ''
 beforeAll(async () => {
   const win = new Window() as any
   const g = globalThis as any
@@ -16,7 +17,7 @@ beforeAll(async () => {
   // happy-dom's own, or its dispatchEvent rejects Bun's (the hold event).
   g.Event = win.Event
   g.CustomEvent = win.CustomEvent
-  systemBar = (await import('./system-bar.js')).systemBar
+  ;({ systemBar, ATTENTION_FILL } = await import('./system-bar.js'))
 })
 
 const button = (opts: { hidden?: boolean; disabled?: boolean } = {}) => {
@@ -90,6 +91,20 @@ describe('systemBar mirrors HTML buttons', () => {
     bar.dispose()
     a.b.remove()
     b.b.remove()
+  })
+
+  test('a button asking for attention is drawn in the attention fill, and back when it stops', async () => {
+    const a = button()
+    const bar = systemBar([a.b])
+    const lit = () => bar.svg.outerHTML.includes(ATTENTION_FILL)
+    expect(lit()).toBe(false)
+    a.b.setAttribute('data-attention', '')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(lit()).toBe(true)
+    a.b.removeAttribute('data-attention')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(lit()).toBe(false)
+    bar.dispose()
   })
 })
 

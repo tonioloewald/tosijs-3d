@@ -352,7 +352,12 @@ import {
   type Orbit,
 } from './panel-orbit.js'
 import { svgIcons } from './svg-icons.js'
-import { systemBar, BAR_HEIGHT, type SystemBar } from './system-bar.js'
+import {
+  systemBar,
+  BAR_HEIGHT,
+  ATTENTION_FILL,
+  type SystemBar,
+} from './system-bar.js'
 import { CombatWorld } from './destroyable.js'
 import { b3dGamepad } from './glass-gamepad.js'
 import { XrGamepadSource } from './xr-gamepad.js'
@@ -1015,6 +1020,10 @@ export class B3d extends Component {
     },
     ':host .lozenge-button[hidden]': {
       display: 'none',
+    },
+    // A system panel asking to be looked at (`panel.attention()`), blinking.
+    ':host .lozenge-button[data-attention]': {
+      background: ATTENTION_FILL,
     },
     // A hairline divider only between two VISIBLE buttons (so a lone button reads
     // as a clean single-icon pill).
@@ -2493,6 +2502,55 @@ export class B3d extends Component {
     if (this._sysPanels.has(el)) this._closeSystemPanel(el)
     else this._openSystemPanel(el)
   }
+  /*
+  FROM CODE (#3436, Manta's objectives list): `panel.show()`, `hide()`,
+  `toggle()` and `attention()` on the `<tosi-b3d-panel>` come here. Before
+  the scene is up, `show()` is the `open` attribute (it opens at start).
+  */
+  /** Is this system panel open? (`panel.isOpen`) */
+  _systemPanelOpen(el: Element): boolean {
+    return this._sysPanels.has(el)
+  }
+  /** Open or close a system panel (`panel.show()` / `hide()`). */
+  _setSystemPanel(el: Element, open: boolean): void {
+    if (this.scene == null || !this._sysOpened.has(el)) {
+      // Not started yet: what it does at start.
+      ;(el as unknown as { open: boolean }).open = open
+      if (this.scene == null) return
+      this._sysOpened.add(el)
+    }
+    if (open) this._openSystemPanel(el)
+    else this._closeSystemPanel(el)
+  }
+  /**
+   * Blink a system panel's button on both bars, for `ms` (`panel.attention()`):
+   * something in it changed (an objective met) while it was closed.
+   */
+  _systemAttention(el: Element, ms = 1600): void {
+    const b = this._systemButtonOf.get(el)
+    if (b == null) return
+    const prev = this._attention.get(b)
+    if (prev != null) clearInterval(prev)
+    const BLINK = 200
+    let left = Math.max(1, Math.round(ms / BLINK))
+    b.setAttribute('data-attention', '')
+    const t = setInterval(() => {
+      if (--left <= 0) {
+        clearInterval(t)
+        this._attention.delete(b)
+        b.removeAttribute('data-attention')
+      } else b.toggleAttribute('data-attention')
+    }, BLINK)
+    this._attention.set(b, t)
+  }
+  private _attention = new Map<
+    HTMLButtonElement,
+    ReturnType<typeof setInterval>
+  >()
+  /** Tell the `<tosi-b3d-panel>` it opened or closed (`paneltoggle`). */
+  private _panelToggled(el: Element, open: boolean): void {
+    el.dispatchEvent(new CustomEvent('paneltoggle', { detail: { open } }))
+  }
   /**
    * New content on a system panel's element: if it is open, show the new
    * content in the same place, IN PLACE: under its title bar, or (with
@@ -2713,6 +2771,7 @@ export class B3d extends Component {
     }
     this._sysPanels.set(key, entry)
     this._syncGamepadCover()
+    this._panelToggled(key, true)
   }
   /** Where each system panel was dragged to, flat. */
   private _systemSpots = new WeakMap<Element, ScreenAnchor>()
@@ -2775,6 +2834,7 @@ export class B3d extends Component {
     // Last: the frame gives the content back once its plane is gone.
     p.off()
     this._syncGamepadCover()
+    this._panelToggled(key, false)
   }
   private _sceneToolbarSpec(): FramePanelSpec | null {
     const lozenge = this.parts.sceneToolbar as HTMLElement | undefined
@@ -6678,12 +6738,15 @@ export class B3d extends Component {
   presses where they overlap: a press on the settings panel under its bumper
   closed the panel. While the settings panel or a pause is up you are not
   playing, so it hides, and comes back after. (The DOM panel sat above it.)
+
+  NOT for a system panel (#3436). Those are an app's own chrome, often open
+  while you play (Manta's objectives in flight), and on a phone hiding the pad
+  took the controls away. Tonio: "System panels that are in scene shouldn't
+  block the glass pad because they can't." Place one clear of the pad's
+  clusters (its `screenAnchor`) rather than hiding the pad.
   */
   private _syncGamepadCover(): void {
-    const covered =
-      this._flatScenePanel != null ||
-      this._sysPanels.size > 0 ||
-      this._modals.size > 0
+    const covered = this._flatScenePanel != null || this._modals.size > 0
     this._suppressGamepad('in-scene-ui', covered)
   }
   private _openFlatScenePanel(): boolean {
