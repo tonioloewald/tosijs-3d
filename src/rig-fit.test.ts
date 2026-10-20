@@ -277,19 +277,27 @@ describe.skipIf(!existsSync(DIR))('fingers found from above', () => {
   for (const r of REAL)
     if (r.name in want)
       test(r.name, () => {
-        const rig = fitSkeleton(r.markers, soupQuery(r.mesh()), { tail: r.tail })
+        const rig = fitSkeleton(r.markers, soupQuery(r.mesh()), {
+          tail: r.tail,
+        })
         expect(rig.fingers).toEqual({ l: want[r.name], r: want[r.name] })
         for (const f of want[r.name]) {
           // Each joint further out than the last, the thumb forward.
-          const xs = ['01', '02', '03', '04_leaf'].map((k) => rig.at(`${f}_${k}_l`)!)
+          const xs = ['01', '02', '03', '04_leaf'].map(
+            (k) => rig.at(`${f}_${k}_l`)!
+          )
           if (f === 'thumb') expect(xs[3].z).toBeGreaterThan(xs[0].z)
-          else for (let i = 1; i < 4; i++) expect(xs[i].x).toBeGreaterThan(xs[i - 1].x)
+          else
+            for (let i = 1; i < 4; i++)
+              expect(xs[i].x).toBeGreaterThan(xs[i - 1].x)
         }
       })
   test("the marine's claw is followed down its hook", () => {
     const r = REAL.find((r) => r.name.startsWith('space marine'))!
     const rig = fitSkeleton(r.markers, soupQuery(r.mesh()))
-    const ys = ['01', '02', '03', '04_leaf'].map((k) => rig.at(`index_${k}_l`)!.y)
+    const ys = ['01', '02', '03', '04_leaf'].map(
+      (k) => rig.at(`index_${k}_l`)!.y
+    )
     for (let i = 1; i < 4; i++) expect(ys[i]).toBeLessThan(ys[i - 1])
   })
 })

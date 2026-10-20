@@ -167,7 +167,10 @@ export function strandPoints(
 
 /** A strand's path: its own, or the straight two-point one it describes. */
 export function strandPath(
-  s: Pick<StrandSpringRecipe, 'offset' | 'yawDeg' | 'pitchDeg' | 'length' | 'path'>
+  s: Pick<
+    StrandSpringRecipe,
+    'offset' | 'yawDeg' | 'pitchDeg' | 'length' | 'path'
+  >
 ): Vec3[] {
   if (s.path != null && s.path.length >= 2) return s.path.map((p) => ({ ...p }))
   const d = strandDirection(s.yawDeg, s.pitchDeg)
@@ -262,8 +265,7 @@ export function validateRigRecipe(doc: unknown): string[] {
           out.push(`${at}.path is not a list of two or more points`)
         else if (!s.path.every(isVec))
           out.push(`${at}.path has a point that is not {x, y, z}`)
-        else if (pathLength(s.path) <= 0)
-          out.push(`${at}.path has no length`)
+        else if (pathLength(s.path) <= 0) out.push(`${at}.path has no length`)
       }
     } else out.push(`${at}.kind is not 'bones' or 'strand'`)
     const c = s.colliders

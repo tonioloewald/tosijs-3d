@@ -143,8 +143,10 @@ export function seamMaterial(
   scene: BABYLON.Scene,
   options: SeamMaterialOptions = {}
 ): BABYLON.StandardMaterial & { seams: SeamPlugin } {
-  const m = new BABYLON.StandardMaterial('b3d-seam', scene) as
-    BABYLON.StandardMaterial & { seams: SeamPlugin }
+  const m = new BABYLON.StandardMaterial(
+    'b3d-seam',
+    scene
+  ) as BABYLON.StandardMaterial & { seams: SeamPlugin }
   const fill = BABYLON.Color3.FromHexString(options.fill ?? '#c99ba6')
   const shade = Math.min(1, Math.max(0, options.shade ?? 0.45))
   /*
@@ -196,7 +198,11 @@ export function quadDiagonals(
     const v = indices[t * 3 + c]
     return [positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2]]
   }
-  const sub = (a: number[], b: number[]) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+  const sub = (a: number[], b: number[]) => [
+    a[0] - b[0],
+    a[1] - b[1],
+    a[2] - b[2],
+  ]
   const len2 = (a: number[]) => a[0] * a[0] + a[1] * a[1] + a[2] * a[2]
   const normal = (t: number) => {
     const a = P(t, 0)

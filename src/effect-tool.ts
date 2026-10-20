@@ -602,30 +602,30 @@ export function mountEffectTool(
       }),
       ...(staged
         ? [
-      select3d({
-        label: 'backdrop',
-        value: ui.backdrop,
-        options: ['grid', 'sky'],
-        handleChange: (v) => {
-          setBackdrop(v as 'grid' | 'sky')
-          refresh()
-        },
-      }),
-      ...(ui.backdrop === 'sky'
-        ? [
-            slider3d({
-              label: 'time of day',
-              value: ui.timeOfDay,
-              min: 0,
-              max: 24,
-              step: 0.1,
+            select3d({
+              label: 'backdrop',
+              value: ui.backdrop,
+              options: ['grid', 'sky'],
               handleChange: (v) => {
-                ui.timeOfDay = v
-                ;(sky as any).timeOfDay = v
+                setBackdrop(v as 'grid' | 'sky')
+                refresh()
               },
             }),
-          ]
-        : []),
+            ...(ui.backdrop === 'sky'
+              ? [
+                  slider3d({
+                    label: 'time of day',
+                    value: ui.timeOfDay,
+                    min: 0,
+                    max: 24,
+                    step: 0.1,
+                    handleChange: (v) => {
+                      ui.timeOfDay = v
+                      ;(sky as any).timeOfDay = v
+                    },
+                  }),
+                ]
+              : []),
           ]
         : []),
       label3d({ text: status(), muted: true, compact: true }),
@@ -648,45 +648,48 @@ export function mountEffectTool(
       label3d({ text: 'Recipe', collapsible: true }),
       ...(files
         ? [
-      button3d({
-        label: 'save',
-        handleClick: () => {
-          const url = URL.createObjectURL(
-            new Blob([JSON.stringify(recipe, null, 2)], {
-              type: 'application/json',
-            })
-          )
-          const a = document.createElement('a')
-          a.href = url
-          a.download = `${recipe.name ?? ui.preset}.effect.json`
-          a.click()
-          setTimeout(() => URL.revokeObjectURL(url), 1000)
-        },
-      }),
-      button3d({
-        label: 'load',
-        handleClick: () =>
-          void chooseFile('.json').then(async (f) => {
-            if (f == null) return
-            try {
-              const r = JSON.parse(await f.text())
-              const problems = validateEffectRecipe(r)
-              if (problems.length) ui.status = `not an effect: ${problems[0]}`
-              else {
-                adopt(r)
-                changed(true)
-              }
-            } catch (e) {
-              ui.status = `could not read it: ${(e as Error).message}`
-            }
-            refresh()
-          }),
-      }),
-      button3d({
-        label: 'copy',
-        handleClick: () =>
-          void navigator.clipboard?.writeText(JSON.stringify(recipe, null, 2)),
-      }),
+            button3d({
+              label: 'save',
+              handleClick: () => {
+                const url = URL.createObjectURL(
+                  new Blob([JSON.stringify(recipe, null, 2)], {
+                    type: 'application/json',
+                  })
+                )
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `${recipe.name ?? ui.preset}.effect.json`
+                a.click()
+                setTimeout(() => URL.revokeObjectURL(url), 1000)
+              },
+            }),
+            button3d({
+              label: 'load',
+              handleClick: () =>
+                void chooseFile('.json').then(async (f) => {
+                  if (f == null) return
+                  try {
+                    const r = JSON.parse(await f.text())
+                    const problems = validateEffectRecipe(r)
+                    if (problems.length)
+                      ui.status = `not an effect: ${problems[0]}`
+                    else {
+                      adopt(r)
+                      changed(true)
+                    }
+                  } catch (e) {
+                    ui.status = `could not read it: ${(e as Error).message}`
+                  }
+                  refresh()
+                }),
+            }),
+            button3d({
+              label: 'copy',
+              handleClick: () =>
+                void navigator.clipboard?.writeText(
+                  JSON.stringify(recipe, null, 2)
+                ),
+            }),
           ]
         : []),
       button3d({
@@ -790,8 +793,7 @@ export function mountEffectTool(
       grid.dispose()
     })
   }
-  const node =
-    options.target ?? new BABYLON.TransformNode('effect-here', scene)
+  const node = options.target ?? new BABYLON.TransformNode('effect-here', scene)
   if (options.target == null) cleanups.push(() => node.dispose())
   here = node
   lift()

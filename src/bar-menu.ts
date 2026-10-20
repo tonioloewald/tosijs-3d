@@ -115,7 +115,14 @@ export function barMenu(config: BarMenuConfig): BarMenu {
                 : 'rgba(255,255,255,0)',
           }),
           ...(on
-            ? [iconGlyph('check', { color: '#e8eef8', size: 18, x: 14, y: y + 9 })]
+            ? [
+                iconGlyph('check', {
+                  color: '#e8eef8',
+                  size: 18,
+                  x: 14,
+                  y: y + 9,
+                }),
+              ]
             : []),
           text(
             {

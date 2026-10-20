@@ -142,8 +142,24 @@ describe('a strand laid along a path (Tonio: map out the tail, not one stub)', (
       version: RIG_RECIPE_VERSION,
       springs: [{ ...STRAND_DEFAULTS, anchor: 'Head', path }],
     })
-    expect(validateRigRecipe(doc([{ x: 0, y: 0, z: 0 }, { x: 0, y: -1, z: 0 }]))).toEqual([])
-    expect(validateRigRecipe(doc([{ x: 0, y: 0, z: 0 }])).join()).toMatch(/two or more/)
-    expect(validateRigRecipe(doc([{ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0 }])).join()).toMatch(/no length/)
+    expect(
+      validateRigRecipe(
+        doc([
+          { x: 0, y: 0, z: 0 },
+          { x: 0, y: -1, z: 0 },
+        ])
+      )
+    ).toEqual([])
+    expect(validateRigRecipe(doc([{ x: 0, y: 0, z: 0 }])).join()).toMatch(
+      /two or more/
+    )
+    expect(
+      validateRigRecipe(
+        doc([
+          { x: 0, y: 0, z: 0 },
+          { x: 0, y: 0, z: 0 },
+        ])
+      ).join()
+    ).toMatch(/no length/)
   })
 })

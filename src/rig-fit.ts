@@ -661,10 +661,17 @@ function findFingers(
     .map((p) => {
       const len = p.tipD - p.baseD!
       const base = Math.max(0, p.baseD! - 0.2 * len)
-      const ds = [base, base + 0.45 * (p.tipD - base), base + 0.75 * (p.tipD - base), p.tipD - h]
+      const ds = [
+        base,
+        base + 0.45 * (p.tipD - base),
+        base + 0.75 * (p.tipD - base),
+        p.tipD - h,
+      ]
       return {
         z: line(p, p.tipD),
-        joints: ds.map((d) => point(d, line(p, Math.max(d, p.baseD!)), wrist.y)),
+        joints: ds.map((d) =>
+          point(d, line(p, Math.max(d, p.baseD!)), wrist.y)
+        ),
       }
     })
     .sort((a, b) => b.z - a.z)
@@ -684,7 +691,10 @@ function findFingers(
   let thumb: Vec3[] | null = null
   if (thumbs.length > 0) {
     const t = thumbs.reduce((a, b) =>
-      Math.max(...a.path.map((q) => q.z1)) >= Math.max(...b.path.map((q) => q.z1)) ? a : b
+      Math.max(...a.path.map((q) => q.z1)) >=
+      Math.max(...b.path.map((q) => q.z1))
+        ? a
+        : b
     )
     // Its tip is the point furthest forward; its base, the part of it
     // nearest the palm (it may point back toward the wrist as well).
@@ -861,7 +871,9 @@ export function skinSegments(
       )
   }
   rig.joints.forEach((j, index) => {
-    const to = handTo.has(j.name) ? null : SEGMENT_TO[j.name] ?? child.get(j.name)
+    const to = handTo.has(j.name)
+      ? null
+      : SEGMENT_TO[j.name] ?? child.get(j.name)
     const b = handTo.get(j.name) ?? (to != null ? rig.at(to) : j.end)
     if (b != null) out.push({ index, a: j.position, b })
   })
