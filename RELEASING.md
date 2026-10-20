@@ -182,6 +182,13 @@ one instead) and two stacked on one field (both ship); move or delete the old
 block rather than adding another. Shared rule: tosijs-coding-practices
 `releasing.md` → "If the release changes behaviour, sweep the docs and demos".
 
+**For a minor, also: every headline feature in the CHANGELOG's summary is
+reachable from `README.md`**, by name and by a link that resolves on the built
+site. README is the npm and GitHub landing page, and a feature it does not
+name is one an adopter does not find (its own "Finding things" section says
+so). The 0.11 gate found README silent on both of that release's headline
+features, retargeting and effects.
+
 5a. **MINOR AND MAJOR ONLY — drive every demo, flat AND in VR.** A human, on the
 real thing, page by page.
 
