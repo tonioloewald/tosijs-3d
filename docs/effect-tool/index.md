@@ -33,3 +33,27 @@ Tap the scene once so the browser lets it make sound.
 
 The element carries `.effect`: `recipe` (a copy; set one to play it) and
 `player`, for a page or an editor driving the tool.
+
+## In an editor: mounting it in your scene
+
+`mountEffectTool(b3d, options)` opens the tool in a `<tosi-b3d>` you already
+have, on the same contract as the rig tool's `mountRigTool` (tosijs-3d#122):
+
+```javascript
+import { mountEffectTool } from 'tosijs-3d/effect-tool'
+
+const tool = mountEffectTool(scene, {
+  recipe: piece.recipe,
+  target: piece.node, // where it plays
+  files: false, // the host keeps the recipe
+  stage: false, // no ground or backdrop
+  camera: editorCamera, // put back exactly on unmount
+})
+tool.addEventListener('commit', (e) => doc.record(e.detail.recipe))
+tool.unmount()
+```
+
+`change` on every edit, `commit` once per finished gesture, each with a copy
+of the recipe; hosted, its panel is a system panel; `unmount()` (safe twice)
+returns the scene's counts to where they were, including the effect player's
+shared driver and sprites, which now go with a scene's last player.

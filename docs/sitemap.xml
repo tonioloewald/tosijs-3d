@@ -23,6 +23,7 @@
   <url><loc>https://3d.tosijs.net/b3d-terrain/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-water/</loc></url>
   <url><loc>https://3d.tosijs.net/ballistics/</loc></url>
+  <url><loc>https://3d.tosijs.net/bar-menu/</loc></url>
   <url><loc>https://3d.tosijs.net/biome-chart/</loc></url>
   <url><loc>https://3d.tosijs.net/playground/</loc></url>
   <url><loc>https://3d.tosijs.net/box/</loc></url>
@@ -60,6 +61,7 @@
   <url><loc>https://3d.tosijs.net/mersenne-twister/</loc></url>
   <url><loc>https://3d.tosijs.net/rig-markers/</loc></url>
   <url><loc>https://3d.tosijs.net/scatter/</loc></url>
+  <url><loc>https://3d.tosijs.net/seam-material/</loc></url>
   <url><loc>https://3d.tosijs.net/system-layout/</loc></url>
   <url><loc>https://3d.tosijs.net/table-layout/</loc></url>
   <url><loc>https://3d.tosijs.net/theme-editor/</loc></url>
@@ -174,6 +176,7 @@
   <url><loc>https://3d.tosijs.net/terrain/</loc></url>
   <url><loc>https://3d.tosijs.net/touch-orbit/</loc></url>
   <url><loc>https://3d.tosijs.net/world-topology/</loc></url>
+  <url><loc>https://3d.tosijs.net/inspect-view/</loc></url>
   <url><loc>https://3d.tosijs.net/gas-giant/</loc></url>
   <url><loc>https://3d.tosijs.net/color-picker/</loc></url>
   <url><loc>https://3d.tosijs.net/rocky-world/</loc></url>

@@ -369,6 +369,14 @@ const NEXT = {
         [`${f}2`, `${f}3`],
     ])),
 };
+/** The body's axis: its lean at rest is its shape, not a pose (see ALIGNMENT). */
+const AXIAL = new Set([
+    'hips',
+    'spine',
+    'chest',
+    'neck',
+    'head',
+]);
 /** The fingers a hand is aimed along, best first: the middle runs down its centre. */
 const HAND_AIM = ['middle', 'index', 'ring', 'pinky'];
 function restDirection(role, sk, world, toward) {
@@ -532,6 +540,18 @@ export function retargeter(source, target, options = {}) {
                 });
                 continue;
             }
+        }
+        /*
+        THE BODY'S AXIS IS NOT LINED UP. A limb's rest direction is a POSE (arms
+        out or down), so lining it up is right; how the hips, spine, neck and
+        head lean at rest is the body's SHAPE. A weasel's neck leans forward to
+        a chin under its snout, and lined up with the mannequin's upright one it
+        was pulled back, tipping the head up through every clip (Tonio). They
+        take the clip's turn as it is.
+        */
+        if (AXIAL.has(r)) {
+            align.set(r, IDENTITY);
+            continue;
         }
         const ds = restDirection(r, source, sRest, toward);
         const dt2 = toward != null ? restDirection(r, target, tRest, toward) : dt;

@@ -199,6 +199,8 @@ preview.append(
 
 The biped automatically transitions between animation states based on input:
 `idle`, `walk`, `run`, `walkBackwards`, `sneak`, `jump`, `swim`, `dance`, `pilot`, etc.
+Near full speed it plays `sprint` if the rig has it (UAL's `Sprint_Loop`, which
+`ualAnimationStates()` maps), and `run` (a jog) below that.
 
 Animation names in the GLB must match these names.
 
@@ -1145,6 +1147,8 @@ export class B3dBiped extends B3dControllable {
         return base.add(dir.scale(0.35));
     }
     _sneaking = false;
+    /** Playing the sprint clip (held until the speed drops back a little). */
+    _sprinting = false;
     /** Held the jump button while grounded: winding up, not yet launched. */
     _jumpWasDown = false;
     /** Off the ground and not in water — the jump clip owns the animation. */
@@ -2811,7 +2815,21 @@ export class B3dBiped extends B3dControllable {
                 this.setAnimationState('sneak', Math.abs(speed) + 0.25);
             }
             else if (speed > 0.1) {
-                if (sprintSpeed > 0.25) {
+                /*
+                RUN, THEN SPRINT. The jog is the run up to near full speed; past it,
+                the rig's own sprint (UAL's `Sprint_Loop`) if it has one, held until
+                the speed drops back a little, so an analog trigger near the line
+                does not flicker between the two (Tonio: use the real sprint as the
+                top speed).
+                */
+                const sprintAt = this._sprinting ? 0.7 : 0.8;
+                this._sprinting =
+                    sprintSpeed > sprintAt &&
+                        this.animationStates.some((st) => st.name === 'sprint');
+                if (this._sprinting) {
+                    this.setAnimationState('sprint', sprintSpeed);
+                }
+                else if (sprintSpeed > 0.25) {
                     this.setAnimationState('run', sprintSpeed + 0.25);
                 }
                 else {

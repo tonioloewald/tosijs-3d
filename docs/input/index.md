@@ -17,6 +17,7 @@ to know why.
 - [b3d-input-focus](/b3d-input-focus/)
 - [glass-gamepad (b3dGamepad)](/glass-gamepad/)
 - [touch-orbit](/touch-orbit/)
+- [inspect-view](/inspect-view/)
 - [game-controller](/game-controller/)
 - [How input works](/input-internals/)
 <!-- /toc -->

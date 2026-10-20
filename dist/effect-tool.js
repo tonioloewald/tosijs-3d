@@ -34,14 +34,39 @@ Tap the scene once so the browser lets it make sound.
 
 The element carries `.effect`: `recipe` (a copy; set one to play it) and
 `player`, for a page or an editor driving the tool.
+
+## In an editor: mounting it in your scene
+
+`mountEffectTool(b3d, options)` opens the tool in a `<tosi-b3d>` you already
+have, on the same contract as the rig tool's `mountRigTool` (tosijs-3d#122):
+
+```javascript
+import { mountEffectTool } from 'tosijs-3d/effect-tool'
+
+const tool = mountEffectTool(scene, {
+  recipe: piece.recipe,
+  target: piece.node, // where it plays
+  files: false, // the host keeps the recipe
+  stage: false, // no ground or backdrop
+  camera: editorCamera, // put back exactly on unmount
+})
+tool.addEventListener('commit', (e) => doc.record(e.detail.recipe))
+tool.unmount()
+```
+
+`change` on every edit, `commit` once per finished gesture, each with a copy
+of the recipe; hosted, its panel is a system panel; `unmount()` (safe twice)
+returns the scene's counts to where they were, including the effect player's
+shared driver and sprites, which now go with a scene's last player.
 */
 /*{ "parent": "demos", "order": 36 }*/
 import * as BABYLON from '@babylonjs/core';
 import { b3d } from './tosi-b3d.js';
 import { b3dLight } from './b3d-light.js';
 import { b3dSkybox } from './b3d-skybox.js';
+import { b3dPanel } from './b3d-panel.js';
 import { GridMaterial } from '@babylonjs/materials';
-import { button3d, label3d, select3d, slider3d, toggle3d, } from './widgets3d.js';
+import { button3d, label3d, panel3d, select3d, slider3d, toggle3d, } from './widgets3d.js';
 import { color3d } from './color-field.js';
 import { touchOrbit } from './touch-orbit.js';
 import { EffectPlayer } from './effect-player.js';
@@ -77,7 +102,19 @@ function chooseFile(accept) {
         input.click();
     });
 }
-export function effectTool() {
+/**
+ * MOUNT THE EFFECT TOOL in an existing `<tosi-b3d>` (tosijs-3d#122), on the
+ * same contract as `mountRigTool`: `change` per edit and `commit` per
+ * finished gesture with a copy of the recipe, `files`, `stage`, a camera put
+ * back on unmount, and a system panel when hosted.
+ */
+export function mountEffectTool(owner, options = {}) {
+    const files = options.files !== false;
+    const hosted = options.hosted !== false;
+    const staged = options.stage !== false;
+    const events = new EventTarget();
+    let disposed = false;
+    const cleanups = [];
     const ui = {
         preset: 'volcano',
         layer: 0,
@@ -87,18 +124,68 @@ export function effectTool() {
         backdrop: 'grid',
         status: '',
     };
-    let recipe = recall(ui.preset) ?? effectPreset(ui.preset);
+    let recipe = options.recipe != null
+        ? clone(options.recipe)
+        : (files ? recall(ui.preset) : null) ?? effectPreset(ui.preset);
+    if (options.recipe != null)
+        ui.preset =
+            recipe.name != null && EFFECT_PRESETS[recipe.name] != null
+                ? recipe.name
+                : 'custom';
     let player = null;
     let cam = null;
-    let el = null;
-    const refresh = () => el?.refreshScenePanel();
+    // The panel: the scene's settings panel standalone, a system panel hosted.
+    let panelEl = null;
+    const panelSvg = () => {
+        const svg = panel3d({ width: 300, height: 'fit', maxHeight: 640 }, ...panel());
+        const inner = svg.handlePointer;
+        if (inner != null)
+            svg.handlePointer = (k, x, y) => {
+                const r = inner(k, x, y);
+                if (k === 'up')
+                    commitNow();
+                return r;
+            };
+        return svg;
+    };
+    const refresh = () => {
+        if (disposed)
+            return;
+        if (!hosted)
+            owner.refreshScenePanel?.();
+        else if (panelEl != null)
+            panelEl.svg = panelSvg();
+    };
+    // Change on every edit; one commit when a gesture ends (or edits pause).
+    const emit = (type) => events.dispatchEvent(new CustomEvent(type, { detail: { recipe: clone(recipe) } }));
+    let dirty = false;
+    let idle = null;
+    function commitNow() {
+        if (idle != null)
+            clearTimeout(idle);
+        idle = null;
+        if (!dirty || disposed)
+            return;
+        dirty = false;
+        emit('commit');
+    }
+    function edited() {
+        if (files)
+            remember(ui.preset, recipe);
+        dirty = true;
+        emit('change');
+        if (idle != null)
+            clearTimeout(idle);
+        idle = setTimeout(commitNow, 800);
+    }
     /*
     A FIREBALL rides a projectile, so it has no height of its own: shown here
     it would sit half in the ground. Lifted for viewing only.
     */
     let here = null;
     const lift = () => {
-        if (here != null)
+        // A host's target is placed by the host.
+        if (here != null && options.target == null)
             here.position.y = recipe.name === 'fireball' ? 1.5 : 0;
     };
     const sky = b3dSkybox({ timeOfDay: ui.timeOfDay });
@@ -113,7 +200,7 @@ export function effectTool() {
     const setBackdrop = (b) => {
         ui.backdrop = b;
         if (b === 'sky' && sky.parentElement == null)
-            el?.append(sky);
+            owner.append(sky);
         if (b === 'grid' && sky.parentElement != null)
             sky.remove();
         if (ground != null)
@@ -134,7 +221,7 @@ export function effectTool() {
     };
     /** The recipe changed: play the new one (a one-shot from the start). */
     const changed = (restart = false) => {
-        remember(ui.preset, recipe);
+        edited();
         if (player == null)
             return;
         lift();
@@ -247,7 +334,8 @@ export function effectTool() {
                     if (v === 'custom')
                         return;
                     ui.preset = String(v);
-                    recipe = recall(ui.preset) ?? effectPreset(ui.preset);
+                    recipe =
+                        (files ? recall(ui.preset) : null) ?? effectPreset(ui.preset);
                     ui.layer = 0;
                     if (player != null) {
                         player.activity = recipe.activity ?? 1;
@@ -268,7 +356,7 @@ export function effectTool() {
                     if (player != null)
                         player.activity = v;
                     recipe.activity = v;
-                    remember(ui.preset, recipe);
+                    edited();
                 },
             }),
         ];
@@ -282,7 +370,7 @@ export function effectTool() {
                     if (player != null)
                         player.activity = a;
                     recipe.activity = a;
-                    remember(ui.preset, recipe);
+                    edited();
                     refresh();
                 },
             }));
@@ -309,27 +397,32 @@ export function effectTool() {
                 // the drag to end.
                 refresh();
             },
-        }), select3d({
-            label: 'backdrop',
-            value: ui.backdrop,
-            options: ['grid', 'sky'],
-            handleChange: (v) => {
-                setBackdrop(v);
-                refresh();
-            },
-        }), ...(ui.backdrop === 'sky'
+        }), ...(staged
             ? [
-                slider3d({
-                    label: 'time of day',
-                    value: ui.timeOfDay,
-                    min: 0,
-                    max: 24,
-                    step: 0.1,
+                select3d({
+                    label: 'backdrop',
+                    value: ui.backdrop,
+                    options: ['grid', 'sky'],
                     handleChange: (v) => {
-                        ui.timeOfDay = v;
-                        sky.timeOfDay = v;
+                        setBackdrop(v);
+                        refresh();
                     },
                 }),
+                ...(ui.backdrop === 'sky'
+                    ? [
+                        slider3d({
+                            label: 'time of day',
+                            value: ui.timeOfDay,
+                            min: 0,
+                            max: 24,
+                            step: 0.1,
+                            handleChange: (v) => {
+                                ui.timeOfDay = v;
+                                sky.timeOfDay = v;
+                            },
+                        }),
+                    ]
+                    : []),
             ]
             : []), label3d({ text: status(), muted: true, compact: true }), label3d({ text: 'Layers', collapsible: true, open: true }), select3d({
             label: 'layer',
@@ -342,42 +435,48 @@ export function effectTool() {
                 ui.layer = Number(v);
                 refresh();
             },
-        }), ...(layers[ui.layer] != null ? layerWidgets(layers[ui.layer]) : []), label3d({ text: 'Recipe', collapsible: true }), button3d({
-            label: 'save',
-            handleClick: () => {
-                const url = URL.createObjectURL(new Blob([JSON.stringify(recipe, null, 2)], {
-                    type: 'application/json',
-                }));
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${recipe.name ?? ui.preset}.effect.json`;
-                a.click();
-                setTimeout(() => URL.revokeObjectURL(url), 1000);
-            },
-        }), button3d({
-            label: 'load',
-            handleClick: () => void chooseFile('.json').then(async (f) => {
-                if (f == null)
-                    return;
-                try {
-                    const r = JSON.parse(await f.text());
-                    const problems = validateEffectRecipe(r);
-                    if (problems.length)
-                        ui.status = `not an effect: ${problems[0]}`;
-                    else {
-                        adopt(r);
-                        changed(true);
-                    }
-                }
-                catch (e) {
-                    ui.status = `could not read it: ${e.message}`;
-                }
-                refresh();
-            }),
-        }), button3d({
-            label: 'copy',
-            handleClick: () => void navigator.clipboard?.writeText(JSON.stringify(recipe, null, 2)),
-        }), button3d({
+        }), ...(layers[ui.layer] != null ? layerWidgets(layers[ui.layer]) : []), label3d({ text: 'Recipe', collapsible: true }), ...(files
+            ? [
+                button3d({
+                    label: 'save',
+                    handleClick: () => {
+                        const url = URL.createObjectURL(new Blob([JSON.stringify(recipe, null, 2)], {
+                            type: 'application/json',
+                        }));
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${recipe.name ?? ui.preset}.effect.json`;
+                        a.click();
+                        setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    },
+                }),
+                button3d({
+                    label: 'load',
+                    handleClick: () => void chooseFile('.json').then(async (f) => {
+                        if (f == null)
+                            return;
+                        try {
+                            const r = JSON.parse(await f.text());
+                            const problems = validateEffectRecipe(r);
+                            if (problems.length)
+                                ui.status = `not an effect: ${problems[0]}`;
+                            else {
+                                adopt(r);
+                                changed(true);
+                            }
+                        }
+                        catch (e) {
+                            ui.status = `could not read it: ${e.message}`;
+                        }
+                        refresh();
+                    }),
+                }),
+                button3d({
+                    label: 'copy',
+                    handleClick: () => void navigator.clipboard?.writeText(JSON.stringify(recipe, null, 2)),
+                }),
+            ]
+            : []), button3d({
             label: 'start over',
             handleClick: () => {
                 recipe = effectPreset(ui.preset) ?? recipe;
@@ -392,43 +491,95 @@ export function effectTool() {
             w.push(label3d({ text: ui.status, muted: true, compact: true }));
         return w;
     };
-    el = b3d({
-        style: { width: '100%', height: '100%' },
-        clearColor: '#6b6e73',
-        panelTitle: 'Effect',
-        scenePanelOpen: true,
-        scenePanel: panel,
-        sceneCreated(owner) {
-            const scene = owner.scene;
-            cam = new BABYLON.ArcRotateCamera('effect-cam', -2.1, 1.3, ui.distance, new BABYLON.Vector3(-8, 6, 0), scene);
-            cam.minZ = 0.1;
-            cam.maxZ = 4000;
-            cam.attachControl(owner.querySelector('canvas'), true);
-            touchOrbit(cam);
-            owner.setActiveCamera(cam);
-            ground = BABYLON.MeshBuilder.CreateGround('effect-ground', { width: 1600, height: 1600 }, scene);
-            groundPlain = new BABYLON.StandardMaterial('effect-ground', scene);
-            groundPlain.diffuseColor = new BABYLON.Color3(0.32, 0.3, 0.28);
-            groundPlain.specularColor = BABYLON.Color3.Black();
-            // Lines every metre, heavier every ten.
-            groundGrid = new GridMaterial('effect-grid', scene);
-            groundGrid.gridRatio = 1;
-            groundGrid.majorUnitFrequency = 10;
-            groundGrid.minorUnitVisibility = 0.35;
-            groundGrid.mainColor = new BABYLON.Color3(0.36, 0.37, 0.39);
-            groundGrid.lineColor = new BABYLON.Color3(0.58, 0.6, 0.63);
-            setBackdrop(ui.backdrop);
-            const node = new BABYLON.TransformNode('effect-here', scene);
-            here = node;
-            lift();
-            player = new EffectPlayer(scene, node, clone(recipe), {
-                windAt: (x, z) => owner.weatherAt(x, z).wind,
-            });
-            player.play();
-            refresh();
-        },
-    }, b3dLight({ intensity: 0.5 }));
-    el.effect = {
+    if (hosted) {
+        panelEl = b3dPanel({
+            icon: 'star',
+            title: 'Effect',
+            exclusive: 'off',
+            open: true,
+        });
+        panelEl.svg = panelSvg();
+        owner.append(panelEl);
+        cleanups.push(() => {
+            owner._closeSystemPanel?.(panelEl);
+            panelEl?.remove();
+        });
+    }
+    const scene = owner.scene;
+    // The camera: a host's is driven and restored exactly; else our own.
+    if (options.camera != null) {
+        const c = options.camera;
+        cam = c;
+        const was = {
+            alpha: c.alpha,
+            beta: c.beta,
+            radius: c.radius,
+            target: c.target.clone(),
+            minZ: c.minZ,
+            maxZ: c.maxZ,
+        };
+        cleanups.push(() => {
+            c.minZ = was.minZ;
+            c.maxZ = was.maxZ;
+            c.setTarget(was.target);
+            c.alpha = was.alpha;
+            c.beta = was.beta;
+            c.radius = was.radius;
+        });
+    }
+    else {
+        const before = scene.activeCamera;
+        const own = new BABYLON.ArcRotateCamera('effect-cam', -2.1, 1.3, ui.distance, new BABYLON.Vector3(-8, 6, 0), scene);
+        own.minZ = 0.1;
+        own.maxZ = 4000;
+        own.attachControl(scene.getEngine().getRenderingCanvas(), true);
+        const unOrbit = touchOrbit(own);
+        owner.setActiveCamera(own);
+        cam = own;
+        cleanups.push(() => {
+            unOrbit();
+            if (before != null && !before.isDisposed())
+                owner.setActiveCamera(before);
+            own.dispose();
+        });
+    }
+    if (staged) {
+        const g = BABYLON.MeshBuilder.CreateGround('effect-ground', { width: 1600, height: 1600 }, scene);
+        ground = g;
+        const plain = new BABYLON.StandardMaterial('effect-ground', scene);
+        groundPlain = plain;
+        plain.diffuseColor = new BABYLON.Color3(0.32, 0.3, 0.28);
+        plain.specularColor = BABYLON.Color3.Black();
+        // Lines every metre, heavier every ten.
+        const grid = new GridMaterial('effect-grid', scene);
+        groundGrid = grid;
+        grid.gridRatio = 1;
+        grid.majorUnitFrequency = 10;
+        grid.minorUnitVisibility = 0.35;
+        grid.mainColor = new BABYLON.Color3(0.36, 0.37, 0.39);
+        grid.lineColor = new BABYLON.Color3(0.58, 0.6, 0.63);
+        setBackdrop(ui.backdrop);
+        cleanups.push(() => {
+            sky.remove();
+            g.dispose();
+            plain.dispose();
+            grid.dispose();
+        });
+    }
+    const node = options.target ?? new BABYLON.TransformNode('effect-here', scene);
+    if (options.target == null)
+        cleanups.push(() => node.dispose());
+    here = node;
+    lift();
+    player = new EffectPlayer(scene, node, clone(recipe), {
+        windAt: (x, z) => owner.weatherAt(x, z).wind,
+    });
+    player.play();
+    cleanups.push(() => {
+        player?.dispose();
+        player = null;
+    });
+    const api = {
         get recipe() {
             return clone(recipe);
         },
@@ -437,13 +588,64 @@ export function effectTool() {
             if (problems.length)
                 throw new Error(`not an effect recipe: ${problems[0]}`);
             adopt(r);
-            changed(true);
+            // The host's own edit: played, not announced back to it.
+            if (files)
+                remember(ui.preset, recipe);
+            if (player != null) {
+                lift();
+                player.setRecipe(clone(recipe));
+                player.play();
+            }
             refresh();
         },
         get player() {
             return player;
         },
     };
+    const handle = events;
+    handle.api = api;
+    handle.widgets = panel;
+    handle.unmount = () => {
+        if (disposed)
+            return;
+        commitNow();
+        disposed = true;
+        if (idle != null)
+            clearTimeout(idle);
+        for (const undo of cleanups.reverse()) {
+            try {
+                undo();
+            }
+            catch (e) {
+                console.warn('effect tool: unmount step failed', e);
+            }
+        }
+        cleanups.length = 0;
+    };
+    refresh();
+    return handle;
+}
+/**
+ * The effect tool page: a `<tosi-b3d>` of its own with the tool mounted in
+ * it, its panel the scene's settings panel. `el.effect` is the API;
+ * `change` and `commit` are dispatched on the element.
+ */
+export function effectTool() {
+    let handle = null;
+    const el = b3d({
+        style: { width: '100%', height: '100%' },
+        clearColor: '#6b6e73',
+        panelTitle: 'Effect',
+        scenePanelOpen: true,
+        scenePanel: () => handle?.widgets() ?? [],
+        sceneCreated(owner) {
+            handle = mountEffectTool(owner, { hosted: false });
+            for (const type of ['change', 'commit'])
+                handle.addEventListener(type, (e) => el.dispatchEvent(new CustomEvent(type, { detail: e.detail })));
+            el.effect = handle.api;
+            owner.refreshScenePanel?.();
+        },
+    }, b3dLight({ intensity: 0.5 }));
     return el;
 }
 //# sourceMappingURL=effect-tool.js.map

@@ -19,7 +19,7 @@ quieter and duller with distance.
 */
 import * as BABYLON from '@babylonjs/core';
 import { distanceCutoff, layerAt, rankLights, sampleCurve, soundDelay, } from './effect-recipe.js';
-import { effectSprite, effectTexture } from './effect-sprites.js';
+import { effectSprite, effectTexture, releaseEffectSprites, } from './effect-sprites.js';
 import { placeListener, startVoice } from './effect-audio.js';
 import { sceneDelta } from './b3d-utils.js';
 import { qualityBudgets } from './b3d-quality.js';
@@ -38,6 +38,23 @@ function sceneEffects(scene) {
     scene.onDisposeObservable.addOnce(() => perScene.delete(scene));
     perScene.set(scene, fresh);
     return fresh;
+}
+/*
+THE LAST PLAYER TAKES THE SHARED PARTS WITH IT: the scene's driver, its
+pooled lights and the sprites. A scene that played an effect is left as it
+was (a host's editor checks that mounting a tool and unmounting it returns
+every count, tosijs-3d#122); the next effect makes them again.
+*/
+function releaseSceneEffects(scene) {
+    const s = perScene.get(scene);
+    if (s == null || s.players.size > 0)
+        return;
+    scene.onBeforeRenderObservable.remove(s.observer);
+    for (const l of s.lights)
+        l.light.dispose();
+    s.lights = [];
+    perScene.delete(scene);
+    releaseEffectSprites(scene);
 }
 /** Every player, then the pools. */
 function tick(scene, s) {
@@ -143,6 +160,7 @@ export class EffectPlayer {
     setRecipe(recipe) {
         for (const r of this.runtimes)
             r.dispose();
+        this.ownSystems.clear();
         this.recipe = recipe;
         this.build();
     }
@@ -150,7 +168,9 @@ export class EffectPlayer {
         for (const r of this.runtimes)
             r.dispose();
         this.runtimes = [];
+        this.ownSystems.clear();
         this.shared.players.delete(this);
+        releaseSceneEffects(this.scene);
     }
     /** Particles alive now, for the scene's budget. */
     particlesAlive() {
@@ -189,7 +209,23 @@ export class EffectPlayer {
             : l.kind === 'light'
                 ? this.light(l)
                 : this.sound(l));
+        /*
+        GLOW DRAWS LAST. Babylon draws particle systems in the order they were
+        made, not by depth, so a smoke layer listed after a fire layer painted
+        over it: the explosion's flash and the fireball's core went murky behind
+        their own smoke (Tonio). Additive light on top of smoke reads as fire in
+        smoke, which is what it is.
+        */
+        const list = this.scene.particleSystems;
+        const glows = list.filter((ps) => ps.blendMode === BABYLON.ParticleSystem.BLENDMODE_ADD &&
+            this.ownSystems.has(ps));
+        for (const ps of glows) {
+            list.splice(list.indexOf(ps), 1);
+            list.push(ps);
+        }
     }
+    /** The particle systems this player made, so it reorders only its own. */
+    ownSystems = new Set();
     particles(l0) {
         const scene = this.scene;
         const k = this.options.scale ?? 1;
@@ -211,6 +247,7 @@ export class EffectPlayer {
         const burst = l.burst ?? 0;
         const capacity = Math.min(4000, Math.ceil(l.rate * l.life[1] * 1.2 + burst * 1.2 + 8));
         const ps = new BABYLON.ParticleSystem(`effect-${l.name ?? 'particles'}`, capacity, scene);
+        this.ownSystems.add(ps);
         ps.particleTexture = l.texture
             ? effectTexture(scene, l.texture)
             : effectSprite(scene, l.sprite);

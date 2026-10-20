@@ -67,6 +67,8 @@ export declare class EffectPlayer {
     /** One frame. Called by the scene's effect observer. */
     step(dt: number, throttle: number, s: SceneEffects): void;
     private build;
+    /** The particle systems this player made, so it reorders only its own. */
+    private ownSystems;
     private particles;
     private light;
     private sound;

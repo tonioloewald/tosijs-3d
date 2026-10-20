@@ -1652,7 +1652,8 @@ export function slider3d(config) {
             : String(Number(v.toPrecision(3)));
     const formatNumber = config.format ??
         (scale === 'log' ? logFormat : (v) => v.toFixed(decimals));
-    const onStop = (v) => stops.find((s) => s.label && Math.abs(v - s.value) <= 1e-9 * Math.max(1, Math.abs(s.value)));
+    const onStop = (v) => stops.find((s) => s.label &&
+        Math.abs(v - s.value) <= 1e-9 * Math.max(1, Math.abs(s.value)));
     const format = (v) => {
         const s = onStop(v);
         return s ? `${formatNumber(v)} ${s.label}` : formatNumber(v);
@@ -1734,7 +1735,9 @@ export function slider3d(config) {
     // x is the widget-local SVG x — no CTM/clientX, so this works in-scene/VR too.
     const STOP_CATCH = 8; // px: the detent's reach either side of a stop
     const setFromX = (x) => {
-        const caught = stops.find((s) => Math.abs(trackX + valueToFraction(s.value, min, max, scale, zeroStop) * trackW - x) <= STOP_CATCH);
+        const caught = stops.find((s) => Math.abs(trackX +
+            valueToFraction(s.value, min, max, scale, zeroStop) * trackW -
+            x) <= STOP_CATCH);
         const f = (x - trackX) / (trackW || 1);
         bound.set(caught
             ? caught.value

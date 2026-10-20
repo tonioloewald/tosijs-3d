@@ -488,6 +488,8 @@ export declare class B3dBiped extends B3dControllable {
      */
     get aimOrigin(): BABYLON.Vector3;
     private _sneaking;
+    /** Playing the sprint clip (held until the speed drops back a little). */
+    private _sprinting;
     /** Held the jump button while grounded: winding up, not yet launched. */
     private _jumpWasDown;
     /** Off the ground and not in water — the jump clip owns the animation. */

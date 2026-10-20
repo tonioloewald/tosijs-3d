@@ -5528,6 +5528,37 @@
     ]
   },
   {
+    "module": "seam-material",
+    "summary": "seam-material",
+    "attributes": [
+      {
+        "name": "fill",
+        "default": "'#c99ba6'",
+        "description": "the flat colour (a desaturated pink)"
+      },
+      {
+        "name": "line",
+        "default": "'#ffffff'",
+        "description": "the edges' colour"
+      },
+      {
+        "name": "lineAlpha",
+        "default": "0.45",
+        "description": "how strongly the edges show"
+      },
+      {
+        "name": "lineWidth",
+        "default": "1.25",
+        "description": "their width, in pixels"
+      },
+      {
+        "name": "shade",
+        "default": "0.45",
+        "description": "how much light shapes it and shadows darken it (0: perfectly flat, and no shadow shows)"
+      }
+    ]
+  },
+  {
     "module": "slope-profile",
     "summary": "slope-profile",
     "attributes": [

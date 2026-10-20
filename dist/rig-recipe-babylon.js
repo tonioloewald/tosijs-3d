@@ -11,7 +11,7 @@ import * as BABYLON from '@babylonjs/core';
 import { boneHeat } from './bone-heat.js';
 import { readSkeleton } from './retarget-babylon.js';
 import { springBones, springNodes, } from './spring-chain-babylon.js';
-import { strandDirection, } from './rig-recipe.js';
+import { strandPoints, } from './rig-recipe.js';
 /** The character's frame: its placement, above glTF's mirrored `__root__`. */
 function frameOf(root) {
     const parent = root.parent;
@@ -131,10 +131,8 @@ export function applyRigRecipe(scene, root, skeleton, recipe) {
                 problems.push(`strand anchor ${s.anchor} is not in this model`);
                 continue;
             }
-            const start = anchor.getAbsolutePosition().add(inFrame(s.offset));
-            const dir = inFrame(strandDirection(s.yawDeg, s.pitchDeg));
-            const n = Math.max(1, Math.round(s.segments));
-            const points = Array.from({ length: n + 1 }, (_, i) => start.add(dir.scale((s.length * i) / n)));
+            const base = anchor.getAbsolutePosition();
+            const points = strandPoints(s).map((p) => base.add(inFrame(p)));
             const bones = springBones(scene, anchor, points, {
                 params,
                 colliders: collidersOf(s),

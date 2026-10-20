@@ -38,6 +38,89 @@ export function strandDirection(yawDeg, pitchDeg) {
     const c = Math.cos(p);
     return { x: -Math.sin(y) * c, y: Math.sin(p), z: -Math.cos(y) * c };
 }
+/**
+ * A strand's joints at rest, `segments + 1` points from the anchor in the
+ * character's frame: evenly spaced along its `path`, or along the straight
+ * line its offset, direction and length describe.
+ */
+export function strandPoints(s) {
+    const n = Math.max(1, Math.round(s.segments));
+    const path = s.path != null && s.path.length >= 2
+        ? s.path
+        : (() => {
+            const d = strandDirection(s.yawDeg, s.pitchDeg);
+            return [
+                s.offset,
+                {
+                    x: s.offset.x + d.x * s.length,
+                    y: s.offset.y + d.y * s.length,
+                    z: s.offset.z + d.z * s.length,
+                },
+            ];
+        })();
+    const legs = path.slice(1).map((p, i) => {
+        const q = path[i];
+        return Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z);
+    });
+    const total = legs.reduce((a, b) => a + b, 0);
+    const out = [];
+    for (let k = 0; k <= n; k++) {
+        let want = (total * k) / n;
+        let i = 0;
+        while (i < legs.length - 1 && want > legs[i])
+            want -= legs[i++];
+        const a = path[i];
+        const b = path[i + 1];
+        const t = legs[i] > 0 ? Math.min(1, want / legs[i]) : 0;
+        out.push({
+            x: a.x + (b.x - a.x) * t,
+            y: a.y + (b.y - a.y) * t,
+            z: a.z + (b.z - a.z) * t,
+        });
+    }
+    return out;
+}
+/** A strand's path: its own, or the straight two-point one it describes. */
+export function strandPath(s) {
+    if (s.path != null && s.path.length >= 2)
+        return s.path.map((p) => ({ ...p }));
+    const d = strandDirection(s.yawDeg, s.pitchDeg);
+    return [
+        { ...s.offset },
+        {
+            x: s.offset.x + d.x * s.length,
+            y: s.offset.y + d.y * s.length,
+            z: s.offset.z + d.z * s.length,
+        },
+    ];
+}
+/**
+ * Lay a strand along `path`, keeping `offset`, `length`, `yawDeg` and
+ * `pitchDeg` true to it (its first point, total length and first leg), so a
+ * reader that knows nothing of paths still gets the right start and reach.
+ */
+export function setStrandPath(s, path) {
+    if (path.length < 2)
+        return;
+    const a = path[0];
+    const b = path[1];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const dz = b.z - a.z;
+    const leg = Math.hypot(dx, dy, dz) || 1;
+    s.path = path.map((p) => ({ ...p }));
+    s.offset = { ...a };
+    s.length = pathLength(path);
+    s.pitchDeg = (Math.asin(Math.max(-1, Math.min(1, dy / leg))) * 180) / Math.PI;
+    s.yawDeg = (Math.atan2(-dx, -dz) * 180) / Math.PI;
+}
+/** The length of a path (the sum of its legs). */
+export function pathLength(path) {
+    let total = 0;
+    for (let i = 1; i < path.length; i++)
+        total += Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y, path[i].z - path[i - 1].z);
+    return total;
+}
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const isVec = (v) => v != null &&
     typeof v === 'object' &&
@@ -88,6 +171,14 @@ export function validateRigRecipe(doc) {
                 out.push(`${at}.segments is not 1 to 64`);
             if (isNum(s.length) && s.length <= 0)
                 out.push(`${at}.length is not positive`);
+            if (s.path != null) {
+                if (!Array.isArray(s.path) || s.path.length < 2)
+                    out.push(`${at}.path is not a list of two or more points`);
+                else if (!s.path.every(isVec))
+                    out.push(`${at}.path has a point that is not {x, y, z}`);
+                else if (pathLength(s.path) <= 0)
+                    out.push(`${at}.path has no length`);
+            }
         }
         else
             out.push(`${at}.kind is not 'bones' or 'strand'`);
@@ -238,6 +329,13 @@ export function rigRecipeSchema() {
                                     minimum: 1,
                                     maximum: 64,
                                     default: 6,
+                                    description: 'How many links, spaced evenly along it.',
+                                },
+                                path: {
+                                    type: 'array',
+                                    description: 'The line it follows at rest, root first, each point from the anchor in metres. When given, the chain is laid along it.',
+                                    minItems: 2,
+                                    items: vec3('A point, from the anchor, in metres.'),
                                 },
                                 radius: { type: 'number', minimum: 0, default: 0.035, ...M },
                                 tipRadius: { type: 'number', minimum: 0, default: 0.012, ...M },

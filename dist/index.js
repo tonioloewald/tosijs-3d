@@ -111,6 +111,7 @@ export { XrGamepadSource } from './xr-gamepad.js';
 export { XrFrames, EntityFrame, angleDelta, dampYaw, facingYaw, gazeReveal, } from './xr-frames.js';
 export { attachFramePanel, panelLayerScene, pickPanelLayers, placeholderPanelSvg, opacityWeightedGlow, excludeFromGlow, } from './frame-panel.js';
 export { B3dPanel, b3dPanel } from './b3d-panel.js';
+export { barMenu, viewMenu, } from './bar-menu.js';
 export { B3dMoon, b3dMoon } from './b3d-moon.js';
 export { GAS_GIANTS, GAS_GIANT_GLSL, resolveGasGiant, gasGiantRgb, } from './gas-giant.js';
 export { ROCKY_WORLDS, resolveRockyWorld } from './rocky-world.js';
@@ -446,6 +447,8 @@ export { themeEditor, FONT_STACKS } from './theme-editor.js';
 export { registerSvgFont, unregisterSvgFont, fontFaceCss, svgFontStyle, base64OfBytes, } from './embed-font.js';
 // The orbit camera's view controls: orbit, pan (shift-drag, trackpad, two fingers), zoom (#52).
 export { touchOrbit } from './touch-orbit.js';
+export { inspectView, inspectStage, seamOverlay, INSPECT_FACES, } from './inspect-view.js';
+export { seamMaterial, withBarycentrics, SeamPlugin, BARY_KIND, } from './seam-material.js';
 export { twoFingerGesture, wheelClassifier, } from './touch-gesture.js';
 export { costSweep, formatSweep, formatRuns, recordRun } from './cost-sweep.js';
 export { debugSink, sendDebug } from './debug-sink.js';

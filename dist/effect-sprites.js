@@ -141,4 +141,18 @@ export function effectTexture(scene, source) {
     byKey.set(source, tex);
     return tex;
 }
+/**
+ * Let go of `scene`'s sprites and pictures (its last effect is gone): they
+ * are made again if another effect asks.
+ */
+export function releaseEffectSprites(scene) {
+    for (const cache of [made, custom]) {
+        const byKey = cache.get(scene);
+        if (byKey == null)
+            continue;
+        for (const t of byKey.values())
+            t.dispose();
+        cache.delete(scene);
+    }
+}
 //# sourceMappingURL=effect-sprites.js.map

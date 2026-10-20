@@ -39,7 +39,16 @@ export interface StrandSpringRecipe extends SpringCommon {
     /** 0 is level, -90 straight down. */
     pitchDeg: number;
     length: number;
+    /** How many links (bones) the chain has, spaced evenly along it. */
     segments: number;
+    /**
+     * The line it follows at rest, root first, each point from the anchor in
+     * metres (Tonio: a tail or a ponytail is mapped out, not one stub). When
+     * given, the chain is laid along it and `offset`, `yawDeg`, `pitchDeg` and
+     * `length` only describe its first point, first leg and total length (the
+     * tool keeps them so). At least two points.
+     */
+    path?: Vec3[];
     /** The tube's radius at the root and the tip. */
     radius: number;
     tipRadius?: number;
@@ -63,6 +72,22 @@ export interface RigRecipe {
 export declare const STRAND_DEFAULTS: Omit<StrandSpringRecipe, 'anchor'>;
 /** A strand's direction as a unit vector, in the character's frame. */
 export declare function strandDirection(yawDeg: number, pitchDeg: number): Vec3;
+/**
+ * A strand's joints at rest, `segments + 1` points from the anchor in the
+ * character's frame: evenly spaced along its `path`, or along the straight
+ * line its offset, direction and length describe.
+ */
+export declare function strandPoints(s: Pick<StrandSpringRecipe, 'offset' | 'yawDeg' | 'pitchDeg' | 'length' | 'segments' | 'path'>): Vec3[];
+/** A strand's path: its own, or the straight two-point one it describes. */
+export declare function strandPath(s: Pick<StrandSpringRecipe, 'offset' | 'yawDeg' | 'pitchDeg' | 'length' | 'path'>): Vec3[];
+/**
+ * Lay a strand along `path`, keeping `offset`, `length`, `yawDeg` and
+ * `pitchDeg` true to it (its first point, total length and first leg), so a
+ * reader that knows nothing of paths still gets the right start and reach.
+ */
+export declare function setStrandPath(s: StrandSpringRecipe, path: Vec3[]): void;
+/** The length of a path (the sum of its legs). */
+export declare function pathLength(path: readonly Vec3[]): number;
 /**
  * What is wrong with `doc` as a recipe, as sentences; empty when nothing is.
  * Bone names are not checked against a model (there may not be one yet).

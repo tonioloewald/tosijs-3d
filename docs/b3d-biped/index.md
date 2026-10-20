@@ -198,6 +198,8 @@ preview.append(
 
 The biped automatically transitions between animation states based on input:
 `idle`, `walk`, `run`, `walkBackwards`, `sneak`, `jump`, `swim`, `dance`, `pilot`, etc.
+Near full speed it plays `sprint` if the rig has it (UAL's `Sprint_Loop`, which
+`ualAnimationStates()` maps), and `run` (a jog) below that.
 
 Animation names in the GLB must match these names.
 

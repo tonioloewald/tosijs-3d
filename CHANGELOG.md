@@ -6,7 +6,7 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## Unreleased
+## 0.10.19
 
 ### Added
 
@@ -33,6 +33,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **A character's head is no longer tipped back by its own neck** (Tonio: the weasels looked up). Retargeting lined every bone up with the source's rest direction, which is right for a limb (an A-pose against a T-pose) and wrong for the body's axis: the weasel's neck leans forward to a chin under its snout, and pulled upright to match the mannequin's, it tipped the head up by about 14° through every clip. The hips, spine, chest, neck and head now take the clip's turn as it is.
 - **A tap on the body no longer reassigns a bone on its own** in the rig tool (Tonio: on an iPhone the weasels' heads sank into their chests and a tail pointed forward). The chosen role starts as the head, and any press that did not travel set the head's bone to whatever was under it. On a phone that was every attempt to orbit, and the tool remembered it. Now a tap sets a bone only right after a dot, the role or `clicking sets` was chosen, and only once. `start over` clears a recipe that was already changed.
 - **The weasels' tails are stiffer** in the rig tool (Tonio: too floppy): stiffness 0.6 and damping 0.85, down from 0.25 and 0.6, which cuts the tail tip's sway on a walk to about 40%. A recipe the tool remembered keeps its own values; `start over` takes the new ones. Stiffness is the knob for floppiness: damping only trims the swing a little.
+
+Size: barrel (min, packages external) 1224.9 KB raw / 420.2 KB gz, +1.2% on 0.10.18 (inspect views, the seam material, bar menus, the inspect stage, finger and mitten fitting; the rig and effect tools are subpaths, outside the barrel).
 
 ## 0.10.18
 

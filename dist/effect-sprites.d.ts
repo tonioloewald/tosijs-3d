@@ -7,4 +7,9 @@ export declare function effectSprite(scene: BABYLON.Scene, kind: SpriteKind): BA
  * markup. Made once per scene and picture, and shared, like the sprites.
  */
 export declare function effectTexture(scene: BABYLON.Scene, source: string): BABYLON.Texture;
+/**
+ * Let go of `scene`'s sprites and pictures (its last effect is gone): they
+ * are made again if another effect asks.
+ */
+export declare function releaseEffectSprites(scene: BABYLON.Scene): void;
 //# sourceMappingURL=effect-sprites.d.ts.map

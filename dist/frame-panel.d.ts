@@ -39,6 +39,16 @@ export type PanelLayer = 'world' | 'ui' | 'modal';
  * re-anchors its panels leaves those where they were put.
  */
 export declare function screenAnchorDragged(a: ScreenAnchor): boolean;
+/**
+ * How much of the world `c` shows at distance `d` in front of it, in metres,
+ * for a view `W` by `H` pixels. An orthographic camera shows the same at
+ * every distance (its ortho box; Babylon's default is a pixel a unit), so a
+ * panel placed for a perspective one would shrink to a stamp under it.
+ */
+export declare function viewSpanAt(c: BABYLON.Camera, d: number, W: number, H: number): {
+    w: number;
+    h: number;
+};
 export declare function panelLayerScene(scene: BABYLON.Scene, layer: 'ui' | 'modal'): BABYLON.Scene;
 /**
  * HIDE EVERY PANEL for a frame or two, and put them back: the `ui` and

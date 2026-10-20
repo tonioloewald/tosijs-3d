@@ -18,6 +18,13 @@ export interface MeshQuery {
     max: Vec3;
     /** Spans inside the mesh along a ray through (x, y), front first. */
     spans(x: number, y: number): Span[];
+    /**
+     * The same mesh looked at from ABOVE: `spans(x, -z)` gives the spans of a
+     * vertical ray through (x, z), top first (`front` is the higher y). Built
+     * when first asked for. How the fingers are found: palm down in a T-pose,
+     * they are separate only from above.
+     */
+    fromAbove?(): MeshQuery;
 }
 /**
  * A mesh you can ask how deep it is, from a triangle soup (positions xyz,
@@ -34,6 +41,12 @@ export interface FittedJoint {
 }
 export interface FittedRig {
     joints: FittedJoint[];
+    /**
+     * The fingers found in the mesh, per side (`thumb`, `index`, …): those
+     * joints sit on real fingers and take the skin. Fingers not listed were
+     * placed by proportion (a mitten, or no view from above) and do not.
+     */
+    fingers?: Record<'l' | 'r', string[]>;
     /** A joint's position by name. */
     at(name: string): Vec3 | undefined;
 }

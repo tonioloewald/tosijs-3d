@@ -1,5 +1,0 @@
-import{He,V,ct,Qt}from"./site-eg49xxv2.js";import{kt}from"./site-mc23rkvk.js";import{o}from"./site-wv18jmj5.js";class Hm extends kt{constructor(e){super(ct,V,(r)=>+r,"FlowGraphBooleanToFloat",e)}}class Xm extends kt{constructor(e){super(ct,Qt,(r)=>He.FromValue(+r),"FlowGraphBooleanToInt",e)}}class Ym extends kt{constructor(e){super(V,ct,(r)=>!!r,"FlowGraphFloatToBoolean",e)}}class $m extends kt{constructor(e){super(Qt,ct,(r)=>!!r.value,"FlowGraphIntToBoolean",e)}}class jm extends kt{constructor(e){super(Qt,V,(r)=>r.value,"FlowGraphIntToFloat",e)}}class Qm extends kt{constructor(e){super(V,Qt,(r)=>{switch(e?.roundingMode){case"floor":return He.FromValue(Math.floor(r));case"ceil":return He.FromValue(Math.ceil(r));case"round":return He.FromValue(Math.round(r));default:return He.FromValue(r)}},"FlowGraphFloatToInt",e)}}var t=!1;function qm(){if(t)return;t=!0,o("FlowGraphBooleanToFloat",Hm),o("FlowGraphBooleanToInt",Xm),o("FlowGraphFloatToBoolean",Ym),o("FlowGraphIntToBoolean",$m),o("FlowGraphIntToFloat",jm),o("FlowGraphFloatToInt",Qm)}qm();
-export{Hm,Xm,Ym,$m,jm,Qm,qm};
-
-//# debugId=3CEB770A3736EF5E64756E2164756E21
-//# sourceMappingURL=site-t8bqjrm1.js.map

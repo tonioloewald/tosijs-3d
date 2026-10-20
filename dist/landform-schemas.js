@@ -105,7 +105,11 @@ export function impactCraterSchema(extra = {}) {
         x: position(),
         z: position(),
         radius: num(60, { ...M, minimum: 0.1, 'x-scale': 'log' }),
-        depth: num(15, { ...M, minimum: 0, description: 'Bowl depth below the original terrain.' }),
+        depth: num(15, {
+            ...M,
+            minimum: 0,
+            description: 'Bowl depth below the original terrain.',
+        }),
         rimHeight: derived('depth', 0.3, { ...M, minimum: 0 }),
         glow: num(0.8, {
             minimum: 0,
@@ -118,9 +122,17 @@ export function padSchema(extra = {}) {
     return schema('Pad', 'Dead-flat ground for a city or base, with a cut-and-fill skirt into the terrain.', {
         x: position(),
         z: position(),
-        radius: num(30, { ...M, minimum: 0.1, description: 'Radius of the flat interior.' }),
+        radius: num(30, {
+            ...M,
+            minimum: 0.1,
+            description: 'Radius of the flat interior.',
+        }),
         level: num(0, { ...M, description: 'Surface height (absolute).' }),
-        blend: derived('radius', 0.5, { ...M, minimum: 0, description: 'Width of the skirt outside the flat interior. Default radius × 0.5.' }),
+        blend: derived('radius', 0.5, {
+            ...M,
+            minimum: 0,
+            description: 'Width of the skirt outside the flat interior. Default radius × 0.5.',
+        }),
     }, ['x', 'z', 'radius', 'level'], extra);
 }
 export function gulleySchema(extra = {}) {
@@ -135,11 +147,26 @@ export function gulleySchema(extra = {}) {
         }),
         width: num(12, { ...M, minimum: 0.1, description: 'Floor width.' }),
         length: num(80, { ...M, minimum: 0.1 }),
-        floorY: num(0, { ...M, description: 'Floor height at the face (absolute).' }),
-        cliffHeight: num(45, { ...M, minimum: 0, description: 'Cliff height above the floor.' }),
-        faceRun: num(18, { ...M, minimum: 0.001, description: 'Distance over which the cliff rises: small is near-vertical.' }),
+        floorY: num(0, {
+            ...M,
+            description: 'Floor height at the face (absolute).',
+        }),
+        cliffHeight: num(45, {
+            ...M,
+            minimum: 0,
+            description: 'Cliff height above the floor.',
+        }),
+        faceRun: num(18, {
+            ...M,
+            minimum: 0.001,
+            description: 'Distance over which the cliff rises: small is near-vertical.',
+        }),
         grade: num(0, { description: 'Floor grade going outward (m per m).' }),
-        fade: num(0.35, { minimum: 0.05, maximum: 0.9, description: 'Fraction of length spent fading back to the terrain.' }),
+        fade: num(0.35, {
+            minimum: 0.05,
+            maximum: 0.9,
+            description: 'Fraction of length spent fading back to the terrain.',
+        }),
         wallFade: derived('width', 0.6, { ...M, minimum: 0.001 }),
         crestFade: derived('faceRun', 3, { ...M, minimum: 0.001 }),
     }, ['x', 'z', 'heading', 'width', 'length', 'floorY'], extra);
@@ -156,7 +183,10 @@ export function coverSchema(extra = {}) {
         }),
         width: num(12, { ...M, minimum: 0.1 }),
         length: num(200, { ...M, minimum: 0.1 }),
-        minHeight: num(20, { ...M, description: 'The ground is at least this high over the corridor.' }),
+        minHeight: num(20, {
+            ...M,
+            description: 'The ground is at least this high over the corridor.',
+        }),
         fade: derived('width', 0.7, { ...M, minimum: 0.001 }),
     }, ['x', 'z', 'heading', 'width', 'length', 'minHeight'], extra);
 }
