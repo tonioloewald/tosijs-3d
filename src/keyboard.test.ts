@@ -947,17 +947,34 @@ describe('numeric scrub — drag OR type, one control (#50)', () => {
 })
 
 describe('fieldGroup.attach — a field you can actually type into', () => {
+  /*
+  A target of its own, not the global EventTarget and Event: another test
+  file installs happy-dom's Event while EventTarget stays Bun's, and Bun's
+  dispatchEvent rejects an Event from another implementation. Which file runs
+  first differs by platform (CI failed here; \`--randomize --seed=3\` shows
+  it locally).
+  */
+  const keyTarget = () => {
+    const listeners = new Set<(e: any) => void>()
+    return {
+      addEventListener: (_type: string, fn: (e: any) => void) =>
+        listeners.add(fn),
+      removeEventListener: (_type: string, fn: (e: any) => void) =>
+        listeners.delete(fn),
+      key(key: string) {
+        const e = { type: 'keydown', key, preventDefault() {} }
+        for (const fn of [...listeners]) fn(e)
+      },
+    }
+  }
+
   test('routes real keydown events to the focused field', () => {
     const f = K.inputField({})
     const group = K.fieldGroup({ fields: [f] })
-    const target = new (globalThis as any).EventTarget()
-    const detach = group.attach(target)
+    const target = keyTarget()
+    const detach = group.attach(target as unknown as EventTarget)
     group.focus(f)
-    for (const key of ['h', 'i']) {
-      target.dispatchEvent(
-        Object.assign(new (globalThis as any).Event('keydown'), { key })
-      )
-    }
+    for (const key of ['h', 'i']) target.key(key)
     expect(f.value).toBe('hi')
     detach()
   })
@@ -965,12 +982,10 @@ describe('fieldGroup.attach — a field you can actually type into', () => {
   test('detach really detaches', () => {
     const f = K.inputField({})
     const group = K.fieldGroup({ fields: [f] })
-    const target = new (globalThis as any).EventTarget()
-    group.attach(target)()
+    const target = keyTarget()
+    group.attach(target as unknown as EventTarget)()
     group.focus(f)
-    target.dispatchEvent(
-      Object.assign(new (globalThis as any).Event('keydown'), { key: 'x' })
-    )
+    target.key('x')
     expect(f.value).toBe('')
   })
 })
