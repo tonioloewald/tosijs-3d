@@ -1,10 +1,10 @@
 {
   "barrel (min, packages external)": {
-    "raw": 1254344,
-    "gz": 430276
+    "raw": 1254412,
+    "gz": 430297
   },
   "dist/*.js total": {
-    "raw": 5161365,
-    "gz": 1786450
+    "raw": 5161931,
+    "gz": 1786670
   }
 }
