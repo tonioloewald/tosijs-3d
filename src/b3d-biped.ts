@@ -428,9 +428,9 @@ export function ualAnimationStates(extra: AnimStateSpec[] = []): AnimState[] {
     { name: 'sneakIdle', animation: 'Crouch_Idle_Loop', loop: true },
     { name: 'sneakLeft', animation: 'Crouch_Left_Loop', loop: true },
     { name: 'sneakRight', animation: 'Crouch_Right_Loop', loop: true },
-    // Crouching down and standing up, played when the stance changes at rest.
-    { name: 'sneakEnter', animation: 'Crouch_Enter', loop: false },
-    { name: 'sneakExit', animation: 'Crouch_Exit', loop: false },
+    // No `sneakEnter` / `sneakExit`: UAL's `Crouch_Enter` / `Crouch_Exit` are
+    // slower than the blend between the loops, which reads better. Add them to
+    // your states to have a crouch at rest play them.
     // One clip per phase, which is why the jump can be done properly here:
     // `jump` is the wind-up, and the loop and landing are addressable.
     { name: 'jump', animation: 'Jump_Start', loop: false },
@@ -2248,10 +2248,10 @@ export class B3dBiped extends B3dControllable {
     if (!this._swimming && sneakDown && !this._sneakWas) {
       this._sneaking = !this._sneaking
       /*
-      A RIG'S OWN TRANSITION CLIP, where it has one; a blend everywhere else.
-      `Crouch_Enter` / `Crouch_Exit` are drawn standing still, so they play
-      only while you are at rest (see the idle branch below); moving, the
-      stance change is the ordinary blend between loops.
+      A TRANSITION CLIP if the states name one (`sneakEnter` / `sneakExit`,
+      none by default); a blend otherwise. Such clips are drawn standing
+      still, so they play only while you are at rest (see the idle branch
+      below); moving, the stance change is the ordinary blend between loops.
       */
       const clip = this._sneaking ? 'sneakEnter' : 'sneakExit'
       this._stanceClip = this.animationStates.some((st) => st.name === clip)
