@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=f55d7e2fb2af" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=3bfae6940c28" data-tosi-doc-system />
   <title>touch-gamepad — tosijs-3d</title>
   <meta name="description" content="Touch/pointer-driven virtual gamepad backed by an SVG. Elements are identified by data-part attributes (not IDs, so multiple instances work)." />
   <link rel="canonical" href="https://3d.tosijs.net/touch-gamepad/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=02678983b691" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=60bb2bce890d" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="touch-gamepad.ts">
 <h1 id="touch-gamepad">touch-gamepad</h1>
 <p>Touch/pointer-driven virtual gamepad backed by an SVG. Elements are identified
@@ -133,6 +133,16 @@ preview.append(div({ class: &#39;gamepad-demo&#39; }, pad, readout))
 <td><code>dpadUp/Down/Left/Right</code></td>
 <td>button</td>
 </tr>
+<tr>
+<td><code>menu</code>, <code>view</code></td>
+<td><code>menu</code>, <code>view</code></td>
+<td>button</td>
+</tr>
+<tr>
+<td><code>left_stick_click</code>, <code>right_stick_click</code></td>
+<td><code>leftStickPress</code>, <code>rightStickPress</code></td>
+<td>button</td>
+</tr>
 </tbody></table>
 <h3 id="sticks">Sticks</h3>
 <p>Touch inside a <code>*_stick_travel</code> region to grab the stick. The travel circle
@@ -142,7 +152,7 @@ precision.</p>
 <h3 id="buttons">Buttons</h3>
 <p>Touch a button element to set its value to 1 and add an <code>active</code> CSS class.
 Release sets it back to 0. Elements with <code>data-part</code> values not in the table
-above (e.g. <code>menu</code>, <code>view</code>) still get the <code>active</code> class and fire the optional
+above still get the <code>active</code> class and fire the optional
 <code>handleButton(part, pressed)</code> callback.</p>
 <h2 id="usage">Usage</h2>
 <pre><code class="language-typescript" data-highlighted><span class="token keyword">import</span> <span class="token punctuation">{</span> TouchGamepadSource <span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'tosijs-3d'</span>
@@ -515,6 +525,7 @@ provider<span class="token punctuation">.</span><span class="token function">add
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.11.2/">0.11.2</a></li>
         <li><a class="doc-link" href="../v0.11.1/">0.11.1</a></li>
         <li><a class="doc-link" href="../v0.11.0/">0.11.0</a></li>
         <li><a class="doc-link" href="../v0.10.20/">0.10.20</a></li>
@@ -591,6 +602,6 @@ provider<span class="token punctuation">.</span><span class="token function">add
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-7skqvnh0.js"></script>
+  <script type="module" src="../hydrate-wfr0jrvj.js"></script>
 </body>
 </html>

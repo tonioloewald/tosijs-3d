@@ -294,7 +294,7 @@ document.body.append(
 | `panelTitle` | `''` | The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row) |
 | `panelSections` | `'fold'` | How collapsible sections in the settings panel present: `'fold'` (headers you open and close) or `'tabs'` (file tabs, one section at a time) |
 | `stats` | `false` | Add a Perf Stats section to the settings panel, flat and in a headset. `#perf` or `#debug` (or `?perf`, `?debug`) in the page URL, or calling `showB3dStats()`, shows it on every scene |
-| `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = full layout; a value like `"a,b,left_stick"` selects controls. A plain property, read once at setup |
+| `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = the default layout (everything but the d-pad); a value like `"a,b,left_stick"` selects controls, and naming `view` or `menu` also puts them on the headset's system bar. A plain property, read once at setup |
 | `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
 | `gamepadFade` | `'on'` | `'off'` keeps the glass gamepad visible instead of fading it once a key is pressed or a hardware pad is used (the pointer never fades it) |
 | `minElevation` / `maxElevation` | `5` / `70` | Default orbit-camera elevation limits (degrees above the horizon) |

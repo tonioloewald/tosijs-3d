@@ -2,14 +2,41 @@ import { Component } from 'tosijs';
 import { type GamepadSource, type VirtualGamepad } from './virtual-gamepad.js';
 export type ClusterAnchor = 'bottom-left' | 'bottom-right' | 'bottom-center' | 'top-left' | 'top-right' | 'top-center';
 export type ClusterConfig = {
-    /** SVG to load for this cluster. */
+    /** SVG to load for this cluster. The default is the built-in sheet, cut to
+     * this cluster's parts; any other url is shown whole. */
     url?: string;
     /** Which corner to pin it to. */
     anchor?: ClusterAnchor;
-    /** Base width of the cluster overlay in cqmin — relative to the host's own
-     * size, so it scales with the view/card (multiplied by `scale`). */
+    /** Width of the cluster overlay in cqmin — relative to the host's own size,
+     * so it scales with the view/card (multiplied by `scale`). The default sizes
+     * every cluster cut from the sheet at one scale. */
     vmin?: number;
 };
+export type ClusterKey = 'left' | 'right' | 'center';
+/** Every control the pad shows when none are named: all but the d-pad. */
+export declare const DEFAULT_CONTROLS: string[];
+export type Box = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+};
+/**
+ * The viewBox that shows a cluster cut from the sheet: its parts' boxes, grown
+ * by `pad` (half the widest stroke), and every stick's full REACH — the travel
+ * circle's radius plus the knob's, around the travel's centre — so a thumb
+ * dragged to the rim is never clipped by the cluster's edge.
+ */
+export declare function cropBox(parts: Box[], pad: number, sticks?: {
+    travel: Box;
+    knob: Box;
+}[]): Box;
+/**
+ * The box around a path's points, read from its `d` (absolute coordinates, as
+ * the art is exported). A curve lies inside its control points, so this can
+ * only be a little generous, never short.
+ */
+export declare function pathBox(d: string): Box | null;
 /**
  * Parse a gamepad spec — e.g. `"a,b,right_stick(40,0),menu"` — into the controls
  * to show and any per-piece offsets. `''` / `'true'` → all controls. `a/b/x/y`
@@ -54,10 +81,13 @@ export declare class B3dGamepad extends Component implements GamepadSource {
     idleSeconds: number;
     fade: 'on' | 'off';
     fadedOpacity: number;
-    /** Advanced: per-cluster url/anchor/vmin overrides, or `false` to omit one. */
+    /** Advanced: per-cluster url/anchor/vmin overrides, or `false` to omit one.
+     * `top` is the old name of `center`, which sits at the bottom now. */
     clusters?: {
         left?: ClusterConfig | false;
         right?: ClusterConfig | false;
+        center?: ClusterConfig | false;
+        /** @deprecated use `center` */
         top?: ClusterConfig | false;
     };
     handleButton?: (part: string, pressed: boolean) => void;
@@ -119,6 +149,18 @@ export declare class B3dGamepad extends Component implements GamepadSource {
     private _idleTimer;
     private _faded;
     private _build;
+    private _placed;
+    private _resize?;
+    private _layout;
+    /** Did the `controls` spec name this part outright (not the default set)? */
+    requested(part: string): boolean;
+    /**
+     * Press a button from somewhere else for a moment: the headset's system bar
+     * presses view and menu this way, since the pad itself is not there. Held
+     * for `ms`, long enough for every controllable's edge detector to see it.
+     */
+    pulse(part: 'view' | 'menu', ms?: number): void;
+    private _pulses;
     poll(): VirtualGamepad;
     /** Mirror external gamepad state (hardware/keyboard) onto untouched controls. */
     reflectState(pad: VirtualGamepad): void;

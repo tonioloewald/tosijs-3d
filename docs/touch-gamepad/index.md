@@ -77,6 +77,8 @@ Load any SVG with elements whose `data-part` values match the standard layout:
 | `left_bumper`, `right_bumper` | `leftBumper`, `rightBumper` | button |
 | `left_trigger`, `right_trigger` | `leftTrigger`, `rightTrigger` | button |
 | `dpad_up/down/left/right` | `dpadUp/Down/Left/Right` | button |
+| `menu`, `view` | `menu`, `view` | button |
+| `left_stick_click`, `right_stick_click` | `leftStickPress`, `rightStickPress` | button |
 
 ### Sticks
 
@@ -89,7 +91,7 @@ precision.
 
 Touch a button element to set its value to 1 and add an `active` CSS class.
 Release sets it back to 0. Elements with `data-part` values not in the table
-above (e.g. `menu`, `view`) still get the `active` class and fire the optional
+above still get the `active` class and fire the optional
 `handleButton(part, pressed)` callback.
 
 ## Usage

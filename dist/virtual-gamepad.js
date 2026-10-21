@@ -179,6 +179,8 @@ Two sticks + buttons, matching a standard controller layout:
 | `leftBumper/rightBumper` | 0..1 | Bumpers (Shift, etc.) |
 | `leftTrigger/rightTrigger` | 0..1 | Triggers (Q/R on keyboard) |
 | `dpadUp/Down/Left/Right` | 0..1 | D-pad |
+| `menu`, `view` | 0..1 | Menu (start) and view (select) buttons |
+| `leftStickPress/rightStickPress` | 0..1 | Pressing a stick in (L3, R3) |
 
 ## InputMapping
 
@@ -250,6 +252,7 @@ mapping does flat it does in VR, with no per-entity XR code. Standard
 | `leftBumper`, `rightBumper` | `xr-standard-squeeze` (grip) |
 | `buttonA`, `buttonB` | right `a-button`, `b-button` |
 | `buttonX`, `buttonY` | left `x-button`, `y-button` |
+| `leftStickPress`, `rightStickPress` | pressing `xr-standard-thumbstick` |
 
 ### Touch
 
@@ -324,6 +327,8 @@ export function emptyGamepad() {
         dpadRight: 0,
         menu: 0,
         view: 0,
+        leftStickPress: 0,
+        rightStickPress: 0,
     };
 }
 function maxAbs(a, b) {
@@ -349,6 +354,8 @@ export function mergeGamepads(a, b) {
         dpadRight: Math.max(a.dpadRight, b.dpadRight),
         menu: Math.max(a.menu, b.menu),
         view: Math.max(a.view, b.view),
+        leftStickPress: Math.max(a.leftStickPress, b.leftStickPress),
+        rightStickPress: Math.max(a.rightStickPress, b.rightStickPress),
     };
 }
 /**
@@ -461,7 +468,8 @@ export function bipedMapping(pad, _dt, gunplay = false) {
     */
     input.weapon = pad.rightBumper;
     input.jump = pad.buttonA;
-    input.sneak = pad.leftBumper;
+    // Clicking the left stick sneaks too, as L3 does in GTA V.
+    input.sneak = Math.max(pad.leftBumper, pad.leftStickPress);
     // Camera toggle: glass-gamepad view button, or Y (reachable on a controller).
     input.view = Math.max(pad.view, pad.buttonY);
     return input;
@@ -475,6 +483,7 @@ export const bipedMappingDescriptor = {
         rightBumper: 'weapon',
         buttonA: 'jump',
         leftBumper: 'sneak',
+        leftStickPress: 'sneak',
         // The trigger's label is mode-dependent and a descriptor is not, so it
         // names both rather than picking the half that happens to be true now.
         rightTrigger: 'sprint / fire',

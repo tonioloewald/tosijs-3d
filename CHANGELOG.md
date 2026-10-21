@@ -12,35 +12,20 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-### Added
+Nothing yet.
 
-- **A new glass gamepad**, laid out like a pair of VR controllers held flat: on each side a trigger, bumper, stick and two face buttons (X and Y on the left, A and B on the right, in Xbox colours), with view and menu between them at the bottom. It is one SVG sheet (`static/glass-gamepad.svg`) that the pad cuts into three clusters along the bottom; on a narrow screen the centre cluster tucks in between the others when it fits and sits above them when it does not.
-- **Stick clicks (L3, R3)**: `leftStickPress` and `rightStickPress` on `VirtualGamepad`. The glass pad has a button under each stick, a hardware pad's buttons 10 and 11 feed them, and so does clicking a thumbstick in a headset. On the biped, a left-stick click sneaks (as L3 does in GTA V).
-- **View and menu on the headset's system bar**, when the glass pad's `controls` name them. `pad.pulse('view' | 'menu')` presses one from code.
+## 0.11.2
 
-### Changed
-
-- **The glass gamepad hides its d-pad unless you name it** (`controls="…,dpad"`). View and menu are still shown by default, but will become opt-in in a future release: name them if you use them.
-- **In a headset, clicking a thumbstick is a stick press**, not view (right) or menu (left). Y still toggles the camera view, and the system bar carries view and menu when a scene asks for them.
-- **A hardware pad's view and menu buttons (8 and 9) now reach `view` and `menu`**; they were read but dropped.
-- The glass pad's `clusters.top` is now `clusters.center` (`top` still works).
-
-### Fixed
-
-- **The full-screen button on an iPhone.** iPhone Safari has no Fullscreen API for anything but video, so the button hid itself. It now maximises the scene instead: in the top layer as a popover (iOS 17+, so a doc page's card cannot trap it), filling what is visible.
-- **The glass gamepad demo goes full screen with its pad**, which is now inside the scene as `gamepad: true` mounts it; beside the scene it was left behind.
-
-## 0.11.1
-
-The latest release. Three defaults that loaded files only our doc site serves
-now work on yours (the glass gamepad's art, the XR reticle, the crowd's
-skinned baseline), and the docs are reorganised: helper pages folded into the
-pages that use them, complete attribute tables, a changelog page per version.
-No other code changed. [Read 0.11.1](/v0.11.1/).
+The latest release. A new glass gamepad, laid out like a pair of VR
+controllers held flat, with stick clicks (L3, R3) that a hardware pad and a
+headset's thumbsticks now report too; view and menu on the headset's system bar
+when a scene asks for them; and the full-screen button on an iPhone.
+[Read 0.11.2](/v0.11.2/).
 
 ## Every version
 
 <!-- toc -->
+- [0.11.2](/v0.11.2/)
 - [0.11.1](/v0.11.1/)
 - [0.11.0](/v0.11.0/)
 - [0.10.20](/v0.10.20/)

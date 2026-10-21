@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=f55d7e2fb2af" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=3bfae6940c28" data-tosi-doc-system />
   <title>0.11.1 — tosijs-3d</title>
   <meta name="description" content="- The glass gamepad draws on your site (0.11.0 docs review). Its default art was fetched from /gamepad-left.svg, /gamepad-right.svg and /gamepad-top.svg, which…" />
   <link rel="canonical" href="https://3d.tosijs.net/v0.11.1/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=02678983b691" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=60bb2bce890d" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="v0.11.1.md">
 <h1 id="0111">0.11.1</h1>
 <!--{ "parent": "CHANGELOG", "order": 9988999 }-->
@@ -43,6 +43,7 @@
 <li><strong>The docs are reorganised</strong> (0.11.0 docs review, <code>reviews/0.11.0-docs-review.md</code>). About 56 helper pages are folded into the page that uses them (the water&#39;s shore, caustics and normal map into <a href="/b3d-water/">b3d-water</a>, the movement model into <a href="/b3d-biped/">b3d-biped</a>, the gamepad sources into <a href="/virtual-gamepad/">virtual-gamepad</a>, and so on); their old URLs are gone. Pages state what is true now, without history. Design essays moved to the design docs, and Tonio&#39;s remarks that decided things are on <a href="/design-notes/">Design notes</a>. Attribute tables are complete for <code>&lt;tosi-b3d&gt;</code> (35), the biped (33), water, skybox, planet, clouds, lamp, launcher, turret, radar, glass gamepad and others. The changelog is one page per version, and it and Migration are under <a href="/upgrading/">Upgrading</a>. No code changed.</li>
 <li><strong>Doc fixes from the 0.11.0 docs review</strong> (<code>reviews/0.11.0-docs-review.md</code>): b3d-aircraft&#39;s <code>missileSpeed</code> default is 90, not 55; b3d-panel had two <code>flat-frame</code> rows (merged) and its methods and events sat under Attributes (own heading now); b3d-controllable&#39;s example used a field only the aircraft has (it now turns <code>ry</code>); svg-texture said a theme font reaches a texture only if installed, and now points at <code>registerSvgFont</code>; the formations demo used <code>orbitCam</code>&#39;s deprecated radians; b3d-cloud-deck&#39;s &quot;first pass, not tuned&quot; section listed problems already fixed; b3d-radar-blip&#39;s page ended in a stray <code>#</code>.</li>
 </ul>
+<p>Size: barrel (min, packages external) 1241.7 KB raw / 424.8 KB gz, +0.68% on 0.11.0 (the gamepad art, now built in).</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -405,6 +406,7 @@
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details open><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.11.2/">0.11.2</a></li>
         <li><a class="doc-link current" href="../v0.11.1/" aria-current="page">0.11.1</a></li>
         <li><a class="doc-link" href="../v0.11.0/">0.11.0</a></li>
         <li><a class="doc-link" href="../v0.10.20/">0.10.20</a></li>
@@ -481,6 +483,6 @@
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-7skqvnh0.js"></script>
+  <script type="module" src="../hydrate-wfr0jrvj.js"></script>
 </body>
 </html>

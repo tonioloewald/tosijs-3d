@@ -195,6 +195,18 @@ export declare class B3d extends Component {
             height: string;
             maxHeight: string;
         };
+        ':host([data-maximized])': {
+            position: string;
+            inset: string;
+            width: string;
+            height: string;
+            maxWidth: string;
+            maxHeight: string;
+            margin: string;
+            border: string;
+            padding: string;
+            zIndex: string;
+        };
         ':host .spinner': {
             position: string;
             top: string;
@@ -539,6 +551,10 @@ export declare class B3d extends Component {
      */
     /** Ask the glass gamepad to step aside for a menu, or come back. Named
      * reasons, so the pause panel and a death panel do not undo each other. */
+    /** Every glass pad that serves this scene: inside it (`gamepad: true` mounts
+     * it there) or mounted beside it, which is how the gamepad page's own demo
+     * does it. */
+    private _gamepads;
     _suppressGamepad(reason: string, on: boolean): void;
     private _showPausePanel;
     /** The pause where the scene's modal is not available: the DOM flat

@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=f55d7e2fb2af" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=3bfae6940c28" data-tosi-doc-system />
   <title>glass-gamepad (b3dGamepad) — tosijs-3d</title>
   <meta name="description" content="A split on-screen (&quot;glass&quot;) gamepad for touch contexts, as a Component (so it&#39;s both the overlay element and a virtual-gamepad GamepadSource, like" />
   <link rel="canonical" href="https://3d.tosijs.net/glass-gamepad/" />
@@ -30,42 +30,51 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=02678983b691" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=60bb2bce890d" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="glass-gamepad.ts">
 <h1 id="glass-gamepad-b3dgamepad">glass-gamepad (b3dGamepad)</h1>
 <p>A <strong>split</strong> on-screen (&quot;glass&quot;) gamepad for touch contexts, as a Component (so
 it&#39;s both the overlay element <em>and</em> a <a href="/virtual-gamepad/">virtual-gamepad</a> <code>GamepadSource</code>, like
-<code>gameController</code>/<code>keyboardGamepad</code>). Instead of one controller body, the controls
-are grouped into independently-anchored clusters, each a small SVG pinned to a
-corner of the view:</p>
+<code>gameController</code>/<code>keyboardGamepad</code>). It is laid out like a pair of VR
+controllers held flat, in three clusters pinned along the bottom of the view:</p>
 <table>
 <thead>
 <tr>
 <th>Cluster</th>
-<th>Default anchor</th>
+<th>Anchor</th>
 <th>Controls</th>
 </tr>
 </thead>
 <tbody><tr>
 <td><code>left</code></td>
 <td>bottom-left</td>
-<td>left stick, d-pad, left bumper/trigger</td>
+<td>left trigger and bumper, left stick and its click, X, Y</td>
 </tr>
 <tr>
 <td><code>right</code></td>
 <td>bottom-right</td>
-<td>A/B/X/Y, right stick, right bumper/trigger</td>
+<td>right trigger and bumper, right stick and its click, A, B</td>
 </tr>
 <tr>
-<td><code>top</code></td>
-<td>top-center</td>
-<td>view, menu</td>
+<td><code>center</code></td>
+<td>bottom-center</td>
+<td>view, menu, and the d-pad when you ask for it</td>
 </tr>
 </tbody></table>
-<p>Each cluster is drawn from a self-contained SVG (by default the library&#39;s own,
-built in: <code>/gamepad-left.svg</code>, <code>/gamepad-right.svg</code>, <code>/gamepad-top.svg</code> name
-them, and any other url is fetched) whose paths are labelled by <code>id</code>
-(copied to <code>data-part</code> on load). There&#39;s no outer shell — just the clusters.</p>
+<p>The face buttons wear Xbox colours (A green, B red, X blue, Y yellow) in a
+Quest controller&#39;s places. Under each stick is its <strong>click</strong> (L3, R3): on glass
+a press on the stick itself cannot be told from the start of a drag, so the
+click is its own button.</p>
+<p><strong>The d-pad is hidden unless you name it</strong> (<code>controls=&quot;…,dpad&quot;</code>). View and
+menu are shown by default for now; <strong>they will become opt-in in a future
+release</strong>, so name them if your scene uses them. Named, they also appear on
+the system bar in a headset, where the controllers have no view or menu button
+(a thumbstick click is a stick press).</p>
+<p>The art is one sheet (<code>static/glass-gamepad.svg</code>, built into the library), and the pad
+cuts it into the clusters, each cropped to what it shows plus each stick&#39;s full
+reach. Its paths are labelled by <code>id</code> (copied to <code>data-part</code> on load). When the
+three do not fit side by side (a d-pad on a phone in portrait), the centre
+cluster sits above the others.</p>
 <p>Usually you don&#39;t place this yourself: set the <code>gamepad</code> attribute on
 <a href="/tosi-b3d/" class="wikilink">tosi-b3d</a> and it mounts one and wires it into the active input system. Placed
 directly, it&#39;s a <code>GamepadSource</code> whose <code>poll()</code> merges all clusters.</p>
@@ -115,15 +124,17 @@ const scene = b3d(
   demoSun(),
   b3dSkybox({ timeOfDay: 11 }),
   patternGround({ size: 22 }),
+  // INSIDE the scene, as `gamepad: true` mounts it, so it goes full screen
+  // with it (a pad beside the scene is left behind).
+  pad,
 )
 
-// The pad clusters pin to the corners, OVER the scene — touch/drag them to drive the cube.
-preview.append(div({ class: &#39;glass-stage&#39; }, scene, pad, readout))
+// The pad&#39;s clusters sit OVER the scene: touch/drag them to drive the cube.
+preview.append(div({ class: &#39;glass-stage&#39; }, scene, readout))
 </code></pre>
 <pre><code class="language-css">.glass-stage {
   position: relative;
   height: 100%;
-  min-height: 340px;
   background: #0b0f14;
   border-radius: 8px;
   overflow: hidden;
@@ -159,8 +170,8 @@ preview.append(div({ class: &#39;glass-stage&#39; }, scene, pad, readout))
 </thead>
 <tbody><tr>
 <td><code>controls</code></td>
-<td><code>&#39;&#39;</code> (all)</td>
-<td><strong>Comma</strong>-separated piece list, e.g. <code>&#39;a,b,right_stick(40,0),menu&#39;</code>. Empty (the default) shows everything. <code>a/b/x/y</code> map to <code>A/B/X/Y</code>; <code>dpad</code> expands to the four directions; <code>name(dx,dy)</code> nudges one piece</td>
+<td><code>&#39;&#39;</code> (all but the d-pad)</td>
+<td><strong>Comma</strong>-separated piece list, e.g. <code>&#39;a,b,right_stick(40,0),menu&#39;</code>. Empty (the default) shows everything except the d-pad. <code>a/b/x/y</code> map to <code>A/B/X/Y</code>; <code>dpad</code> expands to the four directions; the clicks are <code>left_stick_click</code> and <code>right_stick_click</code>; <code>name(dx,dy)</code> nudges one piece. Naming <code>view</code> or <code>menu</code> also puts them on the headset&#39;s system bar</td>
 </tr>
 <tr>
 <td><code>scale</code></td>
@@ -580,6 +591,7 @@ scene; if you need one, call <code>release(&#39;pause&#39;)</code> from a <code>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.11.2/">0.11.2</a></li>
         <li><a class="doc-link" href="../v0.11.1/">0.11.1</a></li>
         <li><a class="doc-link" href="../v0.11.0/">0.11.0</a></li>
         <li><a class="doc-link" href="../v0.10.20/">0.10.20</a></li>
@@ -656,6 +668,6 @@ scene; if you need one, call <code>release(&#39;pause&#39;)</code> from a <code>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-7skqvnh0.js"></script>
+  <script type="module" src="../hydrate-wfr0jrvj.js"></script>
 </body>
 </html>

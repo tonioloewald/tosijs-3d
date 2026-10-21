@@ -2,20 +2,31 @@
 
 A **split** on-screen ("glass") gamepad for touch contexts, as a Component (so
 it's both the overlay element *and* a [virtual-gamepad](/virtual-gamepad/) `GamepadSource`, like
-`gameController`/`keyboardGamepad`). Instead of one controller body, the controls
-are grouped into independently-anchored clusters, each a small SVG pinned to a
-corner of the view:
+`gameController`/`keyboardGamepad`). It is laid out like a pair of VR
+controllers held flat, in three clusters pinned along the bottom of the view:
 
-| Cluster | Default anchor | Controls |
+| Cluster | Anchor | Controls |
 | --- | --- | --- |
-| `left` | bottom-left | left stick, d-pad, left bumper/trigger |
-| `right` | bottom-right | A/B/X/Y, right stick, right bumper/trigger |
-| `top` | top-center | view, menu |
+| `left` | bottom-left | left trigger and bumper, left stick and its click, X, Y |
+| `right` | bottom-right | right trigger and bumper, right stick and its click, A, B |
+| `center` | bottom-center | view, menu, and the d-pad when you ask for it |
 
-Each cluster is drawn from a self-contained SVG (by default the library's own,
-built in: `/gamepad-left.svg`, `/gamepad-right.svg`, `/gamepad-top.svg` name
-them, and any other url is fetched) whose paths are labelled by `id`
-(copied to `data-part` on load). There's no outer shell — just the clusters.
+The face buttons wear Xbox colours (A green, B red, X blue, Y yellow) in a
+Quest controller's places. Under each stick is its **click** (L3, R3): on glass
+a press on the stick itself cannot be told from the start of a drag, so the
+click is its own button.
+
+**The d-pad is hidden unless you name it** (`controls="…,dpad"`). View and
+menu are shown by default for now; **they will become opt-in in a future
+release**, so name them if your scene uses them. Named, they also appear on
+the system bar in a headset, where the controllers have no view or menu button
+(a thumbstick click is a stick press).
+
+The art is one sheet (`static/glass-gamepad.svg`, built into the library), and the pad
+cuts it into the clusters, each cropped to what it shows plus each stick's full
+reach. Its paths are labelled by `id` (copied to `data-part` on load). When the
+three do not fit side by side (a d-pad on a phone in portrait), the centre
+cluster sits above the others.
 
 Usually you don't place this yourself: set the `gamepad` attribute on
 [[tosi-b3d]] and it mounts one and wires it into the active input system. Placed
@@ -68,16 +79,18 @@ const scene = b3d(
   demoSun(),
   b3dSkybox({ timeOfDay: 11 }),
   patternGround({ size: 22 }),
+  // INSIDE the scene, as `gamepad: true` mounts it, so it goes full screen
+  // with it (a pad beside the scene is left behind).
+  pad,
 )
 
-// The pad clusters pin to the corners, OVER the scene — touch/drag them to drive the cube.
-preview.append(div({ class: 'glass-stage' }, scene, pad, readout))
+// The pad's clusters sit OVER the scene: touch/drag them to drive the cube.
+preview.append(div({ class: 'glass-stage' }, scene, readout))
 ```
 ```css
 .glass-stage {
   position: relative;
   height: 100%;
-  min-height: 340px;
   background: #0b0f14;
   border-radius: 8px;
   overflow: hidden;
@@ -107,7 +120,7 @@ preview.append(div({ class: 'glass-stage' }, scene, pad, readout))
 
 | Attribute | Default | Purpose |
 | --- | --- | --- |
-| `controls` | `''` (all) | **Comma**-separated piece list, e.g. `'a,b,right_stick(40,0),menu'`. Empty (the default) shows everything. `a/b/x/y` map to `A/B/X/Y`; `dpad` expands to the four directions; `name(dx,dy)` nudges one piece |
+| `controls` | `''` (all but the d-pad) | **Comma**-separated piece list, e.g. `'a,b,right_stick(40,0),menu'`. Empty (the default) shows everything except the d-pad. `a/b/x/y` map to `A/B/X/Y`; `dpad` expands to the four directions; the clicks are `left_stick_click` and `right_stick_click`; `name(dx,dy)` nudges one piece. Naming `view` or `menu` also puts them on the headset's system bar |
 | `scale` | `1` | Size multiplier for every cluster |
 | `deadzone` | `0.15` | Stick travel (fraction of the radius) ignored at the centre |
 | `maxZone` | `0.85` | Stick travel that counts as full deflection, so you need not reach the rim |

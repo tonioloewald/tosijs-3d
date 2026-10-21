@@ -178,6 +178,8 @@ Two sticks + buttons, matching a standard controller layout:
 | `leftBumper/rightBumper` | 0..1 | Bumpers (Shift, etc.) |
 | `leftTrigger/rightTrigger` | 0..1 | Triggers (Q/R on keyboard) |
 | `dpadUp/Down/Left/Right` | 0..1 | D-pad |
+| `menu`, `view` | 0..1 | Menu (start) and view (select) buttons |
+| `leftStickPress/rightStickPress` | 0..1 | Pressing a stick in (L3, R3) |
 
 ## InputMapping
 
@@ -249,6 +251,7 @@ mapping does flat it does in VR, with no per-entity XR code. Standard
 | `leftBumper`, `rightBumper` | `xr-standard-squeeze` (grip) |
 | `buttonA`, `buttonB` | right `a-button`, `b-button` |
 | `buttonX`, `buttonY` | left `x-button`, `y-button` |
+| `leftStickPress`, `rightStickPress` | pressing `xr-standard-thumbstick` |
 
 ### Touch
 

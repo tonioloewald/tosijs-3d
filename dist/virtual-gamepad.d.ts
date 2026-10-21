@@ -20,6 +20,10 @@ export interface VirtualGamepad {
     menu: number;
     /** Select/view ("⧉") button — typically cycles camera/view. */
     view: number;
+    /** Pressing the left stick in (L3). */
+    leftStickPress: number;
+    /** Pressing the right stick in (R3). */
+    rightStickPress: number;
 }
 export declare function emptyGamepad(): VirtualGamepad;
 export declare function mergeGamepads(a: VirtualGamepad, b: VirtualGamepad): VirtualGamepad;

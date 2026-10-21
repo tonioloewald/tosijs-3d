@@ -295,7 +295,7 @@ document.body.append(
 | `panelTitle` | `''` | The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row) |
 | `panelSections` | `'fold'` | How collapsible sections in the settings panel present: `'fold'` (headers you open and close) or `'tabs'` (file tabs, one section at a time) |
 | `stats` | `false` | Add a Perf Stats section to the settings panel, flat and in a headset. `#perf` or `#debug` (or `?perf`, `?debug`) in the page URL, or calling `showB3dStats()`, shows it on every scene |
-| `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = full layout; a value like `"a,b,left_stick"` selects controls. A plain property, read once at setup |
+| `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = the default layout (everything but the d-pad); a value like `"a,b,left_stick"` selects controls, and naming `view` or `menu` also puts them on the headset's system bar. A plain property, read once at setup |
 | `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
 | `gamepadFade` | `'on'` | `'off'` keeps the glass gamepad visible instead of fading it once a key is pressed or a hardware pad is used (the pointer never fades it) |
 | `minElevation` / `maxElevation` | `5` / `70` | Default orbit-camera elevation limits (degrees above the horizon) |
@@ -718,6 +718,23 @@ export class B3d extends Component {
             background: '#000',
             height: '100%',
             maxHeight: '100vh',
+        },
+        // Full screen where the browser has no Fullscreen API (iPhone Safari):
+        // the scene fills what is visible. dvh follows Safari's toolbars.
+        // In the top layer as a popover where it can be (iOS 17+), so no
+        // ancestor's containment or overflow traps it; these undo the popover's
+        // default margin, border and padding.
+        ':host([data-maximized])': {
+            position: 'fixed',
+            inset: '0',
+            width: '100%',
+            height: '100dvh',
+            maxWidth: 'none',
+            maxHeight: 'none',
+            margin: '0',
+            border: '0',
+            padding: '0',
+            zIndex: '2147483000',
         },
         ':host .spinner': {
             position: 'absolute',
@@ -1308,16 +1325,18 @@ export class B3d extends Component {
      */
     /** Ask the glass gamepad to step aside for a menu, or come back. Named
      * reasons, so the pause panel and a death panel do not undo each other. */
-    _suppressGamepad(reason, on) {
-        // Every pad that serves this scene: inside it (`gamepad: true` mounts it
-        // there) or mounted beside it, which is how the gamepad page's own demo
-        // does it.
-        const pads = [
+    /** Every glass pad that serves this scene: inside it (`gamepad: true` mounts
+     * it there) or mounted beside it, which is how the gamepad page's own demo
+     * does it. */
+    _gamepads() {
+        return [
             ...this.querySelectorAll('tosi-b3d-gamepad'),
             ...(this.parentElement?.querySelectorAll(':scope > tosi-b3d-gamepad') ??
                 []),
         ];
-        for (const pad of pads) {
+    }
+    _suppressGamepad(reason, on) {
+        for (const pad of this._gamepads()) {
             if (on)
                 pad.suppress?.(reason);
             else
@@ -6030,10 +6049,12 @@ export class B3d extends Component {
         this._nameplateList = [...this._nameplates.values()];
     }
     /*
-    FULL SCREEN, from manta's own: the standard API with the webkit fallback,
-    and no button at all where neither exists (iPhone Safari). The SCENE goes
-    full screen rather than the page, so a demo on a doc page fills the screen
-    without the page around it.
+    FULL SCREEN, from manta's own: the standard API with the webkit fallback.
+    The SCENE goes full screen rather than the page, so a demo on a doc page
+    fills the screen without the page around it. Where neither API exists
+    (iPhone Safari lets only a video go full screen), the button MAXIMISES the
+    scene instead: fixed over the page, filling what is visible, which is what
+    a page like manta's play page does by its own layout.
     */
     _fullscreenWired = false;
     _setupFullscreen() {
@@ -6043,12 +6064,58 @@ export class B3d extends Component {
         this._fullscreenWired = true;
         const el = this;
         const doc = document;
-        const can = !!(el.requestFullscreen || el.webkitRequestFullscreen);
-        if (!can || !(doc.fullscreenEnabled ?? doc.webkitFullscreenEnabled ?? true))
-            return;
+        const can = !!(el.requestFullscreen || el.webkitRequestFullscreen) &&
+            (doc.fullscreenEnabled ?? doc.webkitFullscreenEnabled ?? true);
         btn.hidden = false;
-        const isFull = () => (doc.fullscreenElement ?? doc.webkitFullscreenElement) === this;
+        const isFull = () => can
+            ? (doc.fullscreenElement ?? doc.webkitFullscreenElement) === this
+            : this.hasAttribute('data-maximized');
+        const sync = () => {
+            const full = isFull();
+            btn.title = full ? 'Leave full screen' : 'Full screen';
+            btn.replaceChildren(full ? svgIcons.minimize() : svgIcons.maximize());
+            // The canvas changed size with the element.
+            this.engine?.resize();
+        };
+        /*
+        Into the TOP LAYER as a manual popover, not just `position: fixed`: an
+        ancestor with containment or a transform (a doc page's example card) makes
+        a fixed element fill the CARD, not the screen. Never moved in the DOM,
+        since a moved scene is disconnected and reconnected.
+        */
+        const pop = this;
+        const maximize = (on) => {
+            if (on) {
+                this.setAttribute('data-maximized', '');
+                if (pop.showPopover != null) {
+                    this.setAttribute('popover', 'manual');
+                    try {
+                        pop.showPopover();
+                    }
+                    catch {
+                        // Already open, or refused: the fixed layout still applies.
+                    }
+                }
+            }
+            else {
+                if (this.hasAttribute('popover')) {
+                    try {
+                        pop.hidePopover?.();
+                    }
+                    catch {
+                        // Not open.
+                    }
+                    this.removeAttribute('popover');
+                }
+                this.removeAttribute('data-maximized');
+            }
+            sync();
+        };
         const toggle = () => {
+            if (!can) {
+                maximize(!this.hasAttribute('data-maximized'));
+                return;
+            }
             // A refusal (no user gesture, a policy) is not worth an uncaught
             // rejection: the button simply did nothing.
             const r = isFull()
@@ -6057,18 +6124,22 @@ export class B3d extends Component {
             r?.catch?.(() => { });
         };
         btn.addEventListener('click', toggle);
-        const sync = () => {
-            const full = isFull();
-            btn.title = full ? 'Leave full screen' : 'Full screen';
-            btn.replaceChildren(full ? svgIcons.minimize() : svgIcons.maximize());
-            // The canvas changed size with the element.
-            this.engine?.resize();
-        };
         document.addEventListener('fullscreenchange', sync);
         document.addEventListener('webkitfullscreenchange', sync);
         // Removed with the rest: teardown clears `_fullscreenWired`, and the
         // button outlives it, so a reconnect would otherwise add a second toggle.
         this._fullscreenOff = () => {
+            // Not through `maximize`: its resize would reach an engine on its way out.
+            if (this.hasAttribute('popover')) {
+                try {
+                    pop.hidePopover?.();
+                }
+                catch {
+                    // Not open.
+                }
+                this.removeAttribute('popover');
+            }
+            this.removeAttribute('data-maximized');
             btn.removeEventListener('click', toggle);
             document.removeEventListener('fullscreenchange', sync);
             document.removeEventListener('webkitfullscreenchange', sync);
@@ -6451,9 +6522,24 @@ export class B3d extends Component {
         const gear = this.parts.scenePanelGear;
         const owl = gear?.querySelector('svg')?.cloneNode(true) ??
             svgIcons.settings();
+        /*
+        VIEW AND MENU, IF THE SCENE ASKED FOR THEM. In a headset the stick clicks
+        are stick presses, so the pad's view and menu buttons have no controller
+        button; the bar carries them, but only when the glass pad's controls name
+        them outright (`gamepad="…,view,menu"`), so a scene that never uses them
+        does not get two dead buttons.
+        */
+        const pads = this._gamepads();
+        const padButtons = [
+            ['view', svgIcons.copy(), 'View'],
+            ['menu', svgIcons.menu(), 'Menu'],
+        ]
+            .filter(([part]) => pads.some((p) => p.requested?.(part)))
+            .map(([part, icon, title]) => mk(icon, title, () => pads.forEach((p) => p.pulse?.(part))));
         const buttons = [
             mk(owl, 'Settings', act.settings),
             ...this._systemButtons(),
+            ...padButtons,
             mk(svgIcons.logOut(), 'Exit VR', act.exit),
         ];
         const bar = systemBar(buttons);
