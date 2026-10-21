@@ -15,13 +15,14 @@ while it walks, since every body carries its own joints. The skin weights are
 bone heat's, worked out from the mesh once when the page loads.
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div } = elements
 
 const status = div({ class: 'status' }, 'loading the animations…')
 const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, clip: 'Walk_Loop', tone: 0.3, redness: 0.5 } })
 let mat = null
+let paint = () => {}
 const clips = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Dance_Loop', 'Crouch_Fwd_Loop']
 let rebuild = () => {}
 
@@ -41,8 +42,8 @@ preview.append(
         slider('weight', 'weight'),
         slider('height', 'height'),
         label3d({ text: 'Skin' }),
-        slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01, handleChange: () => mat?.setSkin(walker.tone.value, walker.redness.value) }),
-        slider3d({ label: 'redness', value: walker.redness, min: 0, max: 1, step: 0.01, handleChange: () => mat?.setSkin(walker.tone.value, walker.redness.value) }),
+        slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01, handleChange: () => paint() }),
+        slider3d({ label: 'redness', value: walker.redness, min: 0, max: 1, step: 0.01, handleChange: () => paint() }),
         label3d({ text: 'Ancestry' }),
         slider('african', 'african'),
         slider('asian', 'asian'),
@@ -65,7 +66,7 @@ preview.append(
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
 
-        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 2)).catch((e) => {
+        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 3)).catch((e) => {
           status.textContent = `could not load the body: ${e.message}`
           throw e
         })
@@ -73,6 +74,7 @@ preview.append(
         // Let the message paint before the binding takes the thread.
         await new Promise((r) => setTimeout(r, 50))
         const skin = humanSkin(pack)
+        const lips = await pack.region('lips')
         const body = () => {
           const b = {}
           for (const k of Object.keys(DEFAULT_HUMAN_BODY)) b[k] = Number(walker[k].value)
@@ -85,6 +87,13 @@ preview.append(
         const weights = boneHeat(skin.positions(first), skin.triangles, skinSegments(rig0))
 
         mat = skinMaterial(scene, { tone: walker.tone.value, redness: walker.redness.value })
+        // The skin's colour, and the lips' as vertex colours over it.
+        paint = () => {
+          mat.setSkin(walker.tone.value, walker.redness.value)
+          if (lips && built) {
+            built.mesh.setVerticesData('color', lipTint(skin, lips, walker.tone.value, walker.redness.value))
+          }
+        }
         const stand = new BABYLON.TransformNode('stand', scene)
         let built = null
         let playing = null
@@ -108,6 +117,7 @@ preview.append(
           built.root.parent = stand
           stand.position.y = -rig.at('root').y
           el.register({ meshes: [built.mesh] })
+          paint()
           read = readSkeleton(built.skeleton, built.root)
           play()
           busy = false
@@ -146,7 +156,8 @@ body's triangles.
 
 import * as BABYLON from '@babylonjs/core'
 import type { HumanPack } from './human-pack.js'
-import { skinAlbedo } from './skin-tone.js'
+import { lipAlbedo, skinAlbedo } from './skin-tone.js'
+import type { HumanSkin } from './human-rig.js'
 
 export interface HumanBody {
   /** Move, turn and scale the body by this. */
@@ -243,4 +254,33 @@ export function skinMaterial(
   }
   m.setSkin(options.tone ?? 0.3, options.redness ?? 0.5)
   return m
+}
+
+/**
+ * Per-vertex colours (RGBA, the skin's vertices) that turn a skin material's
+ * colour into the lips' where `lips` (a pack region, every vertex) says so.
+ * They multiply the material's albedo, so they are the ratio lip / skin.
+ */
+export function lipTint(
+  skin: HumanSkin,
+  lips: Float32Array,
+  tone: number,
+  redness = 0.5,
+  into?: Float32Array
+): Float32Array {
+  const s = skinAlbedo(tone, redness)
+  const l = lipAlbedo(tone, redness)
+  const ratio = [l.r / s.r, l.g / s.g, l.b / s.b]
+  const out = into ?? new Float32Array(skin.vertices.length * 4)
+  skin.vertices.forEach((v, i) => {
+    // The mask is how far the lip targets move a vertex, so the lips' own
+    // edges are faint in it: anything past half is all lip.
+    const m = Math.min(1, Math.max(0, (lips[v] - 0.05) / 0.45))
+    const t = m * m * (3 - 2 * m)
+    out[i * 4] = 1 + (ratio[0] - 1) * t
+    out[i * 4 + 1] = 1 + (ratio[1] - 1) * t
+    out[i * 4 + 2] = 1 + (ratio[2] - 1) * t
+    out[i * 4 + 3] = 1
+  })
+  return out
 }

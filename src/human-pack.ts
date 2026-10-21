@@ -18,6 +18,7 @@ What the manifest holds:
 - **body**: the triangles to draw (uint32, in threes), indexing the positions
 - **joints**: a joint name → the vertices whose centroid it is (MakeHuman's joint cubes)
 - **bones**: a bone → its parent, and the joints at its head and tail
+- **regions**: a mask name (`lips`) → a uint8 per vertex, for tinting without UVs
 - **targets**: a target name → its file, its int16 step (metres), and whether it is dense
 
 A dense target is int16 xyz for every vertex in order; a sparse one is `count`
@@ -47,6 +48,8 @@ export interface HumanPackManifest {
   helpers: string[]
   joints: Record<string, number[]>
   bones: Record<string, { parent: string | null; head: string; tail: string }>
+  /** Per-vertex masks by name (`lips`), uint8 0..255, every vertex in order. */
+  regions?: Record<string, string>
   targets: Record<string, HumanTargetEntry>
 }
 
@@ -67,6 +70,8 @@ export interface HumanPack {
   target(name: string): Promise<HumanTarget>
   /** A target already fetched, or undefined. */
   loaded(name: string): HumanTarget | undefined
+  /** A region mask (0..1 per vertex, all of them), fetched once; null if absent. */
+  region(name: string): Promise<Float32Array | null>
 }
 
 /** Decode a target file's bytes. Pure. */
@@ -113,6 +118,7 @@ export async function loadHumanPack(
     fetcher(dir + manifest.body.triangles).then((b) => new Uint32Array(b)),
   ])
   const pending = new Map<string, Promise<HumanTarget>>()
+  const regions = new Map<string, Promise<Float32Array | null>>()
   const done = new Map<string, HumanTarget>()
   return {
     manifest,
@@ -120,6 +126,18 @@ export async function loadHumanPack(
     triangles,
     has: (name) => name in manifest.targets,
     loaded: (name) => done.get(name),
+    region(name) {
+      const file = manifest.regions?.[name]
+      if (file == null) return Promise.resolve(null)
+      let p = regions.get(name)
+      if (p == null) {
+        p = fetcher(dir + file).then((b) =>
+          Float32Array.from(new Uint8Array(b), (v) => v / 255)
+        )
+        regions.set(name, p)
+      }
+      return p
+    },
     target(name) {
       let p = pending.get(name)
       if (p == null) {

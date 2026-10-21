@@ -1809,8 +1809,14 @@ export {
   ancestryCorners,
 } from './human-morph.js'
 export type { MacroBody } from './human-morph.js'
-export { humanBody, skinMaterial } from './character-builder.js'
-export { MONK_TONES, skinLinear, skinColor, skinAlbedo } from './skin-tone.js'
+export { humanBody, skinMaterial, lipTint } from './character-builder.js'
+export {
+  MONK_TONES,
+  skinLinear,
+  skinColor,
+  skinAlbedo,
+  lipAlbedo,
+} from './skin-tone.js'
 export type { Rgb as SkinRgb } from './skin-tone.js'
 export {
   humanRig,

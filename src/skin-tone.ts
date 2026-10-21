@@ -97,6 +97,22 @@ export function skinColor(tone: number, redness = 0.5): Rgb {
   }
 }
 
+/**
+ * The LIPS' colour, linear, for a tone: the skin's, deeper and redder at the
+ * fair end (blood shows through thin skin), browner and more muted toward the
+ * dark end, where lips carry melanin too.
+ */
+export function lipAlbedo(tone: number, redness = 0.5): Rgb {
+  const s = skinAlbedo(tone, redness)
+  const t = clamp01(tone)
+  const k = {
+    r: 0.82 + (0.72 - 0.82) * t,
+    g: 0.5 + (0.58 - 0.5) * t,
+    b: 0.52 + (0.62 - 0.52) * t,
+  }
+  return { r: s.r * k.r, g: s.g * k.g, b: s.b * k.b }
+}
+
 /*
 Skin's warmth as green and blue against red, from fair (pinker, more blue
 let through) to dark (browner). Measured diffuse albedos of skin sit near
