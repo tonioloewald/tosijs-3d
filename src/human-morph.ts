@@ -32,7 +32,7 @@ const positions = await morphHuman(pack, weights)
 A dense macro costs about 0.03 ms to add on a desktop, so a body is morphed on
 the spot rather than in a worker.
 */
-/*{ "parent": "human-pack" }*/
+/*{ "parent": "character-builder", "order": 20 }*/
 
 import type { HumanPack, HumanTarget } from './human-pack.js'
 

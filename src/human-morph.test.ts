@@ -128,3 +128,23 @@ describe.skipIf(!havePack)('hm08, morphed', () => {
     expect(head(tall)).toBeGreaterThan(head(short) + 0.15)
   })
 })
+
+describe.skipIf(!havePack)('hm08, rigged from its joint cubes', () => {
+  test("UAL's 65 joints, every one placed, the left on +X", async () => {
+    const { humanRig, humanSkin } = await import('./human-rig.js')
+    const pack = await loadHumanPack(PACK, fromDisk)
+    const p = await morphHuman(pack, macroWeights(DEFAULT_HUMAN_BODY))
+    const rig = humanRig(pack.manifest, p)
+    expect(rig.joints.length).toBe(65)
+    const at = (n: string) => rig.at(n)!
+    expect(at('hand_l').x).toBeGreaterThan(0.3)
+    expect(at('hand_r').x).toBeLessThan(-0.3)
+    expect(at('Head').y).toBeGreaterThan(at('pelvis').y + 0.5)
+    // The root is on the floor, under the pelvis.
+    expect(at('root').y).toBeLessThan(at('foot_l').y)
+    expect(at('root').x).toBeCloseTo(at('pelvis').x, 6)
+    // Toes point forward (+Z).
+    expect(at('ball_leaf_l').z).toBeGreaterThan(at('foot_l').z + 0.1)
+    expect(humanSkin(pack).vertices.length).toBe(13380)
+  })
+})

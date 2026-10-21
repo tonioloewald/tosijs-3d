@@ -1,89 +1,122 @@
 /*#
-# character-babylon
+# character builder
 
-The Babylon side of the character creator (CHARACTER-DESIGN.md). For now, one
-thing: `humanBody(scene, pack)` draws a [human pack](/human-pack/)'s body as
-one mesh, and `update(positions)` reshapes it in place when the sliders move
-([human-morph](/human-morph/) makes the positions).
+**Make a person, and watch them walk.** The first steps of the character
+creator (CHARACTER-DESIGN.md): MakeHuman's CC0 body
+([human-pack](/human-pack/)), reshaped by sliders for gender, age, muscle,
+weight, height and ancestry ([human-morph](/human-morph/)), with UAL's
+skeleton placed from its own joint cubes ([human-rig](/human-rig/)) so it
+plays UAL's clips at any shape.
 
 ## Demo
 
-A grey body from MakeHuman's CC0 data (hm08), morphed live: open the settings
-(the owl) for gender, age, muscle, weight, height, proportions and ancestry.
+Open the settings (the owl): the body sliders reshape it
+while it walks, since every body carries its own joints. The skin weights are
+bone heat's, worked out once when the page loads (a couple of seconds).
 
 ```js
-import { b3d, b3dSun, b3dLight, b3dSkybox, slider3d, label3d, assetUrl, loadHumanPack, humanBody, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, ageYears, humanHeight } from 'tosijs-3d'
-import { tosi, elements } from 'tosijs'
-const { div } = elements
+import { b3d, b3dLight, slider3d, select3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
+import { tosi } from 'tosijs'
 
-const { human } = tosi({ human: { ...DEFAULT_HUMAN_BODY } })
-const readout = div({ class: 'readout' }, 'loading MakeHuman hm08…')
-let body = null
-let pack = null
-let busy = false
-let again = false
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, clip: 'Walk_Loop' } })
+const clips = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Dance_Loop', 'Crouch_Fwd_Loop']
+let rebuild = () => {}
 
-async function reshape() {
-  if (pack == null || body == null) return
-  if (busy) { again = true; return }
-  busy = true
-  const b = {}
-  for (const k of Object.keys(DEFAULT_HUMAN_BODY)) b[k] = Number(human[k].value)
-  const p = await morphHuman(pack, macroWeights(b, (n) => pack.has(n)))
-  body.update(p)
-  readout.textContent = `${humanHeight(p, pack.triangles).toFixed(2)} m, ${Math.round(ageYears(b.age))} years`
-  busy = false
-  if (again) { again = false; reshape() }
-}
-
-const slider = (label, key, extra = {}) =>
-  slider3d({ label, value: human[key], min: 0, max: 1, step: 0.01, handleChange: reshape, ...extra })
+const slider = (label, key) =>
+  slider3d({ label, value: walker[key], min: 0, max: 1, step: 0.01, handleChange: () => rebuild() })
 
 preview.append(
   b3d(
     {
-      panelTitle: 'Body',
+      clearColor: '#2a3340',
+      panelTitle: 'Walker',
       scenePanel: () => [
+        select3d({ label: 'clip', value: walker.clip, options: clips }),
         slider('gender', 'gender'),
         slider('age', 'age'),
         slider('muscle', 'muscle'),
         slider('weight', 'weight'),
         slider('height', 'height'),
-        slider('proportions', 'proportions'),
         label3d({ text: 'Ancestry' }),
         slider('african', 'african'),
         slider('asian', 'asian'),
         slider('caucasian', 'caucasian'),
       ],
       async sceneCreated(el, BABYLON) {
-        const cam = new BABYLON.ArcRotateCamera('cam', Math.PI / 2, 1.4, 3.2, new BABYLON.Vector3(0, 0.9, 0), el.scene)
-        cam.lowerRadiusLimit = 1
-        cam.upperRadiusLimit = 8
+        const scene = el.scene
+        const cam = new BABYLON.ArcRotateCamera('c', Math.PI / 2 - 0.5, 1.35, 4, new BABYLON.Vector3(0, 0.9, 0), scene)
         cam.minZ = 0.05
         cam.attachControl(el.querySelector('canvas'), true)
         el.setActiveCamera(cam)
-        const ground = BABYLON.MeshBuilder.CreateDisc('floor', { radius: 2 }, el.scene)
-        ground.rotation.x = Math.PI / 2
-        el.register({ meshes: [ground] })
-        pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json'))
-        body = humanBody(el.scene, pack)
-        el.register({ meshes: [body.mesh] })
-        reshape()
+        BABYLON.MeshBuilder.CreateGround('g', { width: 8, height: 8 }, scene)
+
+        // UAL's mannequin is only the clips' source: it stays hidden.
+        const ual = await BABYLON.LoadAssetContainerAsync(assetUrl('quaternius/UAL1_core.glb', 2), scene)
+        ual.addAllToScene()
+        for (const g of ual.animationGroups) g.stop()
+        const ualRoot = ual.meshes.find((m) => m.name === '__root__')
+        const source = readSkeleton(ual.skeletons[0], ualRoot)
+        ualRoot.setEnabled(false)
+
+        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json'))
+        const skin = humanSkin(pack)
+        const body = () => {
+          const b = {}
+          for (const k of Object.keys(DEFAULT_HUMAN_BODY)) b[k] = Number(walker[k].value)
+          return macroWeights(b, (n) => pack.has(n))
+        }
+        // The weights depend only on the topology: once, on the first body.
+        const first = await morphHuman(pack, body())
+        const weights = boneHeat(skin.positions(first), skin.triangles, skinSegments(humanRig(pack.manifest, first)))
+
+        const mat = new BABYLON.StandardMaterial('skin', scene)
+        mat.diffuseColor = new BABYLON.Color3(0.65, 0.63, 0.62)
+        const stand = new BABYLON.TransformNode('stand', scene)
+        let built = null
+        let playing = null
+        let read = null
+        const play = () => {
+          playing?.dispose()
+          const clip = ual.animationGroups.find((g) => g.name === walker.clip.value)
+          playing = clip ? retargetClip(clip, source, read, { scene }) : null
+          playing?.start(true)
+        }
+        let busy = false
+        let again = false
+        rebuild = async () => {
+          if (busy) { again = true; return }
+          busy = true
+          const full = await morphHuman(pack, body())
+          const rig = humanRig(pack.manifest, full)
+          built?.dispose()
+          built = buildRig(scene, 'walker', skin.positions(full), skin.triangles, rig, weights)
+          built.mesh.material = mat
+          built.root.parent = stand
+          stand.position.y = -rig.at('root').y
+          el.register({ meshes: [built.mesh] })
+          read = readSkeleton(built.skeleton, built.root)
+          play()
+          busy = false
+          if (again) { again = false; rebuild() }
+        }
+        await rebuild()
+        walker.clip.observe(play)
       },
     },
-    b3dSun(),
-    b3dLight({ intensity: 0.4 }),
-    b3dSkybox({ timeOfDay: 10 })
-  ),
-  readout
+    b3dLight({ intensity: 0.9 })
+  )
 )
 ```
 ```css
 tosi-b3d { width: 100%; height: 100%; }
-.readout { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); color: white; padding: 4px 10px; border-radius: 6px; font: 13px monospace; }
 ```
 
-## The mesh
+## humanBody
+
+`humanBody(scene, pack)` draws a pack's body as one unrigged mesh, and
+`update(positions)` reshapes it in place: for a body that only needs to be
+looked at.
+
 
 The pack is RIGHT-HANDED (as OBJ and glTF are), so the body sits under a
 container that mirrors it the way glTF's `__root__` does, and stands with its
@@ -91,7 +124,7 @@ feet at the container's origin. Move the body by moving `root`. The mesh keeps
 every vertex the targets move (helpers and joint cubes too), but draws only the
 body's triangles.
 */
-/*{ "parent": "human-pack", "order": 10 }*/
+/*{ "parent": "b3d-biped", "order": 80 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import type { HumanPack } from './human-pack.js'

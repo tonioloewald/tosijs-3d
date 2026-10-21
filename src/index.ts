@@ -1809,8 +1809,10 @@ export {
   ancestryCorners,
 } from './human-morph.js'
 export type { MacroBody } from './human-morph.js'
-export { humanBody } from './character-babylon.js'
-export type { HumanBody } from './character-babylon.js'
+export { humanBody } from './character-builder.js'
+export { humanRig, humanSkin, HM08_UAL } from './human-rig.js'
+export type { HumanRigRow, HumanSkin } from './human-rig.js'
+export type { HumanBody } from './character-builder.js'
 export type { HeatBone, SkinWeights } from './bone-heat.js'
 export {
   springChain,

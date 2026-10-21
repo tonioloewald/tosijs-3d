@@ -24,7 +24,7 @@ A dense target is int16 xyz for every vertex in order; a sparse one is `count`
 uint32 vertex indices followed by `count` int16 xyz. Multiply by `step` for
 metres.
 */
-/*{ "parent": "b3d-biped", "order": 80 }*/
+/*{ "parent": "character-builder", "order": 10 }*/
 
 export interface HumanTargetEntry {
   file: string
