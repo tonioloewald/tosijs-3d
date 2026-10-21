@@ -1795,7 +1795,6 @@ export type {
   HumanPackManifest,
   HumanTarget,
   HumanTargetEntry,
-  HumanSourceWeights,
 } from './human-pack.js'
 export {
   DEFAULT_HUMAN_BODY,
@@ -1816,8 +1815,6 @@ export type { Rgb as SkinRgb } from './skin-tone.js'
 export {
   humanRig,
   humanSkin,
-  humanWeights,
-  hm08FoldBone,
   HM08_UAL,
 } from './human-rig.js'
 export type { HumanRigRow, HumanSkin } from './human-rig.js'

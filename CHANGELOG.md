@@ -14,7 +14,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 - **Fixed:** retargeting no longer lines a character's collarbones up with the clip's: a collarbone's rest direction is the body's shape, like the spine's. Where the two rigs' collarbones differed (UAL's runs back to the shoulder, MakeHuman's lies flat) every clip shrugged the shoulders.
 
-- **Added:** the first step of a character creator on MakeHuman's CC0 data (CHARACTER-DESIGN.md): `loadHumanPack`, `macroWeights` / `morphHuman` (body sliders: gender, age, muscle, weight, height, proportions, ancestry) skin tone (`skinMaterial`, `skinAlbedo`: very fair to very dark through the Monk Skin Tone Scale, plus redness), `humanRig` (UAL's skeleton placed from MakeHuman's joint cubes, spine as UAL's straight column, so UAL's clips play on any body shape), `humanWeights` (MakeHuman's own skin weights folded onto UAL's joints) and `humanBody`. The demo page is the [character builder](/character-builder/); its data is on the CDN as `makehuman/hm08/`.
+- **Added:** the first step of a character creator on MakeHuman's CC0 data (CHARACTER-DESIGN.md): `loadHumanPack`, `macroWeights` / `morphHuman` (body sliders: gender, age, muscle, weight, height, proportions, ancestry) skin tone (`skinMaterial`, `skinAlbedo`: very fair to very dark through the Monk Skin Tone Scale, plus redness), `humanRig` (UAL's skeleton placed from MakeHuman's joint cubes, spine as UAL's straight column, so UAL's clips play on any body shape) and `humanBody`. The demo page is the [character builder](/character-builder/); its data is on the CDN as `makehuman/hm08/`.
 
 ## 0.11.3
 

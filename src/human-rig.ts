@@ -30,12 +30,7 @@ The pack is right-handed and a character faces +Z with its left on +X, as
 /*{ "parent": "character-builder", "order": 30 }*/
 
 import type { FittedJoint, FittedRig } from './rig-fit.js'
-import type {
-  HumanPack,
-  HumanPackManifest,
-  HumanSourceWeights,
-} from './human-pack.js'
-import type { SkinWeights } from './bone-heat.js'
+import type { HumanPack, HumanPackManifest } from './human-pack.js'
 import { humanJoint } from './human-morph.js'
 
 type Vec3 = { x: number; y: number; z: number }
@@ -230,91 +225,3 @@ export function humanSkin(pack: HumanPack): HumanSkin {
   }
 }
 
-/*
-FOLDING MAKEHUMAN'S WEIGHTS onto UAL's joints. MakeHuman's weights are hand
-tuned for its 163-bone rig, and better than bone heat where it matters most:
-bone heat bound the middle of the upper back to the two collarbones, so it
-folded into a V whenever the shoulders swung. Each MakeHuman bone gives its
-weight to the UAL joint that moves that part of the body, and each vertex
-keeps its four strongest.
-*/
-const FINGER_UAL = ['thumb', 'index', 'middle', 'ring', 'pinky']
-
-/** The UAL joint a hm08 (MakeHuman default rig) bone's skin goes to. */
-export function hm08FoldBone(bone: string): string {
-  const m = bone.match(/^(.*?)(?:\.([LR]))?$/)!
-  const base = m[1]
-  const s = m[2] === 'L' ? 'l' : m[2] === 'R' ? 'r' : ''
-  const spine: Record<string, string> = {
-    root: 'pelvis',
-    spine05: 'pelvis',
-    spine04: 'spine_01',
-    spine03: 'spine_01',
-    spine02: 'spine_02',
-    spine01: 'spine_03',
-  }
-  if (spine[base]) return spine[base]
-  if (/^neck0/.test(base)) return 'neck_01'
-  if (base === 'breast') return 'spine_03'
-  if (base === 'pelvis') return 'pelvis'
-  if (s !== '') {
-    if (base === 'clavicle' || base === 'shoulder01') return `clavicle_${s}`
-    if (/^upperarm0/.test(base)) return `upperarm_${s}`
-    if (/^lowerarm0/.test(base)) return `lowerarm_${s}`
-    if (base === 'wrist' || /^metacarpal/.test(base)) return `hand_${s}`
-    const f = base.match(/^finger(\d)-(\d)$/)
-    if (f) return `${FINGER_UAL[Number(f[1]) - 1]}_0${f[2]}_${s}`
-    if (/^upperleg0/.test(base)) return `thigh_${s}`
-    if (/^lowerleg0/.test(base)) return `calf_${s}`
-    if (base === 'foot') return `foot_${s}`
-    if (/^toe/.test(base)) return `ball_${s}`
-  }
-  // The head and everything in it: jaw, eyes, tongue, the face's muscles.
-  return 'Head'
-}
-
-/**
- * MakeHuman's weights folded onto a rig's joints, for the skin's vertices
- * (`humanSkin`), four per vertex, summing to 1. `fold` names the rig joint
- * for each source bone.
- */
-export function humanWeights(
-  source: HumanSourceWeights,
-  skin: HumanSkin,
-  rig: FittedRig,
-  fold: (bone: string) => string = hm08FoldBone
-): SkinWeights {
-  const jointIndex = new Map(rig.joints.map((j, i) => [j.name, i]))
-  const compact = new Map<number, number>()
-  skin.vertices.forEach((v, i) => compact.set(v, i))
-  const n = skin.vertices.length
-  // Accumulate per vertex: joint → weight.
-  const acc: Array<Map<number, number>> = Array.from({ length: n }, () => new Map())
-  source.bones.forEach((bone, b) => {
-    const j = jointIndex.get(fold(bone))
-    if (j == null) return
-    const from = source.start[b]
-    for (let k = from; k < from + source.counts[b]; k++) {
-      const c = compact.get(source.vertices[k])
-      if (c == null) continue
-      const m = acc[c]
-      m.set(j, (m.get(j) ?? 0) + source.weights[k])
-    }
-  })
-  const indices = new Float32Array(n * 4)
-  const weights = new Float32Array(n * 4)
-  for (let i = 0; i < n; i++) {
-    const top = [...acc[i]].sort((a, b) => b[1] - a[1]).slice(0, 4)
-    const sum = top.reduce((s, [, w]) => s + w, 0)
-    top.forEach(([j, w], k) => {
-      indices[i * 4 + k] = j
-      weights[i * 4 + k] = sum > 0 ? w / sum : 0
-    })
-    // A vertex no bone claimed follows the pelvis rather than the origin.
-    if (sum <= 0) {
-      indices[i * 4] = jointIndex.get('pelvis') ?? 0
-      weights[i * 4] = 1
-    }
-  }
-  return { indices, weights }
-}

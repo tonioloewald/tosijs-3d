@@ -47,21 +47,7 @@ export interface HumanPackManifest {
   helpers: string[]
   joints: Record<string, number[]>
   bones: Record<string, { parent: string | null; head: string; tail: string }>
-  /** MakeHuman's own skin weights, per bone of its rig (see `weights()`). */
-  weights?: { bones: string[]; counts: number[]; file: string }
   targets: Record<string, HumanTargetEntry>
-}
-
-/**
- * MakeHuman's skin weights, per bone of ITS rig: bone `b`'s vertices are
- * `vertices` from `start[b]` for `counts[b]`, with `weights` alongside (0..1).
- */
-export interface HumanSourceWeights {
-  bones: string[]
-  counts: number[]
-  start: number[]
-  vertices: Uint32Array
-  weights: Float32Array
 }
 
 /** A target, decoded: `indices` is null for a dense one. */
@@ -81,8 +67,6 @@ export interface HumanPack {
   target(name: string): Promise<HumanTarget>
   /** A target already fetched, or undefined. */
   loaded(name: string): HumanTarget | undefined
-  /** The base's own skin weights, fetched once; null if the pack has none. */
-  weights(): Promise<HumanSourceWeights | null>
 }
 
 /** Decode a target file's bytes. Pure. */
@@ -128,7 +112,6 @@ export async function loadHumanPack(
     fetcher(dir + manifest.positions).then((b) => new Float32Array(b)),
     fetcher(dir + manifest.body.triangles).then((b) => new Uint32Array(b)),
   ])
-  let weights: Promise<HumanSourceWeights | null> | null = null
   const pending = new Map<string, Promise<HumanTarget>>()
   const done = new Map<string, HumanTarget>()
   return {
@@ -137,28 +120,6 @@ export async function loadHumanPack(
     triangles,
     has: (name) => name in manifest.targets,
     loaded: (name) => done.get(name),
-    weights() {
-      const w = manifest.weights
-      if (w == null) return Promise.resolve(null)
-      weights ??= fetcher(dir + w.file).then((bytes) => {
-        const total = w.counts.reduce((a, b) => a + b, 0)
-        const raw = new Uint16Array(bytes, total * 4, total)
-        const start: number[] = []
-        let k = 0
-        for (const c of w.counts) {
-          start.push(k)
-          k += c
-        }
-        return {
-          bones: w.bones,
-          counts: w.counts,
-          start,
-          vertices: new Uint32Array(bytes, 0, total),
-          weights: Float32Array.from(raw, (x) => x / 65535),
-        }
-      })
-      return weights
-    },
     target(name) {
       let p = pending.get(name)
       if (p == null) {
