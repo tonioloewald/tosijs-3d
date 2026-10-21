@@ -1579,7 +1579,8 @@ export class B3dBiped extends B3dControllable {
    * window closes.
    */
   private _currentPose(
-    settle = 0.25,
+    // Past BLEND_SECONDS, so a pose is never measured mid-blend.
+    settle = 0.35,
     window = 2,
     interval = 0.08
   ): { bottom: number; height: number; head: number | null } | null {
@@ -1951,10 +1952,10 @@ export class B3dBiped extends B3dControllable {
   Babylon's `blendingSpeed` is a step PER FRAME, so a fixed value is slower the
   slower the frame rate (0.2 took 300 ms at 20 fps). `_paceBlends` resets it
   from each frame's dt so a blend takes `BLEND_SECONDS` at any frame rate. It
-  stays under `_currentPose`'s 0.25 s settle, so a pose is not measured
+  stays under `_currentPose`'s 0.35 s settle, so a pose is not measured
   mid-blend.
   */
-  private static BLEND_SECONDS = 0.08
+  private static BLEND_SECONDS = 0.25
   private _eased = new Set<BABYLON.AnimationGroup>()
   private _blendStep = 0
 
