@@ -12,11 +12,15 @@ The dial runs through the ten tones of the **Monk Skin Tone Scale**
 cover the range of real skin evenly, the dark end included. Between two tones
 it blends in linear light, as paint would mix, not in sRGB.
 
-The scale's colours are swatches, meant to be SEEN on a screen; a material
-needs what a surface REFLECTS, which for skin is darker than its swatch.
-`skinAlbedo` scales the swatch down to a plausible diffuse reflectance (fair
-skin reflects about 60% of red light, not 90%), so a lit body comes out the
-colour of its swatch rather than glowing.
+The scale's colours are swatches, meant to be SEEN on a screen, and they are
+nearly neutral: tone 1 reflects only 18% more red than blue. Skin measured as
+a surface is far warmer (fair skin about 1.7 times as much red as blue,
+because blood under it absorbs blue and green), and a body painted with the
+swatches looks grey and bloodless. So `skinAlbedo`, the colour for a
+material, takes only each tone's LIGHTNESS from the scale, at a plausible
+reflectance (fair skin reflects about 60% of red light, not 90%), and gives
+it skin's own warmth: pinker at the fair end, more golden in the middle.
+`skinColor` is the scale's swatch, for a UI.
 
 ```javascript
 skinColor(0)          // the scale's tone 1, sRGB 0..1
@@ -86,13 +90,35 @@ export function skinLinear(tone: number, redness = 0.5): Rgb {
 /** The swatch as sRGB, 0..1 per channel (for UI, or a sRGB colour input). */
 export function skinColor(tone: number, redness = 0.5): Rgb {
   const c = skinLinear(tone, redness)
-  return { r: toSrgb(clamp01(c.r)), g: toSrgb(clamp01(c.g)), b: toSrgb(clamp01(c.b)) }
+  return {
+    r: toSrgb(clamp01(c.r)),
+    g: toSrgb(clamp01(c.g)),
+    b: toSrgb(clamp01(c.b)),
+  }
 }
 
-/** What the skin reflects: the swatch scaled to a diffuse albedo, linear. */
+/*
+Skin's warmth as green and blue against red, from fair (pinker, more blue
+let through) to dark (browner). Measured diffuse albedos of skin sit near
+these ratios (Weyrich et al. 2006 report about 1 : 0.69 : 0.54 for fair skin).
+*/
+const WARMTH_FAIR = { g: 0.7, b: 0.58 }
+const WARMTH_DARK = { g: 0.66, b: 0.47 }
+
+/**
+ * What the skin reflects, linear, for a material: the tone's lightness at a
+ * diffuse reflectance, with skin's warmth. `redness` 0.5 is neutral.
+ */
 export function skinAlbedo(tone: number, redness = 0.5): Rgb {
-  const c = skinLinear(tone, redness)
-  const k = 0.68
-  return { r: c.r * k, g: c.g * k, b: c.b * k }
+  const swatch = skinLinear(tone)
+  const lum = 0.2126 * swatch.r + 0.7152 * swatch.g + 0.0722 * swatch.b
+  const t = clamp01(tone)
+  const d = (clamp01(redness) - 0.5) * 2
+  const g =
+    (WARMTH_FAIR.g + (WARMTH_DARK.g - WARMTH_FAIR.g) * t) * (1 - 0.1 * d)
+  const b =
+    (WARMTH_FAIR.b + (WARMTH_DARK.b - WARMTH_FAIR.b) * t) * (1 - 0.14 * d)
+  // Scale so the colour keeps the swatch's lightness at 68% reflectance.
+  const r = (lum * 0.68) / (0.2126 + 0.7152 * g + 0.0722 * b)
+  return { r, g: r * g, b: r * b }
 }
-

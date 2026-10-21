@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Added:** `retargetClip(…, { posture: 'clip' })` lines a body's hips, spine and neck up with the clip's own posture, for a body built like the clip's (a human whose rest pose leans its neck forward otherwise leans it twice). The default, `'own'`, keeps each body's lean, as a weasel needs.
+
 - **Added:** the first step of a character creator on MakeHuman's CC0 data (CHARACTER-DESIGN.md): `loadHumanPack`, `macroWeights` / `morphHuman` (body sliders: gender, age, muscle, weight, height, proportions, ancestry) skin tone (`skinMaterial`, `skinAlbedo`: very fair to very dark through the Monk Skin Tone Scale, plus redness), `humanRig` (UAL's skeleton placed from MakeHuman's joint cubes, so UAL's clips play on any body shape) and `humanBody`. The demo page is the [character builder](/character-builder/); its data is on the CDN as `makehuman/hm08/`.
 
 ## 0.11.3

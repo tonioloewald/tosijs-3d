@@ -90,7 +90,7 @@ preview.append(
         const play = () => {
           playing?.dispose()
           const clip = ual.animationGroups.find((g) => g.name === walker.clip.value)
-          playing = clip ? retargetClip(clip, source, read, { scene }) : null
+          playing = clip ? retargetClip(clip, source, read, { scene, posture: 'clip' }) : null
           playing?.start(true)
         }
         let busy = false
