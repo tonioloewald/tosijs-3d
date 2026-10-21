@@ -1948,14 +1948,29 @@ export class B3dBiped extends B3dControllable {
   ANIMATIONS (an AnimationGroup passes it down), which the upper-body layer's
   tiers share, so the layer is eased too.
 
-  `blendingSpeed` is per frame: 0.2 is about a twelfth of a second at 60 Hz, a
-  little less at a headset's 90 (0.1 read as sluggish). It stays under `_currentPose`'s 0.25 s settle,
-  so a pose is not measured mid-blend.
+  Babylon's `blendingSpeed` is a step PER FRAME, so a fixed value is slower the
+  slower the frame rate (0.2 took 300 ms at 20 fps). `_paceBlends` resets it
+  from each frame's dt so a blend takes `BLEND_SECONDS` at any frame rate. It
+  stays under `_currentPose`'s 0.25 s settle, so a pose is not measured
+  mid-blend.
   */
+  private static BLEND_SECONDS = 0.08
+  private _eased = new Set<BABYLON.AnimationGroup>()
+  private _blendStep = 0
+
   private _ease(group: BABYLON.AnimationGroup | null | undefined): void {
-    if (group == null || group.enableBlending) return
+    if (group == null || this._eased.has(group)) return
+    this._eased.add(group)
     group.enableBlending = true
-    group.blendingSpeed = 0.2
+    group.blendingSpeed = this._blendStep || 0.2
+  }
+
+  private _paceBlends(dt: number): void {
+    const step = Math.min(1, dt / B3dBiped.BLEND_SECONDS)
+    // Only when it moves noticeably: the setter walks every animation.
+    if (Math.abs(step - this._blendStep) < this._blendStep * 0.1) return
+    this._blendStep = step
+    for (const group of this._eased) group.blendingSpeed = step
   }
 
   setAnimationState(name: string, speed = 1) {
@@ -2244,6 +2259,7 @@ export class B3dBiped extends B3dControllable {
     }
     this._sneakWas = sneakDown
     this._stanceLeft = Math.max(0, this._stanceLeft - dt)
+    this._paceBlends(dt)
 
     const speed = input.forward
     /*
@@ -3648,6 +3664,7 @@ export class B3dBiped extends B3dControllable {
     const attrs = this as any
     if (attrs.url !== '' && !this.entries) {
       this.loadAssetContainer(scene, attrs.url, (container) => {
+        this._eased.clear()
         this.entries = container.instantiateModelsToScene(undefined, false, {
           doNotInstantiate: true,
         })
@@ -3764,6 +3781,7 @@ export class B3dBiped extends B3dControllable {
         ag.dispose()
       }
       this.entries = undefined
+      this._eased.clear()
     }
     this.gameController = undefined
     this.inputProvider = null
