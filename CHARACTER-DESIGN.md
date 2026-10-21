@@ -1,9 +1,11 @@
 # CHARACTER-DESIGN — a character creator on MakeHuman's data
 
-> Status: **design, for review.** Nothing built. Written 2026-10-21 after a
-> read of the rig tool, auto-rig, retargeting and spring chains at 0.11;
-> revised the same day with Tonio's answers (style, runtime creation,
-> swappable base meshes, ensemble as a consumer).
+> Status: **accepted, step 0 under way.** Written 2026-10-21 after a read of
+> the rig tool, auto-rig, retargeting and spring chains at 0.11; revised the
+> same day with Tonio's answers (style, runtime creation, swappable base
+> meshes, ensemble as a consumer), then with step 0's first measurements of
+> MakeHuman's real files (macro targets are dense, units are decimetres, the
+> rig map is a real table).
 
 **What it is:** Ensemble for people. Sliders take a body from short to tall,
 thin to fat, young to old, male to female; faces are customised; skin is a
@@ -192,22 +194,52 @@ base, its macros, a face group, a garment) so the pack split in the next
 section is drawn where the bytes actually are.
 Confirm the CC0 notice is in the data we check out.
 
+**Measured so far** (2026-10-21, desktop under Bun, from MakeHuman's
+`master`; the Quest numbers are still owed):
+
+| | |
+| --- | --- |
+| licence | the bundled assets are CC0 (`LICENSE.md` section C), and every target file says so in its header |
+| hm08 | 19,158 vertices: 13,380 body (one `body` group, about 26k triangles), the rest 13 `helper-*` groups and 125 `joint-*` cubes |
+| units | **decimetres**: the young male, young female and baby macros stand 17.5, 16.1 and 6.0 units tall. The converter scales by 0.1 |
+| macro targets | **dense**: each moves every vertex. 225 KB as float32, 112 KB as int16 (a 0.03 mm step at their ±10.7 dm range, invisible); 98 files, about 11 MB as int16 before compression |
+| morph cost | 0.03 ms per dense target. Morphing needs no worker |
+| skeleton | `default.mhskel`: 163 bones (face muscles, tongue, toes, split arm and leg segments), each joint the centroid of an 8-vertex cube (326 head/tail references); `default_weights.mhw` weights 139 of them |
+
 **Watchable:** a grey body walking from short to tall, thin to heavy.
 
 ### 1. Body, with bases from the start (small–medium)
 
 `human-pack` + `human-morph` + the converter. The base is a parameter from day
-one, even with one base. Targets are sparse, so store index + delta and sum on
-the CPU. Identity morphs are baked into positions, not GPU morph targets: a
-body's build is fixed once made, and Babylon's morph-target budget is better
-spent on the face. Slow? Send the recipe to a worker, transfer positions back
-(PERF-DESIGN).
+one, even with one base. **Macro targets are dense** (every vertex moves), so
+they pack as full int16 arrays, one per corner, and a recipe fetches only the
+corners its gender, age and ethnicity mix touches. Detail targets (face, body
+parts) are sparse and pack as index + delta. Both are summed on the CPU, at
+0.03 ms per dense target, so no worker. Identity morphs are baked into
+positions, not GPU morph targets: a body's build is fixed once made, and
+Babylon's morph-target budget is better spent on the face.
 
 ### 2. Skeleton and skin weights (small)
 
-`human-rig` maps joint cubes to UAL's joints, so UAL clips play with no
-retargeting. Weights are computed once per base (bone heat on the UAL skeleton,
-or MakeHuman's weights mapped over) and stored in the pack. If extreme bodies
+`human-rig` maps joint cubes to UAL's joints. Two things that sentence hides:
+
+- **The rig map is a table, and it folds.** MakeHuman's default rig has 163
+  bones; UAL has 65. Face muscles, tongue and eye bones fold into `head`,
+  toes into the foot's ball bone, and the second segment of each arm and leg
+  (`upperarm02`, `lowerarm02`, `upperleg02`, `lowerleg02`) into its first, with
+  their weights summed. The table lives in the base, so a base with its own
+  skeleton brings its own. (MakeHuman's 53-bone game-engine skeleton is
+  closer to UE's names, but it is not in the core data; start from the
+  default rig and the table.)
+- **Joint cubes give POSITIONS, not orientations.** A clip's rotations play
+  correctly only on bones whose local axes match the clip's. So the built
+  bones take UAL's rest orientation per role, positioned from the cubes, and
+  clips play directly; anything that does not line up goes through
+  `retarget`, which already handles differing rest poses. Decide by
+  measuring UAL's walk on the built rig in step 2, not in advance.
+
+Weights are computed once per base (MakeHuman's weights folded through the
+table, or bone heat on the built skeleton) and stored in the pack. If extreme bodies
 deform badly, re-run `boneHeat` for that body in a worker; measure it at hm08's
 size first (today it is ~0.1–0.3 s for 1–6k vertices).
 
@@ -329,6 +361,12 @@ Two outputs, from one recipe:
 accessory pieces are separable in the output too (GLB nodes per part, the
 recipe beside it), so a consumer can swap a helmet without rebuilding the
 person.
+
+The runtime element is **`<tosi-b3d-figure>`** (#123, asked for by
+ensemble): a model plus a rig recipe, placed and playing clips. A created
+character is one more source for it (`character` = a `CharacterRecipe`
+beside `model`), so a game, ensemble and the crowd all place characters the
+same way. Build #123 for loaded models first; this step adds the source.
 
 **Watchable:** ensemble places three created characters; a demo page offers a
 player-style character screen restricted by a `CharacterRules`.
