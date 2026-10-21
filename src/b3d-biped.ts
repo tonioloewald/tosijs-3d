@@ -1948,14 +1948,14 @@ export class B3dBiped extends B3dControllable {
   ANIMATIONS (an AnimationGroup passes it down), which the upper-body layer's
   tiers share, so the layer is eased too.
 
-  `blendingSpeed` is per frame: 0.1 is about a sixth of a second at 60 Hz, a
-  little less at a headset's 90. It stays under `_currentPose`'s 0.25 s settle,
+  `blendingSpeed` is per frame: 0.2 is about a twelfth of a second at 60 Hz, a
+  little less at a headset's 90 (0.1 read as sluggish). It stays under `_currentPose`'s 0.25 s settle,
   so a pose is not measured mid-blend.
   */
   private _ease(group: BABYLON.AnimationGroup | null | undefined): void {
     if (group == null || group.enableBlending) return
     group.enableBlending = true
-    group.blendingSpeed = 0.1
+    group.blendingSpeed = 0.2
   }
 
   setAnimationState(name: string, speed = 1) {
