@@ -427,6 +427,9 @@ export function ualAnimationStates(extra: AnimStateSpec[] = []): AnimState[] {
     { name: 'sneakIdle', animation: 'Crouch_Idle_Loop', loop: true },
     { name: 'sneakLeft', animation: 'Crouch_Left_Loop', loop: true },
     { name: 'sneakRight', animation: 'Crouch_Right_Loop', loop: true },
+    // Crouching down and standing up, played when the stance changes at rest.
+    { name: 'sneakEnter', animation: 'Crouch_Enter', loop: false },
+    { name: 'sneakExit', animation: 'Crouch_Exit', loop: false },
     // One clip per phase, which is why the jump can be done properly here:
     // `jump` is the wind-up, and the loop and landing are addressable.
     { name: 'jump', animation: 'Jump_Start', loop: false },
@@ -1420,6 +1423,9 @@ export class B3dBiped extends B3dControllable {
     return (g.to - g.from) / fps / ratio
   }
   private _sneakWas = false
+  /** The stance-change clip playing (`sneakEnter`/`sneakExit`), and its seconds left. */
+  private _stanceClip = ''
+  private _stanceLeft = 0
   /** Zoom 0..1, now integrated from the d-pad rather than read off a stick. */
   private _camZoom = 0
   private _waterEl:
@@ -1925,6 +1931,8 @@ export class B3dBiped extends B3dControllable {
       (g) => g.name.replace(/^Clone of /, '') === layerClip
     )
     if (layerGroup == null) return
+    this._ease(baseGroup)
+    this._ease(layerGroup)
     baseGroup.stop()
     this._aimLayer = layerOnUpperBody(scene, skeleton, baseGroup, layerGroup)
     this._aimLayer?.play(layerClip !== 'Pistol_Shoot')
@@ -1932,6 +1940,23 @@ export class B3dBiped extends B3dControllable {
 
   /** Seconds left of the one-shot fire pose. */
   private _shootFor = 0
+
+  /*
+  EVERY CLIP CHANGE IS EASED, not cut. Babylon's animation blending starts a
+  clip from wherever each bone is now and eases it in, so standing to crouch,
+  walk to run and the gun coming up all move rather than pop. It is set on the
+  ANIMATIONS (an AnimationGroup passes it down), which the upper-body layer's
+  tiers share, so the layer is eased too.
+
+  `blendingSpeed` is per frame: 0.1 is about a sixth of a second at 60 Hz, a
+  little less at a headset's 90. It stays under `_currentPose`'s 0.25 s settle,
+  so a pose is not measured mid-blend.
+  */
+  private _ease(group: BABYLON.AnimationGroup | null | undefined): void {
+    if (group == null || group.enableBlending) return
+    group.enableBlending = true
+    group.blendingSpeed = 0.1
+  }
 
   setAnimationState(name: string, speed = 1) {
     name = this._gunplayState(name)
@@ -1992,6 +2017,7 @@ export class B3dBiped extends B3dControllable {
       }
     }
     const animationGroup = this.entries.animationGroups[idx]
+    this._ease(animationGroup)
     if (newState.backwards) {
       animationGroup.start(
         loop,
@@ -2202,8 +2228,22 @@ export class B3dBiped extends B3dControllable {
     const sneakDown = (input.sneak ?? 0) > 0.5
     if (!this._swimming && sneakDown && !this._sneakWas) {
       this._sneaking = !this._sneaking
+      /*
+      A RIG'S OWN TRANSITION CLIP, where it has one; a blend everywhere else.
+      `Crouch_Enter` / `Crouch_Exit` are drawn standing still, so they play
+      only while you are at rest (see the idle branch below); moving, the
+      stance change is the ordinary blend between loops.
+      */
+      const clip = this._sneaking ? 'sneakEnter' : 'sneakExit'
+      this._stanceClip = this.animationStates.some((st) => st.name === clip)
+        ? clip
+        : ''
+      this._stanceLeft = this._stanceClip
+        ? this._clipSeconds(this._stanceClip)
+        : 0
     }
     this._sneakWas = sneakDown
+    this._stanceLeft = Math.max(0, this._stanceLeft - dt)
 
     const speed = input.forward
     /*
@@ -3245,6 +3285,8 @@ export class B3dBiped extends B3dControllable {
         this.setAnimationState(gait.state, gait.scale)
       } else if (speed < -0.1) {
         this.setAnimationState('walkBackwards', Math.abs(speed) + 0.25)
+      } else if (this._stanceLeft > 0 && Math.abs(rotation) <= 0.1) {
+        this.setAnimationState(this._stanceClip)
       } else if (
         this._sneaking &&
         this.animationStates.some((st) => st.name === 'sneakIdle')
@@ -3257,6 +3299,9 @@ export class B3dBiped extends B3dControllable {
       } else {
         this.setAnimationState('idle')
       }
+      // Anything else chosen (moving, a jump) ends the transition clip, so
+      // stopping again later does not replay half of it.
+      if (this.animationState?.name !== this._stanceClip) this._stanceLeft = 0
     }
   }
 
