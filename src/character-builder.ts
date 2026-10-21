@@ -16,8 +16,10 @@ bone heat's, worked out once when the page loads (a couple of seconds).
 
 ```js
 import { b3d, b3dLight, slider3d, select3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
-import { tosi } from 'tosijs'
+import { tosi, elements } from 'tosijs'
+const { div } = elements
 
+const status = div({ class: 'status' }, 'loading the animations…')
 const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, clip: 'Walk_Loop' } })
 const clips = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Dance_Loop', 'Crouch_Fwd_Loop']
 let rebuild = () => {}
@@ -52,13 +54,20 @@ preview.append(
 
         // UAL's mannequin is only the clips' source: it stays hidden.
         const ual = await BABYLON.LoadAssetContainerAsync(assetUrl('quaternius/UAL1_core.glb', 2), scene)
+        status.textContent = 'loading the body…'
         ual.addAllToScene()
         for (const g of ual.animationGroups) g.stop()
         const ualRoot = ual.meshes.find((m) => m.name === '__root__')
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
 
-        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json'))
+        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json')).catch((e) => {
+          status.textContent = `could not load the body: ${e.message}`
+          throw e
+        })
+        status.textContent = 'binding the skin…'
+        // Let the message paint before the binding takes the thread.
+        await new Promise((r) => setTimeout(r, 50))
         const skin = humanSkin(pack)
         const body = () => {
           const b = {}
@@ -100,15 +109,18 @@ preview.append(
           if (again) { again = false; rebuild() }
         }
         await rebuild()
+        status.remove()
         walker.clip.observe(play)
       },
     },
     b3dLight({ intensity: 0.9 })
-  )
+  ),
+  status
 )
 ```
 ```css
 tosi-b3d { width: 100%; height: 100%; }
+.status { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.6); color: white; padding: 6px 12px; border-radius: 6px; font: 13px sans-serif; }
 ```
 
 ## humanBody
