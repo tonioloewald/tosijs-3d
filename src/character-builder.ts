@@ -15,12 +15,13 @@ while it walks, since every body carries its own joints. The skin weights are
 bone heat's, worked out once when the page loads (a couple of seconds).
 
 ```js
-import { b3d, b3dLight, slider3d, select3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div } = elements
 
 const status = div({ class: 'status' }, 'loading the animations…')
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, clip: 'Walk_Loop' } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, clip: 'Walk_Loop', tone: 0.3, redness: 0.5 } })
+let mat = null
 const clips = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Dance_Loop', 'Crouch_Fwd_Loop']
 let rebuild = () => {}
 
@@ -39,6 +40,9 @@ preview.append(
         slider('muscle', 'muscle'),
         slider('weight', 'weight'),
         slider('height', 'height'),
+        label3d({ text: 'Skin' }),
+        slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01, handleChange: () => mat?.setSkin(walker.tone.value, walker.redness.value) }),
+        slider3d({ label: 'redness', value: walker.redness, min: 0, max: 1, step: 0.01, handleChange: () => mat?.setSkin(walker.tone.value, walker.redness.value) }),
         label3d({ text: 'Ancestry' }),
         slider('african', 'african'),
         slider('asian', 'asian'),
@@ -78,8 +82,7 @@ preview.append(
         const first = await morphHuman(pack, body())
         const weights = boneHeat(skin.positions(first), skin.triangles, skinSegments(humanRig(pack.manifest, first)))
 
-        const mat = new BABYLON.StandardMaterial('skin', scene)
-        mat.diffuseColor = new BABYLON.Color3(0.65, 0.63, 0.62)
+        mat = skinMaterial(scene, { tone: walker.tone.value, redness: walker.redness.value })
         const stand = new BABYLON.TransformNode('stand', scene)
         let built = null
         let playing = null
@@ -113,7 +116,8 @@ preview.append(
         walker.clip.observe(play)
       },
     },
-    b3dLight({ intensity: 0.9 })
+    b3dSun({ timeOfDay: 15 }),
+    b3dLight({ intensity: 0.5 })
   ),
   status
 )
@@ -140,6 +144,7 @@ body's triangles.
 
 import * as BABYLON from '@babylonjs/core'
 import type { HumanPack } from './human-pack.js'
+import { skinAlbedo } from './skin-tone.js'
 
 export interface HumanBody {
   /** Move, turn and scale the body by this. */
@@ -210,4 +215,30 @@ export function humanBody(
       root.dispose()
     },
   }
+}
+
+export interface SkinMaterial extends BABYLON.PBRMaterial {
+  /** Re-colour: tone 0 (very fair) to 1 (very dark), redness 0.5 neutral. */
+  setSkin(tone: number, redness?: number): void
+}
+
+/**
+ * A skin material from [skin-tone](/skin-tone/)'s dials: dielectric, fairly
+ * rough, the albedo the tone gives. One flat colour for now: lips, nails and
+ * a texture's detail need the mesh's UVs, which the pack does not carry yet.
+ */
+export function skinMaterial(
+  scene: BABYLON.Scene,
+  options: { tone?: number; redness?: number; name?: string } = {}
+): SkinMaterial {
+  const m = new BABYLON.PBRMaterial(options.name ?? 'skin', scene) as SkinMaterial
+  m.metallic = 0
+  m.roughness = 0.55
+  m.setSkin = (tone, redness = 0.5) => {
+    const c = skinAlbedo(tone, redness)
+    // PBR's albedo is linear, as glTF's base colour is.
+    m.albedoColor = new BABYLON.Color3(c.r, c.g, c.b)
+  }
+  m.setSkin(options.tone ?? 0.3, options.redness ?? 0.5)
+  return m
 }

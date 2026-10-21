@@ -1809,10 +1809,12 @@ export {
   ancestryCorners,
 } from './human-morph.js'
 export type { MacroBody } from './human-morph.js'
-export { humanBody } from './character-builder.js'
+export { humanBody, skinMaterial } from './character-builder.js'
+export { MONK_TONES, skinLinear, skinColor, skinAlbedo } from './skin-tone.js'
+export type { Rgb as SkinRgb } from './skin-tone.js'
 export { humanRig, humanSkin, HM08_UAL } from './human-rig.js'
 export type { HumanRigRow, HumanSkin } from './human-rig.js'
-export type { HumanBody } from './character-builder.js'
+export type { HumanBody, SkinMaterial } from './character-builder.js'
 export type { HeatBone, SkinWeights } from './bone-heat.js'
 export {
   springChain,

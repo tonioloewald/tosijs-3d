@@ -148,3 +148,28 @@ describe.skipIf(!havePack)('hm08, rigged from its joint cubes', () => {
     expect(humanSkin(pack).vertices.length).toBe(13380)
   })
 })
+
+describe('skin tone', () => {
+  test('the dial runs from very fair to very dark, steadily', async () => {
+    const { skinLinear } = await import('./skin-tone.js')
+    const lum = (t: number) => {
+      const c = skinLinear(t)
+      return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b
+    }
+    expect(lum(0)).toBeGreaterThan(lum(1) * 10)
+    // Never lighter as the dial goes up (tone 3 of the scale is a hair
+    // lighter than 2 in red, so measure luminance, which is monotone).
+    for (let t = 0.2; t <= 1; t += 0.05) expect(lum(t)).toBeLessThanOrEqual(lum(t - 0.2) + 1e-9)
+  })
+
+  test('the ends are the scale’s own tones, and redness warms', async () => {
+    const { skinColor, MONK_TONES } = await import('./skin-tone.js')
+    const hex = (c: { r: number; g: number; b: number }) =>
+      '#' + [c.r, c.g, c.b].map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('')
+    expect(hex(skinColor(0))).toBe(MONK_TONES[0])
+    expect(hex(skinColor(1))).toBe(MONK_TONES[9])
+    const ruddy = skinColor(0.4, 1)
+    const sallow = skinColor(0.4, 0)
+    expect(ruddy.r / ruddy.g).toBeGreaterThan(sallow.r / sallow.g)
+  })
+})
