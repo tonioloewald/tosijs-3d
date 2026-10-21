@@ -1789,6 +1789,28 @@ export type { MarkerField, MarkerField3dOptions } from './rig-markers.js'
 export { boneHeat } from './bone-heat.js'
 export { buildRig } from './rig-build.js'
 export type { BuiltRig } from './rig-build.js'
+export { loadHumanPack, decodeHumanTarget } from './human-pack.js'
+export type {
+  HumanPack,
+  HumanPackManifest,
+  HumanTarget,
+  HumanTargetEntry,
+} from './human-pack.js'
+export {
+  DEFAULT_HUMAN_BODY,
+  macroWeights,
+  morphHuman,
+  addHumanTarget,
+  humanJoint,
+  humanHeight,
+  genderCorners,
+  ageCorners,
+  ageYears,
+  ancestryCorners,
+} from './human-morph.js'
+export type { MacroBody } from './human-morph.js'
+export { humanBody } from './character-babylon.js'
+export type { HumanBody } from './character-babylon.js'
 export type { HeatBone, SkinWeights } from './bone-heat.js'
 export {
   springChain,

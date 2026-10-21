@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Added:** the first step of a character creator on MakeHuman's CC0 data (CHARACTER-DESIGN.md): `loadHumanPack`, `macroWeights` / `morphHuman` (body sliders: gender, age, muscle, weight, height, proportions, ancestry) and `humanBody`, which draws the result. The demo page is [character-babylon](/character-babylon/); its data is on the CDN as `makehuman/hm08/`.
+
 ## 0.11.3
 
 The latest release. The biped eases between animations instead of cutting
