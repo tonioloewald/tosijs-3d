@@ -65,7 +65,7 @@ const scene = b3d(
       ]
     },
     sceneCreated(el) {
-      orbitCam(el, { radius: 12, beta: Math.PI / 2.9, target: [0, 1, 0] })
+      orbitCam(el, { radius: 12, betaDeg: 62.1, target: [0, 1, 0] })
     },
   },
   ...demoStage({ size: 20, tiles: 12, texture: '/tosi-warhol-testgrid.svg', timeOfDay: 12 }),
@@ -120,6 +120,16 @@ tosi-b3d { width: 100%; height: 100%; }
 ## API
 
 - `ready: Promise<void>` — resolves when the GLB has loaded
+- `getNames(): string[]` — declared `.model` exports under clean names (or all
+  mesh/transform-node names when none are declared; `__root__`/`-ignore` always excluded)
+- `getRootNames(): string[]` — same, top-level nodes only
+- `getHierarchy(): {name, label, children, isMesh}[]` — recursive tree of all nodes reflecting parent–child structure. `name` identifies the node; **`label` is what you show a human** (`.model`, behaviour suffixes and the glTF loader's `_primitiveN` all removed, so `building_collideCylinder_primitive0` reads as `building`)
+- `instantiate(name, options?): Node | null` — clone a named node (mesh or transform, with children) into the scene
+- `make` — the same thing, as callable names: `lib.make.scout({ y: 1 })`. Quotes are the only difference, but a string is invisible to the editor and a typo in one is a runtime error rather than something you see while typing. It's a sub-object, not methods on the element, because a GLB may contain a node called `id` or `remove` and a model must never be able to shadow the DOM.
+- `clearInstances(): void` — dispose all previously instantiated clones
+- Options: `{ x?, y?, z?, rx?, ry?, rz?, parent?, animations?, canonical? }` —
+  rotation in **degrees**
+
 ## Authoring conventions (Blender)
 
 - **Axes: Blender defaults, in the model's LOCAL frame** — the nose faces
@@ -144,7 +154,7 @@ tosi-b3d { width: 100%; height: 100%; }
   (`scout.model`). Once a file declares any, ONLY those are listed — under
   their clean names (`getNames()` → `'scout'`, `instantiate('scout')` works) —
   so collections, rig helpers and boolean cutters stay out of the catalog. A
-  file with no `.model` nodes lists everything (legacy behaviour).
+  file with no `.model` nodes lists everything.
 - **`.model` is orthogonal to the behaviour suffixes**: every suffix check
   (`_collideMesh`, `_noshadow`, `_mirror`, `-ignore`, …) runs on the name with
   `.model` stripped, so `Hull_collideMesh.model` exports AND gets its
@@ -175,15 +185,6 @@ Only groups whose targets all live inside the model's subtree travel — the
 scene's ambient animations stay behind. Pass `animations: false` to skip;
 `clearInstances()` disposes the clones with their instance.
 
-- `getNames(): string[]` — declared `.model` exports under clean names (or all
-  mesh/transform-node names when none are declared; `__root__`/`-ignore` always excluded)
-- `getRootNames(): string[]` — same, top-level nodes only
-- `getHierarchy(): {name, label, children, isMesh}[]` — recursive tree of all nodes reflecting parent–child structure. `name` identifies the node; **`label` is what you show a human** (`.model`, behaviour suffixes and the glTF loader's `_primitiveN` all removed, so `building_collideCylinder_primitive0` reads as `building`)
-- `instantiate(name, options?): Node | null` — clone a named node (mesh or transform, with children) into the scene
-- `make` — the same thing, as callable names: `lib.make.scout({ y: 1 })`. Quotes are the only difference, but a string is invisible to the editor and a typo in one is a runtime error rather than something you see while typing. It's a sub-object, not methods on the element, because a GLB may contain a node called `id` or `remove` and a model must never be able to shadow the DOM.
-- `clearInstances(): void` — dispose all previously instantiated clones
-- Options: `{ x?, y?, z?, rx?, ry?, rz?, parent?, animations?, canonical? }` —
-  rotation in **degrees** (it was radians before 0.7.0; see the CHANGELOG)
 */
 /*{ "parent": "core", "order": 50 }*/
 import { B3dChild, publicName, isIgnored } from './b3d-utils.js';

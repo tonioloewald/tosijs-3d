@@ -38,7 +38,7 @@ const sceneEl = b3d(
       }),
     ],
     sceneCreated(el) {
-      orbitCam(el, { alpha: -1.2, beta: 0.85, radius: 20, target: [0, 0.5, 0] })
+      orbitCam(el, { alphaDeg: -68.8, betaDeg: 48.7, radius: 20, target: [0, 0.5, 0] })
       // Ordinary picking — no predicate. That is the whole point; see below.
       el.scene.onPointerDown = () => {
         const hit = el.scene.pick(el.scene.pointerX, el.scene.pointerY)
@@ -94,11 +94,9 @@ preview.append(readout, sceneEl)
 so hiding a hull the obvious way — `isVisible = false` — makes it **unpickable**,
 which is the only thing it exists for.
 
-`tosijs-3d-ensemble` hit this and worked around it by always passing its own pick
-predicate, because Babylon consults a predicate *instead of* that test rather
-than as well as it. That works, and it makes the hull silently stop working for
-any caller who picks without one, so "picking is broken" is rediscovered by
-every consumer in turn.
+Passing your own pick predicate works around it, because Babylon consults a
+predicate *instead of* that test rather than as well as it. But then the hull
+silently stops working for any caller who picks without one.
 
 **This uses `visibility = 0` instead**, which draws nothing while leaving
 `isVisible` true — so an ordinary `scene.pick(x, y)` with no predicate finds it,
@@ -119,10 +117,9 @@ selected, which is a much harder bug to attribute than a dead click.
 
 ## Invisible, not drawn
 
-The first version of this elsewhere drew an amber cube. It works, and it is
-clutter: a solid the author cannot move, delete or edit, sitting in a view whose
-whole purpose is judging an arrangement. Collision geometry is not seen. `show`
-exists for when you are debugging the hull itself.
+A drawn marker would be clutter: a solid the author cannot move, delete or edit,
+sitting in a view whose whole purpose is judging an arrangement. Collision
+geometry is not seen. `show` exists for when you are debugging the hull itself.
 
 ## Opt-in, never blanket
 
@@ -148,6 +145,6 @@ thing genuinely has an extent — a trigger volume, a zone, a tile.
 
 A handle does; a marker does not. **A handle is a control, a marker is a fact
 about the world** — so a beacon two hundred metres away is a small target,
-correctly, because the thing it stands for is far away. [[b3d-manipulator]] is
+correctly, because the thing it stands for is far away. [b3d-manipulator](/b3d-manipulator/) is
 the other half of this: a beacon is what you click, handles are what you then
 drag.

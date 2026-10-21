@@ -1,4 +1,4 @@
-/*#
+/*
 # gamepad-svg
 
 Generates a gamepad SVG using tosijs element creators. All colors and stroke
@@ -31,7 +31,6 @@ const pad = gamepadSvg()
 const dark = gamepadSvg({ controllerColor: '#333', widgetColor: '#888' })
 ```
 */
-/*{ "parent": "input-internals", "order": 80 }*/
 import { svgElements } from 'tosijs';
 const { svg, path } = svgElements;
 const DEFAULTS = {

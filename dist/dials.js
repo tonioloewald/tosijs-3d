@@ -7,7 +7,7 @@ passes: drag the dot round the ring to set the hour (noon at the top, midnight
 at the bottom), and drag the dot along the bar from the snail (time stands
 still) to the rabbit (an hour a second).
 
-Both are drawn by an artist, not by code: the SVGs are Tonio's, the code only
+Both are drawn by an artist, not by code: the SVGs are Tonio Loewald's, the code only
 finds the parts by name and moves them. Put either on the system bar with a
 `<tosi-b3d-panel icon title>`, as here, and it works flat and in a headset.
 

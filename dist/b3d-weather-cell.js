@@ -8,8 +8,9 @@ consumers (clouds, water, ambient) ask the scene for the weather WHERE THEY ARE
 
 `drift="wind"` makes it a **weather system**: it travels with the scene's wind,
 and with a `lifetime` it grows, holds and dies rather than popping. See
-[[weather]] for the composition rules and WEATHER-DESIGN.md for where this is
-going (storm visuals, lightning, shafts).
+[[weather]] for how overlapping cells combine. A storm cell is what
+[b3d-lightning](/b3d-lightning/) strikes under and what the
+[cloud deck](/b3d-cloud-deck/) thickens over.
 
 ## Demo
 

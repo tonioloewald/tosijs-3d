@@ -39,7 +39,7 @@ The element carries `.effect`: `recipe` (a copy; set one to play it) and
 ## In an editor: mounting it in your scene
 
 `mountEffectTool(b3d, options)` opens the tool in a `<tosi-b3d>` you already
-have, on the same contract as the rig tool's `mountRigTool` (tosijs-3d#122):
+have, on the same contract as the rig tool's `mountRigTool`:
 
 ```javascript
 import { mountEffectTool } from 'tosijs-3d/effect-tool'
@@ -58,7 +58,7 @@ tool.unmount()
 `change` on every edit, `commit` once per finished gesture, each with a copy
 of the recipe; hosted, its panel is a system panel; `unmount()` (safe twice)
 returns the scene's counts to where they were, including the effect player's
-shared driver and sprites, which now go with a scene's last player.
+shared driver and sprites, which go with a scene's last player.
 */
 /*{ "parent": "demos", "order": 36 }*/
 import * as BABYLON from '@babylonjs/core';

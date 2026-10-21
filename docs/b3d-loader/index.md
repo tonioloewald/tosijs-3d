@@ -3,25 +3,7 @@
 Loads a GLB/glTF scene file into the 3D scene. Meshes named with `-ignore` are discarded.
 Imported point/spot lights have their intensity scaled by `lightIntensityScale`.
 
-[Material conventions](?b3d-utils.ts) are applied automatically to all loaded meshes.
-
-## Attributes
-
-| Attribute | Default | Description |
-|-----------|---------|-------------|
-| `url` | `''` | URL of the GLB/glTF file |
-| `lightIntensityScale` | `0.05` | Scale factor for imported lights |
-| `destroyable` | `'off'` | `'on'` gives the model hit points + a death outcome |
-| `capacity` / `armor` / `regenRate` / `regenDelay` | `10` / `0` / `0` / `0.5` | Combat stats (when destroyable) |
-| `explode` / `explodeForce` | `'off'` / `6` | Shatter on death (best for single-mesh models) |
-| `deathBlast` + `blastDamage`/`blastFullRadius`/`blastRadius`/`blastDelay` | `'off'` … | Fire an AOE [warhead](?b3d-warhead.ts) on death (chain-reaction mechanism) |
-
-Set `destroyable="on"` to make a loaded model take damage and die — the same
-[DestroyableBehavior](?destroyable-behavior.ts) the standalone
-[b3d-destroyable](?b3d-destroyable.ts) cube wraps, attached to the model's root. Call
-`.damage(n)`, read `.combatId`/`.dead`, or set a `.whenDestroyed` hook. (Default death
-hides the model — the loader owns the mesh hierarchy; use `explode` for a single-mesh
-model, or remove the element to free it.)
+[Material conventions](/b3d-utils/) are applied automatically to all loaded meshes.
 
 ## Demo
 
@@ -91,6 +73,24 @@ tosi-b3d { width: 100%; height: 100%; }
 .debug-panel { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 16px; padding: 8px 20px; background: rgba(0,0,0,0.6); color: #fff; border-radius: 6px; font-size: 14px; z-index: 10; }
 .debug-panel label { display: flex; align-items: center; gap: 4px; }
 ```
+
+## Attributes
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `url` | `''` | URL of the GLB/glTF file |
+| `lightIntensityScale` | `0.05` | Scale factor for imported lights |
+| `destroyable` | `'off'` | `'on'` gives the model hit points + a death outcome |
+| `capacity` / `armor` / `regenRate` / `regenDelay` | `10` / `0` / `0` / `0.5` | Combat stats (when destroyable) |
+| `explode` / `explodeForce` | `'off'` / `6` | Shatter on death (best for single-mesh models) |
+| `deathBlast` + `blastDamage`/`blastFullRadius`/`blastRadius`/`blastDelay` | `'off'` … | Fire an AOE [warhead](/b3d-warhead/) on death (chain-reaction mechanism) |
+
+Set `destroyable="on"` to make a loaded model take damage and die — the same
+[DestroyableBehavior](/destroyable-behavior/) the standalone
+[b3d-destroyable](/b3d-destroyable/) cube wraps, attached to the model's root. Call
+`.damage(n)`, read `.combatId`/`.dead`, or set a `.whenDestroyed` hook. (Default death
+hides the model — the loader owns the mesh hierarchy; use `explode` for a single-mesh
+model, or remove the element to free it.)
 
 ## Usage
 

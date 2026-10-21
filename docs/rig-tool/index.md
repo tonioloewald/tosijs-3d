@@ -73,10 +73,11 @@ driving the tool.
 `rig.problems` lists anything in the recipe the model does not have (a bone
 renamed since it was saved), and `rig.springs` the live chains, whose
 `bones.params` can be changed while it runs.
+
 ## In an editor: mounting it in your scene
 
 `mountRigTool(b3d, options)` opens the tool in a `<tosi-b3d>` you already
-have (tosijs-3d#122): an editor opens it on a character and keeps the recipe
+have: an editor opens it on a character and keeps the recipe
 in its own document.
 
 ```javascript

@@ -109,7 +109,7 @@ export declare class B3dDestroyable extends AbstractMesh {
     whenDestroyed?: (info: {
         id: string;
         position: BABYLON.Vector3;
-        /** Who killed it and through what chain — see [[destroyable|Cause]]. */
+        /** Who killed it and through what chain — see `Cause` in `destroyable.ts`. */
         cause?: Cause;
     }) => void;
     /** A prefab FUNCTION, when a name won't do (a closure over game state). Takes precedence

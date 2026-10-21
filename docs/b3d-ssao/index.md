@@ -137,13 +137,12 @@ time into a depth-and-normals buffer, samples that for every pixel, blurs the
 result and composites it over the frame.
 
 **It never runs in a headset.** A post-process chain on a WebXR camera does not
-render per eye: it draws ONE image across both. That is what 0.8.11 did on a
-Quest, and an emulated headset reproduces it whether the chain is carried into
-the session or built inside it. With this method occlusion is switched off
-before a session starts and back on when it ends.
+render per eye: it draws ONE image across both, on a Quest and in an emulated
+headset alike, whether the chain is carried into the session or built inside
+it. With this method occlusion is switched off before a session starts and back
+on when it ends.
 
-(0.8.11 shipped an `always` value that claimed to run in XR. It never worked.
-It is still accepted, means `on`, and warns once.)
+`ssao="always"` is a deprecated alias of `on`: it is accepted and warns once.
 
 Sample count and resolution come from the device budget
 (`PerfBudgets.ssaoSamples`, `ssaoRatio`), so you tune the LOOK and the tier
@@ -163,5 +162,6 @@ tunes the COST.
 
 Transparent meshes are left out of the depth-and-normals pass, so glass,
 water seen through its alpha, particles and the cloud deck neither receive
-nor cast occlusion. A mesh whose vertex shader moves its vertices (the
-vertex-animated crowd) is occluded as if standing in its rest pose.
+nor cast occlusion. With `screen`, a mesh whose vertex shader moves its
+vertices (the vertex-animated crowd) is occluded as if standing in its rest
+pose; `projected` occludes it in the pose you see.

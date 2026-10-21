@@ -4,6 +4,7 @@
 Io, Titan, an ice moon and an Earth, each a sea, an air, clouds, relief, craters and a climate.
 [`<tosi-b3d-planet world="moon">`](/b3d-planet/) draws one; the
 [star system](/b3d-star-system/) picks one for each rocky planet it makes.
+To see them, use the `world` menu in [b3d-planet](/b3d-planet/)'s demo.
 
 It is the rocky half of [gas-giant](/gas-giant/)'s `GAS_GIANTS`, and works the
 same way: a preset is a starting point, and the planet's `seed` makes another
@@ -13,8 +14,8 @@ The colours come from the biome shader, not from a palette here. A world with
 no water at all sits on the chart's DEAD row, where a warm world is red rock
 and dust (Mars) and a cold one grey regolith (the Moon); the temperature is
 what picks between them. So Mars is "warm" here, which it is not: read the
-temperatures as the chart's way of choosing a colour, as Land and Sky's Mars
-preset does, until a world has a palette of its own.
+temperatures as the chart's way of choosing a colour (Land and Sky's Mars
+preset does the same). A world with its own `palette` is not bound by this.
 
 | | |
 | --- | --- |

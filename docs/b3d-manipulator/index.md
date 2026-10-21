@@ -1,9 +1,8 @@
 # b3d-manipulator
 
 **Translate, rotate and scale handles you can grab — with a mouse, a finger, or
-a hand in a headset.** The maths is [[manipulator]], the geometry is
-[[manipulator-view]], and this is the element that puts them in a scene and
-writes the result somewhere.
+a hand in a headset.** Drop it in a scene, point it at an element or a mesh,
+and it writes the result back.
 
 ## Demo
 
@@ -117,8 +116,27 @@ preview.append(
 `whenChange(transform)` fires live during a drag; `whenCommit(transform)`
 fires once on release, snapped, and only when something actually changed — which
 is your undo step. Both also dispatch a DOM `change` / `commit` event carrying
-the transform in `detail`. (`handleChange`/`handleCommit` were the names until
-0.8.4 and were removed in 0.10: a COMPONENT's callbacks are `when*`.)
+the transform in `detail`. A component's callbacks are `when*`, not `handle*`.
+
+## A grip, not a mode
+
+Every enabled affordance is on screen at once, and the grip you grab says what
+the drag means. A mode switch makes you say what you want twice, once to a
+toolbar and again to the handle, and costs a round trip for the commonest edit
+there is: nudge it over, then turn it a bit. The cost is crowding, and the
+answer to that is the transform set: turn off what you are not using and its
+grips are not built.
+
+Each grip answers one question: *given where the pointer is aiming now, what
+value should this handle have?*
+
+| grip | reading |
+| --- | --- |
+| `translate` | the point on the axis closest to the pointer's ray |
+| `planar` | where the ray crosses the plane the grip lies in, as a point |
+| `rotate` | the angle around the axis where the ray crosses its plane |
+| `scale` | the same projection as translate, read as a ratio |
+| `uniform` | the ray's distance from the widget centre, read as a ratio |
 
 ## Scale is exclusive of move and turn
 
@@ -127,6 +145,18 @@ rides the world's. A widget showing both draws two frames at once and can only
 mislead. Turning `scale` on therefore turns `move` and `turn` off, and vice versa —
 the element does this to itself rather than letting you build the misleading
 combination.
+
+## Snapping and the frozen frame
+
+Snapping quantises the resulting VALUE, not each step of the movement, so a
+snapped object is always exactly on the grid however long the drag. Rotation is
+the exception: it snaps its DELTA, because a 15° step about the ring you grabbed
+is what the setting promises, even from a start rotation that is not on the grid.
+
+A drag measures against the object's axes as they were when it began. Reading
+them live is a feedback loop for rotation: each sample would be measured in a
+frame your own output just turned, and a tiny movement would spin the object
+hundreds of degrees.
 
 ## Where the transform is written, and why it is a fork
 
@@ -143,11 +173,25 @@ sync scaling, and no element attribute covers per-axis scale, so the node is
 where a scale survives.
 
 **Rotating a node clears its quaternion first.** A `TransformNode` ignores
-`.rotation` while it has a `rotationQuaternion` — and the glTF loader always
-sets one. That is exactly the bug that made `library.instantiate()`'s rotation
-silently inert until 0.7.0: it wrote `.rotation`, the quaternion won, and every
-value produced the model's baked orientation. `position` worked, which is what
-made it look wired up.
+`.rotation` while it has a `rotationQuaternion`, and the glTF loader always
+sets one. Writing `.rotation` alone would leave every loaded model at its baked
+orientation while `position` worked, which looks wired up and is not.
+
+## Sized for hands, picked in two passes
+
+Every drawn handle carries a second, invisible, fatter mesh that exists only to
+be picked, because a gizmo that is visually thin is impossible to grab with a
+controller at arm's length or a finger on a phone. A hand inside a handle's
+`nearRadius` grabs it directly; anything further grabs by pointing.
+
+Picking tries the DRAWN handles first, then the fat targets. The fat targets
+overlap by design, so a single pass over both would let ray depth decide, and a
+ring's tube passing in front of the arrowhead under the cursor would win.
+
+Handles draw on top (rendering group 1), because the object you most want to
+move is often embedded in something else. Rendering group has no bearing on
+picking; it is safe here only because the handle pick admits nothing but handle
+meshes, so an occluder is never a candidate.
 
 ## Driving it from XR, or from anything else
 
@@ -164,9 +208,6 @@ el.release()
 it directly, which beats whatever the same controller's ray happens to be
 crossing further away.
 
-## Where this came from
-
-Ported from `tosijs-3d-ensemble`, which built and shook it out against real
-authoring — including on a phone, which is where most of the sizing decisions
-were won. This library had no manipulator at all (#38), and `b3d-panel`'s
-coloured debug axes look exactly like one, which is its own small cruelty.
+The pure maths (`beginDrag`, `updateDrag`, `commitTransform`, `snap`, …) and the
+handle geometry (`createHandles`, `composeRotation`, `axisFrameOf`) are exported
+too, for a consumer building its own widget.

@@ -12,7 +12,7 @@ under it; flip the power SWITCH and watch the program's attack and decay play
 out on the actual scene, which is the only way to tell whether a curve you drew
 is the curve you wanted.
 
-It uses [[light-editor|lightEditor3d]], which wraps this widget with the lamp's
+It uses [[b3d-lamp|lightEditor3d]], which wraps this widget with the lamp's
 static properties — colour, intensity, range, shadows, type. A program editor
 alone is half a job: you can draw a perfect strike and have no way to say the
 lamp is a warm spot that casts shadows.
@@ -157,7 +157,7 @@ const scene = b3d(
       for (const m of props) m.material = propMat
 
       el.register({ meshes: [floor, ...props] })
-      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3.2, radius: 13, target: [0, 1, 0] })
+      orbitCam(el, { alphaDeg: -90, betaDeg: 56.25, radius: 13, target: [0, 1, 0] })
     },
   },
   b3dLight({ intensity: 0.06 }),
@@ -194,9 +194,9 @@ belong to the **lamp**, not to any channel.
 Exposed as six sibling fields, a generated panel would let brightness and hue be
 edited into disagreement about where the attack ends — and that is not a state
 the runtime can represent, so the document could hold a program that cannot run.
-`tosijs-3d-ensemble`, whose format treats the JSON as the truth, put the
-consequence plainly: _"a truth that cannot be executed is worse than a coarser
-panel."_ So the invariant lives where it can be enforced — inside one widget.
+For a format that treats the JSON as the truth, a truth that cannot be executed
+is worse than a coarser panel. So the invariant lives where it can be enforced:
+inside one widget.
 
 It also makes the undo story fall out. One gesture is one `handleCommit` is one
 entry in a history, instead of six callbacks nobody can tell belonged together.
@@ -223,7 +223,7 @@ generated from JSON Schema dispatches on the token and hands the entire value
 here.
 
 */
-/*{ "parent": "light-editor", "order": 10 }*/
+/*{ "parent": "b3d-lamp", "order": 10 }*/
 import { svgElements } from 'tosijs';
 import { canonicalProgram } from './light-modulation.js';
 import { readCurve } from './curve.js';

@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css?v=f55d7e2fb2af" data-tosi-doc-system />
+  <title>0.7.0 — tosijs-3d</title>
+  <meta name="description" content="Aircraft that fly like aircraft, and the substrate for volumetric terrain. No peer-dependency changes, but this is a behaviour release: the throttle, the right…" />
+  <link rel="canonical" href="https://3d.tosijs.net/v0.7.0/" />
+  <link rel="alternate" type="text/markdown" href="index.md" title="0.7.0 — tosijs-3d (markdown)" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="0.7.0 — tosijs-3d" />
+  <meta property="og:description" content="Aircraft that fly like aircraft, and the substrate for volumetric terrain. No peer-dependency changes, but this is a behaviour release: the throttle, the right…" />
+  <meta property="og:url" content="https://3d.tosijs.net/v0.7.0/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"0.7.0","description":"Aircraft that fly like aircraft, and the substrate for volumetric terrain. No peer-dependency changes, but this is a behaviour release: the throttle, the right…","url":"https://3d.tosijs.net/v0.7.0/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json?v=02678983b691" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <article class="doc-content" data-doc="v0.7.0.md">
+<h1 id="070">0.7.0</h1>
+<!--{ "parent": "CHANGELOG", "order": 9993000 }-->
+
+<blockquote>
+<p><strong>Prereleases, and why the numbering looks backwards.</strong> <code>0.7.0-rc.1</code> was cut
+first, then work continued as <code>-beta.1…beta.6</code>. Semver sorts beta BELOW rc, so
+<code>bun add tosijs-3d@next</code> wrote <code>^0.7.0-beta.6</code> and RESOLVED BACKWARDS to the
+older rc.1 — silently, and <code>bun update</code> even reported the downgrade as an
+upgrade. <strong>Publishing 0.7.0 is what un-inverts the channel</strong>, since it sorts
+above every prerelease.</p>
+<p>The rule taken from it: <strong>a prerelease channel never moves backwards</strong> — the
+successor to <code>-rc.N</code> is <code>-rc.N+1</code>, never a beta. If you pinned any
+<code>^0.7.0-beta.*</code> or <code>0.7.0-rc.1</code>, move to <code>0.7.0</code>.</p>
+<ul>
+<li><strong>0.7.0-beta.6</strong> (2026-08-17) — carved landforms (the sdf-lattice page, the
+volcano cutaway, strata, 3D volcanic veins), portal math, and four
+manta-reported fixes: the explode+library crash that seized the scene (#24),
+mutual death eating the panel (#25), blasts blind to library destroyables
+(#28), and pitch authority becoming configurable and asymmetric (#26).</li>
+<li><strong>0.7.0-beta.5</strong> (2026-08-15) — <code>MediumOptics</code> + <code>fogLayerFor</code>
+(⚠️ experimental, not load-bearing: water publishes its optics but still
+computes its own fog layer). Otherwise identical to beta.4 — the rest is
+design notes.</li>
+<li><strong>0.7.0-beta.4</strong> (2026-08-15) — the <code>medium</code> primitive (space/air/water/
+mercury, plane or sphere), medium-aware projectiles closing #13, and pause
+marked EXPERIMENTAL pending a headset.</li>
+<li><strong>0.7.0-beta.3</strong> (2026-08-15) — pause (backgrounding, start-paused, the VR
+entry gesture, a centred panel), the stick-sign contract test + <code>kind</code>, and
+four more manta reports: #17/#18 ambient spawn bias, #19 authored projectile
+meshes, #22 destroyable library models. Plus the HUD circle&#39;s portrait
+sizing and both panels&#39; camera/viewport fixes.</li>
+<li><strong>0.7.0-beta.2</strong> (2026-08-15) — adds #13&#39;s missile-guide composition, the
+gear gadget for the glass gamepad, and the live <code>fade</code>. #14 investigated and
+NOT changed: the glass source measures correct on desktop from four
+independent angles, so no sign was flipped (see the issue).</li>
+<li><strong>0.7.0-beta.1</strong> (2026-08-14) — everything below, including the four
+manta-recon issues fixed that day: #9 (crashed aircraft eats input) and the
+<code>b3d-death</code> latching bug behind it, #10 (<code>aircraftMapping</code> ignored its
+config), #11 (probe and ambient watchdog measuring during load), #12 (the sky
+ignored the water you were under).</li>
+</ul>
+</blockquote>
+<p><strong>Aircraft that fly like aircraft, and the substrate for volumetric terrain.</strong>
+No peer-dependency changes, but this is a <strong>behaviour</strong> release: the throttle,
+the right stick and the on-screen gamepad all work differently, and one
+attribute was renamed. Read the ⚠️ Breaking block before upgrading a scene that
+was tuned around the old feel.</p>
+<h2 id="️-breaking">⚠️ Breaking</h2>
+<ul>
+<li><p><strong><code>canonicalize</code> now drops the CONTENT node&#39;s scene transform, so a model
+placed away from the origin in its source file lands differently.</strong> The
+contract always said it &quot;drops the node&#39;s SCENE transform&quot; and it only ever
+zeroed the node it was handed — on the glTF path that is <code>__root__</code>, the
+loader&#39;s own wrapper — while the authored object underneath kept its scene
+placement.</p>
+<p><strong>Who is affected:</strong> anyone whose model sits somewhere other than the origin
+inside its <code>.glb</code> AND who compensated for the resulting offset. The
+compensation is now doubled.</p>
+<p><strong>How it shows up:</strong> the control node used to sit a fixed distance from the
+airframe it steers (1.7 m for our own scout), so collision rays started beside
+the model and a <code>_centerOfGravity</code> marker measured against the control node
+folded that offset into the PIVOT. The perverse consequence: a marker authored
+dead on the centreline — the documented way — installed a pivot 1.75 m out,
+while an odd-looking hand-tuned marker silently netted out correct. Our scout
+was re-exported &quot;properly&quot; and started crashing on every bank.</p>
+<p><strong>Migration:</strong> author content in the model&#39;s LOCAL frame, as
+<code>CLAUDE.md</code> has always said, and delete compensating offsets. If a vehicle
+now flies or pivots oddly, look for a marker or a placement that was tuned
+against the old behaviour before assuming a regression. Models authored at the
+origin (the common case) are unaffected.</p>
+</li>
+<li><p><strong>Angles in the AUTHORING surface are DEGREES.</strong> &quot;We should use degrees
+everywhere. Not even mathematicians visualize radians.&quot; Two APIs took radians
+and now take degrees: <code>landform</code>&#39;s <code>gulley</code>/<code>cover</code> <code>heading</code>, and the library
+rotation below. <strong>Migration:</strong> multiply by <code>180 / Math.PI</code>.
+Pure math modules (<code>spatial-transform</code>, <code>guidance</code>, <code>portal-transform</code>,
+<code>fly-by-wire</code>&#39;s internals) keep radians deliberately — that is mathematics,
+not a dial an author turns. And <code>b3d-skybox</code>&#39;s <code>azimuth</code> is neither: it is
+Babylon&#39;s 0–1 fraction of a turn, passed straight through, now documented as
+such rather than left to be guessed at.</p>
+</li>
+<li><p><strong>⚠️ <code>library.instantiate()</code> / <code>library.make.*</code> rotation: WAS IGNORED, now
+works — and is DEGREES.</strong> The single most disruptive change in this release,
+because it is the only one that can move a scene which previously looked
+<strong>correct</strong>. Everything else here either errors or looks obviously wrong.</p>
+<p>Two things happened to one option:</p>
+<ol>
+<li><strong>It never applied on the default path.</strong> <code>instantiate()</code> wrote
+<code>result.rotation</code>, but Babylon&#39;s glTF loader always assigns a
+<code>rotationQuaternion</code>, and a <code>TransformNode</code> ignores <code>.rotation</code> while one is
+present. Measured on a real model: <code>ry: 0</code>, <code>ry: 140</code> and <code>ry: -90</code> gave
+<strong>bit-identical</strong> orientations — you got the GLB&#39;s own baked rotation
+whatever you asked for. <code>position</code> worked, which is precisely what made it
+look wired up. (<code>canonical: true</code> was unaffected throughout.)</li>
+<li><strong>It is now degrees</strong>, matching <code>AbstractMesh</code>&#39;s <code>rx</code>/<code>ry</code>/<code>rz</code> and
+<code>el.make.*</code>. The library was the only surface in the framework that
+disagreed, and a bare number is valid in either unit — so it failed by
+producing a different orientation rather than an error. It got past us in
+this repo&#39;s own collision demo, where <code>ry: 140</code> meant 140 radians.</li>
+</ol>
+<p><strong>Migration.</strong> If you passed rotation and it <em>appeared</em> to work, it was not
+your value doing it — something else was (baked rotation in the model, a parent
+transform, a compensating tweak downstream), and that compensation is now
+<strong>doubled up</strong>. Check every placement before calling it a regression. If you
+passed rotation and gave up because nothing happened, it works now: your values
+are radians, so multiply by <code>180 / Math.PI</code>. If you never passed rotation,
+nothing changes. Quickest triage: grep for <code>instantiate(</code> and <code>make.</code> with an
+<code>r[xyz]</code> key — no hits means this does not apply to you.</p>
+<p>See <code>Migration.md</code>, which ships inside the package.</p>
+</li>
+<li><p><strong><code>b3dPatch</code> / <code>B3dPatch</code> are removed.</strong> The volumetric-patch element stitched
+an SDF extraction into the heightfield and never worked: two surfaces meeting
+at a grazing angle have no well-defined boundary, so every fix aimed at one
+crossing created another elsewhere. It shipped EXPERIMENTAL and undemoed, and
+the design that replaces it (TUNNEL-DESIGN.md) removes the boundary rather
+than reconciling it. The pure modules it was built on — <code>carve.*</code>,
+<code>sdf-lattice</code>, <code>patch-field</code> — are <strong>kept</strong>: they are the substrate the
+replacement uses.</p>
+</li>
+<li><p><strong><code>hudChase</code> → <code>hudChaseOff</code>, with the polarity inverted.</strong> The old attribute
+is gone (no alias — HTML boolean semantics can&#39;t express a default-true flag,
+which is why the negative name exists). It shipped in 0.6.2&#39;s <code>dist</code>, and
+because tosijs props end in an index signature a stale <code>hudChase</code> <strong>compiles
+and is silently ignored</strong>, so this will not error for you.</p>
+<ul>
+<li><code>hudChase: true</code> → delete it; the chase HUD is now the default.</li>
+<li><code>hudChase: false</code> → <code>hudChaseOff: true</code>.</li>
+<li>Chase view now shows the HUD <strong>without the artificial horizon</strong> (which
+only tells the truth from inside the cockpit).</li>
+</ul>
+</li>
+<li><p><strong>The glass gamepad hides itself</strong> once a <strong>keyboard or hardware gamepad</strong> is
+used, returning after <code>idleSeconds</code> (10) of silence. The POINTER never fades
+it — not touch, not mouse, not trackpad: the pad is operable by pointer, so
+fading on pointer movement made it vanish exactly as you reached for it.
+Set <code>fade=&quot;off&quot;</code> to pin it — worth knowing if you screenshot or demo.</p>
+</li>
+<li><p><strong>The right stick is the camera</strong>, not aux roll. <code>strafe</code> still sums into
+roll, so a custom mapping can restore a dedicated roll axis.</p>
+</li>
+<li><p><strong><code>carve</code> is a NAMESPACE, not 13 bare exports.</strong> New in this cycle, so this
+affects only the handful of people who took <code>0.7.0-rc.1</code> off the <code>next</code> tag:
+that tarball exported <code>applyCarve</code>, <code>sphere</code>, <code>capsule</code>, <code>tube</code>, <code>box</code>,
+<code>union</code>, <code>smoothUnion</code>, <code>flange</code>, <code>subtract</code>, <code>intersect</code>, <code>roughen</code>, <code>warp</code>
+and <code>shaft</code> at top level; they now live on <code>carve.*</code>. Coming from the rc you
+get a link error, which is the intended loud failure — <code>box</code> in particular
+shadowed the UI container of the same name.</p>
+<ul>
+<li><code>import { sphere, tube } from &#39;tosijs-3d&#39;</code> → <code>import { carve } from &#39;tosijs-3d&#39;</code>, then <code>carve.sphere(…)</code>, <code>carve.tube(…)</code>.</li>
+<li>Types stay top-level: <code>Carve</code>, <code>NoiseOptions</code>, <code>Vec3Like</code>.</li>
+</ul>
+</li>
+<li><p><strong><code>getNames()</code> returns different strings.</strong> Behaviour suffixes no longer
+leak into the public name, so <code>Hull_collideMesh.model</code> lists as <code>Hull</code> and
+<code>instantiate(&#39;Hull&#39;)</code> resolves it (fixes #7, reported by manta-recon).
+Exact and <code>.model</code> matches still win first, so existing calls that used the
+raw name keep working — but code that PARSED the returned string, or
+compared it to an authored name with its suffix, needs updating.</p>
+</li>
+</ul>
+<h2 id="added">Added</h2>
+<ul>
+<li><p><strong>Re-seat is now a two-step, confirmed gesture — and it finally works.</strong>
+Re-seating takes your CURRENT head yaw as forward, but you had to LOOK AT the
+button to press it, so a panel that had drifted left re-seated you facing
+left: the gesture defeated itself exactly when you needed it. Pressing
+<strong>Re-seat</strong> now raises a prompt pinned to the <strong>face frame</strong> (head-locked, so
+it stays readable WHILE you turn your head — the one case that earns
+face-locking): <em>1. Look comfortably ahead. 2. Pull right trigger to reseat.
+Or, pull left trigger to cancel.</em> The yaw is captured on the trigger, from
+wherever you are looking THEN.</p>
+<ul>
+<li><strong><code>reseatFreeze</code></strong> (new <code>&lt;tosi-b3d&gt;</code> attribute, <code>&#39;on&#39; | &#39;off&#39;</code>, default
+<code>&#39;on&#39;</code>) freezes the clock while the prompt is up, so you are not shot mid
+re-seat. <strong>Set <code>&#39;off&#39;</code> for multiplayer</strong> — freezing is a decision a local
+world can make and a networked one cannot honour. The dialog always gates
+YOUR input (<code>b3d.suppressInput</code>), which is the half that works in any
+topology, so the trigger that confirms never also fires your gun.</li>
+<li><code>b3d.freeze(on)</code> and <code>b3d.suppressInput(on)</code> are public: a modal that
+borrows a control you also play with can use them. <code>freeze()</code> stops the
+clock without raising the pause panel and without pause&#39;s resume semantics
+— a scene paused underneath stays paused.</li>
+</ul>
+</li>
+<li><p><strong>The package is licensed</strong> — <strong>Apache-2.0</strong>, with a LICENSE file, plus
+<code>description</code>, <code>homepage</code> and <code>bugs</code>. Every release since 0.2.1 shipped with
+no licence at all, which legally means all-rights-reserved: SCA tooling flags
+an unknown-licence dependency, and adopters consuming this as a <code>file:</code> dep
+had nothing to point at. Apache-2.0 rather than MIT/BSD for the explicit
+patent grant and retaliation clause.</p>
+</li>
+<li><p><strong>A <code>startPaused</code> scene renders its own fog, not Babylon&#39;s default</strong> (#31). A
+paused frame still RENDERS — that is the point, the panel has to be visible —
+so everything the render reads has to be correct. <code>_updateFog</code> sat past the
+paused branch&#39;s early return and <code>startPaused</code> pauses in the same synchronous
+setup block, so a scene that booted paused had never run it once.</p>
+</li>
+<li><p><strong>Entering VR unpauses a paused scene.</strong> Putting the headset on is the resume
+— and a world you deliberately stepped into has no reason to be frozen. It
+also removed a broken state: entering while paused showed no pause panel
+in-session, so you arrived in a stopped world with no visible way out. You can
+still pause in VR from the scene panel&#39;s transport toggle.</p>
+</li>
+<li><p><strong>Camera-relative dialogs are no longer buried by the world.</strong> The respawn and
+pause panels could end up inside terrain — you die on a hillside and the panel
+offering you a way out is in the hill. They now render in group 1 (drawn after
+the scene, depth auto-cleared between groups), so a modal is always readable.
+World-anchored panels and popups keep normal depth sorting.</p>
+</li>
+<li><p><strong>VR altitude on the BUMPERS</strong> — left down, right up, analog (squeeze
+pressure, so you can ease onto a height). Same hand logic as brake/accelerate
+on the triggers. The right stick&#39;s vertical still flies, but it doubles as
+panel scroll, so in any scene with a scrollable panel open — most demos — the
+stick scrolled and the rig did not move, and altitude appeared to be missing
+entirely. Two dedicated buttons cannot be stolen by a panel.</p>
+</li>
+<li><p><strong>Pause/resume in the standard scene panel.</strong> Pause was a one-way door: the
+pause panel offers <em>Continue</em>, so it was a state you could LEAVE and never
+ENTER — nothing in the panel stopped a running scene, and <code>startPaused</code> is an
+initial condition, not a control. The icon bar now carries a transport toggle
+(<code>play</code> when paused, <code>pause</code> when running — it shows what pressing it DOES,
+not what the scene currently is). It is a panel GADGET, so it appears in the
+flat overlay <strong>and</strong> the in-VR panel from one definition, and in a headset it
+is the only way to stop the world at all.</p>
+</li>
+<li><p><strong>Status surfaces in the theme</strong> — <code>--w3d-info</code>, <code>--w3d-warning</code>,
+<code>--w3d-error</code> (<code>w3dTheme.info</code> / <code>.warning</code> / <code>.error</code>). Backgrounds, not text
+colours: a status panel in a dark theme is a tinted SURFACE that <code>text</code> still
+reads on, and the bright hue you would put on a label is unreadable behind
+one. Opaque on purpose, so the panel underneath cannot show through the
+message interrupting you.</p>
+</li>
+<li><p><strong><code>markUiMesh()</code> / <code>isNoCollide()</code></strong> (<code>b3d-utils</code>) — mark a mesh as UI:
+pointer-pickable, but invisible to COLLISION. See the phantom-collision fix
+below for why those are different questions. The first of the collision
+GROUPS described in the new <code>COLLISION-DESIGN.md</code>.</p>
+</li>
+<li><p><strong><code>xrFrame</code></strong> on <code>&lt;tosi-b3d-svg-plane&gt;</code> — when <code>cameraRelative</code> and in a
+headset, ride an XR reference frame instead of the head camera. <code>&#39;body&#39;</code>
+(damped yaw) keeps a panel in front of you without jittering on every head
+movement; leave it unset for a HUD that should stay head-locked.</p>
+</li>
+<li><p><strong>A diagnostic ring buffer</strong> — <code>b3d.logDebug(tag, event)</code>,
+<code>b3d.debugCapture(tag)</code>, <code>b3d.debugLog</code>. There is no console in a headset and
+<code>window.rAF</code> is suspended in-session, so this records structured events IN the
+page for readback afterwards. Plus always-on Perf-panel rows: <strong>aircraft
+ground</strong> (what the ground ray is calling ground, and a full crash report) and
+<strong>xr input</strong> (per-hand thumbstick axes, rig pose, movement scale).</p>
+</li>
+<li><p><strong>Popups are their own SURFACES — <code>el.openPopup()</code></strong> (<code>popup-surface</code>). A menu,
+a dropdown&#39;s list or a debug readout spawns a second plane above its opener
+rather than being laid out inside its SVG. Owned popups travel and die with
+their opener; <code>tearOff()</code> promotes one to world space preserving pose, after
+which it stays where you put it — and <strong>dragging an owned popup tears it off</strong>,
+like pulling a tab out of a window. Click-to-front, <code>modal</code> (blocks pointer
+access to what&#39;s behind it, never the camera), a title-bar grip so the rest of
+the panel can stay interactive, and injected move/close glyphs.</p>
+<p>This retired a constraint we had recorded as absolute: a dropdown &quot;MUST grow
+the panel&#39;s layout … because a popover won&#39;t rasterize into the VR texture&quot;.
+True of a popover inside ONE texture; the escape is another texture on another
+plane. See <code>UI-DESIGN-NOTES.md</code>.</p>
+</li>
+<li><p><strong><code>rounded-rect</code> + <code>cornerRadius</code> / <code>transparent</code> on <code>b3d-svg-plane</code></strong> — rounded
+corners as GEOMETRY so a UI panel can be <strong>opaque</strong>. A transparent mesh is not
+depth-written, so Babylon re-sorts it per frame by camera distance and
+near-coplanar panels flip order as you orbit: it looks exactly like z-fighting
+and no amount of correct depth ordering fixes it. Three quads plus four
+quarter-disc fans, 22 triangles at 4 segments. <strong>The general rule: in 3D,
+express shape as geometry and reserve alpha for things that are genuinely
+see-through.</strong></p>
+</li>
+<li><p><strong><code>el.make.*</code></strong> (<code>make-mesh</code>) — Babylon primitives with the forgettable parts
+done: material from <code>color</code>/<code>glow</code>, <code>register()</code> so the sun and reflection
+probes see it, and <code>computeWorldMatrix</code> (a mesh positioned but never rendered
+has no world matrix, so a ray cast this frame finds it AT THE ORIGIN and
+answers confidently and wrongly). A Proxy forwarding to <code>MeshBuilder</code>, so all
+26 shapes are reachable plus whatever Babylon adds later.</p>
+</li>
+<li><p><strong><code>library.make.&lt;name&gt;()</code></strong> — a library&#39;s contents as callable names,
+<code>lib.make.scout({ y: 1 })</code>. Same option vocabulary as <code>el.make.*</code>.</p>
+</li>
+<li><p><strong><code>glow</code> / <code>glowColor</code> on <code>b3dBox</code> / <code>b3dSphere</code></strong> — self-illumination as a
+fraction of <code>color</code>. Both primitives now share one <code>primitiveMaterial</code>, which
+is how the sphere came to be missing <code>glow</code> ninety seconds after the box got
+it.</p>
+</li>
+<li><p><strong><code>B3d.BABYLON</code> (static) and <code>BABYLON</code> re-exported from the barrel.</strong> Babylon
+is a PEER dependency, so a consumer importing <code>@babylonjs/core</code> separately can
+end up with a second copy — two <code>Vector3</code> classes that fail <code>instanceof</code>
+against each other. Taking it from the library that already holds one is the
+guarantee.</p>
+</li>
+<li><p><strong><code>shadowNormalBias</code> / <code>shadowBias</code> on <code>b3dSun</code></strong>, defaulting to <code>0.05</code>.
+Babylon&#39;s CSM ships <code>normalBias: 0</code>, which is not a tuned value for a large
+receiver: a 40×40 ground self-shadowed into a dense stipple across its whole
+surface. Measured at 0 / 0.02 / 0.05 on a live scene.</p>
+</li>
+<li><p><strong><code>b3d-collisions</code> gains its first live demo</strong> — hail on the scout, impacts
+found by a SWEPT ray, each marked with a disc lying on the surface plus a
+stalk along the normal. Ground hits count too, in a cooler colour.</p>
+</li>
+<li><p><strong><code>b3d-aircraft</code> gains <code>chasePitchFollow</code> / <code>chasePitchLag</code></strong> — how much of the
+nose&#39;s pitch the chase camera inherits. <code>0</code> (default) keeps the level pivot;
+<code>1</code> is as if the camera were bolted to the airframe. A dial rather than a
+reparent, because the flat pivot is what fixed the jittery chase, and the lag
+term is what passes the intention while dropping the per-frame wobble.</p>
+</li>
+<li><p><strong><code>b3d-aircraft</code> gains <code>maxPitch</code> / <code>maxDive</code></strong> (#26). Pitch authority was a
+module constant at a symmetric 35° — a gentle airliner descent, unreachable by
+any adopter, and unable to express a craft that should fall out of the sky
+readily and climb reluctantly. <code>maxDive</code> defaults to <code>maxPitch</code>, so nothing
+changes unless asked.</p>
+</li>
+<li><p><strong>⚠️ EXPERIMENTAL — <code>portalTransform</code></strong>: see-through portal math (virtual
+camera pose, the oblique clip plane, a step-test crossing, and recursion
+budgeted by a falloff CURVE rather than a hard depth limit — linear, geometric
+or accelerating, so first-bounce quality and pass count stop being welded
+together).</p>
+</li>
+<li><p><strong>Sedimentary strata</strong> in the volcanic rock (<code>strata</code>, <code>strataScale</code>,
+<code>strataTilt</code>), visible on any cut face — only possible because the plate noise
+is now sampled in 3D, since bedding means nothing to a shader that knows only
+x/z.</p>
+</li>
+<li><p><strong>Carved landforms</strong> — the <code>sdf-lattice</code> page is now a real doc page with the
+theory (SDF composition, marching cubes vs dual contouring vs surface nets, and
+why this uses surface nets), a <strong>volcano in cross-section</strong> with lava tubes and
+a sweeping cutaway, and a <strong>volumetric-vs-heightfield comparison</strong> with a bore
+punched through an authored ridge. <code>demo-utils.volumetricDemo</code> is the shared
+fixture behind both.</p>
+</li>
+<li><p><strong>⚠️ EXPERIMENTAL — <code>portalTransform</code></strong>, the pure math for see-through
+portals: <code>portalCamera</code> (where the render-target camera goes so a doorway
+shows another place), <code>clipPlaneFor</code> (the oblique near plane, without which
+the far room leaks into the doorway), <code>crossedPortal</code> (a <em>step</em> test — a jeep
+is past a doorway within one frame, and a context swap one frame late is one
+frame of the wrong world), and <code>depthLimit</code>/<code>attenuationAt</code> for recursion.</p>
+<p>Recursion terminates the way real mirrors do — each traversal is slightly
+lossy, so the tunnel darkens instead of hitting a hard cutoff that pops.
+Calibration worth knowing: <strong>real glass is ~95% transmissive</strong>, which is why
+mirror corridors look infinite — at 0.95 it takes 77 bounces to fall below 2%.
+So the physics gives the right look and a useless budget; the device cap is
+load-bearing, and a portal that should visibly fade out has to be markedly
+dirtier than glass (~0.5–0.7). That trade is documented rather than hidden
+behind a physical-sounding parameter.</p>
+<p>The falloff is a <strong>curve, not a ratio</strong> — <code>geometricFalloff</code>, <code>linearFalloff</code>
+(state the level count instead of solving for it: <code>0.1</code> means exactly ten) and
+<code>acceleratingFalloff</code> (the loss grows with depth — dirtier where nobody
+looks). That decoupling is the point: geometric-at-0.95 and
+accelerating-from-0.05 keep an identical 95% at the first bounce, the one
+anyone actually inspects, but cost <strong>77 levels versus 5</strong>.</p>
+<p>No renderer yet: applying the clip plane, the passes and stencil framing are
+deliberately out of scope for a pure module.</p>
+</li>
+<li><p><strong>⚠️ EXPERIMENTAL — <code>MediumOptics</code> + <code>fogLayerFor</code></strong> (MEDIUM-DESIGN.md §3).
+A medium can describe how it LOOKS (colour, density, murk-with-depth,
+visibility floor), and one derivation turns that into a fog layer for the
+compositor that already exists. Weight is <code>submergence</code>, so the fog and
+anything else keyed off the same medium cannot disagree about where the
+surface is — that disagreement is what produced the fogged-sky vs
+transparent-window conflict.</p>
+<p><strong>Not load-bearing yet, on purpose.</strong> <code>b3d-water</code> publishes its optics but
+still computes its own fog layer, because that path is verified and swapping
+it is a visual change that wants an eye on it. What&#39;s proven so far is the
+falsifier from the design doc: one derivation reproduces water&#39;s numbers
+(including thickening with depth), a cloud bank&#39;s soft edge, and vacuum
+contributing nothing. Three hand-rolled contributions collapse onto it <em>in
+the tests</em>; collapsing them in the code is the next step.</p>
+</li>
+<li><p><strong>Projectiles understand medium</strong> (#13 — ⚠️ EXPERIMENTAL, unflown). A round
+now picks up drag from whatever it is passing through (<code>dragAt</code>, blended
+across the band so entry is a ramp), and gains three options that turn the
+same round into four weapons:</p>
+<ul>
+<li><code>whenCrossing(kind, medium, at)</code> — the entry splash, the breakout plume,
+the audio. Yours to dress; the engine only tells you it happened.</li>
+<li><code>detonateDepth</code> — a <strong>depth charge</strong>: a fuse on depth rather than impact.</li>
+<li><code>stayIn: &#39;water&#39;</code> — a <strong>torpedo</strong>, for which the surface is a ceiling. Held
+just inside rather than reflected: a round that bounces off water reads as a
+skipping stone, which is a different weapon.</li>
+</ul>
+<p>A <strong>sub-launched missile</strong> needs no option at all — it is a <code>whenCrossing</code>
+handler that swaps its own behaviour on <code>&#39;exited&#39;</code>. That the four fall out of
+three small options is the argument for the primitive being shared rather than
+per-weapon.</p>
+</li>
+<li><p><strong><a href="https://3d.tosijs.net/medium/">medium</a> — the substance you&#39;re moving
+through</strong>, pure and Babylon-free (#13, and the seam #3/#15/#16 were all
+converging on). It answers three questions and owns nothing else: how deep am
+I (<code>depthIn</code>, signed — depth and altitude are one measurement), how much of me
+is in it (<code>submergence</code>, smoothed across a band), and did I just cross the
+surface (<code>crossing</code>, a <em>step</em> test, because at 200 m/s a round is above the
+water one frame and 3 m under it the next).</p>
+<ul>
+<li><strong>Two geometries</strong>: <code>plane</code> (a sea, a fog bank, the top of a mercury vat)
+and <code>sphere</code> (a planet&#39;s ocean or atmosphere, the edge of space). A plane is
+NOT a very large sphere — at a 6371 km radius the arithmetic loses the
+centimetres that decide whether you&#39;re above or below a wave.</li>
+<li><code>innermost</code> resolves space → air → water the way you&#39;d say it aloud, and
+vacuum is simply the absence of a match. <code>dragAt</code> blends a projectile&#39;s drag
+coefficient across the band, which is why depth charges and torpedoes need
+no new integrator.</li>
+<li><strong><code>b3d.media</code> / <code>b3d.addMedium()</code></strong>, and <code>b3d-water</code> registers itself — so
+nothing has to re-derive where the surface is. Two subsystems deriving that
+separately is exactly how the fogged sky and the transparent window ended up
+disagreeing (#12/#15).</li>
+</ul>
+</li>
+<li><p><strong><code>b3d-ambient</code> spawns where you&#39;re LOOKING and where you&#39;re GOING</strong> (#17,
+#18): <code>lookAhead</code> (0.35 of <code>radius</code>, along the view) and <code>lead</code> (0.25s of
+travel, along motion), capped by <code>speedCap</code>. A camera sees a frustum, not a
+sphere, so a box centred on the eye births most of its particles behind and
+beside you — they live and are culled unseen, paying full budget for a
+fraction of the result — and at speed you outrun the box entirely, emptying
+the view ahead exactly when you want it fullest. Velocity is measured from the
+camera&#39;s own displacement, so nothing has to be plumbed in; in a chase view
+that&#39;s the right signal anyway. Set either to 0 for the old centred box.</p>
+</li>
+<li><p><strong><code>b3d-destroyable</code> takes <code>library</code> + <code>meshName</code></strong> (#22) — a static,
+destroyable thing that uses a library mesh is most of what populates a level,
+and there was no route to it: <code>b3d-loader</code> takes a <code>url</code> (which also loses the
+canonical frame), <code>b3d-aircraft</code> gets the frame right but flies. Absent
+<code>library</code>, you still get the placeholder cube, so nothing existing changes.
+The model is left <strong>pickable</strong> on purpose — damage resolves from the warhead
+gathering destroyables near the detonation, not from which mesh the ray hit,
+so the model can simply be the target and the hidden-cube-plus-skin dance
+isn&#39;t needed.</p>
+</li>
+<li><p><strong><code>spawnProjectile</code>/<code>spawnMissile</code> take a <code>mesh</code></strong> (#19) — draw the round as
+an authored model, with the engine still owning motion, collision, lifetime
+and disposal. It is also <strong>oriented along velocity</strong>, which a sphere never
+needed: the engine moved a sphere, a sphere has no facing, so a modelled
+missile flew sideways. Yaw and pitch only — a round has no reason to bank.
+Supplied meshes and their children are made non-pickable, like the default.</p>
+</li>
+<li><p><strong><code>panelFitWidth(fov, aspect, z, want, fill)</code></strong> — how wide a camera-relative
+panel may be and stay on screen. Shared because there are two such panels and
+a constant copied into both is a constant that will disagree with itself.</p>
+</li>
+<li><p><strong>PAUSE — ⚠️ EXPERIMENTAL.</strong> The flat path is confirmed on a real browser
+(start paused, continue, background, return, repeat) but the VR path — the
+Continue tap carrying the user gesture into <code>enterXRAsync</code>, and removing the
+headset pausing — is <strong>unvalidated</strong>, and it is the reason the feature exists.
+Treat the API as unsettled until it&#39;s been through a headset; nothing else
+depends on it.</p>
+<p><code>b3d.pause(reason)</code> / <code>.resume()</code> / <code>.togglePause()</code> / <code>.paused</code>,
+a centred in-scene pause panel, and the attributes around them:</p>
+<ul>
+<li><code>pauseWhenHidden</code> (default <strong>on</strong>) — backgrounding the tab holds the scene,
+so a player returns to a held frame and a panel rather than to a world that
+carried on without them. Suppressed while immersive, since some browsers
+report the page hidden during an XR session.</li>
+<li><code>startPaused</code> — come up paused: the &quot;press Start&quot; shape.</li>
+<li><code>enterXrOnResume</code> — resume enters VR, and leaving VR pauses. <strong>This is why
+starting paused matters</strong>: <code>enterXRAsync</code> requires a user gesture, so a
+scene that tried to enter XR on load would simply be refused. The Continue
+tap is the gesture, which makes &quot;leave it paused, put the headset on, press
+Continue&quot; the only shape that reliably works.</li>
+<li><code>pausePanel(host, resume)</code> — replace the default rows (a title and Continue)
+with your own: a title screen, settings, a &quot;you were away&quot; summary. <code>resume</code>
+is handed in, because a pause panel with no way out is the failure this
+feature exists to prevent.</li>
+<li><code>pause</code> / <code>resume</code> / <code>orientation</code> events. <code>pause</code> carries a <code>reason</code>
+(<code>&#39;user&#39; | &#39;hidden&#39; | &#39;xr&#39; | &#39;start&#39;</code>) so a game can tell &quot;the player asked&quot;
+from &quot;the tab went away&quot;. <code>orientation</code> is derived from the <strong>viewport</strong>
+(<code>innerWidth</code>/<code>innerHeight</code> swapping), not from <code>screen.orientation</code> — that
+API is patchy on iOS, so a scene depending on it hears nothing on the
+devices that rotate most; it&#39;s still read for <code>type</code>/<code>angle</code> when present,
+as detail rather than trigger. Fires only when the classification actually
+flips, so dragging a desktop window edge isn&#39;t a rotation.</li>
+</ul>
+<p>Rendering continues while paused — the panel has to be drawn and picked —
+but nothing advances: no combat tick, no fog, no <code>update</code> hook, and
+controllables read empty input, so a held stick can&#39;t steer a stopped world.
+Orientation changes are <strong>reported, not acted on</strong>: a rotating phone is
+sometimes a pause and sometimes nothing, and only the game knows which. (Tilt
+is a separate, permissioned API on iOS and deliberately untouched.)</p>
+</li>
+<li><p><strong>The stick sign contract is now a test</strong> (<code>stick-sign.test.ts</code>) — every
+source must report <strong>up/forward as positive</strong>, and all of them must agree.
+This was documented in three places and enforced in none, which is what let
+#14 run for a day: a source that disagrees is internally consistent, so only
+a player with two devices notices, and what they report is &quot;the framework is
+broken&quot;. Verified by deliberately flipping the touch and hardware signs in
+turn and watching it fail. <code>STICK_UP_IS_POSITIVE</code> names the convention.</p>
+</li>
+<li><p><strong><code>GamepadSource.kind</code></strong> — a stable <code>&#39;keyboard&#39; | &#39;hardware&#39; | &#39;touch&#39; | &#39;xr&#39; | &#39;glass&#39;</code> marker, because the obvious alternative fails silently: an adopter
+matched our glass pad with <code>constructor.name</code>, their bundler mangled it, the
+lookup never matched, and every experiment built on it was a no-op that
+looked like a result. Class names are not API.</p>
+</li>
+<li><p><strong>A gamepad gadget in the gear panel</strong> — one tap to pin the glass pad visible
+or hand it back to the auto-hide. The fade is production-correct and
+development-hostile: once a mouse or trackpad is present the pad goes away and
+doesn&#39;t come back, so checking it on a laptop meant switching Chrome into
+responsive mode. It sits in the same icon bar as the debug tools, so it works
+in a headset too. <code>B3dGamepad.setFade()</code> / <code>.hidden</code> are the API behind it.</p>
+</li>
+<li><p><strong><code>b3d.sceneBusy</code></strong> and <strong><code>terrain.busy</code></strong> — is the world still building? Any
+frame-rate judgement taken while these are true is a measurement of the loading,
+not of the device.</p>
+</li>
+<li><p><strong><code>b3d.ambientPoolScale</code> is now readable AND settable</strong>, so a game can say &quot;that
+was the loading screen, try again&quot; instead of reaching into two privates (#11).</p>
+</li>
+<li><p><strong><code>aircraftMapping</code> honours its config</strong> — it accepted one and had zero
+references to it. <code>AircraftMappingConfig</code> adds <code>invertPitch</code> (the arcade pitch
+convention), <code>invertRoll</code> and <code>invertCameraY</code>. Meaning belongs in the mapping:
+every source passes through it, so one setting can&#39;t leave the keyboard inverted
+and the glass gamepad not (#10, manta-recon).</p>
+</li>
+<li><p><strong>The pure flight model is exported</strong>: <code>flyByWireStep</code>, <code>regime</code>,
+<code>targetVelocity</code>, <code>chaseVelocity</code>, <strong><code>equilibriumSpeed</code></strong> and the
+<code>FlyByWireConfig</code>/<code>Command</code>/<code>State</code> types. <code>equilibriumSpeed</code> is what the
+HUD&#39;s new set-point mark is drawn from — a mission planner wants the same
+number, and until now it was unreachable from the package.</p>
+</li>
+<li><p><strong><code>isIgnored(name)</code></strong> — one matcher for the <code>-ignore</code> convention, used by the
+loader, the library and <code>publicName</code>.</p>
+</li>
+<li><p><strong><a href="https://3d.tosijs.net/carve/">carve</a></strong> — the cave vocabulary, exported as
+the <strong><code>carve.*</code></strong> namespace (see ⚠️ Breaking): <code>carve.sphere</code>,
+<code>carve.capsule</code>, <code>carve.tube</code>, <code>carve.box</code>, <code>carve.smoothUnion</code> (fillets a
+junction so a passage flares into a chamber), <code>carve.subtract</code>,
+<code>carve.intersect</code>, plus the two perturbations that stop a carve looking
+carved: <code>carve.roughen</code> (texture the wall, silhouette stays) and
+<code>carve.warp</code> (bend the space so nothing reads as a primitive).</p>
+</li>
+<li><p><strong><a href="https://3d.tosijs.net/sdf-lattice/">sdf-lattice</a></strong> — surface-nets
+extraction over ONE global hash-jittered lattice, so chunks weld
+bit-identically and cross-tile/cross-LOD seams are unrepresentable rather
+than stitched. Includes the chunk-weld proof as a test.</p>
+</li>
+<li><p><strong><a href="https://3d.tosijs.net/patch-field/">patch-field</a></strong> — <code>landform</code>&#39;s
+volumetric sibling: <code>(x, y, z, d) =&gt; d&#39;</code> carving composed against the
+terrain&#39;s own hooked height sampler.</p>
+</li>
+<li><p><strong><code>landform</code></strong> gains <code>gulley</code> (a height FORCING function ending in a
+predictable cliff), <code>cover</code> (forced ground over a tunnel so it stays
+buried), and <code>pad</code> from 0.6.2&#39;s family.</p>
+</li>
+<li><p><strong><code>b3d-terrain</code></strong>: <code>patchMask</code>/<code>patches</code> hooks, <code>biomeLapseRate</code> (the lapse
+is coupled to vertical scale — a 340m world on the small-world default
+renders entirely as snow), and a public <code>heightSampler()</code>.</p>
+</li>
+<li><p><strong>Landing gear, found by NAME</strong> — AnimationGroups mentioning &quot;gear&quot; and
+&quot;retract&quot; are cycled from height above ground, with hysteresis and an
+optional <code>gearSound</code>. The animation is SCRUBBED, not played, because glTF
+animations arrive with a cyclic loop mode and a played group can snap back
+to frame 0.</p>
+</li>
+<li><p><strong><code>arcDashArray</code></strong> + <code>hud.setMeterMarks</code> — reference marks on any meter,
+drawn on the meter&#39;s own arc. Used for the throttle set point, sea level,
+and the ground beneath you.</p>
+</li>
+<li><p><strong><code>equilibriumSpeed(cfg, throttle, afterburner)</code></strong> — where a lever will
+settle.</p>
+</li>
+<li><p><strong><code>sceneDelta(scene)</code> is now actually exported.</strong> 0.6.2 announced it and
+shipped it unreachable — <code>dist/index.d.ts</code> had no such symbol — so anyone
+following those notes hit a link error. It&#39;s the correct frame delta for
+anything ticking inside a scene observer (see 0.6.2&#39;s note on
+<code>getDeltaTime</code>), and the six doc demos that still taught the broken idiom
+now use it.</p>
+</li>
+</ul>
+<h2 id="changed">Changed</h2>
+<ul>
+<li><p><strong>tosijs-ui devDependency → ^1.9.8</strong>, for serve-time gzip on the dev server:
+it was sending the 10.7 MB bundle uncompressed even to clients asking for
+gzip, so over a thin link a doc page showed its pre-rendered HTML and then
+never hydrated — the bundle never finished arriving. 2.56 MB now. Doc-site
+tooling only; nothing in the published library changes.</p>
+</li>
+<li><p><strong>⚠️ The aircraft throttle is a LEVER, not a speed setpoint.</strong> It commands
+an equilibrium: a climb settles at a new lower speed instead of stalling,
+and lowering the nose returns you to the speed you had, untouched. Full
+lever is MILITARY thrust; afterburner lights only while the trigger is held
+past a detent and drops back when released. Releasing the trigger holds the
+setting, so speed no longer self-sustains at idle — set the lever where you
+want to cruise.</p>
+</li>
+<li><p><strong>⚠️ The right stick is the CAMERA</strong>, not aux roll: it orbits the chase
+camera around the aircraft and turns the pilot&#39;s head in the cockpit,
+springing back on release. (<code>strafe</code> still sums into roll for anyone who
+maps a dedicated axis.)</p>
+</li>
+<li><p>Hover gained a brake (the trigger&#39;s negative half sheds speed to a stop)
+and slow reverse (nose-up lean), with the trigger staying purely vertical
+so stopping never fights altitude. <code>hoverCeiling</code> 50 → 140.</p>
+</li>
+<li><p>Speed gauges read 0..100% of the FULL envelope, afterburner included.</p>
+</li>
+<li><p>Terrain defaults: bigger gross features carrying less gross amplitude, with
+the detail layer doing real work — the old defaults read as pudding.</p>
+</li>
+<li><p><code>worldV</code> defaults to 0.25: <code>CylinderSampler</code> reflects v, so <code>worldV = 0</code>
+put every scene ON a mirror plane with a seam running to the horizon.</p>
+</li>
+</ul>
+<h2 id="fixed">Fixed</h2>
+<ul>
+<li><p><strong>Phantom collisions: an aircraft &quot;collided with something it was nowhere
+near&quot;.</strong> Flying high, banking in cockpit view, you died instantly — in any
+scene, terrain or not. The impact sweep was hitting the <strong>spatial UI panel</strong>
+floating in front of the cockpit and treating it as terrain, and that sweep
+crashes on ANY hit above <code>crashSpeed</code> with no slope test. It only bit in
+cockpit view (that is where the camera, and the panels riding its reference
+frames, sit inside a ~2m sweep) and fired on bank (which swings the velocity
+vector into the panel). A panel must stay <code>isPickable</code> — that is how a
+controller ray targets it — so the fix separates the two questions:
+<code>markUiMesh</code> marks it collision-invisible, and both aircraft predicates filter
+it.</p>
+</li>
+<li><p><strong>Collision rays fired from <code>node.position</code>.</strong> Under a <code>_centerOfGravity</code>
+pivot that is the STANCE ORIGIN, not where the airframe is — the model swings
+about the CoG under attitude, so banking moved the aircraft out from under its
+own rays. Both rays now go through the world matrix, which is bit-identical to
+<code>node.position</code> when there is no pivot.</p>
+</li>
+<li><p><strong><code>canonicalize</code> did not drop the CONTENT node&#39;s scene transform</strong> — see
+⚠️ Breaking above. This is also why the scout&#39;s centre of gravity appeared
+wrong.</p>
+</li>
+<li><p><strong>Ambient effects could never recover from a pool of zero.</strong> The watchdog
+bailed one line before the recovery path written for exactly that state, so a
+scene that shed its garnish to nothing stayed dead for the session — no
+leaves, bubbles or motes on hardware that had been drawing them a second
+earlier.</p>
+</li>
+<li><p><strong>VR: exiting dropped the flat camera&#39;s altitude.</strong> Babylon carries the walked
+headset pose back into the non-XR camera, which for an orbit camera recomputes
+a low angle — you left VR looking at the scene from the floor. The orbit state
+is now snapshotted on entry and restored on exit; free/walkable cameras keep
+the carry-back.</p>
+</li>
+<li><p><strong>VR: orbit demos dropped you in facing a random direction.</strong> Both piloted
+paths seeded the rig&#39;s yaw against your head; free locomotion never did, so a
+demo with no piloted entity left the panel behind you and the subject out of
+sight. Now seeded on the first frame with a real viewer pose, facing what the
+flat camera was looking at.</p>
+</li>
+<li><p><strong>VR: re-seat did nothing in an aircraft&#39;s chase view.</strong> Three camera paths
+capture yaw separately and re-seat only re-armed two; toggling cockpit↔chase
+appeared to &quot;fix&quot; it because the view-change path re-armed the third.</p>
+</li>
+<li><p><strong>VR: locomotion was scale-blind.</strong> Free-fly walked at a fixed 2.5 m/s, which
+in a 512-unit landscape is ~0.5% of the scene per second — indistinguishable
+from a broken stick, while turning (angular, therefore scale-free) felt fine.
+Speed now scales with the orbit camera&#39;s radius; small demos are unchanged.</p>
+</li>
+<li><p><strong>VR: the grid floor sat at the world origin</strong>, so in any scene whose subject
+is elsewhere it read as a mystery grid off in the distance, visible only in
+VR. It now sits under the subject.</p>
+</li>
+<li><p><strong>VR: the respawn panel was pinned to your face and jittered</strong> with every head
+movement. It rides the <code>body</code> frame now.</p>
+</li>
+<li><p><strong><code>bun run typecheck</code> was red at the release commit</strong> — a one-argument call to
+a three-argument <code>canonicalize</code> in a test, invisible to <code>bun test</code> (which
+strips types) and to the build tsconfig (which excludes test files).</p>
+</li>
+<li><p><strong>Shadow acne on large receivers</strong> — see <code>shadowNormalBias</code> above. It was also
+why scenes looked dull: the stipple darkened roughly half the ground.</p>
+</li>
+<li><p><strong><code>b3d-svg-plane</code> cleared a parent it never set.</strong> Its <code>cameraRelative</code> sync ran
+<code>mesh.parent = null</code> unconditionally whenever the flag was off, so anything
+parented to a plane was silently torn off a frame later, with no error. Same
+shape as the pause bug below: <strong>a guard must record what you DID, not observe
+what state the object is in.</strong></p>
+</li>
+<li><p><strong>The glass gamepad no longer fades when you move the mouse.</strong> It is operable
+by pointer — <code>pointerdown</code> drives the sticks — so it vanished exactly as you
+reached for it. Only a keypress or a physical gamepad fades it now.</p>
+</li>
+<li><p><strong><code>publicName</code> leaked loader and Blender artifacts.</strong> The library picker showed
+<code>building_collideCylinder_primitive0</code>; <code>_primitiveN</code> is the glTF loader
+splitting a multi-material mesh, and Blender&#39;s <code>.001</code> sat AFTER the behaviour
+suffix so no <code>endsWith</code> matched it. <code>.001</code> is preserved (it is a different
+object) while the annotation is removed.</p>
+</li>
+<li><p><strong><code>ry</code> is DEGREES, and now says so.</strong> <code>AbstractMesh.render()</code> multiplies
+rx/ry/rz by <code>DEG_TO_RAD</code>; nothing documented it, and the b3d pause demo had
+been adding radians per second for its whole life — about one revolution per
+ten minutes, which read as &quot;the cube doesn&#39;t spin&quot;.</p>
+</li>
+<li><p><strong>Impacts now report the surface NORMAL, not just the point</strong> (#29) —
+<code>spawnProjectile</code>/<code>spawnMissile</code> take <code>whenImpact({ point, normal, mesh })</code>.
+The swept ray already computed the normal and the launcher was throwing it
+away, so anything that wanted an oriented effect (a scorch mark, a dent, a
+ricochet) had to re-cast the same ray to get it back. <code>normal</code>/<code>mesh</code> are
+<code>null</code> when there is genuinely no surface — a depth fuse in open water, a
+timed round in mid-air. The old <code>onImpact(point)</code> still fires with a one-shot
+deprecation warning; it was renamed off the <code>on*</code> prefix because such a key
+becomes an <code>addEventListener</code> call the moment the shape is lifted onto an
+element, and then silently never runs.</p>
+</li>
+<li><p><strong>Pause didn&#39;t pause</strong> (#30) — an adopter measured a player travelling 66.58 m
+during a 3-second pause with <code>paused === true</code> throughout. Two clocks leaked,
+not one. <code>sceneDelta</code> accepted a published frame delta only when <code>&gt; 0</code>, so the
+one value meaning &quot;stopped&quot; was the one value it discarded, falling back to
+the live engine clock — everything on the render observable (projectiles,
+water, ambient) kept running. And <code>B3dControllable</code> runs its own <code>Date.now</code>
+clock that a stopped scene delta cannot reach: it was fed empty input, but
+with no input an aircraft COASTS, which is indistinguishable from cruising. A
+paused scene now publishes a delta of zero and controllables halt outright.</p>
+</li>
+<li><p><strong>Blasts could not see library-backed destroyables</strong> (#28) — a third
+consequence of <code>library</code>. <code>detonateWarhead</code> resolved targets with
+<code>scene.getMeshByName</code>, which searches meshes only, so a <code>library</code>
+destroyable&#39;s TransformNode root was filtered out of every AOE. manta measured
+it at 4 of 4 targets. It now uses the element&#39;s own node, which was always
+right there.</p>
+</li>
+<li><p><strong><code>library</code> + <code>explode</code> on a destroyable was a guaranteed crash</strong> (#24) — and a
+nasty one. The exploder read vertex buffers off whatever it was handed, and a
+library instance&#39;s root is a geometry-less transform node. Worse than a throw:
+it happened inside a render observer, so every observer after it was skipped —
+camera follow, flight integration, all of it — and the scene stopped advancing
+while input kept responding. It presents as &quot;the game seized but the controls
+still work&quot;. <code>explodeMesh</code> now takes a <code>TransformNode</code> and shatters the
+descendants that have geometry (a multi-part model comes apart properly instead
+of one piece shattering while the rest hangs in the air), warns once rather than
+throwing when there is nothing to shatter, and the death path wraps the call
+because a cosmetic must never be able to stop the frame loop.</p>
+</li>
+<li><p><strong>Mutual death produced no death panel</strong> (#25). The already-dying <em>recovery</em>
+added in 0.7.0 ran before the &quot;only OUR death matters&quot; filter, so any other
+entity dying while the player was dead tore the panel down — ram an enemy and
+you both die, and you got nothing. Relevance is checked first now.</p>
+</li>
+<li><p><strong>Volcanic veins were absent from every vertical surface</strong> (3D Worley), the
+<strong>rock stopped warming</strong> at dark brown so a fully volcanic face read as black,
+<strong>verticals could never exceed stage 2</strong> so the top of the ladder was
+unreachable on a cliff or cut face, and the <strong>glow pulse touched only the
+molten channel</strong> — a fraction of a fraction, which is invisible in practice.</p>
+</li>
+<li><p><strong>Volcanic veins were missing from every vertical surface.</strong> The plate pattern
+was sampled from world <strong>XZ only</strong>, so a cliff or a cut face barely moves
+through the noise — its xz coordinate is near-constant across the surface —
+and you got vertical streaks instead of a vein web. Now sampled with a true
+<strong>3D Worley</strong>, which costs the same neighbourhood as blending three 2D
+projections (27 cells either way, a 3-wide hash instead of 2-wide) and is
+strictly better: no projection seams, no ghosting where planes blend, and a
+cut face shows the veins&#39; real cross-sections because the veins are genuinely
+three-dimensional. Only the volcanism branch reaches it, so non-volcanic
+surfaces pay nothing.</p>
+</li>
+<li><p><strong>The HUD circle dominated a portrait viewport.</strong> It was already sized off the
+<em>smaller</em> dimension — that part was right — but a single percentage of the
+small side means 36% of the width in landscape and <strong>70% of it in portrait</strong>,
+the same rule with twice the visual weight. It&#39;s now capped at half that
+fraction of the long side as well, so turning the device doesn&#39;t change how
+much of the screen the circle eats: measured 490px (was 499) at 1400x713, and
+265px (was 350) at 500x757. <code>hudSizePx</code> in <code>hud-math.ts</code>, unit-tested.</p>
+</li>
+<li><p><strong><code>b3d-death</code>&#39;s Respawn panel had both of the pause panel&#39;s problems</strong>, and at
+a worse moment. Its spectator camera was attached to the canvas, so a tap
+meant for Respawn also drove the camera (Tonio, on a phone: <em>&quot;the view
+pivots&quot;</em>), and it used the same fixed 1.1-unit width that overflows a portrait
+viewport. The camera is now set with <code>{ attach: false }</code> — the orbit still
+runs, it&#39;s driven by an observable, you just can&#39;t wrestle it — and the width
+comes from the camera&#39;s FOV and aspect via the shared <code>panelFitWidth</code>.</p>
+</li>
+<li><p><strong>The pause panel fought the camera for your tap.</strong> It lives in the scene, so
+a press on it is also a press on the canvas, and the camera&#39;s input got it
+too: on a phone the first attempt to press Continue read as a pinch-zoom,
+which moved the camera through the panel and hid it, so the button had to be
+un-zoomed back into reach. The camera is now detached while the panel is up
+(which is also what &quot;paused&quot; ought to mean) and restored on resume.</p>
+</li>
+<li><p><strong>The pause panel was wider than a phone&#39;s viewport.</strong> Sized at a fixed 1.1
+world units, it fits a 16:9 monitor and overflows a portrait phone — at the
+default FOV only ~0.86 units are visible across, so the edges and the button
+sat off-screen. It now derives its width from the camera&#39;s real FOV and
+aspect. <code>panel-fit.test.ts</code> pins it, including the portrait case that broke.</p>
+</li>
+<li><p><strong><code>B3dGamepad.fade</code> was read once at connect</strong>, so toggling it at runtime did
+nothing in either direction — including from a <code>scenePanel</code> toggle, which is
+this repo&#39;s own recommended way to expose a tweakable. A settings control that
+silently does nothing is worse than no control. Now evaluated live, and
+<code>setFade()</code> reconciles on the tap rather than on the next pointer move.</p>
+</li>
+<li><p><strong>A guided missile consumed the caller&#39;s <code>guide</code> hook</strong> (#13), so a game could
+give medium behaviour — water drag, a depth floor — to a dumb shell but not to
+a missile. The seeker is now a named function the caller&#39;s hook composes with,
+and the caller runs <strong>last</strong> so it can constrain what homing asked for: the
+seeker wants to go fast, the water says no. <code>MissileOpts.guide</code> is new.</p>
+</li>
+<li><p><strong>The sky ignored the water you were under</strong> (#12, manta-recon: <em>&quot;can&#39;t see
+anything underwater except for the skybox&quot;</em>). A skybox is built
+<code>applyFog = false</code> with <code>infiniteDistance = true</code> — right in air, where a long
+fog layer would swallow it — so submerged, the fog worked on everything except
+the thing filling most of the screen. <code>b3d-water</code> now turns the sky&#39;s fog on
+while the camera is under it, keyed off the same band weight as the fog layer
+so the two can&#39;t disagree about where the surface is, and hands it back on the
+way out. Note the trap it set: turning <code>underwaterFog</code> DOWN made it worse,
+because the murk had been the only thing disguising an unfogged sky.</p>
+</li>
+<li><p><strong>The device probe measured the machine while it was still loading, then cached
+the verdict for 30 days</strong> (#11, manta-recon). It went out on <code>setTimeout(…, 0)</code>
+— one task, not one idle moment — so the benchmark ran during terrain build and
+shader compile. It times work against a fixed reference and calls anything under
+~1.67× the medium baseline <strong>low</strong>, so the machine that loads the biggest scene
+contends the most and tiers worst: an M5 Max holding 120fps was being given
+low-tier budgets for terrain, shadows, reflections and ambient at once. It now
+waits for ~1s of settled frames (<code>sceneBusy</code>), gives up after 30s, and caches a
+measurement it had to take under load with a short life so the next visit
+re-measures.</p>
+</li>
+<li><p><strong>Ambient was shed during the loading screen and never came back</strong> (#11). The
+watchdog&#39;s 10s warmup was a fixed timer where the question is &quot;has the scene
+settled&quot; — a streaming world loads for longer, so the one-way ratchet fired on
+frames that said nothing about the hardware and ambient stayed at zero for the
+session. The warmup clock now runs only while the scene is quiet.</p>
+</li>
+<li><p><strong><code>b3d-death</code> latched after the first death if the game respawned by its own
+route.</strong> <code>_dying</code> is cleared only by <code>resume()</code>, which only the panel&#39;s
+Respawn button calls — and that button doesn&#39;t exist without a <code>respawn</code>
+callback. So a scene that respawns from its own <code>crash</code> listener (a
+documented pattern) left the component stuck, and it then swallowed every
+later death: no panel, no focus release, welded to the wreck. That is the
+exact failure this component exists to prevent, one level up. A death from an
+entity that isn&#39;t the wreck it&#39;s holding now tears down and handles the new
+one, and a panel built with no way out says so in the console. (Found by
+manta-recon crashing a respawned aircraft.)</p>
+</li>
+<li><p><strong><code>Foo_ignore</code> was half-honoured</strong>: the loader disposed only the hyphen form
+while <code>publicName</code> stripped only the underscore one, so an underscore-form
+node survived the load AND collapsed to <code>Foo</code> — colliding with a real <code>Foo</code>,
+which made <code>instantiate(&#39;Foo&#39;)</code> resolve to whichever came first. Both
+separators now go through <code>isIgnored</code>.</p>
+</li>
+<li><p><strong><code>spinner()</code> in the demo helpers</strong> still used <code>engine.getDeltaTime()</code>, so on
+any page importing it (the water demo among them) crates spun ~4× slow at the
+default <code>frameRate: 30</code> — the one call site the <code>sceneDelta</code> sweep missed.</p>
+</li>
+<li><p><strong>A crashed aircraft releases input focus so a respawn can take over</strong> (#9). A wreck keeps input
+focus and ignores it, so with no <code>&lt;tosi-b3d-death&gt;</code> in the scene the player
+held a dead controller — which reads as broken controls rather than as
+dying. The crash now releases focus if nothing else handled the event.</p>
+</li>
+<li><p><strong><code>recenter()</code> reset <code>worldV</code> to 0</strong>, which is the <code>CylinderSampler</code> mirror
+plane — undoing the new default and putting a seam through the world, hours
+into a session where nobody would connect the two.</p>
+</li>
+<li><p><strong>Tile skirts hung 344m through tunnels</strong> — depth came from world amplitude
+rather than the tile&#39;s own relief.</p>
+</li>
+<li><p><code>_centerOfGravity</code> markers, cave shading (<code>interior</code> as a depth ramp,
+flooding by <code>waterTable</code>, <code>noWater</code>), volcanism confined to its caldera.</p>
+</li>
+</ul>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../getting-started/">Getting started</a></li>
+    <li><details><summary><a class="doc-link" href="../demos/">Demos</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
+      <li><a class="doc-link" href="../solar-system/">Solar System</a></li>
+      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li><a class="doc-link" href="../rig-tool/">Rig tool</a></li>
+      <li><a class="doc-link" href="../effect-tool/">Effect tool</a></li>
+      <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
+      <li><a class="doc-link" href="../land-and-sky/">Land and Sky</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../tosi-b3d/">b3d</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-loader/">b3d-loader</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-primitives/">Primitives: box, sphere, ground</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-library/">b3d-library</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../sky-and-light/">Sky and light</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
+        <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-shadows/">Sun and shadows (b3d-shadows)</a></li>
+      <li><a class="doc-link" href="../b3d-light/">Ambient light (b3d-light)</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-lamp/">Lamps</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
+        <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../weather-and-clouds/">Weather and clouds</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-weather-cell/">b3d-weather-cell</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../weather/">weather</a></li>
+        <li><a class="doc-link" href="../wind/">wind</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../terrain/">Terrain</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+        <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+        <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+        <li><details><summary><a class="doc-link" href="../landform/">landform</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../landform-schemas/">landform schemas</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
+        <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
+        <li><a class="doc-link" href="../gradient-filter/">gradient-filter</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../scatter/">scatter</a></li>
+        <li><a class="doc-link" href="../procedural-rock/">procedural-rock</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../carve/">carve</a></li>
+        <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../water/">Water</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-water/">b3d-water</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../medium/">medium</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-effect/">b3d-effect</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-trail/">b3d-trail</a></li>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../characters-and-vehicles/">Characters and vehicles</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-biped/">b3d-biped</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../aim/">aim</a></li>
+        <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
+        <li><a class="doc-link" href="../retarget/">retarget</a></li>
+        <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
+        <li><details><summary><a class="doc-link" href="../rig-build/">auto-rig</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../rig-markers/">rig markers</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../spring-chain-babylon/">spring bones</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../fly-by-wire/">fly-by-wire</a></li>
+        <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../spatial-transform/">spatial-transform</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
+      <li><details><summary><a class="doc-link" href="../inspect-view/">inspect-view</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../seam-material/">seam-material</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><details><summary><a class="doc-link" href="../input-internals/">How input works</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../control-input/">control-input</a></li>
+        <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+        <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+        <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../interacting/">Interacting with the world</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../interaction/">interaction</a></li>
+        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../ballistics/">ballistics</a></li>
+        <li><a class="doc-link" href="../guidance/">guidance</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-radar/">b3d-radar</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><details><summary><a class="doc-link" href="../inventory/">inventory</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../formations/">formations</a></li>
+        <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../widgets3d/">widgets3d</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../carry/">carry</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../carry-box/">carry-box</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../dials/">dials</a></li>
+      <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
+        <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+        <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
+        <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+        <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
+        <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
+        <li><details><summary><a class="doc-link" href="../color-field/">color3d</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../color/">color</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../picker/">picker</a></li>
+        <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+        <li><details><summary><a class="doc-link" href="../table/">table</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../selection/">selection</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-containers/">Containers</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../box/">box</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+          <li><a class="doc-link" href="../anchor-layout/">anchor-layout</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../surface/">surface</a></li>
+        <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-in-scene/">In the scene and XR</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../b3d-panel/">b3d-panel</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+          <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+          <li><details><summary><a class="doc-link" href="../system-bar/">system-bar</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../bar-menu/">bar-menu</a></li>
+          </ul>
+          </details></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+        <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+        <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-theme/">Theme and icons</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../w3d-theme/">w3d-theme</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../gas-giant/">gas-giant</a></li>
+      <li><a class="doc-link" href="../rocky-world/">rocky-world</a></li>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../sphere-map/">sphere-map</a></li>
+      <li><a class="doc-link" href="../planet-map/">planet-map</a></li>
+      <li><a class="doc-link" href="../space-backdrop/">space-backdrop</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-probe/">b3d-probe</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+        <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../cost-sweep/">Cost sweep</a></li>
+      <li><a class="doc-link" href="../draw-order/">Draw order</a></li>
+      <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../Migration/">Migration</a></li>
+      <li><details open><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../v0.11.1/">0.11.1</a></li>
+        <li><a class="doc-link" href="../v0.11.0/">0.11.0</a></li>
+        <li><a class="doc-link" href="../v0.10.20/">0.10.20</a></li>
+        <li><a class="doc-link" href="../v0.10.19/">0.10.19</a></li>
+        <li><a class="doc-link" href="../v0.10.18/">0.10.18</a></li>
+        <li><a class="doc-link" href="../v0.10.17/">0.10.17</a></li>
+        <li><a class="doc-link" href="../v0.10.16/">0.10.16</a></li>
+        <li><a class="doc-link" href="../v0.10.15/">0.10.15</a></li>
+        <li><a class="doc-link" href="../v0.10.14/">0.10.14</a></li>
+        <li><a class="doc-link" href="../v0.10.13/">0.10.13</a></li>
+        <li><a class="doc-link" href="../v0.10.12/">0.10.12</a></li>
+        <li><a class="doc-link" href="../v0.10.11/">0.10.11</a></li>
+        <li><a class="doc-link" href="../v0.10.10/">0.10.10</a></li>
+        <li><a class="doc-link" href="../v0.10.9/">0.10.9</a></li>
+        <li><a class="doc-link" href="../v0.10.8/">0.10.8</a></li>
+        <li><a class="doc-link" href="../v0.10.7/">0.10.7</a></li>
+        <li><a class="doc-link" href="../v0.10.6/">0.10.6</a></li>
+        <li><a class="doc-link" href="../v0.10.5/">0.10.5</a></li>
+        <li><a class="doc-link" href="../v0.10.4/">0.10.4</a></li>
+        <li><a class="doc-link" href="../v0.10.3/">0.10.3</a></li>
+        <li><a class="doc-link" href="../v0.10.2/">0.10.2</a></li>
+        <li><a class="doc-link" href="../v0.10.1/">0.10.1</a></li>
+        <li><a class="doc-link" href="../v0.10.0/">0.10.0</a></li>
+        <li><a class="doc-link" href="../v0.9.0/">0.9.0</a></li>
+        <li><a class="doc-link" href="../v0.8.15/">0.8.15</a></li>
+        <li><a class="doc-link" href="../v0.8.14/">0.8.14</a></li>
+        <li><a class="doc-link" href="../v0.8.13/">0.8.13</a></li>
+        <li><a class="doc-link" href="../v0.8.12/">0.8.12</a></li>
+        <li><a class="doc-link" href="../v0.8.11/">0.8.11</a></li>
+        <li><a class="doc-link" href="../v0.8.10/">0.8.10</a></li>
+        <li><a class="doc-link" href="../v0.8.9/">0.8.9</a></li>
+        <li><a class="doc-link" href="../v0.8.8/">0.8.8</a></li>
+        <li><a class="doc-link" href="../v0.8.7/">0.8.7</a></li>
+        <li><a class="doc-link" href="../v0.8.6/">0.8.6</a></li>
+        <li><a class="doc-link" href="../v0.8.5/">0.8.5</a></li>
+        <li><a class="doc-link" href="../v0.8.4/">0.8.4</a></li>
+        <li><a class="doc-link" href="../v0.8.3/">0.8.3</a></li>
+        <li><a class="doc-link" href="../v0.8.2/">0.8.2</a></li>
+        <li><a class="doc-link" href="../v0.8.1/">0.8.1</a></li>
+        <li><a class="doc-link" href="../v0.8.0/">0.8.0</a></li>
+        <li><a class="doc-link" href="../v0.7.8/">0.7.8</a></li>
+        <li><a class="doc-link" href="../v0.7.7/">0.7.7</a></li>
+        <li><a class="doc-link" href="../v0.7.6/">0.7.6</a></li>
+        <li><a class="doc-link" href="../v0.7.5/">0.7.5</a></li>
+        <li><a class="doc-link" href="../v0.7.4/">0.7.4</a></li>
+        <li><a class="doc-link" href="../v0.7.3/">0.7.3</a></li>
+        <li><a class="doc-link" href="../v0.7.2/">0.7.2</a></li>
+        <li><a class="doc-link" href="../v0.7.1/">0.7.1</a></li>
+        <li><a class="doc-link current" href="../v0.7.0/" aria-current="page">0.7.0</a></li>
+        <li><a class="doc-link" href="../v0.7.0-rc.1/">0.7.0-rc.1</a></li>
+        <li><a class="doc-link" href="../v0.6.2/">0.6.2</a></li>
+        <li><a class="doc-link" href="../v0.6.1/">0.6.1</a></li>
+        <li><a class="doc-link" href="../v0.6.0/">0.6.0</a></li>
+        <li><a class="doc-link" href="../v0.5.2/">0.5.2</a></li>
+        <li><a class="doc-link" href="../v0.5.1/">0.5.1</a></li>
+        <li><a class="doc-link" href="../v0.5.0/">0.5.0</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
+      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
+      <li><a class="doc-link" href="../noise-texture/">Noise texture</a></li>
+    </ul>
+    </details></li>
+    <li><a class="doc-link" href="../design-notes/">Design notes</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate-7skqvnh0.js"></script>
+</body>
+</html>

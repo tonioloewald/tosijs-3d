@@ -1,6 +1,4 @@
-/*#
-# atmosphere
-
+/*
 **Fog is never switched on. It is always on, and systems _lean_ on it.**
 
 Underwater, inside a cloud, out in space — each is a *layer* that pulls the fog toward its
@@ -43,7 +41,6 @@ special cases; it's one:
 blending is unit-testable without an engine, which is the point: this is the code that makes
 a transition *feel* right, and feel is worth pinning down.
 */
-/*{ "parent": "b3d-fog", "order": 10 }*/
 const lerp = (a, b, t) => a + (b - a) * t;
 const clamp01 = (t) => (t < 0 ? 0 : t > 1 ? 1 : t);
 /**

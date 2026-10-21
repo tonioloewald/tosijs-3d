@@ -7,19 +7,6 @@ the surface), and stack for **cascade menus**: a submenu opens beside its parent
 item, and the same surface routes the pointer to the top-most popup, dismissing on
 an outside press. Renders in the DOM and on a 3D texture like everything else.
 
-## Menus vs. panels
-
-Two popup kinds share the overlay:
-
-- **Menus** — transient cascades. `openMenu(surface, anchor, items)` opens a menu;
-  a `submenu` item opens a child popup to its **right** (flipping left near the
-  edge) — the tree stays visible, not push/pop. A leaf selects and closes the
-  whole cascade; an outside press dismisses it.
-- **Panels** — persistent floating windows. `surface.openPanel(at, box, { title,
-  draggable })` opens a titled panel that **stays until closed** (its × or
-  `closePopup`) and can be **dragged by its title bar** (clamped to the surface).
-  An outside press does NOT dismiss it — ideal for a pinned debug/inspector panel.
-
 ## Demo
 
 ```js
@@ -73,20 +60,16 @@ const make = () => {
   return s
 }
 
-// A DEBUG READOUT IS ITS OWN SURFACE — IN BOTH VIEWS.
+// A DEBUG READOUT IS ITS OWN SURFACE, IN BOTH VIEWS.
 //
-// `openPanel` paints into the SAME svg the plane rasterises, so the 3D view
-// showed a *picture* of a floating panel: welded to the plane, unable to sit in
-// front of it. And because one surface drives both views, there is no "3D only"
-// version of that overlay — it appears in the DOM as well.
+// `openPanel` paints into the SAME svg the plane rasterises, so in 3D it would
+// be a picture of a floating panel, welded to the plane and unable to sit in
+// front of it. A popup is a new element in a NEW LAYER, positioned relative to
+// its opener: in the document, an absolutely positioned sheet; in 3D, its own
+// plane placed relative to the opener, with real depth between them.
 //
-// Tonio put the model precisely: a popup is a new element in a NEW LAYER,
-// positioned within the spawner's layout parent, relative to the spawner. That
-// is what it means in a document, and it maps straight onto the 3D case — its
-// own plane, placed relative to the opener, with real depth between them.
-//
-// (Line comments, not a block: this lives inside the `/*#` doc fence and a
-// nested block comment closes it. Second time — hence the note.)
+// (Line comments, not a block: this lives inside the doc fence and a nested
+// block comment would close it.)
 let sceneEl = null
 let pop3d = null
 let flatPop = null
@@ -135,7 +118,7 @@ svgEl.addEventListener('pointerup', (e) => s.handlePointer('up', ...toXY(e)))
 const { plane, sceneCreated } = panelScene({ svg: svgEl, target: s, width: 2.6, camera: { radius: 3.4 } })
 const scene = (sceneEl = b3d(
   {
-    // Cleaves to its container — see the note in box.ts's demo.
+    // Cleaves to its container: see the note in the box demo.
     style: 'border-radius:8px;overflow:hidden',
     sceneCreated,
   },
@@ -164,3 +147,16 @@ preview.append(
 > Click the items in either pane. The menus cascade and the panels drag and
 > close in both, because the 3D view is not a screenshot of the DOM one — it is
 > the same surface, rasterised onto a plane.
+
+## Menus vs. panels
+
+Two popup kinds share the overlay:
+
+- **Menus** — transient cascades. `openMenu(surface, anchor, items)` opens a menu;
+  a `submenu` item opens a child popup to its **right** (flipping left near the
+  edge) — the tree stays visible, not push/pop. A leaf selects and closes the
+  whole cascade; an outside press dismisses it.
+- **Panels** — persistent floating windows. `surface.openPanel(at, box, { title,
+  draggable })` opens a titled panel that **stays until closed** (its × or
+  `closePopup`) and can be **dragged by its title bar** (clamped to the surface).
+  An outside press does NOT dismiss it — ideal for a pinned debug/inspector panel.

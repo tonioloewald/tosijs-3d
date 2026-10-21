@@ -2,8 +2,7 @@
 # debug-sink
 
 Somewhere for a page to send what it would otherwise print: a headset has no
-console, and its readings used to reach whoever was debugging by being read
-aloud.
+console, so its readings have to go somewhere you can read them afterwards.
 
 Off until a URL is set. With one, `sendDebug(tag, event)` posts a line of JSON
 to it, and `<tosi-b3d>` reports the things that are worth having afterwards:

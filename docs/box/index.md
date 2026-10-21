@@ -8,23 +8,9 @@ renders identically as a DOM node and — via `.el.outerHTML` — on a 3D textur
 ([[svg-icons|iconGlyph]] children bake explicit colours for exactly that), so one
 surface serves flat and VR.
 
-This is layout + paint + scroll. The **event model** (one `handlePointer` +
-focus-traversal for gamepad nav — see UI-DESIGN-NOTES) and the overlay/popup layer
-land next; the child protocol already carries the hooks they'll use.
-
-## Children
-
-A `BoxChild` is `{ el, kind, measure, paint? }`:
-
-- **block** — fills the content width, `measure(width) → { height }`, stacks.
-- **inline** — `measure() → { width, height }`, flows left-to-right and wraps.
-- **placed** — any child with `at: { x, y }`: drawn at that offset over the
-  flowed child before it, taking no space in the flow and hit first (sockets
-  on a schematic sit on its art this way).
-
-Helpers build the common ones: `textBlock` (wraps text to the width via
-[[widgets3d-layout]]'s real glyph measurer), `inlineIcon` (an `iconGlyph`), and
-`blockItem` / `inlineItem` to drop in any SVG element at a known size.
+Input is coordinate-based: one `handlePointer(kind, x, y)` for mouse, touch and a VR
+ray alike, plus `focusMove` / `focusActivate` for D-pad and keyboard traversal. Menus
+and floating panels live on a [[surface]], which holds a box.
 
 ## Demo — the same box in the DOM and on a 3D texture
 
@@ -260,3 +246,17 @@ preview.append(
 > Drag the corner grip to resize; drag anywhere else on the plane to orbit. The
 > text re-wraps as the box narrows and then scrolls once it runs out of room —
 > the same layout pass in both panes.
+
+## Children
+
+A `BoxChild` is `{ el, kind, measure, paint? }`:
+
+- **block** — fills the content width, `measure(width) → { height }`, stacks.
+- **inline** — `measure() → { width, height }`, flows left-to-right and wraps.
+- **placed** — any child with `at: { x, y }`: drawn at that offset over the
+  flowed child before it, taking no space in the flow and hit first (sockets
+  on a schematic sit on its art this way).
+
+Helpers build the common ones: `textBlock` (wraps text to the width via
+the real glyph measurer in [[widgets3d]]), `inlineIcon` (an `iconGlyph`), and
+`blockItem` / `inlineItem` to drop in any SVG element at a known size.

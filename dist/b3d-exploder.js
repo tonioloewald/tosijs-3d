@@ -49,7 +49,7 @@ const scene = b3d(
     sceneCreated(el, BABYLON) {
       babylon = BABYLON
       const camera = orbitCam(el, {
-        alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 12,
+        alphaDeg: -90, betaDeg: 60, radius: 12,
         target: [0, 1, 0], maxElevationDeg: 70,
       })
       camera.lowerRadiusLimit = 4

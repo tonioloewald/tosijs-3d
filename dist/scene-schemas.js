@@ -6,16 +6,14 @@ attributes.** No DOM, no Babylon — importable from a headless runner.
 
 ## Why this exists
 
-`tosijs-3d-ensemble` generates its property panels from JSON Schema, and wrote
-one for `b3d-skybox` by hand: a copy of our attributes, maintained in another
-repository, against a component they do not own. It drifted in both directions
-within one release — their schema exposed **6 of 16** attributes (the other ten
-were never hidden deliberately, just not copied), and their `applyFog` defaulted
-`true` where ours defaults `false`. Same name, same component, opposite
-behaviour, and nothing anywhere failed.
+A consumer that generates property panels from JSON Schema would otherwise write
+one per component by hand: a copy of our attributes, maintained in another
+repository, against a component it does not own. A copy like that drifts in both
+directions — attributes that were never copied, defaults that disagree — and
+nothing anywhere fails.
 
-`lightSettingsSchema` had already shown the alternative: mark one field and the
-whole lamp appears, with no schema on their side to maintain. This is that,
+`lightSettingsSchema` does the same for a lamp: mark one field and the whole
+lamp appears, with no schema on the consumer's side to maintain. This is that,
 for the rest of the scene.
 
 ## These carry NO `x-widget`
@@ -41,13 +39,10 @@ ui.inputField({ value: current, type: 'color', handleChange })
 color3d({ value: current, handleChange })
 ```
 
-`FieldType` gained `'color'` for exactly this, so the two vocabularies line up:
+`FieldType` has `'color'` for exactly this, so the two vocabularies line up:
 a schema says `format`, a field says `type`, and neither has to guess. `x-widget`
 stays reserved for values JSON Schema has no word for at all — a light program,
 a curve — where the answer really is "hand the whole thing to a custom editor".
-
-Asked by `tosijs-3d-ensemble` (#72), whose generated panel had eight colour
-properties it could not render and had to fall back to unvalidated hex text.
 
 ## The host has one too: `sceneSchemas.b3d`
 
@@ -57,7 +52,7 @@ time scale. `b3dSchema()` describes those and ONLY those. The host's other
 attributes configure a viewer rather than a scene (camera limits, quality
 tier, pixel ratio, gamepad and panel chrome, XR and pause behaviour) and are
 declined by name in `SCENE_OMITTED.b3d`, so a document never stores someone's
-laptop. Asked by `tosijs-3d-ensemble` (#101).
+laptop.
 
 ## Drift is a test, not a promise
 

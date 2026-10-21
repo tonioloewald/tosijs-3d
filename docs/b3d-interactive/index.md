@@ -3,8 +3,8 @@
 **Makes a mesh touchable.** Point at it, reach it, use it — and it tells you, by
 callback or by bubbling event. It is the substrate doors, knobs, switches,
 levers, consoles and lamps all stand on; the rules it enforces are pure and
-tested in [interaction](?interaction.ts), and the scene bridge is
-[interactive-behavior](?interactive-behavior.ts).
+tested in [interaction](/interaction/), and the scene bridge is
+[interactive-behavior](/interactive-behavior/).
 
 `b3d-button` is a floating Babylon GUI widget. This is the other thing: *world
 geometry you reach out to*.
@@ -194,11 +194,8 @@ use.activate({ actor: npc, distance: npc.distanceTo(door) })
 
 `useNearest` measures the distance itself, so it needs neither.
 
-Raised by `tosijs-3d-ensemble` (#36), with the argument that settled it: it
-costs nothing today and cannot be added later without changing every veto
-anyone has written.
-
-## Reaching it without pointing at it
+The argument is there from the start because it could not be added later without
+changing every veto anyone has written.
 
 ## Reach is measured from the PLAYER, not the camera
 
@@ -216,6 +213,8 @@ So the distance is taken from the live `player: true` controllable in the scene
 whenever there is one. With no player — an orbit-camera scene, a spectator, a
 flat diagram you click — it falls back to the ray, which is correct there: the
 cursor really is the only hand in the room.
+
+## Reaching it without pointing at it
 
 `useNearest(scene, position)` activates the closest thing within its own reach —
 the "walk up and press E" control, for wiring to `ControlInput.interact`:

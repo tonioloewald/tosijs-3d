@@ -68,10 +68,9 @@ const PALETTE = [
   ['star', 'Favourite'], ['compass', 'Compass'], ['settings', 'Settings'], ['bug', 'Debug'],
 ].map(([icon, title]) => ({ icon, title }))
 
-// THE RULE ENSEMBLE ACTUALLY WANTS, and it is none of the three modes.
-//
-// Tonio: "select move rotate scale, where scale turns off move and rotate, and
-// move and rotate turn off scale but can coexist and select is independent."
+// A TOOL RULE that is none of the three modes: scale turns off move and
+// rotate, move and rotate turn off scale but can coexist, and select is
+// independent.
 //
 // So: two mutually exclusive GROUPS that are each internally free, plus one
 // member that ignores the whole arrangement. `checkbox` gets the coexistence and
@@ -160,7 +159,7 @@ preview.append(
 ```
 
 > Three grids, one control. The first fires and forgets, the second is one-of-N,
-> the third is any-of-N — and the third also enforces ensemble's tool rule, that
+> the third is any-of-N — and the third also enforces a tool rule, that
 > **scale fights move+rotate**, so picking scale drops the other two. Try it:
 > the rule is a `handleChange` interceptor, not a fourth widget.
 >
@@ -170,8 +169,8 @@ preview.append(
 
 ## The control owns LAYOUT; the consumer owns MEANING
 
-Three widgets collapse into one because the difference between them was never
-layout — it was semantics. So `mode` picks the common case (`buttons` fire and
+Buttons, radio and checkbox are one control because the difference between them
+is semantics, not layout. So `mode` picks the common case (`buttons` fire and
 forget, `radio` is one-of-N, `checkbox` is any-of-N) and `handleChange` lets a consumer
 impose something more particular: mutually exclusive subgroups, a mode that
 refuses to turn itself off, a tool that arms rather than toggles.
@@ -186,10 +185,8 @@ Two cases: **48 px** for touch, **24 px** for a pointer, sniffed from
 `(pointer: coarse)` and overridable. That is the whole decision.
 
 It is tempting to add a third, larger size for XR on the grounds that a
-controller ray is imprecise. Tonio overruled exactly that, and the reasoning is
-better than mine was: _"we shouldn't make special size allowances for XR UI
-targets, we should scale XR so that pointer or touch targets make sense, since XR
-users also need to be able to read stuff."_
+controller ray is imprecise. Instead, XR scales the panel so that pointer or
+touch targets make sense, because XR users also need to be able to read it.
 
 Growing the targets in UI units leaves the glyphs where they are and inflates the
 buttons around them, so you buy hit accuracy by making the panel **harder to

@@ -1,4 +1,4 @@
-/*#
+/*
 # destroyable
 
 **Things that take damage, as plain state.** A `CombatWorld` holds
@@ -28,7 +28,6 @@ Health and a launcher's ammunition are the same mechanic, a [[resource]].
 [[b3d-destroyable]] and [[destroyable-behavior]] attach one of these to a
 mesh; [[warhead]] works out the amounts.
 */
-/*{ "parent": "b3d-destroyable", "order": 20 }*/
 /**
  * Pure, Babylon-free, deterministic combat state — the sink every warhead resolves
  * against (see COMBAT-DESIGN.md). A `CombatWorld` holds Destroyables by id and

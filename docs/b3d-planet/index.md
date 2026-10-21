@@ -158,6 +158,7 @@ tosi-b3d {
 | Attribute | Default | Description |
 | --- | --- | --- |
 | `seed` | `12345` | Noise seed |
+| `biome` | `'off'` | `'on'` shades the land with the procedural biome shader, planetary version: altitude is radial, latitude sets the temperature, and the sea level follows `ocean` (see [biome-chart](/biome-chart/)) |
 | `radius` | `50` | Base sphere radius |
 | `heightMap` | `''` | A real world's HEIGHTS: a 16-bit greyscale PNG, 2:1, `metres = value − 32768` (see [planet-map](/planet-map/)). A full URL, or a path resolved by `assetUrl`: call `setAssetBase('https://cdn.tosijs.net')` once and `nasa/moon/height-2k.png`, `nasa/mars/…` and `noaa/earth/…` are there. Sets `surface` when it has loaded. Those maps are NASA's and NOAA's and free to use with credit, which is yours to show |
 | `bodyRadiusKm` | `0` | The real body's radius in km, which is what the heights are a fraction of (Moon 1737.4, Mars 3389.5, Earth 6371). `0` reads the height map's `body-radius-km` header, which a browser only shows to a page on the same origin unless the server exposes it: set this for a map from another host |
@@ -179,6 +180,7 @@ tosi-b3d {
 | `turbulence` | `-1` | Gas giant: how torn the band edges are, `0…1`. `-1` = the preset's |
 | `storm` | `-1` | Gas giant: size of the great storm, `0` = none. `-1` = the preset's |
 | `bandColors` | `''` | Gas giant: up to three `#rrggbb`, comma separated (zones, belts, accent). Blank = the preset's |
+| `rings` | `0` | A ring, `0` = none. The value is its strength: it widens the default ring and multiplies `ringOpacity`, reaching full strength at about 0.85 |
 | `ringInner` | `0` | Inner edge of the ring, in planet radii from the centre. `0` = the gas giant preset's, else 45% of the outer edge |
 | `ringOuter` | `0` | Outer edge of the ring, in planet radii. `0` = the gas giant preset's, else 1.5 to 3 by `rings` |
 | `ringOpacity` | `-1` | `0…1`, always multiplied by `rings` (which reaches full strength at about 0.85). `-1` = the gas giant preset's |
@@ -189,6 +191,8 @@ tosi-b3d {
 | `grossAmplitude` | `5` | Gross height multiplier |
 | `detailAmplitude` | `1` | Detail height multiplier |
 | `atmosphere` | `0.08` | Atmosphere thickness (fraction of radius, 0=none). The clouds ride half way up it |
+| `atmosphereColor` | `'rgba(77,128,230,0.15)'` | The glow shell's colour; its alpha is the shell's opacity |
+| `atmosphereTurbulence` | `0.5` | How much the glow shell shimmers |
 | `clouds` | `0` | (Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud: `1` is mostly cloud with breaks, and on to `3`, a solid deck (Venus). A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none |
 | `cloudColor` | `'#ffffff'` | The cloud's colour where lit |
 | `storms` (property) | `[]` | Storms placed on the weather, up to four: `planet.storms = [{ lat: 22, lon: -60, size: 8, intensity: 1, lightning: 1 }]`. Each is a cyclone with an eye, turning the right way for its hemisphere, with lightning inside; `cyclone: 0` makes it a thunderstorm complex that sits and flashes. Needs `clouds` above 0. Provisional: a storm here is not yet a weather cell on the ground, and the shape of this may change when it is |

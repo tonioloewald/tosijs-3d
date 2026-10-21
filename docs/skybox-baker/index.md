@@ -23,16 +23,10 @@ const { bake } = tosi({
 let sceneEl = null
 
 // THE GALAXY DOES NOT REBUILD ITSELF. Changing `starCount` sets a property and
-// nothing more — `regenerate()` is what rebuilds the particle systems, and the
-// galaxy demo has always called it from an observer. This one did not, so every
-// slider here was inert: the value changed, the scene did not.
+// nothing more — `regenerate()` is what rebuilds the particle systems, so an
+// observer below calls it. Without that every slider here would be inert.
 //
-// (Line comments, not a block. A block comment inside a fence CLOSES the
-// enclosing /*# doc comment — which is exactly what just happened, and what
-// CLAUDE.md warns about.)
-//
-// Debounced: at the top of the range a rebuild is ~12 s of blocked main thread,
-// and a drag would otherwise queue one per step.
+// Debounced: a drag would otherwise queue one rebuild per step.
 const galaxy = b3dGalaxy({
   seed: bake.seed,
   starCount: bake.stars,
@@ -144,11 +138,10 @@ preview.append(
 ## Six cameras, and why not a probe
 
 `ReflectionProbe` is the better idea on paper — it renders a correctly-oriented
-cube, so the face conventions stay Babylon's problem rather than ours — and this
-was written that way first. Its `cubeTexture.readPixels(face)` came back ALL
-ZEROS here, every face, verified by decoding the PNGs and finding a maximum
-channel value of 0. Six silently black squares is a worse failure than a little
-more code, so the faces are rendered with a camera instead.
+cube, so the face conventions stay Babylon's problem rather than ours — but its
+`cubeTexture.readPixels(face)` returns all zeros here, every face. Six silently
+black squares is a worse failure than a little more code, so the faces are
+rendered with a camera instead.
 
 The orientation table is therefore written out in full rather than trusted to
 memory. The ±Y rows are the ones that bite: they need a different UP vector,
@@ -178,19 +171,10 @@ The star count defaults to **10,000 and goes to 100,000**, and the gap is
 deliberate: you want the scene responsive while you are deciding where to stand
 and how big the stars should be, and dense only for the shot you keep.
 
-The cost used to be generation, and is no longer — planets were 71% of it
-and are now computed on demand, names come from each star's own seed, and a
-cheap PRNG replaced a Mersenne Twister per star (see `galaxy-data`). Measured:
-
-| stars | `generateGalaxy` (0.8.3) |
-| ----- | ---------------- |
-| 10,000 | ~25 ms |
-| 100,000 | ~200 ms |
-
-So 100k is no longer a deliberate "now bake it" action; drag the slider
-freely. (It used to be ~12.6 s and blocked the main thread — the generator
-kept a name table, generated full planet systems per star, and built an MT
-per star plus one per planet.)
+Generation is cheap: planets are computed on demand, names come from each
+star's own seed, and each star uses a cheap PRNG. Measured, 10k bright stars
+(with their interesting dim ones) build in about 0.4 s and 100k in about 2 s,
+so the slider is debounced rather than a separate "now bake it" step.
 
 ⚠️ **Tune particle size AT 90°.** A cube face is 90° FOV where a typical demo
 camera is nearer 46°, so a star covers about half the angular fraction of the

@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=060314d12b8f" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=f55d7e2fb2af" data-tosi-doc-system />
   <title>Lamps — tosijs-3d</title>
   <meta name="description" content="Lights you can see. b3dPointLight, b3dSpotLight and b3dAreaLight are placed lights that come with their own fixture geometry, cast shadows where Babylon…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-lamp/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=e9f6966606af" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=02678983b691" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="b3d-lamp.ts">
 <h1 id="lamps">Lamps</h1>
 <p><strong>Lights you can see.</strong> <code>b3dPointLight</code>, <code>b3dSpotLight</code> and <code>b3dAreaLight</code> are
@@ -42,10 +42,10 @@ so every scene grows a hand-rolled &quot;glowing sphere next to the light&quot; 
 has to be kept in sync with it. These carry the emitter with the light, and let
 you turn it off or replace it when the scene has a real fixture to put there.</p>
 <h2 id="demo">Demo</h2>
-<p>A dark room with a <strong>matte, patterned floor</strong> — the two things a lighting demo
-needs and the first version of this had neither. A glossy untextured plane
-reflects the lamp back at you and shows nothing about falloff; a lit scene with
-no shadow receivers lets every light shine straight through the objects.</p>
+<p>A dark room with a <strong>matte, patterned floor</strong>, the two things a lighting demo
+needs. A glossy untextured plane reflects the lamp back at you and shows nothing
+about falloff; a lit scene with no shadow receivers lets every light shine
+straight through the objects.</p>
 <p>Three zones so the lamps do not wash each other out: a warm lamp with hard
 shadows, a fluorescent that strikes and dies, and a gelled spot throwing a
 window pattern across a clear patch of floor. Switch them off to watch each
@@ -61,8 +61,7 @@ const { lamps } = tosi({ lamps: { on: true, geometry: true, ambient: 0.06 } })
 
 // `on` and `geometry` are &#39;on&#39;|&#39;off&#39; STRINGS, not booleans — an absent boolean
 // attribute reads false, so a default-true boolean is not expressible in HTML.
-// Binding a boolean leaf straight to them looks right and does nothing: tosijs
-// silently discards a wrong-typed prop write (tosijs#24). So observe and map.
+// Binding a boolean leaf straight to them writes the wrong type. So observe and map.
 const applyToggles = () =&gt; {
   for (const el of document.querySelectorAll(&#39;tosi-b3d-point-light, tosi-b3d-spot-light&#39;)) {
     el.on = lamps.on.value ? &#39;on&#39; : &#39;off&#39;
@@ -81,8 +80,7 @@ const FLUORESCENT = {
     // THE DECAY REGION. It drops fast to an EMBER and holds there before going
     // out, rather than fading straight to zero — otherwise the hue shift below
     // arrives at red exactly when there is no light left to be red, and the
-    // whole effect is invisible. Tonio: &quot;the light that looks red doesn&#39;t seem
-    // to produce red light.&quot;
+    // whole effect is invisible.
     { x: 0.8, y: 0.34 }, { x: 0.95, y: 0.26 }, { x: 1, y: 0 },
   ],
   // Reaches red EARLY in the decay, so the ember above is already red while it
@@ -119,8 +117,8 @@ preview.append(
         scene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.03, 1)
 
         // MATTE and PATTERNED. Specular black kills the mirror-highlight that
-        // made the old floor reflect the lamps; the checker gives falloff and
-        // shadow edges something to fall across.
+        // would reflect the lamps; the checker gives falloff and shadow edges
+        // something to fall across.
         const checker = new BABYLON.DynamicTexture(&#39;checker&#39;, 512, scene, false)
         const ctx = checker.getContext()
         for (let y = 0; y &lt; 16; y++) {
@@ -234,17 +232,15 @@ preview.append(
 </tr>
 </tbody></table>
 <h3 id="a-lantern-behind-a-grill--model-it-do-not-gel-it">A lantern behind a grill — model it, do not gel it</h3>
-<p>Tonio: <em>&quot;can we do gels on point lights (I would assume provide a cylindrical
-gel) e.g. if I wanted to make a lamp shaped like it&#39;s behind a grill like an old
-lantern)?&quot;</em> Babylon has no projection texture on a point light, and the honest
-answer is that you do not want one: <strong>give the lamp a <code>url</code> fixture with the
-grill modelled, and turn <code>shadows</code> on.</strong></p>
+<p>Babylon has no projection texture on a point light, and you do not want one:
+<strong>give the lamp a <code>url</code> fixture with the grill modelled, and turn <code>shadows</code>
+on.</strong></p>
 <p>The cube shadow map then projects the grill in every direction, for real. That
 beats a gel outright — the pattern is correct from any viewpoint, it falls
 across uneven ground properly, and it moves when the lantern swings. A
 cylindrical gel would be a flat approximation that breaks the moment you look
 at it from above.</p>
-<p>It already works, because a <code>url</code> fixture is registered with the scene and every
+<p>It works because a <code>url</code> fixture is registered with the scene and every
 lamp&#39;s shadow generator picks up registered meshes as casters. Mark the glass
 and the flame <code>_nocast</code> in the model so only the metal casts — otherwise the
 bulb shadows its own light, which is the one thing the built-in primitives
@@ -275,7 +271,7 @@ the light is the part emitting it. There is a small emissive floor so a
 switched-off fixture stays locatable rather than vanishing outright — which is
 the same concern that made it unlit to begin with.</p>
 <h2 id="one-curve-is-the-whole-lamp">One curve is the whole lamp</h2>
-<p>Everything time-varying comes from <a href="/light-modulation/" class="wikilink">light-modulation</a>: <strong>one curve per channel</strong>
+<p>Everything time-varying is a <a href="/light-modulation/">light program</a>: <strong>one curve per channel</strong>
 (<code>brightness</code>, <code>hue</code>, <code>saturation</code>, <code>range</code>) spanning the lamp&#39;s entire
 behaviour, split into three regions by two markers.</p>
 <pre><code>   0 ─────────── attackEnd ──────────── sustainEnd ─────────── 1
@@ -303,13 +299,13 @@ to keep in sync.</p>
   <span class="token punctuation">}</span><span class="token punctuation">,</span>
 <span class="token punctuation">}</span><span class="token punctuation">)</span>
 </code></pre>
-<p>Those are the same <code>[0,1] → [0,1]</code> curves the province editor edits, so
-<a href="/curve-field/" class="wikilink">curve3d</a> is already the editor for a lamp — the two markers are
-the only thing it does not draw yet.</p>
+<p>Those are the same <code>[0,1] → [0,1]</code> curves <a href="/curve-field/" class="wikilink">curve3d</a> edits, and
+<a href="/curve-program/">curve-program</a> (<code>curveProgram3d</code>) edits a whole program,
+markers included.</p>
 <p><strong>Flicker does not compose across regions</strong>, deliberately: if you want a lamp
 flickering as it dies, draw that into the decay region. See
-<a href="/light-modulation/" class="wikilink">light-modulation</a> for why that trade was taken and the two discontinuities
-it leaves.</p>
+<a href="/light-modulation/">light programs</a> for the contract and the two
+discontinuities it leaves.</p>
 <p><code>on</code> is what runs the program: setting it false plays the DECAY region rather
 than killing the light. A lamp that has finished decaying stops doing per-frame
 work altogether.</p>
@@ -350,8 +346,8 @@ work altogether.</p>
 </tr>
 <tr>
 <td><code>on</code></td>
-<td><code>true</code></td>
-<td><code>false</code> plays the DECAY region; it does not kill the light</td>
+<td><code>&#39;on&#39;</code></td>
+<td><code>&#39;off&#39;</code> plays the DECAY region; it does not kill the light</td>
 </tr>
 <tr>
 <td><code>geometry</code></td>
@@ -377,6 +373,11 @@ work altogether.</p>
 <td><code>shadowTextureSize</code></td>
 <td><code>0</code> (auto)</td>
 <td>Resolves against the device budget</td>
+</tr>
+<tr>
+<td><code>timeSource</code></td>
+<td><code>&#39;real&#39;</code></td>
+<td>Which clock the program runs on. <code>&#39;real&#39;</code>: elapsed seconds, immune to pause, because a lamp is ambience and a flicker frozen mid-flicker makes a paused game look broken. <code>&#39;sim&#39;</code>: the world&#39;s clock, for a lamp that is part of the simulation (street lights at dusk, a beacon a player is timing). It stops when the world pauses</td>
 </tr>
 <tr>
 <td><code>angle</code></td>
@@ -409,6 +410,11 @@ work altogether.</p>
 <td><strong>spot</strong> — edge feather, as a fraction of the radius</td>
 </tr>
 <tr>
+<td><code>dirX</code> / <code>dirY</code> / <code>dirZ</code></td>
+<td><code>0</code>/<code>-1</code>/<code>0</code></td>
+<td><strong>spot</strong> — direction the cone points (straight down by default)</td>
+</tr>
+<tr>
 <td><code>gel</code></td>
 <td>—</td>
 <td><strong>spot</strong> — projection texture URL (bitmap or SVG file)</td>
@@ -427,6 +433,38 @@ work altogether.</p>
 <p><strong>Properties</strong> (JS only — objects, not attributes): <code>program</code>
 (<a href="/light-modulation/" class="wikilink">LightProgram</a>) and <code>node</code> (the fixture&#39;s <code>TransformNode</code>,
 for parenting your own geometry).</p>
+<h2 id="editing-a-lamp">Editing a lamp</h2>
+<p><code>lightEditor3d</code> is a <code>Widget3d</code> that edits the whole lamp: what it <em>is</em> (type,
+colour, intensity, range, shadows) alongside what it <em>does over time</em> (a
+<a href="/curve-program/">curve-program</a>, whose demo drives a real lamp with it), with
+a power switch so you can watch the attack and decay play out. A program editor
+alone would be half the job; what you get back is a complete lamp description
+that can be handed straight to <code>b3dPointLight</code> / <code>b3dSpotLight</code> /
+<code>b3dAreaLight</code>.</p>
+<pre><code class="language-javascript" data-highlighted><span class="token keyword">const</span> editor <span class="token operator">=</span> <span class="token function">lightEditor3d</span><span class="token punctuation">(</span><span class="token punctuation">{</span>
+  <span class="token literal-property property">value</span><span class="token operator">:</span> <span class="token punctuation">{</span> <span class="token literal-property property">kind</span><span class="token operator">:</span> <span class="token string">'spot'</span><span class="token punctuation">,</span> <span class="token literal-property property">hue</span><span class="token operator">:</span> <span class="token number">35</span><span class="token punctuation">,</span> <span class="token literal-property property">intensity</span><span class="token operator">:</span> <span class="token number">600</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
+  <span class="token function-variable function">handleChange</span><span class="token operator">:</span> <span class="token punctuation">(</span><span class="token parameter">s</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token function">applyToLamp</span><span class="token punctuation">(</span>s<span class="token punctuation">)</span><span class="token punctuation">,</span>  <span class="token comment">// live, mid-drag</span>
+  <span class="token function-variable function">handleCommit</span><span class="token operator">:</span> <span class="token punctuation">(</span><span class="token parameter">s<span class="token punctuation">,</span> describe</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token function">save</span><span class="token punctuation">(</span>s<span class="token punctuation">)</span><span class="token punctuation">,</span> <span class="token comment">// once per gesture: one undo step</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span>
+</code></pre>
+<ul>
+<li><strong>Colour is hue and saturation, with no value slider</strong>, because value <em>is</em>
+<code>intensity</code> and two ways to dim a lamp would disagree. Three RGB sliders
+cannot say &quot;the same colour, a bit warmer&quot;, which is the edit you actually
+make on a light, and HSV matches how the program&#39;s <code>hue</code> and <code>saturation</code>
+channels modulate it.</li>
+<li><strong>Power is a switch, not a button.</strong> It is state (the lamp is on or off), and
+a button reads as &quot;do something once&quot;.</li>
+<li><code>hint</code> puts a line of guidance above the switch. It is absent by default: an
+embedded widget labels its own controls, and the title and explanation belong
+to whoever placed it.</li>
+</ul>
+<h2 id="a-lamp-as-data">A lamp as data</h2>
+<p><code>tosijs-3d/light-settings</code> is a lamp as plain data: the <code>LightSettings</code> type,
+<code>DEFAULT_LIGHT</code>, <code>lightSettingsSchema()</code> (JSON Schema), <code>canonicalLight</code> and
+<code>validateLight</code>. It has no DOM, no Babylon and no widget, so a consumer that
+only wants to read, validate or serialise a lamp document can do it headlessly.
+Importing the editor would pull in tosijs, which needs <code>HTMLElement</code>.</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -446,21 +484,26 @@ for parenting your own geometry).</p>
     </details></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
-      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
-      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><details><summary><a class="doc-link" href="../tosi-b3d/">b3d</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-loader/">b3d-loader</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../b3d-primitives/">Primitives: box, sphere, ground</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-library/">b3d-library</a></summary>
       <ul>
-        <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
         <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
       </ul>
       </details></li>
       <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
       <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
       <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
-      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
-      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
     </ul>
     </details></li>
     <li><details open><summary><a class="doc-link" href="../sky-and-light/">Sky and light</a></summary>
@@ -475,19 +518,12 @@ for parenting your own geometry).</p>
       <li><a class="doc-link" href="../b3d-light/">Ambient light (b3d-light)</a></li>
       <li><details open><summary><a class="doc-link current" href="../b3d-lamp/" aria-current="page">Lamps</a></summary>
       <ul>
+        <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
         <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../light-rays/">light-rays</a></li>
-      </ul>
-      </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-fog/">b3d-fog</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
@@ -497,7 +533,6 @@ for parenting your own geometry).</p>
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></summary>
       <ul>
-        <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
         <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
       </ul>
       </details></li>
@@ -508,17 +543,8 @@ for parenting your own geometry).</p>
         <li><a class="doc-link" href="../wind/">wind</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../lightning/">lightning</a></li>
-      </ul>
-      </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
-        <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../terrain/">Terrain</a></summary>
@@ -535,7 +561,6 @@ for parenting your own geometry).</p>
         </details></li>
         <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
         <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
-        <li><a class="doc-link" href="../terrain-grid/">terrain-grid</a></li>
         <li><a class="doc-link" href="../gradient-filter/">gradient-filter</a></li>
       </ul>
       </details></li>
@@ -557,9 +582,6 @@ for parenting your own geometry).</p>
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-water/">b3d-water</a></summary>
       <ul>
-        <li><a class="doc-link" href="../water-shore/">water-shore</a></li>
-        <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
-        <li><a class="doc-link" href="../caustics/">caustics</a></li>
         <li><a class="doc-link" href="../medium/">medium</a></li>
       </ul>
       </details></li>
@@ -578,11 +600,7 @@ for parenting your own geometry).</p>
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-biped/">b3d-biped</a></summary>
       <ul>
-        <li><a class="doc-link" href="../mantle/">mantle</a></li>
-        <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
-        <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
         <li><a class="doc-link" href="../aim/">aim</a></li>
-        <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
         <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
         <li><a class="doc-link" href="../retarget/">retarget</a></li>
         <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
@@ -592,20 +610,24 @@ for parenting your own geometry).</p>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../spring-chain-babylon/">spring bones</a></li>
-        <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
-        <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></summary>
       <ul>
         <li><a class="doc-link" href="../fly-by-wire/">fly-by-wire</a></li>
         <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
-        <li><a class="doc-link" href="../hud/">hud</a></li>
-        <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
       </ul>
       </details></li>
       <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
-      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../spatial-transform/">spatial-transform</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
       <li><details><summary><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></summary>
       <ul>
         <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
@@ -618,11 +640,7 @@ for parenting your own geometry).</p>
       <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
       <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
-      <li><details><summary><a class="doc-link" href="../touch-orbit/">touch-orbit</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><details><summary><a class="doc-link" href="../inspect-view/">inspect-view</a></summary>
       <ul>
         <li><a class="doc-link" href="../seam-material/">seam-material</a></li>
@@ -634,12 +652,7 @@ for parenting your own geometry).</p>
         <li><a class="doc-link" href="../control-input/">control-input</a></li>
         <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
         <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
-        <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
-        <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
-        <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
         <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
-        <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
-        <li><a class="doc-link" href="../text-entry/">text-entry</a></li>
       </ul>
       </details></li>
     </ul>
@@ -656,14 +669,7 @@ for parenting your own geometry).</p>
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
       <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
-      <li><details><summary><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
-        <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
-      </ul>
-      </details></li>
-      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
-      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
@@ -671,8 +677,6 @@ for parenting your own geometry).</p>
       <li><details><summary><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></summary>
       <ul>
         <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
-        <li><a class="doc-link" href="../destroyable/">destroyable</a></li>
-        <li><a class="doc-link" href="../resource/">resource</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></summary>
@@ -681,16 +685,11 @@ for parenting your own geometry).</p>
         <li><a class="doc-link" href="../guidance/">guidance</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../warhead/">warhead</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
       <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-radar/">b3d-radar</a></summary>
       <ul>
         <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
-        <li><a class="doc-link" href="../radar/">Radar model</a></li>
       </ul>
       </details></li>
     </ul>
@@ -705,7 +704,6 @@ for parenting your own geometry).</p>
         <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
       </ul>
       </details></li>
-      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
       <ul>
@@ -713,19 +711,13 @@ for parenting your own geometry).</p>
         <li><a class="doc-link" href="../prefab/">prefab</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-death/">b3d-death</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
     <ul>
       <li><details><summary><a class="doc-link" href="../widgets3d/">widgets3d</a></summary>
       <ul>
-        <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
-        <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
       </ul>
       </details></li>
@@ -738,16 +730,8 @@ for parenting your own geometry).</p>
       <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
       <ul>
         <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
-        <li><details><summary><a class="doc-link" href="../angle-field/">angle-field</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../arc/">arc</a></li>
-        </ul>
-        </details></li>
-        <li><details><summary><a class="doc-link" href="../curve-field/">Curve editor</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../curve/">curve</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+        <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
         <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
         <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
         <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
@@ -757,22 +741,10 @@ for parenting your own geometry).</p>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../picker/">picker</a></li>
-        <li><details><summary><a class="doc-link" href="../keyboard/">keyboard</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
-          <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
         <li><details><summary><a class="doc-link" href="../table/">table</a></summary>
         <ul>
-          <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
           <li><a class="doc-link" href="../selection/">selection</a></li>
-        </ul>
-        </details></li>
-        <li><details><summary><a class="doc-link" href="../light-editor/">Light editor</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
-          <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
         </ul>
         </details></li>
       </ul>
@@ -786,12 +758,7 @@ for parenting your own geometry).</p>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../surface/">surface</a></li>
-        <li><details><summary><a class="doc-link" href="../popup-surface/">popup-surface</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
-          <li><a class="doc-link" href="../panel-layer/">panel-layer</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../ui-in-scene/">In the scene and XR</a></summary>
@@ -800,22 +767,15 @@ for parenting your own geometry).</p>
         <ul>
           <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
           <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
-          <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
           <li><details><summary><a class="doc-link" href="../system-bar/">system-bar</a></summary>
           <ul>
             <li><a class="doc-link" href="../bar-menu/">bar-menu</a></li>
           </ul>
           </details></li>
-          <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
-        <li><details><summary><a class="doc-link" href="../svg-texture/">svg-texture</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
-          <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
         <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
       </ul>
       </details></li>
@@ -826,11 +786,7 @@ for parenting your own geometry).</p>
           <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
         </ul>
         </details></li>
-        <li><details><summary><a class="doc-link" href="../svg-icons/">svg-icons</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       </ul>
       </details></li>
     </ul>
@@ -840,23 +796,12 @@ for parenting your own geometry).</p>
       <li><details><summary><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></summary>
       <ul>
         <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
-        <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
-        <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../system-layout/">system-layout</a></li>
-        <li><a class="doc-link" href="../sol/">sol</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
-      <li><details><summary><a class="doc-link" href="../gas-giant/">gas-giant</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../gas-giant-material/">gas-giant-material</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../gas-giant/">gas-giant</a></li>
       <li><a class="doc-link" href="../rocky-world/">rocky-world</a></li>
       <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
       <li><a class="doc-link" href="../sphere-map/">sphere-map</a></li>
@@ -877,16 +822,79 @@ for parenting your own geometry).</p>
       <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
     </ul>
     </details></li>
-    <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <li><details><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
     <ul>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
-      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
-      <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
-      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
-      <li><a class="doc-link" href="../noise-volume/">Noise volume</a></li>
-      <li><a class="doc-link" href="../climate-noise/">climate-noise</a></li>
+      <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../v0.11.1/">0.11.1</a></li>
+        <li><a class="doc-link" href="../v0.11.0/">0.11.0</a></li>
+        <li><a class="doc-link" href="../v0.10.20/">0.10.20</a></li>
+        <li><a class="doc-link" href="../v0.10.19/">0.10.19</a></li>
+        <li><a class="doc-link" href="../v0.10.18/">0.10.18</a></li>
+        <li><a class="doc-link" href="../v0.10.17/">0.10.17</a></li>
+        <li><a class="doc-link" href="../v0.10.16/">0.10.16</a></li>
+        <li><a class="doc-link" href="../v0.10.15/">0.10.15</a></li>
+        <li><a class="doc-link" href="../v0.10.14/">0.10.14</a></li>
+        <li><a class="doc-link" href="../v0.10.13/">0.10.13</a></li>
+        <li><a class="doc-link" href="../v0.10.12/">0.10.12</a></li>
+        <li><a class="doc-link" href="../v0.10.11/">0.10.11</a></li>
+        <li><a class="doc-link" href="../v0.10.10/">0.10.10</a></li>
+        <li><a class="doc-link" href="../v0.10.9/">0.10.9</a></li>
+        <li><a class="doc-link" href="../v0.10.8/">0.10.8</a></li>
+        <li><a class="doc-link" href="../v0.10.7/">0.10.7</a></li>
+        <li><a class="doc-link" href="../v0.10.6/">0.10.6</a></li>
+        <li><a class="doc-link" href="../v0.10.5/">0.10.5</a></li>
+        <li><a class="doc-link" href="../v0.10.4/">0.10.4</a></li>
+        <li><a class="doc-link" href="../v0.10.3/">0.10.3</a></li>
+        <li><a class="doc-link" href="../v0.10.2/">0.10.2</a></li>
+        <li><a class="doc-link" href="../v0.10.1/">0.10.1</a></li>
+        <li><a class="doc-link" href="../v0.10.0/">0.10.0</a></li>
+        <li><a class="doc-link" href="../v0.9.0/">0.9.0</a></li>
+        <li><a class="doc-link" href="../v0.8.15/">0.8.15</a></li>
+        <li><a class="doc-link" href="../v0.8.14/">0.8.14</a></li>
+        <li><a class="doc-link" href="../v0.8.13/">0.8.13</a></li>
+        <li><a class="doc-link" href="../v0.8.12/">0.8.12</a></li>
+        <li><a class="doc-link" href="../v0.8.11/">0.8.11</a></li>
+        <li><a class="doc-link" href="../v0.8.10/">0.8.10</a></li>
+        <li><a class="doc-link" href="../v0.8.9/">0.8.9</a></li>
+        <li><a class="doc-link" href="../v0.8.8/">0.8.8</a></li>
+        <li><a class="doc-link" href="../v0.8.7/">0.8.7</a></li>
+        <li><a class="doc-link" href="../v0.8.6/">0.8.6</a></li>
+        <li><a class="doc-link" href="../v0.8.5/">0.8.5</a></li>
+        <li><a class="doc-link" href="../v0.8.4/">0.8.4</a></li>
+        <li><a class="doc-link" href="../v0.8.3/">0.8.3</a></li>
+        <li><a class="doc-link" href="../v0.8.2/">0.8.2</a></li>
+        <li><a class="doc-link" href="../v0.8.1/">0.8.1</a></li>
+        <li><a class="doc-link" href="../v0.8.0/">0.8.0</a></li>
+        <li><a class="doc-link" href="../v0.7.8/">0.7.8</a></li>
+        <li><a class="doc-link" href="../v0.7.7/">0.7.7</a></li>
+        <li><a class="doc-link" href="../v0.7.6/">0.7.6</a></li>
+        <li><a class="doc-link" href="../v0.7.5/">0.7.5</a></li>
+        <li><a class="doc-link" href="../v0.7.4/">0.7.4</a></li>
+        <li><a class="doc-link" href="../v0.7.3/">0.7.3</a></li>
+        <li><a class="doc-link" href="../v0.7.2/">0.7.2</a></li>
+        <li><a class="doc-link" href="../v0.7.1/">0.7.1</a></li>
+        <li><a class="doc-link" href="../v0.7.0/">0.7.0</a></li>
+        <li><a class="doc-link" href="../v0.7.0-rc.1/">0.7.0-rc.1</a></li>
+        <li><a class="doc-link" href="../v0.6.2/">0.6.2</a></li>
+        <li><a class="doc-link" href="../v0.6.1/">0.6.1</a></li>
+        <li><a class="doc-link" href="../v0.6.0/">0.6.0</a></li>
+        <li><a class="doc-link" href="../v0.5.2/">0.5.2</a></li>
+        <li><a class="doc-link" href="../v0.5.1/">0.5.1</a></li>
+        <li><a class="doc-link" href="../v0.5.0/">0.5.0</a></li>
+      </ul>
+      </details></li>
     </ul>
     </details></li>
+    <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
+      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
+      <li><a class="doc-link" href="../noise-texture/">Noise texture</a></li>
+    </ul>
+    </details></li>
+    <li><a class="doc-link" href="../design-notes/">Design notes</a></li>
   </ul>
   </nav>
   <ul class="doc-navbar">
@@ -895,6 +903,6 @@ for parenting your own geometry).</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-dgazh53y.js"></script>
+  <script type="module" src="../hydrate-7skqvnh0.js"></script>
 </body>
 </html>

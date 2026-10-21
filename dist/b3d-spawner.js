@@ -97,7 +97,7 @@ tosi-b3d { width: 100%; height: 100%; }
   you and never in your lap. Finding them is the game.
 - **Seeded.** The same `seed` gives the same battles in the same places. That's what makes a
   scenario reproducible — and what lets a GM's benchmark mean anything (see
-  `world-contract.ts`).
+  [world-contract](/world-contract/)).
 - **A group is dead when everything in it is dead**, at which point the slot frees and the
   next one can spawn. Kill the escorts and the mothership still counts; kill the lot and a
   new group appears somewhere else.
@@ -123,7 +123,7 @@ vocabulary anywhere in the sim.
 | `facingDeg` | `0` | Facing for a placed spawn, degrees about Y — reaches the prefab as `rotation` |
 | `y` | `0` | Base height for the spawn point (the prefab places its own members) |
 | `seed` | `1` | Deterministic placement — same seed, same battles |
-| `disabled` | `false` | Stop spawning (a boolean can't default to true — see CLAUDE.md) |
+| `disabled` | `false` | Stop spawning (a negative, because an HTML boolean attribute cannot default to true) |
 
 ## Events
 

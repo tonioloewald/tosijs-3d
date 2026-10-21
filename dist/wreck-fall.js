@@ -1,4 +1,4 @@
-/*#
+/*
 # wreck-fall
 
 **A dead aircraft falls.** The pure model behind `b3d-death`'s wreckage: a
@@ -38,7 +38,6 @@ also means a caller holding the wreck's position on a NODE can copy it in and
 out each frame, so a floating-origin rebase is absorbed for free — the model
 never holds a world position across a shift.
 */
-/*{ "parent": "b3d-death", "order": 10 }*/
 import { ballisticStep } from './ballistics.js';
 const UP = { x: 0, y: 1, z: 0 };
 const length = (v) => Math.hypot(v.x, v.y, v.z);

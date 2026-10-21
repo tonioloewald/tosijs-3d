@@ -1,6 +1,6 @@
 # animation-layers
 
-**Play two clips on one skeleton, split by [[bone-mask]].** The Babylon half of
+**Play two clips on one skeleton, split by a bone mask.** The Babylon half of
 walk-and-aim: legs keep the locomotion, arms and head take the aim, and the
 boundary is feathered rather than cut.
 
@@ -75,7 +75,7 @@ preview.append(
         // Target offset LEFT so the figure sits right of centre — the settings panel
         // covers the left half of the viewport, and a demo hidden behind its own
         // controls is a demo nobody looks at.
-        orbitCam(el, { alpha: -1.9, beta: 1.28, radius: 4.4, target: [-0.9, 1, 0] })
+        orbitCam(el, { alphaDeg: -108.9, betaDeg: 73.3, radius: 4.4, target: [-0.9, 1, 0] })
         // `b3dLoader` below does the loading — the proven path, with the
         // library's own material conventions. The rig simply APPEARS in the
         // scene when it is ready, so poll for it rather than racing a callback
@@ -90,7 +90,7 @@ preview.append(
           // A rig whose split root cannot be found must SAY so — a mask over
           // nothing animates nothing and looks exactly like a failed load.
           if (root == null) { console.error('no upper-body root on this rig'); return }
-          // omnidude is 0.88m — half a person. See CLAUDE.md on scale.
+          // omnidude is 0.88m, half a person: scale it to human size.
           for (const m of el.scene.meshes) if (m.skeleton != null) m.scaling.setAll(2)
           rig = {
             scene: el.scene, skeleton, bones, root, groups,
@@ -111,6 +111,29 @@ preview.append(
 .preview { height: 100%; }
 ```
 
+## The mask
+
+`boneMask(bones, { root, falloff })` says which bones the layer drives, and how
+much. It is pure: a bone hierarchy is names and parents (`boneHierarchy(skeleton)`
+reads one), so it needs no skeleton, renderer or GLB. `findBone(bones,
+UPPER_BODY_ROOTS)` finds the split root across rig naming styles.
+
+The masking is easy; making it not look terrible is the work:
+
+- **A hard boundary is a mannequin sawn in half.** If one spine bone takes the aim
+  and the next the walk, the torso kinks at one joint. Real rigs spread a twist
+  over the whole chain, so the mask is a WEIGHT PER BONE, ramped along the chain.
+  `falloff` is how many bones it takes to reach full authority.
+- **Counter-rotation is what makes legs look attached.** A walk swings the torso
+  against the hips. Override the upper body wholesale and the legs swing under a
+  dead trunk. That is why `MaskMode` defaults to **additive**: an aim applied as a
+  delta from its own reference pose keeps what the locomotion was doing. Override
+  is there for when you really want to replace (a reload that must look the same
+  whatever the legs do).
+- **A mask whose root cannot be found says so.** Rigs disagree about bone names,
+  and a missing root gives an all-zero mask, which animates nothing and looks like
+  a clip that failed to load.
+
 ## How it is done, and the one thing Babylon does not give you
 
 A Babylon `AnimationGroup` is a list of `TargetedAnimation` — an animation and
@@ -124,7 +147,7 @@ patching, and the tier count is small because the ramp is short.
 
 ⚠️ **Babylon has no native ADDITIVE layer.** Its animation weights BLEND — a
 weighted average of poses — where an additive layer would apply a delta on top
-of whatever is underneath. [[bone-mask]] offers `MaskMode.additive` because it
+of whatever is underneath. The mask offers `MaskMode.additive` because it
 is the right model and the mask maths is the same either way; what this module
 implements is the blended form, which is what the engine supports.
 

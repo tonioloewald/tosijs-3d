@@ -1,4 +1,4 @@
-/*#
+/*
 # resource
 
 **A pool that drains and refills, after a pause.** The one mechanic behind a
@@ -18,7 +18,6 @@ fraction(energy) // 0.75, for a meter
 Also `refill`, `isEmpty` and `isFull`. Time only moves through `regenTick`,
 so it is deterministic. See [[destroyable]].
 */
-/*{ "parent": "b3d-destroyable", "order": 30 }*/
 export function makeResource(spec) {
     const max = spec.max;
     return {

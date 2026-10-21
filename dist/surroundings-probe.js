@@ -1,4 +1,4 @@
-/*#
+/*
 # surroundings-probe
 
 **The Babylon half of [[surroundings]] — casting the rays that fill the read.**
@@ -47,7 +47,6 @@ character per second**. Budgeting a tenth of a 60fps frame for it buys roughly
 untouched.
 
 */
-/*{ "parent": "b3d-biped", "order": 80 }*/
 import * as BABYLON from '@babylonjs/core';
 import { setSample } from './surroundings.js';
 export function makeProbeScratch() {

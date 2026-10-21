@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=060314d12b8f" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=f55d7e2fb2af" data-tosi-doc-system />
   <title>table — tosijs-3d</title>
   <meta name="description" content="A data table as a Widget3d: a header that stays put, a virtualized scrolling body, and optional selection drawn with [[selection|state icons]]. Drops into a" />
   <link rel="canonical" href="https://3d.tosijs.net/table/" />
@@ -30,52 +30,13 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=e9f6966606af" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=02678983b691" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="table.ts">
 <h1 id="table">table</h1>
 <p>A <strong>data table</strong> as a <code>Widget3d</code>: a header that stays put, a virtualized scrolling
 body, and optional selection drawn with <a href="/selection/" class="wikilink">state icons</a>. Drops into a
 <a href="/widget-box/" class="wikilink">widget-box</a> / <a href="/surface/" class="wikilink">surface</a> panel like any other control, and renders identically flat
 and rasterized onto a plane.</p>
-<p>The arithmetic is <a href="/table-layout/" class="wikilink">table-layout</a> — column resolution and the visible-row window —
-so this file is paint plus interaction.</p>
-<h2 id="filtering-and-row-actions">Filtering and row actions</h2>
-<p><code>filter</code> (or <code>setFilter</code>) shows only the rows a predicate matches, and <code>counts</code>
-reports <code>{ visible, total }</code> so a search box can say &quot;3 of 128&quot;.</p>
-<p><strong>A filter never drops a selection.</strong> Hiding is a view state; losing a selection
-to it would make typing in a search box quietly destructive. The table keeps the
-full set and filters a view of it, so a selected row that scrolls out of the
-filter is still selected when it comes back — and <code>setRows</code> checks selections
-against ALL rows for the same reason.</p>
-<p><strong>A row can carry the selection instead of a marker.</strong> With
-<code>selectionMarker: &#39;row&#39;</code> the selected row is filled (<code>--w3d-selected-bg</code>) and
-there is no radio or checkbox column; use it when the rows have a leading
-control of their own, or the two circles read as one toggle that does not work.
-A host that rebuilds the table passes <code>selected</code> (or calls <code>setSelected</code>), then
-<code>revealRow(id)</code>; in a scrolling panel, <code>panel.reveal(table, table.rowBox(id))</code>.</p>
-<p>A <strong><code>button</code> column</strong> gives each row an action of its own. With <code>menu</code> it opens
-an action menu anchored to the cell; with <code>handlePress</code> it just fires. The
-button takes the press instead of the row, so a row&#39;s ⋯ does not also select
-it — two things from one tap, and the selection is the one nobody asked for.</p>
-<pre><code class="language-javascript" data-highlighted><span class="token function">table</span><span class="token punctuation">(</span><span class="token punctuation">{</span>
-  rows<span class="token punctuation">,</span>
-  <span class="token literal-property property">columns</span><span class="token operator">:</span> <span class="token punctuation">[</span>
-    <span class="token punctuation">{</span> <span class="token literal-property property">key</span><span class="token operator">:</span> <span class="token string">'kind'</span><span class="token punctuation">,</span> <span class="token literal-property property">width</span><span class="token operator">:</span> <span class="token number">28</span><span class="token punctuation">,</span> <span class="token literal-property property">kind</span><span class="token operator">:</span> <span class="token string">'icon'</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
-    <span class="token punctuation">{</span> <span class="token literal-property property">key</span><span class="token operator">:</span> <span class="token string">'name'</span><span class="token punctuation">,</span> <span class="token literal-property property">flex</span><span class="token operator">:</span> <span class="token number">1</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
-    <span class="token punctuation">{</span> <span class="token literal-property property">key</span><span class="token operator">:</span> <span class="token string">'act'</span><span class="token punctuation">,</span> <span class="token literal-property property">width</span><span class="token operator">:</span> <span class="token number">30</span><span class="token punctuation">,</span> <span class="token literal-property property">kind</span><span class="token operator">:</span> <span class="token string">'button'</span><span class="token punctuation">,</span> <span class="token function-variable function">menu</span><span class="token operator">:</span> <span class="token punctuation">(</span><span class="token parameter">row</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">[</span>
-      <span class="token punctuation">{</span> <span class="token literal-property property">label</span><span class="token operator">:</span> <span class="token string">'Duplicate'</span><span class="token punctuation">,</span> <span class="token literal-property property">icon</span><span class="token operator">:</span> <span class="token string">'copy'</span><span class="token punctuation">,</span> <span class="token function-variable function">handleSelect</span><span class="token operator">:</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token function">duplicate</span><span class="token punctuation">(</span>row<span class="token punctuation">)</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
-      <span class="token punctuation">{</span> <span class="token literal-property property">label</span><span class="token operator">:</span> <span class="token string">'Delete'</span><span class="token punctuation">,</span> <span class="token literal-property property">icon</span><span class="token operator">:</span> <span class="token string">'trash'</span><span class="token punctuation">,</span> <span class="token function-variable function">disabled</span><span class="token operator">:</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=></span> row<span class="token punctuation">.</span>locked <span class="token punctuation">}</span><span class="token punctuation">,</span>
-    <span class="token punctuation">]</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
-  <span class="token punctuation">]</span><span class="token punctuation">,</span>
-<span class="token punctuation">}</span><span class="token punctuation">)</span>
-</code></pre>
-<p>An empty menu falls through to <code>handlePress</code> rather than opening nothing, and a
-table with no host is inert rather than throwing.</p>
-<h2 id="virtualized-by-default">Virtualized by default</h2>
-<p>Only the rows in view are built. That matters more on a texture than in the DOM,
-because unseen rows are paid for <strong>twice</strong>: once building SVG nodes, and again
-rasterizing the whole sheet to a <code>DynamicTexture</code> on every change. A 500-row inventory
-would otherwise be 500 <code>&lt;g&gt;</code>s in a texture showing twelve.</p>
 <h2 id="demo">Demo</h2>
 <p>Scroll the body by <strong>dragging</strong> it (or the wheel). Click a row to select it. Then click
 into the table and use <strong>arrow keys + Enter</strong> — that&#39;s the D-pad path, and it&#39;s the only
@@ -171,6 +132,101 @@ preview.append(
 </code></pre>
 <pre><code class="language-css">.preview { height: 100%; }
 </code></pre>
+<h2 id="filtering-and-row-actions">Filtering and row actions</h2>
+<p><code>filter</code> (or <code>setFilter</code>) shows only the rows a predicate matches, and <code>counts</code>
+reports <code>{ visible, total }</code> so a search box can say &quot;3 of 128&quot;.</p>
+<p><strong>A filter never drops a selection.</strong> Hiding is a view state; losing a selection
+to it would make typing in a search box quietly destructive. The table keeps the
+full set and filters a view of it, so a selected row that scrolls out of the
+filter is still selected when it comes back — and <code>setRows</code> checks selections
+against ALL rows for the same reason.</p>
+<p><strong>A row can carry the selection instead of a marker.</strong> With
+<code>selectionMarker: &#39;row&#39;</code> the selected row is filled (<code>--w3d-selected-bg</code>) and
+there is no radio or checkbox column; use it when the rows have a leading
+control of their own, or the two circles read as one toggle that does not work.
+A host that rebuilds the table passes <code>selected</code> (or calls <code>setSelected</code>), then
+<code>revealRow(id)</code>; in a scrolling panel, <code>panel.reveal(table, table.rowBox(id))</code>.</p>
+<p>A <strong><code>button</code> column</strong> gives each row an action of its own. With <code>menu</code> it opens
+an action menu anchored to the cell; with <code>handlePress</code> it just fires. The
+button takes the press instead of the row, so a row&#39;s ⋯ does not also select
+it — two things from one tap, and the selection is the one nobody asked for.</p>
+<pre><code class="language-javascript" data-highlighted><span class="token function">table</span><span class="token punctuation">(</span><span class="token punctuation">{</span>
+  rows<span class="token punctuation">,</span>
+  <span class="token literal-property property">columns</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+    <span class="token punctuation">{</span> <span class="token literal-property property">key</span><span class="token operator">:</span> <span class="token string">'kind'</span><span class="token punctuation">,</span> <span class="token literal-property property">width</span><span class="token operator">:</span> <span class="token number">28</span><span class="token punctuation">,</span> <span class="token literal-property property">kind</span><span class="token operator">:</span> <span class="token string">'icon'</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token punctuation">{</span> <span class="token literal-property property">key</span><span class="token operator">:</span> <span class="token string">'name'</span><span class="token punctuation">,</span> <span class="token literal-property property">flex</span><span class="token operator">:</span> <span class="token number">1</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token punctuation">{</span> <span class="token literal-property property">key</span><span class="token operator">:</span> <span class="token string">'act'</span><span class="token punctuation">,</span> <span class="token literal-property property">width</span><span class="token operator">:</span> <span class="token number">30</span><span class="token punctuation">,</span> <span class="token literal-property property">kind</span><span class="token operator">:</span> <span class="token string">'button'</span><span class="token punctuation">,</span> <span class="token function-variable function">menu</span><span class="token operator">:</span> <span class="token punctuation">(</span><span class="token parameter">row</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">[</span>
+      <span class="token punctuation">{</span> <span class="token literal-property property">label</span><span class="token operator">:</span> <span class="token string">'Duplicate'</span><span class="token punctuation">,</span> <span class="token literal-property property">icon</span><span class="token operator">:</span> <span class="token string">'copy'</span><span class="token punctuation">,</span> <span class="token function-variable function">handleSelect</span><span class="token operator">:</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token function">duplicate</span><span class="token punctuation">(</span>row<span class="token punctuation">)</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
+      <span class="token punctuation">{</span> <span class="token literal-property property">label</span><span class="token operator">:</span> <span class="token string">'Delete'</span><span class="token punctuation">,</span> <span class="token literal-property property">icon</span><span class="token operator">:</span> <span class="token string">'trash'</span><span class="token punctuation">,</span> <span class="token function-variable function">disabled</span><span class="token operator">:</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=></span> row<span class="token punctuation">.</span>locked <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token punctuation">]</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
+  <span class="token punctuation">]</span><span class="token punctuation">,</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span>
+</code></pre>
+<p>An empty menu falls through to <code>handlePress</code> rather than opening nothing, and a
+table with no host is inert rather than throwing.</p>
+<h2 id="virtualized-by-default">Virtualized by default</h2>
+<p>Only the rows in view are built. That matters more on a texture than in the DOM,
+because unseen rows are paid for <strong>twice</strong>: once building SVG nodes, and again
+rasterizing the whole sheet to a <code>DynamicTexture</code> on every change. A 500-row inventory
+would otherwise be 500 <code>&lt;g&gt;</code>s in a texture showing twelve. <code>overscan</code> builds a row or
+two beyond each edge so a fast scroll does not flash empty bands before the next paint.</p>
+<h2 id="column-and-row-layout">Column and row layout</h2>
+<p>The geometry is pure (no DOM, no SVG) and exported on <code>ui</code>, so it is unit-tested and
+usable on its own:</p>
+<ul>
+<li><strong><code>resolveColumns(columns, { width, gap })</code></strong>: fixed <code>width</code> columns are honoured
+exactly, <code>flex</code> columns share what is left (never below <code>minWidth</code>), and the total
+lands on the available width to the pixel, so the header lines up with the body.</li>
+<li><strong><code>visibleRows({ scroll, rowHeight, viewportHeight, count, overscan })</code></strong>: the
+slice of rows to build, and the offset to draw it at.</li>
+<li><strong><code>tableContentHeight</code></strong> and <strong><code>tableMaxScroll</code></strong>, plus the hit-tests <code>rowAt</code>
+(row at a viewport y) and <code>columnAt</code> (column at an x), each -1 outside the data.</li>
+</ul>
+<p>The demo below is an X-ray of that maths, not a table: the scroll slider stands in for
+a scroll position, and the boxes are the rows the model says are worth building.</p>
+<pre><code class="language-js">import { ui } from &#39;tosijs-3d&#39;
+const { resolveColumns, visibleRows, tableMaxScroll } = ui
+import { elements } from &#39;tosijs&#39;
+
+const { div, input, label } = elements
+const COLS = [
+  { key: &#39;name&#39;, label: &#39;Item&#39;, flex: 2 },
+  { key: &#39;note&#39;, label: &#39;Note&#39;, flex: 1, minWidth: 60 },
+  { key: &#39;qty&#39;, label: &#39;Qty&#39;, width: 54, align: &#39;right&#39; },
+]
+const ROW_H = 24, VIEW_H = 140, COUNT = 500
+let width = 420, scroll = 0
+
+const cols = div({ style: &#39;position:relative;height:34px;margin-bottom:10px&#39; })
+const rows = div({ style: `position:relative;height:${VIEW_H}px;overflow:hidden;background:#11141b;border-radius:6px` })
+const info = div({ style: &#39;margin-top:8px;color:#8ea;font:12px ui-monospace,monospace&#39; })
+
+const paint = () =&gt; {
+  const laid = resolveColumns(COLS, { width, gap: 8 })
+  cols.style.width = width + &#39;px&#39;
+  cols.replaceChildren(...laid.map((c) =&gt; div({
+    style: `position:absolute;left:${c.x}px;width:${c.width}px;height:30px;background:#2a3140;border-radius:5px;color:#cfe;font:12px system-ui;display:flex;align-items:center;justify-content:center`,
+  }, `${c.label} ${Math.round(c.width)}px`)))
+
+  const win = visibleRows({ scroll, rowHeight: ROW_H, viewportHeight: VIEW_H, count: COUNT })
+  rows.style.width = width + &#39;px&#39;
+  const built = []
+  for (let i = win.start; i &lt; win.end; i++) {
+    built.push(div({
+      style: `position:absolute;top:${win.offsetY + (i - win.start) * ROW_H}px;left:0;right:0;height:${ROW_H - 2}px;background:#1b2130;color:#9fb0c3;font:12px ui-monospace,monospace;display:flex;align-items:center;padding-left:8px`,
+    }, `row ${i}`))
+  }
+  rows.replaceChildren(...built)
+  info.textContent = `built ${win.end - win.start} of ${COUNT} rows · window [${win.start}, ${win.end}) · offsetY ${Math.round(win.offsetY)} · maxScroll ${tableMaxScroll({ count: COUNT, rowHeight: ROW_H, viewportHeight: VIEW_H })}`
+}
+
+const slider = (min, max, val, oninput) =&gt; input({ type: &#39;range&#39;, min, max, value: val, oninput, style: &#39;width:220px;vertical-align:middle&#39; })
+paint()
+preview.append(div({ style: &#39;padding:16px;background:#0c0e14;color:#9ab;font:12px system-ui&#39; },
+  label({}, &#39;width &#39;, slider(180, 560, width, (e) =&gt; { width = +e.target.value; paint() })),
+  label({ style: &#39;margin-left:18px&#39; }, &#39;scroll &#39;, slider(0, COUNT * ROW_H - VIEW_H, 0, (e) =&gt; { scroll = +e.target.value; paint() })),
+  div({ style: &#39;margin-top:14px&#39; }, cols, rows, info)))
+</code></pre>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -190,21 +246,26 @@ preview.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
-      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
-      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><details><summary><a class="doc-link" href="../tosi-b3d/">b3d</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-loader/">b3d-loader</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../b3d-primitives/">Primitives: box, sphere, ground</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-library/">b3d-library</a></summary>
       <ul>
-        <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
         <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
       </ul>
       </details></li>
       <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
       <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
       <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
-      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
-      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../sky-and-light/">Sky and light</a></summary>
@@ -219,19 +280,12 @@ preview.append(
       <li><a class="doc-link" href="../b3d-light/">Ambient light (b3d-light)</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-lamp/">Lamps</a></summary>
       <ul>
+        <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
         <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../light-rays/">light-rays</a></li>
-      </ul>
-      </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-fog/">b3d-fog</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
@@ -241,7 +295,6 @@ preview.append(
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></summary>
       <ul>
-        <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
         <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
       </ul>
       </details></li>
@@ -252,17 +305,8 @@ preview.append(
         <li><a class="doc-link" href="../wind/">wind</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../lightning/">lightning</a></li>
-      </ul>
-      </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
-        <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../terrain/">Terrain</a></summary>
@@ -279,7 +323,6 @@ preview.append(
         </details></li>
         <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
         <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
-        <li><a class="doc-link" href="../terrain-grid/">terrain-grid</a></li>
         <li><a class="doc-link" href="../gradient-filter/">gradient-filter</a></li>
       </ul>
       </details></li>
@@ -301,9 +344,6 @@ preview.append(
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-water/">b3d-water</a></summary>
       <ul>
-        <li><a class="doc-link" href="../water-shore/">water-shore</a></li>
-        <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
-        <li><a class="doc-link" href="../caustics/">caustics</a></li>
         <li><a class="doc-link" href="../medium/">medium</a></li>
       </ul>
       </details></li>
@@ -322,11 +362,7 @@ preview.append(
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-biped/">b3d-biped</a></summary>
       <ul>
-        <li><a class="doc-link" href="../mantle/">mantle</a></li>
-        <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
-        <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
         <li><a class="doc-link" href="../aim/">aim</a></li>
-        <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
         <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
         <li><a class="doc-link" href="../retarget/">retarget</a></li>
         <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
@@ -336,20 +372,24 @@ preview.append(
         </ul>
         </details></li>
         <li><a class="doc-link" href="../spring-chain-babylon/">spring bones</a></li>
-        <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
-        <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></summary>
       <ul>
         <li><a class="doc-link" href="../fly-by-wire/">fly-by-wire</a></li>
         <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
-        <li><a class="doc-link" href="../hud/">hud</a></li>
-        <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
       </ul>
       </details></li>
       <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
-      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../spatial-transform/">spatial-transform</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
       <li><details><summary><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></summary>
       <ul>
         <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
@@ -362,11 +402,7 @@ preview.append(
       <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
       <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
-      <li><details><summary><a class="doc-link" href="../touch-orbit/">touch-orbit</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><details><summary><a class="doc-link" href="../inspect-view/">inspect-view</a></summary>
       <ul>
         <li><a class="doc-link" href="../seam-material/">seam-material</a></li>
@@ -378,12 +414,7 @@ preview.append(
         <li><a class="doc-link" href="../control-input/">control-input</a></li>
         <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
         <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
-        <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
-        <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
-        <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
         <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
-        <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
-        <li><a class="doc-link" href="../text-entry/">text-entry</a></li>
       </ul>
       </details></li>
     </ul>
@@ -400,14 +431,7 @@ preview.append(
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
       <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
-      <li><details><summary><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
-        <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
-      </ul>
-      </details></li>
-      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
-      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
@@ -415,8 +439,6 @@ preview.append(
       <li><details><summary><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></summary>
       <ul>
         <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
-        <li><a class="doc-link" href="../destroyable/">destroyable</a></li>
-        <li><a class="doc-link" href="../resource/">resource</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></summary>
@@ -425,16 +447,11 @@ preview.append(
         <li><a class="doc-link" href="../guidance/">guidance</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../warhead/">warhead</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
       <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-radar/">b3d-radar</a></summary>
       <ul>
         <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
-        <li><a class="doc-link" href="../radar/">Radar model</a></li>
       </ul>
       </details></li>
     </ul>
@@ -449,7 +466,6 @@ preview.append(
         <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
       </ul>
       </details></li>
-      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
       <ul>
@@ -457,19 +473,13 @@ preview.append(
         <li><a class="doc-link" href="../prefab/">prefab</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-death/">b3d-death</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
     </ul>
     </details></li>
     <li><details open><summary><a class="doc-link" href="../ui/">UI</a></summary>
     <ul>
       <li><details><summary><a class="doc-link" href="../widgets3d/">widgets3d</a></summary>
       <ul>
-        <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
-        <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
       </ul>
       </details></li>
@@ -482,16 +492,8 @@ preview.append(
       <li><details open><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
       <ul>
         <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
-        <li><details><summary><a class="doc-link" href="../angle-field/">angle-field</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../arc/">arc</a></li>
-        </ul>
-        </details></li>
-        <li><details><summary><a class="doc-link" href="../curve-field/">Curve editor</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../curve/">curve</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+        <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
         <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
         <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
         <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
@@ -501,22 +503,10 @@ preview.append(
         </ul>
         </details></li>
         <li><a class="doc-link" href="../picker/">picker</a></li>
-        <li><details><summary><a class="doc-link" href="../keyboard/">keyboard</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
-          <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
         <li><details open><summary><a class="doc-link current" href="../table/" aria-current="page">table</a></summary>
         <ul>
-          <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
           <li><a class="doc-link" href="../selection/">selection</a></li>
-        </ul>
-        </details></li>
-        <li><details><summary><a class="doc-link" href="../light-editor/">Light editor</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
-          <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
         </ul>
         </details></li>
       </ul>
@@ -530,12 +520,7 @@ preview.append(
         </ul>
         </details></li>
         <li><a class="doc-link" href="../surface/">surface</a></li>
-        <li><details><summary><a class="doc-link" href="../popup-surface/">popup-surface</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
-          <li><a class="doc-link" href="../panel-layer/">panel-layer</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../ui-in-scene/">In the scene and XR</a></summary>
@@ -544,22 +529,15 @@ preview.append(
         <ul>
           <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
           <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
-          <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
           <li><details><summary><a class="doc-link" href="../system-bar/">system-bar</a></summary>
           <ul>
             <li><a class="doc-link" href="../bar-menu/">bar-menu</a></li>
           </ul>
           </details></li>
-          <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
-        <li><details><summary><a class="doc-link" href="../svg-texture/">svg-texture</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
-          <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
         <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
       </ul>
       </details></li>
@@ -570,11 +548,7 @@ preview.append(
           <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
         </ul>
         </details></li>
-        <li><details><summary><a class="doc-link" href="../svg-icons/">svg-icons</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       </ul>
       </details></li>
     </ul>
@@ -584,23 +558,12 @@ preview.append(
       <li><details><summary><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></summary>
       <ul>
         <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
-        <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
-        <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../system-layout/">system-layout</a></li>
-        <li><a class="doc-link" href="../sol/">sol</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
-      <li><details><summary><a class="doc-link" href="../gas-giant/">gas-giant</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../gas-giant-material/">gas-giant-material</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../gas-giant/">gas-giant</a></li>
       <li><a class="doc-link" href="../rocky-world/">rocky-world</a></li>
       <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
       <li><a class="doc-link" href="../sphere-map/">sphere-map</a></li>
@@ -621,16 +584,79 @@ preview.append(
       <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
     </ul>
     </details></li>
-    <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <li><details><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
     <ul>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
-      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
-      <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
-      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
-      <li><a class="doc-link" href="../noise-volume/">Noise volume</a></li>
-      <li><a class="doc-link" href="../climate-noise/">climate-noise</a></li>
+      <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../v0.11.1/">0.11.1</a></li>
+        <li><a class="doc-link" href="../v0.11.0/">0.11.0</a></li>
+        <li><a class="doc-link" href="../v0.10.20/">0.10.20</a></li>
+        <li><a class="doc-link" href="../v0.10.19/">0.10.19</a></li>
+        <li><a class="doc-link" href="../v0.10.18/">0.10.18</a></li>
+        <li><a class="doc-link" href="../v0.10.17/">0.10.17</a></li>
+        <li><a class="doc-link" href="../v0.10.16/">0.10.16</a></li>
+        <li><a class="doc-link" href="../v0.10.15/">0.10.15</a></li>
+        <li><a class="doc-link" href="../v0.10.14/">0.10.14</a></li>
+        <li><a class="doc-link" href="../v0.10.13/">0.10.13</a></li>
+        <li><a class="doc-link" href="../v0.10.12/">0.10.12</a></li>
+        <li><a class="doc-link" href="../v0.10.11/">0.10.11</a></li>
+        <li><a class="doc-link" href="../v0.10.10/">0.10.10</a></li>
+        <li><a class="doc-link" href="../v0.10.9/">0.10.9</a></li>
+        <li><a class="doc-link" href="../v0.10.8/">0.10.8</a></li>
+        <li><a class="doc-link" href="../v0.10.7/">0.10.7</a></li>
+        <li><a class="doc-link" href="../v0.10.6/">0.10.6</a></li>
+        <li><a class="doc-link" href="../v0.10.5/">0.10.5</a></li>
+        <li><a class="doc-link" href="../v0.10.4/">0.10.4</a></li>
+        <li><a class="doc-link" href="../v0.10.3/">0.10.3</a></li>
+        <li><a class="doc-link" href="../v0.10.2/">0.10.2</a></li>
+        <li><a class="doc-link" href="../v0.10.1/">0.10.1</a></li>
+        <li><a class="doc-link" href="../v0.10.0/">0.10.0</a></li>
+        <li><a class="doc-link" href="../v0.9.0/">0.9.0</a></li>
+        <li><a class="doc-link" href="../v0.8.15/">0.8.15</a></li>
+        <li><a class="doc-link" href="../v0.8.14/">0.8.14</a></li>
+        <li><a class="doc-link" href="../v0.8.13/">0.8.13</a></li>
+        <li><a class="doc-link" href="../v0.8.12/">0.8.12</a></li>
+        <li><a class="doc-link" href="../v0.8.11/">0.8.11</a></li>
+        <li><a class="doc-link" href="../v0.8.10/">0.8.10</a></li>
+        <li><a class="doc-link" href="../v0.8.9/">0.8.9</a></li>
+        <li><a class="doc-link" href="../v0.8.8/">0.8.8</a></li>
+        <li><a class="doc-link" href="../v0.8.7/">0.8.7</a></li>
+        <li><a class="doc-link" href="../v0.8.6/">0.8.6</a></li>
+        <li><a class="doc-link" href="../v0.8.5/">0.8.5</a></li>
+        <li><a class="doc-link" href="../v0.8.4/">0.8.4</a></li>
+        <li><a class="doc-link" href="../v0.8.3/">0.8.3</a></li>
+        <li><a class="doc-link" href="../v0.8.2/">0.8.2</a></li>
+        <li><a class="doc-link" href="../v0.8.1/">0.8.1</a></li>
+        <li><a class="doc-link" href="../v0.8.0/">0.8.0</a></li>
+        <li><a class="doc-link" href="../v0.7.8/">0.7.8</a></li>
+        <li><a class="doc-link" href="../v0.7.7/">0.7.7</a></li>
+        <li><a class="doc-link" href="../v0.7.6/">0.7.6</a></li>
+        <li><a class="doc-link" href="../v0.7.5/">0.7.5</a></li>
+        <li><a class="doc-link" href="../v0.7.4/">0.7.4</a></li>
+        <li><a class="doc-link" href="../v0.7.3/">0.7.3</a></li>
+        <li><a class="doc-link" href="../v0.7.2/">0.7.2</a></li>
+        <li><a class="doc-link" href="../v0.7.1/">0.7.1</a></li>
+        <li><a class="doc-link" href="../v0.7.0/">0.7.0</a></li>
+        <li><a class="doc-link" href="../v0.7.0-rc.1/">0.7.0-rc.1</a></li>
+        <li><a class="doc-link" href="../v0.6.2/">0.6.2</a></li>
+        <li><a class="doc-link" href="../v0.6.1/">0.6.1</a></li>
+        <li><a class="doc-link" href="../v0.6.0/">0.6.0</a></li>
+        <li><a class="doc-link" href="../v0.5.2/">0.5.2</a></li>
+        <li><a class="doc-link" href="../v0.5.1/">0.5.1</a></li>
+        <li><a class="doc-link" href="../v0.5.0/">0.5.0</a></li>
+      </ul>
+      </details></li>
     </ul>
     </details></li>
+    <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
+      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
+      <li><a class="doc-link" href="../noise-texture/">Noise texture</a></li>
+    </ul>
+    </details></li>
+    <li><a class="doc-link" href="../design-notes/">Design notes</a></li>
   </ul>
   </nav>
   <ul class="doc-navbar">
@@ -639,6 +665,6 @@ preview.append(
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-dgazh53y.js"></script>
+  <script type="module" src="../hydrate-7skqvnh0.js"></script>
 </body>
 </html>

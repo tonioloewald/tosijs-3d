@@ -6,7 +6,7 @@ Pure, dependency-free transform math for the **spatial attachment mechanics**
 that underpins *place-relative* and *transition* (re-parent preserving world pose).
 
 Plain `{x,y,z}` / `{x,y,z,w}` objects, no Babylon, so it unit-tests headless like
-[fly-by-wire](?fly-by-wire.ts) and [terrain-grid](?terrain-grid.ts). The Babylon
+[fly-by-wire](?fly-by-wire.ts). The Babylon
 bridge (reading node world matrices, `setParent`, floating-origin world-root
 flipping, the declarative elements) lives elsewhere and delegates the math here.
 
@@ -26,7 +26,7 @@ const moved = { position: { x: 8, y: 0, z: -4 }, rotation: quatFromAxisAngle({ x
 const lampNow = composePose(moved, bolt) // the lamp's new world pose after the table moved
 ```
 */
-/*{ "parent": "interacting", "order": 80 }*/
+/*{ "parent": "b3d-elevator", "order": 80 }*/
 export const IDENTITY_QUAT = { x: 0, y: 0, z: 0, w: 1 };
 export const add = (a, b) => ({
     x: a.x + b.x,

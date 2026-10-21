@@ -1,4 +1,4 @@
-/*#
+/*
 # touch-gesture
 
 **Two fingers on an orbit camera: pan OR zoom, decided once per gesture.**
@@ -38,7 +38,6 @@ Zoom is NATURAL: the radius scales by `previous spacing / spacing`, so what is
 under your fingers stays under them. Pan is in PIXELS; the bridge converts it
 to world units at the target's depth (see `touchOrbit` in `tosi-b3d`).
 */
-/*{ "parent": "touch-orbit", "order": 10 }*/
 export function twoFingerGesture(options = {}) {
     const decidePx = options.decidePx ?? 12;
     let mode = 'pending';

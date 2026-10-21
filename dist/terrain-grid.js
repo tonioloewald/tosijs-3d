@@ -1,6 +1,4 @@
-/*#
-# terrain-grid
-
+/*
 **Where terrain tiles go.** The pure arithmetic under [[b3d-terrain]]'s
 streamed level-of-detail tiles: where a tile sits in the world, which world
 point each of its vertices samples, how far a level reaches, and which coarse
@@ -19,7 +17,6 @@ You only need this if you are building on the tile substrate yourself (a
 volumetric patch, a custom streamer). `desiredCells` is the quadtree: given a
 viewer, the set of tiles that should exist. See also [[sdf-lattice]].
 */
-/*{ "parent": "b3d-terrain", "order": 70 }*/
 /**
  * Pure terrain grid math — no Babylon, no DOM, so it unit-tests headless. This is
  * the coordinate system the streamed LOD tiles live in: where a tile sits in the

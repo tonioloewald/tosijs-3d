@@ -1,7 +1,6 @@
 # b3d-lightning
 
-**Lightning and thunder from the weather** (WEATHER-DESIGN stage 3, board
-#1123). Put one in a scene; it watches every
+**Lightning and thunder from the weather.** Put one in a scene; it watches every
 [`<tosi-b3d-weather-cell>`](/b3d-weather-cell/) with `storminess` and strikes
 under them, seeded, so the same seed gives the same storm.
 
@@ -118,8 +117,25 @@ tosi-b3d { width: 100%; height: 100%; }
 
 Every strike dispatches **`strike`** (bubbling) with `{ kind, x, z, t,
 distance }`, where `kind` is `'ground'`, `'cloud'` or `'sprite'`, so gameplay can react.
-The pure half (when, where, bolt shape, flicker, thunder delay) is
-[[lightning]].
+
+## When and where it strikes
+
+The pure half (when, where, bolt shape, flicker, thunder delay) has no Babylon
+in it: `strikesBetween`, `boltPath`, `flashAt` and `thunderDelay`.
+
+**Strikes are seeded.** Time is cut into short slots, and each slot of each
+storm cell either strikes or not by a hash of (seed, cell, slot), with a
+chance set by the cell's `storminess`. So the same seed gives the same storm
+every run, a strike never depends on frame rate, and asking "what struck
+between t0 and t1" is a pure question the simulation can ask too.
+
+**Three kinds**, because a storm is not one flash:
+
+| kind | where | share |
+| --- | --- | --- |
+| `ground` | cloud to ground: a bolt, the brightest flash, thunder | most |
+| `cloud` | inside the cloud: the tower lit from within, no bolt | many |
+| `sprite` | ABOVE the storm, 50–90 km up in reality: brief red-pink crowns and tendrils, only over strong storms | rare |
 
 ## Attributes
 

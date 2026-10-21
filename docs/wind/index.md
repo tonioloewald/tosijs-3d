@@ -3,18 +3,19 @@
 **One wind for the scene, and provinces that bend it.** Pure — no DOM, no
 Babylon — so the composition rule can be tested without a sky.
 
-Today `b3d-clouds` has `windX`/`windZ`, `b3d-water` has
-`windForce`/`windDirectionX`/`windDirectionY`, and `ambient-leaves` has nothing
-at all. So an author sets the wind **three times, in three spellings**, and they
-can silently disagree — clouds streaming north-east over water whose waves run
-south. That is the same class of defect as three drifting copies of the theme
-table, which is what `w3d-theme` exists to prevent.
+Set `windSpeed` and `windBearingDeg` (and `windGust`) on `<tosi-b3d>` and the
+consumers take it, so they cannot disagree (clouds streaming north-east over
+water whose waves run south). [b3d-clouds](/b3d-clouds/),
+[b3d-water](/b3d-water/) and [b3d-ambient](/b3d-ambient/) have a `wind`
+attribute: `'scene'` (the default) follows the scene's wind when there is one,
+`'own'` uses the element's own wind attributes. The
+[cloud deck](/b3d-cloud-deck/) drifts with the scene's wind whenever there is
+one.
 
 ## Demo
 
-One dial, and the clouds and the water agree. Turn `wind` off on either and it
-falls back to its own attributes — which is what every scene did before this
-existed.
+One dial, and the clouds and the water agree. Set `wind` to `'own'` on either
+and it falls back to its own attributes.
 
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLight, b3dWater, b3dClouds, angle3d, slider3d, label3d } from 'tosijs-3d'
@@ -72,10 +73,9 @@ preview.append(scene)
 Stored and composed as a vector in world XZ. Authored as `windSpeed` and
 `windBearingDeg`, per this library's degrees convention, converted at the edge.
 
-That is not a formatting preference — it is the whole composition rule. The
-first draft of this design stored speed + bearing and concluded that bearings
-could not be summed, needing a weighted circular mean. Tonio: *"Vectors sum fine
-don't they?"* They do, and the difficulty was an artifact of the representation:
+That is not a formatting preference — it is the whole composition rule.
+Bearings cannot be summed (they would need a weighted circular mean), but
+vectors can:
 
 | a province that... | contributes | and the result |
 | --- | --- | --- |
@@ -99,7 +99,7 @@ Not where it comes from. Meteorology says a "northerly" blows FROM the north,
 and that convention exists for forecasting rather than for rendering: every
 consumer here wants to know which way the clouds drift and which way the waves
 run. Naming it `bearing` rather than `direction` is the hint, and it matches the
-sense [[arc|angle3d]] dials — **north is +Z, and it grows clockwise**.
+sense [angle3d](/angle-field/) dials — **north is +Z, and it grows clockwise**.
 
 ## The neutral contribution is ZERO, not 0.5
 

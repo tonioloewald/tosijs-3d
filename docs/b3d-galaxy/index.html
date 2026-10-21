@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=060314d12b8f" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=f55d7e2fb2af" data-tosi-doc-system />
   <title>b3d-galaxy — tosijs-3d</title>
   <meta name="description" content="Procedural galaxy renderer — the voxel galaxy, the one galaxy implementation, drawn: thousands of stars in a spiral arm distribution, each coloured by spectral…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-galaxy/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=e9f6966606af" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=02678983b691" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="b3d-galaxy.ts">
 <h1 id="b3d-galaxy">b3d-galaxy</h1>
 <p>Procedural galaxy renderer — the <a href="/voxel-galaxy/">voxel galaxy</a>, the one galaxy
@@ -51,7 +51,7 @@ rendered star system) and <code>showStarAt(index)</code> to restore it.</p>
 <p>Filter stars by habitability index and/or name using <code>filterStars({ maxHI, nameSearch })</code> —
 non-matching stars are dimmed.
 The galaxy holds every BRIGHT star and every INTERESTING one: a dim star whose
-system has a planet with HI ≤ 2 (see <a href="/star-populations/">star-populations</a>).
+system has a planet with HI ≤ 2 (see <strong>Interesting stars</strong> below).
 So the filter sees every habitable system there is, with its HI already known.
 The boring dim stars (the other ~95%) are only generated locally, as sky
 texture.</p>
@@ -109,15 +109,13 @@ const scene = b3d(
         { label: &#39;Survivable+&#39;, value: 2 },
         { label: &#39;Earthlike&#39;, value: 1 },
       ] }),
-      // 50k, because the interesting use of this demo is now to stand INSIDE a
+      // 50k, because the interesting use of this demo is to stand INSIDE a
       // galaxy and photograph the sky from it — and a naked-eye sky wants tens
       // of thousands of stars, not five.
       slider3d({ label: &#39;stars&#39;, value: demo.starCount, min: 1000, max: 50000, step: 1000 }),
       slider3d({ label: &#39;radius&#39;, value: demo.radius, min: 50, max: 300, step: 10 }),
       slider3d({ label: &#39;spiral arms&#39;, value: demo.spiralArms, min: 1, max: 8, step: 1 }),
-      // Down to 0.1: the old floor was 0.5, so the size you actually want for a
-      // dense field was unreachable. Tonio: &quot;I was testing 0.6 but couldn&#39;t
-      // dial up 0.4.&quot;
+      // Down to 0.1: a dense field wants a small particle.
       slider3d({ label: &#39;particle size&#39;, value: demo.particleSize, min: 0.1, max: 3, step: 0.1 }),
       // The core is scenery at galaxy scale and an obstruction from inside one.
       slider3d({ label: &#39;core size&#39;, value: demo.coreSize, min: 0, max: 4, step: 0.1 }),
@@ -408,6 +406,85 @@ demo.nameSearch.observe(applyFilter)
 <td>Central black hole radius. Disk radii are multiples of it, so this scales the whole assembly</td>
 </tr>
 </tbody></table>
+<h2 id="star-data">Star data</h2>
+<p>The galaxy&#39;s data is pure (no Babylon) and seeded: same seed, same galaxy. Each
+star has a spectral class, luminosity, mass, and a deterministic set of planets
+with radius, density, atmosphere, temperature and habitability index (HI).</p>
+<pre><code class="language-js">import { voxelGalaxy, generateStarSystem } from &#39;tosijs-3d&#39;
+import { elements } from &#39;tosijs&#39;
+const { div, p, pre, table, tr, td, th, thead, tbody } = elements
+
+const galaxy = voxelGalaxy({ seed: 1234, brightBudget: 100, dimBudget: 0 }).view()
+
+let output = `Galaxy: ${galaxy.stars.length} stars\n\n`
+output += &#39;First 10 stars:\n&#39;
+for (let i = 0; i &lt; 10; i++) {
+  const s = galaxy.stars[i]
+  output += `  ${s.name.padEnd(20)} ${s.spectralType.padEnd(4)} `
+  output += `L=${s.luminosity.toFixed(2).padStart(10)} `
+  output += `planets=${s.numberOfPlanets}\n`
+}
+
+output += &#39;\nStar system for star 0 (&#39; + galaxy.stars[0].name + &#39;):\n&#39;
+const system = generateStarSystem(galaxy.stars[0])
+for (const planet of system.planets) {
+  output += `  ${planet.name.padEnd(25)} ${planet.classification.padEnd(12)} `
+  output += `${planet.description.padEnd(16)} `
+  output += `${planet.atmosphere.padEnd(12)} `
+  output += `${planet.tempC}°C\n`
+}
+
+preview.append(pre(output))
+</code></pre>
+<h3 id="voxelgalaxy-seed-brightbudget-view"><code>voxelGalaxy({ seed, brightBudget }).view()</code></h3>
+<p>The galaxy itself is <a href="/voxel-galaxy/">voxel-galaxy</a>; its <code>view()</code> returns
+<code>GalaxyData</code> (<code>{ stars, nebulae, distantStars }</code>). Each star has position,
+spectral type, luminosity, mass, planet count, and a deterministic seed for
+system generation.</p>
+<h3 id="generatestarsystemstar"><code>generateStarSystem(star)</code></h3>
+<p>Returns <code>{ star: StarData, planets: PlanetData[] }</code> with full planet detail.</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Key Fields</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>StarData</code></td>
+<td>name, seed, position, spectralType, luminosity, mass, numberOfPlanets, rgb</td>
+</tr>
+<tr>
+<td><code>PlanetData</code></td>
+<td>name, classification, orbitalRadius, radius, density, atmosphere, tempC, HI, description</td>
+</tr>
+<tr>
+<td><code>GalaxyOptions</code></td>
+<td>spiralArms, spiralAngleDegrees, minRadius, maxRadius, thickness, distantGalaxies, generatePlanets</td>
+</tr>
+</tbody></table>
+<h2 id="interesting-stars">Interesting stars</h2>
+<p>The dim stars split in two:</p>
+<ul>
+<li><strong>interesting</strong>: a system with a planet of <strong>HI ≤ 2</strong>, meaning a breathable
+or filterable atmosphere, under 2 g, not an extreme temperature. Generated
+GLOBALLY, so a habitability search sees all of them.</li>
+<li><strong>boring</strong>: everything else, generated only LOCALLY as sky texture.</li>
+</ul>
+<p>HI 3 is not interesting on purpose. It has no atmosphere requirement (the Moon
+and Mars are HI 3), and nearly every system with planets has a ball of rock
+someone could plant a flag on.</p>
+<p>Spectral class sets the odds, but within a class whether a system scores well
+is the system&#39;s own draw, so no mix can guarantee a pass. So a harness
+(<code>bin/tune-populations.ts</code>) scores a corpus per spectral cell with the real
+rules and writes the pass rates to a generated table; <code>interestingMix</code> and
+<code>boringMix</code> weight each cell by its pass and failure rate, so candidates are
+drawn where they are likely to succeed; and the galaxy VERIFIES each candidate
+with <code>bestHIOf</code> and keeps the first that passes, so the populations are exact.</p>
+<p>When planet generation or HI changes, rerun <code>bun bin/tune-populations.ts</code>. A
+test fingerprints HI on a fixed probe set and fails until you do. Interesting
+addresses may then point at different stars, which is expected: different
+rules make a different galaxy.</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -427,21 +504,26 @@ demo.nameSearch.observe(applyFilter)
     </details></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
-      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
-      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><details><summary><a class="doc-link" href="../tosi-b3d/">b3d</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-loader/">b3d-loader</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../b3d-primitives/">Primitives: box, sphere, ground</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-library/">b3d-library</a></summary>
       <ul>
-        <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
         <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
       </ul>
       </details></li>
       <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
       <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
       <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
-      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
-      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../sky-and-light/">Sky and light</a></summary>
@@ -456,19 +538,12 @@ demo.nameSearch.observe(applyFilter)
       <li><a class="doc-link" href="../b3d-light/">Ambient light (b3d-light)</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-lamp/">Lamps</a></summary>
       <ul>
+        <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
         <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../light-rays/">light-rays</a></li>
-      </ul>
-      </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-fog/">b3d-fog</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
@@ -478,7 +553,6 @@ demo.nameSearch.observe(applyFilter)
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></summary>
       <ul>
-        <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
         <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
       </ul>
       </details></li>
@@ -489,17 +563,8 @@ demo.nameSearch.observe(applyFilter)
         <li><a class="doc-link" href="../wind/">wind</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../lightning/">lightning</a></li>
-      </ul>
-      </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
-        <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../terrain/">Terrain</a></summary>
@@ -516,7 +581,6 @@ demo.nameSearch.observe(applyFilter)
         </details></li>
         <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
         <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
-        <li><a class="doc-link" href="../terrain-grid/">terrain-grid</a></li>
         <li><a class="doc-link" href="../gradient-filter/">gradient-filter</a></li>
       </ul>
       </details></li>
@@ -538,9 +602,6 @@ demo.nameSearch.observe(applyFilter)
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-water/">b3d-water</a></summary>
       <ul>
-        <li><a class="doc-link" href="../water-shore/">water-shore</a></li>
-        <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
-        <li><a class="doc-link" href="../caustics/">caustics</a></li>
         <li><a class="doc-link" href="../medium/">medium</a></li>
       </ul>
       </details></li>
@@ -559,11 +620,7 @@ demo.nameSearch.observe(applyFilter)
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-biped/">b3d-biped</a></summary>
       <ul>
-        <li><a class="doc-link" href="../mantle/">mantle</a></li>
-        <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
-        <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
         <li><a class="doc-link" href="../aim/">aim</a></li>
-        <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
         <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
         <li><a class="doc-link" href="../retarget/">retarget</a></li>
         <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
@@ -573,20 +630,24 @@ demo.nameSearch.observe(applyFilter)
         </ul>
         </details></li>
         <li><a class="doc-link" href="../spring-chain-babylon/">spring bones</a></li>
-        <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
-        <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></summary>
       <ul>
         <li><a class="doc-link" href="../fly-by-wire/">fly-by-wire</a></li>
         <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
-        <li><a class="doc-link" href="../hud/">hud</a></li>
-        <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
       </ul>
       </details></li>
       <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
-      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../spatial-transform/">spatial-transform</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
       <li><details><summary><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></summary>
       <ul>
         <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
@@ -599,11 +660,7 @@ demo.nameSearch.observe(applyFilter)
       <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
       <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
-      <li><details><summary><a class="doc-link" href="../touch-orbit/">touch-orbit</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><details><summary><a class="doc-link" href="../inspect-view/">inspect-view</a></summary>
       <ul>
         <li><a class="doc-link" href="../seam-material/">seam-material</a></li>
@@ -615,12 +672,7 @@ demo.nameSearch.observe(applyFilter)
         <li><a class="doc-link" href="../control-input/">control-input</a></li>
         <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
         <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
-        <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
-        <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
-        <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
         <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
-        <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
-        <li><a class="doc-link" href="../text-entry/">text-entry</a></li>
       </ul>
       </details></li>
     </ul>
@@ -637,14 +689,7 @@ demo.nameSearch.observe(applyFilter)
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
       <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
-      <li><details><summary><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
-        <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
-      </ul>
-      </details></li>
-      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
-      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
@@ -652,8 +697,6 @@ demo.nameSearch.observe(applyFilter)
       <li><details><summary><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></summary>
       <ul>
         <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
-        <li><a class="doc-link" href="../destroyable/">destroyable</a></li>
-        <li><a class="doc-link" href="../resource/">resource</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></summary>
@@ -662,16 +705,11 @@ demo.nameSearch.observe(applyFilter)
         <li><a class="doc-link" href="../guidance/">guidance</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../warhead/">warhead</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
       <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-radar/">b3d-radar</a></summary>
       <ul>
         <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
-        <li><a class="doc-link" href="../radar/">Radar model</a></li>
       </ul>
       </details></li>
     </ul>
@@ -686,7 +724,6 @@ demo.nameSearch.observe(applyFilter)
         <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
       </ul>
       </details></li>
-      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
       <ul>
@@ -694,19 +731,13 @@ demo.nameSearch.observe(applyFilter)
         <li><a class="doc-link" href="../prefab/">prefab</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-death/">b3d-death</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
     <ul>
       <li><details><summary><a class="doc-link" href="../widgets3d/">widgets3d</a></summary>
       <ul>
-        <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
-        <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
       </ul>
       </details></li>
@@ -719,16 +750,8 @@ demo.nameSearch.observe(applyFilter)
       <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
       <ul>
         <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
-        <li><details><summary><a class="doc-link" href="../angle-field/">angle-field</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../arc/">arc</a></li>
-        </ul>
-        </details></li>
-        <li><details><summary><a class="doc-link" href="../curve-field/">Curve editor</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../curve/">curve</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+        <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
         <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
         <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
         <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
@@ -738,22 +761,10 @@ demo.nameSearch.observe(applyFilter)
         </ul>
         </details></li>
         <li><a class="doc-link" href="../picker/">picker</a></li>
-        <li><details><summary><a class="doc-link" href="../keyboard/">keyboard</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
-          <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
         <li><details><summary><a class="doc-link" href="../table/">table</a></summary>
         <ul>
-          <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
           <li><a class="doc-link" href="../selection/">selection</a></li>
-        </ul>
-        </details></li>
-        <li><details><summary><a class="doc-link" href="../light-editor/">Light editor</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
-          <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
         </ul>
         </details></li>
       </ul>
@@ -767,12 +778,7 @@ demo.nameSearch.observe(applyFilter)
         </ul>
         </details></li>
         <li><a class="doc-link" href="../surface/">surface</a></li>
-        <li><details><summary><a class="doc-link" href="../popup-surface/">popup-surface</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
-          <li><a class="doc-link" href="../panel-layer/">panel-layer</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../ui-in-scene/">In the scene and XR</a></summary>
@@ -781,22 +787,15 @@ demo.nameSearch.observe(applyFilter)
         <ul>
           <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
           <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
-          <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
           <li><details><summary><a class="doc-link" href="../system-bar/">system-bar</a></summary>
           <ul>
             <li><a class="doc-link" href="../bar-menu/">bar-menu</a></li>
           </ul>
           </details></li>
-          <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
-        <li><details><summary><a class="doc-link" href="../svg-texture/">svg-texture</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
-          <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
         <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
       </ul>
       </details></li>
@@ -807,11 +806,7 @@ demo.nameSearch.observe(applyFilter)
           <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
         </ul>
         </details></li>
-        <li><details><summary><a class="doc-link" href="../svg-icons/">svg-icons</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       </ul>
       </details></li>
     </ul>
@@ -821,23 +816,12 @@ demo.nameSearch.observe(applyFilter)
       <li><details open><summary><a class="doc-link current" href="../b3d-galaxy/" aria-current="page">b3d-galaxy</a></summary>
       <ul>
         <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
-        <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
-        <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../system-layout/">system-layout</a></li>
-        <li><a class="doc-link" href="../sol/">sol</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
-      <li><details><summary><a class="doc-link" href="../gas-giant/">gas-giant</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../gas-giant-material/">gas-giant-material</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../gas-giant/">gas-giant</a></li>
       <li><a class="doc-link" href="../rocky-world/">rocky-world</a></li>
       <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
       <li><a class="doc-link" href="../sphere-map/">sphere-map</a></li>
@@ -858,16 +842,79 @@ demo.nameSearch.observe(applyFilter)
       <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
     </ul>
     </details></li>
-    <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <li><details><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
     <ul>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
-      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
-      <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
-      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
-      <li><a class="doc-link" href="../noise-volume/">Noise volume</a></li>
-      <li><a class="doc-link" href="../climate-noise/">climate-noise</a></li>
+      <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../v0.11.1/">0.11.1</a></li>
+        <li><a class="doc-link" href="../v0.11.0/">0.11.0</a></li>
+        <li><a class="doc-link" href="../v0.10.20/">0.10.20</a></li>
+        <li><a class="doc-link" href="../v0.10.19/">0.10.19</a></li>
+        <li><a class="doc-link" href="../v0.10.18/">0.10.18</a></li>
+        <li><a class="doc-link" href="../v0.10.17/">0.10.17</a></li>
+        <li><a class="doc-link" href="../v0.10.16/">0.10.16</a></li>
+        <li><a class="doc-link" href="../v0.10.15/">0.10.15</a></li>
+        <li><a class="doc-link" href="../v0.10.14/">0.10.14</a></li>
+        <li><a class="doc-link" href="../v0.10.13/">0.10.13</a></li>
+        <li><a class="doc-link" href="../v0.10.12/">0.10.12</a></li>
+        <li><a class="doc-link" href="../v0.10.11/">0.10.11</a></li>
+        <li><a class="doc-link" href="../v0.10.10/">0.10.10</a></li>
+        <li><a class="doc-link" href="../v0.10.9/">0.10.9</a></li>
+        <li><a class="doc-link" href="../v0.10.8/">0.10.8</a></li>
+        <li><a class="doc-link" href="../v0.10.7/">0.10.7</a></li>
+        <li><a class="doc-link" href="../v0.10.6/">0.10.6</a></li>
+        <li><a class="doc-link" href="../v0.10.5/">0.10.5</a></li>
+        <li><a class="doc-link" href="../v0.10.4/">0.10.4</a></li>
+        <li><a class="doc-link" href="../v0.10.3/">0.10.3</a></li>
+        <li><a class="doc-link" href="../v0.10.2/">0.10.2</a></li>
+        <li><a class="doc-link" href="../v0.10.1/">0.10.1</a></li>
+        <li><a class="doc-link" href="../v0.10.0/">0.10.0</a></li>
+        <li><a class="doc-link" href="../v0.9.0/">0.9.0</a></li>
+        <li><a class="doc-link" href="../v0.8.15/">0.8.15</a></li>
+        <li><a class="doc-link" href="../v0.8.14/">0.8.14</a></li>
+        <li><a class="doc-link" href="../v0.8.13/">0.8.13</a></li>
+        <li><a class="doc-link" href="../v0.8.12/">0.8.12</a></li>
+        <li><a class="doc-link" href="../v0.8.11/">0.8.11</a></li>
+        <li><a class="doc-link" href="../v0.8.10/">0.8.10</a></li>
+        <li><a class="doc-link" href="../v0.8.9/">0.8.9</a></li>
+        <li><a class="doc-link" href="../v0.8.8/">0.8.8</a></li>
+        <li><a class="doc-link" href="../v0.8.7/">0.8.7</a></li>
+        <li><a class="doc-link" href="../v0.8.6/">0.8.6</a></li>
+        <li><a class="doc-link" href="../v0.8.5/">0.8.5</a></li>
+        <li><a class="doc-link" href="../v0.8.4/">0.8.4</a></li>
+        <li><a class="doc-link" href="../v0.8.3/">0.8.3</a></li>
+        <li><a class="doc-link" href="../v0.8.2/">0.8.2</a></li>
+        <li><a class="doc-link" href="../v0.8.1/">0.8.1</a></li>
+        <li><a class="doc-link" href="../v0.8.0/">0.8.0</a></li>
+        <li><a class="doc-link" href="../v0.7.8/">0.7.8</a></li>
+        <li><a class="doc-link" href="../v0.7.7/">0.7.7</a></li>
+        <li><a class="doc-link" href="../v0.7.6/">0.7.6</a></li>
+        <li><a class="doc-link" href="../v0.7.5/">0.7.5</a></li>
+        <li><a class="doc-link" href="../v0.7.4/">0.7.4</a></li>
+        <li><a class="doc-link" href="../v0.7.3/">0.7.3</a></li>
+        <li><a class="doc-link" href="../v0.7.2/">0.7.2</a></li>
+        <li><a class="doc-link" href="../v0.7.1/">0.7.1</a></li>
+        <li><a class="doc-link" href="../v0.7.0/">0.7.0</a></li>
+        <li><a class="doc-link" href="../v0.7.0-rc.1/">0.7.0-rc.1</a></li>
+        <li><a class="doc-link" href="../v0.6.2/">0.6.2</a></li>
+        <li><a class="doc-link" href="../v0.6.1/">0.6.1</a></li>
+        <li><a class="doc-link" href="../v0.6.0/">0.6.0</a></li>
+        <li><a class="doc-link" href="../v0.5.2/">0.5.2</a></li>
+        <li><a class="doc-link" href="../v0.5.1/">0.5.1</a></li>
+        <li><a class="doc-link" href="../v0.5.0/">0.5.0</a></li>
+      </ul>
+      </details></li>
     </ul>
     </details></li>
+    <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
+      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
+      <li><a class="doc-link" href="../noise-texture/">Noise texture</a></li>
+    </ul>
+    </details></li>
+    <li><a class="doc-link" href="../design-notes/">Design notes</a></li>
   </ul>
   </nav>
   <ul class="doc-navbar">
@@ -876,6 +923,6 @@ demo.nameSearch.observe(applyFilter)
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-dgazh53y.js"></script>
+  <script type="module" src="../hydrate-7skqvnh0.js"></script>
 </body>
 </html>

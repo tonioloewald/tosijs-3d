@@ -2,9 +2,8 @@
 
 The **one** place the `--w3d-*` theme variables are read. Every SVG-UI module
 (widgets3d, keyboard, table, …) draws from this table instead of re-typing the
-variable names and fallback literals — three drifting copies of this block is
-exactly how a themed color ends up wrong in one widget only (caught by the
-0.6.0 review).
+variable names and fallback literals. Separate copies of this block drift, and
+a themed colour ends up wrong in one widget only.
 
 **Values are resolved ONCE, at module load, in JS — deliberately.** These
 surfaces rasterize onto 3D textures via `XMLSerializer`, where a literal
@@ -42,9 +41,8 @@ const { demo } = tosi({ demo: { size: 0.6, sound: false, name: '' } })
 //
 // This editor edits the GLOBAL table, deliberately — that is what makes both
 // panels below re-theme live, and a scoped copy would demonstrate nothing. But
-// the doc site is ONE page, so walking away used to leave every other demo
-// wearing whatever you had set. Tonio, from the headset: "the theme editor
-// seems to change the global theme and infects other demos."
+// the doc site is ONE page, so without this, walking away would leave every
+// other demo wearing whatever you had set.
 //
 // `withTheme` is the wrong tool here — it restores when its build function
 // RETURNS, and this demo's lifetime is the page's, not a synchronous call.
@@ -116,8 +114,7 @@ const build = () => {
 
   // The plane takes the very same element as its texture.
   // `camera` gives the scene an orbit camera that YIELDS during a press on the
-  // panel — so you can drag the view and still use the controls, which is what
-  // the other side-by-side demos do and this one was missing.
+  // panel — so you can drag the view and still use the controls.
   const { plane, sceneCreated } = panelScene({
     svg: panel,
     target: panel,

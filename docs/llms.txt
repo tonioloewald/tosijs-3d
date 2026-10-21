@@ -1,4 +1,4 @@
-# tosijs-3d v0.11.0
+# tosijs-3d v0.11.1
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -23,28 +23,131 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 
 ## Pages
 
+- https://3d.tosijs.net/v0.10.0/ — 0.10.0
+  with them.** No new elements; what was added is tooling for measuring and
+- https://3d.tosijs.net/v0.10.1/ — 0.10.1
+  Five requests from manta-recon. Nothing changes unless you set the new dials,
+- https://3d.tosijs.net/v0.10.10/ — 0.10.10
+  Size: barrel (min, packages external) 1152.8 KB raw / 394.5 KB gz, +3.46% on 0.10.9 (retargeting, the auto-rig and sp...
+- https://3d.tosijs.net/v0.10.11/ — 0.10.11
+  Size: barrel (min, packages external) 1153.7 KB raw / 394.8 KB gz, +0.08% on 0.10.10.
+- https://3d.tosijs.net/v0.10.12/ — 0.10.12
+  Size: barrel (min, packages external) 1154.3 KB raw / 395.0 KB gz, +0.06% on 0.10.11.
+- https://3d.tosijs.net/v0.10.13/ — 0.10.13
+  Size: barrel (min, packages external) 1158.1 KB raw / 396.3 KB gz, +0.33% on 0.10.12.
+- https://3d.tosijs.net/v0.10.14/ — 0.10.14
+  Size: barrel (min, packages external) 1158.6 KB raw / 396.5 KB gz, +0.05% on 0.10.13.
+- https://3d.tosijs.net/v0.10.15/ — 0.10.15
+  Size: barrel (min, packages external) 1167.3 KB raw / 399.6 KB gz, +0.8% on 0.10.14 (the rig recipe and retarget's fi...
+- https://3d.tosijs.net/v0.10.16/ — 0.10.16
+  Size: barrel (min, packages external) 1205.7 KB raw / 412.8 KB gz, +3.3% on 0.10.15 (effects: the recipe, player, pro...
+- https://3d.tosijs.net/v0.10.17/ — 0.10.17
+  Size: barrel (min, packages external) 1206.3 KB raw / 412.6 KB gz, +0.05% on 0.10.16 (the effect schema).
+- https://3d.tosijs.net/v0.10.18/ — 0.10.18
+  Size: barrel (min, packages external) 1211.0 KB raw / 414.4 KB gz, +0.4% on 0.10.17 (landform schemas, slider stops).
+- https://3d.tosijs.net/v0.10.19/ — 0.10.19
+  Size: barrel (min, packages external) 1224.9 KB raw / 420.2 KB gz, +1.2% on 0.10.18 (inspect views, the seam material...
+- https://3d.tosijs.net/v0.10.2/ — 0.10.2
+  `uranus`, `neptune`) draws a banded planet with winds that alternate from
+- https://3d.tosijs.net/v0.10.20/ — 0.10.20
+  Size: barrel (min, packages external) 1225.0 KB raw / 420.2 KB gz, +0.01% on 0.10.19.
+- https://3d.tosijs.net/v0.10.3/ — 0.10.3
+  its own surface as a globe (`terrain.planetSurface()`), and
+- https://3d.tosijs.net/v0.10.4/ — 0.10.4
+  biome shading, is now a single sphere drawn by one shader
+- https://3d.tosijs.net/v0.10.5/ — 0.10.5
+  Size: barrel (min, packages external) 1042.5 KB raw / 353.5 KB gz, +3.67% on 0.10.4.
+- https://3d.tosijs.net/v0.10.6/ — 0.10.6
+  Size: barrel (min, packages external) 1082.1 KB raw / 368.9 KB gz, +3.80% on 0.10.5.
+- https://3d.tosijs.net/v0.10.7/ — 0.10.7
+  Size: barrel (min, packages external) 1104.9 KB raw / 376.3 KB gz, +2.11% on 0.10.6.
+- https://3d.tosijs.net/v0.10.8/ — 0.10.8
+  Size: barrel (min, packages external) 1109.1 KB raw / 377.6 KB gz, +0.38% on 0.10.7.
+- https://3d.tosijs.net/v0.10.9/ — 0.10.9
+  Linked, not automatic: a gas giant in a moon's sky, or every body of a star system, must not become the ground you st...
+- https://3d.tosijs.net/v0.11.0/ — 0.11.0
+  Library: `retarget` reads which bone is which across UE, Mixamo, Kenney and
+- https://3d.tosijs.net/v0.11.1/ — 0.11.1
+- https://3d.tosijs.net/v0.5.0/ — 0.5.0
+  `@babylonjs/loaders`, `@babylonjs/materials` moved `^8` → `^9`. **Consumers must
+- https://3d.tosijs.net/v0.5.1/ — 0.5.1
+  No peer-dependency changes this release. The break is a **method rename**: tosijs's
+- https://3d.tosijs.net/v0.5.2/ — 0.5.2
+  tosijs-ui 1.7.4 requires it.) As with 0.5.1, this ships under a **patch**
+- https://3d.tosijs.net/v0.6.0/ — 0.6.0
+  Cut as rc.1 → rc.3 (each reviewed; rc consumers see the per-rc sections in git
+- https://3d.tosijs.net/v0.6.1/ — 0.6.1
+  First consumer-reported fixes — both filed by **manta-recon** (tosijs-3d's first
+- https://3d.tosijs.net/v0.6.2/ — 0.6.2
+  Terrain gets **volcanism** and **authored landforms**, clouds get real shapes, and a
+- https://3d.tosijs.net/v0.7.0/ — 0.7.0
+  No peer-dependency changes, but this is a **behaviour** release: the throttle,
+- https://3d.tosijs.net/v0.7.0-rc.1/ — 0.7.0-rc.1
+  Published to npm under the `next` tag on 2026-08-13, superseded by 0.7.0.
+- https://3d.tosijs.net/v0.7.1/ — 0.7.1
+  respawn and pause panels sit at a spot with clear line of sight, face you, and
+- https://3d.tosijs.net/v0.7.2/ — 0.7.2
+  and respawn panels were unreachable in any scene not centred on `(0,0,0)`, and
+- https://3d.tosijs.net/v0.7.3/ — 0.7.3
+  (left stick X turned), which nobody has muscle memory for any more and which
+- https://3d.tosijs.net/v0.7.4/ — 0.7.4
+  one.** A province is a **footprint** (extent by direction) plus **one curve
+- https://3d.tosijs.net/v0.7.5/ — 0.7.5
+  Three widgets collapse into one because the difference between them was never
+- https://3d.tosijs.net/v0.7.6/ — 0.7.6
+  An adoption-feedback release: everything here came from `tosijs-3d-ensemble`
+- https://3d.tosijs.net/v0.7.7/ — 0.7.7
+  A lifecycle release. `<tosi-b3d>` now distinguishes being **moved** from being
+- https://3d.tosijs.net/v0.7.8/ — 0.7.8
+  Lights you can see, edit and animate — and the editor surface `tosijs-3d-ensemble`
+- https://3d.tosijs.net/v0.8.0/ — 0.8.0
+  Lights, editors, and the schema surface `tosijs-3d-ensemble` asked for — plus
+- https://3d.tosijs.net/v0.8.1/ — 0.8.1
+  Nothing breaks at compile time. Two behaviours change, and
+- https://3d.tosijs.net/v0.8.10/ — 0.8.10
+  without a workaround.** Glow no longer whites out the frame under a fading
+- https://3d.tosijs.net/v0.8.11/ — 0.8.11
+  flat; `always` (the in-headset setting) is not yet verified per eye on a
+- https://3d.tosijs.net/v0.8.12/ — 0.8.12
+  Also: headset popups can be dragged and closed, and a model no longer shields
+- https://3d.tosijs.net/v0.8.13/ — 0.8.13
+  with ranges, units and useful bands: `clearColor`, `glowLayerIntensity`,
+- https://3d.tosijs.net/v0.8.14/ — 0.8.14
+  now get the projected method flat, which keeps antialiasing and concentrates
+- https://3d.tosijs.net/v0.8.15/ — 0.8.15
+  trees gathered into copses, and a biome shader that colours vegetation by the
+- https://3d.tosijs.net/v0.8.2/ — 0.8.2
+  not a picture: six small RGBA faces carry sub-texel position, gamma brightness
+- https://3d.tosijs.net/v0.8.3/ — 0.8.3
+  clouds that light like clouds.** Galaxy billboarding moved into the vertex
+- https://3d.tosijs.net/v0.8.4/ — 0.8.4
+  it.** The encoded sky is decoded exactly (sharp points, not smeared blobs),
+- https://3d.tosijs.net/v0.8.5/ — 0.8.5
+  that lights the cloud from below, inside and above, lights the landscape and
+- https://3d.tosijs.net/v0.8.6/ — 0.8.6
+  save and share, with Earth, Mars, Venus, the Moon, Io and Titan built in.
+- https://3d.tosijs.net/v0.8.7/ — 0.8.7
+  its sections can fold or become file tabs, captions or icons, with the
+- https://3d.tosijs.net/v0.8.8/ — 0.8.8
+  explosion debris, `b3d-planet` survives high detail, and bomb and missile
+- https://3d.tosijs.net/v0.8.9/ — 0.8.9
+  the weather and decoration elements and sound, with sections, so a schema-
+- https://3d.tosijs.net/v0.9.0/ — 0.9.0
+  takes the depth and the distance to land from the terrain and draws surf that
 - https://3d.tosijs.net/aim/ — aim
   degrees and plain `{x, y, z}`, no Babylon — so the whole of walk-and-aim can be
 - https://3d.tosijs.net/b3d-light/ — Ambient light (b3d-light)
   Hemispheric ambient fill light. Wraps `BABYLON.HemisphericLight`. Cheap to render
 - https://3d.tosijs.net/b3d-ssao/ — Ambient occlusion (SSAO)
   under a ledge: real light does not reach in there, and a renderer without
-- https://3d.tosijs.net/ambient-budget/ — ambient-budget
-  Who gets to exist, when the frame can't afford everyone.
-- https://3d.tosijs.net/ambient-leaves/ — ambient-leaves
-  The one ambient effect that is **not a sprite**.
 - https://3d.tosijs.net/anchor-layout/ — anchor-layout
   Pure **anchored layout**: the third way to lay out the SVG UI, beside the
 - https://3d.tosijs.net/angle-field/ — angle-field
-  rings, because the quantity is a circle and a slider track is not. The model is
+  rings, because the quantity is a circle and a slider track is not. The pure
 - https://3d.tosijs.net/animation-layers/ — animation-layers
   walk-and-aim: legs keep the locomotion, arms and head take the aim, and the
-- https://3d.tosijs.net/arc/ — arc
-  direction; an arc is a direction *and* a width. No DOM, no Babylon — so the part
 - https://3d.tosijs.net/asset-url/ — asset-url
   A tiny indirection for referencing hosted blobs (models, textures, audio, …) by a
-- https://3d.tosijs.net/atmosphere/ — atmosphere
-  Underwater, inside a cloud, out in space — each is a *layer* that pulls the fog toward its
 - https://3d.tosijs.net/rig-build/ — auto-rig
   modelling program (no skeleton, no weights) are rigged in the browser and play
 - https://3d.tosijs.net/tosi-b3d/ — b3d
@@ -74,11 +177,11 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/b3d-crowd/ — b3d-crowd
   vertex shader, and thin instances so the CPU does nothing per figure per frame.
 - https://3d.tosijs.net/b3d-death/ — b3d-death
-  to the wreck, you go on "flying" a corpse, and the game is stuck. (`b3d-aircraft` used to
+  to the wreck, you go on "flying" a corpse, and the game is stuck.
 - https://3d.tosijs.net/b3d-decorator/ — b3d-decorator
   scene with a `<tosi-b3d-terrain>`. It scatters up to a set NUMBER of things
 - https://3d.tosijs.net/b3d-destroyable/ — b3d-destroyable
-  A thing that can take damage and be destroyed — the scene-side bridge to the pure
+  A thing that can take damage and be destroyed: the scene-side bridge to the pure
 - https://3d.tosijs.net/b3d-effect/ — b3d-effect
   light and sound on one clock.** Name a preset, or hand it a recipe from the
 - https://3d.tosijs.net/b3d-elevator/ — b3d-elevator
@@ -90,13 +193,13 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/b3d-galaxy/ — b3d-galaxy
   Procedural galaxy renderer — the [voxel galaxy](/voxel-galaxy/), the one galaxy
 - https://3d.tosijs.net/b3d-hud/ — b3d-hud
-  A drop-in aircraft HUD: mounts the [hud](?hud.ts) SVG as an **additive, translucent**
+  A drop-in aircraft HUD: mounts the HUD SVG as an **additive, translucent** overlay
 - https://3d.tosijs.net/b3d-input-focus/ — b3d-input-focus
   Focus manager that wires input to the active controllable entity and handles
 - https://3d.tosijs.net/b3d-interactive/ — b3d-interactive
   callback or by bubbling event. It is the substrate doors, knobs, switches,
 - https://3d.tosijs.net/b3d-launcher/ — b3d-launcher
-  Fires **ballistic projectiles** — the scene-side shoot loop, bridging the pure
+  Fires **ballistic projectiles**: the scene-side shoot loop, bridging the pure
 - https://3d.tosijs.net/b3d-library/ — b3d-library
   Asset library component. Loads a GLB file via `LoadAssetContainer` and holds
 - https://3d.tosijs.net/b3d-light-shafts/ — b3d-light-shafts
@@ -106,7 +209,7 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/b3d-loader/ — b3d-loader
   Loads a GLB/glTF scene file into the 3D scene. Meshes named with `-ignore` are discarded.
 - https://3d.tosijs.net/b3d-manipulator/ — b3d-manipulator
-  a hand in a headset.** The maths is [[manipulator]], the geometry is
+  a hand in a headset.** Drop it in a scene, point it at an element or a mesh,
 - https://3d.tosijs.net/b3d-moon/ — b3d-moon
   the star sphere. Its PHASE follows from where it is: the side facing the sun
 - https://3d.tosijs.net/b3d-panel/ — b3d-panel
@@ -120,7 +223,7 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/b3d-probe/ — b3d-probe
   `<tosi-b3d-probe>` — a device-capability probe. Drop it anywhere (a landing page is
 - https://3d.tosijs.net/b3d-prop/ — b3d-prop
-  and no behaviour — which is most of what populates a level.
+  and no behaviour, which is most of what populates a level.
 - https://3d.tosijs.net/b3d-quality/ — b3d-quality
   The **system quality proxy** — the single place that vends device-appropriate
 - https://3d.tosijs.net/b3d-radar/ — b3d-radar
@@ -136,7 +239,7 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/b3d-spawner/ — b3d-spawner
   Keeps the world **populated**. Spawns [prefabs](?prefab.ts) — usually *encounters*: a
 - https://3d.tosijs.net/b3d-star/ — b3d-star
-  Procedural star mesh using a subdivided cube projected onto a sphere.
+  Procedural star: a sphere with a shader surface. What makes it read as a ball
 - https://3d.tosijs.net/b3d-star-system/ — b3d-star-system
   Renders an individual star system with a procedural star and its planets.
 - https://3d.tosijs.net/b3d-svg-plane/ — b3d-svg-plane
@@ -150,7 +253,7 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/b3d-turret/ — b3d-turret
   An **auto-tracking gun** — it slews its barrel to lead a moving target and elevate for
 - https://3d.tosijs.net/b3d-warhead/ — b3d-warhead
-  The **explosion** — the scene-side bridge to the pure AOE math in `warhead.ts` (see
+  The **explosion**: the scene-side bridge to the pure blast model (below). On
 - https://3d.tosijs.net/b3d-water/ — b3d-water
   Water plane with reflections, waves, and underwater fog effect.
 - https://3d.tosijs.net/b3d-weather-cell/ — b3d-weather-cell
@@ -162,17 +265,11 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/biome-chart/ — biome-chart
   The **pure biome-classification model** under the procedural terrain shader
 - https://3d.tosijs.net/biome-plugin/ — biome-plugin
-  The Babylon half of the procedural terrain shader (TERRAIN-SHADER-DESIGN.md):
+  The Babylon half of the procedural terrain shader
 - https://3d.tosijs.net/playground/ — Biped Playground
   arena — ground, light, cover, crates, a catwalk and something to shoot — as
-- https://3d.tosijs.net/bone-mask/ — bone-mask
-  hierarchy is names and parents, so none of this needs a skeleton, a renderer or
 - https://3d.tosijs.net/box/ — box
   The **flow `box`** — the first-class SVG UI container built on [[flow-layout]]. A
-- https://3d.tosijs.net/buoyancy/ — buoyancy
-  biped's swimming: how fast a body sinks, why it comes back up, and where it
-- https://3d.tosijs.net/camera-fit/ — camera-fit
-  Babylon, no rays — so the rules can be tested without a scene.
 - https://3d.tosijs.net/carry/ — carry
   in it: what is being carried, where it came from, which target the pointer
 - https://3d.tosijs.net/carry-box/ — carry-box
@@ -181,16 +278,10 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Pure, deterministic, Babylon-free; the vocabulary [[patch-field]] composes and
 - https://3d.tosijs.net/sdf-lattice/ — Carved landforms
   mine shafts — everything a heightfield cannot say, because a heightfield has one
-- https://3d.tosijs.net/caustics/ — caustics
-  strongest "this is underwater" cue after the colour (tosijs-3d#16, board
 - https://3d.tosijs.net/CHANGELOG/ — Changelog
-  All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
+  All notable changes to **tosijs-3d**, one page per version: each lives in
 - https://3d.tosijs.net/characters-and-vehicles/ — Characters and vehicles
   climbs; an [aircraft](/b3d-aircraft/) that hovers like a drone and flies like a
-- https://3d.tosijs.net/climate-noise/ — climate-noise
-  The broad noise that makes one region of a world wetter or warmer than the
-- https://3d.tosijs.net/cloud-field/ — cloud-field
-  fBm — the absolute value creases the field at every zero crossing, which is what
 - https://3d.tosijs.net/cloud-shadows/ — cloud-shadows
   terrain. A flat decal can't conform to hills; the shadow map can't reach a cloud at 300 m
 - https://3d.tosijs.net/color/ — color
@@ -213,8 +304,6 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   one element everything else lives inside. After that: a
 - https://3d.tosijs.net/cost-sweep/ — Cost sweep
   Where a frame goes, **measured on the device it runs on**. The sweep switches
-- https://3d.tosijs.net/curve/ — curve
-  `[0,1]` to itself, as sorted control points, with the editing rules that keep it
 - https://3d.tosijs.net/curve-field/ — Curve editor
   works as a flat DOM overlay, on an in-scene panel, and in a headset without
 - https://3d.tosijs.net/debug-sink/ — debug-sink
@@ -223,12 +312,10 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   that make a scene look like a scene instead of a test harness. Every live example
 - https://3d.tosijs.net/demos/ — Demos
   Whole scenes you can walk around in, rather than one component at a time.
-- https://3d.tosijs.net/destroyable/ — destroyable
-  destroyables by id and resolves damage, armour, protection, regeneration and
+- https://3d.tosijs.net/design-notes/ — Design notes
+  Remarks of Tonio Loewald's that decided how something works. The reference
 - https://3d.tosijs.net/destroyable-behavior/ — destroyable-behavior
-  The **attachable** destroyable — the reusable bridge that makes *any* modeled element
-- https://3d.tosijs.net/dialog-placement/ — dialog-placement
-  faces** — the pure half of world-placed dialogs, plus the one function every
+  The **attachable** destroyable: it makes *any* modeled element (a loaded GLB, a
 - https://3d.tosijs.net/dials/ — dials
   needle points north as you turn. The watch is the time of day and how fast it
 - https://3d.tosijs.net/draw-order/ — Draw order
@@ -237,30 +324,22 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   preset (a volcano at any activity, a geyser, a splash, an explosion, a
 - https://3d.tosijs.net/effects/ — Effects
   geysers, splashes, explosions, fireballs, sparks: particles, light and sound
-- https://3d.tosijs.net/embed-font/ — embed-font
-  hand back an `@font-face` rule that can travel *inside* a serialised SVG.
 - https://3d.tosijs.net/flow-layout/ — flow-layout
-  Pure **flow layout** math — the CSS block + inline-block model, in SVG user
+  Pure **flow layout** math: the CSS block + inline-block model, in SVG user
 - https://3d.tosijs.net/fly-by-wire/ — fly-by-wire
   becomes a plane": the stick commands an attitude (bank and pitch), the model
 - https://3d.tosijs.net/footprint-field/ — Footprint editor
-  drawn inside a square, vertices you drag where they actually are. The rules live
+  drawn inside a square, vertices you drag where they actually are. The rules are the curve model's
 - https://3d.tosijs.net/formations/ — formations
   Pure, deterministic **placement patterns** — where the members of an encounter stand relative
 - https://3d.tosijs.net/frame-panel/ — frame-panel
   A spatial UI panel pinned to an XR reference frame (see [xr-frames](?xr-frames.ts)).
-- https://3d.tosijs.net/galaxy-data/ — galaxy-data
-  Procedural galaxy generation data and functions. Pure logic — no Babylon.js
 - https://3d.tosijs.net/game-controller/ — game-controller
   Input component that maps keyboard/mouse to a virtual gamepad and optionally
 - https://3d.tosijs.net/gamepad-focus/ — gamepad-focus
   Drives an SVG UI's **focus traversal** from a [[virtual-gamepad|VirtualGamepad]] — the
-- https://3d.tosijs.net/gamepad-svg/ — gamepad-svg
-  Generates a gamepad SVG using tosijs element creators. All colors and stroke
 - https://3d.tosijs.net/gas-giant/ — gas-giant
   winds that alternate direction from belt to belt, with a long-lived storm.
-- https://3d.tosijs.net/gas-giant-material/ — gas-giant-material
-  a material for a sphere, drawn by the same [gas-giant](/gas-giant/) function
 - https://3d.tosijs.net/getting-started/ — Getting started
   Babylon (`^9`) and `tosijs` (`^1.9.2`) are peer dependencies: you install them,
 - https://3d.tosijs.net/glass-gamepad/ — glass-gamepad (b3dGamepad)
@@ -271,20 +350,10 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   0..1 through a list of control points, with straight lines between them.
 - https://3d.tosijs.net/guidance/ — guidance
   round, one leads a gun, and both are used by [[b3d-launcher]] and
-- https://3d.tosijs.net/handler-of/ — handlerOf
-  `onX` was removed in 0.10: it is no longer called, and passing one says so in
-- https://3d.tosijs.net/hardware-gamepad/ — hardware-gamepad
-  Maps a physical gamepad (via `navigator.getGamepads()`) to a `VirtualGamepad`.
 - https://3d.tosijs.net/input-internals/ — How input works
   pad, touch, VR controllers, an AI) produces the same `ControlInput`, and every
-- https://3d.tosijs.net/hud/ — hud
-  Driver for the aircraft HUD SVG (`static/aircraft-hud.svg`, normalized for control):
-- https://3d.tosijs.net/hud-math/ — hud-math
-  Pure, dependency-free math for the aircraft HUD (see `static/aircraft-hud.svg`):
 - https://3d.tosijs.net/icon-grid/ — Icon grid
   picker.** A grid of icons with optional captions, as a `Widget3d`, so it works
-- https://3d.tosijs.net/icon-name/ — icon-name
-  Pure parsing of the **icon composition suffix grammar** — the tail modifiers that
 - https://3d.tosijs.net/ui-in-scene/ — In the scene and XR
   a part of you (your wrist, your view, the vehicle) and shows it when you look.
 - https://3d.tosijs.net/input/ — Input
@@ -301,12 +370,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Pure and Babylon-free: things, the holders they are in, and moves between
 - https://3d.tosijs.net/inventory-box/ — inventory-box
   tiles with a place to drop, and every drop is checked and made by the model,
-- https://3d.tosijs.net/key-layout/ — key-layout
-  The **pure keyboard model**: which keys exist in each mode, what a long-press offers,
 - https://3d.tosijs.net/keyboard/ — keyboard
-  The **on-screen keyboard and text field** — the typing surface for a headset, where
-- https://3d.tosijs.net/keyboard-gamepad/ — keyboard-gamepad
-  Maps keyboard and mouse input to a `VirtualGamepad`. Uses attack/decay smoothing
+  The **on-screen keyboard and text field**: the typing surface for a headset, where
 - https://3d.tosijs.net/b3d-lamp/ — Lamps
   placed lights that come with their own fixture geometry, cast shadows where
 - https://3d.tosijs.net/land-and-sky/ — Land and Sky
@@ -315,28 +380,12 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   the noise (levels curves), a landform *forces* a shape through it: a volcano
 - https://3d.tosijs.net/landform-schemas/ — landform schemas
   The options of each authored landform (`volcano`, `impactCrater`, `pad`,
-- https://3d.tosijs.net/library-mesh/ — library-mesh
-  implementation, used by [[b3d-prop]] and [[b3d-destroyable]].
-- https://3d.tosijs.net/light-editor/ — Light editor
-  edits what a light *is* (type, colour, intensity, range, shadows) alongside what
 - https://3d.tosijs.net/curve-program/ — Light program editor
   several curves that share one pair of split markers.** One `Widget3d`, one
 - https://3d.tosijs.net/light-modulation/ — Light programs
-  model behind [[b3d-lamp]]'s flicker, pulse, beacon and fade.
-- https://3d.tosijs.net/light-settings/ — Light settings (data)
-  and its validator. No DOM, no Babylon, no widget.
-- https://3d.tosijs.net/light-rays/ — light-rays
-  The pure half of light shafts (WEATHER-DESIGN stage 4, board #1084): when a
-- https://3d.tosijs.net/lightning/ — lightning
-  The pure half of lightning (WEATHER-DESIGN stage 3, board #1123): WHEN and
+  model behind [[b3d-lamp]]'s flicker, pulse, beacon and fade. To see one run on a
 - https://3d.tosijs.net/make-mesh/ — make-mesh
   the four things everyone forgets already done.
-- https://3d.tosijs.net/manipulator/ — manipulator
-  scene, no engine, no pointer — so the part most likely to be subtly wrong is the
-- https://3d.tosijs.net/manipulator-view/ — manipulator-view
-  Cheetah 3D means it.** Every enabled affordance is on screen at once and the
-- https://3d.tosijs.net/mantle/ — mantle
-  the pure path: given what a probe saw in front of the character, is there a lip
 - https://3d.tosijs.net/b3d-utils/ — Material Conventions
   These conventions apply to all meshes entering the scene — via
 - https://3d.tosijs.net/medium/ — medium
@@ -344,13 +393,9 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/Migration/ — Migration
   What to change when upgrading. Only breaking changes are listed — everything
 - https://3d.tosijs.net/min-sim-conformance/ — min-sim-conformance
-  is implemented by BOTH Ariosto's reference store and tosijs-3d's [world-store](?world-store.ts). This
-- https://3d.tosijs.net/noise-volume/ — Noise volume
-  A block of 3D gradient noise that **tiles in every direction**, as bytes, for
-- https://3d.tosijs.net/panel-layer/ — panel-layer
-  A popup that lives inside its panel's SVG is cropped by it. That is the whole
-- https://3d.tosijs.net/panel-orbit/ — panel-orbit
-  DOM — so the placement rule can be tested without a headset.
+  is implemented by BOTH Ariosto's reference store and tosijs-3d's [world-store](/world-store/). This
+- https://3d.tosijs.net/noise-texture/ — Noise texture
+  Shader noise **read instead of computed**. Arithmetic noise in a fragment
 - https://3d.tosijs.net/patch-field/ — patch-field
   terrain's HEIGHT, a patch post-filters its DENSITY — one dimension up, so it can
 - https://3d.tosijs.net/perf-probe/ — perf-probe
@@ -363,8 +408,6 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   scroll for five hundred; this is the other end. It composes controls that
 - https://3d.tosijs.net/planet-map/ — planet-map
   Mars and the Earth as flat images, one pixel per patch of latitude and
-- https://3d.tosijs.net/popup-chrome/ — popup-chrome
-  Pure, in viewBox units — the one place both answers come from.
 - https://3d.tosijs.net/popup-surface/ — popup-surface
   A menu cascade, a dropdown's open list, a debug readout — in a browser these are
 - https://3d.tosijs.net/portal-transform/ — portal-transform
@@ -379,12 +422,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   a curve over normalised distance from the province's centre. Pure: no DOM, no
 - https://3d.tosijs.net/mersenne-twister/ — Pseudo Random Numbers
   planet's craters, where the rocks go, who spawns) is drawn from a generator
-- https://3d.tosijs.net/radar/ — Radar model
-  The **pure, deterministic radar model** — range + detection cone + lock acquisition,
 - https://3d.tosijs.net/reference/ — Reference
-  What changed, how to upgrade, and the seeded random sources everything
-- https://3d.tosijs.net/resource/ — resource
-  destroyable's health and a launcher's energy: it regenerates, but only once it
+  The seeded random sources and noise everything procedural is built on.
 - https://3d.tosijs.net/retarget/ — retarget
   Animation Library's clips are authored on the UE mannequin; a Mixamo
 - https://3d.tosijs.net/rig-markers/ — rig markers
@@ -393,8 +432,6 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   result.** Pick one of the demo characters or load your own GLB. Check which
 - https://3d.tosijs.net/rocky-world/ — rocky-world
   Io, Titan, an ice moon and an Earth, each a sea, an air, clouds, relief, craters and a climate.
-- https://3d.tosijs.net/rounded-rect/ — rounded-rect
-  generation for in-scene UI panels.
 - https://3d.tosijs.net/scatter/ — scatter
   climate.** The function is `scatterPlacements` (a bare `scatter` would leak a
 - https://3d.tosijs.net/scene-schemas/ — Scene schemas
@@ -411,8 +448,6 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   become a cube map — a starfield with real structure, for the cost of a texture
 - https://3d.tosijs.net/slope-profile/ — slope-profile
   noise field before amplitude. A profile remaps normalized height (0..1 → 0..1),
-- https://3d.tosijs.net/sol/ — sol
-  moons worth drawing and the asteroid belt's four biggest bodies, each with
 - https://3d.tosijs.net/solar-system/ — Solar System
   Our own solar system, built from the parts the rest of this site documents:
 - https://3d.tosijs.net/space/ — Space
@@ -425,8 +460,6 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   `surfaceType="sphere"` is a flat sheet wrapped round a planet: walk far enough
 - https://3d.tosijs.net/spring-chain-babylon/ — spring bones
   animates — a ponytail, a tail, a strand of a cape — swings, trails and
-- https://3d.tosijs.net/star-populations/ — star-populations
-  Pure — no Babylon, no DOM.
 - https://3d.tosijs.net/starfield-codec/ — starfield-codec
   faces where the channels are not colour but *position, brightness, colour index
 - https://3d.tosijs.net/b3d-shadows/ — Sun and shadows (b3d-shadows)
@@ -435,32 +468,18 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   The **UI surface** — a root that holds a content [[box]] plus a top **overlay
 - https://3d.tosijs.net/surroundings/ — surroundings
   from it.** Pure — distances and degrees, no Babylon, no rays — so cover can be
-- https://3d.tosijs.net/surroundings-probe/ — surroundings-probe
-  The pure module answers questions about a measurement; this takes the
 - https://3d.tosijs.net/svg-icons/ — svg-icons
   An **icon proxy** in the style of tosijs-ui's `icons`, over tosijs-3d's own
 - https://3d.tosijs.net/svg-texture/ — svg-texture
   Renders SVG content to a Babylon.js texture via an offscreen canvas.
-- https://3d.tosijs.net/swim-aim/ — swim-aim
-  an aim input into a body pitch, easing it, and unwinding it when you stand up
 - https://3d.tosijs.net/system-bar/ — system-bar
-  sits in the top-left corner of the screen; in a headset, up ahead where the
-- https://3d.tosijs.net/system-layout/ — system-layout
-  planet is drawn, how big, how fast it goes round, its moons, and the
+  sits in the top-left corner of the screen; in a headset, up ahead of you. It opens the scene's settings panel (the owl),
 - https://3d.tosijs.net/table/ — table
   A **data table** as a `Widget3d`: a header that stays put, a virtualized scrolling
-- https://3d.tosijs.net/table-layout/ — table-layout
-  The **pure geometry behind a data table** — column widths, and which rows are worth
 - https://3d.tosijs.net/terrain/ — Terrain
   from seafloor to mountain; its climate, shape and landforms are the pages
-- https://3d.tosijs.net/terrain-grid/ — terrain-grid
-  streamed level-of-detail tiles: where a tile sits in the world, which world
 - https://3d.tosijs.net/terrain-editor/ — terrainEditor3d
   unit and enum comes from `sceneSchemas.terrain()`, so the control cannot
-- https://3d.tosijs.net/text-edit/ — text-edit
-  The **pure text-editing model** behind the SVG input field — no DOM, no Babylon, no
-- https://3d.tosijs.net/text-entry/ — text-entry
-  listens for keys on `window`.
 - https://3d.tosijs.net/ui-theme/ — Theme and icons
   widget reads, and one icon set ([svg-icons](/svg-icons/)) that survives being
 - https://3d.tosijs.net/theme-editor/ — theme-editor
@@ -469,12 +488,12 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   that is what you want. Under the hood it uses Babylon.js for rendering, glTF/GLB
 - https://3d.tosijs.net/touch-gamepad/ — touch-gamepad
   Touch/pointer-driven virtual gamepad backed by an SVG. Elements are identified
-- https://3d.tosijs.net/touch-gesture/ — touch-gesture
-  Pure — no Babylon, no DOM — so the decision is tested without a touchscreen.
 - https://3d.tosijs.net/touch-orbit/ — touch-orbit
   `touchOrbit(camera)` gives an `ArcRotateCamera` the view controls people
 - https://3d.tosijs.net/ui/ — UI
   SVG and takes pointer input as *coordinates*, never as DOM events. That single
+- https://3d.tosijs.net/upgrading/ — Upgrading
+  changes you have to make in your own code, minor by minor. The
 - https://3d.tosijs.net/vertex-animation/ — vertex-animation
   Babylon, no GPU — so the layout and the phase maths can be tested without a
 - https://3d.tosijs.net/virtual-gamepad/ — virtual-gamepad
@@ -483,22 +502,14 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   BRIGHT stars, one for its DIM stars. The bright pass is global (the stars you
 - https://3d.tosijs.net/w3d-theme/ — w3d-theme
   The **one** place the `--w3d-*` theme variables are read. Every SVG-UI module
-- https://3d.tosijs.net/warhead/ — warhead
-  is either DIRECT (a fixed amount to the one thing it hit) or AREA: full damage
 - https://3d.tosijs.net/water/ — Water
   waves, reflections, and with `shore="on"` the surf, shallows and sea ice that
-- https://3d.tosijs.net/water-normal/ — water-normal
-  field → per-texel surface normal → a `DynamicTexture` Babylon's `WaterMaterial`
-- https://3d.tosijs.net/water-shore/ — water-shore
-  sheet has no idea where the land is, so it cannot foam at a beach or freeze
 - https://3d.tosijs.net/weapon-fit/ — Weapon Fit
   weapon library, and a panel of coordinates wired to the thing you are looking
 - https://3d.tosijs.net/weather/ — weather
   now?** `weatherAt(base, cells, x, z)` answers it from the scene's base weather
 - https://3d.tosijs.net/weather-and-clouds/ — Weather and clouds
   through all of it: weather is something every component asks about *where it
-- https://3d.tosijs.net/widgets3d-layout/ — Widget layout maths
-  Pure layout math for [[widgets3d]] — no tosijs, no DOM, no Babylon, so it is
 - https://3d.tosijs.net/widget-box/ — widget-box
   The seam between the two SVG UI systems, so they **compose instead of competing**.
 - https://3d.tosijs.net/widgets3d/ — widgets3d
@@ -510,14 +521,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/world-contract/ — world-contract
   The boundary between the **simulation** (tosijs-3d) and an **external driver**
 - https://3d.tosijs.net/world-store/ — world-store
-  A pure, Babylon-free, deterministic reference implementation of [[world-contract]].
-- https://3d.tosijs.net/world-topology/ — world-topology
-  The **pure spatial math** behind the coordinate-free `MinSimApi` surface ([world-contract](?world-contract.ts) §8).
+  A pure, Babylon-free, deterministic reference implementation of [world-contract](/world-contract/).
 - https://3d.tosijs.net/world-view/ — world-view
   The Babylon **view** of a [[world-store]]. The store is the authoritative,
-- https://3d.tosijs.net/wreck-fall/ — wreck-fall
-  tumbling ballistic descent, an impact, a skid, and a rest. Babylon-free,
 - https://3d.tosijs.net/xr-frames/ — xr-frames
   Reference frames for spatial XR UI. "Stable" in XR isn't one thing — there are
-- https://3d.tosijs.net/xr-gamepad/ — xr-gamepad
-  `XrGamepadSource` adapts the live XR controllers (from `gamepad.ts`'s

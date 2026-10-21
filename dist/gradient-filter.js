@@ -5,7 +5,7 @@
 0..1 through a list of control points, with straight lines between them.
 Terrain uses one to reshape heights (a plateau, a terrace); see
 [[slope-profile]] for the richer profiles built on the same idea, and
-[[curve]] for the editable model.
+[[curve-field]] for the editable model.
 
 ```javascript
 import { PiecewiseLinearFilter, plateauFilter } from 'tosijs-3d/gradient-filter'

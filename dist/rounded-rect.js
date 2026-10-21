@@ -1,4 +1,4 @@
-/*#
+/*
 # rounded-rect
 
 **A rounded rectangle as GEOMETRY, not as alpha.** Pure, Babylon-free vertex
@@ -50,7 +50,6 @@ const { positions, indices, uvs, normals } = roundedRectGeometry({
 })
 ```
 */
-/*{ "parent": "svg-texture", "order": 20 }*/
 /**
  * Vertices for a rounded rectangle in the XY plane, facing +Z, centred on the
  * origin.

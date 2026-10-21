@@ -12,22 +12,6 @@ things go. It is drawn at the art's own scale, cropped to what is drawn and
 shrunk only if the panel is too narrow, so a socket designed 44 units square
 is a 44-unit target. Lists are scrolling lists.
 
-Colour the art with CSS variables that have defaults, e.g.
-`fill: var(--schematic-body, #59647a)`. On the page a panel's host can
-restyle it (`host.style.setProperty('--schematic-body', '#7a4a3a')`); drawn
-as a texture (where page variables do not reach), it uses the defaults. The
-demo art uses `--schematic-body`, `--schematic-socket`,
-`--schematic-socket-edge` and `--schematic-label`. (Never write `--` inside
-an XML comment in the art: the file stops being XML and will not draw as an
-image.)
-
-**Pictures and the info floater.** A kind's `icon` is SVG markup (the demos
-load theirs from one JSON file, a kind id to its picture). A row in a list
-shows the picture and the name; in a socket the picture fills it, and it is
-the picture a drag carries. Point at a thing, or select it with a gamepad,
-and a floater says what it is: by default its name, `description`, mass and
-what it adds (`info` replaces that).
-
 ## Equip a person
 
 The art is an SVG with a `Sockets` group; each socket's id is a slot. Drag
@@ -364,6 +348,24 @@ Promise.all([fetch('/person-loadout.svg').then((r) => r.text()), fetch('/item-ic
 .preview { height: 100%; position: relative; }
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+## Art and pictures
+
+Colour the art with CSS variables that have defaults, e.g.
+`fill: var(--schematic-body, #59647a)`. On the page a panel's host can
+restyle it (`host.style.setProperty('--schematic-body', '#7a4a3a')`); drawn
+as a texture (where page variables do not reach), it uses the defaults. The
+demo art uses `--schematic-body`, `--schematic-socket`,
+`--schematic-socket-edge` and `--schematic-label`. (Never write `--` inside
+an XML comment in the art: the file stops being XML and will not draw as an
+image.)
+
+**Pictures and the info floater.** A kind's `icon` is SVG markup (the demos
+load theirs from one JSON file, a kind id to its picture). A row in a list
+shows the picture and the name; in a socket the picture fills it, and it is
+the picture a drag carries. Point at a thing, or select it with a gamepad,
+and a floater says what it is: by default its name, `description`, mass and
+what it adds (`info` replaces that).
 
 ## Options
 

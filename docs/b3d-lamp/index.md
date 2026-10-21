@@ -12,10 +12,10 @@ you turn it off or replace it when the scene has a real fixture to put there.
 
 ## Demo
 
-A dark room with a **matte, patterned floor** — the two things a lighting demo
-needs and the first version of this had neither. A glossy untextured plane
-reflects the lamp back at you and shows nothing about falloff; a lit scene with
-no shadow receivers lets every light shine straight through the objects.
+A dark room with a **matte, patterned floor**, the two things a lighting demo
+needs. A glossy untextured plane reflects the lamp back at you and shows nothing
+about falloff; a lit scene with no shadow receivers lets every light shine
+straight through the objects.
 
 Three zones so the lamps do not wash each other out: a warm lamp with hard
 shadows, a fluorescent that strikes and dies, and a gelled spot throwing a
@@ -34,8 +34,7 @@ const { lamps } = tosi({ lamps: { on: true, geometry: true, ambient: 0.06 } })
 
 // `on` and `geometry` are 'on'|'off' STRINGS, not booleans — an absent boolean
 // attribute reads false, so a default-true boolean is not expressible in HTML.
-// Binding a boolean leaf straight to them looks right and does nothing: tosijs
-// silently discards a wrong-typed prop write (tosijs#24). So observe and map.
+// Binding a boolean leaf straight to them writes the wrong type. So observe and map.
 const applyToggles = () => {
   for (const el of document.querySelectorAll('tosi-b3d-point-light, tosi-b3d-spot-light')) {
     el.on = lamps.on.value ? 'on' : 'off'
@@ -54,8 +53,7 @@ const FLUORESCENT = {
     // THE DECAY REGION. It drops fast to an EMBER and holds there before going
     // out, rather than fading straight to zero — otherwise the hue shift below
     // arrives at red exactly when there is no light left to be red, and the
-    // whole effect is invisible. Tonio: "the light that looks red doesn't seem
-    // to produce red light."
+    // whole effect is invisible.
     { x: 0.8, y: 0.34 }, { x: 0.95, y: 0.26 }, { x: 1, y: 0 },
   ],
   // Reaches red EARLY in the decay, so the ember above is already red while it
@@ -92,8 +90,8 @@ preview.append(
         scene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.03, 1)
 
         // MATTE and PATTERNED. Specular black kills the mirror-highlight that
-        // made the old floor reflect the lamps; the checker gives falloff and
-        // shadow edges something to fall across.
+        // would reflect the lamps; the checker gives falloff and shadow edges
+        // something to fall across.
         const checker = new BABYLON.DynamicTexture('checker', 512, scene, false)
         const ctx = checker.getContext()
         for (let y = 0; y < 16; y++) {
@@ -190,11 +188,9 @@ Decided by Babylon, not by us, and worth knowing before you pick:
 
 ### A lantern behind a grill — model it, do not gel it
 
-Tonio: _"can we do gels on point lights (I would assume provide a cylindrical
-gel) e.g. if I wanted to make a lamp shaped like it's behind a grill like an old
-lantern)?"_ Babylon has no projection texture on a point light, and the honest
-answer is that you do not want one: **give the lamp a `url` fixture with the
-grill modelled, and turn `shadows` on.**
+Babylon has no projection texture on a point light, and you do not want one:
+**give the lamp a `url` fixture with the grill modelled, and turn `shadows`
+on.**
 
 The cube shadow map then projects the grill in every direction, for real. That
 beats a gel outright — the pattern is correct from any viewpoint, it falls
@@ -202,7 +198,7 @@ across uneven ground properly, and it moves when the lantern swings. A
 cylindrical gel would be a flat approximation that breaks the moment you look
 at it from above.
 
-It already works, because a `url` fixture is registered with the scene and every
+It works because a `url` fixture is registered with the scene and every
 lamp's shadow generator picks up registered meshes as casters. Mark the glass
 and the flame `_nocast` in the model so only the metal casts — otherwise the
 bulb shadows its own light, which is the one thing the built-in primitives
@@ -243,7 +239,7 @@ the same concern that made it unlit to begin with.
 
 ## One curve is the whole lamp
 
-Everything time-varying comes from [[light-modulation]]: **one curve per channel**
+Everything time-varying is a [light program](/light-modulation/): **one curve per channel**
 (`brightness`, `hue`, `saturation`, `range`) spanning the lamp's entire
 behaviour, split into three regions by two markers.
 
@@ -277,14 +273,14 @@ b3dSpotLight({
 })
 ```
 
-Those are the same `[0,1] → [0,1]` curves the province editor edits, so
-[[curve-field|curve3d]] is already the editor for a lamp — the two markers are
-the only thing it does not draw yet.
+Those are the same `[0,1] → [0,1]` curves [[curve-field|curve3d]] edits, and
+[curve-program](/curve-program/) (`curveProgram3d`) edits a whole program,
+markers included.
 
 **Flicker does not compose across regions**, deliberately: if you want a lamp
 flickering as it dies, draw that into the decay region. See
-[[light-modulation]] for why that trade was taken and the two discontinuities
-it leaves.
+[light programs](/light-modulation/) for the contract and the two
+discontinuities it leaves.
 
 `on` is what runs the program: setting it false plays the DECAY region rather
 than killing the light. A lamp that has finished decaying stops doing per-frame
@@ -301,18 +297,20 @@ Shared by all three unless noted.
 | `diffuse` | `'#ffffff'` | Colour |
 | `specular` | `'#ffffff'` | Specular colour |
 | `range` | `10` | Falloff distance (point / spot) |
-| `on` | `true` | `false` plays the DECAY region; it does not kill the light |
+| `on` | `'on'` | `'off'` plays the DECAY region; it does not kill the light |
 | `geometry` | `'on'` | `'off'` for no fixture |
 | `geometryScale` | `1` | Size multiplier for the default fixture |
 | `url` | — | GLB fixture, in place of the primitive |
 | `shadows` | `'off'` | `'on'` for a shadow generator (point / spot only) |
 | `shadowTextureSize` | `0` (auto) | Resolves against the device budget |
+| `timeSource` | `'real'` | Which clock the program runs on. `'real'`: elapsed seconds, immune to pause, because a lamp is ambience and a flicker frozen mid-flicker makes a paused game look broken. `'sim'`: the world's clock, for a lamp that is part of the simulation (street lights at dusk, a beacon a player is timing). It stops when the world pauses |
 | `angle` | `60` | **spot** — cone angle in degrees |
 | `exponent` | `2` | **spot** — falloff sharpness (standard falloff) |
 | `innerAngle` | `0` | **spot** — inner cone in degrees; above `0` gives a true penumbra and switches to glTF falloff |
 | `shape` | `'circle'` | **spot** — cone cross-section: `circle` / `square` / `none`. Projected as a gel, so an explicit `gel` wins |
 | `shapeAspect` | `1` | **spot** — width/height; `2` is an ellipse or letterbox |
 | `shapeSoftness` | `0.25` | **spot** — edge feather, as a fraction of the radius |
+| `dirX` / `dirY` / `dirZ` | `0`/`-1`/`0` | **spot** — direction the cone points (straight down by default) |
 | `gel` | — | **spot** — projection texture URL (bitmap or SVG file) |
 | `gelSvg` | — | **spot** — inline SVG source or an `SVGElement` |
 | `width` / `height` | `2`/`1` | **area** — panel size |
@@ -320,3 +318,40 @@ Shared by all three unless noted.
 **Properties** (JS only — objects, not attributes): `program`
 ([[light-modulation|LightProgram]]) and `node` (the fixture's `TransformNode`,
 for parenting your own geometry).
+
+## Editing a lamp
+
+`lightEditor3d` is a `Widget3d` that edits the whole lamp: what it *is* (type,
+colour, intensity, range, shadows) alongside what it *does over time* (a
+[curve-program](/curve-program/), whose demo drives a real lamp with it), with
+a power switch so you can watch the attack and decay play out. A program editor
+alone would be half the job; what you get back is a complete lamp description
+that can be handed straight to `b3dPointLight` / `b3dSpotLight` /
+`b3dAreaLight`.
+
+```javascript
+const editor = lightEditor3d({
+  value: { kind: 'spot', hue: 35, intensity: 600 },
+  handleChange: (s) => applyToLamp(s),  // live, mid-drag
+  handleCommit: (s, describe) => save(s), // once per gesture: one undo step
+})
+```
+
+- **Colour is hue and saturation, with no value slider**, because value *is*
+  `intensity` and two ways to dim a lamp would disagree. Three RGB sliders
+  cannot say "the same colour, a bit warmer", which is the edit you actually
+  make on a light, and HSV matches how the program's `hue` and `saturation`
+  channels modulate it.
+- **Power is a switch, not a button.** It is state (the lamp is on or off), and
+  a button reads as "do something once".
+- `hint` puts a line of guidance above the switch. It is absent by default: an
+  embedded widget labels its own controls, and the title and explanation belong
+  to whoever placed it.
+
+## A lamp as data
+
+`tosijs-3d/light-settings` is a lamp as plain data: the `LightSettings` type,
+`DEFAULT_LIGHT`, `lightSettingsSchema()` (JSON Schema), `canonicalLight` and
+`validateLight`. It has no DOM, no Babylon and no widget, so a consumer that
+only wants to read, validate or serialise a lamp document can do it headlessly.
+Importing the editor would pull in tosijs, which needs `HTMLElement`.

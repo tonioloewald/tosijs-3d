@@ -48,7 +48,7 @@ const scene = b3d(
       slider3d({ label: 'stones', value: hail.rate, min: 1, max: 30, step: 1 }),
     ],
     sceneCreated(el, BABYLON) {
-      orbitCam(el, { radius: 7, beta: Math.PI / 3.1, target: [0, 1.4, 0] })
+      orbitCam(el, { radius: 7, betaDeg: 58.1, target: [0, 1.4, 0] })
 
       const G = 9.8
       const stones = []
@@ -65,8 +65,7 @@ const scene = b3d(
       let ground = null
       lib.ready.then(() => {
         // `lib.make.<name>()` — the library's contents as callable names.
-        // ry is DEGREES (it was radians before 0.7.0 — this line said 140 and
-        // meant it as degrees, which is exactly how that trap springs).
+        // ry is DEGREES.
         const scout = lib.make.scout({ y: 0.9, ry: 140 })
         if (scout == null) return
         scout.scaling.setAll(3.4) // fill the frame; it is the subject here
@@ -89,7 +88,7 @@ const scene = b3d(
       }
       const spawn = () => {
         // `el.make` gives it a material, registers it for shadows, and computes
-        // its world matrix — the three lines this loop used to carry.
+        // its world matrix, three lines you would otherwise write here.
         const mesh = el.make.sphere({
           name: 'stone', diameter: 0.16, segments: 6,
           color: '#ff6b1a', glow: 0.45,

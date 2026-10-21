@@ -2,66 +2,8 @@
 
 Standardized virtual gamepad abstraction. All input sources (keyboard, hardware gamepad,
 XR controllers, touch) produce a `VirtualGamepad`, and each entity type defines an
-`InputMapping` that converts it to `ControlInput`.
-
-## How to wire up controls
-
-1. **Pick a mapping** — it translates gamepad buttons/sticks to game actions like
-   `move`, `jump`, `accelerate`. Use a built-in preset or write your own.
-2. **Create a `MappedInputProvider`** with your mapping and any input sources
-   (keyboard, hardware gamepad, touch overlay).
-3. **Assign it to your entity** — done.
-
-Every input source produces a standardized `VirtualGamepad`. The provider merges
-them all (max-abs for sticks, max for buttons) and runs your mapping. Plug in a
-gamepad mid-game, touch the SVG overlay, or enter XR — it all composes automatically.
-
-```typescript
-const provider = new MappedInputProvider(
-  bipedMapping,          // how gamepad maps to player actions
-  keyboardSource,        // WASD/Space/etc.
-  hardwareSource,        // any connected gamepad
-  touchSource,           // SVG touch overlay
-)
-entity.inputProvider = provider
-```
-
-## VirtualGamepad
-
-Two sticks + buttons, matching a standard controller layout:
-
-| Field | Range | Maps to |
-|-------|-------|---------|
-| `leftStickX/Y` | -1..1 | Primary movement (WASD on keyboard) |
-| `rightStickX/Y` | -1..1 | Secondary control (arrow keys on keyboard) |
-| `buttonA/B/X/Y` | 0..1 | Face buttons (Space, F, E, etc.) |
-| `leftBumper/rightBumper` | 0..1 | Bumpers (Shift, etc.) |
-| `leftTrigger/rightTrigger` | 0..1 | Triggers (Q/R on keyboard) |
-| `dpadUp/Down/Left/Right` | 0..1 | D-pad |
-
-## InputMapping
-
-A function `(pad, dt) => ControlInput` that maps gamepad state to entity-specific
-controls. Can be a closure with persistent state (e.g. throttle accumulator for aircraft).
-
-Built-in presets: `bipedMapping`, `carMapping`, `aircraftMapping()`.
-
-Each preset has a matching descriptor (e.g. `bipedMappingDescriptor`) that pairs
-the mapping function with human-readable labels for UI visualizers:
-
-```typescript
-bipedMappingDescriptor.labels
-// { leftStickY: 'move', buttonA: 'jump', leftBumper: 'sneak', rightTrigger: 'sprint / fire', ... }
-```
-
-## MappedInputProvider
-
-Bridges gamepad sources to the `InputProvider` interface. Merges multiple sources,
-runs through the active mapping, produces `ControlInput`.
-
-- `addSource(source)` / `removeSource(source)` — hot-swap input devices
-- `setMapping(mapping)` — switch mappings at runtime (e.g. entering a vehicle)
-- `pollRaw()` — get the merged `VirtualGamepad` before mapping (for visualizers)
+`InputMapping` that converts it to `ControlInput`. `inputFocus` and `b3dController`
+wire all of this for you; this page is for when you assemble it yourself.
 
 ## Demo
 
@@ -200,4 +142,161 @@ preview.append(div(
   opacity: 0.7;
   pointer-events: none;
 }
+```
+
+## How to wire up controls
+
+1. **Pick a mapping** — it translates gamepad buttons/sticks to game actions like
+   `move`, `jump`, `accelerate`. Use a built-in preset or write your own.
+2. **Create a `MappedInputProvider`** with your mapping and any input sources
+   (keyboard, hardware gamepad, touch overlay).
+3. **Assign it to your entity** — done.
+
+Every input source produces a standardized `VirtualGamepad`. The provider merges
+them all (max-abs for sticks, max for buttons) and runs your mapping. Plug in a
+gamepad mid-game, touch the SVG overlay, or enter XR — it all composes automatically.
+
+```typescript
+const provider = new MappedInputProvider(
+  bipedMapping,          // how gamepad maps to player actions
+  keyboardSource,        // WASD/Space/etc.
+  hardwareSource,        // any connected gamepad
+  touchSource,           // SVG touch overlay
+)
+entity.inputProvider = provider
+```
+
+## VirtualGamepad
+
+Two sticks + buttons, matching a standard controller layout:
+
+| Field | Range | Maps to |
+|-------|-------|---------|
+| `leftStickX/Y` | -1..1 | Primary movement (WASD on keyboard) |
+| `rightStickX/Y` | -1..1 | Secondary control (arrow keys on keyboard) |
+| `buttonA/B/X/Y` | 0..1 | Face buttons (Space, F, E, etc.) |
+| `leftBumper/rightBumper` | 0..1 | Bumpers (Shift, etc.) |
+| `leftTrigger/rightTrigger` | 0..1 | Triggers (Q/R on keyboard) |
+| `dpadUp/Down/Left/Right` | 0..1 | D-pad |
+
+## InputMapping
+
+A function `(pad, dt) => ControlInput` that maps gamepad state to entity-specific
+controls. Can be a closure with persistent state (e.g. throttle accumulator for aircraft).
+
+Built-in presets: `bipedMapping`, `carMapping`, `aircraftMapping()`.
+
+Each preset has a matching descriptor (e.g. `bipedMappingDescriptor`) that pairs
+the mapping function with human-readable labels for UI visualizers:
+
+```typescript
+bipedMappingDescriptor.labels
+// { leftStickY: 'move', buttonA: 'jump', leftBumper: 'sneak', rightTrigger: 'sprint / fire', ... }
+```
+
+## MappedInputProvider
+
+Bridges gamepad sources to the `InputProvider` interface. Merges multiple sources,
+runs through the active mapping, produces `ControlInput`.
+
+- `addSource(source)` / `removeSource(source)` — hot-swap input devices
+- `setMapping(mapping)` — switch mappings at runtime (e.g. entering a vehicle)
+- `pollRaw()` — get the merged `VirtualGamepad` before mapping (for visualizers)
+
+## Sources
+
+### Keyboard and mouse
+
+`KeyboardGamepadSource` (element creator `keyboardGamepad()`) turns keys and the
+mouse into a `VirtualGamepad`, with attack/decay smoothing so digital keys feel
+analog. It is an element: append it to the page (as the demo does) so it listens.
+
+| VirtualGamepad | Keys |
+|----------------|------|
+| leftStick Y | W (+) / S (-) |
+| leftStick X | D (+) / A (-) |
+| rightStick Y | ArrowUp (+) / ArrowDown (-) — LOOK, not zoom |
+| rightStick X | ArrowRight (+) / ArrowLeft (-) |
+| buttonA | Space |
+| buttonB | F |
+| buttonX | E |
+| leftBumper | ShiftLeft |
+| leftTrigger | Q |
+| rightTrigger | R |
+| buttonY | Y |
+| rightBumper | ShiftRight |
+| dpadUp/Down/Left/Right | I / M / J / K |
+
+The mouse wheel adjusts the ZOOM axis (d-pad up/down), not the look stick.
+
+### Hardware gamepad
+
+`new HardwareGamepadSource({ deadzone, gamepadIndex })` reads
+`navigator.getGamepads()` with the Standard Gamepad layout (axes 0-3, buttons 0-16).
+`deadzone` (default `0.15`) filters stick drift; `gamepadIndex` `-1` (default) takes
+the first connected pad.
+
+### XR controllers
+
+`new XrGamepadSource(xrControllers(xrHelper))` adapts the live XR controllers, so whatever a
+mapping does flat it does in VR, with no per-entity XR code. Standard
+`xr-standard-*` mappings (Quest / oculus-touch layout):
+
+| VirtualGamepad | XR component |
+| --- | --- |
+| `leftStickX/Y`, `rightStickX/Y` | `xr-standard-thumbstick` (Y inverted: up = +) |
+| `leftTrigger`, `rightTrigger` | `xr-standard-trigger` |
+| `leftBumper`, `rightBumper` | `xr-standard-squeeze` (grip) |
+| `buttonA`, `buttonB` | right `a-button`, `b-button` |
+| `buttonX`, `buttonY` | left `x-button`, `y-button` |
+
+### Touch
+
+`TouchGamepadSource` reads an on-screen SVG pad; see
+[touch-gamepad](/touch-gamepad/) and the [glass gamepad](/glass-gamepad/).
+
+## Drawing a pad
+
+`gamepadSvg(colors?)` draws the controller used in the demo. Its parts carry
+`data-part` attributes (not ids), so several can be on one page.
+
+```javascript
+import { gamepadSvg } from 'tosijs-3d'
+
+const pad = gamepadSvg() // default colours
+const dark = gamepadSvg({ controllerColor: '#333', widgetColor: '#888' })
+```
+
+| Colour | Default | Used by |
+|--------|---------|---------|
+| `strokeColor` | `#000000` | All stroked elements |
+| `strokeWidth` | `16` | All stroked elements |
+| `widgetColor` | `#ffffff` | Bumpers, triggers, dpad, sticks, menu, view |
+| `controllerColor` | `#aaaaaa` | Controller body |
+| `stickTravelColor` | `#505050` | Stick travel circles |
+| `fillA` | `#ff1d25` | A button (red) |
+| `fillB` | `#fcee22` | B button (yellow) |
+| `fillX` | `#8cc63f` | X button (green) |
+| `fillY` | `#3ea9f5` | Y button (blue) |
+
+## Keys and text fields
+
+The keyboard source listens on `window`, so you steer without clicking the canvas
+first. A page also has search boxes and forms, so every global key listener here
+first asks `isTextEntry(event)`: is the person typing into something? If so the key
+is left alone. It is a question asked of the event rather than a mode, so it
+cannot go stale and covers elements nobody planned for.
+
+What counts: `<input>` (except button-like ones such as checkboxes), `<textarea>`,
+`<select>`, anything `contenteditable`, and anything with a
+`textbox`/`searchbox`/`combobox` role. It checks `composedPath` first, so an input
+inside a shadow root is recognised.
+
+```javascript
+import { isTextEntry } from 'tosijs-3d'
+
+window.addEventListener('keydown', (event) => {
+  if (isTextEntry(event)) return // the person is typing
+  // ...your shortcut
+})
 ```

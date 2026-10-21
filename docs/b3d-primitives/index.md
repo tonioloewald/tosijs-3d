@@ -34,6 +34,7 @@ Position and rotation are the attributes every mesh element has: `x`, `y`,
 
 | Attribute | Default | |
 | --- | --- | --- |
+| `meshName` | `'box'` | The Babylon mesh's name (what `scene.getMeshByName` and naming suffixes such as `_nocast` see) |
 | `size` | `1` | Edge length of a cube |
 | `width` / `height` / `depth` | `0` | Set any of them to make it a slab or a post; `0` uses `size` |
 | `color` | `'#ff0000'` | |
@@ -45,12 +46,13 @@ Position and rotation are the attributes every mesh element has: `x`, `y`,
 ## `b3dSphere`
 
 The same, with `diameter` (`1`) and `segments` (`16`) in place of the box's
-dimensions.
+dimensions, and `meshName` defaulting to `'sphere'`.
 
 ## `b3dGround`
 
 | Attribute | Default | |
 | --- | --- | --- |
+| `meshName` | `'ground'` | The Babylon mesh's name (`'ground_nocast'` keeps it from casting shadows) |
 | `size` | `0` | A square of this side; overrides `width` and `height` |
 | `width` / `height` | `4` | |
 | `color` | `'#888888'` | |

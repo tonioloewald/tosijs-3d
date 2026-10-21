@@ -48,18 +48,16 @@ preview.append(scene)
 ## Angles are DEGREES
 
 `orbitCam` takes `alphaDeg`/`betaDeg`, per the framework rule: a bare angle name
-is already degrees, and radians appear only where the maths needs them (see
-CLAUDE.md → Angles). The pre-0.7.1 `alpha`/`beta` radian pair is still accepted
-and converted, so old snippets keep working.
+is already degrees, and radians appear only where the maths needs them. The
+radian `alpha`/`beta` pair is deprecated; it is still accepted and converted.
 
 ## Textures
 
-Helpers take a `texture` URL rather than exporting asset paths. The paths that
-used to be exported (`/tosi-test-pattern.svg`) resolve only on **this** site, so
-publishing them would have been a broken promise in your project. Pass your own,
-or omit it for a generated checker that needs no asset at all.
+Helpers take a `texture` URL rather than exporting asset paths: a path like
+`/tosi-warhol-testgrid.svg` resolves only on **this** site, not in your project.
+Pass your own, or omit it for a generated checker that needs no asset at all.
 */
-/*{ "parent": "core", "order": 100 }*/
+/*{ "parent": "tosi-b3d", "order": 100 }*/
 import { touchOrbit } from './touch-orbit.js';
 import * as BABYLON from '@babylonjs/core';
 import { b3dSun, b3dSkybox, b3dLight, b3dGround, b3dFog, b3dLibrary, b3dDeath, inputFocus, gameController, } from './index.js';

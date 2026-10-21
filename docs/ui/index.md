@@ -8,26 +8,6 @@ choice is what lets the same object be a flat overlay, a texture on a panel in
 the scene, and something you poke with a controller in a headset — without a
 second implementation, and so without the two drifting apart.
 
-The pieces, roughly outermost first:
-
-- **[widgets3d](/widgets3d/)** — the controls (`panel3d`, `slider3d`, `toggle3d`,
-  `select3d`, `button3d`, `list3d`, `row3d`, `label3d`) and the `Widget3d`
-  contract they all satisfy.
-- **[box](/box/)** and **[surface](/surface/)** — the containers. A box wraps,
-  scrolls and traverses; a surface adds an overlay layer for menus and panels.
-- **[popup-surface](/popup-surface/)** — a popup is *another surface*, on its own
-  plane. Depth replaces z-index, and tearing one off is re-parenting rather than
-  new machinery.
-- **Editors** — [vector-field](/vector-field/) (a coordinate on one row),
-  [curve-field](/curve-field/) and [footprint-field](/footprint-field/) (author a
-  terrain province), [icon-grid](/icon-grid/) (segmented select, tool palette and
-  mode picker in one), [keyboard](/keyboard/), [table](/table/).
-- **[w3d-theme](/w3d-theme/)** — the tokens everything reads, and
-  [theme-editor](/theme-editor/) to push them around live.
-
-Below the fold: the pure models and support modules — geometry, layout maths,
-text editing — which have no demos because they have no pixels.
-
 ## Kitchen sink
 
 Every family at once, flat and on a plane, bound to the same state. Type in the
@@ -128,6 +108,40 @@ panel.useDomLayer(flatHost)
   height: 100%;
 }
 ```
+
+## The pieces
+
+The pieces, roughly outermost first:
+
+- **[widgets3d](/widgets3d/)** — the controls (`panel3d`, `slider3d`, `toggle3d`,
+  `select3d`, `button3d`, `list3d`, `row3d`, `label3d`) and the `Widget3d`
+  contract they all satisfy.
+- **[box](/box/)** and **[surface](/surface/)** — the containers. A box wraps,
+  scrolls and traverses; a surface adds an overlay layer for menus and panels.
+- **[popup-surface](/popup-surface/)** — a popup is *another surface*, on its own
+  plane. Depth replaces z-index, and tearing one off is re-parenting rather than
+  new machinery.
+- **Editors** — [vector-field](/vector-field/) (a coordinate on one row),
+  [curve-field](/curve-field/) and [footprint-field](/footprint-field/) (author a
+  terrain province), [icon-grid](/icon-grid/) (segmented select, tool palette and
+  mode picker in one), [keyboard](/keyboard/), [table](/table/).
+- **[w3d-theme](/w3d-theme/)** — the tokens everything reads, and
+  [theme-editor](/theme-editor/) to push them around live.
+
+The pure models underneath (layout maths, key layouts, text editing) are
+documented on the page that uses them.
+
+## Callbacks are named `handleX`
+
+Every callback option in the UI is `handleX`: `handleChange`, `handleSelect`,
+`handleActivate`, `handleClick`, `handleClose`, `handleKey`. The `onX` spelling is
+not read, and passing one logs a warning once per name, naming the replacement. The
+reason is the element creator: on a tosijs component it binds any `on*` prop as a DOM
+event listener, so an `onChange` callback would never be called and nothing would
+say so. `handleX` cannot be mistaken for an event name, and it works the same on every
+widget. Components take `whenX` (`whenDestroyed`) or a verb (`drive`) for the same
+reason. A widget of your own reads its callbacks the same way:
+`handlerOf(config, 'handleChange', 'onChange')?.(value)`.
 
 <!-- toc -->
 - [widgets3d](/widgets3d/)

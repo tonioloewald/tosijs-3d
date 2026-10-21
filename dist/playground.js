@@ -9,24 +9,9 @@ ordinary scene children, so it composes into any demo rather than being one.
 import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, inputFocus, playground, ualAnimationStates } from 'tosijs-3d'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
-// WHERE IT RIDES ON HIM, and all three numbers were wrong.
-//
-// NEGATIVE x is his right: facing -Z with +Y up, a character's right hand is
-// at -X, so the positive value hung it off his LEFT shoulder — "is the gun a
-// big rectangular block stuck to my left shoulder?"
-//
-// And z: 0.15 was worse than it looks. The placeholder is 0.9 long, so it
-// straddled him — 0.6 ahead and 0.3 THROUGH his hip and out the back — which
-// is most of what made it read as a slab rather than as something held. At 0.5
-// the whole length is in front of him.
-//
-// It is still the launcher's placeholder box. A weapon that reads as a weapon
-// needs a model on a hand socket rather than an offset from the root; that work
-// is already on the list, and this is the best a fixed offset can do.
-//
-// (Line comments, not a block. A block comment inside a fence closes the
-// enclosing /*# doc comment — b3d-crowd.ts has learned this three times.)
 // A REAL PISTOL, from Kenney's weapon pack — 37 of them are already on the CDN.
+// (Line comments in this demo: a block comment inside a fence would close the
+// enclosing doc comment.)
 const weapons = b3dLibrary({
   url: assetUrl('kenney/libraries/weapon-pack.glb'),
   type: 'weapons',
@@ -37,26 +22,19 @@ const weapons = b3dLibrary({
 // as props with a bottom-centre origin, which is right for one lying on a table
 // and wrong for one in a fist.
 //
-// This is `hand_r` in the Pistol_Idle_Loop stance, read off the rig. It is still
-// ONE offset, so it is right in the ready stance and approximate elsewhere —
-// that is what a hand socket fixes.
-//
 // A PISTOL, and that is a constraint rather than a preference: the UAL set has
 // Pistol_* and Bow_* and nothing else ranged, so a shotgun or sniper would be
 // fired with one-handed animations. See `ualAnimationStates`.
 const gun = b3dLauncher({
   library: 'weapons', meshName: 'pistol',
   // IN HIS HAND — `socket` parents the weapon to the hand BONE, so it follows
-  // the animation instead of hanging off the character's root at a fixed
-  // offset. That is what "it kind of drifts relative to the hand" was: no
-  // constant offset can track a moving hand.
+  // the animation. No constant offset from the root can track a moving hand.
   //
   // With a socket, x/y/z are relative to the JOINT, and `grip: 'auto'` puts the
-  // weapon's handle exactly there — so the numbers are all zero and there is
-  // nothing left to hand-tune.
+  // weapon's handle there, so the numbers are small.
   socket: 'right-hand',
-  // DIALLED IN WITH THE GIZMO, not computed. See the note below on why these
-  // are not multiples of 90.
+  // DIALLED IN WITH THE GIZMO, not computed. The Weapon Fit demo explains why
+  // these are not multiples of 90.
   x: -0.04, y: 0.051, z: -0.059,
   rx: -105, ry: -15, rz: -165,
   modelScale: 0.86,
@@ -72,9 +50,8 @@ const gun = b3dLauncher({
 // is, and the 0.9m "mantle" crate is over his head — so the playground could
 // not demonstrate the one thing it was built to demonstrate.
 //
-// The wider clip set is the bonus: `Jog_Bwd_Loop` and the `Crouch_*` clips
-// retire two fakes (backwards was the walk cycle reversed, sneak had no crouch
-// to hold). See CLAUDE.md → "Scale: a person is 1.8 m".
+// The wider clip set is the bonus: `Jog_Bwd_Loop` and the `Crouch_*` clips give
+// a real backwards jog and a crouch to sneak in.
 const hero = b3dBiped(
   {
     url: assetUrl('quaternius/UAL1_core.glb', 2),
@@ -114,16 +91,13 @@ preview.append(
   b3d(
     {
       style: 'width:100%;height:100%',
-      // The glass pad shows only what this demo USES — and these are control
-      // names, not a mapping name: `gamepad: 'biped'` named nothing, parsed to
-      // nothing, and drew nothing. Move, aim, shoot, jump, sneak, sprint.
-      // Everything this demo uses, and nothing else. `A` raises and lowers the
-      // weapon, `Y` switches first/third person — leaving either off meant a
-      // feature that existed, was wired, and could not be reached.
+      // The glass pad shows only what this demo USES. These are control names,
+      // not a mapping name (`gamepad: 'biped'` names nothing and draws nothing).
+      // Move, aim, shoot, jump, sneak, sprint; `Y` switches first/third person.
       gamepad:
         'left_stick,right_stick,A,B,X,Y,right_bumper,left_bumper,left_trigger,right_trigger',
-      // NOT armed on load any more — "the character is aiming all the time".
-      // Right bumper (or the on-screen RB) raises and lowers the weapon.
+      // Not armed on load. Right bumper (or the on-screen RB) raises and lowers
+      // the weapon.
     },
     weapons,
     ...playground(),
@@ -146,8 +120,7 @@ dot in the middle of the screen. You cannot sprint with the gun up, which is why
 the trigger is free to do both jobs.
 
 **WASD** moves, **arrow keys** look, **space** jumps, **left shift** sneaks,
-**E** interacts, **Y** switches between third and first person. (Read off
-`game-controller` and `bipedMapping` rather than remembered.)
+**E** interacts, **Y** switches between third and first person.
 
 Things to try: put the pistol in the bag and try to raise it (nothing to raise), drag it back into your hand (it comes up); swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
 and watch the ring disappear behind it until you stand; walk the cover line and
@@ -165,9 +138,8 @@ b3d(
 )
 ```
 
-Tonio asked for it while the cover and shooting work was landing, and that is
-what it is for: every piece in here exists to exercise something the biped can
-do, and the arrangement is a test you walk around in rather than one you read.
+Every piece in here exists to exercise something the biped can do, and the
+arrangement is a test you walk around in rather than one you read.
 
 ## What each part is there to prove
 
@@ -187,10 +159,8 @@ do, and the arrangement is a test you walk around in rather than one you read.
 No `sceneCreated` hook, no `el.make` calls, no imperative build step — the
 playground is a list of scene children, which means a caller can splice it,
 override a piece, or take half of it. It also means the whole arena is already
-in the shape a data format would want, which is the direction
-[`tosijs-3d-ensemble`](https://github.com/tonioloewald/tosijs-3d-ensemble) is
-going: when a demo can say *"the standard arena, plus the thing I am showing
-you"* as one line of JSON, this is what that JSON will describe.
+in the shape a data format would want: *"the standard arena, plus the thing I am
+showing you"* can be one line of data.
 
 */
 /*{ "parent": "demos", "order": 10 }*/

@@ -355,24 +355,28 @@ or implement your own shape-specific point-in-polygon tests.
 | `updateInterval` | `30` | Re-render interval in ms (dynamic mode) |
 | `materialChannel` | `'emissive'` | `'emissive'` (unlit) or `'diffuse'` (lit) |
 | `cameraRelative` | `false` | Parent plane to active camera (HUD mode) |
+| `placement` | `'camera'` | With `cameraRelative`: `'camera'` keeps it on the camera; `'world'` puts it at a real spot in clear view and eases it back in front of you after a couple of seconds out of sight (right for a modal dialog, see [frame-panel](?frame-panel.ts)) |
+| `castShadow` | `false` | Cast shadows onto the scene |
+| `receiveShadows` | `false` | Take the world's shading. Off, a panel reads the same whatever passes in front of the sun; turn it on for UI that IS in the world, like a cockpit instrument |
 | `pointerEvents` | `'on'` | Map 3D pick hits → SVG pointer events |
 | `doubleSided` | `'on'` | Render both faces |
-| `cornerRadius` | `0` | Corner radius in WORLD units. `0` = a plain rectangle. Rounds the MESH, so corners cost triangles instead of alpha — see **Opaque panels** below |
+| `cornerRadius` | `0` | Corner radius in WORLD units. `0` = a plain rectangle. Rounds the MESH, so corners cost triangles instead of alpha — see **Keeping panels in order** below |
 | `transparent` | `'on'` | `'off'` drops the opacity texture so the plane writes depth. Pair with `cornerRadius`. `'depth'` blends and writes depth (transparent pixels discarded): ordered by the z-buffer like an opaque panel, and a translucent theme still shows through |
 | `layer` | `'world'` | `'ui'` / `'modal'`: drawn over the whole world in a layer of its own and picked first (`modal` over `ui`). A popup takes its opener's layer |
 | `xrFrame` | `''` | In a headset with `cameraRelative`, parent to this XR reference frame instead of the head camera. `'body'` (torso, damped yaw) keeps a panel in front of you without jittering on every head movement; leave unset for a HUD that should stay head-locked |
 
-## Opaque panels
+## Keeping panels in order
 
-`cornerRadius` + `transparent="off"` is the combination that stops panels
-flickering against each other, and it is worth knowing why the two go together.
+A blended mesh is not depth-written, so near-coplanar panels can swap order
+as you move. Two ways keep them ordered by the z-buffer:
 
-A transparent mesh is **not depth-written**, so Babylon re-sorts it every frame
-by distance — and two near-coplanar panels swap order as you move, which reads
-as z-fighting that no amount of nudging fixes. Rounding the corners as GEOMETRY
-(three quads plus four corner fans, see [[rounded-rect]]) means the panel needs
-no alpha at all, so it can be opaque, write depth, and be ordered by the
-z-buffer like everything else.
+- `transparent="depth"` blends and still writes depth (the empty corners are
+  discarded). The SVG keeps its own rounded corners and a translucent theme
+  shows through. Popups use it.
+- `cornerRadius` + `transparent="off"` cuts the corners as geometry and draws
+  the plane opaque, for a panel that should not be see-through.
+
+More on [frame-panel → Translucent, and still in order](/frame-panel/).
 
 `doubleSided` is honoured on the rounded path: the geometry is generated
 single-sided and `backFaceCulling` follows the attribute, so `'off'` shows the

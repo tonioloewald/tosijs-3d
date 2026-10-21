@@ -26,19 +26,13 @@ library's contents WITHOUT loading it into a scene. It is also how `size` is
 obtained until the builder writes it per node (today it lives only in the scene
 index, where Babylon cannot reach it).
 
-Recorded because the discovery went the wrong way round first: I found
-`scenes[0].extras.library`, confirmed Babylon dropped it, and wrote a parser —
-before checking the nodes, which had carried the same data all along. The
-container format was the last place to look, not the first.
-
 ## Why the catalogue lives INSIDE the artifact
 
 Deliberate, and a policy rather than a convenience. cdn.tosijs.net vends only
 explicitly curated files: no sidecar manifests, no index, no directory listings.
-Tonio: _"making all this cheaply discoverable would facilitate piracy and it's
-not my content."_ Most of it is Kenney and Quaternius work, some of it paid — a
-curated library is a use of the licence, a machine-readable catalogue of
-everything is a mirror.
+Most of it is Kenney and Quaternius work, some of it paid, and making it cheaply
+discoverable would facilitate piracy: a curated library is a use of the licence,
+a machine-readable catalogue of everything is a mirror.
 
 Metadata carried inside the GLB respects that line exactly: it helps whoever
 already holds the artifact and publishes nothing to anyone who does not. That is

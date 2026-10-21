@@ -2,15 +2,14 @@
 # Footprint editor
 
 **`footprint3d` — edit a province's footprint as the shape it is.** A polygon
-drawn inside a square, vertices you drag where they actually are. The rules live
-in [[curve|curve.ts]]; this is the view.
+drawn inside a square, vertices you drag where they actually are. The rules are the curve model's
+(see [[curve-field|curve3d]]); this is the view.
 
 ## Why not the curve view
 
 A footprint *can* be edited as extent-against-angle on a graph, and it is
 miserable: a hexagon looks like a wave, and moving a corner means finding which
-bump is that corner. Tonio: _"the footprint would work MUCH better as a radial
-editor. A hexagon would just be a hexagon."_
+bump is that corner. As a radial editor, a hexagon is just a hexagon.
 
 The square is the province's bounds, so the picture answers "how much of my
 extent am I using, and in which directions" without being read.
@@ -18,7 +17,7 @@ extent am I using, and in which directions" without being read.
 ## Six numbers for a hexagon
 
 The polygon **is** its vertices — no sampling. That works because
-[[curve|polygonExtent]] casts a ray at the real straight edge instead of
+`polygonExtent` casts a ray at the real straight edge instead of
 interpolating radius against angle, which bows every edge inward. A circle is
 therefore the expensive shape: there is no finite polygon that is one, so it is a
 16-gon, indistinguishable at province scale for sixteen numbers.

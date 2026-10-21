@@ -1,4 +1,4 @@
-/*#
+/*
 # dialog-placement
 
 **Where a modal dialog goes, when it should follow you, and which way a panel
@@ -30,7 +30,6 @@ unpleasant.
 **Eased, never snapped.** A dialog that teleports reads as a glitch; one that
 moves reads as deliberate.
 */
-/*{ "parent": "b3d-panel", "order": 40 }*/
 const sub = (a, b) => ({
     x: a.x - b.x,
     y: a.y - b.y,

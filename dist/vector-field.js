@@ -6,36 +6,6 @@ orientation in degrees. Both are [[widgets3d|Widget3d]]s, so they drop into a
 `panel3d` beside a slider or a button and work identically flat, in-scene and in
 VR.
 
-## Why this exists
-
-Three stacked labelled fields is the obvious way to edit a coordinate and it is
-the reason an inspector panel ends up three times taller than it needs to be.
-Tonio, on the adopter that prompted it: ensemble's UI is "an utter mess right now
-because simple things like XYZ coords take up huge amounts of space".
-
-A coordinate is **one value**, not three, and it should occupy one row. That is
-also why the axis letter is drawn *inside* the row rather than as its own label
-column — a column of `x:` `y:` `z:` labels costs more width than the numbers do,
-and every 3D tool worth using puts the letter against the field.
-
-## Degrees, and why `euler3d` is a separate function
-
-`euler3d` is `vector3d` with the angle rules applied, not a styling variant: it
-**wraps** (181° is −179°, and dragging through the bottom of a turn should not
-stop), and it is **degrees**, which per CLAUDE.md's suffix rule means the bare
-`value` is already degrees and no conversion is implied.
-
-Wrapping is the whole difference and it is not a detail — a wrapping value with a
-`min`/`max` clamp fights you at exactly the angles you most want to scrub
-through.
-
-## Focus and typing
-
-The fields are exposed as `fields` so a
-[[keyboard|fieldGroup]] can wire focus traversal and an on-screen keyboard across
-a whole panel. A vector row is three tab stops, not one, because that is what it
-is to a person filling it in.
-
 ## Demo
 
 ```js
@@ -96,6 +66,34 @@ preview.append(
 > Drag any number left or right to scrub it. It is one control on one row, so a
 > coordinate stays a coordinate rather than three fields that happen to sit near
 > each other — and the 3D pane is the same widget, not a picture of it.
+
+## Why this exists
+
+Three stacked labelled fields is the obvious way to edit a coordinate, and it is
+the reason an inspector panel ends up three times taller than it needs to be.
+
+A coordinate is **one value**, not three, and it should occupy one row. That is
+also why the axis letter is drawn *inside* the row rather than as its own label
+column — a column of `x:` `y:` `z:` labels costs more width than the numbers do,
+and every 3D tool worth using puts the letter against the field.
+
+## Degrees, and why `euler3d` is a separate function
+
+`euler3d` is `vector3d` with the angle rules applied, not a styling variant: it
+**wraps** (181° is −179°, and dragging through the bottom of a turn should not
+stop), and it is **degrees**. The library's rule is that an angle with no `Deg`
+sibling is already degrees, so the bare `value` needs no conversion.
+
+Wrapping is the whole difference and it is not a detail — a wrapping value with a
+`min`/`max` clamp fights you at exactly the angles you most want to scrub
+through.
+
+## Focus and typing
+
+The fields are exposed as `fields` so a
+[[keyboard|fieldGroup]] can wire focus traversal and an on-screen keyboard across
+a whole panel. A vector row is three tab stops, not one, because that is what it
+is to a person filling it in.
 */
 /*{ "parent": "ui-controls", "order": 10 }*/
 import { svgElements } from 'tosijs';

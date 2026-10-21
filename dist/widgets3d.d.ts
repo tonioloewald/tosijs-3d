@@ -421,8 +421,8 @@ export declare function label3d(config: {
  * A wrapped, multi-line text block — the honest way to render prose in an SVG
  * panel (NPC dialogue, a paragraph of help). Lines are broken by real glyph
  * measurement (`measureTextWrap`), so they neither clip nor waste space, and
- * explicit `\n`s are respected. See [[widgets3d-layout]] for the wrapping model
- * and its limits (whitespace breaks only; no bidi).
+ * explicit `\n`s are respected. The wrapping model is in `widgets3d-layout.ts`,
+ * with its limits (whitespace breaks only; no bidi).
  */
 export declare function text3d(config: {
     text: string;

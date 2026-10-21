@@ -61,7 +61,7 @@ export declare class DestroyableBehavior {
     whenDestroyed?: (info: {
         id: string;
         position: BABYLON.Vector3;
-        /** Who killed it and through what chain — see [[destroyable|Cause]]. */
+        /** Who killed it and through what chain — see `Cause` in `destroyable.ts`. */
         cause?: Cause;
     }) => void;
     private _dead;

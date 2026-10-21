@@ -8,8 +8,75 @@ temperature, moisture, altitude and slope axes the terrain's biome shader
 paints with), so the pines stand where the ground is cold forest, and the
 palms at a warm shoreline.
 
-```javascript
-b3dDecorator({ budget: 5000, radius: 900 })
+## Demo
+
+A temperate valley in autumn. Open the settings panel (the owl): `season`
+runs the year, and the leaves turn and fall bare while the pines stay green;
+`clump` goes from an even spread to copses with open ground between them.
+
+```js
+import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dDecorator, slider3d } from 'tosijs-3d'
+import { tosi } from 'tosijs'
+
+const { decoratorDemo: s } = tosi({
+  decoratorDemo: { season: 0.5, clump: 0.95 },
+})
+
+const terrain = b3dTerrain({
+  seed: 7,
+  biome: 'on',
+  surfaceType: 'cylinder',
+  radius: 1000,
+  cylinderHeight: 1000,
+  tileSize: 128,
+  lodLevels: 3,
+  reach: 3000,
+  grossScale: 0.01,
+  detailScale: 0.09,
+  horizScale: 3.31,
+  grossAmplitude: 60,
+  detailAmplitude: 10,
+  biomeLapseRate: 0.15 / 60,
+  biomeTemperature: 0.3,
+  biomeMoisture: 0.85,
+  biomeSeason: s.season,
+  biomeSeasonality: 0.2,
+})
+
+preview.append(
+  b3d(
+    {
+      sceneCreated(el, BABYLON) {
+        const cam = new BABYLON.FreeCamera('c', new BABYLON.Vector3(0, 60, 0), el.scene)
+        cam.setTarget(new BABYLON.Vector3(300, 20, 300))
+        cam.maxZ = 20000
+        cam.attachControl(el.parts.canvas, true)
+        el.setActiveCamera(cam)
+        // Stand on the ground once the terrain can say how high it is.
+        let placed = false
+        el.scene.onBeforeRenderObservable.add(() => {
+          const h = terrain.heightSampler?.()
+          if (placed || !h) return
+          placed = true
+          cam.position.y = h(0, 0) + 12
+        })
+      },
+      panelTitle: 'Decorator',
+      scenePanel: () => [
+        slider3d({ label: 'season', value: s.season, min: 0, max: 1, step: 0.01 }),
+        slider3d({ label: 'clump', value: s.clump, min: 0, max: 1, step: 0.05 }),
+      ],
+    },
+    b3dSun({}),
+    b3dSkybox({ timeOfDay: 15, realtimeScale: 0 }),
+    terrain,
+    b3dDecorator({ budget: 4000, radius: 900, clump: s.clump }),
+  )
+)
+```
+```css
+.preview { height: 100%; }
+tosi-b3d { width: 100%; height: 100%; }
 ```
 
 ## What it places, and why it matches the ground
@@ -67,6 +134,26 @@ nearest placements within `colliderRange`. A fixed cost however big the
 budget, and it exists exactly where something can bump into it. They collide
 the way everything here does (`checkCollisions` + `moveWithCollisions`), so a
 biped stops at a trunk and can stand on a boulder.
+
+## The same climate as the ground
+
+The broad noise that makes one region wetter or warmer than the next has to
+give the same answer in the ground shader and in the decorator's code, or the
+forest would stand where the ground is not drawn green. A shader's hashed noise
+cannot be reproduced on the CPU (it depends on how each GPU rounds `sin`), so
+the climate noise is a small grid of seeded random bytes: the shader reads it
+as a texture, with the fraction eased and the linear filter doing the blend,
+and `climateNoise` does the same sum in code.
+
+```javascript
+import { climateLattice, climateNoise } from 'tosijs-3d'
+
+const lattice = climateLattice()
+const wetter = climateNoise(lattice, x * 0.001, z * 0.001) // about -1…1
+```
+
+The grid is 256 cells a side and wraps, so at one cell a kilometre the pattern
+repeats every 256 km.
 
 ## Attributes
 

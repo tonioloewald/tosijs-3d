@@ -5,42 +5,6 @@
 strip, optional alpha strip, and a swatch — all SVG, so it works as a flat DOM
 overlay and on a panel in an immersive session without changing.
 
-## Why this had to be built
-
-It was the one control the SVG UI did not have, and the only two ways to pick a
-colour were both DOM: `<input type="color">` (which cannot express alpha) or a
-consumer injecting one, which is what [[theme-editor]] does with tosijs-ui's.
-Neither exists inside a headset. So the theme editor — the thing whose whole
-subject is colour — had no colour control in the presentation this library
-exists to serve.
-
-`lightEditor3d` is not a counter-example: it offers hue and saturation and
-deliberately no value, because a light's value IS its intensity. That is a fact
-about lights, not a colour picker.
-
-## Layout
-
-```
-┌───────────────┬─┬─┐   square: saturation → x, value → y
-│               │ │ │   strip 1: hue
-│    S × V      │H│A│   strip 2: alpha (optional)
-│               │ │ │
-└───────────────┴─┴─┘
-  #rrggbbaa  ◧            swatch, over a chequerboard when translucent
-```
-
-## Notes that cost something to learn
-
-**Hue survives a trip to grey.** Drag value to zero and the colour is black, and
-black has no hue — so a naive round trip through RGB loses where the hue handle
-was and springs it back to red. The widget keeps H, S and V as its own state and
-converts only on the way out. Same reason `curve3d` holds points rather than
-re-deriving them from a rendered path.
-
-**A translucent swatch needs something behind it.** A colour at alpha 0.1 over
-the panel background looks like the panel background, so the swatch sits on a
-chequerboard — the one piece of skeuomorphism nobody has improved on.
-
 ## Demo
 
 Change the colour and watch the light take it. The picker drives a real lamp,
@@ -84,7 +48,7 @@ const scene = b3d(
       el.register({ meshes: [floor, ...props] })
       // `orbitCam`, not `scene.activeCamera.setPosition` — there is no active
       // camera yet at sceneCreated, so that throws.
-      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 10, target: [0, 1, 0] })
+      orbitCam(el, { alphaDeg: -90, betaDeg: 60, radius: 10, target: [0, 1, 0] })
     },
   },
   b3dLight({ intensity: 0.08 })
@@ -104,6 +68,39 @@ preview.append(
 ```css
 .preview { height: 100%; }
 ```
+
+## Why it exists
+
+The DOM ways to pick a colour are `<input type="color">` (which cannot express
+alpha) or an injected control such as tosijs-ui's `colorInput`, which is what
+[[theme-editor]] takes. Neither exists inside a headset. This one does.
+
+`lightEditor3d` is not a counter-example: it offers hue and saturation and
+deliberately no value, because a light's value IS its intensity. That is a fact
+about lights, not a colour picker.
+
+## Layout
+
+```
+┌───────────────┬─┬─┐   square: saturation → x, value → y
+│               │ │ │   strip 1: hue
+│    S × V      │H│A│   strip 2: alpha (optional)
+│               │ │ │
+└───────────────┴─┴─┘
+  #rrggbbaa  ◧            swatch, over a chequerboard when translucent
+```
+
+## Notes
+
+**Hue survives a trip to grey.** Drag value to zero and the colour is black, and
+black has no hue — so a naive round trip through RGB loses where the hue handle
+was and springs it back to red. The widget keeps H, S and V as its own state and
+converts only on the way out. Same reason `curve3d` holds points rather than
+re-deriving them from a rendered path.
+
+**A translucent swatch needs something behind it.** A colour at alpha 0.1 over
+the panel background looks like the panel background, so the swatch sits on a
+chequerboard — the one piece of skeuomorphism nobody has improved on.
 */
 /*{ "parent": "ui-controls", "order": 60 }*/
 import { svgElements } from 'tosijs';

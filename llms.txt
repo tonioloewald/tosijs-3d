@@ -1,4 +1,4 @@
-# tosijs-3d v0.11.0
+# tosijs-3d v0.11.1
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -67,6 +67,7 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Linked, not automatic: a gas giant in a moon's sky, or every body of a star system, must not become the ground you st...
 - https://3d.tosijs.net/v0.11.0/ — 0.11.0
   Library: `retarget` reads which bone is which across UE, Mixamo, Kenney and
+- https://3d.tosijs.net/v0.11.1/ — 0.11.1
 - https://3d.tosijs.net/v0.5.0/ — 0.5.0
   `@babylonjs/loaders`, `@babylonjs/materials` moved `^8` → `^9`. **Consumers must
 - https://3d.tosijs.net/v0.5.1/ — 0.5.1

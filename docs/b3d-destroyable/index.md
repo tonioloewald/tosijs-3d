@@ -1,10 +1,11 @@
 # b3d-destroyable
 
-A thing that can take damage and be destroyed — the scene-side bridge to the pure
-`CombatWorld` (see `destroyable.ts` / COMBAT-DESIGN.md). Drop it into a `<tosi-b3d>`
-and it registers a Destroyable in the scene's combat world, drives a placeholder
-cube mesh (real meshes/GLB later), and runs its death outcome when killed — whether
-by a direct hit or a chain reaction resolved in the combat tick.
+A thing that can take damage and be destroyed: the scene-side bridge to the pure
+combat model (see The combat model, below). Drop it into a
+`<tosi-b3d>` and it registers a destroyable in the scene's combat world, draws a
+placeholder cube (or instantiates `meshName` from a `library`), and runs its death
+outcome when killed, whether by a direct hit or a chain reaction resolved in the
+combat tick.
 
 ## Demo
 
@@ -29,7 +30,7 @@ for (let i = 0; i < 6; i++) {
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3.2, radius: 15, target: [0, 0.5, -0.5] })
+      orbitCam(el, { alphaDeg: -90, betaDeg: 56.2, radius: 15, target: [0, 0.5, -0.5] })
       // click a cube → damage it
       el.scene.onPointerDown = (_evt, pick) => {
         if (!pick.hit || !pick.pickedMesh) return
@@ -105,7 +106,7 @@ for (let i = 0; i < 48; i++) {
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 18, target: [0, 0.5, 0] })
+      orbitCam(el, { alphaDeg: -90, betaDeg: 60, radius: 18, target: [0, 0.5, 0] })
       el.scene.onPointerDown = (_evt, pick) => {
         if (!pick.hit || !pick.pickedMesh) return
         const t = drums.find((d) => d.mesh === pick.pickedMesh)
@@ -130,12 +131,41 @@ It participates in the **floating origin**: because `AbstractMesh` treats the
 (NOT `registerWorldRoot`, which would leave the attributes stale so a later render
 would un-shift the mesh).
 
-Attributes: `capacity`, `armor`, `regenRate`, `regenDelay`, `protectedBy`,
-`protection`, the death-outcome knobs (`explode`/`explodeForce`, `deathBlast` +
-`blastDamage`/`blastFullRadius`/`blastRadius`/`blastDelay`), plus `size`/`color` for
-the placeholder cube and the usual `x/y/z`/`meshName`. Set `.chain` (a `ChainLink[]`)
-in code for direct-transfer chain reactions, or `whenDestroyed` for a death hook. Call
-`.damage(n)` to hurt it (a warhead will do this on contact).
+## Attributes
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `capacity` | `10` | Hit points |
+| `armor` | `0` | Flat damage shrugged off every hit |
+| `regenRate` | `0` | Health regained per second (0 = none) |
+| `regenDelay` | `0.5` | Seconds without damage before regeneration resumes |
+| `protectedBy` | `''` | Combat id of a protector (a shield generator) |
+| `protection` | `0` | Flat reduction while the protector stands |
+| `meshName` | `'target'` | Mesh name, and the library mesh to instantiate when `library` is set |
+| `library` | `''` | Instantiate `meshName` from this `<tosi-b3d-library type>` instead of the cube |
+| `destroyable` | `'on'` | `'off'` places the mesh without enrolling it in combat (scenery) |
+| `size` | `1` | Placeholder cube edge length (ignored with `library`) |
+| `scale` | `1` | Uniform scale of a library piece |
+| `stretch` | `''` | Per-axis stretch of a library piece, times `scale`: `"2 1 3"` (x y z, model frame) |
+| `color` | `'#cc3333'` | Placeholder cube colour |
+| `explode` | `'off'` | Shatter the mesh on death |
+| `explodeForce` | `6` | Outward fragment force |
+| `deathBlast` | `'off'` | Detonate an AOE warhead on death |
+| `blastDamage` | `20` | Death blast full damage |
+| `blastFullRadius` | `1` | Death blast full-damage radius |
+| `blastRadius` | `4` | Death blast falloff radius |
+| `blastDelay` | `0.1` | Seconds after death before the blast fires |
+| `remains` | `''` | Prefab name spawned at the death pose |
+| `sound` | `''` | Positional death sound URL |
+| `soundVolume` | `1` | Death sound volume |
+
+Set `.chain` (a `ChainLink[]`, or `setChain()` after mount) in code for
+direct-transfer chain reactions, or `whenDestroyed` for a death hook. Call
+`.damage(n)` to hurt it (a warhead does this on contact).
+
+To make a GLB, a biped or a vehicle take damage without this cube, attach a
+[destroyable-behavior](/destroyable-behavior/). `b3d-loader` and `b3d-aircraft`
+already do.
 
 ## Attribution — who killed this, through what chain
 
@@ -154,10 +184,54 @@ target.whenDestroyed = ({ id, cause }) => {
 ```
 
 `<tosi-b3d-warhead by="player">` credits everything its blast destroys, however
-many hops away. Requested by manta-recon (#8) for a mission layer that resolves
-to a **ledger of world facts** rather than a score — and a fact without
-causality drives no consequence.
+many hops away. That is what a mission layer needs to resolve to a **ledger of
+world facts** rather than a score: a fact without causality drives no
+consequence.
 
 ⚠️ **There is no friendly-fire exemption anywhere in this engine**, so `by` can
 perfectly well name something the blast then destroys. That is the truth of what
 happened, and the ledger should say so.
+
+## The combat model
+
+Underneath, damage is plain state. A `CombatWorld` holds destroyables by id and
+resolves damage, armour, protection, regeneration and chain reactions. It imports
+no 3D engine: a scene is a view of it, and the same world replays the same way
+from the same inputs. Each `<tosi-b3d>` owns one (`b3d.combat`).
+
+```javascript
+import { CombatWorld } from 'tosijs-3d/destroyable'
+
+const world = new CombatWorld()
+world.add('shield', { capacity: 50, regenRate: 5, regenDelay: 3 })
+world.add('reactor', {
+  capacity: 100,
+  armor: 2, // taken off every hit
+  protectedBy: 'shield', // while the shield stands...
+  protection: 10, // ...this much more is taken off
+  chain: [{ target: 'hull', amount: 80 }], // what its death does
+})
+world.add('hull', { capacity: 200 })
+
+world.applyDamage('reactor', 30) // 30 - 2 armour - 10 protection: 18 gets through
+const events = world.tick(1 / 60) // regeneration, and chain reactions that are due
+```
+
+### Resources
+
+Health is a **resource**: a pool that drains and refills, but only once it has
+been left alone for `regenDelay` seconds. A [launcher](/b3d-launcher/)'s ammunition
+and energy are the same mechanic.
+
+```javascript
+import { makeResource, drain, regenTick, fraction } from 'tosijs-3d/resource'
+
+const energy = makeResource({ max: 100, regenRate: 10, regenDelay: 2 })
+drain(energy, 30) // now 70. Returns the overkill: what could not be taken (0 here)
+regenTick(energy, 1) // nothing yet: still inside the delay
+regenTick(energy, 1.5) // the delay has passed: 75
+fraction(energy) // 0.75, for a meter
+```
+
+Also `refill`, `isEmpty` and `isFull`. Time only moves through `regenTick`, so it
+is deterministic.

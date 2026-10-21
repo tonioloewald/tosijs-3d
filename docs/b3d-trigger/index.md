@@ -8,9 +8,9 @@ triggers.
 Set `whenEnter` and `whenExit` callback properties from JavaScript, or listen
 for `'enter'` / `'exit'` CustomEvents on the element.
 
-⚠️ The `onEnter` / `onExit` properties were removed in 0.10. Passed to the
-element creator, an `on*` prop is a DOM event listener, so `b3dTrigger({ onEnter })`
-is a listener for the `'enter'` event and is called with an Event, not the trigger.
+⚠️ There is no `onEnter` / `onExit`. Passed to the element creator, an `on*` prop
+is a DOM event listener, so `b3dTrigger({ onEnter })` is a listener for the
+`'enter'` event and is called with an Event, not the trigger.
 
 ## Demo
 

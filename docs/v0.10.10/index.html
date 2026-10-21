@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css?v=f55d7e2fb2af" data-tosi-doc-system />
+  <title>0.10.10 — tosijs-3d</title>
+  <meta name="description" content="- panel3d&#39;s return type says what it carries (#104): the exported Panel3d type lists handlePointer, scrollBy, scrollable, gripHeight, gripHit, measure…" />
+  <link rel="canonical" href="https://3d.tosijs.net/v0.10.10/" />
+  <link rel="alternate" type="text/markdown" href="index.md" title="0.10.10 — tosijs-3d (markdown)" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="0.10.10 — tosijs-3d" />
+  <meta property="og:description" content="- panel3d&#39;s return type says what it carries (#104): the exported Panel3d type lists handlePointer, scrollBy, scrollable, gripHeight, gripHit, measure…" />
+  <meta property="og:url" content="https://3d.tosijs.net/v0.10.10/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"0.10.10","description":"- panel3d's return type says what it carries (#104): the exported Panel3d type lists handlePointer, scrollBy, scrollable, gripHeight, gripHit, measure…","url":"https://3d.tosijs.net/v0.10.10/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json?v=02678983b691" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <article class="doc-content" data-doc="v0.10.10.md">
+<h1 id="01010">0.10.10</h1>
+<!--{ "parent": "CHANGELOG", "order": 9989990 }-->
+
+<h2 id="fixed">Fixed</h2>
+<ul>
+<li><strong><code>panel3d</code>&#39;s return type says what it carries</strong> (#104): the exported <code>Panel3d</code> type lists <code>handlePointer</code>, <code>scrollBy</code>, <code>scrollable</code>, <code>gripHeight</code>, <code>gripHit</code>, <code>measure</code>, <code>addLayerHost</code>, <code>useDomLayer</code> and <code>dispose</code>. The declaration was a bare <code>SVGSVGElement</code>, so calling <code>dispose()</code> (new in 0.10.8) did not typecheck. Existing casts to a subset of those methods still compile.</li>
+<li><strong>A per-axis scale set on a library destroyable&#39;s node survives moves and turns</strong> (#105): the uniform <code>scale</code> attribute was rewritten onto the node on every render, so a consumer&#39;s <code>[2, 1, 3]</code> stretch was lost at the next unrelated attribute write. It is now written only when <code>scale</code> (or the node) changes, and the attribute still wins whenever it is set.</li>
+<li><strong>Projected AO darkens library pieces</strong> (#107, from ensemble): it hooked only the materials in <code>scene.materials</code> and those created after it started, but a library&#39;s instances share its container&#39;s materials, which are in neither. So pieces placed from a <code>&lt;tosi-b3d-library&gt;</code> were left out of the depth picture and never occluded, while the plugin count said AO was running. It now also finds materials through the scene&#39;s meshes, at start and as meshes are added. On twelve pirate-kit pieces, the pixels it changes went from 0% to 5.8% at strength 1, and from 0.1% to 16.5% at strength 3 (screen AO: 13%).</li>
+<li><strong>A key is delivered once even when a handler re-renders its field group mid-keystroke</strong> (#94, from ensemble): a <code>handleChange</code> that rebuilt its panel inside the keydown detached the focused field&#39;s group, so the window listener, deciding afterwards, typed the key a second time (<code>flagXXship</code>). Every route now marks the event it consumed and skips one already marked.</li>
+<li><strong>The Moon with NASA&#39;s maps is a globe again</strong>: its height map was exaggerated 12×, which put its relief at 14% of the radius (&quot;ridiculous&quot;). It is 3× now, about 3.5%: basins still show at the limb.</li>
+<li><strong>A planet&#39;s golden hour peaks with the sun at the horizon, not well above it.</strong> The gold at the limb was strongest with the sun about 50° from behind the planet and still bright at 70°: daylight over most of the limb. It now needs the sun close behind (full within about 15°, gone by about 50°) and keeps its breadth. A first attempt that narrowed the band itself was rejected (&quot;a very thin effect which isn&#39;t what I wanted&quot;); Tonio, on this one: &quot;pretty perfect&quot;.</li>
+<li><strong>A star system&#39;s rocky worlds have continents, not one blob.</strong> A planet reads its noise at <code>grossScale × radius</code>, and its presets&#39; relief is tuned for radius 50, both in drawn units. A system draws a world a few units across, so the synthetic Earth read a fiftieth of one noise wave and came out as a single smooth landmass (&quot;very Fisher Price Pangaea&quot;). Its noise is now set per world (about 1.6 waves across it for continents, 6 for coastlines), and the preset&#39;s relief is scaled by drawn radius over 50, for planets and moons alike. A look that sets its own scales or relief still wins.</li>
+</ul>
+<h2 id="added">Added</h2>
+<ul>
+<li><p><strong>Retargeting: one humanoid&#39;s animation on another&#39;s body.</strong> The Universal Animation Library&#39;s clips now play on characters that weren&#39;t built for them. The demo (<code>/retarget/</code>) shows one clip on four bodies: UAL&#39;s mannequin, a Quaternius superhero, omnidude (Mixamo&#39;s bones) and a Kenney chibi (seven bones).</p>
+<ul>
+<li><strong>Roles:</strong> <code>humanoidRoles</code> says which bone is which across UE, Mixamo, Kenney and Blender names.</li>
+<li><strong>Rotations:</strong> <code>retargeter(source, target)</code> transfers each bone&#39;s world-space rotation since rest, so a clip made on an A-pose rig plays as shown on a T-pose one.<ul>
+<li>The hips move in proportion to hip height.</li>
+<li>A target bone that stands for several source bones (a chibi&#39;s whole leg) aims along the source&#39;s chain.</li>
+</ul>
+</li>
+<li><strong>The Babylon side:</strong> <code>readSkeleton</code> reads a loaded character; <code>retargetClip</code>/<code>retargetClips</code> turn a clip into an AnimationGroup for it. All pure except the Babylon side, and tested on the real UAL, Mixamo and Kenney skeletons.</li>
+</ul>
+</li>
+<li><p><strong>Auto-rig: a mesh with no skeleton, walking</strong> (#3349). Eight markers on a front view, as on Mixamo&#39;s auto-rigger, are enough to rig a mesh for UAL&#39;s clips. The auto-rig page (<code>/rig-build/</code>) rigs Tonio&#39;s omnidude, two weasels and a space marine in the browser (CC BY 4.0, on the CDN under <code>tonio/rigging/</code>) and plays clips on them side by side.</p>
+<ul>
+<li><strong>Fitting:</strong> <code>fitSkeleton(markers, meshQuery(positions, indices))</code> places UAL&#39;s 65 joints, each at the middle of the mesh&#39;s thickness. An optional tail tip grows a tail chain.</li>
+<li><strong>Binding:</strong> <code>boneHeat</code> binds the mesh by bone heat (Baran &amp; Popović), in about 0.1–0.3 s.</li>
+<li><strong>Building:</strong> <code>buildRig</code> makes a Babylon skeleton of the result the way the glTF loader would, so <code>readSkeleton</code> and <code>retargetClip</code> work on it.</li>
+<li><strong>Reading files:</strong> <code>objTriangles</code> reads an OBJ.</li>
+</ul>
+</li>
+<li><p><strong>Spring bones: secondary motion for hair, tails and capes.</strong></p>
+<ul>
+<li><strong>Model:</strong> <code>spring-chain</code> is the pure model: Verlet at a fixed 120 Hz step, stiffness toward the rest shape, damping, sphere colliders, and a correction that keeps the tip from whipping.</li>
+<li><strong>Babylon side:</strong> <code>springBones</code> hangs a simulated chain from any node, after the animation has posed the body, and <code>skinTube</code> skins a tube to it. <code>springNodes</code> runs an existing chain, which is how the weasels&#39; tails swing.</li>
+<li><strong>Demo:</strong> a mannequin running in circles with a ponytail.</li>
+</ul>
+</li>
+<li><p><strong>The auto-rig&#39;s marker step</strong> (#3349). <code>markerField3d</code> shows a mesh&#39;s front silhouette with Mixamo&#39;s eight markers on it, to be dragged onto the joints, plus a side view for a tail tip. It is an ordinary panel control, so it works on a page, in the scene and in a headset. Symmetry is on by default, hovering names a marker, <code>handleChange</code> fires as a marker moves and <code>handleCommit</code> when it is let go. The pure half is in <code>rig-fit</code>:</p>
+<ul>
+<li><code>rigSilhouette(positions, indices, view)</code> is a mesh&#39;s front or side view as runs on a grid (a few ms).</li>
+<li><code>guessMarkers(silhouette)</code> gives a first placement read off the outline: the crotch, the arms&#39; row, the neck and the legs. On Tonio&#39;s three OBJ meshes it lands within 10% of body height of the hand-placed markers, mostly within 3%.</li>
+<li>The auto-rig page (<code>/rig-build/</code>) now rigs a character from the panel: pick one, drag its markers, and on release it is fitted, bound and walking again (about 0.15 s). <strong>guess</strong> re-places the markers from the silhouette alone.</li>
+</ul>
+</li>
+<li><p><strong>Arm space for retargeting</strong> (Mixamo&#39;s &quot;Character Arm-Space&quot;): <code>retargeter(source, target, { armSpaceDeg })</code> and <code>retargetClip(..., { armSpaceDeg })</code> turn the upper arms out from the body after retargeting, and the forearm and hand follow. A Kenney chibi&#39;s arms are long for its height, so hanging where UAL&#39;s hang put its hands half a metre through the floor, and in the retarget demo it looked as if it were kneeling. At 55° it walks like Kenney&#39;s own walk for that character, compared side by side: the arms are held out at about 45° and the lowest point is −0.13 m against Kenney&#39;s −0.15 m. The retarget page&#39;s panel no longer opens over the characters.</p>
+</li>
+<li><p><strong>System panels for an app&#39;s main chrome</strong> (#106, from ensemble). Three new <code>&lt;tosi-b3d-panel&gt;</code> controls for a panel with an <code>icon</code>:</p>
+<ul>
+<li><strong><code>exclusive=&quot;off&quot;</code></strong> lets it stay open beside other system panels. Opening it closes nothing, and the settings panel or an exclusive panel (an inventory) opens and closes over it without closing it. The default is unchanged: one at a time.</li>
+<li><strong><code>open</code></strong> opens it when the scene starts.</li>
+<li><strong>Its <code>screenAnchor</code> is where it first opens</strong>, so a right-hand column can be declared. A drag still moves it and it reopens there; holding its button still puts it back.</li>
+<li><strong>In a headset</strong> the non-exclusive panels that were open follow you in and back out. A left-pinned panel sits left of centre and a right-pinned one right, lower for a lower pixel <code>top</code>.</li>
+<li>A focused <code>inputField</code> in one takes typing as it does anywhere: keys come from a window listener, not the DOM (checked).</li>
+</ul>
+</li>
+<li><p><strong>Screenshot from the scene panel.</strong> A download icon on every scene&#39;s standard panel opens a popup with two buttons: <strong>With panels</strong> and <strong>Scene only</strong>. Each saves the canvas as a PNG. Scene only hides the <code>ui</code> and <code>modal</code> layers and world-layer panels (the system bar included) for the frame and puts them back. The popup closes itself first, so it is never in the picture. It is <code>b3d.saveScreenshot({ ui, name })</code> in code, and returns the Blob. <code>setPanelsHidden(scene)</code> (frame-panel) is the hide, and returns its undo. Feather&#39;s <code>download</code> icon is added.</p>
+</li>
+<li><p><strong>Axial tilt.</strong> Planets lean, with the axis fixed in space as they orbit, so seasons and a ring&#39;s shadow on its planet come and go with the year.</p>
+<ul>
+<li><strong>Moons orbit their own plane:</strong> <code>inclination</code> on a moon (degrees from the ecliptic), by default its planet&#39;s equator, as regular moons do. Our Moon takes 5.1°; with the tilt on its holder it had dropped 23° below the ecliptic.</li>
+<li><strong><code>SOL</code> carries the real tilts</strong> (Earth 23.4°, Saturn 26.7°, Uranus 82.2°, Venus 2.6°; a negative <code>day</code> already makes Venus and Uranus turn backwards). A star system tilts each planet (and its rings).</li>
+<li><strong><code>tilt</code> on <code>&lt;tosi-b3d-planet&gt;</code></strong> does the same for a standalone planet; the spin runs about the tilted axis.</li>
+<li><strong>What it fixes:</strong> Saturn&#39;s rings shadowed nothing in the Solar System demo, because they lay in the plane of the orbit, edge-on to the Sun, and their shadow was a hairline on the equator. The sun&#39;s elevation above the rings now runs from −26.7° to +26.7° round Saturn&#39;s year: two equinoxes (the demo&#39;s clock starts at one) and two solstices.</li>
+</ul>
+</li>
+</ul>
+<p>Size: barrel (min, packages external) 1152.8 KB raw / 394.5 KB gz, +3.46% on 0.10.9 (retargeting, the auto-rig and spring bones).</p>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../getting-started/">Getting started</a></li>
+    <li><details><summary><a class="doc-link" href="../demos/">Demos</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
+      <li><a class="doc-link" href="../solar-system/">Solar System</a></li>
+      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li><a class="doc-link" href="../rig-tool/">Rig tool</a></li>
+      <li><a class="doc-link" href="../effect-tool/">Effect tool</a></li>
+      <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
+      <li><a class="doc-link" href="../land-and-sky/">Land and Sky</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../tosi-b3d/">b3d</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-loader/">b3d-loader</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-primitives/">Primitives: box, sphere, ground</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-library/">b3d-library</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../sky-and-light/">Sky and light</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
+        <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-shadows/">Sun and shadows (b3d-shadows)</a></li>
+      <li><a class="doc-link" href="../b3d-light/">Ambient light (b3d-light)</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-lamp/">Lamps</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
+        <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../weather-and-clouds/">Weather and clouds</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-weather-cell/">b3d-weather-cell</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../weather/">weather</a></li>
+        <li><a class="doc-link" href="../wind/">wind</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../terrain/">Terrain</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+        <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+        <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+        <li><details><summary><a class="doc-link" href="../landform/">landform</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../landform-schemas/">landform schemas</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
+        <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
+        <li><a class="doc-link" href="../gradient-filter/">gradient-filter</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../scatter/">scatter</a></li>
+        <li><a class="doc-link" href="../procedural-rock/">procedural-rock</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../carve/">carve</a></li>
+        <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../water/">Water</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-water/">b3d-water</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../medium/">medium</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-effect/">b3d-effect</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-trail/">b3d-trail</a></li>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../characters-and-vehicles/">Characters and vehicles</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-biped/">b3d-biped</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../aim/">aim</a></li>
+        <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
+        <li><a class="doc-link" href="../retarget/">retarget</a></li>
+        <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
+        <li><details><summary><a class="doc-link" href="../rig-build/">auto-rig</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../rig-markers/">rig markers</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../spring-chain-babylon/">spring bones</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../fly-by-wire/">fly-by-wire</a></li>
+        <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../spatial-transform/">spatial-transform</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
+      <li><details><summary><a class="doc-link" href="../inspect-view/">inspect-view</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../seam-material/">seam-material</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><details><summary><a class="doc-link" href="../input-internals/">How input works</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../control-input/">control-input</a></li>
+        <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+        <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+        <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../interacting/">Interacting with the world</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../interaction/">interaction</a></li>
+        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../ballistics/">ballistics</a></li>
+        <li><a class="doc-link" href="../guidance/">guidance</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-radar/">b3d-radar</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><details><summary><a class="doc-link" href="../inventory/">inventory</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../formations/">formations</a></li>
+        <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../widgets3d/">widgets3d</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../carry/">carry</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../carry-box/">carry-box</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../dials/">dials</a></li>
+      <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
+        <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+        <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
+        <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+        <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
+        <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
+        <li><details><summary><a class="doc-link" href="../color-field/">color3d</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../color/">color</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../picker/">picker</a></li>
+        <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+        <li><details><summary><a class="doc-link" href="../table/">table</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../selection/">selection</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-containers/">Containers</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../box/">box</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+          <li><a class="doc-link" href="../anchor-layout/">anchor-layout</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../surface/">surface</a></li>
+        <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-in-scene/">In the scene and XR</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../b3d-panel/">b3d-panel</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+          <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+          <li><details><summary><a class="doc-link" href="../system-bar/">system-bar</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../bar-menu/">bar-menu</a></li>
+          </ul>
+          </details></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+        <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+        <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-theme/">Theme and icons</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../w3d-theme/">w3d-theme</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../gas-giant/">gas-giant</a></li>
+      <li><a class="doc-link" href="../rocky-world/">rocky-world</a></li>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../sphere-map/">sphere-map</a></li>
+      <li><a class="doc-link" href="../planet-map/">planet-map</a></li>
+      <li><a class="doc-link" href="../space-backdrop/">space-backdrop</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-probe/">b3d-probe</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+        <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../cost-sweep/">Cost sweep</a></li>
+      <li><a class="doc-link" href="../draw-order/">Draw order</a></li>
+      <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../Migration/">Migration</a></li>
+      <li><details open><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../v0.11.1/">0.11.1</a></li>
+        <li><a class="doc-link" href="../v0.11.0/">0.11.0</a></li>
+        <li><a class="doc-link" href="../v0.10.20/">0.10.20</a></li>
+        <li><a class="doc-link" href="../v0.10.19/">0.10.19</a></li>
+        <li><a class="doc-link" href="../v0.10.18/">0.10.18</a></li>
+        <li><a class="doc-link" href="../v0.10.17/">0.10.17</a></li>
+        <li><a class="doc-link" href="../v0.10.16/">0.10.16</a></li>
+        <li><a class="doc-link" href="../v0.10.15/">0.10.15</a></li>
+        <li><a class="doc-link" href="../v0.10.14/">0.10.14</a></li>
+        <li><a class="doc-link" href="../v0.10.13/">0.10.13</a></li>
+        <li><a class="doc-link" href="../v0.10.12/">0.10.12</a></li>
+        <li><a class="doc-link" href="../v0.10.11/">0.10.11</a></li>
+        <li><a class="doc-link current" href="../v0.10.10/" aria-current="page">0.10.10</a></li>
+        <li><a class="doc-link" href="../v0.10.9/">0.10.9</a></li>
+        <li><a class="doc-link" href="../v0.10.8/">0.10.8</a></li>
+        <li><a class="doc-link" href="../v0.10.7/">0.10.7</a></li>
+        <li><a class="doc-link" href="../v0.10.6/">0.10.6</a></li>
+        <li><a class="doc-link" href="../v0.10.5/">0.10.5</a></li>
+        <li><a class="doc-link" href="../v0.10.4/">0.10.4</a></li>
+        <li><a class="doc-link" href="../v0.10.3/">0.10.3</a></li>
+        <li><a class="doc-link" href="../v0.10.2/">0.10.2</a></li>
+        <li><a class="doc-link" href="../v0.10.1/">0.10.1</a></li>
+        <li><a class="doc-link" href="../v0.10.0/">0.10.0</a></li>
+        <li><a class="doc-link" href="../v0.9.0/">0.9.0</a></li>
+        <li><a class="doc-link" href="../v0.8.15/">0.8.15</a></li>
+        <li><a class="doc-link" href="../v0.8.14/">0.8.14</a></li>
+        <li><a class="doc-link" href="../v0.8.13/">0.8.13</a></li>
+        <li><a class="doc-link" href="../v0.8.12/">0.8.12</a></li>
+        <li><a class="doc-link" href="../v0.8.11/">0.8.11</a></li>
+        <li><a class="doc-link" href="../v0.8.10/">0.8.10</a></li>
+        <li><a class="doc-link" href="../v0.8.9/">0.8.9</a></li>
+        <li><a class="doc-link" href="../v0.8.8/">0.8.8</a></li>
+        <li><a class="doc-link" href="../v0.8.7/">0.8.7</a></li>
+        <li><a class="doc-link" href="../v0.8.6/">0.8.6</a></li>
+        <li><a class="doc-link" href="../v0.8.5/">0.8.5</a></li>
+        <li><a class="doc-link" href="../v0.8.4/">0.8.4</a></li>
+        <li><a class="doc-link" href="../v0.8.3/">0.8.3</a></li>
+        <li><a class="doc-link" href="../v0.8.2/">0.8.2</a></li>
+        <li><a class="doc-link" href="../v0.8.1/">0.8.1</a></li>
+        <li><a class="doc-link" href="../v0.8.0/">0.8.0</a></li>
+        <li><a class="doc-link" href="../v0.7.8/">0.7.8</a></li>
+        <li><a class="doc-link" href="../v0.7.7/">0.7.7</a></li>
+        <li><a class="doc-link" href="../v0.7.6/">0.7.6</a></li>
+        <li><a class="doc-link" href="../v0.7.5/">0.7.5</a></li>
+        <li><a class="doc-link" href="../v0.7.4/">0.7.4</a></li>
+        <li><a class="doc-link" href="../v0.7.3/">0.7.3</a></li>
+        <li><a class="doc-link" href="../v0.7.2/">0.7.2</a></li>
+        <li><a class="doc-link" href="../v0.7.1/">0.7.1</a></li>
+        <li><a class="doc-link" href="../v0.7.0/">0.7.0</a></li>
+        <li><a class="doc-link" href="../v0.7.0-rc.1/">0.7.0-rc.1</a></li>
+        <li><a class="doc-link" href="../v0.6.2/">0.6.2</a></li>
+        <li><a class="doc-link" href="../v0.6.1/">0.6.1</a></li>
+        <li><a class="doc-link" href="../v0.6.0/">0.6.0</a></li>
+        <li><a class="doc-link" href="../v0.5.2/">0.5.2</a></li>
+        <li><a class="doc-link" href="../v0.5.1/">0.5.1</a></li>
+        <li><a class="doc-link" href="../v0.5.0/">0.5.0</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
+      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
+      <li><a class="doc-link" href="../noise-texture/">Noise texture</a></li>
+    </ul>
+    </details></li>
+    <li><a class="doc-link" href="../design-notes/">Design notes</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate-7skqvnh0.js"></script>
+</body>
+</html>

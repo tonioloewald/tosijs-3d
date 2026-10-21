@@ -3,9 +3,9 @@
 
 **Where things grow: rocks and trees placed on terrain by budget and by
 climate.** The function is `scatterPlacements` (a bare `scatter` would leak a
-common noun from the barrel, and one demo already has its own). Pure, with no Babylon and no DOM; the terrain and its climate
-arrive as functions. [b3d-decorator](/b3d-decorator/) draws what this
-returns.
+common noun from the barrel). Pure, with no Babylon and no DOM; the terrain
+and its climate arrive as functions. [b3d-decorator](/b3d-decorator/) draws
+what this returns, and its demo's `clump` dial shows the clumping below.
 
 ## The rules speak climate, not biome names
 

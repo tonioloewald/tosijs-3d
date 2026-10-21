@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=060314d12b8f" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=f55d7e2fb2af" data-tosi-doc-system />
   <title>Biped Playground — tosijs-3d</title>
   <meta name="description" content="A place to run around and murder things in. One call returns a whole arena — ground, light, cover, crates, a catwalk and something to shoot — as ordinary scene…" />
   <link rel="canonical" href="https://3d.tosijs.net/playground/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=e9f6966606af" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=02678983b691" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="playground.ts">
 <h1 id="biped-playground">Biped Playground</h1>
 <p><strong>A place to run around and murder things in.</strong> One call returns a whole
@@ -39,24 +39,9 @@ ordinary scene children, so it composes into any demo rather than being one.</p>
 <pre><code class="language-js">import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, inputFocus, playground, ualAnimationStates } from &#39;tosijs-3d&#39;
 import { demoLoadout } from &#39;tosijs-3d/demo-utils&#39;
 
-// WHERE IT RIDES ON HIM, and all three numbers were wrong.
-//
-// NEGATIVE x is his right: facing -Z with +Y up, a character&#39;s right hand is
-// at -X, so the positive value hung it off his LEFT shoulder — &quot;is the gun a
-// big rectangular block stuck to my left shoulder?&quot;
-//
-// And z: 0.15 was worse than it looks. The placeholder is 0.9 long, so it
-// straddled him — 0.6 ahead and 0.3 THROUGH his hip and out the back — which
-// is most of what made it read as a slab rather than as something held. At 0.5
-// the whole length is in front of him.
-//
-// It is still the launcher&#39;s placeholder box. A weapon that reads as a weapon
-// needs a model on a hand socket rather than an offset from the root; that work
-// is already on the list, and this is the best a fixed offset can do.
-//
-// (Line comments, not a block. A block comment inside a fence closes the
-// enclosing /*# doc comment — b3d-crowd.ts has learned this three times.)
 // A REAL PISTOL, from Kenney&#39;s weapon pack — 37 of them are already on the CDN.
+// (Line comments in this demo: a block comment inside a fence would close the
+// enclosing doc comment.)
 const weapons = b3dLibrary({
   url: assetUrl(&#39;kenney/libraries/weapon-pack.glb&#39;),
   type: &#39;weapons&#39;,
@@ -67,26 +52,19 @@ const weapons = b3dLibrary({
 // as props with a bottom-centre origin, which is right for one lying on a table
 // and wrong for one in a fist.
 //
-// This is `hand_r` in the Pistol_Idle_Loop stance, read off the rig. It is still
-// ONE offset, so it is right in the ready stance and approximate elsewhere —
-// that is what a hand socket fixes.
-//
 // A PISTOL, and that is a constraint rather than a preference: the UAL set has
 // Pistol_* and Bow_* and nothing else ranged, so a shotgun or sniper would be
 // fired with one-handed animations. See `ualAnimationStates`.
 const gun = b3dLauncher({
   library: &#39;weapons&#39;, meshName: &#39;pistol&#39;,
   // IN HIS HAND — `socket` parents the weapon to the hand BONE, so it follows
-  // the animation instead of hanging off the character&#39;s root at a fixed
-  // offset. That is what &quot;it kind of drifts relative to the hand&quot; was: no
-  // constant offset can track a moving hand.
+  // the animation. No constant offset from the root can track a moving hand.
   //
   // With a socket, x/y/z are relative to the JOINT, and `grip: &#39;auto&#39;` puts the
-  // weapon&#39;s handle exactly there — so the numbers are all zero and there is
-  // nothing left to hand-tune.
+  // weapon&#39;s handle there, so the numbers are small.
   socket: &#39;right-hand&#39;,
-  // DIALLED IN WITH THE GIZMO, not computed. See the note below on why these
-  // are not multiples of 90.
+  // DIALLED IN WITH THE GIZMO, not computed. The Weapon Fit demo explains why
+  // these are not multiples of 90.
   x: -0.04, y: 0.051, z: -0.059,
   rx: -105, ry: -15, rz: -165,
   modelScale: 0.86,
@@ -102,9 +80,8 @@ const gun = b3dLauncher({
 // is, and the 0.9m &quot;mantle&quot; crate is over his head — so the playground could
 // not demonstrate the one thing it was built to demonstrate.
 //
-// The wider clip set is the bonus: `Jog_Bwd_Loop` and the `Crouch_*` clips
-// retire two fakes (backwards was the walk cycle reversed, sneak had no crouch
-// to hold). See CLAUDE.md → &quot;Scale: a person is 1.8 m&quot;.
+// The wider clip set is the bonus: `Jog_Bwd_Loop` and the `Crouch_*` clips give
+// a real backwards jog and a crouch to sneak in.
 const hero = b3dBiped(
   {
     url: assetUrl(&#39;quaternius/UAL1_core.glb&#39;, 2),
@@ -144,16 +121,13 @@ preview.append(
   b3d(
     {
       style: &#39;width:100%;height:100%&#39;,
-      // The glass pad shows only what this demo USES — and these are control
-      // names, not a mapping name: `gamepad: &#39;biped&#39;` named nothing, parsed to
-      // nothing, and drew nothing. Move, aim, shoot, jump, sneak, sprint.
-      // Everything this demo uses, and nothing else. `A` raises and lowers the
-      // weapon, `Y` switches first/third person — leaving either off meant a
-      // feature that existed, was wired, and could not be reached.
+      // The glass pad shows only what this demo USES. These are control names,
+      // not a mapping name (`gamepad: &#39;biped&#39;` names nothing and draws nothing).
+      // Move, aim, shoot, jump, sneak, sprint; `Y` switches first/third person.
       gamepad:
         &#39;left_stick,right_stick,A,B,X,Y,right_bumper,left_bumper,left_trigger,right_trigger&#39;,
-      // NOT armed on load any more — &quot;the character is aiming all the time&quot;.
-      // Right bumper (or the on-screen RB) raises and lowers the weapon.
+      // Not armed on load. Right bumper (or the on-screen RB) raises and lowers
+      // the weapon.
     },
     weapons,
     ...playground(),
@@ -173,8 +147,7 @@ sinking as the range grows because it is the real ballistic arc rather than a
 dot in the middle of the screen. You cannot sprint with the gun up, which is why
 the trigger is free to do both jobs.</p>
 <p><strong>WASD</strong> moves, <strong>arrow keys</strong> look, <strong>space</strong> jumps, <strong>left shift</strong> sneaks,
-<strong>E</strong> interacts, <strong>Y</strong> switches between third and first person. (Read off
-<code>game-controller</code> and <code>bipedMapping</code> rather than remembered.)</p>
+<strong>E</strong> interacts, <strong>Y</strong> switches between third and first person.</p>
 <p>Things to try: put the pistol in the bag and try to raise it (nothing to raise), drag it back into your hand (it comes up); swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
 and watch the ring disappear behind it until you stand; walk the cover line and
 compare the railing with the wall beside it.</p>
@@ -186,9 +159,8 @@ compare the railing with the wall beside it.</p>
   <span class="token function">inputFocus</span><span class="token punctuation">(</span>hero<span class="token punctuation">)</span>
 <span class="token punctuation">)</span>
 </code></pre>
-<p>Tonio asked for it while the cover and shooting work was landing, and that is
-what it is for: every piece in here exists to exercise something the biped can
-do, and the arrangement is a test you walk around in rather than one you read.</p>
+<p>Every piece in here exists to exercise something the biped can do, and the
+arrangement is a test you walk around in rather than one you read.</p>
 <h2 id="what-each-part-is-there-to-prove">What each part is there to prove</h2>
 <table>
 <thead>
@@ -234,10 +206,8 @@ do, and the arrangement is a test you walk around in rather than one you read.</
 <p>No <code>sceneCreated</code> hook, no <code>el.make</code> calls, no imperative build step — the
 playground is a list of scene children, which means a caller can splice it,
 override a piece, or take half of it. It also means the whole arena is already
-in the shape a data format would want, which is the direction
-<a href="https://github.com/tonioloewald/tosijs-3d-ensemble"><code>tosijs-3d-ensemble</code></a> is
-going: when a demo can say <em>&quot;the standard arena, plus the thing I am showing
-you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
+in the shape a data format would want: <em>&quot;the standard arena, plus the thing I am
+showing you&quot;</em> can be one line of data.</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -257,21 +227,26 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
     </details></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
-      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
-      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><details><summary><a class="doc-link" href="../tosi-b3d/">b3d</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-loader/">b3d-loader</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../b3d-primitives/">Primitives: box, sphere, ground</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-library/">b3d-library</a></summary>
       <ul>
-        <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
         <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
       </ul>
       </details></li>
       <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
       <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
       <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
-      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
-      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../sky-and-light/">Sky and light</a></summary>
@@ -286,19 +261,12 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
       <li><a class="doc-link" href="../b3d-light/">Ambient light (b3d-light)</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-lamp/">Lamps</a></summary>
       <ul>
+        <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
         <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../light-rays/">light-rays</a></li>
-      </ul>
-      </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-fog/">b3d-fog</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
@@ -308,7 +276,6 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></summary>
       <ul>
-        <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
         <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
       </ul>
       </details></li>
@@ -319,17 +286,8 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
         <li><a class="doc-link" href="../wind/">wind</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../lightning/">lightning</a></li>
-      </ul>
-      </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
-        <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../terrain/">Terrain</a></summary>
@@ -346,7 +304,6 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
         </details></li>
         <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
         <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
-        <li><a class="doc-link" href="../terrain-grid/">terrain-grid</a></li>
         <li><a class="doc-link" href="../gradient-filter/">gradient-filter</a></li>
       </ul>
       </details></li>
@@ -368,9 +325,6 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-water/">b3d-water</a></summary>
       <ul>
-        <li><a class="doc-link" href="../water-shore/">water-shore</a></li>
-        <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
-        <li><a class="doc-link" href="../caustics/">caustics</a></li>
         <li><a class="doc-link" href="../medium/">medium</a></li>
       </ul>
       </details></li>
@@ -389,11 +343,7 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-biped/">b3d-biped</a></summary>
       <ul>
-        <li><a class="doc-link" href="../mantle/">mantle</a></li>
-        <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
-        <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
         <li><a class="doc-link" href="../aim/">aim</a></li>
-        <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
         <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
         <li><a class="doc-link" href="../retarget/">retarget</a></li>
         <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
@@ -403,20 +353,24 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../spring-chain-babylon/">spring bones</a></li>
-        <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
-        <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></summary>
       <ul>
         <li><a class="doc-link" href="../fly-by-wire/">fly-by-wire</a></li>
         <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
-        <li><a class="doc-link" href="../hud/">hud</a></li>
-        <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
       </ul>
       </details></li>
       <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
-      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../spatial-transform/">spatial-transform</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
       <li><details><summary><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></summary>
       <ul>
         <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
@@ -429,11 +383,7 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
       <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
       <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
-      <li><details><summary><a class="doc-link" href="../touch-orbit/">touch-orbit</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><details><summary><a class="doc-link" href="../inspect-view/">inspect-view</a></summary>
       <ul>
         <li><a class="doc-link" href="../seam-material/">seam-material</a></li>
@@ -445,12 +395,7 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
         <li><a class="doc-link" href="../control-input/">control-input</a></li>
         <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
         <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
-        <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
-        <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
-        <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
         <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
-        <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
-        <li><a class="doc-link" href="../text-entry/">text-entry</a></li>
       </ul>
       </details></li>
     </ul>
@@ -467,14 +412,7 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
       <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
-      <li><details><summary><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
-        <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
-      </ul>
-      </details></li>
-      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
-      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
@@ -482,8 +420,6 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
       <li><details><summary><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></summary>
       <ul>
         <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
-        <li><a class="doc-link" href="../destroyable/">destroyable</a></li>
-        <li><a class="doc-link" href="../resource/">resource</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></summary>
@@ -492,16 +428,11 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
         <li><a class="doc-link" href="../guidance/">guidance</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../warhead/">warhead</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
       <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-radar/">b3d-radar</a></summary>
       <ul>
         <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
-        <li><a class="doc-link" href="../radar/">Radar model</a></li>
       </ul>
       </details></li>
     </ul>
@@ -516,7 +447,6 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
         <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
       </ul>
       </details></li>
-      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
       <ul>
@@ -524,19 +454,13 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
         <li><a class="doc-link" href="../prefab/">prefab</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-death/">b3d-death</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
     <ul>
       <li><details><summary><a class="doc-link" href="../widgets3d/">widgets3d</a></summary>
       <ul>
-        <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
-        <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
       </ul>
       </details></li>
@@ -549,16 +473,8 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
       <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
       <ul>
         <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
-        <li><details><summary><a class="doc-link" href="../angle-field/">angle-field</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../arc/">arc</a></li>
-        </ul>
-        </details></li>
-        <li><details><summary><a class="doc-link" href="../curve-field/">Curve editor</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../curve/">curve</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+        <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
         <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
         <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
         <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
@@ -568,22 +484,10 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../picker/">picker</a></li>
-        <li><details><summary><a class="doc-link" href="../keyboard/">keyboard</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
-          <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
         <li><details><summary><a class="doc-link" href="../table/">table</a></summary>
         <ul>
-          <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
           <li><a class="doc-link" href="../selection/">selection</a></li>
-        </ul>
-        </details></li>
-        <li><details><summary><a class="doc-link" href="../light-editor/">Light editor</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
-          <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
         </ul>
         </details></li>
       </ul>
@@ -597,12 +501,7 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../surface/">surface</a></li>
-        <li><details><summary><a class="doc-link" href="../popup-surface/">popup-surface</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
-          <li><a class="doc-link" href="../panel-layer/">panel-layer</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../ui-in-scene/">In the scene and XR</a></summary>
@@ -611,22 +510,15 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
         <ul>
           <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
           <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
-          <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
           <li><details><summary><a class="doc-link" href="../system-bar/">system-bar</a></summary>
           <ul>
             <li><a class="doc-link" href="../bar-menu/">bar-menu</a></li>
           </ul>
           </details></li>
-          <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
-        <li><details><summary><a class="doc-link" href="../svg-texture/">svg-texture</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
-          <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
         <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
       </ul>
       </details></li>
@@ -637,11 +529,7 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
           <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
         </ul>
         </details></li>
-        <li><details><summary><a class="doc-link" href="../svg-icons/">svg-icons</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       </ul>
       </details></li>
     </ul>
@@ -651,23 +539,12 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
       <li><details><summary><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></summary>
       <ul>
         <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
-        <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
-        <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../system-layout/">system-layout</a></li>
-        <li><a class="doc-link" href="../sol/">sol</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
-      <li><details><summary><a class="doc-link" href="../gas-giant/">gas-giant</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../gas-giant-material/">gas-giant-material</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../gas-giant/">gas-giant</a></li>
       <li><a class="doc-link" href="../rocky-world/">rocky-world</a></li>
       <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
       <li><a class="doc-link" href="../sphere-map/">sphere-map</a></li>
@@ -688,16 +565,79 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
       <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
     </ul>
     </details></li>
-    <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <li><details><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
     <ul>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
-      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
-      <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
-      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
-      <li><a class="doc-link" href="../noise-volume/">Noise volume</a></li>
-      <li><a class="doc-link" href="../climate-noise/">climate-noise</a></li>
+      <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../v0.11.1/">0.11.1</a></li>
+        <li><a class="doc-link" href="../v0.11.0/">0.11.0</a></li>
+        <li><a class="doc-link" href="../v0.10.20/">0.10.20</a></li>
+        <li><a class="doc-link" href="../v0.10.19/">0.10.19</a></li>
+        <li><a class="doc-link" href="../v0.10.18/">0.10.18</a></li>
+        <li><a class="doc-link" href="../v0.10.17/">0.10.17</a></li>
+        <li><a class="doc-link" href="../v0.10.16/">0.10.16</a></li>
+        <li><a class="doc-link" href="../v0.10.15/">0.10.15</a></li>
+        <li><a class="doc-link" href="../v0.10.14/">0.10.14</a></li>
+        <li><a class="doc-link" href="../v0.10.13/">0.10.13</a></li>
+        <li><a class="doc-link" href="../v0.10.12/">0.10.12</a></li>
+        <li><a class="doc-link" href="../v0.10.11/">0.10.11</a></li>
+        <li><a class="doc-link" href="../v0.10.10/">0.10.10</a></li>
+        <li><a class="doc-link" href="../v0.10.9/">0.10.9</a></li>
+        <li><a class="doc-link" href="../v0.10.8/">0.10.8</a></li>
+        <li><a class="doc-link" href="../v0.10.7/">0.10.7</a></li>
+        <li><a class="doc-link" href="../v0.10.6/">0.10.6</a></li>
+        <li><a class="doc-link" href="../v0.10.5/">0.10.5</a></li>
+        <li><a class="doc-link" href="../v0.10.4/">0.10.4</a></li>
+        <li><a class="doc-link" href="../v0.10.3/">0.10.3</a></li>
+        <li><a class="doc-link" href="../v0.10.2/">0.10.2</a></li>
+        <li><a class="doc-link" href="../v0.10.1/">0.10.1</a></li>
+        <li><a class="doc-link" href="../v0.10.0/">0.10.0</a></li>
+        <li><a class="doc-link" href="../v0.9.0/">0.9.0</a></li>
+        <li><a class="doc-link" href="../v0.8.15/">0.8.15</a></li>
+        <li><a class="doc-link" href="../v0.8.14/">0.8.14</a></li>
+        <li><a class="doc-link" href="../v0.8.13/">0.8.13</a></li>
+        <li><a class="doc-link" href="../v0.8.12/">0.8.12</a></li>
+        <li><a class="doc-link" href="../v0.8.11/">0.8.11</a></li>
+        <li><a class="doc-link" href="../v0.8.10/">0.8.10</a></li>
+        <li><a class="doc-link" href="../v0.8.9/">0.8.9</a></li>
+        <li><a class="doc-link" href="../v0.8.8/">0.8.8</a></li>
+        <li><a class="doc-link" href="../v0.8.7/">0.8.7</a></li>
+        <li><a class="doc-link" href="../v0.8.6/">0.8.6</a></li>
+        <li><a class="doc-link" href="../v0.8.5/">0.8.5</a></li>
+        <li><a class="doc-link" href="../v0.8.4/">0.8.4</a></li>
+        <li><a class="doc-link" href="../v0.8.3/">0.8.3</a></li>
+        <li><a class="doc-link" href="../v0.8.2/">0.8.2</a></li>
+        <li><a class="doc-link" href="../v0.8.1/">0.8.1</a></li>
+        <li><a class="doc-link" href="../v0.8.0/">0.8.0</a></li>
+        <li><a class="doc-link" href="../v0.7.8/">0.7.8</a></li>
+        <li><a class="doc-link" href="../v0.7.7/">0.7.7</a></li>
+        <li><a class="doc-link" href="../v0.7.6/">0.7.6</a></li>
+        <li><a class="doc-link" href="../v0.7.5/">0.7.5</a></li>
+        <li><a class="doc-link" href="../v0.7.4/">0.7.4</a></li>
+        <li><a class="doc-link" href="../v0.7.3/">0.7.3</a></li>
+        <li><a class="doc-link" href="../v0.7.2/">0.7.2</a></li>
+        <li><a class="doc-link" href="../v0.7.1/">0.7.1</a></li>
+        <li><a class="doc-link" href="../v0.7.0/">0.7.0</a></li>
+        <li><a class="doc-link" href="../v0.7.0-rc.1/">0.7.0-rc.1</a></li>
+        <li><a class="doc-link" href="../v0.6.2/">0.6.2</a></li>
+        <li><a class="doc-link" href="../v0.6.1/">0.6.1</a></li>
+        <li><a class="doc-link" href="../v0.6.0/">0.6.0</a></li>
+        <li><a class="doc-link" href="../v0.5.2/">0.5.2</a></li>
+        <li><a class="doc-link" href="../v0.5.1/">0.5.1</a></li>
+        <li><a class="doc-link" href="../v0.5.0/">0.5.0</a></li>
+      </ul>
+      </details></li>
     </ul>
     </details></li>
+    <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
+      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
+      <li><a class="doc-link" href="../noise-texture/">Noise texture</a></li>
+    </ul>
+    </details></li>
+    <li><a class="doc-link" href="../design-notes/">Design notes</a></li>
   </ul>
   </nav>
   <ul class="doc-navbar">
@@ -706,6 +646,6 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-dgazh53y.js"></script>
+  <script type="module" src="../hydrate-7skqvnh0.js"></script>
 </body>
 </html>

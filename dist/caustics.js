@@ -1,6 +1,4 @@
-/*#
-# caustics
-
+/*
 **Light through a moving surface, dancing on what is under it:** the single
 strongest "this is underwater" cue after the colour (tosijs-3d#16, board
 #198). `b3d-water` turns it on with `caustics`; this module is the mechanism.
@@ -17,7 +15,6 @@ The pattern is a pure function (`causticPattern`): a seeded cellular (Worley)
 field on a torus, so it tiles by construction, bright along the cell EDGES the
 way real caustic networks are. No file, no network.
 */
-/*{ "parent": "b3d-water", "order": 30 }*/
 import * as BABYLON from '@babylonjs/core';
 import { Xoshiro128 } from './mersenne-twister.js';
 /**

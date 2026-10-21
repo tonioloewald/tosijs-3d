@@ -2,7 +2,7 @@
 # widgets3d
 
 A small collection of **SVG-native** UI widgets with element-creator ergonomics
-(built on tosijs's `svgElements` proxy, the same way [[gamepad-svg]] is). They
+(built on tosijs's `svgElements` proxy, the same way [[virtual-gamepad|gamepadSvg]] is). They
 render to SVG — not HTML — so the *same* widget works both as a DOM overlay on a
 flat screen and inside a 3D scene on a `b3dSvgPlane` (where the panel is
 serialized to a texture; HTML-in-`<foreignObject>` doesn't rasterize reliably).
@@ -178,7 +178,7 @@ const panel = panel3d(
   label3d({ text: 'In-scene panel' }),
   slider3d({ label: 'hue', value: hud.hue, min: 0, max: 360, step: 1 }),
   toggle3d({ label: 'glow', value: hud.glow }),
-  // independent of the slider while debugging — just logs which row was picked.
+  // logs which row was picked.
   list3d({ items: Object.keys(HUES).map((label) => ({ label })), handleSelect: (i) => console.log('list picked:', i.label) })
 )
 // Show it as a DOM overlay too (top-right) — the SAME panel object, so you can
@@ -190,9 +190,9 @@ panel.style.right = '8px'
 panel.style.zIndex = '1'
 preview.append(panel)
 
-// panelScene — the fold this comment used to ask for: plane + camera + pick
-// routing (uv → viewBox coords → the panel's handlePointer, mouse AND XR
-// controllers) with camera-yield and capture semantics, packaged.
+// panelScene packages the plane, camera and pick routing (uv → viewBox
+// coords → the panel's handlePointer, mouse AND XR controllers) with
+// camera-yield and capture semantics.
 const { plane, sceneCreated } = panelScene({ svg: panel, target: panel, resolution: 512, camera: { beta: Math.PI / 2.4, radius: 4 } })
 
 const sceneEl = b3d({ sceneCreated }, b3dLight(), plane)
@@ -250,11 +250,9 @@ preview.append(sceneEl)
 
 ## Widget reference
 
-Every widget's options in one place. This table is the fix for tosijs-3d#50:
-`slider3d` has always had `step` — it quantises the drag *and* the reported
-value — but nothing documented it, so a consumer generating panels from a JSON
-Schema reasonably concluded sliders were continuous and turned their snap
-settings into `select3d` cyclers to get discrete values.
+Every widget's options in one place. Note `slider3d`'s `step`: it quantises the
+drag *and* the reported value, so a slider can be discrete without becoming a
+`select3d`.
 
 | widget | option | default | notes |
 | --- | --- | --- | --- |
@@ -293,12 +291,11 @@ settings into `select3d` cyclers to get discrete values.
 
 `select3d` keeps and displays what you chose. A menu item **happens** and leaves
 nothing behind — so using a picker for a one-shot reads wrong, showing a
-lingering "value" for something that was an event (tosijs-3d#59).
+lingering "value" for something that was an event.
 
 `openMenu3d(host, anchor, items)` is the whole API. Any widget handed a
-`WidgetHost` via `setHost` can open one, which is what was missing: `select3d`
-could do this only because it held a host privately, so an icon in a tool
-palette had no route to a menu at all.
+`WidgetHost` via `setHost` can open one, so an icon in a tool palette can open
+a menu as readily as `select3d` opens its list.
 
 ```javascript
 // Declared ONCE — `disabled` is a predicate, so this constant never goes stale.
@@ -415,18 +412,14 @@ bar that is not determinate is a lie with a progress percentage on it.
 
 ## Callbacks are `handleX`, not `onX`
 
-`handleChange`, `handleClick`, `handleSelect`. The old `onX` spellings were
-removed in 0.10: one is no longer called, and passing it warns once.
+`handleChange`, `handleClick`, `handleSelect`. An `onX` option is ignored, and
+passing one warns once.
 
-Not a style preference. These are plain factory functions today, where `onX` is
-harmless — but the moment one becomes a tosijs COMPONENT, the element creator
-binds an `on*` prop as a DOM event **listener** and the class field is silently
-never called. No error, no warning, a callback that simply never fires; it has
-already cost this project a long debugging detour. `handleX` cannot be mistaken
-for an event name, so the rename removes the trap rather than documenting it.
-
-Giving both, the new one wins and the old one is not called — so there is no
-ambiguity about which fires and no double-firing.
+Not a style preference. If a factory becomes a tosijs COMPONENT, the element
+creator binds an `on*` prop as a DOM event **listener** and the class field is
+silently never called: no error, no warning, a callback that never fires.
+`handleX` cannot be mistaken for an event name, so the name removes the trap
+rather than documenting it.
 
 ## Log sliders — for anything spanning orders of magnitude
 
@@ -436,8 +429,8 @@ additive — a light's intensity, a **noise scale**, a grid or texture size, a
 frequency, a zoom factor.
 
 The tell is a linear slider where everything you want lives in the first few
-percent of the track. Tonio, on the light editor: _"the intensity slider goes
-from 0 to 1000 with very little wiggle-room in 0-1."_
+percent of the track: an intensity slider from 0 to 1000 leaves almost no
+travel for 0 to 1.
 
 ```javascript
 slider3d({ label: 'intensity', value: 2, min: 0.01, max: 1000, scale: 'log' })
@@ -470,12 +463,10 @@ asymptotically.
 ## Theming
 
 Widget colours, font, and weights are driven by `--w3d-*` CSS variables with
-sensible defaults. Set them on `:root` (or any ancestor of the flat overlay)
-**before the bundle loads** — they're resolved once to concrete values so a theme
-applies identically to the flat DOM overlay and the rasterized in-scene / XR
-texture (the page's live CSS doesn't cascade into a serialized SVG, so live
-`var()` would only theme the flat overlay). Per-widget options (`label3d`'s
-`color` / `bold`) override the variables.
+sensible defaults. Set them on `:root` **before the bundle loads**, or call
+`setW3dTheme` and rebuild; they are resolved once, for the reason given on
+[w3d-theme](/w3d-theme/), which also has a live theme editor. Per-widget
+options (`label3d`'s `color` / `bold`) override the variables.
 
 | Variable | Default | Controls |
 |----------|---------|----------|
@@ -490,6 +481,20 @@ texture (the page's live CSS doesn't cascade into a serialized SVG, so live
 | `--w3d-panel-bg` | `rgba(20,22,28,0.94)` | Panel background |
 | `--w3d-button-bg` / `--w3d-button-hover` / `--w3d-button-active` | greys | Button states |
 | `--w3d-row-bg` / `--w3d-row-hover` | subtle whites | Row background / hover |
+
+## Layout helpers
+
+The maths behind the layout protocol is pure (no DOM, no Babylon) and exported,
+for a consumer laying out SVG of its own:
+
+- `stackLayout(heights, gap)` → `{ offsets, total }`: a column, top to bottom.
+- `panelFit(content, viewport)` → whether a stack overflows, so must scroll.
+- `measureTextWrap(text, width, font)` breaks a paragraph into lines by real
+  glyph measurement (canvas `measureText`), not a guessed character count, so a
+  panel wraps where the text actually overflows. `cssFont(spec)` builds the
+  font string; `measureTextWidth` measures one line.
+- `valueToFraction` / `fractionToValue` map a slider value to its track
+  position and back, for the `linear`, `log` and `log2` scales.
 */
 /*{ "parent": "ui", "order": 10 }*/
 import { svgElements, StyleSheet } from 'tosijs';
@@ -1133,8 +1138,8 @@ export function label3d(config) {
  * A wrapped, multi-line text block — the honest way to render prose in an SVG
  * panel (NPC dialogue, a paragraph of help). Lines are broken by real glyph
  * measurement (`measureTextWrap`), so they neither clip nor waste space, and
- * explicit `\n`s are respected. See [[widgets3d-layout]] for the wrapping model
- * and its limits (whitespace breaks only; no bidi).
+ * explicit `\n`s are respected. The wrapping model is in `widgets3d-layout.ts`,
+ * with its limits (whitespace breaks only; no bidi).
  */
 export function text3d(config) {
     return textBlock3d({ lines: [config.text], muted: config.muted });

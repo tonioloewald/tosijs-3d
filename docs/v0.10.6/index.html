@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css?v=f55d7e2fb2af" data-tosi-doc-system />
+  <title>0.10.6 — tosijs-3d</title>
+  <meta name="description" content="- Flat panels can be placed in screen terms: screenAnchor (on b3dPanel and frame panels) pins a panel to the view&#39;s edges in pixels, a fraction of the axis…" />
+  <link rel="canonical" href="https://3d.tosijs.net/v0.10.6/" />
+  <link rel="alternate" type="text/markdown" href="index.md" title="0.10.6 — tosijs-3d (markdown)" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="0.10.6 — tosijs-3d" />
+  <meta property="og:description" content="- Flat panels can be placed in screen terms: screenAnchor (on b3dPanel and frame panels) pins a panel to the view&#39;s edges in pixels, a fraction of the axis…" />
+  <meta property="og:url" content="https://3d.tosijs.net/v0.10.6/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"0.10.6","description":"- Flat panels can be placed in screen terms: screenAnchor (on b3dPanel and frame panels) pins a panel to the view's edges in pixels, a fraction of the axis…","url":"https://3d.tosijs.net/v0.10.6/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json?v=02678983b691" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <article class="doc-content" data-doc="v0.10.6.md">
+<h1 id="0106">0.10.6</h1>
+<!--{ "parent": "CHANGELOG", "order": 9989994 }-->
+
+<h2 id="added">Added</h2>
+<ul>
+<li><strong>Flat panels can be placed in screen terms</strong>: <code>screenAnchor</code> (on <code>b3dPanel</code> and frame panels) pins a panel to the view&#39;s edges in pixels, a fraction of the axis (<code>&#39;5%&#39;</code>) or of the shorter side (<code>&#39;3vmin&#39;</code>), with an anchor point, and <code>height</code> sets its size on screen. It is solved with <code>anchorLayout</code> every frame and placed square to the screen in the head-locked frame, so a resize or a different window shape keeps it where you put it; it wins over <code>flatAnchor</code>&#39;s degrees, which suit a headset, where a panel is around you. The demo loadouts use it: 64 px in, 2vmin down, 14% of the screen tall. Opened, a screen-pinned panel comes to the middle of the screen square to it, not tilted up from below eye level.</li>
+<li><strong>A box scrolls with a pointer alone</strong>: a scrollbar on its right edge when its content overflows a fixed height (drag the thumb; press the track to page). A wheel scrolls a box on a page, but a panel in a scene gets no wheel and a headset has none, so a long list was cut off with no way to reach the rest. <strong>Sticky children</strong> (<code>sticky: true</code> on a leading run) stay put while the rest scrolls under them: the inventory list&#39;s heading and drop row (#3290).</li>
+<li><strong>The Biped Playground has the loadout, and the pistol lives on your hip.</strong> Firing mode follows where the pistol is: in a hand the gun is up, on the hip it is down, in the bag or dropped there is nothing to raise. The weapon button draws it from the hip or holsters it, and dragging it into a hand does the same. <code>b3dBiped</code>&#39;s new <code>whenWeapon</code> (JS) lets a game answer the weapon button itself and call <code>setGunplay</code>; <code>demoLoadout({ equip })</code> starts with things worn and returns its <code>inv</code> (#3305).</li>
+<li><strong>The Biped Playground has a pool</strong>: 14 x 10 m, 3.5 m deep, in the far corner past the catwalk, with a shelving ramp at one end to walk in on (where <code>isSwimming</code>&#39;s hysteresis is tested) and caustics on the floor. Sunk into the ground, because a biped swims anywhere below the water&#39;s height: <code>b3dGround</code>&#39;s new <code>holes</code> (JS) cuts rectangles out of it, keeping its texture unbroken around them. <code>playground({ pool: false })</code> leaves it out.</li>
+<li><strong>A drop target.</strong> <code>inventoryPanel</code>/<code>inventoryDock</code> <code>handleDrop(item, kind, from)</code> adds a <strong>drop</strong> row at the top of the list: a thing dropped there leaves the inventory, after the game has had its say (return reasons to refuse and it springs back; otherwise put it in the world). Both demos have one (#3290).</li>
+<li><strong><code>ui.anchorLayout</code>, the third layout</strong> beside the flow: positioned and layered. An item is pinned to any edge with an offset (units or a fraction, <code>&#39;50%&#39;</code>), with a natural or fixed size; between two pins its size is what they leave and a stated size is a minimum. Its anchor (<code>anchorX</code>/<code>anchorY</code>, <code>anchor: &#39;center&#39;</code>; default the top left) is the point a pin places and the way a minimum that does not fit overflows. <code>within</code> pins it inside a rectangle of the container (a window in the artwork). Paint order is the order given or <code>z</code>. Pure and unit-tested; the box mode that uses it is next (#3309).</li>
+<li><strong>Things have pictures, and say what they are.</strong> An item kind&#39;s <code>icon</code> (SVG markup) is drawn on its tile: beside the name in a list, alone and filling a socket, and as the ghost a drag carries. Pointing at a thing, or selecting it with a gamepad, shows an info floater (its name, <code>description</code>, mass and what it adds by default; <code>info</code> replaces that), drawn in the ghost&#39;s layer so nothing clips it. <code>carryTile</code> takes <code>icon</code> and <code>info</code>. The demos load one picture per kind from <code>/item-icons.json</code> (#3290).</li>
+<li><strong>A frame panel can come to you.</strong> Content that dispatches <code>panelfocus</code> (<code>detail: { focus: true }</code>) on its SVG brings its panel front and centre (<code>focusAnchor</code>, default straight ahead and a little low), enlarged (<code>focusScale</code>, default 1.9, at 0.75 m) and always revealed; <code>focus: false</code> sends it back. A focused panel never sits inside the camera&#39;s near plane (it is pushed out and scaled to look the same size) and is never bigger than the view (it fits 92% of it, allowing for being off-centre), so a monitor shows all of it. <code>flatAnchor</code> places a panel somewhere else in the flat view (the shoulder is off a monitor&#39;s edge), and <code>&lt;tosi-b3d-panel&gt;</code> takes <code>svg</code>, <code>flatAnchor</code>, <code>focusAnchor</code> and <code>focusScale</code> as JS properties. A frame panel also grows with its SVG&#39;s viewBox now, so content that opens wider gets a wider plane. <code>inventoryDock</code> asks for focus as it opens, and the main <code>tosi-b3d</code> demo pins your loadout up and to the left (over the shoulder in VR, the top left flat): touch or click it and it comes front and centre with your bag (#3290).</li>
+<li><strong>An inventory in 3D: <code>inventoryDock</code>.</strong> A loadout that lives on a plane in the scene, flat and in a headset. Closed, it is the schematic alone, small; a tap opens it, with the list beside it (a bag) to drag to and from, and a button closes it. Both are drawn in one SVG, so a drag between them is one plane with one ghost (<code>carryGhostLayer</code>). Without a <code>list</code> it opens to the schematic alone (a craft fitted from a carrier&#39;s stock). Demo: &quot;In 3D&quot; on the inventory-box page, where the loadout replaces the &quot;Inventory&quot; placeholder over your shoulder (top left flat) and a touch brings it front and centre (#3290).</li>
+<li><strong>A two-handed weapon shows in both hands</strong>: <code>inventoryPanel</code>&#39;s <code>alsoIn(item, kind, at)</code> names the other slots an item takes up, where it is drawn faded (and can be picked up from either). The game decides which; the panel only draws it (#3290).</li>
+<li><strong>Drag and drop, as a model and on a panel</strong> (INVENTORY-DESIGN step 1). <code>createCarry</code> is picking up and putting down with nothing drawn: what is carried and from where, the target under the pointer, and its verdict as REASONS; drop is all or nothing; dragging and two taps are one model, and one carry spans every panel. <code>carryTile</code>, <code>carrySocket</code> and <code>carryPanel</code> draw it on a box: things with decorations (a status bar, a damaged or broken outline, a badge), sockets that light when the held thing would fit, dim when not and say why, and a ghost that follows the pointer. A drag goes from one panel to another (they share the carry), and letting go outside every panel puts the thing back.</li>
+<li><strong>An inventory model</strong> (<code>createInventory</code>, INVENTORY-DESIGN step 2): pure, with the game&#39;s catalogue, rules, contributions and prices plugged in. Holders hold slots (a paper doll, hardpoints, mounts), lists (a bag, a stock) and grids (a hull of boxes). A move is checked against every rule on a copy and kept only if all pass, so it happens completely or not at all; it can swap, split a stack, take from the catalogue, or pay. <code>stage()</code> is a draft that may be incomplete (a cart, a barter, a design not yet committed); <code>totals</code> adds up what is fitted (and what its mount adds); <code>damage</code> crosses off a system&#39;s boxes. <code>craft</code> runs a recipe (inputs used up, tools required but kept, outputs made, one move) and <code>compile</code> turns a finished design into a new kind (a ship class, a learned spell, a forged sword). Tested against a party, a loadout, a starship design, a shop and a smithy.</li>
+<li><strong><code>inventoryPanel</code></strong>: one holder of an inventory on a panel, with drag and drop wired to the model, so a socket lights, dims and explains with the game&#39;s own rules. Panels sharing an inventory and a carry are a party, a trade or (with <code>moveFor</code> adding a price) a shop.</li>
+<li><strong>Schematics</strong>: <code>inventoryPanel({ schematics: { body: svgText } })</code> draws a container as art, and its slots go where the art&#39;s sockets are (<code>data-slot=&quot;…&quot;</code>, or ids in a <code>Sockets</code> group; <code>readSchematic</code> reads one). Sockets on art draw nothing at rest, outline when what is held fits, darken when not, and name themselves and the reason on hover. Demos: equip a person, arm a Manta from a carrier&#39;s counted stock, and a shop (its goods left, yours right, the deal in the middle: one <code>move</code> that buys, sells and pays, or does none of it). Panels take <code>height</code> (a scrolling list), <code>only</code>/<code>hide</code> (split one holder across panels) and <code>refuse</code> (a view&#39;s own reasons), and show the holder&#39;s purse.</li>
+<li><strong>A schematic is drawn at the art&#39;s own scale</strong>, cropped to what it draws and shrunk only when the panel is too narrow (<code>schematicFit</code>), so a socket designed 44 units square is a 44-unit target, not whatever the file&#39;s margins left of it.</li>
+<li><strong>The demo schematics are coloured by CSS variables</strong> with defaults for a dark panel (<code>--schematic-body</code>, <code>--schematic-socket</code>, <code>--schematic-socket-edge</code>, <code>--schematic-label</code>): a host restyles them on the page, and a texture draws the defaults.</li>
+<li><strong>A box child can be placed</strong> (<code>at: { x, y }</code>): over the flowed child before it, at that offset, taking no flow space and hit first. Sockets on a schematic are this.</li>
+</ul>
+<h2 id="changed">Changed</h2>
+<ul>
+<li><strong>The closed loadout is a small picture</strong>: no heading over it and no sockets drawn, only what is in them (all return when open), corners rounded well past the panel&#39;s own, 0.125 m wide (was 0.3; <code>focusScale</code> 4.56 keeps the opened size), and flat it sits nearer the top-left corner (18° up, was 10°), square to the screen. Frame panel anchors gain <code>flatOn</code> (parallel to the frame&#39;s view plane rather than turned to face the eye) and <code>tiltDeg</code> (tip it about its own horizontal axis without moving it) (#3290).</li>
+<li><strong>Inventory list rows are full width</strong>, so a row is a button you can hit anywhere along it. <strong>Swimming starts chest deep</strong> (0.65 submerged, down to 0.5 to stand again; it was waist deep, 0.5 and 0.35), and a swimmer rides a little higher than the last change (12 cm of water above the head bone, was 20; treading unchanged) (#3290).</li>
+<li><strong>The opened dock&#39;s list is as tall as the loadout beside it</strong> (it scrolls), not a fixed 540 that made the whole dock taller than its picture. <code>height</code> still sets it explicitly (#3290).</li>
+<li><strong>An inventory panel&#39;s heading sits over its schematic&#39;s top left</strong> (title, totals, the container&#39;s name) instead of stacked above it, so the picture is larger, which matters most on the small pinned loadout. A panel whose first container is not a schematic keeps its heading above (#3290).</li>
+<li><strong>SVG panels are mipmapped</strong> (<code>SvgTexture</code> <code>mipmaps</code>, default <code>true</code>: trilinear, anisotropic 4). A panel is nearly always drawn smaller than its texture (1024 px over ~300 px of a Quest 3&#39;s view at arm&#39;s length), and unfiltered its hairlines broke up and its text crawled; the small pinned loadout&#39;s socket outlines were visibly broken and now draw whole. Every in-scene panel, popup and HUD goes through it. Mip generation measured under 0.1 ms per repaint at 1024 px; it costs a third more texture memory. <code>mipmaps: false</code> for a texture always seen at about a texel per pixel.</li>
+<li><strong>An inventory panel on a page fits the space it is given</strong> instead of being cropped (<code>fit</code>, default on): side by side they shrink in proportion, in a column it is no wider than the column, never taller than its container, never larger than drawn, always the same shape. Anything the page sets inline on the host wins (#3290).</li>
+<li>The default body panels are an inventory over the left shoulder and a <strong>journal</strong> over the right (both were &quot;Inventory&quot;) (#3290).</li>
+<li><code>panelScene</code>&#39;s orbit camera stops at half its starting distance (<code>camera.minRadius</code>), so zooming cannot pass through the panel (#3290).</li>
+<li><strong>A planet&#39;s edge has a golden hour.</strong> Where you see its air edge on and the sun is low over it, the air takes the colour left when its own is scattered out: Earth&#39;s goes gold, Mars&#39;s dusty air goes blue. The whole lit rim takes it together, by how far the sun has gone behind the planet from where you are: lit from the side, the rim (its &quot;poles&quot; included) stays the air&#39;s own colour. Face on, nothing changes (#3285).</li>
+<li><strong>The Solar System&#39;s sky is tilted as ours is</strong>: the planets orbit about 60.2° to the galaxy&#39;s plane, so the Milky Way crosses the orbits steeply instead of running along them (<code>spaceBackdrop({ tilt })</code>).</li>
+<li><strong>While you carry something, the sockets that would take it light up</strong>, the one under the pointer brighter and named, and the rest go dark. The ghost hangs above the pointer, so the socket you are over stays in sight (#3290).</li>
+<li><strong>A panel that shows one list takes a drop anywhere on it</strong>, not just on its tiles or the &quot;put in&quot; row at the bottom of a scrolled list, and is outlined while it would take what you carry. Dragging a thing off a socket back into the bag is a drop on the bag (<code>carryPanel(box, carry, { fallback })</code>) (#3290).</li>
+<li><strong>A drop that does not land springs back.</strong> Refused by its target, let go on nothing, or released outside every panel, the ghost returns to where it was picked up and shows why it was refused there for a moment. <code>carryPanel</code> now returns <code>dispose</code>, and <code>inventoryPanel</code> calls it on each rebuild (a rebuilt panel used to leave its old carry subscription behind) (#3290).</li>
+</ul>
+<h2 id="fixed">Fixed</h2>
+<ul>
+<li><p><strong>In a headset, a screen-pinned panel is where its VR anchor says</strong> (found by the release review). Screen pins are for a monitor: in a session they were still applied, putting the loadout a metre ahead, sized from the flat canvas, instead of on your left shoulder. <code>presentationSpec(spec, flat)</code> is now the one rule every attach site uses (flat: the flat anchor and screen pins; in VR: neither). Checked in the emulated headset.</p>
+</li>
+<li><p><strong>Two-tap works on a page</strong> (found by the release review). The page examples cancelled the carry on every <code>pointerup</code>, and a tap pick-up happens ON a release, so it was put straight back. <code>carryOverlay</code> now cancels a drag let go over nothing itself, after the panels have had the release, and never a tap; the examples no longer add their own.</p>
+</li>
+<li><p><strong>A press on a panel in the scene no longer also works the game&#39;s controls.</strong> The biped reads mouse buttons (the left button is A, a jump), so every press on the playground&#39;s loadout made the hero jump, and with a weapon up could fire it. A frame panel now cancels the <code>pointerdown</code> it takes, which by the web&#39;s own rule stops the matching <code>mousedown</code>/<code>mouseup</code>; the scene&#39;s picking is pointer events and carries on.</p>
+</li>
+<li><p><strong>A focused panel fits the view a looking-down camera actually has.</strong> Its room was worked out from where it sits in its frame, which is level while a follow camera pitches down; it is now measured in the camera&#39;s own view.</p>
+</li>
+<li><p><strong>Swimmers ride lower.</strong> The water sat at the head bone (the base of the skull), which left a treader&#39;s shoulders and arms out and a swimmer&#39;s head, shoulders and back riding on top. It now sits 10 cm higher on a treader (at the jaw: the head out) and 20 cm on a swimmer (over the back: the head breaking).</p>
+</li>
+<li><p><strong>Raising the weapon aims straight ahead.</strong> The aim is the look pitch, which kept whatever it was left at (looking at the ground, the last dive), so the gun often came up pointing at your feet. <code>setGunplay(true)</code> levels it, flat only (in a headset the aim is the controller); lowering the weapon leaves the view alone.</p>
+</li>
+<li><p><strong>First person shows the world, not the back of your head.</strong> Sprinting leans the head 22° forward and swimming far more, and the back and underside of the skull filled the view (measured in the playground: half the screen while sprinting). The head bone is collapsed while in first person, the way first-person games do it, so the arms and body stay (your hands show as you swim); it is restored out of first person, and the shadow is headless while you are in it. The eye now sits along the head&#39;s own axes, 10 cm up the skull, rather than offset along the body&#39;s level facing (#3291).</p>
+</li>
+<li><p><strong>Aiming down while swimming dives.</strong> At the surface a swimmer&#39;s buoyancy (set so the swim pose floats on the waterline) lifted about as fast as a downward stroke sank, so pitching down with the right stick and swimming went nowhere, and up is capped at the surface by design: the stick seemed to do nothing either way. A stroke aimed down now takes the vertical from buoyancy in proportion to how steeply and how hard you swim (<code>diveBuoyancy</code>); let go and buoyancy surfaces you as before. Measured in the new pool: 1.3 m deeper in two seconds, where it was 0.3.</p>
+</li>
+<li><p><strong>An open inventory survives entering or leaving a headset.</strong> Opened flat, then into VR, the loadout came up small on its shoulder still showing the bag, and a tap did nothing (it was already open), there and back out. A session change rebuilds the frame panels, and the new one never heard the dock&#39;s <code>panelfocus</code>. Content now also marks its SVG <code>data-focus=&quot;true&quot;</code> while focused, and a frame panel made later starts from it (#3290).</p>
+</li>
+<li><p><strong>A sun&#39;s shadows can be turned off</strong>: <code>&lt;tosi-b3d-sun shadows=&quot;off&quot;&gt;</code> (<code>&#39;on&#39;</code> by default; live, so a toggle works). The demos, the README and this repo&#39;s notes passed <code>shadowCascading: true</code>, which was never an attribute: shadows are always cascaded, and <code>shadowCascading: false</code> silently did nothing. It is gone from every example.</p>
+</li>
+<li><p><strong>No more fine bands over every lit surface.</strong> <code>&lt;tosi-b3d-sun&gt;</code>&#39;s <code>shadowBias</code> default is 0.0005 (was Babylon&#39;s 0.00005). With <code>shadowNormalBias</code> at 0.02, which has to stay low or thin limbs lose their shadow, plain scenes (the primitives and getting-started demos) were striped with shadow acne on the ground, the boxes and the spheres. A character&#39;s shadow is unchanged. The attribute table also said <code>shadowNormalBias</code> defaulted to 0.05; it is 0.02.</p>
+</li>
+<li><p><strong>The checker ground is checkered.</strong> <code>b3dGround({ texture: &#39;checker&#39; })</code> drew one flat grey: the texture clamped at its edge instead of repeating, so every tile past the first was the edge colour. It repeats now, and is mipmapped so it does not shimmer toward the horizon. Its dark squares are 70% of the ground colour (they were a fixed grey barely darker than the default ground).</p>
+</li>
+<li><p><strong>Getting started opens on a running scene</strong>: the first scene is a live example, and below it the same scene as plain HTML markup, live too.</p>
+</li>
+<li><p><strong>A star system keeps real time.</strong> Every day, month and year is the real one, and a new <code>timeScale</code> attribute (simulated seconds per real second, default 3600: an hour a second, an Earth day in 24 seconds) says how fast it runs; both demos have a log <strong>time</strong> slider from real time to a year every ten seconds. Planets used to turn once in about 80 seconds against a 60-second year, so they looked still, and moons took longer to go round their planet than the planet took to go round the Sun. Now <code>SystemPlanetSpec.day</code> (Earth days, negative backwards) and <code>SystemBodySpec.period</code> (a moon&#39;s month in days, negative backwards) carry the truth for Sol (Venus and Uranus turn backwards, Triton goes round backwards); a generated moon gets Kepler&#39;s month for a true distance (<code>moonPeriod</code>), a generated rock an Earth day, a giant a Jupiter one. Orbits, months and days are angles of one clock (<code>spinAngle</code>), so they keep time together and stop together with <code>animate</code>.</p>
+</li>
+<li><p><strong>Dragging on a frame panel no longer turns the camera.</strong> Flat, the camera&#39;s own controls took the same pointer, so a drag across a panel orbited the view behind it. A press on a frame panel now holds the camera&#39;s controls until release (#3290).</p>
+</li>
+<li><p><strong>A drag that leaves its panel at once still drags.</strong> A press on a thing, then a pointer that was already over another panel by its next move (a controller ray moves in big steps; so does a fast flick), forgot the press and dragged nothing. Leaving a panel with a thing pressed now starts the drag. Found driving the loadout with an emulated controller (#3290).</p>
+</li>
+<li><p><strong>A trigger press in VR always counts, whichever hand it is.</strong> Babylon points with one controller, the first to connect, and a press on the other one only switched to it: the press was dropped, so the first press of a session (and any press after the headset swapped controllers) did nothing. Now the right hand points first, and a press on the hand that is not pointing switches to it and is delivered. It reads Babylon&#39;s private per-controller state; a Babylon upgrade that renames it brings back the dropped press rather than breaking anything (#3290).</p>
+</li>
+<li><p>An inventory panel&#39;s totals line is always there, so the first thing worn no longer pushes the schematic down (#3290).</p>
+</li>
+<li><p><strong>Dragging between inventory panels works with a finger or a headset&#39;s laser.</strong> Both are captured by the element they press, so the moves and the release never reached another panel; <code>inventoryPanel</code> now lets the capture go as it arrives (a mouse was never captured, which is why it worked on a desktop). And on a page the ghost is drawn in one overlay above every panel (<code>carryOverlay(carry)</code>, with <code>carryPanel(…, { ghost: false })</code>), so it crosses from one panel to the next instead of being clipped by each. A panel on a 3D plane keeps its own ghost (#3290).</p>
+</li>
+<li><p><strong>A thing can be dragged out of a socket</strong> (it could only be dragged out of a list), and a thing in a list is itself a place to drop into that list, so a long, scrolled list takes a drop anywhere. A thing put back in a list joins a stack of its kind with room (a missile returned to the carrier is counted again); one drawn from a stack swaps with what a slot held.</p>
+</li>
+</ul>
+<p>Size: barrel (min, packages external) 1082.1 KB raw / 368.9 KB gz, +3.80% on 0.10.5.</p>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../getting-started/">Getting started</a></li>
+    <li><details><summary><a class="doc-link" href="../demos/">Demos</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
+      <li><a class="doc-link" href="../solar-system/">Solar System</a></li>
+      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li><a class="doc-link" href="../rig-tool/">Rig tool</a></li>
+      <li><a class="doc-link" href="../effect-tool/">Effect tool</a></li>
+      <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
+      <li><a class="doc-link" href="../land-and-sky/">Land and Sky</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../tosi-b3d/">b3d</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-loader/">b3d-loader</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-primitives/">Primitives: box, sphere, ground</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-library/">b3d-library</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../sky-and-light/">Sky and light</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
+        <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-shadows/">Sun and shadows (b3d-shadows)</a></li>
+      <li><a class="doc-link" href="../b3d-light/">Ambient light (b3d-light)</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-lamp/">Lamps</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
+        <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../weather-and-clouds/">Weather and clouds</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-weather-cell/">b3d-weather-cell</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../weather/">weather</a></li>
+        <li><a class="doc-link" href="../wind/">wind</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../terrain/">Terrain</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+        <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+        <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+        <li><details><summary><a class="doc-link" href="../landform/">landform</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../landform-schemas/">landform schemas</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
+        <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
+        <li><a class="doc-link" href="../gradient-filter/">gradient-filter</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../scatter/">scatter</a></li>
+        <li><a class="doc-link" href="../procedural-rock/">procedural-rock</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../carve/">carve</a></li>
+        <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../water/">Water</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-water/">b3d-water</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../medium/">medium</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-effect/">b3d-effect</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-trail/">b3d-trail</a></li>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../characters-and-vehicles/">Characters and vehicles</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-biped/">b3d-biped</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../aim/">aim</a></li>
+        <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
+        <li><a class="doc-link" href="../retarget/">retarget</a></li>
+        <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
+        <li><details><summary><a class="doc-link" href="../rig-build/">auto-rig</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../rig-markers/">rig markers</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../spring-chain-babylon/">spring bones</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../fly-by-wire/">fly-by-wire</a></li>
+        <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../spatial-transform/">spatial-transform</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
+      <li><details><summary><a class="doc-link" href="../inspect-view/">inspect-view</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../seam-material/">seam-material</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><details><summary><a class="doc-link" href="../input-internals/">How input works</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../control-input/">control-input</a></li>
+        <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+        <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+        <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../interacting/">Interacting with the world</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../interaction/">interaction</a></li>
+        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../ballistics/">ballistics</a></li>
+        <li><a class="doc-link" href="../guidance/">guidance</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-radar/">b3d-radar</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><details><summary><a class="doc-link" href="../inventory/">inventory</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../formations/">formations</a></li>
+        <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../widgets3d/">widgets3d</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../carry/">carry</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../carry-box/">carry-box</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../dials/">dials</a></li>
+      <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
+        <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+        <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
+        <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+        <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
+        <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
+        <li><details><summary><a class="doc-link" href="../color-field/">color3d</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../color/">color</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../picker/">picker</a></li>
+        <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+        <li><details><summary><a class="doc-link" href="../table/">table</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../selection/">selection</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-containers/">Containers</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../box/">box</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+          <li><a class="doc-link" href="../anchor-layout/">anchor-layout</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../surface/">surface</a></li>
+        <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-in-scene/">In the scene and XR</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../b3d-panel/">b3d-panel</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+          <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+          <li><details><summary><a class="doc-link" href="../system-bar/">system-bar</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../bar-menu/">bar-menu</a></li>
+          </ul>
+          </details></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+        <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+        <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-theme/">Theme and icons</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../w3d-theme/">w3d-theme</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../gas-giant/">gas-giant</a></li>
+      <li><a class="doc-link" href="../rocky-world/">rocky-world</a></li>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../sphere-map/">sphere-map</a></li>
+      <li><a class="doc-link" href="../planet-map/">planet-map</a></li>
+      <li><a class="doc-link" href="../space-backdrop/">space-backdrop</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-probe/">b3d-probe</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+        <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../cost-sweep/">Cost sweep</a></li>
+      <li><a class="doc-link" href="../draw-order/">Draw order</a></li>
+      <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../Migration/">Migration</a></li>
+      <li><details open><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../v0.11.1/">0.11.1</a></li>
+        <li><a class="doc-link" href="../v0.11.0/">0.11.0</a></li>
+        <li><a class="doc-link" href="../v0.10.20/">0.10.20</a></li>
+        <li><a class="doc-link" href="../v0.10.19/">0.10.19</a></li>
+        <li><a class="doc-link" href="../v0.10.18/">0.10.18</a></li>
+        <li><a class="doc-link" href="../v0.10.17/">0.10.17</a></li>
+        <li><a class="doc-link" href="../v0.10.16/">0.10.16</a></li>
+        <li><a class="doc-link" href="../v0.10.15/">0.10.15</a></li>
+        <li><a class="doc-link" href="../v0.10.14/">0.10.14</a></li>
+        <li><a class="doc-link" href="../v0.10.13/">0.10.13</a></li>
+        <li><a class="doc-link" href="../v0.10.12/">0.10.12</a></li>
+        <li><a class="doc-link" href="../v0.10.11/">0.10.11</a></li>
+        <li><a class="doc-link" href="../v0.10.10/">0.10.10</a></li>
+        <li><a class="doc-link" href="../v0.10.9/">0.10.9</a></li>
+        <li><a class="doc-link" href="../v0.10.8/">0.10.8</a></li>
+        <li><a class="doc-link" href="../v0.10.7/">0.10.7</a></li>
+        <li><a class="doc-link current" href="../v0.10.6/" aria-current="page">0.10.6</a></li>
+        <li><a class="doc-link" href="../v0.10.5/">0.10.5</a></li>
+        <li><a class="doc-link" href="../v0.10.4/">0.10.4</a></li>
+        <li><a class="doc-link" href="../v0.10.3/">0.10.3</a></li>
+        <li><a class="doc-link" href="../v0.10.2/">0.10.2</a></li>
+        <li><a class="doc-link" href="../v0.10.1/">0.10.1</a></li>
+        <li><a class="doc-link" href="../v0.10.0/">0.10.0</a></li>
+        <li><a class="doc-link" href="../v0.9.0/">0.9.0</a></li>
+        <li><a class="doc-link" href="../v0.8.15/">0.8.15</a></li>
+        <li><a class="doc-link" href="../v0.8.14/">0.8.14</a></li>
+        <li><a class="doc-link" href="../v0.8.13/">0.8.13</a></li>
+        <li><a class="doc-link" href="../v0.8.12/">0.8.12</a></li>
+        <li><a class="doc-link" href="../v0.8.11/">0.8.11</a></li>
+        <li><a class="doc-link" href="../v0.8.10/">0.8.10</a></li>
+        <li><a class="doc-link" href="../v0.8.9/">0.8.9</a></li>
+        <li><a class="doc-link" href="../v0.8.8/">0.8.8</a></li>
+        <li><a class="doc-link" href="../v0.8.7/">0.8.7</a></li>
+        <li><a class="doc-link" href="../v0.8.6/">0.8.6</a></li>
+        <li><a class="doc-link" href="../v0.8.5/">0.8.5</a></li>
+        <li><a class="doc-link" href="../v0.8.4/">0.8.4</a></li>
+        <li><a class="doc-link" href="../v0.8.3/">0.8.3</a></li>
+        <li><a class="doc-link" href="../v0.8.2/">0.8.2</a></li>
+        <li><a class="doc-link" href="../v0.8.1/">0.8.1</a></li>
+        <li><a class="doc-link" href="../v0.8.0/">0.8.0</a></li>
+        <li><a class="doc-link" href="../v0.7.8/">0.7.8</a></li>
+        <li><a class="doc-link" href="../v0.7.7/">0.7.7</a></li>
+        <li><a class="doc-link" href="../v0.7.6/">0.7.6</a></li>
+        <li><a class="doc-link" href="../v0.7.5/">0.7.5</a></li>
+        <li><a class="doc-link" href="../v0.7.4/">0.7.4</a></li>
+        <li><a class="doc-link" href="../v0.7.3/">0.7.3</a></li>
+        <li><a class="doc-link" href="../v0.7.2/">0.7.2</a></li>
+        <li><a class="doc-link" href="../v0.7.1/">0.7.1</a></li>
+        <li><a class="doc-link" href="../v0.7.0/">0.7.0</a></li>
+        <li><a class="doc-link" href="../v0.7.0-rc.1/">0.7.0-rc.1</a></li>
+        <li><a class="doc-link" href="../v0.6.2/">0.6.2</a></li>
+        <li><a class="doc-link" href="../v0.6.1/">0.6.1</a></li>
+        <li><a class="doc-link" href="../v0.6.0/">0.6.0</a></li>
+        <li><a class="doc-link" href="../v0.5.2/">0.5.2</a></li>
+        <li><a class="doc-link" href="../v0.5.1/">0.5.1</a></li>
+        <li><a class="doc-link" href="../v0.5.0/">0.5.0</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
+      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
+      <li><a class="doc-link" href="../noise-texture/">Noise texture</a></li>
+    </ul>
+    </details></li>
+    <li><a class="doc-link" href="../design-notes/">Design notes</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate-7skqvnh0.js"></script>
+</body>
+</html>

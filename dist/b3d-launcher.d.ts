@@ -57,7 +57,7 @@ export interface ProjectileOpts {
      * wing three levels down.
      */
     directHit?: boolean;
-    /** Who to credit for what this shell destroys — see [[destroyable|Cause]]. */
+    /** Who to credit for what this shell destroys — see `Cause` in `destroyable.ts`. */
     cause?: Cause;
     /**
      * Called when the shell detonates, with the point, the surface normal and the

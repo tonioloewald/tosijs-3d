@@ -136,7 +136,7 @@ export declare function aimPoseWeights(pitchDeg: number, limits?: AimLimits): Ai
  * does not.
  *
  * Multiply it into the mask's weights, which is why this returns a scalar and
- * not a mask: [[bone-mask]] owns WHICH bones, this owns HOW MUCH.
+ * not a mask: the bone mask owns WHICH bones, this owns HOW MUCH.
  */
 export declare function aimAuthority(aim: Aim, limits?: AimLimits): number;
 /**

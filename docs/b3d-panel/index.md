@@ -6,7 +6,7 @@ instead of hard-wiring panels in code. It anchors to an
 plain attributes. By default it is **VR-only**; **`presence: 'both'`** also puts it
 in the flat view, where the frames follow the flat camera — ONE panel, placed
 relative to the viewer in both, rather than a flat overlay plus a VR panel to keep
-in step (tosijs-3d#81). The hand frames have no flat analogue, so a hand panel
+in step. The hand frames have no flat analogue, so a hand panel
 names its flat home with `flatFrame`.
 
 ## Demo
@@ -41,7 +41,7 @@ const scene = b3d(
   // `axes` pins a debug XYZ READOUT on any AbstractMesh geometry (glowing R/G/B).
   // It shows you an orientation; it is NOT a handle — there is nothing to grab
   // and nothing happens if you try. (It reads as Babylon's position gizmo,
-  // which is a manipulator. Exposing that one is TODO — see the note below.)
+  // which is a manipulator: for one you can grab, see b3d-manipulator.)
   b3dBox({ meshName: 'cube', size: 1, y: cfg.height, color: '#39c5ff', axes: true }),
   // BOTH flat + VR: a world-anchored SVG panel — it IS a mesh in the scene, so it
   // shows in the regular view and in VR, always in the same spot.
@@ -60,9 +60,8 @@ tosi-b3d { width: 100%; height: 100%; }
 ```
 
 > **The coloured axes are a readout, not a manipulator.** They show the cube's
-> orientation. Babylon ships a real position/rotation gizmo (`GizmoManager`)
-> and exposing it — so a panel can be PLACED by dragging rather than by typing
-> numbers — is on the list, not in 0.7.0.
+> orientation. To place something by dragging, use
+> [b3d-manipulator](?b3d-manipulator.ts).
 
 ## On the system bar
 
@@ -232,10 +231,11 @@ The `<tosi-b3d-panel>` children are the set (none ship by default):
 | `reveal-start` / `reveal-full` | `50` / `25` | Gaze half-angles (deg) where the reveal begins / completes |
 | `max-distance` | `0` | Hide beyond this distance (m); 0 = no limit |
 | `presence` | `'xr'` | `'xr'` — only in an immersive session; `'both'` — also in the flat view, on frames derived from the flat camera |
-| `flatFrame` | `''` | The frame to use in the FLAT view: required for a hand panel (a monitor has no hands); `'face'` measures elevation from the view instead of the horizon, so a menu stays centred under a pitched camera |
+| `flat-frame` | `''` | The frame to use in the FLAT view, required for a hand panel (a monitor has no hands): e.g. `face` with a `position` at the screen edge. `'face'` measures elevation from the view instead of the horizon, so a menu stays centred under a pitched camera. Without one a hand panel stays VR-only and warns once |
 | `resolution` | `0` | Texture size in px (square); `0` = 384. Raise it for a menu with text |
-| `layer` | `'world'` | `'ui'`: drawn over the whole world and pressed first, never hidden by a nearer wall (what was a page overlay); `'modal'`: over even the ui (pause, a dialog). `'world'`: in the scene like anything else. The same in a headset: the controller's ray picks modal, then ui, then the world |
-| `flat-frame` | `''` | The frame to use flat when `frame` is a hand (a monitor has none) — e.g. `face` with a `position` at the screen edge. Without one a hand panel stays VR-only and warns once |
+| `layer` | `'world'` | `'ui'`: drawn over the whole world and pressed first, never hidden by a nearer wall (what a page overlay is flat); `'modal'`: over even the ui (pause, a dialog). `'world'`: in the scene like anything else. The same in a headset: the controller's ray picks modal, then ui, then the world |
+
+## Properties, methods and events
 
 Five more are JavaScript properties, not attributes, because they are
 objects: `svg` (live content, in place of an `<svg>` child: an `<svg>` whose own `handlePointer(kind, x, y)`

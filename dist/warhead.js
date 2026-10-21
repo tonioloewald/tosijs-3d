@@ -1,4 +1,4 @@
-/*#
+/*
 # warhead
 
 **How much damage a hit does, and to whom.** Pure and deterministic. A warhead
@@ -25,7 +25,6 @@ model only does the arithmetic. [[b3d-warhead]] is the scene side (it gathers
 the targets, casts the rays and draws the explosion); the amounts land on a
 [[destroyable]].
 */
-/*{ "parent": "b3d-warhead", "order": 10 }*/
 export function dist3(a, b) {
     const dx = a.x - b.x;
     const dy = a.y - b.y;

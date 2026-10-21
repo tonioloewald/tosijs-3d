@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=060314d12b8f" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=f55d7e2fb2af" data-tosi-doc-system />
   <title>b3d-ambient — tosijs-3d</title>
   <meta name="description" content="The stuff in the air, or in the water. Bubbles and motes when you&#39;re under; rain, snow, dust or drifting seeds when you&#39;re not." />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-ambient/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=e9f6966606af" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=02678983b691" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="b3d-ambient.ts">
 <h1 id="b3d-ambient">b3d-ambient</h1>
 <p>The stuff in the air, or in the water. <strong>Bubbles and motes when you&#39;re under; rain, snow,
@@ -61,10 +61,9 @@ const scene = b3d(
   b3dSkybox({ timeOfDay: 11 }),
   b3dFog({ start: 200, end: 1200, color: &#39;#bfd9f2&#39; }),
   b3dGround({ meshName: &#39;ground_nocast&#39;, width: 2000, height: 2000, color: &#39;#4a5f3e&#39;, y: -40 }),
-  // `waterSize`, NOT width/height: those are not water attributes, and tosijs
-  // silently DISCARDS an unknown prop (tosijs#26), so the sea stayed at its
-  // 128 default beside a 2000-unit ground — &quot;the water quad is so much smaller
-  // than the land quad&quot;. `twoSided` because this demo&#39;s whole point is
+  // `waterSize`, NOT width/height: those are not water attributes, and an
+  // unknown prop is ignored, so the sea would stay at its 128 default beside a
+  // 2000-unit ground. `twoSided` because this demo&#39;s whole point is
   // descending THROUGH the surface and looking back up at it.
   b3dWater({ y: 0, waterSize: 2000, twoSided: true, follow: true }),
   b3dLibrary({ url: &#39;/test-3.glb&#39;, type: &#39;vehicles&#39; }),
@@ -106,9 +105,8 @@ matter how big the world is. Nothing grows, nothing allocates.</p>
 </blockquote>
 <p>Forty raindrops is not light rain — it&#39;s a rendering bug wearing rain&#39;s clothes. So you don&#39;t
 set a <code>count</code>; you <em>ask</em>. Each effect asks for the capacity its look needs and declares a
-<code>minCount</code> below which it would be <strong>a lie</strong>, and the scene divides one shared pool
-(<a href="../ambient-budget/">ambient-budget</a>, sized from the measured device tier) between everyone who
-wants some. Effects thin together while they can all stay honest; the moment someone would drop
+<code>minCount</code> below which it would be <strong>a lie</strong>, and the scene divides one shared pool (sized from
+the measured device tier) between everyone who wants some. Effects thin together while they can all stay honest; the moment someone would drop
 under its floor, that one is switched off (lowest <code>priority</code> first) and its budget goes to the
 survivors. <strong>Better honest rain and no motes than two half-truths.</strong></p>
 <p>The pool is shared because ambient effects <em>compete</em> — rain, dust and motes can each be
@@ -116,11 +114,18 @@ individually affordable and still cook the frame together. And if the frame stay
 anyway, the scene shrinks the pool and effects drop out on their own. That ratchet is <strong>one-way</strong>:
 ambient that pops back in the moment the frame recovers, then out again at the next tree, is its
 own broken promise.</p>
+<p>The cost of an effect is <strong>modelled</strong>, not measured, from what actually drives particle cost: area
+and blend mode (<code>fillWeight</code>). It cannot be measured per effect. Babylon&#39;s particle counter covers
+the whole scene, so an effect cannot tell its own rain from an explosion&#39;s sparks; and that counter
+is CPU-side while particles are GPU-bound (fill and overdraw). Timing the GPU needs
+<code>EXT_disjoint_timer_query</code>, which a Quest browser tends not to offer, so a self-measured budget
+would be least trustworthy on the device that needs it most. The pure allocator is
+<code>allocateAmbient(requests, pool)</code>, with <code>ratchetPool</code>/<code>recoverPool</code> for the one-way shrink.</p>
 <h2 id="it-arrives-with-the-water-not-on-top-of-it">It arrives with the water, not on top of it</h2>
 <p><code>where: &#39;underwater&#39;</code> doesn&#39;t switch on at the surface — its emission <strong>ramps with depth</strong>
-using the same <code>band()</code> the fog uses (see <a href="../atmosphere/">atmosphere</a>). Submerge and the
+using the same <code>band()</code> the fog uses (see <a href="/b3d-fog/">b3d-fog</a>). Submerge and the
 bubbles arrive <em>as the water does</em>. Popping a cloud of bubbles into existence at a plane is
-the particle version of the fog &quot;thunk&quot;, and we already fixed that once.</p>
+the particle version of a fog &quot;thunk&quot;.</p>
 <h2 id="presets">Presets</h2>
 <table>
 <thead>
@@ -151,9 +156,15 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
 </tr>
 <tr>
 <td><code>leaves</code></td>
-<td>Two-sided quads that <strong>tumble</strong> and blow — real oriented geometry, not a billboard, so they flip edge-on and show their back. <code>windX</code>/<code>windZ</code> stream them downwind</td>
+<td>Two-sided quads that <strong>tumble</strong> and blow — real oriented geometry, not a billboard, so they flip edge-on and show their back. They stream with the wind</td>
 </tr>
 </tbody></table>
+<p>Leaves are the one preset that is <strong>not a sprite</strong>. A billboard always turns its face to you,
+which is right for something round. A leaf&#39;s whole read is that it tumbles: it flashes broadside,
+thins to an invisible edge, flips, shows its back. So leaves are real two-sided quads with
+per-particle 3-D rotation (<code>LeafField</code>, a Babylon <code>SolidParticleSystem</code>). The camera-riding box,
+the budget and the drain are the same as every other preset. Each leaf&#39;s sway is a flutter on
+top of the scene&#39;s wind, so leaves stream the same way the clouds and the water do.</p>
 <h2 id="attributes">Attributes</h2>
 <table>
 <thead>
@@ -206,12 +217,12 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
 <tr>
 <td><code>lookAhead</code></td>
 <td><code>0.35</code></td>
-<td>Push the spawn box along the VIEW, in units of <code>radius</code> — a camera sees a frustum, not a sphere, so a centred box births most of its particles behind you (#18)</td>
+<td>Push the spawn box along the VIEW, in units of <code>radius</code> — a camera sees a frustum, not a sphere, so a centred box births most of its particles behind you</td>
 </tr>
 <tr>
 <td><code>lead</code></td>
 <td><code>0.25</code></td>
-<td>Push it along MOTION, in seconds of travel — at speed you outrun a centred box, which empties the view ahead exactly when you want it fullest (#17)</td>
+<td>Push it along MOTION, in seconds of travel — at speed you outrun a centred box, which empties the view ahead exactly when you want it fullest</td>
 </tr>
 <tr>
 <td><code>speedCap</code></td>
@@ -232,6 +243,11 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
 <td><code>size</code></td>
 <td><code>0</code></td>
 <td>Scale the preset&#39;s sprite size</td>
+</tr>
+<tr>
+<td><code>wind</code></td>
+<td><code>&#39;scene&#39;</code></td>
+<td><code>&#39;scene&#39;</code> takes the scene&#39;s <a href="/wind/">wind</a> when it has one; <code>&#39;own&#39;</code> uses <code>windX</code>/<code>windZ</code>. <code>&#39;own&#39;</code> with zero wind is how you say a place is sheltered: a courtyard that stays still while the scene blows</td>
 </tr>
 <tr>
 <td><code>windX</code></td>
@@ -268,21 +284,26 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
     </details></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
-      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
-      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><details><summary><a class="doc-link" href="../tosi-b3d/">b3d</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-loader/">b3d-loader</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../b3d-primitives/">Primitives: box, sphere, ground</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-library/">b3d-library</a></summary>
       <ul>
-        <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
         <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
       </ul>
       </details></li>
       <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
       <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
       <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
-      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
-      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../sky-and-light/">Sky and light</a></summary>
@@ -297,19 +318,12 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
       <li><a class="doc-link" href="../b3d-light/">Ambient light (b3d-light)</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-lamp/">Lamps</a></summary>
       <ul>
+        <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
         <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../light-rays/">light-rays</a></li>
-      </ul>
-      </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-fog/">b3d-fog</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
@@ -319,7 +333,6 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></summary>
       <ul>
-        <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
         <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
       </ul>
       </details></li>
@@ -330,17 +343,8 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
         <li><a class="doc-link" href="../wind/">wind</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../lightning/">lightning</a></li>
-      </ul>
-      </details></li>
-      <li><details open><summary><a class="doc-link current" href="../b3d-ambient/" aria-current="page">b3d-ambient</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
-        <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></li>
+      <li><a class="doc-link current" href="../b3d-ambient/" aria-current="page">b3d-ambient</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../terrain/">Terrain</a></summary>
@@ -357,7 +361,6 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
         </details></li>
         <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
         <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
-        <li><a class="doc-link" href="../terrain-grid/">terrain-grid</a></li>
         <li><a class="doc-link" href="../gradient-filter/">gradient-filter</a></li>
       </ul>
       </details></li>
@@ -379,9 +382,6 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-water/">b3d-water</a></summary>
       <ul>
-        <li><a class="doc-link" href="../water-shore/">water-shore</a></li>
-        <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
-        <li><a class="doc-link" href="../caustics/">caustics</a></li>
         <li><a class="doc-link" href="../medium/">medium</a></li>
       </ul>
       </details></li>
@@ -400,11 +400,7 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-biped/">b3d-biped</a></summary>
       <ul>
-        <li><a class="doc-link" href="../mantle/">mantle</a></li>
-        <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
-        <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
         <li><a class="doc-link" href="../aim/">aim</a></li>
-        <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
         <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
         <li><a class="doc-link" href="../retarget/">retarget</a></li>
         <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
@@ -414,20 +410,24 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
         </ul>
         </details></li>
         <li><a class="doc-link" href="../spring-chain-babylon/">spring bones</a></li>
-        <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
-        <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></summary>
       <ul>
         <li><a class="doc-link" href="../fly-by-wire/">fly-by-wire</a></li>
         <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
-        <li><a class="doc-link" href="../hud/">hud</a></li>
-        <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
       </ul>
       </details></li>
       <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
-      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../spatial-transform/">spatial-transform</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
       <li><details><summary><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></summary>
       <ul>
         <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
@@ -440,11 +440,7 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
       <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
       <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
-      <li><details><summary><a class="doc-link" href="../touch-orbit/">touch-orbit</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><details><summary><a class="doc-link" href="../inspect-view/">inspect-view</a></summary>
       <ul>
         <li><a class="doc-link" href="../seam-material/">seam-material</a></li>
@@ -456,12 +452,7 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
         <li><a class="doc-link" href="../control-input/">control-input</a></li>
         <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
         <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
-        <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
-        <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
-        <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
         <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
-        <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
-        <li><a class="doc-link" href="../text-entry/">text-entry</a></li>
       </ul>
       </details></li>
     </ul>
@@ -478,14 +469,7 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
       <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
-      <li><details><summary><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
-        <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
-      </ul>
-      </details></li>
-      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
-      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
@@ -493,8 +477,6 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
       <li><details><summary><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></summary>
       <ul>
         <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
-        <li><a class="doc-link" href="../destroyable/">destroyable</a></li>
-        <li><a class="doc-link" href="../resource/">resource</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></summary>
@@ -503,16 +485,11 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
         <li><a class="doc-link" href="../guidance/">guidance</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../warhead/">warhead</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
       <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-radar/">b3d-radar</a></summary>
       <ul>
         <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
-        <li><a class="doc-link" href="../radar/">Radar model</a></li>
       </ul>
       </details></li>
     </ul>
@@ -527,7 +504,6 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
         <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
       </ul>
       </details></li>
-      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
       <ul>
@@ -535,19 +511,13 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
         <li><a class="doc-link" href="../prefab/">prefab</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-death/">b3d-death</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
     <ul>
       <li><details><summary><a class="doc-link" href="../widgets3d/">widgets3d</a></summary>
       <ul>
-        <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
-        <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
       </ul>
       </details></li>
@@ -560,16 +530,8 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
       <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
       <ul>
         <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
-        <li><details><summary><a class="doc-link" href="../angle-field/">angle-field</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../arc/">arc</a></li>
-        </ul>
-        </details></li>
-        <li><details><summary><a class="doc-link" href="../curve-field/">Curve editor</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../curve/">curve</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+        <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
         <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
         <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
         <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
@@ -579,22 +541,10 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
         </ul>
         </details></li>
         <li><a class="doc-link" href="../picker/">picker</a></li>
-        <li><details><summary><a class="doc-link" href="../keyboard/">keyboard</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
-          <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
         <li><details><summary><a class="doc-link" href="../table/">table</a></summary>
         <ul>
-          <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
           <li><a class="doc-link" href="../selection/">selection</a></li>
-        </ul>
-        </details></li>
-        <li><details><summary><a class="doc-link" href="../light-editor/">Light editor</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
-          <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
         </ul>
         </details></li>
       </ul>
@@ -608,12 +558,7 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
         </ul>
         </details></li>
         <li><a class="doc-link" href="../surface/">surface</a></li>
-        <li><details><summary><a class="doc-link" href="../popup-surface/">popup-surface</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
-          <li><a class="doc-link" href="../panel-layer/">panel-layer</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../ui-in-scene/">In the scene and XR</a></summary>
@@ -622,22 +567,15 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
         <ul>
           <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
           <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
-          <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
           <li><details><summary><a class="doc-link" href="../system-bar/">system-bar</a></summary>
           <ul>
             <li><a class="doc-link" href="../bar-menu/">bar-menu</a></li>
           </ul>
           </details></li>
-          <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
-        <li><details><summary><a class="doc-link" href="../svg-texture/">svg-texture</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
-          <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
         <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
       </ul>
       </details></li>
@@ -648,11 +586,7 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
           <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
         </ul>
         </details></li>
-        <li><details><summary><a class="doc-link" href="../svg-icons/">svg-icons</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       </ul>
       </details></li>
     </ul>
@@ -662,23 +596,12 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
       <li><details><summary><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></summary>
       <ul>
         <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
-        <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
-        <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../system-layout/">system-layout</a></li>
-        <li><a class="doc-link" href="../sol/">sol</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
-      <li><details><summary><a class="doc-link" href="../gas-giant/">gas-giant</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../gas-giant-material/">gas-giant-material</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../gas-giant/">gas-giant</a></li>
       <li><a class="doc-link" href="../rocky-world/">rocky-world</a></li>
       <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
       <li><a class="doc-link" href="../sphere-map/">sphere-map</a></li>
@@ -699,16 +622,79 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
       <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
     </ul>
     </details></li>
-    <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <li><details><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
     <ul>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
-      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
-      <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
-      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
-      <li><a class="doc-link" href="../noise-volume/">Noise volume</a></li>
-      <li><a class="doc-link" href="../climate-noise/">climate-noise</a></li>
+      <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../v0.11.1/">0.11.1</a></li>
+        <li><a class="doc-link" href="../v0.11.0/">0.11.0</a></li>
+        <li><a class="doc-link" href="../v0.10.20/">0.10.20</a></li>
+        <li><a class="doc-link" href="../v0.10.19/">0.10.19</a></li>
+        <li><a class="doc-link" href="../v0.10.18/">0.10.18</a></li>
+        <li><a class="doc-link" href="../v0.10.17/">0.10.17</a></li>
+        <li><a class="doc-link" href="../v0.10.16/">0.10.16</a></li>
+        <li><a class="doc-link" href="../v0.10.15/">0.10.15</a></li>
+        <li><a class="doc-link" href="../v0.10.14/">0.10.14</a></li>
+        <li><a class="doc-link" href="../v0.10.13/">0.10.13</a></li>
+        <li><a class="doc-link" href="../v0.10.12/">0.10.12</a></li>
+        <li><a class="doc-link" href="../v0.10.11/">0.10.11</a></li>
+        <li><a class="doc-link" href="../v0.10.10/">0.10.10</a></li>
+        <li><a class="doc-link" href="../v0.10.9/">0.10.9</a></li>
+        <li><a class="doc-link" href="../v0.10.8/">0.10.8</a></li>
+        <li><a class="doc-link" href="../v0.10.7/">0.10.7</a></li>
+        <li><a class="doc-link" href="../v0.10.6/">0.10.6</a></li>
+        <li><a class="doc-link" href="../v0.10.5/">0.10.5</a></li>
+        <li><a class="doc-link" href="../v0.10.4/">0.10.4</a></li>
+        <li><a class="doc-link" href="../v0.10.3/">0.10.3</a></li>
+        <li><a class="doc-link" href="../v0.10.2/">0.10.2</a></li>
+        <li><a class="doc-link" href="../v0.10.1/">0.10.1</a></li>
+        <li><a class="doc-link" href="../v0.10.0/">0.10.0</a></li>
+        <li><a class="doc-link" href="../v0.9.0/">0.9.0</a></li>
+        <li><a class="doc-link" href="../v0.8.15/">0.8.15</a></li>
+        <li><a class="doc-link" href="../v0.8.14/">0.8.14</a></li>
+        <li><a class="doc-link" href="../v0.8.13/">0.8.13</a></li>
+        <li><a class="doc-link" href="../v0.8.12/">0.8.12</a></li>
+        <li><a class="doc-link" href="../v0.8.11/">0.8.11</a></li>
+        <li><a class="doc-link" href="../v0.8.10/">0.8.10</a></li>
+        <li><a class="doc-link" href="../v0.8.9/">0.8.9</a></li>
+        <li><a class="doc-link" href="../v0.8.8/">0.8.8</a></li>
+        <li><a class="doc-link" href="../v0.8.7/">0.8.7</a></li>
+        <li><a class="doc-link" href="../v0.8.6/">0.8.6</a></li>
+        <li><a class="doc-link" href="../v0.8.5/">0.8.5</a></li>
+        <li><a class="doc-link" href="../v0.8.4/">0.8.4</a></li>
+        <li><a class="doc-link" href="../v0.8.3/">0.8.3</a></li>
+        <li><a class="doc-link" href="../v0.8.2/">0.8.2</a></li>
+        <li><a class="doc-link" href="../v0.8.1/">0.8.1</a></li>
+        <li><a class="doc-link" href="../v0.8.0/">0.8.0</a></li>
+        <li><a class="doc-link" href="../v0.7.8/">0.7.8</a></li>
+        <li><a class="doc-link" href="../v0.7.7/">0.7.7</a></li>
+        <li><a class="doc-link" href="../v0.7.6/">0.7.6</a></li>
+        <li><a class="doc-link" href="../v0.7.5/">0.7.5</a></li>
+        <li><a class="doc-link" href="../v0.7.4/">0.7.4</a></li>
+        <li><a class="doc-link" href="../v0.7.3/">0.7.3</a></li>
+        <li><a class="doc-link" href="../v0.7.2/">0.7.2</a></li>
+        <li><a class="doc-link" href="../v0.7.1/">0.7.1</a></li>
+        <li><a class="doc-link" href="../v0.7.0/">0.7.0</a></li>
+        <li><a class="doc-link" href="../v0.7.0-rc.1/">0.7.0-rc.1</a></li>
+        <li><a class="doc-link" href="../v0.6.2/">0.6.2</a></li>
+        <li><a class="doc-link" href="../v0.6.1/">0.6.1</a></li>
+        <li><a class="doc-link" href="../v0.6.0/">0.6.0</a></li>
+        <li><a class="doc-link" href="../v0.5.2/">0.5.2</a></li>
+        <li><a class="doc-link" href="../v0.5.1/">0.5.1</a></li>
+        <li><a class="doc-link" href="../v0.5.0/">0.5.0</a></li>
+      </ul>
+      </details></li>
     </ul>
     </details></li>
+    <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
+      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
+      <li><a class="doc-link" href="../noise-texture/">Noise texture</a></li>
+    </ul>
+    </details></li>
+    <li><a class="doc-link" href="../design-notes/">Design notes</a></li>
   </ul>
   </nav>
   <ul class="doc-navbar">
@@ -717,6 +703,6 @@ the particle version of the fog &quot;thunk&quot;, and we already fixed that onc
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-dgazh53y.js"></script>
+  <script type="module" src="../hydrate-7skqvnh0.js"></script>
 </body>
 </html>

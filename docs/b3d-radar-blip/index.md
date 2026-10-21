@@ -32,4 +32,3 @@ b3dDestroyable({ x: 0, y: 1, z: 40, capacity: 6 },
 // A waypoint: no mesh, always detectable, shown as a waypoint trace:
 b3dRadarBlip({ faction: 'waypoint', profile: -1, x: 0, y: 0, z: 200 })
 ```
-#

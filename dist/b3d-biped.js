@@ -40,7 +40,7 @@ preview.append(
       ],
       sceneCreated(el, BABYLON) {
         const camera = orbitCam(el, {
-          alpha: -Math.PI / 2, beta: Math.PI / 3.5, radius: 2, target: [0, 0.5, 0],
+          alphaDeg: -90, betaDeg: 51.4, radius: 2, target: [0, 0.5, 0],
         })
         camera.lowerRadiusLimit = 1.5
         camera.upperRadiusLimit = 10
@@ -194,6 +194,24 @@ preview.append(
 | `cameraTargetHeight` | `1.4` | Height of the point the camera looks at |
 | `cameraMinFollowDistance` | `4` | Closest follow distance |
 | `cameraMaxFollowDistance` | `10` | Furthest follow distance |
+| `cameraMinHeight` | `0.5` | Lowest the follow camera goes above the feet, metres (looking up lowers the camera; this keeps it above ground) |
+| `initialState` | `'idle'` | Animation state at load |
+| `groundY` | `-1000` | Void-catch backstop: the biped never falls below this Y. Set it deep; at walking level it acts as an invisible floor |
+| `eyeHeight` | `1.6` | First-person eye height when the rig has no head bone |
+| `eyeForward` | `0.13` | How far in front of the head bone the first-person eye sits, metres |
+| `lookRate` | `120` | Degrees per second the right stick swings the view |
+| `maxLookPitch` | `70` | How far up or down the look goes, degrees |
+| `invertLookY` | `'off'` | `'on'` inverts the right stick's vertical (pushing up looks down, the aircraft mapping) |
+| `aiming` | `'off'` | `'on'` gives the character an aim separate from its facing (see [aim](/aim/)). Nesting a weapon turns it on |
+| `aimFreeYaw` | `0` | Twist the shoulders hold before the body turns, degrees. `0` keeps aim and body together |
+| `aimMaxYaw` | `90` | The spine's limit, degrees. Past it the body is dragged round |
+| `jumpSpeed` | `4.5` | Upward speed at take-off, m/s |
+| `sneakSpeed` | `0.4` | Fraction of walking speed while sneaking |
+| `strafing` | `'off'` | `'on'` sidesteps with the left stick; `'off'` turns with it |
+| `strafeSpeed` | `0.75` | Sidestep speed as a fraction of walking |
+| `climbReach` | `2.2` | Highest ledge the character can pull itself onto, metres (see Mantling, below) |
+| `wadeDepth` | `0.45` | Water depth, as a fraction of standing height, where wading becomes swimming |
+| `buoyancy` | `0` | How high the figure rides in the water, metres. `0` puts the waterline at the head |
 
 ## Animations
 
@@ -206,13 +224,15 @@ Animation names in the GLB must match these names.
 
 ## Usage
 
+`inputFocus` wires keyboard, mouse, gamepads and XR controllers to the `player`
+biped.
+
 ```javascript
-import { b3d, b3dBiped, gameController, inputFocus } from 'tosijs-3d'
+import { b3d, b3dBiped, inputFocus } from 'tosijs-3d'
 
 document.body.append(
   b3d({},
     inputFocus(
-      gameController(),
       b3dBiped({
         url: '/character.glb',
         player: true,
@@ -223,6 +243,63 @@ document.body.append(
   )
 )
 ```
+
+## Movement model
+
+The biped's movement rests on four small pure models (no Babylon, unit tested).
+This is what each one does for you.
+
+### Swimming
+
+Water is not slow air. A body is a little less dense than water, so it is pushed
+up in proportion to how much of it is under, and it comes to rest where that
+push balances its weight. Everything you see follows from that one rule:
+
+- Drop in from a height and you plunge, slow hard, and bob back up.
+- At rest your head is out of the water, because the balance point is part-way
+  under. Nothing aims at a head height.
+- Wade in from a beach and nothing happens until the water is deep enough to
+  lift you.
+
+Below `wadeDepth` you wade, feet on the bottom. You start swimming a little
+deeper (1.3 × `wadeDepth`) and stop at `wadeDepth` itself, so the boundary does
+not flicker. Sinking is quadratic-drag limited at about 1.5 m/s, an order slower
+than a fall through air. `buoyancy` shifts where the figure rides, in metres,
+for a heavy pack or a different body.
+
+While swimming the body pitches toward where you are looking, and because the
+biped swims along its own forward vector the stroke follows: no separate
+vertical control, and no way for aim and motion to disagree. In a headset the
+aim is your head. Flat, the right stick moves it. You cannot swim up out of the
+water.
+
+### Mantling
+
+A ledge too high to step onto and low enough to reach is climbed. The rule is
+about height, not about what you were doing, so the same verb climbs out of a
+pond and onto a crate or a low wall:
+
+| height             | what happens                             |
+| ------------------ | ---------------------------------------- |
+| below 0.5 m        | you walk up it (the step offset)         |
+| 0.5 m … `climbReach` | **mantle**                             |
+| above `climbReach` | a wall; you stop                         |
+
+The body travels in an arc, up first and then in, so it clears the lip. The
+clip (`ClimbUp_1m`, `ClimbUp_2m` in the UAL set) is picked by measuring the
+ledge, and the path is timed as fractions of the clip so it follows the
+animation set.
+
+### The chase camera
+
+The follow camera moves when it is somewhere it should not be. A wall between
+you and the camera pulls it in **that frame**, because easing in means looking
+through geometry. It eases back out, so a pillar or doorway at the edge of the
+ray does not make it pump in and out while you stand still.
+
+The same rule keeps it out of the band at the water's surface, where half the
+frame would need to be underwater. It goes to whichever side the character is
+on: under when you swim under, above otherwise.
 */
 /*{ "parent": "characters-and-vehicles", "order": 10 }*/
 import * as BABYLON from '@babylonjs/core';
@@ -669,7 +746,7 @@ export class B3dBiped extends B3dControllable {
     _fallVel = 0;
     /** True while in the water and off the bottom — see `buoyancy.isSwimming`. */
     _swimming = false;
-    /** Held aim while swimming, DEGREES, positive down — see [[swim-aim]]. */
+    /** Held aim while swimming, DEGREES, positive down — see `swim-aim.ts`. */
     _swimAim = 0;
     /** The pitch actually applied to the body, eased toward `_swimAim`. */
     _swimPitch = 0;
@@ -1047,7 +1124,7 @@ export class B3dBiped extends B3dControllable {
             this.mesh ??
             null);
     }
-    /** Chase-camera state carried between frames — see [[camera-fit]]. */
+    /** Chase-camera state carried between frames — see `camera-fit.ts`. */
     _camFit = { distance: 5, height: 2, firstPerson: false };
     /** WE forced first person, so we may hand the view back when it clears. */
     _camForcedFpv = false;
@@ -2007,7 +2084,7 @@ export class B3dBiped extends B3dControllable {
             a first-person fallback when there is nowhere to stand, and the medium
             band, which is the same correction wearing different clothes.
       
-            One ray per frame. The rules are in [[camera-fit]], which is pure, so what
+            One ray per frame. The rules are in `camera-fit.ts`, which is pure, so what
             is here is the measurement and the application.
             */
             // No rig yet (the GLB is still loading) means nothing to measure from, so
@@ -2234,7 +2311,7 @@ export class B3dBiped extends B3dControllable {
             to how much of it is under, and it comes to rest where that balances its
             weight. Plunge-and-bob, a head that ends up ABOVE the surface, and wading
             that does nothing until it is deep enough to lift you all fall out of that
-            one equation — see [[buoyancy]], where it is pure and tested.
+            one equation — see `buoyancy.ts`, where it is pure and tested.
       
             SWIMMING IS IN THE WATER **AND** OFF THE BOTTOM. Both halves matter: deep
             water while standing on a sandbar is wading, and getting it wrong gives you

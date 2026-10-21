@@ -110,9 +110,9 @@ week turned out to be capability that was already there. One `grep water` finds
 
 **Upgrading?** See [Migration](https://3d.tosijs.net/Migration/) for the
 breaking changes and what to do about them, and the
-[Changelog](https://3d.tosijs.net/CHANGELOG/) for the full detail. Both ship
-inside the package as `Migration.md` and `CHANGELOG.md`, so they work from
-`node_modules` too.
+[Changelog](https://3d.tosijs.net/CHANGELOG/) for the full detail, one page per
+version. Both ship inside the package (`Migration.md`, and `CHANGELOG.md` with
+its `changelog/` folder), so they work from `node_modules` too.
 
 ## Highlights
 

@@ -26,10 +26,8 @@ case, and co-located identical portals are the identity, as they should be.
 
 Pick the other convention (both doors *face* the approaching player) and the
 mapping needs a 180° turn about the up axis, which then has to cancel correctly
-in every degenerate case. I wrote it that way first, and the tests caught it
-contradicting this module's own `sideOf`. Worth recording, because nothing
-crashes when this is wrong: the view is simply *of the wrong thing*, plausibly
-enough to read as a content bug. That is exactly why it is a pure function with
+in every degenerate case. Nothing crashes when this is wrong: the view is
+simply *of the wrong thing*, plausibly enough to read as a content bug. That is exactly why it is a pure function with
 tests rather than three lines inside a render loop.
 
 ## What this module deliberately does NOT do
@@ -44,7 +42,7 @@ tests rather than three lines inside a render loop.
 - **Stencil / framing.** Keeping the view inside the doorway is a rendering
   concern.
 */
-/*{ "parent": "interacting", "order": 70 }*/
+/*{ "parent": "spatial-transform", "order": 70 }*/
 import { add, sub, quatMul, quatConjugate, rotateVector, } from './spatial-transform.js';
 /**
  * The pose a render-target camera should take so that portal `a`, seen from

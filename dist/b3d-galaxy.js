@@ -23,7 +23,7 @@ rendered star system) and `showStarAt(index)` to restore it.
 Filter stars by habitability index and/or name using `filterStars({ maxHI, nameSearch })` —
 non-matching stars are dimmed.
 The galaxy holds every BRIGHT star and every INTERESTING one: a dim star whose
-system has a planet with HI ≤ 2 (see [star-populations](/star-populations/)).
+system has a planet with HI ≤ 2 (see **Interesting stars** below).
 So the filter sees every habitable system there is, with its HI already known.
 The boring dim stars (the other ~95%) are only generated locally, as sky
 texture.
@@ -84,15 +84,13 @@ const scene = b3d(
         { label: 'Survivable+', value: 2 },
         { label: 'Earthlike', value: 1 },
       ] }),
-      // 50k, because the interesting use of this demo is now to stand INSIDE a
+      // 50k, because the interesting use of this demo is to stand INSIDE a
       // galaxy and photograph the sky from it — and a naked-eye sky wants tens
       // of thousands of stars, not five.
       slider3d({ label: 'stars', value: demo.starCount, min: 1000, max: 50000, step: 1000 }),
       slider3d({ label: 'radius', value: demo.radius, min: 50, max: 300, step: 10 }),
       slider3d({ label: 'spiral arms', value: demo.spiralArms, min: 1, max: 8, step: 1 }),
-      // Down to 0.1: the old floor was 0.5, so the size you actually want for a
-      // dense field was unreachable. Tonio: "I was testing 0.6 but couldn't
-      // dial up 0.4."
+      // Down to 0.1: a dense field wants a small particle.
       slider3d({ label: 'particle size', value: demo.particleSize, min: 0.1, max: 3, step: 0.1 }),
       // The core is scenery at galaxy scale and an obstruction from inside one.
       slider3d({ label: 'core size', value: demo.coreSize, min: 0, max: 4, step: 0.1 }),
@@ -331,6 +329,83 @@ tosi-b3d {
 | `distantGalaxies` | `500` | External galaxies scattered isotropically outside the disc — what keeps the off-band sky from reading as empty |
 | `distantStars` | `3000` | Dim far-out stars scattered isotropically outside the disc — the same emptiness budget, but for POINTS. They carry no name or system; they exist so the sky outside the band has texture |
 | `coreSize` | `0.12` | Central black hole radius. Disk radii are multiples of it, so this scales the whole assembly |
+
+## Star data
+
+The galaxy's data is pure (no Babylon) and seeded: same seed, same galaxy. Each
+star has a spectral class, luminosity, mass, and a deterministic set of planets
+with radius, density, atmosphere, temperature and habitability index (HI).
+
+```js
+import { voxelGalaxy, generateStarSystem } from 'tosijs-3d'
+import { elements } from 'tosijs'
+const { div, p, pre, table, tr, td, th, thead, tbody } = elements
+
+const galaxy = voxelGalaxy({ seed: 1234, brightBudget: 100, dimBudget: 0 }).view()
+
+let output = `Galaxy: ${galaxy.stars.length} stars\n\n`
+output += 'First 10 stars:\n'
+for (let i = 0; i < 10; i++) {
+  const s = galaxy.stars[i]
+  output += `  ${s.name.padEnd(20)} ${s.spectralType.padEnd(4)} `
+  output += `L=${s.luminosity.toFixed(2).padStart(10)} `
+  output += `planets=${s.numberOfPlanets}\n`
+}
+
+output += '\nStar system for star 0 (' + galaxy.stars[0].name + '):\n'
+const system = generateStarSystem(galaxy.stars[0])
+for (const planet of system.planets) {
+  output += `  ${planet.name.padEnd(25)} ${planet.classification.padEnd(12)} `
+  output += `${planet.description.padEnd(16)} `
+  output += `${planet.atmosphere.padEnd(12)} `
+  output += `${planet.tempC}°C\n`
+}
+
+preview.append(pre(output))
+```
+
+### `voxelGalaxy({ seed, brightBudget }).view()`
+
+The galaxy itself is [voxel-galaxy](/voxel-galaxy/); its `view()` returns
+`GalaxyData` (`{ stars, nebulae, distantStars }`). Each star has position,
+spectral type, luminosity, mass, planet count, and a deterministic seed for
+system generation.
+
+### `generateStarSystem(star)`
+
+Returns `{ star: StarData, planets: PlanetData[] }` with full planet detail.
+
+| Type | Key Fields |
+| --- | --- |
+| `StarData` | name, seed, position, spectralType, luminosity, mass, numberOfPlanets, rgb |
+| `PlanetData` | name, classification, orbitalRadius, radius, density, atmosphere, tempC, HI, description |
+| `GalaxyOptions` | spiralArms, spiralAngleDegrees, minRadius, maxRadius, thickness, distantGalaxies, generatePlanets |
+
+## Interesting stars
+
+The dim stars split in two:
+
+- **interesting**: a system with a planet of **HI ≤ 2**, meaning a breathable
+  or filterable atmosphere, under 2 g, not an extreme temperature. Generated
+  GLOBALLY, so a habitability search sees all of them.
+- **boring**: everything else, generated only LOCALLY as sky texture.
+
+HI 3 is not interesting on purpose. It has no atmosphere requirement (the Moon
+and Mars are HI 3), and nearly every system with planets has a ball of rock
+someone could plant a flag on.
+
+Spectral class sets the odds, but within a class whether a system scores well
+is the system's own draw, so no mix can guarantee a pass. So a harness
+(`bin/tune-populations.ts`) scores a corpus per spectral cell with the real
+rules and writes the pass rates to a generated table; `interestingMix` and
+`boringMix` weight each cell by its pass and failure rate, so candidates are
+drawn where they are likely to succeed; and the galaxy VERIFIES each candidate
+with `bestHIOf` and keeps the first that passes, so the populations are exact.
+
+When planet generation or HI changes, rerun `bun bin/tune-populations.ts`. A
+test fingerprints HI on a fixed probe set and fails until you do. Interesting
+addresses may then point at different stars, which is expected: different
+rules make a different galaxy.
 
 */
 /*{ "parent": "space", "order": 10 }*/

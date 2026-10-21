@@ -118,7 +118,7 @@ const scene = b3d(
     sceneCreated(el, BABYLON) {
       babylon = BABYLON
       const camera = orbitCam(el, {
-        alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 14,
+        alphaDeg: -90, betaDeg: 60, radius: 14,
         target: [0, 2, 0], maxElevationDeg: 70,
       })
       camera.lowerRadiusLimit = 5
@@ -170,6 +170,7 @@ preview.append(scene)
 | `gravityY` | `-9.81` | Gravity Y component |
 | `gravityZ` | `0` | Gravity Z component |
 | `debug` | `false` | Show wireframe physics collider shapes |
+| `wasmUrl` | `''` | Where to load Jolt's `.wasm` from, when it is not beside the loader script |
 */
 /*{ "parent": "interacting", "order": 40 }*/
 import { B3dChild } from './b3d-utils.js';

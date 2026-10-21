@@ -259,7 +259,7 @@ export declare class B3dBiped extends B3dControllable {
     private _fallVel;
     /** True while in the water and off the bottom — see `buoyancy.isSwimming`. */
     private _swimming;
-    /** Held aim while swimming, DEGREES, positive down — see [[swim-aim]]. */
+    /** Held aim while swimming, DEGREES, positive down — see `swim-aim.ts`. */
     private _swimAim;
     /** The pitch actually applied to the body, eased toward `_swimAim`. */
     private _swimPitch;
@@ -440,7 +440,7 @@ export declare class B3dBiped extends B3dControllable {
      * a weapon ends up firing out of somebody's hip.
      */
     private _rootNode;
-    /** Chase-camera state carried between frames — see [[camera-fit]]. */
+    /** Chase-camera state carried between frames — see `camera-fit.ts`. */
     private _camFit;
     /** WE forced first person, so we may hand the view back when it clears. */
     private _camForcedFpv;

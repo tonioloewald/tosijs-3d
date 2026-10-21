@@ -10,9 +10,9 @@ Every body is a real [planet](/b3d-planet/): giants banded and ringed, rocky
 worlds picked from what the generator says about each one (airless rock,
 seas, a toxic hot sky, or dust; see [rocky-world](/rocky-world/)'s
 `rockyWorldFor`), moons locked to their planets, and an asteroid belt where
-there is room for one. Where they go is [system-layout](/system-layout/):
-distances on a log scale and sizes on a square root, so the system fits on a
-screen without being empty.
+there is room for one. Where they go is worked out by a layout (see **Layout**
+below): distances on a log scale and sizes on a square root, so the system fits
+on a screen without being empty.
 
 ## Demo
 
@@ -176,9 +176,8 @@ tosi-b3d {
 ```
 
 > The panel's readout opts out of the doc system's `<pre>` styling. A `<pre>`
-> is rendered as a CODE BLOCK there — light background, its own colour — and
-> inside a panel that sets `color: white` it came out white-on-white and simply
-> invisible.
+> is rendered as a CODE BLOCK there (light background, its own colour), and
+> inside a panel that sets `color: white` it would be white on white.
 
 ## Attributes
 
@@ -192,9 +191,47 @@ tosi-b3d {
 | `orbitScale` | `3` | Multiplier for orbital distances |
 | `animate` | `'on'` | Animate planet orbital motion |
 | `showOrbits` | `'on'` | Show orbital path lines |
-| `maps` | `'off'` | `'on'`: bodies with real maps in a `system` (our own Earth, Moon and Mars, see [sol](/sol/)) are drawn from them |
+| `maps` | `'off'` | `'on'`: bodies with real maps in a `system` (our own Earth, Moon and Mars, see **Our solar system** below) are drawn from them |
 | `timeScale` | `3600` | Simulated seconds per real second. Every period is real (a day, a month, a year), so this is how fast the system runs: `1` is real time, `3600` an hour a second, `3.16e6` a year in ten seconds. On top of the scene's own `timeScale` |
 | `beltCount` | `1500` | Rocks drawn in the asteroid belt, when the system has one (it sits in a wide gap between the rocky planets and the first giant) |
+
+## Our solar system
+
+`SOL` is our own solar system as data: the Sun, the eight planets in order,
+the moons worth drawing and the asteroid belt's four biggest bodies, each with
+its true radius and the look that draws it. Set `system.system = SOL` and it is
+laid out like any other.
+
+Every body has a generated look ([rocky-world](/rocky-world/) and
+[gas-giant](/gas-giant/)). The Earth, the Moon and Mars also have `maps`:
+NASA's and NOAA's own height and colour maps (see [planet-map](/planet-map/)),
+which `maps="on"` uses instead. Phobos and Deimos are too small to have pulled
+themselves round, so they are drawn as rocks.
+
+## Layout
+
+A real system is almost all empty space: drawn to scale, the planets are specks
+a long way apart and there is nothing to look at. So the layout (pure, from
+`system-layout`) lies, in documented ways:
+
+- **Distances are logarithmic.** Each doubling of distance from the star adds
+  the same step, so an inner system of rocks and an outer one of giants both
+  fit on screen. The order is kept, and so is "much further out".
+- **Sizes are compressed by a square root.** A giant is still visibly bigger
+  than a rock, but not so big that the rock vanishes beside it.
+- **Planets never crowd.** Each takes as much room as its moons need, and the
+  next planet out starts beyond that.
+- **The belt is wildly overpopulated.** A real asteroid belt is so sparse that
+  you would see nothing from inside it; this one is a band of rock you can see,
+  with its few large bodies picked out as bodies of their own.
+- **Time is not squeezed.** Every period is the real one, in seconds: an Earth
+  year is 365.26 days, Jupiter's day under ten hours, the Moon's month 27.3
+  days. A planet's year follows Kepler from its true distance; a moon's month
+  follows Kepler from its true distance in planet radii (`moonPeriod`). How
+  fast it all runs is `timeScale`.
+
+Everything follows from each body's seed, so the same system lays out the same
+way every time.
 
 */
 /*{ "parent": "space", "order": 20 }*/

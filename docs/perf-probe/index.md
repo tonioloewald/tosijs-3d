@@ -22,7 +22,10 @@ just turns measurements into a tier and its budgets:
 
 ```javascript
 import { classify, budgetsForTier } from 'tosijs-3d'
-// measurements → a device TIER ('low' | 'medium' | 'high' | 'hmd')
-// tier → PerfBudgets (render scale, shadow-map size, terrain detail, …) that components resolve
-// when their attribute is left `auto`.
+
+// milliseconds from the four benchmark passes → 'low' | 'medium' | 'high'
+const tier = classify({ fillMs: 4, vertexMs: 3, drawCallMs: 2, cpuMs: 5 })
+const flat = budgetsForTier(tier)     // what a flat scene resolves `auto` against
+const xr = budgetsForTier(tier, true) // the same tier, scaled down for stereo
+console.log(tier, flat.shadowTextureSize, xr.hardwareScaling)
 ```

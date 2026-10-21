@@ -42,7 +42,7 @@ sweep does.
 
 ## If it hangs the device
 
-The first run on a Quest did. The sweep writes what it has measured, and the
+A sweep can hang a headset. So it writes what it has measured, and the
 name of the experiment it is about to start, to `localStorage` before each
 one, once as it switches the experiment on and once as it starts measuring.
 Reload the page and Perf Stats shows the rows it got and **STOPPED** with the

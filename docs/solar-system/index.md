@@ -130,7 +130,7 @@ preview.append(
   which planet, and with real maps on, the ground of the Earth, the Moon and
   Mars.
 - **Squeezed:** distances, on a log scale, or the planets would be specks a
-  screen apart (see [system-layout](/system-layout/)).
+  screen apart (see [b3d-star-system](/b3d-star-system/)).
 - **True:** every period. Each planet's day and year and each moon's month
   are the real ones (Venus and Uranus turn backwards, Triton goes round
   backwards); the **time** slider says how fast they run, from real time to a
@@ -141,5 +141,5 @@ preview.append(
 - **Made up:** every surface without a map. The looks are right in kind
   (Io's sulfur, Titan's haze, Saturn's rings), not in detail.
 
-The system itself is the data in [sol](/sol/); give a star system your own
+The system itself is the data in `SOL` (see [b3d-star-system](/b3d-star-system/)); give a star system your own
 `SystemSpec` to draw another.

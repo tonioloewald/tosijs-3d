@@ -36,7 +36,7 @@ preview.append(
       ],
       sceneCreated(el, BABYLON) {
         const camera = orbitCam(el, {
-          alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 12,
+          alphaDeg: -90, betaDeg: 60, radius: 12,
           target: [0, 0, 0], maxElevationDeg: 70,
         })
         camera.lowerRadiusLimit = 4

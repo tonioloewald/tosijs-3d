@@ -20,7 +20,7 @@ export declare class B3dSvgPlane extends AbstractMesh {
         /**
          * `'world'` places this panel at a real spot with clear line of sight and
          * lets it FOLLOW you — if it has been out of view for a couple of seconds
-         * it eases to a fresh spot in front of you (see [[dialog-placement]]).
+         * it eases to a fresh spot in front of you (see `dialog-placement.ts`).
          *
          * The right mode for a MODAL: depth is XR's window frame, so a dialog that
          * composites over the world paints in front and cannot be touched, while a
@@ -117,7 +117,7 @@ export declare class B3dSvgPlane extends AbstractMesh {
      * you look away for a couple of seconds it eases to a fresh spot in front of
      * you — findability without the panel chasing your eyes.
      *
-     * The rules live in [[dialog-placement]] (pure, tested); this is the Babylon
+     * The rules live in `dialog-placement.ts` (pure, tested); this is the Babylon
      * plumbing: cast the candidate rays, move the mesh, aim it.
      */
     private _gaze;

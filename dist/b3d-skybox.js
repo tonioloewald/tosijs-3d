@@ -91,12 +91,12 @@ b3dSkybox({
 Each version folder carries a `manifest.json` with the decode parameters
 (`starfieldDataSize`, `starfieldTilt`) and the recipe it was baked from, so a
 consumer can read them from beside the data rather than hard-coding them.
-Versions so far: `0.8.3` (the `generateGalaxy` sky) and `0.8.4` (the voxel
-galaxy — far more stars). tosijs-3d#90.
+Versions available: `0.8.3` (an earlier, sparser galaxy) and `0.8.4` (the
+voxel galaxy, far more stars).
 
 The starfield attributes (`starfield*`, `nebula*`) are **live**: changing one
 on an existing sky rebuilds the starfield, so applying a document to a sky
-that is already up works. `skyboxSize` is the one that is still read once.
+that is already up works. `skyboxSize` is read once, when the sky is built.
 
 ## Attributes
 
@@ -104,11 +104,14 @@ that is already up works. `skyboxSize` is the one that is still read once.
 |-----------|---------|-------------|
 | `timeOfDay` | `6.5` | 0-24 hours |
 | `realtimeScale` | `10` | Realtime speed multiplier |
+| `updateFrequencyMs` | `100` | How often (ms) the advancing time of day is applied |
 | `latitude` | `40` | Geographic latitude in DEGREES (affects the sun's arc) |
-| `azimuth` | `0` | **Ignored** — the sun is placed by `latitude` and `timeOfDay`, and the sky material accepts this and discards it. Kept so old markup doesn't break; not in `skyboxSchema()` (tosijs-3d#86) |
+| `azimuth` | `0` | **Ignored** — the sun is placed by `latitude` and `timeOfDay`, and the sky material accepts this and discards it. Accepted so existing markup does not break; not in `skyboxSchema()` |
 | `luminance` | `1` | Sky brightness |
 | `turbidity` | `10` | Atmospheric haze |
 | `rayleigh` | `2` | Rayleigh scattering |
+| `mieCoefficient` | `0.005` | Mie scattering: the haze of larger particles around the sun |
+| `mieDirectionalG` | `0.8` | How forward the Mie scattering is: higher gathers the glow tighter round the sun |
 | `spaceStart` | `0` | Altitude (m) where the fade to space BEGINS |
 | `spaceFull` | `0` | Altitude (m) of full vacuum. Feature is off unless this exceeds `spaceStart` |
 | `atmosphere` | `1` | How much air this WORLD has: `1` Earth, `0` the Moon (black sky at noon, stars out, no haze, a hard sun). Deliberately steep — only the last stretch toward 0 thins the sky (vacuum is `(1 − atmosphere)⁴`) — and it multiplies with the space band |
@@ -140,6 +143,7 @@ that is already up works. `skyboxSize` is the one that is still read once.
 | `sunSize` | `1` | The sun's apparent size, 1 = as seen from Earth. Mars 0.66, Venus 1.39, Io 0.19, Titan 0.11 (it goes as 1/distance from the star) |
 | `sunBrightness` | `1` | Multiplies the sun's light. A distant world gets less light, but the eye adapts, so set it by how it looks rather than by the inverse square |
 | `applyFog` | `false` | Whether scene fog affects the skybox |
+| `skyboxSize` | `1000` | Size of the sky box. Read once, when the sky is built |
 */
 /*{ "parent": "sky-and-light", "order": 10 }*/
 import * as BABYLON from '@babylonjs/core';

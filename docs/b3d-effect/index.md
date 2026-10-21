@@ -32,7 +32,7 @@ preview.append(
       ],
       sceneCreated(el) {
         // Looking past the panel at both: the volcano, and the explosion beyond.
-        orbitCam(el, { alpha: -2.1, beta: 1.3, radius: 38, target: [-7, 6, -12] })
+        orbitCam(el, { alphaDeg: -120.3, betaDeg: 74.5, radius: 38, target: [-7, 6, -12] })
       },
     },
     b3dSkybox({ timeOfDay: 18 }),
@@ -54,6 +54,7 @@ preview.append(
 | `scale` | 1 | How big. Sizes, radii, heights, light range and sound reach multiply; speeds and particle lives grow by the square root and gravity stays (Froude scaling, as for a model ship), so an arc keeps its shape and a big effect moves slowly for its size, as big things do, and the wind still bends it. The presets are person-sized: a volcano preset is a vent, and a mountain wants 10 or more |
 | `ground` | `'off'` | `'on'` sits it on the ground, `y` above that: the scene's terrain height there, or else the first mesh below. Looked for again every 1.5 s (terrain regenerates) |
 | `x`, `y`, `z` | 0 | Where it is; nested in a mesh element, an offset that follows it |
+| `rx`, `ry`, `rz` | 0 | Its rotation, in degrees |
 
 `recipe` (a property) plays an effect recipe instead of a preset (see
 `effect-recipe`; the effect tool saves them). A particle layer can use your

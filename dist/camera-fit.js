@@ -1,4 +1,4 @@
-/*#
+/*
 # camera-fit
 
 **Where a chase camera is allowed to be.** Pure — distances and heights, no
@@ -42,7 +42,6 @@ Which side it goes to is decided by **the subject**, not by the camera: if the
 swimmer is under, the camera goes under. A camera that picked the nearer side
 would cross the surface every time the character bobbed.
 */
-/*{ "parent": "b3d-biped", "order": 90 }*/
 /**
  * How far back the camera may sit, given what a ray from the subject hit.
  *

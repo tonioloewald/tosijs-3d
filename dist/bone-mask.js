@@ -1,4 +1,4 @@
-/*#
+/*
 # bone-mask
 
 **Which bones a layered animation drives, and how much.** Pure — a bone
@@ -40,7 +40,6 @@ names, and this repo already carries that scar: `b3d-biped` finds bones with
 split root silently produces an all-zero mask, which animates nothing and looks
 exactly like a clip that failed to load.
 */
-/*{ "parent": "b3d-biped", "order": 50 }*/
 const childrenOf = (bones) => {
     const kids = new Map();
     for (const b of bones) {

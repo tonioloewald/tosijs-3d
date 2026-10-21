@@ -15,8 +15,8 @@ feet to whatever is under them each frame, within `STEP_UP` (0.5m) and
 
 That is the whole reason this element is small. A lift that grabs its riders has
 to decide what a rider IS, what happens when one jumps, and how to hand them
-back — and every one of those decisions is a bug waiting for an edge case. Not
-answering the question at all turned out to be available.
+back — and every one of those decisions is a bug waiting for an edge case. Here
+the question is never asked.
 
 ⚠️ It stops being free if the platform outruns the snap: faster than about
 `STEP_DOWN` per frame (roughly 36 m/s at 60fps) a descending platform drops out
@@ -27,6 +27,7 @@ one for a lift.
 
 | Attribute | Default | Description |
 | --- | --- | --- |
+| `meshName` | `'elevator'` | The platform mesh's name |
 | `mode` | `'cycle'` | `'cycle'` runs forever; `'pressure'` moves while something stands on it; `'switch'` waits for `call()` |
 | `travel` | `3` | Metres between the bottom stop and the top |
 | `stops` | `2` | How many stops, evenly spaced. `2` is bottom and top |

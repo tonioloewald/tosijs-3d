@@ -1,13 +1,12 @@
 # angle-field
 
 **`angle3d` dials a direction; `arc3d` dials a direction AND a width.** Both are
-rings, because the quantity is a circle and a slider track is not. The model is
-[[arc]].
+rings, because the quantity is a circle and a slider track is not. The pure
+model under them is described at the end ("The model").
 
 ## Demo
 
-The turret case, which is where the design came from: a gun's placement on a
-ship restricts where it can bear. Drag the arc's **edges** to change its width
+The turret case: a gun's placement on a ship restricts where it can bear. Drag the arc's **edges** to change its width
 and its **middle** to swing it — the grey sector is blocked by the ship, and the
 control shows it rather than silently snapping.
 
@@ -103,10 +102,11 @@ for can still be done by dragging one edge and then the other.
 
 ## Restrictions show, they do not merely clamp
 
-*"Consider a game where you can place turrets on a ship and where it goes
-restricts the firing arc and the placement of the gun."* The envelope and the
-placement are the same constraint seen twice — so a control that silently snaps
-to a legal arc teaches nothing about why. `arc3d` draws the blocked sector.
+Where a turret sits on a ship restricts its firing arc: a gun amidships on the
+port rail bears from roughly 10° to 190°, and no placement lets it fire through
+its own superstructure. The envelope and the placement are the same constraint
+seen twice, so a control that silently snaps to a legal arc teaches nothing
+about why. `arc3d` draws the blocked sector.
 Nothing stops you clamping quietly; this just makes the ship visible.
 
 ## Options
@@ -121,3 +121,29 @@ Nothing stops you clamping quietly; this just makes the ship visible.
 | `size` | `0` | ring diameter; `0` fits the row to the panel width |
 | `handleChange` | | live, every frame the pointer moves |
 | `handleCommit` | | once per gesture — your undo step |
+
+## The model
+
+The arc maths is pure (no DOM, no Babylon) and exported, so the fiddliest part
+is the part a test can pin. An arc is a **centre and a width**
+(`arcOf(centre, width)`), which makes the two hard questions one line each:
+
+```javascript
+arcContains(arc, angle)          // |wrap(angle − centre)| ≤ width / 2
+arcWithinArc(inner, outer)       // ...and the widths differ by enough
+```
+
+Written as intervals those need four cases and a wrap check. Neither form
+mentions where the arc starts, so wrapping past north is not a special case.
+
+Angles are degrees, and there are two wraps that are not interchangeable:
+
+- `wrapDegrees` → `(-180, 180]`, for a DELTA or a difference. Signed, because
+  turning back five degrees is −5 and calling it 355 sends you the long way.
+- `normaliseDegrees` → `[0, 360)`, for a STORED angle, which has no direction to
+  preserve and reads better without minus signs.
+
+**A limit catches, it does not jump.** Snapping to whichever end is nearer in
+wrapped distance would teleport the value to the other side of the dial when
+you drag a hair past one limit. So `clampAngleToArc` picks the nearer END, and
+the widget stops the gesture rather than restarting it elsewhere.

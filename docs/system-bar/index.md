@@ -1,8 +1,7 @@
 # system-bar
 
 **The scene's system bar: one row of buttons, flat and in a headset.** Flat it
-sits in the top-left corner of the screen; in a headset, up ahead where the
-settings panel used to hang. It opens the scene's settings panel (the owl),
+sits in the top-left corner of the screen; in a headset, up ahead of you. It opens the scene's settings panel (the owl),
 the panels you put on it (a `<tosi-b3d-panel icon="personStanding" title="Inventory">`
 with what it shows inside: it opens under the bar), and carries Enter or Exit VR and
 full screen. One UI, arranged a little differently on each.

@@ -64,10 +64,9 @@ Measured in Bun, building one and drawing 8 numbers:
 | xoshiro128\*\* (`PRNG`) | 4 words | 0.09 µs | 0.01 µs |
 | mulberry32 (`CheapPRNG`) | 1 word | 0.03 µs | 0.008 µs |
 
-**xoshiro128\*\*** (Blackman and Vigna) is behind `PRNG` since 0.8.4. It
-replaced the Mersenne Twister, which this page is named after: MT has a huge
-state that it fills before its first draw, so merely starting one cost about
-13 µs, and a star system starts one per planet while scoring candidate
+**xoshiro128\*\*** (Blackman and Vigna) is behind `PRNG`, not the Mersenne
+Twister this page is named after: MT has a huge state that it fills before its
+first draw, so merely starting one costs about 13 µs, and a star system starts one per planet while scoring candidate
 systems starts thousands. xoshiro128\*\* starts about 150× faster, has a period
 of 2¹²⁸, and passes the BigCrush and PractRand test batteries, which MT does
 not (it fails the linear-complexity tests). Its one integer seed is spread
@@ -82,8 +81,8 @@ which counts at galaxy scale, and more to the point its output IS the galaxy:
 star names and spectral details are drawn from it, so changing its engine
 would rename every star. It stays.
 
-**The Mersenne Twister** is still exported (`MersenneTwister`), for anyone
-who needs the sequences it made before 0.8.4. Nothing here uses it.
+**The Mersenne Twister** is still exported (`MersenneTwister`), for sequences
+that must match older `PRNG` output, which was built on it. Nothing here uses it.
 
 A few places hash rather than generate: noise lattices (`noise-volume`,
 `climate-noise`) fill bytes with xorshift32, and `latticeHash` turns a grid

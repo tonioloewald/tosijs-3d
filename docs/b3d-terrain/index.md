@@ -281,6 +281,7 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `profile` | `false` | Debug: time tile building and report it on `debugState` (see below). Off = zero cost |
 | `grossAmplitude` | `8` | Gross height multiplier. ⚠️ Meaningless on its own: it's spread over `grossScale`/`horizScale`, so the same number is a mountain range at one scale and a plain at another |
 | `detailAmplitude` | `3` | Detail height multiplier. Landscape reads best when this does REAL work rather than 5% — big gross features, small gross amplitude, busy detail |
+| `biome` | `'off'` | `'on'` shades the ground with the procedural biome shader ([biome-plugin](/biome-plugin/)): a flat-colour chart picked from temperature, moisture, height and slope. Tune it live through `.biomePlugin` |
 | `biomeSeaLevel` | `0` | Sea level for the biome classifier (`biome="on"`) — keep it equal to your water plane's `y` |
 | `biomeLapseRate` | `0` (auto: 0.004) | Height→temperature lapse, in the biome CHART's units per metre (not `biomeTemperature`'s; see biome-chart). ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The auto value, 0.004, is fixed (not scaled to your relief): it is a small-world number and renders a 340m world entirely as snow |
 | `biomeTemperature` | `0.45` | Sea-level temperature: `0` is 0 °C and each unit is 50 °C, so the default is 22.5 °C, `-1` is -50 °C, and it is not limited to that range (see biome-chart's `chartTemperature`). LIVE |
@@ -296,6 +297,7 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `planet` | `''` | A selector for the `<tosi-b3d-planet>` this is the GROUND OF (`'#moon'`, sphere only): where the sea, coasts and mountain ranges are is the planet's, scaled to this `radius` with the sea at 0, and this terrain's detail layer and landforms ride on top. A pin on the globe lands on the ground it shows. Rebuilds when the planet changes. (The other way round, a planet's `terrain` draws the globe from this ground) |
 | `worldU` / `worldV` | `0` / `0.25` | The same place as fractions of a turn (JS properties over `lon`/`lat`: `worldU = lon / 360`, `worldV = (lat + 90) / 180`). ⚠️ `worldV = 0` (`lat = -90`) puts a cylinder world ON a mirror plane (`CylinderSampler` reflects v) — 0.25 is the furthest from both |
 | `baseHeight` | `0` | Flat vertical offset (m). The noise is 0..amplitude; `-grossAmplitude/2` centres the terrain on 0 so a water plane at 0 floods the valleys into a sea |
+| `center` | `false` | Centre the heightfield on 0 (an offset of `-grossAmplitude/2`) whatever the amplitude, so a water plane at 0 keeps reading as a sea while you tune. Adds to `baseHeight` |
 | `originResetThreshold` | `500` | Distance before origin rebase |
 | `maxTravelDistance` | `5000` | Distance before firing recenter-needed event |
 | `wireframe` | `false` | Debug: render terrain as wireframe |
@@ -332,6 +334,26 @@ exists to make normals; sampling a padded grid once and central-differencing it 
 that ~4–5× **in plain JS**, before any new technology. And a big `movableMs` only becomes a
 *felt* win if it moves off-thread: making a blocking 20ms burst into a blocking 5ms burst
 still drops frames (and in XR a dropped frame is nausea, not jank).
+
+## The tile grid
+
+The arithmetic under the tiles is pure (no Babylon, no DOM) and exported as
+`tosijs-3d/terrain-grid`: where a tile sits in the world, which world point
+each of its vertices samples, how far a level reaches, and which coarse tiles a
+finer level hides. You only need it if you build on the tile substrate yourself
+(a volumetric patch, a custom streamer), or to clamp a `reach` slider with
+`budgetedReach`.
+
+```javascript
+import { lodTileSize, tileCenter, cellIndex } from 'tosijs-3d/terrain-grid'
+
+lodTileSize(128, 2) // 512: each level doubles the tile
+cellIndex(700, 512) // 1: which tile a coordinate falls in
+tileCenter(1, -2, 512) // { x: 512, z: -1024 }
+```
+
+`desiredCells` is the quadtree: given a viewer, the set of tiles that should
+exist. See also [[sdf-lattice]].
 
 ## Usage
 

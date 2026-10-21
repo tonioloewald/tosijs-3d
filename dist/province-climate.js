@@ -9,8 +9,7 @@ Babylon, so a consumer can validate and serialise one in a headless runner.
 
 A province is a local authority over a base field, so its climate channels
 modify what the terrain already computed rather than replacing it. That needs a
-**neutral point**, so all three use the bipolar convention Tonio set for exactly
-this case:
+**neutral point**, so all three use a bipolar convention:
 
 > `0.5` leaves the base alone, `0` pushes it down, `1` pushes it up.
 
@@ -32,12 +31,12 @@ Whether there is **a lake** is not a bias. It has a surface at a height, an edge
 where the land meets it, and it is either there or it is not — a curve cannot
 say "there is water here and its top is at 12 m". So presence and level are
 **scalars** on the province, and the curve goes on biasing the climate around
-them. Tonio, asking for both in one breath: _"toggle the presence of water and
-set its height (or however it's supposed to work)."_ It works as two things.
+them.
 
 ## Composition, when provinces overlap
 
-Follows PROVINCE-DESIGN's per-layer rules rather than inventing a new one:
+The same per-quantity rules as [weather](/weather/), so two ways of combining
+regions never disagree at a boundary:
 
 - **temperature / water** — SUM the biases. Two damp influences are damper, and
   a bias is already signed so opposing provinces cancel, which is the right

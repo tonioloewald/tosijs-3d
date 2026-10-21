@@ -1,17 +1,18 @@
 # b3d-launcher
 
-Fires **ballistic projectiles** — the scene-side shoot loop, bridging the pure
-`ballistics.ts` integrator + the pure `resource.ts` ammo pool to Babylon (see
-COMBAT-DESIGN.md). Each shot is a small mesh flown by `ballisticStep` (gravity +
-drag), swept-collision raycast every frame from its previous point to its new one,
-and on impact it fires a [warhead](?b3d-warhead.ts) (`detonateWarhead`) — so a
-direct hit or a near miss both do AOE damage to whatever's in blast range. Ammo is a
-`Resource` (finite, optionally recharging); `fireRate` gates the cadence.
+Fires **ballistic projectiles**: the scene-side shoot loop, bridging the pure
+[ballistics](/ballistics/) integrator and an ammo pool to Babylon. Each shot is a
+small mesh flown by `ballisticStep` (gravity + drag), swept-collision raycast every
+frame from its previous point to its new one, and on impact it fires a
+[warhead](/b3d-warhead/) (`detonateWarhead`), so a direct hit or a near miss both do
+AOE damage to whatever's in blast range. Ammo is a resource, the same mechanic as a
+[destroyable](/b3d-destroyable/)'s health (finite, optionally recharging);
+`fireRate` gates the cadence.
 
 ## Demo
 
 **Steer the gun with A/D (left stick), hold the right trigger (or `F` / the glass B
-button) to fire** a stream of shells — the [standard controller](?b3d-controller.ts), so
+button) to fire** a stream of shells — the [standard controller](/b3d-controller/), so
 the same controls work on keyboard, touch, and in VR. **Left-drag orbits** the view.
 Shells arc under gravity and blast the wide cube field — a direct hit kills, a near miss
 chips the neighbours. Tune muzzle speed, fire rate, drag and the warhead in the settings panel.
@@ -46,7 +47,7 @@ const scene = b3d(
       slider3d({ label: 'blast radius', value: s.blastRadius, min: 0.5, max: 8, step: 0.5 }),
     ],
     sceneCreated(el, BABYLON) {
-      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3.4, radius: 20, target: [0, 0.5, 0] })
+      orbitCam(el, { alphaDeg: -90, betaDeg: 52.9, radius: 20, target: [0, 0.5, 0] })
     },
   },
   b3dLight({ y: 1, intensity: 0.85 }),
@@ -57,7 +58,7 @@ const scene = b3d(
     drive(input, dt) {
       // Steer on EITHER stick: the biped mapping sends A/D and the left
       // stick to strafe (move) and only the right stick to turn, so reading
-      // turn alone left the glass pad's stick and A/D dead (board #2434).
+      // turn alone would leave the glass pad's stick and A/D dead.
       const steer = Math.max(-1, Math.min(1, input.turn + input.strafe))
       launcher.ry += steer * dt * 70 // steer azimuth (A/D · either stick · VR)
       if (input.shoot > 0.5 || input.sprint > 0.5) {
@@ -98,8 +99,7 @@ import { tosi } from 'tosijs'
 // Distinct tosi() key from the gun demo above (shared-singleton gotcha — see there).
 const { launcherMissile: s } = tosi({ launcherMissile: { missileSpeed: 16, turnRate: 3, fireRate: 2.5 } })
 // projRadius 0.35, not the 0.12 default: this camera sits 30 units back and the
-// missile flies 30 more, where a 0.12 sphere is about two pixels. "The launcher
-// works now but I can't see the missile."
+// missile flies 30 more, where a 0.12 sphere is about two pixels.
 const launcher = b3dLauncher({ x: 0, y: 0.6, z: 0, missileSpeed: s.missileSpeed, turnRate: s.turnRate, fireRate: s.fireRate, blastRadius: 3, projRadius: 0.35, projColor: '#ffe066', missileTrail: 'on' })
 
 // Shared so the orbit loop (in sceneCreated) and the controller's drive both reach it.
@@ -117,7 +117,7 @@ const scene = b3d(
       slider3d({ label: 'fire rate', value: s.fireRate, min: 0.5, max: 5, step: 0.5 }),
     ],
     sceneCreated(el, BABYLON) {
-      orbitCam(el, { alpha: -Math.PI / 2.2, beta: Math.PI / 3, radius: 30, target: [0, 4, 0] })
+      orbitCam(el, { alphaDeg: -81.8, betaDeg: 60, radius: 30, target: [0, 4, 0] })
       let a = 0, baseY = 4
       // Respawn the target on death at a fresh (hittable) altitude.
       const spawn = () => {
@@ -127,12 +127,10 @@ const scene = b3d(
         return t
       }
       state.target = spawn()
-      // RELEVANCE FIRST, and exactly once. This used to react to ANY `destroyed`
-      // event and schedule a respawn every time — so a second event (an AoE
-      // catching something else, a stray) queued an EXTRA spawn while the
-      // target was already null, leaving orphan drones nothing moves or clears.
-      // Same shape as issue #25, where any other entity's death tore down the
-      // death panel.
+      // RELEVANCE FIRST, and exactly once. Reacting to ANY `destroyed` event
+      // would schedule a respawn every time, so a second event (an AoE catching
+      // something else, a stray) would queue an EXTRA spawn while the target was
+      // already null, leaving orphan drones nothing moves or clears.
       el.addEventListener('destroyed', (e) => {
         const dead = state.target
         if (!dead || (e.target !== dead && !dead.contains(e.target))) return
@@ -189,28 +187,32 @@ const shell = {
 
 `point` on its own cannot orient anything. A scorch mark, a dent, a spark spray
 and a ricochet all need to know which way the surface faces, and the swept ray
-already computed it — this used to be discarded, so every consumer that wanted
-an oriented effect had to re-cast the same ray to recover it (tosijs-3d#29).
+has already computed it, so you never need to re-cast it.
 
 **`normal` and `mesh` are nullable, and the null case is real** rather than
 defensive: a depth fuse detonates in open water and a timed round detonates in
 mid-air. There is no surface, so there is no normal. Branch on it — a caller
 that assumes one orients its effect off nothing.
 
-> The older `onImpact(point)` still fires, with a one-shot deprecation warning.
-> It was renamed off the `on*` prefix as well as widened: an `onFoo` key in an
-> options bag becomes an `addEventListener` call the moment that shape is lifted
-> onto an element, and the callback then silently never runs.
+> `onImpact(point)` is deprecated: it still fires, with a one-shot warning. Use
+> `whenImpact`. An `onFoo` key in an options bag becomes an `addEventListener`
+> call the moment that shape is lifted onto an element, and the callback then
+> silently never runs.
 
 ## Attributes
 
 | Attribute | Default | Description |
 |-----------|---------|-------------|
+| `meshName` | `'launcher'` | Mesh name, and the library model to instantiate when `library` is set |
+| `library` | `''` | Instantiate `meshName` from this `<tosi-b3d-library type>` instead of the placeholder box |
+| `grip` | `'auto'` | Where the hand holds it: `'auto'` derives the grip from the geometry (the centroid of the lowest third) and places it at `x`/`y`/`z`; `'off'` mounts by the model's origin; or an explicit `'x,y,z'` |
+| `socket` | `''` | The joint it rides on when nested in a character: `'right-hand'`, `'left-hand'`, `'head'`, `'spine'`, `'hips'`, or `''` for the holder's root. With a socket, `x`/`y`/`z` are relative to the joint |
+| `modelScale` | `1` | Uniform scale of the loaded model |
 | `muzzleSpeed` | `30` | Launch speed (units/sec) along the fire direction |
 | `fireRate` | `5` | Max shots per second (cadence gate) |
 | `missileSpeed` | `22` | Cruise speed of a guided shot (`fireAt`) |
 | `turnRate` | `3` | Guided-missile agility (rad/sec) |
-| `turnRateDeg` | — | The same agility in **deg/sec** — a computed view onto `turnRate`: set either, read either, and reading returns exactly what you set. Literal markup (`turn-rate-deg="30"`) needs computed attributes, landing in tosijs 1.8.0 |
+| `turnRateDeg` | — | The same agility in **deg/sec**, a computed view onto `turnRate`: set either, read either, and reading returns exactly what you set. JS only: `turn-rate-deg` is not an attribute in markup |
 | `ammo` | `40` | Magazine capacity (a `Resource`) |
 | `reloadRate` | `8` | Ammo regenerated per second (0 = no reload) |
 | `reloadDelay` | `1` | Seconds after firing before reload resumes |
@@ -221,7 +223,7 @@ that assumes one orients its effect off nothing.
 | `projColor` | `'#ffdd55'` | Shell emissive colour |
 | `missileTrail` | `'off'` | `'on'` leaves a smoke ribbon behind each guided missile (`fireAt`); see [b3d-trail](/b3d-trail/). For your own rounds, pass `trail` to `spawnProjectile`/`spawnMissile` |
 | `maxLifetime` | `6` | Seconds before an un-impacted shell self-disposes |
-| `damage` | `20` | Warhead full damage (see b3d-warhead) |
+| `damage` | `20` | Warhead full damage (see [b3d-warhead](/b3d-warhead/)) |
 | `fullRadius` | `1` | Warhead full-damage radius |
 | `blastRadius` | `3` | Warhead falloff radius |
 | `los` | `'on'` | Warhead line-of-sight gating |
@@ -232,15 +234,14 @@ that assumes one orients its effect off nothing.
 Four rules, and the first one is the one that is easy to get wrong.
 
 **THE ORIGIN IS THE GRIP** — the point the hand closes around, not the centre of
-the mesh and not the back of it. Everything else is measured from there: today it
-is what `x`/`y`/`z` place, and once hand sockets land it is the point that gets
-pinned to the bone. An origin at the mesh centre means every consumer has to
-discover the same correction offset by eye, and they will each get a different
-one.
+the mesh and not the back of it. Everything else is measured from there: it is
+what `x`/`y`/`z` place, and the point pinned to the `socket` joint. An origin at
+the mesh centre means every consumer has to discover the same correction offset by
+eye, and they will each get a different one. (`grip="auto"` estimates it for
+models that do not follow this rule.)
 
 **BARREL DOWN LOCAL −Y, UP LOCAL +Z, IN BLENDER.** The same frame every other
-model in this project is authored in (see CLAUDE.md → "Model authoring & the
-canonical frame"): Blender's own default front. The exporter turns that into
+model in this project is authored in: Blender's own default front. The exporter turns that into
 glTF +Z-forward / +Y-up, which is what `muzzle()` and `forward()` read —
 `mesh.getDirection(Axis.Z)`. Do not "apply all transforms" to fix an orientation
 in a scene file; fix the model's LOCAL frame in edit mode.
@@ -250,9 +251,9 @@ in a scene file; fix the model's LOCAL frame in edit mode.
 instantly and wrongly as the character being the wrong size.
 
 **ADD A `_muzzle` NODE** at the tip of the barrel, pointing the way the round
-leaves. It is an empty; only its position is read. Without one, `muzzle()` guesses
-0.55 along local +Z, which is right for the placeholder box and about 2.5× too
-far for a pistol — so rounds appear out of thin air a foot in front of the gun.
+leaves. It is an empty; only its position is read. Without one, `muzzle()` takes
+the front of the model's bounding box, which misses a barrel that is not the
+longest thing on the model.
 A turret's rotating part is `_barrel`, which is a separate question: the barrel
 is what swings, the muzzle is where the round appears, and on a simple gun the
 muzzle node alone is enough.
@@ -270,11 +271,8 @@ break it.)
 
 ### Make the grip NARROWER than life
 
-A note for authoring or adapting weapons, from fitting Kenney's pistol to a
-1.83m character. Tonio: *"a big problem with the gun is that its grip is too
-wide... a real gun would have fingers wrapped and spread around it. When I model
-the actual weapons — or adapt others' models — I should make the grips a little
-narrower so they don't look weird."*
+When authoring or adapting a weapon, make the grip a little narrower than a real
+one. A real hand wraps and spreads its fingers around a grip.
 
 The grip is not really oversized; the HAND is the problem. A game character's
 fingers are a few low-poly stubs that do not close, and they cannot wrap and
@@ -310,15 +308,15 @@ mesh's lowest third.** Measured that way, `pistol` grips at `(0, 0.011, -0.105)`
 `uzi` at `(0, 0.045, -0.039)`, `shotgun` at `(0, 0.023, -0.106)`, `sniper` at
 `(0.005, 0.052, -0.238)` — each plausibly inside the handle.
 
-Mount it by making the grip and the hand coincide: `position = hand - grip`. The
-playground does exactly that, and shows its arithmetic.
+`grip="auto"` (the default) applies exactly this, so the grip goes where
+`x`/`y`/`z` say.
 
-None of them carry a `_muzzle` node, which is what pushed `muzzle()` to measure
-the model instead of assuming 0.55.
+None of them carry a `_muzzle` node, so `muzzle()` measures each model's bounding
+box.
 
 ### Getting it in
 
-There is no `url` on this element yet — a model arrives through `library`, which
+There is no `url` on this element: a model arrives through `library`, which
 means the weapon lives in a GLB the `b3d-library` element loads, with `.model`
 on the node that should be exported (`pistol.model` lists and instantiates as
 `pistol`). Behaviour suffixes compose with it, so `pistol_muzzle.model` is legal

@@ -9,10 +9,8 @@ import { svgElements, elements } from 'tosijs'
 const { svg, rect, text } = svgElements
 
 // A little SVG panel, used for both the opener and its popups.
-// No `rx` on the background: the MESH is rounded now, so rounding the svg too
-// would only round the texture inside an already-rounded silhouette — a darker
-// fringe, and fill nobody asked for. (Tonio: "we can slightly simplify our svg
-// outer rect as well for a few ns of savings lol")
+// No `rx` on the background: the MESH is rounded, so rounding the svg too
+// would only add a darker fringe inside an already-rounded silhouette.
 const card = (title, lines, w = 220, h = 130) =>
   svg(
     { viewBox: `0 0 ${w} ${h}`, width: w, height: h },
@@ -83,19 +81,17 @@ pop.close()
 
 ## Why not lay it out inside the opener
 
-We had written the opposite down as a hard constraint — a dropdown "**MUST**
-grow the panel's layout rather than a DOM-style absolute popover, because a
-popover won't rasterize into the VR texture". Half of that is true: you cannot
-draw outside the SVG that becomes the texture. The leap it hides is that the
-popup must therefore live *in* that SVG. It doesn't. It can be **another texture
-on another plane**, and then the constraint simply isn't binding.
+You cannot draw outside the SVG that becomes the texture, so a popup that lives
+*in* that SVG is cropped by it, or has to grow the panel's layout. A popup does
+not have to live there. It can be **another texture on another plane**, and then
+the constraint does not bind.
 
 What that buys, beyond the dropdown:
 
-- **The opener stops reflowing.** Opening a debug tool currently shoves the
-  author's controls down the panel — the thing you were reading moves because
-  you asked about something else.
-- **Tear-offs stop being a feature.** A popup that is already its own surface
+- **The opener does not reflow.** Opening a debug tool leaves the author's
+  controls where they were, instead of moving what you were reading because you
+  asked about something else.
+- **Tear-offs are not a separate feature.** A popup that is already its own surface
   becomes "leave this open over there" by re-parenting, not by new machinery.
 - **Depth replaces z-index.** `lift` pulls the popup toward the viewer, which is
   the effect flat UI fakes with shadows and scrims.
@@ -111,9 +107,13 @@ would be a failed drag instead. Restricting the gesture to a title bar is what
 lets the rest of the panel be interactive, and the icon is what makes that rule
 visible rather than something you have to be told.
 
-The glyphs are injected here rather than left to the caller so they cannot drift
-out of line with the hit regions this module tests against — a move icon that
-isn't where the grip is would be worse than no icon at all. They are drawn with
+The glyphs are injected here rather than left to the caller, and their
+rectangles and the hit regions come from ONE layout in viewBox units, so the
+visible × is always where pressing closes. Two derivations of the same rectangle
+drift: on some aspect ratios the × would sit outside its own target, and a press
+on it would fall through to the drag and tear the popup off instead of closing
+it. The close TARGET is sized separately from the glyph, at least as wide as the
+bar is tall, so a small × is still easy to hit with a controller ray. They are drawn with
 `iconGlyph`, not `svgIcons`, because this SVG becomes a TEXTURE and
 `currentColor` resolves against nothing there.
 
@@ -123,8 +123,8 @@ A popup is **owned**: parented to its opener, so it travels with it and is
 disposed with it. `tearOff()` promotes it to world space **preserving its world
 pose** (Babylon's `setParent(null)` does that arithmetic for us), after which it
 is nobody's child, stays where it is, and — if `draggable` — can be grabbed and
-moved. Ownership is a lifetime statement, not a position one; that split is the
-same one `SPATIAL-DESIGN.md` draws for riding an elevator.
+moved. Ownership is a lifetime statement, not a position one, the same split as
+riding an elevator.
 
 ## Why parenting to the opener is fine here
 
@@ -135,9 +135,6 @@ being clipped and to control what sits in front. A Babylon parent does neither �
 it is a transform and nothing else — so there is nothing to escape, and
 ownership costs nothing.
 
-Tonio, arriving at it from the other side: _"parenting in 3d is merely
-positional and not cropping."_
-
 The cropping constraint is real, though; it just lives one level down. **The
 TEXTURE is the crop.** An `openPanel` overlay is clipped by the surface's viewBox
 exactly the way a child is clipped by `overflow: hidden`, and no amount of
@@ -147,6 +144,10 @@ why the fix is a second PLANE rather than a different parent.
 Inheriting the opener's scale and rotation is then a feature rather than a leak:
 a panel scaled down onto a wrist should take its popups with it, at its size and
 its angle. `tearOff()` remains the way to opt out, and it is a deliberate act.
+
+On a plane, a panel's popups get a surface of their own in front of it, so
+the panel's SVG never crops them; both `panelScene` and the in-scene settings
+panel route their popups that way.
 
 ## Budget
 

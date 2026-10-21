@@ -14,35 +14,36 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=060314d12b8f" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=f55d7e2fb2af" data-tosi-doc-system />
   <title>b3d-launcher — tosijs-3d</title>
-  <meta name="description" content="Fires ballistic projectiles — the scene-side shoot loop, bridging the pure ballistics.ts integrator + the pure resource.ts ammo pool to Babylon (see…" />
+  <meta name="description" content="Fires ballistic projectiles: the scene-side shoot loop, bridging the pure ballistics integrator and an ammo pool to Babylon." />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-launcher/" />
   <link rel="alternate" type="text/markdown" href="index.md" title="b3d-launcher — tosijs-3d (markdown)" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
   <meta property="og:title" content="b3d-launcher — tosijs-3d" />
-  <meta property="og:description" content="Fires ballistic projectiles — the scene-side shoot loop, bridging the pure ballistics.ts integrator + the pure resource.ts ammo pool to Babylon (see…" />
+  <meta property="og:description" content="Fires ballistic projectiles: the scene-side shoot loop, bridging the pure ballistics integrator and an ammo pool to Babylon." />
   <meta property="og:url" content="https://3d.tosijs.net/b3d-launcher/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-launcher","description":"Fires ballistic projectiles — the scene-side shoot loop, bridging the pure ballistics.ts integrator + the pure resource.ts ammo pool to Babylon (see…","url":"https://3d.tosijs.net/b3d-launcher/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-launcher","description":"Fires ballistic projectiles: the scene-side shoot loop, bridging the pure ballistics integrator and an ammo pool to Babylon.","url":"https://3d.tosijs.net/b3d-launcher/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=e9f6966606af" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=02678983b691" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="b3d-launcher.ts">
 <h1 id="b3d-launcher">b3d-launcher</h1>
-<p>Fires <strong>ballistic projectiles</strong> — the scene-side shoot loop, bridging the pure
-<code>ballistics.ts</code> integrator + the pure <code>resource.ts</code> ammo pool to Babylon (see
-COMBAT-DESIGN.md). Each shot is a small mesh flown by <code>ballisticStep</code> (gravity +
-drag), swept-collision raycast every frame from its previous point to its new one,
-and on impact it fires a <a href="../b3d-warhead/">warhead</a> (<code>detonateWarhead</code>) — so a
-direct hit or a near miss both do AOE damage to whatever&#39;s in blast range. Ammo is a
-<code>Resource</code> (finite, optionally recharging); <code>fireRate</code> gates the cadence.</p>
+<p>Fires <strong>ballistic projectiles</strong>: the scene-side shoot loop, bridging the pure
+<a href="/ballistics/">ballistics</a> integrator and an ammo pool to Babylon. Each shot is a
+small mesh flown by <code>ballisticStep</code> (gravity + drag), swept-collision raycast every
+frame from its previous point to its new one, and on impact it fires a
+<a href="/b3d-warhead/">warhead</a> (<code>detonateWarhead</code>), so a direct hit or a near miss both do
+AOE damage to whatever&#39;s in blast range. Ammo is a resource, the same mechanic as a
+<a href="/b3d-destroyable/">destroyable</a>&#39;s health (finite, optionally recharging);
+<code>fireRate</code> gates the cadence.</p>
 <h2 id="demo">Demo</h2>
 <p><strong>Steer the gun with A/D (left stick), hold the right trigger (or <code>F</code> / the glass B
-button) to fire</strong> a stream of shells — the <a href="../b3d-controller/">standard controller</a>, so
+button) to fire</strong> a stream of shells — the <a href="/b3d-controller/">standard controller</a>, so
 the same controls work on keyboard, touch, and in VR. <strong>Left-drag orbits</strong> the view.
 Shells arc under gravity and blast the wide cube field — a direct hit kills, a near miss
 chips the neighbours. Tune muzzle speed, fire rate, drag and the warhead in the settings panel.</p>
@@ -75,7 +76,7 @@ const scene = b3d(
       slider3d({ label: &#39;blast radius&#39;, value: s.blastRadius, min: 0.5, max: 8, step: 0.5 }),
     ],
     sceneCreated(el, BABYLON) {
-      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3.4, radius: 20, target: [0, 0.5, 0] })
+      orbitCam(el, { alphaDeg: -90, betaDeg: 52.9, radius: 20, target: [0, 0.5, 0] })
     },
   },
   b3dLight({ y: 1, intensity: 0.85 }),
@@ -86,7 +87,7 @@ const scene = b3d(
     drive(input, dt) {
       // Steer on EITHER stick: the biped mapping sends A/D and the left
       // stick to strafe (move) and only the right stick to turn, so reading
-      // turn alone left the glass pad&#39;s stick and A/D dead (board #2434).
+      // turn alone would leave the glass pad&#39;s stick and A/D dead.
       const steer = Math.max(-1, Math.min(1, input.turn + input.strafe))
       launcher.ry += steer * dt * 70 // steer azimuth (A/D · either stick · VR)
       if (input.shoot &gt; 0.5 || input.sprint &gt; 0.5) {
@@ -122,8 +123,7 @@ import { tosi } from &#39;tosijs&#39;
 // Distinct tosi() key from the gun demo above (shared-singleton gotcha — see there).
 const { launcherMissile: s } = tosi({ launcherMissile: { missileSpeed: 16, turnRate: 3, fireRate: 2.5 } })
 // projRadius 0.35, not the 0.12 default: this camera sits 30 units back and the
-// missile flies 30 more, where a 0.12 sphere is about two pixels. &quot;The launcher
-// works now but I can&#39;t see the missile.&quot;
+// missile flies 30 more, where a 0.12 sphere is about two pixels.
 const launcher = b3dLauncher({ x: 0, y: 0.6, z: 0, missileSpeed: s.missileSpeed, turnRate: s.turnRate, fireRate: s.fireRate, blastRadius: 3, projRadius: 0.35, projColor: &#39;#ffe066&#39;, missileTrail: &#39;on&#39; })
 
 // Shared so the orbit loop (in sceneCreated) and the controller&#39;s drive both reach it.
@@ -141,7 +141,7 @@ const scene = b3d(
       slider3d({ label: &#39;fire rate&#39;, value: s.fireRate, min: 0.5, max: 5, step: 0.5 }),
     ],
     sceneCreated(el, BABYLON) {
-      orbitCam(el, { alpha: -Math.PI / 2.2, beta: Math.PI / 3, radius: 30, target: [0, 4, 0] })
+      orbitCam(el, { alphaDeg: -81.8, betaDeg: 60, radius: 30, target: [0, 4, 0] })
       let a = 0, baseY = 4
       // Respawn the target on death at a fresh (hittable) altitude.
       const spawn = () =&gt; {
@@ -151,12 +151,10 @@ const scene = b3d(
         return t
       }
       state.target = spawn()
-      // RELEVANCE FIRST, and exactly once. This used to react to ANY `destroyed`
-      // event and schedule a respawn every time — so a second event (an AoE
-      // catching something else, a stray) queued an EXTRA spawn while the
-      // target was already null, leaving orphan drones nothing moves or clears.
-      // Same shape as issue #25, where any other entity&#39;s death tore down the
-      // death panel.
+      // RELEVANCE FIRST, and exactly once. Reacting to ANY `destroyed` event
+      // would schedule a respawn every time, so a second event (an AoE catching
+      // something else, a stray) would queue an EXTRA spawn while the target was
+      // already null, leaving orphan drones nothing moves or clears.
       el.addEventListener(&#39;destroyed&#39;, (e) =&gt; {
         const dead = state.target
         if (!dead || (e.target !== dead &amp;&amp; !dead.contains(e.target))) return
@@ -207,17 +205,16 @@ hands you an <code>Impact</code>:</p>
 </code></pre>
 <p><code>point</code> on its own cannot orient anything. A scorch mark, a dent, a spark spray
 and a ricochet all need to know which way the surface faces, and the swept ray
-already computed it — this used to be discarded, so every consumer that wanted
-an oriented effect had to re-cast the same ray to recover it (tosijs-3d#29).</p>
+has already computed it, so you never need to re-cast it.</p>
 <p><strong><code>normal</code> and <code>mesh</code> are nullable, and the null case is real</strong> rather than
 defensive: a depth fuse detonates in open water and a timed round detonates in
 mid-air. There is no surface, so there is no normal. Branch on it — a caller
 that assumes one orients its effect off nothing.</p>
 <blockquote>
-<p>The older <code>onImpact(point)</code> still fires, with a one-shot deprecation warning.
-It was renamed off the <code>on*</code> prefix as well as widened: an <code>onFoo</code> key in an
-options bag becomes an <code>addEventListener</code> call the moment that shape is lifted
-onto an element, and the callback then silently never runs.</p>
+<p><code>onImpact(point)</code> is deprecated: it still fires, with a one-shot warning. Use
+<code>whenImpact</code>. An <code>onFoo</code> key in an options bag becomes an <code>addEventListener</code>
+call the moment that shape is lifted onto an element, and the callback then
+silently never runs.</p>
 </blockquote>
 <h2 id="attributes">Attributes</h2>
 <table>
@@ -229,6 +226,31 @@ onto an element, and the callback then silently never runs.</p>
 </tr>
 </thead>
 <tbody><tr>
+<td><code>meshName</code></td>
+<td><code>&#39;launcher&#39;</code></td>
+<td>Mesh name, and the library model to instantiate when <code>library</code> is set</td>
+</tr>
+<tr>
+<td><code>library</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>Instantiate <code>meshName</code> from this <code>&lt;tosi-b3d-library type&gt;</code> instead of the placeholder box</td>
+</tr>
+<tr>
+<td><code>grip</code></td>
+<td><code>&#39;auto&#39;</code></td>
+<td>Where the hand holds it: <code>&#39;auto&#39;</code> derives the grip from the geometry (the centroid of the lowest third) and places it at <code>x</code>/<code>y</code>/<code>z</code>; <code>&#39;off&#39;</code> mounts by the model&#39;s origin; or an explicit <code>&#39;x,y,z&#39;</code></td>
+</tr>
+<tr>
+<td><code>socket</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>The joint it rides on when nested in a character: <code>&#39;right-hand&#39;</code>, <code>&#39;left-hand&#39;</code>, <code>&#39;head&#39;</code>, <code>&#39;spine&#39;</code>, <code>&#39;hips&#39;</code>, or <code>&#39;&#39;</code> for the holder&#39;s root. With a socket, <code>x</code>/<code>y</code>/<code>z</code> are relative to the joint</td>
+</tr>
+<tr>
+<td><code>modelScale</code></td>
+<td><code>1</code></td>
+<td>Uniform scale of the loaded model</td>
+</tr>
+<tr>
 <td><code>muzzleSpeed</code></td>
 <td><code>30</code></td>
 <td>Launch speed (units/sec) along the fire direction</td>
@@ -251,7 +273,7 @@ onto an element, and the callback then silently never runs.</p>
 <tr>
 <td><code>turnRateDeg</code></td>
 <td>—</td>
-<td>The same agility in <strong>deg/sec</strong> — a computed view onto <code>turnRate</code>: set either, read either, and reading returns exactly what you set. Literal markup (<code>turn-rate-deg=&quot;30&quot;</code>) needs computed attributes, landing in tosijs 1.8.0</td>
+<td>The same agility in <strong>deg/sec</strong>, a computed view onto <code>turnRate</code>: set either, read either, and reading returns exactly what you set. JS only: <code>turn-rate-deg</code> is not an attribute in markup</td>
 </tr>
 <tr>
 <td><code>ammo</code></td>
@@ -306,7 +328,7 @@ onto an element, and the callback then silently never runs.</p>
 <tr>
 <td><code>damage</code></td>
 <td><code>20</code></td>
-<td>Warhead full damage (see b3d-warhead)</td>
+<td>Warhead full damage (see <a href="/b3d-warhead/">b3d-warhead</a>)</td>
 </tr>
 <tr>
 <td><code>fullRadius</code></td>
@@ -332,14 +354,13 @@ onto an element, and the callback then silently never runs.</p>
 <h2 id="authoring-a-weapon-mesh">Authoring a weapon mesh</h2>
 <p>Four rules, and the first one is the one that is easy to get wrong.</p>
 <p><strong>THE ORIGIN IS THE GRIP</strong> — the point the hand closes around, not the centre of
-the mesh and not the back of it. Everything else is measured from there: today it
-is what <code>x</code>/<code>y</code>/<code>z</code> place, and once hand sockets land it is the point that gets
-pinned to the bone. An origin at the mesh centre means every consumer has to
-discover the same correction offset by eye, and they will each get a different
-one.</p>
+the mesh and not the back of it. Everything else is measured from there: it is
+what <code>x</code>/<code>y</code>/<code>z</code> place, and the point pinned to the <code>socket</code> joint. An origin at
+the mesh centre means every consumer has to discover the same correction offset by
+eye, and they will each get a different one. (<code>grip=&quot;auto&quot;</code> estimates it for
+models that do not follow this rule.)</p>
 <p><strong>BARREL DOWN LOCAL −Y, UP LOCAL +Z, IN BLENDER.</strong> The same frame every other
-model in this project is authored in (see CLAUDE.md → &quot;Model authoring &amp; the
-canonical frame&quot;): Blender&#39;s own default front. The exporter turns that into
+model in this project is authored in: Blender&#39;s own default front. The exporter turns that into
 glTF +Z-forward / +Y-up, which is what <code>muzzle()</code> and <code>forward()</code> read —
 <code>mesh.getDirection(Axis.Z)</code>. Do not &quot;apply all transforms&quot; to fix an orientation
 in a scene file; fix the model&#39;s LOCAL frame in edit mode.</p>
@@ -347,9 +368,9 @@ in a scene file; fix the model&#39;s LOCAL frame in edit mode.</p>
 0.9–1.1. The character is 1.83, so a weapon authored at the wrong scale reads
 instantly and wrongly as the character being the wrong size.</p>
 <p><strong>ADD A <code>_muzzle</code> NODE</strong> at the tip of the barrel, pointing the way the round
-leaves. It is an empty; only its position is read. Without one, <code>muzzle()</code> guesses
-0.55 along local +Z, which is right for the placeholder box and about 2.5× too
-far for a pistol — so rounds appear out of thin air a foot in front of the gun.
+leaves. It is an empty; only its position is read. Without one, <code>muzzle()</code> takes
+the front of the model&#39;s bounding box, which misses a barrel that is not the
+longest thing on the model.
 A turret&#39;s rotating part is <code>_barrel</code>, which is a separate question: the barrel
 is what swings, the muzzle is where the round appears, and on a simple gun the
 muzzle node alone is enough.</p>
@@ -363,11 +384,8 @@ mirrored. (Worth stating because a mesh that IS mirrored looks like an authoring
 mistake, and the instinct is to flip it in Blender — which is what would actually
 break it.)</p>
 <h3 id="make-the-grip-narrower-than-life">Make the grip NARROWER than life</h3>
-<p>A note for authoring or adapting weapons, from fitting Kenney&#39;s pistol to a
-1.83m character. Tonio: <em>&quot;a big problem with the gun is that its grip is too
-wide... a real gun would have fingers wrapped and spread around it. When I model
-the actual weapons — or adapt others&#39; models — I should make the grips a little
-narrower so they don&#39;t look weird.&quot;</em></p>
+<p>When authoring or adapting a weapon, make the grip a little narrower than a real
+one. A real hand wraps and spreads its fingers around a grip.</p>
 <p>The grip is not really oversized; the HAND is the problem. A game character&#39;s
 fingers are a few low-poly stubs that do not close, and they cannot wrap and
 spread the way real fingers do around a real grip. So a life-accurate grip
@@ -413,12 +431,12 @@ derivable rather than per-weapon guesswork: <strong>the grip is the centroid of 
 mesh&#39;s lowest third.</strong> Measured that way, <code>pistol</code> grips at <code>(0, 0.011, -0.105)</code>,
 <code>uzi</code> at <code>(0, 0.045, -0.039)</code>, <code>shotgun</code> at <code>(0, 0.023, -0.106)</code>, <code>sniper</code> at
 <code>(0.005, 0.052, -0.238)</code> — each plausibly inside the handle.</p>
-<p>Mount it by making the grip and the hand coincide: <code>position = hand - grip</code>. The
-playground does exactly that, and shows its arithmetic.</p>
-<p>None of them carry a <code>_muzzle</code> node, which is what pushed <code>muzzle()</code> to measure
-the model instead of assuming 0.55.</p>
+<p><code>grip=&quot;auto&quot;</code> (the default) applies exactly this, so the grip goes where
+<code>x</code>/<code>y</code>/<code>z</code> say.</p>
+<p>None of them carry a <code>_muzzle</code> node, so <code>muzzle()</code> measures each model&#39;s bounding
+box.</p>
 <h3 id="getting-it-in">Getting it in</h3>
-<p>There is no <code>url</code> on this element yet — a model arrives through <code>library</code>, which
+<p>There is no <code>url</code> on this element: a model arrives through <code>library</code>, which
 means the weapon lives in a GLB the <code>b3d-library</code> element loads, with <code>.model</code>
 on the node that should be exported (<code>pistol.model</code> lists and instantiates as
 <code>pistol</code>). Behaviour suffixes compose with it, so <code>pistol_muzzle.model</code> is legal
@@ -442,21 +460,26 @@ and does both.</p>
     </details></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
-      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
-      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><details><summary><a class="doc-link" href="../tosi-b3d/">b3d</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-loader/">b3d-loader</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../b3d-primitives/">Primitives: box, sphere, ground</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-library/">b3d-library</a></summary>
       <ul>
-        <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
         <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
       </ul>
       </details></li>
       <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
       <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
       <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
-      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
-      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../sky-and-light/">Sky and light</a></summary>
@@ -471,19 +494,12 @@ and does both.</p>
       <li><a class="doc-link" href="../b3d-light/">Ambient light (b3d-light)</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-lamp/">Lamps</a></summary>
       <ul>
+        <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
         <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../light-rays/">light-rays</a></li>
-      </ul>
-      </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-fog/">b3d-fog</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
@@ -493,7 +509,6 @@ and does both.</p>
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></summary>
       <ul>
-        <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
         <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
       </ul>
       </details></li>
@@ -504,17 +519,8 @@ and does both.</p>
         <li><a class="doc-link" href="../wind/">wind</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../lightning/">lightning</a></li>
-      </ul>
-      </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
-        <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../terrain/">Terrain</a></summary>
@@ -531,7 +537,6 @@ and does both.</p>
         </details></li>
         <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
         <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
-        <li><a class="doc-link" href="../terrain-grid/">terrain-grid</a></li>
         <li><a class="doc-link" href="../gradient-filter/">gradient-filter</a></li>
       </ul>
       </details></li>
@@ -553,9 +558,6 @@ and does both.</p>
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-water/">b3d-water</a></summary>
       <ul>
-        <li><a class="doc-link" href="../water-shore/">water-shore</a></li>
-        <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
-        <li><a class="doc-link" href="../caustics/">caustics</a></li>
         <li><a class="doc-link" href="../medium/">medium</a></li>
       </ul>
       </details></li>
@@ -574,11 +576,7 @@ and does both.</p>
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-biped/">b3d-biped</a></summary>
       <ul>
-        <li><a class="doc-link" href="../mantle/">mantle</a></li>
-        <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
-        <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
         <li><a class="doc-link" href="../aim/">aim</a></li>
-        <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
         <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
         <li><a class="doc-link" href="../retarget/">retarget</a></li>
         <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
@@ -588,20 +586,24 @@ and does both.</p>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../spring-chain-babylon/">spring bones</a></li>
-        <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
-        <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></summary>
       <ul>
         <li><a class="doc-link" href="../fly-by-wire/">fly-by-wire</a></li>
         <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
-        <li><a class="doc-link" href="../hud/">hud</a></li>
-        <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
       </ul>
       </details></li>
       <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
-      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../spatial-transform/">spatial-transform</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
       <li><details><summary><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></summary>
       <ul>
         <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
@@ -614,11 +616,7 @@ and does both.</p>
       <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
       <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
-      <li><details><summary><a class="doc-link" href="../touch-orbit/">touch-orbit</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><details><summary><a class="doc-link" href="../inspect-view/">inspect-view</a></summary>
       <ul>
         <li><a class="doc-link" href="../seam-material/">seam-material</a></li>
@@ -630,12 +628,7 @@ and does both.</p>
         <li><a class="doc-link" href="../control-input/">control-input</a></li>
         <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
         <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
-        <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
-        <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
-        <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
         <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
-        <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
-        <li><a class="doc-link" href="../text-entry/">text-entry</a></li>
       </ul>
       </details></li>
     </ul>
@@ -652,14 +645,7 @@ and does both.</p>
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
       <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
-      <li><details><summary><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
-        <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
-      </ul>
-      </details></li>
-      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
-      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
     </ul>
     </details></li>
     <li><details open><summary><a class="doc-link" href="../combat/">Combat</a></summary>
@@ -667,8 +653,6 @@ and does both.</p>
       <li><details><summary><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></summary>
       <ul>
         <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
-        <li><a class="doc-link" href="../destroyable/">destroyable</a></li>
-        <li><a class="doc-link" href="../resource/">resource</a></li>
       </ul>
       </details></li>
       <li><details open><summary><a class="doc-link current" href="../b3d-launcher/" aria-current="page">b3d-launcher</a></summary>
@@ -677,16 +661,11 @@ and does both.</p>
         <li><a class="doc-link" href="../guidance/">guidance</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../warhead/">warhead</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
       <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-radar/">b3d-radar</a></summary>
       <ul>
         <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
-        <li><a class="doc-link" href="../radar/">Radar model</a></li>
       </ul>
       </details></li>
     </ul>
@@ -701,7 +680,6 @@ and does both.</p>
         <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
       </ul>
       </details></li>
-      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
       <ul>
@@ -709,19 +687,13 @@ and does both.</p>
         <li><a class="doc-link" href="../prefab/">prefab</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-death/">b3d-death</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
     <ul>
       <li><details><summary><a class="doc-link" href="../widgets3d/">widgets3d</a></summary>
       <ul>
-        <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
-        <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
       </ul>
       </details></li>
@@ -734,16 +706,8 @@ and does both.</p>
       <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
       <ul>
         <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
-        <li><details><summary><a class="doc-link" href="../angle-field/">angle-field</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../arc/">arc</a></li>
-        </ul>
-        </details></li>
-        <li><details><summary><a class="doc-link" href="../curve-field/">Curve editor</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../curve/">curve</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+        <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
         <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
         <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
         <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
@@ -753,22 +717,10 @@ and does both.</p>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../picker/">picker</a></li>
-        <li><details><summary><a class="doc-link" href="../keyboard/">keyboard</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
-          <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
         <li><details><summary><a class="doc-link" href="../table/">table</a></summary>
         <ul>
-          <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
           <li><a class="doc-link" href="../selection/">selection</a></li>
-        </ul>
-        </details></li>
-        <li><details><summary><a class="doc-link" href="../light-editor/">Light editor</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
-          <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
         </ul>
         </details></li>
       </ul>
@@ -782,12 +734,7 @@ and does both.</p>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../surface/">surface</a></li>
-        <li><details><summary><a class="doc-link" href="../popup-surface/">popup-surface</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
-          <li><a class="doc-link" href="../panel-layer/">panel-layer</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../ui-in-scene/">In the scene and XR</a></summary>
@@ -796,22 +743,15 @@ and does both.</p>
         <ul>
           <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
           <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
-          <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
           <li><details><summary><a class="doc-link" href="../system-bar/">system-bar</a></summary>
           <ul>
             <li><a class="doc-link" href="../bar-menu/">bar-menu</a></li>
           </ul>
           </details></li>
-          <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
-        <li><details><summary><a class="doc-link" href="../svg-texture/">svg-texture</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
-          <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
         <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
       </ul>
       </details></li>
@@ -822,11 +762,7 @@ and does both.</p>
           <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
         </ul>
         </details></li>
-        <li><details><summary><a class="doc-link" href="../svg-icons/">svg-icons</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       </ul>
       </details></li>
     </ul>
@@ -836,23 +772,12 @@ and does both.</p>
       <li><details><summary><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></summary>
       <ul>
         <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
-        <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
-        <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../system-layout/">system-layout</a></li>
-        <li><a class="doc-link" href="../sol/">sol</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
-      <li><details><summary><a class="doc-link" href="../gas-giant/">gas-giant</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../gas-giant-material/">gas-giant-material</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../gas-giant/">gas-giant</a></li>
       <li><a class="doc-link" href="../rocky-world/">rocky-world</a></li>
       <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
       <li><a class="doc-link" href="../sphere-map/">sphere-map</a></li>
@@ -873,16 +798,79 @@ and does both.</p>
       <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
     </ul>
     </details></li>
-    <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <li><details><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
     <ul>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
-      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
-      <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
-      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
-      <li><a class="doc-link" href="../noise-volume/">Noise volume</a></li>
-      <li><a class="doc-link" href="../climate-noise/">climate-noise</a></li>
+      <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../v0.11.1/">0.11.1</a></li>
+        <li><a class="doc-link" href="../v0.11.0/">0.11.0</a></li>
+        <li><a class="doc-link" href="../v0.10.20/">0.10.20</a></li>
+        <li><a class="doc-link" href="../v0.10.19/">0.10.19</a></li>
+        <li><a class="doc-link" href="../v0.10.18/">0.10.18</a></li>
+        <li><a class="doc-link" href="../v0.10.17/">0.10.17</a></li>
+        <li><a class="doc-link" href="../v0.10.16/">0.10.16</a></li>
+        <li><a class="doc-link" href="../v0.10.15/">0.10.15</a></li>
+        <li><a class="doc-link" href="../v0.10.14/">0.10.14</a></li>
+        <li><a class="doc-link" href="../v0.10.13/">0.10.13</a></li>
+        <li><a class="doc-link" href="../v0.10.12/">0.10.12</a></li>
+        <li><a class="doc-link" href="../v0.10.11/">0.10.11</a></li>
+        <li><a class="doc-link" href="../v0.10.10/">0.10.10</a></li>
+        <li><a class="doc-link" href="../v0.10.9/">0.10.9</a></li>
+        <li><a class="doc-link" href="../v0.10.8/">0.10.8</a></li>
+        <li><a class="doc-link" href="../v0.10.7/">0.10.7</a></li>
+        <li><a class="doc-link" href="../v0.10.6/">0.10.6</a></li>
+        <li><a class="doc-link" href="../v0.10.5/">0.10.5</a></li>
+        <li><a class="doc-link" href="../v0.10.4/">0.10.4</a></li>
+        <li><a class="doc-link" href="../v0.10.3/">0.10.3</a></li>
+        <li><a class="doc-link" href="../v0.10.2/">0.10.2</a></li>
+        <li><a class="doc-link" href="../v0.10.1/">0.10.1</a></li>
+        <li><a class="doc-link" href="../v0.10.0/">0.10.0</a></li>
+        <li><a class="doc-link" href="../v0.9.0/">0.9.0</a></li>
+        <li><a class="doc-link" href="../v0.8.15/">0.8.15</a></li>
+        <li><a class="doc-link" href="../v0.8.14/">0.8.14</a></li>
+        <li><a class="doc-link" href="../v0.8.13/">0.8.13</a></li>
+        <li><a class="doc-link" href="../v0.8.12/">0.8.12</a></li>
+        <li><a class="doc-link" href="../v0.8.11/">0.8.11</a></li>
+        <li><a class="doc-link" href="../v0.8.10/">0.8.10</a></li>
+        <li><a class="doc-link" href="../v0.8.9/">0.8.9</a></li>
+        <li><a class="doc-link" href="../v0.8.8/">0.8.8</a></li>
+        <li><a class="doc-link" href="../v0.8.7/">0.8.7</a></li>
+        <li><a class="doc-link" href="../v0.8.6/">0.8.6</a></li>
+        <li><a class="doc-link" href="../v0.8.5/">0.8.5</a></li>
+        <li><a class="doc-link" href="../v0.8.4/">0.8.4</a></li>
+        <li><a class="doc-link" href="../v0.8.3/">0.8.3</a></li>
+        <li><a class="doc-link" href="../v0.8.2/">0.8.2</a></li>
+        <li><a class="doc-link" href="../v0.8.1/">0.8.1</a></li>
+        <li><a class="doc-link" href="../v0.8.0/">0.8.0</a></li>
+        <li><a class="doc-link" href="../v0.7.8/">0.7.8</a></li>
+        <li><a class="doc-link" href="../v0.7.7/">0.7.7</a></li>
+        <li><a class="doc-link" href="../v0.7.6/">0.7.6</a></li>
+        <li><a class="doc-link" href="../v0.7.5/">0.7.5</a></li>
+        <li><a class="doc-link" href="../v0.7.4/">0.7.4</a></li>
+        <li><a class="doc-link" href="../v0.7.3/">0.7.3</a></li>
+        <li><a class="doc-link" href="../v0.7.2/">0.7.2</a></li>
+        <li><a class="doc-link" href="../v0.7.1/">0.7.1</a></li>
+        <li><a class="doc-link" href="../v0.7.0/">0.7.0</a></li>
+        <li><a class="doc-link" href="../v0.7.0-rc.1/">0.7.0-rc.1</a></li>
+        <li><a class="doc-link" href="../v0.6.2/">0.6.2</a></li>
+        <li><a class="doc-link" href="../v0.6.1/">0.6.1</a></li>
+        <li><a class="doc-link" href="../v0.6.0/">0.6.0</a></li>
+        <li><a class="doc-link" href="../v0.5.2/">0.5.2</a></li>
+        <li><a class="doc-link" href="../v0.5.1/">0.5.1</a></li>
+        <li><a class="doc-link" href="../v0.5.0/">0.5.0</a></li>
+      </ul>
+      </details></li>
     </ul>
     </details></li>
+    <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
+      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
+      <li><a class="doc-link" href="../noise-texture/">Noise texture</a></li>
+    </ul>
+    </details></li>
+    <li><a class="doc-link" href="../design-notes/">Design notes</a></li>
   </ul>
   </nav>
   <ul class="doc-navbar">
@@ -891,6 +879,6 @@ and does both.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-dgazh53y.js"></script>
+  <script type="module" src="../hydrate-7skqvnh0.js"></script>
 </body>
 </html>

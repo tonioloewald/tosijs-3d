@@ -1,8 +1,8 @@
 /*#
 # min-sim-conformance
 
-**One contract, two stores.** The coordinate-free `MinSimApi` ([world-contract](?world-contract.ts) §8)
-is implemented by BOTH Ariosto's reference store and tosijs-3d's [world-store](?world-store.ts). This
+**One contract, two stores.** The coordinate-free `MinSimApi` ([world-contract](/world-contract/) §8)
+is implemented by BOTH Ariosto's reference store and tosijs-3d's [world-store](/world-store/). This
 is the shared kit that proves they behave identically — the "conformance" half of the contract
 package (the agreement at the seam: *the package is types + conformance kit, not a store*).
 

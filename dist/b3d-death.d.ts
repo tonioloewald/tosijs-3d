@@ -64,7 +64,7 @@ export declare class B3dDeath extends B3dChild {
      * flown into. Tonio, from a headset: _"I collided with wreckage high up … the
      * wrecked plane hanging in mid-air (it should really tumble to the ground)."_
      *
-     * The rules are pure and tested in [[wreck-fall]]; this is the Babylon side:
+     * The rules are pure and tested in `wreck-fall.ts`; this is the Babylon side:
      * sample the ground, step the model, carry the node, the fires and the
      * spectate camera down with it.
      *

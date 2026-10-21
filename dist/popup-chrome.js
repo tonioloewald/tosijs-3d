@@ -1,4 +1,4 @@
-/*#
+/*
 # popup-chrome
 
 **Where a popup's move and close glyphs are drawn, and where pressing counts.**
@@ -25,7 +25,6 @@ Two derivations of the same rectangle will drift. One derivation, used by both,
 cannot — so this returns the geometry, the drawing code places glyphs at it, and
 the pointer code tests against it.
 */
-/*{ "parent": "popup-surface", "order": 10 }*/
 /**
  * Lay out the title bar's glyphs.
  *

@@ -26,7 +26,7 @@ const slots = vee(7, { spacing: 3, sweep: 2.5 })
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 30, target: [0, 0, -4] })
+      orbitCam(el, { alphaDeg: -90, betaDeg: 60, radius: 30, target: [0, 0, -4] })
     },
   },
   b3dSun(),

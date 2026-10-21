@@ -14,27 +14,27 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=060314d12b8f" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=f55d7e2fb2af" data-tosi-doc-system />
   <title>widgets3d — tosijs-3d</title>
-  <meta name="description" content="A small collection of SVG-native UI widgets with element-creator ergonomics (built on tosijs&#39;s svgElements proxy, the same way [[gamepad-svg]] is)." />
+  <meta name="description" content="A small collection of SVG-native UI widgets with element-creator ergonomics (built on tosijs&#39;s svgElements proxy, the same way [[virtual-gamepad|gamepadSvg]]…" />
   <link rel="canonical" href="https://3d.tosijs.net/widgets3d/" />
   <link rel="alternate" type="text/markdown" href="index.md" title="widgets3d — tosijs-3d (markdown)" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
   <meta property="og:title" content="widgets3d — tosijs-3d" />
-  <meta property="og:description" content="A small collection of SVG-native UI widgets with element-creator ergonomics (built on tosijs&#39;s svgElements proxy, the same way [[gamepad-svg]] is)." />
+  <meta property="og:description" content="A small collection of SVG-native UI widgets with element-creator ergonomics (built on tosijs&#39;s svgElements proxy, the same way [[virtual-gamepad|gamepadSvg]]…" />
   <meta property="og:url" content="https://3d.tosijs.net/widgets3d/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"widgets3d","description":"A small collection of SVG-native UI widgets with element-creator ergonomics (built on tosijs's svgElements proxy, the same way [[gamepad-svg]] is).","url":"https://3d.tosijs.net/widgets3d/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"widgets3d","description":"A small collection of SVG-native UI widgets with element-creator ergonomics (built on tosijs's svgElements proxy, the same way [[virtual-gamepad|gamepadSvg]]…","url":"https://3d.tosijs.net/widgets3d/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=e9f6966606af" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=02678983b691" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="widgets3d.ts">
 <h1 id="widgets3d">widgets3d</h1>
 <p>A small collection of <strong>SVG-native</strong> UI widgets with element-creator ergonomics
-(built on tosijs&#39;s <code>svgElements</code> proxy, the same way <a href="/gamepad-svg/" class="wikilink">gamepad-svg</a> is). They
+(built on tosijs&#39;s <code>svgElements</code> proxy, the same way <a href="/virtual-gamepad/" class="wikilink">gamepadSvg</a> is). They
 render to SVG — not HTML — so the <em>same</em> widget works both as a DOM overlay on a
 flat screen and inside a 3D scene on a <code>b3dSvgPlane</code> (where the panel is
 serialized to a texture; HTML-in-<code>&lt;foreignObject&gt;</code> doesn&#39;t rasterize reliably).</p>
@@ -198,7 +198,7 @@ const panel = panel3d(
   label3d({ text: &#39;In-scene panel&#39; }),
   slider3d({ label: &#39;hue&#39;, value: hud.hue, min: 0, max: 360, step: 1 }),
   toggle3d({ label: &#39;glow&#39;, value: hud.glow }),
-  // independent of the slider while debugging — just logs which row was picked.
+  // logs which row was picked.
   list3d({ items: Object.keys(HUES).map((label) =&gt; ({ label })), handleSelect: (i) =&gt; console.log(&#39;list picked:&#39;, i.label) })
 )
 // Show it as a DOM overlay too (top-right) — the SAME panel object, so you can
@@ -210,9 +210,9 @@ panel.style.right = &#39;8px&#39;
 panel.style.zIndex = &#39;1&#39;
 preview.append(panel)
 
-// panelScene — the fold this comment used to ask for: plane + camera + pick
-// routing (uv → viewBox coords → the panel&#39;s handlePointer, mouse AND XR
-// controllers) with camera-yield and capture semantics, packaged.
+// panelScene packages the plane, camera and pick routing (uv → viewBox
+// coords → the panel&#39;s handlePointer, mouse AND XR controllers) with
+// camera-yield and capture semantics.
 const { plane, sceneCreated } = panelScene({ svg: panel, target: panel, resolution: 512, camera: { beta: Math.PI / 2.4, radius: 4 } })
 
 const sceneEl = b3d({ sceneCreated }, b3dLight(), plane)
@@ -263,11 +263,9 @@ const sceneEl = b3d(
 preview.append(sceneEl)
 </code></pre>
 <h2 id="widget-reference">Widget reference</h2>
-<p>Every widget&#39;s options in one place. This table is the fix for tosijs-3d#50:
-<code>slider3d</code> has always had <code>step</code> — it quantises the drag <em>and</em> the reported
-value — but nothing documented it, so a consumer generating panels from a JSON
-Schema reasonably concluded sliders were continuous and turned their snap
-settings into <code>select3d</code> cyclers to get discrete values.</p>
+<p>Every widget&#39;s options in one place. Note <code>slider3d</code>&#39;s <code>step</code>: it quantises the
+drag <em>and</em> the reported value, so a slider can be discrete without becoming a
+<code>select3d</code>.</p>
 <table>
 <thead>
 <tr>
@@ -461,11 +459,10 @@ settings into <code>select3d</code> cyclers to get discrete values.</p>
 <h2 id="menus-are-for-actions-a-select-is-for-a-value">Menus are for ACTIONS; a select is for a VALUE</h2>
 <p><code>select3d</code> keeps and displays what you chose. A menu item <strong>happens</strong> and leaves
 nothing behind — so using a picker for a one-shot reads wrong, showing a
-lingering &quot;value&quot; for something that was an event (tosijs-3d#59).</p>
+lingering &quot;value&quot; for something that was an event.</p>
 <p><code>openMenu3d(host, anchor, items)</code> is the whole API. Any widget handed a
-<code>WidgetHost</code> via <code>setHost</code> can open one, which is what was missing: <code>select3d</code>
-could do this only because it held a host privately, so an icon in a tool
-palette had no route to a menu at all.</p>
+<code>WidgetHost</code> via <code>setHost</code> can open one, so an icon in a tool palette can open
+a menu as readily as <code>select3d</code> opens its list.</p>
 <pre><code class="language-javascript" data-highlighted><span class="token comment">// Declared ONCE — `disabled` is a predicate, so this constant never goes stale.</span>
 <span class="token keyword">const</span> <span class="token constant">FILE_MENU</span> <span class="token operator">=</span> <span class="token punctuation">[</span>
   <span class="token punctuation">{</span> <span class="token literal-property property">label</span><span class="token operator">:</span> <span class="token string">'Recent scene'</span><span class="token punctuation">,</span> <span class="token literal-property property">icon</span><span class="token operator">:</span> <span class="token string">'star'</span><span class="token punctuation">,</span> <span class="token literal-property property">handleSelect</span><span class="token operator">:</span> loadRecent <span class="token punctuation">}</span><span class="token punctuation">,</span>
@@ -565,24 +562,21 @@ no longer true.</p>
 <p>If you find yourself faking a fraction, you wanted <code>spinner3d</code>: a determinate
 bar that is not determinate is a lie with a progress percentage on it.</p>
 <h2 id="callbacks-are-handlex-not-onx">Callbacks are <code>handleX</code>, not <code>onX</code></h2>
-<p><code>handleChange</code>, <code>handleClick</code>, <code>handleSelect</code>. The old <code>onX</code> spellings were
-removed in 0.10: one is no longer called, and passing it warns once.</p>
-<p>Not a style preference. These are plain factory functions today, where <code>onX</code> is
-harmless — but the moment one becomes a tosijs COMPONENT, the element creator
-binds an <code>on*</code> prop as a DOM event <strong>listener</strong> and the class field is silently
-never called. No error, no warning, a callback that simply never fires; it has
-already cost this project a long debugging detour. <code>handleX</code> cannot be mistaken
-for an event name, so the rename removes the trap rather than documenting it.</p>
-<p>Giving both, the new one wins and the old one is not called — so there is no
-ambiguity about which fires and no double-firing.</p>
+<p><code>handleChange</code>, <code>handleClick</code>, <code>handleSelect</code>. An <code>onX</code> option is ignored, and
+passing one warns once.</p>
+<p>Not a style preference. If a factory becomes a tosijs COMPONENT, the element
+creator binds an <code>on*</code> prop as a DOM event <strong>listener</strong> and the class field is
+silently never called: no error, no warning, a callback that never fires.
+<code>handleX</code> cannot be mistaken for an event name, so the name removes the trap
+rather than documenting it.</p>
 <h2 id="log-sliders--for-anything-spanning-orders-of-magnitude">Log sliders — for anything spanning orders of magnitude</h2>
 <p><code>scale: &#39;log&#39;</code> gives every DECADE equal travel; <code>scale: &#39;log2&#39;</code> every octave.
 Reach for one whenever the useful values are multiplicative rather than
 additive — a light&#39;s intensity, a <strong>noise scale</strong>, a grid or texture size, a
 frequency, a zoom factor.</p>
 <p>The tell is a linear slider where everything you want lives in the first few
-percent of the track. Tonio, on the light editor: <em>&quot;the intensity slider goes
-from 0 to 1000 with very little wiggle-room in 0-1.&quot;</em></p>
+percent of the track: an intensity slider from 0 to 1000 leaves almost no
+travel for 0 to 1.</p>
 <pre><code class="language-javascript" data-highlighted><span class="token function">slider3d</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">label</span><span class="token operator">:</span> <span class="token string">'intensity'</span><span class="token punctuation">,</span> <span class="token literal-property property">value</span><span class="token operator">:</span> <span class="token number">2</span><span class="token punctuation">,</span> <span class="token literal-property property">min</span><span class="token operator">:</span> <span class="token number">0.01</span><span class="token punctuation">,</span> <span class="token literal-property property">max</span><span class="token operator">:</span> <span class="token number">1000</span><span class="token punctuation">,</span> <span class="token literal-property property">scale</span><span class="token operator">:</span> <span class="token string">'log'</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
 <span class="token comment">// A rate that can also be OFF — 0 is the default and must stay reachable.</span>
 <span class="token function">slider3d</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">label</span><span class="token operator">:</span> <span class="token string">'sky speed'</span><span class="token punctuation">,</span> <span class="token literal-property property">value</span><span class="token operator">:</span> <span class="token number">0</span><span class="token punctuation">,</span> <span class="token literal-property property">min</span><span class="token operator">:</span> <span class="token number">0.1</span><span class="token punctuation">,</span> <span class="token literal-property property">max</span><span class="token operator">:</span> <span class="token number">3600</span><span class="token punctuation">,</span> <span class="token literal-property property">scale</span><span class="token operator">:</span> <span class="token string">'log'</span><span class="token punctuation">,</span> <span class="token literal-property property">zeroStop</span><span class="token operator">:</span> <span class="token boolean">true</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
@@ -609,12 +603,10 @@ means the log floor; the handle catches at off rather than approaching it
 asymptotically.</p>
 <h2 id="theming">Theming</h2>
 <p>Widget colours, font, and weights are driven by <code>--w3d-*</code> CSS variables with
-sensible defaults. Set them on <code>:root</code> (or any ancestor of the flat overlay)
-<strong>before the bundle loads</strong> — they&#39;re resolved once to concrete values so a theme
-applies identically to the flat DOM overlay and the rasterized in-scene / XR
-texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so live
-<code>var()</code> would only theme the flat overlay). Per-widget options (<code>label3d</code>&#39;s
-<code>color</code> / <code>bold</code>) override the variables.</p>
+sensible defaults. Set them on <code>:root</code> <strong>before the bundle loads</strong>, or call
+<code>setW3dTheme</code> and rebuild; they are resolved once, for the reason given on
+<a href="/w3d-theme/">w3d-theme</a>, which also has a live theme editor. Per-widget
+options (<code>label3d</code>&#39;s <code>color</code> / <code>bold</code>) override the variables.</p>
 <table>
 <thead>
 <tr>
@@ -679,6 +671,19 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
 <td>Row background / hover</td>
 </tr>
 </tbody></table>
+<h2 id="layout-helpers">Layout helpers</h2>
+<p>The maths behind the layout protocol is pure (no DOM, no Babylon) and exported,
+for a consumer laying out SVG of its own:</p>
+<ul>
+<li><code>stackLayout(heights, gap)</code> → <code>{ offsets, total }</code>: a column, top to bottom.</li>
+<li><code>panelFit(content, viewport)</code> → whether a stack overflows, so must scroll.</li>
+<li><code>measureTextWrap(text, width, font)</code> breaks a paragraph into lines by real
+glyph measurement (canvas <code>measureText</code>), not a guessed character count, so a
+panel wraps where the text actually overflows. <code>cssFont(spec)</code> builds the
+font string; <code>measureTextWidth</code> measures one line.</li>
+<li><code>valueToFraction</code> / <code>fractionToValue</code> map a slider value to its track
+position and back, for the <code>linear</code>, <code>log</code> and <code>log2</code> scales.</li>
+</ul>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -698,21 +703,26 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
     </details></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
-      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
-      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><details><summary><a class="doc-link" href="../tosi-b3d/">b3d</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-loader/">b3d-loader</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../b3d-primitives/">Primitives: box, sphere, ground</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-library/">b3d-library</a></summary>
       <ul>
-        <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
         <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
       </ul>
       </details></li>
       <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
       <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
       <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
-      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
-      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../sky-and-light/">Sky and light</a></summary>
@@ -727,19 +737,12 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
       <li><a class="doc-link" href="../b3d-light/">Ambient light (b3d-light)</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-lamp/">Lamps</a></summary>
       <ul>
+        <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
         <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../light-rays/">light-rays</a></li>
-      </ul>
-      </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-fog/">b3d-fog</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
@@ -749,7 +752,6 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></summary>
       <ul>
-        <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
         <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
       </ul>
       </details></li>
@@ -760,17 +762,8 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
         <li><a class="doc-link" href="../wind/">wind</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../lightning/">lightning</a></li>
-      </ul>
-      </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
-        <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../terrain/">Terrain</a></summary>
@@ -787,7 +780,6 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
         </details></li>
         <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
         <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
-        <li><a class="doc-link" href="../terrain-grid/">terrain-grid</a></li>
         <li><a class="doc-link" href="../gradient-filter/">gradient-filter</a></li>
       </ul>
       </details></li>
@@ -809,9 +801,6 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-water/">b3d-water</a></summary>
       <ul>
-        <li><a class="doc-link" href="../water-shore/">water-shore</a></li>
-        <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
-        <li><a class="doc-link" href="../caustics/">caustics</a></li>
         <li><a class="doc-link" href="../medium/">medium</a></li>
       </ul>
       </details></li>
@@ -830,11 +819,7 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
     <ul>
       <li><details><summary><a class="doc-link" href="../b3d-biped/">b3d-biped</a></summary>
       <ul>
-        <li><a class="doc-link" href="../mantle/">mantle</a></li>
-        <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
-        <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
         <li><a class="doc-link" href="../aim/">aim</a></li>
-        <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
         <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
         <li><a class="doc-link" href="../retarget/">retarget</a></li>
         <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
@@ -844,20 +829,24 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
         </ul>
         </details></li>
         <li><a class="doc-link" href="../spring-chain-babylon/">spring bones</a></li>
-        <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
-        <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></summary>
       <ul>
         <li><a class="doc-link" href="../fly-by-wire/">fly-by-wire</a></li>
         <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
-        <li><a class="doc-link" href="../hud/">hud</a></li>
-        <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
       </ul>
       </details></li>
       <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
-      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../spatial-transform/">spatial-transform</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
       <li><details><summary><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></summary>
       <ul>
         <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
@@ -870,11 +859,7 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
       <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
       <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
-      <li><details><summary><a class="doc-link" href="../touch-orbit/">touch-orbit</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><details><summary><a class="doc-link" href="../inspect-view/">inspect-view</a></summary>
       <ul>
         <li><a class="doc-link" href="../seam-material/">seam-material</a></li>
@@ -886,12 +871,7 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
         <li><a class="doc-link" href="../control-input/">control-input</a></li>
         <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
         <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
-        <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
-        <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
-        <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
         <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
-        <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
-        <li><a class="doc-link" href="../text-entry/">text-entry</a></li>
       </ul>
       </details></li>
     </ul>
@@ -908,14 +888,7 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
       <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
-      <li><details><summary><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
-        <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
-      </ul>
-      </details></li>
-      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
-      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
@@ -923,8 +896,6 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
       <li><details><summary><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></summary>
       <ul>
         <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
-        <li><a class="doc-link" href="../destroyable/">destroyable</a></li>
-        <li><a class="doc-link" href="../resource/">resource</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></summary>
@@ -933,16 +904,11 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
         <li><a class="doc-link" href="../guidance/">guidance</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../warhead/">warhead</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
       <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-radar/">b3d-radar</a></summary>
       <ul>
         <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
-        <li><a class="doc-link" href="../radar/">Radar model</a></li>
       </ul>
       </details></li>
     </ul>
@@ -957,7 +923,6 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
         <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
       </ul>
       </details></li>
-      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
       <ul>
@@ -965,19 +930,13 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
         <li><a class="doc-link" href="../prefab/">prefab</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-death/">b3d-death</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
     </ul>
     </details></li>
     <li><details open><summary><a class="doc-link" href="../ui/">UI</a></summary>
     <ul>
       <li><details open><summary><a class="doc-link current" href="../widgets3d/" aria-current="page">widgets3d</a></summary>
       <ul>
-        <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
-        <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
       </ul>
       </details></li>
@@ -990,16 +949,8 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
       <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
       <ul>
         <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
-        <li><details><summary><a class="doc-link" href="../angle-field/">angle-field</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../arc/">arc</a></li>
-        </ul>
-        </details></li>
-        <li><details><summary><a class="doc-link" href="../curve-field/">Curve editor</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../curve/">curve</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+        <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
         <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
         <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
         <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
@@ -1009,22 +960,10 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
         </ul>
         </details></li>
         <li><a class="doc-link" href="../picker/">picker</a></li>
-        <li><details><summary><a class="doc-link" href="../keyboard/">keyboard</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
-          <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
         <li><details><summary><a class="doc-link" href="../table/">table</a></summary>
         <ul>
-          <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
           <li><a class="doc-link" href="../selection/">selection</a></li>
-        </ul>
-        </details></li>
-        <li><details><summary><a class="doc-link" href="../light-editor/">Light editor</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
-          <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
         </ul>
         </details></li>
       </ul>
@@ -1038,12 +977,7 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
         </ul>
         </details></li>
         <li><a class="doc-link" href="../surface/">surface</a></li>
-        <li><details><summary><a class="doc-link" href="../popup-surface/">popup-surface</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
-          <li><a class="doc-link" href="../panel-layer/">panel-layer</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../ui-in-scene/">In the scene and XR</a></summary>
@@ -1052,22 +986,15 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
         <ul>
           <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
           <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
-          <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
           <li><details><summary><a class="doc-link" href="../system-bar/">system-bar</a></summary>
           <ul>
             <li><a class="doc-link" href="../bar-menu/">bar-menu</a></li>
           </ul>
           </details></li>
-          <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
-        <li><details><summary><a class="doc-link" href="../svg-texture/">svg-texture</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
-          <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
         <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
       </ul>
       </details></li>
@@ -1078,11 +1005,7 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
           <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
         </ul>
         </details></li>
-        <li><details><summary><a class="doc-link" href="../svg-icons/">svg-icons</a></summary>
-        <ul>
-          <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
-        </ul>
-        </details></li>
+        <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       </ul>
       </details></li>
     </ul>
@@ -1092,23 +1015,12 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
       <li><details><summary><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></summary>
       <ul>
         <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
-        <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
-        <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
       </ul>
       </details></li>
-      <li><details><summary><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../system-layout/">system-layout</a></li>
-        <li><a class="doc-link" href="../sol/">sol</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
-      <li><details><summary><a class="doc-link" href="../gas-giant/">gas-giant</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../gas-giant-material/">gas-giant-material</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../gas-giant/">gas-giant</a></li>
       <li><a class="doc-link" href="../rocky-world/">rocky-world</a></li>
       <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
       <li><a class="doc-link" href="../sphere-map/">sphere-map</a></li>
@@ -1129,16 +1041,79 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
       <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
     </ul>
     </details></li>
-    <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <li><details><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
     <ul>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
-      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
-      <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
-      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
-      <li><a class="doc-link" href="../noise-volume/">Noise volume</a></li>
-      <li><a class="doc-link" href="../climate-noise/">climate-noise</a></li>
+      <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../v0.11.1/">0.11.1</a></li>
+        <li><a class="doc-link" href="../v0.11.0/">0.11.0</a></li>
+        <li><a class="doc-link" href="../v0.10.20/">0.10.20</a></li>
+        <li><a class="doc-link" href="../v0.10.19/">0.10.19</a></li>
+        <li><a class="doc-link" href="../v0.10.18/">0.10.18</a></li>
+        <li><a class="doc-link" href="../v0.10.17/">0.10.17</a></li>
+        <li><a class="doc-link" href="../v0.10.16/">0.10.16</a></li>
+        <li><a class="doc-link" href="../v0.10.15/">0.10.15</a></li>
+        <li><a class="doc-link" href="../v0.10.14/">0.10.14</a></li>
+        <li><a class="doc-link" href="../v0.10.13/">0.10.13</a></li>
+        <li><a class="doc-link" href="../v0.10.12/">0.10.12</a></li>
+        <li><a class="doc-link" href="../v0.10.11/">0.10.11</a></li>
+        <li><a class="doc-link" href="../v0.10.10/">0.10.10</a></li>
+        <li><a class="doc-link" href="../v0.10.9/">0.10.9</a></li>
+        <li><a class="doc-link" href="../v0.10.8/">0.10.8</a></li>
+        <li><a class="doc-link" href="../v0.10.7/">0.10.7</a></li>
+        <li><a class="doc-link" href="../v0.10.6/">0.10.6</a></li>
+        <li><a class="doc-link" href="../v0.10.5/">0.10.5</a></li>
+        <li><a class="doc-link" href="../v0.10.4/">0.10.4</a></li>
+        <li><a class="doc-link" href="../v0.10.3/">0.10.3</a></li>
+        <li><a class="doc-link" href="../v0.10.2/">0.10.2</a></li>
+        <li><a class="doc-link" href="../v0.10.1/">0.10.1</a></li>
+        <li><a class="doc-link" href="../v0.10.0/">0.10.0</a></li>
+        <li><a class="doc-link" href="../v0.9.0/">0.9.0</a></li>
+        <li><a class="doc-link" href="../v0.8.15/">0.8.15</a></li>
+        <li><a class="doc-link" href="../v0.8.14/">0.8.14</a></li>
+        <li><a class="doc-link" href="../v0.8.13/">0.8.13</a></li>
+        <li><a class="doc-link" href="../v0.8.12/">0.8.12</a></li>
+        <li><a class="doc-link" href="../v0.8.11/">0.8.11</a></li>
+        <li><a class="doc-link" href="../v0.8.10/">0.8.10</a></li>
+        <li><a class="doc-link" href="../v0.8.9/">0.8.9</a></li>
+        <li><a class="doc-link" href="../v0.8.8/">0.8.8</a></li>
+        <li><a class="doc-link" href="../v0.8.7/">0.8.7</a></li>
+        <li><a class="doc-link" href="../v0.8.6/">0.8.6</a></li>
+        <li><a class="doc-link" href="../v0.8.5/">0.8.5</a></li>
+        <li><a class="doc-link" href="../v0.8.4/">0.8.4</a></li>
+        <li><a class="doc-link" href="../v0.8.3/">0.8.3</a></li>
+        <li><a class="doc-link" href="../v0.8.2/">0.8.2</a></li>
+        <li><a class="doc-link" href="../v0.8.1/">0.8.1</a></li>
+        <li><a class="doc-link" href="../v0.8.0/">0.8.0</a></li>
+        <li><a class="doc-link" href="../v0.7.8/">0.7.8</a></li>
+        <li><a class="doc-link" href="../v0.7.7/">0.7.7</a></li>
+        <li><a class="doc-link" href="../v0.7.6/">0.7.6</a></li>
+        <li><a class="doc-link" href="../v0.7.5/">0.7.5</a></li>
+        <li><a class="doc-link" href="../v0.7.4/">0.7.4</a></li>
+        <li><a class="doc-link" href="../v0.7.3/">0.7.3</a></li>
+        <li><a class="doc-link" href="../v0.7.2/">0.7.2</a></li>
+        <li><a class="doc-link" href="../v0.7.1/">0.7.1</a></li>
+        <li><a class="doc-link" href="../v0.7.0/">0.7.0</a></li>
+        <li><a class="doc-link" href="../v0.7.0-rc.1/">0.7.0-rc.1</a></li>
+        <li><a class="doc-link" href="../v0.6.2/">0.6.2</a></li>
+        <li><a class="doc-link" href="../v0.6.1/">0.6.1</a></li>
+        <li><a class="doc-link" href="../v0.6.0/">0.6.0</a></li>
+        <li><a class="doc-link" href="../v0.5.2/">0.5.2</a></li>
+        <li><a class="doc-link" href="../v0.5.1/">0.5.1</a></li>
+        <li><a class="doc-link" href="../v0.5.0/">0.5.0</a></li>
+      </ul>
+      </details></li>
     </ul>
     </details></li>
+    <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
+      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
+      <li><a class="doc-link" href="../noise-texture/">Noise texture</a></li>
+    </ul>
+    </details></li>
+    <li><a class="doc-link" href="../design-notes/">Design notes</a></li>
   </ul>
   </nav>
   <ul class="doc-navbar">
@@ -1147,6 +1122,6 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-dgazh53y.js"></script>
+  <script type="module" src="../hydrate-7skqvnh0.js"></script>
 </body>
 </html>

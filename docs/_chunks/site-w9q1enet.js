@@ -1,5 +1,0 @@
-import{_}from"./site-jv2cv0ev.js";class L{}L.POINTERDOWN=1;L.POINTERUP=2;L.POINTERMOVE=4;L.POINTERWHEEL=8;L.POINTERPICK=16;L.POINTERTAP=32;L.POINTERDOUBLETAP=64;class cv{constructor(s,t){this.type=s,this.event=t}}class qd extends cv{constructor(s,t,i,e){super(s,t);this.ray=null,this.originalPickingInfo=null,this.skipOnPointerObservable=!1,this.localPosition=new _(i,e)}}class ks extends cv{get pickInfo(){if(!this._pickInfo)this._generatePickInfo();return this._pickInfo}constructor(s,t,i,e=null){super(s,t);this._pickInfo=i,this._inputManager=e}_generatePickInfo(){if(this._inputManager)this._pickInfo=this._inputManager._pickMove(this.event),this._inputManager._setRayOnPointerInfo(this._pickInfo,this.event),this._inputManager=null}}class yr{}yr.KEYDOWN=1;yr.KEYUP=2;class Gc{constructor(s,t){this.type=s,this.event=t}}class $u extends Gc{get skipOnPointerObservable(){return this.skipOnKeyboardObservable}set skipOnPointerObservable(s){this.skipOnKeyboardObservable=s}constructor(s,t){super(s,t);this.type=s,this.event=t,this.skipOnKeyboardObservable=!1}}
-export{L,cv,qd,ks,yr,Gc,$u};
-
-//# debugId=4566112AB36DAC4864756E2164756E21
-//# sourceMappingURL=site-w9q1enet.js.map

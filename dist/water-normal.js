@@ -1,6 +1,4 @@
-/*#
-# water-normal
-
+/*
 **A tiling water normal map, generated rather than downloaded.** Perlin height
 field → per-texel surface normal → a `DynamicTexture` Babylon's `WaterMaterial`
 can use as its bump map.
@@ -26,7 +24,6 @@ visible everywhere at once. The noise is therefore sampled on a **torus** —
 each axis wrapped through a full period — which makes the result tile exactly
 by construction rather than by blending edges and hoping.
 */
-/*{ "parent": "b3d-water", "order": 20 }*/
 import * as BABYLON from '@babylonjs/core';
 import { PerlinNoise } from './perlin-noise.js';
 /**

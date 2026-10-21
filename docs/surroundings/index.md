@@ -81,7 +81,7 @@ const scene = b3d(
     scenePanel: panel,
     sceneCreated(el, BABYLON) {
       babylon = BABYLON
-      orbitCam(el, { radius: 26, beta: 0.62, target: [0, 1, 2] })
+      orbitCam(el, { radius: 26, betaDeg: 35.5, target: [0, 1, 2] })
 
       const solid = (name, w, h, d, x, y, z) => {
         const m = BABYLON.MeshBuilder.CreateBox(name, { width: w, height: h, depth: d }, el.scene)
@@ -118,7 +118,7 @@ const scene = b3d(
 
       // ONE probe, throttled to 10Hz, reusing its buffers. `SurroundingsProbe`
       // gathers the nearby meshes once per read instead of asking the whole
-      // scene 84 times — see the cost table in `surroundings-probe`.
+      // scene 84 times — see "The probe and what it costs", below.
       const surr = makeSurroundings({ bearingCount: 12, heights: DEFAULT_HEIGHTS })
       const probe = new SurroundingsProbe(surr, 10)
       const solidOnly = (m) => m !== hero && m !== threat && m.name !== 'ground' && m.isVisible
@@ -191,8 +191,7 @@ preview.append(readout)
 
 ## Why a shared read rather than a fan of rays per feature
 
-Also `MOBILITY-DESIGN.md`, written when `mantle` shipped and predicting this
-exact moment:
+Also from `MOBILITY-DESIGN.md`:
 
 > when the second consumer appears, **do not give it its own fan of rays.** One
 > budgeted environmental read per tick, shared — "what is around me, at what
@@ -212,12 +211,11 @@ sampling a room, not tracing a silhouette.
 
 ## Heights, not a height
 
-The lesson `mantle` paid for, in this module's shape rather than in a comment.
-One forward ray at shin height missed a canal bank whose face existed only
-between 0.25m and 1.25m — undercut below, sloping away above — so the character
-was visibly stuck against a wall the probe said was not there. **Real geometry is
-not sampled correctly by a single ray, and the failure is silent**, because a
-miss and an absence are the same reading.
+One forward ray at shin height misses a canal bank whose face exists only between
+0.25m and 1.25m (undercut below, sloping away above), and the character is then
+visibly stuck against a wall the probe says is not there. **Real geometry is not
+sampled correctly by a single ray, and the failure is silent**, because a miss
+and an absence are the same reading.
 
 So the unit of measurement here is a COLUMN: what is in front of me, at every
 height that matters. A low wall and a doorway are the same distance and
@@ -229,6 +227,32 @@ which heights are blocked.
 `shelterFrom` returns how much of you is masked, right now. There is no
 `enterCover`, no cover state and nothing to be stuck in — the anti-goal the whole
 design is organised around. `inShelter` adds the one bit of state anybody needs,
-and it is hysteresis rather than a mode: `isSwimming` flickered at its threshold
-in the smallest possible case, and this band is budgeted for from the start
-rather than discovered later.
+and it is hysteresis rather than a mode, so the answer does not flicker at its
+threshold (the same reason swimming has a band).
+
+## The probe and what it costs
+
+`SurroundingsProbe` is the Babylon half: it casts the rays that fill the read.
+`new SurroundingsProbe(surroundings, hz)` and then, each frame,
+`probe.update(scene, feet, dt, { maxRange, filter })`, which returns `false` when
+no new read was due. It is separate so the pure module stays importable without a
+renderer.
+
+One read is **12 bearings × 7 heights = 84 rays**. The probe gathers the nearby
+meshes ONCE per read (a bounding-sphere distance test) instead of letting every
+ray test every mesh in the scene, so the cost depends on what is **near the
+character**, not on how big the level is. Measured in Chrome:
+
+| per read | 11 meshes | 311 | 1011 |
+| --- | --- | --- | --- |
+| `scene.pickWithRay` | 105µs | **2809µs** | — |
+| `SurroundingsProbe` | **50µs** | 39µs | **73µs** |
+
+The extra meshes were hundreds of metres away and none was within reach. The
+results agree with `pickWithRay` to within 2mm.
+
+The queries on top (`shelterFrom`, `stanceFor`, `exposure`, `inShelter`,
+`peekSide`, `muzzleClearance`) together take about **160ns**, roughly 450× less
+than the read. The rays are the cost; the thinking is not. At 10Hz, cover
+discovery is about **0.7ms of CPU per character per second**, so a tenth of a 60fps
+frame covers roughly **140 characters**.

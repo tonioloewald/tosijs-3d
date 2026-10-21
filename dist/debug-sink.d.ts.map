@@ -1,1 +1,1 @@
-{"version":3,"file":"debug-sink.d.ts","sourceRoot":"","sources":["../src/debug-sink.ts"],"names":[],"mappings":"AA8BA,eAAO,MAAM,SAAS;;CAAc,CAAA;AAEpC,mEAAmE;AACnE,wBAAgB,SAAS,CAAC,GAAG,EAAE,MAAM,EAAE,KAAK,EAAE,MAAM,CAAC,MAAM,EAAE,OAAO,CAAC,GAAG,IAAI,CAW3E"}
+{"version":3,"file":"debug-sink.d.ts","sourceRoot":"","sources":["../src/debug-sink.ts"],"names":[],"mappings":"AA6BA,eAAO,MAAM,SAAS;;CAAc,CAAA;AAEpC,mEAAmE;AACnE,wBAAgB,SAAS,CAAC,GAAG,EAAE,MAAM,EAAE,KAAK,EAAE,MAAM,CAAC,MAAM,EAAE,OAAO,CAAC,GAAG,IAAI,CAW3E"}

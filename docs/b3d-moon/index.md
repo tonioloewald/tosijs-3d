@@ -8,8 +8,8 @@ full.
 
 Cosmetic on purpose: there are no orbits, no eclipses, and no light of its
 own: the skybox's built-in moon gives way to these, and the night light comes
-from the FIRST of them, scaled by its lit phase. A real orbital system is a separate piece of
-work that this does not pretend to be.
+from the FIRST of them, scaled by its lit phase. For bodies that orbit, use a
+[star system](/b3d-star-system/).
 
 ## Demo
 

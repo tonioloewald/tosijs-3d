@@ -16,6 +16,4 @@ gizmo for editing a scene.
 - [b3d-physics](/b3d-physics/)
 - [b3d-beacon](/b3d-beacon/)
 - [b3d-manipulator](/b3d-manipulator/)
-- [portal-transform](/portal-transform/)
-- [spatial-transform](/spatial-transform/)
 <!-- /toc -->

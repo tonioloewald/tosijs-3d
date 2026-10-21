@@ -58,6 +58,33 @@ document.body.append(
   )
 )
 ```
+
+## Fog layers: never switched on
+
+The fog is always on, and the systems that change it **lean** on it. Underwater,
+inside a cloud and out in space are each a *layer* that pulls the fog toward its
+own colour and density by a weight from 0 to 1. The layers composite over this
+element's fog, the result is smoothed over time, and nothing ever toggles.
+
+Two things would make a transition jump, and neither happens:
+
+1. **The fog mode never changes at runtime.** Changing `fogMode` changes every
+   material's shader defines, so everything recompiles: a real frame hitch, not
+   just a visual pop. The mode is set once; only the uniforms (colour, density,
+   start, end) are modulated.
+2. **Nothing changes at a plane.** A layer's weight ramps over a band rather
+   than flipping at a boundary, and a short temporal smooth takes the rest.
+
+| layer | weight ramps with |
+|---|---|
+| **underwater** | depth below the surface (over a band, not a plane) |
+| **cloud** | *approach* to the cloud: white before you touch the geometry |
+| **space** | altitude leaving the atmosphere: density → 0, colour → black |
+
+The blending is pure and unit-tested without an engine: `compositeFog(base,
+layers)` gives the fog state, `approachFog` smooths toward it, and
+`band(value, startAt, full)` is the ramp the layers (and
+[b3d-ambient](/b3d-ambient/)'s underwater effects) share.
 */
 /*{ "parent": "sky-and-light", "order": 60 }*/
 import { B3dChild } from './b3d-utils.js';

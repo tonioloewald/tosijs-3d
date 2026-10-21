@@ -90,5 +90,8 @@ are the pure models and helpers it is built from (the flight model under the
 aircraft, the biome chart under the terrain). You can use those directly, and
 they are where the tests are, but you do not need them to get started.
 
+Coming from an earlier version? [Upgrading](/upgrading/) has the migration
+notes and the changelog.
+
 <!-- toc -->
 <!-- /toc -->

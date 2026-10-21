@@ -1,11 +1,17 @@
 /*#
 # b3d-star
 
-Procedural star mesh using a subdivided cube projected onto a sphere.
-Surface detail from 3D Perlin noise creates sunspot/granulation patterns
-via vertex colors. Spectral class controls the star's color temperature.
+Procedural star: a sphere with a shader surface. What makes it read as a ball
+rather than a white disc is **limb darkening**: toward the edge you look
+through cooler, higher layers, so it dims and reddens. Under that, a seething
+granulation and a few sunspots. Spectral class sets the colour temperature.
+It is unlit, because it is the light.
 
-Optional corona (glow shell) surrounds the star.
+An optional corona (a glow shell) surrounds it, and `activity` adds a few
+**active regions**, turning with the star: over the edge each is a prominence
+(a glowing loop arching out of the limb, drawn in the corona), and now and then
+one flares, its loop swelling while a bright patch flashes on the disc. The
+same material draws the star in a [star system](/b3d-star-system/).
 
 ## Demo
 

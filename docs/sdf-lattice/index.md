@@ -5,7 +5,7 @@ mine shafts — everything a heightfield cannot say, because a heightfield has o
 height per point and none of these do.
 
 The module behind it is **`sdf-lattice`**: pure, deterministic, Babylon-free and
-unit-tested, in the same spirit as [[terrain-grid]]. It knows about signed
+unit-tested, in the same spirit as [[b3d-terrain]]. It knows about signed
 distance fields and triangles, and nothing about scenes or materials.
 
 ## Demo — a volcano in cross-section, with its lava tubes

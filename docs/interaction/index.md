@@ -1,16 +1,14 @@
 # interaction
 
-**The rules for touching a thing** — the pure half of [b3d-interactive](?b3d-interactive.ts).
+**The rules for touching a thing** — the pure half of [b3d-interactive](/b3d-interactive/).
 Babylon-free, deterministic, unit tested, so what counts as "you used it" can be
 argued about without a scene.
 
 ## Why this exists
 
-tosijs-3d could shoot things long before it could *touch* one. `b3d-button` is a
-floating Babylon GUI widget, not world geometry you reach for, so doors, knobs,
-switches, levers and consoles had no substrate — the gap
-[tosijs-3d-ensemble](https://github.com/tonioloewald/tosijs-3d-ensemble) named
-as _"almost nothing for building a PLACE, as opposed to a battle"_ (#36).
+Doors, knobs, switches, levers and consoles are world geometry you reach for.
+`b3d-button` is a floating Babylon GUI widget, not that, so touching a thing needs
+its own rules.
 
 ## The rules, and why each is a rule
 
@@ -25,6 +23,8 @@ as _"almost nothing for building a PLACE, as opposed to a battle"_ (#36).
   the thing is disabled under you — otherwise a door that locks while you are
   pressing it still opens.
 - **Vetoes are consulted at ACTIVATION, not at hover.** A locked door still
-  highlights and still reports being used; it just does not open. That is what
-  lets `lockable` and `interactive` compose on the same piece instead of one
-  knowing about the other (ensemble's `ctx.feature()` finding).
+  highlights and still reports being tried, because "it did not budge" is
+  feedback and silence is a bug report. That is what lets `lockable` and
+  `interactive` compose on the same piece instead of one knowing about the
+  other. A refusal names the refuser, so a caller can tell a locked door from a
+  broken one.

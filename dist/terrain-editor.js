@@ -58,16 +58,13 @@ preview.append(
 
 ## Why schema-driven rather than hand-built
 
-`tosijs-3d-ensemble` hand-wrote a terrain schema and reported it **wrong in
-three separate ways in one day** (#66): `biome` declared a free string when it
-is `'on' | 'off'`; every default sitting between 0% and 3% of its slider track
-because the scales are frequencies; and `reach` unbounded into tab-death.
-
-None of those are hard to get right with the source in front of you. All of
-them are easy to get wrong from outside, and they drift again on the next
-release. So this editor reads the same schema an adopter reads — if a range
-changes in the element, the control changes with it, and nobody edits two
-places.
+A hand-written schema goes wrong in quiet ways: `biome` declared a free string when
+it is `'on' | 'off'`; every default sitting in the first 3% of its slider track
+because the scales are frequencies; `reach` left unbounded. None of those are hard to
+get right with the source in front of you, all are easy to get wrong from outside, and
+they drift again on the next release. So this editor reads the same schema an adopter
+reads: if a range changes in the element, the control changes with it, and nobody
+edits two places.
 
 ## Curated, not generated
 
@@ -87,9 +84,8 @@ performance or authoring a cylinder/sphere/torus world.
   value is in the first few pixels.
 - `reach` gets log **and** a zero stop, because its `0` means "auto", not "very
   small".
-- `surfaceType` becomes a select over the enum — which no longer offers `plane`,
-  a value the element never implemented.
-
+- `surfaceType` becomes a select over the enum, which offers only the surfaces
+  the element implements.
 */
 /*{ "parent": "b3d-terrain", "order": 60 }*/
 import { svgElements } from 'tosijs';

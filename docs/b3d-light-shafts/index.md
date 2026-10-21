@@ -139,7 +139,7 @@ tosi-b3d { width: 100%; height: 100%; }
 
 ## How it works
 
-One model for both ([[light-rays]], WEATHER-DESIGN stage 4, board #1084):
+One model for both:
 
 - A shaft **starts at the edge the light comes through** — the underside of
   the [`<tosi-b3d-cloud-deck>`](/b3d-cloud-deck/), the underside of the
@@ -166,6 +166,11 @@ precipitation where you are.
 `count` is the budget; `0` switches the sky shafts off, `underwater="off"`
 the water ones.
 
+The model is pure (no Babylon) and unit-tested: the coverage gate, width from
+cover, the linear ramp along a shaft, the forward-scatter `sunPhase`,
+`refractDown` (Snell's law at the surface) and `waterRoughness` /
+`waterRayShape` (how turbulence sets the number, width and flicker of the water
+rays).
 
 ## Attributes
 

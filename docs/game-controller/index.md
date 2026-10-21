@@ -1,10 +1,15 @@
 # game-controller
 
+> **Deprecated as something you add yourself.** You do not need to put a
+> `gameController()` in a scene: [inputFocus](/b3d-input-focus/) builds one when it
+> has none, and for an input loop without a body use
+> [b3d-controller](/b3d-controller/), which wires keyboard, mouse, the glass pad,
+> hardware pads and XR controllers. This page documents the key map they use.
+
 Input component that maps keyboard/mouse to a virtual gamepad and optionally
 merges with a hardware gamepad. Produces `ControlInput` via an `InputMapping`.
-
-Keyboard/mouse listening is built-in. For standalone keyboard-only or
-hardware-only sources, see `KeyboardGamepadSource` and `HardwareGamepadSource`.
+For standalone keyboard-only or hardware-only sources, see
+[virtual-gamepad](/virtual-gamepad/).
 
 ## Default Key Map
 
@@ -26,20 +31,17 @@ hardware-only sources, see `KeyboardGamepadSource` and `HardwareGamepadSource`.
 The mouse wheel is ZOOM: it drives the d-pad up/down axis, not the right
 stick. Mouse buttons count only when the press starts on a scene canvas.
 
-## Usage
+## Attributes
 
-```javascript
-import { gameController, b3dBiped, inputFocus, b3d } from 'tosijs-3d'
+These are read from the controller `inputFocus` creates; to change them, add your
+own `gameController({ … })` inside the `inputFocus` and it is used instead.
 
-document.body.append(
-  b3d({},
-    inputFocus(
-      gameController(),
-      b3dBiped({ url: '/model.glb', player: true, cameraType: 'follow' })
-    )
-  )
-)
-```
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `mouseLook` | `'off'` | How the mouse looks around: `'drag'` (hold a button), `'lock'` (pointer lock, for a real game) or `'off'` |
+| `mouseSensitivity` | `1` | Degrees of view per 100px of mouse movement, roughly |
+| `wheelSensitivity` | `1` | Scales the wheel's zoom axis |
+| `updateIntervalMs` | `33` | How often key state is smoothed, ms |
 
 ## InputProvider
 

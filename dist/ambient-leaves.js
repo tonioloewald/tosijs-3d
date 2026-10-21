@@ -1,6 +1,4 @@
-/*#
-# ambient-leaves
-
+/*
 The one ambient effect that is **not a sprite**.
 
 Motes, rain and bubbles are camera-facing dots — a billboard always turns its face to you, which
@@ -23,18 +21,7 @@ this file owns only the tumble.
 > Set `wind="own"` on the ambient element to opt out — which is how you say a courtyard is
 > sheltered while the scene blows.
 
-## See it live
-
-`LeafField` is the tumbling-quad renderer that [b3d-ambient](?b3d-ambient.ts) drives — set that
-component up (its demo blows leaves through the scene) and the budget decides the population.
-
-```javascript
-import { LeafField } from 'tosijs-3d'
-// A LeafField rides the camera and renders whatever population the budget grants. b3d-ambient owns
-// the budget + drain, so prefer <tosi-b3d-ambient> unless you're wiring your own ambient system.
-```
 */
-/*{ "parent": "b3d-ambient", "order": 10 }*/
 import * as BABYLON from '@babylonjs/core';
 const TAU = Math.PI * 2;
 /** Fade a leaf in/out over seconds, so it drifts into view instead of blinking on. */

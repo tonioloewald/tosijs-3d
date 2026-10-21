@@ -188,7 +188,7 @@ sky.world.observe(() => {
   if (w) for (const k of Object.keys(w)) sky[k].value = w[k]
 })
 
-// PRESETS: A WHOLE WORLD AS DATA (board #2442). Terrain, sea, climate,
+// PRESETS: A WHOLE WORLD AS DATA. Terrain, sea, climate,
 // weather, atmosphere, stars, moons, the cloud deck's colour and the sun, as
 // one plain object you can pick, save and share. A preset only lists what it
 // changes; applying one resets everything else to Earth first, so nothing
@@ -206,8 +206,8 @@ const PRESET_KEYS = {
     'storm'],
 }
 const STATE = { demo, sky }
-// `scale: 2`: temperature is 0 = 0 °C, 1 = 50 °C. Presets saved before that
-// carry the biome chart's 0…1 axis and are converted when read.
+// `scale: 2`: temperature is 0 = 0 °C, 1 = 50 °C. A preset without it
+// carries the biome chart's 0…1 axis and is converted when read.
 function capturePreset(name) {
   const p = { name, scale: 2 }
   for (const [group, keys] of Object.entries(PRESET_KEYS)) {
@@ -332,7 +332,7 @@ sky.preset.observe(() => {
 // The volcano is authored ONCE and switched in and out. Applied here as well
 // as from the toggle because it is ON by default, and the toggle's handler only
 // runs when someone flips it.
-// SEMI-ACTIVE (Tonio): its vent smokes, glows and spits now and then. The
+// SEMI-ACTIVE: its vent smokes, glows and spits now and then. The
 // landform carries that as a vent, and the terrain puts the effect there.
 const theVolcano = volcano({ x: 600, z: -400, radius: 420, height: 260, craterRadius: 55, craterDepth: 50, activity: 0.5 })
 // Where the sea is: a FRACTION of the terrain's height, or, on a world
@@ -496,8 +496,8 @@ const scene = b3d(
   {
     // ONE WIND for the clouds, the smoke, spray and storms (the deck follows
     // the scene's). It blows ACROSS the view (toward +Z; the view faces east):
-    // blowing straight away from you, as it did, clouds and smoke drift was
-    // nearly invisible (Tonio).
+    // blowing straight away from you, cloud and smoke drift would be nearly
+    // invisible.
     windSpeed: sky.wind,
     windBearingDeg: 0,
     // Sections as icon TABS (one at a time); 'fold' shows them as headers.
@@ -585,7 +585,7 @@ const scene = b3d(
       slider3d({ label: 'region size', value: 0.001 / (terrain.biomePlugin?.params.mNoiseScale ?? 0.001), min: 0.1, max: 10, scale: 'log', format: (v) => v.toFixed(1) + ' km', handleChange: (v) => { if (terrain.biomePlugin) terrain.biomePlugin.params.mNoiseScale = 0.001 / v } }),
       slider3d({ label: 'volcanic scale', value: demo.volcanicScale, min: 0.005, max: 0.15, scale: 'log' }),
       label3d({ text: 'Weather', icon: 'cloud', collapsible: true }),
-      // With the clouds it is made of, not under Terrain where it used to be.
+      // With the clouds it is made of.
       toggle3d({ label: 'lightning storm', value: sky.storm }),
       slider3d({ label: 'cloud cover', value: sky.coverage, min: 0, max: 2, step: 0.02 }),
       slider3d({ label: 'cloud base', value: sky.altitude, min: 60, max: 1400, step: 10 }),
@@ -635,14 +635,10 @@ const scene = b3d(
       const paletteWait = el.scene.onBeforeRenderObservable.add(() => {
         if (applyPalette()) el.scene.onBeforeRenderObservable.remove(paletteWait)
       })
-      // A LOOK-AROUND CAMERA: you stand at eye height and turn in place.
-      //
-      // This was an ArcRotateCamera orbiting a target 300 m ahead, with the eye
-      // height pinned by moving the target each frame. Orbit semantics leaked
-      // straight through: up-arrow moves an orbit camera UP OVER its target,
-      // which points the view DOWN — Tonio: "When I up-arrow the view nose-dives.
-      // Down arrow tilts upward." — and left/right swung the eye round a 300 m
-      // circle instead of turning it.
+      // A LOOK-AROUND CAMERA: you stand at eye height and turn in place. Not an
+      // orbit camera: up-arrow moves an orbit camera UP OVER its target, which
+      // points the view DOWN, and left/right swing the eye round the target
+      // instead of turning it.
       //
       // So: a FreeCamera at the eye, arrows bound to ROTATION (up = look up;
       // Babylon's keysRotateUp lowers rotation.x, which pitches up) and its
@@ -735,8 +731,7 @@ for (const key of ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmpl
   demo[key].observe(() => {
     // The biome's sea level is a LIVE dial on the terrain — write it BEFORE
     // regenerate() so the adopted generation key is the one the rebuild
-    // satisfies (the reverse order cost a second full pool re-cut per step,
-    // found by the 0.8.2 review gate).
+    // satisfies (the reverse order costs a second full pool re-cut per step).
     terrain.biomeSeaLevel = biomeSea()
     terrain.biomeLapseRate = lapse()
     terrain.regenerate()
@@ -755,9 +750,9 @@ out with the moon riding it, the deck moonlit above.
 ## The kitchen sink grows from here
 
 - **Provinces** land as toggles like the volcano: a footprint, a falloff, and
-  what they do to the terrain and the weather — see PROVINCE-DESIGN.md.
+  what they do to the terrain and the weather.
 - **Weather systems** arrive as province-driven dials (one wind, shared and
-  overridable — see the TODO).
+  overridable).
 - **The simulation** (world-store / world-view) gets a corner of this world
   to populate — the same one a visitor just reshaped.
 */

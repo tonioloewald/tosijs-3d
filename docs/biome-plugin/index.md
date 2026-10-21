@@ -1,15 +1,15 @@
 # biome-plugin
 
-The Babylon half of the procedural terrain shader (TERRAIN-SHADER-DESIGN.md):
+The Babylon half of the procedural terrain shader
+([TERRAIN-SHADER-DESIGN.md](https://github.com/tonioloewald/tosijs-3d/blob/main/TERRAIN-SHADER-DESIGN.md)):
 a `MaterialPluginBase` that replaces the diffuse of the terrain material with
 **world-space biome classification** — the GLSL mirror of [[biome-chart]]'s
 pure, unit-tested model (one function per shader expression, same names).
 
-This is build-order **step 1 + 3**: flat-colour biome cells (validate the
-chart mapping before any texture), fBm axis noise + `edgeDither`, the slope
-cliff override, and the photic cutoff sharing b3d-water's fog curve. The
-array-atlas sampling (step 2) replaces `cellColour` with `TEXTURE_2D_ARRAY`
-fetches later — the classification above it doesn't change.
+It draws flat-colour biome cells, fBm axis noise with `edgeDither`, the slope
+cliff override, and the photic cutoff sharing b3d-water's fog curve. A texture
+atlas would replace `cellColour` only; the classification above it would not
+change.
 
 Attach via [[b3d-terrain]]'s `biome="on"` attribute, or `attachBiomePlugin`
 on any material for authored tiles. Being a plugin (not a ShaderMaterial),
@@ -46,7 +46,7 @@ midsummer, `0.5` autumn, `0.75` midwinter) and `params.seasonality` is how far
 the year swings the temperature (`0`, the default, is no seasons; `0.2` is
 temperate). Winter cools the whole chart: where that takes a moist place below
 freezing, snow lies on level ground and on evergreens, and the sea can freeze
-([[water-shore]]). `seasonOf(season, seasonality)` is the pure rule. On a
+([b3d-water](/b3d-water/)'s `shore`). `seasonOf(season, seasonality)` is the pure rule. On a
 terrain these are `biomeSeason` and `biomeSeasonality`.
 
 Both are in CHART units (see [[biome-chart]], "Two temperature scales"), not

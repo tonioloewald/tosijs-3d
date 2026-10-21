@@ -12,7 +12,8 @@ mixes by a `weight(x, z)` field — so *this* region has mesas and *that* one ha
 rolling hills, with a continuous transition between: the cliffs of Dover
 walking down into Brighton beach. `profileField` builds the weight from seeded
 low-frequency noise (wide pure regions, narrow transitions); any authored
-`(x, z) => 0..1` works too.
+`(x, z) => 0..1` works too. [biome-chart](/biome-chart/)'s demo blends cliffs,
+mesas and a beach plain this way, all visible at once.
 
 [[b3d-terrain]]'s height sampler honours the position-aware form: a filter
 with `evaluateAt(t, x, z)` gets ORIGIN-STABLE world coordinates (floating-

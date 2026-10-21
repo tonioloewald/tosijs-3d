@@ -9,16 +9,17 @@ The base class handles the update loop: poll input → apply input.
 ## Example
 
 The base class is abstract — you subclass it. A minimal one that yaws to the throttle
-(real subclasses — [b3d-biped](?b3d-biped.ts), [b3d-car](?b3d-car.ts),
-[b3d-aircraft](?b3d-aircraft.ts) — put a full movement model here):
+(real subclasses — [b3d-biped](/b3d-biped/), [b3d-car](/b3d-car/),
+[b3d-aircraft](/b3d-aircraft/) — put a full movement model here):
 
 ```javascript
 import { B3dControllable } from 'tosijs-3d'
 
 class Spinner extends B3dControllable {
   applyInput(input, dt) {
-    // input is a ControlInput; act on the fields this entity cares about
-    if (this.meshNode) this.meshNode.rotation.y += input.throttle * dt * 3
+    // input is a ControlInput; act on the fields this entity cares about.
+    // `ry` is its yaw in degrees (from AbstractMesh), applied to its mesh.
+    this.ry += input.throttle * dt * 180
   }
 }
 ```
