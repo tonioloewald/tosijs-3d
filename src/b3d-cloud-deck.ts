@@ -8,9 +8,7 @@ up and down without rebuilding anything.
 This is a second primitive, not a replacement for [b3d-clouds](?b3d-clouds.ts).
 Discrete blobs are right for cloud you fly BETWEEN — a canyon of thunderheads,
 `insideCloud` as a tactic. They are wrong for a DECK, which is what you see from
-below on an ordinary day and from above on an ordinary flight. Tonio, on seeing
-one from both sides in a rocket: *"What we have is not worthy of everything else
-we've got. It looks like a child's cartoon next to everything else."*
+below on an ordinary day and from above on an ordinary flight.
 
 ## Demo
 
@@ -115,12 +113,13 @@ preview.append(
 >
 > `wind` slides the whole sky and `evolve` reshapes it as it goes — both free,
 > neither rebakes anything. `cirrus` takes the same sky from heaped cumulus to
-> long wispy streaks, and
+> long wispy streaks.
+>
 > There is no `transmission` slider, and that is the point: it FOLLOWS coverage,
-> along with the gloom under the deck and the depth of the cloud. Pinning it here
-> was quietly defeating its own demo — a fixed 0.5 sits above the gloom
-> threshold, so the sun never dimmed however far the coverage went. It is still
-> settable as an attribute for the deliberate case.
+> along with the gloom under the deck and the depth of the cloud. A fixed value
+> would sit above the gloom threshold, so the sun would never dim however far
+> the coverage went. It is still settable as an attribute for the deliberate
+> case.
 >
 > **Push `coverage` past 1.** There is no sky left to cover, so the extra goes
 > into DEPTH: the base stays put and the top TOWERS, the sun goes out, and you
@@ -180,57 +179,50 @@ preview.append(
 
 ## A grid, not a quad
 
-The obvious build is one huge quad, and it is the wrong one. Tonio: *"If we use
-a bunch of quads we can use the vertex channels to drive localized weather
-effects later."*
+The deck is a subdivided grid rather than one huge quad. At these resolutions
+it costs nothing, and it buys a **per-vertex channel**: somewhere to say *it is
+raining HERE, this part is a thunderhead, there is a hole over the airfield*,
+which a single quad has nowhere to put.
 
-That is the argument. A subdivided grid costs nothing at these resolutions and
-buys a **per-vertex channel** — somewhere to say *it is raining HERE, this part
-is a thunderhead, there is a hole over the airfield* — which a single quad has
-nowhere to put. The vertex colours are written white and unused today, and that
-is deliberate: the channel exists so localized weather is a later edit to a
-shader rather than a change of primitive.
-
-And the case that makes it more than a convenience — Tonio: *"Or have clouds
-that cluster near mountains say."* That is orographic cloud, it is real, and it
-is the thing a noise field fundamentally cannot produce: noise knows nothing
-about the ground under it. But the deck is a grid whose vertices have world
-positions, so each one can ASK the terrain how high it is there and write the
-answer into its own channel. Cloud then gathers over ridges and thins over
-valleys because of the landscape rather than because someone painted it — the
-same "systemic, not textural" move the rest of this project keeps making.
-
-It generalises past mountains, too: anything samplable at a vertex can drive it.
-Cloud that builds over warm ground and breaks over cold water is the same edit
-with a different sampler.
-
-It also means the deck can eventually SAG and billow by displacement, which a
-quad cannot do at all.
+Orographic cloud is the case that needs it. A noise field knows nothing about
+the ground under it, but each vertex of the deck has a world position, so it
+can ASK the terrain how high it is there and write the answer into its own
+channel. Cloud then gathers over ridges and thins over valleys because of the
+landscape rather than because someone painted it. Anything samplable at a
+vertex can drive it the same way: cloud that builds over warm ground and breaks
+over cold water is the same edit with a different sampler.
 
 **No refraction, on purpose.** It is plain alpha blending: cloud scatters
 light, it does not bend what is behind it, and a sky distorted through a thin
 edge would read as glass.
 
-## One field, three readers
+## The cloud field
 
-The density comes from [cloud-field](?cloud-field.ts) — baked once, tileable,
-sampled by world XZ. The deck reads it, the whiteout reads it, and the ground
-shadow is meant to, so all three agree by construction rather than by being kept
-in step. `coverage` stays a live uniform for the same reason: weather is one
-dial and nothing regenerates when it moves.
+One field is sampled by everything that needs it. The deck reads it on the GPU,
+the whiteout reads the same array on the CPU, and the ground shadow
+([cloud-shadows](?cloud-shadows.ts)) samples it by world XZ, so the shade
+underfoot belongs to the cloud overhead rather than merely resembling it. It is
+baked once into a **tileable** density array (`fieldTexture`). Nothing
+re-implements the noise, because a TypeScript copy and a GLSL copy would not
+produce identical output forever, and every "why is the shadow slightly off the
+cloud" bug would live in that gap.
 
-**Two of the three are wired.** The deck samples the field on the GPU and the
-whiteout samples the same array on the CPU — deliberately the same array, not
-a read-back and not a re-implementation, because a GPU read-back per frame would
-cost real time to learn something we baked ourselves, and a second copy of the
-noise is where "why is the shadow off the cloud" lives.
-
-The shadow is the one still missing. `fieldTexture` is exposed for it:
-[cloud-shadows](?cloud-shadows.ts) already has the receiver half — a material
-plugin sampling a world-XZ texture, conforming to terrain — and today it is fed
-by `b3d-clouds` painting blob positions into a moving window. Pointing it at
-this field instead, with the same live `coverage` uniform, is what makes the
-shade underfoot belong to the cloud overhead rather than merely resemble it.
+- **Billow noise, not fBm.** The absolute value creases the field at every zero
+  crossing, which is what makes cloud read as cauliflower instead of swell.
+- **`coverage` is not baked in.** It is a threshold applied at sample time, so
+  weather is a live uniform on the deck and its shadow and they cannot disagree
+  about it: clear to overcast with nothing regenerated.
+- **`cirrus` is one dial for two changes.** The noise domain is STRETCHED along
+  a heading (long), and the billow fold is inverted and narrowed into filaments
+  (wispy). Stretch alone makes sausages; filaments alone make a scribble.
+- **The heading is not baked.** Rotating inside the bake would not tile, so the
+  streaks' direction is a rotation of the sampler's UVs. A wrapped texture read
+  through a rotated UV has no seam, and changing the wind direction costs no
+  rebake.
+- **Tileable by construction.** The 2D position is mapped onto two circles in
+  4D and read from 3D noise (a torus), so the field wraps in both axes with no
+  seam to hide. A deck repeats across the sky, and a visible tile boundary is
+  worse than no clouds.
 */
 /*{ "parent": "weather-and-clouds", "order": 10 }*/
 

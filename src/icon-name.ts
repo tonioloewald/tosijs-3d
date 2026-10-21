@@ -1,4 +1,4 @@
-/*#
+/*
 # icon-name
 
 Pure parsing of the **icon composition suffix grammar** — the tail modifiers that
@@ -129,4 +129,3 @@ export function mergeIconStyle(into: IconStyle, add: IconStyle): void {
   }
 }
 
-/*{ "parent": "svg-icons", "order": 10 }*/

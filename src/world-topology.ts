@@ -1,4 +1,4 @@
-/*#
+/*
 # world-topology
 
 The **pure spatial math** behind the coordinate-free `MinSimApi` surface ([world-contract](?world-contract.ts) §8).
@@ -29,7 +29,6 @@ import { proximityRung, routePortals } from 'tosijs-3d'
 // routePortals(portals, 'study', 'garden') → { portals: ['door-1','gate-2'], cost: 45 } | null
 ```
 */
-/*{ "parent": "world-sim", "order": 40 }*/
 
 import type {
   PlaceId,

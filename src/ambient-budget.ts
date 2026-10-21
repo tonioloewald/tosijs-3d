@@ -1,6 +1,4 @@
-/*#
-# ambient-budget
-
+/*
 Who gets to exist, when the frame can't afford everyone.
 
 Ambient effects — rain, motes, bubbles, (one day) footprints and bullet holes — are **garnish**.
@@ -14,17 +12,6 @@ says fidelity is a promise — thin, stuttering rain *promises weather and fails
 while no rain at all promises nothing and costs nothing. So every effect declares a `min` below
 which it is **a lie**, and an effect that can't be given its `min` is switched off and its budget
 handed to the survivors. Better honest rain and no motes than two half-truths.
-
-## Example
-
-The pure allocator [b3d-ambient](?b3d-ambient.ts) uses to decide who exists when the frame can't
-afford everyone — the highest-priority effects keep their share, the rest switch OFF rather than thin:
-
-```javascript
-import { allocateAmbient } from 'tosijs-3d'
-// allocateAmbient(requests, pool) → how many particles each effect gets this frame; garnish that
-// can't hit its minimum within budget is dropped, never degraded into a lie.
-```
 
 ## Why a shared pool, and not a budget each
 
@@ -51,7 +38,6 @@ So cost is **modelled** from what actually drives fill — area and blend mode
 Same lesson `tileBuildMs` taught the terrain: bound the frame **by construction**, not by hoping
 a counter shows up.
 */
-/*{ "parent": "b3d-ambient", "order": 20 }*/
 
 import type { PerfTier } from './perf-probe.js'
 

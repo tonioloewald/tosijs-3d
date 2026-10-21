@@ -21,8 +21,8 @@
 The measured constraint is gone: a whole battle is ~270 figures against 200,000
 drawn at 60ms in a lit, shadowed scene — or 20,000 figures carrying a REAL rig's
 1,380 vertices at 33ms, which is still seventy battles at once (see
-[`b3d-crowd`](src/b3d-crowd.ts), which also explains why those two are not the
-same budget). So none of what follows is
+[`b3d-crowd`](src/b3d-crowd.ts); `DECISIONS.md` → "Crowd benchmarks" explains why
+those two are not the same budget). So none of what follows is
 a performance decision. It is all here because it produced **feel**, which is
 the thing that does not get easier with faster hardware.
 
@@ -165,3 +165,145 @@ how "the radio operator died" becomes a sentence a simulation can produce.
 
 That is the test for whether any of it belongs here: **would a second, unrelated
 game want it?** If not, it goes in the game's project.
+
+---
+
+## From the b3d-crowd page (moved 2026-10-21)
+
+Moved here verbatim from the `b3d-crowd` doc page, where it had grown up beside
+the benchmark. Headings are one level down; otherwise unchanged. The benchmark
+history and the crowd/skinned seam are in `DECISIONS.md` → "Crowd benchmarks and
+the actors/crowd boundary".
+
+### The target, and what it means that we cleared it
+
+The game this was built to answer for is a virtual miniatures battle. Tonio's
+original ran on an Amiga 500 — 7MHz, 320×200, 16 colours, about 10fps — where a
+unit of regulars was 15 figures and one of irregulars 7, and an army was three
+to nine units laid out three wide. So:
+
+| | |
+| --- | --- |
+| largest army | 9 units × 15 = **135 figures** |
+| a whole battle | **~270** |
+| measured here | **200,000 blocky figures**, 60ms with shadows |
+| or | **20,000 baked omnidudes** at 33ms |
+| headroom | **~740×** on count, ~74× on a real rig |
+
+That is not "we can do it". That is the constraint having moved somewhere else
+entirely, which is the outcome worth acting on rather than celebrating.
+
+**So figure COUNT should stop shaping the design.** The Amiga's answer to 270
+figures was two or three animation states and 4-bit sprites; ours does not have
+to be, and the budget freed should go where this project's north star says it
+goes — *agents and reactions, not vertices* (`AI-DESIGN.md`). At 270 figures
+every one of them can afford a real sensorium, its own equipment via
+[[vertex-animation|sockets]], and a bake rate high enough that clip blending is
+not a luxury reserved for wildlife.
+
+### The roster, and why it is cheap
+
+The content this actually needs is not one figure, it is a cast. Tonio: *"what we
+will need is more figures and more animations. Assuming we have a winged
+creature, heavy mounted, light mounted, heavy infantry, light infantry and some
+accessories like helmets, shields, weapons."*
+
+That lands well, and specifically it lands on the axis this substrate is cheap
+on. **Draw calls scale with TYPES, not with figures**: one `b3dCrowd` per kind
+is five draw calls for an entire battlefield, whatever the counts. A thousand
+light infantry and eight hundred heavy are two calls, not eighteen hundred.
+
+The memory is not the problem either. A 300-vertex soldier with eight clips
+baked at 10fps is around 80 frames:
+
+    300 × 80 × 4 channels × 2 bytes × 2 textures ≈ 0.8MB
+
+So five types is a handful of megabytes, and doubling the clip count doubles a
+number nobody will notice. `vatBytes` is there to check rather than trust —
+the arithmetic turns nasty only at hero vertex counts with long clips (a
+16.9-second dance at 1,380 verts is most of the omnidude bake on its own).
+
+Three notes for when this is built rather than imagined:
+
+- **Bake rate follows how far the silhouette moves between frames ON SCREEN** —
+  which is not the same as how fast the animation is, and I had it wrong first
+  time. I wrote "the winged creature needs a high bake rate, a flap is fast";
+  Tonio: *"the winged creature is probably more like a dragon and has a slow
+  majestic flap."* A slow flap covers its arc over more time, so it needs FEWER
+  frames per second of clip, not more.
+
+  What makes a dragon unforgiving is the other term: it fills the view. The same
+  angular error between frames is a handful of pixels on a distant soldier and a
+  hand's width on a wing overhead. So the rule is angular change × apparent
+  size, and the two big cases pull in opposite directions — a fast flap far away
+  (a flock of birds) and a slow flap up close (this) can want the same rate for
+  entirely different reasons.
+
+  A slow flap also spends most of its cycle nearly still, gliding. That is where
+  a low rate is free, and it moves the real problem from frame rate to **clip
+  blending**: the pop when glide becomes flap is what you would notice, and it
+  is the one thing in `vertex-animation` still unbuilt.
+
+  And a dragon is a HANDFUL, not a crowd — so it can afford whatever it wants,
+  including not being baked at all. At three of them a skinned rig is fine
+  (~50 is the measured ceiling); at fifty wyverns this substrate wins again.
+- **Mounted is one figure, not two.** Horse and rider bake as a single mesh with
+  a single clip table, because they move together and a seam between them is a
+  second thing to synchronise for no gain. A rider who dismounts is a *different
+  figure*, which is the same seam as promoting one to a named character.
+- **Accessories are [[vertex-animation|sockets]]**, not geometry: helmet, shield
+  and weapon ride as their own instanced meshes sampling the same frame. That is
+  what keeps unit identity — the thing you actually read at forty metres — off
+  the body's vertex budget. It is the one piece of this that is designed and not
+  yet built.
+
+### Which path a thing takes is decided by UNIT SIZE
+
+The roster sorts itself once you ask how many of a thing stand together. Tonio:
+*"a dragon unit will likely be ONE figure or maybe three."*
+
+| unit | figures | path |
+| --- | --- | --- |
+| light / heavy infantry | 15 | baked crowd |
+| light / heavy mounted | 7–15 | baked crowd (horse and rider as one bake) |
+| **dragon** | **1–3** | **skinned rig** |
+
+At one to three there is nothing to amortise, and everything a named entity
+wants comes back: real clip blending (which the glide→flap seam actually needs),
+bones to parent a rider or a breath effect to, per-instance damage state, a
+skeleton for a hit probe. Baking one dragon would buy a draw call nobody was
+short of and give up all of it.
+
+So the two paths are not a ladder with the crowd at the top — they are a
+**threshold**, and unit size is the test. Hundreds of a thing: bake it, and
+accept that it cannot be inspected closely. One of a thing: rig it, and spend
+the budget the crowd just saved you on making it worth looking at.
+
+The seam between them is the piece to design rather than discover: a figure
+promoted out of a crowd (a champion stepping forward) or demoted into one has to
+cross it, and nothing does that today.
+
+### The original game already had the answer
+
+*"In the original game the figures were walking on a virtual game board and
+basically offset within a square, so basically collision detection was just were
+you trying to enter an occupied square."*
+
+That is not a concession to a 7MHz 68000 — it is the right design, and it should
+be copied rather than out-grown:
+
+| | grid occupancy | continuous collision |
+| --- | --- | --- |
+| cost of a move | **O(1)** — is that cell taken? | broadphase + narrowphase against neighbours |
+| cost at N figures | **O(N)** | O(N·k), and k grows with density |
+| formations | fall out — a rank IS a row of cells | emergent, and fight the solver |
+| "can I stand there?" | a lookup | a query with a tolerance you tune forever |
+
+A figure being *offset within* its square is what buys the look back: the
+occupancy is discrete and the pose is continuous, so it reads as a crowd rather
+than as a chessboard. That separation is the whole trick, and it is worth
+writing down before anyone reaches for a physics engine.
+
+`world-topology.ts` already carries the coordinate-free half of this idea
+(places, portals, containment), and `terrain-grid.ts` the tile maths. A battle
+grid is closer to those than it is to `b3d-collisions`.

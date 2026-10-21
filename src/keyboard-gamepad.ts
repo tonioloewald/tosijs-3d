@@ -1,4 +1,4 @@
-/*#
+/*
 # keyboard-gamepad
 
 Maps keyboard and mouse input to a `VirtualGamepad`. Uses attack/decay smoothing
@@ -35,7 +35,6 @@ import { keyboardGamepad } from 'tosijs-3d'
 
 Mouse wheel adjusts the ZOOM axis (d-pad up/down), not the look stick.
 */
-/*{ "parent": "input-internals", "order": 40 }*/
 
 import { Component } from 'tosijs'
 import type { VirtualGamepad, GamepadSource } from './virtual-gamepad.js'

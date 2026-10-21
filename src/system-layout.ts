@@ -1,6 +1,4 @@
-/*#
-# system-layout
-
+/*
 **Where everything in a star system goes**, as numbers: how far out each
 planet is drawn, how big, how fast it goes round, its moons, and the
 asteroid belt. Pure: the [star system](/b3d-star-system/) draws what this
@@ -29,7 +27,6 @@ documented ways:
 Everything follows from each body's seed, so the same system lays out the
 same way every time.
 */
-/*{ "parent": "b3d-star-system", "order": 10 }*/
 
 import { PRNG } from './mersenne-twister.js'
 

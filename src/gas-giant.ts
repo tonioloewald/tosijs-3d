@@ -192,7 +192,24 @@ vec3 b3dGasGiantLit(vec3 albedo, float nDotL, float nDotV, vec3 haze)
 lights it as a ball of gas: brightness falls away from the point under the
 sun and again toward the limb, and a thin rim of `haze` shows on the day
 side. A flat disc with a hard terminator reads as a coin; this is what makes
-it a sphere. [gas-giant-material](/gas-giant-material/) wraps both for a mesh.
+it a sphere.
+
+## On a mesh
+
+`createGasGiantMaterial(scene, look)` wraps both for a sphere you can fly
+round. [`<tosi-b3d-planet gas="saturn">`](/b3d-planet/) uses it, and so does
+the [star system](/b3d-star-system/) for its giants. It lights itself: a soft
+terminator, a darkening limb and the day side's haze rim. The light is the
+first point or directional light in the scene unless you pass `light`.
+
+```javascript
+import { createGasGiantMaterial, resolveGasGiant } from 'tosijs-3d'
+
+sphere.material = createGasGiantMaterial(scene, resolveGasGiant('neptune'))
+```
+
+The bands follow the sphere's own Y axis, so turning the mesh turns the
+planet, and tilting it tilts the bands.
 */
 /*{ "parent": "space", "order": 45 }*/
 

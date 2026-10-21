@@ -17,6 +17,4 @@ when you want many copies of the parts in one.
 - [b3d-prop](/b3d-prop/)
 - [Material Conventions](/b3d-utils/)
 - [Scene schemas](/scene-schemas/)
-- [asset-url](/asset-url/)
-- [demo-utils](/demo-utils/)
 <!-- /toc -->

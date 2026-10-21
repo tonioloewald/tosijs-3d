@@ -40,7 +40,7 @@ b3d-aircraft
   url  = ''  — GLB model URL (direct load — collapsed through the same canonical frame as a library load: author Blender-default, facing −Y, transforms applied)
   library  = ''  — Library type to source mesh from
   meshName  = ''  — Node name to instantiate from library
-  player
+  player  = false  — Whether this aircraft receives input (and gets the gun reticle)
   enterable  = false  — Whether a biped can enter
   ceiling
   hudChaseOff  = false  — Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene
@@ -78,7 +78,7 @@ b3d-aircraft
   gunRate  = 9  — Cannon shots/sec while `shoot` is held
   gunSpeed  = 130  — Cannon muzzle speed (added to airspeed)
   gunDamage  = 8  — Per-shell damage
-  gunMode  = 'direct'  — `'direct'` damages what the shell passes through; `'blast'` is the old AOE
+  gunMode  = 'direct'  — `'direct'` damages what the shell passes through; `'blast'` fires a small AOE warhead instead (see Combat, below)
   gunFullRadius  = 0.5  — Only for `gunMode="blast"`
   gunBlastRadius  = 1.5  — Only for `gunMode="blast"`
   destroyable  = 'off'  — `'on'` gives the aircraft hit points and a death outcome
@@ -91,9 +91,9 @@ b3d-aircraft
   blip  = 'off'  — `'on'` puts it on radar, so a missile can lock it
   blipProfile  = 1  — Radar detectability and side
   faction  = 'neutral'  — Radar detectability and side
-  missileSpeed  = 55  — Guided-missile cruise speed
-  missileAccel
-  missileBoost
+  missileSpeed  = 90  — Guided-missile cruise speed (faster than the airframe, so it pulls ahead)
+  missileAccel  = 120  — Missile thrust (m/s²) from launch to cruise; it starts with your velocity
+  missileBoost  = 0.45  — Seconds of boost: forced forward acceleration while the seeker's authority ramps in
   missileTurnRate  = 3  — Guided-missile agility (rad/sec)
   missileDamage  = 30  — Missile warhead full damage
   bombDamage  = 45  — Bomb warhead full damage
@@ -103,8 +103,8 @@ b3d-aircraft
   bombBlastRadius  = 6  — Bomb blast, likewise
   lockRange  = 140  — Max range to acquire a missile target
   lockConeDeg  = 35  — Half-angle of the forward cone missiles lock within
-  reticle
-  reticleRange
+  reticle  = 'on'  — The gun reticle: a ring on the cannon's bore line you fly the target into (player only)
+  reticleRange  = 120  — How far ahead the reticle ring sits (m)
 
 ## b3d-ambient — <tosi-b3d-ambient>
 b3d-ambient
@@ -116,15 +116,15 @@ b3d-ambient
   minTier  = 'low'  — Never run below this device tier, at any budget
   priority  = 0  — Higher survives longer when the pool is squeezed. Shed lowest-first
   radius  = 18  — Size of the box around the camera that particles spawn in
-  lookAhead  = 0.35  — Push the spawn box along the VIEW, in units of `radius` — a camera sees a frustum, not a sphere, so a centred box births most of its particles behind you (#18)
-  lead  = 0.25  — Push it along MOTION, in seconds of travel — at speed you outrun a centred box, which empties the view ahead exactly when you want it fullest (#17)
+  lookAhead  = 0.35  — Push the spawn box along the VIEW, in units of `radius` — a camera sees a frustum, not a sphere, so a centred box births most of its particles behind you
+  lead  = 0.25  — Push it along MOTION, in seconds of travel — at speed you outrun a centred box, which empties the view ahead exactly when you want it fullest
   speedCap  = 40  — Speed (m/s) past which `lead` stops growing
   rate  = 0  — Particles/sec (0 = derive from the preset)
   color  = ''  — Override the preset's colour
   size  = 0  — Scale the preset's sprite size
   windX  = 0  — World wind (rain slants, dust blows)
   windZ  = 0
-  wind
+  wind  = 'scene'  — `'scene'` takes the scene's [wind](/wind/) when it has one; `'own'` uses `windX`/`windZ`. `'own'` with zero wind is how you say a place is sheltered: a courtyard that stays still while the scene blows
   disabled  = false  — Stop emitting
   weather  = 'off'  — `'rain'` / `'snow'`: emission follows the PRECIPITATION where the viewer is (weather cells), so a storm brings its own rain; the local temperature splits rain from snow (sleet between). `'off'` = always on
 
@@ -164,7 +164,7 @@ b3d-biped
   cameraType  = 'none'  — `'follow'`, `'xr'`, or `'none'`
   animation  = ''  — Current animation state name
   animationSpeed  = 1  — Playback speed multiplier (0–2)
-  initialState
+  initialState  = 'idle'  — Animation state at load
   turnSpeed  = 180  — Degrees per second
   forwardSpeed  = 2  — Walk speed
   runSpeed  = 5  — Sprint speed
@@ -173,23 +173,23 @@ b3d-biped
   cameraTargetHeight  = 1.4  — Height of the point the camera looks at
   cameraMinFollowDistance  = 4  — Closest follow distance
   cameraMaxFollowDistance  = 10  — Furthest follow distance
-  groundY
-  eyeHeight
-  lookRate
-  aiming
-  aimFreeYaw
-  aimMaxYaw
-  maxLookPitch
-  eyeForward
-  invertLookY
-  cameraMinHeight
-  jumpSpeed
-  sneakSpeed
-  strafeSpeed
-  climbReach
-  wadeDepth
-  strafing
-  buoyancy
+  groundY  = -1000  — Void-catch backstop: the biped never falls below this Y. Set it deep; at walking level it acts as an invisible floor
+  eyeHeight  = 1.6  — First-person eye height when the rig has no head bone
+  lookRate  = 120  — Degrees per second the right stick swings the view
+  aiming  = 'off'  — `'on'` gives the character an aim separate from its facing (see [aim](/aim/)). Nesting a weapon turns it on
+  aimFreeYaw  = 0  — Twist the shoulders hold before the body turns, degrees. `0` keeps aim and body together
+  aimMaxYaw  = 90  — The spine's limit, degrees. Past it the body is dragged round
+  maxLookPitch  = 70  — How far up or down the look goes, degrees
+  eyeForward  = 0.13  — How far in front of the head bone the first-person eye sits, metres
+  invertLookY  = 'off'  — `'on'` inverts the right stick's vertical (pushing up looks down, the aircraft mapping)
+  cameraMinHeight  = 0.5  — Lowest the follow camera goes above the feet, metres (looking up lowers the camera; this keeps it above ground)
+  jumpSpeed  = 4.5  — Upward speed at take-off, m/s
+  sneakSpeed  = 0.4  — Fraction of walking speed while sneaking
+  strafeSpeed  = 0.75  — Sidestep speed as a fraction of walking
+  climbReach  = 2.2  — Highest ledge the character can pull itself onto, metres (see Mantling, below)
+  wadeDepth  = 0.45  — Water depth, as a fraction of standing height, where wading becomes swimming
+  strafing  = 'off'  — `'on'` sidesteps with the left stick; `'off'` turns with it
+  buoyancy  = 0  — How high the figure rides in the water, metres. `0` puts the waterline at the head
 
 ## b3d-black-hole — <tosi-b3d-black-hole>
 b3d-black-hole
@@ -288,14 +288,14 @@ b3d-clouds
   opacity  = 1  — Blob alpha. Default OPAQUE — translucent clouds read badly. Set < 1 only for deliberate wisps
   fogDensity  = 1.0  — Whiteout density (EXP2, the scene's mode). HIGH on purpose — inside a cloud you should see nothing but white within a few metres
   approach  = 0.5  — Where the whiteout BEGINS, × `size` outside the blob. It's TOTAL well before the surface (you never see the geometry edge) and stays total until you leave
-  selfIllum  = 0.35  — Self-illumination 0…1 — `1` ≈ fully self-lit (old look), `0` = only sun-lit (dark undersides)
+  selfIllum  = 0.35  — Self-illumination 0…1 — `1` ≈ fully self-lit, `0` = only sun-lit (dark undersides)
   coverage  = 0.5  — Weather dial 0…1: wisps → overcast/thunderheads. LIVE. Gates active count + opacity + darkness + self-illum
   castShadows  = false  — Opt-in: project the field's shadows onto every shadow-receiving surface ([cloud-shadows](?cloud-shadows.ts))
   shadowStrength  = 0.65  — Darkness of those shadows 0…1, scaled further by `coverage` (≈50% darkening at typical coverage)
   seed  = 1  — Deterministic layout — same seed, same sky
-  windX
-  windZ
-  wind
+  windX  = 4  — The layer's own drift, m/s in world X and Z. Recycled blobs wrap in from upwind and fade up, so the sky reads as weather rather than a frozen image
+  windZ  = 1.5  — The layer's own drift, m/s in world X and Z. Recycled blobs wrap in from upwind and fade up, so the sky reads as weather rather than a frozen image
+  wind  = 'scene'  — `'scene'` drifts with the scene's [wind](/wind/) when it has one; `'own'` always uses `windX`/`windZ`
 
 ## b3d-collisions — <tosi-b3d-collisions>
 b3d-collisions
@@ -313,7 +313,7 @@ b3d-controller
   rz
   axes
   mapping  = 'biped'  — Which control scheme maps the gamepad to `ControlInput`: `'biped'`, `'car'`, or `'aircraft'`
-  player
+  player  = false  — Set it when the controller is nested in an `inputFocus` and you want that manager, not its own wiring, to drive it
 
 ## b3d-crowd — <tosi-b3d-crowd>
 b3d-crowd
@@ -323,7 +323,7 @@ b3d-crowd
   bakeFps  = 10  — Frames baked per second of clip — the memory knob
   interpolate  = 'on'  — `'off'` snaps to the nearest frame: cheaper, jerkier
   skinned  = 0  — How many SKINNED clones to spawn alongside, as the baseline
-  skinnedUrl  = '/omnidude.glb'  — The GLB the baseline clones
+  skinnedUrl  = tonio/omnidude/omnidude.glb  — The GLB the baseline clones
   url  = a rigged GLB to bake from; empty = the synthetic figure
   clips  = ''  — Which of its clips to bake, comma-separated. Empty = all
   figureScale  = 1  — Scale applied to the baked figure (omnidude is 0.88m)
@@ -369,29 +369,29 @@ b3d-destroyable
   ry
   rz
   axes
-  meshName
-  library
-  destroyable
-  size
-  scale
-  stretch
-  color
-  capacity
-  armor
-  regenRate
-  regenDelay
-  protectedBy
-  protection
-  remains
-  sound
-  soundVolume
-  explode
-  explodeForce
-  deathBlast
-  blastDamage
-  blastFullRadius
-  blastRadius
-  blastDelay
+  meshName  = 'target'  — Mesh name, and the library mesh to instantiate when `library` is set
+  library  = ''  — Instantiate `meshName` from this `<tosi-b3d-library type>` instead of the cube
+  destroyable  = 'on'  — `'off'` places the mesh without enrolling it in combat (scenery)
+  size  = 1  — Placeholder cube edge length (ignored with `library`)
+  scale  = 1  — Uniform scale of a library piece
+  stretch  = ''  — Per-axis stretch of a library piece, times `scale`: `"2 1 3"` (x y z, model frame)
+  color  = '#cc3333'  — Placeholder cube colour
+  capacity  = 10  — Hit points
+  armor  = 0  — Flat damage shrugged off every hit
+  regenRate  = 0  — Health regained per second (0 = none)
+  regenDelay  = 0.5  — Seconds without damage before regeneration resumes
+  protectedBy  = ''  — Combat id of a protector (a shield generator)
+  protection  = 0  — Flat reduction while the protector stands
+  remains  = ''  — Prefab name spawned at the death pose
+  sound  = ''  — Positional death sound URL
+  soundVolume  = 1  — Death sound volume
+  explode  = 'off'  — Shatter the mesh on death
+  explodeForce  = 6  — Outward fragment force
+  deathBlast  = 'off'  — Detonate an AOE warhead on death
+  blastDamage  = 20  — Death blast full damage
+  blastFullRadius  = 1  — Death blast full-damage radius
+  blastRadius  = 4  — Death blast falloff radius
+  blastDelay  = 0.1  — Seconds after death before the blast fires
 
 ## b3d-effect — <tosi-b3d-effect>
 b3d-effect
@@ -399,9 +399,9 @@ b3d-effect
   x  = 0  — Where it is; nested in a mesh element, an offset that follows it
   y  = 0  — Where it is; nested in a mesh element, an offset that follows it
   z  = 0  — Where it is; nested in a mesh element, an offset that follows it
-  rx
-  ry
-  rz
+  rx  = 0  — Its rotation, in degrees
+  ry  = 0  — Its rotation, in degrees
+  rz  = 0  — Its rotation, in degrees
   axes
   preset  = ''  — `volcano`, `geyser`, `bubbles`, `black smoker`, `splash`, `explosion`, `fireball`, `sparks`
   activity  = -1  — 0 to 1; `-1` uses the recipe's own. A volcano: 0.15 dormant, 0.5 semi-active, 1 erupting
@@ -419,7 +419,7 @@ b3d-elevator
   ry
   rz
   axes
-  meshName
+  meshName  = 'elevator'  — The platform mesh's name
   mode  = 'cycle'  — `'cycle'` runs forever; `'pressure'` moves while something stands on it; `'switch'` waits for `call()`
   travel  = 3  — Metres between the bottom stop and the top
   stops  = 2  — How many stops, evenly spaced. `2` is bottom and top
@@ -489,12 +489,12 @@ Lamps
   diffuse  = '#ffffff'  — Colour
   specular  = '#ffffff'  — Specular colour
   range  = 10  — Falloff distance (point / spot)
-  on  = true  — `false` plays the DECAY region; it does not kill the light
+  on  = 'on'  — `'off'` plays the DECAY region; it does not kill the light
   geometry  = 'on'  — `'off'` for no fixture
   geometryScale  = 1  — Size multiplier for the default fixture
   url  = —  — GLB fixture, in place of the primitive
   shadows  = 'off'  — `'on'` for a shadow generator (point / spot only)
-  timeSource
+  timeSource  = 'real'  — Which clock the program runs on. `'real'`: elapsed seconds, immune to pause, because a lamp is ambience and a flicker frozen mid-flicker makes a paused game look broken. `'sim'`: the world's clock, for a lamp that is part of the simulation (street lights at dusk, a beacon a player is timing). It stops when the world pauses
   shadowTextureSize  = 0  — Resolves against the device budget
 
 ## b3d-lamp (tosi-b3d-spot-light) — <tosi-b3d-spot-light>
@@ -507,12 +507,12 @@ Lamps
   diffuse  = '#ffffff'  — Colour
   specular  = '#ffffff'  — Specular colour
   range  = 10  — Falloff distance (point / spot)
-  on  = true  — `false` plays the DECAY region; it does not kill the light
+  on  = 'on'  — `'off'` plays the DECAY region; it does not kill the light
   geometry  = 'on'  — `'off'` for no fixture
   geometryScale  = 1  — Size multiplier for the default fixture
   url  = —  — GLB fixture, in place of the primitive
   shadows  = 'off'  — `'on'` for a shadow generator (point / spot only)
-  timeSource
+  timeSource  = 'real'  — Which clock the program runs on. `'real'`: elapsed seconds, immune to pause, because a lamp is ambience and a flicker frozen mid-flicker makes a paused game look broken. `'sim'`: the world's clock, for a lamp that is part of the simulation (street lights at dusk, a beacon a player is timing). It stops when the world pauses
   shadowTextureSize  = 0  — Resolves against the device budget
   angle  = 60  — **spot** — cone angle in degrees
   exponent  = 2  — **spot** — falloff sharpness (standard falloff)
@@ -520,9 +520,9 @@ Lamps
   shape  = 'circle'  — **spot** — cone cross-section: `circle` / `square` / `none`. Projected as a gel, so an explicit `gel` wins
   shapeAspect  = 1  — **spot** — width/height; `2` is an ellipse or letterbox
   shapeSoftness  = 0.25  — **spot** — edge feather, as a fraction of the radius
-  dirX
-  dirY
-  dirZ
+  dirX  = 0  — **spot** — direction the cone points (straight down by default)
+  dirY  = -1  — **spot** — direction the cone points (straight down by default)
+  dirZ  = 0  — **spot** — direction the cone points (straight down by default)
   gel  = —  — **spot** — projection texture URL (bitmap or SVG file)
   gelSvg  = —  — **spot** — inline SVG source or an `SVGElement`
 
@@ -536,12 +536,12 @@ Lamps
   diffuse  = '#ffffff'  — Colour
   specular  = '#ffffff'  — Specular colour
   range  = 10  — Falloff distance (point / spot)
-  on  = true  — `false` plays the DECAY region; it does not kill the light
+  on  = 'on'  — `'off'` plays the DECAY region; it does not kill the light
   geometry  = 'on'  — `'off'` for no fixture
   geometryScale  = 1  — Size multiplier for the default fixture
   url  = —  — GLB fixture, in place of the primitive
   shadows  = 'off'  — `'on'` for a shadow generator (point / spot only)
-  timeSource
+  timeSource  = 'real'  — Which clock the program runs on. `'real'`: elapsed seconds, immune to pause, because a lamp is ambience and a flicker frozen mid-flicker makes a paused game look broken. `'sim'`: the world's clock, for a lamp that is part of the simulation (street lights at dusk, a beacon a player is timing). It stops when the world pauses
   shadowTextureSize  = 0  — Resolves against the device budget
   width  = 2  — **area** — panel size
   height  = 1  — **area** — panel size
@@ -556,11 +556,11 @@ b3d-launcher
   ry
   rz
   axes
-  meshName
-  library
-  grip
-  socket
-  modelScale
+  meshName  = 'launcher'  — Mesh name, and the library model to instantiate when `library` is set
+  library  = ''  — Instantiate `meshName` from this `<tosi-b3d-library type>` instead of the placeholder box
+  grip  = 'auto'  — Where the hand holds it: `'auto'` derives the grip from the geometry (the centroid of the lowest third) and places it at `x`/`y`/`z`; `'off'` mounts by the model's origin; or an explicit `'x,y,z'`
+  socket  = ''  — The joint it rides on when nested in a character: `'right-hand'`, `'left-hand'`, `'head'`, `'spine'`, `'hips'`, or `''` for the holder's root. With a socket, `x`/`y`/`z` are relative to the joint
+  modelScale  = 1  — Uniform scale of the loaded model
   muzzleSpeed  = 30  — Launch speed (units/sec) along the fire direction
   fireRate  = 5  — Max shots per second (cadence gate)
   ammo  = 40  — Magazine capacity (a `Resource`)
@@ -575,7 +575,7 @@ b3d-launcher
   missileTrail  = 'off'  — `'on'` leaves a smoke ribbon behind each guided missile (`fireAt`); see [b3d-trail](/b3d-trail/). For your own rounds, pass `trail` to `spawnProjectile`/`spawnMissile`
   projColor  = '#ffdd55'  — Shell emissive colour
   maxLifetime  = 6  — Seconds before an un-impacted shell self-disposes
-  damage  = 20  — Warhead full damage (see b3d-warhead)
+  damage  = 20  — Warhead full damage (see [b3d-warhead](/b3d-warhead/))
   fullRadius  = 1  — Warhead full-damage radius
   blastRadius  = 3  — Warhead falloff radius
   los  = 'on'  — Warhead line-of-sight gating
@@ -699,9 +699,9 @@ b3d-panel
   revealFull
   maxDistance
   presence  = 'xr'  — `'xr'` — only in an immersive session; `'both'` — also in the flat view, on frames derived from the flat camera
-  flatFrame  = ''  — The frame to use in the FLAT view: required for a hand panel (a monitor has no hands); `'face'` measures elevation from the view instead of the horizon, so a menu stays centred under a pitched camera
+  flatFrame
   resolution  = 0  — Texture size in px (square); `0` = 384. Raise it for a menu with text
-  layer  = 'world'  — `'ui'`: drawn over the whole world and pressed first, never hidden by a nearer wall (what was a page overlay); `'modal'`: over even the ui (pause, a dialog). `'world'`: in the scene like anything else. The same in a headset: the controller's ray picks modal, then ui, then the world
+  layer  = 'world'  — `'ui'`: drawn over the whole world and pressed first, never hidden by a nearer wall (what a page overlay is flat); `'modal'`: over even the ui (pause, a dialog). `'world'`: in the scene like anything else. The same in a headset: the controller's ray picks modal, then ui, then the world
   exclusive  = 'on'  — On the system bar: one system panel is open at a time. `'off'` lets this one stay open beside the others and leaves them open when it opens (an app's main chrome: a tool palette, a properties panel). The settings panel and exclusive panels still close each other
   open  = false  — On the system bar: open when the scene starts (and again in a headset, if it was open flat). To open or close it later, `el.show()` / `el.hide()`
 
@@ -712,7 +712,7 @@ b3d-particles
   y  = 0  — Emitter Y position
   z  = 0  — Emitter Z position
   capacity  = 500  — Maximum particle count
-  emitRate  = 50  — Particles emitted per frame
+  emitRate  = 50  — Particles emitted per second
   minLifeTime  = 0.3  — Minimum particle lifetime (seconds)
   maxLifeTime  = 1.5  — Maximum particle lifetime (seconds)
   minSize  = 0.1  — Minimum particle size
@@ -742,12 +742,12 @@ b3d-physics
   gravityY  = -9.81  — Gravity Y component
   gravityZ  = 0  — Gravity Z component
   debug  = false  — Show wireframe physics collider shapes
-  wasmUrl
+  wasmUrl  = ''  — Where to load Jolt's `.wasm` from, when it is not beside the loader script
 
 ## b3d-planet — <tosi-b3d-planet>
 b3d-planet
 
-  biome
+  biome  = 'off'  — `'on'` shades the land with the procedural biome shader, planetary version: altitude is radial, latitude sets the temperature, and the sea level follows `ocean` (see [biome-chart](/biome-chart/))
   gas  = ''  — Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/)
   heightMap  = ''  — A real world's HEIGHTS: a 16-bit greyscale PNG, 2:1, `metres = value − 32768` (see [planet-map](/planet-map/)). A full URL, or a path resolved by `assetUrl`: call `setAssetBase('https://cdn.tosijs.net')` once and `nasa/moon/height-2k.png`, `nasa/mars/…` and `noaa/earth/…` are there. Sets `surface` when it has loaded. Those maps are NASA's and NOAA's and free to use with credit, which is yours to show
   colorMap  = ''  — A real world's COLOUR: a 2:1 image, longitude −180° to 180° left to right. `nasa/moon/color-2k.jpg` and so on. Replaces the biome shading (and the drawn sea)
@@ -782,13 +782,13 @@ b3d-planet
   grossAmplitude  = 5  — Gross height multiplier
   detailAmplitude  = 1  — Detail height multiplier
   atmosphere  = 0.08  — Atmosphere thickness (fraction of radius, 0=none). The clouds ride half way up it
-  atmosphereColor
-  atmosphereTurbulence
+  atmosphereColor  = 'rgba(77,128,230,0.15)'  — The glow shell's colour; its alpha is the shell's opacity
+  atmosphereTurbulence  = 0.5  — How much the glow shell shimmers
   clouds  = 0  — (Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud: `1` is mostly cloud with breaks, and on to `3`, a solid deck (Venus). A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none
   cloudColor  = '#ffffff'  — The cloud's colour where lit
   cloudSpeed  = 1  — How fast the weather moves. `0` holds it still
   ocean  = 0.6  — Ocean coverage (0=none, 0.6=60% of surface underwater)
-  rings
+  rings  = 0  — A ring, `0` = none. The value is its strength: it widens the default ring and multiplies `ringOpacity`, reaching full strength at about 0.85
   wireframe  = false  — Debug: render as wireframe
   rotationSpeed  = 0  — Auto-rotation speed (radians/sec), west to east as planets turn. Negative turns it the other way
 
@@ -802,7 +802,7 @@ Primitives: box, sphere, ground
   ry
   rz
   axes
-  meshName
+  meshName  = 'box'  — The Babylon mesh's name (what `scene.getMeshByName` and naming suffixes such as `_nocast` see)
   segments
   diameter
   color  = '#ff0000'
@@ -822,7 +822,7 @@ Primitives: box, sphere, ground
   ry
   rz
   axes
-  meshName
+  meshName  = 'box'  — The Babylon mesh's name (what `scene.getMeshByName` and naming suffixes such as `_nocast` see)
   size  = 1  — Edge length of a cube
   width  = 0  — Set any of them to make it a slab or a post; `0` uses `size`
   height  = 0  — Set any of them to make it a slab or a post; `0` uses `size`
@@ -844,7 +844,7 @@ Primitives: box, sphere, ground
   ry
   rz
   axes
-  meshName
+  meshName  = 'ground'  — The Babylon mesh's name (`'ground_nocast'` keeps it from casting shadows)
   size  = 0  — A square of this side; overrides `width` and `height`
   width  = 4
   height  = 4
@@ -886,11 +886,11 @@ b3d-radar-blip
 b3d-radar
 
   range  = 250  — Nominal range — a `profile 1` blip is detected within this.
-  coneDeg  = 90  — Detection cone HALF-angle (deg). `90` = front hemisphere.
+  coneDeg  = 90  — Detection cone HALF-angle (deg). `90` = front hemisphere. A lock is held while the contact stays inside it.
   lockTime  = 1.5  — Seconds of continuous detection to acquire a lock (`0` = instant).
   maxLocks  = 2  — Max simultaneous locks (the nearest opposed contacts).
-  acquireConeDeg
-  acquireRange
+  acquireConeDeg  = 60  — Narrower half-angle (deg) a contact must be inside to START a lock.
+  acquireRange  = 0.5  — Fraction of `range` a contact must be within to START a lock. Holding uses the full range.
   alignment  = 'friendly'  — This radar's own faction. It locks only **opposed** blips (friendly⇄hostile); neutrals/waypoints show but never lock.
   updateInterval  = 100  — Radar refresh period (ms). Runs below frame-rate and is dithered across frames so many radars don't all recompute the same frame.
 
@@ -960,10 +960,10 @@ b3d-skybox
   starfieldSeed  = 12345  — Seed for the starfield — same seed, same constellations
   starDistance  = 0  — Park a `<tosi-b3d-star>` child this far along the sun vector. `0` = leave it alone
   luminance  = 1  — Sky brightness
-  azimuth  = 0  — **Ignored** — the sun is placed by `latitude` and `timeOfDay`, and the sky material accepts this and discards it. Kept so old markup doesn't break; not in `skyboxSchema()` (tosijs-3d#86)
+  azimuth  = 0  — **Ignored** — the sun is placed by `latitude` and `timeOfDay`, and the sky material accepts this and discards it. Accepted so existing markup does not break; not in `skyboxSchema()`
   latitude  = 40  — Geographic latitude in DEGREES (affects the sun's arc)
   realtimeScale  = 10  — Realtime speed multiplier
-  updateFrequencyMs
+  updateFrequencyMs  = 100  — How often (ms) the advancing time of day is applied
   sunColor  = '#eeeeff'  — Midday sun color
   duskColor  = '#ffaa22'  — Dawn/dusk sun color
   moonColor  = '#6688cc'  — Night light color
@@ -972,9 +972,9 @@ b3d-skybox
   sunBrightness  = 1  — Multiplies the sun's light. A distant world gets less light, but the eye adapts, so set it by how it looks rather than by the inverse square
   timeOfDay  = 6.5  — 0-24 hours
   rayleigh  = 2  — Rayleigh scattering
-  mieDirectionalG
-  mieCoefficient
-  skyboxSize
+  mieDirectionalG  = 0.8  — How forward the Mie scattering is: higher gathers the glow tighter round the sun
+  mieCoefficient  = 0.005  — Mie scattering: the haze of larger particles around the sun
+  skyboxSize  = 1000  — Size of the sky box. Read once, when the sky is built
   applyFog  = false  — Whether scene fog affects the skybox
 
 ## b3d-sound — <tosi-b3d-sound>
@@ -1009,7 +1009,7 @@ b3d-spawner
   z  = 0  — Spawn point, when `anchor="place"`. Ignored otherwise
   facingDeg  = 0  — Facing for a placed spawn, degrees about Y — reaches the prefab as `rotation`
   seed  = 1  — Deterministic placement — same seed, same battles
-  disabled  = false  — Stop spawning (a boolean can't default to true — see CLAUDE.md)
+  disabled  = false  — Stop spawning (a negative, because an HTML boolean attribute cannot default to true)
 
 ## b3d-ssao
 Ambient occlusion (SSAO)
@@ -1033,7 +1033,7 @@ b3d-star-system
   showOrbits  = 'on'  — Show orbital path lines
   beltCount  = 1500  — Rocks drawn in the asteroid belt, when the system has one (it sits in a wide gap between the rocky planets and the first giant)
   timeScale  = 3600  — Simulated seconds per real second. Every period is real (a day, a month, a year), so this is how fast the system runs: `1` is real time, `3600` an hour a second, `3.16e6` a year in ten seconds. On top of the scene's own `timeScale`
-  maps  = 'off'  — `'on'`: bodies with real maps in a `system` (our own Earth, Moon and Mars, see [sol](/sol/)) are drawn from them
+  maps  = 'off'  — `'on'`: bodies with real maps in a `system` (our own Earth, Moon and Mars, see **Our solar system** below) are drawn from them
   x
   y
   z
@@ -1065,8 +1065,8 @@ b3d-svg-plane
   ry
   rz
   axes
-  castShadow
-  receiveShadows
+  castShadow  = false  — Cast shadows onto the scene
+  receiveShadows  = false  — Take the world's shading. Off, a panel reads the same whatever passes in front of the sun; turn it on for UI that IS in the world, like a cockpit instrument
   width  = 1  — Plane width in scene units
   height  = 1  — Plane height
   resolution  = 512  — Texture resolution (square, px)
@@ -1074,12 +1074,12 @@ b3d-svg-plane
   updateInterval  = 30  — Re-render interval in ms (dynamic mode)
   materialChannel  = 'emissive'  — `'emissive'` (unlit) or `'diffuse'` (lit)
   cameraRelative  = false  — Parent plane to active camera (HUD mode)
-  placement
+  placement  = 'camera'  — With `cameraRelative`: `'camera'` keeps it on the camera; `'world'` puts it at a real spot in clear view and eases it back in front of you after a couple of seconds out of sight (right for a modal dialog, see [frame-panel](?frame-panel.ts))
   xrFrame  = ''  — In a headset with `cameraRelative`, parent to this XR reference frame instead of the head camera. `'body'` (torso, damped yaw) keeps a panel in front of you without jittering on every head movement; leave unset for a HUD that should stay head-locked
   pointerEvents  = 'on'  — Map 3D pick hits → SVG pointer events
   layer  = 'world'  — `'ui'` / `'modal'`: drawn over the whole world in a layer of its own and picked first (`modal` over `ui`). A popup takes its opener's layer
   doubleSided  = 'on'  — Render both faces
-  cornerRadius  = 0  — Corner radius in WORLD units. `0` = a plain rectangle. Rounds the MESH, so corners cost triangles instead of alpha — see **Opaque panels** below
+  cornerRadius  = 0  — Corner radius in WORLD units. `0` = a plain rectangle. Rounds the MESH, so corners cost triangles instead of alpha — see **Keeping panels in order** below
   transparent  = 'on'  — `'off'` drops the opacity texture so the plane writes depth. Pair with `cornerRadius`. `'depth'` blends and writes depth (transparent pixels discarded): ordered by the z-buffer like an opaque panel, and a translucent theme still shows through
 
 ## b3d-terrain — <tosi-b3d-terrain>
@@ -1088,7 +1088,7 @@ b3d-terrain
   lat  = -45  — Where this ground is on its planet: the latitude and longitude of the terrain's origin, degrees. On a cylinder or torus, the same position in the noise's domain
   lon  = 0  — Where this ground is on its planet: the latitude and longitude of the terrain's origin, degrees. On a cylinder or torus, the same position in the noise's domain
   planet  = ''  — A selector for the `<tosi-b3d-planet>` this is the GROUND OF (`'#moon'`, sphere only): where the sea, coasts and mountain ranges are is the planet's, scaled to this `radius` with the sea at 0, and this terrain's detail layer and landforms ride on top. A pin on the globe lands on the ground it shows. Rebuilds when the planet changes. (The other way round, a planet's `terrain` draws the globe from this ground)
-  biome
+  biome  = 'off'  — `'on'` shades the ground with the procedural biome shader ([biome-plugin](/biome-plugin/)): a flat-colour chart picked from temperature, moisture, height and slope. Tune it live through `.biomePlugin`
   biomeSeaLevel  = 0  — Sea level for the biome classifier (`biome="on"`) — keep it equal to your water plane's `y`
   biomeLapseRate  = 0  — Height→temperature lapse, in the biome CHART's units per metre (not `biomeTemperature`'s; see biome-chart). ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The auto value, 0.004, is fixed (not scaled to your relief): it is a small-world number and renders a 340m world entirely as snow
   biomeTemperature  = 0.45  — Sea-level temperature: `0` is 0 °C and each unit is 50 °C, so the default is 22.5 °C, `-1` is -50 °C, and it is not limited to that range (see biome-chart's `chartTemperature`). LIVE
@@ -1116,7 +1116,7 @@ b3d-terrain
   grossAmplitude  = 8  — Gross height multiplier. ⚠️ Meaningless on its own: it's spread over `grossScale`/`horizScale`, so the same number is a mountain range at one scale and a plain at another
   detailAmplitude  = 3  — Detail height multiplier. Landscape reads best when this does REAL work rather than 5% — big gross features, small gross amplitude, busy detail
   baseHeight  = 0  — Flat vertical offset (m). The noise is 0..amplitude; `-grossAmplitude/2` centres the terrain on 0 so a water plane at 0 floods the valleys into a sea
-  center
+  center  = false  — Centre the heightfield on 0 (an offset of `-grossAmplitude/2`) whatever the amplitude, so a water plane at 0 keeps reading as a sea while you tune. Adds to `baseHeight`
   debugColor  = false  — Debug: tint each tile a distinct hashed colour to expose the tile/LOD layout
   tileBuildMs  = auto  — **Milliseconds of tile building allowed per frame** — the cap that actually bounds the worst frame. A tile COUNT bounds it only by accident (a tile's cost swings with subdivisions, octaves, device and JS engine); a time cap bounds it by construction everywhere, and self-corrects when you raise detail. Always builds ≥1 tile. (`auto` = device tier)
   profile  = false  — Debug: time tile building and report it on `debugState` (see below). Off = zero cost
@@ -1159,8 +1159,8 @@ b3d-turret
   ry
   rz
   axes
-  meshName
-  library
+  meshName  = 'turret'  — Mesh name, and the library model to instantiate when `library` is set
+  library  = ''  — Instantiate `meshName` from this `<tosi-b3d-library type>` instead of the built-in pedestal and box. A `_barrel` node on the model is the part that aims; without one it yaws as a unit
   muzzleSpeed  = 35  — Shell launch speed (also the lead-solver's projectile speed)
   fireRate  = 2  — Max shots per second
   range  = 30  — Won't fire beyond this distance
@@ -1191,7 +1191,7 @@ b3d-warhead
   fullRadius  = 1.5  — Within this distance the blast deals full `D`
   blastRadius  = 5  — Falloff from `D` (at `fullRadius`) to 1 here; 0 beyond
   los  = 'on'  — Line-of-sight occlusion (a wall between blast + target spares it)
-  by
+  by  = ''  — Who to credit for what this blast destroys (a combat id). Carried through the whole cascade
 
 ## b3d-water — <tosi-b3d-water>
 b3d-water
@@ -1203,15 +1203,15 @@ b3d-water
   ry
   rz
   axes
-  underwaterFog
+  underwaterFog  = 0.12  — Fog density the moment the camera is under the surface
   fogColor  = '#00264d'  — The colour of the water you are IN (the underwater fog). Sea blue by default; a methane sea (Titan) is dark amber
-  underwaterMurk
-  fogTransition
+  underwaterMurk  = 0.08  — Extra fog density at 30 m down: the sea thickens with depth
+  fogTransition  = 0.2  — Metres below the surface to reach full underwater fog. Tight on purpose, so crossing the surface has no visible jump
   underside  = 'auto'  — Snell's window from below: straight up, a bright window onto the sky; toward grazing angles, a mirror of the depths. `'auto'` = on whenever `twoSided`; `'on'`/`'off'` force it. Fades in with the underwater fog
   undersideColor  = '#9fdcf0'  — The window: the sky's light, looking up
   undersideDepthColor  = '#06283a'  — The mirror: the dark water, at grazing angles
   undersideSky  = 1  — From below, the window REFRACTS THE REAL SKY (the sun included), distorted by the ripples — clearest in the shallows, fading with depth, giving way to the dark mirror toward grazing angles. `0` = the flat `undersideColor` only
-  caustics  = 'auto'  — Light through the moving surface, dancing on everything beneath it (terrain, hulls, the player). `'auto'` = on whenever `twoSided`. Fades with depth and fog; follows the sun
+  caustics  = 'auto'  — Light through the moving surface, dancing on everything beneath it (terrain, hulls, the player). `'auto'` = on whenever `twoSided`. See **Caustics** below
   causticsStrength  = 0.6  — How bright the web gets
   causticsScale  = 6  — Metres per caustic cell: bigger is coarser and calmer
   spherical  = false  — Use a sphere instead of a plane
@@ -1221,19 +1221,19 @@ b3d-water
   reflectionRefresh  = 0  — Redraw those textures every Nth frame. `0` follows the device tier: 1 / 2 / 3. `1` is every frame. It applies in a headset too: one drawing serves both eyes and later frames, looked up through the view it was drawn from
   twoSided  = false  — Render both sides
   follow  = false  — Ride the camera in x/z (endless sea): the plane snaps to a coarse grid under you, ripples stay anchored in world space
-  shore  = 'off'  — `'on'` gives the surface the depth of the water under it, from the scene's terrain, and draws a shoreline from it: surf running in, pale shallows, and ice that spreads out from the land when the climate at sea level is below freezing. See [water-shore](/water-shore/). Not for `spherical` water. Set at build time
+  shore  = 'off'  — `'on'` gives the surface the depth of the water under it, from the scene's terrain, and draws a shoreline from it: surf running in, pale shallows, and ice that spreads out from the land when the climate at sea level is below freezing. See **Shore and ice** below. Not for `spherical` water. Set at build time
   shoreFine  = false  — With `shore="on"`: a water vertex every 2 m near the viewer where there is otherwise one every 4 m (about 16,600 vertices, up from 9,400). The surf follows a winding shore more closely; each refresh of the shore data (when the water re-centres, every 32 m travelled) costs about two thirds more. Set at build time
   receiveShadows  = 'on'  — The surface (and the ice on it) takes shadows from the sun and from clouds. `'off'` skips both lookups per water pixel
-  normalMap
+  normalMap  = ''  — URL of a bump map for the ripples. Empty uses a tiling normal map generated from Perlin noise: no file, no network, so it works offline and in a headset
   windForce  = -5  — Wind strength
   waveHeight  = 0  — Wave amplitude
   bumpHeight  = 0.1  — Normal map bump intensity
-  waveLength
+  waveLength  = 0.1  — Wave length
   waterColor  = '#0066cc'  — Water tint color
   colorBlendFactor  = 0.1  — How much color tints the water
-  windDirectionX
-  windDirectionY
-  wind
+  windDirectionX  = 0.6  — Wind direction, x part (roughly a unit vector with `windDirectionY`)
+  windDirectionY  = 0.8  — Wind direction, y part
+  wind  = 'scene'  — `'scene'` takes the waves' wind from the scene's [wind](/wind/) when it has one; `'own'` always uses the three attributes below. A scene with no wind leaves them in charge either way
 
 ## b3d-weather-cell — <tosi-b3d-weather-cell>
 b3d-weather-cell
@@ -1285,23 +1285,10 @@ control-input
 ## game-controller — <tosi-game-controller>
 game-controller
 
-  wheelSensitivity
-  updateIntervalMs
-  mouseLook
-  mouseSensitivity
-
-## gamepad-svg
-gamepad-svg
-
-  strokeColor  = #000000  — All stroked elements
-  strokeWidth  = 16  — All stroked elements
-  widgetColor  = #ffffff  — Bumpers, triggers, dpad, sticks, menu, view
-  controllerColor  = #aaaaaa  — Controller body
-  stickTravelColor  = #505050  — Stick travel circles
-  fillA  = #ff1d25  — A button (red)
-  fillB  = #fcee22  — B button (yellow)
-  fillX  = #8cc63f  — X button (green)
-  fillY  = #3ea9f5  — Y button (blue)
+  wheelSensitivity  = 1  — Scales the wheel's zoom axis
+  updateIntervalMs  = 33  — How often key state is smoothed, ms
+  mouseLook  = 'off'  — How the mouse looks around: `'drag'` (hold a button), `'lock'` (pointer lock, for a real game) or `'off'`
+  mouseSensitivity  = 1  — Degrees of view per 100px of mouse movement, roughly
 
 ## gas-giant
 gas-giant
@@ -1314,9 +1301,9 @@ gas-giant
 glass-gamepad (b3dGamepad)
 
   controls  = ''  — **Comma**-separated piece list, e.g. `'a,b,right_stick(40,0),menu'`. Empty (the default) shows everything. `a/b/x/y` map to `A/B/X/Y`; `dpad` expands to the four directions; `name(dx,dy)` nudges one piece
-  scale
-  deadzone
-  maxZone
+  scale  = 1  — Size multiplier for every cluster
+  deadzone  = 0.15  — Stick travel (fraction of the radius) ignored at the centre
+  maxZone  = 0.85  — Stick travel that counts as full deflection, so you need not reach the rim
   idleSeconds  = 10  — Seconds of silence before a faded pad comes back
   fade  = 'on'  — Hide the pad once a real input device is in use. `'off'` pins it visible — what you want on a page where the pad itself is the subject
   fadedOpacity  = 0  — How faded is faded. `0` is invisible; a low value like `0.15` leaves a hint that the fallback exists
@@ -1325,16 +1312,6 @@ glass-gamepad (b3dGamepad)
 
   width
   height
-
-## icon-name
-icon-name
-
-  r  = rotate N°  — `chevron90r`
-  f  = flip (`0f` = H, `1f` = V)  — `chevron0f`
-  s  = scale N%  — `star75s`
-  x  = translateX N%  — `plus20x`
-  y  = translateY N%  — `plus_10y`
-  o  = opacity N%  — `camera50o`
 
 ## inventory-box
 inventory-box
@@ -1352,18 +1329,17 @@ inventory
   kinds  = the catalogue
   contribution  = (item, kind, place) => numbers
 
-## key-layout
-key-layout
-
-  alpha  = shift
-  symbols  = punctuation and symbols
-  dial  = a telephone keypad — `*` `0` `#`, `+` for international
-
 ## keyboard-gamepad — <tosi-keyboard-gamepad>
-keyboard-gamepad
 
   wheelSensitivity
   updateIntervalMs
+
+## keyboard
+keyboard
+
+  alpha  = shift
+  symbols  = punctuation and symbols
+  dial  = a telephone keypad: `*` `0` `#`, `+` for international
 
 ## light-modulation
 Light programs
@@ -1372,19 +1348,6 @@ Light programs
   range  = **multiplies** the base range  — a range of zero is a light that lights nothing
   saturation  = **multiplies** saturation — `0` is white, `saturationScale` sets what `1` means  — saturation has a meaningful zero and reaching it is the point
   hue  = **shifts** the base hue, `0.5` = unchanged, scaled by `hueShiftDeg  — hue is circular with no meaningful zero, so an absolute mapping would discard the colour you chose
-
-## lightning
-lightning
-
-  ground  = cloud to ground: a bolt, the brightest flash, thunder  — most
-  cloud  = inside the cloud: the tower lit from within, no bolt  — many
-  sprite  = ABOVE the storm, 50–90 km up in reality: brief red-pink crowns and tendrils, only over strong storms  — rare
-
-## manipulator
-manipulator
-
-  translate  = the point on the axis closest to the pointer's ray
-  rotate  = the angle around the axis where the ray crosses its plane
 
 ## picker
 picker
@@ -1453,44 +1416,69 @@ spring bones
 
   params  = stiffness` (0 hangs free, 1 holds its rest shape), `damping` (velocity lost per second), `gravity`, `radius
 
+## svg-icons
+svg-icons
+
+  r  = rotate N°  — `chevron90r`
+  f  = flip (`0f` = H, `1f` = V)  — `chevron0f`
+  s  = scale N%  — `star75s`
+  x  = translateX N%  — `plus20x`
+  y  = translateY N%  — `plus_10y`
+  o  = opacity N%  — `camera50o`
+
 ## tosi-b3d — <tosi-b3d>
 b3d
 
   glowLayerIntensity  = 0  — Glow effect intensity (0 = off)
   clearColor  = ''  — The colour behind everything (`'#000'` for space); empty keeps Babylon's default
-  flatUi  = 'scene'  — Where the flat view's own controls are drawn. `'scene'`: in the scene (the system bar, settings panel and pause), the same UI a headset gets. `'dom'`: the HTML corner buttons, settings panel and pause, as before 0.10.7 (and where `::part(...)` styling of them shows). Any other value warns once and means `'scene'`
+  flatUi  = 'scene'  — Where the flat view's own controls are drawn. `'scene'`: in the scene (the system bar, settings panel and pause), the same UI a headset gets. `'dom'`: HTML corner buttons, settings panel and pause (where `::part(...)` styling of them shows). Any other value warns once and means `'scene'`
   frameRate  = 30  — Target frame rate
   minElevation  = 5  — Default orbit-camera elevation limits (degrees above the horizon)
   maxElevation  = 70  — Default orbit-camera elevation limits (degrees above the horizon)
   minDistance  = 2  — Default orbit-camera zoom limits
   maxDistance  = 50  — Default orbit-camera zoom limits
   noXr
-  xrGrid
-  xrReticle
-  scenePanelOpen
+  xrGrid  = 'auto'  — The reference grid on the floor in an immersive session. `'auto'` shows it for the built-in free-fly rig and hides it when a player entity drives the rig or you supply your own `setupXr`; `'on'` and `'off'` force it
+  xrReticle  = 'off'  — `'on'` shows the head-locked face crosshair (a pin target, e.g. for a tracking weapon)
+  scenePanelOpen  = false  — Start with the settings panel open instead of closed behind the owl
   panelTitle  = ''  — The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row)
-  panelSections
+  panelSections  = 'fold'  — How collapsible sections in the settings panel present: `'fold'` (headers you open and close) or `'tabs'` (file tabs, one section at a time)
   gamepadScale  = 1  — Scale factor for the glass gamepad clusters
   gamepadFade  = 'on'  — `'off'` keeps the glass gamepad visible instead of fading it once a key is pressed or a hardware pad is used (the pointer never fades it)
-  quality
-  ssao
-  ssaoStrength
-  ssaoRadius
-  ssaoMethod
-  ssaoRate
+  quality  = 'auto'  — Device tier. `'auto'` follows the measured or cached device profile (and probes in the background on a first visit); `'low'`, `'medium'` or `'high'` force one. Drives the `auto` defaults of shadows, reflections, terrain and render scaling. See [[b3d-quality]]
+  ssao  = 'off'  — Ambient occlusion: `'off'`, `'auto'` (follows the device tier, and stays off in a headset) or `'on'`. Off by default because it is a cost a scene should choose. See [[b3d-ssao]]
+  ssaoStrength  = 1  — How dark a fully occluded crease gets
+  ssaoRadius  = 2  — Metres a surface looks for something occluding it
+  ssaoMethod  = 'projected'  — `'projected'` computes occlusion once and every material looks it up by world position, so it works flat and in a headset. `'screen'` is Babylon's post-process, flat only
+  ssaoRate  = 30  — Projected only: redraws per second (`0` = every frame)
   xrRenderScale  = 0  — In a headset: the fraction of each eye's width and height drawn. `0` is auto (from the device tier: 0.67 on the low tier). Engine hardware scaling does not reach a headset; this does. Read on entering a session
   xrFoveation  = -1  — In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session
   groundDetail  = 'auto'  — The ground shader's form: `full`, `lite` (three noise samples a pixel for eight, for a GPU that cannot afford the full one), or `auto` (from the device tier: lite on the low tier, and in a headset on the medium one)
-  pixelRatio
-  stats
-  pauseWhenHidden
-  startPaused
-  reseatFreeze
-  timeScale
-  windSpeed
-  windBearingDeg
-  windGust
-  enterXrOnResume
+  pixelRatio  = 0  — Device pixels per CSS pixel, flat. `0` is auto: the display's own ratio, capped by the device tier (high 2, medium 1.5, low 1). A positive value is an explicit cap and wins: `1` renders at CSS resolution, `2` full Retina, `0.75` below CSS for speed. Ignored in a headset
+  stats  = false  — Add a Perf Stats section to the settings panel, flat and in a headset. `#perf` or `#debug` (or `?perf`, `?debug`) in the page URL, or calling `showB3dStats()`, shows it on every scene
+  pauseWhenHidden  = 'on'  — Pause when the tab or window goes to the background. ⚠️ Experimental: the VR path is unvalidated
+  startPaused  = false  — Come up paused, showing the pause panel (the "press Start" shape)
+  reseatFreeze  = 'on'  — Freeze the clock while the re-seat dialog is up. Set `'off'` for a networked world, which cannot stop the other players; the dialog still gates your own input
+  timeScale  = 1  — How fast simulation time runs against wall time: `1` is real time, `0.25` slow motion, `0` stops the simulation while the scene keeps rendering. Everything integrating with `sceneDelta` scales; anything that must not slow (UI animation, a countdown in wall seconds) reads `realDt` from the frame package
+  windSpeed  = 0  — The scene's one wind, in m/s, read by clouds, water and ambient effects (see [[wind]]). `0` means no scene wind; a child's own wind attributes win where they are set
+  windBearingDeg  = 0  — Where the wind is going, north-up and clockwise. `0` blows toward +Z
+  windGust  = 0  — Gust size as a fraction of `windSpeed`. `0` is dead steady
+  enterXrOnResume  = 'off'  — `'on'`: resuming enters immersive VR where the device supports it. The Continue tap is the user gesture `enterXRAsync` requires
+
+## virtual-gamepad
+virtual-gamepad
+
+  leftBumper  = xr-standard-squeeze` (grip)
+  rightBumper  = xr-standard-squeeze` (grip)
+  strokeColor  = #000000  — All stroked elements
+  strokeWidth  = 16  — All stroked elements
+  widgetColor  = #ffffff  — Bumpers, triggers, dpad, sticks, menu, view
+  controllerColor  = #aaaaaa  — Controller body
+  stickTravelColor  = #505050  — Stick travel circles
+  fillA  = #ff1d25  — A button (red)
+  fillB  = #fcee22  — B button (yellow)
+  fillX  = #8cc63f  — X button (green)
+  fillY  = #3ea9f5  — Y button (blue)
 
 ## voxel-galaxy
 voxel-galaxy
@@ -1502,7 +1490,7 @@ voxel-galaxy
   galaxyOptions  = {}  — Passed to the sampler (`spiralArms`, `thickness`, …)
   nx  = 64  — Grid resolution across the disc (x)
   ny  = 64  — Grid resolution across the disc (y)
-  nz  = 60  — Grid resolution through the disc (z). Must resolve the disc's thickness: at 20 a layer (0.03) was as thick as the disc itself, so stars sat in flat slabs with hard edges, read as columns at 1M stars
+  nz  = 60  — Grid resolution through the disc (z). Must resolve the disc's thickness: at 20 a layer (0.03) is as thick as the disc itself, so stars sit in flat slabs with hard edges that read as columns at 1M stars
   halfXY  = 1.05  — Grid half-extent across the disc
   halfZ  = 0.3  — Grid half-extent through the disc — room for a halo
   smoothPasses  = 1  — Blur passes over the sampled histogram (calms sparse voxels)
@@ -1515,10 +1503,10 @@ voxel-galaxy
 weather
 
   wind  = vector SUM  — a lee subtracts, a gust adds
-  temperature  = signed SUM  — a cold cell beside a warm one cancels
+  temperature  = signed SUM  — opposing regions cancel
   coverage  = SUM, clamped 0–2  — a storm thickens the sky, a clear cell thins it; past 1 is THICKNESS (a storm tower), as on the deck's own dial
   precipitation  = MAX  — two storms overlapping do not rain twice as hard
-  storminess  = MAX  — like volcanism: the worst one wins
+  storminess  = MAX  — the worst one wins
 
 ## widgets3d
 widgets3d
@@ -1547,9 +1535,3 @@ xr-frames
   body  = your torso (head x/z + **damped** yaw)  — waist inventory, over-shoulder backpack
   neck  = your neck pivot  — UI you can look *past*
   face  = your eyes (head-locked)  — a reticle, a vignette, sunglasses
-
-## xr-gamepad
-xr-gamepad
-
-  leftBumper  = xr-standard-squeeze` (grip)
-  rightBumper  = xr-standard-squeeze` (grip)

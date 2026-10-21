@@ -1,6 +1,4 @@
-/*#
-# climate-noise
-
+/*
 The broad noise that makes one region of a world wetter or warmer than the
 next, as a function both the ground shader and ordinary code can evaluate and
 get the same answer.
@@ -21,7 +19,6 @@ const wetter = climateNoise(lattice, x * 0.001, z * 0.001) // about -1…1
 The grid is 256 cells a side and wraps, so at one cell a kilometre the pattern
 repeats every 256 km.
 */
-/*{ "parent": "reference", "order": 22 }*/
 
 /** Cells along each side of the lattice. A power of two, so it wraps as a texture. */
 export const CLIMATE_CELLS = 256

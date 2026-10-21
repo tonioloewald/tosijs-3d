@@ -12,6 +12,27 @@ these are this.
 Like the flow it is pure (no DOM, no Babylon), measured in layout units, and
 re-run whenever the container changes size.
 
+## Example
+
+```javascript
+import { ui } from 'tosijs-3d'
+const { anchorLayout } = ui
+
+// A 400 x 300 window: a title bar across the top, a close button in its
+// corner, content filling the rest, and a dialog centred over it all.
+const { boxes } = anchorLayout(
+  [
+    { left: 0, right: 0, top: 0, height: 28 },
+    { right: 4, top: 4, width: 20, height: 20 },
+    { left: 0, right: 0, top: 28, bottom: 0 },
+    { left: '50%', top: '50%', anchor: 'center', width: '60%', height: 120 },
+  ],
+  { width: 400, height: 300 }
+)
+// boxes[0] = { x: 0, y: 0, width: 400, height: 28 }
+// boxes[3] = { x: 80, y: 90, width: 240, height: 120 }
+```
+
 ## The rule, per axis
 
 Horizontally (vertically the same, with `top`, `bottom`, `anchorY` and
@@ -50,27 +71,6 @@ spills evenly both ways. It is never squashed below its minimum.
 - **`within`** is a rectangle inside the container (a window in the art, by
   name, measured by the caller) that the item's pins and fractions are
   measured against instead of the container's edges.
-
-## Example
-
-```javascript
-import { ui } from 'tosijs-3d'
-const { anchorLayout } = ui
-
-// A 400 x 300 window: a title bar across the top, a close button in its
-// corner, content filling the rest, and a dialog centred over it all.
-const { boxes } = anchorLayout(
-  [
-    { left: 0, right: 0, top: 0, height: 28 },
-    { right: 4, top: 4, width: 20, height: 20 },
-    { left: 0, right: 0, top: 28, bottom: 0 },
-    { left: '50%', top: '50%', anchor: 'center', width: '60%', height: 120 },
-  ],
-  { width: 400, height: 300 }
-)
-// boxes[0] = { x: 0, y: 0, width: 400, height: 28 }
-// boxes[3] = { x: 80, y: 90, width: 240, height: 120 }
-```
 */
 /*{ "parent": "box", "order": 11 }*/
 

@@ -1,7 +1,7 @@
 /*#
 # world-store
 
-A pure, Babylon-free, deterministic reference implementation of [[world-contract]].
+A pure, Babylon-free, deterministic reference implementation of [world-contract](/world-contract/).
 
 It is the **systemic spine** of the simulation: it holds the serializable
 `WorldState`, resolves systemic causality (interactions, pickups, damage) in
@@ -18,7 +18,7 @@ is the live object: never write to it, and never hand it to a driver.
 
 ## Demo
 
-The store holds state; a [world-view](?world-view.ts) reconciles one mesh per entity from it every
+The store holds state; a [world-view](/world-view/) reconciles one mesh per entity from it every
 frame — **data flows one way, `store → meshes`**. Here we spawn a few entities and move one in the
 STORE; its cube follows. The render layer can never desync the sim.
 
@@ -64,6 +64,32 @@ Two method groups make the boundary legible in code:
 
 Determinism: ids come from a counter and time advances only via `tick()` — no
 `Date.now`/`Math.random` — so the same inputs always produce the same trace.
+
+## Topology: places, portals and distance words
+
+The store also implements the coordinate-free `MinSimApi` (see
+[world-contract](/world-contract/)). Coordinates never cross to the driver: it sees
+*topology and a qualitative distance ladder*, never `x/y/z`. The store keeps real
+geometry on its own side and turns it into those qualities with three pure
+functions, exported for a driver's own sim to share:
+
+- **`proximityRung(distance, extent)`**: a real distance in, an *adjective* out.
+  The bands **scale with the place's `extent`**: two metres is `contact` in an
+  intimate closet and `same-spot` in a vast plain.
+- **`routePortals(portals, from, to)`**: the cheapest portal path between two
+  places, so "how far to a place" is a **graph fact** (can the errand be done),
+  not vector maths. **Locked** portals are skipped: a locked door is not a route
+  until it opens.
+- **`containmentPath(places, id)`**: the root-to-here breadcrumb up the `parent`
+  chain, for the `SchematicView`'s "where am I".
+
+```javascript
+import { proximityRung, routePortals } from 'tosijs-3d'
+
+proximityRung(1.8, 'small') // 'reach'
+proximityRung(1.8, 'vast') // 'same-spot'
+routePortals(portals, 'study', 'garden') // { portals: ['door-1', 'gate-2'], cost: 45 } or null
+```
 */
 /*{ "parent": "world-sim", "order": 20 }*/
 

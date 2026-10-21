@@ -1,4 +1,4 @@
-/*#
+/*
 # library-mesh
 
 **The shared "instantiate a model from a `<tosi-b3d-library>`" loader.** One
@@ -46,7 +46,6 @@ disposal rather than only on success.
   builds a node owned by nobody — a permanent ghost. Guarded with the caller's
   `loadGeneration`, which `AbstractMesh` bumps on `sceneDispose` (#49).
 */
-/*{ "parent": "b3d-library", "order": 10 }*/
 
 import type * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'

@@ -1,6 +1,4 @@
-/*#
-# light-rays
-
+/*
 The pure half of light shafts (WEATHER-DESIGN stage 4, board #1084): when a
 shaft exists, how bright it is along its length and toward the sun, how it
 widens, and how sunlight bends entering water. No Babylon;
@@ -22,7 +20,6 @@ the SAME model.
   not closed (1+). And the gaps set the width: broad shafts from the ragged
   sky at the threshold, very narrow ones as the cover closes toward 1.
 */
-/*{ "parent": "b3d-light-shafts", "order": 10 }*/
 
 type V3 = { x: number; y: number; z: number }
 

@@ -33,10 +33,9 @@ const scene = b3d(
   b3dSkybox({ timeOfDay: 11 }),
   b3dFog({ start: 200, end: 1200, color: '#bfd9f2' }),
   b3dGround({ meshName: 'ground_nocast', width: 2000, height: 2000, color: '#4a5f3e', y: -40 }),
-  // `waterSize`, NOT width/height: those are not water attributes, and tosijs
-  // silently DISCARDS an unknown prop (tosijs#26), so the sea stayed at its
-  // 128 default beside a 2000-unit ground — "the water quad is so much smaller
-  // than the land quad". `twoSided` because this demo's whole point is
+  // `waterSize`, NOT width/height: those are not water attributes, and an
+  // unknown prop is ignored, so the sea would stay at its 128 default beside a
+  // 2000-unit ground. `twoSided` because this demo's whole point is
   // descending THROUGH the surface and looking back up at it.
   b3dWater({ y: 0, waterSize: 2000, twoSided: true, follow: true }),
   b3dLibrary({ url: '/test-3.glb', type: 'vehicles' }),
@@ -85,9 +84,8 @@ An ambient effect is **garnish**, and garnish plays by one rule:
 
 Forty raindrops is not light rain — it's a rendering bug wearing rain's clothes. So you don't
 set a `count`; you *ask*. Each effect asks for the capacity its look needs and declares a
-`minCount` below which it would be **a lie**, and the scene divides one shared pool
-([ambient-budget](?ambient-budget.ts), sized from the measured device tier) between everyone who
-wants some. Effects thin together while they can all stay honest; the moment someone would drop
+`minCount` below which it would be **a lie**, and the scene divides one shared pool (sized from
+the measured device tier) between everyone who wants some. Effects thin together while they can all stay honest; the moment someone would drop
 under its floor, that one is switched off (lowest `priority` first) and its budget goes to the
 survivors. **Better honest rain and no motes than two half-truths.**
 
@@ -97,12 +95,20 @@ anyway, the scene shrinks the pool and effects drop out on their own. That ratch
 ambient that pops back in the moment the frame recovers, then out again at the next tree, is its
 own broken promise.
 
+The cost of an effect is **modelled**, not measured, from what actually drives particle cost: area
+and blend mode (`fillWeight`). It cannot be measured per effect. Babylon's particle counter covers
+the whole scene, so an effect cannot tell its own rain from an explosion's sparks; and that counter
+is CPU-side while particles are GPU-bound (fill and overdraw). Timing the GPU needs
+`EXT_disjoint_timer_query`, which a Quest browser tends not to offer, so a self-measured budget
+would be least trustworthy on the device that needs it most. The pure allocator is
+`allocateAmbient(requests, pool)`, with `ratchetPool`/`recoverPool` for the one-way shrink.
+
 ## It arrives with the water, not on top of it
 
 `where: 'underwater'` doesn't switch on at the surface — its emission **ramps with depth**
-using the same `band()` the fog uses (see [atmosphere](?atmosphere.ts)). Submerge and the
+using the same `band()` the fog uses (see [b3d-fog](/b3d-fog/)). Submerge and the
 bubbles arrive *as the water does*. Popping a cloud of bubbles into existence at a plane is
-the particle version of the fog "thunk", and we already fixed that once.
+the particle version of a fog "thunk".
 
 ## Presets
 
@@ -113,7 +119,14 @@ the particle version of the fog "thunk", and we already fixed that once.
 | `rain` | Fast, stretched, near-vertical. Add `wind` and it slants |
 | `snow` | Slow, wide, wandering |
 | `dust` | Blown horizontally — the wind made visible |
-| `leaves` | Two-sided quads that **tumble** and blow — real oriented geometry, not a billboard, so they flip edge-on and show their back. `windX`/`windZ` stream them downwind |
+| `leaves` | Two-sided quads that **tumble** and blow — real oriented geometry, not a billboard, so they flip edge-on and show their back. They stream with the wind |
+
+Leaves are the one preset that is **not a sprite**. A billboard always turns its face to you,
+which is right for something round. A leaf's whole read is that it tumbles: it flashes broadside,
+thins to an invisible edge, flips, shows its back. So leaves are real two-sided quads with
+per-particle 3-D rotation (`LeafField`, a Babylon `SolidParticleSystem`). The camera-riding box,
+the budget and the drain are the same as every other preset. Each leaf's sway is a flutter on
+top of the scene's wind, so leaves stream the same way the clouds and the water do.
 
 ## Attributes
 
@@ -127,12 +140,13 @@ the particle version of the fog "thunk", and we already fixed that once.
 | `minTier` | `'low'` | Never run below this device tier, at any budget |
 | `priority` | `0` | Higher survives longer when the pool is squeezed. Shed lowest-first |
 | `radius` | `18` | Size of the box around the camera that particles spawn in |
-| `lookAhead` | `0.35` | Push the spawn box along the VIEW, in units of `radius` — a camera sees a frustum, not a sphere, so a centred box births most of its particles behind you (#18) |
-| `lead` | `0.25` | Push it along MOTION, in seconds of travel — at speed you outrun a centred box, which empties the view ahead exactly when you want it fullest (#17) |
+| `lookAhead` | `0.35` | Push the spawn box along the VIEW, in units of `radius` — a camera sees a frustum, not a sphere, so a centred box births most of its particles behind you |
+| `lead` | `0.25` | Push it along MOTION, in seconds of travel — at speed you outrun a centred box, which empties the view ahead exactly when you want it fullest |
 | `speedCap` | `40` | Speed (m/s) past which `lead` stops growing |
 | `rate` | `0` | Particles/sec (0 = derive from the preset) |
 | `color` | `''` | Override the preset's colour |
 | `size` | `0` | Scale the preset's sprite size |
+| `wind` | `'scene'` | `'scene'` takes the scene's [wind](/wind/) when it has one; `'own'` uses `windX`/`windZ`. `'own'` with zero wind is how you say a place is sheltered: a courtyard that stays still while the scene blows |
 | `windX` | `0` | World wind (rain slants, dust blows) |
 | `windZ` | `0` | |
 | `disabled` | `false` | Stop emitting |

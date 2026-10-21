@@ -5,20 +5,14 @@
 Babylon, no GPU — so the layout and the phase maths can be tested without a
 renderer.
 
-Measured, so the ratio is not a guess. In a scene with a ground and shadows:
-200,000 blocky figures (~144 verts) at 60ms, 20,000 baked omnidudes (1,380
-verts) at 33ms, 200,000 of those at 600ms. The budget has two terms — total
-vertices AND how finely divided they are, since a packed field of sub-pixel
-figures pays overdraw and wasted shading quads on top. Both are what a decimated
-re-bake (the LOD note below) buys back.
+The substrate for things there are MANY of: **flocks of birds, swarms of
+insects, shoals, herds, a field of fauna, a bed of carnivorous plants**, and any
+crowd larger than a handful of actors. A skinned rig gets nasty at about 20 on a
+Quest 3, so everything past that is this ([[b3d-crowd]] has the readings).
 
-The substrate for things there are MANY of — and, now the numbers are in, mostly
-NOT for armies. A whole miniatures battle is ~270 figures against 200,000
-measured at 33ms, so the place this earns its keep is **flocks of birds, swarms
-of insects, shoals, herds, a field of fauna, a bed of carnivorous plants**.
-Tonio: *"we have a fallback to handle things like flocks of birds flying around
-in the background, or swarms of insects etc. It's very nice to have, and we
-should definitely keep the infrastructure we built."*
+The budget has two terms — total vertices AND how finely divided they are, since
+a packed field of sub-pixel figures pays overdraw and wasted shading quads on
+top. Both are what a decimated re-bake (the LOD note below) buys back.
 
 Not a cheaper biped — a different primitive. A skinned `b3d-biped` carries a skeleton, an `AnimationGroup`, a
 collision ellipsoid, a camera rig and two thousand lines of per-instance
@@ -32,12 +26,8 @@ all.
 
 ## It is the MD2 idea, with the frames on the GPU
 
-Tonio: *"another option would actually be doing it with vertex shaders driving
-md2 style mesh deformation… The original game used tiny bitmap animation frames
-and each figure had only two or three states. I'd like to be less crude than
-that but there's a lot of ground between that and a fully articulated biped."*
-
-That ground is this. Quake II shipped vertex keyframes with linear interpolation
+Between tiny bitmap animation frames with two or three states and a fully
+articulated biped there is a lot of ground, and this is it. Quake II shipped vertex keyframes with linear interpolation
 between them in 1997; the only thing that has changed is that the keyframes fit
 in a texture and the interpolation is free.
 
@@ -51,8 +41,8 @@ in a texture and the interpolation is free.
 Frame interpolation is the one that matters for wildlife, and it pays for itself
 twice: with it on you can bake at a LOW frame rate and still look smooth, which
 is the direct answer to the memory arithmetic below. Bake a bird at 30fps with
-interpolation; bake a soldier at 10fps without. Tonio: *"I don't really care if
-my 200 soldiers are a little jerky."* So it is a per-asset choice, and the crowd
+interpolation; bake a soldier at 10fps without, since a little jerkiness in
+two hundred soldiers goes unnoticed. So it is a per-asset choice, and the crowd
 pays nothing for the wildlife's smoothness.
 
 ## The bake is the LOD

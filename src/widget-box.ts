@@ -102,16 +102,13 @@ preview.append(
 
 ## Why an adapter rather than a port
 
-Porting the controls to `box` would mean rewriting `slider3d` and friends **and** the
-94 `slider3d` uses across this library's doc pages — a lot of churn to end up with the
-same widgets. The two protocols were already 90% aligned; the missing 10% was that
-`BoxChild` only had *semantic* activation (`onActivate`), which can't express a drag.
-`BoxChild.handlePointer` (raw, capturing) closes that gap, and this file is the
-translation.
-
-The gap it closes is real: a slider needs `down → move* → up` with **capture**, so the
-drag survives the pointer slipping off the track. `box` now gives a raw child the whole
-gesture and keeps routing to it until `up`.
+Porting the controls to `box` would mean rewriting `slider3d` and friends, and every
+`scenePanel` written against them, to end up with the same widgets. The two protocols
+differ only in activation: a `BoxChild` is activated *semantically*, which cannot
+express a drag, while a slider needs `down → move* → up` with **capture**, so the drag
+survives the pointer slipping off the track. `BoxChild.handlePointer` (raw, capturing)
+covers that: `box` hands a raw child the whole gesture and keeps routing to it until
+`up`, and `widgetBox` is the translation.
 */
 /*{ "parent": "widgets3d", "order": 30 }*/
 

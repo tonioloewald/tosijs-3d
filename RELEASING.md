@@ -90,17 +90,21 @@ not releases. A bare `vX.Y.Z` with none is the thing to catch.
 `CHANGELOG.md` as work lands. At the release, move them into a new page,
 `changelog/v<version>.md` (`# <version>`, then `<!--{ "parent": "CHANGELOG",
 "order": n }-->` with n = 10,000,000 − (major × 1,000,000 + minor × 1,000 +
-patch), so the newest sorts first; a prerelease adds 1), and replace them in `CHANGELOG.md` with the index entry: a `## <version>`
-heading (release-doctor looks for it) and one line, `[<version>](/v<version>/):
-<summary>`. An entry says what changed and what to do; the story goes in the
-commit or the card. The page carries headline Added/Changed/Fixed, and — critically — a **⚠️ Breaking** block for any
-peer-dependency range change (what moved, and what the consumer must do). A
-`^8`-pinned consumer hitting an `ERESOLVE` deserves a note that says why.
+patch), so the newest sorts first; a prerelease adds 1), and in `CHANGELOG.md`
+replace the previous release's `## <version>` block with this one's: the heading
+(release-doctor looks for it) and a line or two saying what it brings, linking
+`/v<version>/`. The list of every version below it is generated from the pages'
+`parent`. An entry says what changed and what to do; the story goes in the
+commit or the card. The page carries headline Added/Changed/Fixed, and —
+critically — a **⚠️ Breaking** block for any peer-dependency range change (what
+moved, and what the consumer must do). A `^8`-pinned consumer hitting an
+`ERESOLVE` deserves a note that says why.
 
 3b. **Map-drift gate** — every new `src/*.ts` this release must be in **both**
-`CLAUDE.md`'s "Key Files" table **and** its category doc toc (`src/docs/*.md`).
-The tocs are easy to remember (they gate the doc build); the CLAUDE.md map is the
-one that silently rots. Quick check:
+`CLAUDE.md`'s "Key Files" table, **and** its doc comment must name a `parent`
+(the category tocs in `src/docs/*.md` are regenerated from the parents on every
+build). The parent is easy to remember; the CLAUDE.md map is the one that
+silently rots. Quick check:
 
 ```sh
 for f in $(git diff --name-only <lasttag>..HEAD -- 'src/*.ts' | grep -v test \

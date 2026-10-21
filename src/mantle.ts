@@ -1,4 +1,4 @@
-/*#
+/*
 # mantle
 
 **Climbing onto a ledge that is too high to step onto.** The pure decision and
@@ -48,7 +48,6 @@ Timing is the one thing here that is a choice rather than a measurement, and it
 is expressed as fractions of the clip so it retimes itself when the animation
 set changes.
 */
-/*{ "parent": "b3d-biped", "order": 10 }*/
 
 export interface Vec3 {
   x: number

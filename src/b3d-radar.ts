@@ -3,8 +3,8 @@
 
 A **radar sensor** you attach to a platform (an aircraft, a turret). It enumerates the
 scene's [radar-blips](?b3d-radar-blip.ts), detects those in **range · profile** and
-inside its **cone**, and acquires **locks** on the nearest *opposed* contacts — all via
-the pure, tested [radar](?radar.ts) model. Nest it in the thing it rides:
+inside its **cone**, and acquires **locks** on the nearest *opposed* contacts, all via
+a pure, tested radar model (see The radar model, below). Nest it in the thing it rides:
 
 ```javascript
 b3dAircraft({ player: true, y: 0 },
@@ -37,8 +37,7 @@ const contacts = [
   { name: 'civil', faction: 'neutral', profile: 1.2, r: 27, speed: 0.5, color: '#9aa5b1' },
 ]
 // Keep the BLIP elements: a track's `id` is the blip element itself, not a
-// name, so the readout matches by identity. (Stringifying it gives
-// "[object HTMLElement]" — which is how I first labelled every row 'alpha'.)
+// name, so the readout matches by identity.
 const blips = contacts.map((c) => b3dRadarBlip({ faction: c.faction, profile: c.profile }))
 const boxes = contacts.map((c, i) =>
   b3dBox({ meshName: c.name, size: 1.2, y: 1, color: c.color, glow: 0.3 }, blips[i]))
@@ -54,7 +53,7 @@ const scene = b3d(
       slider3d({ label: 'range', value: rad.range, min: 15, max: 90, step: 5 }),
     ],
     sceneCreated(el) {
-      orbitCam(el, { radius: 46, beta: Math.PI / 3.2, target: [0, 1, 0] })
+      orbitCam(el, { radius: 46, betaDeg: 56.2, target: [0, 1, 0] })
       let t = 0
       el.scene.registerBeforeRender(() => {
         const dt = el.frameDelta
@@ -96,12 +95,44 @@ one: `maxLocks: 1`, `alignment: 'hostile'` (so it only locks the player).
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `range` | `250` | Nominal range — a `profile 1` blip is detected within this. |
-| `coneDeg` | `90` | Detection cone HALF-angle (deg). `90` = front hemisphere. |
+| `coneDeg` | `90` | Detection cone HALF-angle (deg). `90` = front hemisphere. A lock is held while the contact stays inside it. |
+| `acquireConeDeg` | `60` | Narrower half-angle (deg) a contact must be inside to START a lock. |
+| `acquireRange` | `0.5` | Fraction of `range` a contact must be within to START a lock. Holding uses the full range. |
 | `lockTime` | `1.5` | Seconds of continuous detection to acquire a lock (`0` = instant). |
 | `maxLocks` | `2` | Max simultaneous locks (the nearest opposed contacts). |
 | `alignment` | `'friendly'` | This radar's own faction. It locks only **opposed** blips (friendly⇄hostile); neutrals/waypoints show but never lock. |
 | `updateInterval` | `100` | Radar refresh period (ms). Runs below frame-rate and is dithered across frames so many radars don't all recompute the same frame. |
-#*/
+
+## The radar model
+
+The sensing is a pure, deterministic `Radar` (plain `{x, y, z}`, time only via
+`dt`), so it runs headless. A contact is detected within **range · profile** AND
+inside the **cone** (the dot of the platform's forward with the bearing to the
+contact is at least `coneDot`). Detected, lockable contacts build a lock over
+`lockTime` seconds; up to `maxLocks` of the **nearest** hold locks at once, and
+losing detection decays the lock back down. Step it yourself each tick:
+
+```javascript
+import { Radar, coneDotFromDegrees, isOpposed } from 'tosijs-3d'
+
+const radar = new Radar({
+  range: 200,
+  coneDot: coneDotFromDegrees(90), // hold a lock anywhere ahead
+  acquireConeDot: coneDotFromDegrees(30), // start one only near the nose
+  acquireRangeFraction: 0.5,
+  lockTime: 1.5,
+  maxLocks: 1,
+})
+
+const tracks = radar.update(
+  { x: 0, y: 10, z: 0 }, // where the platform is
+  { x: 0, y: 0, z: 1 }, // its nose, unit length
+  [{ id: 'bandit', pos: { x: 5, y: 12, z: 60 }, profile: 1, lockable: isOpposed('friendly', 'hostile') }],
+  dt
+) // nearest first: { id, pos, distance, detected, lockProgress, locked }
+radar.nearestLock // the missile's target, or null
+```
+*/
 /*{ "parent": "combat", "order": 50 }*/
 
 import * as BABYLON from '@babylonjs/core'

@@ -1,6 +1,6 @@
 # Migration
 
-<!--{ "parent": "reference", "order": 10 }-->
+<!--{ "parent": "upgrading", "order": 10 }-->
 
 What to change when upgrading. Only breaking changes are listed — everything
 else is additive. The full detail for each is in [CHANGELOG.md](https://3d.tosijs.net/CHANGELOG/).

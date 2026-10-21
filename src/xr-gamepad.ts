@@ -1,4 +1,4 @@
-/*#
+/*
 # xr-gamepad
 
 `XrGamepadSource` adapts the live XR controllers (from `gamepad.ts`'s
@@ -28,7 +28,6 @@ import { XrGamepadSource } from 'tosijs-3d'
 // with the other sources by CompositeInputProvider. Wired automatically inside <tosi-b3d-controller>.
 ```
 */
-/*{ "parent": "input-internals", "order": 60 }*/
 
 import type { TosiXRControllerMap } from './gamepad.js'
 import {

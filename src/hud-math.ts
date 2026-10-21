@@ -1,4 +1,4 @@
-/*#
+/*
 # hud-math
 
 Pure, dependency-free math for the aircraft HUD (see `static/aircraft-hud.svg`):
@@ -23,7 +23,6 @@ import { hudTrace, horizonTransform } from 'tosijs-3d'
 // aircraft attitude. See <tosi-b3d-hud> for the live, assembled HUD.
 ```
 */
-/*{ "parent": "b3d-aircraft", "order": 40 }*/
 
 import {
   type Vec3,

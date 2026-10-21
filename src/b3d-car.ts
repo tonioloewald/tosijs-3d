@@ -26,12 +26,11 @@ When `enterable: true` and wrapped in an `inputFocus`, a nearby biped can press 
 to enter the vehicle. Press E again to exit.
 
 ```javascript
-import { b3d, b3dCar, b3dBiped, gameController, inputFocus } from 'tosijs-3d'
+import { b3d, b3dCar, b3dBiped, inputFocus } from 'tosijs-3d'
 
 document.body.append(
   b3d({},
     inputFocus(
-      gameController(),
       b3dBiped({ url: '/character.glb', player: true, cameraType: 'follow' }),
       b3dCar({ url: '/car.glb', enterable: true, x: 5 })
     )

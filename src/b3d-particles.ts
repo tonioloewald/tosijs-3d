@@ -45,7 +45,7 @@ const scene = b3d(
     ],
     sceneCreated(el, BABYLON) {
       const camera = orbitCam(el, {
-        alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 12,
+        alphaDeg: -90, betaDeg: 60, radius: 12,
         target: [0, 1, 0], maxElevationDeg: 70,
       })
       camera.lowerRadiusLimit = 4
@@ -106,7 +106,7 @@ preview.append(scene)
 | `y` | `0` | Emitter Y position |
 | `z` | `0` | Emitter Z position |
 | `capacity` | `500` | Maximum particle count |
-| `emitRate` | `50` | Particles emitted per frame |
+| `emitRate` | `50` | Particles emitted per second |
 | `minLifeTime` | `0.3` | Minimum particle lifetime (seconds) |
 | `maxLifeTime` | `1.5` | Maximum particle lifetime (seconds) |
 | `minSize` | `0.1` | Minimum particle size |

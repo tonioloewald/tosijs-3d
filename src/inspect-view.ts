@@ -5,7 +5,7 @@
 nothing nearer looking bigger.** `inspectView(camera)` turns an
 `ArcRotateCamera` orthographic and holds it to one of six views, the way a
 modelling program's front and side views work. A joint lines up with the
-flesh around it, and a drag no longer orbits, so it is free for whatever the
+flesh around it, and a drag does not orbit, so it is free for whatever the
 page puts under the pointer (the rig tool's handles). Pan and zoom still work:
 shift-drag or two fingers to pan, the wheel or a pinch to zoom.
 

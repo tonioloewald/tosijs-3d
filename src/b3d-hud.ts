@@ -1,14 +1,14 @@
 /*#
 # b3d-hud
 
-A drop-in aircraft HUD: mounts the [hud](?hud.ts) SVG as an **additive, translucent**
-overlay centred over the scene and exposes `setMeter` / `setHorizon` / `setTraces` to
-drive it each frame. The heavy lifting is the pure [hud-math](?hud-math.ts) (radar
-projection + horizon) and the `hud` driver; this component just handles mounting and
-lifecycle. Wire it to a [b3d-aircraft](?b3d-aircraft.ts)'s state + the scene's targets.
+A drop-in aircraft HUD: mounts the HUD SVG as an **additive, translucent** overlay
+centred over the scene and exposes `setMeter` / `setHorizon` / `setTraces` to drive it
+each frame. The work is done by a driver and some pure projection math (both below);
+this component handles mounting and lifecycle. Wire it to a
+[b3d-aircraft](/b3d-aircraft/)'s state and the scene's targets.
 
 **In-scene / cockpit mode.** `attachInScene(parent, opts)` rasterizes the SAME live
-HUD SVG onto a plane in the 3D scene (via [svg-texture](?svg-texture.ts)) — so the HUD
+HUD SVG onto a plane in the 3D scene (via [svg-texture](/svg-texture/)) — so the HUD
 shows in a **3D cockpit and in VR**, where a DOM overlay is invisible. `b3d-aircraft`
 mounts it on the canopy automatically (banks with the airframe, not head-locked) and
 shows it in the cockpit view; `setInSceneVisible(bool)` toggles it.
@@ -96,6 +96,45 @@ tosi-b3d { width: 100%; height: 100%; }
 Both are also CSS custom properties, `--hud-blend` and `--hud-opacity`, for a
 page that would sooner set them in a stylesheet. They style the flat overlay
 only: the in-scene plane (cockpit view, a headset) is drawn by the scene.
+
+## The driver
+
+Underneath is a controller that pushes values onto the SVG, so the same code works
+whether the SVG is a DOM overlay or rasterized onto a texture. `buildFallbackHud()`
+builds the code HUD and its controller; `loadHud(url)` loads a designer SVG and
+returns the same controller (falling back to the code HUD if the asset fails).
+
+```javascript
+import { buildFallbackHud } from 'tosijs-3d'
+
+const hud = buildFallbackHud()
+overlay.append(hud.el) // or feed hud.el to an SvgTexture
+hud.setMeter('speed', 0.6) // 'speed' | 'altitude' | 'health' | 'energy', 0…1
+hud.setHorizon(5, -20) // pitch and roll, degrees
+hud.setWarnings([{ text: 'PULL UP', side: 'bottom' }])
+```
+
+`setTraces` takes points already in the HUD's viewBox; this element projects them,
+because only it knows where the HUD is on screen.
+
+## The projection math
+
+Two pure functions (plain `{x, y, z}` and quaternions, no Babylon) place things on
+the HUD. `hudTrace` is the radar trace: it TRACKS a target while it is in the field
+of view and PINS it to the rim, in its bearing direction, when it is outside the
+view or behind you. `horizonTransform` places the pitch ladder: pitching up slides
+the rungs down by `pxPerDeg` per degree, and the ladder counter-rotates by the roll
+so the horizon reads level.
+
+```javascript
+import { hudTrace, horizonTransform } from 'tosijs-3d'
+
+const viewer = { position: { x: 0, y: 100, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 } } // +Z is the nose
+const t = hudTrace(viewer, { x: 40, y: 100, z: 300 }, { fovH: 1.2, fovV: 0.9, radius: 84, pinRadius: 116 })
+// { x, y, tracked, behind, distance, azimuth, elevation }: HUD units, +y down
+
+horizonTransform(10, 30, 8) // { offsetY: 80, rollDeg: -30 }
+```
 */
 /*{ "parent": "b3d-aircraft", "order": 20 }*/
 

@@ -1,4 +1,4 @@
-/*#
+/*
 # embed-font
 
 **Make a web font survive rasterisation.** Fetch a font file, base64 it, and
@@ -36,7 +36,6 @@ Subsetting to the glyphs actually drawn would cut this hard, and is not done
 here: it needs a shaper, which is a far larger dependency than the feature
 warrants today.
 */
-/*{ "parent": "svg-texture", "order": 10 }*/
 
 /** A resolved face, ready to inline. */
 export interface EmbeddedFont {

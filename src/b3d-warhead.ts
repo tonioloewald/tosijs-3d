@@ -1,16 +1,15 @@
 /*#
 # b3d-warhead
 
-The **explosion** — the scene-side bridge to the pure AOE math in `warhead.ts` (see
-COMBAT-DESIGN.md). On `detonate(center)` it gathers every [b3d-destroyable](?b3d-destroyable.ts)
-in the scene, resolves the blast (full damage inside `fullRadius`, falling linearly to
-1 at `blastRadius`, 0 beyond), **line-of-sight gates** each target with a raycast (a
-wall between the blast and a target spares it), and applies the damage as an **outward
-shockwave**: each target's hit lands on a short delay proportional to its distance, so
-the effect ripples out (near things die first, far last) in step with the expanding
-flash — cheap (amounts + delays computed instantly, only application is staggered), not
-an all-at-once kill. Single-use — a projectile/bomb owns one and fires it on impact;
-here you can also place one and detonate it directly.
+The **explosion**: the scene-side bridge to the pure blast model (below). On
+`detonate(center)` it gathers every [b3d-destroyable](/b3d-destroyable/)
+in the scene, resolves the blast, **line-of-sight gates** each target with a raycast
+(a wall between the blast and a target spares it), and applies the damage as an
+**outward shockwave**: each target's hit lands on a short delay proportional to its
+distance, so the effect ripples out in step with the expanding flash, near things
+first. The amounts and delays are computed at once; only their application is
+staggered. Single-use: a projectile or bomb owns one and fires it on impact, and you
+can also place one and detonate it directly.
 
 ## Demo
 
@@ -56,7 +55,7 @@ const scene = b3d(
       toggle3d({ label: 'line of sight', value: s.los }),
     ],
     sceneCreated(el, BABYLON) {
-      state.cam = orbitCam(el, { alpha: -Math.PI / 2.3, beta: Math.PI / 3, radius: 16, target: [0, 0.5, 0] })
+      state.cam = orbitCam(el, { alphaDeg: -78.3, betaDeg: 60, radius: 16, target: [0, 0.5, 0] })
       // A wall that runs only HALF the width, between the two blocks of cubes.
       // Stopping short is the point: it gives you sheltered and exposed targets
       // at the same range, so one blast demonstrates the rule instead of the
@@ -130,6 +129,32 @@ tosi-b3d { width: 100%; height: 100%; }
 | `blastRadius` | `5` | Falloff from `D` (at `fullRadius`) to 1 here; 0 beyond |
 | `los` | `'on'` | Line-of-sight occlusion (a wall between blast + target spares it) |
 | `x`,`y`,`z` | `0` | Detonation point when `detonate()` is called with no argument |
+| `by` | `''` | Who to credit for what this blast destroys (a combat id). Carried through the whole cascade |
+
+## The blast model
+
+The arithmetic is pure and deterministic. A warhead is either DIRECT (a fixed
+amount to the one thing it hit) or AREA: full damage inside `fullRadius`, falling in
+a straight line to 1 at `blastRadius`, and nothing beyond.
+
+```javascript
+import { resolveAoe, aoeFalloff } from 'tosijs-3d/warhead'
+
+const spec = { damage: 40, fullRadius: 2, blastRadius: 10 }
+aoeFalloff(spec, 6) // 20.5: half way out
+
+const hits = resolveAoe(spec, { x: 0, y: 0, z: 0 }, [
+  { id: 'tank', position: { x: 3, y: 0, z: 0 } },
+  { id: 'hut', position: { x: 30, y: 0, z: 0 } }, // out of range: not listed
+  { id: 'bunker', position: { x: 4, y: 0, z: 0 }, visible: false }, // behind cover
+])
+// [{ id: 'tank', amount: 35.125 }]
+```
+
+`visible: false` is how cover works: the caller decides line of sight and the model
+only does the arithmetic. This element is that caller: it gathers the targets, casts
+the rays and draws the explosion. The amounts land on a
+[destroyable](/b3d-destroyable/).
 */
 /*{ "parent": "combat", "order": 30 }*/
 import * as BABYLON from '@babylonjs/core'

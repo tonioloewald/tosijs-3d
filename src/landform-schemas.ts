@@ -3,8 +3,7 @@
 
 The options of each authored landform (`volcano`, `impactCrater`, `pad`,
 `gulley`, `cover`) as JSON Schema, for a host that builds its editors from
-schemas or keeps landforms in its own documents (asked for by ensemble,
-tosijs-3d#119). No DOM, no Babylon: import `tosijs-3d/landform-schemas`
+schemas or keeps landforms in its own documents. No DOM, no Babylon: import `tosijs-3d/landform-schemas`
 headlessly.
 
 ```javascript

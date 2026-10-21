@@ -45,7 +45,7 @@ match in the list, so an ocean inside an atmosphere inside vacuum resolves the
 way you would say it out loud. Nothing here blends *properties* between media;
 a caller that wants "half in, half out" has `submergence` for exactly that,
 which is the same band-weight the fog compositor already uses (see
-[[atmosphere]]) so a surface crossing looks like one event rather than three
+[[b3d-fog]]) so a surface crossing looks like one event rather than three
 subsystems changing their minds at slightly different depths.
 
 ## Why a band and not a plane

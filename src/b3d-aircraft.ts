@@ -5,7 +5,7 @@ Fly-by-wire VTOL controller — a forgiving "drone that becomes a plane" rather
 than a simulation. The stick commands an ATTITUDE (bank + pitch); the craft eases
 toward it and self-levels when you let go, banking swings the heading (a
 coordinated turn), and the velocity simply chases where the nose points. The
-model is pure and unit-tested in [fly-by-wire](?fly-by-wire.ts).
+model is pure and unit-tested in [fly-by-wire](/fly-by-wire/).
 
 Mesh can come from a `url` (own GLB) or from a `b3d-library` via `library` + `meshName`.
 The full flight model is explained below the demo.
@@ -143,8 +143,8 @@ tosi-b3d { width: 100%; height: 100%; }
 
 ## Combat — radar, locks, guns & missiles
 
-The aircraft carries a [radar](?b3d-radar.ts) (a `<tosi-b3d-radar>` child) that paints
-every [radar-blip](?b3d-radar-blip.ts) in range on the HUD — **red = hostile, tan =
+The aircraft carries a [radar](/b3d-radar/) (a `<tosi-b3d-radar>` child) that paints
+every [radar-blip](/b3d-radar-blip/) in range on the HUD — **red = hostile, tan =
 neutral**, a diamond ahead is a **waypoint** — and builds a **lock** on the nearest
 *hostile* in front of you (up to two). Fly a target into the **gun reticle** (the ring
 ahead of the nose) and hold fire for the straight-ahead cannon; tap **missile** to send a
@@ -209,6 +209,7 @@ turns the pilot's head in the cockpit, springs back on release).
 | `url` | `''` | GLB model URL (direct load — collapsed through the same canonical frame as a library load: author Blender-default, facing −Y, transforms applied) |
 | `library` | `''` | Library type to source mesh from |
 | `meshName` | `''` | Node name to instantiate from library |
+| `player` | `false` | Whether this aircraft receives input (and gets the gun reticle) |
 | `enterable` | `false` | Whether a biped can enter |
 | `maxSpeed` | `50` | Top speed at full lever, **military** thrust (m/s). A released trigger leaves the lever where it was, so speed settles wherever that lever meets drag |
 | `afterburnerSpeed` | `75` | Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner. |
@@ -230,7 +231,6 @@ turns the pilot's head in the cockpit, springs back on release).
 | `gearTime` | `2.5` | Seconds for a full gear cycle |
 | `gearSound` | `''` | Optional URL played spatially at the airframe on each gear transition |
 | `gearVolume` | `0.6` | Volume for `gearSound` |
-| `afterburnerSpeed` (behaviour) | — | Reached only while the trigger is HELD past the detent at full lever; release and you settle back to `maxSpeed` (military) |
 | `hoverCeiling` | `140` | Height above ground above which the trigger is forward thrust regardless of speed (take off vertically, then fly) and the brake can't stall you below `vtolSpeed`. Below it, slowing to a hover gives the vertical trigger back for a vertical landing. 0 = off. |
 | `groundY` | `0` | Assumed ground-plane height (a floor in addition to any terrain colliders) |
 | `submersible` | `false` | Pass THROUGH a water surface instead of treating it as ground. Off by default — a plane hitting the sea should crash |
@@ -246,7 +246,7 @@ turns the pilot's head in the cockpit, springs back on release).
 | `gunRate` | `9` | Cannon shots/sec while `shoot` is held |
 | `gunSpeed` | `130` | Cannon muzzle speed (added to airspeed) |
 | `gunDamage` | `8` | Per-shell damage |
-| `gunMode` | `'direct'` | `'direct'` damages what the shell passes through; `'blast'` is the old AOE |
+| `gunMode` | `'direct'` | `'direct'` damages what the shell passes through; `'blast'` fires a small AOE warhead instead (see Combat, below) |
 | `gunFullRadius` / `gunBlastRadius` | `0.5` / `1.5` | Only for `gunMode="blast"` |
 | `destroyable` | `'off'` | `'on'` gives the aircraft hit points and a death outcome |
 | `capacity` / `armor` / `regenRate` / `regenDelay` | `30` / `0` / `0` / `0.5` | Combat stats |
@@ -254,6 +254,8 @@ turns the pilot's head in the cockpit, springs back on release).
 | `blip` | `'off'` | `'on'` puts it on radar, so a missile can lock it |
 | `blipProfile` / `faction` | `1` / `'neutral'` | Radar detectability and side |
 | `missileSpeed` | `90` | Guided-missile cruise speed (faster than the airframe, so it pulls ahead) |
+| `missileAccel` | `120` | Missile thrust (m/s²) from launch to cruise; it starts with your velocity |
+| `missileBoost` | `0.45` | Seconds of boost: forced forward acceleration while the seeker's authority ramps in |
 | `missileTurnRate` | `3` | Guided-missile agility (rad/sec) |
 | `missileDamage` | `30` | Missile warhead full damage |
 | `bombDamage` | `45` | Bomb warhead full damage |
@@ -261,13 +263,15 @@ turns the pilot's head in the cockpit, springs back on release).
 | `bombFullRadius` / `bombBlastRadius` | `2` / `6` | Bomb blast, likewise |
 | `lockRange` | `140` | Max range to acquire a missile target |
 | `lockConeDeg` | `35` | Half-angle of the forward cone missiles lock within |
+| `reticle` | `'on'` | The gun reticle: a ring on the cannon's bore line you fly the target into (player only) |
+| `reticleRange` | `120` | How far ahead the reticle ring sits (m) |
 
 ## Weapons (the combat slice)
 
-Built on the pure combat toolkit ([destroyable](?b3d-destroyable.ts) /
-[warhead](?b3d-warhead.ts) / [launcher](?b3d-launcher.ts) / [guidance](?guidance.ts)).
+Built on the pure combat toolkit ([destroyable](/b3d-destroyable/) /
+[warhead](/b3d-warhead/) / [launcher](/b3d-launcher/) / [guidance](/guidance/)).
 Shells inherit the airframe's velocity, so your own motion leads the shot. Any
-[b3d-destroyable](?b3d-destroyable.ts) in the scene takes the damage.
+[b3d-destroyable](/b3d-destroyable/) in the scene takes the damage.
 
 | Control (default map) | Weapon |
 | --- | --- |
@@ -300,9 +304,8 @@ aircraft, in the cockpit it turns the pilot's head. Held, it slews; released,
 it returns — so you can glance at what you're about to hit without leaving the
 camera somewhere awkward, and without a second control to re-centre.
 
-It used to be an aux roll axis, which was near-useless: the left stick already
-banks, and bank-to-turn means a second roll input fights it. Looking around is
-what the spare stick is actually for.
+It is not a roll axis: the left stick already banks, and with bank-to-turn a
+second roll input would fight it. Looking around is what the spare stick is for.
 
 ## Landing gear, found by name
 
@@ -314,10 +317,10 @@ Nothing to wire: it's convention over configuration, and a model without such
 animations simply has no gear to work.
 
 The animation is **scrubbed, not played** — a normalised position is advanced
-each frame and pushed with `goToFrame`. Playing the group looked simpler and
-failed: glTF animations arrive with a cyclic loop mode, so a group told to stop
-at the end can snap back to frame 0 (the gear cycles, then vanishes), and
-reversing via `start(from > to)` is unreliable. Scrubbing also means an
+each frame and pushed with `goToFrame`. Playing the group does not work: glTF
+animations arrive with a cyclic loop mode, so a group told to stop at the end can
+snap back to frame 0 (the gear cycles, then vanishes), and reversing via
+`start(from > to)` is unreliable. Scrubbing also means an
 interrupted cycle turns around from wherever it got to, and the SAME animation
 serves both directions — there's no second one to author or keep in sync.
 
@@ -356,39 +359,30 @@ craft.addEventListener('surface-crossed', ({ detail }) => {
 })
 ```
 
-## Combat: three things that used to fail by doing nothing
+## Combat against an aircraft: hurt, locked, hit
 
-Reported together by manta-recon (#23), because they compound — an AI aircraft
-was invulnerable, unlockable and, once you scaled anything, unhittable, all
-silently.
+An enemy aircraft needs all three, and each fails silently without its piece.
 
 **It can be hurt.** `destroyable="on"` attaches the same `DestroyableBehavior`
-`b3d-loader` and `b3d-destroyable` use. That also puts it in the registry every
-blast reads — which was its own bug: a warhead used to find targets by querying
-`tosi-b3d-destroyable`, so a destroyable aircraft or loaded model was invisible
-to every explosion in the scene.
+`b3d-loader` and `b3d-destroyable` use, which also puts it in the registry every
+blast reads.
 
 **It can be locked.** `blip="on"` mounts a `<tosi-b3d-radar-blip>`, and missiles
-lock through the radar — so without one an enemy aircraft cannot be
-missile-locked, which reaches the player as *"missiles don't work"*.
+lock through the radar, so without one an enemy aircraft cannot be missile-locked
+(which reaches the player as *"missiles don't work"*).
 
-**Its gun damages what it passes through.** Guns used to fire an AOE warhead,
-which couples damage to MODEL SCALE: blast damage resolves by distance to a
-destroyable's registered point — one point, at the origin — so scaling a fighter
-4× puts its wing ~4 m out, past a 1.5 m blast. Point-blank fire, zero effect, no
-error.
+**Its gun damages what it passes through.** An AOE warhead couples damage to MODEL
+SCALE: blast damage resolves by distance to a destroyable's registered point (one
+point, at the origin), so scaling a fighter 4× puts its wing ~4 m out, past a
+1.5 m blast. Direct-hit damage has no length scale in it, so `gunMode="direct"`
+(the default) is immune to that. AOE stays right for missiles and bombs;
+`gunMode="blast"` uses it for the gun too, sized by `gunBlastRadius`/`gunFullRadius`.
 
-Direct-hit damage has no length scale in it, so it is immune to that entire
-class of bug. AOE stays right for missiles and bombs, and `gunMode="blast"`
-restores the old behaviour with `gunBlastRadius`/`gunFullRadius` now attributes
-rather than hardcoded.
-
-Two details that carry the fix, both of which cost the reporter a debugging
-cycle: the shell **sweeps the segment it travelled** (at 340 m/s it moves ~5.7 m
-per frame, so a point test tunnels through a wing), and the target is resolved
-by **ancestry** (a library model hangs asynchronously beneath the registered
-root, so the picked mesh is a wing three levels down and a snapshot taken at
-registration time captures an empty root forever).
+Two details make direct hits reliable: the shell **sweeps the segment it
+travelled** (at 340 m/s it moves ~5.7 m per frame, so a point test tunnels through
+a wing), and the target is resolved by **ancestry** (a library model hangs
+asynchronously beneath the registered root, so the picked mesh may be a wing three
+levels down).
 
 */
 /*{ "parent": "characters-and-vehicles", "order": 20 }*/

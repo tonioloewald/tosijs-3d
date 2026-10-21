@@ -46,8 +46,8 @@ box.computeWorldMatrix(true) // or a ray this frame misses it
 ```
 
 Six lines, of which the last two are invisible until something is subtly wrong.
-This is the same shape `b3d-library` grew for content (`lib.make.scout()`), and
-tosijs's `elementCreator` before that: the thing you want, named, taking the
+This is the same shape as `b3d-library`'s `lib.make.scout()` for content, and
+tosijs's `elementCreator`: the thing you want, named, taking the
 options you'd have set anyway.
 
 ## What it does for you
@@ -81,10 +81,9 @@ anything that reads world space this frame — a ray, a bounding check, an
 `absolutePosition` — sees it **at the origin**. It does not throw; it quietly
 answers about a phantom copy somewhere else.
 
-That is not hypothetical: it cost a debugging detour in the collision demo's
-tests. A wall placed at `z=6`, shot at on the first frame, reported an impact at
-`z=0.25` with a confident normal off the wrong face — the ray had started inside
-the phantom at the origin and exited its far side. Plausible, wrong, and silent.
+A wall placed at `z=6` and shot at on its first frame reports an impact near the
+origin with a confident normal off the wrong face: the ray started inside the
+phantom and exited its far side.
 
 Pass `worldMatrix: false` if you are about to reposition the mesh anyway and
 want to skip the work.

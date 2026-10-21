@@ -1,4 +1,4 @@
-/*#
+/*
 # manipulator-view
 
 **The visible half of the manipulator: a universal widget, in the sense
@@ -58,7 +58,6 @@ decision was won against a real complaint. The geometry is unchanged; the API
 is smaller — `gripAt` folds in the two-pass pick the consumer used to write
 itself, and `composeRotation` folds in the euler composition it used to inject.
 */
-/*{ "parent": "b3d-manipulator", "order": 20 }*/
 
 import {
   Color3,

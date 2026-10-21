@@ -43,7 +43,7 @@ const scene = b3d(
       slider3d({ label: 'smart (drop comp)', value: s.smart, min: 0, max: 1, step: 0.05 }),
     ],
     sceneCreated(el, BABYLON) {
-      orbitCam(el, { alpha: -Math.PI / 2.2, beta: Math.PI / 3.2, radius: 34, target: [0, 3, 0] })
+      orbitCam(el, { alphaDeg: -81.8, betaDeg: 56.2, radius: 34, target: [0, 3, 0] })
       let a = 0, target = null, baseY = 4
       const spawn = () => {
         baseY = 3 + Math.random() * 8 // ~3–11m, within the turret's reach
@@ -87,6 +87,8 @@ tosi-b3d { width: 100%; height: 100%; }
 
 | Attribute | Default | Description |
 |-----------|---------|-------------|
+| `meshName` | `'turret'` | Mesh name, and the library model to instantiate when `library` is set |
+| `library` | `''` | Instantiate `meshName` from this `<tosi-b3d-library type>` instead of the built-in pedestal and box. A `_barrel` node on the model is the part that aims; without one it yaws as a unit |
 | `muzzleSpeed` | `35` | Shell launch speed (also the lead-solver's projectile speed) |
 | `fireRate` | `2` | Max shots per second |
 | `range` | `30` | Won't fire beyond this distance |

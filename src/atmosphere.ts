@@ -1,6 +1,4 @@
-/*#
-# atmosphere
-
+/*
 **Fog is never switched on. It is always on, and systems _lean_ on it.**
 
 Underwater, inside a cloud, out in space — each is a *layer* that pulls the fog toward its
@@ -43,7 +41,6 @@ special cases; it's one:
 blending is unit-testable without an engine, which is the point: this is the code that makes
 a transition *feel* right, and feel is worth pinning down.
 */
-/*{ "parent": "b3d-fog", "order": 10 }*/
 
 /** A fog state — all UNIFORMS. The fog MODE is deliberately not here: changing it recompiles
  * every shader, so it's set once and never touched. */

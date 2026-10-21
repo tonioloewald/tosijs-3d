@@ -18,5 +18,4 @@ these are the ones big enough to need their own.
 - [picker](/picker/)
 - [keyboard](/keyboard/)
 - [table](/table/)
-- [Light editor](/light-editor/)
 <!-- /toc -->

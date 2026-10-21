@@ -1,4 +1,4 @@
-/*#
+/*
 # hardware-gamepad
 
 Maps a physical gamepad (via `navigator.getGamepads()`) to a `VirtualGamepad`.
@@ -16,7 +16,6 @@ import { HardwareGamepadSource } from 'tosijs-3d'
 // (sticks, face buttons, triggers), deadzone-filtered. Merged automatically by <tosi-b3d-controller>.
 ```
 */
-/*{ "parent": "input-internals", "order": 50 }*/
 
 import type { VirtualGamepad, GamepadSource } from './virtual-gamepad.js'
 import { emptyGamepad } from './virtual-gamepad.js'

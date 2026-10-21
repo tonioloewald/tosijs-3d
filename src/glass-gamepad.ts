@@ -2,7 +2,7 @@
 # glass-gamepad (b3dGamepad)
 
 A **split** on-screen ("glass") gamepad for touch contexts, as a Component (so
-it's both the overlay element *and* a [[virtual-gamepad]] `GamepadSource`, like
+it's both the overlay element *and* a [virtual-gamepad](/virtual-gamepad/) `GamepadSource`, like
 `gameController`/`keyboardGamepad`). Instead of one controller body, the controls
 are grouped into independently-anchored clusters, each a small SVG pinned to a
 corner of the view:
@@ -30,7 +30,7 @@ const { div, pre } = elements
 
 // fade OFF in the demo: this page is where you LOOK at the pad, and any
 // keypress (a doc search, a scroll with the arrow keys) would fade it out
-// mid-inspection. Pointer movement no longer fades it — see `_watchRealInput`.
+// mid-inspection. Pointer movement never fades it.
 const pad = b3dGamepad({ fade: 'off' })
 const readout = pre({ class: 'readout' })
 let rover, mat
@@ -109,6 +109,9 @@ preview.append(div({ class: 'glass-stage' }, scene, pad, readout))
 | Attribute | Default | Purpose |
 | --- | --- | --- |
 | `controls` | `''` (all) | **Comma**-separated piece list, e.g. `'a,b,right_stick(40,0),menu'`. Empty (the default) shows everything. `a/b/x/y` map to `A/B/X/Y`; `dpad` expands to the four directions; `name(dx,dy)` nudges one piece |
+| `scale` | `1` | Size multiplier for every cluster |
+| `deadzone` | `0.15` | Stick travel (fraction of the radius) ignored at the centre |
+| `maxZone` | `0.85` | Stick travel that counts as full deflection, so you need not reach the rim |
 | `fade` | `'on'` | Hide the pad once a real input device is in use. `'off'` pins it visible — what you want on a page where the pad itself is the subject |
 | `idleSeconds` | `10` | Seconds of silence before a faded pad comes back |
 | `fadedOpacity` | `0` | How faded is faded. `0` is invisible; a low value like `0.15` leaves a hint that the fallback exists |
@@ -119,9 +122,8 @@ Only a **keypress** or a **physical gamepad** fades the pad. The pointer never
 does — not touch, not mouse, not trackpad.
 
 That is a deliberate asymmetry rather than an oversight. The pad is *operable by
-pointer*: `pointerdown` drives the sticks. So fading on pointer movement meant it
-vanished exactly as you reached for it — you moved the mouse to click a stick and
-your target disappeared. A keypress is the honest signal, because it is the one
+pointer*: `pointerdown` drives the sticks. Fading on pointer movement would make it
+vanish exactly as you reached for it. A keypress is the honest signal, because it is the one
 that actually implies an on-screen fallback isn't needed.
 
 If the pad is disappearing on you during development, `fade="off"` (or

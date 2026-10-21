@@ -4,10 +4,10 @@
 Drives an SVG UI's **focus traversal** from a [[virtual-gamepad|VirtualGamepad]] — the
 missing wire between "the D-pad registers" and "the D-pad moves the highlight".
 
-Everything either side of it already existed: `box`/`surface` expose
-`focusMove` / `focusActivate` / `focusBack`, and `HardwareGamepadSource` /
-`XrGamepadSource` produce a `VirtualGamepad` each frame. Nothing polled one and called
-the other, so a gamepad could light up the on-screen pad and still not touch the UI.
+`box`/`surface` expose `focusMove` / `focusActivate` / `focusBack`, and
+`HardwareGamepadSource` / `XrGamepadSource` produce a `VirtualGamepad` each frame. This
+polls one and calls the other, so a gamepad moves the UI's focus and not only the
+on-screen pad.
 
 ```javascript
 import { HardwareGamepadSource, ui } from 'tosijs-3d'
@@ -29,8 +29,8 @@ wiring — the same last-touched rule `B3d` uses for scene input focus.
 
 ## Which controls, and why those
 
-The **D-pad** and the **menu** button, deliberately: per the control conventions those
-are the inputs a VR controller set doesn't otherwise spend, so a UI can claim them
+The **D-pad** and the **menu** button, deliberately: those are the inputs a VR
+controller set doesn't otherwise spend, so a UI can claim them
 without fighting locomotion or the gameplay bindings. The left stick is **not** used —
 it's how you walk.
 

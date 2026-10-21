@@ -3,8 +3,8 @@
 
 **The colour model behind [[color-field|color3d]] — parsing, conversion and
 canonical formatting.** Pure: no DOM, no Babylon, so a consumer can validate a
-document's colours in a headless runner. Same split as
-[[light-settings]]/[[light-editor]] and [[curve]]/[[curve-field]].
+document's colours in a headless runner. Same split as a lamp's settings and
+editor in [[b3d-lamp]], and the curve model behind [[curve-field]].
 
 ## Why HSV and not HSL
 

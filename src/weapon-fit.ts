@@ -56,8 +56,8 @@ const snippet = () =>
   `  rx: ${n(fit.rx)}, ry: ${n(fit.ry)}, rz: ${n(fit.rz)},\n` +
   `  modelScale: ${n(fit.scale)},\n})`
 
-// DRAG IT, do not type it. Tonio: "fine tuning the gun's position by typing is
-// horrible :)" — quite. The manipulator targets the LAUNCHER ELEMENT rather than
+// DRAG IT, do not type it: fine-tuning a position by typing numbers is
+// miserable. The manipulator targets the LAUNCHER ELEMENT rather than
 // its mesh, which matters: an element owns its transform and `render()` rewrites
 // the mesh from `x/y/z`/`rx/ry/rz` every frame, so a gizmo that moved the mesh
 // directly would be undone before you let go. `b3d-manipulator` already knows
@@ -72,8 +72,8 @@ const gizmo = b3dManipulator({
   // The transform the gizmo hands you is in WORLD space and names its angles
   // `rx/ry/rz`, not `x/y/z`. Taking position from it put world coordinates in a
   // snippet whose numbers are meant to be local, and taking rotation from the
-  // wrong keys produced `rx: NaN, ry: NaN, rz: NaN` — which Tonio pasted back,
-  // because the position half looked plausible enough to trust.
+  // wrong keys gives `rx: NaN, ry: NaN, rz: NaN` next to a position plausible
+  // enough to trust.
   //
   // The element has already been written by the time this fires, and it holds
   // exactly the numbers the snippet needs. Ask it.
@@ -123,15 +123,14 @@ const scene = b3d(
       scenePanel: panel,
       sceneCreated(el) {
         // In FRONT of him, close: placement errors are invisible over the shoulder.
-        orbitCam(el, { alpha: -Math.PI / 2 + 0.7, beta: 1.3, radius: 1.6, target: [0, 1.3, 0] })
-        // WAIT FOR THE CLIPS, do not guess a delay. A fixed timeout fired
-        // before the rig finished loading, `setAnimationState` had already
-        // settled on `idle`, and nothing re-evaluated it — so the character
-        // stood there holding a pistol in his walking pose. Tonio: "and he
-        // lost his pose somehow."
+        orbitCam(el, { alphaDeg: -49.9, betaDeg: 74.5, radius: 1.6, target: [0, 1.3, 0] })
+        // WAIT FOR THE CLIPS, do not guess a delay. A fixed timeout can fire
+        // before the rig finishes loading, after `setAnimationState` has
+        // settled on `idle`, and nothing re-evaluates it, so the character
+        // holds a pistol in his walking pose.
         //
-        // (Line comments. A block comment inside a fence closes the enclosing
-        // /*# doc comment — the fourth time this repo has learned that.)
+        // (Line comments: a block comment inside a fence would close the
+        // enclosing doc comment.)
         const ready = setInterval(() => {
           const groups = hero.entries && hero.entries.animationGroups
           if (!groups || !groups.some((g) => /Pistol_Idle_Loop/.test(g.name))) return
@@ -168,8 +167,8 @@ It does not, and the reason is which frame the correction is actually against.
 The weapon hangs on the hand, and the hand's orientation is the whole arm chain
 composed — shoulder, elbow, wrist, each with its own bind rotation and its own
 pose on top. None of those are round, so their product is not either. The clean
-candidates were tried: `-90, 0, 180` aligns the barrel and the sights to the
-hand's own axes by dot product, and puts the pistol through the wrist on screen.
+candidate, `-90, 0, 180`, aligns the barrel and the sights to the hand's own axes
+by dot product, and puts the pistol through the wrist on screen.
 
 Which is an argument for `_grip` rather than a quirk to live with. A `_grip`
 node is authored IN THE WEAPON, so the offset it declares is measured in the
@@ -177,16 +176,11 @@ weapon's own frame — and the correction collapses to identity no matter what t
 arm is doing. The round numbers are available; they are just not available from
 this end.
 
-## Why this exists
+## Why a tool
 
-Placement is six numbers per weapon per rig, and until now they were found by
-eye in a browser console, one weapon at a time. Tonio, after a pistol turned out
-to be pointing at the sky: *"we could use a tool for fine-tuning the placement
-of weapons in a given biped's hands"* — and, decisively, *"I imagine weapon
-placement will need to be tweaked for different meshes."*
-
-That last part is what makes it a tool rather than a constant. There is no
-single correct offset: it depends on the weapon's own origin (Kenney authors
+Placement is six numbers per weapon per rig, and it needs tuning for every mesh,
+which is what makes it a tool rather than a constant. There is no single correct
+offset: it depends on the weapon's own origin (Kenney authors
 props bottom-centre, not by the grip), on the rig's hand frame (this one has +Y
 forward and +Z up, so a barrel-along-+Z weapon needs a quarter turn), and on the
 stance the character holds it in.
@@ -194,18 +188,17 @@ stance the character holds it in.
 ## The camera is close on purpose
 
 It opens two and a half metres from the character's hands, because that is the
-distance at which placement errors are visible and the distance at which nobody
-was looking. A weapon that reads fine over the shoulder can be through the wrist
-close up — which is exactly how the sky-pointing pistol survived: invisible in
-third person, unmissable down the sights.
+distance at which placement errors are visible. A weapon that reads fine over
+the shoulder can be through the wrist close up, or pointing at the sky: invisible
+in third person, unmissable down the sights.
 
 ## What to do with the numbers
 
-`copy snippet` gives you a `b3dLauncher` call with the offsets baked in. That is
-the honest short-term answer and not the end state: the offsets belong in the
-MODEL, as a `_grip` node carrying position and orientation, so one asset is
-right for every consumer instead of every consumer discovering it again. Until
-the assets carry one, this is where the numbers come from.
+`copy snippet` gives you a `b3dLauncher` call with the offsets baked in. Better
+still, the offsets belong in the MODEL, as a `_grip` node carrying position and
+orientation, so one asset is right for every consumer instead of every consumer
+discovering it again. For assets without one, this is where the numbers come
+from.
 */
 /*{ "parent": "demos", "order": 30 }*/
 

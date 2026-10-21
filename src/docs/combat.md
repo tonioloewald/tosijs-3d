@@ -3,8 +3,8 @@
 <!--{"order": 100}-->
 
 Damage, destruction, and weapons. Each element here is a thin scene-side
-bridge over a pure, deterministic model (the pages beneath it), so the same
-battle replays the same way and the bomb sight shows the arc the bomb takes.
+bridge over a pure, deterministic model (each page describes its own), so the
+same battle replays the same way and the bomb sight shows the arc the bomb takes.
 
 Make something [destroyable](/b3d-destroyable/), point a
 [launcher](/b3d-launcher/) or a [turret](/b3d-turret/) at it, and give the

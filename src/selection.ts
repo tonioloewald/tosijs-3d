@@ -3,27 +3,8 @@
 
 The **selection-state glyph**: `circle` / `checkCircle` for single-select (radio),
 `square` / `checkSquare` for multi-select (checkbox). Used by lists and
-[[table-layout|tables]], and by anything else that needs to show *chosen* separately
+[[table|tables]], and by anything else that needs to show *chosen* separately
 from *hovered*.
-
-## Why an icon rather than a highlight
-
-Hover, focus, pressed and disabled all naturally want the same encoding — **intensity**
-(contrast, opacity, brightness). Piling selection onto that axis means tuning five
-states against each other, and the result is fragile: subtly different greys that read
-as "slightly off" rather than as distinct states, and that stop being distinguishable
-the moment a theme, a background or a viewing angle changes.
-
-An icon is a **different channel**, so it's orthogonal — a row can be hovered *and*
-selected *and* focused at once and all three still read, with nothing finessed against
-anything else.
-
-That matters more here than in a flat DOM UI, because these surfaces are also
-rasterized onto a **3D texture** and viewed through headset optics: at texture
-resolution, off-axis, small intensity differences are the first thing to vanish. A
-glyph has *shape*, not just value, so it survives.
-
-See UI-DESIGN-NOTES.md → "Show selection with an icon, not with intensity".
 
 ## Demo
 
@@ -109,6 +90,23 @@ Deliberately **name-only, no drawing**: emitting a glyph here would mean importi
 icon layer, which imports tosijs, which needs a DOM — and then this module could no
 longer be unit-tested without one. The names are the part worth pinning; the caller
 already has an icon helper.
+
+## Why an icon rather than a highlight
+
+Hover, focus, pressed and disabled all naturally want the same encoding — **intensity**
+(contrast, opacity, brightness). Piling selection onto that axis means tuning five
+states against each other, and the result is fragile: subtly different greys that read
+as "slightly off" rather than as distinct states, and that stop being distinguishable
+the moment a theme, a background or a viewing angle changes.
+
+An icon is a **different channel**, so it's orthogonal — a row can be hovered *and*
+selected *and* focused at once and all three still read, with nothing finessed against
+anything else.
+
+That matters more here than in a flat DOM UI, because these surfaces are also
+rasterized onto a **3D texture** and viewed through headset optics: at texture
+resolution, off-axis, small intensity differences are the first thing to vanish. A
+glyph has *shape*, not just value, so it survives.
 */
 /*{ "parent": "table", "order": 20 }*/
 

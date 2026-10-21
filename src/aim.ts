@@ -5,8 +5,8 @@
 degrees and plain `{x, y, z}`, no Babylon — so the whole of walk-and-aim can be
 tested without a rig.
 
-This is the input half of layered animation. [[bone-mask]] decides *which bones*
-the aim drives and [[animation-layers]] plays it; something still has to decide
+This is the input half of layered animation. A bone mask decides *which bones*
+the aim drives and [animation-layers](/animation-layers/) plays it; something still has to decide
 *where the upper body is pointing*, and that is this. It serves the player's
 look and an NPC's lead with the same code, which is the point: an NPC that aims
 through the same slew limit as a player is one whose misses are legible.
@@ -67,7 +67,7 @@ preview.append(
         // Target offset so the rig sits RIGHT of centre: the settings panel
         // covers the left half, and a demo hidden behind its own controls is a
         // demo nobody looks at.
-        orbitCam(el, { alpha: 1.1, beta: 0.72, radius: 12, target: [5, 0.9, 0] })
+        orbitCam(el, { alphaDeg: 63, betaDeg: 41.3, radius: 12, target: [5, 0.9, 0] })
 
         // The body: a post, with a long white marker for its facing.
         const body = el.make.cylinder({ diameter: 0.8, height: 1.4, color: '#8899aa' })
@@ -157,16 +157,14 @@ spine will do. Between them the body turns to catch up at a rate you choose;
 beyond `yawMax` it is *dragged*, because the alternative is a character whose
 head is on backwards.
 
-`MOBILITY-DESIGN.md` predicted this shape from the other direction: cover should
-"expect hysteresis and budget for it from the start", after `isSwimming`
-flickered at its threshold. Here the band is not a fix for flicker, it is the
-behaviour — but it is the same structure, and for the same reason. One
+Here the band is not a fix for flicker, it is the behaviour, but it is the same
+structure as the hysteresis in swimming and cover, and for the same reason. One
 threshold would make a character snap round the instant you nudged the stick.
 
 ## Positive is RIGHT, and positive is DOWN
 
 Yaw increases clockwise seen from above (matching `atan2(x, z)` and the biped's
-own turn), pitch is positive nose-down (matching [[swim-aim]] and
+own turn), pitch is positive nose-down (matching the biped's swim aim and
 `RotationYawPitchRoll`). Both conventions are already load-bearing elsewhere in
 this repo, and every orientation bug here has come from a conversion at a
 boundary — so there is no conversion at this boundary.
@@ -446,7 +444,7 @@ export function aimPoseWeights(
  * does not.
  *
  * Multiply it into the mask's weights, which is why this returns a scalar and
- * not a mask: [[bone-mask]] owns WHICH bones, this owns HOW MUCH.
+ * not a mask: the bone mask owns WHICH bones, this owns HOW MUCH.
  */
 export function aimAuthority(
   aim: Aim,

@@ -52,17 +52,34 @@ Call `tex.dispose()` when done to stop the interval and release GPU memory.
 A face the *document* has loaded is not available here. The SVG is serialised
 to a standalone `Image`, which the browser treats as its own document: it does
 not inherit the page's font faces any more than it inherits the page's CSS
-custom properties (the reason `w3d-theme` bakes literals in the first place).
-
-Confirmed by looking rather than reasoning — the theme demo shows the same
-panel flat and as a texture, and selecting Rosario changes the DOM panel and
-leaves the textured one on its fallback.
+custom properties (the reason [w3d-theme](?w3d-theme.ts) bakes literals). The
+symptom is an in-scene panel in the fallback family while the same flat panel
+renders correctly.
 
 So a `fontFamily` in a theme reaches an in-scene panel only if the family is
-installed on the device, unless you embed it: [`registerSvgFont`](?embed-font.ts)
-inlines a web font as a data-URI `@font-face` that travels inside the
-serialised SVG. The shipped font list is generic families plus faces that ship
-with macOS and Windows, which work in both presentations without it.
+installed on the device, or you embed it with `registerSvgFont` (below). The
+shipped font list is generic families plus faces that ship with macOS and
+Windows, which work in both presentations without it.
+
+## Embedding a web font
+
+`registerSvgFont(family, url, { weight, style })` fetches a font file, base64s
+it, and keeps an `@font-face` rule that travels *inside* every serialised SVG
+that mentions the family. Await it before the panels draw: one rasterised
+before the bytes arrive renders the fallback.
+
+```javascript
+await registerSvgFont('Rosario', '/fonts/rosario.woff2')
+setW3dTheme({ fontFamily: 'Rosario, serif' })
+```
+
+The bytes are inlined rather than referenced by `url()` because the serialised
+document has no base URL to follow one from. That makes the SVG self-contained,
+and it has a cost: a woff2 is typically 20–100 KB and base64 adds a third, so
+register a family once (`fontFaceCss` caches per URL), and only the faces a
+panel's markup mentions are injected into it. Pass `weight` and `style` for a
+bold or italic file, or the browser synthesises a bold from the bold and you get
+double emboldening. `unregisterSvgFont(family)` forgets one.
 */
 /*{ "parent": "ui-in-scene", "order": 30 }*/
 

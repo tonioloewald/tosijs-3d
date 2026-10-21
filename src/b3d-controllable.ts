@@ -10,8 +10,8 @@ The base class handles the update loop: poll input → apply input.
 ## Example
 
 The base class is abstract — you subclass it. A minimal one that yaws to the throttle
-(real subclasses — [b3d-biped](?b3d-biped.ts), [b3d-car](?b3d-car.ts),
-[b3d-aircraft](?b3d-aircraft.ts) — put a full movement model here):
+(real subclasses — [b3d-biped](/b3d-biped/), [b3d-car](/b3d-car/),
+[b3d-aircraft](/b3d-aircraft/) — put a full movement model here):
 
 ```javascript
 import { B3dControllable } from 'tosijs-3d'

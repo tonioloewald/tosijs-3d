@@ -3,13 +3,12 @@
 
 **`curve3d` — an editor for a continuous `[0,1] → [0,1]`.** A `Widget3d`, so it
 works as a flat DOM overlay, on an in-scene panel, and in a headset without
-changing. The rules live in [[curve|curve.ts]]; this draws them and routes the
-pointer.
+changing. It draws the curve model (see "The model", below) and routes
+the pointer.
 
 Its reason for existing is terrain **provinces**: a province is a footprint plus
 one curve per layer, so this is how you author a plateau, a crater rim or a
-treeline without writing code. See `PROVINCE-DESIGN.md` → "every one of those
-responses IS a curve", and the [[b3d-terrain|province editor]] demo below.
+treeline without writing code. See the [[b3d-terrain|province editor]] demo below.
 
 ## Demo — a province editor
 
@@ -26,8 +25,6 @@ const { div } = elements
 const SIZE = 24   // metres across
 const SUBS = 110  // grid resolution
 // `height` scales the whole BLOCK, not the province inside it — see `rebuild`.
-// 4.5 over a 24 m tile: the field now spans the whole block, so the old 9 (tuned
-// when the base was squeezed into a third of the range) came out as alps.
 const state = { height: 4.5, extent: 0.7, noise: 1 }
 
 // A province is a footprint plus one curve per layer. SHAPE says what height it
@@ -71,21 +68,13 @@ const fbm = (x, z) => {
   }
   return sum / norm   // roughly [-1, 1]
 }
-// The FULL [0,1], because that is the shape curve's DOMAIN.
+// The FULL [0,1], because that is the shape curve's DOMAIN. If the terrain only
+// spanned part of it, a threshold drawn outside that part would never be
+// reached, and the curve would look wrong when it was right.
 //
-// This was banded to 0.12 … 0.5 for legibility, which quietly broke the remap:
-// the editor offers you the whole domain while the terrain only ever asks about
-// the bottom third, so a threshold drawn at 0.5 answered 0 for every sample and
-// the province went flat. Tonio: "[0,0]-[0.5,0][0.5,1]-[1,1] does NOT work as
-// expected" — the curve was right and could not be reached.
-//
-// A control whose input range does not match its data is worse than a coarse
-// one, because it fails silently and looks like the model being wrong.
-// …and normalised against its OWN measured range, not against fBm's theoretical
-// one. Four octaves of Perlin almost never reach +/-1, so `fbm * 0.5 + 0.5`
-// spans about 0.28 to 0.62 — the same domain mismatch, just smaller and harder
-// to notice. Measuring the field costs one extra pass over a grid we are
-// building anyway.
+// Normalised against its OWN measured range, not fBm's theoretical one: four
+// octaves of Perlin almost never reach +/-1. Measuring the field costs one
+// extra pass over a grid we are building anyway.
 const base = (x, z) => fbm(x, z)
 const normalise = (raw, lo, hi) => (hi - lo < 1e-6 ? 0.5 : (raw - lo) / (hi - lo))
 
@@ -116,10 +105,8 @@ const rebuild = () => {
     const r = Math.min(1, Math.hypot(x, z) / (reach * spread))
     const w = falloff.evaluate(r)
     // THE HEIGHT SAMPLE goes through the shape curve — a levels adjustment, not
-    // a function of distance. Tonio: "shape isn't working properly. It's being
-    // treated as an output constant NOT as a map from height field to terrain
-    // height." It was `shape.evaluate(r)`, which made a profile into a second
-    // radial curve and quietly threw away the terrain underneath it.
+    // a function of distance. Evaluating it at `r` would make a profile into a
+    // second radial curve and throw away the terrain underneath it.
     //
     // The falloff still works on DISTANCE — that is the split: what the province
     // does to a sample, versus how far its say extends.
@@ -147,7 +134,7 @@ const scene = b3d(
     // terrain you can walk around and cannot edit.
     scenePanel: () => buildRows(false),
     sceneCreated(el) {
-      orbitCam(el, { radius: 32, beta: 1.02, alpha: -1.15, target: [0, 1.5, 0] })
+      orbitCam(el, { radius: 32, betaDeg: 58, alphaDeg: -66, target: [0, 1.5, 0] })
       ground = el.make.ground({
         width: SIZE,
         height: SIZE,
@@ -253,11 +240,9 @@ attack / sustain / decay by two markers. Those boundaries belong to the **lamp**
 not to any one channel, so both curves below are given the SAME `curveMarkers()`
 object: drag a marker in either and both move.
 
-Tonio: _"the attack and decay should be shared by the various curves or it just
-becomes nutty."_ It is not only tidier — per-curve markers would let brightness
-and hue disagree about where the attack ends, which is not a state the model can
-represent, so the editor would be able to author something the runtime cannot
-run.
+It is not only tidier. Per-curve markers would let brightness and hue disagree
+about where the attack ends, which is not a state the model can represent, so
+the editor would be able to author something the runtime cannot run.
 
 ```js
 import { curve3d, curveMarkers, panel3d, label3d } from 'tosijs-3d'
@@ -307,6 +292,29 @@ preview.append(
   height: 100%;
 }
 ```
+
+## The model
+
+The rules are pure (no Babylon, no DOM) and exported: a continuous function from
+`[0,1]` to itself, as sorted control points, with the editing rules that keep it
+valid.
+
+- **The range is CLOSED.** A curve cannot return 1.4. A profile that could
+  exceed its range would silently change the height a province occupies, which
+  is exactly what [[carve]]/[[patch-field]] must agree about: a bore cut
+  against a heightfield that has since grown is a hole in the wrong place. So
+  **amplitude belongs to the block and shape belongs to the curve**, and a drag
+  clamps rather than pushing the range.
+- **Two kinds.** A `profile` remaps a value; both endpoints are free. A
+  `falloff` is weight against normalised distance (`0` at the province centre,
+  `1` at its extent) and is **pinned to 0 at x = 1**, because a province still
+  carrying weight at its boundary leaves a visible step at the footprint edge.
+- **NOT monotonic.** A crater rim and a volcano's cone rise, then fall. Pin the
+  edge; leave the middle alone.
+- **A drag can reorder.** Dragging a point past its neighbour is a legitimate
+  edit, so `movePoint` returns the point's **new index** with the points. A
+  caller that assumes the index survived starts dragging a different point
+  mid-gesture.
 */
 /*{ "parent": "ui-controls", "order": 30 }*/
 

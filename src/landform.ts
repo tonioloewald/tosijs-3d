@@ -19,12 +19,10 @@ terrain.provinceField = vesuvius.province
 terrain.regenerate()
 ```
 
-> Shown, not run — it needs a `terrain` from the surrounding scene. The doc
-> system executes ```` ```js ````, ```` ```ts ```` and ```` ```tjs ```` fences as
-> LIVE examples, so an illustrative fragment in one of those renders as a broken
-> demo. ```` ```javascript ```` is the fence for "read this, don't run it".
-> A working landform is on the [[sdf-lattice]] page, where `volcano` builds the
-> cone you can cut open.
+> Shown, not run: it needs a `terrain` from the surrounding scene. Working
+> volcanoes are in [biome-chart](/biome-chart/)'s demo (a glowing cone at the
+> shore) and on the [[sdf-lattice]] page, where `volcano` builds the cone you
+> can cut open.
 
 And a runtime explosion is the same move with the other factory — stamp an
 `impactCrater` at the hit point, compose it in, `regenerate()`: a glowing
@@ -46,13 +44,11 @@ extentOf(vesuvius.province)                     // {minX, minZ, maxX, maxZ}
 touchesExtent(vesuvius.province, x0, z0, x1, z1) // does it reach this tile?
 ```
 
-It exists because a bare `(x, z) => number` cannot be asked that. The footprint
-was always known — `volcano({radius})` early-returns past its radius — and it
-was closed over and discarded, so terrain sampled every province at every vertex
-of every tile in the world. `b3d-terrain` now skips a province that cannot reach
-the tile it is building, which is exactly equivalent (the alpha lane is already
-`1` = none, and the field returns `0` out there) and is the same test a per-tile
-decision like an ice underside needs.
+A bare `(x, z) => number` cannot be asked that, and without it terrain would
+sample every province at every vertex of every tile in the world. `b3d-terrain`
+skips a province that cannot reach the tile it is building, which is exactly
+equivalent (the field returns `0` out there), and the same test serves any
+per-tile decision.
 
 **The landform and the province carry SEPARATE extents**, because they genuinely
 differ: a volcano's glow tail dies at `craterRadius + radius * 0.4` — inside the
@@ -63,8 +59,7 @@ in one direction or the other every time.
 ⚠️ **An extent is a promise, and a wrong one is invisible.** Callers may skip the
 field entirely outside it, so an extent that is too SMALL clips the thing it
 describes with no error; too large only costs work. A hand-written closure that
-declares none is treated as unbounded and behaves exactly as it always did — and
-one unbounded member makes a whole `mergeProvinces`/`composeLandforms`
+declares none is treated as unbounded, and one unbounded member makes a whole `mergeProvinces`/`composeLandforms`
 unbounded, because a box around only the members that declared one is a promise
 nobody made.
 */

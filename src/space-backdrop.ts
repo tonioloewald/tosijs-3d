@@ -15,8 +15,8 @@ preview.append(b3d({}, ...spaceBackdrop(), b3dPlanet({ world: 'mars' })))
 
 **Why the tilt matters.** The galaxy's disc is baked level in the sky's own
 frame. Untilted, its band lies along the scene's horizontal plane, which is a
-planet's equator and its ring's plane, so the Milky Way ran exactly along
-Saturn's rings: tidy, and obviously staged. The default is the tilt the sky
+planet's equator and its ring's plane, so the Milky Way would run exactly
+along Saturn's rings: tidy, and obviously staged. The default is the tilt the sky
 was framed for (`SHIPPED_SKY.tilt`), the one the rest of the library uses.
 
 **Which sky.** By default the versioned sky on `3d.tosijs.net`, which is

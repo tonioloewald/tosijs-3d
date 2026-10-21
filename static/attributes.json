@@ -106,7 +106,9 @@
         "description": "Node name to instantiate from library"
       },
       {
-        "name": "player"
+        "name": "player",
+        "default": "false",
+        "description": "Whether this aircraft receives input (and gets the gun reticle)"
       },
       {
         "name": "enterable",
@@ -294,7 +296,7 @@
       {
         "name": "gunMode",
         "default": "'direct'",
-        "description": "`'direct'` damages what the shell passes through; `'blast'` is the old AOE"
+        "description": "`'direct'` damages what the shell passes through; `'blast'` fires a small AOE warhead instead (see Combat, below)"
       },
       {
         "name": "gunFullRadius",
@@ -358,14 +360,18 @@
       },
       {
         "name": "missileSpeed",
-        "default": "55",
-        "description": "Guided-missile cruise speed"
+        "default": "90",
+        "description": "Guided-missile cruise speed (faster than the airframe, so it pulls ahead)"
       },
       {
-        "name": "missileAccel"
+        "name": "missileAccel",
+        "default": "120",
+        "description": "Missile thrust (m/s²) from launch to cruise; it starts with your velocity"
       },
       {
-        "name": "missileBoost"
+        "name": "missileBoost",
+        "default": "0.45",
+        "description": "Seconds of boost: forced forward acceleration while the seeker's authority ramps in"
       },
       {
         "name": "missileTurnRate",
@@ -413,10 +419,14 @@
         "description": "Half-angle of the forward cone missiles lock within"
       },
       {
-        "name": "reticle"
+        "name": "reticle",
+        "default": "'on'",
+        "description": "The gun reticle: a ring on the cannon's bore line you fly the target into (player only)"
       },
       {
-        "name": "reticleRange"
+        "name": "reticleRange",
+        "default": "120",
+        "description": "How far ahead the reticle ring sits (m)"
       }
     ]
   },
@@ -463,12 +473,12 @@
       {
         "name": "lookAhead",
         "default": "0.35",
-        "description": "Push the spawn box along the VIEW, in units of `radius` — a camera sees a frustum, not a sphere, so a centred box births most of its particles behind you (#18)"
+        "description": "Push the spawn box along the VIEW, in units of `radius` — a camera sees a frustum, not a sphere, so a centred box births most of its particles behind you"
       },
       {
         "name": "lead",
         "default": "0.25",
-        "description": "Push it along MOTION, in seconds of travel — at speed you outrun a centred box, which empties the view ahead exactly when you want it fullest (#17)"
+        "description": "Push it along MOTION, in seconds of travel — at speed you outrun a centred box, which empties the view ahead exactly when you want it fullest"
       },
       {
         "name": "speedCap",
@@ -500,7 +510,9 @@
         "default": "0"
       },
       {
-        "name": "wind"
+        "name": "wind",
+        "default": "'scene'",
+        "description": "`'scene'` takes the scene's [wind](/wind/) when it has one; `'own'` uses `windX`/`windZ`. `'own'` with zero wind is how you say a place is sheltered: a courtyard that stays still while the scene blows"
       },
       {
         "name": "disabled",
@@ -650,7 +662,9 @@
         "description": "Playback speed multiplier (0–2)"
       },
       {
-        "name": "initialState"
+        "name": "initialState",
+        "default": "'idle'",
+        "description": "Animation state at load"
       },
       {
         "name": "turnSpeed",
@@ -693,55 +707,89 @@
         "description": "Furthest follow distance"
       },
       {
-        "name": "groundY"
+        "name": "groundY",
+        "default": "-1000",
+        "description": "Void-catch backstop: the biped never falls below this Y. Set it deep; at walking level it acts as an invisible floor"
       },
       {
-        "name": "eyeHeight"
+        "name": "eyeHeight",
+        "default": "1.6",
+        "description": "First-person eye height when the rig has no head bone"
       },
       {
-        "name": "lookRate"
+        "name": "lookRate",
+        "default": "120",
+        "description": "Degrees per second the right stick swings the view"
       },
       {
-        "name": "aiming"
+        "name": "aiming",
+        "default": "'off'",
+        "description": "`'on'` gives the character an aim separate from its facing (see [aim](/aim/)). Nesting a weapon turns it on"
       },
       {
-        "name": "aimFreeYaw"
+        "name": "aimFreeYaw",
+        "default": "0",
+        "description": "Twist the shoulders hold before the body turns, degrees. `0` keeps aim and body together"
       },
       {
-        "name": "aimMaxYaw"
+        "name": "aimMaxYaw",
+        "default": "90",
+        "description": "The spine's limit, degrees. Past it the body is dragged round"
       },
       {
-        "name": "maxLookPitch"
+        "name": "maxLookPitch",
+        "default": "70",
+        "description": "How far up or down the look goes, degrees"
       },
       {
-        "name": "eyeForward"
+        "name": "eyeForward",
+        "default": "0.13",
+        "description": "How far in front of the head bone the first-person eye sits, metres"
       },
       {
-        "name": "invertLookY"
+        "name": "invertLookY",
+        "default": "'off'",
+        "description": "`'on'` inverts the right stick's vertical (pushing up looks down, the aircraft mapping)"
       },
       {
-        "name": "cameraMinHeight"
+        "name": "cameraMinHeight",
+        "default": "0.5",
+        "description": "Lowest the follow camera goes above the feet, metres (looking up lowers the camera; this keeps it above ground)"
       },
       {
-        "name": "jumpSpeed"
+        "name": "jumpSpeed",
+        "default": "4.5",
+        "description": "Upward speed at take-off, m/s"
       },
       {
-        "name": "sneakSpeed"
+        "name": "sneakSpeed",
+        "default": "0.4",
+        "description": "Fraction of walking speed while sneaking"
       },
       {
-        "name": "strafeSpeed"
+        "name": "strafeSpeed",
+        "default": "0.75",
+        "description": "Sidestep speed as a fraction of walking"
       },
       {
-        "name": "climbReach"
+        "name": "climbReach",
+        "default": "2.2",
+        "description": "Highest ledge the character can pull itself onto, metres (see Mantling, below)"
       },
       {
-        "name": "wadeDepth"
+        "name": "wadeDepth",
+        "default": "0.45",
+        "description": "Water depth, as a fraction of standing height, where wading becomes swimming"
       },
       {
-        "name": "strafing"
+        "name": "strafing",
+        "default": "'off'",
+        "description": "`'on'` sidesteps with the left stick; `'off'` turns with it"
       },
       {
-        "name": "buoyancy"
+        "name": "buoyancy",
+        "default": "0",
+        "description": "How high the figure rides in the water, metres. `0` puts the waterline at the head"
       }
     ]
   },
@@ -1149,7 +1197,7 @@
       {
         "name": "selfIllum",
         "default": "0.35",
-        "description": "Self-illumination 0…1 — `1` ≈ fully self-lit (old look), `0` = only sun-lit (dark undersides)"
+        "description": "Self-illumination 0…1 — `1` ≈ fully self-lit, `0` = only sun-lit (dark undersides)"
       },
       {
         "name": "coverage",
@@ -1172,13 +1220,19 @@
         "description": "Deterministic layout — same seed, same sky"
       },
       {
-        "name": "windX"
+        "name": "windX",
+        "default": "4",
+        "description": "The layer's own drift, m/s in world X and Z. Recycled blobs wrap in from upwind and fade up, so the sky reads as weather rather than a frozen image"
       },
       {
-        "name": "windZ"
+        "name": "windZ",
+        "default": "1.5",
+        "description": "The layer's own drift, m/s in world X and Z. Recycled blobs wrap in from upwind and fade up, so the sky reads as weather rather than a frozen image"
       },
       {
-        "name": "wind"
+        "name": "wind",
+        "default": "'scene'",
+        "description": "`'scene'` drifts with the scene's [wind](/wind/) when it has one; `'own'` always uses `windX`/`windZ`"
       }
     ]
   },
@@ -1224,7 +1278,9 @@
         "description": "Which control scheme maps the gamepad to `ControlInput`: `'biped'`, `'car'`, or `'aircraft'`"
       },
       {
-        "name": "player"
+        "name": "player",
+        "default": "false",
+        "description": "Set it when the controller is nested in an `inputFocus` and you want that manager, not its own wiring, to drive it"
       }
     ]
   },
@@ -1260,7 +1316,7 @@
       },
       {
         "name": "skinnedUrl",
-        "default": "'/omnidude.glb'",
+        "default": "tonio/omnidude/omnidude.glb",
         "description": "The GLB the baseline clones"
       },
       {
@@ -1435,73 +1491,119 @@
         "name": "axes"
       },
       {
-        "name": "meshName"
+        "name": "meshName",
+        "default": "'target'",
+        "description": "Mesh name, and the library mesh to instantiate when `library` is set"
       },
       {
-        "name": "library"
+        "name": "library",
+        "default": "''",
+        "description": "Instantiate `meshName` from this `<tosi-b3d-library type>` instead of the cube"
       },
       {
-        "name": "destroyable"
+        "name": "destroyable",
+        "default": "'on'",
+        "description": "`'off'` places the mesh without enrolling it in combat (scenery)"
       },
       {
-        "name": "size"
+        "name": "size",
+        "default": "1",
+        "description": "Placeholder cube edge length (ignored with `library`)"
       },
       {
-        "name": "scale"
+        "name": "scale",
+        "default": "1",
+        "description": "Uniform scale of a library piece"
       },
       {
-        "name": "stretch"
+        "name": "stretch",
+        "default": "''",
+        "description": "Per-axis stretch of a library piece, times `scale`: `\"2 1 3\"` (x y z, model frame)"
       },
       {
-        "name": "color"
+        "name": "color",
+        "default": "'#cc3333'",
+        "description": "Placeholder cube colour"
       },
       {
-        "name": "capacity"
+        "name": "capacity",
+        "default": "10",
+        "description": "Hit points"
       },
       {
-        "name": "armor"
+        "name": "armor",
+        "default": "0",
+        "description": "Flat damage shrugged off every hit"
       },
       {
-        "name": "regenRate"
+        "name": "regenRate",
+        "default": "0",
+        "description": "Health regained per second (0 = none)"
       },
       {
-        "name": "regenDelay"
+        "name": "regenDelay",
+        "default": "0.5",
+        "description": "Seconds without damage before regeneration resumes"
       },
       {
-        "name": "protectedBy"
+        "name": "protectedBy",
+        "default": "''",
+        "description": "Combat id of a protector (a shield generator)"
       },
       {
-        "name": "protection"
+        "name": "protection",
+        "default": "0",
+        "description": "Flat reduction while the protector stands"
       },
       {
-        "name": "remains"
+        "name": "remains",
+        "default": "''",
+        "description": "Prefab name spawned at the death pose"
       },
       {
-        "name": "sound"
+        "name": "sound",
+        "default": "''",
+        "description": "Positional death sound URL"
       },
       {
-        "name": "soundVolume"
+        "name": "soundVolume",
+        "default": "1",
+        "description": "Death sound volume"
       },
       {
-        "name": "explode"
+        "name": "explode",
+        "default": "'off'",
+        "description": "Shatter the mesh on death"
       },
       {
-        "name": "explodeForce"
+        "name": "explodeForce",
+        "default": "6",
+        "description": "Outward fragment force"
       },
       {
-        "name": "deathBlast"
+        "name": "deathBlast",
+        "default": "'off'",
+        "description": "Detonate an AOE warhead on death"
       },
       {
-        "name": "blastDamage"
+        "name": "blastDamage",
+        "default": "20",
+        "description": "Death blast full damage"
       },
       {
-        "name": "blastFullRadius"
+        "name": "blastFullRadius",
+        "default": "1",
+        "description": "Death blast full-damage radius"
       },
       {
-        "name": "blastRadius"
+        "name": "blastRadius",
+        "default": "4",
+        "description": "Death blast falloff radius"
       },
       {
-        "name": "blastDelay"
+        "name": "blastDelay",
+        "default": "0.1",
+        "description": "Seconds after death before the blast fires"
       }
     ]
   },
@@ -1526,13 +1628,19 @@
         "description": "Where it is; nested in a mesh element, an offset that follows it"
       },
       {
-        "name": "rx"
+        "name": "rx",
+        "default": "0",
+        "description": "Its rotation, in degrees"
       },
       {
-        "name": "ry"
+        "name": "ry",
+        "default": "0",
+        "description": "Its rotation, in degrees"
       },
       {
-        "name": "rz"
+        "name": "rz",
+        "default": "0",
+        "description": "Its rotation, in degrees"
       },
       {
         "name": "axes"
@@ -1591,7 +1699,9 @@
         "name": "axes"
       },
       {
-        "name": "meshName"
+        "name": "meshName",
+        "default": "'elevator'",
+        "description": "The platform mesh's name"
       },
       {
         "name": "mode",
@@ -1861,8 +1971,8 @@
       },
       {
         "name": "on",
-        "default": "true",
-        "description": "`false` plays the DECAY region; it does not kill the light"
+        "default": "'on'",
+        "description": "`'off'` plays the DECAY region; it does not kill the light"
       },
       {
         "name": "geometry",
@@ -1885,7 +1995,9 @@
         "description": "`'on'` for a shadow generator (point / spot only)"
       },
       {
-        "name": "timeSource"
+        "name": "timeSource",
+        "default": "'real'",
+        "description": "Which clock the program runs on. `'real'`: elapsed seconds, immune to pause, because a lamp is ambience and a flicker frozen mid-flicker makes a paused game look broken. `'sim'`: the world's clock, for a lamp that is part of the simulation (street lights at dusk, a beacon a player is timing). It stops when the world pauses"
       },
       {
         "name": "shadowTextureSize",
@@ -1936,8 +2048,8 @@
       },
       {
         "name": "on",
-        "default": "true",
-        "description": "`false` plays the DECAY region; it does not kill the light"
+        "default": "'on'",
+        "description": "`'off'` plays the DECAY region; it does not kill the light"
       },
       {
         "name": "geometry",
@@ -1960,7 +2072,9 @@
         "description": "`'on'` for a shadow generator (point / spot only)"
       },
       {
-        "name": "timeSource"
+        "name": "timeSource",
+        "default": "'real'",
+        "description": "Which clock the program runs on. `'real'`: elapsed seconds, immune to pause, because a lamp is ambience and a flicker frozen mid-flicker makes a paused game look broken. `'sim'`: the world's clock, for a lamp that is part of the simulation (street lights at dusk, a beacon a player is timing). It stops when the world pauses"
       },
       {
         "name": "shadowTextureSize",
@@ -1998,13 +2112,19 @@
         "description": "**spot** — edge feather, as a fraction of the radius"
       },
       {
-        "name": "dirX"
+        "name": "dirX",
+        "default": "0",
+        "description": "**spot** — direction the cone points (straight down by default)"
       },
       {
-        "name": "dirY"
+        "name": "dirY",
+        "default": "-1",
+        "description": "**spot** — direction the cone points (straight down by default)"
       },
       {
-        "name": "dirZ"
+        "name": "dirZ",
+        "default": "0",
+        "description": "**spot** — direction the cone points (straight down by default)"
       },
       {
         "name": "gel",
@@ -2060,8 +2180,8 @@
       },
       {
         "name": "on",
-        "default": "true",
-        "description": "`false` plays the DECAY region; it does not kill the light"
+        "default": "'on'",
+        "description": "`'off'` plays the DECAY region; it does not kill the light"
       },
       {
         "name": "geometry",
@@ -2084,7 +2204,9 @@
         "description": "`'on'` for a shadow generator (point / spot only)"
       },
       {
-        "name": "timeSource"
+        "name": "timeSource",
+        "default": "'real'",
+        "description": "Which clock the program runs on. `'real'`: elapsed seconds, immune to pause, because a lamp is ambience and a flicker frozen mid-flicker makes a paused game look broken. `'sim'`: the world's clock, for a lamp that is part of the simulation (street lights at dusk, a beacon a player is timing). It stops when the world pauses"
       },
       {
         "name": "shadowTextureSize",
@@ -2136,19 +2258,29 @@
         "name": "axes"
       },
       {
-        "name": "meshName"
+        "name": "meshName",
+        "default": "'launcher'",
+        "description": "Mesh name, and the library model to instantiate when `library` is set"
       },
       {
-        "name": "library"
+        "name": "library",
+        "default": "''",
+        "description": "Instantiate `meshName` from this `<tosi-b3d-library type>` instead of the placeholder box"
       },
       {
-        "name": "grip"
+        "name": "grip",
+        "default": "'auto'",
+        "description": "Where the hand holds it: `'auto'` derives the grip from the geometry (the centroid of the lowest third) and places it at `x`/`y`/`z`; `'off'` mounts by the model's origin; or an explicit `'x,y,z'`"
       },
       {
-        "name": "socket"
+        "name": "socket",
+        "default": "''",
+        "description": "The joint it rides on when nested in a character: `'right-hand'`, `'left-hand'`, `'head'`, `'spine'`, `'hips'`, or `''` for the holder's root. With a socket, `x`/`y`/`z` are relative to the joint"
       },
       {
-        "name": "modelScale"
+        "name": "modelScale",
+        "default": "1",
+        "description": "Uniform scale of the loaded model"
       },
       {
         "name": "muzzleSpeed",
@@ -2223,7 +2355,7 @@
       {
         "name": "damage",
         "default": "20",
-        "description": "Warhead full damage (see b3d-warhead)"
+        "description": "Warhead full damage (see [b3d-warhead](/b3d-warhead/))"
       },
       {
         "name": "fullRadius",
@@ -2721,9 +2853,7 @@
         "description": "`'xr'` — only in an immersive session; `'both'` — also in the flat view, on frames derived from the flat camera"
       },
       {
-        "name": "flatFrame",
-        "default": "''",
-        "description": "The frame to use in the FLAT view: required for a hand panel (a monitor has no hands); `'face'` measures elevation from the view instead of the horizon, so a menu stays centred under a pitched camera"
+        "name": "flatFrame"
       },
       {
         "name": "resolution",
@@ -2733,7 +2863,7 @@
       {
         "name": "layer",
         "default": "'world'",
-        "description": "`'ui'`: drawn over the whole world and pressed first, never hidden by a nearer wall (what was a page overlay); `'modal'`: over even the ui (pause, a dialog). `'world'`: in the scene like anything else. The same in a headset: the controller's ray picks modal, then ui, then the world"
+        "description": "`'ui'`: drawn over the whole world and pressed first, never hidden by a nearer wall (what a page overlay is flat); `'modal'`: over even the ui (pause, a dialog). `'world'`: in the scene like anything else. The same in a headset: the controller's ray picks modal, then ui, then the world"
       },
       {
         "name": "exclusive",
@@ -2775,7 +2905,7 @@
       {
         "name": "emitRate",
         "default": "50",
-        "description": "Particles emitted per frame"
+        "description": "Particles emitted per second"
       },
       {
         "name": "minLifeTime",
@@ -2910,7 +3040,9 @@
         "description": "Show wireframe physics collider shapes"
       },
       {
-        "name": "wasmUrl"
+        "name": "wasmUrl",
+        "default": "''",
+        "description": "Where to load Jolt's `.wasm` from, when it is not beside the loader script"
       }
     ]
   },
@@ -2920,7 +3052,9 @@
     "summary": "b3d-planet",
     "attributes": [
       {
-        "name": "biome"
+        "name": "biome",
+        "default": "'off'",
+        "description": "`'on'` shades the land with the procedural biome shader, planetary version: altitude is radial, latitude sets the temperature, and the sea level follows `ocean` (see [biome-chart](/biome-chart/))"
       },
       {
         "name": "gas",
@@ -3093,10 +3227,14 @@
         "description": "Atmosphere thickness (fraction of radius, 0=none). The clouds ride half way up it"
       },
       {
-        "name": "atmosphereColor"
+        "name": "atmosphereColor",
+        "default": "'rgba(77,128,230,0.15)'",
+        "description": "The glow shell's colour; its alpha is the shell's opacity"
       },
       {
-        "name": "atmosphereTurbulence"
+        "name": "atmosphereTurbulence",
+        "default": "0.5",
+        "description": "How much the glow shell shimmers"
       },
       {
         "name": "clouds",
@@ -3119,7 +3257,9 @@
         "description": "Ocean coverage (0=none, 0.6=60% of surface underwater)"
       },
       {
-        "name": "rings"
+        "name": "rings",
+        "default": "0",
+        "description": "A ring, `0` = none. The value is its strength: it widens the default ring and multiplies `ringOpacity`, reaching full strength at about 0.85"
       },
       {
         "name": "wireframe",
@@ -3160,7 +3300,9 @@
         "name": "axes"
       },
       {
-        "name": "meshName"
+        "name": "meshName",
+        "default": "'box'",
+        "description": "The Babylon mesh's name (what `scene.getMeshByName` and naming suffixes such as `_nocast` see)"
       },
       {
         "name": "segments"
@@ -3224,7 +3366,9 @@
         "name": "axes"
       },
       {
-        "name": "meshName"
+        "name": "meshName",
+        "default": "'box'",
+        "description": "The Babylon mesh's name (what `scene.getMeshByName` and naming suffixes such as `_nocast` see)"
       },
       {
         "name": "size",
@@ -3302,7 +3446,9 @@
         "name": "axes"
       },
       {
-        "name": "meshName"
+        "name": "meshName",
+        "default": "'ground'",
+        "description": "The Babylon mesh's name (`'ground_nocast'` keeps it from casting shadows)"
       },
       {
         "name": "size",
@@ -3451,7 +3597,7 @@
       {
         "name": "coneDeg",
         "default": "90",
-        "description": "Detection cone HALF-angle (deg). `90` = front hemisphere."
+        "description": "Detection cone HALF-angle (deg). `90` = front hemisphere. A lock is held while the contact stays inside it."
       },
       {
         "name": "lockTime",
@@ -3464,10 +3610,14 @@
         "description": "Max simultaneous locks (the nearest opposed contacts)."
       },
       {
-        "name": "acquireConeDeg"
+        "name": "acquireConeDeg",
+        "default": "60",
+        "description": "Narrower half-angle (deg) a contact must be inside to START a lock."
       },
       {
-        "name": "acquireRange"
+        "name": "acquireRange",
+        "default": "0.5",
+        "description": "Fraction of `range` a contact must be within to START a lock. Holding uses the full range."
       },
       {
         "name": "alignment",
@@ -3764,7 +3914,7 @@
       {
         "name": "azimuth",
         "default": "0",
-        "description": "**Ignored** — the sun is placed by `latitude` and `timeOfDay`, and the sky material accepts this and discards it. Kept so old markup doesn't break; not in `skyboxSchema()` (tosijs-3d#86)"
+        "description": "**Ignored** — the sun is placed by `latitude` and `timeOfDay`, and the sky material accepts this and discards it. Accepted so existing markup does not break; not in `skyboxSchema()`"
       },
       {
         "name": "latitude",
@@ -3777,7 +3927,9 @@
         "description": "Realtime speed multiplier"
       },
       {
-        "name": "updateFrequencyMs"
+        "name": "updateFrequencyMs",
+        "default": "100",
+        "description": "How often (ms) the advancing time of day is applied"
       },
       {
         "name": "sunColor",
@@ -3820,13 +3972,19 @@
         "description": "Rayleigh scattering"
       },
       {
-        "name": "mieDirectionalG"
+        "name": "mieDirectionalG",
+        "default": "0.8",
+        "description": "How forward the Mie scattering is: higher gathers the glow tighter round the sun"
       },
       {
-        "name": "mieCoefficient"
+        "name": "mieCoefficient",
+        "default": "0.005",
+        "description": "Mie scattering: the haze of larger particles around the sun"
       },
       {
-        "name": "skyboxSize"
+        "name": "skyboxSize",
+        "default": "1000",
+        "description": "Size of the sky box. Read once, when the sky is built"
       },
       {
         "name": "applyFog",
@@ -3975,7 +4133,7 @@
       {
         "name": "disabled",
         "default": "false",
-        "description": "Stop spawning (a boolean can't default to true — see CLAUDE.md)"
+        "description": "Stop spawning (a negative, because an HTML boolean attribute cannot default to true)"
       }
     ]
   },
@@ -4068,7 +4226,7 @@
       {
         "name": "maps",
         "default": "'off'",
-        "description": "`'on'`: bodies with real maps in a `system` (our own Earth, Moon and Mars, see [sol](/sol/)) are drawn from them"
+        "description": "`'on'`: bodies with real maps in a `system` (our own Earth, Moon and Mars, see **Our solar system** below) are drawn from them"
       },
       {
         "name": "x"
@@ -4180,10 +4338,14 @@
         "name": "axes"
       },
       {
-        "name": "castShadow"
+        "name": "castShadow",
+        "default": "false",
+        "description": "Cast shadows onto the scene"
       },
       {
-        "name": "receiveShadows"
+        "name": "receiveShadows",
+        "default": "false",
+        "description": "Take the world's shading. Off, a panel reads the same whatever passes in front of the sun; turn it on for UI that IS in the world, like a cockpit instrument"
       },
       {
         "name": "width",
@@ -4221,7 +4383,9 @@
         "description": "Parent plane to active camera (HUD mode)"
       },
       {
-        "name": "placement"
+        "name": "placement",
+        "default": "'camera'",
+        "description": "With `cameraRelative`: `'camera'` keeps it on the camera; `'world'` puts it at a real spot in clear view and eases it back in front of you after a couple of seconds out of sight (right for a modal dialog, see [frame-panel](?frame-panel.ts))"
       },
       {
         "name": "xrFrame",
@@ -4246,7 +4410,7 @@
       {
         "name": "cornerRadius",
         "default": "0",
-        "description": "Corner radius in WORLD units. `0` = a plain rectangle. Rounds the MESH, so corners cost triangles instead of alpha — see **Opaque panels** below"
+        "description": "Corner radius in WORLD units. `0` = a plain rectangle. Rounds the MESH, so corners cost triangles instead of alpha — see **Keeping panels in order** below"
       },
       {
         "name": "transparent",
@@ -4276,7 +4440,9 @@
         "description": "A selector for the `<tosi-b3d-planet>` this is the GROUND OF (`'#moon'`, sphere only): where the sea, coasts and mountain ranges are is the planet's, scaled to this `radius` with the sea at 0, and this terrain's detail layer and landforms ride on top. A pin on the globe lands on the ground it shows. Rebuilds when the planet changes. (The other way round, a planet's `terrain` draws the globe from this ground)"
       },
       {
-        "name": "biome"
+        "name": "biome",
+        "default": "'off'",
+        "description": "`'on'` shades the ground with the procedural biome shader ([biome-plugin](/biome-plugin/)): a flat-colour chart picked from temperature, moisture, height and slope. Tune it live through `.biomePlugin`"
       },
       {
         "name": "biomeSeaLevel",
@@ -4414,7 +4580,9 @@
         "description": "Flat vertical offset (m). The noise is 0..amplitude; `-grossAmplitude/2` centres the terrain on 0 so a water plane at 0 floods the valleys into a sea"
       },
       {
-        "name": "center"
+        "name": "center",
+        "default": "false",
+        "description": "Centre the heightfield on 0 (an offset of `-grossAmplitude/2`) whatever the amplitude, so a water plane at 0 keeps reading as a sea while you tune. Adds to `baseHeight`"
       },
       {
         "name": "debugColor",
@@ -4580,10 +4748,14 @@
         "name": "axes"
       },
       {
-        "name": "meshName"
+        "name": "meshName",
+        "default": "'turret'",
+        "description": "Mesh name, and the library model to instantiate when `library` is set"
       },
       {
-        "name": "library"
+        "name": "library",
+        "default": "''",
+        "description": "Instantiate `meshName` from this `<tosi-b3d-library type>` instead of the built-in pedestal and box. A `_barrel` node on the model is the part that aims; without one it yaws as a unit"
       },
       {
         "name": "muzzleSpeed",
@@ -4715,7 +4887,9 @@
         "description": "Line-of-sight occlusion (a wall between blast + target spares it)"
       },
       {
-        "name": "by"
+        "name": "by",
+        "default": "''",
+        "description": "Who to credit for what this blast destroys (a combat id). Carried through the whole cascade"
       }
     ]
   },
@@ -4746,7 +4920,9 @@
         "name": "axes"
       },
       {
-        "name": "underwaterFog"
+        "name": "underwaterFog",
+        "default": "0.12",
+        "description": "Fog density the moment the camera is under the surface"
       },
       {
         "name": "fogColor",
@@ -4754,10 +4930,14 @@
         "description": "The colour of the water you are IN (the underwater fog). Sea blue by default; a methane sea (Titan) is dark amber"
       },
       {
-        "name": "underwaterMurk"
+        "name": "underwaterMurk",
+        "default": "0.08",
+        "description": "Extra fog density at 30 m down: the sea thickens with depth"
       },
       {
-        "name": "fogTransition"
+        "name": "fogTransition",
+        "default": "0.2",
+        "description": "Metres below the surface to reach full underwater fog. Tight on purpose, so crossing the surface has no visible jump"
       },
       {
         "name": "underside",
@@ -4782,7 +4962,7 @@
       {
         "name": "caustics",
         "default": "'auto'",
-        "description": "Light through the moving surface, dancing on everything beneath it (terrain, hulls, the player). `'auto'` = on whenever `twoSided`. Fades with depth and fog; follows the sun"
+        "description": "Light through the moving surface, dancing on everything beneath it (terrain, hulls, the player). `'auto'` = on whenever `twoSided`. See **Caustics** below"
       },
       {
         "name": "causticsStrength",
@@ -4832,7 +5012,7 @@
       {
         "name": "shore",
         "default": "'off'",
-        "description": "`'on'` gives the surface the depth of the water under it, from the scene's terrain, and draws a shoreline from it: surf running in, pale shallows, and ice that spreads out from the land when the climate at sea level is below freezing. See [water-shore](/water-shore/). Not for `spherical` water. Set at build time"
+        "description": "`'on'` gives the surface the depth of the water under it, from the scene's terrain, and draws a shoreline from it: surf running in, pale shallows, and ice that spreads out from the land when the climate at sea level is below freezing. See **Shore and ice** below. Not for `spherical` water. Set at build time"
       },
       {
         "name": "shoreFine",
@@ -4845,7 +5025,9 @@
         "description": "The surface (and the ice on it) takes shadows from the sun and from clouds. `'off'` skips both lookups per water pixel"
       },
       {
-        "name": "normalMap"
+        "name": "normalMap",
+        "default": "''",
+        "description": "URL of a bump map for the ripples. Empty uses a tiling normal map generated from Perlin noise: no file, no network, so it works offline and in a headset"
       },
       {
         "name": "windForce",
@@ -4863,7 +5045,9 @@
         "description": "Normal map bump intensity"
       },
       {
-        "name": "waveLength"
+        "name": "waveLength",
+        "default": "0.1",
+        "description": "Wave length"
       },
       {
         "name": "waterColor",
@@ -4876,13 +5060,19 @@
         "description": "How much color tints the water"
       },
       {
-        "name": "windDirectionX"
+        "name": "windDirectionX",
+        "default": "0.6",
+        "description": "Wind direction, x part (roughly a unit vector with `windDirectionY`)"
       },
       {
-        "name": "windDirectionY"
+        "name": "windDirectionY",
+        "default": "0.8",
+        "description": "Wind direction, y part"
       },
       {
-        "name": "wind"
+        "name": "wind",
+        "default": "'scene'",
+        "description": "`'scene'` takes the waves' wind from the scene's [wind](/wind/) when it has one; `'own'` always uses the three attributes below. A scene with no wind leaves them in charge either way"
       }
     ]
   },
@@ -5083,67 +5273,24 @@
     "summary": "game-controller",
     "attributes": [
       {
-        "name": "wheelSensitivity"
+        "name": "wheelSensitivity",
+        "default": "1",
+        "description": "Scales the wheel's zoom axis"
       },
       {
-        "name": "updateIntervalMs"
+        "name": "updateIntervalMs",
+        "default": "33",
+        "description": "How often key state is smoothed, ms"
       },
       {
-        "name": "mouseLook"
+        "name": "mouseLook",
+        "default": "'off'",
+        "description": "How the mouse looks around: `'drag'` (hold a button), `'lock'` (pointer lock, for a real game) or `'off'`"
       },
       {
-        "name": "mouseSensitivity"
-      }
-    ]
-  },
-  {
-    "module": "gamepad-svg",
-    "summary": "gamepad-svg",
-    "attributes": [
-      {
-        "name": "strokeColor",
-        "default": "#000000",
-        "description": "All stroked elements"
-      },
-      {
-        "name": "strokeWidth",
-        "default": "16",
-        "description": "All stroked elements"
-      },
-      {
-        "name": "widgetColor",
-        "default": "#ffffff",
-        "description": "Bumpers, triggers, dpad, sticks, menu, view"
-      },
-      {
-        "name": "controllerColor",
-        "default": "#aaaaaa",
-        "description": "Controller body"
-      },
-      {
-        "name": "stickTravelColor",
-        "default": "#505050",
-        "description": "Stick travel circles"
-      },
-      {
-        "name": "fillA",
-        "default": "#ff1d25",
-        "description": "A button (red)"
-      },
-      {
-        "name": "fillB",
-        "default": "#fcee22",
-        "description": "B button (yellow)"
-      },
-      {
-        "name": "fillX",
-        "default": "#8cc63f",
-        "description": "X button (green)"
-      },
-      {
-        "name": "fillY",
-        "default": "#3ea9f5",
-        "description": "Y button (blue)"
+        "name": "mouseSensitivity",
+        "default": "1",
+        "description": "Degrees of view per 100px of mouse movement, roughly"
       }
     ]
   },
@@ -5176,13 +5323,19 @@
         "description": "**Comma**-separated piece list, e.g. `'a,b,right_stick(40,0),menu'`. Empty (the default) shows everything. `a/b/x/y` map to `A/B/X/Y`; `dpad` expands to the four directions; `name(dx,dy)` nudges one piece"
       },
       {
-        "name": "scale"
+        "name": "scale",
+        "default": "1",
+        "description": "Size multiplier for every cluster"
       },
       {
-        "name": "deadzone"
+        "name": "deadzone",
+        "default": "0.15",
+        "description": "Stick travel (fraction of the radius) ignored at the centre"
       },
       {
-        "name": "maxZone"
+        "name": "maxZone",
+        "default": "0.85",
+        "description": "Stick travel that counts as full deflection, so you need not reach the rim"
       },
       {
         "name": "idleSeconds",
@@ -5210,42 +5363,6 @@
       },
       {
         "name": "height"
-      }
-    ]
-  },
-  {
-    "module": "icon-name",
-    "summary": "icon-name",
-    "attributes": [
-      {
-        "name": "r",
-        "default": "rotate N°",
-        "description": "`chevron90r`"
-      },
-      {
-        "name": "f",
-        "default": "flip (`0f` = H, `1f` = V)",
-        "description": "`chevron0f`"
-      },
-      {
-        "name": "s",
-        "default": "scale N%",
-        "description": "`star75s`"
-      },
-      {
-        "name": "x",
-        "default": "translateX N%",
-        "description": "`plus20x`"
-      },
-      {
-        "name": "y",
-        "default": "translateY N%",
-        "description": "`plus_10y`"
-      },
-      {
-        "name": "o",
-        "default": "opacity N%",
-        "description": "`camera50o`"
       }
     ]
   },
@@ -5294,8 +5411,20 @@
     ]
   },
   {
-    "module": "key-layout",
-    "summary": "key-layout",
+    "module": "keyboard-gamepad",
+    "tag": "tosi-keyboard-gamepad",
+    "attributes": [
+      {
+        "name": "wheelSensitivity"
+      },
+      {
+        "name": "updateIntervalMs"
+      }
+    ]
+  },
+  {
+    "module": "keyboard",
+    "summary": "keyboard",
     "attributes": [
       {
         "name": "alpha",
@@ -5307,20 +5436,7 @@
       },
       {
         "name": "dial",
-        "default": "a telephone keypad — `*` `0` `#`, `+` for international"
-      }
-    ]
-  },
-  {
-    "module": "keyboard-gamepad",
-    "tag": "tosi-keyboard-gamepad",
-    "summary": "keyboard-gamepad",
-    "attributes": [
-      {
-        "name": "wheelSensitivity"
-      },
-      {
-        "name": "updateIntervalMs"
+        "default": "a telephone keypad: `*` `0` `#`, `+` for international"
       }
     ]
   },
@@ -5347,41 +5463,6 @@
         "name": "hue",
         "default": "**shifts** the base hue, `0.5` = unchanged, scaled by `hueShiftDeg",
         "description": "hue is circular with no meaningful zero, so an absolute mapping would discard the colour you chose"
-      }
-    ]
-  },
-  {
-    "module": "lightning",
-    "summary": "lightning",
-    "attributes": [
-      {
-        "name": "ground",
-        "default": "cloud to ground: a bolt, the brightest flash, thunder",
-        "description": "most"
-      },
-      {
-        "name": "cloud",
-        "default": "inside the cloud: the tower lit from within, no bolt",
-        "description": "many"
-      },
-      {
-        "name": "sprite",
-        "default": "ABOVE the storm, 50–90 km up in reality: brief red-pink crowns and tendrils, only over strong storms",
-        "description": "rare"
-      }
-    ]
-  },
-  {
-    "module": "manipulator",
-    "summary": "manipulator",
-    "attributes": [
-      {
-        "name": "translate",
-        "default": "the point on the axis closest to the pointer's ray"
-      },
-      {
-        "name": "rotate",
-        "default": "the angle around the axis where the ray crosses its plane"
       }
     ]
   },
@@ -5600,6 +5681,42 @@
     ]
   },
   {
+    "module": "svg-icons",
+    "summary": "svg-icons",
+    "attributes": [
+      {
+        "name": "r",
+        "default": "rotate N°",
+        "description": "`chevron90r`"
+      },
+      {
+        "name": "f",
+        "default": "flip (`0f` = H, `1f` = V)",
+        "description": "`chevron0f`"
+      },
+      {
+        "name": "s",
+        "default": "scale N%",
+        "description": "`star75s`"
+      },
+      {
+        "name": "x",
+        "default": "translateX N%",
+        "description": "`plus20x`"
+      },
+      {
+        "name": "y",
+        "default": "translateY N%",
+        "description": "`plus_10y`"
+      },
+      {
+        "name": "o",
+        "default": "opacity N%",
+        "description": "`camera50o`"
+      }
+    ]
+  },
+  {
     "module": "tosi-b3d",
     "tag": "tosi-b3d",
     "summary": "b3d",
@@ -5617,7 +5734,7 @@
       {
         "name": "flatUi",
         "default": "'scene'",
-        "description": "Where the flat view's own controls are drawn. `'scene'`: in the scene (the system bar, settings panel and pause), the same UI a headset gets. `'dom'`: the HTML corner buttons, settings panel and pause, as before 0.10.7 (and where `::part(...)` styling of them shows). Any other value warns once and means `'scene'`"
+        "description": "Where the flat view's own controls are drawn. `'scene'`: in the scene (the system bar, settings panel and pause), the same UI a headset gets. `'dom'`: HTML corner buttons, settings panel and pause (where `::part(...)` styling of them shows). Any other value warns once and means `'scene'`"
       },
       {
         "name": "frameRate",
@@ -5648,13 +5765,19 @@
         "name": "noXr"
       },
       {
-        "name": "xrGrid"
+        "name": "xrGrid",
+        "default": "'auto'",
+        "description": "The reference grid on the floor in an immersive session. `'auto'` shows it for the built-in free-fly rig and hides it when a player entity drives the rig or you supply your own `setupXr`; `'on'` and `'off'` force it"
       },
       {
-        "name": "xrReticle"
+        "name": "xrReticle",
+        "default": "'off'",
+        "description": "`'on'` shows the head-locked face crosshair (a pin target, e.g. for a tracking weapon)"
       },
       {
-        "name": "scenePanelOpen"
+        "name": "scenePanelOpen",
+        "default": "false",
+        "description": "Start with the settings panel open instead of closed behind the owl"
       },
       {
         "name": "panelTitle",
@@ -5662,7 +5785,9 @@
         "description": "The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row)"
       },
       {
-        "name": "panelSections"
+        "name": "panelSections",
+        "default": "'fold'",
+        "description": "How collapsible sections in the settings panel present: `'fold'` (headers you open and close) or `'tabs'` (file tabs, one section at a time)"
       },
       {
         "name": "gamepadScale",
@@ -5675,22 +5800,34 @@
         "description": "`'off'` keeps the glass gamepad visible instead of fading it once a key is pressed or a hardware pad is used (the pointer never fades it)"
       },
       {
-        "name": "quality"
+        "name": "quality",
+        "default": "'auto'",
+        "description": "Device tier. `'auto'` follows the measured or cached device profile (and probes in the background on a first visit); `'low'`, `'medium'` or `'high'` force one. Drives the `auto` defaults of shadows, reflections, terrain and render scaling. See [[b3d-quality]]"
       },
       {
-        "name": "ssao"
+        "name": "ssao",
+        "default": "'off'",
+        "description": "Ambient occlusion: `'off'`, `'auto'` (follows the device tier, and stays off in a headset) or `'on'`. Off by default because it is a cost a scene should choose. See [[b3d-ssao]]"
       },
       {
-        "name": "ssaoStrength"
+        "name": "ssaoStrength",
+        "default": "1",
+        "description": "How dark a fully occluded crease gets"
       },
       {
-        "name": "ssaoRadius"
+        "name": "ssaoRadius",
+        "default": "2",
+        "description": "Metres a surface looks for something occluding it"
       },
       {
-        "name": "ssaoMethod"
+        "name": "ssaoMethod",
+        "default": "'projected'",
+        "description": "`'projected'` computes occlusion once and every material looks it up by world position, so it works flat and in a headset. `'screen'` is Babylon's post-process, flat only"
       },
       {
-        "name": "ssaoRate"
+        "name": "ssaoRate",
+        "default": "30",
+        "description": "Projected only: redraws per second (`0` = every frame)"
       },
       {
         "name": "xrRenderScale",
@@ -5708,34 +5845,113 @@
         "description": "The ground shader's form: `full`, `lite` (three noise samples a pixel for eight, for a GPU that cannot afford the full one), or `auto` (from the device tier: lite on the low tier, and in a headset on the medium one)"
       },
       {
-        "name": "pixelRatio"
+        "name": "pixelRatio",
+        "default": "0",
+        "description": "Device pixels per CSS pixel, flat. `0` is auto: the display's own ratio, capped by the device tier (high 2, medium 1.5, low 1). A positive value is an explicit cap and wins: `1` renders at CSS resolution, `2` full Retina, `0.75` below CSS for speed. Ignored in a headset"
       },
       {
-        "name": "stats"
+        "name": "stats",
+        "default": "false",
+        "description": "Add a Perf Stats section to the settings panel, flat and in a headset. `#perf` or `#debug` (or `?perf`, `?debug`) in the page URL, or calling `showB3dStats()`, shows it on every scene"
       },
       {
-        "name": "pauseWhenHidden"
+        "name": "pauseWhenHidden",
+        "default": "'on'",
+        "description": "Pause when the tab or window goes to the background. ⚠️ Experimental: the VR path is unvalidated"
       },
       {
-        "name": "startPaused"
+        "name": "startPaused",
+        "default": "false",
+        "description": "Come up paused, showing the pause panel (the \"press Start\" shape)"
       },
       {
-        "name": "reseatFreeze"
+        "name": "reseatFreeze",
+        "default": "'on'",
+        "description": "Freeze the clock while the re-seat dialog is up. Set `'off'` for a networked world, which cannot stop the other players; the dialog still gates your own input"
       },
       {
-        "name": "timeScale"
+        "name": "timeScale",
+        "default": "1",
+        "description": "How fast simulation time runs against wall time: `1` is real time, `0.25` slow motion, `0` stops the simulation while the scene keeps rendering. Everything integrating with `sceneDelta` scales; anything that must not slow (UI animation, a countdown in wall seconds) reads `realDt` from the frame package"
       },
       {
-        "name": "windSpeed"
+        "name": "windSpeed",
+        "default": "0",
+        "description": "The scene's one wind, in m/s, read by clouds, water and ambient effects (see [[wind]]). `0` means no scene wind; a child's own wind attributes win where they are set"
       },
       {
-        "name": "windBearingDeg"
+        "name": "windBearingDeg",
+        "default": "0",
+        "description": "Where the wind is going, north-up and clockwise. `0` blows toward +Z"
       },
       {
-        "name": "windGust"
+        "name": "windGust",
+        "default": "0",
+        "description": "Gust size as a fraction of `windSpeed`. `0` is dead steady"
       },
       {
-        "name": "enterXrOnResume"
+        "name": "enterXrOnResume",
+        "default": "'off'",
+        "description": "`'on'`: resuming enters immersive VR where the device supports it. The Continue tap is the user gesture `enterXRAsync` requires"
+      }
+    ]
+  },
+  {
+    "module": "virtual-gamepad",
+    "summary": "virtual-gamepad",
+    "attributes": [
+      {
+        "name": "leftBumper",
+        "default": "xr-standard-squeeze` (grip)"
+      },
+      {
+        "name": "rightBumper",
+        "default": "xr-standard-squeeze` (grip)"
+      },
+      {
+        "name": "strokeColor",
+        "default": "#000000",
+        "description": "All stroked elements"
+      },
+      {
+        "name": "strokeWidth",
+        "default": "16",
+        "description": "All stroked elements"
+      },
+      {
+        "name": "widgetColor",
+        "default": "#ffffff",
+        "description": "Bumpers, triggers, dpad, sticks, menu, view"
+      },
+      {
+        "name": "controllerColor",
+        "default": "#aaaaaa",
+        "description": "Controller body"
+      },
+      {
+        "name": "stickTravelColor",
+        "default": "#505050",
+        "description": "Stick travel circles"
+      },
+      {
+        "name": "fillA",
+        "default": "#ff1d25",
+        "description": "A button (red)"
+      },
+      {
+        "name": "fillB",
+        "default": "#fcee22",
+        "description": "B button (yellow)"
+      },
+      {
+        "name": "fillX",
+        "default": "#8cc63f",
+        "description": "X button (green)"
+      },
+      {
+        "name": "fillY",
+        "default": "#3ea9f5",
+        "description": "Y button (blue)"
       }
     ]
   },
@@ -5781,7 +5997,7 @@
       {
         "name": "nz",
         "default": "60",
-        "description": "Grid resolution through the disc (z). Must resolve the disc's thickness: at 20 a layer (0.03) was as thick as the disc itself, so stars sat in flat slabs with hard edges, read as columns at 1M stars"
+        "description": "Grid resolution through the disc (z). Must resolve the disc's thickness: at 20 a layer (0.03) is as thick as the disc itself, so stars sit in flat slabs with hard edges that read as columns at 1M stars"
       },
       {
         "name": "halfXY",
@@ -5832,7 +6048,7 @@
       {
         "name": "temperature",
         "default": "signed SUM",
-        "description": "a cold cell beside a warm one cancels"
+        "description": "opposing regions cancel"
       },
       {
         "name": "coverage",
@@ -5847,7 +6063,7 @@
       {
         "name": "storminess",
         "default": "MAX",
-        "description": "like volcanism: the worst one wins"
+        "description": "the worst one wins"
       }
     ]
   },
@@ -5952,20 +6168,6 @@
         "name": "face",
         "default": "your eyes (head-locked)",
         "description": "a reticle, a vignette, sunglasses"
-      }
-    ]
-  },
-  {
-    "module": "xr-gamepad",
-    "summary": "xr-gamepad",
-    "attributes": [
-      {
-        "name": "leftBumper",
-        "default": "xr-standard-squeeze` (grip)"
-      },
-      {
-        "name": "rightBumper",
-        "default": "xr-standard-squeeze` (grip)"
       }
     ]
   }

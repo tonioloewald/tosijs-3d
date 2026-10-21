@@ -5,10 +5,10 @@
 BRIGHT stars, one for its DIM stars. The bright pass is global (the stars you
 can see across the galaxy); the dim pass is local, generated only for the
 voxels near something that is looking — above all, the skybox baker's camera.
-Design and reasoning: `GALAXY-DESIGN.md`.
+Design and reasoning: [GALAXY-DESIGN.md](https://github.com/tonioloewald/tosijs-3d/blob/main/GALAXY-DESIGN.md).
 
 Pure: no Babylon, no DOM, deterministic. Positions are in the same frame as
-[galaxy-data](?galaxy-data.ts) (z-up, the disc's radius ≈ 0.9), so a consumer
+the galaxy's [star data](/b3d-galaxy/) (z-up, the disc's radius ≈ 0.9), so a consumer
 applies the transform it always has.
 
 ```javascript
@@ -25,8 +25,9 @@ const local = galaxy.dimStarsNear({ x: 0.5, y: 0, z: 0.01 }, 0.08)
 - **Identity is an address**, `seed:population:voxel:n` (galaxy seed,
   bright/dim, voxel, sequence number), and a star's seed is derived from it —
   never drawn from a shared range. Star n never depends on the budget, so an
-  address resolves in a galaxy computed with a SMALLER one (`galaxy.star(id)`). (The generator this replaced, `generateGalaxy`, removed in 0.10, drew
-  seeds from `range(1, 100000)`, so at 100k stars 63% of them shared one.)
+  address resolves in a galaxy computed with a SMALLER one (`galaxy.star(id)`).
+  Seeds drawn from a shared range would collide: at 100k stars, a range of
+  100,000 gives 63% of them a shared seed.
 - **Determinism and locality.** A voxel's stars depend only on the galaxy seed
   and the voxel. Generating one voxel never requires another, and loading them
   in any order gives the same stars.
@@ -48,7 +49,7 @@ const local = galaxy.dimStarsNear({ x: 0.5, y: 0, z: 0.01 }, 0.08)
 | `galaxyOptions` | `{}` | Passed to the sampler (`spiralArms`, `thickness`, …) |
 | `nx` | `64` | Grid resolution across the disc (x) |
 | `ny` | `64` | Grid resolution across the disc (y) |
-| `nz` | `60` | Grid resolution through the disc (z). Must resolve the disc's thickness: at 20 a layer (0.03) was as thick as the disc itself, so stars sat in flat slabs with hard edges, read as columns at 1M stars |
+| `nz` | `60` | Grid resolution through the disc (z). Must resolve the disc's thickness: at 20 a layer (0.03) is as thick as the disc itself, so stars sit in flat slabs with hard edges that read as columns at 1M stars |
 | `halfXY` | `1.05` | Grid half-extent across the disc |
 | `halfZ` | `0.3` | Grid half-extent through the disc — room for a halo |
 | `smoothPasses` | `1` | Blur passes over the sampled histogram (calms sparse voxels) |

@@ -15,7 +15,7 @@ setAssetBase('https://cdn.tosijs.net')          // once, e.g. in demo/site.ts
 b3dLoader({ url: assetUrl('kenney/vehicles/car.glb') })
 ```
 */
-/*{ "parent": "core", "order": 90 }*/
+/*{ "parent": "b3d-loader", "order": 90 }*/
 
 let base = ''
 

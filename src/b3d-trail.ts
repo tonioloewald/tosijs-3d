@@ -5,10 +5,8 @@
 wake of a fast enemy. Nest it in the thing that moves; it attaches to that
 thing's mesh, offset in its local space, and draws a `TrailMesh` from there.
 
-Lifted from manta-recon's engine contrails (tosijs-3d#4, board #186),
-revived from the 2010 game: very translucent (a contrail is vapour catching
-light, not a light source), hidden when slow, and tinted differently under
-water.
+Very translucent (a contrail is vapour catching light, not a light source),
+hidden when slow, and tinted differently under water.
 
 ## Demo
 
@@ -29,7 +27,7 @@ preview.append(
   b3d(
     {
       sceneCreated(el) {
-        orbitCam(el, { alpha: -Math.PI / 2.2, beta: Math.PI / 2.6, radius: 34, target: [0, 1, 0] })
+        orbitCam(el, { alphaDeg: -81.8, betaDeg: 69.2, radius: 34, target: [0, 1, 0] })
         let a = 0
         el.scene.onBeforeRenderObservable.add(() => {
           a += sceneDelta(el.scene)
@@ -70,9 +68,9 @@ tosi-b3d { width: 100%; height: 100%; }
 such as a missile you spawned yourself, and returns `{ update(dt), reset(),
 dispose() }`.
 
-It never throws inside the render loop: an exception in a Babylon observer
-skips every observer after it, which manta found the hard way when a trail
-error silently killed the aircraft's camera follow.
+It never throws inside the render loop: an exception in a Babylon observer skips
+every observer after it, so a trail error would silently stop, say, the camera
+following the aircraft.
 */
 /*{ "parent": "effects", "order": 30 }*/
 

@@ -11,7 +11,7 @@ already gone; you're in white until you come out the far side.
 
 `insideCloud` (0…1) is exposed, so a cloud is something the game can *use*: break a radar
 lock, shake a pursuer, hide a mothership until you're on top of it. That is the whole point
-— **behavioural richness, not photorealism** (see AI-DESIGN.md). A cloud you can hide in is
+— **behavioural richness, not photorealism** (see [AI-DESIGN.md](https://github.com/tonioloewald/tosijs-3d/blob/main/AI-DESIGN.md)). A cloud you can hide in is
 worth more than a cloud that merely looks convincing.
 
 ## Demo
@@ -74,7 +74,7 @@ tosi-b3d { width: 100%; height: 100%; }
   the way out — so the two compose instead of fighting.
 - **Lit, not flat.** The blobs are lit by the scene's sun, so their tops catch light and their
   undersides fall dark — which is most of what reads as *cloud* rather than a decal. `selfIllum`
-  keeps a thin cloud glowing a little (the old fully-emissive look is `selfIllum: 1`); a
+  keeps a thin cloud glowing a little (`selfIllum: 1` is fully self-lit); a
   thunderhead wants it near 0 so the underbelly goes properly dark.
 - **The whiteout darkens as you sink.** Inside a cloud the fog colour isn't a flat white — it's
   white near the top of the layer and murkier the deeper you go, and a thick/heavy (`coverage`)
@@ -107,11 +107,13 @@ tosi-b3d { width: 100%; height: 100%; }
 | `opacity` | `1` | Blob alpha. Default OPAQUE — translucent clouds read badly. Set < 1 only for deliberate wisps |
 | `fogDensity` | `1.0` | Whiteout density (EXP2, the scene's mode). HIGH on purpose — inside a cloud you should see nothing but white within a few metres |
 | `approach` | `0.5` | Where the whiteout BEGINS, × `size` outside the blob. It's TOTAL well before the surface (you never see the geometry edge) and stays total until you leave |
-| `selfIllum` | `0.35` | Self-illumination 0…1 — `1` ≈ fully self-lit (old look), `0` = only sun-lit (dark undersides) |
+| `selfIllum` | `0.35` | Self-illumination 0…1 — `1` ≈ fully self-lit, `0` = only sun-lit (dark undersides) |
 | `coverage` | `0.5` | Weather dial 0…1: wisps → overcast/thunderheads. LIVE. Gates active count + opacity + darkness + self-illum |
 | `castShadows` | `false` | Opt-in: project the field's shadows onto every shadow-receiving surface ([cloud-shadows](?cloud-shadows.ts)) |
 | `shadowStrength` | `0.65` | Darkness of those shadows 0…1, scaled further by `coverage` (≈50% darkening at typical coverage) |
 | `seed` | `1` | Deterministic layout — same seed, same sky |
+| `wind` | `'scene'` | `'scene'` drifts with the scene's [wind](/wind/) when it has one; `'own'` always uses `windX`/`windZ` |
+| `windX` / `windZ` | `4` / `1.5` | The layer's own drift, m/s in world X and Z. Recycled blobs wrap in from upwind and fade up, so the sky reads as weather rather than a frozen image |
 */
 /*{ "parent": "weather-and-clouds", "order": 20 }*/
 

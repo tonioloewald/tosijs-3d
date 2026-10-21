@@ -28,13 +28,8 @@ const { demo } = tosi({
 
 const scene = '/test-3.glb'
 // A Quaternius UAL rig — 1.83 m, feet at the origin, 27 curated clips off the
-// CDN (the full library is 120 clips and 20 MB; see ../static-assets). Replaces
-// omnidude.glb, which measured 0.88 m: half human scale, about as tall as a
-// Kenney table, while this engine's movement constants were always human
-// numbers. See CLAUDE.md → "Scale: a person is 1.8 m".
-//
-// Real Jog_Bwd_Loop and Crouch_* clips also retire two fakes: walking backwards
-// was the walk cycle in reverse, and sneaking had no crouch to hold.
+// CDN (the full library is 120 clips and 20 MB). A person is 1.8 m here, and
+// the movement constants are tuned for one.
 const person = assetUrl('quaternius/UAL1_core.glb', 2)
 
 // Your loadout: a button on the system bar opens it under the bar, with your
@@ -147,9 +142,8 @@ The reason this shape matters is not tidiness. **`enterXRAsync` requires a user
 gesture** — a scene cannot enter VR on load, the browser refuses. So "come up
 paused, put the headset on, press Continue" is the only arrangement that
 reliably enters VR. `enterXrOnResume` closes the loop: set it on the scene below
-and the button changes to "Continue in VR" on a device that has it. (Leaving VR
-pauses in every scene now, not only this one — entering unpauses, so leaving has
-to be its inverse or it is not a pair.)
+and the button changes to "Continue in VR" on a device that has it. Leaving VR
+pauses every scene: entering unpauses, so leaving is its inverse.
 
 ```js
 import { b3d, b3dBox, b3dSphere, label3d, button3d, select3d, sceneDelta } from 'tosijs-3d'
@@ -157,8 +151,6 @@ import { demoStage } from 'tosijs-3d/demo-utils'
 import { tosi } from 'tosijs'
 
 const demo = tosi({ pauseDemo: { state: 'paused since load', spin: 'medium' } })
-// rad/s. The old values topped out at ~10s per revolution, which does not read
-// as motion — it reads as a still image. `medium` is now a turn every ~3s.
 // DEGREES per second — `ry` is degrees (see AbstractMesh). `medium` is one
 // revolution every two seconds.
 const RATE = { slow: 60, medium: 180, fast: 420 }
@@ -202,9 +194,7 @@ const scene = b3d(
       // THE HONEST TEST. The cube stops because `update` isn't called — easy,
       // and it would look identical if pause did nothing but skip that one
       // callback. The moon flies on the RENDER OBSERVABLE off `sceneDelta`,
-      // which is where a paused scene used to keep right on simulating: an
-      // adopter measured 66m of travel during a 3-second pause. If pause is
-      // real, BOTH freeze.
+      // which a pause also has to hold. If pause is real, BOTH freeze.
       let t = 0
       el.scene.registerBeforeRender(() => {
         t += sceneDelta(el.scene)
@@ -277,19 +267,51 @@ document.body.append(
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `glowLayerIntensity` | `0` | Glow effect intensity (0 = off) |
+| `clearColor` | `''` | The colour behind everything (`'#000'` for space); empty keeps Babylon's default |
 | `frameRate` | `30` | Target frame rate |
+| `timeScale` | `1` | How fast simulation time runs against wall time: `1` is real time, `0.25` slow motion, `0` stops the simulation while the scene keeps rendering. Everything integrating with `sceneDelta` scales; anything that must not slow (UI animation, a countdown in wall seconds) reads `realDt` from the frame package |
+| `quality` | `'auto'` | Device tier. `'auto'` follows the measured or cached device profile (and probes in the background on a first visit); `'low'`, `'medium'` or `'high'` force one. Drives the `auto` defaults of shadows, reflections, terrain and render scaling. See [[b3d-quality]] |
+| `pixelRatio` | `0` | Device pixels per CSS pixel, flat. `0` is auto: the display's own ratio, capped by the device tier (high 2, medium 1.5, low 1). A positive value is an explicit cap and wins: `1` renders at CSS resolution, `2` full Retina, `0.75` below CSS for speed. Ignored in a headset |
+| `groundDetail` | `'auto'` | The ground shader's form: `full`, `lite` (three noise samples a pixel for eight, for a GPU that cannot afford the full one), or `auto` (from the device tier: lite on the low tier, and in a headset on the medium one) |
+| `ssao` | `'off'` | Ambient occlusion: `'off'`, `'auto'` (follows the device tier, and stays off in a headset) or `'on'`. Off by default because it is a cost a scene should choose. See [[b3d-ssao]] |
+| `ssaoMethod` | `'projected'` | `'projected'` computes occlusion once and every material looks it up by world position, so it works flat and in a headset. `'screen'` is Babylon's post-process, flat only |
+| `ssaoStrength` | `1` | How dark a fully occluded crease gets |
+| `ssaoRadius` | `2` | Metres a surface looks for something occluding it |
+| `ssaoRate` | `30` | Projected only: redraws per second (`0` = every frame) |
+| `windSpeed` | `0` | The scene's one wind, in m/s, read by clouds, water and ambient effects (see [[wind]]). `0` means no scene wind; a child's own wind attributes win where they are set |
+| `windBearingDeg` | `0` | Where the wind is going, north-up and clockwise. `0` blows toward +Z |
+| `windGust` | `0` | Gust size as a fraction of `windSpeed`. `0` is dead steady |
+| `startPaused` | `false` | Come up paused, showing the pause panel (the "press Start" shape) |
+| `pauseWhenHidden` | `'on'` | Pause when the tab or window goes to the background. ⚠️ Experimental: the VR path is unvalidated |
+| `enterXrOnResume` | `'off'` | `'on'`: resuming enters immersive VR where the device supports it. The Continue tap is the user gesture `enterXRAsync` requires |
+| `reseatFreeze` | `'on'` | Freeze the clock while the re-seat dialog is up. Set `'off'` for a networked world, which cannot stop the other players; the dialog still gates your own input |
+| `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
 | `xrRenderScale` | `0` | In a headset: the fraction of each eye's width and height drawn. `0` is auto (from the device tier: 0.67 on the low tier). Engine hardware scaling does not reach a headset; this does. Read on entering a session |
 | `xrFoveation` | `-1` | In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session |
-| `groundDetail` | `'auto'` | The ground shader's form: `full`, `lite` (three noise samples a pixel for eight, for a GPU that cannot afford the full one), or `auto` (from the device tier: lite on the low tier, and in a headset on the medium one) |
-| `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
-| `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = full layout; a value like `"a,b,left_stick"` selects controls |
+| `xrGrid` | `'auto'` | The reference grid on the floor in an immersive session. `'auto'` shows it for the built-in free-fly rig and hides it when a player entity drives the rig or you supply your own `setupXr`; `'on'` and `'off'` force it |
+| `xrReticle` | `'off'` | `'on'` shows the head-locked face crosshair (a pin target, e.g. for a tracking weapon) |
+| `flatUi` | `'scene'` | Where the flat view's own controls are drawn. `'scene'`: in the scene (the system bar, settings panel and pause), the same UI a headset gets. `'dom'`: HTML corner buttons, settings panel and pause (where `::part(...)` styling of them shows). Any other value warns once and means `'scene'` |
+| `scenePanelOpen` | `false` | Start with the settings panel open instead of closed behind the owl |
+| `panelTitle` | `''` | The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row) |
+| `panelSections` | `'fold'` | How collapsible sections in the settings panel present: `'fold'` (headers you open and close) or `'tabs'` (file tabs, one section at a time) |
+| `stats` | `false` | Add a Perf Stats section to the settings panel, flat and in a headset. `#perf` or `#debug` (or `?perf`, `?debug`) in the page URL, or calling `showB3dStats()`, shows it on every scene |
+| `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = full layout; a value like `"a,b,left_stick"` selects controls. A plain property, read once at setup |
 | `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
 | `gamepadFade` | `'on'` | `'off'` keeps the glass gamepad visible instead of fading it once a key is pressed or a hardware pad is used (the pointer never fades it) |
 | `minElevation` / `maxElevation` | `5` / `70` | Default orbit-camera elevation limits (degrees above the horizon) |
 | `minDistance` / `maxDistance` | `2` / `50` | Default orbit-camera zoom limits |
-| `panelTitle` | `''` | The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row) |
-| `flatUi` | `'scene'` | Where the flat view's own controls are drawn. `'scene'`: in the scene (the system bar, settings panel and pause), the same UI a headset gets. `'dom'`: the HTML corner buttons, settings panel and pause, as before 0.10.7 (and where `::part(...)` styling of them shows). Any other value warns once and means `'scene'` |
-| `clearColor` | `''` | The colour behind everything (`'#000'` for space); empty keeps Babylon's default |
+
+## Callbacks
+
+Set these in the `b3d()` config.
+
+| Property | Called |
+|----------|--------|
+| `sceneCreated(el)` | once the engine and scene exist: set up a camera here |
+| `update(el)` | every frame the simulation runs (never while paused) |
+| `scenePanel(el)` | returns the settings panel's widgets, drawn flat and in a headset from the same list; rebuilt each time it opens, and `refreshScenePanel()` updates an open one |
+| `pausePanel(el, resume)` | returns the pause panel's rows in place of the default title and Continue button; `resume` lets the player back in |
+| `setupXr(el)` | replaces the built-in WebXR setup and Enter-VR button with your own |
 */
 /*{ "parent": "core", "order": 10 }*/
 

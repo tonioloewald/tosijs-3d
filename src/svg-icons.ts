@@ -8,33 +8,6 @@ children), not just a static blob. Because it's a real element it works both as 
 flat DOM node **and** — via `.outerHTML` — as markup rasterized into an in-scene
 SVG texture (the VR panels), so one icon set serves both presentations.
 
-## Bringing your own icons
-
-`registerIcons(map)` adds names that **every widget can resolve** — an
-`iconGrid3d` item, a `table` icon column, a menu entry, `iconGlyph` directly.
-That is the difference from `createSvgIcons(yourData)`, which builds a private
-proxy: fine for calling yourself, useless for a name you hand to a control.
-
-```javascript
-registerIcons({
-  sceneZone: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>',
-  sceneMarker: 'star',      // a REDIRECT — alias one of ours into your vocabulary
-})
-iconGrid3d({ items: [{ icon: 'sceneZone', label: 'zone' }] })
-```
-
-A value starting with `<` is artwork; anything else is a redirect to another
-name. Registered art gets the composition suffixes for free, so `myArrow90r`
-works the moment `myArrow` does.
-
-Registering over an existing name **replaces** it, deliberately and silently —
-swapping our `camera` for one that matches your art is a reasonable thing to
-want, and a warning on a deliberate act is noise. Nothing is ever removed.
-
-This is the answer to "I have icons I do not want to push upstream": keep them,
-register them, and they behave exactly like ours. `isRegisteredIcon(name)` tells
-the two apart if you need to.
-
 ## Demo
 
 The whole set, plus a few composed variants (rotate / flip / opacity / a
@@ -76,10 +49,55 @@ preview.append(
 )
 ```
 
+## Bringing your own icons
+
+`registerIcons(map)` adds names that **every widget can resolve** — an
+`iconGrid3d` item, a `table` icon column, a menu entry, `iconGlyph` directly.
+That is the difference from `createSvgIcons(yourData)`, which builds a private
+proxy: fine for calling yourself, useless for a name you hand to a control.
+
+```javascript
+registerIcons({
+  sceneZone: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>',
+  sceneMarker: 'star',      // a REDIRECT — alias one of ours into your vocabulary
+})
+iconGrid3d({ items: [{ icon: 'sceneZone', label: 'zone' }] })
+```
+
+A value starting with `<` is artwork; anything else is a redirect to another
+name. Registered art gets the composition suffixes for free, so `myArrow90r`
+works the moment `myArrow` does.
+
+Registering over an existing name **replaces** it, deliberately and silently —
+swapping our `camera` for one that matches your art is a reasonable thing to
+want, and a warning on a deliberate act is noise. Nothing is ever removed.
+
+This is the answer to "I have icons I do not want to push upstream": keep them,
+register them, and they behave exactly like ours. `isRegisteredIcon(name)` tells
+the two apart if you need to.
+
 ## Composition suffixes
 
-Names carry a **subset** of tosijs-ui's suffix grammar (see [[icon-name]]) — the
-pure style modifiers: rotate/flip/scale/translate/opacity/stroke-width/color.
+Names carry a **subset** of tosijs-ui's suffix grammar: the pure style
+modifiers. A suffix is `<value><code>`, chained, at the end of a name. `_`
+before the value means negative, and a name ending in a digit needs a `_`
+separator (`edit2_50o`).
+
+| code | effect                    | example      |
+| ---- | ------------------------- | ------------ |
+| `r`  | rotate N°                 | `chevron90r` |
+| `f`  | flip (`0f` = H, `1f` = V) | `chevron0f`  |
+| `s`  | scale N%                  | `star75s`    |
+| `x`  | translateX N%             | `plus20x`    |
+| `y`  | translateY N%             | `plus_10y`   |
+| `o`  | opacity N%                | `camera50o`  |
+| `W`  | stroke-width N            | `chevron3W`  |
+| `F`  | fill (hex or `--var`)     | `close_f00F` |
+| `S`  | stroke (hex or `--var`)   | `chevron_accentS` |
+
+`parseStyleSuffixes(name)` is the parser on its own: a name in, the base name
+and a plain style object out (or `null`), with no DOM.
+
 Directional redirects baked in by the icon generator resolve too:
 
 ```javascript

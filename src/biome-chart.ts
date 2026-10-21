@@ -2,34 +2,15 @@
 # biome-chart
 
 The **pure biome-classification model** under the procedural terrain shader
-(TERRAIN-SHADER-DESIGN.md): `position → (u, v)` into a Whittaker-style chart —
+([TERRAIN-SHADER-DESIGN.md](https://github.com/tonioloewald/tosijs-3d/blob/main/TERRAIN-SHADER-DESIGN.md)): `position → (u, v)` into a Whittaker-style chart —
 u is temperature, v is moisture — plus the slope and photic override terms.
 No Babylon, no DOM, deterministic (noise arrives as *values*, injected): the
 same math the GLSL in [[b3d-terrain]]'s biome plugin evaluates per fragment is
 pinned here by unit tests, one function per shader expression.
 
-## One picker, two front-ends
-
-- **Manta front-end** (`mantaAxes`) — the implemented one. Underwater the
-  moisture is 1.0 (the seafloor gradient is the chart's max-moisture column:
-  reef → shelf → abyssal, warm → cold) and the temperature lapse keeps running
-  below sea level; above water, moisture is a map constant. The beach is where
-  the terrestrial chart meets the marine edge at sea level.
-- **Planetary front-end** (`planetaryAxes`) — live in both the pure model and
-  the GLSL (`BiomeParams.seaRadius > 0`). Altitude is **radial**
-  (`length(p) − seaRadius`), latitude is `asin(y/|p|)` from 3D position (never
-  lat/long UVs), and sea-level temperature follows the **three-point latitude
-  curve** authors think in (`latitudeTemperature`: equator / temperate / pole).
-  The shader adds the rough moisture estimate — map moisture **dries with
-  altitude** (proximity-to-water proxy) plus an **orographic rain-shadow**
-  term off the surface normal vs the wind — and `slopeExaggeration` so
-  planet-gentle contours still read as cliffs. `b3dPlanet({ biome: 'on' })`
-  wires it, with the climate on the demo's settings panel.
-
 ## Demo — one shader, bottom muck → coral → beach → forest → snow
 
-Flat-colour chart cells (build-order step 1: validate the mapping before any
-texture). The terrain uses **localized [[slope-profile]]s** — sea cliffs in
+Flat-colour chart cells. The terrain uses **localized [[slope-profile]]s** — sea cliffs in
 one region, mid-level mesas in another, smooth beach plain in a third, with
 continuous transitions between (cliffs of Dover walking down into Brighton
 beach) — so every spec transition is on screen at once: the marine column
@@ -44,19 +25,6 @@ terrain (beach chases the waterline, drowned slopes turn seagrass);
 collapses until ice meets the waterline, exactly as the spec asks, emergent
 from the lapse; **map moisture** — sweep forest → steppe → dune on the same
 terrain. Drag to orbit.
-
-## Two temperature scales
-
-What an author sets (the terrain's `biomeTemperature`, and what the sea ice
-reads) is a **temperature**: `0` is 0 °C and each unit is 50 °C, so `1` is
-50 °C, `-1` is -50 °C, and it does not stop at either end.
-
-The chart on this page is a window onto that. Its `0…1` axis runs from
--22.5 °C to 40 °C, with freezing at 0.36, and the demo's sliders below are in
-those **chart units**. So are `BiomePlugin.params`, the province climate
-curves, `biomeLapseRate` and the decorator's rule bands. `chartTemperature`
-and `planetTemperature` convert between the two; the terrain converts on the
-way in. Outside the window the chart clamps to its end rows.
 
 ```js
 import {
@@ -125,8 +93,8 @@ const scene = b3d(
       const p = terrain.biomePlugin?.params
       if (!p) return []
       const bind = (label, key, min, max, step) =>
-        // onChange, not onInput — slider3d's callback name (a wrong option is
-        // silently ignored in an untyped demo; found live by Tonio)
+        // handleChange is slider3d's callback name (a wrong option name is
+        // silently ignored in an untyped demo)
         slider3d({ label, value: p[key], min, max, step, handleChange: (v) => { p[key] = v } })
       return [
         label3d({ text: 'Climate', bold: true, compact: true }),
@@ -169,6 +137,37 @@ preview.append(scene)
 ```css
 .preview { height: 100%; }
 ```
+
+## One picker, two front-ends
+
+- **Manta front-end** (`mantaAxes`). Underwater the
+  moisture is 1.0 (the seafloor gradient is the chart's max-moisture column:
+  reef → shelf → abyssal, warm → cold) and the temperature lapse keeps running
+  below sea level; above water, moisture is a map constant. The beach is where
+  the terrestrial chart meets the marine edge at sea level.
+- **Planetary front-end** (`planetaryAxes`) — live in both the pure model and
+  the GLSL (`BiomeParams.seaRadius > 0`). Altitude is **radial**
+  (`length(p) − seaRadius`), latitude is `asin(y/|p|)` from 3D position (never
+  lat/long UVs), and sea-level temperature follows the **three-point latitude
+  curve** authors think in (`latitudeTemperature`: equator / temperate / pole).
+  The shader adds the rough moisture estimate — map moisture **dries with
+  altitude** (proximity-to-water proxy) plus an **orographic rain-shadow**
+  term off the surface normal vs the wind — and `slopeExaggeration` so
+  planet-gentle contours still read as cliffs. `b3dPlanet({ biome: 'on' })`
+  wires it, with the climate on the demo's settings panel.
+
+## Two temperature scales
+
+What an author sets (the terrain's `biomeTemperature`, and what the sea ice
+reads) is a **temperature**: `0` is 0 °C and each unit is 50 °C, so `1` is
+50 °C, `-1` is -50 °C, and it does not stop at either end.
+
+The chart on this page is a window onto that. Its `0…1` axis runs from
+-22.5 °C to 40 °C, with freezing at 0.36, and the demo's sliders above are in
+those **chart units**. So are `BiomePlugin.params`, the province climate
+curves, `biomeLapseRate` and the decorator's rule bands. `chartTemperature`
+and `planetTemperature` convert between the two; the terrain converts on the
+way in. Outside the window the chart clamps to its end rows.
 
 ## Override terms (outside the chart)
 
