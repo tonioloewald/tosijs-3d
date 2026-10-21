@@ -184,6 +184,7 @@ preview.append(
 | `scale` | `1` | Uniform scale applied to the loaded model |
 | `animation` | `''` | Current animation state name |
 | `animationSpeed` | `1` | Playback speed multiplier (0–2) |
+| `blendSeconds` | `0.25` | Seconds each animation change eases over (walk to run, crouching, the gun coming up). `0` cuts |
 | `player` | `false` | Whether this biped receives input |
 | `cameraType` | `'none'` | `'follow'`, `'xr'`, or `'none'` |
 | `turnSpeed` | `180` | Degrees per second |
@@ -528,6 +529,7 @@ export class B3dBiped extends B3dControllable {
   // Attributes read directly as `this.x` (the rest go through `as any`).
   declare url: string
   declare player: boolean
+  declare blendSeconds: number
 
   static initAttributes = {
     ...B3dControllable.initAttributes,
@@ -544,6 +546,8 @@ export class B3dBiped extends B3dControllable {
     cameraType: 'none',
     animation: '',
     animationSpeed: 1,
+    // Seconds every animation change eases over (see `_ease`).
+    blendSeconds: 0.25,
     initialState: 'idle',
     turnSpeed: 180,
     forwardSpeed: 2,
@@ -1579,8 +1583,8 @@ export class B3dBiped extends B3dControllable {
    * window closes.
    */
   private _currentPose(
-    // Past BLEND_SECONDS, so a pose is never measured mid-blend.
-    settle = 0.35,
+    // Past the blend, so a pose is never measured mid-blend.
+    settle = Math.max(0.25, Number(this.blendSeconds) + 0.1),
     window = 2,
     interval = 0.08
   ): { bottom: number; height: number; head: number | null } | null {
@@ -1951,11 +1955,9 @@ export class B3dBiped extends B3dControllable {
 
   Babylon's `blendingSpeed` is a step PER FRAME, so a fixed value is slower the
   slower the frame rate (0.2 took 300 ms at 20 fps). `_paceBlends` resets it
-  from each frame's dt so a blend takes `BLEND_SECONDS` at any frame rate. It
-  stays under `_currentPose`'s 0.35 s settle, so a pose is not measured
-  mid-blend.
+  from each frame's dt so a blend takes `blendSeconds` at any frame rate.
+  `_currentPose` waits past it, so a pose is not measured mid-blend.
   */
-  private static BLEND_SECONDS = 0.25
   private _eased = new Set<BABYLON.AnimationGroup>()
   private _blendStep = 0
 
@@ -1967,7 +1969,8 @@ export class B3dBiped extends B3dControllable {
   }
 
   private _paceBlends(dt: number): void {
-    const step = Math.min(1, dt / B3dBiped.BLEND_SECONDS)
+    const seconds = Number(this.blendSeconds)
+    const step = seconds > 0 ? Math.min(1, dt / seconds) : 1
     // Only when it moves noticeably: the setter walks every animation.
     if (Math.abs(step - this._blendStep) < this._blendStep * 0.1) return
     this._blendStep = step
