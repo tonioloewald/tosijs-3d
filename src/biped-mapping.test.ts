@@ -97,6 +97,10 @@ describe('bipedMapping: bumpers carry the vertical verbs', () => {
     expect(bipedMapping(pad({ leftStickPress: 1 }), 1 / 60).sneak).toBe(1)
   })
 
+  test('clicking the right stick (R3) toggles the weapon, as the right bumper does', () => {
+    expect(bipedMapping(pad({ rightStickPress: 1 }), 1 / 60).weapon).toBe(1)
+  })
+
   /*
   RIGHT BUMPER RAISES THE WEAPON, AND A JUMPS — a reversal, recorded as one.
 

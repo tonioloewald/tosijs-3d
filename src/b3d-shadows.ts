@@ -67,8 +67,8 @@ tosi-b3d { width: 100%; height: 100%; }
 | `shadowTextureSize` | `auto` | Shadow map resolution (per cascade); `auto` = device tier |
 | `shadowMaxZ` | `100` | Far plane of the cascaded shadow frustum |
 | `shadowDarkness` | `0.1` | 0 = fully dark shadow, 1 = no shadow |
-| `shadowNormalBias` | `0.02` | Offset along the surface normal — **the shadow-acne knob**. Lower it if shadows detach from small casters |
-| `shadowBias` | `0.0005` | Depth-direction bias, in the cascade's depth range. With `shadowNormalBias` at 0.02 it is what clears the remaining acne (fine bands over every lit surface); raise `shadowNormalBias` instead and thin limbs lose their shadow |
+| `shadowNormalBias` | `0.04` | Offset along the surface normal — **the shadow-acne knob**. Lower it if shadows detach from small casters; much past 0.05 and thin limbs lose their shadow |
+| `shadowBias` | `0.002` | Depth-direction bias, in the cascade's depth range. Together with `shadowNormalBias` it clears the fine bands acne leaves on lit surfaces |
 | `numCascades` | `auto` | Number of cascade splits (1–4); `auto` = device tier |
 | `stabilizeCascades` | `'on'` | Reduce shadow-edge "swimming" under motion |
 | `lambda` | `0.8` | Cascade split blend (0 = uniform, 1 = logarithmic) |
@@ -156,29 +156,23 @@ export class B3dSun extends B3dChild {
     shadowMaxZ: 100,
     shadowDarkness: 0.1,
     /**
-     * Offset the shadow lookup ALONG THE SURFACE NORMAL, in world units.
+     * Offset the shadow lookup ALONG THE SURFACE NORMAL, in world units: the
+     * main acne knob. At Babylon's default of 0 a large ground self-shadows
+     * into a stipple over the whole surface.
      *
-     * This is the acne knob. At Babylon's default of 0 a large ground plane
-     * self-shadows into a dense stipple that covers the whole surface — measured
-     * on the b3d pause demo, where it darkened roughly half the ground and read
-     * as a texture artifact rather than as a shadow bug. 0.02 clears the near
-     * field but leaves visible stipple mid-distance; 0.05 is clean throughout,
-     * with the caster's contact shadow still attached.
-     *
-     * Lower it if shadows detach from small objects ("peter-panning") — that is
-     * the trade this parameter makes, and the reason it is exposed rather than
-     * simply raised.
+     * Lower it if shadows detach from small objects ("peter-panning"); raise
+     * it much past 0.05 and thin limbs lose their shadow. 0.04 with the depth
+     * bias below is clean on a plain checker ground and a lit box (the glass
+     * gamepad demo, 1024 map), with a character's limbs and feet still shadowed.
      */
-    shadowNormalBias: 0.02,
+    shadowNormalBias: 0.04,
     /**
-     * Depth-direction bias. Babylon's CSM default is 0.00005, and with
-     * normalBias held at 0.02 (for thin limbs, above) that left fine acne bands
-     * over every lit surface of a plain scene (the primitives and getting-started
-     * demos: ground, boxes, spheres). 0.0005 clears them; a character's shadow
-     * at 0.0005 is unchanged (limbs solid, feet attached), checked in the
-     * playground. A mottled ground hides acne, which is why it went unseen there.
+     * Depth-direction bias, in the cascade's depth range. Babylon's CSM default
+     * (0.00005) leaves fine bands over every lit surface of a plain scene; a
+     * mottled ground hides them, which is why a textured demo can look clean
+     * while a checker one stripes.
      */
-    shadowBias: 0.0005,
+    shadowBias: 0.002,
     // 0 = auto: resolved from the device quality tier (see b3d-quality). Set an
     // explicit value to override. shadowTextureSize is fixed at generator creation.
     shadowTextureSize: 0,

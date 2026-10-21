@@ -535,7 +535,8 @@ export function bipedMapping(
   most universal convention there is, and a mode you toggle constantly deserves
   the better button. Easily reverted if it plays worse than it reads.
   */
-  input.weapon = pad.rightBumper
+  // Clicking the right stick toggles it too (R3), so both clicks do something.
+  input.weapon = Math.max(pad.rightBumper, pad.rightStickPress)
   input.jump = pad.buttonA
   // Clicking the left stick sneaks too, as L3 does in GTA V.
   input.sneak = Math.max(pad.leftBumper, pad.leftStickPress)
@@ -551,6 +552,7 @@ export const bipedMappingDescriptor: InputMappingDescriptor = {
     leftStickX: 'strafe',
     rightStickX: 'turn',
     rightBumper: 'weapon',
+    rightStickPress: 'weapon',
     buttonA: 'jump',
     leftBumper: 'sneak',
     leftStickPress: 'sneak',
