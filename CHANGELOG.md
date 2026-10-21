@@ -12,24 +12,17 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-- **Changed:** the sun's shadow bias defaults are now `shadowBias` 0.002 and `shadowNormalBias` 0.04, which clears the fine acne stripes on plain lit surfaces. If a small caster's shadow detaches, set them lower on your `<tosi-b3d-sun>`.
-- **Changed:** the biped eases every animation change (a quarter of a second at any frame rate; set `blendSeconds` to change it, `0` cuts) instead of cutting: walk to run, standing to crouch, the gun coming up and going down, aim up/level/down. A crouch at rest plays a transition clip if the states name one (`sneakEnter` / `sneakExit`, e.g. UAL's `Crouch_Enter` / `Crouch_Exit`); the defaults have none, so it blends.
-- **Changed:** in the biped mapping, clicking the right stick (R3) toggles the weapon, as the right bumper does. The playground's glass pad shows both stick clicks.
-- **Fixed:** XR thumbsticks now have the hardware pad's 0.15 per-axis deadzone, so a stick pushed sideways to turn no longer drifts the biped's look pitch (its aim). Raising the weapon now levels the aim in a headset too.
-- **Added:** the panel page's system-bar demo has a "New journal entry" button that blinks the Journal button (`attention()`).
-- **Fixed:** in the glass gamepad demo, the cube now moves away from you on left stick up, and the readout sits top centre, clear of the system bar.
+## 0.11.3
 
-## 0.11.2
-
-The latest release. A new glass gamepad, laid out like a pair of VR
-controllers held flat, with stick clicks (L3, R3) that a hardware pad and a
-headset's thumbsticks now report too; view and menu on the headset's system bar
-when a scene asks for them; and the full-screen button on an iPhone.
-[Read 0.11.2](/v0.11.2/).
+The latest release. The biped eases between animations instead of cutting
+(`blendSeconds`, a quarter of a second by default), R3 toggles its weapon, XR
+thumbsticks get a deadzone so the aim no longer drifts, and the sun's shadow
+bias defaults clear acne stripes. [Read 0.11.3](/v0.11.3/).
 
 ## Every version
 
 <!-- toc -->
+- [0.11.3](/v0.11.3/)
 - [0.11.2](/v0.11.2/)
 - [0.11.1](/v0.11.1/)
 - [0.11.0](/v0.11.0/)

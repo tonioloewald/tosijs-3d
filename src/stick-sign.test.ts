@@ -124,7 +124,12 @@ describe('every source agrees: up is positive', () => {
     g.navigator.getGamepads = () => [{ axes: [0, 0, 0, 0], buttons, index: 0 }]
     try {
       const pad = (new HardwareGamepadSource() as any).poll()
-      expect([pad.view, pad.menu, pad.leftStickPress, pad.rightStickPress]).toEqual([1, 1, 1, 1])
+      expect([
+        pad.view,
+        pad.menu,
+        pad.leftStickPress,
+        pad.rightStickPress,
+      ]).toEqual([1, 1, 1, 1])
       expect(pad.buttonA).toBe(0)
     } finally {
       if (prev) g.navigator.getGamepads = prev
@@ -250,11 +255,26 @@ describe('cluster artwork contains the full stick reach', () => {
 
   test('the sheet names every part the pad binds, once', () => {
     for (const id of [
-      'A', 'B', 'X', 'Y', 'menu', 'view',
-      'left_stick', 'left_stick_travel', 'left_stick_click',
-      'right_stick', 'right_stick_travel', 'right_stick_click',
-      'left_bumper', 'right_bumper', 'left_trigger', 'right_trigger',
-      'dpad_up', 'dpad_down', 'dpad_left', 'dpad_right',
+      'A',
+      'B',
+      'X',
+      'Y',
+      'menu',
+      'view',
+      'left_stick',
+      'left_stick_travel',
+      'left_stick_click',
+      'right_stick',
+      'right_stick_travel',
+      'right_stick_click',
+      'left_bumper',
+      'right_bumper',
+      'left_trigger',
+      'right_trigger',
+      'dpad_up',
+      'dpad_down',
+      'dpad_left',
+      'dpad_right',
     ])
       expect(svg.split(`id="${id}"`).length - 1).toBe(1)
   })

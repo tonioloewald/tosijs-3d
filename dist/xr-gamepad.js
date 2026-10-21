@@ -18,6 +18,11 @@ Standard `xr-standard-*` mappings (Quest / oculus-touch layout):
 | `buttonX`, `buttonY` | left `x-button`, `y-button` |
 | `leftStickPress`, `rightStickPress` | pressing `xr-standard-thumbstick` |
 
+The thumbsticks get the same 0.15 per-axis deadzone as a hardware pad. A
+thumbstick at rest, or pushed sideways to turn, reads a little on the other
+axis; without the deadzone that drifts anything that integrates a stick, such
+as the biped's look pitch, which is also its aim.
+
 ## Example
 
 XR-only. Adapts live XR controllers to the same `VirtualGamepad` spine as the keyboard and hardware
@@ -30,6 +35,8 @@ import { XrGamepadSource } from 'tosijs-3d'
 ```
 */
 import { emptyGamepad, } from './virtual-gamepad.js';
+import { applyDeadzone } from './hardware-gamepad.js';
+const DEADZONE = 0.15;
 export class XrGamepadSource {
     controllers;
     kind = 'xr';
@@ -43,8 +50,9 @@ export class XrGamepadSource {
         if (left != null) {
             const ts = left['xr-standard-thumbstick']?.axes;
             if (ts != null) {
-                pad.leftStickX = ts.x;
-                pad.leftStickY = -ts.y; // up = positive, matching the other sources
+                pad.leftStickX = applyDeadzone(ts.x, DEADZONE);
+                // up = positive, matching the other sources
+                pad.leftStickY = applyDeadzone(-ts.y, DEADZONE);
             }
             pad.leftTrigger = left['xr-standard-trigger']?.value ?? 0;
             pad.leftBumper = left['xr-standard-squeeze']?.value ?? 0;
@@ -55,8 +63,8 @@ export class XrGamepadSource {
         if (right != null) {
             const ts = right['xr-standard-thumbstick']?.axes;
             if (ts != null) {
-                pad.rightStickX = ts.x;
-                pad.rightStickY = -ts.y;
+                pad.rightStickX = applyDeadzone(ts.x, DEADZONE);
+                pad.rightStickY = applyDeadzone(-ts.y, DEADZONE);
             }
             pad.rightTrigger = right['xr-standard-trigger']?.value ?? 0;
             pad.rightBumper = right['xr-standard-squeeze']?.value ?? 0;

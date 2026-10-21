@@ -49,6 +49,7 @@ export declare class B3dBiped extends B3dControllable {
     static preferredTagName: string;
     url: string;
     player: boolean;
+    blendSeconds: number;
     static initAttributes: {
         url: string;
         skin: string;
@@ -57,6 +58,7 @@ export declare class B3dBiped extends B3dControllable {
         cameraType: string;
         animation: string;
         animationSpeed: number;
+        blendSeconds: number;
         initialState: string;
         turnSpeed: number;
         forwardSpeed: number;
@@ -513,6 +515,9 @@ export declare class B3dBiped extends B3dControllable {
      */
     private _clipSeconds;
     private _sneakWas;
+    /** The stance-change clip playing (`sneakEnter`/`sneakExit`), and its seconds left. */
+    private _stanceClip;
+    private _stanceLeft;
     /** Zoom 0..1, now integrated from the d-pad rather than read off a stick. */
     private _camZoom;
     private _waterEl;
@@ -661,6 +666,10 @@ export declare class B3dBiped extends B3dControllable {
     private _updateAimLayer;
     /** Seconds left of the one-shot fire pose. */
     private _shootFor;
+    private _eased;
+    private _blendStep;
+    private _ease;
+    private _paceBlends;
     setAnimationState(name: string, speed?: number): void;
     getCameraTarget(): BABYLON.Node | null;
     applyInput(input: ControlInput, dt: number): void;

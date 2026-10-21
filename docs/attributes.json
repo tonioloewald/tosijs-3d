@@ -662,6 +662,11 @@
         "description": "Playback speed multiplier (0–2)"
       },
       {
+        "name": "blendSeconds",
+        "default": "0.25",
+        "description": "Seconds each animation change eases over (walk to run, crouching, the gun coming up). `0` cuts"
+      },
+      {
         "name": "initialState",
         "default": "'idle'",
         "description": "Animation state at load"
@@ -3685,13 +3690,13 @@
       },
       {
         "name": "shadowNormalBias",
-        "default": "0.02",
-        "description": "Offset along the surface normal — **the shadow-acne knob**. Lower it if shadows detach from small casters"
+        "default": "0.04",
+        "description": "Offset along the surface normal — **the shadow-acne knob**. Lower it if shadows detach from small casters; much past 0.05 and thin limbs lose their shadow"
       },
       {
         "name": "shadowBias",
-        "default": "0.0005",
-        "description": "Depth-direction bias, in the cascade's depth range. With `shadowNormalBias` at 0.02 it is what clears the remaining acne (fine bands over every lit surface); raise `shadowNormalBias` instead and thin limbs lose their shadow"
+        "default": "0.002",
+        "description": "Depth-direction bias, in the cascade's depth range. Together with `shadowNormalBias` it clears the fine bands acne leaves on lit surfaces"
       },
       {
         "name": "shadowTextureSize",

@@ -183,6 +183,7 @@ preview.append(
 | `scale` | `1` | Uniform scale applied to the loaded model |
 | `animation` | `''` | Current animation state name |
 | `animationSpeed` | `1` | Playback speed multiplier (0–2) |
+| `blendSeconds` | `0.25` | Seconds each animation change eases over (walk to run, crouching, the gun coming up). `0` cuts |
 | `player` | `false` | Whether this biped receives input |
 | `cameraType` | `'none'` | `'follow'`, `'xr'`, or `'none'` |
 | `turnSpeed` | `180` | Degrees per second |

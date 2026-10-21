@@ -63,7 +63,7 @@ const scene = b3d(
         const s = pad.poll()
         // left stick drives it around; right stick spins it; A hops; B/X/Y recolour it.
         rover.position.x = Math.max(-9, Math.min(9, rover.position.x + s.leftStickX * 0.12))
-        rover.position.z = Math.max(-9, Math.min(9, rover.position.z - s.leftStickY * 0.12))
+        rover.position.z = Math.max(-9, Math.min(9, rover.position.z + s.leftStickY * 0.12))
         rover.rotation.y += s.rightStickX * 0.06
         const lift = s.buttonA > 0.5 ? 1.7 : 0.5
         rover.position.y += (lift - rover.position.y) * 0.2
@@ -104,7 +104,8 @@ preview.append(div({ class: 'glass-stage' }, scene, readout))
 .glass-stage .readout {
   position: absolute;
   top: 10px;
-  left: 12px;
+  left: 50%;
+  transform: translateX(-50%);
   margin: 0;
   padding: 4px 8px;
   background: #222;
@@ -597,7 +598,7 @@ export class B3dGamepad extends Component {
             want.add('right_stick_travel');
         for (const key of ['left', 'right', 'center']) {
             const c = key === 'center'
-                ? (this.clusters?.center ?? this.clusters?.top)
+                ? this.clusters?.center ?? this.clusters?.top
                 : this.clusters?.[key];
             if (c === false)
                 continue;
@@ -659,7 +660,9 @@ export class B3dGamepad extends Component {
             this._placed[key] = {
                 svg,
                 width: width * scale,
-                height: vb != null && vb.width > 0 ? (width * scale * vb.height) / vb.width : 0,
+                height: vb != null && vb.width > 0
+                    ? (width * scale * vb.height) / vb.width
+                    : 0,
                 anchored: c?.anchor != null,
             };
             this.sources.push(new TouchGamepadSource(svg, opts));

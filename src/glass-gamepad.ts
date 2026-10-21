@@ -676,7 +676,7 @@ export class B3dGamepad extends Component implements GamepadSource {
     for (const key of ['left', 'right', 'center'] as const) {
       const c =
         key === 'center'
-          ? (this.clusters?.center ?? this.clusters?.top)
+          ? this.clusters?.center ?? this.clusters?.top
           : this.clusters?.[key]
       if (c === false) continue
       if (!CLUSTER_PARTS[key].some((p) => want.has(p))) continue
@@ -739,7 +739,9 @@ export class B3dGamepad extends Component implements GamepadSource {
         svg,
         width: width * scale,
         height:
-          vb != null && vb.width > 0 ? (width * scale * vb.height) / vb.width : 0,
+          vb != null && vb.width > 0
+            ? (width * scale * vb.height) / vb.width
+            : 0,
         anchored: c?.anchor != null,
       }
       this.sources.push(new TouchGamepadSource(svg, opts))

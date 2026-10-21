@@ -304,8 +304,8 @@ export function sunSchema(extra = {}) {
         shadows: choice('on', ['on', 'off']),
         lambda: num(0.8, { minimum: 0, maximum: 1 }),
         cascadeBlendPercentage: num(0.1, { minimum: 0, maximum: 1 }),
-        shadowNormalBias: num(0.02, { minimum: 0, maximum: 0.5 }),
-        shadowBias: num(0.0005, { minimum: 0, maximum: 0.01 }),
+        shadowNormalBias: num(0.04, { minimum: 0, maximum: 0.5 }),
+        shadowBias: num(0.002, { minimum: 0, maximum: 0.01 }),
         updateIntervalMs: num(1000, { minimum: 0, maximum: 10000, ...MS }),
     }, extra);
 }

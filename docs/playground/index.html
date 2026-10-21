@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=3bfae6940c28" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=0df5b37f4715" data-tosi-doc-system />
   <title>Biped Playground — tosijs-3d</title>
   <meta name="description" content="A place to run around and murder things in. One call returns a whole arena — ground, light, cover, crates, a catwalk and something to shoot — as ordinary scene…" />
   <link rel="canonical" href="https://3d.tosijs.net/playground/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=60bb2bce890d" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=0e916dffdafc" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="playground.ts">
 <h1 id="biped-playground">Biped Playground</h1>
 <p><strong>A place to run around and murder things in.</strong> One call returns a whole
@@ -124,8 +124,9 @@ preview.append(
       // The glass pad shows only what this demo USES. These are control names,
       // not a mapping name (`gamepad: &#39;biped&#39;` names nothing and draws nothing).
       // Move, aim, shoot, jump, sneak, sprint; `Y` switches first/third person.
+      // Clicking the left stick sneaks, the right one raises the weapon.
       gamepad:
-        &#39;left_stick,right_stick,A,B,X,Y,right_bumper,left_bumper,left_trigger,right_trigger&#39;,
+        &#39;left_stick,right_stick,left_stick_click,right_stick_click,A,B,X,Y,right_bumper,left_bumper,left_trigger,right_trigger&#39;,
       // Not armed on load. Right bumper (or the on-screen RB) raises and lowers
       // the weapon.
     },
@@ -138,7 +139,7 @@ preview.append(
 </code></pre>
 <pre><code class="language-css">.preview { height: 100%; }
 </code></pre>
-<p><strong>Two modes, and the right bumper is the switch</strong>, when there is a pistol to
+<p><strong>Two modes, and the right bumper (or clicking the right stick) is the switch</strong>, when there is a pistol to
 switch to: it starts on your hip (open the loadout from its button on the system bar
 to see it). With the weapon down you are walking:
 <strong>R</strong> sprints. Press <strong>right bumper</strong> and you draw it, and the gun comes up — now <strong>R</strong> fires, <strong>Q</strong>
@@ -147,7 +148,8 @@ sinking as the range grows because it is the real ballistic arc rather than a
 dot in the middle of the screen. You cannot sprint with the gun up, which is why
 the trigger is free to do both jobs.</p>
 <p><strong>WASD</strong> moves, <strong>arrow keys</strong> look, <strong>space</strong> jumps, <strong>left shift</strong> sneaks,
-<strong>E</strong> interacts, <strong>Y</strong> switches between third and first person.</p>
+<strong>E</strong> interacts, <strong>Y</strong> switches between third and first person. On a pad,
+clicking the left stick sneaks.</p>
 <p>Things to try: put the pistol in the bag and try to raise it (nothing to raise), drag it back into your hand (it comes up); swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
 and watch the ring disappear behind it until you stand; walk the cover line and
 compare the railing with the wall beside it.</p>
@@ -570,6 +572,7 @@ showing you&quot;</em> can be one line of data.</p>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.11.3/">0.11.3</a></li>
         <li><a class="doc-link" href="../v0.11.2/">0.11.2</a></li>
         <li><a class="doc-link" href="../v0.11.1/">0.11.1</a></li>
         <li><a class="doc-link" href="../v0.11.0/">0.11.0</a></li>
@@ -647,6 +650,6 @@ showing you&quot;</em> can be one line of data.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-wfr0jrvj.js"></script>
+  <script type="module" src="../hydrate-zxjxj999.js"></script>
 </body>
 </html>

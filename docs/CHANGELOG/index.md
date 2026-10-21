@@ -12,19 +12,17 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-Nothing yet.
+## 0.11.3
 
-## 0.11.2
-
-The latest release. A new glass gamepad, laid out like a pair of VR
-controllers held flat, with stick clicks (L3, R3) that a hardware pad and a
-headset's thumbsticks now report too; view and menu on the headset's system bar
-when a scene asks for them; and the full-screen button on an iPhone.
-[Read 0.11.2](/v0.11.2/).
+The latest release. The biped eases between animations instead of cutting
+(`blendSeconds`, a quarter of a second by default), R3 toggles its weapon, XR
+thumbsticks get a deadzone so the aim no longer drifts, and the sun's shadow
+bias defaults clear acne stripes. [Read 0.11.3](/v0.11.3/).
 
 ## Every version
 
 <!-- toc -->
+- [0.11.3](/v0.11.3/)
 - [0.11.2](/v0.11.2/)
 - [0.11.1](/v0.11.1/)
 - [0.11.0](/v0.11.0/)

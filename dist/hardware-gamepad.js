@@ -17,7 +17,8 @@ import { HardwareGamepadSource } from 'tosijs-3d'
 ```
 */
 import { emptyGamepad } from './virtual-gamepad.js';
-function applyDeadzone(value, deadzone) {
+/** Zero inside `deadzone`, rescaled to 0..1 beyond it. Shared with the XR source. */
+export function applyDeadzone(value, deadzone) {
     if (Math.abs(value) < deadzone)
         return 0;
     const sign = Math.sign(value);

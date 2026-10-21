@@ -8,27 +8,21 @@ export declare class B3dSun extends B3dChild {
         shadowMaxZ: number;
         shadowDarkness: number;
         /**
-         * Offset the shadow lookup ALONG THE SURFACE NORMAL, in world units.
+         * Offset the shadow lookup ALONG THE SURFACE NORMAL, in world units: the
+         * main acne knob. At Babylon's default of 0 a large ground self-shadows
+         * into a stipple over the whole surface.
          *
-         * This is the acne knob. At Babylon's default of 0 a large ground plane
-         * self-shadows into a dense stipple that covers the whole surface — measured
-         * on the b3d pause demo, where it darkened roughly half the ground and read
-         * as a texture artifact rather than as a shadow bug. 0.02 clears the near
-         * field but leaves visible stipple mid-distance; 0.05 is clean throughout,
-         * with the caster's contact shadow still attached.
-         *
-         * Lower it if shadows detach from small objects ("peter-panning") — that is
-         * the trade this parameter makes, and the reason it is exposed rather than
-         * simply raised.
+         * Lower it if shadows detach from small objects ("peter-panning"); raise
+         * it much past 0.05 and thin limbs lose their shadow. 0.04 with the depth
+         * bias below is clean on a plain checker ground and a lit box (the glass
+         * gamepad demo, 1024 map), with a character's limbs and feet still shadowed.
          */
         shadowNormalBias: number;
         /**
-         * Depth-direction bias. Babylon's CSM default is 0.00005, and with
-         * normalBias held at 0.02 (for thin limbs, above) that left fine acne bands
-         * over every lit surface of a plain scene (the primitives and getting-started
-         * demos: ground, boxes, spheres). 0.0005 clears them; a character's shadow
-         * at 0.0005 is unchanged (limbs solid, feet attached), checked in the
-         * playground. A mottled ground hides acne, which is why it went unseen there.
+         * Depth-direction bias, in the cascade's depth range. Babylon's CSM default
+         * (0.00005) leaves fine bands over every lit surface of a plain scene; a
+         * mottled ground hides them, which is why a textured demo can look clean
+         * while a checker one stripes.
          */
         shadowBias: number;
         shadowTextureSize: number;

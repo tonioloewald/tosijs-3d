@@ -52,7 +52,10 @@ function setup() {
   const gen = {
     shadowMaxZ: 0,
     splitFrustum: () => splitNear.push(scene.activeCamera!.minZ),
-    getShadowMap: () => ({ onBeforeBindObservable: onBeforeBind, getScene: () => scene }),
+    getShadowMap: () => ({
+      onBeforeBindObservable: onBeforeBind,
+      getScene: () => scene,
+    }),
   }
   // Babylon's own observer sits between ours: it splits when told to.
   follow(gen as any, () => 30)

@@ -62,7 +62,7 @@ const scene = b3d(
         const s = pad.poll()
         // left stick drives it around; right stick spins it; A hops; B/X/Y recolour it.
         rover.position.x = Math.max(-9, Math.min(9, rover.position.x + s.leftStickX * 0.12))
-        rover.position.z = Math.max(-9, Math.min(9, rover.position.z - s.leftStickY * 0.12))
+        rover.position.z = Math.max(-9, Math.min(9, rover.position.z + s.leftStickY * 0.12))
         rover.rotation.y += s.rightStickX * 0.06
         const lift = s.buttonA > 0.5 ? 1.7 : 0.5
         rover.position.y += (lift - rover.position.y) * 0.2
@@ -103,7 +103,8 @@ preview.append(div({ class: 'glass-stage' }, scene, readout))
 .glass-stage .readout {
   position: absolute;
   top: 10px;
-  left: 12px;
+  left: 50%;
+  transform: translateX(-50%);
   margin: 0;
   padding: 4px 8px;
   background: #222;

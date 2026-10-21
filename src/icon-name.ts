@@ -128,4 +128,3 @@ export function mergeIconStyle(into: IconStyle, add: IconStyle): void {
     if (add[k] !== undefined && into[k] === undefined) into[k] = add[k]
   }
 }
-

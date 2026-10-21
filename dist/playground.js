@@ -94,8 +94,9 @@ preview.append(
       // The glass pad shows only what this demo USES. These are control names,
       // not a mapping name (`gamepad: 'biped'` names nothing and draws nothing).
       // Move, aim, shoot, jump, sneak, sprint; `Y` switches first/third person.
+      // Clicking the left stick sneaks, the right one raises the weapon.
       gamepad:
-        'left_stick,right_stick,A,B,X,Y,right_bumper,left_bumper,left_trigger,right_trigger',
+        'left_stick,right_stick,left_stick_click,right_stick_click,A,B,X,Y,right_bumper,left_bumper,left_trigger,right_trigger',
       // Not armed on load. Right bumper (or the on-screen RB) raises and lowers
       // the weapon.
     },
@@ -110,7 +111,7 @@ preview.append(
 .preview { height: 100%; }
 ```
 
-**Two modes, and the right bumper is the switch**, when there is a pistol to
+**Two modes, and the right bumper (or clicking the right stick) is the switch**, when there is a pistol to
 switch to: it starts on your hip (open the loadout from its button on the system bar
 to see it). With the weapon down you are walking:
 **R** sprints. Press **right bumper** and you draw it, and the gun comes up — now **R** fires, **Q**
@@ -120,7 +121,8 @@ dot in the middle of the screen. You cannot sprint with the gun up, which is why
 the trigger is free to do both jobs.
 
 **WASD** moves, **arrow keys** look, **space** jumps, **left shift** sneaks,
-**E** interacts, **Y** switches between third and first person.
+**E** interacts, **Y** switches between third and first person. On a pad,
+clicking the left stick sneaks.
 
 Things to try: put the pistol in the bag and try to raise it (nothing to raise), drag it back into your hand (it comes up); swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
 and watch the ring disappear behind it until you stand; walk the cover line and
