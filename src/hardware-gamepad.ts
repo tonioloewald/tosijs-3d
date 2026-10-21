@@ -78,8 +78,10 @@ export class HardwareGamepadSource implements GamepadSource {
       pad.rightBumper = b[5].value
       pad.leftTrigger = b[6].value
       pad.rightTrigger = b[7].value
-      // b[8] = select/back, b[9] = start
-      // b[10] = left stick press, b[11] = right stick press
+      pad.view = b[8].value // select / back / view
+      pad.menu = b[9].value // start / menu
+      pad.leftStickPress = b[10].value
+      pad.rightStickPress = b[11].value
       pad.dpadUp = b[12].value
       pad.dpadDown = b[13].value
       pad.dpadLeft = b[14].value

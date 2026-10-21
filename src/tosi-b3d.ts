@@ -295,7 +295,7 @@ document.body.append(
 | `panelTitle` | `''` | The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row) |
 | `panelSections` | `'fold'` | How collapsible sections in the settings panel present: `'fold'` (headers you open and close) or `'tabs'` (file tabs, one section at a time) |
 | `stats` | `false` | Add a Perf Stats section to the settings panel, flat and in a headset. `#perf` or `#debug` (or `?perf`, `?debug`) in the page URL, or calling `showB3dStats()`, shows it on every scene |
-| `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = full layout; a value like `"a,b,left_stick"` selects controls. A plain property, read once at setup |
+| `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = the default layout (everything but the d-pad); a value like `"a,b,left_stick"` selects controls, and naming `view` or `menu` also puts them on the headset's system bar. A plain property, read once at setup |
 | `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
 | `gamepadFade` | `'on'` | `'off'` keeps the glass gamepad visible instead of fading it once a key is pressed or a hardware pad is used (the pointer never fades it) |
 | `minElevation` / `maxElevation` | `5` / `70` | Default orbit-camera elevation limits (degrees above the horizon) |
@@ -1582,19 +1582,23 @@ export class B3d extends Component {
    */
   /** Ask the glass gamepad to step aside for a menu, or come back. Named
    * reasons, so the pause panel and a death panel do not undo each other. */
-  _suppressGamepad(reason: string, on: boolean): void {
-    // Every pad that serves this scene: inside it (`gamepad: true` mounts it
-    // there) or mounted beside it, which is how the gamepad page's own demo
-    // does it.
-    const pads = [
+  /** Every glass pad that serves this scene: inside it (`gamepad: true` mounts
+   * it there) or mounted beside it, which is how the gamepad page's own demo
+   * does it. */
+  private _gamepads(): Array<{
+    suppress?: (reason: string) => void
+    release?: (reason: string) => void
+    requested?: (part: string) => boolean
+    pulse?: (part: 'view' | 'menu') => void
+  }> {
+    return [
       ...this.querySelectorAll('tosi-b3d-gamepad'),
       ...(this.parentElement?.querySelectorAll(':scope > tosi-b3d-gamepad') ??
         []),
-    ] as unknown as Array<{
-      suppress?: (reason: string) => void
-      release?: (reason: string) => void
-    }>
-    for (const pad of pads) {
+    ] as unknown as ReturnType<B3d['_gamepads']>
+  }
+  _suppressGamepad(reason: string, on: boolean): void {
+    for (const pad of this._gamepads()) {
       if (on) pad.suppress?.(reason)
       else pad.release?.(reason)
     }
@@ -7151,9 +7155,28 @@ export class B3d extends Component {
     const owl =
       (gear?.querySelector('svg')?.cloneNode(true) as Element | undefined) ??
       svgIcons.settings()
+    /*
+    VIEW AND MENU, IF THE SCENE ASKED FOR THEM. In a headset the stick clicks
+    are stick presses, so the pad's view and menu buttons have no controller
+    button; the bar carries them, but only when the glass pad's controls name
+    them outright (`gamepad="…,view,menu"`), so a scene that never uses them
+    does not get two dead buttons.
+    */
+    const pads = this._gamepads()
+    const padButtons = (
+      [
+        ['view', svgIcons.copy(), 'View'],
+        ['menu', svgIcons.menu(), 'Menu'],
+      ] as const
+    )
+      .filter(([part]) => pads.some((p) => p.requested?.(part)))
+      .map(([part, icon, title]) =>
+        mk(icon, title, () => pads.forEach((p) => p.pulse?.(part)))
+      )
     const buttons = [
       mk(owl, 'Settings', act.settings),
       ...this._systemButtons(),
+      ...padButtons,
       mk(svgIcons.logOut(), 'Exit VR', act.exit),
     ]
     const bar = systemBar(buttons)

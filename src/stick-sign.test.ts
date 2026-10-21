@@ -27,6 +27,8 @@ both paths yield.
 let KeyboardGamepadSource: typeof import('./keyboard-gamepad.js').KeyboardGamepadSource
 let HardwareGamepadSource: typeof import('./hardware-gamepad.js').HardwareGamepadSource
 let TouchGamepadSource: typeof import('./touch-gamepad.js').TouchGamepadSource
+let cropBox: typeof import('./glass-gamepad.js').cropBox
+let pathBox: typeof import('./glass-gamepad.js').pathBox
 
 beforeAll(async () => {
   const { Window } = await import('happy-dom')
@@ -43,6 +45,7 @@ beforeAll(async () => {
   ;({ KeyboardGamepadSource } = await import('./keyboard-gamepad.js'))
   ;({ HardwareGamepadSource } = await import('./hardware-gamepad.js'))
   ;({ TouchGamepadSource } = await import('./touch-gamepad.js'))
+  ;({ cropBox, pathBox } = await import('./glass-gamepad.js'))
 })
 
 /** A stick's worth of SVG: a travel circle and a knob, with geometry stubbed
@@ -108,6 +111,35 @@ describe('every source agrees: up is positive', () => {
     } finally {
       if (prev) g.navigator.getGamepads = prev
     }
+  })
+
+  test('hardware — view, menu and both stick presses (buttons 8 to 11)', () => {
+    const g = globalThis as any
+    const prev = g.navigator?.getGamepads
+    g.navigator ??= {}
+    const buttons = Array.from({ length: 17 }, (_, i) => ({
+      value: [8, 9, 10, 11].includes(i) ? 1 : 0,
+      pressed: [8, 9, 10, 11].includes(i),
+    }))
+    g.navigator.getGamepads = () => [{ axes: [0, 0, 0, 0], buttons, index: 0 }]
+    try {
+      const pad = (new HardwareGamepadSource() as any).poll()
+      expect([pad.view, pad.menu, pad.leftStickPress, pad.rightStickPress]).toEqual([1, 1, 1, 1])
+      expect(pad.buttonA).toBe(0)
+    } finally {
+      if (prev) g.navigator.getGamepads = prev
+    }
+  })
+
+  test('xr — clicking a thumbstick is a stick press, not menu or view', async () => {
+    const { XrGamepadSource } = await import('./xr-gamepad.js')
+    const stick = { axes: { x: 0, y: 0 }, pressed: true }
+    const pad = new XrGamepadSource({
+      left: { 'xr-standard-thumbstick': stick },
+      right: { 'xr-standard-thumbstick': stick },
+    } as any).poll()
+    expect([pad.leftStickPress, pad.rightStickPress]).toEqual([1, 1])
+    expect([pad.menu, pad.view]).toEqual([0, 0])
   })
 
   test('THE CONTRACT: all three report the SAME sign for up', () => {
@@ -176,37 +208,63 @@ Read from the SHIPPED assets, so re-exporting the artwork from a drawing tool
 cannot quietly reintroduce it.
 */
 describe('cluster artwork contains the full stick reach', () => {
-  const parse = (file: string) => {
-    const svg = readFileSync(`static/${file}`, 'utf8')
-    const vb = /viewBox="([-\d. ]+)"/.exec(svg)![1].split(/\s+/).map(Number)
-    const geom = (id: string) => {
-      const at = svg.indexOf(`id="${id}"`)
-      const seg = svg.slice(at, at + 260)
-      const d = /d="M([-\d.]+),([-\d.]+) C/.exec(seg)!
-      const cx = Number(d[1])
-      const top = Number(d[2])
-      const r = Math.abs(
-        Number(/C[-\d.]+,[-\d.]+,([-\d.]+),/.exec(seg)![1]) - cx
-      )
-      return { cx, cy: top + r, r }
-    }
-    return { vb, geom }
+  // The built-in art is ONE sheet the pad cuts into clusters with `cropBox`,
+  // so the guarantee is the crop's: it must hold the whole reach, whatever the
+  // parts around the stick happen to cover.
+  const svg = readFileSync('static/glass-gamepad.svg', 'utf8')
+  const circle = (id: string) => {
+    const at = svg.indexOf(`id="${id}"`)
+    expect(at).toBeGreaterThan(-1)
+    const seg = svg.slice(at, at + 400)
+    const d = /d="M([-\d.]+),([-\d.]+) C/.exec(seg)!
+    const cx = Number(d[1])
+    const top = Number(d[2])
+    const r = Math.abs(Number(/C[-\d.]+,[-\d.]+,([-\d.]+),/.exec(seg)![1]) - cx)
+    return { x: cx - r, y: top, width: 2 * r, height: 2 * r }
   }
 
-  for (const [file, side] of [
-    ['gamepad-left.svg', 'left'],
-    ['gamepad-right.svg', 'right'],
-  ] as const) {
-    test(`${file}: the thumb never leaves the box`, () => {
-      const { vb, geom } = parse(file)
-      const travel = geom(`${side}_stick_travel`)
-      const knob = geom(`${side}_stick`)
-      const reach = travel.r + knob.r
-      const [x, y, w, h] = vb
-      expect(travel.cx - reach).toBeGreaterThanOrEqual(x)
-      expect(travel.cx + reach).toBeLessThanOrEqual(x + w)
-      expect(travel.cy - reach).toBeGreaterThanOrEqual(y)
-      expect(travel.cy + reach).toBeLessThanOrEqual(y + h)
+  for (const side of ['left', 'right'] as const) {
+    test(`${side} cluster: the thumb never leaves the box`, () => {
+      const travel = circle(`${side}_stick_travel`)
+      const knob = circle(`${side}_stick`)
+      // The stick alone as the parts: the reach must still fit.
+      const box = cropBox([knob], 8, [{ travel, knob }])
+      const reach = travel.width / 2 + knob.width / 2
+      const cx = travel.x + travel.width / 2
+      const cy = travel.y + travel.height / 2
+      expect(cx - reach).toBeGreaterThanOrEqual(box.x)
+      expect(cx + reach).toBeLessThanOrEqual(box.x + box.width)
+      expect(cy - reach).toBeGreaterThanOrEqual(box.y)
+      expect(cy + reach).toBeLessThanOrEqual(box.y + box.height)
     })
   }
+
+  test('the sheet names every part the pad binds, once', () => {
+    for (const id of [
+      'A', 'B', 'X', 'Y', 'menu', 'view',
+      'left_stick', 'left_stick_travel', 'left_stick_click',
+      'right_stick', 'right_stick_travel', 'right_stick_click',
+      'left_bumper', 'right_bumper', 'left_trigger', 'right_trigger',
+      'dpad_up', 'dpad_down', 'dpad_left', 'dpad_right',
+    ])
+      expect(svg.split(`id="${id}"`).length - 1).toBe(1)
+  })
+
+  test('a part is boxed from its path data, so a hidden pad still crops', () => {
+    // A circle of radius 32 at (140, 256), as the art draws one.
+    const d =
+      'M140,224 C157.673,224,172,238.327,172,256 C172,273.673,157.673,288,140,288 C122.327,288,108,273.673,108,256 C108,238.327,122.327,224,140,224 z'
+    expect(pathBox(d)).toEqual({ x: 108, y: 224, width: 64, height: 64 })
+    expect(pathBox('')).toBeNull()
+  })
+
+  test('each stick click sits under its own stick', () => {
+    const mid = (id: string) => {
+      const at = svg.indexOf(`id="${id}"`)
+      return Number(/d="M([-\d.]+),/.exec(svg.slice(at, at + 400))![1])
+    }
+    // The left click's path starts on its right edge; compare sides of 512.
+    expect(mid('left_stick_click')).toBeLessThan(512)
+    expect(mid('right_stick_click')).toBeGreaterThan(512)
+  })
 })

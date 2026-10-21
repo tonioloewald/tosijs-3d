@@ -3,20 +3,31 @@
 
 A **split** on-screen ("glass") gamepad for touch contexts, as a Component (so
 it's both the overlay element *and* a [virtual-gamepad](/virtual-gamepad/) `GamepadSource`, like
-`gameController`/`keyboardGamepad`). Instead of one controller body, the controls
-are grouped into independently-anchored clusters, each a small SVG pinned to a
-corner of the view:
+`gameController`/`keyboardGamepad`). It is laid out like a pair of VR
+controllers held flat, in three clusters pinned along the bottom of the view:
 
-| Cluster | Default anchor | Controls |
+| Cluster | Anchor | Controls |
 | --- | --- | --- |
-| `left` | bottom-left | left stick, d-pad, left bumper/trigger |
-| `right` | bottom-right | A/B/X/Y, right stick, right bumper/trigger |
-| `top` | top-center | view, menu |
+| `left` | bottom-left | left trigger and bumper, left stick and its click, X, Y |
+| `right` | bottom-right | right trigger and bumper, right stick and its click, A, B |
+| `center` | bottom-center | view, menu, and the d-pad when you ask for it |
 
-Each cluster is drawn from a self-contained SVG (by default the library's own,
-built in: `/gamepad-left.svg`, `/gamepad-right.svg`, `/gamepad-top.svg` name
-them, and any other url is fetched) whose paths are labelled by `id`
-(copied to `data-part` on load). There's no outer shell — just the clusters.
+The face buttons wear Xbox colours (A green, B red, X blue, Y yellow) in a
+Quest controller's places. Under each stick is its **click** (L3, R3): on glass
+a press on the stick itself cannot be told from the start of a drag, so the
+click is its own button.
+
+**The d-pad is hidden unless you name it** (`controls="…,dpad"`). View and
+menu are shown by default for now; **they will become opt-in in a future
+release**, so name them if your scene uses them. Named, they also appear on
+the system bar in a headset, where the controllers have no view or menu button
+(a thumbstick click is a stick press).
+
+The art is one sheet (`static/glass-gamepad.svg`, built into the library), and the pad
+cuts it into the clusters, each cropped to what it shows plus each stick's full
+reach. Its paths are labelled by `id` (copied to `data-part` on load). When the
+three do not fit side by side (a d-pad on a phone in portrait), the centre
+cluster sits above the others.
 
 Usually you don't place this yourself: set the `gamepad` attribute on
 [[tosi-b3d]] and it mounts one and wires it into the active input system. Placed
@@ -69,16 +80,18 @@ const scene = b3d(
   demoSun(),
   b3dSkybox({ timeOfDay: 11 }),
   patternGround({ size: 22 }),
+  // INSIDE the scene, as `gamepad: true` mounts it, so it goes full screen
+  // with it (a pad beside the scene is left behind).
+  pad,
 )
 
-// The pad clusters pin to the corners, OVER the scene — touch/drag them to drive the cube.
-preview.append(div({ class: 'glass-stage' }, scene, pad, readout))
+// The pad's clusters sit OVER the scene: touch/drag them to drive the cube.
+preview.append(div({ class: 'glass-stage' }, scene, readout))
 ```
 ```css
 .glass-stage {
   position: relative;
   height: 100%;
-  min-height: 340px;
   background: #0b0f14;
   border-radius: 8px;
   overflow: hidden;
@@ -108,7 +121,7 @@ preview.append(div({ class: 'glass-stage' }, scene, pad, readout))
 
 | Attribute | Default | Purpose |
 | --- | --- | --- |
-| `controls` | `''` (all) | **Comma**-separated piece list, e.g. `'a,b,right_stick(40,0),menu'`. Empty (the default) shows everything. `a/b/x/y` map to `A/B/X/Y`; `dpad` expands to the four directions; `name(dx,dy)` nudges one piece |
+| `controls` | `''` (all but the d-pad) | **Comma**-separated piece list, e.g. `'a,b,right_stick(40,0),menu'`. Empty (the default) shows everything except the d-pad. `a/b/x/y` map to `A/B/X/Y`; `dpad` expands to the four directions; the clicks are `left_stick_click` and `right_stick_click`; `name(dx,dy)` nudges one piece. Naming `view` or `menu` also puts them on the headset's system bar |
 | `scale` | `1` | Size multiplier for every cluster |
 | `deadzone` | `0.15` | Stick travel (fraction of the radius) ignored at the centre |
 | `maxZone` | `0.85` | Stick travel that counts as full deflection, so you need not reach the rim |
@@ -164,7 +177,7 @@ import {
   emptyGamepad,
   mergeGamepads,
 } from './virtual-gamepad.js'
-import { gamepadLeftSvg, gamepadRightSvg, gamepadTopSvg } from './gamepad-art.js'
+import { glassGamepadSvg } from './gamepad-art.js'
 
 const { div } = elements
 
@@ -240,50 +253,123 @@ const PART_IDS = new Set([
   'view',
   'left_stick',
   'left_stick_travel',
+  'left_stick_click',
   'right_stick',
   'right_stick_travel',
+  'right_stick_click',
 ])
 
 export type ClusterConfig = {
-  /** SVG to load for this cluster. */
+  /** SVG to load for this cluster. The default is the built-in sheet, cut to
+   * this cluster's parts; any other url is shown whole. */
   url?: string
   /** Which corner to pin it to. */
   anchor?: ClusterAnchor
-  /** Base width of the cluster overlay in cqmin — relative to the host's own
-   * size, so it scales with the view/card (multiplied by `scale`). */
+  /** Width of the cluster overlay in cqmin — relative to the host's own size,
+   * so it scales with the view/card (multiplied by `scale`). The default sizes
+   * every cluster cut from the sheet at one scale. */
   vmin?: number
 }
 
-const DEFAULTS: Record<'left' | 'right' | 'top', Required<ClusterConfig>> = {
-  left: { url: '/gamepad-left.svg', anchor: 'bottom-left', vmin: 42 },
-  right: { url: '/gamepad-right.svg', anchor: 'bottom-right', vmin: 42 },
-  top: { url: '/gamepad-top.svg', anchor: 'top-center', vmin: 28 },
+export type ClusterKey = 'left' | 'right' | 'center'
+
+/** The built-in art: ONE sheet, cut into the three clusters. */
+const SHEET_URL = '/glass-gamepad.svg'
+/** cqmin per sheet unit: a side cluster (~320 units) is ~42cqmin wide. */
+const SHEET_SCALE = 42 / 322
+
+const DEFAULTS: Record<ClusterKey, { url: string; anchor: ClusterAnchor }> = {
+  left: { url: SHEET_URL, anchor: 'bottom-left' },
+  right: { url: SHEET_URL, anchor: 'bottom-right' },
+  center: { url: SHEET_URL, anchor: 'bottom-center' },
 }
 
-// Which controls each cluster owns — used to skip empty clusters and to hide
-// controls that weren't requested. Sticks list both knob and travel.
-const CLUSTER_PARTS: Record<'left' | 'right' | 'top', string[]> = {
+// Which controls each cluster owns — used to cut the sheet, to skip empty
+// clusters and to hide controls that weren't requested. Sticks list both knob
+// and travel. Laid out like a pair of VR controllers: X/Y with the left stick,
+// A/B with the right.
+const CLUSTER_PARTS: Record<ClusterKey, string[]> = {
   left: [
     'left_stick',
     'left_stick_travel',
-    'dpad_up',
-    'dpad_down',
-    'dpad_left',
-    'dpad_right',
+    'left_stick_click',
     'left_bumper',
     'left_trigger',
+    'X',
+    'Y',
   ],
   right: [
     'A',
     'B',
-    'X',
-    'Y',
     'right_stick',
     'right_stick_travel',
+    'right_stick_click',
     'right_bumper',
     'right_trigger',
   ],
-  top: ['menu', 'view'],
+  center: ['dpad_up', 'dpad_down', 'dpad_left', 'dpad_right', 'view', 'menu'],
+}
+
+const DPAD = ['dpad_up', 'dpad_down', 'dpad_left', 'dpad_right']
+
+/** Every control the pad shows when none are named: all but the d-pad. */
+export const DEFAULT_CONTROLS: string[] = Object.values(CLUSTER_PARTS)
+  .flat()
+  .filter((p) => !DPAD.includes(p))
+
+export type Box = { x: number; y: number; width: number; height: number }
+
+/**
+ * The viewBox that shows a cluster cut from the sheet: its parts' boxes, grown
+ * by `pad` (half the widest stroke), and every stick's full REACH — the travel
+ * circle's radius plus the knob's, around the travel's centre — so a thumb
+ * dragged to the rim is never clipped by the cluster's edge.
+ */
+export function cropBox(
+  parts: Box[],
+  pad: number,
+  sticks: { travel: Box; knob: Box }[] = []
+): Box {
+  let x0 = Infinity
+  let y0 = Infinity
+  let x1 = -Infinity
+  let y1 = -Infinity
+  const grow = (x: number, y: number, x2: number, y2: number) => {
+    x0 = Math.min(x0, x)
+    y0 = Math.min(y0, y)
+    x1 = Math.max(x1, x2)
+    y1 = Math.max(y1, y2)
+  }
+  for (const b of parts)
+    grow(b.x - pad, b.y - pad, b.x + b.width + pad, b.y + b.height + pad)
+  for (const { travel, knob } of sticks) {
+    const cx = travel.x + travel.width / 2
+    const cy = travel.y + travel.height / 2
+    const reach = travel.width / 2 + knob.width / 2
+    grow(cx - reach, cy - reach, cx + reach, cy + reach)
+  }
+  return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 }
+}
+
+/**
+ * The box around a path's points, read from its `d` (absolute coordinates, as
+ * the art is exported). A curve lies inside its control points, so this can
+ * only be a little generous, never short.
+ */
+export function pathBox(d: string): Box | null {
+  const n = (d.match(/-?\d*\.?\d+(?:e-?\d+)?/gi) ?? []).map(Number)
+  if (n.length < 2) return null
+  let x0 = Infinity
+  let y0 = Infinity
+  let x1 = -Infinity
+  let y1 = -Infinity
+  for (let i = 0; i + 1 < n.length; i += 2) {
+    x0 = Math.min(x0, n[i])
+    x1 = Math.max(x1, n[i])
+    y0 = Math.min(y0, n[i + 1])
+    y1 = Math.max(y1, n[i + 1])
+  }
+  return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 }
 }
 
 const NAME_ALIASES: Record<string, string[]> = {
@@ -343,9 +429,7 @@ now reads the embedded copy (`bun run dial-art` regenerates it from the SVGs);
 any other url is fetched as before.
 */
 const BUILT_IN: Record<string, string> = {
-  '/gamepad-left.svg': gamepadLeftSvg,
-  '/gamepad-right.svg': gamepadRightSvg,
-  '/gamepad-top.svg': gamepadTopSvg,
+  [SHEET_URL]: glassGamepadSvg,
 }
 
 async function loadCluster(url: string): Promise<SVGSVGElement> {
@@ -422,10 +506,13 @@ export class B3dGamepad extends Component implements GamepadSource {
   declare fade: 'on' | 'off'
   declare fadedOpacity: number
 
-  /** Advanced: per-cluster url/anchor/vmin overrides, or `false` to omit one. */
+  /** Advanced: per-cluster url/anchor/vmin overrides, or `false` to omit one.
+   * `top` is the old name of `center`, which sits at the bottom now. */
   clusters?: {
     left?: ClusterConfig | false
     right?: ClusterConfig | false
+    center?: ClusterConfig | false
+    /** @deprecated use `center` */
     top?: ClusterConfig | false
   }
   handleButton?: (part: string, pressed: boolean) => void
@@ -580,46 +667,160 @@ export class B3dGamepad extends Component implements GamepadSource {
       maxZone: this.maxZone,
       handleButton: this.handleButton,
     }
-    // The set of controls to show (undefined = all). A stick implies its travel.
-    let want: Set<string> | undefined
-    if (controls != null) {
-      want = new Set(controls)
-      if (want.has('left_stick')) want.add('left_stick_travel')
-      if (want.has('right_stick')) want.add('right_stick_travel')
-    }
-    for (const key of ['left', 'right', 'top'] as const) {
-      const c = this.clusters?.[key]
+    // The set of controls to show: the default leaves the d-pad out. A stick
+    // implies its travel.
+    const want = new Set(controls ?? DEFAULT_CONTROLS)
+    if (want.has('left_stick')) want.add('left_stick_travel')
+    if (want.has('right_stick')) want.add('right_stick_travel')
+    for (const key of ['left', 'right', 'center'] as const) {
+      const c =
+        key === 'center'
+          ? (this.clusters?.center ?? this.clusters?.top)
+          : this.clusters?.[key]
       if (c === false) continue
-      if (want != null && !CLUSTER_PARTS[key].some((p) => want!.has(p)))
-        continue
-      const cfg = { ...DEFAULTS[key], ...c }
+      if (!CLUSTER_PARTS[key].some((p) => want.has(p))) continue
+      const cfg: ClusterConfig = { ...DEFAULTS[key], ...c }
+      const url = cfg.url ?? SHEET_URL
       let svg: SVGSVGElement
       try {
-        svg = await loadCluster(cfg.url)
+        svg = await loadCluster(url)
       } catch (err) {
-        console.warn('b3dGamepad: failed to load', cfg.url, err)
+        console.warn('b3dGamepad: failed to load', url, err)
         continue
       }
       if (!this.isConnected) return
-      if (want != null) {
-        for (const el of Array.from(svg.querySelectorAll('[data-part]'))) {
-          const p = el.getAttribute('data-part')
-          if (p != null && !want.has(p)) el.setAttribute('display', 'none')
-        }
+      const cut = url === SHEET_URL
+      for (const el of Array.from(svg.querySelectorAll('[data-part]'))) {
+        const p = el.getAttribute('data-part')!
+        // The sheet holds every cluster: drop the parts that are not this
+        // one's, so they take no presses. Unwanted parts are hidden.
+        if (cut && !CLUSTER_PARTS[key].includes(p)) el.remove()
+        else if (!want.has(p)) el.setAttribute('display', 'none')
       }
       svg.setAttribute(
         'style',
-        `position:absolute;${ANCHOR_CSS[cfg.anchor]};` +
-          `width:${cfg.vmin * scale}cqmin;height:auto;pointer-events:auto;` +
+        `position:absolute;${ANCHOR_CSS[cfg.anchor ?? DEFAULTS[key].anchor]};` +
+          `height:auto;pointer-events:auto;visibility:hidden;` +
           `touch-action:none;user-select:none;-webkit-user-select:none`
       )
       host.appendChild(svg)
+      let width = cfg.vmin ?? 42
+      if (cut) {
+        // Read from the path data, not measured: getBBox needs the pad laid
+        // out, and one built while hidden or unsized (a maximised example)
+        // measured zero and drew nothing.
+        const shown = (p: string) => {
+          const el = svg.querySelector(`[data-part="${p}"]`)
+          return el != null && el.getAttribute('display') !== 'none'
+            ? pathBox(el.getAttribute('d') ?? '')
+            : null
+        }
+        const parts = CLUSTER_PARTS[key]
+          .map(shown)
+          .filter((b): b is Box => b != null)
+        const sticks = (['left_stick', 'right_stick'] as const)
+          .map((s) => [shown(`${s}_travel`), shown(s)] as const)
+          .filter(([t, k]) => t != null && k != null)
+          .map(([t, k]) => ({ travel: t!, knob: k! }))
+        const box = cropBox(parts, 8, sticks)
+        svg.setAttribute(
+          'viewBox',
+          `${box.x} ${box.y} ${box.width} ${box.height}`
+        )
+        svg.removeAttribute('width')
+        svg.removeAttribute('height')
+        width = cfg.vmin ?? box.width * SHEET_SCALE
+      }
+      svg.style.width = `${width * scale}cqmin`
+      svg.style.visibility = ''
+      const vb = svg.viewBox.baseVal
+      this._placed[key] = {
+        svg,
+        width: width * scale,
+        height:
+          vb != null && vb.width > 0 ? (width * scale * vb.height) / vb.width : 0,
+        anchored: c?.anchor != null,
+      }
       this.sources.push(new TouchGamepadSource(svg, opts))
+    }
+    this._layout()
+    this._resize ??= new ResizeObserver(() => this._layout())
+    this._resize.observe(this)
+  }
+
+  private _placed: Partial<
+    Record<
+      ClusterKey,
+      { svg: SVGSVGElement; width: number; height: number; anchored: boolean }
+    >
+  > = {}
+  private _resize?: ResizeObserver
+
+  /*
+  THE CENTRE CLUSTER TUCKS IN AT THE BOTTOM WHEN IT FITS, and is lifted above
+  the side clusters when it does not. Clusters are sized in cqmin, so on a
+  phone in portrait (where the width is the short side) they are wider
+  together than the screen. Whether they clash is decided by the drawn parts,
+  not the clusters' boxes: view and menu alone fit between the corner
+  clusters' sticks, and a d-pad does not.
+  */
+  private _layout(): void {
+    const { left, right, center } = this._placed
+    if (center == null || center.anchored) return
+    if (this.clientWidth === 0 || this.clientHeight === 0) return
+    const margin = 2
+    center.svg.style.bottom = `${margin}cqmin`
+    const rects = (svg?: SVGSVGElement) =>
+      svg == null
+        ? []
+        : Array.from(svg.querySelectorAll('[data-part]'))
+            .filter((el) => el.getAttribute('display') !== 'none')
+            .map((el) => el.getBoundingClientRect())
+    // Corners may touch by a few px (view meets X's corner on an iPhone in
+    // portrait); a real overlap lifts the cluster.
+    const gap = -4
+    const mine = rects(center.svg)
+    const theirs = [...rects(left?.svg), ...rects(right?.svg)]
+    const clash = mine.some((a) =>
+      theirs.some(
+        (b) =>
+          a.left < b.right + gap &&
+          b.left < a.right + gap &&
+          a.top < b.bottom + gap &&
+          b.top < a.bottom + gap
+      )
+    )
+    if (clash) {
+      const above = Math.max(left?.height ?? 0, right?.height ?? 0)
+      center.svg.style.bottom = `${2 * margin + above}cqmin`
     }
   }
 
+  /** Did the `controls` spec name this part outright (not the default set)? */
+  requested(part: string): boolean {
+    return (
+      parseGamepadControls(String(this.controls ?? '')).controls?.includes(
+        part
+      ) ?? false
+    )
+  }
+
+  /**
+   * Press a button from somewhere else for a moment: the headset's system bar
+   * presses view and menu this way, since the pad itself is not there. Held
+   * for `ms`, long enough for every controllable's edge detector to see it.
+   */
+  pulse(part: 'view' | 'menu', ms = 150): void {
+    this._pulses[part] = performance.now() + ms
+  }
+  private _pulses: Partial<Record<'view' | 'menu', number>> = {}
+
   poll(): VirtualGamepad {
     let merged = emptyGamepad()
+    // A pulse is a deliberate press, so it gets through a suppressed pad.
+    const now = performance.now()
+    for (const [part, until] of Object.entries(this._pulses))
+      if (until > now) merged[part as 'view' | 'menu'] = 1
     // A stick held when a menu came up must not keep steering behind it.
     if (this._suppressedBy.size > 0) return merged
     for (const s of this.sources) merged = mergeGamepads(merged, s.poll())
@@ -632,6 +833,8 @@ export class B3dGamepad extends Component implements GamepadSource {
   }
 
   disconnectedCallback(): void {
+    this._resize?.disconnect()
+    this._resize = undefined
     this._inputWatch?.()
     this._inputWatch = null
     for (const s of this.sources) s.dispose()

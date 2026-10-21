@@ -1300,7 +1300,7 @@ gas-giant
 ## glass-gamepad — <tosi-b3d-gamepad>
 glass-gamepad (b3dGamepad)
 
-  controls  = ''  — **Comma**-separated piece list, e.g. `'a,b,right_stick(40,0),menu'`. Empty (the default) shows everything. `a/b/x/y` map to `A/B/X/Y`; `dpad` expands to the four directions; `name(dx,dy)` nudges one piece
+  controls  = ''  — **Comma**-separated piece list, e.g. `'a,b,right_stick(40,0),menu'`. Empty (the default) shows everything except the d-pad. `a/b/x/y` map to `A/B/X/Y`; `dpad` expands to the four directions; the clicks are `left_stick_click` and `right_stick_click`; `name(dx,dy)` nudges one piece. Naming `view` or `menu` also puts them on the headset's system bar
   scale  = 1  — Size multiplier for every cluster
   deadzone  = 0.15  — Stick travel (fraction of the radius) ignored at the centre
   maxZone  = 0.85  — Stick travel that counts as full deflection, so you need not reach the rim
@@ -1468,8 +1468,12 @@ b3d
 ## virtual-gamepad
 virtual-gamepad
 
+  menu  = 0..1  — Menu (start) and view (select) buttons
+  view  = 0..1  — Menu (start) and view (select) buttons
   leftBumper  = xr-standard-squeeze` (grip)
   rightBumper  = xr-standard-squeeze` (grip)
+  buttonX  = x-button
+  buttonY  = y-button
   strokeColor  = #000000  — All stroked elements
   strokeWidth  = 16  — All stroked elements
   widgetColor  = #ffffff  — Bumpers, triggers, dpad, sticks, menu, view

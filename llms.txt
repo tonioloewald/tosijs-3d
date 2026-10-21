@@ -68,6 +68,7 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/v0.11.0/ — 0.11.0
   Library: `retarget` reads which bone is which across UE, Mixamo, Kenney and
 - https://3d.tosijs.net/v0.11.1/ — 0.11.1
+  Size: barrel (min, packages external) 1241.7 KB raw / 424.8 KB gz, +0.68% on 0.11.0 (the gamepad art, now built in).
 - https://3d.tosijs.net/v0.5.0/ — 0.5.0
   `@babylonjs/loaders`, `@babylonjs/materials` moved `^8` → `^9`. **Consumers must
 - https://3d.tosijs.net/v0.5.1/ — 0.5.1

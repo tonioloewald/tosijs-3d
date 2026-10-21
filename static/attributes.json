@@ -5320,7 +5320,7 @@
       {
         "name": "controls",
         "default": "''",
-        "description": "**Comma**-separated piece list, e.g. `'a,b,right_stick(40,0),menu'`. Empty (the default) shows everything. `a/b/x/y` map to `A/B/X/Y`; `dpad` expands to the four directions; `name(dx,dy)` nudges one piece"
+        "description": "**Comma**-separated piece list, e.g. `'a,b,right_stick(40,0),menu'`. Empty (the default) shows everything except the d-pad. `a/b/x/y` map to `A/B/X/Y`; `dpad` expands to the four directions; the clicks are `left_stick_click` and `right_stick_click`; `name(dx,dy)` nudges one piece. Naming `view` or `menu` also puts them on the headset's system bar"
       },
       {
         "name": "scale",
@@ -5901,12 +5901,30 @@
     "summary": "virtual-gamepad",
     "attributes": [
       {
+        "name": "menu",
+        "default": "0..1",
+        "description": "Menu (start) and view (select) buttons"
+      },
+      {
+        "name": "view",
+        "default": "0..1",
+        "description": "Menu (start) and view (select) buttons"
+      },
+      {
         "name": "leftBumper",
         "default": "xr-standard-squeeze` (grip)"
       },
       {
         "name": "rightBumper",
         "default": "xr-standard-squeeze` (grip)"
+      },
+      {
+        "name": "buttonX",
+        "default": "x-button"
+      },
+      {
+        "name": "buttonY",
+        "default": "y-button"
       },
       {
         "name": "strokeColor",

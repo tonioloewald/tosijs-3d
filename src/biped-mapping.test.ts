@@ -26,6 +26,9 @@ function pad(over: Partial<VirtualGamepad> = {}): VirtualGamepad {
     start: 0,
     select: 0,
     view: 0,
+    menu: 0,
+    leftStickPress: 0,
+    rightStickPress: 0,
   }
   return { ...zero, ...over } as VirtualGamepad
 }
@@ -88,6 +91,10 @@ describe('bipedMapping: the right stick is LOOK', () => {
 describe('bipedMapping: bumpers carry the vertical verbs', () => {
   test('left bumper is sneak', () => {
     expect(bipedMapping(pad({ leftBumper: 1 }), 1 / 60).sneak).toBe(1)
+  })
+
+  test('so is clicking the left stick (L3, as in GTA V)', () => {
+    expect(bipedMapping(pad({ leftStickPress: 1 }), 1 / 60).sneak).toBe(1)
   })
 
   /*

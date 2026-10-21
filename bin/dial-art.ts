@@ -2,7 +2,8 @@
 Embed artwork as strings, so the library draws it without a fetch: the dials
 and the XR reticle (static/compass.svg, static/vr-watch.svg,
 static/reticle.svg → src/dial-art.ts) and the glass
-gamepad's clusters (static/gamepad-*.svg → src/gamepad-art.ts). An adopter's
+gamepad (static/glass-gamepad.svg → src/gamepad-art.ts, one sheet the pad cuts into
+its clusters). An adopter's
 site does not serve our static/ folder, so a fetched default 404s there (the
 gamepad's did, until 0.11.1). The SVG files are the source of truth: edit them
 (Tonio draws them in AMDN), then run `bun run dial-art`. The parts the code
@@ -40,7 +41,5 @@ await embed('src/dial-art.ts', {
   reticle: 'static/reticle.svg',
 })
 await embed('src/gamepad-art.ts', {
-  gamepadLeft: 'static/gamepad-left.svg',
-  gamepadRight: 'static/gamepad-right.svg',
-  gamepadTop: 'static/gamepad-top.svg',
+  glassGamepad: 'static/glass-gamepad.svg',
 })
