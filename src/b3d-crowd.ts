@@ -713,7 +713,7 @@ stops at 400 rather than 200,000, which is itself part of the finding.
 | `clips` | `''` | Which of its clips to bake, comma-separated. Empty = all |
 | `figureScale` | `1` | Scale applied to the baked figure (omnidude is 0.88m) |
 | `skinned` | `0` | How many SKINNED clones to spawn alongside, as the baseline |
-| `skinnedUrl` | `'/omnidude.glb'` | The GLB the baseline clones |
+| `skinnedUrl` | omnidude on the CDN (`tonio/omnidude/omnidude.glb`) | The GLB the baseline clones |
 
 ## Why a plugin and not a ShaderMaterial
 
@@ -742,6 +742,7 @@ it bakes into is already fixed and tested.
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, sceneDelta } from './b3d-utils.js'
 import { Xoshiro128 } from './mersenne-twister.js'
+import { assetUrl } from './asset-url.js'
 import type { B3d } from './tosi-b3d.js'
 import {
   framesForClip,
@@ -1525,7 +1526,7 @@ export class B3dCrowd extends B3dChild {
      */
     skinned: 0,
     /** The GLB the baseline clones. Modest vertex count on purpose. */
-    skinnedUrl: '/omnidude.glb',
+    skinnedUrl: assetUrl('tonio/omnidude/omnidude.glb'),
     /**
      * A rigged GLB to BAKE from, instead of the synthetic bench figure.
      *
