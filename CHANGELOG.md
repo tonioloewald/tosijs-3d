@@ -25,6 +25,11 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 - **A hardware pad's view and menu buttons (8 and 9) now reach `view` and `menu`**; they were read but dropped.
 - The glass pad's `clusters.top` is now `clusters.center` (`top` still works).
 
+### Fixed
+
+- **The full-screen button on an iPhone.** iPhone Safari has no Fullscreen API for anything but video, so the button hid itself. It now maximises the scene instead: in the top layer as a popover (iOS 17+, so a doc page's card cannot trap it), filling what is visible.
+- **The glass gamepad demo goes full screen with its pad**, which is now inside the scene as `gamepad: true` mounts it; beside the scene it was left behind.
+
 ## 0.11.1
 
 The latest release. Three defaults that loaded files only our doc site serves

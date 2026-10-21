@@ -946,6 +946,23 @@ export class B3d extends Component {
       height: '100%',
       maxHeight: '100vh',
     },
+    // Full screen where the browser has no Fullscreen API (iPhone Safari):
+    // the scene fills what is visible. dvh follows Safari's toolbars.
+    // In the top layer as a popover where it can be (iOS 17+), so no
+    // ancestor's containment or overflow traps it; these undo the popover's
+    // default margin, border and padding.
+    ':host([data-maximized])': {
+      position: 'fixed',
+      inset: '0',
+      width: '100%',
+      height: '100dvh',
+      maxWidth: 'none',
+      maxHeight: 'none',
+      margin: '0',
+      border: '0',
+      padding: '0',
+      zIndex: '2147483000',
+    },
     ':host .spinner': {
       position: 'absolute',
       top: '50%',
@@ -6675,10 +6692,12 @@ export class B3d extends Component {
   }
 
   /*
-  FULL SCREEN, from manta's own: the standard API with the webkit fallback,
-  and no button at all where neither exists (iPhone Safari). The SCENE goes
-  full screen rather than the page, so a demo on a doc page fills the screen
-  without the page around it.
+  FULL SCREEN, from manta's own: the standard API with the webkit fallback.
+  The SCENE goes full screen rather than the page, so a demo on a doc page
+  fills the screen without the page around it. Where neither API exists
+  (iPhone Safari lets only a video go full screen), the button MAXIMISES the
+  scene instead: fixed over the page, filling what is visible, which is what
+  a page like manta's play page does by its own layout.
   */
   private _fullscreenWired = false
   private _setupFullscreen(): void {
@@ -6687,13 +6706,60 @@ export class B3d extends Component {
     this._fullscreenWired = true
     const el = this as any
     const doc = document as any
-    const can = !!(el.requestFullscreen || el.webkitRequestFullscreen)
-    if (!can || !(doc.fullscreenEnabled ?? doc.webkitFullscreenEnabled ?? true))
-      return
+    const can =
+      !!(el.requestFullscreen || el.webkitRequestFullscreen) &&
+      (doc.fullscreenEnabled ?? doc.webkitFullscreenEnabled ?? true)
     btn.hidden = false
     const isFull = () =>
-      (doc.fullscreenElement ?? doc.webkitFullscreenElement) === this
+      can
+        ? (doc.fullscreenElement ?? doc.webkitFullscreenElement) === this
+        : this.hasAttribute('data-maximized')
+    const sync = (): void => {
+      const full = isFull()
+      btn.title = full ? 'Leave full screen' : 'Full screen'
+      btn.replaceChildren(full ? svgIcons.minimize() : svgIcons.maximize())
+      // The canvas changed size with the element.
+      this.engine?.resize()
+    }
+    /*
+    Into the TOP LAYER as a manual popover, not just `position: fixed`: an
+    ancestor with containment or a transform (a doc page's example card) makes
+    a fixed element fill the CARD, not the screen. Never moved in the DOM,
+    since a moved scene is disconnected and reconnected.
+    */
+    const pop = this as unknown as {
+      showPopover?: () => void
+      hidePopover?: () => void
+    }
+    const maximize = (on: boolean) => {
+      if (on) {
+        this.setAttribute('data-maximized', '')
+        if (pop.showPopover != null) {
+          this.setAttribute('popover', 'manual')
+          try {
+            pop.showPopover()
+          } catch {
+            // Already open, or refused: the fixed layout still applies.
+          }
+        }
+      } else {
+        if (this.hasAttribute('popover')) {
+          try {
+            pop.hidePopover?.()
+          } catch {
+            // Not open.
+          }
+          this.removeAttribute('popover')
+        }
+        this.removeAttribute('data-maximized')
+      }
+      sync()
+    }
     const toggle = () => {
+      if (!can) {
+        maximize(!this.hasAttribute('data-maximized'))
+        return
+      }
       // A refusal (no user gesture, a policy) is not worth an uncaught
       // rejection: the button simply did nothing.
       const r = isFull()
@@ -6702,18 +6768,21 @@ export class B3d extends Component {
       ;(r as Promise<void> | undefined)?.catch?.(() => {})
     }
     btn.addEventListener('click', toggle)
-    const sync = () => {
-      const full = isFull()
-      btn.title = full ? 'Leave full screen' : 'Full screen'
-      btn.replaceChildren(full ? svgIcons.minimize() : svgIcons.maximize())
-      // The canvas changed size with the element.
-      this.engine?.resize()
-    }
     document.addEventListener('fullscreenchange', sync)
     document.addEventListener('webkitfullscreenchange', sync)
     // Removed with the rest: teardown clears `_fullscreenWired`, and the
     // button outlives it, so a reconnect would otherwise add a second toggle.
     this._fullscreenOff = () => {
+      // Not through `maximize`: its resize would reach an engine on its way out.
+      if (this.hasAttribute('popover')) {
+        try {
+          pop.hidePopover?.()
+        } catch {
+          // Not open.
+        }
+        this.removeAttribute('popover')
+      }
+      this.removeAttribute('data-maximized')
       btn.removeEventListener('click', toggle)
       document.removeEventListener('fullscreenchange', sync)
       document.removeEventListener('webkitfullscreenchange', sync)
