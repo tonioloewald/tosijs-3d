@@ -73,10 +73,12 @@ headset. Drag it by that bar and it reopens where you left it; hold its button
 to put it back. Nothing else to wire.
 
 ```js
-import { b3d, b3dPanel, b3dLight, b3dGround, panel3d, label3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dPanel, b3dLight, b3dGround, panel3d, label3d, slider3d, button3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { nav } = tosi({ nav: { zoom: 2 } })
+// No content: a card with its title. `attention()` blinks its button.
+const journal = b3dPanel({ icon: 'book', title: 'Journal' })
 
 preview.append(
   b3d(
@@ -88,11 +90,11 @@ preview.append(
       panel3d(
         { width: 300 },
         label3d({ text: 'Nowhere in particular' }),
-        slider3d({ label: 'zoom', value: nav.zoom, min: 1, max: 5, step: 0.5 })
+        slider3d({ label: 'zoom', value: nav.zoom, min: 1, max: 5, step: 0.5 }),
+        button3d({ label: 'New journal entry', handleClick: () => journal.attention() })
       )
     ),
-    // No content: a card with its title.
-    b3dPanel({ icon: 'book', title: 'Journal' })
+    journal
   )
 )
 ```

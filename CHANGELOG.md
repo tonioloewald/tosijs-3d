@@ -14,6 +14,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 - **Changed:** the sun's shadow bias defaults are now `shadowBias` 0.002 and `shadowNormalBias` 0.04, which clears the fine acne stripes on plain lit surfaces. If a small caster's shadow detaches, set them lower on your `<tosi-b3d-sun>`.
 - **Changed:** in the biped mapping, clicking the right stick (R3) toggles the weapon, as the right bumper does. The playground's glass pad shows both stick clicks.
+- **Fixed:** XR thumbsticks now have the hardware pad's 0.15 per-axis deadzone, so a stick pushed sideways to turn no longer drifts the biped's look pitch (its aim). Raising the weapon now levels the aim in a headset too.
+- **Added:** the panel page's system-bar demo has a "New journal entry" button that blinks the Journal button (`attention()`).
 - **Fixed:** in the glass gamepad demo, the cube now moves away from you on left stick up, and the readout sits top centre, clear of the system bar.
 
 ## 0.11.2

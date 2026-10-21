@@ -142,6 +142,15 @@ describe('every source agrees: up is positive', () => {
     expect([pad.menu, pad.view]).toEqual([0, 0])
   })
 
+  test('xr — a thumbstick pushed sideways does not leak into the other axis', async () => {
+    const { XrGamepadSource } = await import('./xr-gamepad.js')
+    const pad = new XrGamepadSource({
+      right: { 'xr-standard-thumbstick': { axes: { x: 0.95, y: 0.1 } } },
+    } as any).poll()
+    expect(pad.rightStickY).toBe(0)
+    expect(pad.rightStickX).toBeGreaterThan(0.9)
+  })
+
   test('THE CONTRACT: all three report the SAME sign for up', () => {
     // The assertion #14 was actually about. Any source that flips is caught
     // here, on a stock configuration, with no game in the picture.
