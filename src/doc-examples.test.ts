@@ -330,8 +330,8 @@ describe('doc snippets import the library symbols they use', () => {
 describe('a published MARKDOWN doc has no live fences', () => {
   /*
   THE GAP THIS FILE HAD: it scans `src/*.ts` doc comments and nothing else, so
-  the three markdown files in `site.config.ts`'s `docPaths` — README, Migration,
-  CHANGELOG — were unguarded. Tonio found the first block of `Migration.md`
+  the markdown files in `site.config.ts`'s `docPaths` — README, Migration,
+  CHANGELOG and its per-version pages — were unguarded. Tonio found the first block of `Migration.md`
   running as a live example: *"this is an ongoing issue we need to fix."*
 
   The doc system executes `.language-html`, `-js`, `-tjs`, `-ts`, `-css` and
@@ -355,7 +355,21 @@ describe('a published MARKDOWN doc has no live fences', () => {
     )
     const m = /docPaths:\s*\[([^\]]*)\]/.exec(cfg)
     if (m == null) return []
-    return [...m[1].matchAll(/'([^']+\.md)'/g)].map((x) => x[1])
+    const named = [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1])
+    // A named FOLDER of markdown (the changelog, one page per version) counts
+    // file by file; `src` is the doc-comment tree, guarded above.
+    return named.flatMap((entry) => {
+      if (entry.endsWith('.md')) return [entry]
+      if (entry === 'src') return []
+      const dir = new URL(`../${entry}`, import.meta.url).pathname
+      try {
+        return readdirSync(dir)
+          .filter((f) => f.endsWith('.md'))
+          .map((f) => `${entry}/${f}`)
+      } catch {
+        return []
+      }
+    })
   }
 
   const LIVE = ['html', 'js', 'tjs', 'ts', 'css', 'test']

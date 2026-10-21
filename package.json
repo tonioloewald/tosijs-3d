@@ -36,6 +36,7 @@
     "static/attributes.txt",
     "static/attributes.json",
     "CHANGELOG.md",
+    "changelog",
     "Migration.md"
   ],
   "repository": {

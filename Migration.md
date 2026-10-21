@@ -13,7 +13,7 @@ and is staring at an error.
 
 Nothing was removed, and the peer ranges are unchanged. 0.11 collects the
 0.10.x line's new features (retargeting, auto-rig, spring bones, effects, the
-rig and effect tools); see the CHANGELOG's 0.11.0 summary. A few behaviours
+rig and effect tools); see [0.11.0](/v0.11.0/)'s summary. A few behaviours
 changed that you may see without touching your code:
 
 1. **Retargeting no longer lines up the body's axis.** The hips, spine, chest,

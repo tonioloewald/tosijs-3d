@@ -86,8 +86,14 @@ not releases. A bare `vX.Y.Z` with none is the thing to catch.
    dep bump) was a **minor** bump. **A peer-dependency break (e.g. Babylon 8 → 9) is
    at least a minor and MUST be called out in the changelog + migration note (below).**
 
-3a. **Write the changelog** — add a section to `CHANGELOG.md` for this version:
-headline Added/Changed/Fixed, and — critically — a **⚠️ Breaking** block for any
+3a. **Write the changelog.** Notes collect under `## Unreleased` in
+`CHANGELOG.md` as work lands. At the release, move them into a new page,
+`changelog/v<version>.md` (`# <version>`, then `<!--{ "parent": "CHANGELOG",
+"order": n }-->` with n = 10,000,000 − (major × 1,000,000 + minor × 1,000 +
+patch), so the newest sorts first; a prerelease adds 1), and replace them in `CHANGELOG.md` with the index entry: a `## <version>`
+heading (release-doctor looks for it) and one line, `[<version>](/v<version>/):
+<summary>`. An entry says what changed and what to do; the story goes in the
+commit or the card. The page carries headline Added/Changed/Fixed, and — critically — a **⚠️ Breaking** block for any
 peer-dependency range change (what moved, and what the consumer must do). A
 `^8`-pinned consumer hitting an `ERESOLVE` deserves a note that says why.
 
@@ -140,7 +146,7 @@ are not type-checked**, so nothing else will catch it.
    of running our script.
 
 4a. **Size** — print what this release costs a consumer against the committed
-baseline, and put the barrel line in the CHANGELOG entry:
+baseline, and put the barrel line on the version's changelog page:
 
 ```sh
 bun run sizes             # barrel (min, packages external) + dist total, with deltas

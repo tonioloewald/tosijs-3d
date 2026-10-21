@@ -60,7 +60,9 @@ export default defineSiteConfig({
   // them here those links 404 on the published site (the pre-render leaves
   // `./Migration.md` un-rewritten). Shipped inside the package too, so they
   // work from node_modules as well.
-  docPaths: ['src', 'README.md', 'Migration.md', 'CHANGELOG.md'],
+  // The changelog is an index (CHANGELOG.md) plus one page per version in
+  // `changelog/`, so no single page carries every release.
+  docPaths: ['src', 'README.md', 'Migration.md', 'CHANGELOG.md', 'changelog'],
   // The bundle entry's folder is documented as watched, but an edit to
   // demo/site.ts rebuilt nothing (twice, 2026-09-28): watch it explicitly.
   // The FILES, not the folder: the build writes demo/docs.json, so watching
