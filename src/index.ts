@@ -1795,6 +1795,7 @@ export type {
   HumanPackManifest,
   HumanTarget,
   HumanTargetEntry,
+  HumanSourceWeights,
 } from './human-pack.js'
 export {
   DEFAULT_HUMAN_BODY,
@@ -1812,7 +1813,13 @@ export type { MacroBody } from './human-morph.js'
 export { humanBody, skinMaterial } from './character-builder.js'
 export { MONK_TONES, skinLinear, skinColor, skinAlbedo } from './skin-tone.js'
 export type { Rgb as SkinRgb } from './skin-tone.js'
-export { humanRig, humanSkin, HM08_UAL } from './human-rig.js'
+export {
+  humanRig,
+  humanSkin,
+  humanWeights,
+  hm08FoldBone,
+  HM08_UAL,
+} from './human-rig.js'
 export type { HumanRigRow, HumanSkin } from './human-rig.js'
 export type { HumanBody, SkinMaterial } from './character-builder.js'
 export type { HeatBone, SkinWeights } from './bone-heat.js'

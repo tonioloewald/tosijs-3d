@@ -443,13 +443,21 @@ const NEXT: Partial<Record<string, string>> = {
   ),
 }
 
-/** The body's axis: its lean at rest is its shape, not a pose (see ALIGNMENT). */
+/**
+ * Bones whose rest direction is the body's SHAPE, not a pose (see
+ * ALIGNMENT): the axis, and the collarbones. UAL's collarbone runs from the
+ * front of the chest back 38° to the shoulder, as a real one does, and
+ * MakeHuman's lies flat; lined up, it swung 38° and every clip shrugged the
+ * shoulders up and forward, folding a V into the upper back (Tonio).
+ */
 const AXIAL: ReadonlySet<Role> = new Set<Role>([
   'hips',
   'spine',
   'chest',
   'neck',
   'head',
+  'l-clavicle',
+  'r-clavicle',
 ])
 
 /** The fingers a hand is aimed along, best first: the middle runs down its centre. */
@@ -577,17 +585,6 @@ export interface RetargetOptions {
    * Negative brings them in. Default 0.
    */
   armSpaceDeg?: number
-  /**
-   * POSTURE: whose lean the hips, spine, neck and head keep. `'own'` (the
-   * default) keeps the target's: a weasel's neck leans forward at rest and
-   * should stay forward. `'clip'` lines them up with the source's rest, as the
-   * limbs always are, for a body built like the clip's: a human whose rest
-   * pose already leans its head forward would otherwise lean it twice.
-   * The HEAD keeps its own either way: head bones point in different
-   * directions on different rigs while both faces look ahead, so lining the
-   * bone up tips the face (it put MakeHuman's chin in the air).
-   */
-  posture?: 'own' | 'clip'
 }
 
 /**
@@ -673,7 +670,7 @@ export function retargeter(
     was pulled back, tipping the head up through every clip (Tonio). They
     take the clip's turn as it is.
     */
-    if (AXIAL.has(r) && (options.posture !== 'clip' || r === 'head')) {
+    if (AXIAL.has(r)) {
       align.set(r, IDENTITY)
       continue
     }

@@ -227,14 +227,9 @@ export function retargetClip(
     scene?: BABYLON.Scene
     /** See `RetargetOptions.armSpaceDeg`: spread the arms away from the body. */
     armSpaceDeg?: number
-    /** See `RetargetOptions.posture`: `'clip'` takes the clip's lean of spine, neck and head. */
-    posture?: 'own' | 'clip'
   } = {}
 ): BABYLON.AnimationGroup {
-  const rt = retargeter(source, target, {
-    armSpaceDeg: options.armSpaceDeg,
-    posture: options.posture,
-  })
+  const rt = retargeter(source, target, { armSpaceDeg: options.armSpaceDeg })
   const fps = options.fps ?? 30
   // What animates each source bone, by name.
   const rotAnim = new Map<string, BABYLON.Animation>()

@@ -173,3 +173,39 @@ describe('skin tone', () => {
     expect(ruddy.r / ruddy.g).toBeGreaterThan(sallow.r / sallow.g)
   })
 })
+
+describe.skipIf(!havePack)("MakeHuman's weights, folded onto UAL", () => {
+  test('every skin vertex sums to one, and the upper back follows the spine', async () => {
+    const { humanRig, humanSkin, humanWeights } = await import('./human-rig.js')
+    const pack = await loadHumanPack(PACK, fromDisk)
+    const p = await morphHuman(pack, macroWeights(DEFAULT_HUMAN_BODY))
+    const rig = humanRig(pack.manifest, p)
+    const skin = humanSkin(pack)
+    const source = await pack.weights()
+    expect(source).not.toBeNull()
+    const w = humanWeights(source!, skin, rig)
+    const n = skin.vertices.length
+    for (let i = 0; i < n; i += 97) {
+      const s = w.weights[i * 4] + w.weights[i * 4 + 1] + w.weights[i * 4 + 2] + w.weights[i * 4 + 3]
+      expect(s).toBeCloseTo(1, 5)
+    }
+    // The back's centre line between the shoulder blades: bone heat gave it
+    // to the collarbones, which folded it into a V.
+    const sp = skin.positions(p)
+    const chest = rig.at('spine_03')!
+    let best = -1
+    let bz = Infinity
+    for (let i = 0; i < n; i++) {
+      if (Math.abs(sp[i * 3]) < 0.01 && Math.abs(sp[i * 3 + 1] - (chest.y + 0.05)) < 0.015 && sp[i * 3 + 2] < bz) {
+        bz = sp[i * 3 + 2]
+        best = i
+      }
+    }
+    const names = rig.joints.map((j) => j.name)
+    let spine = 0
+    for (let k = 0; k < 4; k++) {
+      if (/^spine_|^neck/.test(names[w.indices[best * 4 + k]])) spine += w.weights[best * 4 + k]
+    }
+    expect(spine).toBeGreaterThan(0.6)
+  })
+})

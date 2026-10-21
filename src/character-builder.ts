@@ -12,10 +12,10 @@ plays UAL's clips at any shape.
 
 Open the settings (the owl): the body sliders reshape it
 while it walks, since every body carries its own joints. The skin weights are
-bone heat's, worked out once when the page loads (a couple of seconds).
+MakeHuman's own, folded onto UAL's joints.
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, humanWeights, skinMaterial, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div } = elements
 
@@ -65,7 +65,7 @@ preview.append(
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
 
-        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json')).catch((e) => {
+        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 2)).catch((e) => {
           status.textContent = `could not load the body: ${e.message}`
           throw e
         })
@@ -80,7 +80,13 @@ preview.append(
         }
         // The weights depend only on the topology: once, on the first body.
         const first = await morphHuman(pack, body())
-        const weights = boneHeat(skin.positions(first), skin.triangles, skinSegments(humanRig(pack.manifest, first)))
+        // MakeHuman's own weights, folded onto UAL's joints; bone heat for a
+        // pack without them.
+        const rig0 = humanRig(pack.manifest, first)
+        const mhWeights = await pack.weights()
+        const weights = mhWeights
+          ? humanWeights(mhWeights, skin, rig0)
+          : boneHeat(skin.positions(first), skin.triangles, skinSegments(rig0))
 
         mat = skinMaterial(scene, { tone: walker.tone.value, redness: walker.redness.value })
         const stand = new BABYLON.TransformNode('stand', scene)
@@ -90,7 +96,7 @@ preview.append(
         const play = () => {
           playing?.dispose()
           const clip = ual.animationGroups.find((g) => g.name === walker.clip.value)
-          playing = clip ? retargetClip(clip, source, read, { scene, posture: 'clip' }) : null
+          playing = clip ? retargetClip(clip, source, read, { scene }) : null
           playing?.start(true)
         }
         let busy = false
