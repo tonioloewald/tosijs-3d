@@ -357,10 +357,14 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   0..1 through a list of control points, with straight lines between them.
 - https://3d.tosijs.net/guidance/ — guidance
   round, one leads a gun, and both are used by [[b3d-launcher]] and
+- https://3d.tosijs.net/hair-fit/ — hair-fit
+  Hair made for one head, worn on another. A hairstyle library such as
 - https://3d.tosijs.net/input-internals/ — How input works
   pad, touch, VR controllers, an AI) produces the same `ControlInput`, and every
 - https://3d.tosijs.net/human-face/ — human-face
   Eyes and eyelashes for a [character builder](/character-builder/) body, and
+- https://3d.tosijs.net/human-hair/ — human-hair
+  Hairstyles, beards and eyebrows from a library made for another head, worn
 - https://3d.tosijs.net/human-morph/ — human-morph
   The body sliders of the character creator (CHARACTER-DESIGN.md), as pure
 - https://3d.tosijs.net/human-pack/ — human-pack

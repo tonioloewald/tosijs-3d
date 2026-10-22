@@ -26,7 +26,11 @@ IRIS colour is a dial too: `irisColor(t)` runs from dark brown through
 brown, hazel, green and blue to grey, the order real eyes come in from most
 melanin to least.
 
+HAIR is two pigments too: `hairColor(light, red)` runs black to platinum,
+with red from none to copper.
+
 ```javascript
+hairColor(0.2, 0.8)   // auburn, linear
 irisColor(0.6)        // green-blue, sRGB 0..1
 skinColor(0)          // the scale's tone 1, sRGB 0..1
 skinColor(1)          // tone 10
@@ -169,5 +173,41 @@ export function irisColor(t: number): Rgb {
     r: toSrgb(a.r + (b.r - a.r) * f),
     g: toSrgb(a.g + (b.g - a.g) * f),
     b: toSrgb(a.b + (b.b - a.b) * f),
+  }
+}
+
+/*
+Hair's colour is two pigments, as skin's is: how much dark melanin (black
+through brown to blonde) and how much red (none to copper). `hairColor`
+takes the first as a dial, 0 black to 1 platinum, and red on top.
+*/
+const HAIR_TONES = [
+  '#0e0c0b',
+  '#24180f',
+  '#3f2a1b',
+  '#5f4128',
+  '#8a6a45',
+  '#b8955f',
+  '#dcc596',
+].map(hexLinear)
+
+/** A hair colour: `light` 0 (black) to 1 (platinum), `red` 0 to 1 (copper). Linear. */
+export function hairColor(light: number, red = 0): Rgb {
+  const x = clamp01(light) * (HAIR_TONES.length - 1)
+  const i = Math.min(HAIR_TONES.length - 2, Math.floor(x))
+  const f = x - i
+  const a = HAIR_TONES[i]
+  const b = HAIR_TONES[i + 1]
+  const c = {
+    r: a.r + (b.r - a.r) * f,
+    g: a.g + (b.g - a.g) * f,
+    b: a.b + (b.b - a.b) * f,
+  }
+  // Red pigment takes green and blue away and keeps the lightness near.
+  const k = clamp01(red)
+  return {
+    r: c.r * (1 + 0.9 * k),
+    g: c.g * (1 - 0.35 * k),
+    b: c.b * (1 - 0.6 * k),
   }
 }

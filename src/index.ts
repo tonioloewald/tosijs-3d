@@ -1820,7 +1820,27 @@ export {
   lipAlbedo,
   IRIS_TONES,
   irisColor,
+  hairColor,
 } from './skin-tone.js'
+export {
+  loadHairLibrary,
+  headScalp,
+  hairMaterial,
+  humanHair,
+} from './human-hair.js'
+export type {
+  HairLibrary,
+  HairPart,
+  HeadScalp,
+  HairMaterial,
+} from './human-hair.js'
+export {
+  fitToScalp,
+  applyFit,
+  conformOutside,
+  vertexNormals,
+} from './hair-fit.js'
+export type { AxisFit } from './hair-fit.js'
 export {
   humanFace,
   eyeGaze,
