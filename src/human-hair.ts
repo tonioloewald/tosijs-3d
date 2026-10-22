@@ -37,8 +37,10 @@ import {
   conformOutside,
   headRegion,
   headRegionIndices,
+  keepHeight,
   pick,
   shellWarp,
+  skinGaps,
   vertexNormals,
   type HeadLandmarks,
   type ShellWarp,
@@ -125,8 +127,18 @@ their eyeball meshes).
 */
 export const QUATERNIUS_HEADS: Readonly<Record<string, HeadLandmarks>> =
   Object.freeze({
-    Reference_Head_Male: { eyeY: 1.6986, eyeZ: 0.0659, midX: 0, spacing: 0.0676 },
-    Reference_Head_Female: { eyeY: 1.656, eyeZ: 0.0591, midX: 0, spacing: 0.069 },
+    Reference_Head_Male: {
+      eyeY: 1.6986,
+      eyeZ: 0.0659,
+      midX: 0,
+      spacing: 0.0676,
+    },
+    Reference_Head_Female: {
+      eyeY: 1.656,
+      eyeZ: 0.0591,
+      midX: 0,
+      spacing: 0.069,
+    },
   })
 
 /** Pieces that grow on the face, not the scalp. */
@@ -136,6 +148,8 @@ const FACIAL = /Beard|Moustache|Mustache|MuttonChops|Goatee|Stubble/i
 export interface ReferenceHead {
   name: string
   skin: Float32Array
+  /** Its skin's outward normals. */
+  normals: Float32Array
   landmarks: HeadLandmarks
   /**
    * The top of its upper lip, where its moustache's lower edge lies (the
@@ -144,25 +158,28 @@ export interface ReferenceHead {
   lip?: { y: number; z: number }
 }
 
-/** Mean distance from a sample of `points` to the nearest of `skin`. */
-function meanGap(points: Float32Array, skin: Float32Array): number {
-  const n = points.length / 3
-  const step = Math.max(1, Math.floor(n / 200))
-  let sum = 0
-  let count = 0
-  for (let i = 0; i < n; i += step) {
-    let best = Infinity
-    for (let j = 0; j < skin.length; j += 3) {
-      const d =
-        (skin[j] - points[i * 3]) ** 2 +
-        (skin[j + 1] - points[i * 3 + 1]) ** 2 +
-        (skin[j + 2] - points[i * 3 + 2]) ** 2
-      if (d < best) best = d
+/**
+How closely a piece hugs a head, lower is closer: the mean distance from that
+head's skin of the nearer half of a sample of its vertices (long strands are
+the far half), plus a penalty for vertices deep inside it. A style sits on the
+head it was made for and floats off, or sinks into, the other.
+*/
+function hug(parts: HairPart[], head: ReferenceHead): number {
+  const sample: number[] = []
+  for (const p of parts) {
+    const n = p.positions.length / 3
+    const step = Math.max(1, Math.floor(n / 300))
+    for (let i = 0; i < n; i += step) {
+      sample.push(p.positions[i * 3], p.positions[i * 3 + 1], p.positions[i * 3 + 2])
     }
-    sum += Math.sqrt(best)
-    count++
   }
-  return sum / count
+  const g = Array.from(skinGaps(sample, head.skin, head.normals))
+  const inside = g.filter((x) => x < -0.005).length / g.length
+  const near = g
+    .map(Math.abs)
+    .sort((x, y) => x - y)
+    .slice(0, Math.ceil(g.length / 2))
+  return near.reduce((x, y) => x + y, 0) / near.length + 0.02 * inside
 }
 
 /** Load a hair library (a GLB of named pieces); `reference` hugs its scalp. */
@@ -230,7 +247,13 @@ export async function loadHairLibrary(
   )) {
     const head = pieces.get(name)
     if (head == null) continue
-    heads.push({ name, skin: head.parts[0].positions, landmarks })
+    const part = head.parts[0]
+    heads.push({
+      name,
+      skin: part.positions,
+      normals: vertexNormals(part.positions, part.indices),
+      landmarks,
+    })
     pieces.delete(name)
   }
   if (heads.length === 0) {
@@ -248,30 +271,8 @@ export async function loadHairLibrary(
       let h = chosen.get(name)
       if (h == null) {
         const parts = pieces.get(name)?.parts ?? []
-        if (FACIAL.test(name) || pieces.get(name)?.category === 'eyebrows') {
-          // On the face: the head whose skin the piece lies nearest.
-          const gap = (head: ReferenceHead) =>
-            parts.reduce((s, p) => s + meanGap(p.positions, head.skin), 0)
-          h = heads.reduce((a, b) => (gap(b) < gap(a) ? b : a))
-        } else {
-          // On the scalp: the head whose crown is just under the style's (a
-          // style sits ON its head, so the other is either above its crown
-          // or far below it). Long strands make nearness unreliable here.
-          let top = -Infinity
-          for (const p of parts) {
-            for (const v of p.indices) top = Math.max(top, p.positions[v * 3 + 1])
-          }
-          const crown = (head: ReferenceHead) => {
-            let c = -Infinity
-            for (let i = 1; i < head.skin.length; i += 3) c = Math.max(c, head.skin[i])
-            return c
-          }
-          const clear = (head: ReferenceHead) => {
-            const d = top - crown(head)
-            return d >= 0 ? d : Infinity
-          }
-          h = heads.reduce((a, b) => (clear(b) < clear(a) ? b : a))
-        }
+        const score = new Map(heads.map((x) => [x, hug(parts, x)]))
+        h = heads.reduce((a, b) => (score.get(b)! < score.get(a)! ? b : a))
         chosen.set(name, h)
       }
       return h
@@ -386,12 +387,16 @@ export function headScalp(
       let w = warps.get(key)
       if (w == null) {
         const ix = headRegionIndices(mine, at, region)
-        w = shellWarp(headRegion(head.skin, head.landmarks, region), pick(mine, ix), {
-          normals: pick(skinNormals, ix),
-          // Hair a little high rather than through the scalp; a beard or a
-          // brow lies on the skin.
-          clearance: region === 'scalp' ? 0.002 : 0.0005,
-        })
+        w = shellWarp(
+          headRegion(head.skin, head.landmarks, region),
+          pick(mine, ix),
+          {
+            normals: pick(skinNormals, ix),
+            // Hair a little high rather than through the scalp; a beard or a
+            // brow lies on the skin.
+            clearance: region === 'scalp' ? 0.002 : 0.0005,
+          }
+        )
         warps.set(key, w)
       }
       return w
@@ -452,6 +457,20 @@ export interface HairPlacement {
   nudge?: { y?: number; z?: number; scale?: number }
 }
 
+const gapCache = new WeakMap<HairPart, Map<ReferenceHead, Float32Array>>()
+
+/** A part's vertices' heights above its own head's skin (cached). */
+function gapsOf(part: HairPart, head: ReferenceHead): Float32Array {
+  let byHead = gapCache.get(part)
+  if (byHead == null) gapCache.set(part, (byHead = new Map()))
+  let g = byHead.get(head)
+  if (g == null) {
+    g = skinGaps(part.positions, head.skin, head.normals)
+    byHead.set(head, g)
+  }
+  return g
+}
+
 /** A part's vertices placed on a body's head (the pack's frame). */
 export function placeHair(
   head: HeadScalp,
@@ -462,6 +481,11 @@ export function placeHair(
     part.positions,
     head.warp(options.head, options.on ?? 'scalp')
   )
+  // Each vertex back at its height above the skin, as on its own head: the
+  // warp moves hair with the skull, this keeps a beard as thick on this chin.
+  keepHeight(p, gapsOf(part, options.head), head.skin, head.normals, {
+    clearance: options.on === 'face' ? 0.0005 : 0.002,
+  })
   // The mouth: a face warp matches skin to nearest skin, which carries a
   // moustache's ends down onto the lips. Its lower edge goes to the top of
   // this upper lip, the correction fading with distance from the lip line,

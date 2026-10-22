@@ -52,7 +52,8 @@ preview.append(
         label3d({ text: 'Skin' }),
         slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: 'redness', value: walker.redness, min: 0, max: 1, step: 0.01 }),
-        slider3d({ label: 'eyes', value: walker.iris, min: 0, max: 1, step: 0.01 }),
+        label3d({ text: 'Eyes' }),
+        slider3d({ label: 'eye colour', value: walker.iris, min: 0, max: 1, step: 0.01 }),
         label3d({ text: 'Hair' }),
         select3d({ label: 'hair', value: walker.hair, options: styles.hair }),
         select3d({ label: 'beard', value: walker.beard, options: styles.beard }),
@@ -74,7 +75,29 @@ preview.append(
         cam.minZ = 0.05
         cam.attachControl(el.querySelector('canvas'), true)
         el.setActiveCamera(cam)
-        BABYLON.MeshBuilder.CreateGround('g', { width: 8, height: 8 }, scene)
+        // A floor with a metre grid (and faint quarters), which takes the sun's shadow.
+        const floor = BABYLON.MeshBuilder.CreateGround('floor_nocast', { width: 12, height: 12 }, scene)
+        const tile = new BABYLON.DynamicTexture('floor-grid', { width: 256, height: 256 }, scene, true)
+        const ctx = tile.getContext()
+        ctx.fillStyle = '#5d6672'
+        ctx.fillRect(0, 0, 256, 256)
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)'
+        ctx.lineWidth = 2
+        for (const at of [64, 128, 192]) {
+          ctx.beginPath(); ctx.moveTo(at, 0); ctx.lineTo(at, 256); ctx.moveTo(0, at); ctx.lineTo(256, at); ctx.stroke()
+        }
+        ctx.strokeStyle = 'rgba(255,255,255,0.45)'
+        ctx.lineWidth = 4
+        ctx.strokeRect(0, 0, 256, 256)
+        tile.update()
+        tile.wrapU = tile.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE
+        tile.uScale = tile.vScale = 12
+        tile.anisotropicFilteringLevel = 8
+        const floorMat = new BABYLON.StandardMaterial('floor', scene)
+        floorMat.diffuseTexture = tile
+        floorMat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05)
+        floor.material = floorMat
+        el.register({ meshes: [floor] })
 
         // UAL's mannequin is only the clips' source: it stays hidden.
         const ual = await BABYLON.LoadAssetContainerAsync(assetUrl('quaternius/UAL1_core.glb', 2), scene)
@@ -199,7 +222,7 @@ preview.append(
         walker.paused.observe(() => (walker.paused.value ? playing?.pause() : playing?.play(true)))
       },
     },
-    b3dSun({ timeOfDay: 15 }),
+    b3dSun({ timeOfDay: 16.5, shadowTextureSize: 2048, shadowMaxZ: 20 }),
     b3dLight({ intensity: 0.5 })
   ),
   status

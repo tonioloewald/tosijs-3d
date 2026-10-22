@@ -89,7 +89,13 @@ function nearest(
 export function fitToScalp(
   reference: ArrayLike<number>,
   scalp: ArrayLike<number>,
-  iterations = 12
+  iterations = 12,
+  /**
+   * `axes`: one scale per axis, or `uniform`, one scale for all three. A
+   * stylised face is flatter front to back than a real one, and a free depth
+   * scale squashes what lies on it (a beard) back into the chin.
+   */
+  scaling: 'axes' | 'uniform' = 'axes'
 ): AxisFit {
   const box = (p: ArrayLike<number>) => {
     const lo = [Infinity, Infinity, Infinity]
@@ -126,25 +132,32 @@ export function fitToScalp(
       target[i * 3 + 1] = scalp[j * 3 + 1]
       target[i * 3 + 2] = scalp[j * 3 + 2]
     }
-    // Least squares per axis: target ≈ reference · scale + shift.
+    // Least squares: target ≈ reference · scale + shift, per axis or shared.
+    const mr = [0, 0, 0]
+    const mt = [0, 0, 0]
+    for (let i = 0; i < n; i++) {
+      for (let k = 0; k < 3; k++) {
+        mr[k] += reference[i * 3 + k] / n
+        mt[k] += target[i * 3 + k] / n
+      }
+    }
+    const num = [0, 0, 0]
+    const den = [0, 0, 0]
+    for (let i = 0; i < n; i++) {
+      for (let k = 0; k < 3; k++) {
+        const a = reference[i * 3 + k] - mr[k]
+        num[k] += a * (target[i * 3 + k] - mt[k])
+        den[k] += a * a
+      }
+    }
+    const shared =
+      den[0] + den[1] + den[2] > 0
+        ? (num[0] + num[1] + num[2]) / (den[0] + den[1] + den[2])
+        : 1
     for (let k = 0; k < 3; k++) {
-      let mr = 0
-      let mt = 0
-      for (let i = 0; i < n; i++) {
-        mr += reference[i * 3 + k]
-        mt += target[i * 3 + k]
-      }
-      mr /= n
-      mt /= n
-      let num = 0
-      let den = 0
-      for (let i = 0; i < n; i++) {
-        const a = reference[i * 3 + k] - mr
-        num += a * (target[i * 3 + k] - mt)
-        den += a * a
-      }
-      fit.scale[k] = den > 0 ? num / den : 1
-      fit.shift[k] = mt - fit.scale[k] * mr
+      fit.scale[k] =
+        scaling === 'uniform' ? shared : den[k] > 0 ? num[k] / den[k] : 1
+      fit.shift[k] = mt[k] - fit.scale[k] * mr[k]
     }
   }
   return fit
@@ -266,7 +279,10 @@ export function headRegionIndices(
 }
 
 /** The xyz triples of `points` at `indices`. */
-export function pick(points: ArrayLike<number>, indices: number[]): Float32Array {
+export function pick(
+  points: ArrayLike<number>,
+  indices: number[]
+): Float32Array {
   const out = new Float32Array(indices.length * 3)
   indices.forEach((v, i) => {
     out[i * 3] = points[v * 3]
@@ -296,18 +312,24 @@ export interface ShellWarp {
 export function shellWarp(
   source: ArrayLike<number>,
   target: ArrayLike<number>,
-  options: { normals?: ArrayLike<number>; clearance?: number } = {}
+  options: {
+    normals?: ArrayLike<number>
+    clearance?: number
+    scaling?: 'axes' | 'uniform'
+  } = {}
 ): ShellWarp {
   const c = options.normals ? options.clearance ?? 0 : 0
   const n = options.normals
-  const fit = fitToScalp(source, target)
+  const fit = fitToScalp(source, target, 12, options.scaling)
   const anchors = applyFit(source, fit)
   const delta = new Float32Array(anchors.length)
   for (let i = 0; i < anchors.length; i += 3) {
     const [j] = nearest(target, anchors[i], anchors[i + 1], anchors[i + 2])
     delta[i] = target[j * 3] - anchors[i] + (n ? n[j * 3] * c : 0)
-    delta[i + 1] = target[j * 3 + 1] - anchors[i + 1] + (n ? n[j * 3 + 1] * c : 0)
-    delta[i + 2] = target[j * 3 + 2] - anchors[i + 2] + (n ? n[j * 3 + 2] * c : 0)
+    delta[i + 1] =
+      target[j * 3 + 1] - anchors[i + 1] + (n ? n[j * 3 + 1] * c : 0)
+    delta[i + 2] =
+      target[j * 3 + 2] - anchors[i + 2] + (n ? n[j * 3 + 2] * c : 0)
   }
   return { fit, anchors, delta }
 }
@@ -364,4 +386,60 @@ export function applyWarp(
     }
   }
   return out
+}
+
+/**
+ * The signed distance of each of `points` (xyz) from a skin (`skin` points
+ * and their outward `normals`): out along the nearest skin point's normal,
+ * negative inside.
+ */
+export function skinGaps(
+  points: ArrayLike<number>,
+  skin: ArrayLike<number>,
+  normals: ArrayLike<number>
+): Float32Array {
+  const out = new Float32Array(points.length / 3)
+  for (let i = 0; i < points.length; i += 3) {
+    const [j] = nearest(skin, points[i], points[i + 1], points[i + 2])
+    out[i / 3] =
+      (points[i] - skin[j * 3]) * normals[j * 3] +
+      (points[i + 1] - skin[j * 3 + 1]) * normals[j * 3 + 1] +
+      (points[i + 2] - skin[j * 3 + 2]) * normals[j * 3 + 2]
+  }
+  return out
+}
+
+/**
+ * Put each of `placed` (xyz, in place) back at the height it had above its
+ * own head's skin (`gaps`, from `skinGaps` there), plus `clearance`, along
+ * this skin's normal. That is the property a fitted style must keep: a beard
+ * as thick on this chin as on its own. It applies fully within `reach` of
+ * the skin and fades out by twice that, so long strands keep their warp.
+ */
+export function keepHeight(
+  placed: Float32Array,
+  gaps: ArrayLike<number>,
+  skin: ArrayLike<number>,
+  normals: ArrayLike<number>,
+  options: { reach?: number; clearance?: number } = {}
+): void {
+  const reach = options.reach ?? 0.02
+  const clearance = options.clearance ?? 0
+  for (let i = 0; i < placed.length; i += 3) {
+    const g = gaps[i / 3]
+    const w = Math.min(1, Math.max(0, 2 - Math.abs(g) / reach))
+    if (w === 0) continue
+    const [j] = nearest(skin, placed[i], placed[i + 1], placed[i + 2])
+    const nx = normals[j * 3]
+    const ny = normals[j * 3 + 1]
+    const nz = normals[j * 3 + 2]
+    const now =
+      (placed[i] - skin[j * 3]) * nx +
+      (placed[i + 1] - skin[j * 3 + 1]) * ny +
+      (placed[i + 2] - skin[j * 3 + 2]) * nz
+    const move = (g + clearance - now) * w
+    placed[i] += nx * move
+    placed[i + 1] += ny * move
+    placed[i + 2] += nz * move
+  }
 }
