@@ -25,20 +25,26 @@ import {
   type VertexWeights,
 } from './proxy-fit.js'
 
-/** A material for a proxy from its own textures. */
+/**
+ * A material for a proxy from its own textures, or one of its alternate
+ * `look`s (colourways; `proxy.material.looks`).
+ */
 export function proxyMaterial(
   scene: BABYLON.Scene,
-  proxy: HumanProxy
+  proxy: HumanProxy,
+  look?: string
 ): BABYLON.PBRMaterial {
-  const m = new BABYLON.PBRMaterial(`proxy-${proxy.name}`, scene)
+  const alt = look != null ? proxy.material.looks?.[look] : undefined
+  const textures = alt ?? proxy.material
+  const m = new BABYLON.PBRMaterial(`proxy-${proxy.name}${alt ? `-${look}` : ''}`, scene)
   m.metallic = 0
   m.roughness = proxy.category === 'clothes' ? 0.8 : 0.45
-  if (proxy.material.diffuse) {
+  if (textures.diffuse) {
     // OBJ's V runs up, as an image loaded with Babylon's default flip expects.
-    m.albedoTexture = new BABYLON.Texture(proxy.material.diffuse, scene)
+    m.albedoTexture = new BABYLON.Texture(textures.diffuse, scene)
   }
-  if (proxy.material.normal) {
-    m.bumpTexture = new BABYLON.Texture(proxy.material.normal, scene)
+  if (textures.normal ?? proxy.material.normal) {
+    m.bumpTexture = new BABYLON.Texture((textures.normal ?? proxy.material.normal)!, scene)
   }
   if (proxy.material.alpha && m.albedoTexture) {
     m.albedoTexture.hasAlpha = true

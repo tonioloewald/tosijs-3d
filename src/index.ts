@@ -1810,6 +1810,8 @@ export {
 } from './proxy-fit.js'
 export type { ProxyBinding, VertexWeights } from './proxy-fit.js'
 export { humanProxy, proxyMaterial, coverBody } from './human-proxy.js'
+export { clothShading, FABRICS } from './cloth-shading.js'
+export type { ClothShading, ClothLook, Fabric } from './cloth-shading.js'
 export {
   DEFAULT_HUMAN_BODY,
   macroWeights,

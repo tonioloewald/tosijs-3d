@@ -18,14 +18,16 @@ bone heat's, worked out from the mesh once when the page loads. The eyes
 head and fitted to this one.
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, hairShading, HAIR_COLOURS, colorPicker3d, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'Hair_SimpleParted', beard: 'none', brows: 'Eyebrows_Regular', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, beardUp: 0, beardForward: 0, outfit: 'male_casualsuit02', shoes: 'shoes01', hat: 'none', paused: false } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'Hair_SimpleParted', beard: 'none', brows: 'Eyebrows_Regular', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, beardUp: 0, beardForward: 0, outfit: 'male_casualsuit02', shoes: 'shoes01', hat: 'none', outfitLook: 'as made', outfitFabric: 'cotton', outfitColour: '#7a2e2e', outfitAmount: 0, shoesFabric: 'leather', shoesColour: '#3a2a20', shoesAmount: 0, hatColour: '#3a3a3a', hatAmount: 0, paused: false } })
 let mat = null
 let paint = () => {}
 let eyes = null
 let dress = () => {}
+// The pack's proxies, once it has loaded (the panel lists an outfit's looks).
+let packProxies = {}
 // Filled when the hair library loads.
 const styles = { hair: ['none'], beard: ['none'], brows: ['none'], outfit: ['none'], shoes: ['none'], hat: ['none'] }
 const clips = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Dance_Loop', 'Crouch_Fwd_Loop']
@@ -70,8 +72,18 @@ preview.append(
         slider3d({ label: 'beard forward', value: walker.beardForward, min: -0.02, max: 0.02, step: 0.001 }),
         label3d({ text: 'Clothes', collapsible: true }),
         select3d({ label: 'outfit', value: walker.outfit, options: styles.outfit }),
+        // Its colourways, a fabric, and a recolour over the texture (0 keeps its own).
+        select3d({ label: 'look', value: walker.outfitLook, options: ['as made', ...Object.keys(packProxies[walker.outfit.value]?.material?.looks ?? {})] }),
+        select3d({ label: 'fabric', value: walker.outfitFabric, options: Object.keys(FABRICS) }),
+        colorPicker3d({ label: 'colour', value: walker.outfitColour, alpha: false }),
+        slider3d({ label: 'recolour', value: walker.outfitAmount, min: 0, max: 1, step: 0.01 }),
         select3d({ label: 'shoes', value: walker.shoes, options: styles.shoes }),
+        select3d({ label: 'shoe fabric', value: walker.shoesFabric, options: Object.keys(FABRICS) }),
+        colorPicker3d({ label: 'shoe colour', value: walker.shoesColour, alpha: false }),
+        slider3d({ label: 'shoe recolour', value: walker.shoesAmount, min: 0, max: 1, step: 0.01 }),
         select3d({ label: 'hat', value: walker.hat, options: styles.hat }),
+        colorPicker3d({ label: 'hat colour', value: walker.hatColour, alpha: false }),
+        slider3d({ label: 'hat recolour', value: walker.hatAmount, min: 0, max: 1, step: 0.01 }),
         label3d({ text: 'Ancestry', collapsible: true }),
         slider('african', 'african'),
         slider('asian', 'asian'),
@@ -117,7 +129,7 @@ preview.append(
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
 
-        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 6)).catch((e) => {
+        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 7)).catch((e) => {
           el.setLoading(`could not load the body: ${e.message}`, { spin: false })
           throw e
         })
@@ -130,6 +142,7 @@ preview.append(
         styles.brows.push(...hairLib.names('eyebrows').filter(adult))
         // MakeHuman's own clothes, hair and brows, bound to this body (proxy-fit).
         const proxies = pack.manifest.proxies ?? {}
+        packProxies = proxies
         const kinds = (cat, test) => Object.keys(proxies).filter((n) => proxies[n].category === cat && test(n))
         styles.outfit.push(...kinds('clothes', (n) => !/^shoes|fedora/.test(n)))
         styles.shoes.push(...kinds('clothes', (n) => n.startsWith('shoes')))
@@ -138,6 +151,17 @@ preview.append(
         styles.brows.push(...kinds('eyebrows', () => true))
         styles.beard.push(...kinds('beard', () => true))
         const proxyMaterials = new Map()
+        // Each clothes material's fabric and recolour, and which slot wears which.
+        const clothes = new Map()
+        const slotMaterial = {}
+        const refabric = () => {
+          const looks = {
+            outfit: { fabric: walker.outfitFabric.value, colour: walker.outfitColour.value, amount: walker.outfitAmount.value },
+            shoes: { fabric: walker.shoesFabric.value, colour: walker.shoesColour.value, amount: walker.shoesAmount.value },
+            hat: { fabric: 'wool', colour: walker.hatColour.value, amount: walker.hatAmount.value },
+          }
+          for (const [slot, m] of Object.entries(slotMaterial)) clothes.get(m)?.set(looks[slot])
+        }
         const tints = new Map()
         // Every hair material's colouring (Quaternius' and MakeHuman's).
         const shades = []
@@ -180,14 +204,22 @@ preview.append(
             const on = hairLib.fitFor(style)
             hairMeshes.push(...humanHair(scene, built, built.rig, scalp, parts, tint, { name: key, on, head: hairLib.headFor(style), centreY: key === 'brows' ? scalp.brow : undefined, nudge: key === 'hair' ? nudge : key === 'beard' ? beardNudge : undefined }))
           }
+          for (const k of Object.keys(slotMaterial)) delete slotMaterial[k]
           for (const proxy of wearing) {
-            if (!proxyMaterials.has(proxy.name)) {
-              const m = proxyMaterial(scene, proxy)
-              // MakeHuman's hair, brows and beards take the hair colours too.
+            const look = proxy.name === walker.outfit.value && walker.outfitLook.value !== 'as made' ? walker.outfitLook.value : undefined
+            const key = `${proxy.name}:${look ?? ''}`
+            if (!proxyMaterials.has(key)) {
+              const m = proxyMaterial(scene, proxy, look)
+              // MakeHuman's hair, brows and beards take the hair colours too;
+              // clothes take a fabric and a recolour.
               if (proxy.category !== 'clothes') shades.push(hairShading(m, { desaturate: true, base: walker.hairBase.value, highlight: walker.hairHighlight.value }))
-              proxyMaterials.set(proxy.name, m)
+              else clothes.set(m, clothShading(m))
+              proxyMaterials.set(key, m)
             }
-            const mesh = humanProxy(scene, built, proxy, current, allWeights, proxyMaterials.get(proxy.name))
+            const m = proxyMaterials.get(key)
+            const slot = proxy.name === walker.outfit.value ? 'outfit' : proxy.name === walker.shoes.value ? 'shoes' : proxy.name === walker.hat.value ? 'hat' : null
+            if (slot) slotMaterial[slot] = m
+            const mesh = humanProxy(scene, built, proxy, current, allWeights, m)
             mesh.metadata = { category: proxy.category }
             hairMeshes.push(mesh)
           }
@@ -207,11 +239,15 @@ preview.append(
               mesh.setIndices(Array.from(underCover(crown, p, mesh.getIndices())))
             }
           }
+          refabric()
           // Skin under clothes is hidden, so it cannot show through.
           coverBody(built, skin.triangles, skin.vertices, wearing)
           el.register({ meshes: hairMeshes })
         }
-        for (const key of ['hair', 'beard', 'brows', 'hairUp', 'hairForward', 'hairSize', 'beardUp', 'beardForward', 'outfit', 'shoes', 'hat']) walker[key].observe(() => dress())
+        for (const key of ['hair', 'beard', 'brows', 'hairUp', 'hairForward', 'hairSize', 'beardUp', 'beardForward', 'outfit', 'shoes', 'hat', 'outfitLook']) walker[key].observe(() => dress())
+        for (const key of ['outfitFabric', 'outfitColour', 'outfitAmount', 'shoesFabric', 'shoesColour', 'shoesAmount', 'hatColour', 'hatAmount']) walker[key].observe(() => refabric())
+        // A new outfit has its own looks.
+        walker.outfit.observe(() => { walker.outfitLook.value = 'as made'; el.refreshScenePanel?.() })
         // Colours repaint whoever sets them: a picker, a preset, or code.
         const recolour = () => { for (const sh of shades) sh.setColours(walker.hairBase.value, walker.hairHighlight.value) }
         walker.hairBase.observe(recolour)

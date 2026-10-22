@@ -89,7 +89,14 @@ export interface HumanProxyEntry {
   /** uint32 base vertices the proxy covers (their skin is hidden). */
   delete?: string
   scale: Partial<Record<'x' | 'y' | 'z', [number, number, number]>>
-  material: { diffuse?: string; normal?: string; alpha: boolean; twoSided: boolean }
+  material: {
+    diffuse?: string
+    normal?: string
+    alpha: boolean
+    twoSided: boolean
+    /** Alternate textures (colourways) by name. */
+    looks?: Record<string, { diffuse: string; normal?: string }>
+  }
 }
 
 /** A proxy, decoded: its binding (for `fitProxy`), mesh and material files. */
@@ -99,8 +106,14 @@ export interface HumanProxy extends ProxyBinding {
   triangles: Uint32Array
   uvs: Float32Array
   delete: Uint32Array | null
-  /** Its textures' URLs and how to draw it. */
-  material: { diffuse?: string; normal?: string; alpha: boolean; twoSided: boolean }
+  /** Its textures' URLs, its alternate looks', and how to draw it. */
+  material: {
+    diffuse?: string
+    normal?: string
+    alpha: boolean
+    twoSided: boolean
+    looks?: Record<string, { diffuse: string; normal?: string }>
+  }
 }
 
 /** A target, decoded: `indices` is null for a dense one. */
@@ -239,6 +252,14 @@ export async function loadHumanPack(
             ...e.material,
             diffuse: e.material.diffuse ? dir + e.material.diffuse : undefined,
             normal: e.material.normal ? dir + e.material.normal : undefined,
+            looks: e.material.looks
+              ? Object.fromEntries(
+                  Object.entries(e.material.looks).map(([n, l]) => [
+                    n,
+                    { diffuse: dir + l.diffuse, normal: l.normal ? dir + l.normal : undefined },
+                  ])
+                )
+              : undefined,
           },
         }))
         proxies.set(name, p)
