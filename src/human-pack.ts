@@ -77,6 +77,8 @@ export interface HumanPart {
 
 export interface HumanProxyEntry {
   category: string
+  /** What it is worn as, one at a time: outfit, top, bottom, shoes, hat, glasses, gloves, hair, brows, beard. */
+  slot?: string
   /** Bound (OBJ) vertices, and drawn vertices (split at UV seams). */
   rows: number
   count: number
@@ -103,6 +105,7 @@ export interface HumanProxyEntry {
 export interface HumanProxy extends ProxyBinding {
   name: string
   category: string
+  slot?: string
   triangles: Uint32Array
   uvs: Float32Array
   delete: Uint32Array | null
@@ -239,6 +242,7 @@ export async function loadHumanPack(
         ]).then(([b, src, tri, uv, del]) => ({
           name,
           category: e.category,
+          slot: e.slot,
           rows: e.rows,
           ref: new Uint32Array(b, 0, e.rows * 3),
           weight: new Float32Array(b, e.rows * 12, e.rows * 3),

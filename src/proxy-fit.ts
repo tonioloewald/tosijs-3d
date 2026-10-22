@@ -231,8 +231,8 @@ export function coveredTriangles(
 
 /**
  * What a hat leaves showing of the hair under it: `triangles` (in threes,
- * indexing `points`, xyz, the same frame as `cover`) less those with a vertex
- * above the hat's brim and within its reach. Around the hat's axis, in
+ * indexing `points`, xyz, the same frame as `cover`) less those wholly above
+ * the hat's brim and within its reach. Around the hat's axis, in
  * `sectors` directions, the brim's height is its lowest vertex there and its
  * reach its widest, so a tilted brim (a fedora's) is followed. Hair below
  * the brim, at the sides and back and in long styles, stays.
@@ -272,8 +272,31 @@ export function underCover(
     const a = triangles[t]
     const b = triangles[t + 1]
     const c = triangles[t + 2]
-    if (hidden(a) || hidden(b) || hidden(c)) continue
+    // Only what is wholly under the hat: a triangle across the brim stays and
+    // tucks up inside it (dropping it left bare scalp just below the brim).
+    if (hidden(a) && hidden(b) && hidden(c)) continue
     keep.push(a, b, c)
   }
   return Uint32Array.from(keep)
+}
+
+/**
+ * Push `positions` (xyz, in place) out from `centre` by `by` metres: a hat
+ * made for a bare head, worn over hair, sits a little larger.
+ */
+export function inflate(
+  positions: Float32Array,
+  centre: { x: number; y: number; z: number },
+  by: number
+): Float32Array {
+  for (let i = 0; i < positions.length; i += 3) {
+    const dx = positions[i] - centre.x
+    const dy = positions[i + 1] - centre.y
+    const dz = positions[i + 2] - centre.z
+    const l = Math.hypot(dx, dy, dz) || 1
+    positions[i] += (dx / l) * by
+    positions[i + 1] += (dy / l) * by
+    positions[i + 2] += (dz / l) * by
+  }
+  return positions
 }

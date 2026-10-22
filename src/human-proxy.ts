@@ -21,6 +21,7 @@ import {
   coveredTriangles,
   drawnPositions,
   fitProxy,
+  inflate,
   proxyWeights,
   type VertexWeights,
 } from './proxy-fit.js'
@@ -67,9 +68,14 @@ export function humanProxy(
   proxy: HumanProxy,
   positions: ArrayLike<number>,
   weights: VertexWeights,
-  material?: BABYLON.Material
+  material?: BABYLON.Material,
+  options: {
+    /** Push it out from a point (a hat over hair, from the skull's middle). */
+    inflate?: { centre: { x: number; y: number; z: number }; by: number }
+  } = {}
 ): BABYLON.Mesh {
   const drawn = drawnPositions(proxy, fitProxy(proxy, positions))
+  if (options.inflate) inflate(drawn, options.inflate.centre, options.inflate.by)
   const mesh = new BABYLON.Mesh(`proxy-${proxy.name}`, scene)
   const data = new BABYLON.VertexData()
   data.positions = drawn
