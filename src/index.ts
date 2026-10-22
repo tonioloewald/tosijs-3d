@@ -1797,7 +1797,18 @@ export type {
   HumanTargetEntry,
   HumanPart,
   HumanPartEntry,
+  HumanProxy,
+  HumanProxyEntry,
 } from './human-pack.js'
+export {
+  fitProxy,
+  drawnPositions,
+  proxyWeights,
+  nearestWeights,
+  coveredTriangles,
+} from './proxy-fit.js'
+export type { ProxyBinding, VertexWeights } from './proxy-fit.js'
+export { humanProxy, proxyMaterial, coverBody } from './human-proxy.js'
 export {
   DEFAULT_HUMAN_BODY,
   macroWeights,

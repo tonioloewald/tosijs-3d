@@ -1,0 +1,228 @@
+/*#
+# proxy-fit
+
+Clothes, hair and anything else made for a base body, fitted to every shape
+of it. This is MakeHuman's `.mhclo` binding, read from the format and
+re-implemented (no MakeHuman code): each proxy vertex is a weighted point on
+a triangle of the base (three base vertices and their weights) plus an
+OFFSET, and the offset is scaled per axis by how far apart two reference
+vertices are on the body being fitted, so a coat is as loose on a large body
+as on a small one. Morph the body and every proxy follows: no per-body work,
+nothing to re-fit.
+
+It is the one runtime fitter of the character creator (CHARACTER-DESIGN.md
+step 4): MakeHuman's CC0 clothes, hair and brows come with their bindings in
+the [human pack](/human-pack/), and hair made for another head is meant to be
+imported as a binding too.
+
+Pure, so a recipe's outfit is fitted or checked headless:
+
+- `fitProxy(proxy, positions)` places the proxy's vertices on a body (every
+  pack vertex, the pack's frame)
+- `drawnPositions(proxy, fitted)` expands them to the drawn vertices (split
+  where a UV seam needs it)
+- `proxyWeights(proxy, vertexWeights)` gives each drawn vertex its skin
+  weights from the base vertices it is bound to, so a garment bends with the
+  body on the body's own skeleton
+- `nearestWeights(...)` lends weights to vertices that have none (the base's
+  helper vertices, which clothes bind to)
+- `coveredTriangles(triangles, deleted)` drops the body triangles a garment
+  hides, so skin never shows through it
+*/
+/*{ "parent": "character-builder", "order": 65 }*/
+
+/** A proxy's binding, decoded. */
+export interface ProxyBinding {
+  /** Rows: one per proxy (OBJ) vertex. */
+  rows: number
+  /** Three base vertices per row. */
+  ref: Uint32Array
+  /** Their weights. */
+  weight: Float32Array
+  /** The offset per row (metres, scaled per axis by `scale`). */
+  offset: Float32Array
+  /**
+   * Per axis: two base vertices and their distance along that axis on the
+   * body the proxy was made on. A body where they are further apart scales
+   * the offsets up.
+   */
+  scale: Partial<Record<'x' | 'y' | 'z', [number, number, number]>>
+  /** The row each drawn vertex is (drawn vertices split at UV seams). */
+  source: Uint32Array
+}
+
+/** The proxy's rows placed on a body (`positions`: every base vertex, xyz). */
+export function fitProxy(
+  proxy: ProxyBinding,
+  positions: ArrayLike<number>,
+  into?: Float32Array
+): Float32Array {
+  const out = into ?? new Float32Array(proxy.rows * 3)
+  const k = [0, 1, 2].map((axis) => {
+    const s = proxy.scale[(['x', 'y', 'z'] as const)[axis]]
+    if (s == null || s[2] === 0) return 1
+    return Math.abs(positions[s[0] * 3 + axis] - positions[s[1] * 3 + axis]) / s[2]
+  })
+  for (let r = 0; r < proxy.rows; r++) {
+    for (let axis = 0; axis < 3; axis++) {
+      let v = 0
+      for (let c = 0; c < 3; c++) {
+        v += proxy.weight[r * 3 + c] * positions[proxy.ref[r * 3 + c] * 3 + axis]
+      }
+      out[r * 3 + axis] = v + proxy.offset[r * 3 + axis] * k[axis]
+    }
+  }
+  return out
+}
+
+/** Fitted rows expanded to the drawn vertices. */
+export function drawnPositions(
+  proxy: ProxyBinding,
+  fitted: ArrayLike<number>,
+  into?: Float32Array
+): Float32Array {
+  const out = into ?? new Float32Array(proxy.source.length * 3)
+  for (let i = 0; i < proxy.source.length; i++) {
+    const r = proxy.source[i] * 3
+    out[i * 3] = fitted[r]
+    out[i * 3 + 1] = fitted[r + 1]
+    out[i * 3 + 2] = fitted[r + 2]
+  }
+  return out
+}
+
+/** Four bone indices and four weights per vertex (Babylon's layout). */
+export interface VertexWeights {
+  indices: Float32Array
+  weights: Float32Array
+}
+
+/**
+ * Weights for every base vertex, from weights on some of them: `known[v]` is
+ * the row in `weights` for base vertex `v`, or -1; a vertex without weights
+ * takes its nearest weighted neighbour's (at `positions`). Helper vertices
+ * (tights, skirt) carry no skin, but clothes bind to them.
+ */
+export function nearestWeights(
+  positions: ArrayLike<number>,
+  known: Int32Array,
+  weights: VertexWeights
+): VertexWeights {
+  const n = known.length
+  const out = {
+    indices: new Float32Array(n * 4),
+    weights: new Float32Array(n * 4),
+  }
+  const have: number[] = []
+  for (let v = 0; v < n; v++) if (known[v] >= 0) have.push(v)
+  // A hash grid over the weighted vertices.
+  const cell = 0.03
+  const key = (x: number, y: number, z: number) =>
+    `${Math.floor(x / cell)},${Math.floor(y / cell)},${Math.floor(z / cell)}`
+  const grid = new Map<string, number[]>()
+  for (const v of have) {
+    const k = key(positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2])
+    let list = grid.get(k)
+    if (list == null) grid.set(k, (list = []))
+    list.push(v)
+  }
+  for (let v = 0; v < n; v++) {
+    let from = known[v]
+    if (from < 0) {
+      const x = positions[v * 3]
+      const y = positions[v * 3 + 1]
+      const z = positions[v * 3 + 2]
+      let best = Infinity
+      for (let ring = 1; ring <= 4 && best === Infinity; ring++) {
+        const cx = Math.floor(x / cell)
+        const cy = Math.floor(y / cell)
+        const cz = Math.floor(z / cell)
+        for (let dx = -ring; dx <= ring; dx++) {
+          for (let dy = -ring; dy <= ring; dy++) {
+            for (let dz = -ring; dz <= ring; dz++) {
+              for (const u of grid.get(`${cx + dx},${cy + dy},${cz + dz}`) ?? []) {
+                const d =
+                  (positions[u * 3] - x) ** 2 +
+                  (positions[u * 3 + 1] - y) ** 2 +
+                  (positions[u * 3 + 2] - z) ** 2
+                if (d < best) {
+                  best = d
+                  from = known[u]
+                }
+              }
+            }
+          }
+        }
+      }
+      if (from < 0) continue
+    }
+    for (let k = 0; k < 4; k++) {
+      out.indices[v * 4 + k] = weights.indices[from * 4 + k]
+      out.weights[v * 4 + k] = weights.weights[from * 4 + k]
+    }
+  }
+  return out
+}
+
+/**
+ * Skin weights for a proxy's drawn vertices: each mixes the weights of its
+ * three base vertices by their binding weights, keeping the four strongest
+ * bones. `base` has weights for every base vertex (`nearestWeights`).
+ */
+export function proxyWeights(proxy: ProxyBinding, base: VertexWeights): VertexWeights {
+  const rowW = { indices: new Float32Array(proxy.rows * 4), weights: new Float32Array(proxy.rows * 4) }
+  const acc = new Map<number, number>()
+  for (let r = 0; r < proxy.rows; r++) {
+    acc.clear()
+    for (let c = 0; c < 3; c++) {
+      const bw = Math.abs(proxy.weight[r * 3 + c])
+      const v = proxy.ref[r * 3 + c]
+      for (let k = 0; k < 4; k++) {
+        const w = base.weights[v * 4 + k] * bw
+        if (w > 0) {
+          const bone = base.indices[v * 4 + k]
+          acc.set(bone, (acc.get(bone) ?? 0) + w)
+        }
+      }
+    }
+    const top = [...acc].sort((a, b) => b[1] - a[1]).slice(0, 4)
+    const sum = top.reduce((s, [, w]) => s + w, 0) || 1
+    top.forEach(([bone, w], k) => {
+      rowW.indices[r * 4 + k] = bone
+      rowW.weights[r * 4 + k] = w / sum
+    })
+  }
+  const out = {
+    indices: new Float32Array(proxy.source.length * 4),
+    weights: new Float32Array(proxy.source.length * 4),
+  }
+  for (let i = 0; i < proxy.source.length; i++) {
+    const r = proxy.source[i]
+    for (let k = 0; k < 4; k++) {
+      out.indices[i * 4 + k] = rowW.indices[r * 4 + k]
+      out.weights[i * 4 + k] = rowW.weights[r * 4 + k]
+    }
+  }
+  return out
+}
+
+/**
+ * The body's triangles (in threes, indexing compact vertices whose base
+ * vertex is `vertices[i]`) less those touching a `deleted` base vertex.
+ */
+export function coveredTriangles(
+  triangles: ArrayLike<number>,
+  vertices: ArrayLike<number>,
+  deleted: Iterable<number>
+): Uint32Array {
+  const gone = new Set(deleted)
+  const keep: number[] = []
+  for (let t = 0; t < triangles.length; t += 3) {
+    const a = triangles[t]
+    const b = triangles[t + 1]
+    const c = triangles[t + 2]
+    if (gone.has(vertices[a]) || gone.has(vertices[b]) || gone.has(vertices[c])) continue
+    keep.push(a, b, c)
+  }
+  return Uint32Array.from(keep)
+}

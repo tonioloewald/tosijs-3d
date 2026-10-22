@@ -18,18 +18,18 @@ bone heat's, worked out from the mesh once when the page loads. The eyes
 head and fitted to this one.
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div } = elements
 
 const status = div({ class: 'status' }, 'loading the animations…')
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'Hair_SimpleParted', beard: 'none', brows: 'Eyebrows_Regular', hairLight: 0.25, hairRed: 0.15, dyeHue: 0.9, dyeSaturation: 0, hairUp: 0, hairForward: 0, hairSize: 1, paused: false } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'Hair_SimpleParted', beard: 'none', brows: 'Eyebrows_Regular', hairLight: 0.25, hairRed: 0.15, dyeHue: 0.9, dyeSaturation: 0, hairUp: 0, hairForward: 0, hairSize: 1, beardUp: 0, beardForward: 0, outfit: 'male_casualsuit02', shoes: 'shoes01', hat: 'none', paused: false } })
 let mat = null
 let paint = () => {}
 let eyes = null
 let dress = () => {}
 // Filled when the hair library loads.
-const styles = { hair: ['none'], beard: ['none'], brows: ['none'] }
+const styles = { hair: ['none'], beard: ['none'], brows: ['none'], outfit: ['none'], shoes: ['none'], hat: ['none'] }
 const clips = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Dance_Loop', 'Crouch_Fwd_Loop']
 let rebuild = () => {}
 
@@ -67,6 +67,12 @@ preview.append(
         slider3d({ label: 'up', value: walker.hairUp, min: -0.02, max: 0.02, step: 0.001 }),
         slider3d({ label: 'forward', value: walker.hairForward, min: -0.02, max: 0.02, step: 0.001 }),
         slider3d({ label: 'size', value: walker.hairSize, min: 0.9, max: 1.1, step: 0.005 }),
+        slider3d({ label: 'beard up', value: walker.beardUp, min: -0.02, max: 0.02, step: 0.001 }),
+        slider3d({ label: 'beard forward', value: walker.beardForward, min: -0.02, max: 0.02, step: 0.001 }),
+        label3d({ text: 'Clothes' }),
+        select3d({ label: 'outfit', value: walker.outfit, options: styles.outfit }),
+        select3d({ label: 'shoes', value: walker.shoes, options: styles.shoes }),
+        select3d({ label: 'hat', value: walker.hat, options: styles.hat }),
         label3d({ text: 'Ancestry' }),
         slider('african', 'african'),
         slider('asian', 'asian'),
@@ -111,7 +117,7 @@ preview.append(
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
 
-        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 4)).catch((e) => {
+        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 5)).catch((e) => {
           status.textContent = `could not load the body: ${e.message}`
           throw e
         })
@@ -122,6 +128,15 @@ preview.append(
         styles.hair.push(...hairLib.names('hair').filter((n) => adult(n) && !facial(n)))
         styles.beard.push(...hairLib.names('hair').filter((n) => adult(n) && facial(n)))
         styles.brows.push(...hairLib.names('eyebrows').filter(adult))
+        // MakeHuman's own clothes, hair and brows, bound to this body (proxy-fit).
+        const proxies = pack.manifest.proxies ?? {}
+        const kinds = (cat, test) => Object.keys(proxies).filter((n) => proxies[n].category === cat && test(n))
+        styles.outfit.push(...kinds('clothes', (n) => !/^shoes|fedora/.test(n)))
+        styles.shoes.push(...kinds('clothes', (n) => n.startsWith('shoes')))
+        styles.hat.push(...kinds('clothes', (n) => n.startsWith('fedora')))
+        styles.hair.push(...kinds('hair', () => true))
+        styles.brows.push(...kinds('eyebrows', () => true))
+        const proxyMaterials = new Map()
         const tints = new Map()
         const tint = (part) => {
           const from = part.material
@@ -138,23 +153,36 @@ preview.append(
         let face = null
         let scalp = null
         let hairMeshes = []
-        dress = () => {
+        let dressing = 0
+        dress = async () => {
           for (const m of tints.values()) m.setHair(walker.hairLight.value, walker.hairRed.value, { hue: walker.dyeHue.value, saturation: walker.dyeSaturation.value })
           if (!built || !scalp) return
+          const token = ++dressing
+          // What it wears from the pack (bound), fetched before anything changes.
+          const slots = ['outfit', 'shoes', 'hat', 'hair', 'brows'].map((k) => walker[k].value).filter((n) => proxies[n])
+          const wearing = await Promise.all(slots.map((n) => pack.proxy(n)))
+          if (token !== dressing) return
           for (const m of hairMeshes) m.dispose()
           hairMeshes = []
           const nudge = { y: walker.hairUp.value, z: walker.hairForward.value, scale: walker.hairSize.value }
+          const beardNudge = { y: walker.beardUp.value, z: walker.beardForward.value }
           for (const key of ['hair', 'beard', 'brows']) {
             const parts = hairLib.piece(walker[key].value)
             if (!parts) continue
             // Brows and beards follow the face; hair follows the skull.
             const style = walker[key].value
             const on = hairLib.fitFor(style)
-            hairMeshes.push(...humanHair(scene, built, built.rig, scalp, parts, tint, { name: key, on, head: hairLib.headFor(style), centreY: key === 'brows' ? scalp.brow : undefined, nudge: key === 'hair' ? nudge : undefined }))
+            hairMeshes.push(...humanHair(scene, built, built.rig, scalp, parts, tint, { name: key, on, head: hairLib.headFor(style), centreY: key === 'brows' ? scalp.brow : undefined, nudge: key === 'hair' ? nudge : key === 'beard' ? beardNudge : undefined }))
           }
+          for (const proxy of wearing) {
+            if (!proxyMaterials.has(proxy.name)) proxyMaterials.set(proxy.name, proxyMaterial(scene, proxy))
+            hairMeshes.push(humanProxy(scene, built, proxy, current, allWeights, proxyMaterials.get(proxy.name)))
+          }
+          // Skin under clothes is hidden, so it cannot show through.
+          coverBody(built, skin.triangles, skin.vertices, wearing)
           el.register({ meshes: hairMeshes })
         }
-        for (const key of ['hair', 'beard', 'brows', 'hairUp', 'hairForward', 'hairSize']) walker[key].observe(() => dress())
+        for (const key of ['hair', 'beard', 'brows', 'hairUp', 'hairForward', 'hairSize', 'beardUp', 'beardForward', 'outfit', 'shoes', 'hat']) walker[key].observe(() => dress())
         // Colours repaint whoever sets them: a slider, or code.
         const recolour = () => {
           const dye = { hue: walker.dyeHue.value, saturation: walker.dyeSaturation.value }
@@ -181,6 +209,12 @@ preview.append(
         // skin's back-light: once, like the weights.
         const firstSkin = skin.positions(first)
         const thin = skinThinness(firstSkin, vertexNormals(firstSkin, skin.triangles))
+        // Weights for every pack vertex, so clothes bound to helper vertices
+        // (the tights and skirt shells, which carry no skin) bend too.
+        const known = new Int32Array(pack.manifest.vertexCount).fill(-1)
+        skin.vertices.forEach((v, i) => { known[v] = i })
+        const allWeights = nearestWeights(first, known, weights)
+        let current = first
 
         mat = skinMaterial(scene, { tone: walker.tone.value, redness: walker.redness.value })
         // The skin's colour, and the lips' as vertex colours over it.
@@ -207,6 +241,7 @@ preview.append(
           if (busy) { again = true; return }
           busy = true
           const full = await morphHuman(pack, body())
+          current = full
           const rig = humanRig(pack.manifest, full)
           face?.dispose()
           built?.dispose()

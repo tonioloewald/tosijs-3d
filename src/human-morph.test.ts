@@ -232,3 +232,41 @@ describe('skin tone', () => {
     expect(lum(blue)).toBeCloseTo(lum(natural), 3)
   })
 })
+
+describe.skipIf(!havePack)('hm08 proxies (MakeHuman CC0 clothes), fitted by binding', () => {
+  test('a garment follows the body: on a heavier body it is wider', async () => {
+    const { fitProxy } = await import('./proxy-fit.js')
+    const pack = await loadHumanPack(PACK, fromDisk)
+    const suit = await pack.proxy('male_casualsuit02')
+    if (suit == null) return // an older pack without proxies
+    const thin = await morphHuman(pack, macroWeights({ ...DEFAULT_HUMAN_BODY, gender: 1, weight: 0 }))
+    const heavy = await morphHuman(pack, macroWeights({ ...DEFAULT_HUMAN_BODY, gender: 1, weight: 1 }))
+    // Across the waist (sleeves set the overall width, and barely change).
+    const width = (p: Float32Array) => {
+      let ylo = Infinity
+      let yhi = -Infinity
+      for (let i = 1; i < p.length; i += 3) {
+        ylo = Math.min(ylo, p[i])
+        yhi = Math.max(yhi, p[i])
+      }
+      const band = [ylo + (yhi - ylo) * 0.5, ylo + (yhi - ylo) * 0.55]
+      let lo = Infinity
+      let hi = -Infinity
+      for (let i = 0; i < p.length; i += 3) {
+        if (p[i + 1] < band[0] || p[i + 1] > band[1] || Math.abs(p[i]) > 0.25) continue
+        lo = Math.min(lo, p[i])
+        hi = Math.max(hi, p[i])
+      }
+      return hi - lo
+    }
+    const a = fitProxy(suit, thin)
+    const b = fitProxy(suit, heavy)
+    expect(width(b)).toBeGreaterThan(width(a) * 1.05)
+    // Every drawn vertex has a row, every triangle a drawn vertex.
+    for (const r of suit.source) expect(r).toBeLessThan(suit.rows)
+    for (const t of suit.triangles) expect(t).toBeLessThan(suit.source.length)
+    // And it covers skin.
+    expect(suit.delete?.length ?? 0).toBeGreaterThan(1000)
+  })
+})
+

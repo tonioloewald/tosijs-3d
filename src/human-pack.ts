@@ -19,6 +19,7 @@ What the manifest holds:
 - **joints**: a joint name → the vertices whose centroid it is (MakeHuman's joint cubes)
 - **bones**: a bone → its parent, and the joints at its head and tail
 - **regions**: a mask name (`lips`) → a uint8 per vertex, for tinting without UVs
+- **proxies**: clothes, hair and brows bound to the base (MakeHuman's `.mhclo`: three base vertices, weights and a scaled offset per vertex), with their mesh, UVs, the base vertices they cover, and textures; see [proxy-fit](/proxy-fit/)
 - **parts**: extra geometry on the body's own vertices (`eyes`, `eyelashes`), so every target moves it with the body: the pack vertices it uses (uint32), triangles indexing that list (uint32), and UVs (float32 pairs) where it has a texture
 - **targets**: a target name → its file, its int16 step (metres), and whether it is dense
 
@@ -27,6 +28,8 @@ uint32 vertex indices followed by `count` int16 xyz. Multiply by `step` for
 metres.
 */
 /*{ "parent": "character-builder", "order": 10 }*/
+
+import type { ProxyBinding } from './proxy-fit.js'
 
 export interface HumanTargetEntry {
   file: string
@@ -53,6 +56,8 @@ export interface HumanPackManifest {
   regions?: Record<string, string>
   /** Extra geometry over the pack's own vertices (eyes, eyelashes). */
   parts?: Record<string, HumanPartEntry>
+  /** Clothes, hair and brows bound to the base (see proxy-fit). */
+  proxies?: Record<string, HumanProxyEntry>
   targets: Record<string, HumanTargetEntry>
 }
 
@@ -68,6 +73,34 @@ export interface HumanPart {
   vertices: Uint32Array
   triangles: Uint32Array
   uvs: Float32Array | null
+}
+
+export interface HumanProxyEntry {
+  category: string
+  /** Bound (OBJ) vertices, and drawn vertices (split at UV seams). */
+  rows: number
+  count: number
+  /** uint32 refs ×3, float32 weights ×3, float32 offsets ×3 (metres), per row. */
+  binding: string
+  /** uint32 per drawn vertex: its row. */
+  source: string
+  triangles: string
+  uvs: string
+  /** uint32 base vertices the proxy covers (their skin is hidden). */
+  delete?: string
+  scale: Partial<Record<'x' | 'y' | 'z', [number, number, number]>>
+  material: { diffuse?: string; normal?: string; alpha: boolean; twoSided: boolean }
+}
+
+/** A proxy, decoded: its binding (for `fitProxy`), mesh and material files. */
+export interface HumanProxy extends ProxyBinding {
+  name: string
+  category: string
+  triangles: Uint32Array
+  uvs: Float32Array
+  delete: Uint32Array | null
+  /** Its textures' URLs and how to draw it. */
+  material: { diffuse?: string; normal?: string; alpha: boolean; twoSided: boolean }
 }
 
 /** A target, decoded: `indices` is null for a dense one. */
@@ -91,6 +124,8 @@ export interface HumanPack {
   region(name: string): Promise<Float32Array | null>
   /** A part (eyes, eyelashes), fetched once; null if absent. */
   part(name: string): Promise<HumanPart | null>
+  /** A proxy (clothes, hair, brows), fetched once; null if absent. */
+  proxy(name: string): Promise<HumanProxy | null>
 }
 
 /** Decode a target file's bytes. Pure. */
@@ -140,6 +175,7 @@ export async function loadHumanPack(
   const regions = new Map<string, Promise<Float32Array | null>>()
   const done = new Map<string, HumanTarget>()
   const parts = new Map<string, Promise<HumanPart | null>>()
+  const proxies = new Map<string, Promise<HumanProxy | null>>()
   return {
     manifest,
     positions,
@@ -173,6 +209,39 @@ export async function loadHumanPack(
           uvs: uv != null ? new Float32Array(uv) : null,
         }))
         parts.set(name, p)
+      }
+      return p
+    },
+    proxy(name) {
+      const e = manifest.proxies?.[name]
+      if (e == null) return Promise.resolve(null)
+      let p = proxies.get(name)
+      if (p == null) {
+        p = Promise.all([
+          fetcher(dir + e.binding),
+          fetcher(dir + e.source),
+          fetcher(dir + e.triangles),
+          fetcher(dir + e.uvs),
+          e.delete != null ? fetcher(dir + e.delete) : null,
+        ]).then(([b, src, tri, uv, del]) => ({
+          name,
+          category: e.category,
+          rows: e.rows,
+          ref: new Uint32Array(b, 0, e.rows * 3),
+          weight: new Float32Array(b, e.rows * 12, e.rows * 3),
+          offset: new Float32Array(b, e.rows * 24, e.rows * 3),
+          scale: e.scale,
+          source: new Uint32Array(src),
+          triangles: new Uint32Array(tri),
+          uvs: new Float32Array(uv),
+          delete: del != null ? new Uint32Array(del) : null,
+          material: {
+            ...e.material,
+            diffuse: e.material.diffuse ? dir + e.material.diffuse : undefined,
+            normal: e.material.normal ? dir + e.material.normal : undefined,
+          },
+        }))
+        proxies.set(name, p)
       }
       return p
     },

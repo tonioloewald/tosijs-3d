@@ -371,6 +371,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   The body sliders of the character creator (CHARACTER-DESIGN.md), as pure
 - https://3d.tosijs.net/human-pack/ — human-pack
   A **human pack** is a base body as data: its mesh, its joints and its shape
+- https://3d.tosijs.net/human-proxy/ — human-proxy
+  A [human pack](/human-pack/)'s clothes, hair and brows on a built body:
 - https://3d.tosijs.net/human-rig/ — human-rig
   UAL's 65-joint skeleton on a [human pack](/human-pack/)'s body, placed from
 - https://3d.tosijs.net/icon-grid/ — Icon grid
@@ -441,6 +443,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   positions, normals and indices of one rock. The same seed always gives the same
 - https://3d.tosijs.net/province-climate/ — Province climate
   a curve over normalised distance from the province's centre. Pure: no DOM, no
+- https://3d.tosijs.net/proxy-fit/ — proxy-fit
+  Clothes, hair and anything else made for a base body, fitted to every shape
 - https://3d.tosijs.net/mersenne-twister/ — Pseudo Random Numbers
   planet's craters, where the rocks go, who spawns) is drawn from a generator
 - https://3d.tosijs.net/reference/ — Reference
