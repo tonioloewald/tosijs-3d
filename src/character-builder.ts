@@ -23,7 +23,7 @@ import { tosi, elements } from 'tosijs'
 const { div } = elements
 
 const status = div({ class: 'status' }, 'loading the animations…')
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'Hair_SimpleParted', beard: 'none', brows: 'Eyebrows_Regular', hairLight: 0.25, hairRed: 0.15, hairUp: 0, hairForward: 0, hairSize: 1, paused: false } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'Hair_SimpleParted', beard: 'none', brows: 'Eyebrows_Regular', hairLight: 0.25, hairRed: 0.15, dyeHue: 0.9, dyeSaturation: 0, hairUp: 0, hairForward: 0, hairSize: 1, paused: false } })
 let mat = null
 let paint = () => {}
 let eyes = null
@@ -60,6 +60,9 @@ preview.append(
         select3d({ label: 'brows', value: walker.brows, options: styles.brows }),
         slider3d({ label: 'light', value: walker.hairLight, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: 'red', value: walker.hairRed, min: 0, max: 1, step: 0.01 }),
+        // Dye over the natural colour: none at 0 saturation.
+        slider3d({ label: 'dye hue', value: walker.dyeHue, min: 0, max: 1, step: 0.01 }),
+        slider3d({ label: 'dye', value: walker.dyeSaturation, min: 0, max: 1, step: 0.01 }),
         // A hand adjustment, metres and a scale, after the fit.
         slider3d({ label: 'up', value: walker.hairUp, min: -0.02, max: 0.02, step: 0.001 }),
         slider3d({ label: 'forward', value: walker.hairForward, min: -0.02, max: 0.02, step: 0.001 }),
@@ -136,7 +139,7 @@ preview.append(
         let scalp = null
         let hairMeshes = []
         dress = () => {
-          for (const m of tints.values()) m.setHair(walker.hairLight.value, walker.hairRed.value)
+          for (const m of tints.values()) m.setHair(walker.hairLight.value, walker.hairRed.value, { hue: walker.dyeHue.value, saturation: walker.dyeSaturation.value })
           if (!built || !scalp) return
           for (const m of hairMeshes) m.dispose()
           hairMeshes = []
@@ -153,9 +156,11 @@ preview.append(
         }
         for (const key of ['hair', 'beard', 'brows', 'hairUp', 'hairForward', 'hairSize']) walker[key].observe(() => dress())
         // Colours repaint whoever sets them: a slider, or code.
-        const recolour = () => { for (const m of tints.values()) m.setHair(walker.hairLight.value, walker.hairRed.value) }
-        walker.hairLight.observe(recolour)
-        walker.hairRed.observe(recolour)
+        const recolour = () => {
+          const dye = { hue: walker.dyeHue.value, saturation: walker.dyeSaturation.value }
+          for (const m of tints.values()) m.setHair(walker.hairLight.value, walker.hairRed.value, dye)
+        }
+        for (const key of ['hairLight', 'hairRed', 'dyeHue', 'dyeSaturation']) walker[key].observe(recolour)
         for (const key of Object.keys(DEFAULT_HUMAN_BODY)) walker[key].observe(() => rebuild())
         walker.tone.observe(() => paint())
         walker.redness.observe(() => paint())

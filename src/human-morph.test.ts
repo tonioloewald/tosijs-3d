@@ -221,4 +221,14 @@ describe('skin tone', () => {
     expect(irisColor(0).r).toBeGreaterThan(irisColor(0).b)
     expect(irisColor(0.85).b).toBeGreaterThan(irisColor(0.85).r)
   })
+
+  test('dye keeps the hair\u2019s lightness and turns its hue', async () => {
+    const { hairColor, hairDye } = await import('./skin-tone.js')
+    const lum = (c: { r: number; g: number; b: number }) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b
+    const natural = hairColor(0.3, 0.2)
+    expect(hairDye(natural, 0.6, 0)).toEqual(natural)
+    const blue = hairDye(natural, 0.63, 1)
+    expect(blue.b).toBeGreaterThan(blue.r)
+    expect(lum(blue)).toBeCloseTo(lum(natural), 3)
+  })
 })

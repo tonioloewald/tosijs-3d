@@ -31,7 +31,7 @@ import type { HumanPackManifest } from './human-pack.js'
 import type { BuiltRig } from './rig-build.js'
 import type { FittedRig } from './rig-fit.js'
 import { humanJoint } from './human-morph.js'
-import { hairColor } from './skin-tone.js'
+import { hairColor, hairDye } from './skin-tone.js'
 import {
   applyWarp,
   conformOutside,
@@ -406,8 +406,15 @@ export function headScalp(
 
 /** A tinted hair material from one of the library's (its texture, its normals). */
 export interface HairMaterial extends BABYLON.PBRMaterial {
-  /** Recolour: `light` 0 black to 1 platinum, `red` 0 to 1. */
-  setHair(light: number, red?: number): void
+  /**
+   * Recolour: `light` 0 black to 1 platinum, `red` 0 to 1, and a `dye`
+   * (`hue` 0 to 1, `saturation` 0 for none) over that.
+   */
+  setHair(
+    light: number,
+    red?: number,
+    dye?: { hue: number; saturation: number }
+  ): void
 }
 
 /*
@@ -428,8 +435,18 @@ export function hairMaterial(
   ) as HairMaterial
   m.metallic = 0
   m.backFaceCulling = false
-  m.setHair = (light, red = 0) => {
-    const c = hairColor(light, red)
+  // A highlight band along the strands (they run along the texture's V),
+  // and a soft rim at grazing angles.
+  m.roughness = 0.4
+  m.anisotropy.isEnabled = true
+  m.anisotropy.intensity = 0.8
+  m.anisotropy.direction.set(0, 1)
+  m.sheen.isEnabled = true
+  m.sheen.intensity = 0.25
+  m.sheen.roughness = 0.4
+  m.setHair = (light, red = 0, dye) => {
+    const natural = hairColor(light, red)
+    const c = dye ? hairDye(natural, dye.hue, dye.saturation) : natural
     const k = 1 / HAIR_TEXTURE_MEAN
     m.albedoColor = new BABYLON.Color3(
       Math.min(1, c.r * k),

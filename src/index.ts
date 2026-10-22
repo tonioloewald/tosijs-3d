@@ -1827,6 +1827,7 @@ export {
   IRIS_TONES,
   irisColor,
   hairColor,
+  hairDye,
 } from './skin-tone.js'
 export {
   loadHairLibrary,

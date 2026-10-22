@@ -211,3 +211,33 @@ export function hairColor(light: number, red = 0): Rgb {
     b: c.b * (1 - 0.6 * k),
   }
 }
+
+/**
+ * Dye over a natural hair colour (linear): `hue` 0 to 1 round the colour
+ * wheel, `saturation` 0 (no dye, the natural colour) to 1 (the hue at full
+ * strength). The dye keeps the hair's lightness, as dye over hair does: over
+ * dark hair blue is blue-black, over bleached hair a little pink is pastel.
+ */
+export function hairDye(natural: Rgb, hue: number, saturation: number): Rgb {
+  const s = clamp01(saturation)
+  if (s === 0) return natural
+  // The hue as a pure sRGB colour, then in linear light.
+  const h = (((hue % 1) + 1) % 1) * 6
+  const x = 1 - Math.abs((h % 2) - 1)
+  const [r, g, b] =
+    h < 1 ? [1, x, 0] : h < 2 ? [x, 1, 0] : h < 3 ? [0, 1, x] : h < 4 ? [0, x, 1] : h < 5 ? [x, 0, 1] : [1, 0, x]
+  const pure = { r: toLinear(r), g: toLinear(g), b: toLinear(b) }
+  const lum = (c: Rgb) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b
+  // At the natural colour's lightness; a channel cannot pass 1.
+  const k = lum(natural) / Math.max(1e-4, lum(pure))
+  const dyed = {
+    r: Math.min(1, pure.r * k),
+    g: Math.min(1, pure.g * k),
+    b: Math.min(1, pure.b * k),
+  }
+  return {
+    r: natural.r + (dyed.r - natural.r) * s,
+    g: natural.g + (dyed.g - natural.g) * s,
+    b: natural.b + (dyed.b - natural.b) * s,
+  }
+}
