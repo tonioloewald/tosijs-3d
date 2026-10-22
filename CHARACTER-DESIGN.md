@@ -321,7 +321,7 @@ clipping.
   failed: a style is one shell with no underside, so it sinks by its own
   thickness. Brows are placed from the eyes, moustaches from the lips region.
 
-**Decision for Tonio: one fitter at runtime, `hair-fit` as an importer.**
+**Decided** (Tonio, 2026-10-22): **one fitter at runtime, `hair-fit` as an importer.**
 `proxy-fit` (the `.mhclo` binding: a point on a base triangle plus an offset)
 is THE runtime fitter: native content (MakeHuman's clothes, ours, authored in
 Blender against hm08) is bound once and follows every body for free.
@@ -454,13 +454,14 @@ In practice:
 
 ## Open questions
 
-- **The fitter** (step 4 above): confirm `proxy-fit` as the one runtime
-  fitter, with `hair-fit` turned into an importer that writes bindings.
 - **Ages in one base.** The demo's age slider runs MakeHuman's whole range,
   baby to old, against "childhood is a base" (Rejected, below). It is kept for
   now because the pack loads fast enough (Tonio, 2026-10-22: an export is only
   the final mesh, so carrying the shapes costs the tool, not the game). Step 4b
   still decides whether a child needs its own base for rigging and clothes.
+  **Deferred** (Tonio, 2026-10-22): children and second bases wait until the
+  core works: shaders, clothing, accessories, blinking and mouth movement if
+  possible, export, and biped integration.
 
 ## Rejected
 
