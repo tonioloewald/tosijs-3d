@@ -81,7 +81,11 @@ function hm08Table(): HumanRigRow[] {
     ['r', 'R'],
   ]) {
     rows.push(
-      { name: `clavicle_${s}`, parent: 'spine_03', at: `clavicle.${S}____head` },
+      {
+        name: `clavicle_${s}`,
+        parent: 'spine_03',
+        at: `clavicle.${S}____head`,
+      },
       {
         name: `upperarm_${s}`,
         parent: `clavicle_${s}`,
@@ -97,7 +101,11 @@ function hm08Table(): HumanRigRow[] {
     FINGERS.forEach((f, i) => {
       const mh = `finger${i + 1}`
       rows.push(
-        { name: `${f}_01_${s}`, parent: `hand_${s}`, at: `${mh}-1.${S}____head` },
+        {
+          name: `${f}_01_${s}`,
+          parent: `hand_${s}`,
+          at: `${mh}-1.${S}____head`,
+        },
         {
           name: `${f}_02_${s}`,
           parent: `${f}_01_${s}`,
@@ -117,7 +125,11 @@ function hm08Table(): HumanRigRow[] {
     })
     rows.push(
       { name: `thigh_${s}`, parent: 'pelvis', at: `upperleg01.${S}____head` },
-      { name: `calf_${s}`, parent: `thigh_${s}`, at: `lowerleg01.${S}____head` },
+      {
+        name: `calf_${s}`,
+        parent: `thigh_${s}`,
+        at: `lowerleg01.${S}____head`,
+      },
       { name: `foot_${s}`, parent: `calf_${s}`, at: `foot.${S}____head` },
       { name: `ball_${s}`, parent: `foot_${s}`, at: `toe3-1.${S}____head` },
       { name: `ball_leaf_${s}`, parent: `ball_${s}`, at: `toe3-3.${S}____tail` }
@@ -224,4 +236,3 @@ export function humanSkin(pack: HumanPack): HumanSkin {
     },
   }
 }
-

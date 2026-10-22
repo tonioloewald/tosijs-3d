@@ -257,7 +257,11 @@ function lashAlpha(
   let lo = Infinity
   let hi = 0
   for (let i = 0; i < n; i++) {
-    const p = new BABYLON.Vector3(local[i * 3], local[i * 3 + 1], local[i * 3 + 2])
+    const p = new BABYLON.Vector3(
+      local[i * 3],
+      local[i * 3 + 1],
+      local[i * 3 + 2]
+    )
     let best = Infinity
     let c = centres[0]
     for (const e of centres) {
@@ -309,8 +313,14 @@ export function humanFace(
       ['l', 'L', 1],
       ['r', 'R', -1],
     ] as const) {
-      const [cx, cy, cz] = humanJoint(positions, manifest.joints[`eye.${S}____head`])
-      const [tx, ty, tz] = humanJoint(positions, manifest.joints[`eye.${S}____tail`])
+      const [cx, cy, cz] = humanJoint(
+        positions,
+        manifest.joints[`eye.${S}____head`]
+      )
+      const [tx, ty, tz] = humanJoint(
+        positions,
+        manifest.joints[`eye.${S}____tail`]
+      )
       const pivot = new BABYLON.TransformNode(`eye_${side}`, scene)
       pivot.parent = head
       pivot.position = new BABYLON.Vector3(cx - at.x, cy - at.y, cz - at.z)
@@ -368,7 +378,8 @@ export function humanFace(
 /** Compute a node's world matrix from the top down, so it is this frame's. */
 function freshWorld(node: BABYLON.Node): BABYLON.Matrix {
   const chain: BABYLON.Node[] = []
-  for (let n: BABYLON.Node | null = node; n != null; n = n.parent) chain.unshift(n)
+  for (let n: BABYLON.Node | null = node; n != null; n = n.parent)
+    chain.unshift(n)
   for (const n of chain) n.computeWorldMatrix(true)
   return node.getWorldMatrix()
 }
@@ -398,7 +409,10 @@ export function eyeGaze(
     if (aim != null && clock >= next) {
       // A saccade: a small jump, then a hold of a few tenths to a few seconds.
       next = clock + 0.3 + Math.random() * 2.2
-      const d = BABYLON.Vector3.Distance(aim, face.eyes[0]?.getAbsolutePosition() ?? aim)
+      const d = BABYLON.Vector3.Distance(
+        aim,
+        face.eyes[0]?.getAbsolutePosition() ?? aim
+      )
       const r = Math.tan(saccade) * d
       jitter = new BABYLON.Vector3(
         (Math.random() * 2 - 1) * r,
@@ -417,13 +431,16 @@ export function eyeGaze(
         local.rotateByQuaternionToRef(rot, local)
         if (local.lengthSquared() > 1e-8) dir = local.normalize()
       }
-      let angle = Math.acos(Math.min(1, Math.max(-1, BABYLON.Vector3.Dot(fwd, dir))))
+      let angle = Math.acos(
+        Math.min(1, Math.max(-1, BABYLON.Vector3.Dot(fwd, dir)))
+      )
       const axis = BABYLON.Vector3.Cross(fwd, dir)
       if (angle > max) {
         // Too far round: the head would turn, so the eyes go back to ahead.
         angle = 0
       }
-      if (axis.lengthSquared() < 1e-10 || angle === 0) q.copyFromFloats(0, 0, 0, 1)
+      if (axis.lengthSquared() < 1e-10 || angle === 0)
+        q.copyFromFloats(0, 0, 0, 1)
       else BABYLON.Quaternion.RotationAxisToRef(axis.normalize(), angle, q)
       eye.rotationQuaternion = q.clone()
     })

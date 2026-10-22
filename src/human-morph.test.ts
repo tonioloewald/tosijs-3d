@@ -156,14 +156,18 @@ describe.skipIf(!havePack)('hm08, rigged from its joint cubes', () => {
     expect(lashes.uvs).toBeNull()
     for (const p of [eyes, lashes]) {
       for (const t of p.triangles) expect(t).toBeLessThan(p.vertices.length)
-      for (const v of p.vertices) expect(v).toBeLessThan(pack.manifest.vertexCount)
+      for (const v of p.vertices)
+        expect(v).toBeLessThan(pack.manifest.vertexCount)
     }
     // Each eye sits around its eye joint: half the eye vertices each side.
     const p = await morphHuman(pack, macroWeights(DEFAULT_HUMAN_BODY))
     const left = [...eyes.vertices].filter((v) => p[v * 3] > 0).length
     expect(left * 2).toBe(eyes.vertices.length)
     const [, eyeY] = humanJoint(p, pack.manifest.joints['eye.L____head'])
-    const tall = await morphHuman(pack, macroWeights({ ...DEFAULT_HUMAN_BODY, height: 1 }))
+    const tall = await morphHuman(
+      pack,
+      macroWeights({ ...DEFAULT_HUMAN_BODY, height: 1 })
+    )
     const [, tallY] = humanJoint(tall, pack.manifest.joints['eye.L____head'])
     expect(tallY).toBeGreaterThan(eyeY + 0.05)
   })
@@ -179,13 +183,21 @@ describe('skin tone', () => {
     expect(lum(0)).toBeGreaterThan(lum(1) * 10)
     // Never lighter as the dial goes up (tone 3 of the scale is a hair
     // lighter than 2 in red, so measure luminance, which is monotone).
-    for (let t = 0.2; t <= 1; t += 0.05) expect(lum(t)).toBeLessThanOrEqual(lum(t - 0.2) + 1e-9)
+    for (let t = 0.2; t <= 1; t += 0.05)
+      expect(lum(t)).toBeLessThanOrEqual(lum(t - 0.2) + 1e-9)
   })
 
   test('the ends are the scale’s own tones, and redness warms', async () => {
     const { skinColor, MONK_TONES } = await import('./skin-tone.js')
     const hex = (c: { r: number; g: number; b: number }) =>
-      '#' + [c.r, c.g, c.b].map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('')
+      '#' +
+      [c.r, c.g, c.b]
+        .map((v) =>
+          Math.round(v * 255)
+            .toString(16)
+            .padStart(2, '0')
+        )
+        .join('')
     expect(hex(skinColor(0))).toBe(MONK_TONES[0])
     expect(hex(skinColor(1))).toBe(MONK_TONES[9])
     const ruddy = skinColor(0.4, 1)
@@ -196,7 +208,14 @@ describe('skin tone', () => {
   test('iris colour runs from dark brown to grey, through blue', async () => {
     const { irisColor, IRIS_TONES } = await import('./skin-tone.js')
     const hex = (c: { r: number; g: number; b: number }) =>
-      '#' + [c.r, c.g, c.b].map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('')
+      '#' +
+      [c.r, c.g, c.b]
+        .map((v) =>
+          Math.round(v * 255)
+            .toString(16)
+            .padStart(2, '0')
+        )
+        .join('')
     expect(hex(irisColor(0))).toBe(IRIS_TONES[0])
     expect(hex(irisColor(1))).toBe(IRIS_TONES[IRIS_TONES.length - 1])
     expect(irisColor(0).r).toBeGreaterThan(irisColor(0).b)

@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Changed:** hair is carried from the head it was modelled on, skin to skin (`headScalp` now warps the library's own heads, carried in the hairstyles library as of `?v=2`; `shellWarp`, `applyWarp`, `headRegion`), instead of fitting a buzz cut to the scalp, which sank every style by its own thickness. Women's styles use Quaternius' female head, brows are placed from the eyes, moustaches above the lip, and `nudge` adjusts a style by hand. `headScalp`'s arguments and `HeadScalp` changed; `humanHair` and `placeHair` take the piece's `head` (`library.headFor(name)`).
+
 ## 0.11.4
 
 The latest release. A character creator on MakeHuman's CC0 body: shape a

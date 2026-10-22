@@ -1827,20 +1827,27 @@ export {
   headScalp,
   hairMaterial,
   humanHair,
+  placeHair,
+  QUATERNIUS_HEADS,
 } from './human-hair.js'
 export type {
   HairLibrary,
   HairPart,
   HeadScalp,
   HairMaterial,
+  HairPlacement,
+  ReferenceHead,
 } from './human-hair.js'
 export {
   fitToScalp,
   applyFit,
   conformOutside,
   vertexNormals,
+  headRegion,
+  shellWarp,
+  applyWarp,
 } from './hair-fit.js'
-export type { AxisFit } from './hair-fit.js'
+export type { AxisFit, HeadLandmarks, ShellWarp } from './hair-fit.js'
 export {
   humanFace,
   eyeGaze,
@@ -1851,11 +1858,7 @@ export {
 } from './human-face.js'
 export type { HumanFace, EyeTexture } from './human-face.js'
 export type { Rgb as SkinRgb } from './skin-tone.js'
-export {
-  humanRig,
-  humanSkin,
-  HM08_UAL,
-} from './human-rig.js'
+export { humanRig, humanSkin, HM08_UAL } from './human-rig.js'
 export type { HumanRigRow, HumanSkin } from './human-rig.js'
 export type { HumanBody, SkinMaterial } from './character-builder.js'
 export type { HeatBone, SkinWeights } from './bone-heat.js'

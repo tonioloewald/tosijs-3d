@@ -1,8 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import {
   applyFit,
+  applyWarp,
   conformOutside,
   fitToScalp,
+  shellWarp,
   vertexNormals,
 } from './hair-fit.js'
 
@@ -71,5 +73,29 @@ describe('hair-fit', () => {
     expect(Math.hypot(hair[3], hair[4], hair[5])).toBeGreaterThan(0.1)
     // Already outside: left alone.
     expect(hair[7]).toBeCloseTo(0.2, 6)
+  })
+
+  test('a warp carries hair with the skull, keeping its height above the skin', () => {
+    // A round head and a longer one somewhere else; hair 1 cm off the first.
+    const from = dome(0, 1.7, 0, [0.08, 0.1, 0.09], 20)
+    const to = dome(0.02, 0.6, 0.03, [0.075, 0.09, 0.11], 20)
+    const hair = dome(0, 1.7, 0, [0.09, 0.11, 0.1], 8).points
+    const warped = applyWarp(hair, shellWarp(from.points, to.points))
+    // Every hair point lands about 1 cm off the target skin.
+    for (let i = 0; i < warped.length; i += 3) {
+      let best = Infinity
+      for (let j = 0; j < to.points.length; j += 3) {
+        best = Math.min(
+          best,
+          Math.hypot(
+            to.points[j] - warped[i],
+            to.points[j + 1] - warped[i + 1],
+            to.points[j + 2] - warped[i + 2]
+          )
+        )
+      }
+      expect(best).toBeGreaterThan(0.004)
+      expect(best).toBeLessThan(0.016)
+    }
   })
 })

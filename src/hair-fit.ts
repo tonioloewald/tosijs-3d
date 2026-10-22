@@ -4,25 +4,37 @@
 Hair made for one head, worn on another. A hairstyle library such as
 Quaternius' is modelled around ITS base head, in world space; a
 [character builder](/character-builder/) body has a different skull for
-every slider setting. Two steps carry a style across, both pure:
+every slider setting. The style is carried from the head it was modelled
+on to this one, skin to skin, all pure:
 
-1. **`fitToScalp(reference, scalp)`** fits a scale and an offset per axis that
-   lay a REFERENCE that hugs the library's scalp (a buzz cut) onto this body's
-   scalp, by iterated nearest points (ICP without rotation: both heads face
-   +Z, up +Y). The same fit then moves every style, eyebrows and beards too,
-   because they were all modelled on that one head.
-2. **`conformOutside(positions, scalp, normals, margin)`** pushes any vertex
-   that ends up inside the skin (or closer than `margin` to it) back out along
-   the skin's normal, so a shape the fit cannot capture exactly (a longer
-   skull, a heavier brow) never shows skin through hair.
+1. **`headRegion(skin, landmarks, region)`** picks the same region on any
+   head from where its eyes are: the `scalp` (above the brow, and down to the
+   nape behind the face) or the `face` (chin to forehead).
+2. **`shellWarp(source, target)`** warps one head's region onto the other's:
+   `fitToScalp`, a scale and offset per axis by iterated nearest points (ICP
+   without rotation: both heads face +Z, up +Y), then what that fit missed,
+   measured at each source skin point as the step to the nearest target skin.
+   Given the target's normals, a `clearance` is added out along them.
+3. **`applyWarp(positions, warp)`** carries hair through it: the fit, then the
+   correction of the few source skin points nearest each hair vertex, so a
+   hair keeps its height above the scalp under it whatever the skulls' shapes.
+4. **`conformOutside(positions, skin, normals, margin)`** pushes any vertex
+   still inside the skin back out along the skin's normal: a guard.
 
-`vertexNormals(positions, triangles)` gives the skin's normals for the second
-step (counter-clockwise outward, as OBJ and glTF wind).
+Fitting the HAIR to the skin, which this did first, does not work: a style
+is one outer shell with no underside, so laid on the skin it sinks by its own
+thickness. The library's styles are also tucked into their own skin in
+places, which a warp keeps and the clearance covers.
+
+`vertexNormals(positions, triangles)` gives a skin's normals (counter-clockwise
+outward, as OBJ and glTF wind).
 
 ```javascript
-const fit = fitToScalp(buzzCut, scalp)
-const placed = applyFit(styleVertices, fit)
-conformOutside(placed, scalp, scalpNormals, 0.003)
+const warp = shellWarp(
+  headRegion(libraryHead, libraryEyes, 'scalp'),
+  headRegion(bodyHead, bodyEyes, 'scalp')
+)
+const placed = applyWarp(styleVertices, warp)
 ```
 */
 /*{ "parent": "character-builder", "order": 60 }*/
@@ -202,4 +214,154 @@ export function conformOutside(
     }
   }
   return moved
+}
+
+/** Where a head's eyes are: enough to find the same regions on any head. */
+export interface HeadLandmarks {
+  /** The eyeballs' centres' height and depth, and the middle between them. */
+  eyeY: number
+  eyeZ: number
+  midX: number
+  /** The distance between the eyeballs' centres. */
+  spacing: number
+}
+
+/**
+ * The points (xyz) of a head's skin in one region, found from its eyes so
+ * the same region is picked on any head: `scalp` (above the brow, and down
+ * to the nape behind the face) or `face` (the front, chin to forehead).
+ */
+export function headRegion(
+  points: ArrayLike<number>,
+  at: HeadLandmarks,
+  region: 'scalp' | 'face'
+): Float32Array {
+  return pick(points, headRegionIndices(points, at, region))
+}
+
+/** `headRegion`, as the indices of the points (to pick their normals too). */
+export function headRegionIndices(
+  points: ArrayLike<number>,
+  at: HeadLandmarks,
+  region: 'scalp' | 'face'
+): number[] {
+  const e = at.spacing
+  const out: number[] = []
+  for (let i = 0; i < points.length; i += 3) {
+    const x = points[i]
+    const y = points[i + 1]
+    const z = points[i + 2]
+    if (y < at.eyeY - 2.8 * e || Math.abs(x - at.midX) > 1.6 * e) continue
+    const inside =
+      region === 'scalp'
+        ? y > at.eyeY + 0.3 * e ||
+          (y > at.eyeY - 1.6 * e && z < at.eyeZ - 0.6 * e)
+        : z > at.eyeZ - 0.6 * e &&
+          y > at.eyeY - 2.6 * e &&
+          y < at.eyeY + 1.2 * e &&
+          Math.abs(x - at.midX) < 1.4 * e
+    if (inside) out.push(i / 3)
+  }
+  return out
+}
+
+/** The xyz triples of `points` at `indices`. */
+export function pick(points: ArrayLike<number>, indices: number[]): Float32Array {
+  const out = new Float32Array(indices.length * 3)
+  indices.forEach((v, i) => {
+    out[i * 3] = points[v * 3]
+    out[i * 3 + 1] = points[v * 3 + 1]
+    out[i * 3 + 2] = points[v * 3 + 2]
+  })
+  return out
+}
+
+/**
+ * A warp from one head's skin onto another's: a per-axis fit, then what the
+ * fit missed, measured at each of the source's skin points (`anchors`, already
+ * fitted) as the step to the nearest target skin point (`delta`).
+ */
+export interface ShellWarp {
+  fit: AxisFit
+  anchors: Float32Array
+  delta: Float32Array
+}
+
+/**
+ * Fit `source` skin (xyz) onto `target` skin (xyz), skin to skin. With the
+ * target's `normals`, `clearance` metres are added out along them: hair is
+ * modelled tucked into its own skin in places, and where two skulls differ
+ * it is better a little high than through the scalp.
+ */
+export function shellWarp(
+  source: ArrayLike<number>,
+  target: ArrayLike<number>,
+  options: { normals?: ArrayLike<number>; clearance?: number } = {}
+): ShellWarp {
+  const c = options.normals ? options.clearance ?? 0 : 0
+  const n = options.normals
+  const fit = fitToScalp(source, target)
+  const anchors = applyFit(source, fit)
+  const delta = new Float32Array(anchors.length)
+  for (let i = 0; i < anchors.length; i += 3) {
+    const [j] = nearest(target, anchors[i], anchors[i + 1], anchors[i + 2])
+    delta[i] = target[j * 3] - anchors[i] + (n ? n[j * 3] * c : 0)
+    delta[i + 1] = target[j * 3 + 1] - anchors[i + 1] + (n ? n[j * 3 + 1] * c : 0)
+    delta[i + 2] = target[j * 3 + 2] - anchors[i + 2] + (n ? n[j * 3 + 2] * c : 0)
+  }
+  return { fit, anchors, delta }
+}
+
+/**
+ * Carry `positions` (xyz, the source head's frame) through a warp: the fit,
+ * then the skin's own correction, averaged over the `k` anchors nearest each
+ * point (by inverse distance), so a hair keeps its height above the scalp
+ * under it whatever the two skulls' shapes.
+ */
+export function applyWarp(
+  positions: ArrayLike<number>,
+  warp: ShellWarp,
+  k = 6
+): Float32Array {
+  const out = applyFit(positions, warp.fit)
+  const a = warp.anchors
+  const n = a.length / 3
+  const bestD = new Float64Array(k)
+  const bestI = new Int32Array(k)
+  for (let i = 0; i < out.length; i += 3) {
+    bestD.fill(Infinity)
+    for (let j = 0; j < n; j++) {
+      const dx = a[j * 3] - out[i]
+      const dy = a[j * 3 + 1] - out[i + 1]
+      const dz = a[j * 3 + 2] - out[i + 2]
+      const d = dx * dx + dy * dy + dz * dz
+      if (d >= bestD[k - 1]) continue
+      let s = k - 1
+      while (s > 0 && bestD[s - 1] > d) {
+        bestD[s] = bestD[s - 1]
+        bestI[s] = bestI[s - 1]
+        s--
+      }
+      bestD[s] = d
+      bestI[s] = j
+    }
+    let w = 0
+    let x = 0
+    let y = 0
+    let z = 0
+    for (let s = 0; s < k && bestD[s] < Infinity; s++) {
+      const ws = 1 / (Math.sqrt(bestD[s]) + 1e-4)
+      const j = bestI[s] * 3
+      x += warp.delta[j] * ws
+      y += warp.delta[j + 1] * ws
+      z += warp.delta[j + 2] * ws
+      w += ws
+    }
+    if (w > 0) {
+      out[i] += x / w
+      out[i + 1] += y / w
+      out[i + 2] += z / w
+    }
+  }
+  return out
 }

@@ -23,7 +23,7 @@ import { tosi, elements } from 'tosijs'
 const { div } = elements
 
 const status = div({ class: 'status' }, 'loading the animations…')
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'Hair_SimpleParted', beard: 'none', brows: 'Eyebrows_Regular', hairLight: 0.25, hairRed: 0.15, paused: false } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'Hair_SimpleParted', beard: 'none', brows: 'Eyebrows_Regular', hairLight: 0.25, hairRed: 0.15, hairUp: 0, hairForward: 0, hairSize: 1, paused: false } })
 let mat = null
 let paint = () => {}
 let eyes = null
@@ -59,6 +59,10 @@ preview.append(
         select3d({ label: 'brows', value: walker.brows, options: styles.brows }),
         slider3d({ label: 'light', value: walker.hairLight, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: 'red', value: walker.hairRed, min: 0, max: 1, step: 0.01 }),
+        // A hand adjustment, metres and a scale, after the fit.
+        slider3d({ label: 'up', value: walker.hairUp, min: -0.02, max: 0.02, step: 0.001 }),
+        slider3d({ label: 'forward', value: walker.hairForward, min: -0.02, max: 0.02, step: 0.001 }),
+        slider3d({ label: 'size', value: walker.hairSize, min: 0.9, max: 1.1, step: 0.005 }),
         label3d({ text: 'Ancestry' }),
         slider('african', 'african'),
         slider('asian', 'asian'),
@@ -86,7 +90,7 @@ preview.append(
           throw e
         })
         // Quaternius' hairstyles, made for its own head, fitted to each body.
-        const hairLib = await loadHairLibrary(scene, assetUrl('quaternius/libraries/hairstyles.glb'))
+        const hairLib = await loadHairLibrary(scene, assetUrl('quaternius/libraries/hairstyles.glb', 2))
         const adult = (n) => !n.endsWith('_Teen')
         const facial = (n) => /Beard|Moustache|MuttonChops/.test(n)
         styles.hair.push(...hairLib.names('hair').filter((n) => adult(n) && !facial(n)))
@@ -113,17 +117,18 @@ preview.append(
           if (!built || !scalp) return
           for (const m of hairMeshes) m.dispose()
           hairMeshes = []
+          const nudge = { y: walker.hairUp.value, z: walker.hairForward.value, scale: walker.hairSize.value }
           for (const key of ['hair', 'beard', 'brows']) {
             const parts = hairLib.piece(walker[key].value)
             if (!parts) continue
-            // Brows lie on the skin; hair stands a little off it.
-            const margin = key === 'brows' ? 0.0015 : 0.003
-            const centreY = key === 'brows' ? scalp.brow : undefined
-            hairMeshes.push(...humanHair(scene, built, built.rig, scalp, parts, tint, { margin, name: key, centreY }))
+            // Brows and beards follow the face; hair follows the skull.
+            const style = walker[key].value
+            const on = hairLib.fitFor(style)
+            hairMeshes.push(...humanHair(scene, built, built.rig, scalp, parts, tint, { name: key, on, head: hairLib.headFor(style), centreY: key === 'brows' ? scalp.brow : undefined, nudge: key === 'hair' ? nudge : undefined }))
           }
           el.register({ meshes: hairMeshes })
         }
-        for (const key of ['hair', 'beard', 'brows']) walker[key].observe(() => dress())
+        for (const key of ['hair', 'beard', 'brows', 'hairUp', 'hairForward', 'hairSize']) walker[key].observe(() => dress())
         // Colours repaint whoever sets them: a slider, or code.
         const recolour = () => { for (const m of tints.values()) m.setHair(walker.hairLight.value, walker.hairRed.value) }
         walker.hairLight.observe(recolour)
@@ -176,7 +181,7 @@ preview.append(
           built = buildRig(scene, 'walker', skin.positions(full), skin.triangles, rig, weights)
           face = humanFace(scene, built, rig, pack.manifest, full, { eyes: eyePart, eyelashes: lashPart }, faceMaterials)
           built.rig = rig
-          scalp = headScalp(pack.manifest, full, pack.triangles, hairLib.reference)
+          scalp = headScalp(pack.manifest, full, pack.triangles, { lips })
           dress()
           built.mesh.material = mat
           built.root.parent = stand
@@ -310,7 +315,10 @@ export function skinMaterial(
   scene: BABYLON.Scene,
   options: { tone?: number; redness?: number; name?: string } = {}
 ): SkinMaterial {
-  const m = new BABYLON.PBRMaterial(options.name ?? 'skin', scene) as SkinMaterial
+  const m = new BABYLON.PBRMaterial(
+    options.name ?? 'skin',
+    scene
+  ) as SkinMaterial
   m.metallic = 0
   m.roughness = 0.55
   m.setSkin = (tone, redness = 0.5) => {
