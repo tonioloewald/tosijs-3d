@@ -149,7 +149,15 @@ export const HM08_UAL: readonly HumanRigRow[] = Object.freeze(hm08Table())
 export function humanRig(
   manifest: HumanPackManifest,
   positions: ArrayLike<number>,
-  table: readonly HumanRigRow[] = HM08_UAL
+  table: readonly HumanRigRow[] = HM08_UAL,
+  options: {
+    /**
+     * The pack's drawn triangles: the floor is then the lowest point of the
+     * skin, the sole. Without them it is the lowest foot joint cube, which
+     * sits INSIDE the foot, and a body stood on it sinks by an ankle's height.
+     */
+    triangles?: ArrayLike<number>
+  } = {}
 ): FittedRig {
   const cube = (name: string): Vec3 => {
     const verts = manifest.joints[name]
@@ -157,12 +165,18 @@ export function humanRig(
     const [x, y, z] = humanJoint(positions, verts)
     return { x, y, z }
   }
-  // The floor: the lowest of the feet's toe tips and heels is close enough,
-  // and a joint cube is cheaper than scanning the skin.
+  // The floor: the sole, the lowest point of the skin; or, without the
+  // triangles, the lowest foot joint cube (inside the foot, so too high).
   let floor = Infinity
-  for (const r of table) {
-    if (r.name.startsWith('ball_leaf_') || r.name.startsWith('foot_')) {
-      floor = Math.min(floor, cube(r.at).y)
+  if (options.triangles != null) {
+    for (let i = 0; i < options.triangles.length; i++) {
+      floor = Math.min(floor, positions[options.triangles[i] * 3 + 1])
+    }
+  } else {
+    for (const r of table) {
+      if (r.name.startsWith('ball_leaf_') || r.name.startsWith('foot_')) {
+        floor = Math.min(floor, cube(r.at).y)
+      }
     }
   }
   const joints: FittedJoint[] = []

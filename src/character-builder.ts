@@ -18,7 +18,7 @@ bone heat's, worked out from the mesh once when the page loads. The eyes
 head and fitted to this one.
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'Hair_SimpleParted', beard: 'none', brows: 'Eyebrows_Regular', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, beardUp: 0, beardForward: 0, outfit: 'male_casualsuit02', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false } })
@@ -33,7 +33,7 @@ const HAT_LIFT = 0.012
 // Filled when the hair library loads.
 const styles = { hair: ['none'], beard: ['none'], brows: ['none'] }
 // What can be worn, one of each at a time; the pack says which slot each garment fills.
-const SLOTS = ['outfit', 'top', 'bottom', 'shoes', 'hat', 'glasses', 'gloves']
+const SLOTS = ['outfit', 'top', 'bottom', 'shoes', 'hat', 'mask', 'glasses', 'gloves']
 for (const slot of SLOTS) styles[slot] = ['none']
 // Each slot's look, fabric and recolour, kept while another is being edited.
 const cloth = Object.fromEntries(SLOTS.map((s) => [s, { look: 'as made', fabric: s === 'shoes' ? 'leather' : 'cotton', colour: '#7a2e2e', recolour: 0 }]))
@@ -94,6 +94,8 @@ preview.append(
       async sceneCreated(el, BABYLON) {
         const scene = el.scene
         el.setLoading('loading the animations…')
+        // Something for gloss and metal to reflect.
+        studioEnvironment(scene)
         const cam = new BABYLON.ArcRotateCamera('c', Math.PI / 2 - 0.5, 1.35, 4, new BABYLON.Vector3(0, 0.9, 0), scene)
         cam.minZ = 0.05
         cam.attachControl(el.querySelector('canvas'), true)
@@ -131,7 +133,7 @@ preview.append(
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
 
-        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 8)).catch((e) => {
+        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 9)).catch((e) => {
           el.setLoading(`could not load the body: ${e.message}`, { spin: false })
           throw e
         })
@@ -237,6 +239,16 @@ preview.append(
             }
           }
           refabric()
+          // Stand on the soles: shoes reach below the bare foot by their sole.
+          const shoe = wearing.find((p) => p.name === walker.shoes.value)
+          let sole = 0
+          if (shoe) {
+            const fitted = fitProxy(shoe, current)
+            let low = Infinity
+            for (let i = 1; i < fitted.length; i += 3) low = Math.min(low, fitted[i])
+            sole = Math.max(0, built.rig.at('root').y - low)
+          }
+          stand.position.y = -built.rig.at('root').y + sole
           // Skin under clothes is hidden, so it cannot show through.
           coverBody(built, skin.triangles, skin.vertices, wearing)
           el.register({ meshes: hairMeshes })
@@ -266,6 +278,13 @@ preview.append(
           else walker.editing.value = slot
         })
         walker.look.observe(() => { if (loading) return; cloth[walker.editing.value].look = walker.look.value; dress() })
+        // A finish that IS a colour (gold, copper) brings it.
+        walker.fabric.observe(() => {
+          const tint = FABRICS[walker.fabric.value]?.tint
+          if (loading || !tint) return
+          walker.colour.value = tint
+          walker.recolour.value = 1
+        })
         for (const key of ['fabric', 'colour', 'recolour']) walker[key].observe(() => {
           if (loading) return
           cloth[walker.editing.value][key] = walker[key].value
@@ -294,7 +313,7 @@ preview.append(
         // The weights depend only on the topology: once, on the first body.
         const first = await morphHuman(pack, body())
         // The weights depend only on the topology: once, on the first body.
-        const rig0 = humanRig(pack.manifest, first)
+        const rig0 = humanRig(pack.manifest, first, undefined, { triangles: pack.triangles })
         const weights = boneHeat(skin.positions(first), skin.triangles, skinSegments(rig0))
         // How thin the body is at each vertex (ears, nose, fingers), for the
         // skin's back-light: once, like the weights.
@@ -333,7 +352,7 @@ preview.append(
           busy = true
           const full = await morphHuman(pack, body())
           current = full
-          const rig = humanRig(pack.manifest, full)
+          const rig = humanRig(pack.manifest, full, undefined, { triangles: pack.triangles })
           face?.dispose()
           built?.dispose()
           built = buildRig(scene, 'walker', skin.positions(full), skin.triangles, rig, weights)

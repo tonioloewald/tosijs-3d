@@ -5,8 +5,11 @@ What makes cloth read as cloth at any distance is how it takes light, not its
 texture: soft, rough cotton; a velvet that glows where it turns away; a satin
 with a long, bright highlight; leather that is smooth and a little glossy.
 `FABRICS` are those as presets over Babylon's PBR material (roughness, and its
-SHEEN, the grazing-angle glow fibres give cloth), and `clothShading` puts one
-on a garment's material, with a RECOLOUR on top.
+SHEEN, the grazing-angle glow fibres give cloth), plus finishes that are not
+cloth at all: vinyl, foil, chrome, brushed steel, gold and copper, for armour,
+helmets and the cheap space suit. A metal needs something to reflect: give
+the scene an environment (`studioEnvironment`), or it renders nearly black.
+`clothShading` puts one on a garment's material, with a RECOLOUR on top.
 
 The recolour reads the garment's texture as grey (its shading: folds,
 stitching, a weave) and tints it, blended by `amount`: 0 keeps the texture's
@@ -26,6 +29,10 @@ import { parseColor } from './color.js'
 export interface Fabric {
   /** How rough the surface is, 0 (mirror) to 1. */
   roughness: number
+  /** 1 for a metal: it reflects its surroundings in its own colour. Default 0. */
+  metallic?: number
+  /** A colour the finish IS (gold, copper): choosing it recolours wholly. */
+  tint?: string
   /** The grazing glow of fibres, 0 to 1, and how spread it is. */
   sheen: number
   sheenRoughness: number
@@ -43,6 +50,15 @@ export const FABRICS: Readonly<Record<string, Fabric>> = Object.freeze({
   synthetic: { roughness: 0.55, sheen: 0.2, sheenRoughness: 0.5 },
   leather: { roughness: 0.45, sheen: 0, sheenRoughness: 0.5 },
   rubber: { roughness: 0.6, sheen: 0, sheenRoughness: 0.5 },
+  // Glossy plastic: the 1950s space suit.
+  vinyl: { roughness: 0.12, sheen: 0, sheenRoughness: 0.5 },
+  // Metals reflect the scene's environment (see environment's studioEnvironment).
+  'silver lamé': { roughness: 0.3, metallic: 0.85, sheen: 0.35, sheenRoughness: 0.3 },
+  foil: { roughness: 0.12, metallic: 1, sheen: 0, sheenRoughness: 0.5, tint: '#d8dade' },
+  chrome: { roughness: 0.06, metallic: 1, sheen: 0, sheenRoughness: 0.5, tint: '#e8e8ea' },
+  'brushed steel': { roughness: 0.38, metallic: 1, sheen: 0, sheenRoughness: 0.5, tint: '#b8babd' },
+  gold: { roughness: 0.2, metallic: 1, sheen: 0, sheenRoughness: 0.5, tint: '#e8c065' },
+  copper: { roughness: 0.25, metallic: 1, sheen: 0, sheenRoughness: 0.5, tint: '#d08a5c' },
 })
 
 const toLinear = (c: number) =>
@@ -171,6 +187,7 @@ export function clothShading(
     const fabric = l.fabric != null ? FABRICS[l.fabric] : undefined
     if (fabric) {
       material.roughness = fabric.roughness
+      material.metallic = fabric.metallic ?? 0
       material.sheen.isEnabled = fabric.sheen > 0
       material.sheen.intensity = fabric.sheen
       material.sheen.roughness = fabric.sheenRoughness

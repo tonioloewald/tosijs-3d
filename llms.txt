@@ -335,6 +335,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   preset (a volcano at any activity, a geyser, a splash, an explosion, a
 - https://3d.tosijs.net/effects/ — Effects
   geysers, splashes, explosions, fireballs, sparks: particles, light and sound
+- https://3d.tosijs.net/environment/ — environment
+  `studioEnvironment(scene)` gives PBR materials something to reflect: a
 - https://3d.tosijs.net/flow-layout/ — flow-layout
   Pure **flow layout** math: the CSS block + inline-block model, in SVG user
 - https://3d.tosijs.net/fly-by-wire/ — fly-by-wire
