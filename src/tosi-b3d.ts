@@ -312,6 +312,15 @@ Set these in the `b3d()` config.
 | `scenePanel(el)` | returns the settings panel's widgets, drawn flat and in a headset from the same list; rebuilt each time it opens, and `refreshScenePanel()` updates an open one |
 | `pausePanel(el, resume)` | returns the pause panel's rows in place of the default title and Continue button; `resume` lets the player back in |
 | `setupXr(el)` | replaces the built-in WebXR setup and Enter-VR button with your own |
+
+## Loading
+
+The spinner shows until the scene first renders. A page that loads its own
+content after that (models, a body, a terrain) holds it up with
+`el.setLoading('loading the body…')`, which shows the spinner with the
+message below it; `setLoading(true)` is the spinner alone, `setLoading(false)`
+lets it go, and `{ spin: false }` shows a message without the spinner (a load
+that failed).
 */
 /*{ "parent": "core", "order": 10 }*/
 
@@ -976,10 +985,30 @@ export class B3d extends Component {
       borderRadius: '50%',
       animation: 'tosi-spin 0.8s linear infinite',
       transition: 'opacity 0.3s ease-out',
+      // Above the canvas, so `setLoading` can show it over a running scene.
+      zIndex: '3',
+      pointerEvents: 'none',
     },
     ':host .spinner.hidden': {
       opacity: '0',
       pointerEvents: 'none',
+    },
+    // What is loading, below the spinner (`setLoading('…')`).
+    ':host .loading-caption': {
+      position: 'absolute',
+      top: 'calc(50% + 36px)',
+      left: '0',
+      right: '0',
+      textAlign: 'center',
+      color: '#fff',
+      font: '13px system-ui, sans-serif',
+      textShadow: '0 1px 3px rgba(0,0,0,0.8)',
+      zIndex: '3',
+      pointerEvents: 'none',
+      transition: 'opacity 0.3s ease-out',
+    },
+    ':host .loading-caption.hidden': {
+      opacity: '0',
     },
     '@keyframes tosi-spin': {
       to: { transform: 'rotate(360deg)' },
@@ -1187,6 +1216,7 @@ export class B3d extends Component {
 
   content = [
     div({ class: 'spinner', part: 'spinner' }),
+    div({ class: 'loading-caption hidden', part: 'loadingCaption' }),
     canvas({ part: 'canvas' }),
     // Top-left lozenge holding two icon buttons side by side: scene settings
     // (opens the panel) and Enter VR (the purpose-built xrColor mark) — so VR
@@ -1276,6 +1306,27 @@ export class B3d extends Component {
   xrActive = false
   /** True from ENTERING_XR to the end of EXITING_XR: wider than `xrActive`. */
   private _xrPresenting = false
+
+  /** Whether a page is holding the spinner up (`setLoading`). */
+  private _loadingHeld = false
+
+  /**
+   * The loading spinner, for a page that loads its own content after the
+   * scene is up: `true` shows it, a string shows it with that message below,
+   * `false` hides it. Until it is called the spinner is the scene's own and
+   * goes when the scene first renders; once a page holds it, that page lets
+   * it go. `{ spin: false }` shows the message alone (a load that failed).
+   */
+  setLoading(message: string | boolean, options: { spin?: boolean } = {}): void {
+    const spinner = this.parts.spinner as HTMLElement | undefined
+    const caption = this.parts.loadingCaption as HTMLElement | undefined
+    this._loadingHeld = message !== false
+    spinner?.classList.toggle('hidden', message === false || options.spin === false)
+    if (caption) {
+      caption.textContent = typeof message === 'string' ? message : ''
+      caption.classList.toggle('hidden', typeof message !== 'string')
+    }
+  }
 
   // The scene the pointer last entered / pressed — so that when a page hosts several
   // live demos, global keyboard/gamepad input only drives the one you're interacting
@@ -5367,7 +5418,8 @@ export class B3d extends Component {
         if (revealed) return
         revealed = true
         cnv.classList.add('ready')
-        spinner.classList.add('hidden')
+        // Not a spinner a page is holding up for its own loading.
+        if (!this._loadingHeld) spinner.classList.add('hidden')
         // Enable the toolbar only now the scene is up — the gear + Enter VR
         // shouldn't be clickable while the scene is still loading.
         const gearBtn = this.parts.scenePanelGear as

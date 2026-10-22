@@ -19,10 +19,8 @@ head and fitted to this one.
 
 ```js
 import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, hairShading, HAIR_COLOURS, color3d, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
-import { tosi, elements } from 'tosijs'
-const { div } = elements
+import { tosi } from 'tosijs'
 
-const status = div({ class: 'status' }, 'loading the animations…')
 const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'Hair_SimpleParted', beard: 'none', brows: 'Eyebrows_Regular', hairPreset: 'brown', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, beardUp: 0, beardForward: 0, outfit: 'male_casualsuit02', shoes: 'shoes01', hat: 'none', paused: false } })
 let mat = null
 let paint = () => {}
@@ -81,6 +79,7 @@ preview.append(
       ],
       async sceneCreated(el, BABYLON) {
         const scene = el.scene
+        el.setLoading('loading the animations…')
         const cam = new BABYLON.ArcRotateCamera('c', Math.PI / 2 - 0.5, 1.35, 4, new BABYLON.Vector3(0, 0.9, 0), scene)
         cam.minZ = 0.05
         cam.attachControl(el.querySelector('canvas'), true)
@@ -111,7 +110,7 @@ preview.append(
 
         // UAL's mannequin is only the clips' source: it stays hidden.
         const ual = await BABYLON.LoadAssetContainerAsync(assetUrl('quaternius/UAL1_core.glb', 2), scene)
-        status.textContent = 'loading the body…'
+        el.setLoading('loading the body…')
         ual.addAllToScene()
         for (const g of ual.animationGroups) g.stop()
         const ualRoot = ual.meshes.find((m) => m.name === '__root__')
@@ -119,7 +118,7 @@ preview.append(
         ualRoot.setEnabled(false)
 
         const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 6)).catch((e) => {
-          status.textContent = `could not load the body: ${e.message}`
+          el.setLoading(`could not load the body: ${e.message}`, { spin: false })
           throw e
         })
         // Quaternius' hairstyles, made for its own head, fitted to each body.
@@ -151,7 +150,7 @@ preview.append(
           }
           return tints.get(from)
         }
-        status.textContent = 'binding the skin…'
+        el.setLoading('binding the skin…')
         // Let the message paint before the binding takes the thread.
         await new Promise((r) => setTimeout(r, 50))
         const skin = humanSkin(pack)
@@ -296,20 +295,18 @@ preview.append(
           if (again) { again = false; rebuild() }
         }
         await rebuild()
-        status.remove()
+        el.setLoading(false)
         walker.clip.observe(play)
         walker.paused.observe(() => (walker.paused.value ? playing?.pause() : playing?.play(true)))
       },
     },
     b3dSun({ timeOfDay: 16.5, shadowTextureSize: 2048, shadowMaxZ: 20, shadowNormalBias: 0.008 }),
     b3dLight({ intensity: 0.5 })
-  ),
-  status
+  )
 )
 ```
 ```css
 tosi-b3d { width: 100%; height: 100%; }
-.status { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.6); color: white; padding: 6px 12px; border-radius: 6px; font: 13px sans-serif; }
 ```
 
 ## humanBody
