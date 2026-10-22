@@ -510,7 +510,8 @@ export function placeHair(
   const lip = options.head.lip
   if (options.on === 'face' && lip != null && head.lipTop != null) {
     const landed = applyWarp([0, lip.y, lip.z], head.warp(options.head, 'face'))
-    const dy = head.lipTop - landed[1]
+    // Its lower edge a little ABOVE the lip's: a moustache grows above the lip.
+    const dy = head.lipTop + 0.004 - landed[1]
     for (let v = 0; v < p.length; v += 3) {
       const t = (part.positions[v + 1] - lip.y) / 0.02
       p[v + 1] += dy * Math.exp(-t * t)

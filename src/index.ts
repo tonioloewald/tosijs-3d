@@ -1887,7 +1887,7 @@ export {
 } from './human-face.js'
 export type { HumanFace, EyeTexture } from './human-face.js'
 export type { Rgb as SkinRgb } from './skin-tone.js'
-export { humanRig, humanSkin, HM08_UAL } from './human-rig.js'
+export { humanRig, humanSkin, stiffenHead, HM08_UAL } from './human-rig.js'
 export type { HumanRigRow, HumanSkin } from './human-rig.js'
 export type { HumanBody, SkinMaterial } from './character-builder.js'
 export type { HeatBone, SkinWeights } from './bone-heat.js'

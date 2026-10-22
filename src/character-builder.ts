@@ -18,10 +18,10 @@ bone heat's, worked out from the mesh once when the page loads. The eyes
 head and fitted to this one.
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'Hair_SimpleParted', beard: 'none', brows: 'Eyebrows_Regular', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, beardUp: 0, beardForward: 0, outfit: 'male_casualsuit02', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false } })
 let mat = null
 let paint = () => {}
 let eyes = null
@@ -31,7 +31,7 @@ let packProxies = {}
 // How far a hat is pushed out from the skull, over the hair (metres).
 const HAT_LIFT = 0.012
 // Filled when the hair library loads.
-const styles = { hair: ['none'], beard: ['none'], brows: ['none'] }
+const styles = { hair: ['none'], beard: ['none'], moustache: ['none'], brows: ['none'] }
 // What can be worn, one of each at a time; the pack says which slot each garment fills.
 const SLOTS = ['outfit', 'top', 'bottom', 'shoes', 'hat', 'mask', 'glasses', 'gloves']
 for (const slot of SLOTS) styles[slot] = ['none']
@@ -66,6 +66,7 @@ preview.append(
         label3d({ text: 'Hair', collapsible: true }),
         select3d({ label: 'hair', value: walker.hair, options: styles.hair }),
         select3d({ label: 'beard', value: walker.beard, options: styles.beard }),
+        select3d({ label: 'moustache', value: walker.moustache, options: styles.moustache }),
         select3d({ label: 'brows', value: walker.brows, options: styles.brows }),
         // A base and a highlight, each a swatch that opens a picker with presets;
         // a base preset brings its usual highlight with it.
@@ -75,8 +76,6 @@ preview.append(
         slider3d({ label: 'up', value: walker.hairUp, min: -0.02, max: 0.02, step: 0.001 }),
         slider3d({ label: 'forward', value: walker.hairForward, min: -0.02, max: 0.02, step: 0.001 }),
         slider3d({ label: 'size', value: walker.hairSize, min: 0.9, max: 1.1, step: 0.005 }),
-        slider3d({ label: 'beard up', value: walker.beardUp, min: -0.02, max: 0.02, step: 0.001 }),
-        slider3d({ label: 'beard forward', value: walker.beardForward, min: -0.02, max: 0.02, step: 0.001 }),
         label3d({ text: 'Clothes', collapsible: true }),
         ...SLOTS.map((slot) => select3d({ label: slot, value: walker[slot], options: styles[slot] })),
         // One editor for whichever worn thing is chosen: its colourway, fabric,
@@ -133,7 +132,7 @@ preview.append(
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
 
-        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 9)).catch((e) => {
+        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 10)).catch((e) => {
           el.setLoading(`could not load the body: ${e.message}`, { spin: false })
           throw e
         })
@@ -142,16 +141,22 @@ preview.append(
         const adult = (n) => !n.endsWith('_Teen')
         const facial = (n) => /Beard|Moustache|MuttonChops/.test(n)
         styles.hair.push(...hairLib.names('hair').filter((n) => adult(n) && !facial(n)))
-        styles.beard.push(...hairLib.names('hair').filter((n) => adult(n) && facial(n)))
+        // Beards and moustaches are MakeHuman's, bound to this face. Quaternius'
+        // are drawn for its own stylised mouth, and warped onto ours their ends
+        // droop and tilt; the library still places them (fitFor 'face').
         styles.brows.push(...hairLib.names('eyebrows').filter(adult))
         // MakeHuman's own clothes, hair and brows, bound to this body (proxy-fit).
         const proxies = pack.manifest.proxies ?? {}
         packProxies = proxies
         const kinds = (cat, test) => Object.keys(proxies).filter((n) => proxies[n].category === cat && test(n))
         for (const slot of SLOTS) styles[slot].push(...Object.keys(proxies).filter((n) => proxies[n].slot === slot))
-        styles.hair.push(...kinds('hair', () => true))
-        styles.brows.push(...kinds('eyebrows', () => true))
-        styles.beard.push(...kinds('beard', () => true))
+        // MakeHuman's hair and brows first: drawn for this head and bound to it.
+        // Quaternius' follow, for the looks MakeHuman lacks.
+        styles.hair.splice(1, 0, ...kinds('hair', () => true))
+        styles.brows.splice(1, 0, ...kinds('eyebrows', () => true))
+        // MakeHuman's beards come without moustaches: a moustache is its own choice.
+        styles.beard.push(...kinds('beard', (n) => !/moustache/i.test(n)))
+        styles.moustache.push(...kinds('beard', (n) => /moustache/i.test(n)))
         const proxyMaterials = new Map()
         // Each clothes material's fabric and recolour, and which slot wears which.
         const clothes = new Map()
@@ -180,26 +185,27 @@ preview.append(
         const faceMaterials = { eye: eyeMaterial(scene, eyes), lashes: lashMaterial(scene) }
         let face = null
         let scalp = null
+        // For poking at from the console: what this page built.
+        el.builder = { pack, hairLib, get scalp() { return scalp }, get built() { return built }, get positions() { return current } }
         let hairMeshes = []
         let dressing = 0
         dress = async () => {
           if (!built || !scalp) return
           const token = ++dressing
           // What it wears from the pack (bound), fetched before anything changes.
-          const slots = [...SLOTS, 'hair', 'brows', 'beard'].map((k) => walker[k].value).filter((n) => proxies[n])
+          const slots = [...SLOTS, 'hair', 'brows', 'beard', 'moustache'].map((k) => walker[k].value).filter((n) => proxies[n])
           const wearing = await Promise.all(slots.map((n) => pack.proxy(n)))
           if (token !== dressing) return
           for (const m of hairMeshes) m.dispose()
           hairMeshes = []
           const nudge = { y: walker.hairUp.value, z: walker.hairForward.value, scale: walker.hairSize.value }
-          const beardNudge = { y: walker.beardUp.value, z: walker.beardForward.value }
-          for (const key of ['hair', 'beard', 'brows']) {
+          for (const key of ['hair', 'beard', 'moustache', 'brows']) {
             const parts = hairLib.piece(walker[key].value)
             if (!parts) continue
             // Brows and beards follow the face; hair follows the skull.
             const style = walker[key].value
             const on = hairLib.fitFor(style)
-            hairMeshes.push(...humanHair(scene, built, built.rig, scalp, parts, tint, { name: key, on, head: hairLib.headFor(style), centreY: key === 'brows' ? scalp.brow : undefined, nudge: key === 'hair' ? nudge : key === 'beard' ? beardNudge : undefined }))
+            hairMeshes.push(...humanHair(scene, built, built.rig, scalp, parts, tint, { name: key, on, head: hairLib.headFor(style), centreY: key === 'brows' ? scalp.brow : undefined, nudge: key === 'hair' ? nudge : undefined }))
           }
           for (const k of Object.keys(slotMaterial)) delete slotMaterial[k]
           for (const proxy of wearing) {
@@ -253,7 +259,7 @@ preview.append(
           coverBody(built, skin.triangles, skin.vertices, wearing)
           el.register({ meshes: hairMeshes })
         }
-        for (const key of ['hair', 'beard', 'brows', 'hairUp', 'hairForward', 'hairSize', 'beardUp', 'beardForward', ...SLOTS]) walker[key].observe(() => dress())
+        for (const key of ['hair', 'beard', 'moustache', 'brows', 'hairUp', 'hairForward', 'hairSize', ...SLOTS]) walker[key].observe(() => dress())
         // An outfit replaces a top and bottom, and either replaces an outfit.
         walker.outfit.observe(() => { if (walker.outfit.value !== 'none') { walker.top.value = 'none'; walker.bottom.value = 'none' } })
         for (const k of ['top', 'bottom']) walker[k].observe(() => { if (walker[k].value !== 'none') walker.outfit.value = 'none' })
@@ -315,6 +321,8 @@ preview.append(
         // The weights depend only on the topology: once, on the first body.
         const rig0 = humanRig(pack.manifest, first, undefined, { triangles: pack.triangles })
         const weights = boneHeat(skin.positions(first), skin.triangles, skinSegments(rig0))
+        // The face moves with the head, or the lids slide over the eyes.
+        stiffenHead(weights, skin.positions(first), rig0)
         // How thin the body is at each vertex (ears, nose, fingers), for the
         // skin's back-light: once, like the weights.
         const firstSkin = skin.positions(first)

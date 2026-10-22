@@ -250,3 +250,52 @@ export function humanSkin(pack: HumanPack): HumanSkin {
     },
   }
 }
+
+/**
+ * Make the head rigid in `weights` (in place): skin above the head joint
+ * moves wholly with the head bone, blended in over `blend` metres so the neck
+ * has no seam. Bone heat shares the face between head and neck, so the
+ * eyelids slid over the eyeballs (which ride the head) whenever a clip moved
+ * the neck. `positions` are the compact skin's (xyz), `rig` the fitted rig.
+ */
+export function stiffenHead(
+  weights: { indices: Float32Array; weights: Float32Array },
+  positions: ArrayLike<number>,
+  rig: FittedRig,
+  options: { head?: string; blend?: number } = {}
+): void {
+  const name = options.head ?? 'Head'
+  const head = rig.joints.findIndex((j) => j.name === name)
+  const at = rig.at(name)
+  if (head < 0 || at == null) return
+  const blend = options.blend ?? 0.04
+  const n = positions.length / 3
+  for (let v = 0; v < n; v++) {
+    const rise = positions[v * 3 + 1] - at.y
+    const t = Math.min(1, Math.max(0, rise / blend))
+    if (t === 0) continue
+    const k = t * t * (3 - 2 * t)
+    // Scale the others down and give the head what they lose.
+    let toHead = 0
+    let slot = -1
+    for (let i = 0; i < 4; i++) {
+      if (weights.indices[v * 4 + i] === head) slot = i
+      else {
+        toHead += weights.weights[v * 4 + i] * k
+        weights.weights[v * 4 + i] *= 1 - k
+      }
+    }
+    if (slot < 0) {
+      // The head was not among its four: take the weakest place.
+      let weakest = 0
+      for (let i = 1; i < 4; i++) {
+        if (weights.weights[v * 4 + i] < weights.weights[v * 4 + weakest]) weakest = i
+      }
+      toHead += weights.weights[v * 4 + weakest]
+      weights.weights[v * 4 + weakest] = 0
+      weights.indices[v * 4 + weakest] = head
+      slot = weakest
+    }
+    weights.weights[v * 4 + slot] += toHead
+  }
+}
