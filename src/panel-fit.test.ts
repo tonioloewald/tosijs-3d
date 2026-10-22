@@ -528,10 +528,13 @@ describe('select3d is a SELECT — one tap anywhere on it opens the list', () =>
     // Routing by what is underneath would let you press a control through an
     // open menu — the "it clicked the wrong thing" bug in its purest form.
     let seen: unknown = null
-    const { panel } = build((v) => (seen = v))
+    // TALL, so the menu drops below the row (it is as wide as its options now,
+    // and on a one-row panel it would be placed over the row itself).
+    const sel = w3d.select3d({ value: 'alpha', options: OPTIONS, handleChange: (v) => (seen = v) })
+    const panel = w3d.panel3d({ width: 300, height: 400 }, sel) as any
     press(panel, 200, 30)
     expect(panel.querySelectorAll('svg').length).toBe(1)
-    panel.handlePointer('down', 285, 30) // the › stepper, under the menu's row
+    panel.handlePointer('down', 285, 30) // the row itself, above the menu
     expect(panel.querySelectorAll('svg').length).toBe(0)
     expect(seen).toBe(null)
   })

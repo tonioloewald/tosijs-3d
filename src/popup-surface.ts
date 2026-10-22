@@ -482,7 +482,10 @@ function wirePointer(owner: B3d): void {
   where both scenes do get it.
   */
   let seen: Event | null = null
-  const onPointer = (info: BABYLON.PointerInfo): void => {
+  const onPointer = (
+    info: BABYLON.PointerInfo,
+    state?: BABYLON.EventState
+  ): void => {
     const ev = info.event as unknown as Event
     if (
       ev != null &&
@@ -612,6 +615,15 @@ function wirePointer(owner: B3d): void {
       const pt = uvToViewBox(uv.x, uv.y, target.vbWidth, target.vbHeight)
       const what = chromeHit(pt.x, pt.y, target.chromeLayout)
       if (what === 'content') return // the panel's own UI must reach it
+      /*
+      CLAIM THE PRESS. Everything else listening for pointers (the parent
+      panel behind this popup above all) would otherwise see it too: its own
+      pick looks only for its own plane, so it took the press as on whatever
+      lay behind the ×, and when the release came, with the popup gone, it saw
+      a whole tap there. Often its own close: "Closing popups sometimes closes
+      the parent." This observer is registered first, so stopping here works.
+      */
+      if (state) state.skipNextObservers = true
       if (what === 'close') {
         target.close()
         return
@@ -627,12 +639,13 @@ function wirePointer(owner: B3d): void {
       )
     }
   }
-  scene.onPointerObservable.add(onPointer)
+  // FIRST in line, so a press it claims (the title bar) reaches no one else.
+  scene.onPointerObservable.add(onPointer, undefined, true)
   const layers = new WeakSet<BABYLON.Scene>()
   layerListeners.set(owner, (s: BABYLON.Scene) => {
     if (s === scene || layers.has(s)) return
     layers.add(s)
-    s.onPointerObservable.add(onPointer)
+    s.onPointerObservable.add(onPointer, undefined, true)
   })
 }
 

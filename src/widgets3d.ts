@@ -2587,8 +2587,11 @@ export function select3d(config: {
     const i = opts.findIndex((o) => o.value === bound.get())
     return i < 0 ? 0 : i
   }
+  /** Room for the value, set by layout (it ellipsizes rather than running into the caption). */
+  let valRoom = Infinity
   const reflect = () => {
-    val.textContent = opts[indexOf()]?.label ?? ''
+    const label = String(opts[indexOf()]?.label ?? '')
+    val.textContent = valRoom === Infinity ? label : ellipsize(label, valRoom, TH.TEXT_FONT)
   }
   const step = (d: number) => {
     const n = opts.length
@@ -2651,7 +2654,16 @@ export function select3d(config: {
         // Anchored to the VALUE, not to the whole row: a menu that drops from
         // the far left of a wide row looks unrelated to what it changes.
         anchor: { x: clusterX, y: 0, width: clusterW, height: TH.ROW },
-        width: Math.max(clusterW, 140),
+        // Wide enough for its longest option (a list cut off mid-word reads
+        // as broken), and never narrower than a comfortable menu.
+        width: Math.max(
+          clusterW,
+          220,
+          Math.min(
+            420,
+            Math.max(...opts.map((o) => measureTextWidth(String(o.label), TH.TEXT_FONT))) + TH.PAD_X * 3
+          )
+        ),
       },
       list3d({
         items: opts.map((o) => ({ label: String(o.label) })),
@@ -2679,6 +2691,7 @@ export function select3d(config: {
       const caretX = width - TH.PAD_X - CARET
       caret.setAttribute('transform', `translate(${caretX} ${TH.ROW / 2 - 7})`)
       val.setAttribute('x', String(caretX - 8))
+      valRoom = Math.max(24, clusterW - CARET - 12)
       // The value cluster wins the right-hand side, so the caption takes what
       // is left of the row rather than printing through it.
       if (lbl) {
