@@ -54,6 +54,52 @@ export interface HairLibrary {
   dispose(): void
 }
 
+/*
+Quaternius' eyebrow pieces carry their own upper eyelashes: a strip under
+each brow, at ITS head's eyes. A body that has its own lashes would wear two
+pairs (the lower one reading as a second, thinner pair of brows once the brow
+is placed for this face), so the strips are dropped: the islands of the piece
+whose top is in the lower half of the range the islands' tops span.
+*/
+function withoutLashes(part: HairPart): Uint32Array {
+  const p = part.positions
+  const n = p.length / 3
+  const parent = Int32Array.from({ length: n }, (_, i) => i)
+  const find = (x: number): number => {
+    while (parent[x] !== x) x = parent[x] = parent[parent[x]]
+    return x
+  }
+  const join = (a: number, b: number) => {
+    parent[find(a)] = find(b)
+  }
+  const ix = part.indices
+  for (let t = 0; t < ix.length; t += 3) {
+    join(ix[t], ix[t + 1])
+    join(ix[t], ix[t + 2])
+  }
+  // Split vertices (a UV seam) are one island.
+  const at = new Map<string, number>()
+  for (let v = 0; v < n; v++) {
+    const k = `${p[v * 3].toFixed(4)},${p[v * 3 + 1].toFixed(4)},${p[v * 3 + 2].toFixed(4)}`
+    const w = at.get(k)
+    if (w == null) at.set(k, v)
+    else join(v, w)
+  }
+  const top = new Map<number, number>()
+  for (let v = 0; v < n; v++) {
+    const r = find(v)
+    top.set(r, Math.max(top.get(r) ?? -Infinity, p[v * 3 + 1]))
+  }
+  const tops = [...top.values()]
+  const cut = (Math.min(...tops) + Math.max(...tops)) / 2
+  if (Math.max(...tops) - Math.min(...tops) < 1e-4) return ix
+  const keep: number[] = []
+  for (let t = 0; t < ix.length; t += 3) {
+    if (top.get(find(ix[t]))! > cut) keep.push(ix[t], ix[t + 1], ix[t + 2])
+  }
+  return Uint32Array.from(keep)
+}
+
 /** Load a hair library (a GLB of named pieces); `reference` hugs its scalp. */
 export async function loadHairLibrary(
   scene: BABYLON.Scene,
@@ -102,6 +148,9 @@ export async function loadHairLibrary(
         indices: Uint32Array.from(m.getIndices() ?? []),
         material: m.material,
       })
+    }
+    if (category === 'eyebrows') {
+      for (const part of parts) part.indices = withoutLashes(part)
     }
     if (parts.length > 0) pieces.set(node.name, { category, parts })
   }
@@ -245,9 +294,10 @@ export function humanHair(
     if (options.centreY != null) {
       let lo = Infinity
       let hi = -Infinity
-      for (let v = 1; v < p.length; v += 3) {
-        lo = Math.min(lo, p[v])
-        hi = Math.max(hi, p[v])
+      // Only what is drawn (a piece may carry vertices no triangle uses).
+      for (const v of part.indices) {
+        lo = Math.min(lo, p[v * 3 + 1])
+        hi = Math.max(hi, p[v * 3 + 1])
       }
       const dy = options.centreY - (lo + hi) / 2
       for (let v = 1; v < p.length; v += 3) p[v] += dy

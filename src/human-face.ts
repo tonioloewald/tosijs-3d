@@ -204,6 +204,48 @@ solid cards they read as heavy eyeliner. So they fade by vertex alpha: from
 the lid (the vertices nearest the eyeball) to clear at the tips, and the lower
 lashes, which are sparse on a real eye, much fainter than the upper.
 */
+/*
+The cards also stand far off the lid (the texture's hairs are short against
+them), and drawn plain the upper ones read as a second pair of brows. So each
+vertex is drawn toward the lid: its distance from its eyeball past the
+nearest root is scaled by `k`.
+*/
+function shortenLashes(
+  local: Float32Array,
+  eyes: BABYLON.TransformNode[],
+  k: number
+): void {
+  const centres = eyes.map((e) => e.position)
+  if (centres.length === 0) return
+  const n = local.length / 3
+  const near = new Int32Array(n)
+  const dist = new Float32Array(n)
+  let lo = Infinity
+  for (let i = 0; i < n; i++) {
+    let best = Infinity
+    centres.forEach((c, j) => {
+      const d = Math.hypot(
+        local[i * 3] - c.x,
+        local[i * 3 + 1] - c.y,
+        local[i * 3 + 2] - c.z
+      )
+      if (d < best) {
+        best = d
+        near[i] = j
+      }
+    })
+    dist[i] = best
+    lo = Math.min(lo, best)
+  }
+  for (let i = 0; i < n; i++) {
+    const c = centres[near[i]]
+    const f = (lo + (dist[i] - lo) * k) / dist[i]
+    local[i * 3] = c.x + (local[i * 3] - c.x) * f
+    local[i * 3 + 1] = c.y + (local[i * 3 + 1] - c.y) * f
+    local[i * 3 + 2] = c.z + (local[i * 3 + 2] - c.z) * f
+  }
+}
+
 function lashAlpha(
   local: ArrayLike<number>,
   eyes: BABYLON.TransformNode[]
@@ -299,10 +341,15 @@ export function humanFace(
       () => true,
       head
     )
-    mesh.setVerticesData(
-      BABYLON.VertexBuffer.ColorKind,
-      lashAlpha(mesh.getVerticesData('position')!, eyes)
-    )
+    const local = Float32Array.from(mesh.getVerticesData('position')!)
+    shortenLashes(local, eyes, 0.35)
+    mesh.setVerticesData(BABYLON.VertexBuffer.PositionKind, local)
+    const normals: number[] = []
+    BABYLON.VertexData.ComputeNormals(local, mesh.getIndices(), normals, {
+      useRightHandedSystem: true,
+    })
+    mesh.setVerticesData(BABYLON.VertexBuffer.NormalKind, normals)
+    mesh.setVerticesData(BABYLON.VertexBuffer.ColorKind, lashAlpha(local, eyes))
     mesh.hasVertexAlpha = true
     if (materials.lashes) mesh.material = materials.lashes
     meshes.push(mesh)

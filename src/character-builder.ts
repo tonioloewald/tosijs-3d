@@ -18,12 +18,12 @@ bone heat's, worked out from the mesh once when the page loads. The eyes
 head and fitted to this one.
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div } = elements
 
 const status = div({ class: 'status' }, 'loading the animations…')
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'Hair_SimpleParted', beard: 'none', brows: 'Eyebrows_Regular', hairLight: 0.25, hairRed: 0.15 } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'Hair_SimpleParted', beard: 'none', brows: 'Eyebrows_Regular', hairLight: 0.25, hairRed: 0.15, paused: false } })
 let mat = null
 let paint = () => {}
 let eyes = null
@@ -43,6 +43,7 @@ preview.append(
       panelTitle: 'Walker',
       scenePanel: () => [
         select3d({ label: 'clip', value: walker.clip, options: clips }),
+        toggle3d({ label: 'pause', value: walker.paused }),
         slider('gender', 'gender'),
         slider('age', 'age'),
         slider('muscle', 'muscle'),
@@ -153,6 +154,7 @@ preview.append(
           const clip = ual.animationGroups.find((g) => g.name === walker.clip.value)
           playing = clip ? retargetClip(clip, source, read, { scene }) : null
           playing?.start(true)
+          if (walker.paused.value) playing?.pause()
         }
         let busy = false
         let again = false
@@ -181,6 +183,7 @@ preview.append(
         await rebuild()
         status.remove()
         walker.clip.observe(play)
+        walker.paused.observe(() => (walker.paused.value ? playing?.pause() : playing?.play(true)))
       },
     },
     b3dSun({ timeOfDay: 15 }),
