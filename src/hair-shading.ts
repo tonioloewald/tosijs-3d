@@ -40,6 +40,8 @@ export const HAIR_COLOURS: Readonly<Record<string, { base: string; highlight: st
     'cherry red': { base: '#7f1a25', highlight: '#d84a55' },
   })
 
+const toLin = (c: number) =>
+  c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
 const toLinear = (c: number) =>
   c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
 
@@ -58,8 +60,14 @@ const TEXTURE_MEAN = 0.42
 export class HairShadingPlugin extends BABYLON.MaterialPluginBase {
   highlight = new BABYLON.Color3(0.5, 0.35, 0.2)
   /** How far the bright strands lean to the highlight, 0 to 1. */
-  strength = 0.4
+  strength = 0.25
   desaturate = false
+  /**
+   * The texture's own mean brightness (linear), measured once it loads: the
+   * texture is divided by it so the base colour comes out as itself whatever
+   * library drew the hair (MakeHuman's are far darker than Quaternius').
+   */
+  mean = TEXTURE_MEAN
   private _isEnabled = false
 
   constructor(material: BABYLON.Material) {
@@ -91,9 +99,13 @@ export class HairShadingPlugin extends BABYLON.MaterialPluginBase {
     fragment: string
   } {
     return {
-      ubo: [{ name: 'hairHighlight', size: 4, type: 'vec4' }],
+      ubo: [
+        { name: 'hairHighlight', size: 4, type: 'vec4' },
+        { name: 'hairMean', size: 1, type: 'float' },
+      ],
       fragment: `#ifdef HAIRSHADE
         uniform vec4 hairHighlight;
+        uniform float hairMean;
       #endif`,
     }
   }
@@ -102,6 +114,7 @@ export class HairShadingPlugin extends BABYLON.MaterialPluginBase {
     if (!this._isEnabled) return
     const h = this.highlight
     uniformBuffer.updateFloat4('hairHighlight', h.r, h.g, h.b, this.strength)
+    uniformBuffer.updateFloat('hairMean', Math.max(0.03, this.mean))
   }
 
   getCustomCode(shaderType: string): { [pointName: string]: string } | null {
@@ -113,14 +126,14 @@ export class HairShadingPlugin extends BABYLON.MaterialPluginBase {
         #ifdef GAMMAALBEDO
           hT = toLinearSpace(hT);
         #endif
-        float hL = dot(hT, vec3(0.2126, 0.7152, 0.0722));
-        #ifdef HAIRGREY
-          // A coloured texture read as grey, so the base colour is the colour.
-          surfaceAlbedo = vAlbedoColor.rgb * vec3(hL);
-        #endif
+        // The texture's brightness about its own mean: 1 is an average strand.
+        float hL = dot(hT, vec3(0.2126, 0.7152, 0.0722)) / hairMean;
+        // The texture read as grey, so the base colour is the colour (its own
+        // colour, for libraries whose hair is drawn coloured, is dropped).
+        surfaceAlbedo = vAlbedoColor.rgb * vec3(hL);
         // The brighter strands lean to the highlight, at their own brightness.
-        float hK = smoothstep(0.45, 0.9, hL / ${TEXTURE_MEAN.toFixed(2)} * 0.5) * hairHighlight.a;
-        surfaceAlbedo = mix(surfaceAlbedo, hairHighlight.rgb * hL / ${TEXTURE_MEAN.toFixed(2)}, hK);
+        float hK = smoothstep(0.9, 1.8, hL) * hairHighlight.a;
+        surfaceAlbedo = mix(surfaceAlbedo, hairHighlight.rgb * hL, hK);
       }
       #endif`,
     }
@@ -150,14 +163,27 @@ export function hairShading(
   if (plugin == null) throw new Error('hair-shading: plugin not registered')
   plugin.desaturate = options.desaturate ?? false
   plugin.isEnabled = true
+  const tex = material.albedoTexture
+  if (tex) {
+    const measure = () => {
+      void tex.readPixels()?.then((data) => {
+        const b = data as Uint8Array
+        // Only where there is hair: the card's clear parts are not strands.
+        let sum = 0
+        let n = 0
+        for (let i = 0; i < b.length; i += 4 * 29) {
+          if (b[i + 3] < 128) continue
+          sum += 0.2126 * toLin(b[i] / 255) + 0.7152 * toLin(b[i + 1] / 255) + 0.0722 * toLin(b[i + 2] / 255)
+          n++
+        }
+        if (n > 0) plugin.mean = sum / n
+      })
+    }
+    if (tex.isReady()) measure()
+    else (tex as BABYLON.Texture).onLoadObservable?.addOnce(measure)
+  }
   const setColours = (base: string, highlight: string) => {
-    const b = linear(base)
-    const k = 1 / TEXTURE_MEAN
-    material.albedoColor = new BABYLON.Color3(
-      Math.min(1, b.r * k),
-      Math.min(1, b.g * k),
-      Math.min(1, b.b * k)
-    )
+    material.albedoColor = linear(base)
     plugin.highlight = linear(highlight)
     // The strand sheen takes the highlight.
     if (material.sheen.isEnabled) material.sheen.color = plugin.highlight.clone()

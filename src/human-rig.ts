@@ -252,9 +252,9 @@ export function humanSkin(pack: HumanPack): HumanSkin {
 }
 
 /**
- * Make the head rigid in `weights` (in place): skin above the head joint
- * moves wholly with the head bone, blended in over `blend` metres so the neck
- * has no seam. Bone heat shares the face between head and neck, so the
+ * Make the head rigid in `weights` (in place): skin above the head joint,
+ * and the face in front of it down to under the chin, moves wholly with the
+ * head bone, blended in so the neck has no seam. Bone heat shares the face between head and neck, so the
  * eyelids slid over the eyeballs (which ride the head) whenever a clip moved
  * the neck. `positions` are the compact skin's (xyz), `rig` the fitted rig.
  */
@@ -270,11 +270,21 @@ export function stiffenHead(
   if (head < 0 || at == null) return
   const blend = options.blend ?? 0.04
   const n = positions.length / 3
+  const smooth = (x: number, a: number, b: number) => {
+    const t = Math.min(1, Math.max(0, (x - a) / (b - a)))
+    return t * t * (3 - 2 * t)
+  }
   for (let v = 0; v < n; v++) {
-    const rise = positions[v * 3 + 1] - at.y
-    const t = Math.min(1, Math.max(0, rise / blend))
-    if (t === 0) continue
-    const k = t * t * (3 - 2 * t)
+    const y = positions[v * 3 + 1]
+    const z = positions[v * 3 + 2]
+    // Above the head joint (which is at about nose height on hm08)...
+    const above = smooth(y - at.y, 0, blend)
+    // ...and the FACE below it: in front of the joint, down to under the chin.
+    // The jaw is part of the head; left to the neck, the face sheared
+    // whenever a clip turned the neck (Idle's look-around most).
+    const face = smooth(z - at.z, 0.02, 0.045) * smooth(y - at.y, -0.1, -0.085)
+    const k = Math.max(above, face)
+    if (k === 0) continue
     // Scale the others down and give the head what they lose.
     let toHead = 0
     let slot = -1

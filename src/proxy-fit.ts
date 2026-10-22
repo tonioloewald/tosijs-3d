@@ -215,16 +215,18 @@ export function proxyWeights(proxy: ProxyBinding, base: VertexWeights): VertexWe
 export function coveredTriangles(
   triangles: ArrayLike<number>,
   vertices: ArrayLike<number>,
-  deleted: Iterable<number>
+  deleted: Iterable<number>,
+  /** `any`: drop a triangle touching a covered vertex; `all`: only one wholly covered. */
+  mode: 'any' | 'all' = 'any'
 ): Uint32Array {
-  const gone = new Set(deleted)
+  const gone = deleted instanceof Set ? (deleted as Set<number>) : new Set(deleted)
   const keep: number[] = []
   for (let t = 0; t < triangles.length; t += 3) {
-    const a = triangles[t]
-    const b = triangles[t + 1]
-    const c = triangles[t + 2]
-    if (gone.has(vertices[a]) || gone.has(vertices[b]) || gone.has(vertices[c])) continue
-    keep.push(a, b, c)
+    const a = gone.has(vertices[triangles[t]])
+    const b = gone.has(vertices[triangles[t + 1]])
+    const c = gone.has(vertices[triangles[t + 2]])
+    if (mode === 'all' ? a && b && c : a || b || c) continue
+    keep.push(triangles[t], triangles[t + 1], triangles[t + 2])
   }
   return Uint32Array.from(keep)
 }
@@ -241,7 +243,9 @@ export function underCover(
   cover: ArrayLike<number>,
   points: ArrayLike<number>,
   triangles: ArrayLike<number>,
-  sectors = 24
+  sectors = 24,
+  /** Positions to tuck in place (usually `points` itself, as a Float32Array). */
+  tuck?: Float32Array
 ): Uint32Array {
   let cx = 0
   let cz = 0
@@ -272,10 +276,25 @@ export function underCover(
     const a = triangles[t]
     const b = triangles[t + 1]
     const c = triangles[t + 2]
-    // Only what is wholly under the hat: a triangle across the brim stays and
-    // tucks up inside it (dropping it left bare scalp just below the brim).
+    // Only what is wholly under the hat: a triangle across the brim stays,
+    // its covered corners tucked in (below), not cut (cutting left bare scalp
+    // just under the brim).
     if (hidden(a) && hidden(b) && hidden(c)) continue
     keep.push(a, b, c)
+  }
+  // Tuck: draw each covered point in toward the hat's axis, so a triangle
+  // across the brim runs up inside the hat rather than through it.
+  if (tuck != null) {
+    for (let v = 0; v < points.length / 3; v++) {
+      if (!hidden(v)) continue
+      const x = tuck[v * 3] - cx
+      const z = tuck[v * 3 + 2] - cz
+      const r = Math.hypot(x, z) || 1
+      const s = sector(points[v * 3], points[v * 3 + 2])
+      const k = Math.max(0, Math.min(1, (reach[s] * 0.85) / r))
+      tuck[v * 3] = cx + x * k
+      tuck[v * 3 + 2] = cz + z * k
+    }
   }
   return Uint32Array.from(keep)
 }

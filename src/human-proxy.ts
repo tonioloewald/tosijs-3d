@@ -39,7 +39,10 @@ export function proxyMaterial(
   const textures = alt ?? proxy.material
   const m = new BABYLON.PBRMaterial(`proxy-${proxy.name}${alt ? `-${look}` : ''}`, scene)
   m.metallic = 0
-  m.roughness = proxy.category === 'clothes' ? 0.8 : 0.45
+  // Hair is many fine strands, which scatter light: a broad, soft highlight,
+  // not a mirror. At 0.45 under an environment it shone like wet plastic.
+  m.roughness = proxy.category === 'clothes' ? 0.8 : 0.72
+  if (proxy.category !== 'clothes') m.environmentIntensity = 0.5
   if (textures.diffuse) {
     // OBJ's V runs up, as an image loaded with Babylon's default flip expects.
     m.albedoTexture = new BABYLON.Texture(textures.diffuse, scene)
@@ -99,19 +102,41 @@ export function humanProxy(
 }
 
 /**
- * Hide the body's skin under what it wears: its triangles less those on the
- * base vertices the proxies cover. `triangles` and `vertices` are the
- * body's compact skin (`humanSkin`).
+ * Hide the body's skin under what it wears. Triangles wholly under a garment
+ * are dropped, and the skin it covers is TUCKED: drawn in along its normal by
+ * `tuck` metres, so where a garment's edge and its listed vertices disagree
+ * the skin dips under the edge instead of leaving a hole. `triangles` and
+ * `vertices` are the body's compact skin (`humanSkin`).
  */
 export function coverBody(
   built: BuiltRig,
   triangles: ArrayLike<number>,
   vertices: ArrayLike<number>,
-  wearing: (HumanProxy | null)[]
+  wearing: (HumanProxy | null)[],
+  options: { tuck?: number } = {}
 ): void {
-  const deleted: number[] = []
-  for (const p of wearing) if (p?.delete) deleted.push(...p.delete)
-  built.mesh.setIndices(
-    deleted.length ? coveredTriangles(triangles, vertices, deleted) : Array.from(triangles)
+  const mesh = built.mesh
+  // The untucked shape, kept from the first call (tucks must not accumulate).
+  const meta = (mesh.metadata ??= {}) as { untucked?: Float32Array; normals?: Float32Array }
+  if (meta.untucked == null) {
+    meta.untucked = Float32Array.from(mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)!)
+    meta.normals = Float32Array.from(mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind)!)
+  }
+  const deleted = new Set<number>()
+  for (const p of wearing) if (p?.delete) for (const v of p.delete) deleted.add(v)
+  const positions = Float32Array.from(meta.untucked)
+  const tuck = options.tuck ?? 0.006
+  const n = meta.normals!
+  for (let i = 0; i < vertices.length; i++) {
+    if (!deleted.has(vertices[i])) continue
+    positions[i * 3] -= n[i * 3] * tuck
+    positions[i * 3 + 1] -= n[i * 3 + 1] * tuck
+    positions[i * 3 + 2] -= n[i * 3 + 2] * tuck
+  }
+  // set, not update: an update to a buffer made without `updatable` is a
+  // silent no-op in Babylon.
+  mesh.setVerticesData(BABYLON.VertexBuffer.PositionKind, positions, true)
+  mesh.setIndices(
+    deleted.size ? coveredTriangles(triangles, vertices, deleted, 'all') : Array.from(triangles)
   )
 }

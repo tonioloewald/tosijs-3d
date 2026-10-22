@@ -241,7 +241,12 @@ preview.append(
               if (mesh.name.startsWith('hair-')) {
                 for (let i = 0; i < p.length; i += 3) { p[i] += at.x; p[i + 1] += at.y; p[i + 2] += at.z }
               }
-              mesh.setIndices(Array.from(underCover(crown, p, mesh.getIndices())))
+              const tucked = Float32Array.from(p)
+              mesh.setIndices(Array.from(underCover(crown, p, mesh.getIndices(), 24, tucked)))
+              if (mesh.name.startsWith('hair-')) {
+                for (let i = 0; i < tucked.length; i += 3) { tucked[i] -= at.x; tucked[i + 1] -= at.y; tucked[i + 2] -= at.z }
+              }
+              mesh.setVerticesData('position', tucked, true)
             }
           }
           refabric()
@@ -513,7 +518,10 @@ export function skinMaterial(
   ) as SkinMaterial
   m.metallic = 0
   // A little gloss: skin's oil gives it a soft sheen, not a matte finish.
-  m.roughness = 0.42
+  m.roughness = 0.5
+  // But it reflects its surroundings only faintly: at full strength a studio
+  // environment made very dark skin look like polished stone.
+  m.environmentIntensity = 0.3
   m.setSkin = (tone, redness = 0.5) => {
     const c = skinAlbedo(tone, redness)
     // PBR's albedo is linear, as glTF's base colour is.
