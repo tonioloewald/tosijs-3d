@@ -26,6 +26,10 @@ expect from a 3D viewer, on every device. `<tosi-b3d>`'s default camera and
 - **A wheel over a panel is the panel's**: panels take it before the canvas
   sees it, so a list scrolls and the scene stays put.
 
+- **Zoom stops short of the target**: with no `lowerRadiusLimit` of your own,
+  it is set to twice the camera's near plane (at least 1 cm), because Babylon
+  has none and zooming in went through the target and flipped the view.
+
 Returns a function that restores Babylon's handlers.
 
 ## Two fingers: pan OR zoom, decided once
@@ -73,6 +77,11 @@ export function touchOrbit(
   // and a page may have called it already.
   const done = (camera as any)._tosiTouchOrbit as (() => void) | undefined
   if (done != null) return done
+  // Zoom stops short of the target: Babylon's default has no floor, and the
+  // radius went through zero and the view flipped. A limit a page set wins.
+  if (camera.lowerRadiusLimit == null || camera.lowerRadiusLimit <= 0) {
+    camera.lowerRadiusLimit = Math.max(0.01, camera.minZ * 2)
+  }
   const pointers = camera.inputs?.attached?.pointers as
     | BABYLON.ArcRotateCameraPointersInput
     | undefined

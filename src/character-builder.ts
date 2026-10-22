@@ -18,10 +18,10 @@ bone heat's, worked out from the mesh once when the page loads. The eyes
 head and fitted to this one.
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, hairShading, HAIR_COLOURS, color3d, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, hairShading, HAIR_COLOURS, colorPicker3d, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'Hair_SimpleParted', beard: 'none', brows: 'Eyebrows_Regular', hairPreset: 'brown', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, beardUp: 0, beardForward: 0, outfit: 'male_casualsuit02', shoes: 'shoes01', hat: 'none', paused: false } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'Hair_SimpleParted', beard: 'none', brows: 'Eyebrows_Regular', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, beardUp: 0, beardForward: 0, outfit: 'male_casualsuit02', shoes: 'shoes01', hat: 'none', paused: false } })
 let mat = null
 let paint = () => {}
 let eyes = null
@@ -58,10 +58,10 @@ preview.append(
         select3d({ label: 'hair', value: walker.hair, options: styles.hair }),
         select3d({ label: 'beard', value: walker.beard, options: styles.beard }),
         select3d({ label: 'brows', value: walker.brows, options: styles.brows }),
-        // A base and a highlight; a preset sets both, the pickers go anywhere.
-        select3d({ label: 'colour', value: walker.hairPreset, options: Object.keys(HAIR_COLOURS) }),
-        color3d({ label: 'base', value: walker.hairBase.value, alpha: false, aspect: 0.4, handleChange: (hex) => { walker.hairBase.value = hex } }),
-        color3d({ label: 'highlights', value: walker.hairHighlight.value, alpha: false, aspect: 0.4, handleChange: (hex) => { walker.hairHighlight.value = hex } }),
+        // A base and a highlight, each a swatch that opens a picker with presets;
+        // a base preset brings its usual highlight with it.
+        colorPicker3d({ label: 'base', value: walker.hairBase, alpha: false, defaultPresets: 'off', presets: Object.entries(HAIR_COLOURS).map(([name, c]) => ({ name, value: c.base })) }),
+        colorPicker3d({ label: 'highlights', value: walker.hairHighlight, alpha: false, defaultPresets: 'off', presets: Object.entries(HAIR_COLOURS).map(([name, c]) => ({ name, value: c.highlight })) }),
         // A hand adjustment, metres and a scale, after the fit.
         slider3d({ label: 'up', value: walker.hairUp, min: -0.02, max: 0.02, step: 0.001 }),
         slider3d({ label: 'forward', value: walker.hairForward, min: -0.02, max: 0.02, step: 0.001 }),
@@ -216,12 +216,10 @@ preview.append(
         const recolour = () => { for (const sh of shades) sh.setColours(walker.hairBase.value, walker.hairHighlight.value) }
         walker.hairBase.observe(recolour)
         walker.hairHighlight.observe(recolour)
-        walker.hairPreset.observe(() => {
-          const p = HAIR_COLOURS[walker.hairPreset.value]
-          if (!p) return
-          walker.hairBase.value = p.base
-          walker.hairHighlight.value = p.highlight
-          el.refreshScenePanel?.()
+        // Picking a base preset brings its usual highlight.
+        walker.hairBase.observe(() => {
+          const pair = Object.values(HAIR_COLOURS).find((c) => c.base === walker.hairBase.value)
+          if (pair && walker.hairHighlight.value !== pair.highlight) walker.hairHighlight.value = pair.highlight
         })
         for (const key of Object.keys(DEFAULT_HUMAN_BODY)) walker[key].observe(() => rebuild())
         walker.tone.observe(() => paint())
