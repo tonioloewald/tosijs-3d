@@ -18,10 +18,10 @@ bone heat's, worked out from the mesh once when the page loads. The eyes
 head and fitted to this one.
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0 } })
 let mat = null
 let paint = () => {}
 let eyes = null
@@ -63,6 +63,13 @@ preview.append(
         slider3d({ label: 'redness', value: walker.redness, min: 0, max: 1, step: 0.01 }),
         label3d({ text: 'Eyes', collapsible: true }),
         slider3d({ label: 'eye colour', value: walker.iris, min: 0, max: 1, step: 0.01 }),
+        label3d({ text: 'Face', collapsible: true }),
+        toggle3d({ label: 'blink', value: walker.blink }),
+        toggle3d({ label: 'talk', value: walker.talk }),
+        toggle3d({ label: 'mic (lip sync)', value: walker.mic }),
+        slider3d({ label: 'smile', value: walker.smile, min: 0, max: 1, step: 0.01 }),
+        slider3d({ label: 'brows up', value: walker.browsUp, min: 0, max: 1, step: 0.01 }),
+        slider3d({ label: 'frown', value: walker.frown, min: 0, max: 1, step: 0.01 }),
         label3d({ text: 'Hair', collapsible: true }),
         select3d({ label: 'hair', value: walker.hair, options: styles.hair }),
         select3d({ label: 'beard', value: walker.beard, options: styles.beard }),
@@ -132,7 +139,7 @@ preview.append(
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
 
-        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 10)).catch((e) => {
+        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 12)).catch((e) => {
           el.setLoading(`could not load the body: ${e.message}`, { spin: false })
           throw e
         })
@@ -193,7 +200,7 @@ preview.append(
           if (!built || !scalp) return
           const token = ++dressing
           // What it wears from the pack (bound), fetched before anything changes.
-          const slots = [...SLOTS, 'hair', 'brows', 'beard', 'moustache'].map((k) => walker[k].value).filter((n) => proxies[n])
+          const slots = [...[...SLOTS, 'hair', 'brows', 'beard', 'moustache'].map((k) => walker[k].value), 'teeth_base', 'tongue01'].filter((n) => proxies[n])
           const wearing = await Promise.all(slots.map((n) => pack.proxy(n)))
           if (token !== dressing) return
           for (const m of hairMeshes) m.dispose()
@@ -216,8 +223,8 @@ preview.append(
               const m = proxyMaterial(scene, proxy, look)
               // MakeHuman's hair, brows and beards take the hair colours too;
               // clothes take a fabric and a recolour.
-              if (proxy.category !== 'clothes') shades.push(hairShading(m, { desaturate: true, base: walker.hairBase.value, highlight: walker.hairHighlight.value }))
-              else clothes.set(m, clothShading(m))
+              if (['hair', 'eyebrows', 'beard'].includes(proxy.category)) shades.push(hairShading(m, { desaturate: true, base: walker.hairBase.value, highlight: walker.hairHighlight.value }))
+              else if (proxy.category === 'clothes') clothes.set(m, clothShading(m))
               proxyMaterials.set(key, m)
             }
             const m = proxyMaterials.get(key)
@@ -261,7 +268,28 @@ preview.append(
           }
           stand.position.y = -built.rig.at('root').y + sole
           // Skin under clothes is hidden, so it cannot show through.
-          coverBody(built, skin.triangles, skin.vertices, wearing)
+          // The garments as fitted, for the skin they cover but do not list.
+          const drawn = new Map(wearing.filter((p) => p.category === 'clothes').map((p) => [p.name, drawnPositions(p, fitProxy(p, current))]))
+          coverBody(built, skin.triangles, skin.vertices, wearing, { drawn })
+          // Everything that moves with the face, after the tuck (its rest).
+          if (el.builder.expressions) {
+            const expr = el.builder.expressions
+            expr.attach(built.mesh, (d) => skin.positions(d))
+            for (const m of face?.meshes ?? []) {
+              const pv = m.metadata?.packVertices
+              // The eyeballs turn; they never deform.
+              if (!pv || m.name.startsWith('eye_')) continue
+              expr.attach(m, (d) => {
+                const out = new Float32Array(pv.length * 3)
+                for (let i = 0; i < pv.length; i++) { out[i * 3] = d[pv[i] * 3]; out[i * 3 + 1] = d[pv[i] * 3 + 1]; out[i * 3 + 2] = d[pv[i] * 3 + 2] }
+                return out
+              })
+            }
+            for (const proxy of wearing) {
+              const mesh = hairMeshes.find((m) => m.name === `proxy-${proxy.name}`)
+              if (mesh) expr.attach(mesh, (d) => proxyDelta(proxy, d))
+            }
+          }
           el.register({ meshes: hairMeshes })
         }
         for (const key of ['hair', 'beard', 'moustache', 'brows', 'hairUp', 'hairForward', 'hairSize', ...SLOTS]) walker[key].observe(() => dress())
@@ -338,6 +366,48 @@ preview.append(
         skin.vertices.forEach((v, i) => { known[v] = i })
         const allWeights = nearestWeights(first, known, weights)
         let current = first
+
+        // The face: MakeHuman's face pose units as morph targets, in layers.
+        const expr = humanExpressions(scene, await faceDeltas(pack))
+        el.builder.expressions = expr
+        let stopBlink = null
+        const blinking = () => {
+          stopBlink?.()
+          stopBlink = walker.blink.value ? blinker(scene, expr) : null
+        }
+        walker.blink.observe(blinking)
+        blinking()
+        lidsFollow(scene, expr, () => face)
+        let stopTalk = null
+        walker.talk.observe(() => {
+          stopTalk?.()
+          stopTalk = walker.talk.value ? babble(scene, expr) : null
+        })
+        let stopMic = null
+        walker.mic.observe(async () => {
+          stopMic?.()
+          stopMic = null
+          if (!walker.mic.value) return
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+            const ctx = new AudioContext()
+            const analyser = ctx.createAnalyser()
+            ctx.createMediaStreamSource(stream).connect(analyser)
+            const stop = lipSync(scene, expr, analyser, { gain: 1.5 })
+            stopMic = () => { stop(); stream.getTracks().forEach((t) => t.stop()); ctx.close() }
+          } catch (e) {
+            walker.mic.value = false
+            console.warn('lip sync: no microphone', e)
+          }
+        })
+        const mood = expr.layer('mood')
+        const feel = () => {
+          const s = walker.smile.value
+          const b = walker.browsUp.value
+          const f = walker.frown.value
+          mood.setMany({ MouthLeftPullUp: s, MouthRightPullUp: s, LeftCheekUp: s * 0.6, RightCheekUp: s * 0.6, LeftOuterBrowUp: b, RightOuterBrowUp: b, LeftInnerBrowUp: b, RightInnerBrowUp: b, LeftBrowDown: f, RightBrowDown: f })
+        }
+        for (const k of ['smile', 'browsUp', 'frown']) walker[k].observe(feel)
 
         mat = skinMaterial(scene, { tone: walker.tone.value, redness: walker.redness.value })
         // The skin's colour, and the lips' as vertex colours over it.

@@ -160,6 +160,7 @@ function partMesh(
   parent: BABYLON.Node
 ): BABYLON.Mesh {
   const remap = new Int32Array(part.vertices.length).fill(-1)
+  const source: number[] = []
   const pos: number[] = []
   const uvs: number[] = []
   const indices: number[] = []
@@ -170,6 +171,7 @@ function partMesh(
       const c = t[i + k]
       if (remap[c] < 0) {
         remap[c] = pos.length / 3
+        source.push(part.vertices[c])
         const v = part.vertices[c] * 3
         pos.push(
           positions[v] - origin.x,
@@ -182,6 +184,8 @@ function partMesh(
     }
   }
   const mesh = new BABYLON.Mesh(name, scene)
+  // Which pack vertex each of its vertices is (expressions move them).
+  mesh.metadata = { packVertices: Uint32Array.from(source) }
   const data = new BABYLON.VertexData()
   data.positions = pos
   data.indices = indices

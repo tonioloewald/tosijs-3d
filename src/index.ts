@@ -1808,10 +1808,24 @@ export {
   coveredTriangles,
   underCover,
   inflate,
+  proxyDelta,
+  coveredBy,
 } from './proxy-fit.js'
 export type { ProxyBinding, VertexWeights } from './proxy-fit.js'
 export { humanProxy, proxyMaterial, coverBody } from './human-proxy.js'
 export { clothShading, FABRICS } from './cloth-shading.js'
+export {
+  faceDeltas,
+  humanExpressions,
+  blinker,
+  lidsFollow,
+  lipSync,
+  babble,
+  VISEMES,
+  UNITS as FACE_POSE_UNITS,
+  FACE_UNITS,
+} from './human-expression.js'
+export type { HumanExpressions, FaceLayer } from './human-expression.js'
 export { studioEnvironment } from './environment.js'
 export type { StudioEnvironmentOptions } from './environment.js'
 export type { ClothShading, ClothLook, Fabric } from './cloth-shading.js'

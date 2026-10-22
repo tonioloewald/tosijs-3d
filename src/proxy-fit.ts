@@ -319,3 +319,79 @@ export function inflate(
   }
   return positions
 }
+
+/**
+ * How a proxy's drawn vertices move when the body's vertices move by `delta`
+ * (xyz per base vertex): the binding's weights applied to the movement (the
+ * offsets' scale is left as it was; an expression barely changes it).
+ */
+export function proxyDelta(proxy: ProxyBinding, delta: ArrayLike<number>): Float32Array {
+  const out = new Float32Array(proxy.source.length * 3)
+  for (let i = 0; i < proxy.source.length; i++) {
+    const r = proxy.source[i]
+    for (let k = 0; k < 3; k++) {
+      let d = 0
+      for (let c = 0; c < 3; c++) d += proxy.weight[r * 3 + c] * delta[proxy.ref[r * 3 + c] * 3 + k]
+      out[i * 3 + k] = d
+    }
+  }
+  return out
+}
+
+/**
+ * Which of a body's vertices a garment covers, by geometry: a body vertex is
+ * covered when some garment vertex lies just outside it, within `reach`
+ * metres along its outward normal (and within `reach / 2` of that line). For
+ * garments whose own covered list is short or missing, so the skin under them
+ * can be tucked away. Returns, per body vertex, how far out the garment is
+ * (Infinity where it does not cover). All positions in one frame.
+ */
+export function coveredBy(
+  body: ArrayLike<number>,
+  normals: ArrayLike<number>,
+  garment: ArrayLike<number>,
+  reach = 0.03
+): Float32Array {
+  const cell = reach
+  const key = (x: number, y: number, z: number) =>
+    `${Math.floor(x / cell)},${Math.floor(y / cell)},${Math.floor(z / cell)}`
+  const grid = new Map<string, number[]>()
+  for (let i = 0; i < garment.length; i += 3) {
+    const k = key(garment[i], garment[i + 1], garment[i + 2])
+    let l = grid.get(k)
+    if (l == null) grid.set(k, (l = []))
+    l.push(i)
+  }
+  const n = body.length / 3
+  const out = new Float32Array(n).fill(Infinity)
+  for (let v = 0; v < n; v++) {
+    const x = body[v * 3]
+    const y = body[v * 3 + 1]
+    const z = body[v * 3 + 2]
+    const nx = normals[v * 3]
+    const ny = normals[v * 3 + 1]
+    const nz = normals[v * 3 + 2]
+    const cx = Math.floor(x / cell)
+    const cy = Math.floor(y / cell)
+    const cz = Math.floor(z / cell)
+    let best = Infinity
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dz = -1; dz <= 1; dz++) {
+          for (const i of grid.get(`${cx + dx},${cy + dy},${cz + dz}`) ?? []) {
+            const ox = garment[i] - x
+            const oy = garment[i + 1] - y
+            const oz = garment[i + 2] - z
+            const along = ox * nx + oy * ny + oz * nz
+            if (along < -0.002 || along > reach) continue
+            const off2 = ox * ox + oy * oy + oz * oz - along * along
+            if (off2 > (reach * reach) / 4) continue
+            if (along < best) best = along
+          }
+        }
+      }
+    }
+    out[v] = best
+  }
+  return out
+}

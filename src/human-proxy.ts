@@ -18,6 +18,7 @@ import * as BABYLON from '@babylonjs/core'
 import type { HumanProxy } from './human-pack.js'
 import type { BuiltRig } from './rig-build.js'
 import {
+  coveredBy,
   coveredTriangles,
   drawnPositions,
   fitProxy,
@@ -103,7 +104,8 @@ export function humanProxy(
 
 /**
  * Hide the body's skin under what it wears. Triangles wholly under a garment
- * are dropped, and the skin it covers is TUCKED: drawn in along its normal by
+ * are dropped, and the skin it covers (listed, or found by `coveredBy` from
+ * `drawn`) is TUCKED: drawn in along its normal by
  * `tuck` metres, so where a garment's edge and its listed vertices disagree
  * the skin dips under the edge instead of leaving a hole. `triangles` and
  * `vertices` are the body's compact skin (`humanSkin`).
@@ -113,7 +115,14 @@ export function coverBody(
   triangles: ArrayLike<number>,
   vertices: ArrayLike<number>,
   wearing: (HumanProxy | null)[],
-  options: { tuck?: number } = {}
+  options: {
+    tuck?: number
+    /**
+     * The worn garments' drawn positions (by proxy name, the pack's frame),
+     * so skin they cover but do not list is found by geometry and tucked too.
+     */
+    drawn?: Map<string, Float32Array>
+  } = {}
 ): void {
   const mesh = built.mesh
   // The untucked shape, kept from the first call (tucks must not accumulate).
@@ -127,11 +136,26 @@ export function coverBody(
   const positions = Float32Array.from(meta.untucked)
   const tuck = options.tuck ?? 0.006
   const n = meta.normals!
+  // How deep each compact vertex goes: listed ones by `tuck`; ones a garment
+  // covers by geometry deeper (knees and thighs bend under trousers).
+  const depth = new Float32Array(vertices.length)
+  for (let i = 0; i < vertices.length; i++) if (deleted.has(vertices[i])) depth[i] = tuck
+  for (const p of wearing) {
+    if (p == null || p.category !== 'clothes') continue
+    const g = options.drawn?.get(p.name)
+    if (g == null) continue
+    const gap = coveredBy(meta.untucked, n, g)
+    const lower = p.slot === 'bottom' || p.slot === 'outfit'
+    for (let i = 0; i < gap.length; i++) {
+      if (gap[i] === Infinity) continue
+      depth[i] = Math.max(depth[i], (lower ? 0.014 : 0.008) + gap[i] * 0.5)
+    }
+  }
   for (let i = 0; i < vertices.length; i++) {
-    if (!deleted.has(vertices[i])) continue
-    positions[i * 3] -= n[i * 3] * tuck
-    positions[i * 3 + 1] -= n[i * 3 + 1] * tuck
-    positions[i * 3 + 2] -= n[i * 3 + 2] * tuck
+    if (depth[i] === 0) continue
+    positions[i * 3] -= n[i * 3] * depth[i]
+    positions[i * 3 + 1] -= n[i * 3 + 1] * depth[i]
+    positions[i * 3 + 2] -= n[i * 3 + 2] * depth[i]
   }
   // set, not update: an update to a buffer made without `updatable` is a
   // silent no-op in Babylon.

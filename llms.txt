@@ -369,6 +369,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Hair coloured the way a colourist describes it: a BASE colour and a
 - https://3d.tosijs.net/input-internals/ — How input works
   pad, touch, VR controllers, an AI) produces the same `ControlInput`, and every
+- https://3d.tosijs.net/human-expression/ — human-expression
+  A [character builder](/character-builder/) face that blinks, talks and
 - https://3d.tosijs.net/human-face/ — human-face
   Eyes and eyelashes for a [character builder](/character-builder/) body, and
 - https://3d.tosijs.net/human-hair/ — human-hair
