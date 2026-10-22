@@ -12,17 +12,19 @@ plays UAL's clips at any shape.
 
 Open the settings (the owl): the body sliders reshape it
 while it walks, since every body carries its own joints. The skin weights are
-bone heat's, worked out from the mesh once when the page loads.
+bone heat's, worked out from the mesh once when the page loads. The eyes
+([human-face](/human-face/)) follow the camera.
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div } = elements
 
 const status = div({ class: 'status' }, 'loading the animations…')
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, clip: 'Walk_Loop', tone: 0.3, redness: 0.5 } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2 } })
 let mat = null
 let paint = () => {}
+let eyes = null
 const clips = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Dance_Loop', 'Crouch_Fwd_Loop']
 let rebuild = () => {}
 
@@ -44,6 +46,7 @@ preview.append(
         label3d({ text: 'Skin' }),
         slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01, handleChange: () => paint() }),
         slider3d({ label: 'redness', value: walker.redness, min: 0, max: 1, step: 0.01, handleChange: () => paint() }),
+        slider3d({ label: 'eyes', value: walker.iris, min: 0, max: 1, step: 0.01, handleChange: () => eyes?.setIris(walker.iris.value) }),
         label3d({ text: 'Ancestry' }),
         slider('african', 'african'),
         slider('asian', 'asian'),
@@ -66,7 +69,7 @@ preview.append(
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
 
-        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 3)).catch((e) => {
+        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 4)).catch((e) => {
           status.textContent = `could not load the body: ${e.message}`
           throw e
         })
@@ -74,7 +77,12 @@ preview.append(
         // Let the message paint before the binding takes the thread.
         await new Promise((r) => setTimeout(r, 50))
         const skin = humanSkin(pack)
-        const lips = await pack.region('lips')
+        const [lips, eyePart, lashPart] = await Promise.all([pack.region('lips'), pack.part('eyes'), pack.part('eyelashes')])
+        eyes = eyeTexture(scene, { iris: walker.iris.value })
+        const faceMaterials = { eye: eyeMaterial(scene, eyes), lashes: lashMaterial(scene) }
+        let face = null
+        // The eyes find the camera.
+        eyeGaze(scene, { get eyes() { return face?.eyes ?? [] }, get forward() { return face?.forward ?? [] } }, () => cam.position)
         const body = () => {
           const b = {}
           for (const k of Object.keys(DEFAULT_HUMAN_BODY)) b[k] = Number(walker[k].value)
@@ -111,12 +119,14 @@ preview.append(
           busy = true
           const full = await morphHuman(pack, body())
           const rig = humanRig(pack.manifest, full)
+          face?.dispose()
           built?.dispose()
           built = buildRig(scene, 'walker', skin.positions(full), skin.triangles, rig, weights)
+          face = humanFace(scene, built, rig, pack.manifest, full, { eyes: eyePart, eyelashes: lashPart }, faceMaterials)
           built.mesh.material = mat
           built.root.parent = stand
           stand.position.y = -rig.at('root').y
-          el.register({ meshes: [built.mesh] })
+          el.register({ meshes: [built.mesh, ...face.meshes] })
           paint()
           read = readSkeleton(built.skeleton, built.root)
           play()

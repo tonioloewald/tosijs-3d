@@ -285,6 +285,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   mine shafts — everything a heightfield cannot say, because a heightfield has one
 - https://3d.tosijs.net/CHANGELOG/ — Changelog
   All notable changes to **tosijs-3d**, one page per version: each lives in
+- https://3d.tosijs.net/character-builder/ — character builder
+  creator (CHARACTER-DESIGN.md): MakeHuman's CC0 body
 - https://3d.tosijs.net/characters-and-vehicles/ — Characters and vehicles
   climbs; an [aircraft](/b3d-aircraft/) that hovers like a drone and flies like a
 - https://3d.tosijs.net/cloud-shadows/ — cloud-shadows
@@ -357,6 +359,14 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   round, one leads a gun, and both are used by [[b3d-launcher]] and
 - https://3d.tosijs.net/input-internals/ — How input works
   pad, touch, VR controllers, an AI) produces the same `ControlInput`, and every
+- https://3d.tosijs.net/human-face/ — human-face
+  Eyes and eyelashes for a [character builder](/character-builder/) body, and
+- https://3d.tosijs.net/human-morph/ — human-morph
+  The body sliders of the character creator (CHARACTER-DESIGN.md), as pure
+- https://3d.tosijs.net/human-pack/ — human-pack
+  A **human pack** is a base body as data: its mesh, its joints and its shape
+- https://3d.tosijs.net/human-rig/ — human-rig
+  UAL's 65-joint skeleton on a [human pack](/human-pack/)'s body, placed from
 - https://3d.tosijs.net/icon-grid/ — Icon grid
   picker.** A grid of icons with optional captions, as a `Widget3d`, so it works
 - https://3d.tosijs.net/ui-in-scene/ — In the scene and XR
@@ -447,6 +457,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   The **selection-state glyph**: `circle` / `checkCircle` for single-select (radio),
 - https://3d.tosijs.net/shadow-decal/ — shadow-decal
   A **soft blob shadow** — the oldest trick in real-time 3D, and still the right one in a lot of
+- https://3d.tosijs.net/skin-tone/ — skin-tone
+  A skin's colour from one dial, very fair (0) through to very dark (1), plus
 - https://3d.tosijs.net/sky-and-light/ — Sky and light
   fills the shadows; [lamps](/b3d-lamp/) are lights you can see, with a fixture.
 - https://3d.tosijs.net/skybox-baker/ — Skybox Baker

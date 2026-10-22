@@ -147,6 +147,26 @@ describe.skipIf(!havePack)('hm08, rigged from its joint cubes', () => {
     expect(at('ball_leaf_l').z).toBeGreaterThan(at('foot_l').z + 0.1)
     expect(humanSkin(pack).vertices.length).toBe(13380)
   })
+
+  test('eyes and lashes are parts over the body’s own vertices, so shapes move them', async () => {
+    const pack = await loadHumanPack(PACK, fromDisk)
+    const eyes = (await pack.part('eyes'))!
+    const lashes = (await pack.part('eyelashes'))!
+    expect(eyes.uvs!.length).toBe(eyes.vertices.length * 2)
+    expect(lashes.uvs).toBeNull()
+    for (const p of [eyes, lashes]) {
+      for (const t of p.triangles) expect(t).toBeLessThan(p.vertices.length)
+      for (const v of p.vertices) expect(v).toBeLessThan(pack.manifest.vertexCount)
+    }
+    // Each eye sits around its eye joint: half the eye vertices each side.
+    const p = await morphHuman(pack, macroWeights(DEFAULT_HUMAN_BODY))
+    const left = [...eyes.vertices].filter((v) => p[v * 3] > 0).length
+    expect(left * 2).toBe(eyes.vertices.length)
+    const [, eyeY] = humanJoint(p, pack.manifest.joints['eye.L____head'])
+    const tall = await morphHuman(pack, macroWeights({ ...DEFAULT_HUMAN_BODY, height: 1 }))
+    const [, tallY] = humanJoint(tall, pack.manifest.joints['eye.L____head'])
+    expect(tallY).toBeGreaterThan(eyeY + 0.05)
+  })
 })
 
 describe('skin tone', () => {
@@ -171,5 +191,15 @@ describe('skin tone', () => {
     const ruddy = skinColor(0.4, 1)
     const sallow = skinColor(0.4, 0)
     expect(ruddy.r / ruddy.g).toBeGreaterThan(sallow.r / sallow.g)
+  })
+
+  test('iris colour runs from dark brown to grey, through blue', async () => {
+    const { irisColor, IRIS_TONES } = await import('./skin-tone.js')
+    const hex = (c: { r: number; g: number; b: number }) =>
+      '#' + [c.r, c.g, c.b].map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('')
+    expect(hex(irisColor(0))).toBe(IRIS_TONES[0])
+    expect(hex(irisColor(1))).toBe(IRIS_TONES[IRIS_TONES.length - 1])
+    expect(irisColor(0).r).toBeGreaterThan(irisColor(0).b)
+    expect(irisColor(0.85).b).toBeGreaterThan(irisColor(0.85).r)
   })
 })

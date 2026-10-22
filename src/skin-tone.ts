@@ -22,7 +22,12 @@ reflectance (fair skin reflects about 60% of red light, not 90%), and gives
 it skin's own warmth: pinker at the fair end, more golden in the middle.
 `skinColor` is the scale's swatch, for a UI.
 
+IRIS colour is a dial too: `irisColor(t)` runs from dark brown through
+brown, hazel, green and blue to grey, the order real eyes come in from most
+melanin to least.
+
 ```javascript
+irisColor(0.6)        // green-blue, sRGB 0..1
 skinColor(0)          // the scale's tone 1, sRGB 0..1
 skinColor(1)          // tone 10
 skinAlbedo(0.5, 0.6)  // a mid tone, a little ruddy, linear, for a material
@@ -137,4 +142,32 @@ export function skinAlbedo(tone: number, redness = 0.5): Rgb {
   // Scale so the colour keeps the swatch's lightness at 68% reflectance.
   const r = (lum * 0.68) / (0.2126 + 0.7152 * g + 0.0722 * b)
   return { r, g: r * g, b: r * b }
+}
+
+/** Iris colours from most melanin to least: dark brown to grey, sRGB. */
+export const IRIS_TONES: readonly string[] = Object.freeze([
+  '#2e1a0e',
+  '#5a3519',
+  '#80592c',
+  '#6b7036',
+  '#4f7a52',
+  '#4f7896',
+  '#5b86b8',
+  '#8a96a0',
+])
+
+const IRIS_LINEAR = IRIS_TONES.map(hexLinear)
+
+/** An iris colour for a dial, 0 (dark brown) to 1 (grey), sRGB 0..1. */
+export function irisColor(t: number): Rgb {
+  const x = clamp01(t) * (IRIS_LINEAR.length - 1)
+  const i = Math.min(IRIS_LINEAR.length - 2, Math.floor(x))
+  const f = x - i
+  const a = IRIS_LINEAR[i]
+  const b = IRIS_LINEAR[i + 1]
+  return {
+    r: toSrgb(a.r + (b.r - a.r) * f),
+    g: toSrgb(a.g + (b.g - a.g) * f),
+    b: toSrgb(a.b + (b.b - a.b) * f),
+  }
 }

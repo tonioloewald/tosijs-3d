@@ -1795,6 +1795,8 @@ export type {
   HumanPackManifest,
   HumanTarget,
   HumanTargetEntry,
+  HumanPart,
+  HumanPartEntry,
 } from './human-pack.js'
 export {
   DEFAULT_HUMAN_BODY,
@@ -1816,7 +1818,18 @@ export {
   skinColor,
   skinAlbedo,
   lipAlbedo,
+  IRIS_TONES,
+  irisColor,
 } from './skin-tone.js'
+export {
+  humanFace,
+  eyeGaze,
+  eyeTexture,
+  eyeMaterial,
+  lashMaterial,
+  HM08_EYE_UV,
+} from './human-face.js'
+export type { HumanFace, EyeTexture } from './human-face.js'
 export type { Rgb as SkinRgb } from './skin-tone.js'
 export {
   humanRig,

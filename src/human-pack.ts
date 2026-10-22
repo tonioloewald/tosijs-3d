@@ -19,6 +19,7 @@ What the manifest holds:
 - **joints**: a joint name → the vertices whose centroid it is (MakeHuman's joint cubes)
 - **bones**: a bone → its parent, and the joints at its head and tail
 - **regions**: a mask name (`lips`) → a uint8 per vertex, for tinting without UVs
+- **parts**: extra geometry on the body's own vertices (`eyes`, `eyelashes`), so every target moves it with the body: the pack vertices it uses (uint32), triangles indexing that list (uint32), and UVs (float32 pairs) where it has a texture
 - **targets**: a target name → its file, its int16 step (metres), and whether it is dense
 
 A dense target is int16 xyz for every vertex in order; a sparse one is `count`
@@ -50,7 +51,23 @@ export interface HumanPackManifest {
   bones: Record<string, { parent: string | null; head: string; tail: string }>
   /** Per-vertex masks by name (`lips`), uint8 0..255, every vertex in order. */
   regions?: Record<string, string>
+  /** Extra geometry over the pack's own vertices (eyes, eyelashes). */
+  parts?: Record<string, HumanPartEntry>
   targets: Record<string, HumanTargetEntry>
+}
+
+export interface HumanPartEntry {
+  count: number
+  vertices: string
+  triangles: string
+  uvs?: string
+}
+
+/** A part, decoded: `vertices[i]` is the pack vertex part vertex `i` sits on. */
+export interface HumanPart {
+  vertices: Uint32Array
+  triangles: Uint32Array
+  uvs: Float32Array | null
 }
 
 /** A target, decoded: `indices` is null for a dense one. */
@@ -72,6 +89,8 @@ export interface HumanPack {
   loaded(name: string): HumanTarget | undefined
   /** A region mask (0..1 per vertex, all of them), fetched once; null if absent. */
   region(name: string): Promise<Float32Array | null>
+  /** A part (eyes, eyelashes), fetched once; null if absent. */
+  part(name: string): Promise<HumanPart | null>
 }
 
 /** Decode a target file's bytes. Pure. */
@@ -120,6 +139,7 @@ export async function loadHumanPack(
   const pending = new Map<string, Promise<HumanTarget>>()
   const regions = new Map<string, Promise<Float32Array | null>>()
   const done = new Map<string, HumanTarget>()
+  const parts = new Map<string, Promise<HumanPart | null>>()
   return {
     manifest,
     positions,
@@ -135,6 +155,24 @@ export async function loadHumanPack(
           Float32Array.from(new Uint8Array(b), (v) => v / 255)
         )
         regions.set(name, p)
+      }
+      return p
+    },
+    part(name) {
+      const entry = manifest.parts?.[name]
+      if (entry == null) return Promise.resolve(null)
+      let p = parts.get(name)
+      if (p == null) {
+        p = Promise.all([
+          fetcher(dir + entry.vertices),
+          fetcher(dir + entry.triangles),
+          entry.uvs != null ? fetcher(dir + entry.uvs) : null,
+        ]).then(([v, t, uv]) => ({
+          vertices: new Uint32Array(v),
+          triangles: new Uint32Array(t),
+          uvs: uv != null ? new Float32Array(uv) : null,
+        }))
+        parts.set(name, p)
       }
       return p
     },
