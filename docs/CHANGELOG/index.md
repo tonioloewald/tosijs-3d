@@ -12,16 +12,16 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-## 0.11.3
+## 0.11.4
 
-The latest release. The biped eases between animations instead of cutting
-(`blendSeconds`, a quarter of a second by default), R3 toggles its weapon, XR
-thumbsticks get a deadzone so the aim no longer drifts, and the sun's shadow
-bias defaults clear acne stripes. [Read 0.11.3](/v0.11.3/).
+The latest release. A character creator on MakeHuman's CC0 body: shape a
+person with sliders, give them skin, eyes and hair, and watch them walk with
+UAL's clips. [Read 0.11.4](/v0.11.4/).
 
 ## Every version
 
 <!-- toc -->
+- [0.11.4](/v0.11.4/)
 - [0.11.3](/v0.11.3/)
 - [0.11.2](/v0.11.2/)
 - [0.11.1](/v0.11.1/)

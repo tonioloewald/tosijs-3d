@@ -23,7 +23,7 @@ import { tosi, elements } from 'tosijs'
 const { div } = elements
 
 const status = div({ class: 'status' }, 'loading the animations…')
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'Hair_SimpleParted', beard: 'none', brows: 'Eyebrows_Regular', hairLight: 0.25, hairRed: 0.15, paused: false } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'Hair_SimpleParted', beard: 'none', brows: 'Eyebrows_Regular', hairLight: 0.25, hairRed: 0.15, paused: false } })
 let mat = null
 let paint = () => {}
 let eyes = null
@@ -34,7 +34,7 @@ const clips = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Dance_L
 let rebuild = () => {}
 
 const slider = (label, key) =>
-  slider3d({ label, value: walker[key], min: 0, max: 1, step: 0.01, handleChange: () => rebuild() })
+  slider3d({ label, value: walker[key], min: 0, max: 1, step: 0.01 })
 
 preview.append(
   b3d(
@@ -50,15 +50,15 @@ preview.append(
         slider('weight', 'weight'),
         slider('height', 'height'),
         label3d({ text: 'Skin' }),
-        slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01, handleChange: () => paint() }),
-        slider3d({ label: 'redness', value: walker.redness, min: 0, max: 1, step: 0.01, handleChange: () => paint() }),
-        slider3d({ label: 'eyes', value: walker.iris, min: 0, max: 1, step: 0.01, handleChange: () => eyes?.setIris(walker.iris.value) }),
+        slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01 }),
+        slider3d({ label: 'redness', value: walker.redness, min: 0, max: 1, step: 0.01 }),
+        slider3d({ label: 'eyes', value: walker.iris, min: 0, max: 1, step: 0.01 }),
         label3d({ text: 'Hair' }),
         select3d({ label: 'hair', value: walker.hair, options: styles.hair }),
         select3d({ label: 'beard', value: walker.beard, options: styles.beard }),
         select3d({ label: 'brows', value: walker.brows, options: styles.brows }),
-        slider3d({ label: 'light', value: walker.hairLight, min: 0, max: 1, step: 0.01, handleChange: () => dress() }),
-        slider3d({ label: 'red', value: walker.hairRed, min: 0, max: 1, step: 0.01, handleChange: () => dress() }),
+        slider3d({ label: 'light', value: walker.hairLight, min: 0, max: 1, step: 0.01 }),
+        slider3d({ label: 'red', value: walker.hairRed, min: 0, max: 1, step: 0.01 }),
         label3d({ text: 'Ancestry' }),
         slider('african', 'african'),
         slider('asian', 'asian'),
@@ -124,6 +124,14 @@ preview.append(
           el.register({ meshes: hairMeshes })
         }
         for (const key of ['hair', 'beard', 'brows']) walker[key].observe(() => dress())
+        // Colours repaint whoever sets them: a slider, or code.
+        const recolour = () => { for (const m of tints.values()) m.setHair(walker.hairLight.value, walker.hairRed.value) }
+        walker.hairLight.observe(recolour)
+        walker.hairRed.observe(recolour)
+        for (const key of Object.keys(DEFAULT_HUMAN_BODY)) walker[key].observe(() => rebuild())
+        walker.tone.observe(() => paint())
+        walker.redness.observe(() => paint())
+        walker.iris.observe(() => eyes.setIris(walker.iris.value))
         // The eyes find the camera.
         eyeGaze(scene, { get eyes() { return face?.eyes ?? [] }, get forward() { return face?.forward ?? [] } }, () => cam.position)
         const body = () => {

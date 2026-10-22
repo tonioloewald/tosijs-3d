@@ -369,13 +369,21 @@ const NEXT = {
         [`${f}2`, `${f}3`],
     ])),
 };
-/** The body's axis: its lean at rest is its shape, not a pose (see ALIGNMENT). */
+/**
+ * Bones whose rest direction is the body's SHAPE, not a pose (see
+ * ALIGNMENT): the axis, and the collarbones. UAL's collarbone runs from the
+ * front of the chest back 38° to the shoulder, as a real one does, and
+ * MakeHuman's lies flat; lined up, it swung 38° and every clip shrugged the
+ * shoulders up and forward, folding a V into the upper back (Tonio).
+ */
 const AXIAL = new Set([
     'hips',
     'spine',
     'chest',
     'neck',
     'head',
+    'l-clavicle',
+    'r-clavicle',
 ]);
 /** The fingers a hand is aimed along, best first: the middle runs down its centre. */
 const HAND_AIM = ['middle', 'index', 'ring', 'pinky'];

@@ -1,4 +1,4 @@
-# tosijs-3d v0.11.3
+# tosijs-3d v0.11.4
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -73,6 +73,7 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Size: barrel (min, packages external) 1244.9 KB raw / 425.9 KB gz, +0.27% on 0.11.1.
 - https://3d.tosijs.net/v0.11.3/ — 0.11.3
   Size: barrel (min, packages external) 1245.8 KB raw / 426.2 KB gz, +0.08% on 0.11.2.
+- https://3d.tosijs.net/v0.11.4/ — 0.11.4
 - https://3d.tosijs.net/v0.5.0/ — 0.5.0
   `@babylonjs/loaders`, `@babylonjs/materials` moved `^8` → `^9`. **Consumers must
 - https://3d.tosijs.net/v0.5.1/ — 0.5.1

@@ -463,6 +463,14 @@ export { fitSkeleton, fittedRestBones, meshQuery, objTriangles, skinSegments, MA
 export { markerField3d, MARKER_LABELS } from './rig-markers.js';
 export { boneHeat } from './bone-heat.js';
 export { buildRig } from './rig-build.js';
+export { loadHumanPack, decodeHumanTarget } from './human-pack.js';
+export { DEFAULT_HUMAN_BODY, macroWeights, morphHuman, addHumanTarget, humanJoint, humanHeight, genderCorners, ageCorners, ageYears, ancestryCorners, } from './human-morph.js';
+export { humanBody, skinMaterial, lipTint } from './character-builder.js';
+export { MONK_TONES, skinLinear, skinColor, skinAlbedo, lipAlbedo, IRIS_TONES, irisColor, hairColor, } from './skin-tone.js';
+export { loadHairLibrary, headScalp, hairMaterial, humanHair, } from './human-hair.js';
+export { fitToScalp, applyFit, conformOutside, vertexNormals, } from './hair-fit.js';
+export { humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, HM08_EYE_UV, } from './human-face.js';
+export { humanRig, humanSkin, HM08_UAL, } from './human-rig.js';
 export { springChain, stepSpringChain, resetSpringChain, shiftSpringChain, SPRING_DEFAULTS, } from './spring-chain.js';
 export { springBones, springNodes } from './spring-chain-babylon.js';
 //# sourceMappingURL=index.js.map

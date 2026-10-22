@@ -12,20 +12,16 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-- **Fixed:** retargeting no longer lines a character's collarbones up with the clip's: a collarbone's rest direction is the body's shape, like the spine's. Where the two rigs' collarbones differed (UAL's runs back to the shoulder, MakeHuman's lies flat) every clip shrugged the shoulders.
+## 0.11.4
 
-- **Added:** the first step of a character creator on MakeHuman's CC0 data (CHARACTER-DESIGN.md): `loadHumanPack`, `macroWeights` / `morphHuman` (body sliders: gender, age, muscle, weight, height, proportions, ancestry) skin tone and lips (`skinMaterial`, `skinAlbedo`, `lipAlbedo`, `lipTint` over the pack's `lips` region: very fair to very dark through the Monk Skin Tone Scale, plus redness), `humanRig` (UAL's skeleton placed from MakeHuman's joint cubes, spine as UAL's straight column, so UAL's clips play on any body shape) and `humanBody`; eyes and eyelashes (`humanFace`, from the pack's `eyes` and `eyelashes` parts, so they fit every body shape), an iris drawn in code with a colour dial (`eyeTexture`, `irisColor`), and `eyeGaze`, which points the eyes at a world point with small saccades; hair, beards and eyebrows from Quaternius' CC0 hairstyle library fitted to any body (`loadHairLibrary`, `headScalp`, `humanHair`, `hairMaterial`, `hairColor`; the pure fit is `fitToScalp` / `conformOutside`). The demo page is the [character builder](/character-builder/); its data is on the CDN as `makehuman/hm08/`.
-
-## 0.11.3
-
-The latest release. The biped eases between animations instead of cutting
-(`blendSeconds`, a quarter of a second by default), R3 toggles its weapon, XR
-thumbsticks get a deadzone so the aim no longer drifts, and the sun's shadow
-bias defaults clear acne stripes. [Read 0.11.3](/v0.11.3/).
+The latest release. A character creator on MakeHuman's CC0 body: shape a
+person with sliders, give them skin, eyes and hair, and watch them walk with
+UAL's clips. [Read 0.11.4](/v0.11.4/).
 
 ## Every version
 
 <!-- toc -->
+- [0.11.4](/v0.11.4/)
 - [0.11.3](/v0.11.3/)
 - [0.11.2](/v0.11.2/)
 - [0.11.1](/v0.11.1/)
