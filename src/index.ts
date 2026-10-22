@@ -1813,6 +1813,12 @@ export {
 export type { MacroBody } from './human-morph.js'
 export { humanBody, skinMaterial, lipTint } from './character-builder.js'
 export {
+  skinShading,
+  skinThinness,
+  SkinShadingPlugin,
+} from './skin-shading.js'
+export type { SkinShadingOptions } from './skin-shading.js'
+export {
   MONK_TONES,
   skinLinear,
   skinColor,
@@ -1846,6 +1852,9 @@ export {
   headRegion,
   shellWarp,
   applyWarp,
+  skinGaps,
+  keepHeight,
+  headRegionIndices,
 } from './hair-fit.js'
 export type { AxisFit, HeadLandmarks, ShellWarp } from './hair-fit.js'
 export {

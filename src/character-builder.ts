@@ -18,7 +18,7 @@ bone heat's, worked out from the mesh once when the page loads. The eyes
 head and fitted to this one.
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div } = elements
 
@@ -172,13 +172,17 @@ preview.append(
         // The weights depend only on the topology: once, on the first body.
         const rig0 = humanRig(pack.manifest, first)
         const weights = boneHeat(skin.positions(first), skin.triangles, skinSegments(rig0))
+        // How thin the body is at each vertex (ears, nose, fingers), for the
+        // skin's back-light: once, like the weights.
+        const firstSkin = skin.positions(first)
+        const thin = skinThinness(firstSkin, vertexNormals(firstSkin, skin.triangles))
 
         mat = skinMaterial(scene, { tone: walker.tone.value, redness: walker.redness.value })
         // The skin's colour, and the lips' as vertex colours over it.
         paint = () => {
           mat.setSkin(walker.tone.value, walker.redness.value)
           if (lips && built) {
-            built.mesh.setVerticesData('color', lipTint(skin, lips, walker.tone.value, walker.redness.value))
+            built.mesh.setVerticesData('color', lipTint(skin, lips, walker.tone.value, walker.redness.value, undefined, thin))
           }
         }
         const stand = new BABYLON.TransformNode('stand', scene)
@@ -251,6 +255,7 @@ body's triangles.
 import * as BABYLON from '@babylonjs/core'
 import type { HumanPack } from './human-pack.js'
 import { lipAlbedo, skinAlbedo } from './skin-tone.js'
+import { skinShading, type SkinShadingPlugin } from './skin-shading.js'
 import type { HumanSkin } from './human-rig.js'
 
 export interface HumanBody {
@@ -327,6 +332,8 @@ export function humanBody(
 export interface SkinMaterial extends BABYLON.PBRMaterial {
   /** Re-colour: tone 0 (very fair) to 1 (very dark), redness 0.5 neutral. */
   setSkin(tone: number, redness?: number): void
+  /** Its [skin-shading](/skin-shading/) (scatter, rim, back-light), unless turned off. */
+  shading: SkinShadingPlugin | null
 }
 
 /**
@@ -336,20 +343,28 @@ export interface SkinMaterial extends BABYLON.PBRMaterial {
  */
 export function skinMaterial(
   scene: BABYLON.Scene,
-  options: { tone?: number; redness?: number; name?: string } = {}
+  options: {
+    tone?: number
+    redness?: number
+    name?: string
+    /** `false` for plain PBR, without skin-shading's scatter, rim and back-light. */
+    shading?: boolean
+  } = {}
 ): SkinMaterial {
   const m = new BABYLON.PBRMaterial(
     options.name ?? 'skin',
     scene
   ) as SkinMaterial
   m.metallic = 0
-  m.roughness = 0.55
+  // A little gloss: skin's oil gives it a soft sheen, not a matte finish.
+  m.roughness = 0.42
   m.setSkin = (tone, redness = 0.5) => {
     const c = skinAlbedo(tone, redness)
     // PBR's albedo is linear, as glTF's base colour is.
     m.albedoColor = new BABYLON.Color3(c.r, c.g, c.b)
   }
   m.setSkin(options.tone ?? 0.3, options.redness ?? 0.5)
+  m.shading = options.shading === false ? null : skinShading(m)
   return m
 }
 
@@ -357,13 +372,16 @@ export function skinMaterial(
  * Per-vertex colours (RGBA, the skin's vertices) that turn a skin material's
  * colour into the lips' where `lips` (a pack region, every vertex) says so.
  * They multiply the material's albedo, so they are the ratio lip / skin.
+ * Their alpha carries `thin` (per skin vertex, from `skinThinness`), which
+ * skin-shading's back-light reads; without it, alpha is 0 (nothing glows).
  */
 export function lipTint(
   skin: HumanSkin,
   lips: Float32Array,
   tone: number,
   redness = 0.5,
-  into?: Float32Array
+  into?: Float32Array,
+  thin?: ArrayLike<number>
 ): Float32Array {
   const s = skinAlbedo(tone, redness)
   const l = lipAlbedo(tone, redness)
@@ -377,7 +395,7 @@ export function lipTint(
     out[i * 4] = 1 + (ratio[0] - 1) * t
     out[i * 4 + 1] = 1 + (ratio[1] - 1) * t
     out[i * 4 + 2] = 1 + (ratio[2] - 1) * t
-    out[i * 4 + 3] = 1
+    out[i * 4 + 3] = thin ? thin[i] : 0
   })
   return out
 }
