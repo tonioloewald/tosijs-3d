@@ -309,3 +309,66 @@ export function stiffenHead(
     weights.weights[v * 4 + slot] += toHead
   }
 }
+
+/**
+ * Keep the arms off the torso in `weights` (in place): skin below the armpit
+ * and inside the shoulders loses its arm and collarbone weight to the spine.
+ * Bone heat lets the arm bones claim the ribcage's sides when a rest pose
+ * holds the arms close to the body (MakeHuman's does), and every clip that
+ * lowered the arms then pulled the lower ribs in by centimetres. The change
+ * fades in over `blend` metres below the armpit, so the shoulder still moves
+ * with the arm. `positions` are the compact skin's (xyz), `rig` the fitted rig.
+ */
+export function armsOffTorso(
+  weights: { indices: Float32Array; weights: Float32Array },
+  positions: ArrayLike<number>,
+  rig: FittedRig,
+  options: { blend?: number } = {}
+): void {
+  const index = new Map(rig.joints.map((j, i) => [j.name, i]))
+  const arm = new Set<number>()
+  rig.joints.forEach((j, i) => {
+    if (/^(clavicle|upperarm|lowerarm|hand|thumb|index|middle|ring|pinky)/.test(j.name)) arm.add(i)
+  })
+  const l = rig.at('upperarm_l')
+  const r = rig.at('upperarm_r')
+  const chest = index.get('spine_03')
+  const belly = index.get('spine_02')
+  if (l == null || r == null || chest == null || belly == null) return
+  const blend = options.blend ?? 0.06
+  const armpit = Math.min(l.y, r.y) - 0.02
+  const smooth = (x: number, a: number, b: number) => {
+    const t = Math.min(1, Math.max(0, (x - a) / (b - a)))
+    return t * t * (3 - 2 * t)
+  }
+  const n = positions.length / 3
+  for (let v = 0; v < n; v++) {
+    const x = positions[v * 3]
+    const y = positions[v * 3 + 1]
+    // Inside the shoulders (the arm itself is outside them) and below the armpit.
+    const inside = 1 - smooth(Math.abs(x), Math.abs(x > 0 ? l.x : r.x) - 0.03, Math.abs(x > 0 ? l.x : r.x))
+    const below = smooth(armpit - y, 0, blend)
+    const k = inside * below
+    if (k === 0) continue
+    let moved = 0
+    for (let i = 0; i < 4; i++) {
+      if (!arm.has(weights.indices[v * 4 + i])) continue
+      const w = weights.weights[v * 4 + i] * k
+      weights.weights[v * 4 + i] -= w
+      moved += w
+    }
+    if (moved === 0) continue
+    // To the spine bone already there, else the chest's.
+    const to = y > armpit - 0.12 ? chest : belly
+    let slot = -1
+    for (let i = 0; i < 4; i++) if (weights.indices[v * 4 + i] === to) slot = i
+    if (slot < 0) {
+      slot = 0
+      for (let i = 1; i < 4; i++) if (weights.weights[v * 4 + i] < weights.weights[v * 4 + slot]) slot = i
+      moved += weights.weights[v * 4 + slot]
+      weights.weights[v * 4 + slot] = 0
+      weights.indices[v * 4 + slot] = to
+    }
+    weights.weights[v * 4 + slot] += moved
+  }
+}

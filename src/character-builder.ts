@@ -18,7 +18,7 @@ bone heat's, worked out from the mesh once when the page loads. The eyes
 head and fitted to this one.
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0 } })
@@ -88,7 +88,10 @@ preview.append(
         // One editor for whichever worn thing is chosen: its colourway, fabric,
         // and a recolour over its texture (0 keeps the texture's own colours).
         select3d({ label: 'edit', value: walker.editing, options: SLOTS }),
-        select3d({ label: 'look', value: walker.look, options: ['as made', ...Object.keys(packProxies[walker[walker.editing.value].value]?.material?.looks ?? {})] }),
+        // Its colourways, where it has any (only some of MakeHuman's suits do).
+        ...(Object.keys(packProxies[walker[walker.editing.value].value]?.material?.looks ?? {}).length
+          ? [select3d({ label: 'look', value: walker.look, options: ['as made', ...Object.keys(packProxies[walker[walker.editing.value].value].material.looks)] })]
+          : []),
         select3d({ label: 'fabric', value: walker.fabric, options: Object.keys(FABRICS) }),
         colorPicker3d({ label: 'colour', value: walker.colour, alpha: false }),
         slider3d({ label: 'recolour', value: walker.recolour, min: 0, max: 1, step: 0.01 }),
@@ -356,6 +359,8 @@ preview.append(
         const weights = boneHeat(skin.positions(first), skin.triangles, skinSegments(rig0))
         // The face moves with the head, or the lids slide over the eyes.
         stiffenHead(weights, skin.positions(first), rig0)
+        // ...and the ribcage with the spine, not the arms.
+        armsOffTorso(weights, skin.positions(first), rig0)
         // How thin the body is at each vertex (ears, nose, fingers), for the
         // skin's back-light: once, like the weights.
         const firstSkin = skin.positions(first)
