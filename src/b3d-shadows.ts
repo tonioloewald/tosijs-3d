@@ -67,7 +67,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `shadowTextureSize` | `auto` | Shadow map resolution (per cascade); `auto` = device tier |
 | `shadowMaxZ` | `100` | Far plane of the cascaded shadow frustum |
 | `shadowDarkness` | `0.1` | 0 = fully dark shadow, 1 = no shadow |
-| `shadowNormalBias` | `0.04` | Offset along the surface normal — **the shadow-acne knob**. Lower it if shadows detach from small casters; much past 0.05 and thin limbs lose their shadow |
+| `shadowNormalBias` | `0.04` | Offset along the surface normal — **the shadow-acne knob**. Lower it if shadows detach from small casters; much past 0.05 and thin limbs lose their shadow. A scene about a character wants about `0.008`: the default pulls a body's silhouette in by centimetres under a low sun, and its shadow comes out thin |
 | `shadowBias` | `0.002` | Depth-direction bias, in the cascade's depth range. Together with `shadowNormalBias` it clears the fine bands acne leaves on lit surfaces |
 | `numCascades` | `auto` | Number of cascade splits (1–4); `auto` = device tier |
 | `stabilizeCascades` | `'on'` | Reduce shadow-edge "swimming" under motion |

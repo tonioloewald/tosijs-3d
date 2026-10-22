@@ -18,7 +18,7 @@ bone heat's, worked out from the mesh once when the page loads. The eyes
 head and fitted to this one.
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div } = elements
 
@@ -117,7 +117,7 @@ preview.append(
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
 
-        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 5)).catch((e) => {
+        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 6)).catch((e) => {
           status.textContent = `could not load the body: ${e.message}`
           throw e
         })
@@ -136,6 +136,7 @@ preview.append(
         styles.hat.push(...kinds('clothes', (n) => n.startsWith('fedora')))
         styles.hair.push(...kinds('hair', () => true))
         styles.brows.push(...kinds('eyebrows', () => true))
+        styles.beard.push(...kinds('beard', () => true))
         const proxyMaterials = new Map()
         const tints = new Map()
         const tint = (part) => {
@@ -159,7 +160,7 @@ preview.append(
           if (!built || !scalp) return
           const token = ++dressing
           // What it wears from the pack (bound), fetched before anything changes.
-          const slots = ['outfit', 'shoes', 'hat', 'hair', 'brows'].map((k) => walker[k].value).filter((n) => proxies[n])
+          const slots = ['outfit', 'shoes', 'hat', 'hair', 'brows', 'beard'].map((k) => walker[k].value).filter((n) => proxies[n])
           const wearing = await Promise.all(slots.map((n) => pack.proxy(n)))
           if (token !== dressing) return
           for (const m of hairMeshes) m.dispose()
@@ -176,7 +177,25 @@ preview.append(
           }
           for (const proxy of wearing) {
             if (!proxyMaterials.has(proxy.name)) proxyMaterials.set(proxy.name, proxyMaterial(scene, proxy))
-            hairMeshes.push(humanProxy(scene, built, proxy, current, allWeights, proxyMaterials.get(proxy.name)))
+            const mesh = humanProxy(scene, built, proxy, current, allWeights, proxyMaterials.get(proxy.name))
+            mesh.metadata = { category: proxy.category }
+            hairMeshes.push(mesh)
+          }
+          // A hat hides the hair under its brim, or the hair pokes through it.
+          const hat = wearing.find((p) => p.name === walker.hat.value)
+          if (hat) {
+            const crown = drawnPositions(hat, fitProxy(hat, current))
+            const at = built.rig.at('Head')
+            for (const mesh of hairMeshes) {
+              const hair = mesh.name.startsWith('hair-') || mesh.metadata?.category === 'hair'
+              if (!hair) continue
+              // Quaternius' hair hangs on the head, in its frame less the head joint.
+              const p = Float32Array.from(mesh.getVerticesData('position'))
+              if (mesh.name.startsWith('hair-')) {
+                for (let i = 0; i < p.length; i += 3) { p[i] += at.x; p[i + 1] += at.y; p[i + 2] += at.z }
+              }
+              mesh.setIndices(Array.from(underCover(crown, p, mesh.getIndices())))
+            }
           }
           // Skin under clothes is hidden, so it cannot show through.
           coverBody(built, skin.triangles, skin.vertices, wearing)
@@ -266,7 +285,7 @@ preview.append(
         walker.paused.observe(() => (walker.paused.value ? playing?.pause() : playing?.play(true)))
       },
     },
-    b3dSun({ timeOfDay: 16.5, shadowTextureSize: 2048, shadowMaxZ: 20 }),
+    b3dSun({ timeOfDay: 16.5, shadowTextureSize: 2048, shadowMaxZ: 20, shadowNormalBias: 0.008 }),
     b3dLight({ intensity: 0.5 })
   ),
   status

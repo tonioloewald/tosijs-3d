@@ -1806,6 +1806,7 @@ export {
   proxyWeights,
   nearestWeights,
   coveredTriangles,
+  underCover,
 } from './proxy-fit.js'
 export type { ProxyBinding, VertexWeights } from './proxy-fit.js'
 export { humanProxy, proxyMaterial, coverBody } from './human-proxy.js'

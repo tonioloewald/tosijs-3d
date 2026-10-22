@@ -28,6 +28,8 @@ Pure, so a recipe's outfit is fitted or checked headless:
   helper vertices, which clothes bind to)
 - `coveredTriangles(triangles, deleted)` drops the body triangles a garment
   hides, so skin never shows through it
+- `underCover(hat, hair, triangles)` drops the hair a hat covers, so hair
+  never pokes through a hat
 */
 /*{ "parent": "character-builder", "order": 65 }*/
 
@@ -222,6 +224,55 @@ export function coveredTriangles(
     const b = triangles[t + 1]
     const c = triangles[t + 2]
     if (gone.has(vertices[a]) || gone.has(vertices[b]) || gone.has(vertices[c])) continue
+    keep.push(a, b, c)
+  }
+  return Uint32Array.from(keep)
+}
+
+/**
+ * What a hat leaves showing of the hair under it: `triangles` (in threes,
+ * indexing `points`, xyz, the same frame as `cover`) less those with a vertex
+ * above the hat's brim and within its reach. Around the hat's axis, in
+ * `sectors` directions, the brim's height is its lowest vertex there and its
+ * reach its widest, so a tilted brim (a fedora's) is followed. Hair below
+ * the brim, at the sides and back and in long styles, stays.
+ */
+export function underCover(
+  cover: ArrayLike<number>,
+  points: ArrayLike<number>,
+  triangles: ArrayLike<number>,
+  sectors = 24
+): Uint32Array {
+  let cx = 0
+  let cz = 0
+  const n = cover.length / 3
+  for (let i = 0; i < n; i++) {
+    cx += cover[i * 3] / n
+    cz += cover[i * 3 + 2] / n
+  }
+  const brim = new Float32Array(sectors).fill(Infinity)
+  const reach = new Float32Array(sectors)
+  const sector = (x: number, z: number) =>
+    Math.floor(((Math.atan2(z - cz, x - cx) / (2 * Math.PI) + 1) % 1) * sectors) % sectors
+  for (let i = 0; i < n; i++) {
+    const x = cover[i * 3]
+    const z = cover[i * 3 + 2]
+    const s = sector(x, z)
+    brim[s] = Math.min(brim[s], cover[i * 3 + 1])
+    reach[s] = Math.max(reach[s], Math.hypot(x - cx, z - cz))
+  }
+  const hidden = (v: number) => {
+    const x = points[v * 3]
+    const z = points[v * 3 + 2]
+    const s = sector(x, z)
+    return points[v * 3 + 1] > brim[s] && Math.hypot(x - cx, z - cz) < reach[s]
+  }
+  const keep: number[] = []
+  for (let t = 0; t < triangles.length; t += 3) {
+    const a = triangles[t]
+    const b = triangles[t + 1]
+    const c = triangles[t + 2]
+    if (hidden(a) || hidden(b) || hidden(c)) continue
     keep.push(a, b, c)
   }
   return Uint32Array.from(keep)

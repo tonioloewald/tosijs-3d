@@ -3691,7 +3691,7 @@
       {
         "name": "shadowNormalBias",
         "default": "0.04",
-        "description": "Offset along the surface normal — **the shadow-acne knob**. Lower it if shadows detach from small casters; much past 0.05 and thin limbs lose their shadow"
+        "description": "Offset along the surface normal — **the shadow-acne knob**. Lower it if shadows detach from small casters; much past 0.05 and thin limbs lose their shadow. A scene about a character wants about `0.008`: the default pulls a body's silhouette in by centimetres under a low sun, and its shadow comes out thin"
       },
       {
         "name": "shadowBias",
