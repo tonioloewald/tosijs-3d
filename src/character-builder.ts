@@ -18,12 +18,12 @@ bone heat's, worked out from the mesh once when the page loads. The eyes
 head and fitted to this one.
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, hairShading, HAIR_COLOURS, color3d, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div } = elements
 
 const status = div({ class: 'status' }, 'loading the animations…')
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'Hair_SimpleParted', beard: 'none', brows: 'Eyebrows_Regular', hairLight: 0.25, hairRed: 0.15, dyeHue: 0.9, dyeSaturation: 0, hairUp: 0, hairForward: 0, hairSize: 1, beardUp: 0, beardForward: 0, outfit: 'male_casualsuit02', shoes: 'shoes01', hat: 'none', paused: false } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'Hair_SimpleParted', beard: 'none', brows: 'Eyebrows_Regular', hairPreset: 'brown', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, beardUp: 0, beardForward: 0, outfit: 'male_casualsuit02', shoes: 'shoes01', hat: 'none', paused: false } })
 let mat = null
 let paint = () => {}
 let eyes = null
@@ -58,11 +58,10 @@ preview.append(
         select3d({ label: 'hair', value: walker.hair, options: styles.hair }),
         select3d({ label: 'beard', value: walker.beard, options: styles.beard }),
         select3d({ label: 'brows', value: walker.brows, options: styles.brows }),
-        slider3d({ label: 'light', value: walker.hairLight, min: 0, max: 1, step: 0.01 }),
-        slider3d({ label: 'red', value: walker.hairRed, min: 0, max: 1, step: 0.01 }),
-        // Dye over the natural colour: none at 0 saturation.
-        slider3d({ label: 'dye hue', value: walker.dyeHue, min: 0, max: 1, step: 0.01 }),
-        slider3d({ label: 'dye', value: walker.dyeSaturation, min: 0, max: 1, step: 0.01 }),
+        // A base and a highlight; a preset sets both, the pickers go anywhere.
+        select3d({ label: 'colour', value: walker.hairPreset, options: Object.keys(HAIR_COLOURS) }),
+        color3d({ label: 'base', value: walker.hairBase.value, alpha: false, aspect: 0.4, handleChange: (hex) => { walker.hairBase.value = hex } }),
+        color3d({ label: 'highlights', value: walker.hairHighlight.value, alpha: false, aspect: 0.4, handleChange: (hex) => { walker.hairHighlight.value = hex } }),
         // A hand adjustment, metres and a scale, after the fit.
         slider3d({ label: 'up', value: walker.hairUp, min: -0.02, max: 0.02, step: 0.001 }),
         slider3d({ label: 'forward', value: walker.hairForward, min: -0.02, max: 0.02, step: 0.001 }),
@@ -139,9 +138,15 @@ preview.append(
         styles.beard.push(...kinds('beard', () => true))
         const proxyMaterials = new Map()
         const tints = new Map()
+        // Every hair material's colouring (Quaternius' and MakeHuman's).
+        const shades = []
         const tint = (part) => {
           const from = part.material
-          if (!tints.has(from)) tints.set(from, hairMaterial(scene, from, `hair-${tints.size}`))
+          if (!tints.has(from)) {
+            const m = hairMaterial(scene, from, `hair-${tints.size}`)
+            shades.push(hairShading(m, { base: walker.hairBase.value, highlight: walker.hairHighlight.value }))
+            tints.set(from, m)
+          }
           return tints.get(from)
         }
         status.textContent = 'binding the skin…'
@@ -156,7 +161,6 @@ preview.append(
         let hairMeshes = []
         let dressing = 0
         dress = async () => {
-          for (const m of tints.values()) m.setHair(walker.hairLight.value, walker.hairRed.value, { hue: walker.dyeHue.value, saturation: walker.dyeSaturation.value })
           if (!built || !scalp) return
           const token = ++dressing
           // What it wears from the pack (bound), fetched before anything changes.
@@ -176,7 +180,12 @@ preview.append(
             hairMeshes.push(...humanHair(scene, built, built.rig, scalp, parts, tint, { name: key, on, head: hairLib.headFor(style), centreY: key === 'brows' ? scalp.brow : undefined, nudge: key === 'hair' ? nudge : key === 'beard' ? beardNudge : undefined }))
           }
           for (const proxy of wearing) {
-            if (!proxyMaterials.has(proxy.name)) proxyMaterials.set(proxy.name, proxyMaterial(scene, proxy))
+            if (!proxyMaterials.has(proxy.name)) {
+              const m = proxyMaterial(scene, proxy)
+              // MakeHuman's hair, brows and beards take the hair colours too.
+              if (proxy.category !== 'clothes') shades.push(hairShading(m, { desaturate: true, base: walker.hairBase.value, highlight: walker.hairHighlight.value }))
+              proxyMaterials.set(proxy.name, m)
+            }
             const mesh = humanProxy(scene, built, proxy, current, allWeights, proxyMaterials.get(proxy.name))
             mesh.metadata = { category: proxy.category }
             hairMeshes.push(mesh)
@@ -202,12 +211,17 @@ preview.append(
           el.register({ meshes: hairMeshes })
         }
         for (const key of ['hair', 'beard', 'brows', 'hairUp', 'hairForward', 'hairSize', 'beardUp', 'beardForward', 'outfit', 'shoes', 'hat']) walker[key].observe(() => dress())
-        // Colours repaint whoever sets them: a slider, or code.
-        const recolour = () => {
-          const dye = { hue: walker.dyeHue.value, saturation: walker.dyeSaturation.value }
-          for (const m of tints.values()) m.setHair(walker.hairLight.value, walker.hairRed.value, dye)
-        }
-        for (const key of ['hairLight', 'hairRed', 'dyeHue', 'dyeSaturation']) walker[key].observe(recolour)
+        // Colours repaint whoever sets them: a picker, a preset, or code.
+        const recolour = () => { for (const sh of shades) sh.setColours(walker.hairBase.value, walker.hairHighlight.value) }
+        walker.hairBase.observe(recolour)
+        walker.hairHighlight.observe(recolour)
+        walker.hairPreset.observe(() => {
+          const p = HAIR_COLOURS[walker.hairPreset.value]
+          if (!p) return
+          walker.hairBase.value = p.base
+          walker.hairHighlight.value = p.highlight
+          el.refreshScenePanel?.()
+        })
         for (const key of Object.keys(DEFAULT_HUMAN_BODY)) walker[key].observe(() => rebuild())
         walker.tone.observe(() => paint())
         walker.redness.observe(() => paint())

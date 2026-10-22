@@ -361,6 +361,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   round, one leads a gun, and both are used by [[b3d-launcher]] and
 - https://3d.tosijs.net/hair-fit/ — hair-fit
   Hair made for one head, worn on another. A hairstyle library such as
+- https://3d.tosijs.net/hair-shading/ — hair-shading
+  Hair coloured the way a colourist describes it: a BASE colour and a
 - https://3d.tosijs.net/input-internals/ — How input works
   pad, touch, VR controllers, an AI) produces the same `ControlInput`, and every
 - https://3d.tosijs.net/human-face/ — human-face

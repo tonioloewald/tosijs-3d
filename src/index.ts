@@ -1849,6 +1849,8 @@ export {
   placeHair,
   QUATERNIUS_HEADS,
 } from './human-hair.js'
+export { hairShading, HairShadingPlugin, HAIR_COLOURS } from './hair-shading.js'
+export type { HairShading } from './hair-shading.js'
 export type {
   HairLibrary,
   HairPart,
