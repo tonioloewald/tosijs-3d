@@ -14,7 +14,7 @@ highlight it usually comes with, which a picker can then move anywhere.
 texture that is already coloured (MakeHuman's hair and beards) as grey first,
 so the same colours apply to every library's hair.
 */
-/*{ "parent": "character-builder", "order": 57 }*/
+/*{ "parent": "human-hair", "order": 10 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { parseColor } from './color.js'

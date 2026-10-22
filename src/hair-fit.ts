@@ -37,7 +37,7 @@ const warp = shellWarp(
 const placed = applyWarp(styleVertices, warp)
 ```
 */
-/*{ "parent": "character-builder", "order": 60 }*/
+/*{ "parent": "human-hair", "order": 20 }*/
 
 export interface AxisFit {
   scale: [number, number, number]

@@ -254,7 +254,7 @@ export function blinker(
       return
     }
     t += dt
-    let w = 0
+    let w: number
     if (t < close) w = t / close
     else if (t < close + hold) w = 1
     else if (t < close + hold + open) w = 1 - (t - close - hold) / open

@@ -21,7 +21,7 @@ const shade = clothShading(material, { fabric: 'denim' })
 shade.set({ fabric: 'wool', colour: '#7a2e2e', amount: 0.8 })
 ```
 */
-/*{ "parent": "character-builder", "order": 67 }*/
+/*{ "parent": "human-proxy", "order": 20 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { parseColor } from './color.js'

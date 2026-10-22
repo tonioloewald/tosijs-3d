@@ -31,7 +31,7 @@ Pure, so a recipe's outfit is fitted or checked headless:
 - `underCover(hat, hair, triangles)` drops the hair a hat covers, so hair
   never pokes through a hat
 */
-/*{ "parent": "character-builder", "order": 65 }*/
+/*{ "parent": "human-proxy", "order": 10 }*/
 
 /** A proxy's binding, decoded. */
 export interface ProxyBinding {
