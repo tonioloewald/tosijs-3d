@@ -69,6 +69,10 @@ export function touchOrbit(
   camera: BABYLON.ArcRotateCamera,
   options: { trackpadPan?: boolean } = {}
 ): () => void {
+  // Once per camera: `<tosi-b3d>` applies it to any orbit camera it is given,
+  // and a page may have called it already.
+  const done = (camera as any)._tosiTouchOrbit as (() => void) | undefined
+  if (done != null) return done
   const pointers = camera.inputs?.attached?.pointers as
     | BABYLON.ArcRotateCameraPointersInput
     | undefined
@@ -135,9 +139,12 @@ export function touchOrbit(
       passive: false,
     })
 
-  return () => {
+  const restore = () => {
     pointers.onMultiTouch = original
     pointers.onTouch = originalTouch
     canvas?.removeEventListener('wheel', onWheel, { capture: true })
+    delete (camera as any)._tosiTouchOrbit
   }
+  ;(camera as any)._tosiTouchOrbit = restore
+  return restore
 }

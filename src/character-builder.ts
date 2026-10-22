@@ -38,7 +38,7 @@ preview.append(
   b3d(
     {
       clearColor: '#2a3340',
-      panelTitle: 'Walker',
+      panelTitle: 'Character Builder',
       scenePanel: () => [
         label3d({ text: 'Body', collapsible: true, open: true }),
         slider('gender', 'gender'),

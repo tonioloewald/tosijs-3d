@@ -58,7 +58,7 @@ const TEXTURE_MEAN = 0.42
 export class HairShadingPlugin extends BABYLON.MaterialPluginBase {
   highlight = new BABYLON.Color3(0.5, 0.35, 0.2)
   /** How far the bright strands lean to the highlight, 0 to 1. */
-  strength = 0.75
+  strength = 0.4
   desaturate = false
   private _isEnabled = false
 
@@ -119,7 +119,7 @@ export class HairShadingPlugin extends BABYLON.MaterialPluginBase {
           surfaceAlbedo = vAlbedoColor.rgb * vec3(hL);
         #endif
         // The brighter strands lean to the highlight, at their own brightness.
-        float hK = smoothstep(0.25, 0.75, hL / ${TEXTURE_MEAN.toFixed(2)} * 0.5) * hairHighlight.a;
+        float hK = smoothstep(0.45, 0.9, hL / ${TEXTURE_MEAN.toFixed(2)} * 0.5) * hairHighlight.a;
         surfaceAlbedo = mix(surfaceAlbedo, hairHighlight.rgb * hL / ${TEXTURE_MEAN.toFixed(2)}, hK);
       }
       #endif`,

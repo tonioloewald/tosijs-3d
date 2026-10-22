@@ -2463,6 +2463,10 @@ export class B3d extends Component {
     if (attach) {
       camera.attachControl(cnv, preventDefault)
     }
+    // Every orbit camera gets the house view controls (shift-drag and a
+    // trackpad's two-finger drag pan): a demo that built its own camera was
+    // left with Babylon's, and could not pan on a laptop.
+    if (camera instanceof BABYLON.ArcRotateCamera) touchOrbit(camera)
   }
 
   /**
