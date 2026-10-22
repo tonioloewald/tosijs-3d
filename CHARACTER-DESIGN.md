@@ -1,11 +1,12 @@
 # CHARACTER-DESIGN — a character creator on MakeHuman's data
 
-> Status: **accepted, step 0 under way.** Written 2026-10-21 after a read of
-> the rig tool, auto-rig, retargeting and spring chains at 0.11; revised the
-> same day with Tonio's answers (style, runtime creation, swappable base
-> meshes, ensemble as a consumer), then with step 0's first measurements of
-> MakeHuman's real files (macro targets are dense, units are decimetres, the
-> rig map is a real table).
+> Status: **accepted; steps 0 to 2 shipped in 0.11.4, parts of 3 to 5 under
+> way.** Written 2026-10-21 after a read of the rig tool, auto-rig,
+> retargeting and spring chains at 0.11; revised the same day with Tonio's
+> answers (style, runtime creation, swappable base meshes, ensemble as a
+> consumer), then with step 0's measurements; revised 2026-10-22 with what
+> building steps 0 to 2, eyes and hair decided (marked **Built:** below). The
+> page is [character builder](https://3d.tosijs.net/character-builder/).
 
 **What it is:** Ensemble for people. Sliders take a body from short to tall,
 thin to fat, young to old, male to female; faces are customised; skin is a
@@ -246,6 +247,19 @@ size first (today it is ~0.1–0.3 s for 1–6k vertices).
 **Watchable:** five random bodies doing UAL's walk, a strand ponytail from the
 existing rig recipe on one.
 
+**Built** (2026-10-22): `human-rig`'s `HM08_UAL` table places UAL's 65 joints
+from the joint cubes; MakeHuman's 163 bones are not used at all.
+- **Weights are bone heat's**, once per base. MakeHuman's own weights, folded
+  through the table, were built, compared on the walk and found no better, so
+  they were removed (code and pack). They move into the pack when it is next
+  rebuilt; today they are computed once per page (about 2.3 s on a desktop).
+- **The spine is UAL's straight column, not MakeHuman's S-curve**: joints keep
+  their cube's height but lean as UAL1's rest pose does (`lean` in the table).
+  On the curve, every clip hunched the neck forward.
+- **Collarbones are axial in retargeting** (like the spine): their rest
+  direction is body shape, not pose. Aligned, UAL's collarbone (back 38°)
+  swung MakeHuman's (flat) into a shrug and a V in the upper back.
+
 ### 3. Faces (medium; mostly UI)
 
 Group the face targets into controls a person can use (jaw, brow, nose,
@@ -294,6 +308,29 @@ against hm08, and `proxy-fit` computes its binding (no MakeClothes dependency).
 
 **Watchable:** one coat on the thinnest and heaviest body, walking, no
 clipping.
+
+**Built** (2026-10-22), before any clothes:
+- **Eyes** are the trivial `.mhclo` case: the low-poly eye proxy is bound
+  rigidly (`verts 0`), each vertex IS a base helper vertex, so the pack
+  carries them as a PART (faces and UVs over the base's own vertices) and every
+  target moves them. Eyelashes likewise (the base's lash helpers). Iris drawn
+  in code; gaze with saccades (`human-face`).
+- **Hair comes from another base** (Quaternius' CC0 hairstyles, modelled on
+  its own two heads). `hair-fit` warps that head's skin onto ours, skin to
+  skin, and carries the hair with it. Fitting the hair itself to the skin
+  failed: a style is one shell with no underside, so it sinks by its own
+  thickness. Brows are placed from the eyes, moustaches from the lips region.
+
+**Decision for Tonio: one fitter at runtime, `hair-fit` as an importer.**
+`proxy-fit` (the `.mhclo` binding: a point on a base triangle plus an offset)
+is THE runtime fitter: native content (MakeHuman's clothes, ours, authored in
+Blender against hm08) is bound once and follows every body for free.
+`hair-fit` stays the adapter for FOREIGN content, but should run once at
+import, warping onto hm08 and then writing a binding, rather than per body as
+it does today. Then hair, clothes and eyes are one path, `nudge` becomes an
+edit to the binding's offsets, and the per-body warp (and its two reference
+heads at runtime) goes away. Do this before the first garment, so clothing is
+built on the one path.
 
 ### 4b. A second base (medium)
 
@@ -417,7 +454,13 @@ In practice:
 
 ## Open questions
 
-None outstanding as of 2026-10-21. Step 0's measurements may raise some.
+- **The fitter** (step 4 above): confirm `proxy-fit` as the one runtime
+  fitter, with `hair-fit` turned into an importer that writes bindings.
+- **Ages in one base.** The demo's age slider runs MakeHuman's whole range,
+  baby to old, against "childhood is a base" (Rejected, below). It is kept for
+  now because the pack loads fast enough (Tonio, 2026-10-22: an export is only
+  the final mesh, so carrying the shapes costs the tool, not the game). Step 4b
+  still decides whether a child needs its own base for rigging and clothes.
 
 ## Rejected
 
