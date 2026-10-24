@@ -12,6 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Added:** the rig tool imports animations made on another rig (`load animations…`, `rig.loadClips(file | url)`): a GLB's clips (Mixamo, mocap, another library) are retargeted onto the character and the comparison mannequin. Mixamo's FBX needs converting to GLB first.
 - **Fixed:** the owl shows on the flat system bar whenever its panel has anything in it, including only the icon bar (Pause). A scene with no settings rows of its own (the Biped Playground) had no owl flat, though it had one in a headset.
 - **Added:** a slow-motion button beside Pause in the settings panel's icon bar: world time at a quarter speed (`timeScale` 0.25) and back.
 - **Added:** the rig tool binds a model with no skeleton itself (`load model file…` takes a GLB or OBJ): eight markers on its outline, guessed and then dragged onto the joints, place a skeleton, and bone heat binds the mesh to it. `bind from markers` does the same for a model that has a skeleton, ignoring it. The markers are saved in the recipe as `binding` (`RigBinding`).

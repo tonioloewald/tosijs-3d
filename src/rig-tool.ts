@@ -35,6 +35,12 @@ The panel has these sections.
 - **Model.** A demo character, or `load model file…` for a GLB or OBJ of
   your own (a single file: a `.gltf` with separate buffers cannot be opened
   this way). It should face +Z, standing, arms out or down.
+- **Animations.** `load animations…` adds the clips in a GLB made on
+  another rig to the clip list: Mixamo's, a mocap file's, another library's.
+  Which bone is which is read from the names (UE, Mixamo, Kenney and Blender
+  spellings), so each clip is retargeted onto the character, and onto the
+  mannequin to compare. Mixamo downloads are FBX, which a browser cannot
+  read: import them into Blender and export a GLB (with the skin).
 - **Binding**, for a model with no skeleton (an OBJ, or a GLB without one,
   like the weasels and the space marine). It is given one: the eight
   markers on its outline place the joints (chin, groin, wrists, elbows,
@@ -146,7 +152,11 @@ import {
 } from './inspect-view.js'
 import { viewMenu } from './bar-menu.js'
 import { b3dPanel } from './b3d-panel.js'
-import { readSkeleton, retargetClip } from './retarget-babylon.js'
+import {
+  readSkeleton,
+  retargetClip,
+  type ReadSkeleton,
+} from './retarget-babylon.js'
 import { ROLES, type Role } from './retarget.js'
 import {
   fitSkeleton,
@@ -334,6 +344,11 @@ export interface RigToolApi {
   /** Play a clip (the current one if none is named); `null` stands it at rest. */
   play(clip?: string | null): void
   load(model: RigModel | File): Promise<void> | undefined
+  /**
+   * Add the clips in a GLB made on another rig (Mixamo, mocap, another
+   * library) to the clip list, retargeted onto the character.
+   */
+  loadClips(file: File | string): Promise<void> | undefined
 }
 
 const COLORS: Record<string, string> = {
@@ -728,6 +743,8 @@ export function mountRigTool(
     rebuild(clipsToo: boolean): void
     load(m: RigModel | File): Promise<void>
     rebind(): Promise<void>
+    /** Add a file's clips (any humanoid rig) to the clip list. */
+    loadClips(f: File | string): Promise<void>
     play(): void
     compare(on: boolean): void
     bones(on: boolean): void
@@ -818,7 +835,9 @@ export function mountRigTool(
           if (m) void tool?.load(m)
         },
       }),
-      ...(bound == null && applied == null
+      // A model with a skeleton of its own (or one the user chose to bind
+      // here): a demo mesh bound from its built-in markers has no choice.
+      ...(applied == null || (bound != null && recipe.binding == null)
         ? []
         : [
             toggle3d({
@@ -848,6 +867,11 @@ export function mountRigTool(
         label: 'load model file…',
         handleClick: () =>
           void chooseFile('.glb,.gltf,.obj').then((f) => f && tool?.load(f)),
+      }),
+      button3d({
+        label: 'load animations…',
+        handleClick: () =>
+          void chooseFile('.glb,.gltf').then((f) => f && tool?.loadClips(f)),
       }),
     ]
 
@@ -1574,6 +1598,11 @@ export function mountRigTool(
     let viewer: BABYLON.SkeletonViewer | null = null
     const made = new Map<string, BABYLON.AnimationGroup>()
     let playing: BABYLON.AnimationGroup[] = []
+    /** Clips loaded from other rigs: the clip and the skeleton it was made on. */
+    const imported = new Map<
+      string,
+      { group: BABYLON.AnimationGroup; source: ReadSkeleton }
+    >()
 
     const stop = () => {
       for (const g of playing) g.stop()
@@ -1593,14 +1622,25 @@ export function mountRigTool(
         return
       }
       targets()
-      const clip = ual.animationGroups.find((g) => g.name === ui.clip)
+      // A clip from a file is retargeted onto the mannequin too, so the
+      // comparison still shows how it was meant to look.
+      const ext = imported.get(ui.clip)
+      const clip =
+        ext?.group ?? ual.animationGroups.find((g) => g.name === ui.clip)
       if (clip == null) return
-      playing.push(clip)
+      const from = ext?.source ?? source
+      if (ext == null) playing.push(clip)
+      else {
+        const key = `mannequin:${ui.clip}`
+        if (!made.has(key))
+          made.set(key, retargetClip(clip, from, source, { scene }))
+        playing.push(made.get(key)!)
+      }
       if (applied != null) {
         if (!made.has(ui.clip))
           made.set(
             ui.clip,
-            retargetClip(clip, source, applied.read, {
+            retargetClip(clip, from, applied.read, {
               scene,
               armSpaceDeg: recipe.armSpaceDeg,
             })
@@ -1609,6 +1649,73 @@ export function mountRigTool(
       }
       // Start together, so the two stay in step.
       for (const g of playing) g.start(true)
+    }
+    /*
+    CLIPS FROM ANOTHER RIG (Mixamo, a mocap file, another library): any GLB
+    with a skeleton and animations. Its bones' roles are read from their
+    names (UE, Mixamo, Kenney and Blender spellings), so each clip is
+    retargeted onto the character like UAL's. The file's own character is
+    hidden; it is only the clips' source.
+    */
+    const loadClips = async (f: File | string) => {
+      const name =
+        typeof f === 'string' ? f.split('/').pop() ?? f : f.name
+      ui.status = `loading ${name}…`
+      refresh()
+      try {
+        const c = await BABYLON.LoadAssetContainerAsync(
+          f,
+          scene,
+          typeof f === 'string'
+            ? undefined
+            : {
+                pluginExtension: f.name.toLowerCase().endsWith('.gltf')
+                  ? '.gltf'
+                  : '.glb',
+              }
+        )
+        if (disposed) return c.dispose()
+        const skin = [...c.skeletons].sort(
+          (a, b) => b.bones.length - a.bones.length
+        )[0]
+        if (skin == null || c.animationGroups.length === 0) {
+          c.dispose()
+          ui.status = `${name} has ${
+            skin == null ? 'no skeleton' : 'no animations'
+          } (export it with its skin)`
+          refresh()
+          return
+        }
+        c.addAllToScene()
+        for (const g of c.animationGroups) g.stop()
+        const root = (c.meshes.find((n) => n.name === '__root__') ??
+          c.transformNodes[0]) as BABYLON.TransformNode
+        const read = readSkeleton(skin, root)
+        root.setEnabled(false)
+        cleanups.push(() => c.dispose())
+        const base = name.replace(/\.(glb|gltf)$/i, '')
+        const added: string[] = []
+        for (const g of c.animationGroups) {
+          // Mixamo names every clip "mixamo.com": the file names it.
+          let label =
+            c.animationGroups.length === 1 || /^mixamo\.com$/i.test(g.name)
+              ? base
+              : `${base}: ${g.name}`
+          while (clips.includes(label)) label += ' ′'
+          imported.set(label, { group: g, source: read })
+          clips.push(label)
+          added.push(label)
+        }
+        ui.clip = added[0]
+        ui.pose = 'animate'
+        ui.status = `${added.length} clip${
+          added.length === 1 ? '' : 's'
+        } from ${name}`
+        play()
+      } catch (e) {
+        ui.status = `could not load ${name}: ${(e as Error).message}`
+      }
+      refresh()
     }
     const forgetClips = () => {
       for (const g of made.values()) g.dispose()
@@ -2070,6 +2177,7 @@ export function mountRigTool(
       rebuild,
       load,
       rebind,
+      loadClips,
       play,
       compare(on) {
         ualNode.setEnabled(on)
@@ -2136,6 +2244,7 @@ export function mountRigTool(
       refresh()
     },
     load: (m: RigModel | File) => tool?.load(m),
+    loadClips: (f: File | string) => tool?.loadClips(f),
   }
 
   const handle = events as RigToolHandle
