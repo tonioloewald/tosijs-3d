@@ -623,8 +623,11 @@ function wirePointer(owner: B3d): void {
       a whole tap there. Often its own close: "Closing popups sometimes closes
       the parent." This observer is registered first, so stopping here works.
       */
-      if (state) state.skipNextObservers = true
       if (what === 'close') {
+        // Only the close: a drag needs the rest of this event (Babylon's own
+        // drag handling listens for the same press), and claiming it there
+        // left the release to dismiss everything.
+        if (state) state.skipNextObservers = true
         target.close()
         return
       }
