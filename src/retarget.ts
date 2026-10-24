@@ -158,6 +158,7 @@ export type FingerJoint = `${Finger}${1 | 2 | 3}`
 export type Role =
   | 'hips'
   | 'spine'
+  | 'midSpine'
   | 'chest'
   | 'neck'
   | 'head'
@@ -167,6 +168,7 @@ export type Role =
 export const ROLES: readonly Role[] = [
   'hips',
   'spine',
+  'midSpine',
   'chest',
   'neck',
   'head',
@@ -310,6 +312,13 @@ export function humanoidRoles(
     spines.sort((a, b) => depth(a) - depth(b))
     roles.chest = spines[spines.length - 1]
     if (spines.length > 1) roles.spine = spines[0]
+    /*
+    THE MIDDLE OF A THREE-BONE SPINE TOO. With only \`spine\` and \`chest\`, UAL's
+    \`spine_02\` was never driven: the clip's mid-back bend was dropped and the
+    bones either side bent harder to make the shape, which creased the skin
+    across the lower back in a crouch (Tonio, #3475).
+    */
+    if (spines.length > 2) roles.midSpine = spines[Math.floor(spines.length / 2)]
   }
   return { ...roles, ...overrides }
 }
@@ -426,7 +435,8 @@ Roles, not children, so a twist bone or a finger cannot decide the direction.
 */
 const NEXT: Partial<Record<string, string>> = {
   hips: 'spine',
-  spine: 'chest',
+  spine: 'midSpine',
+  midSpine: 'chest',
   chest: 'neck',
   neck: 'head',
   clavicle: 'upperArm',
@@ -453,6 +463,7 @@ const NEXT: Partial<Record<string, string>> = {
 const AXIAL: ReadonlySet<Role> = new Set<Role>([
   'hips',
   'spine',
+  'midSpine',
   'chest',
   'neck',
   'head',
