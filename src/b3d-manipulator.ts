@@ -400,11 +400,26 @@ export class B3dManipulator extends B3dChild {
     purely about it feeling stable in the hand. Freezing the anchor for the
     duration of a grab is what every DCC gizmo does, and for the same reason.
     */
-    const p =
-      this._drag != null && this._anchor != null
-        ? this._anchor
-        : node.getAbsolutePosition()
-    if (this._drag == null) {
+    /*
+    ...BUT IT FOLLOWS THE MOVE YOU ARE MAKING. Frozen outright, the handles
+    were left behind for the whole of a move drag and only caught up on
+    release. So the frozen anchor moves by the change in the target's OWN
+    position (its local position, carried into the world by its parent), which
+    is the drag's doing; the parent's animation, the breathing, is still left out.
+    */
+    let p: BABYLON.Vector3
+    if (this._drag != null && this._anchor != null) {
+      if (this._dragFrom == null) this._dragFrom = node.position.clone()
+      const moved = node.position.subtract(this._dragFrom)
+      const parent = node.parent as BABYLON.TransformNode | null
+      if (parent != null) {
+        parent.computeWorldMatrix(true)
+        BABYLON.Vector3.TransformNormalToRef(moved, parent.getWorldMatrix(), moved)
+      }
+      p = this._anchor.add(moved)
+    } else {
+      this._dragFrom = null
+      p = node.getAbsolutePosition()
       this._anchor = p.clone()
       view.setOrientation(this._rotationOf(node))
     }
@@ -596,6 +611,8 @@ export class B3dManipulator extends B3dChild {
 
   /** Where the handles were when the grab started — see `_track`. */
   private _anchor: BABYLON.Vector3 | null = null
+  /** The target's local position when the current drag began. */
+  private _dragFrom: BABYLON.Vector3 | null = null
 
   /** Is a drag in progress? */
   get dragging(): boolean {
