@@ -21,7 +21,7 @@ head and fitted to this one.
 import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0 } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0 } })
 let mat = null
 let paint = () => {}
 let eyes = null
@@ -33,7 +33,8 @@ const HAT_LIFT = 0.012
 // Filled when the hair library loads.
 const styles = { hair: ['none'], beard: ['none'], moustache: ['none'], brows: ['none'] }
 // What can be worn, one of each at a time; the pack says which slot each garment fills.
-const SLOTS = ['outfit', 'top', 'bottom', 'shoes', 'hat', 'mask', 'glasses', 'gloves']
+// A bodysuit is a base layer and armour goes over anything; an outfit replaces a top and bottom.
+const SLOTS = ['outfit', 'bodysuit', 'armour', 'top', 'bottom', 'shoes', 'gloves', 'hat', 'mask', 'glasses']
 for (const slot of SLOTS) styles[slot] = ['none']
 // Each slot's look, fabric and recolour, kept while another is being edited.
 const cloth = Object.fromEntries(SLOTS.map((s) => [s, { look: 'as made', fabric: s === 'shoes' ? 'leather' : 'cotton', colour: '#7a2e2e', recolour: 0 }]))
@@ -142,7 +143,7 @@ preview.append(
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
 
-        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 13)).catch((e) => {
+        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 14)).catch((e) => {
           el.setLoading(`could not load the body: ${e.message}`, { spin: false })
           throw e
         })
@@ -234,7 +235,7 @@ preview.append(
             const m = proxyMaterials.get(key)
             if (slot) slotMaterial[slot] = m
             // A hat sits a little out from the head, over the hair.
-            const hatFit = slot === 'hat' ? { inflate: { centre: scalp.centre, by: HAT_LIFT } } : {}
+            const hatFit = slot === 'hat' ? { inflate: { centre: scalp.centre, by: HAT_LIFT } } : slot === 'armour' ? { lift: 0.005 } : {}
             const mesh = humanProxy(scene, built, proxy, current, allWeights, m, hatFit)
             mesh.metadata = { category: proxy.category }
             hairMeshes.push(mesh)

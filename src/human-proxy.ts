@@ -81,6 +81,8 @@ export function humanProxy(
   options: {
     /** Push it out from a point (a hat over hair, from the skull's middle). */
     inflate?: { centre: { x: number; y: number; z: number }; by: number }
+    /** Push it out along its own surface by metres (armour over a bodysuit). */
+    lift?: number
   } = {}
 ): BABYLON.Mesh {
   const drawn = drawnPositions(proxy, fitProxy(proxy, positions))
@@ -96,6 +98,9 @@ export function humanProxy(
     useRightHandedSystem: true,
   })
   data.normals = normals
+  if (options.lift) {
+    for (let i = 0; i < drawn.length; i++) drawn[i] += normals[i] * options.lift
+  }
   data.applyToMesh(mesh)
   mesh.sideOrientation = BABYLON.Material.ClockWiseSideOrientation
   const w = proxyWeights(proxy, weights)
@@ -154,7 +159,7 @@ export function coverBody(
     if (p == null || p.category !== 'clothes') continue
     // Only what wraps the body: a hat, a mask or glasses sit near the face
     // without covering it, and tucking under them pulled the eyelids in.
-    if (!['outfit', 'top', 'bottom', 'shoes', 'gloves'].includes(p.slot ?? 'outfit')) continue
+    if (!['outfit', 'bodysuit', 'armour', 'top', 'bottom', 'shoes', 'gloves'].includes(p.slot ?? 'outfit')) continue
     const g = options.drawn?.get(p.name)
     if (g == null) continue
     const gap = coveredBy(meta.untucked, n, g)
