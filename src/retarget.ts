@@ -119,9 +119,10 @@ Babylon-free and deterministic (plain `{x, y, z, w}` quaternions), like
 `fly-by-wire`: the Babylon side (`retarget-babylon`) reads the skeletons and
 writes the result.
 
-A mesh with no skeleton at all can be rigged for these clips too: see
-[auto-rig](/rig-build/), which fits a skeleton from eight markers dragged
-over the mesh, as Mixamo's auto-rigger does, and binds the mesh to it.
+A mesh with no skeleton at all can be rigged for these clips too: the
+[rig tool](/rig-tool/) fits a skeleton from eight markers dragged over the
+mesh, as Mixamo's auto-rigger does, and binds the mesh to it
+([auto-rig](/rig-build/) is the code underneath).
 */
 /*{ "parent": "b3d-biped", "order": 70 }*/
 

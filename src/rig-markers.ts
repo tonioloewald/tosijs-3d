@@ -10,9 +10,9 @@ beside it. Symmetry is on by default, so a wrist placed on one side places
 the other.
 
 It is an ordinary scene-panel control, so it works on a page, in the scene
-and in a headset alike. The [auto-rig](/rig-build/) page uses it: pick a
-character, drag a marker, and the character is fitted, bound and walking
-again when you let go.
+and in a headset alike. The [rig tool](/rig-tool/) uses it to bind a
+mesh with no skeleton: drag a marker and the mesh is fitted and bound again
+when you let go.
 
 ## Usage
 
