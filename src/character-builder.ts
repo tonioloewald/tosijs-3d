@@ -727,14 +727,21 @@ export function stubbleTint(
   hairRgb: { r: number; g: number; b: number }
 ): Float32Array {
   if (amount <= 0) return colours
-  // Short hairs over skin: mostly a darkening, a little of the hair's hue.
+  /*
+  Short hairs over skin read as a SHADOW: the hair seen through the skin is
+  darker than the hair itself, and a little cool (a five o'clock shadow is
+  blue-grey on fair skin). So the skin goes most of the way to a darkened
+  hair colour with a touch of blue. Mixing toward the hair colour itself was
+  too faint to see at full, worst on light-brown hair.
+  */
+  const dark = { r: hairRgb.r * 0.45, g: hairRgb.g * 0.5, b: hairRgb.b * 0.6 + 0.01 }
   const ratio = [
-    (hairRgb.r * 0.5 + skinRgb.r * 0.5) / Math.max(1e-4, skinRgb.r),
-    (hairRgb.g * 0.5 + skinRgb.g * 0.5) / Math.max(1e-4, skinRgb.g),
-    (hairRgb.b * 0.5 + skinRgb.b * 0.5) / Math.max(1e-4, skinRgb.b),
+    (dark.r * 0.6 + skinRgb.r * 0.4) / Math.max(1e-4, skinRgb.r),
+    (dark.g * 0.6 + skinRgb.g * 0.4) / Math.max(1e-4, skinRgb.g),
+    (dark.b * 0.6 + skinRgb.b * 0.4) / Math.max(1e-4, skinRgb.b),
   ]
   for (let i = 0; i < mask.length; i++) {
-    const k = mask[i] * Math.min(1, amount) * 0.85
+    const k = mask[i] * Math.min(1, amount)
     if (k <= 0) continue
     for (let c = 0; c < 3; c++) {
       colours[i * 4 + c] *= 1 + (Math.min(1, ratio[c]) - 1) * k
