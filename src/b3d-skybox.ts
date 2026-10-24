@@ -2504,10 +2504,24 @@ export class B3dSkybox extends AbstractMesh {
     day/night cycle that is scenery, not a simulation.
     */
     const MAX_STEP_MS = 250
-    let lastTick = realNow()
+    /*
+    WORLD TIME, not real time (board #3466, Tonio: "day night cycle should
+    pause when we pause the clock"). The timer only says how OFTEN to update;
+    how far the sun moves is the world's elapsed time (\`sceneSeconds\`), so a
+    pause stops it and \`timeScale\` speeds or slows the day. A world that is
+    not driven by <tosi-b3d> has no world clock, and keeps real time.
+    */
+    const worldNow = () => {
+      const scene = this.owner?.scene
+      return scene != null ? sceneSeconds(scene) * 1000 : realNow()
+    }
+    let lastTick = worldNow()
     this.interval = window.setInterval(() => {
-      const now = realNow()
-      const elapsed = Math.min(MAX_STEP_MS, Math.max(0, now - lastTick))
+      const now = worldNow()
+      // World time cannot jump (a hidden tab runs no frames), and capping it
+      // would slow a sped-up day; only the real-time fallback is capped.
+      const raw = Math.max(0, now - lastTick)
+      const elapsed = this.owner?.scene != null ? raw : Math.min(MAX_STEP_MS, raw)
       lastTick = now
       attrs.timeOfDay =
         (((attrs.timeOfDay + attrs.realtimeScale * elapsed * 1e-6) / 24) % 1) *

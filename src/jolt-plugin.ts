@@ -45,7 +45,6 @@ import {
   PhysicsShapeType,
   PhysicsMotionType,
 } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin.js'
-import { realNow } from './clock.js'
 
 // ---------------------------------------------------------------------------
 // Internal data stored on body._pluginData / shape._pluginData
@@ -604,34 +603,47 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
 
   // ── Simulation step ─────────────────────────────────────────────────────
 
-  private _lastStepTime = 0
-  executeStep(_delta: number, physicsBodies: Array<PhysicsBody>): void {
-    // Babylon's getDeltaTime() measures the engine's rAF tick interval, not
-    // the time between scene.render() calls. When the scene is frame-rate
-    // throttled (e.g. 30fps on a 120Hz display), the delta passed here is
-    // ~4x too small. We measure wall-clock time ourselves to get the correct dt.
-    const now = realNow()
-    let dt: number
-    if (this._lastStepTime > 0) {
-      dt = (now - this._lastStepTime) / 1000 // ms → seconds
-      // Cap at 100ms to prevent spiral-of-death after tab switch
-      if (dt > 0.1) dt = 0.1
-      if (dt <= 0) dt = this._fixedTimeStep
-    } else {
-      dt = this._fixedTimeStep
-    }
-    this._lastStepTime = now
+  /** World time not yet stepped (seconds): carried to the next frame. */
+  private _accumulator = 0
 
-    // Pre-step: push Babylon transforms to Jolt for kinematic bodies
-    for (const body of physicsBodies) {
-      if ((body as any)._prestepType === 0) continue // DISABLED
-      const pd = this._getPluginData(body)
-      if (!pd?.bodyId) continue
-      this._preStep(body)
-    }
+  /*
+  REPEATABLE: FIXED STEPS OF WORLD TIME.
 
-    const numSteps = dt > 1 / 55 ? 2 : 1
-    this._joltInterface.Step(dt, numSteps)
+  Jolt is always stepped by `_fixedTimeStep` (1/60 s unless `setTimeStep`
+  says otherwise), as many times as the WORLD's elapsed time covers, with the
+  remainder carried to the next frame. The same inputs give the same result
+  on any machine and at any frame rate. World time is `<tosi-b3d>`'s
+  published frame step (`sceneDelta`): zero while paused, scaled by
+  `timeScale`. It used to step by however much real time had passed (one or
+  two steps of a varying length), so a run never repeated and physics carried
+  on through a pause.
+
+  Outside `<tosi-b3d>` the delta Babylon passes in stands in for world time.
+  After a stall it catches up at most `MAX_STEPS` steps and drops the rest,
+  rather than spiralling.
+  */
+  executeStep(delta: number, physicsBodies: Array<PhysicsBody>): void {
+    const MAX_STEPS = 8
+    const step = this._fixedTimeStep
+    const scene = (physicsBodies[0] as any)?.transformNode?.getScene?.()
+    const frame = scene?.metadata?.b3dFrame as { dt?: number } | undefined
+    const dt = typeof frame?.dt === 'number' ? frame.dt : Math.min(0.1, delta || 0)
+    this._accumulator = Math.min(this._accumulator + Math.max(0, dt), step * MAX_STEPS)
+    let stepped = false
+    while (this._accumulator >= step - 1e-9) {
+      // Kinematic bodies are given their target before each step, so a moving
+      // platform reaches it within that step and does not overshoot.
+      for (const body of physicsBodies) {
+        if ((body as any)._prestepType === 0) continue // DISABLED
+        const pd = this._getPluginData(body)
+        if (!pd?.bodyId) continue
+        this._preStep(body)
+      }
+      this._joltInterface.Step(step, 1)
+      this._accumulator -= step
+      stepped = true
+    }
+    if (!stepped) return
 
     // Post-step: sync Jolt transforms back to Babylon
     for (const body of physicsBodies) {
