@@ -46,6 +46,14 @@ export interface MacroBody {
   african: number
   asian: number
   caucasian: number
+  /** Front-to-back depth of the chest, 0.5 neutral. */
+  chestDepth?: number
+  /** Pectoral muscle, 0.5 neutral. */
+  pecs?: number
+  /** Bust size (cup), 0.5 average; applies in proportion to how female the body is. */
+  bustSize?: number
+  /** Bust firmness, 0.5 average. */
+  bustFirmness?: number
 }
 
 export const DEFAULT_HUMAN_BODY: Readonly<MacroBody> = Object.freeze({
@@ -58,6 +66,10 @@ export const DEFAULT_HUMAN_BODY: Readonly<MacroBody> = Object.freeze({
   african: 1 / 3,
   asian: 1 / 3,
   caucasian: 1 / 3,
+  chestDepth: 0.5,
+  pecs: 0.5,
+  bustSize: 0.5,
+  bustFirmness: 0.5,
 })
 
 type Corners = [string, number][]
@@ -187,9 +199,29 @@ export function macroWeights(
           for (const [p, pw] of proportions) {
             add(`macrodetails/proportions/${corner}-${p}`, base * pw)
           }
+          /*
+          THE BUST: MakeHuman's breast targets are corners like the macros,
+          plus cup and firmness, for the female half of the body only; the
+          average cup at average firmness is the base shape, so it has none.
+          */
+          if (g === 'female') {
+            for (const [c, cw] of threeLevel(body.bustSize ?? 0.5, 'cup')) {
+              for (const [f, fw] of threeLevel(body.bustFirmness ?? 0.5, 'firmness')) {
+                if (c === 'averagecup' && f === 'averagefirmness') continue
+                add(`breast/${corner}-${c}-${f}`, base * cw * fw)
+              }
+            }
+          }
         }
       }
     }
+  }
+  // Chest depth and pectorals: plain pairs, independent of the macros.
+  for (const [t, w] of bipolar(body.chestDepth ?? 0.5, 'decr', 'incr')) {
+    add(`torso/torso-scale-depth-${t}`, w)
+  }
+  for (const [t, w] of bipolar(body.pecs ?? 0.5, 'decr', 'incr')) {
+    add(`torso/torso-muscle-pectoral-${t}`, w)
   }
   return out
 }

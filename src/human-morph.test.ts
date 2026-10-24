@@ -129,6 +129,40 @@ describe.skipIf(!havePack)('hm08, morphed', () => {
   })
 })
 
+describe.skipIf(!havePack)('hm08 chest and bust', () => {
+  // How far forward the chest reaches, at pec height, on the midline band.
+  const chestFront = (p: Float32Array, tris: Uint32Array) => {
+    let lo = Infinity
+    let hi = -Infinity
+    for (const v of tris) {
+      lo = Math.min(lo, p[v * 3 + 1])
+      hi = Math.max(hi, p[v * 3 + 1])
+    }
+    const y0 = lo + (hi - lo) * 0.73
+    let front = -Infinity
+    for (const v of tris) {
+      if (Math.abs(p[v * 3 + 1] - y0) > 0.02 || Math.abs(p[v * 3]) > 0.12) continue
+      front = Math.max(front, p[v * 3 + 2])
+    }
+    return front
+  }
+  test('bust size grows a female chest, and leaves a male one alone', async () => {
+    const pack = await loadHumanPack(PACK, fromDisk)
+    if (!pack.has('breast/female-young-averagemuscle-averageweight-maxcup-averagefirmness')) return
+    const f = async (body: Partial<MacroBody>) =>
+      chestFront(await morphHuman(pack, macroWeights({ ...DEFAULT_HUMAN_BODY, ...body }, (n) => pack.has(n))), pack.triangles)
+    expect(await f({ gender: 0, bustSize: 1 })).toBeGreaterThan((await f({ gender: 0, bustSize: 0 })) + 0.02)
+    expect(await f({ gender: 1, bustSize: 1 })).toBeCloseTo(await f({ gender: 1, bustSize: 0 }), 4)
+  })
+  test('chest depth reaches further forward', async () => {
+    const pack = await loadHumanPack(PACK, fromDisk)
+    if (!pack.has('torso/torso-scale-depth-incr')) return
+    const f = async (chestDepth: number) =>
+      chestFront(await morphHuman(pack, macroWeights({ ...DEFAULT_HUMAN_BODY, gender: 1, chestDepth }, (n) => pack.has(n))), pack.triangles)
+    expect(await f(1)).toBeGreaterThan((await f(0)) + 0.01)
+  })
+})
+
 describe.skipIf(!havePack)('hm08, rigged from its joint cubes', () => {
   test("UAL's 65 joints, every one placed, the left on +X", async () => {
     const { humanRig, humanSkin } = await import('./human-rig.js')

@@ -56,6 +56,10 @@ preview.append(
         slider('muscle', 'muscle'),
         slider('weight', 'weight'),
         slider('height', 'height'),
+        slider('chest depth', 'chestDepth'),
+        slider('pecs', 'pecs'),
+        slider('bust', 'bustSize'),
+        slider('firmness', 'bustFirmness'),
         label3d({ text: 'Motion', collapsible: true }),
         select3d({ label: 'clip', value: walker.clip, options: clips, stayOpen: true }),
         toggle3d({ label: 'pause', value: walker.paused }),
@@ -144,7 +148,7 @@ preview.append(
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
 
-        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 14)).catch((e) => {
+        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 15)).catch((e) => {
           el.setLoading(`could not load the body: ${e.message}`, { spin: false })
           throw e
         })
