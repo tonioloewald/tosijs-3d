@@ -12,6 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Fixed:** the character builder's stubble covers the upper lip (the moustache's coverage is added to the full beard's, which has none) and the throat and sides of the neck (carried 5 cm down from the beard's edge, fading), and leaves the lips bare.
 - **Added:** the rig tool imports animations made on another rig (`load animations…`, `rig.loadClips(file | url)`): a GLB's clips (Mixamo, mocap, another library) are retargeted onto the character and the comparison mannequin. Mixamo's FBX needs converting to GLB first.
 - **Fixed:** the owl shows on the flat system bar whenever its panel has anything in it, including only the icon bar (Pause). A scene with no settings rows of its own (the Biped Playground) had no owl flat, though it had one in a headset.
 - **Added:** a slow-motion button beside Pause in the settings panel's icon bar: world time at a quarter speed (`timeScale` 0.25) and back.

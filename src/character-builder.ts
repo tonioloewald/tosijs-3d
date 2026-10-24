@@ -203,7 +203,7 @@ preview.append(
         let face = null
         let scalp = null
         // For poking at from the console: what this page built.
-        el.builder = { pack, hairLib, get scalp() { return scalp }, get built() { return built }, get positions() { return current } }
+        el.builder = { pack, hairLib, get scalp() { return scalp }, get built() { return built }, get positions() { return current }, get stubble() { return stubbleMask } }
         let hairMeshes = []
         let dressing = 0
         dress = async () => {
@@ -434,24 +434,56 @@ preview.append(
           const lin = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4))
           return { r: lin(((n >> 16) & 255) / 255), g: lin(((n >> 8) & 255) / 255), b: lin((n & 255) / 255) }
         }
-        const beardFor = Object.keys(pack.manifest.proxies ?? {}).find((n) => /scruffy_beard/.test(n))
+        const proxyNamed = (re) => Object.keys(pack.manifest.proxies ?? {}).find((n) => re.test(n))
+        const beardFor = proxyNamed(/scruffy_beard/)
+        const tacheFor = proxyNamed(/moustache/)
         const measureStubble = async () => {
           if (!beardFor || !current) return
-          const b = await pack.proxy(beardFor)
-          const fitted = drawnPositions(b, fitProxy(b, current))
           const body = skin.positions(current)
-          const gap = coveredBy(body, vertexNormals(body, skin.triangles), fitted, 0.02)
-          // Below the cheekbones: up to a little above the upper lip, faded
-          // (the full beard climbs the cheeks, and stubble there read as a bruise).
+          const normals = vertexNormals(body, skin.triangles)
+          const grownOn = async (name) => {
+            const p = await pack.proxy(name)
+            return coveredBy(body, normals, drawnPositions(p, fitProxy(p, current)), 0.02)
+          }
+          // Where a full beard grows, and a moustache: the full beard has no
+          // moustache part, so the upper lip was bare.
+          const beard = await grownOn(beardFor)
+          const tache = tacheFor ? await grownOn(tacheFor) : null
+          // The beard below the cheekbones: up to a little above the upper lip,
+          // faded (the full beard climbs the cheeks, and stubble there read as a bruise).
           let lipTop = -Infinity
           for (let v = 0; v < lips.length; v++) if (lips[v] > 0.5) lipTop = Math.max(lipTop, current[v * 3 + 1])
           const cap = lipTop + 0.03
-          stubbleMask = Float32Array.from(gap, (g, i) => {
-            if (g === Infinity) return 0
-            const t = Math.min(1, Math.max(0, (cap - body[i * 3 + 1]) / 0.015))
-            return t * t * (3 - 2 * t)
-          })
-          // Soften the edge: a vertex beside the beard's edge gets a little.
+          const smooth = (t) => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t) }
+          const n = body.length / 3
+          const mask = new Float32Array(n)
+          for (let i = 0; i < n; i++) {
+            const b = beard[i] === Infinity ? 0 : smooth((cap - body[i * 3 + 1]) / 0.015)
+            const t = tache && tache[i] !== Infinity ? 1 : 0
+            // Not on the lips themselves.
+            mask[i] = Math.max(b, t) * (1 - smooth((lips[skin.vertices[i]] - 0.05) / 0.45))
+          }
+          // Down the neck: the full beard stops at the jaw, but stubble grows on
+          // the throat and the sides of the neck, fading over 5 cm below the
+          // beard's edge. Front and sides only (the normal faces forward or out).
+          const edge = []
+          let low = Infinity
+          for (let i = 0; i < n; i++) if (mask[i] > 0.5 && body[i * 3 + 1] < lipTop) { edge.push(i); low = Math.min(low, body[i * 3 + 1]) }
+          const REACH = 0.05
+          for (let i = 0; i < n; i++) {
+            const y = body[i * 3 + 1]
+            if (mask[i] > 0.5 || y > lipTop || y < low - REACH || normals[i * 3 + 2] < -0.2) continue
+            let d = Infinity
+            for (const j of edge) {
+              if (body[j * 3 + 1] < y) continue
+              const dx = body[j * 3] - body[i * 3]
+              const dy = body[j * 3 + 1] - y
+              const dz = body[j * 3 + 2] - body[i * 3 + 2]
+              d = Math.min(d, dx * dx + dy * dy + dz * dz)
+            }
+            mask[i] = Math.max(mask[i], smooth(1 - Math.sqrt(d) / REACH))
+          }
+          stubbleMask = mask
           paint()
         }
         paint = () => {
