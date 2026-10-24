@@ -275,6 +275,7 @@ drag *and* the reported value, so a slider can be discrete without becoming a
 | | `format` | step-derived | `(v) => string` — units, precision |
 | `toggle3d` | `label` / `value` | | |
 | `select3d` | `options` | | opens a list (downward chevron); steps only with no host |
+| | `stayOpen` | `false` | keeps the list open after a pick, until closed or pressed behind: for trying options one after another |
 | `inputField` | **`type`** | `'text'` | `text`/`number`/`integer`/`email`/`url`/`tel` |
 | | `placeholder` / `value` / `height` / `fontSize` | | |
 | `list3d` | `items` / `handleSelect` | | items may carry `icon` and `disabled` |
@@ -2527,6 +2528,12 @@ export function select3d(config: {
   options: Array<string | number | { label: string; value: string | number }>
   /** Only for the hostless step fallback: wrap past the ends (default true). */
   wrap?: boolean
+  /**
+   * Keep the menu open after a pick, until it is closed or something behind
+   * it is pressed: for trying options one after another (a hairstyle, an
+   * outfit) and watching each take effect.
+   */
+  stayOpen?: boolean
   /** Fired as the value changes. */
   handleChange?: (v: string | number) => void
 }): Widget3d {
@@ -2670,7 +2677,7 @@ export function select3d(config: {
         handleSelect: (_item, i) => {
           bound.set(opts[i].value)
           reflect()
-          closeMenu()
+          if (!config.stayOpen) closeMenu()
         },
       })
     )

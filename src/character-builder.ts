@@ -56,7 +56,7 @@ preview.append(
         slider('weight', 'weight'),
         slider('height', 'height'),
         label3d({ text: 'Motion', collapsible: true }),
-        select3d({ label: 'clip', value: walker.clip, options: clips }),
+        select3d({ label: 'clip', value: walker.clip, options: clips, stayOpen: true }),
         toggle3d({ label: 'pause', value: walker.paused }),
         label3d({ text: 'Skin', collapsible: true }),
         slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01 }),
@@ -71,10 +71,10 @@ preview.append(
         slider3d({ label: 'brows up', value: walker.browsUp, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: 'frown', value: walker.frown, min: 0, max: 1, step: 0.01 }),
         label3d({ text: 'Hair', collapsible: true }),
-        select3d({ label: 'hair', value: walker.hair, options: styles.hair }),
-        select3d({ label: 'beard', value: walker.beard, options: styles.beard }),
-        select3d({ label: 'moustache', value: walker.moustache, options: styles.moustache }),
-        select3d({ label: 'brows', value: walker.brows, options: styles.brows }),
+        select3d({ label: 'hair', value: walker.hair, options: styles.hair, stayOpen: true }),
+        select3d({ label: 'beard', value: walker.beard, options: styles.beard, stayOpen: true }),
+        select3d({ label: 'moustache', value: walker.moustache, options: styles.moustache, stayOpen: true }),
+        select3d({ label: 'brows', value: walker.brows, options: styles.brows, stayOpen: true }),
         // A base and a highlight, each a swatch that opens a picker with presets;
         // a base preset brings its usual highlight with it.
         colorPicker3d({ label: 'base', value: walker.hairBase, alpha: false, defaultPresets: 'off', presets: Object.entries(HAIR_COLOURS).map(([name, c]) => ({ name, value: c.base })) }),
@@ -84,7 +84,7 @@ preview.append(
         slider3d({ label: 'forward', value: walker.hairForward, min: -0.02, max: 0.02, step: 0.001 }),
         slider3d({ label: 'size', value: walker.hairSize, min: 0.9, max: 1.1, step: 0.005 }),
         label3d({ text: 'Clothes', collapsible: true }),
-        ...SLOTS.map((slot) => select3d({ label: slot, value: walker[slot], options: styles[slot] })),
+        ...SLOTS.map((slot) => select3d({ label: slot, value: walker[slot], options: styles[slot], stayOpen: true })),
         // One editor for whichever worn thing is chosen: its colourway, fabric,
         // and a recolour over its texture (0 keeps the texture's own colours).
         select3d({ label: 'edit', value: walker.editing, options: SLOTS }),
