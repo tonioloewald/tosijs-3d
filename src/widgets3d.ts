@@ -4716,8 +4716,19 @@ export function panel3d(
         sheet.appendChild(closeGlyph)
       }
       holder.appendChild(sheet)
-      // Beside the panel — see the note above on shadow hosts.
-      const parent = container ?? (root.parentNode as ParentNode | null)
+      /*
+      IN THE DOCUMENT BODY by default, not beside the panel. A panel usually
+      sits in something that CLIPS (a doc page's demo frame, a scrolling
+      sidebar), and a popup inserted beside it was cut off at that frame's
+      edge however well it was placed in the viewport (#3478: the colour
+      picker's popup lost its presets below the demo). In the body nothing
+      clips it, and absolute page coordinates still scroll it with its field.
+      A container passed to `useDomLayer` is still used as given.
+      */
+      // Only for a panel in the document itself: inside a shadow root the popup
+      // stays beside its panel, in the same root (ensemble's topology).
+      const inBody = container == null && root.isConnected && root.getRootNode() === document
+      const parent = container ?? (inBody ? document.body : (root.parentNode as ParentNode | null))
       if (parent == null) return { close: () => {} }
       /*
       `absolute` resolves against the nearest POSITIONED ancestor, so give the
@@ -4725,11 +4736,12 @@ export function panel3d(
       to the page and lands somewhere unrelated. A `ShadowRoot` has no style, so
       the host is the thing to reach for there.
       */
-      const positioned =
-        container ??
-        (parent instanceof ShadowRoot
-          ? (parent.host as HTMLElement)
-          : (parent as HTMLElement))
+      const positioned = inBody
+        ? null
+        : container ??
+          (parent instanceof ShadowRoot
+            ? (parent.host as HTMLElement)
+            : (parent as HTMLElement))
       if (
         positioned?.style != null &&
         getComputedStyle(positioned).position === 'static'
@@ -4749,7 +4761,10 @@ export function panel3d(
       the cross axis. Running it in VIEWPORT coordinates and converting once at
       the end keeps one placement rule for both presentations.
       */
-      const box = positioned?.getBoundingClientRect?.() ?? { left: 0, top: 0 }
+      // In the body, offsets are page coordinates (the viewport plus scroll).
+      const box = inBody
+        ? { left: -window.scrollX, top: -window.scrollY }
+        : positioned?.getBoundingClientRect?.() ?? { left: 0, top: 0 }
       const vw = window.innerWidth || 1024
       const vh = window.innerHeight || 768
       const placed = placePopup(
@@ -4767,7 +4782,21 @@ export function panel3d(
       holder.style.left = `${placed.x - box.left}px`
       holder.style.top = `${placed.y - box.top}px`
       if (container != null) container.appendChild(holder)
-      else parent.insertBefore(holder, root.nextSibling)
+      else if (inBody) {
+        holder.style.zIndex = '1000'
+        document.body.appendChild(holder)
+      } else parent.insertBefore(holder, root.nextSibling)
+      // In the body it no longer leaves with its panel's container, so it
+      // leaves when its panel does.
+      let gone: ReturnType<typeof setInterval> | undefined
+      if (inBody) {
+        gone = setInterval(() => {
+          if (!root.isConnected) {
+            clearInterval(gone)
+            holder.remove()
+          }
+        }, 500)
+      }
 
       /*
       DRAG IT. The clamp above stops the first frame being off-screen; this is
@@ -4861,7 +4890,12 @@ export function panel3d(
       holder.addEventListener('pointerup', onUp, true)
       holder.addEventListener('pointercancel', onUp, true)
 
-      return { close: () => holder.remove() }
+      return {
+        close: () => {
+          clearInterval(gone)
+          holder.remove()
+        },
+      }
     }
     /*
     NOT `drawsChrome`. That flag means "always draws, so always reserve", which
