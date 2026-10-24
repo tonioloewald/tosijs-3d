@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Fixed:** the owl shows on the flat system bar whenever its panel has anything in it, including only the icon bar (Pause). A scene with no settings rows of its own (the Biped Playground) had no owl flat, though it had one in a headset.
+- **Added:** a slow-motion button beside Pause in the settings panel's icon bar: world time at a quarter speed (`timeScale` 0.25) and back.
 - **Added:** the rig tool binds a model with no skeleton itself (`load model file…` takes a GLB or OBJ): eight markers on its outline, guessed and then dragged onto the joints, place a skeleton, and bone heat binds the mesh to it. `bind from markers` does the same for a model that has a skeleton, ignoring it. The markers are saved in the recipe as `binding` (`RigBinding`).
 - **Fixed:** auto-rig: fingers a mesh does not show lie on the nearest one it does, so a mitten hand is aimed along the mitten (omnidude's hands curled into hooks).
 - **Fixed:** `<tosi-b3d-light>` applies its attributes when its light is made. Before, a light whose element rendered before the scene was ready kept Babylon's defaults (intensity 1, a black ground colour) whatever it was given, so a page that hit it (the character builder did) now gets the fill it asked for. The demos that set a very dim fill (colour picker, beacon, solar system, planet) render exactly as before: they were not hit.

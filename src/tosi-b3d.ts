@@ -4627,6 +4627,22 @@ export class B3d extends Component {
         this._repaintPanels()
       },
     })
+    /*
+    SLOW MOTION, beside Pause: world time at a quarter speed and back. Input,
+    the UI and the camera stay in real time; everything stepping by
+    `sceneDelta` slows (physics, bipeds, vehicles, the sky).
+    */
+    const scale = Number((this as any).timeScale ?? 1)
+    out.push({
+      id: '__slow',
+      name: scale < 1 ? 'Normal speed' : 'Slow motion',
+      icon: 'clock',
+      active: scale < 1,
+      handleClick: () => {
+        ;(this as any).timeScale = scale < 1 ? 1 : 0.25
+        this._repaintPanels()
+      },
+    })
     const pad = this.querySelector('tosi-b3d-gamepad') as unknown as {
       hidden?: boolean
       setFade?: (on: boolean) => void
@@ -6905,10 +6921,12 @@ export class B3d extends Component {
         this._closeScenePanel()
       })
     }
-    // Reveal the gear when the panel has any widgets — the scenePanel hook's, or
-    // the opted-in perf-stats section. (Enter VR is a SEPARATE button grouped next
-    // to the gear — see the toolbar — so XR availability no longer gates the gear.)
-    if (this._panelWidgets().length > 0) {
+    // Reveal the gear when the panel has anything in it: the scenePanel hook's
+    // rows, or its icon bar (Pause is always there). Rows alone hid the owl on a
+    // page with no settings of its own, which the headset still showed.
+    // (Enter VR is a SEPARATE button grouped next to the gear — see the toolbar —
+    // so XR availability no longer gates the gear.)
+    if (this._panelWidgets().length > 0 || this._barItems().length > 0) {
       gear.hidden = false
       if ((this as any).scenePanelOpen) this._openScenePanel()
     }
