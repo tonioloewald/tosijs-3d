@@ -115,7 +115,10 @@ describe('fitSkeleton', () => {
     expect(p('foot_l').y).toBeLessThan(0.5)
     expect(p('ball_leaf_l').z).toBeCloseTo(0.2)
     expect(p('middle_04_leaf_l').x).toBeGreaterThan(0.88)
-    expect(p('index_01_l').z).toBeGreaterThan(p('pinky_01_l').z)
+    // A box hand is a mitten: the fingers it does not show lie on it, so
+    // the hand is aimed along it.
+    expect(rig.fingers?.l).toContain('index')
+    expect(p('middle_01_l')).toEqual(p('index_01_l'))
     expect(rig.joints.find((j) => j.name === 'Head')!.end!.y).toBeGreaterThan(
       1.83
     )
