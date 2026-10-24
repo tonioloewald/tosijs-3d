@@ -205,6 +205,7 @@ import { nearFirst } from './draw-order.js'
 import { seasonOf } from './biome-plugin.js'
 import { planetTemperature } from './biome-chart.js'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d.js'
+import { realNow } from './clock.js'
 
 export class B3dWater extends AbstractMesh {
   static preferredTagName = 'tosi-b3d-water'
@@ -1445,7 +1446,7 @@ export class B3dWater extends AbstractMesh {
   }
   private _shoreTick?: () => void
   private _shoreNext = 0
-  private _shoreSince = performance.now()
+  private _shoreSince = realNow()
   private _warnedNoTerrain = false
 
   /*
@@ -1459,7 +1460,7 @@ export class B3dWater extends AbstractMesh {
     const mesh = this.mesh
     const owner = this.owner
     if (shore == null || mesh == null || owner == null) return
-    const now = performance.now()
+    const now = realNow()
     if (!force && now < this._shoreNext) return
     this._shoreNext = now + 250
     const terrain = owner.querySelector('tosi-b3d-terrain') as any

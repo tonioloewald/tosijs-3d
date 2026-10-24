@@ -126,6 +126,7 @@ import { svgElements } from 'tosijs'
 import type { Box, BoxChild, BoxChildState, PointerKind } from './box.js'
 import { DRAG_THRESHOLD, type Carry, type CarryTarget } from './carry.js'
 import { iconGlyph } from './svg-icons.js'
+import { realNow } from './clock.js'
 
 /** How a thing shows its condition, supplied by the consumer per thing. */
 export interface CarryDecorations {
@@ -670,10 +671,10 @@ function carryGhost(parent: Element) {
     springBack(from: Pt, to: Pt, reason: string) {
       const mine = ++run
       why.textContent = reason
-      const t0 = performance.now()
+      const t0 = realNow()
       const step = () => {
         if (mine !== run) return
-        const t = Math.min(1, (performance.now() - t0) / SPRING_MS)
+        const t = Math.min(1, (realNow() - t0) / SPRING_MS)
         const e = 1 - (1 - t) ** 3
         place(from.x + (to.x - from.x) * e, from.y + (to.y + LIFT - from.y) * e)
         if (t < 1) requestAnimationFrame(step)

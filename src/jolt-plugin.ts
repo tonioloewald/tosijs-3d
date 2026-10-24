@@ -45,6 +45,7 @@ import {
   PhysicsShapeType,
   PhysicsMotionType,
 } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin.js'
+import { realNow } from './clock.js'
 
 // ---------------------------------------------------------------------------
 // Internal data stored on body._pluginData / shape._pluginData
@@ -609,7 +610,7 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
     // the time between scene.render() calls. When the scene is frame-rate
     // throttled (e.g. 30fps on a 120Hz display), the delta passed here is
     // ~4x too small. We measure wall-clock time ourselves to get the correct dt.
-    const now = performance.now()
+    const now = realNow()
     let dt: number
     if (this._lastStepTime > 0) {
       dt = (now - this._lastStepTime) / 1000 // ms → seconds

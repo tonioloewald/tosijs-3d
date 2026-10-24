@@ -26,6 +26,7 @@ unoccluded sliver beside a near object, never as a ghost.
 */
 
 import * as BABYLON from '@babylonjs/core'
+import { realNow } from './clock.js'
 
 export interface ProjectedAoParams {
   active: boolean
@@ -415,7 +416,7 @@ export class ProjectedAoController {
     const p = this._params
     const scene = this._scene
     if (p == null || scene.activeCamera == null) return
-    const now = performance.now()
+    const now = realNow()
     // Shaders compile asynchronously and a mesh whose depth shader is not
     // ready is simply left out of that drawing. So the first drawings after a
     // build are not rate-limited, or a slow rate would keep a picture with

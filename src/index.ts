@@ -1920,3 +1920,4 @@ export type {
 } from './spring-chain.js'
 export { springBones, springNodes } from './spring-chain-babylon.js'
 export type { SpringBones, SpringBoneCollider } from './spring-chain-babylon.js'
+export { realNow, wallMs, wallDate } from './clock.js'

@@ -70,6 +70,7 @@ import {
   type StorageLike,
 } from './perf-probe.js'
 import { setPerfProfile, getPerfProfile } from './b3d-quality.js'
+import { realNow, wallMs } from './clock.js'
 
 // ─── Benchmark workload sizes ─────────────────────────────────────────────────
 // Fixed so results are comparable across runs; bump PROBE_VERSION in perf-probe if
@@ -98,10 +99,10 @@ function timeScene(
 ): number {
   for (let i = 0; i < WARMUP; i++) scene.render()
   gl.finish()
-  const t0 = performance.now()
+  const t0 = realNow()
   for (let i = 0; i < frames; i++) scene.render()
   gl.finish()
-  return (performance.now() - t0) / frames
+  return (realNow() - t0) / frames
 }
 
 function buildFillScene(engine: BABYLON.Engine): BABYLON.Scene {
@@ -153,14 +154,14 @@ function buildDrawScene(engine: BABYLON.Engine): BABYLON.Scene {
 /** CPU noise batch — mirrors terrain heightAt's per-vertex cost. */
 function timeCpu(): number {
   const noise = new PerlinNoise(1234)
-  const t0 = performance.now()
+  const t0 = realNow()
   let acc = 0
   for (let i = 0; i < CPU_SAMPLES; i++) {
     acc += noise.noise3D(i * 0.01, (i % 512) * 0.017, (i % 131) * 0.031)
   }
   // Consume acc so the loop can't be optimised away.
   if (acc === Infinity) throw new Error('unreachable')
-  return performance.now() - t0
+  return realNow() - t0
 }
 
 function readRenderer(): string | undefined {
@@ -238,7 +239,7 @@ export function hydrateProfileFromCache(): boolean {
   setPerfProfile(
     resolveProfile(stored.measurements, {
       cached: true,
-      stale: isStale(stored, Date.now()),
+      stale: isStale(stored, wallMs()),
       hints: stored.hints,
     })
   )
@@ -316,7 +317,7 @@ export async function runProbe(
   const env = await currentEnv()
   const hints = hintsOf(env)
   const signature = buildSignature(env)
-  const now = Date.now()
+  const now = wallMs()
   const ttlMs = (opts.ttlDays || 30) * DAY_MS
   const stored = readStored(storage)
 
@@ -344,8 +345,8 @@ export async function runProbe(
     // Backdate a contended measurement to just inside its TTL, so it survives
     // this session (no re-probing on every scene) and expires by the next one.
     measuredAt: opts.measuredWhileBusy
-      ? Date.now() - (ttlMs - 5 * 60 * 1000)
-      : Date.now(),
+      ? wallMs() - (ttlMs - 5 * 60 * 1000)
+      : wallMs(),
   })
   const profile = resolveProfile(measurements, { cached: false, hints })
   setPerfProfile(profile)

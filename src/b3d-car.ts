@@ -45,6 +45,7 @@ import type { B3d } from './tosi-b3d.js'
 import { B3dControllable } from './b3d-controllable.js'
 import type { ControlInput } from './control-input.js'
 import { carMapping } from './virtual-gamepad.js'
+import { realNow } from './clock.js'
 
 export class B3dCar extends B3dControllable {
   static preferredTagName = 'tosi-b3d-car'
@@ -164,7 +165,7 @@ export class B3dCar extends B3dControllable {
           return lower.includes('_wheel') || lower.includes('wheel')
         })
 
-        this.lastUpdate = Date.now()
+        this.lastUpdate = realNow()
         scene.registerBeforeRender(this._update)
       })
     }

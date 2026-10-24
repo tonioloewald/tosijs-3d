@@ -44,6 +44,7 @@ import type { B3d } from './tosi-b3d.js'
 import { emptyInput } from './control-input.js'
 import type { ControlInput, InputProvider } from './control-input.js'
 import type { InputMapping } from './virtual-gamepad.js'
+import { realNow } from './clock.js'
 
 type FocusManager = {
   adoptIfVacant?: (e: B3dControllable) => void
@@ -179,7 +180,7 @@ export class B3dControllable extends AbstractMesh {
   }
 
   protected _update = () => {
-    const now = Date.now()
+    const now = realNow()
     const dt = Math.min((now - this.lastUpdate) * 0.001, 0.1)
     this.lastUpdate = now
 

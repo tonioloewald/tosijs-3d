@@ -372,6 +372,7 @@ import {
   shiftHue,
   type LightProgram,
 } from './light-modulation.js'
+import { realNow } from './clock.js'
 
 /**
  * Lowest the fixture's emissive goes, as a fraction of full.
@@ -836,7 +837,7 @@ export abstract class B3dLamp extends B3dChild {
     */
     if (this.timeSource === 'sim') return sceneDeltaSeconds(scene)
     const now =
-      typeof performance !== 'undefined' ? performance.now() : Date.now()
+      realNow()
     if (this._lastRealMs === 0) {
       this._lastRealMs = now
       return 0

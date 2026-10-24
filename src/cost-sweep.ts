@@ -53,6 +53,7 @@ reason: they are the part no emulator can exercise.
 */
 /*{ "parent": "performance", "order": 15 }*/
 import type * as BABYLON from '@babylonjs/core'
+import { realNow } from './clock.js'
 
 export interface SweepRow {
   name: string
@@ -333,7 +334,7 @@ export async function costSweep(
         const intervals: number[] = []
         let last = 0
         const obs = scene.onAfterRenderObservable.add(() => {
-          const now = performance.now()
+          const now = realNow()
           if (last > 0) intervals.push(now - last)
           last = now
         })

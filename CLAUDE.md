@@ -1168,6 +1168,10 @@ Hand-rolled `createElement('style')`, dynamically-concatenated CSS strings, or p
 - ESLint: `@typescript-eslint/no-explicit-any` and `no-non-null-assertion` are allowed
 - ESM throughout (`"type": "module"` in package.json)
 
+### No wall clock in game code
+
+Time in the world comes from the scene: `sceneDelta(scene)` for a frame's step, `sceneSeconds(scene)` for animation. Both stop in a pause, follow `timeScale`, and run the same in a test or a replay. The system clock (`Date.now()`, `performance.now()`, `new Date()`) is read ONLY in `src/clock.ts` (`realNow()` for real durations: profiling, budgets, debounces, pause-menu UI; `wallMs()`/`wallDate()` for stamps), and `clock.test.ts` fails on a read anywhere else. A review that sees `realNow()` in something that lives in the world should ask why (board #3466; Tonio, from an experienced game developer: a core principle).
+
 ## Testing Patterns
 
 Tests import from `bun:test` (`describe`, `expect`, `test`). The project favors **pure, dependency-free modules** that can be tested without a 3D engine — see `fly-by-wire.ts` (plain `{x, y, z}` objects, no Babylon), `perlin-noise.ts`, and the combat models `resource.ts` / `destroyable.ts` (deterministic — time only via a `dt`/`tick`, no `Date.now`/`Math.random`) as examples. When adding testable logic, follow this pattern: isolate computation from Babylon.js types so it can be unit tested directly. Pure state models that must be reproducible (combat, world-store) advance time explicitly and avoid `Date.now`/`Math.random`.

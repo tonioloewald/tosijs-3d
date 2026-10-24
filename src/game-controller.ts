@@ -62,6 +62,7 @@ import {
   bipedMapping,
 } from './virtual-gamepad.js'
 import { HardwareGamepadSource } from './hardware-gamepad.js'
+import { realNow } from './clock.js'
 
 function keycode(evt: KeyboardEvent): string {
   return evt.code.replace(/Key|Digit/, '')
@@ -257,7 +258,7 @@ export class GameController extends Component implements GamepadSource {
     stale 15.8s gap scaled a full-strength movement down to 0.002, which is how
     this was found).
     */
-    const now = Date.now()
+    const now = realNow()
     const frameDt = this._lastPoll > 0 ? (now - this._lastPoll) / 1000 : 1 / 60
     this._lastPoll = now
     if (this._lookDx !== 0 || this._lookDy !== 0) {
@@ -378,7 +379,7 @@ export class GameController extends Component implements GamepadSource {
   }
 
   private _updateSmoothing = () => {
-    const now = Date.now()
+    const now = realNow()
     const dt = (now - this.lastUpdate) * 0.001
     this.lastUpdate = now
 
@@ -460,7 +461,7 @@ export class GameController extends Component implements GamepadSource {
     this.pressedKeys = new Set()
     this.axisState = {}
     this.buttonState = {}
-    this.lastUpdate = Date.now()
+    this.lastUpdate = realNow()
     this.interval = window.setInterval(
       this._updateSmoothing,
       (this as any).updateIntervalMs

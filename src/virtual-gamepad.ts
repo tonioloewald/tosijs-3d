@@ -53,9 +53,9 @@ mappingSelect.addEventListener('change', () => {
   touchSource.showLabels(desc.labels)
 })
 
-let lastTime = Date.now()
+let lastTime = performance.now()
 function update() {
-  const now = Date.now()
+  const now = performance.now()
   const dt = Math.min((now - lastTime) * 0.001, 0.1)
   lastTime = now
 

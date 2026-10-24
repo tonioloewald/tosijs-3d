@@ -179,6 +179,7 @@ import {
   mergeGamepads,
 } from './virtual-gamepad.js'
 import { glassGamepadSvg } from './gamepad-art.js'
+import { realNow } from './clock.js'
 
 const { div } = elements
 
@@ -814,14 +815,14 @@ export class B3dGamepad extends Component implements GamepadSource {
    * for `ms`, long enough for every controllable's edge detector to see it.
    */
   pulse(part: 'view' | 'menu', ms = 150): void {
-    this._pulses[part] = performance.now() + ms
+    this._pulses[part] = realNow() + ms
   }
   private _pulses: Partial<Record<'view' | 'menu', number>> = {}
 
   poll(): VirtualGamepad {
     let merged = emptyGamepad()
     // A pulse is a deliberate press, so it gets through a suppressed pad.
-    const now = performance.now()
+    const now = realNow()
     for (const [part, until] of Object.entries(this._pulses))
       if (until > now) merged[part as 'view' | 'menu'] = 1
     // A stick held when a menu came up must not keep steering behind it.

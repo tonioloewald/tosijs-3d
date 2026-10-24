@@ -53,6 +53,7 @@ deterministic and testable — same discipline as the rest of the pure models he
 /*{ "parent": "ui-in-scene", "order": 40 }*/
 
 import type { VirtualGamepad } from './virtual-gamepad.js'
+import { realNow } from './clock.js'
 
 /** What a focus driver needs from its target — `box`, `surface`, or your own. */
 export interface FocusTarget {
@@ -185,7 +186,7 @@ export function gamepadFocus(opts: GamepadFocusOptions): () => void {
     if (stopped) return
     // Always RUN the pulse (it holds the edge/repeat state — skipping it would
     // burst stale presses on activation); only APPLY it when active.
-    const p = pulse(opts.poll(), performance.now())
+    const p = pulse(opts.poll(), realNow())
     if (claimed === null || claimed === token) {
       for (const m of p.moves) opts.target.focusMove(m.dx, m.dy)
       if (p.activate) opts.target.focusActivate()

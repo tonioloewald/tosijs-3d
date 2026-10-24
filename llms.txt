@@ -291,6 +291,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   creator (CHARACTER-DESIGN.md): MakeHuman's CC0 body
 - https://3d.tosijs.net/characters-and-vehicles/ — Characters and vehicles
   climbs; an [aircraft](/b3d-aircraft/) that hovers like a drone and flies like a
+- https://3d.tosijs.net/clock/ — clock
+  the simulation: `sceneDelta(scene)` for a frame's step and `sceneSeconds(scene)`
 - https://3d.tosijs.net/cloth-shading/ — cloth-shading
   What makes cloth read as cloth at any distance is how it takes light, not its
 - https://3d.tosijs.net/cloud-shadows/ — cloud-shadows
@@ -531,6 +533,7 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   SVG and takes pointer input as *coordinates*, never as DOM events. That single
 - https://3d.tosijs.net/upgrading/ — Upgrading
   changes you have to make in your own code, minor by minor. The
+- https://3d.tosijs.net/utilities/ — utilities
 - https://3d.tosijs.net/vertex-animation/ — vertex-animation
   Babylon, no GPU — so the layout and the phase maths can be tested without a
 - https://3d.tosijs.net/virtual-gamepad/ — virtual-gamepad

@@ -161,10 +161,11 @@ and derive our own from it.
 */
 import '@babylonjs/materials/sky/sky.vertex.js'
 import '@babylonjs/materials/sky/sky.fragment.js'
-import { AbstractMesh, fetchedUrl } from './b3d-utils.js'
+import { AbstractMesh, fetchedUrl, sceneSeconds } from './b3d-utils.js'
 import { band } from './atmosphere.js'
 import type { B3d } from './tosi-b3d.js'
 import type { B3dSun } from './b3d-shadows.js'
+import { realNow } from './clock.js'
 
 const DEG_TO_RAD = Math.PI / 180
 
@@ -1937,7 +1938,8 @@ export class B3dSkybox extends AbstractMesh {
     // TWINKLE runs every frame: its clock, and its strength — which is the
     // GAS (vacuum and dust do not twinkle stars; turbulent air does).
     const attrs = this as any
-    sm.setFloat('b3dTime', performance.now() * 0.001)
+    // World seconds: stars stop twinkling in a pause like everything else.
+    sm.setFloat('b3dTime', sceneSeconds(this.owner!.scene))
     sm.setFloat(
       'b3dTwinkle',
       Math.max(0, Number(attrs.starfieldTwinkle) || 0) * this._gas
@@ -2502,9 +2504,9 @@ export class B3dSkybox extends AbstractMesh {
     day/night cycle that is scenery, not a simulation.
     */
     const MAX_STEP_MS = 250
-    let lastTick = Date.now()
+    let lastTick = realNow()
     this.interval = window.setInterval(() => {
-      const now = Date.now()
+      const now = realNow()
       const elapsed = Math.min(MAX_STEP_MS, Math.max(0, now - lastTick))
       lastTick = now
       attrs.timeOfDay =

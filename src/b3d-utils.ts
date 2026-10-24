@@ -2,6 +2,7 @@ import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d, FrameInfo } from './tosi-b3d.js'
 import { sendDebug } from './debug-sink.js'
+import { realNow } from './clock.js'
 
 const DEG_TO_RAD = Math.PI / 180
 
@@ -162,7 +163,7 @@ export const sceneDelta = (scene: BABYLON.Scene): number => {
 export const sceneSeconds = (scene: BABYLON.Scene): number => {
   const published = (scene.metadata as { b3dFrame?: FrameInfo } | null)
     ?.b3dFrame
-  return published != null ? published.elapsed : performance.now() * 0.001
+  return published != null ? published.elapsed : realNow() * 0.001
 }
 
 export const sceneFrame = (scene: BABYLON.Scene): FrameInfo => {

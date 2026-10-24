@@ -56,6 +56,7 @@ the degrees an author sets with `biomeTemperature`.
 /*{ "parent": "b3d-terrain", "order": 20 }*/
 
 import * as BABYLON from '@babylonjs/core'
+import { sceneSeconds } from './b3d-utils.js'
 import { noiseVolume, sampleNoiseVolume } from './noise-volume.js'
 import { mantaAxes, planetaryAxes } from './biome-chart.js'
 import { groundToDirection } from './sphere-map.js'
@@ -488,7 +489,6 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
   private _isEnabled = false
   private _lite: boolean
   private _computed: boolean
-  private _t0 = performance.now()
 
   constructor(material: BABYLON.Material) {
     super(material, 'Biome', 210, {
@@ -703,7 +703,8 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       p.rainShadow,
       p.windAzimuth,
       p.moistureDryHeight,
-      ((performance.now() - this._t0) / 1000) % 3600
+      // World seconds: the climate's drift stops in a pause, slows with timeScale.
+      sceneSeconds(this._material.getScene()) % 3600
     )
     uniformBuffer.updateFloat4('biomePlanet', at.x, at.y, at.z, p.seaRadius)
     uniformBuffer.updateFloat4(

@@ -445,6 +445,7 @@ import {
   recoverPool,
   type AmbientEffect,
 } from './ambient-budget.js'
+import { realNow, wallDate, wallMs } from './clock.js'
 
 const { canvas, div, span, slot, button } = elements
 
@@ -1549,7 +1550,7 @@ export class B3d extends Component {
     if (on === this._frozen) return
     this._frozen = on
     // Don't hand the held time back as one giant step on the first live frame.
-    if (!on) this.lastRender = Date.now()
+    if (!on) this.lastRender = realNow()
   }
 
   /**
@@ -1626,7 +1627,7 @@ export class B3d extends Component {
     this._repaintPanels()
     // A resume must not deliver the whole absence as one frame. `frameDelta` is
     // already clamped to 0.1s, but resetting the baseline keeps even that away.
-    this.lastRender = Date.now()
+    this.lastRender = realNow()
     this.dispatchEvent(new CustomEvent('resume', { bubbles: true }))
     if (this.enterXrOnResume === 'on' && !this.xrActive) {
       const base = this.xrHelper?.baseExperience
@@ -3220,7 +3221,7 @@ export class B3d extends Component {
       // The WALL clock keeps running, which is the one state `realDt` exists
       // for (a spinner on the pause panel). It used to publish 0 here and hold
       // `realElapsed`/`frame` still, contradicting FrameInfo's own doc.
-      const nowPaused = Date.now()
+      const nowPaused = realNow()
       const realPaused =
         this.lastRender > 0
           ? Math.min((nowPaused - this.lastRender) / 1000, 0.1)
@@ -3277,7 +3278,7 @@ export class B3d extends Component {
       if (this.update !== noop) {
         this.update(this, BABYLON)
       }
-      const now = Date.now()
+      const now = realNow()
       if (
         this.xrActive ||
         now - this.lastRender >= 1000 / (this as any).frameRate
@@ -3446,14 +3447,14 @@ export class B3d extends Component {
    * of waiting for quiet — see DECISIONS.md. This is the fix that doesn't need one.
    */
   private _probeWhenIdle(): void {
-    const start = Date.now()
+    const start = realNow()
     let quietFrames = 0
     const tick = () => {
       if (this.engine == null || this.scene == null) return // scene went away
       // Give up waiting after 30s and measure anyway: a scene that streams
       // forever (an endless world) would otherwise never probe at all, and a
       // stale default is worse than a slightly noisy measurement.
-      const timedOut = Date.now() - start > 30000
+      const timedOut = realNow() - start > 30000
       quietFrames = this.sceneBusy ? 0 : quietFrames + 1
       // ~1s of consecutive settled frames — one quiet frame mid-load proves nothing.
       if (quietFrames < 60 && !timedOut) {
@@ -3864,7 +3865,7 @@ export class B3d extends Component {
     const rate = (this as any).frameRate
     const run: SweepRun = {
       n: this._sweepRuns.reduce((m, r) => Math.max(m, r.n), 0) + 1,
-      began: Date.now(),
+      began: wallMs(),
       lines: [],
       starting: 'baseline',
       kind: what,
@@ -3976,7 +3977,7 @@ export class B3d extends Component {
   private _svgCostAt = { t: 0, checks: 0, repaints: 0, ms: 0 }
   private _svgCostText = 'svg textures: measuring'
   private _svgCostLine(): string {
-    const now = performance.now()
+    const now = realNow()
     const was = this._svgCostAt
     const dt = (now - was.t) / 1000
     if (dt >= 1) {
@@ -4319,7 +4320,7 @@ export class B3d extends Component {
       restore()
     }
     if (blob == null) return null
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+    const stamp = wallDate().toISOString().replace(/[:.]/g, '-').slice(0, 19)
     const base =
       String((this as any).panelTitle || 'scene')
         .trim()
@@ -4815,7 +4816,7 @@ export class B3d extends Component {
       minute or two with Perf Stats open ran indefinitely with it closed
       (#3135). The cause inside that path is not known; this only does it less.
       */
-      const now = performance.now()
+      const now = realNow()
       if (this.xrActive && now - last < 2000) return
       last = now
       // While a readout is up, so the loop is named when it forms and not
@@ -5151,7 +5152,7 @@ export class B3d extends Component {
       if (queue.length === 0) return
       const due = queue
       queue = []
-      const now = performance.now()
+      const now = realNow()
       for (const { cb } of due) {
         try {
           cb(now)
@@ -5935,7 +5936,7 @@ export class B3d extends Component {
         lastInput?: { cameraZoom: number; cameraPeek: number }
       }
     } | null
-    let last = Date.now()
+    let last = realNow()
     // Reused scratch vectors — never allocate inside the per-frame loop (in XR
     // that runs at 72-120fps, and the garbage was driving the perf creep).
     const fwd = new BABYLON.Vector3()
@@ -6161,7 +6162,7 @@ export class B3d extends Component {
     const ZOOM_RATE = 0.8
     const MAX_PEEK = 0.8 // radians of temporary look (right stick X), ~46°
     const frame = base.sessionManager.onXRFrameObservable.add(() => {
-      const now = Date.now()
+      const now = realNow()
       // Re-seat confirmation: capture the yaw from where you are looking WHEN
       // YOU PULL, not from where you had to look to press the button. Either
       // hand. Edge-triggered, and `triggerWasDown` starts true so a trigger

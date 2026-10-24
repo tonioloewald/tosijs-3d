@@ -204,6 +204,7 @@ import {
   type Placement,
   type ScatterRule,
 } from './scatter.js'
+import { realNow } from './clock.js'
 
 /*
 A layer bit the camera does not see (its default mask is 0x0FFFFFFF). The shadow
@@ -532,16 +533,16 @@ export class B3dDecorator extends B3dChild {
       this._build(terrain, here, off)
     }
     this._syncRockBiome(terrain)
-    if (performance.now() >= this._nextShadowCheck) {
-      this._nextShadowCheck = performance.now() + 300
+    if (realNow() >= this._nextShadowCheck) {
+      this._nextShadowCheck = realNow() + 300
       this._pickShadowCasters(here, off)
       this._syncShadows()
     }
     if (
       !isOff(this.colliders) &&
-      performance.now() >= this._nextColliderCheck
+      realNow() >= this._nextColliderCheck
     ) {
-      this._nextColliderCheck = performance.now() + 250
+      this._nextColliderCheck = realNow() + 250
       this._placeColliders(here, off)
     }
   }
@@ -785,7 +786,7 @@ export class B3dDecorator extends B3dChild {
     here: { x: number; z: number },
     off: { x: number; z: number }
   ): void {
-    const t0 = performance.now()
+    const t0 = realNow()
     const height = terrain.heightSampler()
     const cfg = terrain.biomePlugin?.params ?? {
       seaLevel: 0,
@@ -922,7 +923,7 @@ export class B3dDecorator extends B3dChild {
     }
     this._shadowFrom = null // re-pick the near casters for this build
     this._syncShadows()
-    this.lastBuildMs = performance.now() - t0
+    this.lastBuildMs = realNow() - t0
     this._builds++
   }
 
@@ -1167,10 +1168,10 @@ export class B3dDecorator extends B3dChild {
         const frames: number[] = []
         const gpu: number[] = []
         const draws: number[] = []
-        let last = performance.now()
+        let last = realNow()
         let n = 0
         const obs = scene.onAfterRenderObservable.add(() => {
-          const now = performance.now()
+          const now = realNow()
           if (n++ > 5) {
             frames.push(now - last)
             draws.push(sceneI.drawCallsCounter.current)

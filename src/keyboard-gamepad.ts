@@ -40,6 +40,7 @@ import { Component } from 'tosijs'
 import type { VirtualGamepad, GamepadSource } from './virtual-gamepad.js'
 import { emptyGamepad } from './virtual-gamepad.js'
 import { isTextEntry } from './text-entry.js'
+import { realNow } from './clock.js'
 
 function keycode(evt: KeyboardEvent): string {
   return evt.code.replace(/Key|Digit/, '')
@@ -215,7 +216,7 @@ export class KeyboardGamepadSource extends Component implements GamepadSource {
   }
 
   private _updateSmoothing = () => {
-    const now = Date.now()
+    const now = realNow()
     const dt = (now - this.lastUpdate) * 0.001
     this.lastUpdate = now
 
@@ -271,7 +272,7 @@ export class KeyboardGamepadSource extends Component implements GamepadSource {
     this.pressedKeys = new Set()
     this.axisState = {}
     this.buttonState = {}
-    this.lastUpdate = Date.now()
+    this.lastUpdate = realNow()
     this.interval = window.setInterval(
       this._updateSmoothing,
       (this as any).updateIntervalMs

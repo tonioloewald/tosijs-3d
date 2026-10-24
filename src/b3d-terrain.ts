@@ -435,6 +435,7 @@ const freshBiomeMemo = () => ({
 import { touchesExtent, type Vent } from './landform.js'
 import { b3dEffect } from './b3d-effect.js'
 import { chartTemperature } from './biome-chart.js'
+import { realNow } from './clock.js'
 
 /** Default `worldV`: a quarter turn from BOTH of CylinderSampler's mirror
  * planes (v = 0 and v = 0.5), which is the furthest you can sit from either. */
@@ -494,10 +495,7 @@ type TileProfile = {
 // Two clocks, so profiling costs literally nothing when it's off — no branch inside the
 // vertex loop, just a nullary that folds to a constant.
 const ZERO = () => 0
-const PERF_NOW =
-  typeof performance !== 'undefined' && performance.now
-    ? () => performance.now()
-    : () => Date.now()
+const PERF_NOW = () => realNow()
 
 const emptyTileProfile = (): TileProfile => ({
   tiles: 0,

@@ -414,6 +414,7 @@ import type { WarheadSpec } from './warhead.js'
 import type { Cause, CombatEvent } from './destroyable.js'
 import { DestroyableBehavior } from './destroyable-behavior.js'
 import type { B3dRadar } from './b3d-radar.js'
+import { realNow } from './clock.js'
 
 // Small gap kept between the model's belly and the ground.
 const GROUND_SEPARATION = 0.05
@@ -2354,7 +2355,7 @@ export class B3dAircraft extends B3dControllable {
       this.setupFollowCamera()
     }
 
-    this.lastUpdate = Date.now()
+    this.lastUpdate = realNow()
     owner.scene.registerBeforeRender(this._update)
     this._createReticle(owner)
   }

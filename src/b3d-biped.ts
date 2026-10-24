@@ -358,6 +358,7 @@ import { layerOnUpperBody, type LayeredAnimation } from './animation-layers.js'
 import { predictPath, type BallisticParams, type Vec3 } from './ballistics.js'
 import { XRInputProvider } from './xr-input-provider.js'
 import { forwardGait } from './gait.js'
+import { realNow } from './clock.js'
 
 const DEG_TO_RAD = Math.PI / 180
 
@@ -3389,7 +3390,7 @@ export class B3dBiped extends B3dControllable {
     refuseOwnAncestor(camRig)
     baseExperience.camera.parent = camRig
 
-    let lastTime = Date.now()
+    let lastTime = realNow()
     let yawOffset = 0 // correction between XR reference space and Babylon world
     let currentYaw = 0
     const currentPos = new BABYLON.Vector3()
@@ -3397,7 +3398,7 @@ export class B3dBiped extends B3dControllable {
 
     baseExperience.sessionManager.onXRFrameObservable.add(() => {
       if (!this.entries) return
-      const now = Date.now()
+      const now = realNow()
       const dt = Math.min((now - lastTime) * 0.001, 0.1)
       lastTime = now
 
@@ -3752,7 +3753,7 @@ export class B3dBiped extends B3dControllable {
           }
         }
 
-        this.lastUpdate = Date.now()
+        this.lastUpdate = realNow()
         scene.registerBeforeRender(this._update)
         this.queueRender()
       })

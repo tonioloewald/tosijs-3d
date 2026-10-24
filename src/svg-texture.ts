@@ -85,6 +85,7 @@ double emboldening. `unregisterSvgFont(family)` forgets one.
 
 import * as BABYLON from '@babylonjs/core'
 import { svgFontStyle } from './embed-font.js'
+import { realNow } from './clock.js'
 
 export type SvgTextureOptions = {
   /** The Babylon scene that owns this texture. */
@@ -131,14 +132,14 @@ function rasterizeSvg(
   const blob = new Blob([xml], { type: 'image/svg+xml' })
   const url = URL.createObjectURL(blob)
   img.onload = () => {
-    const began = performance.now()
+    const began = realNow()
     ctx.save()
     ctx.clearRect(0, 0, w, h)
     ctx.translate(0, h)
     ctx.scale(1, -1)
     ctx.drawImage(img, 0, 0, w, h)
     ctx.restore()
-    svgTextureCost.ms += performance.now() - began
+    svgTextureCost.ms += realNow() - began
     URL.revokeObjectURL(url)
     callback(true)
   }
@@ -236,7 +237,7 @@ export class SvgTexture {
     if (!this._element || this._rendering) return
     const dt = this.texture as BABYLON.DynamicTexture
     if (!dt?.getContext) return
-    const began = performance.now()
+    const began = realNow()
     svgTextureCost.checks++
     const el = this._element.cloneNode(true) as SVGSVGElement
     el.removeAttribute('style')
@@ -285,7 +286,7 @@ export class SvgTexture {
     // the main fix for the in-XR perf creep, where a static panel was paying
     // for a full re-rasterize + texImage2D upload on every interval.
     if (xml === this._lastXml) {
-      svgTextureCost.ms += performance.now() - began
+      svgTextureCost.ms += realNow() - began
       return
     }
     this._rendering = true
@@ -305,10 +306,10 @@ export class SvgTexture {
       }
       if (ok) {
         this._lastXml = xml
-        const upload = performance.now()
+        const upload = realNow()
         dt.update(false, this._premul)
         svgTextureCost.repaints++
-        svgTextureCost.ms += performance.now() - upload
+        svgTextureCost.ms += realNow() - upload
       } else if (!this._warnedFailure) {
         // Once per instance: self-healing made failure SILENT, and a
         // permanently-bad SVG (malformed markup, CSP-blocked blob) becomes an
@@ -320,7 +321,7 @@ export class SvgTexture {
         )
       }
     })
-    svgTextureCost.ms += performance.now() - began
+    svgTextureCost.ms += realNow() - began
   }
 
   /** Render an arbitrary SVG string to the texture. */
