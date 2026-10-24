@@ -19,6 +19,7 @@ the character in its rest pose: +Y up, +Z the way the model faces.
 
 import type { Role } from './retarget.js'
 import type { Vec3 } from './spatial-transform.js'
+import { MARKER_NAMES, type Markers } from './rig-fit.js'
 
 export const RIG_RECIPE_VERSION = 1
 
@@ -92,6 +93,19 @@ export interface RigRecipe {
   /** See `RetargetOptions.armSpaceDeg`. */
   armSpaceDeg?: number
   springs?: SpringRecipe[]
+  /**
+   * A mesh with no skeleton: where its joints are, as Mixamo's eight
+   * front-view markers (and a tail's tip), from which a skeleton is fitted
+   * and the mesh bound to it by bone heat (see `rig-fit`, `bone-heat`).
+   */
+  binding?: RigBinding
+}
+
+/** The markers a mesh with no skeleton is bound from. */
+export interface RigBinding {
+  markers: Markers
+  /** Where a tail's tip is, for a tail chain. */
+  tail?: Vec3 | null
 }
 
 export const STRAND_DEFAULTS: Omit<StrandSpringRecipe, 'anchor'> = {
@@ -243,6 +257,18 @@ export function validateRigRecipe(doc: unknown): string[] {
       for (const [k, v] of Object.entries(r.roles))
         if (typeof v !== 'string') out.push(`roles.${k} is not a bone name`)
   }
+  if (r.binding != null) {
+    const b = r.binding
+    if (typeof b !== 'object' || b.markers == null)
+      out.push('binding has no markers')
+    else
+      for (const n of MARKER_NAMES) {
+        const p = b.markers[n]
+        if (p == null || !isNum(p.x) || !isNum(p.y))
+          out.push(`binding.markers.${n} is not {x, y}`)
+      }
+    if (b?.tail != null && !isVec(b.tail)) out.push('binding.tail is not {x, y, z}')
+  }
   const springs = r.springs ?? []
   if (!Array.isArray(springs)) return [...out, 'springs is not a list']
   springs.forEach((s, i) => {
@@ -365,6 +391,34 @@ export function rigRecipeSchema(): Record<string, unknown> {
         maximum: 90,
         default: 0,
         ...DEG,
+      },
+      binding: {
+        type: 'object',
+        description:
+          'A mesh with no skeleton: the markers its skeleton is fitted from (front view, metres, left on +X).',
+        properties: {
+          markers: {
+            type: 'object',
+            properties: Object.fromEntries(
+              MARKER_NAMES.map((n) => [
+                n,
+                {
+                  type: 'object',
+                  properties: { x: { type: 'number' }, y: { type: 'number' } },
+                  required: ['x', 'y'],
+                  additionalProperties: false,
+                },
+              ])
+            ),
+            required: [...MARKER_NAMES],
+            additionalProperties: false,
+          },
+          tail: {
+            oneOf: [vec3('Where a tail’s tip is, for a tail chain.'), { type: 'null' }],
+          },
+        },
+        required: ['markers'],
+        additionalProperties: false,
       },
       springs: {
         type: 'array',
