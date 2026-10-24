@@ -12,6 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Added:** `<tosi-b3d-aircraft dropShadow>` (`'on'` by default): a soft blob shadow straight below the craft, darkest on the ground and fading and spreading as it climbs, so its height reads at a glance (the sun's shadow falls off to one side). `'off'` for none.
 - **Changed:** `stubbleTint` is about twice as dark at full: a shadow going most of the way to a darkened, slightly cool hair colour (it was barely visible, worst on light-brown hair).
 - **Fixed:** the character builder's stubble covers the upper lip (the moustache's coverage is added to the full beard's, which has none) and the throat and sides of the neck (carried 5 cm down from the beard's edge, fading), and leaves the lips bare.
 - **Added:** the rig tool imports animations made on another rig (`load animations…`, `rig.loadClips(file | url)`): a GLB's clips (Mixamo, mocap, another library) are retargeted onto the character and the comparison mannequin. Mixamo's FBX needs converting to GLB first.

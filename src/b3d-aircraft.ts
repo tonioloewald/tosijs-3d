@@ -211,6 +211,7 @@ turns the pilot's head in the cockpit, springs back on release).
 | `meshName` | `''` | Node name to instantiate from library |
 | `player` | `false` | Whether this aircraft receives input (and gets the gun reticle) |
 | `enterable` | `false` | Whether a biped can enter |
+| `dropShadow` | `'on'` | A soft blob shadow straight below the craft, darkest on the ground and fading and spreading as it climbs, so its height reads at a glance (the sun's shadow falls off to one side and fades out with distance). `'off'` for none |
 | `maxSpeed` | `50` | Top speed at full lever, **military** thrust (m/s). A released trigger leaves the lever where it was, so speed settles wherever that lever meets drag |
 | `afterburnerSpeed` | `75` | Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner. |
 | `acceleration` | `12` | Throttle / lean authority (speed change rate) |
@@ -402,6 +403,7 @@ import {
   type FlyByWireConfig,
   type FlyByWireState,
 } from './fly-by-wire.js'
+import { createShadowDecal } from './shadow-decal.js'
 import {
   placeOnSurface,
   boundingBottomOffset,
@@ -493,6 +495,8 @@ export class B3dAircraft extends B3dControllable {
     meshName: '',
     player: false,
     enterable: false,
+    /** A soft blob shadow straight below, fading with height (`'off'`: none). */
+    dropShadow: 'on' as 'on' | 'off',
     // Service ceiling (m): the aircraft can't climb past it, and it reads full on
     // a linked HUD's altitude gauge.
     ceiling: 300,
@@ -1287,6 +1291,7 @@ export class B3dAircraft extends B3dControllable {
       ) ?? false
     const groundDist = this.groundDistance(node) // the ONE raycast this frame
     this._lastGroundDist = groundDist
+    this._placeDropShadow(node, groundDist)
     const wasGrounded = this.grounded
     if (groundDist < this.groundClearance) {
       // First contact this approach: a fast or inverted/banked impact is a
@@ -1939,6 +1944,41 @@ export class B3dAircraft extends B3dControllable {
     this._gearSound.play()
   }
 
+  private _dropShadow: BABYLON.Mesh | null = null
+  /** The craft's footprint (m), for the drop shadow. */
+  private _footprint = 4
+
+  /*
+  THE DROP SHADOW: where the ground is straight below (this frame's ground
+  ray, so no ray of its own), the size of the craft's footprint, darkest at
+  rest and fading and spreading with height. The sun's shadow falls off to
+  one side and fades out with distance; this one says how high you are.
+  */
+  private _placeDropShadow(node: BABYLON.TransformNode, groundDist: number) {
+    const off = isOff((this as any).dropShadow)
+    if (off || !this.owner) {
+      this._dropShadow?.setEnabled(false)
+      return
+    }
+    const agl = groundDist - this.groundClearance
+    if (!Number.isFinite(groundDist) || this._inCavity || agl > 120) {
+      this._dropShadow?.setEnabled(false)
+      return
+    }
+    if (this._dropShadow == null)
+      this._dropShadow = createShadowDecal(this.owner.scene, {
+        name: 'aircraft-drop-shadow',
+      })
+    const d = this._dropShadow
+    d.setEnabled(true)
+    const o = this.originWorld(node)
+    d.position.set(o.x, o.y - groundDist + 0.05, o.z)
+    const h = Math.max(0, agl)
+    const size = this._footprint * (1 + h / 40)
+    d.scaling.x = d.scaling.z = size
+    d.visibility = Math.max(0, 1 - h / 120) * 0.9
+  }
+
   /** Drive the gear from height above ground, with hysteresis so a bumpy
    * approach or a hill passing underneath doesn't cycle it. */
   private _updateGear(groundDist: number): void {
@@ -2346,6 +2386,12 @@ export class B3dAircraft extends B3dControllable {
     // clearance from geometry so flight keeps the body (not the origin) above
     // the surface.
     this.groundClearance = boundingBottomOffset(root) + GROUND_SEPARATION
+    const ext = hierarchyExtents(root)
+    if (ext != null)
+      this._footprint = Math.max(
+        1,
+        0.9 * Math.max(ext.max.x - ext.min.x, ext.max.z - ext.min.z)
+      )
     this.fitCameras(root)
     placeOnSurface(root, (this as any).y ?? 0, GROUND_SEPARATION)
 
@@ -2497,6 +2543,8 @@ export class B3dAircraft extends B3dControllable {
     if (this.owner?.scene) {
       this.owner.scene.unregisterBeforeRender(this._update)
     }
+    this._dropShadow?.dispose()
+    this._dropShadow = null
     // DISPOSE them, don't just unparent. Leaving them in the scene leaked a camera per
     // aircraft — and, because setupFollowCamera used to look them up BY NAME, a dead
     // plane's abandoned camera stopped the next one from ever building its own.
