@@ -18,10 +18,10 @@ bone heat's, worked out from the mesh once when the page loads. The eyes
 head and fitted to this one.
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0 } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0 } })
 let mat = null
 let paint = () => {}
 let eyes = null
@@ -62,7 +62,7 @@ preview.append(
         slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: 'redness', value: walker.redness, min: 0, max: 1, step: 0.01 }),
         label3d({ text: 'Eyes', collapsible: true }),
-        slider3d({ label: 'eye colour', value: walker.iris, min: 0, max: 1, step: 0.01 }),
+        colorPicker3d({ label: 'eye colour', value: walker.irisColour, alpha: false, defaultPresets: 'off', presets: [['dark brown', 0], ['brown', 0.15], ['amber', 0.3], ['hazel', 0.45], ['green', 0.6], ['blue-green', 0.72], ['blue', 0.85], ['grey', 1]].map(([name, t]) => { const c = irisColor(t); const h = (x) => Math.round(x * 255).toString(16).padStart(2, '0'); return { name, value: '#' + h(c.r) + h(c.g) + h(c.b) } }) }),
         label3d({ text: 'Face', collapsible: true }),
         toggle3d({ label: 'blink', value: walker.blink }),
         toggle3d({ label: 'talk', value: walker.talk }),
@@ -142,7 +142,7 @@ preview.append(
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
 
-        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 12)).catch((e) => {
+        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 13)).catch((e) => {
           el.setLoading(`could not load the body: ${e.message}`, { spin: false })
           throw e
         })
@@ -192,6 +192,7 @@ preview.append(
         const skin = humanSkin(pack)
         const [lips, eyePart, lashPart] = await Promise.all([pack.region('lips'), pack.part('eyes'), pack.part('eyelashes')])
         eyes = eyeTexture(scene, { iris: walker.iris.value })
+        eyes.setIrisColour(walker.irisColour.value)
         const faceMaterials = { eye: eyeMaterial(scene, eyes), lashes: lashMaterial(scene) }
         let face = null
         let scalp = null
@@ -345,8 +346,9 @@ preview.append(
         walker.tone.observe(() => paint())
         walker.redness.observe(() => paint())
         walker.iris.observe(() => eyes.setIris(walker.iris.value))
+        walker.irisColour.observe(() => eyes.setIrisColour(walker.irisColour.value))
         // The eyes find the camera.
-        eyeGaze(scene, { get eyes() { return face?.eyes ?? [] }, get forward() { return face?.forward ?? [] } }, () => cam.position)
+        eyeGaze(scene, { get eyes() { return face?.eyes ?? [] }, get forward() { return face?.forward ?? [] } }, () => scene.activeCamera?.globalPosition ?? cam.position)
         const body = () => {
           const b = {}
           for (const k of Object.keys(DEFAULT_HUMAN_BODY)) b[k] = Number(walker[k].value)

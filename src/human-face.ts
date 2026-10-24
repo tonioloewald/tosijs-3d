@@ -29,6 +29,7 @@ import type { BuiltRig } from './rig-build.js'
 import type { FittedRig } from './rig-fit.js'
 import { humanJoint } from './human-morph.js'
 import { irisColor } from './skin-tone.js'
+import { parseColor } from './color.js'
 import { sceneDelta } from './b3d-utils.js'
 
 /** Where MakeHuman's eye UVs put each iris (u, v from the bottom) and its radius. */
@@ -41,6 +42,8 @@ export const HM08_EYE_UV = Object.freeze({
 export interface EyeTexture extends BABYLON.DynamicTexture {
   /** Repaint the iris: 0 dark brown to 1 grey (see `irisColor`). */
   setIris(t: number): void
+  /** Repaint the iris any colour (sRGB, anything `parseColor` reads). */
+  setIrisColour(colour: string): void
 }
 
 /** The eye drawn in code on MakeHuman's eye UV layout. */
@@ -62,8 +65,7 @@ export function eyeTexture(
     const h = Math.sin(i * 12.9898) * 43758.5453
     return { a: (i / 140) * Math.PI * 2, k: h - Math.floor(h) }
   })
-  tex.setIris = (t) => {
-    const c = irisColor(t)
+  const paint = (c: { r: number; g: number; b: number }) => {
     const rgb = (k: number, a = 1) =>
       `rgba(${Math.round(Math.min(1, c.r * k) * 255)},${Math.round(
         Math.min(1, c.g * k) * 255
@@ -111,6 +113,11 @@ export function eyeTexture(
       ctx.fill()
     }
     tex.update()
+  }
+  tex.setIris = (t) => paint(irisColor(t))
+  tex.setIrisColour = (colour) => {
+    const c = parseColor(colour)
+    if (c) paint(c)
   }
   tex.setIris(options.iris ?? 0.2)
   return tex
@@ -424,7 +431,8 @@ export function eyeGaze(
         (Math.random() * 2 - 1) * r
       )
     }
-    face.eyes.forEach((eye, i) => {
+    // Both eyes' turns first: the pair looks together or not at all.
+    const turns = face.eyes.map((eye, i) => {
       const fwd = face.forward[i]
       let dir = fwd
       if (aim != null) {
@@ -435,16 +443,15 @@ export function eyeGaze(
         local.rotateByQuaternionToRef(rot, local)
         if (local.lengthSquared() > 1e-8) dir = local.normalize()
       }
-      let angle = Math.acos(
-        Math.min(1, Math.max(-1, BABYLON.Vector3.Dot(fwd, dir)))
-      )
-      const axis = BABYLON.Vector3.Cross(fwd, dir)
-      if (angle > max) {
-        // Too far round: the head would turn, so the eyes go back to ahead.
-        angle = 0
-      }
-      if (axis.lengthSquared() < 1e-10 || angle === 0)
-        q.copyFromFloats(0, 0, 0, 1)
+      const angle = Math.acos(Math.min(1, Math.max(-1, BABYLON.Vector3.Dot(fwd, dir))))
+      return { angle, axis: BABYLON.Vector3.Cross(fwd, dir) }
+    })
+    // Too far round for EITHER eye, and both go back to ahead (the head would
+    // turn). Deciding per eye left one tracking while the other gave up.
+    const ahead = turns.some((t) => t.angle > max)
+    face.eyes.forEach((eye, i) => {
+      const { angle, axis } = turns[i]
+      if (ahead || axis.lengthSquared() < 1e-10 || angle === 0) q.copyFromFloats(0, 0, 0, 1)
       else BABYLON.Quaternion.RotationAxisToRef(axis.normalize(), angle, q)
       eye.rotationQuaternion = q.clone()
     })

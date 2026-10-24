@@ -139,12 +139,16 @@ export function skinAlbedo(tone: number, redness = 0.5): Rgb {
   const lum = 0.2126 * swatch.r + 0.7152 * swatch.g + 0.0722 * swatch.b
   const t = clamp01(tone)
   const d = (clamp01(redness) - 0.5) * 2
+  // The palest end (porcelain) is lighter and less pink than measured fair
+  // skin: 0.68 reflectance throughout could not make anyone pale enough.
+  const pale = Math.max(0, 1 - t / 0.35) ** 2
   const g =
-    (WARMTH_FAIR.g + (WARMTH_DARK.g - WARMTH_FAIR.g) * t) * (1 - 0.1 * d)
+    (WARMTH_FAIR.g + (WARMTH_DARK.g - WARMTH_FAIR.g) * t + 0.05 * pale) * (1 - 0.1 * d)
   const b =
-    (WARMTH_FAIR.b + (WARMTH_DARK.b - WARMTH_FAIR.b) * t) * (1 - 0.14 * d)
-  // Scale so the colour keeps the swatch's lightness at 68% reflectance.
-  const r = (lum * 0.68) / (0.2126 + 0.7152 * g + 0.0722 * b)
+    (WARMTH_FAIR.b + (WARMTH_DARK.b - WARMTH_FAIR.b) * t + 0.07 * pale) * (1 - 0.14 * d)
+  // Scale so the colour keeps the swatch's lightness, at 68% reflectance
+  // (up to 84% at the palest end).
+  const r = (lum * (0.68 + 0.16 * pale)) / (0.2126 + 0.7152 * g + 0.0722 * b)
   return { r, g: r * g, b: r * b }
 }
 
