@@ -1842,7 +1842,7 @@ export {
   ancestryCorners,
 } from './human-morph.js'
 export type { MacroBody } from './human-morph.js'
-export { humanBody, skinMaterial, lipTint } from './character-builder.js'
+export { humanBody, skinMaterial, lipTint, stubbleTint } from './character-builder.js'
 export {
   skinShading,
   skinThinness,

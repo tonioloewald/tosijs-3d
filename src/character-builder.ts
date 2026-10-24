@@ -18,10 +18,10 @@ bone heat's, worked out from the mesh once when the page loads. The eyes
 head and fitted to this one.
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0 } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0 } })
 let mat = null
 let paint = () => {}
 let eyes = null
@@ -75,6 +75,7 @@ preview.append(
         select3d({ label: 'hair', value: walker.hair, options: styles.hair, stayOpen: true }),
         select3d({ label: 'beard', value: walker.beard, options: styles.beard, stayOpen: true }),
         select3d({ label: 'moustache', value: walker.moustache, options: styles.moustache, stayOpen: true }),
+        slider3d({ label: 'stubble', value: walker.stubble, min: 0, max: 1, step: 0.01 }),
         select3d({ label: 'brows', value: walker.brows, options: styles.brows, stayOpen: true }),
         // A base and a highlight, each a swatch that opens a picker with presets;
         // a base preset brings its usual highlight with it.
@@ -345,6 +346,8 @@ preview.append(
         })
         for (const key of Object.keys(DEFAULT_HUMAN_BODY)) walker[key].observe(() => rebuild())
         walker.tone.observe(() => paint())
+        walker.stubble.observe(() => { if (stubbleMask == null) measureStubble(); else paint() })
+        walker.hairBase.observe(() => paint())
         walker.redness.observe(() => paint())
         walker.iris.observe(() => eyes.setIris(walker.iris.value))
         walker.irisColour.observe(() => eyes.setIrisColour(walker.irisColour.value))
@@ -419,10 +422,40 @@ preview.append(
 
         mat = skinMaterial(scene, { tone: walker.tone.value, redness: walker.redness.value })
         // The skin's colour, and the lips' as vertex colours over it.
+        // Where a full beard grows, as a mask over the skin, for stubble: the
+        // skin MakeHuman's full beard (fitted to this body) lies on.
+        let stubbleMask = null
+        const linearHex = (hex) => {
+          const n = parseInt(hex.slice(1, 7), 16)
+          const lin = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4))
+          return { r: lin(((n >> 16) & 255) / 255), g: lin(((n >> 8) & 255) / 255), b: lin((n & 255) / 255) }
+        }
+        const beardFor = Object.keys(pack.manifest.proxies ?? {}).find((n) => /scruffy_beard/.test(n))
+        const measureStubble = async () => {
+          if (!beardFor || !current) return
+          const b = await pack.proxy(beardFor)
+          const fitted = drawnPositions(b, fitProxy(b, current))
+          const body = skin.positions(current)
+          const gap = coveredBy(body, vertexNormals(body, skin.triangles), fitted, 0.02)
+          // Below the cheekbones: up to a little above the upper lip, faded
+          // (the full beard climbs the cheeks, and stubble there read as a bruise).
+          let lipTop = -Infinity
+          for (let v = 0; v < lips.length; v++) if (lips[v] > 0.5) lipTop = Math.max(lipTop, current[v * 3 + 1])
+          const cap = lipTop + 0.03
+          stubbleMask = Float32Array.from(gap, (g, i) => {
+            if (g === Infinity) return 0
+            const t = Math.min(1, Math.max(0, (cap - body[i * 3 + 1]) / 0.015))
+            return t * t * (3 - 2 * t)
+          })
+          // Soften the edge: a vertex beside the beard's edge gets a little.
+          paint()
+        }
         paint = () => {
           mat.setSkin(walker.tone.value, walker.redness.value)
           if (lips && built) {
-            built.mesh.setVerticesData('color', lipTint(skin, lips, walker.tone.value, walker.redness.value, undefined, thin))
+            const colours = lipTint(skin, lips, walker.tone.value, walker.redness.value, undefined, thin)
+            if (stubbleMask) stubbleTint(colours, stubbleMask, walker.stubble.value, skinAlbedo(walker.tone.value, walker.redness.value), linearHex(walker.hairBase.value))
+            built.mesh.setVerticesData('color', colours)
           }
         }
         const stand = new BABYLON.TransformNode('stand', scene)
@@ -443,6 +476,7 @@ preview.append(
           busy = true
           const full = await morphHuman(pack, body())
           current = full
+          stubbleMask = null
           const rig = humanRig(pack.manifest, full, undefined, { triangles: pack.triangles })
           face?.dispose()
           built?.dispose()
@@ -455,6 +489,7 @@ preview.append(
           built.root.parent = stand
           stand.position.y = -rig.at('root').y
           el.register({ meshes: [built.mesh, ...face.meshes] })
+          if (walker.stubble.value > 0) measureStubble()
           paint()
           read = readSkeleton(built.skeleton, built.root)
           play()
@@ -640,4 +675,34 @@ export function lipTint(
     out[i * 4 + 3] = thin ? thin[i] : 0
   })
   return out
+}
+
+/**
+ * Stubble: multiply `colours` (RGBA per skin vertex, from `lipTint`) toward
+ * a hair colour where `mask` (0..1 per skin vertex) says the beard grows,
+ * by `amount` (0 clean-shaven, 1 a few days' growth). `skinRgb` and `hairRgb`
+ * are linear; the result stays a ratio over the skin's own colour.
+ */
+export function stubbleTint(
+  colours: Float32Array,
+  mask: ArrayLike<number>,
+  amount: number,
+  skinRgb: { r: number; g: number; b: number },
+  hairRgb: { r: number; g: number; b: number }
+): Float32Array {
+  if (amount <= 0) return colours
+  // Short hairs over skin: mostly a darkening, a little of the hair's hue.
+  const ratio = [
+    (hairRgb.r * 0.5 + skinRgb.r * 0.5) / Math.max(1e-4, skinRgb.r),
+    (hairRgb.g * 0.5 + skinRgb.g * 0.5) / Math.max(1e-4, skinRgb.g),
+    (hairRgb.b * 0.5 + skinRgb.b * 0.5) / Math.max(1e-4, skinRgb.b),
+  ]
+  for (let i = 0; i < mask.length; i++) {
+    const k = mask[i] * Math.min(1, amount) * 0.85
+    if (k <= 0) continue
+    for (let c = 0; c < 3; c++) {
+      colours[i * 4 + c] *= 1 + (Math.min(1, ratio[c]) - 1) * k
+    }
+  }
+  return colours
 }
