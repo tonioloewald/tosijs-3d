@@ -10,10 +10,11 @@ Optional atmosphere (glow shell) and sea: land and sea are one mesh and one shad
 
 ## Demo
 
+Scroll to zoom, drag to orbit. The settings are in the scene panel (the owl).
+
 ```js
 import { b3d, spaceBackdrop, b3dLight, b3dPlanet, ROCKY_WORLDS, label3d, slider3d, toggle3d, select3d } from 'tosijs-3d'
-import { tosi, elements } from 'tosijs'
-const { div, p } = elements
+import { tosi } from 'tosijs'
 
 const { demo } = tosi({
   demo: {
@@ -110,7 +111,6 @@ const scene = b3d(
 
 preview.append(
   scene,
-  div({ class: 'debug-panel' }, p('Scroll to zoom, drag to orbit'))
 )
 
 // Choosing a world sets the dials to its numbers (the planet writes the
@@ -137,16 +137,6 @@ for (const key of ['atmosphere', 'clouds', 'ocean', 'wireframe', 'rotationSpeed'
 ```css
 .preview { display: flex; flex-direction: column; height: 100%; }
 tosi-b3d { flex: 1; min-height: 0; width: 100%; }
-.debug-panel {
-  background: rgba(0,0,0,0.6);
-  color: white;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font: 12px monospace;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
 ```
 
 ## Attributes

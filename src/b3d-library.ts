@@ -11,11 +11,11 @@ direct references.
 
 ## Demo
 
+Open the scene panel (the owl) to spawn the library's meshes; it works in VR too.
+
 ```js
 import { b3d, b3dLibrary, placeOnSurface, label3d, list3d, button3d } from 'tosijs-3d'
 import { demoStage, orbitCam } from 'tosijs-3d/demo-utils'
-import { elements } from 'tosijs'
-const { div, p } = elements
 
 const lib = b3dLibrary({ url: '/test-3.glb', type: 'scene' })
 
@@ -78,33 +78,11 @@ lib.ready.then(() => scene.refreshScenePanel())
 
 preview.append(
   scene,
-  div(
-    { class: 'debug-panel' },
-    p('Open the scene panel to spawn library meshes — works in VR too.'),
-  ),
 )
 ```
 ```css
 .preview { display: flex; flex-direction: column; height: 100%; }
 tosi-b3d { flex: 1; min-height: 0; width: 100%; }
-.debug-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 8px 16px;
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
-  border-radius: 6px;
-  font-size: 14px;
-}
-.debug-panel select, .debug-panel button {
-  color: white;
-  background: #444;
-  border: 1px solid #888;
-  border-radius: 4px;
-  padding: 4px 8px;
-  font-size: 13px;
-}
 ```
 
 ## Attributes

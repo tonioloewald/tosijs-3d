@@ -7,10 +7,11 @@ accurate but visually striking.
 
 ## Demo
 
+Scroll to zoom, drag to orbit. The settings are in the scene panel (the owl).
+
 ```js
 import { b3d, b3dLight, b3dBlackHole, b3dSphere, label3d, slider3d, toggle3d, select3d } from 'tosijs-3d'
-import { tosi, elements } from 'tosijs'
-const { div, p } = elements
+import { tosi } from 'tosijs'
 
 const { demo } = tosi({
   demo: {
@@ -78,7 +79,6 @@ const scene = b3d(
 
 preview.append(
   scene,
-  div({ class: 'debug-panel' }, p('Scroll to zoom, drag to orbit'))
 )
 
 for (const key of ['radius', 'diskInnerRadius', 'diskOuterRadius']) {
@@ -95,16 +95,6 @@ for (const key of ['diskBrightness', 'rotationSpeed', 'lensing', 'photonRing', '
 ```css
 .preview { display: flex; flex-direction: column; height: 100%; }
 tosi-b3d { flex: 1; min-height: 0; width: 100%; }
-.debug-panel {
-  background: rgba(0,0,0,0.6);
-  color: white;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font: 12px monospace;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
 ```
 
 ## Attributes

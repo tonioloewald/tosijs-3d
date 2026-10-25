@@ -8,10 +8,12 @@ contour and fine detail) each pass through gradient filters for shaping plateaus
 
 ## Demo
 
+Pull back on the stick to climb, the triggers go up and down (they are the throttle once you are fast), and turn to bank. The terrain's settings are in the scene panel (the owl), in VR too.
+
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dCloudDeck, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dDeath, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField, volcano } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
-const { div, span, p } = elements
+const { div, span } = elements
 
 const { demo } = tosi({
   demo: {
@@ -197,7 +199,6 @@ preview.append(
   scene,
   div(
     { class: 'debug-panel' },
-    p('Pull back to climb, triggers up/down (throttle when fast), turn to bank. Tweak terrain via the scene panel (works in VR too).'),
     posDisplay,
   )
 )

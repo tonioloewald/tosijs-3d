@@ -30,10 +30,12 @@ texture.
 
 ## Demo
 
+Click a star to zoom in to it, and press Esc to come back. The generation settings are in the scene panel (the owl), in VR too.
+
 ```js
 import { b3d, b3dLight, b3dGalaxy, b3dStarSystem, label3d, slider3d, select3d } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
-const { div, label, input, p, button, span } = elements
+const { div, label, input, button, span } = elements
 
 const { demo } = tosi({
   demo: {
@@ -260,7 +262,6 @@ preview.append(
   scene,
   div(
     { class: 'debug-panel' },
-    p('Click a star to zoom in. Esc to return. Generation settings in the scene panel (VR too).'),
     starLabel,
     backBtn,
     label(

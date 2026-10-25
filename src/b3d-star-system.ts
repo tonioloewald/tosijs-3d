@@ -16,10 +16,12 @@ on a screen without being empty.
 
 ## Demo
 
+Scroll to zoom, drag to orbit.
+
 ```js
 import { b3d, b3dLight, b3dStarSystem, spaceBackdrop, voxelGalaxy, label3d, slider3d, toggle3d, select3d } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
-const { div, p, pre } = elements
+const { div, pre } = elements
 
 const galaxy = voxelGalaxy({ seed: 1234, brightBudget: 1000 }).view({ generatePlanets: true })
 
@@ -115,7 +117,6 @@ preview.append(
   scene,
   div(
     { class: 'debug-panel' },
-    p('Scroll to zoom, drag to orbit'),
     infoEl,
   )
 )
