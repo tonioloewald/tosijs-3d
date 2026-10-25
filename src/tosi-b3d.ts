@@ -358,6 +358,7 @@ import {
   markUiMesh,
   replaceKeepingLayers,
   refuseOwnAncestor,
+  refuseOwnAncestors,
 } from './b3d-utils.js'
 import { NO_WIND, gustAt, windFromPolar, type Wind } from './wind.js'
 import {
@@ -6307,6 +6308,7 @@ export class B3d extends Component {
         if (isCockpit) {
           if (rig.parent !== piloted) {
             rig.parent = piloted
+            refuseOwnAncestors(rig)
             yawCaptureNeeded = true
           }
           // Capture the head's entry yaw so we can recenter the CAMERA to look out the
@@ -6435,6 +6437,7 @@ export class B3d extends Component {
         if (chaseAnchor != null) {
           if (rig.parent !== chaseAnchor) {
             rig.parent = chaseAnchor
+            refuseOwnAncestors(rig)
             rig.scaling.set(1, 1, 1)
           }
           BABYLON.Quaternion.RotationYawPitchRollToRef(

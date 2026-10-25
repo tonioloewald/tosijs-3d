@@ -132,6 +132,7 @@ export {
   cameraIsAttached,
   semanticParent,
   refuseOwnAncestor,
+  refuseOwnAncestors,
   conventionName,
   simHalted,
   controlsLive,
@@ -1842,12 +1843,13 @@ export {
   ancestryCorners,
 } from './human-morph.js'
 export type { MacroBody } from './human-morph.js'
-export { humanBody, skinMaterial, lipTint, stubbleTint } from './character-builder.js'
 export {
-  skinShading,
-  skinThinness,
-  SkinShadingPlugin,
-} from './skin-shading.js'
+  humanBody,
+  skinMaterial,
+  lipTint,
+  stubbleTint,
+} from './character-builder.js'
+export { skinShading, skinThinness, SkinShadingPlugin } from './skin-shading.js'
 export type { SkinShadingOptions } from './skin-shading.js'
 export {
   MONK_TONES,
@@ -1901,7 +1903,13 @@ export {
 } from './human-face.js'
 export type { HumanFace, EyeTexture } from './human-face.js'
 export type { Rgb as SkinRgb } from './skin-tone.js'
-export { humanRig, humanSkin, stiffenHead, armsOffTorso, HM08_UAL } from './human-rig.js'
+export {
+  humanRig,
+  humanSkin,
+  stiffenHead,
+  armsOffTorso,
+  HM08_UAL,
+} from './human-rig.js'
 export type { HumanRigRow, HumanSkin } from './human-rig.js'
 export type { HumanBody, SkinMaterial } from './character-builder.js'
 export type { HeatBone, SkinWeights } from './bone-heat.js'

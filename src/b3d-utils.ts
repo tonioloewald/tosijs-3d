@@ -1316,7 +1316,10 @@ export function fetchedUrl(value: unknown, where: string): string {
  * up, put it down again) the walk goes one step further and the root IS the
  * camera's parent, which is then parented to itself. Found on a Quest (#3135).
  */
+const refusing = new WeakSet<BABYLON.Node>()
 export function refuseOwnAncestor(node: BABYLON.Node): void {
+  if (refusing.has(node)) return
+  refusing.add(node)
   let proto: object | null = Object.getPrototypeOf(node)
   let slot: PropertyDescriptor | undefined
   while (proto != null && slot == null) {
@@ -1362,14 +1365,26 @@ export function refuseOwnAncestor(node: BABYLON.Node): void {
 }
 
 /**
+ * `refuseOwnAncestor` on a node and on everything above it. For the XR rig
+ * whenever it is parented to something: hand tracking parents the TOPMOST
+ * ancestor of the hand mesh beneath the rig, and with the rig riding a
+ * vehicle that ancestor is the vehicle (or its chase anchor), not the rig.
+ * Guarding only the rig let the aircraft be parented beneath it, and the loop
+ * hung a Quest mid-flight.
+ */
+export function refuseOwnAncestors(node: BABYLON.Node): void {
+  for (let n: BABYLON.Node | null = node; n != null; n = n.parent)
+    refuseOwnAncestor(n)
+}
+
+/**
  * A node's world matrix as of now, its ancestors first. `computeWorldMatrix`
  * reads the parent's CACHED matrix, which is last frame's when the parent has
  * moved since and has not been drawn yet.
  */
 export function freshWorldMatrix(node: BABYLON.Node): BABYLON.Matrix {
   const chain: BABYLON.Node[] = []
-  for (let n: BABYLON.Node | null = node; n != null; n = n.parent)
-    chain.push(n)
+  for (let n: BABYLON.Node | null = node; n != null; n = n.parent) chain.push(n)
   for (let i = chain.length - 1; i >= 0; i--)
     (chain[i] as BABYLON.TransformNode).computeWorldMatrix?.(true)
   return node.getWorldMatrix()
