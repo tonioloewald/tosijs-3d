@@ -240,7 +240,7 @@ turns the pilot's head in the cockpit, springs back on release).
 | `turbulence` | `'on'` | The weather reaches the airframe: wind makes it drift and crab, storms (storminess) and strong wind buffet it. Changes nothing in a calm scene; `'off'` ignores the weather |
 | `turbulenceScale` | `1` | Scales the buffeting |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
-| `hudChaseOff` | `false` | Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene. In a headset the HUD is cockpit only: the chase overlay is page DOM, which a headset does not draw |
+| `hudChaseOff` | `false` | Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene. In a headset's chase view the same HUD is a plane between your eyes and the aircraft, centred on it and covering the angle the flat overlay does |
 | `hudSize` | `0.7` | In-cockpit HUD plane size (metres) |
 | `hudForward` | `1.6` | How far ahead of the pilot's eye the HUD floats (metres) |
 | `weapons` | `'on'` | `'off'` disarms all weapons |
@@ -457,7 +457,12 @@ const GROUND_FRICTION = 1.2
 const TAKEOFF_MARGIN = 2.5
 
 /** What the aircraft pushes flight state to — a `<tosi-b3d-hud>`, loosely typed. */
+/** How far out a headset's chase HUD hangs, metres. */
+const CHASE_HUD_DISTANCE = 2
+
 type HudSink = {
+  /** The flat overlay's height, % of the canvas's smaller side. */
+  size?: number
   setMeter(name: string, level: number): void
   setHorizon(pitch: number, roll: number, angle?: number): void
   setVisible(visible: boolean): void
@@ -783,6 +788,37 @@ export class B3dAircraft extends B3dControllable {
   respawn), so this costs no new teardown path.
   */
   private _hudMountKey: string | null = null
+  /** Where a headset's chase-view HUD hangs (see `_placeChaseHud`). */
+  private _chaseHudNode: BABYLON.TransformNode | null = null
+
+  /**
+   * Put the headset chase HUD on the line from the eyes to the aircraft,
+   * facing the eyes and level with the world. Nearer than its usual distance
+   * when the craft itself is nearer, scaled to keep its angle.
+   */
+  private _placeChaseHud(node: BABYLON.TransformNode): void {
+    const scene = node.getScene()
+    const eye = scene.activeCamera?.globalPosition
+    if (eye == null) return
+    if (this._chaseHudNode == null) {
+      this._chaseHudNode = new BABYLON.TransformNode('hud-chase', scene)
+      this._chaseHudNode.rotationQuaternion = BABYLON.Quaternion.Identity()
+    }
+    const hudNode = this._chaseHudNode
+    const toCraft = node.getAbsolutePosition().subtract(eye)
+    const far = toCraft.length()
+    if (far < 1e-3) return
+    const dir = toCraft.scaleInPlace(1 / far)
+    const d = Math.min(CHASE_HUD_DISTANCE, far * 0.6)
+    hudNode.position.copyFrom(eye).addInPlace(dir.scale(d))
+    // A plane's readable face is local -Z, so +Z points away from the eye.
+    BABYLON.Quaternion.FromLookDirectionLHToRef(
+      dir,
+      BABYLON.Vector3.Up(),
+      hudNode.rotationQuaternion!
+    )
+    hudNode.scaling.setAll(d / CHASE_HUD_DISTANCE)
+  }
   // The attached <tosi-b3d-radar> child (found once). undefined = unresolved,
   // null = none. Drives the HUD radar traces and the missile's lock target.
   private _radar: B3dRadar | null | undefined = undefined
@@ -1130,26 +1166,45 @@ export class B3dAircraft extends B3dControllable {
       // and in VR — parented to the airframe just ahead of the pilot's eye, banking
       // with the plane (not head-locked).
       /*
-      IN A HEADSET THE HUD IS COCKPIT ONLY. The flat overlay is DOM, which a
-      headset does not composite, so a chase view in a session has no HUD. It
-      used to hang a scaled-up plane off the chase anchor, which put the
-      aircraft inside a ring of instruments at its own depth and read as wrong;
-      a chase-view HUD for a headset needs a design of its own.
+      IN A HEADSET'S CHASE VIEW THE HUD IS AN OVERLAY ON THE AIRCRAFT.
+
+      The flat chase HUD is page DOM, which a headset does not draw, so there
+      the same plane stands in for it: face on to you, on the line from your
+      eyes to the aircraft, a couple of metres out (in front of the craft, so
+      nothing near it cuts it), and covering the angle the flat overlay covers
+      on the chase camera. It is level with the world, like a screen, and has
+      no horizon, like the flat one. Hung at the aircraft's own depth instead
+      (the first version) it ringed the craft in the world and read as wrong.
       */
       const inCockpit = this.cameraView === 'cockpit'
+      const chaseHud = !attrs.hudChaseOff
+      const xrChase = !inCockpit && chaseHud && this.owner?.xrActive === true
       const hudAhead = this.cockpitForward + attrs.hudForward
-      const hudKey = `${attrs.hudSize}|${attrs.hudForward}|${this.eyeHeight}`
+      const viewDeg =
+        ((this._hud.size ?? 70) / 100) *
+        (((this.chaseCamera?.fov ?? 0.8) * 180) / Math.PI)
+      const hudKey = xrChase
+        ? `chase|${viewDeg.toFixed(2)}`
+        : `${attrs.hudSize}|${attrs.hudForward}|${this.eyeHeight}`
+      if (xrChase) this._placeChaseHud(node)
       if (this._hudMountKey !== hudKey && this._hud.attachInScene != null) {
         this._hudMountKey = hudKey
-        this._hud.attachInScene(node, {
-          size: attrs.hudSize,
-          position: new BABYLON.Vector3(0, this.eyeHeight, hudAhead),
-        })
+        if (xrChase) {
+          this._hud.attachInScene(this._chaseHudNode!, {
+            size:
+              2 * CHASE_HUD_DISTANCE * Math.tan(((viewDeg / 2) * Math.PI) / 180),
+            position: BABYLON.Vector3.Zero(),
+          })
+        } else {
+          this._hud.attachInScene(node, {
+            size: attrs.hudSize,
+            position: new BABYLON.Vector3(0, this.eyeHeight, hudAhead),
+          })
+        }
       }
       // In cockpit view the 3D canopy HUD is the HUD; the flat DOM overlay is
-      // for the chase view.
-      const chaseHud = !attrs.hudChaseOff
-      this._hud.setInSceneVisible?.(inCockpit)
+      // for the chase view, and the overlay plane for a chase view in a headset.
+      this._hud.setInSceneVisible?.(inCockpit || xrChase)
       // The HUD is useful from ANY view — speed, altitude, radar, warnings are
       // true wherever the camera is. The horizon is the exception: outside the
       // cockpit it contradicts the real horizon behind the aircraft, so it's
@@ -2549,6 +2604,8 @@ export class B3dAircraft extends B3dControllable {
     // it, and let the next craft mount it afresh.
     this._hud?.setInSceneVisible?.(false)
     this._hudMountKey = ''
+    this._chaseHudNode?.dispose()
+    this._chaseHudNode = null
     if (this._chaseAnchor) {
       // Anything parented to it (the XR rig) must not be disposed with it.
       for (const child of this._chaseAnchor.getChildren()) child.parent = null

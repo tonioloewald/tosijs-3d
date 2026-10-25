@@ -12,7 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-- **Changed:** in a headset, `b3d-aircraft`'s HUD shows in the cockpit view only. In chase view it was a scaled-up plane around the aircraft at the craft's own depth, which read as wrong; a chase HUD for headsets needs its own design.
+- **Changed:** in a headset's chase view, `b3d-aircraft`'s HUD is an overlay like the flat one: a face-on plane between your eyes and the aircraft, centred on it, level with the world, covering the angle the flat overlay covers, with no horizon. It used to hang at the aircraft's own depth and ring the craft in the world.
 - **Added:** `<tosi-b3d-aircraft dropShadow>` (`'on'` by default): a soft blob shadow straight below the craft, darkest on the ground and fading and spreading as it climbs, so its height reads at a glance (the sun's shadow falls off to one side). `'off'` for none.
 - **Changed:** `stubbleTint` is about twice as dark at full: a shadow going most of the way to a darkened, slightly cool hair colour (it was barely visible, worst on light-brown hair).
 - **Fixed:** the character builder's stubble covers the upper lip (the moustache's coverage is added to the full beard's, which has none) and the throat and sides of the neck (carried 5 cm down from the beard's edge, fading), and leaves the lips bare.
