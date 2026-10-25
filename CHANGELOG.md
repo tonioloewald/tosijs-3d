@@ -12,6 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Fixed:** in a headset, panels on the `ui` and `modal` layers (the system bar among them) no longer trail a moving vehicle by a frame. They were placed before the vehicle moved, which left them most of a metre behind at flying speed, so they jumped around. They are now placed again just before drawing. `freshWorldMatrix(node)` (b3d-utils) gives a node's world matrix with its ancestors updated first.
 - **Changed:** in a headset's chase view, `b3d-aircraft`'s HUD is an overlay like the flat one: a face-on plane between your eyes and the aircraft, centred on it, level with the world, covering the angle the flat overlay covers, with no horizon. It used to hang at the aircraft's own depth and ring the craft in the world.
 - **Added:** `<tosi-b3d-aircraft dropShadow>` (`'on'` by default): a soft blob shadow straight below the craft, darkest on the ground and fading and spreading as it climbs, so its height reads at a glance (the sun's shadow falls off to one side). `'off'` for none.
 - **Changed:** `stubbleTint` is about twice as dark at full: a shadow going most of the way to a darkened, slightly cool hair colour (it was barely visible, worst on light-brown hair).

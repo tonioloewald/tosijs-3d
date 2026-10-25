@@ -1360,3 +1360,17 @@ export function refuseOwnAncestor(node: BABYLON.Node): void {
     },
   })
 }
+
+/**
+ * A node's world matrix as of now, its ancestors first. `computeWorldMatrix`
+ * reads the parent's CACHED matrix, which is last frame's when the parent has
+ * moved since and has not been drawn yet.
+ */
+export function freshWorldMatrix(node: BABYLON.Node): BABYLON.Matrix {
+  const chain: BABYLON.Node[] = []
+  for (let n: BABYLON.Node | null = node; n != null; n = n.parent)
+    chain.push(n)
+  for (let i = chain.length - 1; i >= 0; i--)
+    (chain[i] as BABYLON.TransformNode).computeWorldMatrix?.(true)
+  return node.getWorldMatrix()
+}

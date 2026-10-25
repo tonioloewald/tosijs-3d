@@ -410,6 +410,7 @@ import {
   hierarchyExtents,
   isOff,
   collidable,
+  freshWorldMatrix,
 } from './b3d-utils.js'
 import { spawnProjectile, spawnMissile } from './b3d-launcher.js'
 import type { WarheadSpec } from './warhead.js'
@@ -791,33 +792,51 @@ export class B3dAircraft extends B3dControllable {
   /** Where a headset's chase-view HUD hangs (see `_placeChaseHud`). */
   private _chaseHudNode: BABYLON.TransformNode | null = null
 
+  private _chaseHudObs: BABYLON.Observer<BABYLON.Camera> | null = null
+
   /**
    * Put the headset chase HUD on the line from the eyes to the aircraft,
    * facing the eyes and level with the world. Nearer than its usual distance
    * when the craft itself is nearer, scaled to keep its angle.
+   *
+   * Placed just before the frame is drawn, from fresh matrices: the craft,
+   * its chase anchor and the rig riding it all move during the frame, and a
+   * placement from the previous frame's eye trails by a frame of travel.
    */
-  private _placeChaseHud(node: BABYLON.TransformNode): void {
+  private _chaseHudNodeFor(node: BABYLON.TransformNode): BABYLON.TransformNode {
+    if (this._chaseHudNode != null) return this._chaseHudNode
     const scene = node.getScene()
-    const eye = scene.activeCamera?.globalPosition
-    if (eye == null) return
-    if (this._chaseHudNode == null) {
-      this._chaseHudNode = new BABYLON.TransformNode('hud-chase', scene)
-      this._chaseHudNode.rotationQuaternion = BABYLON.Quaternion.Identity()
-    }
-    const hudNode = this._chaseHudNode
-    const toCraft = node.getAbsolutePosition().subtract(eye)
-    const far = toCraft.length()
-    if (far < 1e-3) return
-    const dir = toCraft.scaleInPlace(1 / far)
-    const d = Math.min(CHASE_HUD_DISTANCE, far * 0.6)
-    hudNode.position.copyFrom(eye).addInPlace(dir.scale(d))
-    // A plane's readable face is local -Z, so +Z points away from the eye.
-    BABYLON.Quaternion.FromLookDirectionLHToRef(
-      dir,
-      BABYLON.Vector3.Up(),
-      hudNode.rotationQuaternion!
-    )
-    hudNode.scaling.setAll(d / CHASE_HUD_DISTANCE)
+    const hudNode = new BABYLON.TransformNode('hud-chase', scene)
+    hudNode.rotationQuaternion = BABYLON.Quaternion.Identity()
+    this._chaseHudNode = hudNode
+    const eye = new BABYLON.Vector3()
+    this._chaseHudObs = scene.onBeforeCameraRenderObservable.add((cam) => {
+      // The headset camera, not one eye of it (each eye is a child camera).
+      let head: BABYLON.Node = cam
+      while (head.parent instanceof BABYLON.Camera) head = head.parent
+      const h = head as BABYLON.Camera
+      if (h.parent != null) {
+        BABYLON.Vector3.TransformCoordinatesToRef(
+          h.position,
+          freshWorldMatrix(h.parent),
+          eye
+        )
+      } else eye.copyFrom(h.position)
+      const toCraft = freshWorldMatrix(node).getTranslation().subtract(eye)
+      const far = toCraft.length()
+      if (far < 1e-3) return
+      const dir = toCraft.scaleInPlace(1 / far)
+      const d = Math.min(CHASE_HUD_DISTANCE, far * 0.6)
+      hudNode.position.copyFrom(eye).addInPlace(dir.scale(d))
+      // A plane's readable face is local -Z, so +Z points away from the eye.
+      BABYLON.Quaternion.FromLookDirectionLHToRef(
+        dir,
+        BABYLON.Vector3.Up(),
+        hudNode.rotationQuaternion!
+      )
+      hudNode.scaling.setAll(d / CHASE_HUD_DISTANCE)
+    })
+    return hudNode
   }
   // The attached <tosi-b3d-radar> child (found once). undefined = unresolved,
   // null = none. Drives the HUD radar traces and the missile's lock target.
@@ -1186,11 +1205,10 @@ export class B3dAircraft extends B3dControllable {
       const hudKey = xrChase
         ? `chase|${viewDeg.toFixed(2)}`
         : `${attrs.hudSize}|${attrs.hudForward}|${this.eyeHeight}`
-      if (xrChase) this._placeChaseHud(node)
       if (this._hudMountKey !== hudKey && this._hud.attachInScene != null) {
         this._hudMountKey = hudKey
         if (xrChase) {
-          this._hud.attachInScene(this._chaseHudNode!, {
+          this._hud.attachInScene(this._chaseHudNodeFor(node), {
             size:
               2 * CHASE_HUD_DISTANCE * Math.tan(((viewDeg / 2) * Math.PI) / 180),
             position: BABYLON.Vector3.Zero(),
@@ -2604,6 +2622,10 @@ export class B3dAircraft extends B3dControllable {
     // it, and let the next craft mount it afresh.
     this._hud?.setInSceneVisible?.(false)
     this._hudMountKey = ''
+    if (this._chaseHudObs != null) {
+      this._chaseHudObs.remove()
+      this._chaseHudObs = null
+    }
     this._chaseHudNode?.dispose()
     this._chaseHudNode = null
     if (this._chaseAnchor) {
