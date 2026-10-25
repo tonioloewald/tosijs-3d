@@ -246,6 +246,7 @@ export class B3dHud extends B3dChild {
     size?: number
     position?: BABYLON.Vector3
     resolution?: number
+    onTop?: boolean
   }
   private _inSceneVisible = false
 
@@ -282,7 +283,13 @@ export class B3dHud extends B3dChild {
    */
   attachInScene(
     parent: BABYLON.TransformNode,
-    opts?: { size?: number; position?: BABYLON.Vector3; resolution?: number }
+    opts?: {
+      size?: number
+      position?: BABYLON.Vector3
+      resolution?: number
+      /** Drawn over the scene (a later rendering group), not hidden by it. */
+      onTop?: boolean
+    }
   ): void {
     this._inSceneParent = parent
     this._inSceneOpts = opts
@@ -324,6 +331,7 @@ export class B3dHud extends B3dChild {
     plane.position =
       this._inSceneOpts?.position?.clone() ?? new BABYLON.Vector3(0, 0.9, 1.3)
     plane.isPickable = false
+    if (this._inSceneOpts?.onTop) plane.renderingGroupId = 1
     const mat = new BABYLON.StandardMaterial('hud-3d-mat', scene)
     // Unlit, self-glowing, alpha from the HUD SVG's own transparency.
     mat.emissiveTexture = this._svgTex.texture

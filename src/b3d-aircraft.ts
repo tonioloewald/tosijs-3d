@@ -458,7 +458,7 @@ const GROUND_FRICTION = 1.2
 const TAKEOFF_MARGIN = 2.5
 
 /** What the aircraft pushes flight state to — a `<tosi-b3d-hud>`, loosely typed. */
-/** How far out a headset's chase HUD hangs, metres. */
+/** The distance a headset's chase HUD is BUILT for, metres; it is scaled to the craft's. */
 const CHASE_HUD_DISTANCE = 2
 
 type HudSink = {
@@ -482,7 +482,12 @@ type HudSink = {
   ): void
   attachInScene?(
     parent: BABYLON.TransformNode,
-    opts?: { size?: number; position?: BABYLON.Vector3; resolution?: number }
+    opts?: {
+      size?: number
+      position?: BABYLON.Vector3
+      resolution?: number
+      onTop?: boolean
+    }
   ): void
   setInSceneVisible?(visible: boolean): void
 }
@@ -796,8 +801,8 @@ export class B3dAircraft extends B3dControllable {
 
   /**
    * Put the headset chase HUD on the line from the eyes to the aircraft,
-   * facing the eyes and level with the world. Nearer than its usual distance
-   * when the craft itself is nearer, scaled to keep its angle.
+   * facing the eyes and level with the rig, at the craft's distance, scaled
+   * to keep its angle.
    *
    * Placed just before the frame is drawn, from fresh matrices: the craft,
    * its chase anchor and the rig riding it all move during the frame, and a
@@ -833,7 +838,8 @@ export class B3dAircraft extends B3dControllable {
       const far = toCraft.length()
       if (far < 1e-3) return
       const dir = toCraft.scaleInPlace(1 / far)
-      const d = Math.min(CHASE_HUD_DISTANCE, far * 0.6)
+      // At the craft: its parallax, so it fuses where the craft does.
+      const d = far
       hudNode.position.copyFrom(cam.position).addInPlace(dir.scale(d))
       // A plane's readable face is local -Z, so +Z points away from the eye.
       // FromLookDirectionLH turns +Z to MINUS the direction it is given.
@@ -1197,12 +1203,12 @@ export class B3dAircraft extends B3dControllable {
       IN A HEADSET'S CHASE VIEW THE HUD IS AN OVERLAY ON THE AIRCRAFT.
 
       The flat chase HUD is page DOM, which a headset does not draw, so there
-      the same plane stands in for it: face on to you, on the line from your
-      eyes to the aircraft, a couple of metres out (in front of the craft, so
-      nothing near it cuts it), and covering the angle the flat overlay covers
-      on the chase camera. It is level with the world, like a screen, and has
-      no horizon, like the flat one. Hung at the aircraft's own depth instead
-      (the first version) it ringed the craft in the world and read as wrong.
+      the same plane stands in for it: face on to you, centred on the craft and
+      AT the craft's distance, so each eye sees it where it sees the craft and
+      the two fuse at the craft's depth (a nearer plane doubles when you look
+      at the craft). Drawn over the scene, as a nearer plane would be. It
+      covers the angle the flat overlay covers on the chase camera, is level
+      with the rig, and has no horizon, like the flat one.
       */
       const inCockpit = this.cameraView === 'cockpit'
       const chaseHud = !attrs.hudChaseOff
@@ -1228,6 +1234,7 @@ export class B3dAircraft extends B3dControllable {
             size:
               2 * CHASE_HUD_DISTANCE * Math.tan(((viewDeg / 2) * Math.PI) / 180),
             position: BABYLON.Vector3.Zero(),
+            onTop: true,
           })
         } else {
           this._hud.attachInScene(node, {
