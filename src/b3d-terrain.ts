@@ -29,7 +29,7 @@ const { demo } = tosi({
     grossScale: 0.015,
     detailScale: 0.09,
     horizScale: 8,
-    grossAmplitude: 250,
+    grossAmplitude: 350,
     detailAmplitude: 45,
     wireframe: false,
     debugColor: false,
@@ -44,7 +44,7 @@ const { demo } = tosi({
 // ~250 and the peaks stand out of the overcast, and you have to get down into
 // the valleys to see anything at all.
 const { sky } = tosi({
-  sky: { coverage: 0.55, altitude: 700, timeOfDay: 10, orographic: 0.8 },
+  sky: { coverage: 0.3, altitude: 400, timeOfDay: 10, orographic: 0.8 },
 })
 
 // Priority-pool quadtree LOD: one shared pool of tiles, fine near / coarse far,
@@ -88,15 +88,15 @@ terrain.regenerate()
 
 const posDisplay = span({ class: 'pos-display' })
 
-// Fly the terrain in the VTOL aircraft. It spawns high (well above the ~210 peaks
-// with v size 200), so it's already above the hover ceiling → in FLIGHT mode:
+// Fly the terrain in the VTOL aircraft. It spawns under the cloud base (400) and
+// above the peaks, already above the hover ceiling → in FLIGHT mode:
 // right trigger = forward throttle, pull back to climb, turn stick banks.
 const plane = () => b3dAircraft({
   library: 'vehicles', meshName: 'scout',
   // A ceiling ABOVE the cloud deck, because the whole point of a deck is that
   // you can be under it, in it, or over it. The stock 300 m is a low-level
   // strike ceiling and it sat below even the spawn altitude here.
-  player: true, y: 400, ceiling: 1600, vtolSpeed: 6, maxSpeed: 50,
+  player: true, y: 320, ceiling: 1600, vtolSpeed: 6, maxSpeed: 50,
 })
 const focus = inputFocus(gameController(), plane())
 
