@@ -1332,11 +1332,17 @@ export class B3d extends Component {
    * goes when the scene first renders; once a page holds it, that page lets
    * it go. `{ spin: false }` shows the message alone (a load that failed).
    */
-  setLoading(message: string | boolean, options: { spin?: boolean } = {}): void {
+  setLoading(
+    message: string | boolean,
+    options: { spin?: boolean } = {}
+  ): void {
     const spinner = this.parts.spinner as HTMLElement | undefined
     const caption = this.parts.loadingCaption as HTMLElement | undefined
     this._loadingHeld = message !== false
-    spinner?.classList.toggle('hidden', message === false || options.spin === false)
+    spinner?.classList.toggle(
+      'hidden',
+      message === false || options.spin === false
+    )
     if (caption) {
       caption.textContent = typeof message === 'string' ? message : ''
       caption.classList.toggle('hidden', typeof message !== 'string')
@@ -6382,7 +6388,10 @@ export class B3d extends Component {
         const targetX = headPos ? headPos.x : piloted.position.x - fwd.x * back
         const targetY = headPos ? headPos.y : piloted.position.y + up
         const targetZ = headPos ? headPos.z : piloted.position.z - fwd.z * back
-        if (chaseFirstFrame || lastPiloted !== piloted) {
+        // Only from a real head pose, as the cockpit and free captures wait:
+        // a session's first frames can carry a stale rotation, which left the
+        // bar and panels off to one side until a re-seat.
+        if ((chaseFirstFrame || lastPiloted !== piloted) && hasViewerPose()) {
           // Align to where the headset is currently looking so it doesn't snap.
           chaseFirstFrame = false
           lastPiloted = piloted

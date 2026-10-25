@@ -378,6 +378,16 @@ export class XrFrames {
       0,
       this.eye.rotationQuaternion as BABYLON.Quaternion
     )
+    /*
+    THE BODY TAKES THE RECENTER TOO. A piloting rig is turned by the head's
+    yaw at entry, so the view looks along the craft; without the same
+    correction here, "ahead of the body" was that far to one side. The death
+    modal (on this frame) came up 70° away for someone who sat down 70° off
+    the headset's own forward, and in a headset that reads as no modal at all.
+    */
+    ;(this.body.rotationQuaternion as BABYLON.Quaternion).copyFrom(
+      this.eye.rotationQuaternion as BABYLON.Quaternion
+    )
 
     // Neck: head pose pushed down + back to the pivot; yaw-only so UI pinned here
     // turns with you but you can tip your head to look past it.
