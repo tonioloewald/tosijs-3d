@@ -211,7 +211,7 @@ turns the pilot's head in the cockpit, springs back on release).
 | `meshName` | `''` | Node name to instantiate from library |
 | `player` | `false` | Whether this aircraft receives input (and gets the gun reticle) |
 | `enterable` | `false` | Whether a biped can enter |
-| `dropShadow` | `'on'` | A soft blob shadow straight below the craft, darkest on the ground and fading and spreading as it climbs, so its height reads at a glance (the sun's shadow falls off to one side and fades out with distance). `'off'` for none |
+| `dropShadow` | `'off'` | `'on'` puts a soft blob shadow straight below the craft, darkest on the ground and fading and spreading as it climbs, so its height reads at a glance. For a scene without real shadows: beside a sun's shadow it is a second, contradicting one |
 | `maxSpeed` | `50` | Top speed at full lever, **military** thrust (m/s). A released trigger leaves the lever where it was, so speed settles wherever that lever meets drag |
 | `afterburnerSpeed` | `75` | Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner. |
 | `acceleration` | `12` | Throttle / lean authority (speed change rate) |
@@ -502,7 +502,7 @@ export class B3dAircraft extends B3dControllable {
     player: false,
     enterable: false,
     /** A soft blob shadow straight below, fading with height (`'off'`: none). */
-    dropShadow: 'on' as 'on' | 'off',
+    dropShadow: 'off' as 'on' | 'off',
     // Service ceiling (m): the aircraft can't climb past it, and it reads full on
     // a linked HUD's altitude gauge.
     ceiling: 300,
