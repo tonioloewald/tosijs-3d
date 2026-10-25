@@ -240,7 +240,7 @@ turns the pilot's head in the cockpit, springs back on release).
 | `turbulence` | `'on'` | The weather reaches the airframe: wind makes it drift and crab, storms (storminess) and strong wind buffet it. Changes nothing in a calm scene; `'off'` ignores the weather |
 | `turbulenceScale` | `1` | Scales the buffeting |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
-| `hudChaseOff` | `false` | Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene |
+| `hudChaseOff` | `false` | Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene. In a headset the HUD is cockpit only: the chase overlay is page DOM, which a headset does not draw |
 | `hudSize` | `0.7` | In-cockpit HUD plane size (metres) |
 | `hudForward` | `1.6` | How far ahead of the pilot's eye the HUD floats (metres) |
 | `weapons` | `'on'` | `'off'` disarms all weapons |
@@ -1130,44 +1130,31 @@ export class B3dAircraft extends B3dControllable {
       // and in VR — parented to the airframe just ahead of the pilot's eye, banking
       // with the plane (not head-locked).
       /*
-      IN A HEADSET THE IN-SCENE PLANE IS THE ONLY HUD THERE IS.
-
-      The flat overlay is DOM, which a headset does not composite, so a chase
-      view in a session had no instruments at all (manta-recon, #3209). There
-      the plane hangs off the chase anchor (position and heading, level, so it
-      does not bank with the craft) at the same spot ahead of the airframe, and
-      is scaled up so that from the chase seat it covers the angle it covers
-      from the cockpit. That match is for the seat zoomed all the way in:
-      zoom out and it covers less, like everything else near the craft.
+      IN A HEADSET THE HUD IS COCKPIT ONLY. The flat overlay is DOM, which a
+      headset does not composite, so a chase view in a session has no HUD. It
+      used to hang a scaled-up plane off the chase anchor, which put the
+      aircraft inside a ring of instruments at its own depth and read as wrong;
+      a chase-view HUD for a headset needs a design of its own.
       */
       const inCockpit = this.cameraView === 'cockpit'
-      const xrChase = !inCockpit && this.owner?.xrActive === true
       const hudAhead = this.cockpitForward + attrs.hudForward
-      const hudKey = `${attrs.hudSize}|${attrs.hudForward}|${this.eyeHeight}|${
-        xrChase ? this.chaseDistance : 'seat'
-      }`
+      const hudKey = `${attrs.hudSize}|${attrs.hudForward}|${this.eyeHeight}`
       if (this._hudMountKey !== hudKey && this._hud.attachInScene != null) {
         this._hudMountKey = hudKey
-        this._hud.attachInScene(
-          (xrChase ? this.getChaseAnchor() : null) ?? node,
-          {
-            size: xrChase
-              ? (attrs.hudSize * (this.chaseDistance * 0.8 + hudAhead)) /
-                Math.max(0.1, attrs.hudForward)
-              : attrs.hudSize,
-            position: new BABYLON.Vector3(0, this.eyeHeight, hudAhead),
-          }
-        )
+        this._hud.attachInScene(node, {
+          size: attrs.hudSize,
+          position: new BABYLON.Vector3(0, this.eyeHeight, hudAhead),
+        })
       }
       // In cockpit view the 3D canopy HUD is the HUD; the flat DOM overlay is
-      // for the chase view, and the plane again for a chase view in a headset.
+      // for the chase view.
       const chaseHud = !attrs.hudChaseOff
-      this._hud.setInSceneVisible?.(inCockpit || (xrChase && chaseHud))
+      this._hud.setInSceneVisible?.(inCockpit)
       // The HUD is useful from ANY view — speed, altitude, radar, warnings are
       // true wherever the camera is. The horizon is the exception: outside the
       // cockpit it contradicts the real horizon behind the aircraft, so it's
-      // dropped in chase and the rest stays. (`hudChase: false` still forces
-      // the old cockpit-only behaviour for anyone who wants a clean chase.)
+      // dropped in chase and the rest stays. (`hudChaseOff` still forces the
+      // cockpit-only behaviour for anyone who wants a clean chase.)
       const showHud = inCockpit || chaseHud
       this._hud.setVisible(!inCockpit && chaseHud)
       this._hud.setHorizonVisible?.(inCockpit)
