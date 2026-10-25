@@ -1814,6 +1814,12 @@ export {
 } from './proxy-fit.js'
 export type { ProxyBinding, VertexWeights } from './proxy-fit.js'
 export { humanProxy, proxyMaterial, coverBody } from './human-proxy.js'
+export { cutGarment } from './garment-cut.js'
+export type {
+  GarmentCut,
+  GarmentCutOptions,
+  ViewPoint,
+} from './garment-cut.js'
 export { clothShading, FABRICS } from './cloth-shading.js'
 export {
   faceDeltas,

@@ -12,6 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Added:** `cutGarment(positions, triangles, { front, side?, thickness, ease, hem })` (garment-cut): a garment cut out of the body by polygons drawn in the front view (and optionally the side view), cut along the outline, pushed out, eased across creases and hemmed. It returns an ordinary proxy binding, so it fits every body shape and bends with every clip; `humanProxy` draws it and `delete` lists the skin it covers. A rectangle from the waist to the ankles is a pair of trousers.
 - **Fixed:** a headset no longer hangs mid-flight when it switches to hand tracking. Babylon parents the topmost ancestor of the hand mesh beneath the XR rig, and with the rig riding an aircraft that ancestor was the aircraft (or its chase anchor), which was then its own ancestor. Every node the rig hangs from now refuses such a parent. `refuseOwnAncestors(node)` (b3d-utils) guards a node and everything above it.
 - **Fixed:** in a headset, the death and pause modals sit at your own eye height, a little below and facing you. They assumed a standing 1.6 m, so seated they came up above you, tilted towards a point over your head.
 - **Fixed:** `b3d-aircraft` puts its HUD away when it crashes in a scene with `<tosi-b3d-death>`. A wreck stops updating the HUD, so in a headset's chase view it went on hanging over the wreck as it fell.
