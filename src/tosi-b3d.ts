@@ -357,6 +357,7 @@ import {
 } from './popup-surface.js'
 import {
   cameraIsAttached,
+  freshWorldMatrix,
   isNoCollide,
   insideCarrier,
   isOff,
@@ -679,8 +680,21 @@ function pressWithEitherHand(
       if (main == null || frames == null) return
       main.onButtonStateChangedObservable.add(
         (c) => {
-          if (!c.changes.pressed?.current) return
+          if (c.changes.pressed == null) return
           const id = controller.uniqueId
+          /*
+          A PRESS IS AIMED NOW, not a frame ago. Babylon reads the buttons
+          before it picks, so a press or release carries the previous frame's
+          ray, cut to that frame's hit distance. On a moving vehicle the bar
+          has moved on with it since, and the stale ray stops short of it:
+          hover (picked fresh) lit the button and the click never landed.
+          */
+          const ray = sel._controllers?.[id]?.pick?.ray
+          if (ray != null) {
+            freshWorldMatrix(controller.pointer)
+            controller.getWorldPointerRayToRef(ray)
+          }
+          if (!c.changes.pressed.current) return
           if (
             sel._attachedController === id ||
             !sel.setAttachedController?.(id)
