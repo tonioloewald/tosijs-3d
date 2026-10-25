@@ -1929,14 +1929,18 @@ export class B3d extends Component {
       // A panel you read and then press: in front, at arm's length and a
       // touch low, riding the body frame so a glance away does not take it
       // with you but turning round brings it along.
+      // Measured from the eye: the body frame's origin is the rig's floor, and
+      // the eye is the head's height above it, which is yours, not a standing
+      // 1.6 m. Seated, a fixed 1.6 put the panel over your head, tilted to
+      // face a point above it.
+      const eyeY = xrCam.position.y > 0.3 ? xrCam.position.y : 1.6
       const panel = attachFramePanel(scene, xrCam, xrFrames.get('body'), {
         frame: 'body',
-        // Measured from the eye: the body frame's origin is your feet.
         anchor: {
           azimuthDeg: 0,
           elevationDeg: -10,
           distance: 1.1 * nearer,
-          focus: [0, 1.6, 0],
+          focus: [0, eyeY, 0],
         },
         presence: 'both',
         reveal: 'always',

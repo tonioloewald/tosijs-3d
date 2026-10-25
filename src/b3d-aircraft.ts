@@ -1232,7 +1232,9 @@ export class B3dAircraft extends B3dControllable {
         if (xrChase) {
           this._hud.attachInScene(this._chaseHudNodeFor(node), {
             size:
-              2 * CHASE_HUD_DISTANCE * Math.tan(((viewDeg / 2) * Math.PI) / 180),
+              2 *
+              CHASE_HUD_DISTANCE *
+              Math.tan(((viewDeg / 2) * Math.PI) / 180),
             position: BABYLON.Vector3.Zero(),
             onTop: true,
           })
@@ -2124,6 +2126,15 @@ export class B3dAircraft extends B3dControllable {
       console.warn(
         'tosi-b3d-aircraft: crashed with no <tosi-b3d-death> in the scene — input focus released. Handle the `crash` event (respawn, or add a <tosi-b3d-death>) to give the player something to fly.'
       )
+    } else {
+      // The HUD is not updated past this point (a wreck returns early), so
+      // put it away now: in a headset's chase view it hangs on the craft and
+      // would ride the wreck down. The next aircraft mounts it afresh.
+      this._hud?.setInSceneVisible?.(false)
+      this._hud?.setVisible(false)
+      this._chaseHudObs?.remove()
+      this._chaseHudObs = null
+      this._hudMountKey = ''
     }
 
     // b3d-death frames the third-person aftermath itself (spectate) — no camera switch needed here.

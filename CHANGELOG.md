@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Fixed:** in a headset, the death and pause modals sit at your own eye height, a little below and facing you. They assumed a standing 1.6 m, so seated they came up above you, tilted towards a point over your head.
+- **Fixed:** `b3d-aircraft` puts its HUD away when it crashes in a scene with `<tosi-b3d-death>`. A wreck stops updating the HUD, so in a headset's chase view it went on hanging over the wreck as it fell.
 - **Fixed:** `<tosi-b3d>`'s `timeScale` slows Babylon's own clocks too: animation groups (`scene.animationTimeScale`) and particle ageing (each system's `updateSpeed`) are the app's value times `timeScale`, and particles stop in a pause. A consumer that multiplied `speedRatio` by `timeScale` to work around it should drop that, or slow motion compounds.
 - **Fixed:** in a headset, the `body` frame takes the piloting recenter as the `eye` frame does, so panels on it (the death and pause modals among them) come up ahead of you. Sat in a cockpit facing away from the headset's own forward, they appeared that far to one side, which read as no respawn panel at all. The chase view also waits for a real head pose before taking its forward, as the cockpit already did.
 - **Fixed:** in a headset, a controller press on a moving vehicle reaches the system bar and other `ui`/`modal` panels. A press carried the previous frame's ray, which stopped short of a panel that had moved on with the vehicle (the button lit, the click was lost); it is now aimed from the controller's current pose.
