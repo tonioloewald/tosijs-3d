@@ -809,28 +809,37 @@ export class B3dAircraft extends B3dControllable {
     const hudNode = new BABYLON.TransformNode('hud-chase', scene)
     hudNode.rotationQuaternion = BABYLON.Quaternion.Identity()
     this._chaseHudNode = hudNode
-    const eye = new BABYLON.Vector3()
+    const inv = new BABYLON.Matrix()
+    const craft = new BABYLON.Vector3()
     this._chaseHudObs = scene.onBeforeCameraRenderObservable.add((cam) => {
-      // The headset camera, not one eye of it (each eye is a child camera).
-      let head: BABYLON.Node = cam
-      while (head.parent instanceof BABYLON.Camera) head = head.parent
-      const h = head as BABYLON.Camera
-      if (h.parent != null) {
-        BABYLON.Vector3.TransformCoordinatesToRef(
-          h.position,
-          freshWorldMatrix(h.parent),
-          eye
-        )
-      } else eye.copyFrom(h.position)
-      const toCraft = freshWorldMatrix(node).getTranslation().subtract(eye)
+      // The headset camera itself: each eye is a rig camera rendered after
+      // it, and placing for an eye would swing the HUD between the two.
+      if (cam.isRigCamera) return
+      /*
+      IN THE CAMERA'S OWN SPACE. The HUD hangs from whatever the headset
+      camera hangs from (the XR rig, riding the chase anchor: level, the
+      craft's heading), so it is placed where the camera is, not from world
+      positions that move during the frame. Your eye is the camera's local
+      position; the craft is brought into the same space.
+      */
+      const rig = cam.parent as BABYLON.TransformNode | null
+      if (rig != null && hudNode.parent !== rig) hudNode.parent = rig
+      const craftWorld = freshWorldMatrix(node).getTranslation()
+      if (rig != null) {
+        freshWorldMatrix(rig).invertToRef(inv)
+        BABYLON.Vector3.TransformCoordinatesToRef(craftWorld, inv, craft)
+      } else craft.copyFrom(craftWorld)
+      const toCraft = craft.subtract(cam.position)
       const far = toCraft.length()
       if (far < 1e-3) return
       const dir = toCraft.scaleInPlace(1 / far)
       const d = Math.min(CHASE_HUD_DISTANCE, far * 0.6)
-      hudNode.position.copyFrom(eye).addInPlace(dir.scale(d))
+      hudNode.position.copyFrom(cam.position).addInPlace(dir.scale(d))
       // A plane's readable face is local -Z, so +Z points away from the eye.
+      // FromLookDirectionLH turns +Z to MINUS the direction it is given.
+      // Up is the rig's, which is level.
       BABYLON.Quaternion.FromLookDirectionLHToRef(
-        dir,
+        dir.negate(),
         BABYLON.Vector3.Up(),
         hudNode.rotationQuaternion!
       )
@@ -1205,6 +1214,13 @@ export class B3dAircraft extends B3dControllable {
       const hudKey = xrChase
         ? `chase|${viewDeg.toFixed(2)}`
         : `${attrs.hudSize}|${attrs.hudForward}|${this.eyeHeight}`
+      // A rig disposed at the end of a session takes the HUD node with it.
+      if (this._chaseHudNode?.isDisposed()) {
+        this._chaseHudObs?.remove()
+        this._chaseHudObs = null
+        this._chaseHudNode = null
+        this._hudMountKey = ''
+      }
       if (this._hudMountKey !== hudKey && this._hud.attachInScene != null) {
         this._hudMountKey = hudKey
         if (xrChase) {

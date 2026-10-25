@@ -7291,7 +7291,10 @@ export class B3d extends Component {
   ): { update: () => void; dispose: () => void } {
     const mk = (icon: Element, title: string, click: () => void) => {
       const b = button({ type: 'button', title }, icon) as HTMLButtonElement
-      b.addEventListener('click', click)
+      b.addEventListener('click', () => {
+        sendDebug('xr-bar', { click: title })
+        click()
+      })
       return b
     }
     // The owl, as on the flat bar: the gear button's own icon.
@@ -7325,6 +7328,20 @@ export class B3d extends Component {
     ]
     const bar = systemBar(buttons)
     this._xrBarSvg = bar.svg
+    /*
+    WHAT A PRESS ON THE BAR DID, to the debug sink: in the aircraft a headset
+    lit a button and the press never landed, while the emulated headset's
+    presses clicked. Presses and releases are rare, so this is cheap.
+    */
+    const barSvg = bar.svg as unknown as {
+      handlePointer: (k: string, x: number, y: number) => void
+    }
+    const handle = barSvg.handlePointer
+    barSvg.handlePointer = (k, x, y) => {
+      if (k === 'down' || k === 'up')
+        sendDebug('xr-bar', { kind: k, x: Math.round(x), y: Math.round(y) })
+      handle(k, x, y)
+    }
     const vb = bar.svg.viewBox.baseVal
     const width = 0.0022 * (vb.width || 100)
     const panel = attachFramePanel(scene, cam, frames.eye, {
