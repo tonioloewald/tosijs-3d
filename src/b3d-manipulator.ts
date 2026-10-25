@@ -66,10 +66,8 @@ const panel = () => [
 ]
 
 preview.append(
-  readout,
   b3d(
     {
-      style: 'width:100%;height:100%',
       scenePanel: panel,
       sceneCreated(el) {
         orbitCam(el, { alpha: -1.1, beta: 1.05, radius: 8, target: [0, 0.5, 0] })
@@ -81,16 +79,14 @@ preview.append(
     b3dGround({ size: 40, color: '#5d6b4a' }),
     b3dBox({ id: 'thing', y: 0.5, color: '#c8963c' }),
     gizmo
-  )
+  ),
+  readout
 )
 ```
 ```css
-.preview { height: 100%; position: relative; }
+.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 .readout {
-  position: absolute;
-  z-index: 1;
-  left: 8px;
-  bottom: 8px;
   padding: 4px 10px;
   border-radius: 6px;
   font-family: ui-monospace, monospace;
@@ -414,7 +410,11 @@ export class B3dManipulator extends B3dChild {
       const parent = node.parent as BABYLON.TransformNode | null
       if (parent != null) {
         parent.computeWorldMatrix(true)
-        BABYLON.Vector3.TransformNormalToRef(moved, parent.getWorldMatrix(), moved)
+        BABYLON.Vector3.TransformNormalToRef(
+          moved,
+          parent.getWorldMatrix(),
+          moved
+        )
       }
       p = this._anchor.add(moved)
     } else {

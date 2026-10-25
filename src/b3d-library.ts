@@ -85,11 +85,9 @@ preview.append(
 )
 ```
 ```css
-tosi-b3d { width: 100%; height: 100%; }
+.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 .debug-panel {
-  position: absolute;
-  top: 10px;
-  right: 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -98,7 +96,6 @@ tosi-b3d { width: 100%; height: 100%; }
   color: white;
   border-radius: 6px;
   font-size: 14px;
-  z-index: 10;
 }
 .debug-panel select, .debug-panel button {
   color: white;

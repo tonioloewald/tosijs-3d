@@ -128,14 +128,13 @@ const scene = b3d(
 preview.append(scene, kills, turb)
 ```
 ```css
-tosi-b3d { width: 100%; height: 100%; }
+.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 .turb {
-  position: absolute; top: 44px; right: 10px; z-index: 10;
   padding: 6px 12px; border-radius: 4px;
   background: rgba(0, 0, 0, 0.55); color: #9fdcf0; font: 14px monospace;
 }
 .kills {
-  position: absolute; top: 10px; right: 10px; z-index: 10;
   padding: 6px 12px; border-radius: 4px;
   background: rgba(0, 0, 0, 0.55); color: #ffcf6a; font: 14px monospace;
 }

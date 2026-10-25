@@ -49,9 +49,9 @@ setInterval(() => {
 preview.append(scene, readout)
 ```
 ```css
-tosi-b3d { width: 100%; height: 100%; }
+.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 .readout {
-  position: absolute; bottom: 12px; left: 12px;
   padding: 6px 12px; border-radius: 6px;
   background: rgba(0,0,0,0.55); color: #9fb;
   font: 13px ui-monospace, monospace; z-index: 10;

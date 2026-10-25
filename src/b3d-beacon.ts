@@ -59,15 +59,12 @@ const sceneEl = b3d(
   lamp('blue lamp', 6, 2, '#5588ff')
 )
 
-preview.append(readout, sceneEl)
+preview.append(sceneEl, readout)
 ```
 ```css
-.preview { height: 100%; position: relative; }
+.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 .readout {
-  position: absolute;
-  z-index: 1;
-  left: 8px;
-  bottom: 8px;
   padding: 4px 10px;
   border-radius: 6px;
   font-family: ui-monospace, monospace;

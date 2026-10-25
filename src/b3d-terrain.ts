@@ -3,8 +3,8 @@
 
 Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface.
 Longitude (u) wraps seamlessly; latitude (v) reflects at the midpoint, creating
-symmetric hemispheres with no singularities. Two noise layers (gross contour
-+ fine detail) each pass through gradient filters for shaping plateaus, mesas, etc.
+symmetric hemispheres with no singularities. Two noise layers (gross
+contour and fine detail) each pass through gradient filters for shaping plateaus, mesas, etc.
 
 ## Demo
 
@@ -210,14 +210,9 @@ for (const key of ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmpl
 }
 ```
 ```css
-tosi-b3d {
-  width: 100%;
-  height: 100%;
-}
+.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 .debug-panel {
-  position: absolute;
-  top: 10px;
-  right: 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -226,7 +221,6 @@ tosi-b3d {
   color: #fff;
   border-radius: 6px;
   font-size: 13px;
-  z-index: 10;
 }
 .debug-panel label {
   display: flex;

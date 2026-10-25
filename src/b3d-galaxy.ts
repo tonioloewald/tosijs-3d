@@ -294,14 +294,9 @@ demo.habitability.observe(applyFilter)
 demo.nameSearch.observe(applyFilter)
 ```
 ```css
-tosi-b3d {
-  width: 100%;
-  height: 100%;
-}
+.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 .debug-panel {
-  position: absolute;
-  top: 8px;
-  right: 8px;
   background: rgba(0,0,0,0.6);
   color: white;
   padding: 8px 12px;
