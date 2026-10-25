@@ -269,7 +269,7 @@ document.body.append(
 | `glowLayerIntensity` | `0` | Glow effect intensity (0 = off) |
 | `clearColor` | `''` | The colour behind everything (`'#000'` for space); empty keeps Babylon's default |
 | `frameRate` | `30` | Target frame rate |
-| `timeScale` | `1` | How fast simulation time runs against wall time: `1` is real time, `0.25` slow motion, `0` stops the simulation while the scene keeps rendering. Everything integrating with `sceneDelta` scales; anything that must not slow (UI animation, a countdown in wall seconds) reads `realDt` from the frame package |
+| `timeScale` | `1` | How fast simulation time runs against wall time: `1` is real time, `0.25` slow motion, `0` stops the simulation while the scene keeps rendering. Everything integrating with `sceneDelta` scales, and so do Babylon's animation groups and particles (times any `animationTimeScale` or `updateSpeed` the app set); anything that must not slow (UI animation, a countdown in wall seconds) reads `realDt` from the frame package |
 | `quality` | `'auto'` | Device tier. `'auto'` follows the measured or cached device profile (and probes in the background on a first visit); `'low'`, `'medium'` or `'high'` force one. Drives the `auto` defaults of shadows, reflections, terrain and render scaling. See [[b3d-quality]] |
 | `pixelRatio` | `0` | Device pixels per CSS pixel, flat. `0` is auto: the display's own ratio, capped by the device tier (high 2, medium 1.5, low 1). A positive value is an explicit cap and wins: `1` renders at CSS resolution, `2` full Retina, `0.75` below CSS for speed. Ignored in a headset |
 | `groundDetail` | `'auto'` | The ground shader's form: `full`, `lite` (three noise samples a pixel for eight, for a GPU that cannot afford the full one), or `auto` (from the device tier: lite on the low tier, and in a headset on the medium one) |
@@ -1602,6 +1602,41 @@ export class B3d extends Component {
     } else {
       scene.animationsEnabled = this._animationsWere
       scene.physicsEnabled = this._physicsWere
+    }
+  }
+
+  /**
+   * SLOW MOTION REACHES BABYLON'S CLOCKS TOO: animation groups
+   * (`scene.animationTimeScale`) and particle ageing (each system's
+   * `updateSpeed`). Physics already steps on `sceneDelta`.
+   *
+   * Each is the app's own value TIMES `timeScale`. What was written last is
+   * remembered with the value it came from, so a value that differs from it
+   * is the app's new choice, and becomes the base: an app's own speed-up
+   * still works, and resuming hands back what it set.
+   */
+  private _animationScale: { base: number; written: number } | null = null
+  private _particleScale = new WeakMap<
+    BABYLON.IParticleSystem,
+    { base: number; written: number }
+  >()
+  private _scaleEngineTime(scale: number): void {
+    const scene = this.scene
+    if (scene == null) return
+    const scaled = (
+      was: { base: number; written: number } | undefined | null,
+      now: number
+    ) => {
+      const base = was == null || now !== was.written ? now : was.base
+      return { base, written: base * scale }
+    }
+    const a = scaled(this._animationScale, scene.animationTimeScale)
+    scene.animationTimeScale = a.written
+    this._animationScale = a
+    for (const ps of scene.particleSystems) {
+      const p = scaled(this._particleScale.get(ps), ps.updateSpeed)
+      ps.updateSpeed = p.written
+      this._particleScale.set(ps, p)
     }
   }
 
@@ -3244,6 +3279,7 @@ export class B3d extends Component {
       // Babylon's own clocks as well — see `_stopEngineTime`. Ours is the
       // smaller half of a pause.
       this._stopEngineTime(true)
+      this._scaleEngineTime(0)
       if (this.scene != null) {
         if (this.scene.metadata == null) this.scene.metadata = {}
         this.scene.metadata.b3dFrameDelta = 0
@@ -3324,6 +3360,7 @@ export class B3d extends Component {
         */
         const scale = Math.max(0, Number((this as any).timeScale ?? 1) || 0)
         this._stopEngineTime(false)
+        this._scaleEngineTime(scale)
         this.frameDelta = realDt * scale
         this._realDelta = realDt
         this._simElapsed += this.frameDelta
