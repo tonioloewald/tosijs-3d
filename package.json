@@ -56,7 +56,7 @@
     "eslint": "^10.6.0",
     "globals": "^17.7.0",
     "haltija": "^1.12.6",
-    "happy-dom": "^20.10.6",
+    "happy-dom": "^21.0.4",
     "iwer": "^2.5.0",
     "jolt-physics": "^1.1.0",
     "prettier": "^2.8.8",
