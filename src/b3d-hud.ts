@@ -145,6 +145,7 @@ import {
   buildFallbackHud,
   HUD_CENTER,
   HUD_PIN_RADIUS,
+  HUD_RING_RADIUS,
   type HudController,
   type MeterName,
   type HudTracePoint,
@@ -469,6 +470,7 @@ export class B3dHud extends B3dChild {
     return hudPointFromUV(uv.u, uv.v, {
       center: HUD_CENTER,
       pinRadius: HUD_PIN_RADIUS,
+      radius: HUD_RING_RADIUS,
     })
   }
 
@@ -506,6 +508,7 @@ export class B3dHud extends B3dChild {
     return hudPointFromUV(u, v, {
       center: HUD_CENTER,
       pinRadius: HUD_PIN_RADIUS,
+      radius: HUD_RING_RADIUS,
     })
   }
 

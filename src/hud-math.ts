@@ -165,10 +165,23 @@ export function hudTrace(
 export function hudPointFromUV(
   u: number,
   v: number,
-  opts: { center: number; pinRadius: number }
+  opts: {
+    center: number
+    pinRadius: number
+    /**
+     * The HUD's ring, in viewBox units. Given, a contact is tracked only
+     * inside it: the corners of the square are outside the circle the HUD
+     * draws, and a contact there read as off the HUD.
+     */
+    radius?: number
+  }
 ): { x: number; y: number; tracked: boolean } {
-  const { center, pinRadius } = opts
-  if (Math.abs(u) <= 1 && Math.abs(v) <= 1) {
+  const { center, pinRadius, radius } = opts
+  const inside =
+    Math.abs(u) <= 1 &&
+    Math.abs(v) <= 1 &&
+    (radius == null || Math.hypot(u, v) * center <= radius)
+  if (inside) {
     return { x: center + u * center, y: center - v * center, tracked: true }
   }
   const len = Math.hypot(u, v) || 1

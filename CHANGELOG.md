@@ -12,6 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Fixed:** `b3d-hud` tracks a radar contact only inside its ring. A contact in the corners of the HUD's square was drawn there, outside the circle; it is now pinned to the outer ring along its bearing, like any other contact off the HUD. `hudPointFromUV` takes an optional `radius` for this.
 - **Fixed:** in a headset, panels on the `ui` and `modal` layers (the system bar among them) no longer trail a moving vehicle by a frame. They were placed before the vehicle moved, which left them most of a metre behind at flying speed, so they jumped around. They are now placed again just before drawing. `freshWorldMatrix(node)` (b3d-utils) gives a node's world matrix with its ancestors updated first.
 - **Changed:** in a headset's chase view, `b3d-aircraft`'s HUD is an overlay like the flat one: a face-on plane between your eyes and the aircraft, centred on it, level with the world, covering the angle the flat overlay covers, with no horizon. It used to hang at the aircraft's own depth and ring the craft in the world.
 - **Added:** `<tosi-b3d-aircraft dropShadow="on">` (off by default): a soft blob shadow straight below the craft, darkest on the ground and fading and spreading as it climbs, so its height reads at a glance. Meant for scenes without real shadows; beside a sun's shadow it contradicts it.

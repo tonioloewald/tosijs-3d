@@ -178,6 +178,16 @@ describe('hudPointFromUV — placing/pinning a contact in viewBox coords', () =>
     // |u|,|v| ≤ 1 is the test, not u² + v² ≤ 1: the glass is a pane, not a disc.
     expect(hudPointFromUV(1, 1, opts).tracked).toBe(true)
   })
+
+  test('with a ring radius, a contact outside the ring is pinned', () => {
+    const ring = { ...opts, radius: 100 }
+    expect(hudPointFromUV(0.5, 0.5, ring).tracked).toBe(true)
+    const corner = hudPointFromUV(0.8, 0.8, ring) // in the square, off the ring
+    expect(corner.tracked).toBe(false)
+    expect(
+      Math.hypot(corner.x - opts.center, corner.y - opts.center)
+    ).toBeCloseTo(opts.pinRadius, 6)
+  })
 })
 
 describe('horizonTransform', () => {
