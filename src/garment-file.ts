@@ -22,6 +22,10 @@ Coordinates are the pack's and glTF's own: metres, +Y up, the body facing
 +Z with its left on +X, so nothing is converted. Blender's glTF importer turns
 that into its Z-up and its exporter turns it back.
 
+Leave out the `garment` to export the body alone, to model a garment from
+nothing: every object you add beside it comes back as the garment. The body
+carries the metadata then.
+
 OBJ is offered too (`writeGarmentObj` / `readGarment` read either), but an
 OBJ carries no metadata through Blender: prefer glTF.
 
@@ -96,9 +100,12 @@ const GLB_MAGIC = 0x46546c67
 const JSON_CHUNK = 0x4e4f534a
 const BIN_CHUNK = 0x004e4942
 
-/** A GLB with the garment and the body it was made on. */
+/**
+ * A GLB with the garment and the body it was made on, or the body alone
+ * (no `garment`) to model a garment from nothing.
+ */
 export function writeGarmentGlb(options: {
-  garment: GarmentMesh
+  garment?: GarmentMesh | null
   body?: GarmentMesh | null
   meta: GarmentMeta
   /** sRGB colours for the two materials, so the file reads in an editor. */
@@ -175,11 +182,15 @@ export function writeGarmentGlb(options: {
   const meshes: any[] = []
   const nodes: any[] = []
   const g = options.garment
-  const pieces: MeshPart[] = g.parts?.length
+  if (!g && !options.body)
+    throw new Error('garment-file: nothing to write (no garment, no body)')
+  const pieces: MeshPart[] = !g
+    ? []
+    : g.parts?.length
     ? g.parts
     : [{ name: 'garment', first: 0, count: g.positions.length / 3 }]
   pieces.forEach((part, i) => {
-    const piece = i === 0 && pieces.length === 1 ? g : slicePart(g, part)
+    const piece = i === 0 && pieces.length === 1 ? g! : slicePart(g!, part)
     meshes.push({ name: part.name, primitives: [primitive(piece, 0)] })
     const ex: any = { tosijs: { ...options.meta, role: 'garment' } }
     if (part.rigid != null && part.rigid !== false) ex.rigid = part.rigid
@@ -193,8 +204,12 @@ export function writeGarmentGlb(options: {
     nodes.push({
       name: 'body-reference',
       mesh: meshes.length - 1,
-      // A helper: there to model against, never part of the garment.
-      extras: { helper: true, tosijs: { role: 'reference', helper: true } },
+      // A helper: there to model against, never part of the garment. It
+      // carries the metadata too, for a file that starts with the body alone.
+      extras: {
+        helper: true,
+        tosijs: { ...options.meta, role: 'reference', helper: true },
+      },
     })
   }
   const json = {
@@ -393,7 +408,10 @@ function readGlb(bytes: Uint8Array): GarmentFileContent {
     withMesh.find(({ n }: { n: any }) => role(n) === 'garment') ??
     withMesh.find(({ n }: { n: any }) => /garment/i.test(n.name ?? '')) ??
     withMesh[0]
-  if (pick == null) throw new Error('garment-file: no garment mesh in the file')
+  if (pick == null)
+    throw new Error(
+      'garment-file: no garment in the file, only the body (model one beside it)'
+    )
   // Every mesh but the body is the garment: an object added in the editor
   // (a collar, a buckle, a plate) is part of it.
   const positions: number[] = []
@@ -470,13 +488,16 @@ function readGlb(bytes: Uint8Array): GarmentFileContent {
       rigid: spec,
     })
   }
-  const meta =
-    pick.n.extras?.tosijs?.format === 'tosijs-garment'
-      ? stripRole(pick.n.extras.tosijs)
-      : json.scenes?.[json.scene ?? 0]?.extras?.tosijs?.format ===
-        'tosijs-garment'
-      ? stripRole(json.scenes[json.scene ?? 0].extras.tosijs)
-      : null
+  // From the garment, else any node (the body helper, when the garment was
+  // modelled from nothing), else the scene.
+  const tagged = (x: any) => x?.tosijs?.format === 'tosijs-garment'
+  const holder = tagged(pick.n.extras)
+    ? pick.n.extras
+    : json.nodes.find((n: any) => tagged(n.extras))?.extras ??
+      (tagged(json.scenes?.[json.scene ?? 0]?.extras)
+        ? json.scenes[json.scene ?? 0].extras
+        : null)
+  const meta = holder ? stripRole(holder.tosijs) : null
   return {
     garment: {
       positions: Float32Array.from(positions),
@@ -491,13 +512,13 @@ function readGlb(bytes: Uint8Array): GarmentFileContent {
 }
 
 function stripRole(t: any): GarmentMeta {
-  const { role: _role, ...rest } = t
+  const { role: _role, helper: _helper, ...rest } = t
   return rest as GarmentMeta
 }
 
 /** An OBJ with `o garment` and `o body-reference`; the metadata in a comment. */
 export function writeGarmentObj(options: {
-  garment: GarmentMesh
+  garment?: GarmentMesh | null
   body?: GarmentMesh | null
   meta: GarmentMeta
 }): string {
@@ -524,7 +545,10 @@ export function writeGarmentObj(options: {
     if (m.uvs) tBase += m.uvs.length / 2
   }
   const g = options.garment
-  if (g.parts?.length)
+  if (!g) {
+    if (!options.body)
+      throw new Error('garment-file: nothing to write (no garment, no body)')
+  } else if (g.parts?.length)
     for (const part of g.parts) {
       const suffix =
         part.rigid === 'parts'

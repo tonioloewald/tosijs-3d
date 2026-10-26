@@ -28,6 +28,7 @@ A cut is a start, not a finished garment: **export** it (glTF or OBJ, the
 garment and the body it was made on), shape it in Blender (a collar, pockets,
 its own UV unwrap), and **import** it back. It is bound to the body again by
 its shape, so it fits every body like the rest ([garment-file](/garment-file/)).
+Or **export the body alone** and model a garment from nothing beside it.
 In Blender, tick Include → Custom Properties when exporting, so the file still
 says which body it was made on.
 
@@ -142,6 +143,8 @@ preview.append(
               toggle3d({ label: 'include the body (a helper)', value: walker.exportBody }),
               button3d({ label: 'export glTF', handleClick: () => exportGarment('glb') }),
               button3d({ label: 'export OBJ', handleClick: () => exportGarment('obj') }),
+              // The body alone, to model a garment from nothing beside it.
+              button3d({ label: 'export the body alone', handleClick: () => exportGarment('glb', true) }),
               button3d({ label: 'import…', handleClick: () => importGarment() }),
               ...(imported.length ? [button3d({ label: `remove imported (${imported.length})`, handleClick: () => { imported = []; dress(); el.refreshScenePanel?.() } })] : []),
             ]
@@ -239,18 +242,18 @@ preview.append(
           setTimeout(() => URL.revokeObjectURL(a.href), 1000)
         }
         // The file's contents (a GLB's bytes or an OBJ's text), or null.
-        const garmentFile = (format) => {
-          if (!tailoredCut) return null
-          const garment = { positions: drawnPositions(tailoredCut, fitProxy(tailoredCut, current)), triangles: tailoredCut.triangles, uvs: tailoredCut.uvs }
+        const garmentFile = (format, bodyAlone = false) => {
+          if (!tailoredCut && !bodyAlone) return null
+          const garment = bodyAlone ? null : { positions: drawnPositions(tailoredCut, fitProxy(tailoredCut, current)), triangles: tailoredCut.triangles, uvs: tailoredCut.uvs }
           // The body it was made on, as a helper to model against (left out on import).
-          const body = walker.exportBody.value ? { positions: current, triangles: pack.triangles } : null
+          const body = bodyAlone || walker.exportBody.value ? { positions: current, triangles: pack.triangles } : null
           const meta = { format: 'tosijs-garment', version: 1, base: pack.manifest.base, pack: pack.manifest.version, body: bodyValues(), name: 'tailored', slot: 'top' }
           return format === 'obj' ? writeGarmentObj({ garment, body, meta }) : writeGarmentGlb({ garment, body, meta })
         }
-        exportGarment = (format) => {
-          const data = garmentFile(format)
+        exportGarment = (format, bodyAlone = false) => {
+          const data = garmentFile(format, bodyAlone)
           if (data == null) return console.warn('tailor: draw a garment first')
-          save(data, format === 'obj' ? 'garment.obj' : 'garment.glb', format === 'obj' ? 'text/plain' : 'model/gltf-binary')
+          save(data, bodyAlone ? 'body.glb' : format === 'obj' ? 'garment.obj' : 'garment.glb', format === 'obj' ? 'text/plain' : 'model/gltf-binary')
         }
         const importFrom = async (data, fileName) => {
           const { garment, meta } = readGarment(data)
@@ -304,7 +307,7 @@ preview.append(
         let face = null
         let scalp = null
         // For poking at from the console: what this page built.
-        el.builder = { pack, hairLib, get scalp() { return scalp }, get built() { return built }, get positions() { return current }, get stubble() { return stubbleMask }, get tailor() { return tailorShapes }, set tailor(v) { tailorShapes = v; tailorField?.setValue(v); dress() }, garmentFile: (f) => garmentFile(f), importFrom: (d, n) => importFrom(d, n), get imported() { return imported } }
+        el.builder = { pack, hairLib, get scalp() { return scalp }, get built() { return built }, get positions() { return current }, get stubble() { return stubbleMask }, get tailor() { return tailorShapes }, set tailor(v) { tailorShapes = v; tailorField?.setValue(v); dress() }, garmentFile: (f, alone) => garmentFile(f, alone), importFrom: (d, n) => importFrom(d, n), get imported() { return imported } }
         let hairMeshes = []
         let dressing = 0
         dress = async () => {

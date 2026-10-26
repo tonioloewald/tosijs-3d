@@ -85,6 +85,21 @@ describe('garment-file', () => {
     expect(json.nodes[1].extras.helper).toBe(true)
   })
 
+  test('the body alone: what is modelled beside it comes back with its metadata', () => {
+    const glb = writeGarmentGlb({ body, meta })
+    expect(() => readGarment(glb)).toThrow(/only the body/)
+    // One node, the helper, and it carries the metadata: an editor that drops
+    // the scene's extras still keeps an object's.
+    const len = new DataView(glb.buffer).getUint32(12, true)
+    const json = JSON.parse(
+      new TextDecoder().decode(glb.subarray(20, 20 + len))
+    )
+    expect(json.nodes.length).toBe(1)
+    expect(json.nodes[0].extras.helper).toBe(true)
+    expect(json.nodes[0].extras.tosijs.body).toEqual(meta.body)
+    expect(writeGarmentObj({ body, meta })).toContain('o body-reference')
+  })
+
   test('a node transform an editor added is applied', () => {
     const bytes = writeGarmentGlb({ garment, meta })
     // Move the garment node 2 m up, as an editor would on re-export.
