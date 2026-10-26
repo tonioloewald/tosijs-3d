@@ -14,7 +14,8 @@ the scene an environment (`studioEnvironment`), or it renders nearly black.
 The recolour reads the garment's texture as grey (its shading: folds,
 stitching, a weave) and tints it, blended by `amount`: 0 keeps the texture's
 own colours, 1 is the colour wholly, and a print shows through in between.
-One sweater becomes a red one, a pastel one and a black one.
+One sweater becomes a red one, a pastel one and a black one. A garment with
+no texture (one cut from the body) takes the colour as its albedo.
 
 ```javascript
 const shade = clothShading(material, { fabric: 'denim' })
@@ -256,6 +257,17 @@ export function clothShading(
       }
     }
     if (l.amount != null) plugin.amount = Math.min(1, Math.max(0, l.amount))
+    // An untextured garment (one cut from the body) has nothing to recolour:
+    // the colour is its albedo, mixed from white by the amount.
+    if (!material.albedoTexture) {
+      const t = plugin.tint
+      const a = plugin.amount
+      material.albedoColor = new BABYLON.Color3(
+        1 + (t.r - 1) * a,
+        1 + (t.g - 1) * a,
+        1 + (t.b - 1) * a
+      )
+    }
   }
   set(look)
   return { set }

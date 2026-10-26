@@ -17,11 +17,18 @@ bone heat's, worked out from the mesh once when the page loads. The eyes
 ([human-hair](/human-hair/)) is Quaternius' CC0 hairstyles, made for another
 head and fitted to this one.
 
+**Tailor** cuts a garment of your own out of the body. Click out an outline
+over the front view (you draw the character's left, on your right; the other
+side is its mirror), and the skin inside it, front and back, becomes cloth.
+A rectangle from the waist to the ankles is a pair of trousers. Click the
+first point to close a shape, drag a point to move it, press an edge to add
+one ([garment-cut](/garment-cut/)).
+
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0 } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorFabric: 'cotton', tailorColour: '#3b5b8a' } })
 let mat = null
 let paint = () => {}
 let eyes = null
@@ -40,6 +47,12 @@ for (const slot of SLOTS) styles[slot] = ['none']
 const cloth = Object.fromEntries(SLOTS.map((s) => [s, { look: 'as made', fabric: s === 'shoes' ? 'leather' : 'cotton', colour: '#7a2e2e', recolour: 0 }]))
 const clips = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Dance_Loop', 'Crouch_Fwd_Loop']
 let rebuild = () => {}
+// A garment of your own, cut from the body along outlines you draw (the
+// character's left; the right is its mirror). A rectangle from the waist to
+// the ankles makes trousers.
+let tailorShapes = []
+let tailorBody = null
+let tailorField = null
 
 const slider = (label, key) =>
   slider3d({ label, value: walker[key], min: 0, max: 1, step: 0.01 })
@@ -101,6 +114,17 @@ preview.append(
         select3d({ label: 'fabric', value: walker.fabric, options: Object.keys(FABRICS) }),
         colorPicker3d({ label: 'colour', value: walker.colour, alpha: false }),
         slider3d({ label: 'recolour', value: walker.recolour, min: 0, max: 1, step: 0.01 }),
+        label3d({ text: 'Tailor', collapsible: true }),
+        ...(tailorBody
+          ? [
+              (tailorField = outlineField3d({ ...tailorBody, value: tailorShapes, handleCommit: (v) => { tailorShapes = v; dress() } })),
+              button3d({ label: 'delete point', handleClick: () => tailorField?.removeSelected() }),
+              button3d({ label: 'clear', handleClick: () => tailorField?.clear() }),
+              slider3d({ label: 'thickness', value: walker.tailorThickness, min: 0.001, max: 0.02, step: 0.001 }),
+              select3d({ label: 'fabric', value: walker.tailorFabric, options: Object.keys(FABRICS) }),
+              colorPicker3d({ label: 'colour', value: walker.tailorColour, alpha: false }),
+            ]
+          : [label3d({ text: 'loading the body…' })]),
         label3d({ text: 'Ancestry', collapsible: true }),
         slider('african', 'african'),
         slider('asian', 'asian'),
@@ -180,6 +204,10 @@ preview.append(
         const refabric = () => {
           for (const [slot, m] of Object.entries(slotMaterial)) clothes.get(m)?.set({ fabric: cloth[slot].fabric, colour: cloth[slot].colour, amount: cloth[slot].recolour })
         }
+        const retailor = () => clothes.get(proxyMaterials.get('tailored:'))?.set({ fabric: walker.tailorFabric.value, colour: walker.tailorColour.value, amount: 1 })
+        walker.tailorThickness.observe(() => dress())
+        walker.tailorFabric.observe(retailor)
+        walker.tailorColour.observe(retailor)
         const tints = new Map()
         // Every hair material's colouring (Quaternius' and MakeHuman's).
         const shades = []
@@ -203,7 +231,7 @@ preview.append(
         let face = null
         let scalp = null
         // For poking at from the console: what this page built.
-        el.builder = { pack, hairLib, get scalp() { return scalp }, get built() { return built }, get positions() { return current }, get stubble() { return stubbleMask } }
+        el.builder = { pack, hairLib, get scalp() { return scalp }, get built() { return built }, get positions() { return current }, get stubble() { return stubbleMask }, get tailor() { return tailorShapes }, set tailor(v) { tailorShapes = v; tailorField?.setValue(v); dress() } }
         let hairMeshes = []
         let dressing = 0
         dress = async () => {
@@ -213,6 +241,12 @@ preview.append(
           const slots = [...[...SLOTS, 'hair', 'brows', 'beard', 'moustache'].map((k) => walker[k].value), 'teeth_base', 'tongue01'].filter((n) => proxies[n])
           const wearing = await Promise.all(slots.map((n) => pack.proxy(n)))
           if (token !== dressing) return
+          // The garment cut from the outlines, bound like any other.
+          const outline = mirrorOutline(tailorShapes.filter((s) => s.length >= 3))
+          if (outline.length) {
+            const cut = cutGarment(current, pack.triangles, { front: outline, thickness: walker.tailorThickness.value, ease: 6 })
+            wearing.push({ ...cut, name: 'tailored', category: 'clothes', slot: 'top', material: { alpha: false, twoSided: false } })
+          }
           for (const m of hairMeshes) m.dispose()
           hairMeshes = []
           const nudge = { y: walker.hairUp.value, z: walker.hairForward.value, scale: walker.hairSize.value }
@@ -267,6 +301,7 @@ preview.append(
             }
           }
           refabric()
+          retailor()
           // Stand on the soles: shoes reach below the bare foot by their sole.
           const shoe = wearing.find((p) => p.name === walker.shoes.value)
           let sole = 0
@@ -381,6 +416,7 @@ preview.append(
         skin.vertices.forEach((v, i) => { known[v] = i })
         const allWeights = nearestWeights(first, known, weights)
         let current = first
+        tailorBody = { positions: first, indices: pack.triangles }
 
         // The face: MakeHuman's face pose units as morph targets, in layers.
         const expr = humanExpressions(scene, await faceDeltas(pack))

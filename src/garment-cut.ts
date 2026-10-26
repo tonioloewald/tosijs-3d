@@ -71,6 +71,38 @@ interface View {
   u: 0 | 2
 }
 
+/**
+ * Half outlines (drawn on the +X side, the character's left) made whole. A
+ * half with an edge on the centre line (two neighbouring points at x = 0) is
+ * joined to its mirror image as one polygon: trousers, a shirt. Any other is
+ * mirrored as a second polygon: a glove, a sleeve.
+ */
+export function mirrorOutline(halves: ViewPoint[][]): ViewPoint[][] {
+  const out: ViewPoint[][] = []
+  for (const half of halves) {
+    if (half.length < 3) continue
+    const n = half.length
+    let edge = -1
+    for (let i = 0; i < n && edge < 0; i++)
+      if (half[i][0] === 0 && half[(i + 1) % n][0] === 0) edge = i
+    if (edge < 0) {
+      out.push(half.map((p) => [...p] as ViewPoint))
+      out.push(half.map(([x, y]) => [-x, y] as ViewPoint).reverse())
+      continue
+    }
+    // From one end of the centre edge round the outside to the other...
+    const path: ViewPoint[] = []
+    for (let k = 1; k <= n; k++) path.push(half[(edge + k) % n])
+    // ...then back down the mirror image, between the same two ends.
+    const back = path
+      .slice(1, -1)
+      .reverse()
+      .map(([x, y]) => [-x, y] as ViewPoint)
+    out.push([...path.map((p) => [...p] as ViewPoint), ...back])
+  }
+  return out
+}
+
 function insidePoly(poly: ViewPoint[], a: number, b: number): boolean {
   let inside = false
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {

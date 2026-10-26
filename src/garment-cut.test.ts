@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
-import { cutGarment } from './garment-cut.js'
+import { cutGarment, mirrorOutline } from './garment-cut.js'
 import { fitProxy } from './proxy-fit.js'
 import { loadHumanPack } from './human-pack.js'
 
@@ -54,6 +54,36 @@ describe('garment-cut', () => {
     // 0.5 is crossed by edges 1-2, 3-0, 2-4 and 3-4, so four cut points.
     // Rows: vertices 0, 1, 4 and the four cuts.
     expect(g.rows).toBe(7)
+  })
+
+  test('a half on the centre line is joined to its mirror; one off it is mirrored apart', () => {
+    // The right half of a rectangle: centre edge from (0, 1) to (0, 0).
+    const [whole] = mirrorOutline([
+      [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+      ],
+    ])
+    expect(whole).toEqual([
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [0, 1],
+      [-1, 1],
+      [-1, 0],
+    ])
+    // A glove: two separate polygons.
+    const gloves = mirrorOutline([
+      [
+        [0.4, 0],
+        [0.5, 0],
+        [0.5, 0.1],
+      ],
+    ])
+    expect(gloves.length).toBe(2)
+    expect(gloves[1].every(([x]) => x < 0)).toBe(true)
   })
 
   test('the hem joins the cut edge back to the skin', () => {

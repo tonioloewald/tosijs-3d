@@ -1814,7 +1814,9 @@ export {
 } from './proxy-fit.js'
 export type { ProxyBinding, VertexWeights } from './proxy-fit.js'
 export { humanProxy, proxyMaterial, coverBody } from './human-proxy.js'
-export { cutGarment } from './garment-cut.js'
+export { cutGarment, mirrorOutline } from './garment-cut.js'
+export { outlineField3d } from './outline-field.js'
+export type { OutlineField, OutlineField3dOptions } from './outline-field.js'
 export type {
   GarmentCut,
   GarmentCutOptions,
