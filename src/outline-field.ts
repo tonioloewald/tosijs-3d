@@ -135,7 +135,9 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
     pts.length === 0
       ? ''
       : 'M' +
-        pts.map(([x, y]) => `${fx(x).toFixed(1)} ${py(y).toFixed(1)}`).join('L') +
+        pts
+          .map(([x, y]) => `${fx(x).toFixed(1)} ${py(y).toFixed(1)}`)
+          .join('L') +
         (closed ? 'Z' : '')
 
   const draw = (): void => {
@@ -152,7 +154,9 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
         .map((r) => {
           const x0 = fx(r.u0).toFixed(1)
           const x1 = fx(r.u1).toFixed(1)
-          return `M${x0} ${py(r.v + front.cell).toFixed(1)}H${x1}V${py(r.v).toFixed(1)}H${x0}Z`
+          return `M${x0} ${py(r.v + front.cell).toFixed(1)}H${x1}V${py(
+            r.v
+          ).toFixed(1)}H${x0}Z`
         })
         .join('')
     )
@@ -165,7 +169,11 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
     const closed = shapes.filter((_, i) => i !== open)
     ghosts.setAttribute(
       'd',
-      symmetry ? mirrorOutline(closed).map((p) => pointsPath(p, true)).join('') : ''
+      symmetry
+        ? mirrorOutline(closed)
+            .map((p) => pointsPath(p, true))
+            .join('')
+        : ''
     )
     ghosts.setAttribute('stroke', w3dTheme.accent)
     ghosts.setAttribute('stroke-opacity', '0.35')
@@ -203,8 +211,8 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
       open != null
         ? 'Click the first point to close'
         : shapes.length
-          ? 'Drag a point, or press an edge to add one'
-          : 'Click out an outline'
+        ? 'Drag a point, or press an edge to add one'
+        : 'Click out an outline'
   }
 
   const emit = (name: 'handleChange' | 'handleCommit'): void => {
@@ -242,7 +250,8 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
           0,
           Math.min(1, ((px - ax) * (bx - ax) + (pv - ay) * (by - ay)) / l2)
         )
-        const d = (ax + t * (bx - ax) - px) ** 2 + (ay + t * (by - ay) - pv) ** 2
+        const d =
+          (ax + t * (bx - ax) - px) ** 2 + (ay + t * (by - ay) - pv) ** 2
         if (d < bestD) {
           bestD = d
           best = { s: si, p: i }
