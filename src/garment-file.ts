@@ -26,7 +26,11 @@ Leave out the `garment` to export the body alone, to model a garment from
 nothing: every object you add beside it comes back as the garment. The body
 carries the metadata then.
 
-OBJ is offered too (`writeGarmentObj` / `readGarment` read either). Blender
+OBJ is the escape hatch: plain text that a few lines of your own code can
+read and write, for processing a garment outside any editor. It is kept
+simple on purpose: `v`, `vt` and `f` lines, one `o` per part, rigidity in the
+part's name (`_rigid`, `_rigidParts`), the metadata in a first-line comment.
+`writeGarmentObj` writes it and `readGarment` reads either format. Blender
 drops the OBJ's metadata comment, so the body helper's NAME carries the body
 as well: `body-reference_hm08_p15_weight72_muscle100` is the base, the pack
 version, and each slider that is not the default as a whole percentage
