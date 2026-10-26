@@ -242,6 +242,35 @@ describe('garment-file', () => {
     expect(g.uvs).toBeNull()
   })
 
+  test('a broken OBJ fails with the line and what is wrong, never NaN', () => {
+    const fails = (text: string, why: RegExp) =>
+      expect(() => readGarment(text)).toThrow(why)
+    const tri = 'v 0 0 0\nv 1 0 0\nv 0 1 0\n'
+    fails(tri + 'f 1 2 4', /line 4: a face uses vertex 4, but the file has 3/)
+    fails(tri + 'f 0 1 2', /line 4: corner "0": vertex "0" is not an index/)
+    fails(tri + 'f 1 2 x', /line 4: corner "x"/)
+    fails(
+      tri + 'f -1 -2 -4',
+      /line 4: corner "-4": vertex -4 counts back past the first \(3 so far\)/
+    )
+    fails(tri + 'f 1 2', /line 4: a face needs at least 3 corners, got 2/)
+    fails('v 0 zero 0\nf 1 1 1', /line 1: "v" needs 3 numbers, got "0 zero 0"/)
+    fails('v 0 0\n', /line 1: "v" needs 3 numbers/)
+    fails(
+      tri + 'vt 0 0\nf 1/1 2/2 3/1',
+      /a face uses texture coordinate 2, but the file has 1/
+    )
+    fails('# empty\n', /no faces in the OBJ/)
+    fails('o body-reference\n' + tri + 'f 1 2 3', /only the body/)
+    // Not an OBJ at all.
+    fails('{"asset": {"version": "2.0"}}', /\.gltf \(JSON\).*\.glb/)
+    expect(() =>
+      readGarment(Uint8Array.from([0x4b, 0x61, 0x79, 0, 0, 1, 2]))
+    ).toThrow(/not a GLB or an OBJ/)
+    // Faces may come before the vertices they use.
+    expect(readGarment('f 1 2 3\n' + tri).garment.triangles.length).toBe(3)
+  })
+
   test('an OBJ comes back too, metadata in its comment', () => {
     const back = readGarment(writeGarmentObj({ garment, body, meta }))
     expect(back.garment.triangles.length).toBe(6)

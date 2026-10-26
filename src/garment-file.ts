@@ -98,7 +98,10 @@ export function referenceName(meta: GarmentMeta): string {
   const defaults = DEFAULT_HUMAN_BODY as Record<string, number | undefined>
   for (const [key, value] of Object.entries(meta.body ?? {})) {
     const pc = Math.round(value * 100)
-    if (/^[a-zA-Z]+$/.test(key) && pc !== Math.round((defaults[key] ?? NaN) * 100))
+    if (
+      /^[a-zA-Z]+$/.test(key) &&
+      pc !== Math.round((defaults[key] ?? NaN) * 100)
+    )
       out.push(`${key}${pc}`)
   }
   return out.join('_')
@@ -545,7 +548,9 @@ function readGlb(bytes: Uint8Array): GarmentFileContent {
       (tagged(json.scenes?.[json.scene ?? 0]?.extras)
         ? json.scenes[json.scene ?? 0].extras
         : null)
-  const named = json.nodes.find((n: any) => isReference(n) && metaFromName(n.name ?? ''))
+  const named = json.nodes.find(
+    (n: any) => isReference(n) && metaFromName(n.name ?? '')
+  )
   const meta = holder
     ? stripRole(holder.tosijs)
     : named
@@ -622,10 +627,18 @@ function readObj(text: string): GarmentFileContent {
   const vt: number[] = []
   let meta: GarmentMeta | null = null
   let object = ''
-  // Per object: its faces as (v, vt) corners.
-  const faces = new Map<string, Array<Array<[number, number]>>>()
-  for (const raw of text.split('\n')) {
-    const line = raw.trim()
+  // Per object: its faces as (v, vt) corners, with the line each came from.
+  const faces = new Map<
+    string,
+    Array<{ line: number; corners: Array<[number, number]> }>
+  >()
+  const fail = (line: number, why: string): never => {
+    throw new Error(`garment-file: OBJ line ${line}: ${why}`)
+  }
+  const lines = text.split('\n')
+  for (let l = 0; l < lines.length; l++) {
+    const line = lines[l].trim()
+    const at = l + 1
     if (line.startsWith('# tosijs-garment ')) {
       try {
         meta = JSON.parse(line.slice('# tosijs-garment '.length))
@@ -635,27 +648,73 @@ function readObj(text: string): GarmentFileContent {
       continue
     }
     const [kw, ...rest] = line.split(/\s+/)
+    const numbers = (n: number) => {
+      const out = rest.slice(0, n).map(Number)
+      if (out.length < n || out.some((x) => !Number.isFinite(x)))
+        fail(at, `"${kw}" needs ${n} numbers, got "${rest.join(' ')}"`)
+      return out
+    }
     if (kw === 'o' || kw === 'g') object = rest.join(' ')
-    else if (kw === 'v') v.push(+rest[0], +rest[1], +rest[2])
-    else if (kw === 'vt') vt.push(+rest[0], +rest[1])
+    else if (kw === 'v') v.push(...numbers(3))
+    else if (kw === 'vt') vt.push(...numbers(2))
     else if (kw === 'f') {
+      if (rest.length < 3)
+        fail(at, `a face needs at least 3 corners, got ${rest.length}`)
       const corners = rest.map((c) => {
         const [a, b] = c.split('/')
-        const vi = +a < 0 ? v.length / 3 + +a : +a - 1
-        const ti = b ? (+b < 0 ? vt.length / 2 + +b : +b - 1) : -1
+        const index = (s: string, defined: number, what: string) => {
+          const n = Number(s)
+          if (!Number.isInteger(n) || n === 0)
+            fail(
+              at,
+              `corner "${c}": ${what} "${s}" is not an index (they count from 1)`
+            )
+          // Negative counts back from the last defined so far.
+          if (n < 0 && defined + n < 0)
+            fail(
+              at,
+              `corner "${c}": ${what} ${n} counts back past the first (${defined} so far)`
+            )
+          return n < 0 ? defined + n : n - 1
+        }
+        const vi = index(a, v.length / 3, 'vertex')
+        const ti = b ? index(b, vt.length / 2, 'texture coordinate') : -1
         return [vi, ti] as [number, number]
       })
       let list = faces.get(object)
       if (list == null) faces.set(object, (list = []))
-      list.push(corners)
+      list.push({ line: at, corners })
     }
   }
-  if (!meta)
-    for (const n of faces.keys()) if ((meta = metaFromName(n))) break
+  // Indices may point ahead, so they are checked once everything is read.
+  const vertices = v.length / 3
+  const coords = vt.length / 2
+  for (const list of faces.values())
+    for (const { line, corners } of list)
+      for (const [vi, ti] of corners) {
+        if (vi < 0 || vi >= vertices)
+          fail(
+            line,
+            `a face uses vertex ${vi + 1}, but the file has ${vertices}`
+          )
+        if (ti >= coords || ti < -1)
+          fail(
+            line,
+            `a face uses texture coordinate ${
+              ti + 1
+            }, but the file has ${coords}`
+          )
+      }
+  if (!meta) for (const n of faces.keys()) if ((meta = metaFromName(n))) break
   const names = [...faces.keys()].filter(
     (n) => !/^body[-_.]?reference/i.test(n) && !/-ignore$/.test(n)
   )
-  if (!names.length) throw new Error('garment-file: no faces in the OBJ')
+  if (!names.length)
+    throw new Error(
+      faces.size
+        ? 'garment-file: no garment in the OBJ, only the body (model one beside it)'
+        : 'garment-file: no faces in the OBJ (no "f" lines)'
+    )
   let index = new Map<string, number>()
   const positions: number[] = []
   const uvs: number[] = []
@@ -679,7 +738,7 @@ function readObj(text: string): GarmentFileContent {
     index = new Map()
     const first = positions.length / 3
     for (const f of faces.get(name)!) {
-      const c = f.map(corner)
+      const c = f.corners.map(corner)
       for (let k = 1; k + 1 < c.length; k++)
         triangles.push(c[0], c[k], c[k + 1])
     }
@@ -706,7 +765,7 @@ function readObj(text: string): GarmentFileContent {
 export function readGarment(
   data: ArrayBuffer | Uint8Array | string
 ): GarmentFileContent {
-  if (typeof data === 'string') return readObj(data)
+  if (typeof data === 'string') return readText(data)
   const bytes = data instanceof Uint8Array ? data : new Uint8Array(data)
   if (
     bytes.length >= 4 &&
@@ -714,5 +773,19 @@ export function readGarment(
       GLB_MAGIC
   )
     return readGlb(bytes)
-  return readObj(new TextDecoder().decode(bytes))
+  return readText(new TextDecoder().decode(bytes))
+}
+
+/** An OBJ, unless it is plainly something else. */
+function readText(text: string): GarmentFileContent {
+  // Say what it is when it is plainly not an OBJ.
+  if (/^\s*\{/.test(text))
+    throw new Error(
+      'garment-file: this is a .gltf (JSON) file; export glTF Binary (.glb) instead'
+    )
+  if (text.slice(0, 1024).includes('\0'))
+    throw new Error(
+      'garment-file: not a GLB or an OBJ (a binary file: FBX? export glTF Binary or OBJ)'
+    )
+  return readObj(text)
 }

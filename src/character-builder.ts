@@ -37,7 +37,7 @@ plate, a visor) gets a `rigid` custom property so it keeps its shape instead
 of bulging with the body under it ([proxy-rigid](/proxy-rigid/)).
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorFabric: 'cotton', tailorColour: '#3b5b8a', exportBody: true } })
@@ -67,6 +67,8 @@ let tailorBody = null
 let tailorField = null
 // Garments brought back from an editor (garment-file), worn alongside.
 let imported = []
+// Why the last import failed, shown under the button.
+let importError = ''
 let exportGarment = () => {}
 let importGarment = () => {}
 
@@ -146,6 +148,7 @@ preview.append(
               // The body alone, to model a garment from nothing beside it.
               button3d({ label: 'export the body alone', handleClick: () => exportGarment('glb', true) }),
               button3d({ label: 'import…', handleClick: () => importGarment() }),
+              ...(importError ? [text3d({ text: importError })] : []),
               ...(imported.length ? [button3d({ label: `remove imported (${imported.length})`, handleClick: () => { imported = []; dress(); el.refreshScenePanel?.() } })] : []),
             ]
           : [label3d({ text: 'loading the body…' })]),
@@ -275,9 +278,12 @@ preview.append(
             if (!file) return
             try {
               await importFrom(file.name.endsWith('.obj') ? await file.text() : await file.arrayBuffer(), file.name)
+              importError = ''
             } catch (e) {
               console.warn('tailor: could not import', e)
+              importError = `${file.name}: ${String(e?.message ?? e).replace(/^garment-file: /, '')}`
             }
+            el.refreshScenePanel?.()
           }
           input.click()
         }
