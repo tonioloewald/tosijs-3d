@@ -36,6 +36,7 @@ const { garment, meta } = readGarment(await file.arrayBuffer())
 /*{ "parent": "garment-bind", "order": 10 }*/
 
 import { rigidGroups, type MeshPart, type RigidSpec } from './proxy-rigid.js'
+import { vertexNormals } from './hair-fit.js'
 
 /** A mesh as triangles: positions (xyz), optional normals and UVs. */
 export interface GarmentMesh {
@@ -149,7 +150,13 @@ export function writeGarmentGlb(options: {
     }
     if (m.rigid && m.rigid.every((v) => Number.isFinite(v)))
       attributes._RIGID = add(m.rigid, 'SCALAR', 34962)
-    if (m.normals) attributes.NORMAL = add(m.normals, 'VEC3', 34962)
+    // Always: a glTF without normals is flat-shaded, so Blender splits every
+    // face and the garment comes back faceted with six times the vertices.
+    attributes.NORMAL = add(
+      m.normals ?? vertexNormals(m.positions, m.triangles),
+      'VEC3',
+      34962
+    )
     if (m.uvs) {
       // glTF's V runs down the image.
       const uv = Float32Array.from(m.uvs, (v, i) => (i % 2 ? 1 - v : v))
@@ -498,7 +505,8 @@ export function writeGarmentObj(options: {
   let vBase = 1
   let tBase = 1
   const write = (name: string, m: GarmentMesh) => {
-    lines.push(`o ${name}`)
+    // Smooth: without it Blender's importer splits every face.
+    lines.push(`o ${name}`, 's 1')
     const p = m.positions
     for (let i = 0; i < p.length; i += 3)
       lines.push(`v ${p[i]} ${p[i + 1]} ${p[i + 2]}`)

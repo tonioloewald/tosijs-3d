@@ -34,10 +34,15 @@ Custom Properties, see [garment-file](/garment-file/)):
 | `paint` | rigidity painted as the vertex colour's red, islands as pieces |
 | any other word | a named group: every object with the same word is one piece |
 
-A float attribute named `_rigid` (exported with Include → Attributes) sets
-each vertex's dial instead of the object's number. A name ending `_rigid` or
-`_rigidParts` does the same as the first and third rows, for files without
-custom properties (an OBJ).
+A float attribute named `_rigid` (exported with Data → Mesh → Attributes)
+sets each vertex's dial instead of the object's number. Paint is the mesh's
+active colour layer, which Blender exports by default when the object has no
+material; with a material, set Data → Mesh → Vertex Color to Active. A name
+ending `_rigid` or `_rigidParts` does the same as the first and third rows,
+for files without custom properties (an OBJ).
+
+All of these have been round-tripped through Blender 5.2's glTF exporter, and
+the suffixes through its OBJ exporter.
 
 Pure: `rigidGroups` resolves the groups from a mesh and its parts, and
 `fitProxy`, `proxyWeights` and `proxyDelta` honour a binding's `rigid`.

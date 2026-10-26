@@ -72,6 +72,9 @@ describe('garment-file', () => {
     )
     expect(Array.from(back.garment.uvs!)).toEqual(Array.from(garment.uvs))
     expect(back.meta).toEqual(meta)
+    // Smooth normals, though none were given: without them a glTF is flat
+    // shaded and Blender splits every face.
+    expect(Array.from(back.garment.normals!.subarray(0, 3))).toEqual([0, 0, 1])
     // The body is marked as a helper for the modeller.
     const glb = writeGarmentGlb({ garment, body, meta })
     const len = new DataView(glb.buffer).getUint32(12, true)
