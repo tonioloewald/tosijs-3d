@@ -1817,18 +1817,27 @@ export { humanProxy, proxyMaterial, coverBody } from './human-proxy.js'
 export { cutGarment, mirrorOutline } from './garment-cut.js'
 export { outlineField3d } from './outline-field.js'
 export { bindGarment, closestOnTriangle } from './garment-bind.js'
-export { writeGarmentGlb, writeGarmentObj, readGarment } from './garment-file.js'
+export {
+  writeGarmentGlb,
+  writeGarmentObj,
+  readGarment,
+  garmentRigidity,
+} from './garment-file.js'
+export {
+  rigidGroups,
+  similarityFit,
+  applyRigid,
+  rigidWeights,
+  rigidDelta,
+} from './proxy-rigid.js'
+export type { RigidParts, RigidSpec, MeshPart } from './proxy-rigid.js'
 export type {
   GarmentMesh,
   GarmentMeta,
   GarmentFileContent,
 } from './garment-file.js'
 export type { OutlineField, OutlineField3dOptions } from './outline-field.js'
-export type {
-  GarmentCut,
-  GarmentCutOptions,
-  ViewPoint,
-} from './garment-cut.js'
+export type { GarmentCut, GarmentCutOptions, ViewPoint } from './garment-cut.js'
 export { clothShading, FABRICS } from './cloth-shading.js'
 export {
   faceDeltas,

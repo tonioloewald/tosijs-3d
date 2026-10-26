@@ -84,6 +84,14 @@ describe('garment-cut', () => {
     ])
     expect(gloves.length).toBe(2)
     expect(gloves[1].every(([x]) => x < 0)).toBe(true)
+    // Already whole (across the centre): kept, not laid on itself.
+    const square: [number, number][] = [
+      [-0.3, 0],
+      [0.3, 0],
+      [0.3, 1],
+      [-0.3, 1],
+    ]
+    expect(mirrorOutline([square])).toEqual([square])
   })
 
   test('the hem joins the cut edge back to the skin', () => {

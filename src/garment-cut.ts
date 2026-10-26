@@ -75,12 +75,20 @@ interface View {
  * Half outlines (drawn on the +X side, the character's left) made whole. A
  * half with an edge on the centre line (two neighbouring points at x = 0) is
  * joined to its mirror image as one polygon: trousers, a shirt. Any other is
- * mirrored as a second polygon: a glove, a sleeve.
+ * mirrored as a second polygon: a glove, a sleeve. One already well across
+ * the centre line (more than 2 cm each side) is whole and kept as it is:
+ * mirrored, it would lie on itself, and outlines on top of each other cut a
+ * ragged edge.
  */
 export function mirrorOutline(halves: ViewPoint[][]): ViewPoint[][] {
   const out: ViewPoint[][] = []
   for (const half of halves) {
     if (half.length < 3) continue
+    const xs = half.map((p) => p[0])
+    if (Math.min(...xs) < -0.02 && Math.max(...xs) > 0.02) {
+      out.push(half.map((p) => [...p] as ViewPoint))
+      continue
+    }
     const n = half.length
     let edge = -1
     for (let i = 0; i < n && edge < 0; i++)

@@ -30,8 +30,18 @@ Pure, so a recipe's outfit is fitted or checked headless:
   hides, so skin never shows through it
 - `underCover(hat, hair, triangles)` drops the hair a hat covers, so hair
   never pokes through a hat
+
+A binding with `rigid` groups keeps those parts' shape in all three
+(position, weights, expression movement): see [proxy-rigid](/proxy-rigid/).
 */
 /*{ "parent": "human-proxy", "order": 10 }*/
+
+import {
+  applyRigid,
+  rigidDelta,
+  rigidWeights,
+  type RigidParts,
+} from './proxy-rigid.js'
 
 /** A proxy's binding, decoded. */
 export interface ProxyBinding {
@@ -51,6 +61,8 @@ export interface ProxyBinding {
   scale: Partial<Record<'x' | 'y' | 'z', [number, number, number]>>
   /** The row each drawn vertex is (drawn vertices split at UV seams). */
   source: Uint32Array
+  /** Parts that keep their shape ([proxy-rigid](/proxy-rigid/)). */
+  rigid?: RigidParts | null
 }
 
 /** The proxy's rows placed on a body (`positions`: every base vertex, xyz). */
@@ -77,6 +89,7 @@ export function fitProxy(
       out[r * 3 + axis] = v + proxy.offset[r * 3 + axis] * k[axis]
     }
   }
+  if (proxy.rigid) applyRigid(proxy.rigid, out)
   return out
 }
 
@@ -204,6 +217,7 @@ export function proxyWeights(
       rowW.weights[r * 4 + k] = w / sum
     })
   }
+  if (proxy.rigid) rigidWeights(proxy.rigid, rowW)
   const out = {
     indices: new Float32Array(proxy.source.length * 4),
     weights: new Float32Array(proxy.source.length * 4),
@@ -342,17 +356,16 @@ export function proxyDelta(
   proxy: ProxyBinding,
   delta: ArrayLike<number>
 ): Float32Array {
-  const out = new Float32Array(proxy.source.length * 3)
-  for (let i = 0; i < proxy.source.length; i++) {
-    const r = proxy.source[i]
+  const rows = new Float32Array(proxy.rows * 3)
+  for (let r = 0; r < proxy.rows; r++)
     for (let k = 0; k < 3; k++) {
       let d = 0
       for (let c = 0; c < 3; c++)
         d += proxy.weight[r * 3 + c] * delta[proxy.ref[r * 3 + c] * 3 + k]
-      out[i * 3 + k] = d
+      rows[r * 3 + k] = d
     }
-  }
-  return out
+  if (proxy.rigid) rigidDelta(proxy.rigid, rows)
+  return drawnPositions(proxy, rows)
 }
 
 /**

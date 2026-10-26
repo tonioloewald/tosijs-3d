@@ -21,6 +21,12 @@ const binding = bindGarment(body, pack.triangles, garment.positions)
 const fitted = fitProxy(binding, anotherBody)
 ```
 
+Geometry added in an editor binds like the rest: a collar, a pocket or a
+whole new object (every mesh in the file but the body is read). Each vertex
+follows its own nearest skin, which is right for cloth; anything hard (a knee
+pad, a visor) should be marked rigid ([proxy-rigid](/proxy-rigid/)) or it
+bulges with the body under it.
+
 Each vertex goes with the skin nearest to it, so a loose part between two
 limbs (a wide sleeve against the side) can follow the wrong one. Close-fitting
 clothes, collars and trims bind cleanly.
@@ -28,6 +34,7 @@ clothes, collars and trims bind cleanly.
 /*{ "parent": "human-proxy", "order": 30 }*/
 
 import type { ProxyBinding } from './proxy-fit.js'
+import type { RigidParts } from './proxy-rigid.js'
 
 /** The closest point to `p` on triangle abc, as barycentric weights. */
 export function closestOnTriangle(
@@ -78,11 +85,13 @@ export function closestOnTriangle(
  * Bind `points` (xyz) to the body (`positions`: every base vertex;
  * `triangles`: the body's, in threes). Returns a binding with one row per
  * point and `source` the identity (the points are the drawn vertices).
+ * `rigid` (from `rigidGroups`) makes parts keep their shape.
  */
 export function bindGarment(
   positions: ArrayLike<number>,
   triangles: ArrayLike<number>,
-  points: ArrayLike<number>
+  points: ArrayLike<number>,
+  rigid?: Omit<RigidParts, 'rest'> | null
 ): ProxyBinding {
   const cell = 0.04
   const T = triangles.length / 3
@@ -175,5 +184,6 @@ export function bindGarment(
     offset,
     scale: {},
     source: Uint32Array.from({ length: rows }, (_, i) => i),
+    rigid: rigid ? { ...rigid, rest: Float32Array.from(points) } : null,
   }
 }

@@ -31,8 +31,12 @@ its shape, so it fits every body like the rest ([garment-file](/garment-file/)).
 In Blender, tick Include → Custom Properties when exporting, so the file still
 says which body it was made on.
 
+New objects come in as part of the garment. Anything hard (a knee pad, a
+plate, a visor) gets a `rigid` custom property so it keeps its shape instead
+of bulging with the body under it ([proxy-rigid](/proxy-rigid/)).
+
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorFabric: 'cotton', tailorColour: '#3b5b8a', exportBody: true } })
@@ -253,7 +257,7 @@ preview.append(
           // Bind to the body it was made on, where the file says what that was.
           const on = meta?.body ? await morphHuman(pack, macroWeights({ ...DEFAULT_HUMAN_BODY, ...meta.body }, (n) => pack.has(n))) : current
           if (!meta) console.warn('tailor: no metadata in the file (export from Blender with custom properties); bound to the body shown')
-          const binding = bindGarment(on, pack.triangles, garment.positions)
+          const binding = bindGarment(on, pack.triangles, garment.positions, garmentRigidity(garment))
           const name = `imported-${imported.length}-${(meta?.name ?? fileName).replace(/[^\w-]/g, '')}`
           imported.push({ ...binding, triangles: garment.triangles, uvs: garment.uvs ?? new Float32Array(binding.rows * 2), delete: null, name, category: 'clothes', slot: meta?.slot ?? 'top', material: { alpha: false, twoSided: false } })
           dress()

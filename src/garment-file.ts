@@ -35,12 +35,40 @@ const { garment, meta } = readGarment(await file.arrayBuffer())
 */
 /*{ "parent": "garment-bind", "order": 10 }*/
 
+import { rigidGroups, type MeshPart, type RigidSpec } from './proxy-rigid.js'
+
 /** A mesh as triangles: positions (xyz), optional normals and UVs. */
 export interface GarmentMesh {
   positions: Float32Array
   triangles: Uint32Array
   normals?: Float32Array | null
   uvs?: Float32Array | null
+  /** The objects it was made of, as vertex runs, with their rigidity. */
+  parts?: MeshPart[] | null
+  /** Each vertex's own rigidity (a `_rigid` attribute or paint), NaN where none. */
+  rigid?: Float32Array | null
+}
+
+/**
+ * The rigid groups of a garment read from a file, for `bindGarment`
+ * ([proxy-rigid](/proxy-rigid/)), or null when nothing is rigid.
+ */
+export function garmentRigidity(garment: GarmentMesh) {
+  if (!garment.parts?.length) return null
+  return rigidGroups(
+    garment.positions,
+    garment.triangles,
+    garment.parts,
+    garment.rigid
+  )
+}
+
+/** What a part's name says about its rigidity (`_rigid`, `_rigidParts`). */
+function nameRigidity(name: string): RigidSpec | null {
+  const bare = name.replace(/\.\d+$/, '')
+  if (/_rigidParts$/i.test(bare)) return 'parts'
+  if (/_rigid$/i.test(bare)) return true
+  return null
 }
 
 /** What a garment was made on and for. */
@@ -119,6 +147,8 @@ export function writeGarmentGlb(options: {
     const attributes: Record<string, number> = {
       POSITION: add(m.positions, 'VEC3', 34962, true),
     }
+    if (m.rigid && m.rigid.every((v) => Number.isFinite(v)))
+      attributes._RIGID = add(m.rigid, 'SCALAR', 34962)
     if (m.normals) attributes.NORMAL = add(m.normals, 'VEC3', 34962)
     if (m.uvs) {
       // glTF's V runs down the image.
@@ -135,16 +165,19 @@ export function writeGarmentGlb(options: {
     c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
   const colour = options.colour ?? [0.23, 0.36, 0.54]
   const extras = { tosijs: options.meta }
-  const meshes = [
-    { name: 'garment', primitives: [primitive(options.garment, 0)] },
-  ]
-  const nodes: any[] = [
-    {
-      name: 'garment',
-      mesh: 0,
-      extras: { tosijs: { ...options.meta, role: 'garment' } },
-    },
-  ]
+  const meshes: any[] = []
+  const nodes: any[] = []
+  const g = options.garment
+  const pieces: MeshPart[] = g.parts?.length
+    ? g.parts
+    : [{ name: 'garment', first: 0, count: g.positions.length / 3 }]
+  pieces.forEach((part, i) => {
+    const piece = i === 0 && pieces.length === 1 ? g : slicePart(g, part)
+    meshes.push({ name: part.name, primitives: [primitive(piece, 0)] })
+    const ex: any = { tosijs: { ...options.meta, role: 'garment' } }
+    if (part.rigid != null && part.rigid !== false) ex.rigid = part.rigid
+    nodes.push({ name: part.name, mesh: meshes.length - 1, extras: ex })
+  })
   if (options.body) {
     meshes.push({
       name: 'body-reference',
@@ -152,7 +185,7 @@ export function writeGarmentGlb(options: {
     })
     nodes.push({
       name: 'body-reference',
-      mesh: 1,
+      mesh: meshes.length - 1,
       // A helper: there to model against, never part of the garment.
       extras: { helper: true, tosijs: { role: 'reference', helper: true } },
     })
@@ -218,6 +251,26 @@ export function writeGarmentGlb(options: {
     at += p.length
   }
   return out
+}
+
+/** One part of a garment as its own mesh. */
+function slicePart(g: GarmentMesh, part: MeshPart): GarmentMesh {
+  const end = part.first + part.count
+  const tris: number[] = []
+  for (let t = 0; t < g.triangles.length; t += 3)
+    if (g.triangles[t] >= part.first && g.triangles[t] < end)
+      tris.push(
+        g.triangles[t] - part.first,
+        g.triangles[t + 1] - part.first,
+        g.triangles[t + 2] - part.first
+      )
+  return {
+    positions: g.positions.slice(part.first * 3, end * 3),
+    triangles: Uint32Array.from(tris),
+    normals: g.normals?.slice(part.first * 3, end * 3) ?? null,
+    uvs: g.uvs?.slice(part.first * 2, end * 2) ?? null,
+    rigid: g.rigid?.slice(part.first, end) ?? null,
+  }
 }
 
 /** Read a node's local matrix (column-major), from TRS or `matrix`. */
@@ -287,19 +340,22 @@ function readGlb(bytes: Uint8Array): GarmentFileContent {
     const base = (view.byteOffset ?? 0) + (acc.byteOffset ?? 0)
     const vd = new DataView(bin.buffer, bin.byteOffset, bin.byteLength)
     const isFloat = acc.componentType === 5126
-    const out = isFloat
-      ? new Float32Array(acc.count * n)
-      : new Uint32Array(acc.count * n)
+    const norm = acc.normalized ? 2 ** (size * 8) - 1 : 0
+    const out =
+      isFloat || norm
+        ? new Float32Array(acc.count * n)
+        : new Uint32Array(acc.count * n)
     for (let i = 0; i < acc.count; i++)
       for (let k = 0; k < n; k++) {
         const o = base + i * stride + k * size
-        out[i * n + k] = isFloat
+        const value = isFloat
           ? vd.getFloat32(o, true)
           : size === 4
           ? vd.getUint32(o, true)
           : size === 2
           ? vd.getUint16(o, true)
           : vd.getUint8(o)
+        out[i * n + k] = norm ? value / norm : value
       }
     return out
   }
@@ -318,55 +374,94 @@ function readGlb(bytes: Uint8Array): GarmentFileContent {
   const role = (n: any) => n.extras?.tosijs?.role
   const isReference = (n: any) =>
     role(n) === 'reference' ||
-    n.extras?.helper === true || /^body[-_.]?reference/i.test(n.name ?? '')
+    n.extras?.helper === true ||
+    /^body[-_.]?reference/i.test(n.name ?? '')
   const withMesh = json.nodes
     .map((n: any, i: number) => ({ n, i }))
-    .filter(({ n }: { n: any }) => n.mesh != null && !isReference(n))
+    .filter(
+      ({ n }: { n: any }) =>
+        n.mesh != null && !isReference(n) && !/-ignore$/.test(n.name ?? '')
+    )
   const pick =
     withMesh.find(({ n }: { n: any }) => role(n) === 'garment') ??
     withMesh.find(({ n }: { n: any }) => /garment/i.test(n.name ?? '')) ??
     withMesh[0]
   if (pick == null) throw new Error('garment-file: no garment mesh in the file')
-  const m = world.get(pick.i) ?? identity
+  // Every mesh but the body is the garment: an object added in the editor
+  // (a collar, a buckle, a plate) is part of it.
   const positions: number[] = []
   const normals: number[] = []
   const uvs: number[] = []
+  const rigid: number[] = []
   const triangles: number[] = []
+  const parts: MeshPart[] = []
   let hasNormals = true
-  let hasUvs = true
-  for (const prim of json.meshes[pick.n.mesh].primitives) {
-    if ((prim.mode ?? 4) !== 4) continue
-    const first = positions.length / 3
-    const p = read(prim.attributes.POSITION)
-    for (let i = 0; i < p.length; i += 3) {
-      const [x, y, z] = [p[i], p[i + 1], p[i + 2]]
-      positions.push(
-        m[0] * x + m[4] * y + m[8] * z + m[12],
-        m[1] * x + m[5] * y + m[9] * z + m[13],
-        m[2] * x + m[6] * y + m[10] * z + m[14]
-      )
-    }
-    if (prim.attributes.NORMAL != null) {
-      const nv = read(prim.attributes.NORMAL)
-      for (let i = 0; i < nv.length; i += 3) {
-        const [x, y, z] = [nv[i], nv[i + 1], nv[i + 2]]
-        const a = m[0] * x + m[4] * y + m[8] * z
-        const b = m[1] * x + m[5] * y + m[9] * z
-        const c = m[2] * x + m[6] * y + m[10] * z
-        const l = Math.hypot(a, b, c) || 1
-        normals.push(a / l, b / l, c / l)
+  let anyUvs = false
+  let anyRigid = false
+  for (const { n, i } of withMesh) {
+    const m = world.get(i) ?? identity
+    const mesh = json.meshes[n.mesh]
+    const name = n.name ?? mesh.name ?? `part-${parts.length}`
+    const spec: RigidSpec | null =
+      n.extras?.rigid ??
+      n.extras?.tosijs?.rigid ??
+      mesh.extras?.rigid ??
+      nameRigidity(name)
+    const partFirst = positions.length / 3
+    for (const prim of mesh.primitives) {
+      if ((prim.mode ?? 4) !== 4) continue
+      const first = positions.length / 3
+      const p = read(prim.attributes.POSITION)
+      const count = p.length / 3
+      for (let i = 0; i < p.length; i += 3) {
+        const [x, y, z] = [p[i], p[i + 1], p[i + 2]]
+        positions.push(
+          m[0] * x + m[4] * y + m[8] * z + m[12],
+          m[1] * x + m[5] * y + m[9] * z + m[13],
+          m[2] * x + m[6] * y + m[10] * z + m[14]
+        )
       }
-    } else hasNormals = false
-    if (prim.attributes.TEXCOORD_0 != null) {
-      const t = read(prim.attributes.TEXCOORD_0)
-      for (let i = 0; i < t.length; i += 2) uvs.push(t[i], 1 - t[i + 1])
-    } else hasUvs = false
-    const count = p.length / 3
-    const idx =
-      prim.indices != null
-        ? read(prim.indices)
-        : Uint32Array.from({ length: count }, (_, i) => i)
-    for (const i of idx) triangles.push(first + i)
+      if (prim.attributes.NORMAL != null) {
+        const nv = read(prim.attributes.NORMAL)
+        for (let i = 0; i < nv.length; i += 3) {
+          const [x, y, z] = [nv[i], nv[i + 1], nv[i + 2]]
+          const a = m[0] * x + m[4] * y + m[8] * z
+          const b = m[1] * x + m[5] * y + m[9] * z
+          const c = m[2] * x + m[6] * y + m[10] * z
+          const l = Math.hypot(a, b, c) || 1
+          normals.push(a / l, b / l, c / l)
+        }
+      } else hasNormals = false
+      if (prim.attributes.TEXCOORD_0 != null) {
+        anyUvs = true
+        const t = read(prim.attributes.TEXCOORD_0)
+        for (let i = 0; i < t.length; i += 2) uvs.push(t[i], 1 - t[i + 1])
+      } else for (let i = 0; i < count; i++) uvs.push(0, 0)
+      const own = Object.keys(prim.attributes).find((k) => /^_rigid$/i.test(k))
+      const painted =
+        spec === 'paint' && prim.attributes.COLOR_0 != null
+          ? read(prim.attributes.COLOR_0)
+          : null
+      if (own != null) {
+        anyRigid = true
+        for (const v of read(prim.attributes[own])) rigid.push(v)
+      } else if (painted) {
+        anyRigid = true
+        const stride = painted.length / count
+        for (let i = 0; i < count; i++) rigid.push(painted[i * stride])
+      } else for (let i = 0; i < count; i++) rigid.push(NaN)
+      const idx =
+        prim.indices != null
+          ? read(prim.indices)
+          : Uint32Array.from({ length: count }, (_, i) => i)
+      for (const i of idx) triangles.push(first + i)
+    }
+    parts.push({
+      name,
+      first: partFirst,
+      count: positions.length / 3 - partFirst,
+      rigid: spec,
+    })
   }
   const meta =
     pick.n.extras?.tosijs?.format === 'tosijs-garment'
@@ -380,7 +475,9 @@ function readGlb(bytes: Uint8Array): GarmentFileContent {
       positions: Float32Array.from(positions),
       triangles: Uint32Array.from(triangles),
       normals: hasNormals ? Float32Array.from(normals) : null,
-      uvs: hasUvs ? Float32Array.from(uvs) : null,
+      uvs: anyUvs ? Float32Array.from(uvs) : null,
+      parts,
+      rigid: anyRigid ? Float32Array.from(rigid) : null,
     },
     meta,
   }
@@ -418,7 +515,19 @@ export function writeGarmentObj(options: {
     vBase += p.length / 3
     if (m.uvs) tBase += m.uvs.length / 2
   }
-  write('garment', options.garment)
+  const g = options.garment
+  if (g.parts?.length)
+    for (const part of g.parts) {
+      const suffix =
+        part.rigid === 'parts'
+          ? '_rigidParts'
+          : part.rigid === true || part.rigid === 1
+          ? '_rigid'
+          : ''
+      const name = nameRigidity(part.name) ? part.name : part.name + suffix
+      write(name, slicePart(g, part))
+    }
+  else write('garment', g)
   if (options.body) write('body-reference', options.body)
   return lines.join('\n') + '\n'
 }
@@ -456,13 +565,11 @@ function readObj(text: string): GarmentFileContent {
       list.push(corners)
     }
   }
-  const names = [...faces.keys()]
-  const name =
-    names.find((n) => /garment/i.test(n)) ??
-    names.find((n) => !/^body[-_.]?reference/i.test(n)) ??
-    names[0]
-  if (name == null) throw new Error('garment-file: no faces in the OBJ')
-  const index = new Map<string, number>()
+  const names = [...faces.keys()].filter(
+    (n) => !/^body[-_.]?reference/i.test(n) && !/-ignore$/.test(n)
+  )
+  if (!names.length) throw new Error('garment-file: no faces in the OBJ')
+  let index = new Map<string, number>()
   const positions: number[] = []
   const uvs: number[] = []
   const triangles: number[] = []
@@ -479,9 +586,22 @@ function readObj(text: string): GarmentFileContent {
     }
     return i
   }
-  for (const f of faces.get(name)!) {
-    const c = f.map(corner)
-    for (let k = 1; k + 1 < c.length; k++) triangles.push(c[0], c[k], c[k + 1])
+  const parts: MeshPart[] = []
+  for (const name of names) {
+    // Each object its own vertices, so a part is a run.
+    index = new Map()
+    const first = positions.length / 3
+    for (const f of faces.get(name)!) {
+      const c = f.map(corner)
+      for (let k = 1; k + 1 < c.length; k++)
+        triangles.push(c[0], c[k], c[k + 1])
+    }
+    parts.push({
+      name,
+      first,
+      count: positions.length / 3 - first,
+      rigid: nameRigidity(name),
+    })
   }
   return {
     garment: {
@@ -489,6 +609,7 @@ function readObj(text: string): GarmentFileContent {
       triangles: Uint32Array.from(triangles),
       normals: null,
       uvs: hasUvs && uvs.length ? Float32Array.from(uvs) : null,
+      parts,
     },
     meta,
   }
