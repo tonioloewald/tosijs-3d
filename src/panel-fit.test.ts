@@ -530,7 +530,11 @@ describe('select3d is a SELECT — one tap anywhere on it opens the list', () =>
     let seen: unknown = null
     // TALL, so the menu drops below the row (it is as wide as its options now,
     // and on a one-row panel it would be placed over the row itself).
-    const sel = w3d.select3d({ value: 'alpha', options: OPTIONS, handleChange: (v) => (seen = v) })
+    const sel = w3d.select3d({
+      value: 'alpha',
+      options: OPTIONS,
+      handleChange: (v) => (seen = v),
+    })
     const panel = w3d.panel3d({ width: 300, height: 400 }, sel) as any
     press(panel, 200, 30)
     expect(panel.querySelectorAll('svg').length).toBe(1)

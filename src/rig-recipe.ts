@@ -267,7 +267,8 @@ export function validateRigRecipe(doc: unknown): string[] {
         if (p == null || !isNum(p.x) || !isNum(p.y))
           out.push(`binding.markers.${n} is not {x, y}`)
       }
-    if (b?.tail != null && !isVec(b.tail)) out.push('binding.tail is not {x, y, z}')
+    if (b?.tail != null && !isVec(b.tail))
+      out.push('binding.tail is not {x, y, z}')
   }
   const springs = r.springs ?? []
   if (!Array.isArray(springs)) return [...out, 'springs is not a list']
@@ -414,7 +415,10 @@ export function rigRecipeSchema(): Record<string, unknown> {
             additionalProperties: false,
           },
           tail: {
-            oneOf: [vec3('Where a tail’s tip is, for a tail chain.'), { type: 'null' }],
+            oneOf: [
+              vec3('Where a tail’s tip is, for a tail chain.'),
+              { type: 'null' },
+            ],
           },
         },
         required: ['markers'],

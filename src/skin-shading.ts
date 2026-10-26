@@ -68,7 +68,9 @@ export function skinThinness(
           for (const j of list) {
             // The other side faces away from this one...
             const facing =
-              nx * normals[j * 3] + ny * normals[j * 3 + 1] + nz * normals[j * 3 + 2]
+              nx * normals[j * 3] +
+              ny * normals[j * 3 + 1] +
+              nz * normals[j * 3 + 2]
             if (facing > -0.3) continue
             const ox = positions[j * 3] - px
             const oy = positions[j * 3 + 1] - py
@@ -76,7 +78,9 @@ export function skinThinness(
             // ...and lies inward, roughly along the normal.
             const along = -(ox * nx + oy * ny + oz * nz)
             if (along <= 0) continue
-            const off = Math.sqrt(Math.max(0, ox * ox + oy * oy + oz * oz - along * along))
+            const off = Math.sqrt(
+              Math.max(0, ox * ox + oy * oy + oz * oz - along * along)
+            )
             if (off > along * 0.6 + 0.004) continue
             if (along < depth) depth = along
           }
@@ -160,13 +164,17 @@ export class SkinShadingPlugin extends BABYLON.MaterialPluginBase {
       ) as BABYLON.DirectionalLight | undefined) ??
       null
     // xyz = the direction TO the light, w = its strength.
-    const d = sun ? sun.direction.normalizeToNew() : new BABYLON.Vector3(0, -1, 0)
+    const d = sun
+      ? sun.direction.normalizeToNew()
+      : new BABYLON.Vector3(0, -1, 0)
     const strength = sun && sun.isEnabled() ? sun.intensity : 0
     uniformBuffer.updateFloat4('skinSun', -d.x, -d.y, -d.z, strength)
     const c = sun ? sun.diffuse : BABYLON.Color3.White()
     // Scattered light takes the skin's own colour: deep red under fair skin,
     // a dark brown-red under dark skin, not the same orange on both.
-    const a = (this._material as BABYLON.PBRMaterial).albedoColor ?? BABYLON.Color3.White()
+    const a =
+      (this._material as BABYLON.PBRMaterial).albedoColor ??
+      BABYLON.Color3.White()
     const k = (x: number) => Math.min(1, x * 2.2)
     uniformBuffer.updateFloat4(
       'skinSunColor',
@@ -175,7 +183,13 @@ export class SkinShadingPlugin extends BABYLON.MaterialPluginBase {
       c.b * this.tint.b * k(a.b),
       0
     )
-    uniformBuffer.updateFloat4('skinTerms', this.scatter, this.rim, this.backlight, 0)
+    uniformBuffer.updateFloat4(
+      'skinTerms',
+      this.scatter,
+      this.rim,
+      this.backlight,
+      0
+    )
   }
 
   getCustomCode(shaderType: string): { [pointName: string]: string } | null {

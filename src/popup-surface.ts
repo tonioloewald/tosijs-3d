@@ -674,7 +674,12 @@ function intoView(mesh: BABYLON.AbstractMesh): { x: number; y: number } | null {
   let top = Infinity
   let bottom = -Infinity
   for (const c of corners) {
-    const s = BABYLON.Vector3.Project(c, BABYLON.Matrix.Identity(), transform, viewport)
+    const s = BABYLON.Vector3.Project(
+      c,
+      BABYLON.Matrix.Identity(),
+      transform,
+      viewport
+    )
     left = Math.min(left, s.x)
     right = Math.max(right, s.x)
     top = Math.min(top, s.y)

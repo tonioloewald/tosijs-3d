@@ -2521,7 +2521,8 @@ export class B3dSkybox extends AbstractMesh {
       // World time cannot jump (a hidden tab runs no frames), and capping it
       // would slow a sped-up day; only the real-time fallback is capped.
       const raw = Math.max(0, now - lastTick)
-      const elapsed = this.owner?.scene != null ? raw : Math.min(MAX_STEP_MS, raw)
+      const elapsed =
+        this.owner?.scene != null ? raw : Math.min(MAX_STEP_MS, raw)
       lastTick = now
       attrs.timeOfDay =
         (((attrs.timeOfDay + attrs.realtimeScale * elapsed * 1e-6) / 24) % 1) *

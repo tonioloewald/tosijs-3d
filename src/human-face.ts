@@ -443,7 +443,9 @@ export function eyeGaze(
         local.rotateByQuaternionToRef(rot, local)
         if (local.lengthSquared() > 1e-8) dir = local.normalize()
       }
-      const angle = Math.acos(Math.min(1, Math.max(-1, BABYLON.Vector3.Dot(fwd, dir))))
+      const angle = Math.acos(
+        Math.min(1, Math.max(-1, BABYLON.Vector3.Dot(fwd, dir)))
+      )
       return { angle, axis: BABYLON.Vector3.Cross(fwd, dir) }
     })
     // Too far round for EITHER eye, and both go back to ahead (the head would
@@ -451,7 +453,8 @@ export function eyeGaze(
     const ahead = turns.some((t) => t.angle > max)
     face.eyes.forEach((eye, i) => {
       const { angle, axis } = turns[i]
-      if (ahead || axis.lengthSquared() < 1e-10 || angle === 0) q.copyFromFloats(0, 0, 0, 1)
+      if (ahead || axis.lengthSquared() < 1e-10 || angle === 0)
+        q.copyFromFloats(0, 0, 0, 1)
       else BABYLON.Quaternion.RotationAxisToRef(axis.normalize(), angle, q)
       eye.rotationQuaternion = q.clone()
     })

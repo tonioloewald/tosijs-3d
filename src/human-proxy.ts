@@ -38,7 +38,10 @@ export function proxyMaterial(
 ): BABYLON.PBRMaterial {
   const alt = look != null ? proxy.material.looks?.[look] : undefined
   const textures = alt ?? proxy.material
-  const m = new BABYLON.PBRMaterial(`proxy-${proxy.name}${alt ? `-${look}` : ''}`, scene)
+  const m = new BABYLON.PBRMaterial(
+    `proxy-${proxy.name}${alt ? `-${look}` : ''}`,
+    scene
+  )
   m.metallic = 0
   // Hair is many fine strands, which scatter light: a broad, soft highlight,
   // not a mirror. At 0.45 under an environment it shone like wet plastic.
@@ -49,7 +52,10 @@ export function proxyMaterial(
     m.albedoTexture = new BABYLON.Texture(textures.diffuse, scene)
   }
   if (textures.normal ?? proxy.material.normal) {
-    m.bumpTexture = new BABYLON.Texture((textures.normal ?? proxy.material.normal)!, scene)
+    m.bumpTexture = new BABYLON.Texture(
+      (textures.normal ?? proxy.material.normal)!,
+      scene
+    )
   }
   if (proxy.material.alpha && m.albedoTexture) {
     m.albedoTexture.hasAlpha = true
@@ -86,7 +92,8 @@ export function humanProxy(
   } = {}
 ): BABYLON.Mesh {
   const drawn = drawnPositions(proxy, fitProxy(proxy, positions))
-  if (options.inflate) inflate(drawn, options.inflate.centre, options.inflate.by)
+  if (options.inflate)
+    inflate(drawn, options.inflate.centre, options.inflate.by)
   const mesh = new BABYLON.Mesh(`proxy-${proxy.name}`, scene)
   const data = new BABYLON.VertexData()
   data.positions = drawn
@@ -138,15 +145,23 @@ export function coverBody(
 ): void {
   const mesh = built.mesh
   // The untucked shape, kept from the first call (tucks must not accumulate).
-  const meta = (mesh.metadata ??= {}) as { untucked?: Float32Array; normals?: Float32Array }
+  const meta = (mesh.metadata ??= {}) as {
+    untucked?: Float32Array
+    normals?: Float32Array
+  }
   if (meta.untucked == null) {
-    meta.untucked = Float32Array.from(mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)!)
-    meta.normals = Float32Array.from(mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind)!)
+    meta.untucked = Float32Array.from(
+      mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)!
+    )
+    meta.normals = Float32Array.from(
+      mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind)!
+    )
   }
   const deleted = new Set<number>()
   for (const p of wearing) {
     // Glasses list skin they do not cover (the lids under the lenses).
-    if (p?.delete && p.slot !== 'glasses') for (const v of p.delete) deleted.add(v)
+    if (p?.delete && p.slot !== 'glasses')
+      for (const v of p.delete) deleted.add(v)
   }
   const positions = Float32Array.from(meta.untucked)
   const tuck = options.tuck ?? 0.006
@@ -154,12 +169,24 @@ export function coverBody(
   // How deep each compact vertex goes: listed ones by `tuck`; ones a body
   // garment covers by geometry just far enough to sit under it.
   const depth = new Float32Array(vertices.length)
-  for (let i = 0; i < vertices.length; i++) if (deleted.has(vertices[i])) depth[i] = tuck
+  for (let i = 0; i < vertices.length; i++)
+    if (deleted.has(vertices[i])) depth[i] = tuck
   for (const p of wearing) {
     if (p == null || p.category !== 'clothes') continue
     // Only what wraps the body: a hat, a mask or glasses sit near the face
     // without covering it, and tucking under them pulled the eyelids in.
-    if (!['outfit', 'bodysuit', 'armour', 'top', 'bottom', 'shoes', 'gloves'].includes(p.slot ?? 'outfit')) continue
+    if (
+      ![
+        'outfit',
+        'bodysuit',
+        'armour',
+        'top',
+        'bottom',
+        'shoes',
+        'gloves',
+      ].includes(p.slot ?? 'outfit')
+    )
+      continue
     const g = options.drawn?.get(p.name)
     if (g == null) continue
     const gap = coveredBy(meta.untucked, n, g)
@@ -172,7 +199,12 @@ export function coverBody(
   }
   // FADE IN from the edge of what is covered, along the skin, so a cuff or a
   // neckline shows no dip where the tucked skin meets the rest.
-  const fade = edgeDistance(triangles, meta.untucked, depth, options.fade ?? 0.03)
+  const fade = edgeDistance(
+    triangles,
+    meta.untucked,
+    depth,
+    options.fade ?? 0.03
+  )
   for (let i = 0; i < vertices.length; i++) {
     if (depth[i] === 0) continue
     const t = Math.min(1, fade[i] / (options.fade ?? 0.03))
@@ -185,7 +217,9 @@ export function coverBody(
   // silent no-op in Babylon.
   mesh.setVerticesData(BABYLON.VertexBuffer.PositionKind, positions, true)
   mesh.setIndices(
-    deleted.size ? coveredTriangles(triangles, vertices, deleted, 'all') : Array.from(triangles)
+    deleted.size
+      ? coveredTriangles(triangles, vertices, deleted, 'all')
+      : Array.from(triangles)
   )
 }
 

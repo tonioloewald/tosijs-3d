@@ -538,10 +538,7 @@ export class B3dDecorator extends B3dChild {
       this._pickShadowCasters(here, off)
       this._syncShadows()
     }
-    if (
-      !isOff(this.colliders) &&
-      realNow() >= this._nextColliderCheck
-    ) {
+    if (!isOff(this.colliders) && realNow() >= this._nextColliderCheck) {
       this._nextColliderCheck = realNow() + 250
       this._placeColliders(here, off)
     }

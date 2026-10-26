@@ -1658,8 +1658,7 @@ export function mountRigTool(
     hidden; it is only the clips' source.
     */
     const loadClips = async (f: File | string) => {
-      const name =
-        typeof f === 'string' ? f.split('/').pop() ?? f : f.name
+      const name = typeof f === 'string' ? f.split('/').pop() ?? f : f.name
       ui.status = `loading ${name}…`
       refresh()
       try {
@@ -2110,7 +2109,8 @@ export function mountRigTool(
         */
         let opened: Opened | string
         if (typeof found !== 'string' && !('root' in found)) {
-          const binding: RigBinding = next.binding ??
+          const binding: RigBinding =
+            next.binding ??
             (auto != null
               ? { markers: auto.markers, tail: auto.tail ?? null }
               : {

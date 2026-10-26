@@ -2598,7 +2598,8 @@ export function select3d(config: {
   let valRoom = Infinity
   const reflect = () => {
     const label = String(opts[indexOf()]?.label ?? '')
-    val.textContent = valRoom === Infinity ? label : ellipsize(label, valRoom, TH.TEXT_FONT)
+    val.textContent =
+      valRoom === Infinity ? label : ellipsize(label, valRoom, TH.TEXT_FONT)
   }
   const step = (d: number) => {
     const n = opts.length
@@ -2668,7 +2669,12 @@ export function select3d(config: {
           220,
           Math.min(
             420,
-            Math.max(...opts.map((o) => measureTextWidth(String(o.label), TH.TEXT_FONT))) + TH.PAD_X * 3
+            Math.max(
+              ...opts.map((o) =>
+                measureTextWidth(String(o.label), TH.TEXT_FONT)
+              )
+            ) +
+              TH.PAD_X * 3
           )
         ),
       },
@@ -4727,8 +4733,11 @@ export function panel3d(
       */
       // Only for a panel in the document itself: inside a shadow root the popup
       // stays beside its panel, in the same root (ensemble's topology).
-      const inBody = container == null && root.isConnected && root.getRootNode() === document
-      const parent = container ?? (inBody ? document.body : (root.parentNode as ParentNode | null))
+      const inBody =
+        container == null && root.isConnected && root.getRootNode() === document
+      const parent =
+        container ??
+        (inBody ? document.body : (root.parentNode as ParentNode | null))
       if (parent == null) return { close: () => {} }
       /*
       `absolute` resolves against the nearest POSITIONED ancestor, so give the

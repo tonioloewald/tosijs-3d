@@ -203,9 +203,7 @@ export class B3dControllable extends AbstractMesh {
     // HALT, don't just zero the stick: with no input an aircraft COASTS,
     // which is indistinguishable from cruising (#30).
     const stopped =
-      simHalted(this.owner as SimGateOwner | null) ||
-      this._halted ||
-      dt <= 0
+      simHalted(this.owner as SimGateOwner | null) || this._halted || dt <= 0
     if (stopped) {
       this.inputProvider?.poll(0)
       return

@@ -34,28 +34,73 @@ import { sceneDelta } from './b3d-utils.js'
 
 /** Every face pose unit the pack bakes (MakeHuman's standard face pose units). */
 export const UNITS = Object.freeze([
-  'LeftBrowDown', 'RightBrowDown', 'LeftOuterBrowUp', 'RightOuterBrowUp',
-  'LeftInnerBrowUp', 'RightInnerBrowUp', 'NoseWrinkler',
-  'LeftUpperLidOpen', 'RightUpperLidOpen', 'LeftUpperLidClosed', 'RightUpperLidClosed',
-  'LeftLowerLidUp', 'RightLowerLidUp',
-  'LeftCheekUp', 'RightCheekUp', 'CheeksPump', 'CheeksSuck', 'NasolabialDeepener',
-  'ChinLeft', 'ChinRight', 'ChinDown', 'ChinForward',
-  'lowerLipUp', 'lowerLipDown', 'lowerLipBackward', 'lowerLipForward',
-  'UpperLipUp', 'UpperLipBackward', 'UpperLipForward', 'UpperLipStretched',
-  'JawDrop', 'JawDropStretched', 'LipsKiss', 'MouthMoveLeft', 'MouthMoveRight',
-  'MouthLeftPullUp', 'MouthRightPullUp', 'MouthLeftPullSide', 'MouthRightPullSide',
-  'MouthLeftPullDown', 'MouthRightPullDown', 'MouthLeftPlatysma', 'MouthRightPlatysma',
-  'TongueOut', 'TongueUshape', 'TongueUp', 'TongueDown', 'TongueLeft', 'TongueRight',
-  'TonguePointUp', 'TonguePointDown',
+  'LeftBrowDown',
+  'RightBrowDown',
+  'LeftOuterBrowUp',
+  'RightOuterBrowUp',
+  'LeftInnerBrowUp',
+  'RightInnerBrowUp',
+  'NoseWrinkler',
+  'LeftUpperLidOpen',
+  'RightUpperLidOpen',
+  'LeftUpperLidClosed',
+  'RightUpperLidClosed',
+  'LeftLowerLidUp',
+  'RightLowerLidUp',
+  'LeftCheekUp',
+  'RightCheekUp',
+  'CheeksPump',
+  'CheeksSuck',
+  'NasolabialDeepener',
+  'ChinLeft',
+  'ChinRight',
+  'ChinDown',
+  'ChinForward',
+  'lowerLipUp',
+  'lowerLipDown',
+  'lowerLipBackward',
+  'lowerLipForward',
+  'UpperLipUp',
+  'UpperLipBackward',
+  'UpperLipForward',
+  'UpperLipStretched',
+  'JawDrop',
+  'JawDropStretched',
+  'LipsKiss',
+  'MouthMoveLeft',
+  'MouthMoveRight',
+  'MouthLeftPullUp',
+  'MouthRightPullUp',
+  'MouthLeftPullSide',
+  'MouthRightPullSide',
+  'MouthLeftPullDown',
+  'MouthRightPullDown',
+  'MouthLeftPlatysma',
+  'MouthRightPlatysma',
+  'TongueOut',
+  'TongueUshape',
+  'TongueUp',
+  'TongueDown',
+  'TongueLeft',
+  'TongueRight',
+  'TonguePointUp',
+  'TonguePointDown',
 ] as const)
 
 /** Mouth shapes for speech, as unit weights. */
-export const VISEMES: Readonly<Record<string, Readonly<Record<string, number>>>> = Object.freeze({
+export const VISEMES: Readonly<
+  Record<string, Readonly<Record<string, number>>>
+> = Object.freeze({
   rest: {},
   // AA, AH: an open jaw.
   open: { JawDrop: 0.5, lowerLipDown: 0.25 },
   // EE, IH: the corners drawn back.
-  wide: { JawDrop: 0.18, MouthLeftPullSide: 0.55, MouthRightPullSide: 0.55, UpperLipStretched: 0.25 },
+  wide: {
+    JawDrop: 0.18,
+    MouthLeftPullSide: 0.55,
+    MouthRightPullSide: 0.55,
+    UpperLipStretched: 0.25,
+  },
   // OO, OH, W: rounded lips.
   round: { LipsKiss: 0.8, JawDrop: 0.22 },
   // M, B, P: lips pressed.
@@ -68,10 +113,20 @@ export const VISEMES: Readonly<Record<string, Readonly<Record<string, number>>>>
 export const FACE_UNITS = Object.freeze([
   ...new Set([
     ...Object.values(VISEMES).flatMap((v) => Object.keys(v)),
-    'LeftUpperLidClosed', 'RightUpperLidClosed', 'LeftUpperLidOpen', 'RightUpperLidOpen',
-    'MouthLeftPullUp', 'MouthRightPullUp', 'LeftOuterBrowUp', 'RightOuterBrowUp',
-    'LeftInnerBrowUp', 'RightInnerBrowUp', 'LeftBrowDown', 'RightBrowDown',
-    'LeftCheekUp', 'RightCheekUp',
+    'LeftUpperLidClosed',
+    'RightUpperLidClosed',
+    'LeftUpperLidOpen',
+    'RightUpperLidOpen',
+    'MouthLeftPullUp',
+    'MouthRightPullUp',
+    'LeftOuterBrowUp',
+    'RightOuterBrowUp',
+    'LeftInnerBrowUp',
+    'RightInnerBrowUp',
+    'LeftBrowDown',
+    'RightBrowDown',
+    'LeftCheekUp',
+    'RightCheekUp',
   ]),
 ])
 
@@ -119,7 +174,10 @@ export interface HumanExpressions {
    * pack's vertices into this mesh's (xyz per its vertex, its own frame); its
    * current positions are the rest.
    */
-  attach(mesh: BABYLON.Mesh, deltaFor: (delta: Float32Array) => Float32Array): void
+  attach(
+    mesh: BABYLON.Mesh,
+    deltaFor: (delta: Float32Array) => Float32Array
+  ): void
   /** A named set of weights; layers add up per unit. */
   layer(name: string): FaceLayer
   /** The unit weights now applied. */
@@ -134,7 +192,9 @@ export function humanExpressions(
   deltas: Map<string, Float32Array>
 ): HumanExpressions {
   const units = [...deltas.keys()]
-  const targets = new Map<string, BABYLON.MorphTarget[]>(units.map((u) => [u, []]))
+  const targets = new Map<string, BABYLON.MorphTarget[]>(
+    units.map((u) => [u, []])
+  )
   const managers: BABYLON.MorphTargetManager[] = []
   const layers = new Map<string, Map<string, number>>()
   const applied: Record<string, number> = {}
@@ -157,7 +217,11 @@ export function humanExpressions(
     if (manager == null || !managers.includes(manager)) return
     const mine = new Set<BABYLON.MorphTarget>()
     for (let i = 0; i < manager.numTargets; i++) mine.add(manager.getTarget(i))
-    for (const [u, list] of targets) targets.set(u, list.filter((t) => !mine.has(t)))
+    for (const [u, list] of targets)
+      targets.set(
+        u,
+        list.filter((t) => !mine.has(t))
+      )
     managers.splice(managers.indexOf(manager), 1)
     mesh.morphTargetManager = null
     manager.dispose()
@@ -177,11 +241,16 @@ export function humanExpressions(
       for (const u of units) {
         const d = deltaFor(deltas.get(u)!)
         let moves = false
-        for (let i = 0; i < d.length && !moves; i++) moves = Math.abs(d[i]) > 1e-6
+        for (let i = 0; i < d.length && !moves; i++)
+          moves = Math.abs(d[i]) > 1e-6
         if (!moves) continue
         const p = new Float32Array(base.length)
         for (let i = 0; i < p.length; i++) p[i] = base[i] + d[i]
-        const t = new BABYLON.MorphTarget(`${mesh.name}-${u}`, applied[u] ?? 0, scene)
+        const t = new BABYLON.MorphTarget(
+          `${mesh.name}-${u}`,
+          applied[u] ?? 0,
+          scene
+        )
         t.setPositions(p)
         manager.addTarget(t)
         targets.get(u)!.push(t)
@@ -280,7 +349,10 @@ export function blinker(
 export function lidsFollow(
   scene: BABYLON.Scene,
   face: HumanExpressions,
-  eyes: () => { eyes: BABYLON.TransformNode[]; forward: BABYLON.Vector3[] } | null
+  eyes: () => {
+    eyes: BABYLON.TransformNode[]
+    forward: BABYLON.Vector3[]
+  } | null
 ): () => void {
   const layer = face.layer('lids')
   const v = new BABYLON.Vector3()
@@ -292,7 +364,9 @@ export function lidsFollow(
       const q = pivot.rotationQuaternion
       if (q == null) return
       e.forward[i].rotateByQuaternionToRef(q, v)
-      pitch += Math.asin(Math.max(-1, Math.min(1, v.y - e.forward[i].y))) / e.eyes.length
+      pitch +=
+        Math.asin(Math.max(-1, Math.min(1, v.y - e.forward[i].y))) /
+        e.eyes.length
     })
     // Looking down (pitch < 0) lowers the lids; up raises them.
     const down = Math.max(0, -pitch / 0.5)
@@ -342,7 +416,11 @@ export function lipSync(
   const hz = analyser.context.sampleRate / analyser.fftSize
   const band = (lo: number, hi: number) => {
     let s = 0
-    for (let i = Math.floor(lo / hz); i < Math.min(bins.length, Math.ceil(hi / hz)); i++) {
+    for (
+      let i = Math.floor(lo / hz);
+      i < Math.min(bins.length, Math.ceil(hi / hz));
+      i++
+    ) {
       s += Math.pow(10, bins[i] / 20)
     }
     return s
@@ -359,7 +437,10 @@ export function lipSync(
     const energy = low + mid + high
     // A slow noise floor, so a hum or room tone does not hold the jaw open.
     floor = Math.min(energy, floor + (energy - floor) * Math.min(1, dt * 0.3))
-    const loud = Math.max(0, Math.min(1, ((energy - floor * 1.5) / (floor * 6 + 0.02)) * gain))
+    const loud = Math.max(
+      0,
+      Math.min(1, ((energy - floor * 1.5) / (floor * 6 + 0.02)) * gain)
+    )
     level += (loud - level) * Math.min(1, dt * 18)
     const total = low + mid + high + 1e-6
     const bright = high / total
@@ -392,7 +473,16 @@ export function babble(
   const track = visemeTrack(layer)
   const rate = options.rate ?? 1
   const loudness = options.loudness ?? 1
-  const shapes = ['open', 'open', 'wide', 'round', 'closed', 'teeth', 'open', 'wide']
+  const shapes = [
+    'open',
+    'open',
+    'wide',
+    'round',
+    'closed',
+    'teeth',
+    'open',
+    'wide',
+  ]
   let syllable = 0
   let left = 0
   let pause = 0

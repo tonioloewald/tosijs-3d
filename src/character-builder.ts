@@ -734,7 +734,11 @@ export function stubbleTint(
   hair colour with a touch of blue. Mixing toward the hair colour itself was
   too faint to see at full, worst on light-brown hair.
   */
-  const dark = { r: hairRgb.r * 0.45, g: hairRgb.g * 0.5, b: hairRgb.b * 0.6 + 0.01 }
+  const dark = {
+    r: hairRgb.r * 0.45,
+    g: hairRgb.g * 0.5,
+    b: hairRgb.b * 0.6 + 0.01,
+  }
   const ratio = [
     (dark.r * 0.6 + skinRgb.r * 0.4) / Math.max(1e-4, skinRgb.r),
     (dark.g * 0.6 + skinRgb.g * 0.4) / Math.max(1e-4, skinRgb.g),

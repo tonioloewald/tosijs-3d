@@ -206,7 +206,10 @@ export function macroWeights(
           */
           if (g === 'female') {
             for (const [c, cw] of threeLevel(body.bustSize ?? 0.5, 'cup')) {
-              for (const [f, fw] of threeLevel(body.bustFirmness ?? 0.5, 'firmness')) {
+              for (const [f, fw] of threeLevel(
+                body.bustFirmness ?? 0.5,
+                'firmness'
+              )) {
                 if (c === 'averagecup' && f === 'averagefirmness') continue
                 add(`breast/${corner}-${c}-${f}`, base * cw * fw)
               }

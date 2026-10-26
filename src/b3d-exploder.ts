@@ -86,7 +86,12 @@ preview.append(scene)
 /*{ "parent": "effects", "order": 40 }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { markCollisionGroup, markUiMesh, sceneDelta, sceneSeconds } from './b3d-utils.js'
+import {
+  markCollisionGroup,
+  markUiMesh,
+  sceneDelta,
+  sceneSeconds,
+} from './b3d-utils.js'
 
 export interface ExplodeOptions {
   /** Number of fragments to create (default: 20) */

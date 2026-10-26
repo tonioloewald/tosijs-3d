@@ -28,7 +28,8 @@ function code(text: string): string {
       i = end < 0 ? text.length : end
     } else if (c === "'" || c === '"') {
       let j = i + 1
-      while (j < text.length && text[j] !== c && text[j] !== '\n') j += text[j] === '\\' ? 2 : 1
+      while (j < text.length && text[j] !== c && text[j] !== '\n')
+        j += text[j] === '\\' ? 2 : 1
       i = j + 1
     } else {
       out += c
@@ -43,10 +44,15 @@ describe('the wall clock', () => {
     const dir = join(import.meta.dir)
     const offenders: string[] = []
     for (const f of readdirSync(dir)) {
-      if (!f.endsWith('.ts') || f.endsWith('.test.ts') || f === 'clock.ts') continue
+      if (!f.endsWith('.ts') || f.endsWith('.test.ts') || f === 'clock.ts')
+        continue
       const lines = code(readFileSync(join(dir, f), 'utf8')).split('\n')
       lines.forEach((l, k) => {
-        if (/\bDate\.now\s*\(|\bperformance\.now\s*\(|\bnew Date\s*\(\s*\)/.test(l)) {
+        if (
+          /\bDate\.now\s*\(|\bperformance\.now\s*\(|\bnew Date\s*\(\s*\)/.test(
+            l
+          )
+        ) {
           offenders.push(`${f}:${k + 1}`)
         }
       })

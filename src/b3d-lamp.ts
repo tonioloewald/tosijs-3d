@@ -836,8 +836,7 @@ export abstract class B3dLamp extends B3dChild {
     obey it with no change here.
     */
     if (this.timeSource === 'sim') return sceneDeltaSeconds(scene)
-    const now =
-      realNow()
+    const now = realNow()
     if (this._lastRealMs === 0) {
       this._lastRealMs = now
       return 0

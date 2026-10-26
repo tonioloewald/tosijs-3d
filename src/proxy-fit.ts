@@ -63,13 +63,16 @@ export function fitProxy(
   const k = [0, 1, 2].map((axis) => {
     const s = proxy.scale[(['x', 'y', 'z'] as const)[axis]]
     if (s == null || s[2] === 0) return 1
-    return Math.abs(positions[s[0] * 3 + axis] - positions[s[1] * 3 + axis]) / s[2]
+    return (
+      Math.abs(positions[s[0] * 3 + axis] - positions[s[1] * 3 + axis]) / s[2]
+    )
   })
   for (let r = 0; r < proxy.rows; r++) {
     for (let axis = 0; axis < 3; axis++) {
       let v = 0
       for (let c = 0; c < 3; c++) {
-        v += proxy.weight[r * 3 + c] * positions[proxy.ref[r * 3 + c] * 3 + axis]
+        v +=
+          proxy.weight[r * 3 + c] * positions[proxy.ref[r * 3 + c] * 3 + axis]
       }
       out[r * 3 + axis] = v + proxy.offset[r * 3 + axis] * k[axis]
     }
@@ -142,7 +145,8 @@ export function nearestWeights(
         for (let dx = -ring; dx <= ring; dx++) {
           for (let dy = -ring; dy <= ring; dy++) {
             for (let dz = -ring; dz <= ring; dz++) {
-              for (const u of grid.get(`${cx + dx},${cy + dy},${cz + dz}`) ?? []) {
+              for (const u of grid.get(`${cx + dx},${cy + dy},${cz + dz}`) ??
+                []) {
                 const d =
                   (positions[u * 3] - x) ** 2 +
                   (positions[u * 3 + 1] - y) ** 2 +
@@ -171,8 +175,14 @@ export function nearestWeights(
  * three base vertices by their binding weights, keeping the four strongest
  * bones. `base` has weights for every base vertex (`nearestWeights`).
  */
-export function proxyWeights(proxy: ProxyBinding, base: VertexWeights): VertexWeights {
-  const rowW = { indices: new Float32Array(proxy.rows * 4), weights: new Float32Array(proxy.rows * 4) }
+export function proxyWeights(
+  proxy: ProxyBinding,
+  base: VertexWeights
+): VertexWeights {
+  const rowW = {
+    indices: new Float32Array(proxy.rows * 4),
+    weights: new Float32Array(proxy.rows * 4),
+  }
   const acc = new Map<number, number>()
   for (let r = 0; r < proxy.rows; r++) {
     acc.clear()
@@ -219,7 +229,8 @@ export function coveredTriangles(
   /** `any`: drop a triangle touching a covered vertex; `all`: only one wholly covered. */
   mode: 'any' | 'all' = 'any'
 ): Uint32Array {
-  const gone = deleted instanceof Set ? (deleted as Set<number>) : new Set(deleted)
+  const gone =
+    deleted instanceof Set ? (deleted as Set<number>) : new Set(deleted)
   const keep: number[] = []
   for (let t = 0; t < triangles.length; t += 3) {
     const a = gone.has(vertices[triangles[t]])
@@ -257,7 +268,9 @@ export function underCover(
   const brim = new Float32Array(sectors).fill(Infinity)
   const reach = new Float32Array(sectors)
   const sector = (x: number, z: number) =>
-    Math.floor(((Math.atan2(z - cz, x - cx) / (2 * Math.PI) + 1) % 1) * sectors) % sectors
+    Math.floor(
+      ((Math.atan2(z - cz, x - cx) / (2 * Math.PI) + 1) % 1) * sectors
+    ) % sectors
   for (let i = 0; i < n; i++) {
     const x = cover[i * 3]
     const z = cover[i * 3 + 2]
@@ -325,13 +338,17 @@ export function inflate(
  * (xyz per base vertex): the binding's weights applied to the movement (the
  * offsets' scale is left as it was; an expression barely changes it).
  */
-export function proxyDelta(proxy: ProxyBinding, delta: ArrayLike<number>): Float32Array {
+export function proxyDelta(
+  proxy: ProxyBinding,
+  delta: ArrayLike<number>
+): Float32Array {
   const out = new Float32Array(proxy.source.length * 3)
   for (let i = 0; i < proxy.source.length; i++) {
     const r = proxy.source[i]
     for (let k = 0; k < 3; k++) {
       let d = 0
-      for (let c = 0; c < 3; c++) d += proxy.weight[r * 3 + c] * delta[proxy.ref[r * 3 + c] * 3 + k]
+      for (let c = 0; c < 3; c++)
+        d += proxy.weight[r * 3 + c] * delta[proxy.ref[r * 3 + c] * 3 + k]
       out[i * 3 + k] = d
     }
   }

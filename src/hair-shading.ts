@@ -20,25 +20,26 @@ import * as BABYLON from '@babylonjs/core'
 import { parseColor } from './color.js'
 
 /** Hair colour presets: a base and its usual highlight, sRGB hex. */
-export const HAIR_COLOURS: Readonly<Record<string, { base: string; highlight: string }>> =
-  Object.freeze({
-    black: { base: '#17130f', highlight: '#3a4152' },
-    'dark brown': { base: '#2c1f17', highlight: '#6b4a32' },
-    brown: { base: '#4a3122', highlight: '#9a6b43' },
-    chestnut: { base: '#5c321d', highlight: '#a5603a' },
-    auburn: { base: '#6a2b1a', highlight: '#b2552e' },
-    copper: { base: '#9c4622', highlight: '#df8f52' },
-    'golden blonde': { base: '#a8814b', highlight: '#e8cb90' },
-    'ash blonde': { base: '#9c937c', highlight: '#dcd5c2' },
-    platinum: { base: '#d6ccb8', highlight: '#f6f1e6' },
-    grey: { base: '#86837f', highlight: '#cfcfd2' },
-    white: { base: '#dedbd5', highlight: '#ffffff' },
-    'pastel pink': { base: '#d494a8', highlight: '#f6d4df' },
-    lavender: { base: '#9a84c0', highlight: '#d8caf0' },
-    'electric blue': { base: '#2f56b8', highlight: '#8fb0ff' },
-    teal: { base: '#2a7f7b', highlight: '#86dcd5' },
-    'cherry red': { base: '#7f1a25', highlight: '#d84a55' },
-  })
+export const HAIR_COLOURS: Readonly<
+  Record<string, { base: string; highlight: string }>
+> = Object.freeze({
+  black: { base: '#17130f', highlight: '#3a4152' },
+  'dark brown': { base: '#2c1f17', highlight: '#6b4a32' },
+  brown: { base: '#4a3122', highlight: '#9a6b43' },
+  chestnut: { base: '#5c321d', highlight: '#a5603a' },
+  auburn: { base: '#6a2b1a', highlight: '#b2552e' },
+  copper: { base: '#9c4622', highlight: '#df8f52' },
+  'golden blonde': { base: '#a8814b', highlight: '#e8cb90' },
+  'ash blonde': { base: '#9c937c', highlight: '#dcd5c2' },
+  platinum: { base: '#d6ccb8', highlight: '#f6f1e6' },
+  grey: { base: '#86837f', highlight: '#cfcfd2' },
+  white: { base: '#dedbd5', highlight: '#ffffff' },
+  'pastel pink': { base: '#d494a8', highlight: '#f6d4df' },
+  lavender: { base: '#9a84c0', highlight: '#d8caf0' },
+  'electric blue': { base: '#2f56b8', highlight: '#8fb0ff' },
+  teal: { base: '#2a7f7b', highlight: '#86dcd5' },
+  'cherry red': { base: '#7f1a25', highlight: '#d84a55' },
+})
 
 const toLin = (c: number) =>
   c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
@@ -159,7 +160,9 @@ export function hairShading(
   material: BABYLON.PBRMaterial,
   options: { desaturate?: boolean; base?: string; highlight?: string } = {}
 ): HairShading {
-  const plugin = material.pluginManager?.getPlugin('HairShading') as HairShadingPlugin | null
+  const plugin = material.pluginManager?.getPlugin(
+    'HairShading'
+  ) as HairShadingPlugin | null
   if (plugin == null) throw new Error('hair-shading: plugin not registered')
   plugin.desaturate = options.desaturate ?? false
   plugin.isEnabled = true
@@ -173,7 +176,10 @@ export function hairShading(
         let n = 0
         for (let i = 0; i < b.length; i += 4 * 29) {
           if (b[i + 3] < 128) continue
-          sum += 0.2126 * toLin(b[i] / 255) + 0.7152 * toLin(b[i + 1] / 255) + 0.0722 * toLin(b[i + 2] / 255)
+          sum +=
+            0.2126 * toLin(b[i] / 255) +
+            0.7152 * toLin(b[i + 1] / 255) +
+            0.0722 * toLin(b[i + 2] / 255)
           n++
         }
         if (n > 0) plugin.mean = sum / n
@@ -186,8 +192,12 @@ export function hairShading(
     material.albedoColor = linear(base)
     plugin.highlight = linear(highlight)
     // The strand sheen takes the highlight.
-    if (material.sheen.isEnabled) material.sheen.color = plugin.highlight.clone()
+    if (material.sheen.isEnabled)
+      material.sheen.color = plugin.highlight.clone()
   }
-  setColours(options.base ?? HAIR_COLOURS.brown.base, options.highlight ?? HAIR_COLOURS.brown.highlight)
+  setColours(
+    options.base ?? HAIR_COLOURS.brown.base,
+    options.highlight ?? HAIR_COLOURS.brown.highlight
+  )
   return { plugin, setColours }
 }

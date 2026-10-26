@@ -260,7 +260,10 @@ export async function loadHumanPack(
               ? Object.fromEntries(
                   Object.entries(e.material.looks).map(([n, l]) => [
                     n,
-                    { diffuse: dir + l.diffuse, normal: l.normal ? dir + l.normal : undefined },
+                    {
+                      diffuse: dir + l.diffuse,
+                      normal: l.normal ? dir + l.normal : undefined,
+                    },
                   ])
                 )
               : undefined,

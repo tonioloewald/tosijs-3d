@@ -141,24 +141,49 @@ describe.skipIf(!havePack)('hm08 chest and bust', () => {
     const y0 = lo + (hi - lo) * 0.73
     let front = -Infinity
     for (const v of tris) {
-      if (Math.abs(p[v * 3 + 1] - y0) > 0.02 || Math.abs(p[v * 3]) > 0.12) continue
+      if (Math.abs(p[v * 3 + 1] - y0) > 0.02 || Math.abs(p[v * 3]) > 0.12)
+        continue
       front = Math.max(front, p[v * 3 + 2])
     }
     return front
   }
   test('bust size grows a female chest, and leaves a male one alone', async () => {
     const pack = await loadHumanPack(PACK, fromDisk)
-    if (!pack.has('breast/female-young-averagemuscle-averageweight-maxcup-averagefirmness')) return
+    if (
+      !pack.has(
+        'breast/female-young-averagemuscle-averageweight-maxcup-averagefirmness'
+      )
+    )
+      return
     const f = async (body: Partial<MacroBody>) =>
-      chestFront(await morphHuman(pack, macroWeights({ ...DEFAULT_HUMAN_BODY, ...body }, (n) => pack.has(n))), pack.triangles)
-    expect(await f({ gender: 0, bustSize: 1 })).toBeGreaterThan((await f({ gender: 0, bustSize: 0 })) + 0.02)
-    expect(await f({ gender: 1, bustSize: 1 })).toBeCloseTo(await f({ gender: 1, bustSize: 0 }), 4)
+      chestFront(
+        await morphHuman(
+          pack,
+          macroWeights({ ...DEFAULT_HUMAN_BODY, ...body }, (n) => pack.has(n))
+        ),
+        pack.triangles
+      )
+    expect(await f({ gender: 0, bustSize: 1 })).toBeGreaterThan(
+      (await f({ gender: 0, bustSize: 0 })) + 0.02
+    )
+    expect(await f({ gender: 1, bustSize: 1 })).toBeCloseTo(
+      await f({ gender: 1, bustSize: 0 }),
+      4
+    )
   })
   test('chest depth reaches further forward', async () => {
     const pack = await loadHumanPack(PACK, fromDisk)
     if (!pack.has('torso/torso-scale-depth-incr')) return
     const f = async (chestDepth: number) =>
-      chestFront(await morphHuman(pack, macroWeights({ ...DEFAULT_HUMAN_BODY, gender: 1, chestDepth }, (n) => pack.has(n))), pack.triangles)
+      chestFront(
+        await morphHuman(
+          pack,
+          macroWeights({ ...DEFAULT_HUMAN_BODY, gender: 1, chestDepth }, (n) =>
+            pack.has(n)
+          )
+        ),
+        pack.triangles
+      )
     expect(await f(1)).toBeGreaterThan((await f(0)) + 0.01)
   })
 })
@@ -258,7 +283,8 @@ describe('skin tone', () => {
 
   test('dye keeps the hair\u2019s lightness and turns its hue', async () => {
     const { hairColor, hairDye } = await import('./skin-tone.js')
-    const lum = (c: { r: number; g: number; b: number }) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b
+    const lum = (c: { r: number; g: number; b: number }) =>
+      0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b
     const natural = hairColor(0.3, 0.2)
     expect(hairDye(natural, 0.6, 0)).toEqual(natural)
     const blue = hairDye(natural, 0.63, 1)
@@ -267,40 +293,49 @@ describe('skin tone', () => {
   })
 })
 
-describe.skipIf(!havePack)('hm08 proxies (MakeHuman CC0 clothes), fitted by binding', () => {
-  test('a garment follows the body: on a heavier body it is wider', async () => {
-    const { fitProxy } = await import('./proxy-fit.js')
-    const pack = await loadHumanPack(PACK, fromDisk)
-    const suit = await pack.proxy('male_casualsuit02')
-    if (suit == null) return // an older pack without proxies
-    const thin = await morphHuman(pack, macroWeights({ ...DEFAULT_HUMAN_BODY, gender: 1, weight: 0 }))
-    const heavy = await morphHuman(pack, macroWeights({ ...DEFAULT_HUMAN_BODY, gender: 1, weight: 1 }))
-    // Across the waist (sleeves set the overall width, and barely change).
-    const width = (p: Float32Array) => {
-      let ylo = Infinity
-      let yhi = -Infinity
-      for (let i = 1; i < p.length; i += 3) {
-        ylo = Math.min(ylo, p[i])
-        yhi = Math.max(yhi, p[i])
+describe.skipIf(!havePack)(
+  'hm08 proxies (MakeHuman CC0 clothes), fitted by binding',
+  () => {
+    test('a garment follows the body: on a heavier body it is wider', async () => {
+      const { fitProxy } = await import('./proxy-fit.js')
+      const pack = await loadHumanPack(PACK, fromDisk)
+      const suit = await pack.proxy('male_casualsuit02')
+      if (suit == null) return // an older pack without proxies
+      const thin = await morphHuman(
+        pack,
+        macroWeights({ ...DEFAULT_HUMAN_BODY, gender: 1, weight: 0 })
+      )
+      const heavy = await morphHuman(
+        pack,
+        macroWeights({ ...DEFAULT_HUMAN_BODY, gender: 1, weight: 1 })
+      )
+      // Across the waist (sleeves set the overall width, and barely change).
+      const width = (p: Float32Array) => {
+        let ylo = Infinity
+        let yhi = -Infinity
+        for (let i = 1; i < p.length; i += 3) {
+          ylo = Math.min(ylo, p[i])
+          yhi = Math.max(yhi, p[i])
+        }
+        const band = [ylo + (yhi - ylo) * 0.5, ylo + (yhi - ylo) * 0.55]
+        let lo = Infinity
+        let hi = -Infinity
+        for (let i = 0; i < p.length; i += 3) {
+          if (p[i + 1] < band[0] || p[i + 1] > band[1] || Math.abs(p[i]) > 0.25)
+            continue
+          lo = Math.min(lo, p[i])
+          hi = Math.max(hi, p[i])
+        }
+        return hi - lo
       }
-      const band = [ylo + (yhi - ylo) * 0.5, ylo + (yhi - ylo) * 0.55]
-      let lo = Infinity
-      let hi = -Infinity
-      for (let i = 0; i < p.length; i += 3) {
-        if (p[i + 1] < band[0] || p[i + 1] > band[1] || Math.abs(p[i]) > 0.25) continue
-        lo = Math.min(lo, p[i])
-        hi = Math.max(hi, p[i])
-      }
-      return hi - lo
-    }
-    const a = fitProxy(suit, thin)
-    const b = fitProxy(suit, heavy)
-    expect(width(b)).toBeGreaterThan(width(a) * 1.05)
-    // Every drawn vertex has a row, every triangle a drawn vertex.
-    for (const r of suit.source) expect(r).toBeLessThan(suit.rows)
-    for (const t of suit.triangles) expect(t).toBeLessThan(suit.source.length)
-    // And it covers skin.
-    expect(suit.delete?.length ?? 0).toBeGreaterThan(1000)
-  })
-})
-
+      const a = fitProxy(suit, thin)
+      const b = fitProxy(suit, heavy)
+      expect(width(b)).toBeGreaterThan(width(a) * 1.05)
+      // Every drawn vertex has a row, every triangle a drawn vertex.
+      for (const r of suit.source) expect(r).toBeLessThan(suit.rows)
+      for (const t of suit.triangles) expect(t).toBeLessThan(suit.source.length)
+      // And it covers skin.
+      expect(suit.delete?.length ?? 0).toBeGreaterThan(1000)
+    })
+  }
+)

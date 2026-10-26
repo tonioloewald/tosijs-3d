@@ -170,7 +170,11 @@ function hug(parts: HairPart[], head: ReferenceHead): number {
     const n = p.positions.length / 3
     const step = Math.max(1, Math.floor(n / 300))
     for (let i = 0; i < n; i += step) {
-      sample.push(p.positions[i * 3], p.positions[i * 3 + 1], p.positions[i * 3 + 2])
+      sample.push(
+        p.positions[i * 3],
+        p.positions[i * 3 + 1],
+        p.positions[i * 3 + 2]
+      )
     }
   }
   const g = Array.from(skinGaps(sample, head.skin, head.normals))

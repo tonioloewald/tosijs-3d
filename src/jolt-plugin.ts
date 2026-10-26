@@ -627,8 +627,12 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
     const step = this._fixedTimeStep
     const scene = (physicsBodies[0] as any)?.transformNode?.getScene?.()
     const frame = scene?.metadata?.b3dFrame as { dt?: number } | undefined
-    const dt = typeof frame?.dt === 'number' ? frame.dt : Math.min(0.1, delta || 0)
-    this._accumulator = Math.min(this._accumulator + Math.max(0, dt), step * MAX_STEPS)
+    const dt =
+      typeof frame?.dt === 'number' ? frame.dt : Math.min(0.1, delta || 0)
+    this._accumulator = Math.min(
+      this._accumulator + Math.max(0, dt),
+      step * MAX_STEPS
+    )
     let stepped = false
     while (this._accumulator >= step - 1e-9) {
       // Kinematic bodies are given their target before each step, so a moving

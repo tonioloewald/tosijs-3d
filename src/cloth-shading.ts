@@ -53,12 +53,47 @@ export const FABRICS: Readonly<Record<string, Fabric>> = Object.freeze({
   // Glossy plastic: the 1950s space suit.
   vinyl: { roughness: 0.12, sheen: 0, sheenRoughness: 0.5 },
   // Metals reflect the scene's environment (see environment's studioEnvironment).
-  'silver lamé': { roughness: 0.3, metallic: 0.85, sheen: 0.35, sheenRoughness: 0.3 },
-  foil: { roughness: 0.12, metallic: 1, sheen: 0, sheenRoughness: 0.5, tint: '#d8dade' },
-  chrome: { roughness: 0.06, metallic: 1, sheen: 0, sheenRoughness: 0.5, tint: '#e8e8ea' },
-  'brushed steel': { roughness: 0.38, metallic: 1, sheen: 0, sheenRoughness: 0.5, tint: '#b8babd' },
-  gold: { roughness: 0.2, metallic: 1, sheen: 0, sheenRoughness: 0.5, tint: '#e8c065' },
-  copper: { roughness: 0.25, metallic: 1, sheen: 0, sheenRoughness: 0.5, tint: '#d08a5c' },
+  'silver lamé': {
+    roughness: 0.3,
+    metallic: 0.85,
+    sheen: 0.35,
+    sheenRoughness: 0.3,
+  },
+  foil: {
+    roughness: 0.12,
+    metallic: 1,
+    sheen: 0,
+    sheenRoughness: 0.5,
+    tint: '#d8dade',
+  },
+  chrome: {
+    roughness: 0.06,
+    metallic: 1,
+    sheen: 0,
+    sheenRoughness: 0.5,
+    tint: '#e8e8ea',
+  },
+  'brushed steel': {
+    roughness: 0.38,
+    metallic: 1,
+    sheen: 0,
+    sheenRoughness: 0.5,
+    tint: '#b8babd',
+  },
+  gold: {
+    roughness: 0.2,
+    metallic: 1,
+    sheen: 0,
+    sheenRoughness: 0.5,
+    tint: '#e8c065',
+  },
+  copper: {
+    roughness: 0.25,
+    metallic: 1,
+    sheen: 0,
+    sheenRoughness: 0.5,
+    tint: '#d08a5c',
+  },
 })
 
 const toLinear = (c: number) =>
@@ -110,7 +145,13 @@ class ClothShadingPlugin extends BABYLON.MaterialPluginBase {
     if (!this._isEnabled) return
     const t = this.tint
     const k = 1 / Math.max(0.05, this.mean)
-    uniformBuffer.updateFloat4('clothTint', t.r * k, t.g * k, t.b * k, this.amount)
+    uniformBuffer.updateFloat4(
+      'clothTint',
+      t.r * k,
+      t.g * k,
+      t.b * k,
+      this.amount
+    )
   }
 
   getCustomCode(shaderType: string): { [pointName: string]: string } | null {
@@ -148,7 +189,10 @@ export interface ClothShading {
 }
 
 /** Measure a texture's mean brightness (linear) once it has loaded. */
-function measureMean(texture: BABYLON.BaseTexture, done: (mean: number) => void): void {
+function measureMean(
+  texture: BABYLON.BaseTexture,
+  done: (mean: number) => void
+): void {
   const read = () => {
     const p = texture.readPixels()
     if (p == null) return
@@ -175,7 +219,9 @@ export function clothShading(
   material: BABYLON.PBRMaterial,
   look: ClothLook = {}
 ): ClothShading {
-  const plugin = material.pluginManager?.getPlugin('ClothShading') as ClothShadingPlugin | null
+  const plugin = material.pluginManager?.getPlugin(
+    'ClothShading'
+  ) as ClothShadingPlugin | null
   if (plugin == null) throw new Error('cloth-shading: plugin not registered')
   plugin.isEnabled = true
   if (material.albedoTexture) {
@@ -194,10 +240,19 @@ export function clothShading(
     }
     if (l.colour != null) {
       const c = parseColor(l.colour)
-      if (c) plugin.tint = new BABYLON.Color3(toLinear(c.r), toLinear(c.g), toLinear(c.b))
+      if (c)
+        plugin.tint = new BABYLON.Color3(
+          toLinear(c.r),
+          toLinear(c.g),
+          toLinear(c.b)
+        )
       // The sheen takes a lighter version of the cloth's colour.
       if (material.sheen.isEnabled && c) {
-        material.sheen.color = new BABYLON.Color3(0.6 + 0.4 * c.r, 0.6 + 0.4 * c.g, 0.6 + 0.4 * c.b)
+        material.sheen.color = new BABYLON.Color3(
+          0.6 + 0.4 * c.r,
+          0.6 + 0.4 * c.g,
+          0.6 + 0.4 * c.b
+        )
       }
     }
     if (l.amount != null) plugin.amount = Math.min(1, Math.max(0, l.amount))

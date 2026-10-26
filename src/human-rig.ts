@@ -299,7 +299,8 @@ export function stiffenHead(
       // The head was not among its four: take the weakest place.
       let weakest = 0
       for (let i = 1; i < 4; i++) {
-        if (weights.weights[v * 4 + i] < weights.weights[v * 4 + weakest]) weakest = i
+        if (weights.weights[v * 4 + i] < weights.weights[v * 4 + weakest])
+          weakest = i
       }
       toHead += weights.weights[v * 4 + weakest]
       weights.weights[v * 4 + weakest] = 0
@@ -328,7 +329,12 @@ export function armsOffTorso(
   const index = new Map(rig.joints.map((j, i) => [j.name, i]))
   const arm = new Set<number>()
   rig.joints.forEach((j, i) => {
-    if (/^(clavicle|upperarm|lowerarm|hand|thumb|index|middle|ring|pinky)/.test(j.name)) arm.add(i)
+    if (
+      /^(clavicle|upperarm|lowerarm|hand|thumb|index|middle|ring|pinky)/.test(
+        j.name
+      )
+    )
+      arm.add(i)
   })
   const l = rig.at('upperarm_l')
   const r = rig.at('upperarm_r')
@@ -346,7 +352,13 @@ export function armsOffTorso(
     const x = positions[v * 3]
     const y = positions[v * 3 + 1]
     // Inside the shoulders (the arm itself is outside them) and below the armpit.
-    const inside = 1 - smooth(Math.abs(x), Math.abs(x > 0 ? l.x : r.x) - 0.03, Math.abs(x > 0 ? l.x : r.x))
+    const inside =
+      1 -
+      smooth(
+        Math.abs(x),
+        Math.abs(x > 0 ? l.x : r.x) - 0.03,
+        Math.abs(x > 0 ? l.x : r.x)
+      )
     const below = smooth(armpit - y, 0, blend)
     const k = inside * below
     if (k === 0) continue
@@ -364,7 +376,8 @@ export function armsOffTorso(
     for (let i = 0; i < 4; i++) if (weights.indices[v * 4 + i] === to) slot = i
     if (slot < 0) {
       slot = 0
-      for (let i = 1; i < 4; i++) if (weights.weights[v * 4 + i] < weights.weights[v * 4 + slot]) slot = i
+      for (let i = 1; i < 4; i++)
+        if (weights.weights[v * 4 + i] < weights.weights[v * 4 + slot]) slot = i
       moved += weights.weights[v * 4 + slot]
       weights.weights[v * 4 + slot] = 0
       weights.indices[v * 4 + slot] = to

@@ -319,7 +319,8 @@ export function humanoidRoles(
     bones either side bent harder to make the shape, which creased the skin
     across the lower back in a crouch (Tonio, #3475).
     */
-    if (spines.length > 2) roles.midSpine = spines[Math.floor(spines.length / 2)]
+    if (spines.length > 2)
+      roles.midSpine = spines[Math.floor(spines.length / 2)]
   }
   return { ...roles, ...overrides }
 }
