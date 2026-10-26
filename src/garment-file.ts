@@ -26,8 +26,13 @@ Leave out the `garment` to export the body alone, to model a garment from
 nothing: every object you add beside it comes back as the garment. The body
 carries the metadata then.
 
-OBJ is offered too (`writeGarmentObj` / `readGarment` read either), but an
-OBJ carries no metadata through Blender: prefer glTF.
+OBJ is offered too (`writeGarmentObj` / `readGarment` read either). Blender
+drops the OBJ's metadata comment, so the body helper's NAME carries the body
+as well: `body-reference_hm08_p15_weight72_muscle100` is the base, the pack
+version, and each slider that is not the default as a whole percentage
+(`referenceName` / `metaFromName`). Keep the name when you edit the file. It
+is read when nothing better is there, a glTF exported without custom
+properties included; the garment's name and slot do not travel in it.
 
 ```javascript
 import { writeGarmentGlb, readGarment } from 'tosijs-3d'
@@ -41,6 +46,7 @@ const { garment, meta } = readGarment(await file.arrayBuffer())
 
 import { rigidGroups, type MeshPart, type RigidSpec } from './proxy-rigid.js'
 import { vertexNormals } from './hair-fit.js'
+import { DEFAULT_HUMAN_BODY } from './human-morph.js'
 
 /** A mesh as triangles: positions (xyz), optional normals and UVs. */
 export interface GarmentMesh {
@@ -74,6 +80,44 @@ function nameRigidity(name: string): RigidSpec | null {
   if (/_rigidParts$/i.test(bare)) return 'parts'
   if (/_rigid$/i.test(bare)) return true
   return null
+}
+
+/**
+ * The body helper's name, carrying the metadata for files that lose the rest
+ * (an OBJ through Blender, a glTF without custom properties):
+ * `body-reference_hm08_p15_weight72_muscle100`. The base, the pack version,
+ * then each slider that is not the default as a whole percentage.
+ */
+export function referenceName(meta: GarmentMeta): string {
+  const out = ['body-reference', meta.base.replace(/[^\w-]/g, '')]
+  if (meta.pack != null) out.push(`p${meta.pack}`)
+  const defaults = DEFAULT_HUMAN_BODY as Record<string, number | undefined>
+  for (const [key, value] of Object.entries(meta.body ?? {})) {
+    const pc = Math.round(value * 100)
+    if (/^[a-zA-Z]+$/.test(key) && pc !== Math.round((defaults[key] ?? NaN) * 100))
+      out.push(`${key}${pc}`)
+  }
+  return out.join('_')
+}
+
+/** The metadata a body helper's name carries, or null when it carries none. */
+export function metaFromName(name: string): GarmentMeta | null {
+  // Blender appends `.001` to a duplicate name.
+  const [head, base, ...rest] = name.replace(/\.\d+$/, '').split('_')
+  if (!/^body[-.]?reference$/i.test(head) || !base) return null
+  const meta: GarmentMeta = {
+    format: 'tosijs-garment',
+    version: 1,
+    base,
+    body: { ...DEFAULT_HUMAN_BODY },
+  }
+  for (const token of rest) {
+    const m = /^([a-zA-Z]+)(-?\d+)$/.exec(token)
+    if (!m) continue
+    if (m[1] === 'p') meta.pack = Number(m[2])
+    else meta.body![m[1]] = Number(m[2]) / 100
+  }
+  return meta
 }
 
 /** What a garment was made on and for. */
@@ -198,11 +242,11 @@ export function writeGarmentGlb(options: {
   })
   if (options.body) {
     meshes.push({
-      name: 'body-reference',
+      name: referenceName(options.meta),
       primitives: [primitive(options.body, 1)],
     })
     nodes.push({
-      name: 'body-reference',
+      name: referenceName(options.meta),
       mesh: meshes.length - 1,
       // A helper: there to model against, never part of the garment. It
       // carries the metadata too, for a file that starts with the body alone.
@@ -497,7 +541,12 @@ function readGlb(bytes: Uint8Array): GarmentFileContent {
       (tagged(json.scenes?.[json.scene ?? 0]?.extras)
         ? json.scenes[json.scene ?? 0].extras
         : null)
-  const meta = holder ? stripRole(holder.tosijs) : null
+  const named = json.nodes.find((n: any) => isReference(n) && metaFromName(n.name ?? ''))
+  const meta = holder
+    ? stripRole(holder.tosijs)
+    : named
+    ? metaFromName(named.name)
+    : null
   return {
     garment: {
       positions: Float32Array.from(positions),
@@ -560,7 +609,7 @@ export function writeGarmentObj(options: {
       write(name, slicePart(g, part))
     }
   else write('garment', g)
-  if (options.body) write('body-reference', options.body)
+  if (options.body) write(referenceName(options.meta), options.body)
   return lines.join('\n') + '\n'
 }
 
@@ -597,6 +646,8 @@ function readObj(text: string): GarmentFileContent {
       list.push(corners)
     }
   }
+  if (!meta)
+    for (const n of faces.keys()) if ((meta = metaFromName(n))) break
   const names = [...faces.keys()].filter(
     (n) => !/^body[-_.]?reference/i.test(n) && !/-ignore$/.test(n)
   )

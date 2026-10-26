@@ -4,7 +4,9 @@ import { join } from 'path'
 import { bindGarment, closestOnTriangle } from './garment-bind.js'
 import {
   garmentRigidity,
+  metaFromName,
   readGarment,
+  referenceName,
   writeGarmentGlb,
   writeGarmentObj,
   type GarmentMeta,
@@ -81,7 +83,7 @@ describe('garment-file', () => {
     const json = JSON.parse(
       new TextDecoder().decode(glb.subarray(20, 20 + len))
     )
-    expect(json.nodes[1].name).toBe('body-reference')
+    expect(json.nodes[1].name).toBe('body-reference_hm08_p15')
     expect(json.nodes[1].extras.helper).toBe(true)
   })
 
@@ -98,6 +100,27 @@ describe('garment-file', () => {
     expect(json.nodes[0].extras.helper).toBe(true)
     expect(json.nodes[0].extras.tosijs.body).toEqual(meta.body)
     expect(writeGarmentObj({ body, meta })).toContain('o body-reference')
+  })
+
+  test('the helper NAME carries the body, for an OBJ through Blender', () => {
+    const shaped = { ...meta, body: { weight: 0.72, muscle: 1, age: 0.5 } }
+    const name = referenceName(shaped)
+    // Only what is not the default.
+    expect(name).toBe('body-reference_hm08_p15_weight72_muscle100')
+    // Blender appends .001 to a duplicate.
+    const back = metaFromName(name + '.001')!
+    expect(back.base).toBe('hm08')
+    expect(back.pack).toBe(15)
+    expect(back.body!.weight).toBe(0.72)
+    expect(back.body!.muscle).toBe(1)
+    expect(back.body!.age).toBe(0.5)
+    expect(metaFromName('Cube')).toBeNull()
+    // An OBJ whose comment was dropped still says which body it was.
+    const obj = writeGarmentObj({ garment, body, meta: shaped })
+      .split('\n')
+      .filter((l) => !l.startsWith('#'))
+      .join('\n')
+    expect(readGarment(obj).meta!.body!.weight).toBe(0.72)
   })
 
   test('a node transform an editor added is applied', () => {

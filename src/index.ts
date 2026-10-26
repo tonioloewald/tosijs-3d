@@ -1822,6 +1822,8 @@ export {
   writeGarmentObj,
   readGarment,
   garmentRigidity,
+  referenceName,
+  metaFromName,
 } from './garment-file.js'
 export {
   rigidGroups,
