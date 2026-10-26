@@ -206,6 +206,42 @@ describe('garment-file', () => {
     expect(obj.garment.parts!.map((p) => p.rigid ?? null)).toEqual([null, true])
   })
 
+  test('an OBJ written by hand or by a quick script reads as it would anywhere', () => {
+    // OBJ is the escape hatch for shapes made by your own code, so the
+    // reader takes what such code writes, mess included.
+    const messy = [
+      '# written by hand',
+      'o crown_rigid\r',
+      'v 0 1.7 0  1 0 0', // a colour after the position
+      'v   0.1 1.7 0',
+      'v 0.1 1.8 0',
+      'v 0 1.8 0',
+      'vn 0 0 1',
+      'f 1//1 2//1 3//1 4//1', // a quad, normals and no UVs
+      'g strap', // a group, not an object
+      'v 0 1.6 0',
+      'v 0.1 1.6 0',
+      'v 0.1 1.65 0',
+      'f -3 -2 -1', // counted back from the end
+      's off',
+      'usemtl gold',
+    ].join('\n')
+    const { garment: g, meta } = readGarment(messy)
+    expect(meta).toBeNull()
+    expect(g.positions.length / 3).toBe(7)
+    expect(g.triangles.length / 3).toBe(3)
+    expect(g.parts!.map((p) => [p.name, p.count, p.rigid])).toEqual([
+      ['crown_rigid', 4, true],
+      ['strap', 3, null],
+    ])
+    // The colour after the position is not taken for a coordinate.
+    expect(g.positions[1]).toBeCloseTo(1.7, 6)
+    expect(g.positions[3]).toBeCloseTo(0.1, 6)
+    // The strap's triangle is its own three vertices.
+    expect(Array.from(g.triangles.subarray(6))).toEqual([4, 5, 6])
+    expect(g.uvs).toBeNull()
+  })
+
   test('an OBJ comes back too, metadata in its comment', () => {
     const back = readGarment(writeGarmentObj({ garment, body, meta }))
     expect(back.garment.triangles.length).toBe(6)
