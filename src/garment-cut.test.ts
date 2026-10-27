@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
-import { cutGarment, mirrorOutline } from './garment-cut.js'
-import { fitProxy } from './proxy-fit.js'
+import { cutGarment, mirrorOutline, skirtGarment } from './garment-cut.js'
+import { drawnPositions, fitProxy } from './proxy-fit.js'
 import { loadHumanPack } from './human-pack.js'
 
 describe('garment-cut', () => {
@@ -223,6 +223,39 @@ describe.skipIf(!existsSync(PACK))('hm08 trousers', () => {
     let worst = 0
     for (let i = 0; i < a.length; i++) worst = Math.max(worst, Math.abs(a[i] - b[i]))
     expect(worst).toBeLessThan(1e-5)
+  })
+
+  test('a skirt goes round both legs as one, an open tube facing out', async () => {
+    const pack = await loadHumanPack(PACK, fromDisk)
+    const P = pack.positions
+    const g = skirtGarment(P, pack.triangles, {
+      front: mirrorOutline([
+        [
+          [0, 0.1],
+          [0.22, 0.1],
+          [0.22, -0.45],
+          [0, -0.45],
+        ],
+      ]),
+    })
+    const f = drawnPositions(g, fitProxy(g, P))
+    // Every face points away from the legs.
+    for (let t = 0; t < g.triangles.length; t += 3) {
+      const [a, b, c] = [0, 1, 2].map((k) => g.triangles[t + k] * 3)
+      const u = [f[b] - f[a], f[b + 1] - f[a + 1], f[b + 2] - f[a + 2]]
+      const v = [f[c] - f[a], f[c + 1] - f[a + 1], f[c + 2] - f[a + 2]]
+      const nx = u[1] * v[2] - u[2] * v[1]
+      const nz = u[0] * v[1] - u[1] * v[0]
+      expect(nx * f[a] + nz * (f[a + 2] - 0.02)).toBeGreaterThan(0)
+    }
+    // Between the knees the cloth crosses the centre line, front and back.
+    const knee = Array.from({ length: g.rows }, (_, r) => r).filter(
+      (r) => Math.abs(f[r * 3 + 1] + 0.3) < 0.011
+    )
+    expect(knee.some((r) => Math.abs(f[r * 3]) < 0.02 && f[r * 3 + 2] > 0.05)).toBe(true)
+    expect(knee.some((r) => Math.abs(f[r * 3]) < 0.02 && f[r * 3 + 2] < -0.02)).toBe(true)
+    // Open: two hems, the waist and the bottom.
+    expect(g.hems.length).toBe(2)
   })
 })
 

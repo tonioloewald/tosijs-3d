@@ -26,6 +26,15 @@ do ([proxy-fit](/proxy-fit/)).
   cloth with a thickness rather than a paper shell.
 - `delete` lists the body vertices the garment covers (for `coverBody`).
 
+`skirtGarment` takes the same outlines and makes a skirt, kilt, robe or
+poncho instead: at each height, the cloth goes round the CONVEX outline of
+the body inside the cut (both legs as one, or the torso and arms), so it
+spans the gaps instead of following each leg. Below its widest ring it hangs
+straight down. It is an open tube, no top or bottom, to be drawn two-sided.
+Each point is bound between the nearest skin on the left and on the right,
+blended across the middle, so it moves with both legs and tears between
+neither.
+
 Pure: positions and triangles in, a binding out.
 */
 /*{ "parent": "human-proxy", "order": 20 }*/
@@ -648,5 +657,234 @@ export function cutGarment(
     uvs: Float32Array.from(uvs),
     delete: Uint32Array.from(del),
     hems,
+  }
+}
+
+export interface SkirtOptions {
+  /** Polygons in the front view, as `cutGarment`'s. */
+  front: ViewPoint[][]
+  /** Optional side-view polygons, intersected with `front`. */
+  side?: ViewPoint[][]
+  /** How far the cloth stands off the outline, metres. Default 4 mm. */
+  thickness?: number
+  /** Height between rings, metres. Default 2 cm. */
+  step?: number
+  /** Points round each ring. Default 48. */
+  segments?: number
+  /** UV scale: texture repeats per metre. Default 1. */
+  uvScale?: number
+}
+
+/** A convex hull of 2D points (Andrew's monotone chain), counter-clockwise. */
+function hull2d(pts: ViewPoint[]): ViewPoint[] {
+  const p = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1])
+  if (p.length < 3) return p
+  const cross = (o: ViewPoint, a: ViewPoint, b: ViewPoint) =>
+    (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+  const lower: ViewPoint[] = []
+  for (const q of p) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], q) <= 0)
+      lower.pop()
+    lower.push(q)
+  }
+  const upper: ViewPoint[] = []
+  for (let i = p.length - 1; i >= 0; i--) {
+    const q = p[i]
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], q) <= 0)
+      upper.pop()
+    upper.push(q)
+  }
+  return lower.slice(0, -1).concat(upper.slice(0, -1))
+}
+
+/** How far from `c` along direction `d` the ray leaves the convex polygon. */
+function rayExit(poly: ViewPoint[], c: ViewPoint, d: ViewPoint): number {
+  let best = 0
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i]
+    const b = poly[(i + 1) % poly.length]
+    const ex = b[0] - a[0]
+    const ez = b[1] - a[1]
+    const den = d[0] * ez - d[1] * ex
+    if (Math.abs(den) < 1e-12) continue
+    const t = ((a[0] - c[0]) * ez - (a[1] - c[1]) * ex) / den
+    const u = ((a[0] - c[0]) * d[1] - (a[1] - c[1]) * d[0]) / den
+    if (t > 0 && u >= -1e-9 && u <= 1 + 1e-9) best = Math.max(best, t)
+  }
+  return best
+}
+
+/**
+ * A skirt (or kilt, robe, poncho) from outlines: rings round the convex
+ * outline of the body at each height, as an open tube bound to the body.
+ */
+export function skirtGarment(
+  positions: ArrayLike<number>,
+  triangles: ArrayLike<number>,
+  options: SkirtOptions
+): GarmentCut {
+  const thickness = options.thickness ?? 0.004
+  const step = options.step ?? 0.02
+  const M = options.segments ?? 48
+  const uvScale = options.uvScale ?? 1
+  const views: View[] = [{ polys: options.front, u: 0 }]
+  if (options.side?.length) views.push({ polys: options.side, u: 2 })
+  const P = positions
+  const n = P.length / 3
+  const used = new Uint8Array(n)
+  for (let t = 0; t < triangles.length; t++) used[triangles[t]] = 1
+
+  // The skin inside the cut, and the cut's height.
+  const inside: number[] = []
+  for (let v = 0; v < n; v++) {
+    if (!used[v]) continue
+    if (views.every((view) => insideView(view, P[v * 3 + view.u], P[v * 3 + 1])))
+      inside.push(v)
+  }
+  let top = -Infinity
+  let bottom = Infinity
+  for (const poly of options.front)
+    for (const [, y] of poly) {
+      top = Math.max(top, y)
+      bottom = Math.min(bottom, y)
+    }
+  let skinTop = -Infinity
+  let skinBottom = Infinity
+  for (const v of inside) {
+    skinTop = Math.max(skinTop, P[v * 3 + 1])
+    skinBottom = Math.min(skinBottom, P[v * 3 + 1])
+  }
+  top = Math.min(top, skinTop)
+  const empty: GarmentCut = {
+    rows: 0,
+    ref: new Uint32Array(),
+    weight: new Float32Array(),
+    offset: new Float32Array(),
+    scale: {},
+    source: new Uint32Array(),
+    triangles: new Uint32Array(),
+    uvs: new Float32Array(),
+    delete: new Uint32Array(),
+    hems: [],
+  }
+  if (!inside.length || top <= bottom) return empty
+
+  // Rings from the top down, one band of skin each.
+  const levels: number[] = []
+  for (let y = top; y > bottom - 1e-9; y -= step) levels.push(y)
+  if (levels[levels.length - 1] - bottom > step * 0.25) levels.push(bottom)
+  const bandOf = (y: number) => {
+    const lo = Math.max(y, skinBottom) - step / 2
+    const hi = Math.max(y, skinBottom) + step / 2
+    return inside.filter((v) => P[v * 3 + 1] >= lo && P[v * 3 + 1] <= hi)
+  }
+  const dirs: ViewPoint[] = Array.from({ length: M }, (_, j) => {
+    const a = (j / M) * Math.PI * 2
+    return [Math.sin(a), Math.cos(a)]
+  })
+  const radii: number[][] = []
+  const centres: ViewPoint[] = []
+  const bands: number[][] = []
+  for (const y of levels) {
+    let band = bandOf(y)
+    if (band.length < 3) band = bands[bands.length - 1] ?? band
+    bands.push(band)
+    const hull = hull2d(band.map((v) => [P[v * 3], P[v * 3 + 2]] as ViewPoint))
+    const c: ViewPoint = [0, 0]
+    for (const q of hull) {
+      c[0] += q[0] / hull.length
+      c[1] += q[1] / hull.length
+    }
+    centres.push(c)
+    radii.push(dirs.map((d) => rayExit(hull, c, d) + thickness))
+  }
+  // Below its widest ring it hangs: no ring narrower than the one above,
+  // round the same centre.
+  let widest = 0
+  const area = (r: number[]) => r.reduce((s, x) => s + x * x, 0)
+  for (let i = 1; i < radii.length; i++) if (area(radii[i]) > area(radii[widest])) widest = i
+  for (let i = widest + 1; i < radii.length; i++) {
+    centres[i] = centres[i - 1]
+    radii[i] = radii[i].map((r, j) => {
+      const own = rayExit(
+        hull2d(bands[i].map((v) => [P[v * 3], P[v * 3 + 2]] as ViewPoint)),
+        centres[i],
+        dirs[j]
+      )
+      return Math.max(own + thickness, radii[i - 1][j])
+    })
+  }
+
+  // Bind each point between the nearest skin left and right of the centre.
+  const ref: number[] = []
+  const weight: number[] = []
+  const offset: number[] = []
+  const uvs: number[] = []
+  const nearest = (band: number[], x: number, z: number, y: number, side: number) => {
+    let best = -1
+    let bd = Infinity
+    for (const v of band) {
+      if (side !== 0 && Math.sign(P[v * 3]) !== side) continue
+      const d = (P[v * 3] - x) ** 2 + (P[v * 3 + 1] - y) ** 2 + (P[v * 3 + 2] - z) ** 2
+      if (d < bd) {
+        bd = d
+        best = v
+      }
+    }
+    return best
+  }
+  levels.forEach((y, i) => {
+    const band = bands[i]
+    const c = centres[i]
+    let halfWidth = 1e-3
+    for (const v of band) halfWidth = Math.max(halfWidth, Math.abs(P[v * 3] - c[0]))
+    for (let j = 0; j <= M; j++) {
+      const jj = j % M
+      const x = c[0] + dirs[jj][0] * radii[i][jj]
+      const z = c[1] + dirs[jj][1] * radii[i][jj]
+      const any = nearest(band, x, z, y, 0)
+      const left = nearest(band, x, z, y, 1)
+      const right = nearest(band, x, z, y, -1)
+      const a = left < 0 ? any : left
+      const b = right < 0 ? any : right
+      // Left (+X) fades to right across the middle third.
+      const t = Math.min(1, Math.max(0, (x - c[0]) / halfWidth / 0.66 + 0.5))
+      const wl = t * t * (3 - 2 * t)
+      ref.push(a, b, a)
+      weight.push(wl, 1 - wl, 0)
+      for (let k = 0; k < 3; k++) {
+        const q = [x, y, z][k]
+        offset.push(q - (P[a * 3 + k] * wl + P[b * 3 + k] * (1 - wl)))
+      }
+      // u runs once round the ring, by arc length at the widest ring.
+      uvs.push((j / M) * 1.5 * uvScale, y * uvScale)
+    }
+  })
+
+  // The tube, outward-facing (counter-clockwise from outside).
+  const row = M + 1
+  const tris: number[] = []
+  for (let i = 0; i + 1 < levels.length; i++)
+    for (let j = 0; j < M; j++) {
+      const a = i * row + j
+      const b = a + 1
+      const c = a + row
+      const d = c + 1
+      tris.push(a, c, b, b, c, d)
+    }
+  const rows = ref.length / 3
+  const firstRing = Array.from({ length: M }, (_, j) => j)
+  const lastRing = Array.from({ length: M }, (_, j) => (levels.length - 1) * row + j)
+  return {
+    rows,
+    ref: Uint32Array.from(ref),
+    weight: Float32Array.from(weight),
+    offset: Float32Array.from(offset),
+    scale: {},
+    source: Uint32Array.from({ length: rows }, (_, i) => i),
+    triangles: Uint32Array.from(tris),
+    uvs: Float32Array.from(uvs),
+    delete: Uint32Array.from(inside),
+    hems: [firstRing, lastRing],
   }
 }

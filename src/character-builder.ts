@@ -11,10 +11,10 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, unwrapGarment, smoothUnder } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, unwrapGarment, smoothUnder, skirtGarment } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorFabric: 'cotton', tailorColour: '#3b5b8a', tailorRecolour: 1, tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorFabric: 'cotton', tailorColour: '#3b5b8a', tailorRecolour: 1, tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true } })
 let mat = null
 let paint = () => {}
 let eyes = null
@@ -137,6 +137,8 @@ preview.append(
                 )
               ),
               slider3d({ label: 'thickness', value: walker.tailorThickness, min: 0.001, max: 0.02, step: 0.001 }),
+              // Round the outline at each height: skirts, kilts, robes, ponchos.
+              toggle3d({ label: 'skirt', value: walker.tailorSkirt }),
               select3d({ label: 'fabric', value: walker.tailorFabric, options: FABRIC_OPTIONS }),
               colorPicker3d({ label: 'colour', value: walker.tailorColour, alpha: false }),
               slider3d({ label: 'recolour', value: walker.tailorRecolour, min: 0, max: 1, step: 0.01 }),
@@ -281,7 +283,7 @@ preview.append(
           const { garment, meta, material } = content
           const on = meta?.body ? await morphHuman(pack, macroWeights({ ...DEFAULT_HUMAN_BODY, ...meta.body }, (n) => pack.has(n))) : current
           const binding = bindGarment(on, pack.triangles, garment.positions, garmentRigidity(garment))
-          return { ...binding, triangles: garment.triangles, uvs: garment.uvs ?? new Float32Array(binding.rows * 2), delete: null, name, category: 'clothes', slot, material: fileLook(material) }
+          return { ...binding, triangles: garment.triangles, uvs: garment.uvs ?? new Float32Array(binding.rows * 2), delete: null, name, category: 'clothes', slot, material: { ...fileLook(material), ...(meta?.cut?.skirt ? { twoSided: true } : {}) } }
         }
         // The saved garments, in IndexedDB: per browser, nothing shared yet.
         const garmentStore = async (mode, fn) => {
@@ -320,7 +322,7 @@ preview.append(
           if (!tailoredCut && !last) return say('draw a garment or import one first')
           // The cut is kept with its outline, to edit again; an import as it came.
           const bytes = tailoredCut
-            ? writeGarmentGlb({ garment: cutMesh(), meta: { ...baseMeta(), name, slot, look: tailorLook(), cut: { shapes: tailorShapes, thickness: walker.tailorThickness.value } } })
+            ? writeGarmentGlb({ garment: cutMesh(), meta: { ...baseMeta(), name, slot, look: tailorLook(), cut: { shapes: tailorShapes, thickness: walker.tailorThickness.value, skirt: walker.tailorSkirt.value } } })
             : writeGarmentGlb({ garment: last.file.garment, material: last.file.material, meta: { ...last.file.meta, name, slot, look: tailorLook() } })
           try {
             await garmentStore('readwrite', (s) => s.put(bytes, name))
@@ -356,6 +358,7 @@ preview.append(
           tailorShapes = saved.cut.shapes
           tailorField?.setValue(tailorShapes)
           walker.tailorThickness.value = saved.cut.thickness
+          walker.tailorSkirt.value = saved.cut.skirt === true
           walker.tailorName.value = name
           if (saved.look?.fabric) walker.tailorFabric.value = saved.look.fabric
           if (saved.look?.colour) walker.tailorColour.value = saved.look.colour
@@ -408,6 +411,7 @@ preview.append(
           input.click()
         }
         walker.tailorThickness.observe(() => dress())
+        walker.tailorSkirt.observe(() => dress())
         walker.tailorFabric.observe(retailor)
         walker.tailorColour.observe(retailor)
         walker.tailorRecolour.observe(retailor)
@@ -464,9 +468,12 @@ preview.append(
             // Thicker cloth bridges more of the chest.
             const thickness = walker.tailorThickness.value
             const cutOn = nipples ? smoothUnder(current, pack.triangles, nipples, { bridge: thickness / 0.02 }) : clothBody
-            const cut = cutGarment(cutOn, pack.triangles, { front: outline, thickness, ease: 6, fitOn: clothBody })
+            const skirt = walker.tailorSkirt.value
+            const cut = skirt
+              ? skirtGarment(clothBody, pack.triangles, { front: outline, thickness })
+              : cutGarment(cutOn, pack.triangles, { front: outline, thickness, ease: 6, fitOn: clothBody })
             tailoredCut = cut
-            wearing.push({ ...cut, name: 'tailored', category: 'clothes', slot: 'top', material: { alpha: false, twoSided: false } })
+            wearing.push({ ...cut, name: 'tailored', category: 'clothes', slot: 'top', material: { alpha: false, twoSided: skirt } })
           } else tailoredCut = null
           wearing.push(...imported)
           for (const m of hairMeshes) m.dispose()
