@@ -27,75 +27,8 @@ shade.set({ fabric: 'wool', colour: '#7a2e2e', amount: 0.8 })
 import * as BABYLON from '@babylonjs/core'
 import { parseColor } from './color.js'
 
-export interface Fabric {
-  /** How rough the surface is, 0 (mirror) to 1. */
-  roughness: number
-  /** 1 for a metal: it reflects its surroundings in its own colour. Default 0. */
-  metallic?: number
-  /** A colour the finish IS (gold, copper): choosing it recolours wholly. */
-  tint?: string
-  /** The grazing glow of fibres, 0 to 1, and how spread it is. */
-  sheen: number
-  sheenRoughness: number
-}
-
-/** Fabric presets, by how they take light. */
-export const FABRICS: Readonly<Record<string, Fabric>> = Object.freeze({
-  cotton: { roughness: 0.85, sheen: 0.25, sheenRoughness: 0.6 },
-  denim: { roughness: 0.9, sheen: 0.15, sheenRoughness: 0.7 },
-  wool: { roughness: 0.95, sheen: 0.45, sheenRoughness: 0.5 },
-  linen: { roughness: 0.9, sheen: 0.2, sheenRoughness: 0.65 },
-  velvet: { roughness: 0.9, sheen: 0.9, sheenRoughness: 0.25 },
-  silk: { roughness: 0.4, sheen: 0.55, sheenRoughness: 0.3 },
-  satin: { roughness: 0.28, sheen: 0.75, sheenRoughness: 0.2 },
-  synthetic: { roughness: 0.55, sheen: 0.2, sheenRoughness: 0.5 },
-  leather: { roughness: 0.45, sheen: 0, sheenRoughness: 0.5 },
-  rubber: { roughness: 0.6, sheen: 0, sheenRoughness: 0.5 },
-  // Glossy plastic: the 1950s space suit.
-  vinyl: { roughness: 0.12, sheen: 0, sheenRoughness: 0.5 },
-  // Metals reflect the scene's environment (see environment's studioEnvironment).
-  'silver lamé': {
-    roughness: 0.3,
-    metallic: 0.85,
-    sheen: 0.35,
-    sheenRoughness: 0.3,
-  },
-  foil: {
-    roughness: 0.12,
-    metallic: 1,
-    sheen: 0,
-    sheenRoughness: 0.5,
-    tint: '#d8dade',
-  },
-  chrome: {
-    roughness: 0.06,
-    metallic: 1,
-    sheen: 0,
-    sheenRoughness: 0.5,
-    tint: '#e8e8ea',
-  },
-  'brushed steel': {
-    roughness: 0.38,
-    metallic: 1,
-    sheen: 0,
-    sheenRoughness: 0.5,
-    tint: '#b8babd',
-  },
-  gold: {
-    roughness: 0.2,
-    metallic: 1,
-    sheen: 0,
-    sheenRoughness: 0.5,
-    tint: '#e8c065',
-  },
-  copper: {
-    roughness: 0.25,
-    metallic: 1,
-    sheen: 0,
-    sheenRoughness: 0.5,
-    tint: '#d08a5c',
-  },
-})
+import { FABRICS } from './fabrics.js'
+export { FABRICS, type Fabric } from './fabrics.js'
 
 const toLinear = (c: number) =>
   c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)

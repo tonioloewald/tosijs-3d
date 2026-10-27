@@ -622,6 +622,35 @@ export {
   type SwatchStore,
   type SwatchStorage,
 } from './color-presets.js'
+export {
+  materialPicker3d,
+  type MaterialPicker,
+  type MaterialPicker3dOptions,
+} from './material-picker.js'
+export {
+  PBR_MATERIAL,
+  MATERIAL_COLLECTIONS,
+  registerMaterialType,
+  materialType,
+  materialTypes,
+  resolveMaterial,
+  resolveInput,
+  writeInput,
+  withInput,
+  canonicalMaterial,
+  materialSwatch,
+  materialRecipeSchema,
+  validateMaterial,
+  type MaterialRecipe,
+  type MaterialInput,
+  type MaterialInputDecl,
+  type MaterialInputKind,
+  type MaterialTypeDecl,
+  type MaterialCollection,
+  type MaterialPreset,
+  type ResolvedInput,
+} from './material-recipe.js'
+export { applyMaterial } from './material-apply.js'
 
 // Manipulator — pure maths, the Babylon handles, and the element that wires them
 export {
