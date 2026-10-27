@@ -12,12 +12,6 @@ AOE damage to whatever's in blast range. Ammo is a resource, the same mechanic a
 
 ## Demo
 
-**Steer the gun with A/D (left stick), hold the right trigger (or `F` / the glass B
-button) to fire** a stream of shells — the [standard controller](/b3d-controller/), so
-the same controls work on keyboard, touch, and in VR. **Left-drag orbits** the view.
-Shells arc under gravity and blast the wide cube field — a direct hit kills, a near miss
-chips the neighbours. Tune muzzle speed, fire rate, drag and the warhead in the settings panel.
-
 ```js
 import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, sceneDelta } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -80,6 +74,12 @@ preview.append(scene)
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+**Steer the gun with A/D (left stick), hold the right trigger (or `F` / the glass B
+button) to fire** a stream of shells — the [standard controller](/b3d-controller/), so
+the same controls work on keyboard, touch, and in VR. **Left-drag orbits** the view.
+Shells arc under gravity and blast the wide cube field — a direct hit kills, a near miss
+chips the neighbours. Tune muzzle speed, fire rate, drag and the warhead in the settings panel.
 
 ## Guided missiles
 

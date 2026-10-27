@@ -15,10 +15,6 @@ shows it in the cockpit view; `setInSceneVisible(bool)` toggles it.
 
 ## Demo
 
-Scrub the meters and attitude in the settings panel; the radar traces orbit the origin,
-tracking inside the ring when in the field of view and pinning to the periphery when
-they swing out or behind.
-
 ```js
 import { b3d, b3dHud, b3dSkybox, label3d, slider3d, select3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
@@ -82,6 +78,10 @@ setInterval(() => {
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+Scrub the meters and attitude in the settings panel; the radar traces orbit the origin,
+tracking inside the ring when in the field of view and pinning to the periphery when
+they swing out or behind.
 
 ## Attributes
 

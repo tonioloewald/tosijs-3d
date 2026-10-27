@@ -15,10 +15,6 @@ panel and on one in a headset.
 
 ## Demo
 
-Three colours for a planet's bands and a translucent haze over them. Each row
-opens its own popup; the presets are the ones passed in, then a general set.
-The haze row keeps its alpha strip, the others turn it off.
-
 ```js
 import { panel3d, label3d, colorPicker3d } from 'tosijs-3d'
 import { elements, tosi } from 'tosijs'
@@ -61,6 +57,10 @@ preview.append(
 .stripes { width: 120px; height: 180px; border-radius: 60px; flex: none; overflow: hidden; }
 .haze { width: 100%; height: 100%; }
 ```
+
+Three colours for a planet's bands and a translucent haze over them. Each row
+opens its own popup; the presets are the ones passed in, then a general set.
+The haze row keeps its alpha strip, the others turn it off.
 
 ## Options
 

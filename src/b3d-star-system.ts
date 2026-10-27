@@ -16,8 +16,6 @@ on a screen without being empty.
 
 ## Demo
 
-Scroll to zoom, drag to orbit.
-
 ```js
 import { b3d, b3dLight, b3dStarSystem, spaceBackdrop, voxelGalaxy, label3d, slider3d, toggle3d, select3d } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
@@ -170,6 +168,8 @@ tosi-b3d { flex: 1; min-height: 0; width: 100%; }
   margin: 0;
 }
 ```
+
+Scroll to zoom, drag to orbit.
 
 > The panel's readout opts out of the doc system's `<pre>` styling. A `<pre>`
 > is rendered as a CODE BLOCK there (light background, its own colour), and

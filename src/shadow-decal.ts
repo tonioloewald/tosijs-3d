@@ -14,10 +14,6 @@ better than a crisp CSM shadow would anyway.
 
 ## Demo
 
-**A floating crate, grounded by a soft blob.** No shadow map is involved — just one alpha quad
-`createShadowDecal` drops on the ground beneath it. Drag to orbit; the decal reads the crate's
-position over the floor.
-
 ```js
 import { b3d, b3dBox, createShadowDecal } from 'tosijs-3d'
 import { demoStage, orbitCam } from 'tosijs-3d/demo-utils'
@@ -50,6 +46,10 @@ preview.append(scene)
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+**A floating crate, grounded by a soft blob.** No shadow map is involved — just one alpha quad
+`createShadowDecal` drops on the ground beneath it. Drag to orbit; the decal reads the crate's
+position over the floor.
 
 ## Two ways to place one
 

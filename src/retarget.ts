@@ -9,16 +9,6 @@ proportions. This makes the clips play anyway.
 
 ## Demo
 
-One clip, four bodies. On the right, UAL's own mannequin plays the original;
-then the same clip retargeted onto a Quaternius superhero (the same 65 bones,
-other proportions), omnidude (Mixamo's bones, 0.88 m tall) and a Kenney
-chibi (seven bones: one for each whole leg, arm and the torso; shown three
-times its size). Pick a clip in the panel.
-
-A chibi's arms are long for its height: hanging where the clip's hang, its
-hands would go through the floor. `armSpaceDeg` (Mixamo's "Character
-Arm-Space") turns the upper arms out from the body, and the chibi takes 55°.
-
 ```js
 import { b3d, b3dLight, assetUrl, readSkeleton, retargetClip, select3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
@@ -94,6 +84,16 @@ preview.append(
   )
 )
 ```
+
+One clip, four bodies. On the right, UAL's own mannequin plays the original;
+then the same clip retargeted onto a Quaternius superhero (the same 65 bones,
+other proportions), omnidude (Mixamo's bones, 0.88 m tall) and a Kenney
+chibi (seven bones: one for each whole leg, arm and the torso; shown three
+times its size). Pick a clip in the panel.
+
+A chibi's arms are long for its height: hanging where the clip's hang, its
+hands would go through the floor. `armSpaceDeg` (Mixamo's "Character
+Arm-Space") turns the upper arms out from the body, and the chibi takes 55°.
 
 ## How it works
 

@@ -11,8 +11,6 @@ direct references.
 
 ## Demo
 
-Open the scene panel (the owl) to spawn the library's meshes; it works in VR too.
-
 ```js
 import { b3d, b3dLibrary, placeOnSurface, label3d, list3d, button3d } from 'tosijs-3d'
 import { demoStage, orbitCam } from 'tosijs-3d/demo-utils'
@@ -84,6 +82,8 @@ preview.append(
 .preview { display: flex; flex-direction: column; height: 100%; }
 tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 ```
+
+Open the scene panel (the owl) to spawn the library's meshes; it works in VR too.
 
 ## Attributes
 

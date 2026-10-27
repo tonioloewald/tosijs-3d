@@ -37,13 +37,6 @@ preview.append(scene)
 
 ## Demo — the encoded sky
 
-A baked sky is a raster of a thing that is almost entirely empty, and the
-stars are the expensive part. The PAIR that `bakeSkyPair()` emits splits the
-sky the way the measurements argued for: nebulae (low-frequency) in a small
-smooth cube, stars and distant galaxies (points) in a DATA cube the shader
-decodes — so stars stay points at any zoom instead of being a smear baked at
-one resolution. Zoom into the band and watch them stay sharp.
-
 ```js
 import { b3d, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -72,6 +65,13 @@ const scene = b3d(
 )
 preview.append(scene)
 ```
+
+A baked sky is a raster of a thing that is almost entirely empty, and the
+stars are the expensive part. The PAIR that `bakeSkyPair()` emits splits the
+sky the way the measurements argued for: nebulae (low-frequency) in a small
+smooth cube, stars and distant galaxies (points) in a DATA cube the shader
+decodes — so stars stay points at any zoom instead of being a smear baked at
+one resolution. Zoom into the band and watch them stay sharp.
 
 ### Pin the shipped sky in a document
 

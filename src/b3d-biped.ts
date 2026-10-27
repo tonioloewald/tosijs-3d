@@ -59,21 +59,6 @@ tosi-b3d { width: 100%; height: 100%; }
 
 ## Demo — aiming and shooting
 
-**WASD** to move, **mouse / right stick** to aim, **F or the trigger** to shoot
-the cans off the wall. The white marker is where he is FACING; the orange one is
-where he is AIMING, and they are different things — which is the whole point of
-`aiming="on"`.
-
-Watch the feet. Standing, the shoulders hold a twist of up to `aimFreeYaw` and
-the legs stay planted, because that is a pose a person holds. Start walking and
-the band narrows, so the body comes round to the aim — which also means walking
-forward walks where you are looking, the strafing-shooter feel, out of one
-number rather than a movement mode.
-
-The launcher is simply NESTED. It fires along the character's aim rather than
-along its own mesh, because a gun parented to a hand inherits whatever the
-animation is doing with that hand.
-
 ```js
 import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dDestroyable, b3dLight, b3dSun, b3dSkybox, b3dGround, inputFocus, sceneDelta, label3d, slider3d, ualAnimationStates } from 'tosijs-3d'
 import { tosi } from 'tosijs'
@@ -173,6 +158,21 @@ preview.append(
 ```css
 .preview { height: 100%; }
 ```
+
+**WASD** to move, **mouse / right stick** to aim, **F or the trigger** to shoot
+the cans off the wall. The white marker is where he is FACING; the orange one is
+where he is AIMING, and they are different things — which is the whole point of
+`aiming="on"`.
+
+Watch the feet. Standing, the shoulders hold a twist of up to `aimFreeYaw` and
+the legs stay planted, because that is a pose a person holds. Start walking and
+the band narrows, so the body comes round to the aim — which also means walking
+forward walks where you are looking, the strafing-shooter feel, out of one
+number rather than a movement mode.
+
+The launcher is simply NESTED. It fires along the character's aim rather than
+along its own mesh, because a gun parented to a hand inherits whatever the
+animation is doing with that hand.
 
 
 ## Attributes

@@ -15,8 +15,6 @@ same material draws the star in a [star system](/b3d-star-system/).
 
 ## Demo
 
-Scroll to zoom, drag to orbit. The settings are in the scene panel (the owl).
-
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLight, b3dStar, b3dSphere, label3d, slider3d, toggle3d, select3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
@@ -107,6 +105,8 @@ for (const key of ['spectralClass', 'coronaSize', 'glowIntensity', 'wireframe', 
 .preview { display: flex; flex-direction: column; height: 100%; }
 tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 ```
+
+Scroll to zoom, drag to orbit. The settings are in the scene panel (the owl).
 
 ## Attributes
 

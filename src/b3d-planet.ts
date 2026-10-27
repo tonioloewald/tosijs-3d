@@ -10,8 +10,6 @@ Optional atmosphere (glow shell) and sea: land and sea are one mesh and one shad
 
 ## Demo
 
-Scroll to zoom, drag to orbit. The settings are in the scene panel (the owl).
-
 ```js
 import { b3d, spaceBackdrop, b3dLight, b3dPlanet, ROCKY_WORLDS, label3d, slider3d, toggle3d, select3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
@@ -138,6 +136,8 @@ for (const key of ['atmosphere', 'clouds', 'ocean', 'wireframe', 'rotationSpeed'
 .preview { display: flex; flex-direction: column; height: 100%; }
 tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 ```
+
+Scroll to zoom, drag to orbit. The settings are in the scene panel (the owl).
 
 ## Attributes
 

@@ -14,9 +14,6 @@ window recentres on the camera, the sun swings) — the steady state is just the
 
 ## Demo
 
-[b3d-clouds](?b3d-clouds.ts) drives this under the hood: set `castShadows` and soft cloud shadows
-drift across the ground and the crates below. Drag to orbit; watch the dark patches slide.
-
 ```js
 import { b3d, b3dClouds, b3dBox } from 'tosijs-3d'
 import { demoStage, orbitCam } from 'tosijs-3d/demo-utils'
@@ -47,6 +44,9 @@ preview.append(scene)
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+[b3d-clouds](?b3d-clouds.ts) drives this under the hood: set `castShadows` and soft cloud shadows
+drift across the ground and the crates below. Drag to orbit; watch the dark patches slide.
 
 ## Geometry-independent
 

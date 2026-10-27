@@ -123,22 +123,6 @@ tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 
 ## Demo — pause, start screens, and the VR entry gesture
 
-> **⚠️ EXPERIMENTAL.** The flat behaviour below is verified; the VR half — the
-> Continue tap carrying a user gesture into `enterXRAsync`, and taking the
-> headset off pausing — has not been through a headset yet. That's the half the
-> feature is *for*, so treat these attributes as unsettled until it has.
-
-
-A second, deliberately small scene. It starts paused with its own panel, so the
-first thing you see is a Start screen; backgrounding the tab pauses it again.
-
-The reason this shape matters is not tidiness. **`enterXRAsync` requires a user
-gesture** — a scene cannot enter VR on load, the browser refuses. So "come up
-paused, put the headset on, press Continue" is the only arrangement that
-reliably enters VR. `enterXrOnResume` closes the loop: set it on the scene below
-and the button changes to "Continue in VR" on a device that has it. Leaving VR
-pauses every scene: entering unpauses, so leaving is its inverse.
-
 ```js
 import { b3d, b3dBox, b3dSphere, label3d, button3d, select3d, sceneDelta } from 'tosijs-3d'
 import { demoStage } from 'tosijs-3d/demo-utils'
@@ -239,6 +223,21 @@ for (const [label, fn] of [
 
 preview.append(scene, readout, bar)
 ```
+
+> **⚠️ EXPERIMENTAL.** The flat behaviour above is verified; the VR half — the
+> Continue tap carrying a user gesture into `enterXRAsync`, and taking the
+> headset off pausing — has not been through a headset yet. That's the half the
+> feature is *for*, so treat these attributes as unsettled until it has.
+
+A second, deliberately small scene. It starts paused with its own panel, so the
+first thing you see is a Start screen; backgrounding the tab pauses it again.
+
+The reason this shape matters is not tidiness. **`enterXRAsync` requires a user
+gesture** — a scene cannot enter VR on load, the browser refuses. So "come up
+paused, put the headset on, press Continue" is the only arrangement that
+reliably enters VR. `enterXrOnResume` closes the loop: set it on the scene above
+and the button changes to "Continue in VR" on a device that has it. Leaving VR
+pauses every scene: entering unpauses, so leaving is its inverse.
 
 ## Usage
 

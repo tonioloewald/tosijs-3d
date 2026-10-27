@@ -11,18 +11,6 @@ you can watch it acquire, lead, and open up.
 
 ## Demo
 
-A drone **orbits** the turret; the turret tracks it, **leads** the crossing motion, and
-fires when aligned (barrel glows red when it can bear). Shots arc in and blast the drone,
-which **respawns at a fresh altitude** each time. It's fully automatic — no controls;
-just watch it acquire, engage, and correct. The **`smart` (0..1)** slider is a skill
-*curve*: at **0** it aims straight at where the target *is now* — so it whiffs the
-crossing motion and, at the default low muzzle speed, **falls short**. **Leading ramps in
-first — full by 0.5** — then **drop compensation** finishes ramping to **1**, elevating
-the barrel for gravity. So low-smart turrets lead but shoot flat; high-smart ones lead
-*and* arc their shots onto target. (0.5–1 is reserved to fold in target
-acceleration/turn-rate prediction later.) Drop the traverse rate to watch it struggle to
-keep up even when smart.
-
 ```js
 import { b3d, b3dTurret, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, sceneDelta } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -82,6 +70,18 @@ preview.append(scene)
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+A drone **orbits** the turret; the turret tracks it, **leads** the crossing motion, and
+fires when aligned (barrel glows red when it can bear). Shots arc in and blast the drone,
+which **respawns at a fresh altitude** each time. It's fully automatic — no controls;
+just watch it acquire, engage, and correct. The **`smart` (0..1)** slider is a skill
+*curve*: at **0** it aims straight at where the target *is now* — so it whiffs the
+crossing motion and, at the default low muzzle speed, **falls short**. **Leading ramps in
+first — full by 0.5** — then **drop compensation** finishes ramping to **1**, elevating
+the barrel for gravity. So low-smart turrets lead but shoot flat; high-smart ones lead
+*and* arc their shots onto target. (0.5–1 is reserved to fold in target
+acceleration/turn-rate prediction later.) Drop the traverse rate to watch it struggle to
+keep up even when smart.
 
 ## Attributes
 

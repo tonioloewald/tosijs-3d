@@ -10,10 +10,6 @@ palms at a warm shoreline.
 
 ## Demo
 
-A temperate valley in autumn. Open the settings panel (the owl): `season`
-runs the year, and the leaves turn and fall bare while the pines stay green;
-`clump` goes from an even spread to copses with open ground between them.
-
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dDecorator, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
@@ -78,6 +74,10 @@ preview.append(
 .preview { height: 100%; }
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+A temperate valley in autumn. Open the settings panel (the owl): `season`
+runs the year, and the leaves turn and fall bare while the pines stay green;
+`clump` goes from an even spread to copses with open ground between them.
 
 ## What it places, and why it matches the ground
 

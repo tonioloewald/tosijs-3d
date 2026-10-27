@@ -22,27 +22,6 @@ Two halves, and the split is the point:
 
 ## Demo — walk into cover and watch it happen
 
-**WASD / left stick** to move. The red sphere is the shooter. The marker turns
-green when you are in cover, and the readout says how much of you is hidden,
-what stance the cover demands, which side you could lean out of, and whether
-your own wall is in the way of your shot.
-
-Things worth doing:
-
-- **Stand behind the long low wall.** You are covered — crouched. Now walk to
-  its end and watch cover fall away with nothing pressed and nothing stuck.
-- **Stand behind the pillar.** Full cover, and `peek` says `both` — a pillar is
-  cover you can shoot past on either side.
-- **Walk into the corner.** The wall doing the work is not the one facing the
-  shooter, which is why `shelterFrom` searches an arc.
-- **Compare the low wall with the railing** (the one on legs). Same height, same
-  distance, no cover at all — because a shelter with a gap under it is not a
-  shelter.
-
-The rays are cast at 10Hz, not every frame, which is the budget the design
-asks for: 12 bearings × 7 heights is 84 casts, and at a walk you move 5cm
-between reads.
-
 ```js
 import { b3d, b3dSkybox, b3dController, sceneDelta, label3d, slider3d } from 'tosijs-3d'
 import { makeSurroundings, SurroundingsProbe, shelterFrom, exposure, inShelter, stanceFor, peekSide, muzzleClearance, DEFAULT_HEIGHTS } from 'tosijs-3d'
@@ -181,6 +160,27 @@ preview.append(readout)
 ```css
 .preview { height: 100%; position: relative; }
 ```
+
+**WASD / left stick** to move. The red sphere is the shooter. The marker turns
+green when you are in cover, and the readout says how much of you is hidden,
+what stance the cover demands, which side you could lean out of, and whether
+your own wall is in the way of your shot.
+
+Things worth doing:
+
+- **Stand behind the long low wall.** You are covered — crouched. Now walk to
+  its end and watch cover fall away with nothing pressed and nothing stuck.
+- **Stand behind the pillar.** Full cover, and `peek` says `both` — a pillar is
+  cover you can shoot past on either side.
+- **Walk into the corner.** The wall doing the work is not the one facing the
+  shooter, which is why `shelterFrom` searches an arc.
+- **Compare the low wall with the railing** (the one on legs). Same height, same
+  distance, no cover at all — because a shelter with a gap under it is not a
+  shelter.
+
+The rays are cast at 10Hz, not every frame, which is the budget the design
+asks for: 12 bearings × 7 heights is 84 casts, and at a walk you move 5cm
+between reads.
 
 > **WASD** to move. The marker turns green when the probe says you are in cover
 > — walk behind a block and watch it flip, then widen `reach` and watch cover

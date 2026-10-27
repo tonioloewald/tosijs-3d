@@ -13,16 +13,6 @@ can also place one and detonate it directly.
 
 ## Demo
 
-**Steer the reticle with A/D + W/S (left stick), pull the right trigger (or `F`) to
-detonate there** — the [standard controller](?b3d-controller.ts). Cubes inside the
-radius take falloff damage (they flash, and die at 0 hp).
-
-**The wall blocks line of sight, and it only runs half the width.** So one blast on the
-near side shows both halves of the rule at once: cubes on the far side *behind* the wall
-survive, while cubes on the far side *past its end* die — same distance, different
-cover. Slide the blast along the wall and watch the shadow it casts. Turn **line of
-sight** off in the settings panel and the wall stops mattering.
-
 ```js
 import { b3d, b3dController, b3dWarhead, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, toggle3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -119,6 +109,16 @@ preview.append(scene)
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+**Steer the reticle with A/D + W/S (left stick), pull the right trigger (or `F`) to
+detonate there** — the [standard controller](?b3d-controller.ts). Cubes inside the
+radius take falloff damage (they flash, and die at 0 hp).
+
+**The wall blocks line of sight, and it only runs half the width.** So one blast on the
+near side shows both halves of the rule at once: cubes on the far side *behind* the wall
+survive, while cubes on the far side *past its end* die — same distance, different
+cover. Slide the blast along the wall and watch the shadow it casts. Turn **line of
+sight** off in the settings panel and the wall stops mattering.
 
 ## Attributes
 

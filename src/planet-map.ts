@@ -9,15 +9,6 @@ planet's `heightMap` and `colorMap` and it is that world.
 
 ## Demo
 
-The Moon, Mars and the Earth from NASA's and NOAA's own measurements. Drag to
-turn them. `relief` exaggerates the heights: at 1 a planet is as smooth as a
-billiard ball, which is the truth, and somewhere past 10 it becomes a relief
-map.
-
-The Earth's weather is not part of the picture: `clouds`, `storms` (how
-many) and `storm intensity` are dials, and the cover and the cyclones are
-worked out as you watch.
-
 ```js
 import { b3d, b3dPlanet, spaceBackdrop, select3d, slider3d, label3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
@@ -106,6 +97,15 @@ preview.append(
 ```css
 .preview { height: 100%; }
 ```
+
+The Moon, Mars and the Earth from NASA's and NOAA's own measurements. Drag to
+turn them. `relief` exaggerates the heights: at 1 a planet is as smooth as a
+billiard ball, which is the truth, and somewhere past 10 it becomes a relief
+map.
+
+The Earth's weather is not part of the picture: `clouds`, `storms` (how
+many) and `storm intensity` are dials, and the cover and the cyclones are
+worked out as you watch.
 
 Credits: Moon and Mars from NASA's Scientific Visualization Studio (LRO LOLA
 and LROC; MGS MOLA and Viking); the Earth's colour from NASA's Blue Marble and

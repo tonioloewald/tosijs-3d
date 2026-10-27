@@ -7,16 +7,6 @@ value in, one value out, one undo step per gesture.
 
 ## Demo
 
-**The editor drives a real lamp.** Drag a point or a split and the light changes
-under it; flip the power SWITCH and watch the program's attack and decay play
-out on the actual scene, which is the only way to tell whether a curve you drew
-is the curve you wanted.
-
-It uses [[b3d-lamp|lightEditor3d]], which wraps this widget with the lamp's
-static properties — colour, intensity, range, shadows, type. A program editor
-alone is half a job: you can draw a perfect strike and have no way to say the
-lamp is a warm spot that casts shadows.
-
 ```js
 import {
   lightEditor3d, lightColor, panel3d, label3d,
@@ -185,6 +175,17 @@ preview.append(
   height: 100%;
 }
 ```
+
+**The editor drives a real lamp.** Drag a point or a split and the light changes
+under it; flip the power SWITCH and watch the program's attack and decay play
+out on the actual scene, which is the only way to tell whether a curve you drew
+is the curve you wanted.
+
+It uses [[b3d-lamp|lightEditor3d]], which wraps this widget with the lamp's
+static properties — colour, intensity, range, shadows, type. A program editor
+alone is half a job: you can draw a perfect strike and have no way to say the
+lamp is a warm spot that casts shadows.
+
 ## Why this is ONE widget and not six fields
 
 A program is four curves (`brightness`, `hue`, `saturation`, `range`) plus the

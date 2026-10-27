@@ -7,9 +7,6 @@ and it writes the result back.
 
 ## Demo
 
-Drag the arrows to move, the rings to turn, the cubes to scale. The pads move in
-a plane. Everything is on at once — the part you grab says what the drag means.
-
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLight, b3dGround, b3dBox, b3dManipulator, toggle3d, select3d, label3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -95,6 +92,9 @@ tosi-b3d { flex: 1; min-height: 0; width: 100%; }
   background: #0009;
 }
 ```
+
+Drag the arrows to move, the rings to turn, the cubes to scale. The pads move in
+a plane. Everything is on at once — the part you grab says what the drag means.
 
 ## Attributes
 
