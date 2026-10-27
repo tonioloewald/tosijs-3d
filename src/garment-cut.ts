@@ -174,14 +174,18 @@ A cut that closes round a limb (an arm or a leg) is made square to
 the limb, not along the outline's line through the body: a sleeve drawn over
 an arm that hangs out and forward ended in a slant. Each ring of crossed body
 edges small enough to be a limb (`LIMB_RADIUS`) is measured: the limb's axis
-is the long direction of the skin around the ring, and the vertices near it
-are re-sorted by a plane through the ring's centre, square to that axis.
+is the long direction of the skin around the ring (measured over three
+radii each way, or a thick knee reads as across the leg), and the vertices
+near it are re-sorted by a plane through the ring's centre, square to that
+axis. A limb within 30 degrees of square to the drawn line (a leg under a
+level hem) keeps the line.
 Bigger rings (a waist, a hem round the hips) and rings on the centre line
 (a neckline) keep the outline's line.
 */
 const LIMB_RADIUS = 0.09
 const LIMB_REACH = 0.07
 const LIMB_OFF_CENTRE = 0.06
+const LIMB_SQUARE_DEG = 30
 
 function squareLimbCuts(
   P: ArrayLike<number>,
@@ -265,7 +269,7 @@ function squareLimbCuts(
       for (let v = 0; v < n; v++) {
         const d = [P[v * 3] - c[0], P[v * 3 + 1] - c[1], P[v * 3 + 2] - c[2]]
         const along = d[0] * a[0] + d[1] * a[1] + d[2] * a[2]
-        if (Math.abs(along) > LIMB_REACH) continue
+        if (Math.abs(along) > Math.max(LIMB_REACH, radius * 3)) continue
         const off = Math.hypot(
           d[0] - along * a[0],
           d[1] - along * a[1],
@@ -280,6 +284,20 @@ function squareLimbCuts(
       a = [axis[0] * sign, axis[1] * sign, axis[2] * sign]
     }
     if (a == null) continue
+    // The drawn cut's own plane: the ring of crossings is flat in it.
+    const drawn = flatNormal(
+      ids.map((i) => {
+        const p = at(ends[i][0])
+        const q = at(ends[i][1])
+        return [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2, (p[2] + q[2]) / 2]
+      })
+    )
+    // A limb close to square to the line already (a leg under a level hem)
+    // keeps the line: the axis is least sure there (it bends at a knee).
+    if (drawn) {
+      const cos = Math.abs(drawn[0] * a[0] + drawn[1] * a[1] + drawn[2] * a[2])
+      if (cos > Math.cos((LIMB_SQUARE_DEG * Math.PI) / 180)) continue
+    }
     const plane: LimbPlane = { c, a, key: `limb${root}` }
     for (const v of near) {
       const along =
@@ -306,6 +324,27 @@ function norm(
 ): [number, number, number] | null {
   const l = Math.hypot(v[0], v[1], v[2])
   return l > 1e-9 ? [v[0] / l, v[1] / l, v[2] / l] : null
+}
+
+/** The normal of the plane points lie closest to (the direction they spread least). */
+function flatNormal(pts: number[][]): [number, number, number] | null {
+  if (pts.length < 3) return null
+  const m = [0, 0, 0]
+  for (const q of pts) for (let k = 0; k < 3; k++) m[k] += q[k] / pts.length
+  const C = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+  for (const q of pts)
+    for (let i = 0; i < 3; i++)
+      for (let j = 0; j < 3; j++) C[i * 3 + j] += (q[i] - m[i]) * (q[j] - m[j])
+  // Power iteration on (trace I - C) finds C's smallest axis.
+  const tr = C[0] + C[4] + C[8]
+  let x: [number, number, number] | null = [0.2, 0.9, 0.3]
+  for (let k = 0; k < 60 && x; k++)
+    x = norm([
+      (tr - C[0]) * x[0] - C[1] * x[1] - C[2] * x[2],
+      -C[3] * x[0] + (tr - C[4]) * x[1] - C[5] * x[2],
+      -C[6] * x[0] - C[7] * x[1] + (tr - C[8]) * x[2],
+    ])
+  return x
 }
 
 /** The direction the points spread furthest (power iteration on their covariance). */

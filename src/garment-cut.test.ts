@@ -257,5 +257,28 @@ describe.skipIf(!existsSync(PACK))('hm08 trousers', () => {
     // Open: two hems, the waist and the bottom.
     expect(g.hems.length).toBe(2)
   })
+
+  test('a level hem across a leg stays level, at the knee too', async () => {
+    const pack = await loadHumanPack(PACK, fromDisk)
+    const P = pack.positions
+    for (const y of [-0.2, -0.4, -0.6]) {
+      const g = cutGarment(P, pack.triangles, {
+        front: mirrorOutline([
+          [
+            [0, 0.1],
+            [0.25, 0.1],
+            [0.25, y],
+            [0, y],
+          ],
+        ]),
+      })
+      for (const h of g.hems)
+        for (const r of h) {
+          let py = 0
+          for (let c = 0; c < 3; c++) py += P[g.ref[r * 3 + c] * 3 + 1] * g.weight[r * 3 + c]
+          if (py < 0) expect(Math.abs(py - y)).toBeLessThan(0.002)
+        }
+    }
+  })
 })
 
