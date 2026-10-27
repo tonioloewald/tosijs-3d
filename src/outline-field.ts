@@ -84,6 +84,13 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
     config.indices,
     'front'
   )
+  // Room around the body, so an outline can reach past it: one drawn to the
+  // edge of the soles, the hands or the crown would leave them uncovered.
+  const MARGIN = 0.04
+  const view = {
+    min: { u: front.min.u - MARGIN, v: front.min.v - MARGIN },
+    max: { u: front.max.u + MARGIN, v: front.max.v + MARGIN },
+  }
   const symmetry = config.symmetry ?? true
   let shapes = copy(config.value ?? [])
   // The shape being clicked out, not yet closed (index into shapes), if any.
@@ -116,14 +123,14 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
   let left = 0
   let viewW = 0
   let viewH = 0
-  const fx = (x: number) => left + (x - front.min.u) * scale
-  const py = (y: number) => top + (front.max.v - y) * scale
-  const toX = (px: number) => front.min.u + (px - left) / scale
-  const toY = (pv: number) => front.max.v - (pv - top) / scale
+  const fx = (x: number) => left + (x - view.min.u) * scale
+  const py = (y: number) => top + (view.max.v - y) * scale
+  const toX = (px: number) => view.min.u + (px - left) / scale
+  const toY = (pv: number) => view.max.v - (pv - top) / scale
 
   const place = (px: number, pv: number): ViewPoint => {
-    let x = Math.max(front.min.u, Math.min(front.max.u, toX(px)))
-    const y = Math.max(front.min.v, Math.min(front.max.v, toY(pv)))
+    let x = Math.max(view.min.u, Math.min(view.max.u, toX(px)))
+    const y = Math.max(view.min.v, Math.min(view.max.v, toY(pv)))
     if (symmetry) {
       x = Math.abs(x)
       if (x * scale < SNAP) x = 0
@@ -270,8 +277,8 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
     layout(width: number) {
       const pad = Math.max(2, Math.round(w3dTheme.spacing * 0.5))
       const capH = Math.round(w3dTheme.fontSize * 1.3)
-      const W = front.max.u - front.min.u || 1
-      const H = front.max.v - front.min.v || 1
+      const W = view.max.u - view.min.u || 1
+      const H = view.max.v - view.min.v || 1
       scale = Math.max(
         0.01,
         Math.min((width - pad * 2 - 8) / W, (config.maxHeight ?? 260) / H)
