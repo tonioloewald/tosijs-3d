@@ -137,7 +137,7 @@ preview.append(
                 )
               ),
               slider3d({ label: 'thickness', value: walker.tailorThickness, min: 0.001, max: 0.02, step: 0.001 }),
-              // Round the outline at each height: skirts, kilts, robes, ponchos.
+              // Round the outline at each height: skirts, kilts, robes.
               toggle3d({ label: 'skirt', value: walker.tailorSkirt }),
               select3d({ label: 'fabric', value: walker.tailorFabric, options: FABRIC_OPTIONS }),
               colorPicker3d({ label: 'colour', value: walker.tailorColour, alpha: false }),
