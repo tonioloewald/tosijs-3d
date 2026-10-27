@@ -75,6 +75,7 @@ preview.append(
         slider('age', 'age'),
         slider('muscle', 'muscle'),
         slider('weight', 'weight'),
+        slider('waist', 'waist'),
         slider('height', 'height'),
         slider('chest depth', 'chestDepth'),
         slider('pecs', 'pecs'),
@@ -210,7 +211,7 @@ preview.append(
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
 
-        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 15)).catch((e) => {
+        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 16)).catch((e) => {
           el.setLoading(`could not load the body: ${e.message}`, { spin: false })
           throw e
         })

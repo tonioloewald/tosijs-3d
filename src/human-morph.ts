@@ -19,6 +19,7 @@ The sliders, each from 0 to 1:
 - **muscle** and **weight**: least at 0, average at 0.5, most at 1
 - **height**: shortest at 0, average for the rest of the body at 0.5, tallest at 1
 - **proportions**: uncommon at 0, neutral at 0.5, ideal at 1
+- **waist**: narrowest at 0, as the rest of the body has it at 0.5, widest at 1
 
 `african`, `asian` and `caucasian` are an ancestry MIX, normalised to sum to 1
 (all zero is an even mix).
@@ -50,6 +51,8 @@ export interface MacroBody {
   chestDepth?: number
   /** Pectoral muscle, 0.5 neutral. */
   pecs?: number
+  /** Waist circumference, 0.5 neutral (MakeHuman's measure-waist-circ). */
+  waist?: number
   /** Bust size (cup), 0.5 average; applies in proportion to how female the body is. */
   bustSize?: number
   /** Bust firmness, 0.5 average. */
@@ -68,6 +71,7 @@ export const DEFAULT_HUMAN_BODY: Readonly<MacroBody> = Object.freeze({
   caucasian: 1 / 3,
   chestDepth: 0.5,
   pecs: 0.5,
+  waist: 0.5,
   bustSize: 0.5,
   bustFirmness: 0.5,
 })
@@ -225,6 +229,10 @@ export function macroWeights(
   }
   for (const [t, w] of bipolar(body.pecs ?? 0.5, 'decr', 'incr')) {
     add(`torso/torso-muscle-pectoral-${t}`, w)
+  }
+  // The waist on its own: the weight macros barely narrow a woman's.
+  for (const [t, w] of bipolar(body.waist ?? 0.5, 'decr', 'incr')) {
+    add(`measure/measure-waist-circ-${t}`, w)
   }
   return out
 }

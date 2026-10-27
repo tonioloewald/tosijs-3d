@@ -186,6 +186,41 @@ describe.skipIf(!havePack)('hm08 chest and bust', () => {
       )
     expect(await f(1)).toBeGreaterThan((await f(0)) + 0.01)
   })
+  test('the waist slider narrows the waist', async () => {
+    const pack = await loadHumanPack(PACK, fromDisk)
+    if (!pack.has('measure/measure-waist-circ-decr')) return
+    const used = new Set<number>(pack.triangles)
+    // Width and depth of the torso in a band at the waist (64% of height).
+    const girth = async (waist: number) => {
+      const p = await morphHuman(
+        pack,
+        macroWeights({ ...DEFAULT_HUMAN_BODY, gender: 0, waist }, (n) =>
+          pack.has(n)
+        )
+      )
+      let lo = Infinity
+      let hi = -Infinity
+      for (const v of used) {
+        lo = Math.min(lo, p[v * 3 + 1])
+        hi = Math.max(hi, p[v * 3 + 1])
+      }
+      const y = lo + (hi - lo) * 0.645
+      let x = 0
+      let z0 = Infinity
+      let z1 = -Infinity
+      for (const v of used) {
+        if (Math.abs(p[v * 3 + 1] - y) > 0.005 || Math.abs(p[v * 3]) > 0.17)
+          continue
+        x = Math.max(x, Math.abs(p[v * 3]))
+        z0 = Math.min(z0, p[v * 3 + 2])
+        z1 = Math.max(z1, p[v * 3 + 2])
+      }
+      return x * 2 + (z1 - z0)
+    }
+    const mid = await girth(0.5)
+    expect(await girth(0)).toBeLessThan(mid - 0.03)
+    expect(await girth(1)).toBeGreaterThan(mid + 0.03)
+  })
 })
 
 describe.skipIf(!havePack)('hm08, rigged from its joint cubes', () => {
