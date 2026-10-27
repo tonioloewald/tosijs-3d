@@ -1156,3 +1156,17 @@ SHAPE still jumps in size; that is a resize, not a blank frame.
 
 Lesson for testing: a timing bug of this kind does not exist at laptop speed.
 `bun bin/xr-emulate.ts … --cpu 4` slows the page while the scripts run.
+
+## A good trackpad hides a bad default (2026-10-27)
+
+Babylon's orbit camera zooms by a FIXED step, about 0.8 m a mouse notch. On a
+Mac trackpad, whose pinch sends many tiny, smooth wheel events, that felt fine;
+on a Windows PC trackpad, which sends fewer and coarser ones, the character
+builder went from its default view to far too close in one or two events and
+nothing in between could be reached. `touchOrbit` now zooms by a share of the
+distance (1% per unit of wheel delta, Babylon's `wheelDeltaPercentage`), which
+is the same feel at arm's length and across a field.
+
+The lesson is about where to test, not about zoom: the best input hardware
+smooths over defaults that are genuinely bad. Try a control on a mediocre
+mouse and a PC trackpad before calling its feel done.
