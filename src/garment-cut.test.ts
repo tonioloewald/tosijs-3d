@@ -280,5 +280,36 @@ describe.skipIf(!existsSync(PACK))('hm08 trousers', () => {
         }
     }
   })
+
+  test('a neckline drawn level is cut lower in front than behind', async () => {
+    const pack = await loadHumanPack(PACK, fromDisk)
+    const P = pack.positions
+    const g = cutGarment(P, pack.triangles, {
+      front: mirrorOutline([
+        [
+          [0, 0.25],
+          [0.75, 0.25],
+          [0.75, 0.62],
+          [0, 0.62],
+        ],
+      ]),
+    })
+    const pt = (r: number) => {
+      const q = [0, 0, 0]
+      for (let c = 0; c < 3; c++)
+        for (let k = 0; k < 3; k++)
+          q[k] += P[g.ref[r * 3 + c] * 3 + k] * g.weight[r * 3 + c]
+      return q
+    }
+    const neck = g.hems
+      .map((h) => h.map(pt))
+      .find((pts) => pts.every((q) => Math.abs(q[0]) < 0.09 && q[1] > 0.5))!
+    const zs = neck.map((q) => q[2])
+    const mid = (Math.min(...zs) + Math.max(...zs)) / 2
+    const avg = (a: number[][]) => a.reduce((s, q) => s + q[1], 0) / a.length
+    const front = avg(neck.filter((q) => q[2] > mid + 0.02))
+    const back = avg(neck.filter((q) => q[2] < mid - 0.02))
+    expect(back - front).toBeGreaterThan(0.01)
+  })
 })
 

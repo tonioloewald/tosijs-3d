@@ -18,7 +18,9 @@ do ([proxy-fit](/proxy-fit/)).
   so the hem has no cracks.
 - A cut that goes **round a limb** (a sleeve, a trouser leg) is square to
   the limb, wherever the outline's line crosses it; a cut round the body
-  or the neck (a waist, a hem, a neckline) follows the line.
+  (a waist, a hem) follows the line. A neckline drawn level is cut a little
+  lower in front than behind (15°), as most are; a V or a scoop is cut as
+  drawn.
 - `thickness` pushes the cloth out along the body's normals; `ease` relaxes it
   across creases (between the legs, under the buttocks), so cloth bridges a
   hollow instead of following the skin into it.
@@ -258,9 +260,20 @@ function squareLimbCuts(
       const p = at(ends[i][0])
       radius = Math.max(radius, Math.hypot(p[0] - c[0], p[1] - c[1], p[2] - c[2]))
     }
-    // Arms and legs only: a ring on the centre line is a neck (or a
-    // waist), and a neckline is the line as drawn.
-    if (radius > LIMB_RADIUS || Math.abs(c[0]) < LIMB_OFF_CENTRE) continue
+    // Arms and legs are squared; a ring on the centre line is a neck, and
+    // only dropped in front if drawn level.
+    if (radius > LIMB_RADIUS) continue
+    if (Math.abs(c[0]) < LIMB_OFF_CENTRE) {
+      const neck = neckPlane(P, ids.map((i) => ends[i]), c, inC, outC, radius)
+      if (neck) {
+        const plane: LimbPlane = { c, a: neck.a, key: `neck${root}` }
+        for (const v of neck.near) {
+          inside[v] = dot3(P, v, c, neck.a) > 0 ? 1 : 0
+          planeOf(planes, v, plane)
+        }
+      }
+      continue
+    }
     // First guess at the axis: from the outside of the ring to the inside.
     let a: [number, number, number] | null = norm([inC[0] - outC[0], inC[1] - outC[1], inC[2] - outC[2]])
     if (a == null) continue
@@ -311,6 +324,59 @@ function squareLimbCuts(
     }
   }
   return planes
+}
+
+/*
+A NECKLINE drawn level is cut lower in front: hm08's neck leans forward, so a
+ring level in the world rose toward the front, and most necklines do the
+opposite. Only a ring that is flat and level as drawn is tilted; a V or a
+scoop keeps the shape it was drawn with.
+*/
+const NECK_DROP_DEG = 15
+
+function dot3(
+  P: ArrayLike<number>,
+  v: number,
+  c: number[],
+  a: number[]
+): number {
+  return (
+    (P[v * 3] - c[0]) * a[0] +
+    (P[v * 3 + 1] - c[1]) * a[1] +
+    (P[v * 3 + 2] - c[2]) * a[2]
+  )
+}
+
+function neckPlane(
+  P: ArrayLike<number>,
+  ends: [number, number][],
+  c: [number, number, number],
+  inC: number[],
+  outC: number[],
+  radius: number
+): { a: [number, number, number]; near: number[] } | null {
+  // The garment is below the cut (a neckline, not a hood).
+  if (inC[1] >= outC[1]) return null
+  // Level as drawn: one height crosses every edge of the ring.
+  let lo = -Infinity
+  let hi = Infinity
+  for (const [p, q] of ends) {
+    lo = Math.max(lo, Math.min(P[p * 3 + 1], P[q * 3 + 1]))
+    hi = Math.min(hi, Math.max(P[p * 3 + 1], P[q * 3 + 1]))
+  }
+  if (lo > hi) return null
+  const t = Math.tan((NECK_DROP_DEG * Math.PI) / 180)
+  // Inside is below a plane that falls toward the front (+Z).
+  const a = norm([0, -1, -t])!
+  const near: number[] = []
+  const n = P.length / 3
+  for (let v = 0; v < n; v++) {
+    const dy = P[v * 3 + 1] - c[1]
+    if (Math.abs(dy) > LIMB_REACH) continue
+    if (Math.hypot(P[v * 3] - c[0], P[v * 3 + 2] - c[2]) < radius * 1.3)
+      near.push(v)
+  }
+  return { a, near }
 }
 
 function planeOf(
