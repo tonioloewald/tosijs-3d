@@ -193,8 +193,30 @@ export class SkinShadingPlugin extends BABYLON.MaterialPluginBase {
   }
 
   getCustomCode(shaderType: string): { [pointName: string]: string } | null {
+    /*
+    Thinness rides in the vertex colour's alpha, but Babylon drops that alpha
+    before the fragment shader unless the mesh BLENDS by vertex alpha
+    (vColor.a is then 1), which read every vertex as paper-thin and lit a
+    whole body from behind. So it gets its own varying.
+    */
+    if (shaderType === 'vertex')
+      return {
+        CUSTOM_VERTEX_DEFINITIONS: `#ifdef SKINSHADE
+        varying float vSkinThin;
+      #endif`,
+        CUSTOM_VERTEX_MAIN_END: `#ifdef SKINSHADE
+        #ifdef VERTEXCOLOR
+          vSkinThin = color.a;
+        #else
+          vSkinThin = 0.0;
+        #endif
+      #endif`,
+      }
     if (shaderType !== 'fragment') return null
     return {
+      CUSTOM_FRAGMENT_DEFINITIONS: `#ifdef SKINSHADE
+        varying float vSkinThin;
+      #endif`,
       CUSTOM_FRAGMENT_BEFORE_FOG: `#ifdef SKINSHADE
       {
         vec3 sL = normalize(skinSun.xyz);
@@ -210,10 +232,7 @@ export class SkinShadingPlugin extends BABYLON.MaterialPluginBase {
         float sRim = pow(1.0 - clamp(dot(sN, sV), 0.0, 1.0), 3.0);
         sAdd += finalColor.rgb * sRim * skinTerms.y * (0.4 + 0.6 * max(0.0, sNL + 0.3));
         // Back-light through thin parts, when looking toward the light.
-        float sThin = 0.0;
-        #ifdef VERTEXCOLOR
-          sThin = vColor.a;
-        #endif
+        float sThin = vSkinThin;
         float sBack = pow(max(0.0, dot(-sV, sL)), 3.0) * max(0.0, -sNL + 0.2);
         sAdd += skinSunColor.rgb * skinSun.w * sBack * sThin * skinTerms.z;
         finalColor.rgb += sAdd;
