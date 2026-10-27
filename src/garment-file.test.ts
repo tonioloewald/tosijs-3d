@@ -87,6 +87,58 @@ describe('garment-file', () => {
     expect(json.nodes[1].extras.helper).toBe(true)
   })
 
+  test('the material comes back with its maps, as Blender would export it', () => {
+    const png = (n: number) => ({
+      bytes: Uint8Array.from([0x89, 0x50, 0x4e, 0x47, n]),
+      mimeType: 'image/png',
+    })
+    const material = {
+      name: 'denim',
+      baseColor: [0.5, 0.4, 0.3, 1] as [number, number, number, number],
+      baseColorTexture: png(1),
+      normalTexture: png(2),
+      normalScale: 0.7,
+      metallicRoughnessTexture: { ...png(3), mimeType: 'image/jpeg' },
+      roughness: 0.8,
+      metallic: 0,
+      alphaMode: 'MASK' as const,
+      alphaCutoff: 0.3,
+      doubleSided: true,
+    }
+    const back = readGarment(
+      writeGarmentGlb({ garment, body, meta, material })
+    )
+    expect(back.materialCount).toBe(1)
+    const m = back.material!
+    expect(Array.from(m.baseColorTexture!.bytes)).toEqual([
+      0x89, 0x50, 0x4e, 0x47, 1,
+    ])
+    expect(Array.from(m.normalTexture!.bytes).at(-1)).toBe(2)
+    expect(m.metallicRoughnessTexture!.mimeType).toBe('image/jpeg')
+    const {
+      baseColorTexture: _bc,
+      normalTexture: _nt,
+      metallicRoughnessTexture: _mr,
+      ...rest
+    } = m
+    const {
+      baseColorTexture: _b,
+      normalTexture: _n,
+      metallicRoughnessTexture: _r,
+      ...want
+    } = material
+    expect(rest).toEqual(want)
+    // The geometry is unharmed by the images in the same buffer.
+    expect(Array.from(back.garment.uvs!)).toEqual(Array.from(garment.uvs))
+    // Without one: the plain colour, opaque, one-sided.
+    const plain = readGarment(writeGarmentGlb({ garment, meta })).material!
+    expect(plain.baseColorTexture).toBeNull()
+    expect(plain.alphaMode).toBe('OPAQUE')
+    expect(plain.doubleSided).toBe(false)
+    // An OBJ carries none.
+    expect(readGarment(writeGarmentObj({ garment, meta })).material).toBeUndefined()
+  })
+
   test('the body alone: what is modelled beside it comes back with its metadata', () => {
     const glb = writeGarmentGlb({ body, meta })
     expect(() => readGarment(glb)).toThrow(/only the body/)

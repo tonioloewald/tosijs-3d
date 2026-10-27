@@ -68,6 +68,30 @@ export function proxyMaterial(
       m.alphaCutOff = 0.4
     }
   }
+  // What a garment from a file brings (garment-file).
+  const pm = proxy.material
+  if (pm.roughness != null) m.roughness = pm.roughness
+  if (pm.metallic != null) m.metallic = pm.metallic
+  if (pm.baseColor) {
+    const [r, g, b, a] = pm.baseColor
+    m.albedoColor = new BABYLON.Color3(r, g, b)
+    m.alpha = a
+  }
+  if (pm.metallicRoughness) {
+    m.metallicTexture = new BABYLON.Texture(pm.metallicRoughness, scene)
+    m.useRoughnessFromMetallicTextureGreen = true
+    m.useMetallnessFromMetallicTextureBlue = true
+    m.useRoughnessFromMetallicTextureAlpha = false
+  }
+  if (m.bumpTexture && pm.normalScale != null) m.bumpTexture.level = pm.normalScale
+  if (pm.baseColor) {
+    // glTF's normal maps are OpenGL's (green up), on a mesh mirrored into
+    // Babylon's left-handed scene, with V flipped to the OBJ convention.
+    m.invertNormalMapX = true
+    m.invertNormalMapY = true
+  }
+  if (pm.blend) m.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND
+  if (pm.alphaCutoff != null) m.alphaCutOff = pm.alphaCutoff
   m.backFaceCulling = !proxy.material.twoSided
   return m
 }

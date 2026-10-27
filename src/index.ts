@@ -1837,6 +1837,8 @@ export type {
   GarmentMesh,
   GarmentMeta,
   GarmentFileContent,
+  GarmentMaterial,
+  GarmentImage,
 } from './garment-file.js'
 export type { OutlineField, OutlineField3dOptions } from './outline-field.js'
 export type { GarmentCut, GarmentCutOptions, ViewPoint } from './garment-cut.js'

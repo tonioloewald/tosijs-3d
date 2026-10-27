@@ -22,6 +22,18 @@ Coordinates are the pack's and glTF's own: metres, +Y up, the body facing
 +Z with its left on +X, so nothing is converted. Blender's glTF importer turns
 that into its Z-up and its exporter turns it back.
 
+The garment's **material** comes back too (`material`): it is glTF's own
+metallic-roughness material, which is what Blender's Principled BSDF exports,
+so a surface is made in Blender and not here. Plug images into Base Color
+(its alpha is the garment's alpha), Normal (through a Normal Map node) and
+Roughness (and Metallic); set the material's blend mode to Alpha Clip or
+Alpha Blend for a cut-out or see-through one. The exporter packs roughness
+and metalness into one image, and the images travel inside the GLB. Where the
+parts use several materials, the first part's is the one read
+(`materialCount` says how many there were). A garment cut from the body has
+UVs in metres, its front view (front and back share them), which suits a
+tiling fabric; unwrap it in Blender for a map painted to the garment.
+
 Leave out the `garment` to export the body alone, to model a garment from
 nothing: every object you add beside it comes back as the garment. The body
 carries the metadata then.
@@ -139,12 +151,52 @@ export interface GarmentMeta {
   body?: Record<string, number>
   name?: string
   slot?: string
+  /** The outline it was cut from (garment-cut), to edit it again. */
+  cut?: { shapes: unknown; thickness: number }
+  /** How it was worn when saved: a fabric preset, a colour, the recolour. */
+  look?: { fabric?: string; colour?: string; recolour?: number }
+}
+
+/** An image as it sits in the file: its bytes and type (`image/png`). */
+export interface GarmentImage {
+  bytes: Uint8Array
+  mimeType: string
+}
+
+/**
+ * A garment's surface, as glTF's metallic-roughness material: what Blender's
+ * Principled BSDF exports. Colours are linear; each map is optional.
+ */
+export interface GarmentMaterial {
+  name?: string
+  /** Linear RGBA, multiplying the base colour map. */
+  baseColor?: [number, number, number, number]
+  /** The diffuse map; its alpha is the garment's alpha. */
+  baseColorTexture?: GarmentImage | null
+  /** A tangent-space normal map (OpenGL convention, as glTF has it). */
+  normalTexture?: GarmentImage | null
+  normalScale?: number
+  /** Roughness in green, metalness in blue (glTF's packing). */
+  metallicRoughnessTexture?: GarmentImage | null
+  roughness?: number
+  metallic?: number
+  /** OPAQUE, MASK (cut out at `alphaCutoff`) or BLEND. */
+  alphaMode?: 'OPAQUE' | 'MASK' | 'BLEND'
+  alphaCutoff?: number
+  doubleSided?: boolean
 }
 
 export interface GarmentFileContent {
   garment: GarmentMesh
   /** Null when the file carried none (an OBJ, or Blender without custom properties). */
   meta: GarmentMeta | null
+  /**
+   * The garment's material, from a GLB (null from an OBJ, or with none). Where
+   * its parts have several, the first part's.
+   */
+  material?: GarmentMaterial | null
+  /** How many different materials the garment's parts use. */
+  materialCount?: number
 }
 
 const GLB_MAGIC = 0x46546c67
@@ -161,6 +213,8 @@ export function writeGarmentGlb(options: {
   meta: GarmentMeta
   /** sRGB colours for the two materials, so the file reads in an editor. */
   colour?: [number, number, number]
+  /** The garment's material, maps and all (it replaces `colour`). */
+  material?: GarmentMaterial | null
 }): Uint8Array {
   const views: { offset: number; length: number; target?: number }[] = []
   const accessors: any[] = []
@@ -263,21 +317,55 @@ export function writeGarmentGlb(options: {
       },
     })
   }
-  const json = {
+  // The garment's maps, as images in the binary chunk.
+  const images: any[] = []
+  const textures: any[] = []
+  const image = (img: GarmentImage | null | undefined) => {
+    if (!img) return undefined
+    views.push({ offset: length, length: img.bytes.length })
+    parts.push(img.bytes)
+    length += img.bytes.length
+    const pad = (4 - (length % 4)) % 4
+    if (pad) {
+      parts.push(new Uint8Array(pad))
+      length += pad
+    }
+    images.push({ bufferView: views.length - 1, mimeType: img.mimeType })
+    textures.push({ source: images.length - 1 })
+    return { index: textures.length - 1 }
+  }
+  const gm = options.material
+  const garmentMaterial: any = {
+    name: gm?.name ?? 'garment',
+    pbrMetallicRoughness: {
+      baseColorFactor: gm?.baseColor ?? [...colour.map(lin), 1],
+      metallicFactor: gm?.metallic ?? 0,
+      roughnessFactor: gm?.roughness ?? 0.9,
+    },
+  }
+  if (gm) {
+    const pbr = garmentMaterial.pbrMetallicRoughness
+    const base = image(gm.baseColorTexture)
+    if (base) pbr.baseColorTexture = base
+    const mr = image(gm.metallicRoughnessTexture)
+    if (mr) pbr.metallicRoughnessTexture = mr
+    const normal = image(gm.normalTexture)
+    if (normal)
+      garmentMaterial.normalTexture = { ...normal, scale: gm.normalScale ?? 1 }
+    if (gm.alphaMode && gm.alphaMode !== 'OPAQUE')
+      garmentMaterial.alphaMode = gm.alphaMode
+    if (gm.alphaMode === 'MASK' && gm.alphaCutoff != null)
+      garmentMaterial.alphaCutoff = gm.alphaCutoff
+    if (gm.doubleSided) garmentMaterial.doubleSided = true
+  }
+  const json: any = {
     asset: { version: '2.0', generator: 'tosijs-3d garment-file' },
     scene: 0,
     scenes: [{ nodes: nodes.map((_, i) => i), extras }],
     nodes,
     meshes,
     materials: [
-      {
-        name: 'garment',
-        pbrMetallicRoughness: {
-          baseColorFactor: [...colour.map(lin), 1],
-          metallicFactor: 0,
-          roughnessFactor: 0.9,
-        },
-      },
+      garmentMaterial,
       {
         name: 'body-reference',
         pbrMetallicRoughness: {
@@ -298,6 +386,10 @@ export function writeGarmentGlb(options: {
       target: v.target,
     })),
     buffers: [{ byteLength: length }],
+  }
+  if (images.length) {
+    json.images = images
+    json.textures = textures
   }
   let text = new TextEncoder().encode(JSON.stringify(json))
   const jsonPad = (4 - (text.length % 4)) % 4
@@ -474,6 +566,8 @@ function readGlb(bytes: Uint8Array): GarmentFileContent {
   let hasNormals = true
   let anyUvs = false
   let anyRigid = false
+  // In the order the parts use them.
+  const materialsUsed = new Set<number>()
   for (const { n, i } of withMesh) {
     const m = world.get(i) ?? identity
     const mesh = json.meshes[n.mesh]
@@ -486,6 +580,7 @@ function readGlb(bytes: Uint8Array): GarmentFileContent {
     const partFirst = positions.length / 3
     for (const prim of mesh.primitives) {
       if ((prim.mode ?? 4) !== 4) continue
+      if (prim.material != null) materialsUsed.add(prim.material)
       const first = positions.length / 3
       const p = read(prim.attributes.POSITION)
       const count = p.length / 3
@@ -551,6 +646,7 @@ function readGlb(bytes: Uint8Array): GarmentFileContent {
   const named = json.nodes.find(
     (n: any) => isReference(n) && metaFromName(n.name ?? '')
   )
+  const [first] = materialsUsed
   const meta = holder
     ? stripRole(holder.tosijs)
     : named
@@ -566,6 +662,43 @@ function readGlb(bytes: Uint8Array): GarmentFileContent {
       rigid: anyRigid ? Float32Array.from(rigid) : null,
     },
     meta,
+    material: first == null ? null : glbMaterial(json, first, bin),
+    materialCount: materialsUsed.size,
+  }
+}
+
+/** A glTF material as a `GarmentMaterial`, its images copied out of the file. */
+function glbMaterial(
+  json: any,
+  index: number,
+  bin: Uint8Array | null
+): GarmentMaterial | null {
+  const m = json.materials?.[index]
+  if (m == null) return null
+  const image = (ref: any): GarmentImage | null => {
+    const source = json.textures?.[ref?.index]?.source
+    const img = source == null ? null : json.images?.[source]
+    if (img?.bufferView == null || bin == null) return null
+    const view = json.bufferViews[img.bufferView]
+    const at = view.byteOffset ?? 0
+    return {
+      bytes: bin.slice(at, at + view.byteLength),
+      mimeType: img.mimeType ?? 'image/png',
+    }
+  }
+  const pbr = m.pbrMetallicRoughness ?? {}
+  return {
+    name: m.name,
+    baseColor: pbr.baseColorFactor ?? [1, 1, 1, 1],
+    baseColorTexture: image(pbr.baseColorTexture),
+    normalTexture: image(m.normalTexture),
+    normalScale: m.normalTexture?.scale ?? 1,
+    metallicRoughnessTexture: image(pbr.metallicRoughnessTexture),
+    roughness: pbr.roughnessFactor ?? 1,
+    metallic: pbr.metallicFactor ?? 1,
+    alphaMode: m.alphaMode ?? 'OPAQUE',
+    alphaCutoff: m.alphaCutoff ?? 0.5,
+    doubleSided: m.doubleSided === true,
   }
 }
 

@@ -36,11 +36,22 @@ New objects come in as part of the garment. Anything hard (a knee pad, a
 plate, a visor) gets a `rigid` custom property so it keeps its shape instead
 of bulging with the body under it ([proxy-rigid](/proxy-rigid/)).
 
+Its surface is made in Blender too: the garment's material comes back with
+its base colour, normal, roughness and alpha maps, and fabric **as made**
+with **recolour** at 0 shows it untouched. Recolour above 0 tints the base
+colour map, read as grey.
+
+**Hide other clothes** shows the garment on its own. **Name** it, pick its
+**slot** and **save as an option**: it is kept in this browser and becomes a
+choice in that slot like MakeHuman's own, with the fabric and colour it was
+saved with. A saved cut can be **edit**ed again from its outline; **forget**
+removes it.
+
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorFabric: 'cotton', tailorColour: '#3b5b8a', exportBody: true } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorFabric: 'cotton', tailorColour: '#3b5b8a', tailorRecolour: 1, tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true } })
 let mat = null
 let paint = () => {}
 let eyes = null
@@ -67,10 +78,17 @@ let tailorBody = null
 let tailorField = null
 // Garments brought back from an editor (garment-file), worn alongside.
 let imported = []
-// Why the last import failed, shown under the button.
+// Why the last import or save failed, shown under the buttons.
 let importError = ''
 let exportGarment = () => {}
 let importGarment = () => {}
+// Garments you named and saved (kept in this browser), worn from their slot.
+const custom = new Map()
+let saveGarment = () => {}
+let forgetGarment = () => {}
+let editGarment = () => {}
+// 'as made' leaves a garment's own surface (a file's roughness map) alone.
+const FABRIC_OPTIONS = ['as made', ...Object.keys(FABRICS)]
 
 const slider = (label, key) =>
   slider3d({ label, value: walker[key], min: 0, max: 1, step: 0.01 })
@@ -129,18 +147,30 @@ preview.append(
         ...(Object.keys(packProxies[walker[walker.editing.value].value]?.material?.looks ?? {}).length
           ? [select3d({ label: 'look', value: walker.look, options: ['as made', ...Object.keys(packProxies[walker[walker.editing.value].value].material.looks)] })]
           : []),
-        select3d({ label: 'fabric', value: walker.fabric, options: Object.keys(FABRICS) }),
+        select3d({ label: 'fabric', value: walker.fabric, options: FABRIC_OPTIONS }),
         colorPicker3d({ label: 'colour', value: walker.colour, alpha: false }),
         slider3d({ label: 'recolour', value: walker.recolour, min: 0, max: 1, step: 0.01 }),
         label3d({ text: 'Tailor', collapsible: true }),
         ...(tailorBody
           ? [
+              toggle3d({ label: 'hide other clothes', value: walker.tailorAlone }),
               (tailorField = outlineField3d({ ...tailorBody, value: tailorShapes, handleCommit: (v) => { tailorShapes = v; dress() } })),
               button3d({ label: 'delete point', handleClick: () => tailorField?.removeSelected() }),
               button3d({ label: 'clear', handleClick: () => tailorField?.clear() }),
               slider3d({ label: 'thickness', value: walker.tailorThickness, min: 0.001, max: 0.02, step: 0.001 }),
-              select3d({ label: 'fabric', value: walker.tailorFabric, options: Object.keys(FABRICS) }),
+              select3d({ label: 'fabric', value: walker.tailorFabric, options: FABRIC_OPTIONS }),
               colorPicker3d({ label: 'colour', value: walker.tailorColour, alpha: false }),
+              slider3d({ label: 'recolour', value: walker.tailorRecolour, min: 0, max: 1, step: 0.01 }),
+              // Name it and keep it: it becomes a choice in its slot, like MakeHuman's.
+              ui.inputField({ value: walker.tailorName.value, placeholder: 'name the garment', handleChange: (v) => { walker.tailorName.value = v } }),
+              select3d({ label: 'slot', value: walker.tailorSlot, options: SLOTS }),
+              button3d({ label: 'save as an option', handleClick: () => saveGarment() }),
+              ...(custom.has(walker[walker.tailorSlot.value].value)
+                ? [
+                    ...(custom.get(walker[walker.tailorSlot.value].value).cut ? [button3d({ label: `edit ${walker[walker.tailorSlot.value].value}`, handleClick: () => editGarment() })] : []),
+                    button3d({ label: `forget ${walker[walker.tailorSlot.value].value}`, handleClick: () => forgetGarment() }),
+                  ]
+                : []),
               // Out to Blender (the garment and the body it was made on) and back.
               toggle3d({ label: 'include the body (a helper)', value: walker.exportBody }),
               button3d({ label: 'export glTF', handleClick: () => exportGarment('glb') }),
@@ -232,7 +262,7 @@ preview.append(
           for (const [slot, m] of Object.entries(slotMaterial)) clothes.get(m)?.set({ fabric: cloth[slot].fabric, colour: cloth[slot].colour, amount: cloth[slot].recolour })
         }
         const retailor = () => {
-          for (const name of ['tailored', ...imported.map((g) => g.name)]) clothes.get(proxyMaterials.get(`${name}:`))?.set({ fabric: walker.tailorFabric.value, colour: walker.tailorColour.value, amount: 1 })
+          for (const name of ['tailored', ...imported.map((g) => g.name)]) clothes.get(proxyMaterials.get(`${name}:`))?.set({ fabric: walker.tailorFabric.value, colour: walker.tailorColour.value, amount: walker.tailorRecolour.value })
         }
         // The body's slider values, which rebuild the shape a garment was made on.
         const bodyValues = () => Object.fromEntries(Object.keys(DEFAULT_HUMAN_BODY).map((k) => [k, Number(walker[k].value)]))
@@ -244,14 +274,110 @@ preview.append(
           a.click()
           setTimeout(() => URL.revokeObjectURL(a.href), 1000)
         }
+        const baseMeta = () => ({ format: 'tosijs-garment', version: 1, base: pack.manifest.base, pack: pack.manifest.version, body: bodyValues(), name: 'tailored', slot: 'top' })
+        const tailorLook = () => ({ fabric: walker.tailorFabric.value, colour: walker.tailorColour.value, recolour: walker.tailorRecolour.value })
+        // The cut as worn on the body shown.
+        const cutMesh = () => ({ positions: drawnPositions(tailoredCut, fitProxy(tailoredCut, current)), triangles: tailoredCut.triangles, uvs: tailoredCut.uvs })
         // The file's contents (a GLB's bytes or an OBJ's text), or null.
         const garmentFile = (format, bodyAlone = false) => {
           if (!tailoredCut && !bodyAlone) return null
-          const garment = bodyAlone ? null : { positions: drawnPositions(tailoredCut, fitProxy(tailoredCut, current)), triangles: tailoredCut.triangles, uvs: tailoredCut.uvs }
+          const garment = bodyAlone ? null : cutMesh()
           // The body it was made on, as a helper to model against (left out on import).
           const body = bodyAlone || walker.exportBody.value ? { positions: current, triangles: pack.triangles } : null
-          const meta = { format: 'tosijs-garment', version: 1, base: pack.manifest.base, pack: pack.manifest.version, body: bodyValues(), name: 'tailored', slot: 'top' }
+          const meta = baseMeta()
           return format === 'obj' ? writeGarmentObj({ garment, body, meta }) : writeGarmentGlb({ garment, body, meta })
+        }
+        // A file's material as a proxy's: its images as object URLs.
+        const imageUrl = (img) => (img ? URL.createObjectURL(new Blob([img.bytes], { type: img.mimeType })) : undefined)
+        const fileLook = (m) =>
+          m
+            ? { diffuse: imageUrl(m.baseColorTexture), normal: imageUrl(m.normalTexture), metallicRoughness: imageUrl(m.metallicRoughnessTexture), roughness: m.roughness, metallic: m.metallic, baseColor: m.baseColor, normalScale: m.normalScale, alpha: m.alphaMode !== 'OPAQUE', blend: m.alphaMode === 'BLEND', alphaCutoff: m.alphaMode === 'MASK' ? m.alphaCutoff : undefined, twoSided: m.doubleSided }
+            : { alpha: false, twoSided: false }
+        // A garment from a file, bound to the body it was made on.
+        const asProxy = async (content, name, slot) => {
+          const { garment, meta, material } = content
+          const on = meta?.body ? await morphHuman(pack, macroWeights({ ...DEFAULT_HUMAN_BODY, ...meta.body }, (n) => pack.has(n))) : current
+          const binding = bindGarment(on, pack.triangles, garment.positions, garmentRigidity(garment))
+          return { ...binding, triangles: garment.triangles, uvs: garment.uvs ?? new Float32Array(binding.rows * 2), delete: null, name, category: 'clothes', slot, material: fileLook(material) }
+        }
+        // The saved garments, in IndexedDB: per browser, nothing shared yet.
+        const garmentStore = async (mode, fn) => {
+          const db = await new Promise((ok, no) => {
+            const r = indexedDB.open('tosijs-garments', 1)
+            r.onupgradeneeded = () => r.result.createObjectStore('garments')
+            r.onsuccess = () => ok(r.result)
+            r.onerror = () => no(r.error)
+          })
+          return new Promise((ok, no) => {
+            const t = db.transaction('garments', mode)
+            const req = fn(t.objectStore('garments'))
+            t.oncomplete = () => ok(req?.result)
+            t.onerror = () => no(t.error)
+          })
+        }
+        // Wear a saved garment's file as a choice in its slot.
+        const addCustom = async (bytes) => {
+          const content = readGarment(bytes)
+          const { name, slot } = content.meta
+          proxyMaterials.delete(`${name}:`)
+          const proxy = await asProxy(content, name, slot)
+          custom.set(name, { proxy, cut: content.meta.cut, look: content.meta.look })
+          if (!styles[slot].includes(name)) styles[slot].push(name)
+          return content.meta
+        }
+        const say = (message) => { importError = message; el.refreshScenePanel?.() }
+        saveGarment = async () => {
+          const name = walker.tailorName.value.trim()
+          const slot = walker.tailorSlot.value
+          if (!name) return say('name the garment first')
+          if (proxies[name] || name === 'none') return say(`"${name}" is taken by one of MakeHuman's; choose another name`)
+          const last = imported[imported.length - 1]
+          if (!tailoredCut && !last) return say('draw a garment or import one first')
+          // The cut is kept with its outline, to edit again; an import as it came.
+          const bytes = tailoredCut
+            ? writeGarmentGlb({ garment: cutMesh(), meta: { ...baseMeta(), name, slot, look: tailorLook(), cut: { shapes: tailorShapes, thickness: walker.tailorThickness.value } } })
+            : writeGarmentGlb({ garment: last.file.garment, material: last.file.material, meta: { ...last.file.meta, name, slot, look: tailorLook() } })
+          try {
+            await garmentStore('readwrite', (s) => s.put(bytes, name))
+          } catch (e) {
+            console.warn('tailor: could not save', e)
+            return say(`could not save: ${e?.message ?? e}`)
+          }
+          await addCustom(bytes)
+          // It is worn from its slot now, not from the tailor.
+          if (tailoredCut) { tailorShapes = []; tailorField?.setValue([]) }
+          else imported.pop()
+          importError = ''
+          walker[slot].value = name
+          dress()
+          el.refreshScenePanel?.()
+        }
+        forgetGarment = async () => {
+          const slot = walker.tailorSlot.value
+          const name = walker[slot].value
+          if (!custom.has(name)) return
+          await garmentStore('readwrite', (s) => s.delete(name)).catch((e) => console.warn('tailor: could not forget', e))
+          custom.delete(name)
+          styles[slot] = styles[slot].filter((n) => n !== name)
+          walker[slot].value = 'none'
+          el.refreshScenePanel?.()
+        }
+        // Back into the tailor: its outline, to change and save again.
+        editGarment = () => {
+          const slot = walker.tailorSlot.value
+          const name = walker[slot].value
+          const saved = custom.get(name)
+          if (!saved?.cut) return
+          tailorShapes = saved.cut.shapes
+          tailorField?.setValue(tailorShapes)
+          walker.tailorThickness.value = saved.cut.thickness
+          walker.tailorName.value = name
+          if (saved.look?.fabric) walker.tailorFabric.value = saved.look.fabric
+          if (saved.look?.colour) walker.tailorColour.value = saved.look.colour
+          if (saved.look?.recolour != null) walker.tailorRecolour.value = saved.look.recolour
+          walker[slot].value = 'none'
+          dress()
+          el.refreshScenePanel?.()
         }
         exportGarment = (format, bodyAlone = false) => {
           const data = garmentFile(format, bodyAlone)
@@ -259,13 +385,22 @@ preview.append(
           save(data, bodyAlone ? 'body.glb' : format === 'obj' ? 'garment.obj' : 'garment.glb', format === 'obj' ? 'text/plain' : 'model/gltf-binary')
         }
         const importFrom = async (data, fileName) => {
-          const { garment, meta } = readGarment(data)
-          // Bind to the body it was made on, where the file says what that was.
-          const on = meta?.body ? await morphHuman(pack, macroWeights({ ...DEFAULT_HUMAN_BODY, ...meta.body }, (n) => pack.has(n))) : current
-          if (!meta) console.warn('tailor: no metadata in the file (export from Blender with custom properties); bound to the body shown')
-          const binding = bindGarment(on, pack.triangles, garment.positions, garmentRigidity(garment))
-          const name = `imported-${imported.length}-${(meta?.name ?? fileName).replace(/[^\w-]/g, '')}`
-          imported.push({ ...binding, triangles: garment.triangles, uvs: garment.uvs ?? new Float32Array(binding.rows * 2), delete: null, name, category: 'clothes', slot: meta?.slot ?? 'top', material: { alpha: false, twoSided: false } })
+          const content = readGarment(data)
+          // Bound to the body it was made on, where the file says what that
+          // was; else to the body shown, which is then what it was made on.
+          if (!content.meta) console.warn('tailor: no metadata in the file (export from Blender with custom properties); bound to the body shown')
+          const meta = content.meta ?? baseMeta()
+          if (content.materialCount > 1) console.warn(`tailor: the garment uses ${content.materialCount} materials; only the first is drawn`)
+          const name = `imported-${imported.length}-${(meta.name ?? fileName).replace(/[^\w-]/g, '')}`
+          const proxy = await asProxy({ ...content, meta }, name, meta.slot ?? 'top')
+          imported.push({ ...proxy, file: { garment: content.garment, material: content.material, meta } })
+          // A garment with its own maps keeps them: no fabric preset, no recolour.
+          if (content.material?.baseColorTexture || content.material?.metallicRoughnessTexture) {
+            walker.tailorFabric.value = 'as made'
+            walker.tailorRecolour.value = 0
+          }
+          if (meta.name && !walker.tailorName.value) walker.tailorName.value = meta.name === 'tailored' ? '' : meta.name
+          if (meta.slot) walker.tailorSlot.value = meta.slot
           dress()
           el.refreshScenePanel?.()
         }
@@ -290,6 +425,19 @@ preview.append(
         walker.tailorThickness.observe(() => dress())
         walker.tailorFabric.observe(retailor)
         walker.tailorColour.observe(retailor)
+        walker.tailorRecolour.observe(retailor)
+        walker.tailorAlone.observe(() => dress())
+        walker.tailorSlot.observe(() => el.refreshScenePanel?.())
+        // What this browser has saved, once the body is up (see below).
+        const loadSaved = async () => {
+          try {
+            const all = await garmentStore('readonly', (s) => s.getAll())
+            for (const bytes of all ?? []) await addCustom(bytes).catch((e) => console.warn('tailor: a saved garment would not load', e))
+            if (all?.length) el.refreshScenePanel?.()
+          } catch (e) {
+            console.warn('tailor: no saved garments (storage unavailable)', e)
+          }
+        }
         const tints = new Map()
         // Every hair material's colouring (Quaternius' and MakeHuman's).
         const shades = []
@@ -313,16 +461,18 @@ preview.append(
         let face = null
         let scalp = null
         // For poking at from the console: what this page built.
-        el.builder = { pack, hairLib, get scalp() { return scalp }, get built() { return built }, get positions() { return current }, get stubble() { return stubbleMask }, get tailor() { return tailorShapes }, set tailor(v) { tailorShapes = v; tailorField?.setValue(v); dress() }, garmentFile: (f, alone) => garmentFile(f, alone), importFrom: (d, n) => importFrom(d, n), get imported() { return imported } }
+        el.builder = { pack, hairLib, get scalp() { return scalp }, get built() { return built }, get positions() { return current }, get stubble() { return stubbleMask }, get tailor() { return tailorShapes }, set tailor(v) { tailorShapes = v; tailorField?.setValue(v); dress() }, garmentFile: (f, alone) => garmentFile(f, alone), importFrom: (d, n) => importFrom(d, n), get imported() { return imported }, save: () => saveGarment(), forget: () => forgetGarment(), edit: () => editGarment(), saved: custom, get message() { return importError } }
         let hairMeshes = []
         let dressing = 0
         dress = async () => {
           if (!built || !scalp) return
           const token = ++dressing
           // What it wears from the pack (bound), fetched before anything changes.
-          const slots = [...[...SLOTS, 'hair', 'brows', 'beard', 'moustache'].map((k) => walker[k].value), 'teeth_base', 'tongue01'].filter((n) => proxies[n])
-          const wearing = await Promise.all(slots.map((n) => pack.proxy(n)))
+          const slots = [...[...SLOTS, 'hair', 'brows', 'beard', 'moustache'].map((k) => walker[k].value), 'teeth_base', 'tongue01'].filter((n) => proxies[n] || custom.has(n))
+          let wearing = await Promise.all(slots.map((n) => custom.get(n)?.proxy ?? pack.proxy(n)))
           if (token !== dressing) return
+          // Only what the tailor is making, to see it on its own.
+          if (walker.tailorAlone.value) wearing = wearing.filter((p) => p.category !== 'clothes')
           // The garment cut from the outlines, bound like any other.
           const outline = mirrorOutline(tailorShapes.filter((s) => s.length >= 3))
           if (outline.length) {
@@ -442,6 +592,9 @@ preview.append(
         for (const slot of SLOTS) walker[slot].observe(() => {
           if (walker[slot].value === 'none') return
           cloth[slot].look = 'as made'
+          // A saved garment comes as it was saved.
+          const saved = custom.get(walker[slot].value)?.look
+          if (saved) Object.assign(cloth[slot], { fabric: saved.fabric ?? cloth[slot].fabric, colour: saved.colour ?? cloth[slot].colour, recolour: saved.recolour ?? cloth[slot].recolour })
           if (walker.editing.value === slot) load()
           else walker.editing.value = slot
         })
@@ -501,6 +654,7 @@ preview.append(
         const allWeights = nearestWeights(first, known, weights)
         let current = first
         tailorBody = { positions: first, indices: pack.triangles }
+        void loadSaved()
 
         // The face: MakeHuman's face pose units as morph targets, in layers.
         const expr = humanExpressions(scene, await faceDeltas(pack))

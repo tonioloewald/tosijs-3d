@@ -116,6 +116,19 @@ export interface HumanProxy extends ProxyBinding {
     alpha: boolean
     twoSided: boolean
     looks?: Record<string, { diffuse: string; normal?: string }>
+    /**
+     * A garment from a file (garment-file) carries more: glTF's
+     * roughness-in-green, metal-in-blue map, its factors, a base colour
+     * (linear RGBA), blending rather than a cut-out, the cut-out's threshold
+     * and a normal map's strength.
+     */
+    metallicRoughness?: string
+    roughness?: number
+    metallic?: number
+    baseColor?: [number, number, number, number]
+    blend?: boolean
+    alphaCutoff?: number
+    normalScale?: number
   }
 }
 
