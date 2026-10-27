@@ -33,7 +33,8 @@ spans the gaps instead of following each leg. Below its widest ring it hangs
 straight down. It is an open tube, no top or bottom, to be drawn two-sided.
 Each point is bound between the nearest skin on the left and on the right,
 blended across the middle, so it moves with both legs and tears between
-neither.
+neither. `anchor` limits that to some of the skin: a poncho or robe that
+goes round the arms is bound to the torso, or it follows each arm's swing.
 
 Pure: positions and triangles in, a binding out.
 */
@@ -673,6 +674,13 @@ export interface SkirtOptions {
   segments?: number
   /** UV scale: texture repeats per metre. Default 1. */
   uvScale?: number
+  /**
+   * Which body vertices the cloth may be bound to (non-zero), every base
+   * vertex. Leave out the arms for a poncho or a robe: the outline still
+   * goes round them, but the cloth moves with the torso and legs, not with
+   * an arm's swing.
+   */
+  anchor?: ArrayLike<number>
 }
 
 /** A convex hull of 2D points (Andrew's monotone chain), counter-clockwise. */
@@ -820,10 +828,13 @@ export function skirtGarment(
   const weight: number[] = []
   const offset: number[] = []
   const uvs: number[] = []
+  const anchor = options.anchor
+  const bindable = anchor ? inside.filter((v) => anchor[v]) : inside
   const nearest = (band: number[], x: number, z: number, y: number, side: number) => {
     let best = -1
     let bd = Infinity
     for (const v of band) {
+      if (anchor && !anchor[v]) continue
       if (side !== 0 && Math.sign(P[v * 3]) !== side) continue
       const d = (P[v * 3] - x) ** 2 + (P[v * 3 + 1] - y) ** 2 + (P[v * 3 + 2] - z) ** 2
       if (d < bd) {
@@ -834,7 +845,9 @@ export function skirtGarment(
     return best
   }
   levels.forEach((y, i) => {
-    const band = bands[i]
+    // The ring's skin it may bind to, or the nearest bindable skin at all
+    // (a sleeve-less band of a poncho is all arm).
+    const band = anchor && !bands[i].some((v) => anchor[v]) ? bindable : bands[i]
     const c = centres[i]
     let halfWidth = 1e-3
     for (const v of band) halfWidth = Math.max(halfWidth, Math.abs(P[v * 3] - c[0]))

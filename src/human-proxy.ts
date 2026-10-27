@@ -94,6 +94,8 @@ export function proxyMaterial(
   if (pm.blend) m.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND
   if (pm.alphaCutoff != null) m.alphaCutOff = pm.alphaCutoff
   m.backFaceCulling = !proxy.material.twoSided
+  // The inside of a skirt is lit as an inside, not as the outside's back.
+  m.twoSidedLighting = proxy.material.twoSided === true
   return m
 }
 

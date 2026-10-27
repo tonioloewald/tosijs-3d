@@ -470,7 +470,7 @@ preview.append(
             const cutOn = nipples ? smoothUnder(current, pack.triangles, nipples, { bridge: thickness / 0.02 }) : clothBody
             const skirt = walker.tailorSkirt.value
             const cut = skirt
-              ? skirtGarment(clothBody, pack.triangles, { front: outline, thickness })
+              ? skirtGarment(clothBody, pack.triangles, { front: outline, thickness, anchor: notArm })
               : cutGarment(cutOn, pack.triangles, { front: outline, thickness, ease: 6, fitOn: clothBody })
             tailoredCut = cut
             wearing.push({ ...cut, name: 'tailored', category: 'clothes', slot: 'top', material: { alpha: false, twoSided: skirt } })
@@ -501,6 +501,9 @@ preview.append(
               proxyMaterials.set(key, m)
             }
             const m = proxyMaterials.get(key)
+            // The cache is by name: the tailored garment turns skirt (two-sided) on and off.
+            m.backFaceCulling = !proxy.material?.twoSided
+            m.twoSidedLighting = proxy.material?.twoSided === true
             if (slot) slotMaterial[slot] = m
             // A hat sits a little out from the head, over the hair.
             const hatFit = slot === 'hat' ? { inflate: { centre: scalp.centre, by: HAT_LIFT } } : slot === 'armour' ? { lift: 0.005 } : {}
@@ -649,6 +652,15 @@ preview.append(
         const known = new Int32Array(pack.manifest.vertexCount).fill(-1)
         skin.vertices.forEach((v, i) => { known[v] = i })
         const allWeights = nearestWeights(first, known, weights)
+        // The skin a skirt-cut garment may hang from: not the arms, or a
+        // poncho or a robe swings with them.
+        const armBone = new Set(rig0.joints.map((j, i) => (/^(clavicle|upperarm|lowerarm|hand|thumb|index|middle|ring|pinky)/.test(j.name) ? i : -1)).filter((i) => i >= 0))
+        const notArm = new Uint8Array(pack.manifest.vertexCount)
+        for (let v = 0; v < notArm.length; v++) {
+          let arm = 0
+          for (let k = 0; k < 4; k++) if (armBone.has(allWeights.indices[v * 4 + k])) arm += allWeights.weights[v * 4 + k]
+          notArm[v] = arm < 0.5 ? 1 : 0
+        }
         let current = first
         // What clothes are fitted over: the body with its nipples smoothed,
         // because cloth bridges them (the skin keeps them).
