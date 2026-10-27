@@ -2283,6 +2283,8 @@ export function rigTool(
       style: { width: '100%', height: '100%' },
       clearColor: '#2a3340',
       panelTitle: 'Rig',
+      // A workbench: its sections are used side by side, so several stay open.
+      panelSections: 'folds',
       scenePanelOpen: true,
       scenePanel: () => handle?.widgets() ?? [],
       sceneCreated(owner: any) {

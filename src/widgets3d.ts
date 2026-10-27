@@ -283,7 +283,7 @@ drag *and* the reported value, so a slider can be discrete without becoming a
 | | `menu` | — | makes it a MENU button — opens actions instead of firing `handleClick` |
 | `menu3d` | `items` / `handleSelect` | | rows of `MenuAction`; usually via `openMenu3d` |
 | `iconBar3d` | `items` | | `{icon, handleClick}` |
-| `foldSections` | `key` / `mode` / `repaint` | `'fold'` | the rows to show for collapsible sections: folded, or as `tabs3d` (`mode: 'tabs'`); rebuild your panel on `repaint` |
+| `foldSections` | `key` / `mode` / `repaint` | `'fold'` | the rows to show for collapsible sections: folded one open at a time (`'fold'`, an accordion), folded with several open (`'folds'`), or as `tabs3d` (`'tabs'`); rebuild your panel on `repaint` |
 | `tabs3d` | `tabs` / `active` / `handleSelect` | `0` | file tabs; a tab is a caption or `{ icon, title }`; at most half the strip each, overlapping around the active one when they don't fit |
 | `spinner3d` | `label` / `size` | | INDETERMINATE busy — call `dispose()` when done |
 | `progress3d` | `label` / `value` / `showValue` | | determinate `0..1`; `setValue(f)` |
@@ -1045,7 +1045,10 @@ export function tabs3d(config: {
  * `label3d({ collapsible: true })` heads a section: every row after it, up to
  * the next one, belongs to it. This returns the rows to SHOW:
  *
- * - `mode: 'fold'` (the default): every header, plus the rows of open sections.
+ * - `mode: 'fold'` (the default): every header, plus the rows of the open
+ *   section. One is open at a time, as an accordion: opening one closes the
+ *   others, and all may be closed. Of sections declared or saved open, the first wins.
+ * - `mode: 'folds'`: the same, but several may be open at once.
  * - `mode: 'tabs'`: rows before the first section, a `tabs3d` strip of the
  *   sections (a section's `icon` becomes its tab), and the active section's rows.
  *
@@ -1061,7 +1064,7 @@ export function tabs3d(config: {
  */
 export function foldSections(
   rows: Widget3d[],
-  opts: { key?: string; mode?: 'fold' | 'tabs'; repaint: () => void }
+  opts: { key?: string; mode?: 'fold' | 'folds' | 'tabs'; repaint: () => void }
 ): Widget3d[] {
   const state = sectionState(opts.key)
   const save = () => {
@@ -1109,19 +1112,32 @@ export function foldSections(
     })
     return [...head, strip, ...sections[active].rows]
   }
+  /*
+  ONE OPEN AT A TIME ('fold'), as an accordion: opening a section closes the
+  rest, and all of them may be closed. A panel's sections are long, so two
+  open push the second's rows out of reach. 'folds' lets several stay open.
+  */
+  const single = opts.mode !== 'folds'
+  const titles: string[] = []
   const out: Widget3d[] = []
   let showing = true
   let first = true
+  let anyOpen = false
   for (const row of rows) {
     const sec = (row as any).section as Sec | undefined
     if (sec == null) {
       if (showing) out.push(row)
       continue
     }
-    const isOpen = state.open.get(sec.title) ?? sec.open ?? first
+    titles.push(sec.title)
+    let isOpen = state.open.get(sec.title) ?? sec.open ?? first
+    // Saved or declared, only the first open section stays open.
+    if (single && anyOpen) isOpen = false
+    anyOpen ||= isOpen
     first = false
     sec.isOpen = isOpen
     sec.toggle = () => {
+      if (single && !isOpen) for (const t of titles) state.open.set(t, false)
       state.open.set(sec.title, !isOpen)
       save()
       opts.repaint()

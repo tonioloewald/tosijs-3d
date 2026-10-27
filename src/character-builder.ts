@@ -17,8 +17,8 @@ bone heat's, worked out from the mesh once when the page loads. The eyes
 ([human-hair](/human-hair/)) is Quaternius' CC0 hairstyles, made for another
 head and fitted to this one.
 
-**Tailor** cuts a garment of your own out of the body. Click out an outline
-over the front view (you draw the character's left, on your right; the other
+**Tailor** cuts a garment of your own out of the body. **Draw the outline**
+opens the front view beside the panel; click out an outline over it (you draw the character's left, on your right; the other
 side is its mirror), and the skin inside it, front and back, becomes cloth.
 A rectangle from the waist to the ankles is a pair of trousers. Click the
 first point to close a shape, drag a point to move it, press an edge to add
@@ -87,6 +87,14 @@ const custom = new Map()
 let saveGarment = () => {}
 let forgetGarment = () => {}
 let editGarment = () => {}
+// A button that opens a popup: `open` is handed the panel host, for `showLayer`.
+const popupButton = (label, open) => {
+  let host = null
+  const button = button3d({ label, handleClick: () => host && open(host) })
+  const setHost = button.setHost
+  button.setHost = (h) => { host = h; setHost?.call(button, h) }
+  return button
+}
 // 'as made' leaves a garment's own surface (a file's roughness map) alone.
 const FABRIC_OPTIONS = ['as made', ...Object.keys(FABRICS)]
 
@@ -154,9 +162,16 @@ preview.append(
         ...(tailorBody
           ? [
               toggle3d({ label: 'hide other clothes', value: walker.tailorAlone }),
-              (tailorField = outlineField3d({ ...tailorBody, value: tailorShapes, handleCommit: (v) => { tailorShapes = v; dress() } })),
-              button3d({ label: 'delete point', handleClick: () => tailorField?.removeSelected() }),
-              button3d({ label: 'clear', handleClick: () => tailorField?.clear() }),
+              // The outline in a popup of its own, so it can be big.
+              popupButton('draw the outline…', (host) =>
+                host.showLayer(
+                  { anchor: { x: 0, y: 0, width: host.bounds.width, height: 0 }, side: 'right', width: 420, maxHeight: 720, chrome: true, title: 'Outline', handleClose: () => { tailorField = null } },
+                  // The buttons first, so a tall outline never pushes them out of reach.
+                  button3d({ label: 'delete point', handleClick: () => tailorField?.removeSelected() }),
+                  button3d({ label: 'clear', handleClick: () => tailorField?.clear() }),
+                  (tailorField = outlineField3d({ ...tailorBody, value: tailorShapes, maxHeight: 440, handleCommit: (v) => { tailorShapes = v; dress() } }))
+                )
+              ),
               slider3d({ label: 'thickness', value: walker.tailorThickness, min: 0.001, max: 0.02, step: 0.001 }),
               select3d({ label: 'fabric', value: walker.tailorFabric, options: FABRIC_OPTIONS }),
               colorPicker3d({ label: 'colour', value: walker.tailorColour, alpha: false }),

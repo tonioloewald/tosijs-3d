@@ -53,9 +53,39 @@ describe('foldSections', () => {
     const sea = first.find((r: any) => r.section?.title === 'Sea') as any
     sea.section.toggle()
     expect(repaints).toBe(1)
-    // The caller rebuilds from the same rows: Sea is open now.
+    // The caller rebuilds from the same rows: Sea is open now, and Sky,
+    // open before it, has closed (one at a time).
     const again = w.foldSections(rows(), opts)
-    expect(again.length).toBe(6)
+    expect(names(again)).toEqual(['intro', 'Sky', 'Sea', 'sea row 1', 'sea row 2'])
+  })
+
+  test('fold is an accordion that can close completely', () => {
+    const opts = { key: 'test-accordion', repaint: () => {} }
+    const sky = (list: any[]) => list.find((r) => r.section?.title === 'Sky')
+    // Sky starts open; closing it leaves every section closed.
+    sky(w.foldSections(rows(), opts)).section.toggle()
+    expect(names(w.foldSections(rows(), opts))).toEqual(['intro', 'Sky', 'Sea'])
+  })
+
+  test('fold: of several sections declared open, the first wins', () => {
+    const both = [
+      w.label3d({ text: 'Sky', collapsible: true, open: true }),
+      w.label3d({ text: 'sky row' }),
+      w.label3d({ text: 'Sea', collapsible: true, open: true }),
+      w.label3d({ text: 'sea row' }),
+    ]
+    expect(names(w.foldSections(both, { repaint: () => {} }))).toEqual([
+      'Sky',
+      'sky row',
+      'Sea',
+    ])
+  })
+
+  test('folds: several sections may be open at once', () => {
+    const opts = { key: 'test-folds', mode: 'folds' as const, repaint: () => {} }
+    const first = w.foldSections(rows(), opts) as any[]
+    first.find((r) => r.section?.title === 'Sea').section.toggle()
+    expect(w.foldSections(rows(), opts).length).toBe(6)
   })
 
   test('tabs: rows before the first section, a strip, then ONE section', () => {

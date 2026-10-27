@@ -287,7 +287,7 @@ document.body.append(
 | `flatUi` | `'scene'` | Where the flat view's own controls are drawn. `'scene'`: in the scene (the system bar, settings panel and pause), the same UI a headset gets. `'dom'`: HTML corner buttons, settings panel and pause (where `::part(...)` styling of them shows). Any other value warns once and means `'scene'` |
 | `scenePanelOpen` | `false` | Start with the settings panel open instead of closed behind the owl |
 | `panelTitle` | `''` | The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row) |
-| `panelSections` | `'fold'` | How collapsible sections in the settings panel present: `'fold'` (headers you open and close) or `'tabs'` (file tabs, one section at a time) |
+| `panelSections` | `'fold'` | How collapsible sections in the settings panel present: `'fold'` (headers you open and close, one open at a time: opening one closes the others), `'folds'` (several may be open) or `'tabs'` (file tabs, one section at a time) |
 | `stats` | `false` | Add a Perf Stats section to the settings panel, flat and in a headset. `#perf` or `#debug` (or `?perf`, `?debug`) in the page URL, or calling `showB3dStats()`, shows it on every scene |
 | `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = the default layout (everything but the d-pad); a value like `"a,b,left_stick"` selects controls, and naming `view` or `menu` also puts them on the headset's system bar. A plain property, read once at setup |
 | `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
@@ -823,9 +823,9 @@ export class B3d extends Component {
     scenePanelOpen: false,
     // The settings panel's name, drawn in its title bar beside move and close.
     panelTitle: '',
-    /** How collapsible sections present: 'fold' (headers you open and close)
-     * or 'tabs' (file tabs, one section at a time). */
-    panelSections: 'fold' as 'fold' | 'tabs',
+    /** How collapsible sections present: 'fold' (headers you open and close,
+     * one open at a time), 'folds' (several open) or 'tabs' (file tabs). */
+    panelSections: 'fold' as 'fold' | 'folds' | 'tabs',
     // Scale factor for the glass gamepad clusters. Touch-target pixel sizes vary
     // wildly across devices, so this is exposed for tuning per scene/device.
     gamepadScale: 1,
@@ -1458,7 +1458,7 @@ export class B3d extends Component {
   declare xrReticle: 'on' | 'off'
   declare scenePanelOpen: boolean
   declare panelTitle: string
-  declare panelSections: 'fold' | 'tabs'
+  declare panelSections: 'fold' | 'folds' | 'tabs'
   /**
    * The on-screen "glass" gamepad. Absent/`false` = none; `true` or an empty
    * string = the full default layout; any other string selects and positions

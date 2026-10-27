@@ -163,7 +163,7 @@ rather than degrade.
 
 import * as BABYLON from '@babylonjs/core'
 import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane.js'
-import { panelLayerOf } from './frame-panel.js'
+import { claimPointer, panelLayerOf } from './frame-panel.js'
 import { iconGlyph } from './svg-icons.js'
 import { chromeLayout, chromeHit, uvToViewBox } from './popup-chrome.js'
 import { panelRim } from './panel-rim.js'
@@ -593,6 +593,13 @@ function wirePointer(owner: B3d): void {
       const target = list.find((p) => p.plane.mesh === onPopup)
       if (target == null) return
       bringToFront(owner, target)
+      /*
+      THE PRESS IS THE POPUP'S, wherever on it it landed. The settings panel
+      closes on a press on the background (a DOM listener on the scene), and a
+      press on a popup's × or title bar was never marked as taken, so closing
+      a popup closed its parent panel with it. Its content marks its own.
+      */
+      claimPointer(info.event as unknown as Event)
 
       /*
       Where in the panel did the press land? The texture coordinate is the
@@ -845,6 +852,7 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
   move the mesh. (Same family as `ry` being degrees: when an element manages a
   node, the element's fields are the source of truth and the node's are output.)
   */
+  let unstretch: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> = null
   const place = (): void => {
     const mesh = plane.mesh
     if (mesh == null) return
@@ -863,6 +871,19 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
       return
     }
     if (opener != null) mesh.parent = opener
+    /*
+    THE OPENER'S SIZE, NOT ITS STRETCH. A panel grows by scaling its plane, by
+    different amounts across and down when its content changes shape, and a
+    popup hung from it took the stretch too: the Tailor's outline came out half
+    again too tall, off both ends of the screen. Each frame, the popup's height
+    scale cancels its opener's, so it inherits a size and keeps its own shape.
+    */
+    unstretch ??= mesh.getScene().onBeforeRenderObservable.add(() => {
+      const p = mesh.parent as BABYLON.TransformNode | null
+      const sx = p?.scaling?.x ?? 1
+      const sy = p?.scaling?.y ?? 1
+      mesh.scaling.y = mesh.scaling.x * (sy !== 0 ? sx / sy : 1)
+    })
     plane.x = offset.x ?? 0
     plane.y = offset.y ?? 0
     plane.z = (offset.z ?? 0) - lift
@@ -1157,6 +1178,8 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
       // Remove first, THEN re-evaluate: if this was the modal, whatever it was
       // blocking has to become reachable again.
       if (drag != null) plane.mesh?.removeBehavior(drag)
+      unstretch?.remove()
+      unstretch = null
       const list = openPopups.get(owner)
       if (list != null) {
         const i = list.indexOf(api)

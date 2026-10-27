@@ -899,6 +899,8 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
       style: { width: '100%', height: '100%' },
       clearColor: '#6b6e73',
       panelTitle: 'Effect',
+      // A workbench: its sections are used side by side, so several stay open.
+      panelSections: 'folds',
       scenePanelOpen: true,
       scenePanel: () => handle?.widgets() ?? [],
       sceneCreated(owner: any) {
