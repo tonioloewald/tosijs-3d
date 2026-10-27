@@ -522,18 +522,20 @@ preview.append(
           retailor()
           // Stand on the soles: shoes reach below the bare foot by their sole.
           const shoe = wearing.find((p) => p.name === walker.shoes.value)
-          let sole = 0
+          sole = 0
           if (shoe) {
             const fitted = fitProxy(shoe, current)
             let low = Infinity
             for (let i = 1; i < fitted.length; i += 3) low = Math.min(low, fitted[i])
             sole = Math.max(0, built.rig.at('root').y - low)
           }
-          stand.position.y = -built.rig.at('root').y + sole
           // Skin under clothes is hidden, so it cannot show through.
           // The garments as fitted, for the skin they cover but do not list.
           const drawn = new Map(wearing.filter((p) => p.category === 'clothes').map((p) => [p.name, drawnPositions(p, fitProxy(p, current))]))
           coverBody(built, skin.triangles, skin.vertices, wearing, { drawn })
+          // Clothes tuck the skin they cover, so the feet are measured again.
+          if (playing) clipLow = measureClip(playing)
+          ground()
           // Everything that moves with the face, after the tuck (its rest).
           if (el.builder.expressions) {
             const expr = el.builder.expressions
@@ -758,11 +760,34 @@ preview.append(
         let built = null
         let playing = null
         let read = null
+        // How far below the body's root its skin reaches while the clip plays
+        // (null: at rest), and how far shoes reach below the bare foot.
+        let clipLow = null
+        let sole = 0
+        // Stand on the floor: the body is grounded at rest, but a retargeted
+        // clip carries the feet lower (Idle by ~4 cm), so it is measured.
+        const ground = () => { stand.position.y = -(clipLow ?? built.rig.at('root').y) + sole }
+        const measureClip = (group) => {
+          const mesh = built.mesh
+          const nodes = built.root.getChildTransformNodes(false)
+          let low = Infinity
+          for (let k = 0; k < 24; k++) {
+            group.goToFrame(group.from + ((group.to - group.from) * k) / 24)
+            for (const n of nodes) n.computeWorldMatrix(true)
+            built.skeleton.prepare(true)
+            mesh.refreshBoundingInfo({ applySkeleton: true, applyMorph: true })
+            low = Math.min(low, mesh.getBoundingInfo().boundingBox.minimumWorld.y)
+          }
+          group.goToFrame(group.from)
+          return low - stand.position.y
+        }
         const play = () => {
           playing?.dispose()
           const clip = ual.animationGroups.find((g) => g.name === walker.clip.value)
           playing = clip ? retargetClip(clip, source, read, { scene }) : null
           playing?.start(true)
+          clipLow = playing ? measureClip(playing) : null
+          ground()
           if (walker.paused.value) playing?.pause()
         }
         let busy = false
@@ -783,7 +808,8 @@ preview.append(
           dress()
           built.mesh.material = mat
           built.root.parent = stand
-          stand.position.y = -rig.at('root').y
+          clipLow = null
+          ground()
           el.register({ meshes: [built.mesh, ...face.meshes] })
           if (walker.stubble.value > 0) measureStubble()
           paint()
