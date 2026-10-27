@@ -26,10 +26,15 @@ describe('skinThinness', () => {
 
   test('in between, it falls off with depth', () => {
     const a = slab(0.012)
-    const b = slab(0.025)
+    const b = slab(0.018)
     const ta = skinThinness(a.positions, a.normals)
     const tb = skinThinness(b.positions, b.normals)
     expect(ta[0]).toBeGreaterThan(tb[0])
     expect(tb[0]).toBeGreaterThan(0)
+  })
+
+  test('a palm or a foot (3 cm and more) is not thin', () => {
+    const palm = slab(0.03)
+    expect(Math.max(...skinThinness(palm.positions, palm.normals))).toBe(0)
   })
 })

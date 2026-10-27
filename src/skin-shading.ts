@@ -35,7 +35,9 @@ export function skinThinness(
   options: { thin?: number; thick?: number } = {}
 ): Float32Array {
   const thin = options.thin ?? 0.006
-  const thick = options.thick ?? 0.035
+  // Ears and the edges of fingers, not a palm (about 3 cm) or a foot: a
+  // looser 3.5 cm lit whole hands and the soles from behind.
+  const thick = options.thick ?? 0.022
   const n = positions.length / 3
   // A hash grid, so each vertex looks only at its neighbours.
   const cell = thick
@@ -233,7 +235,9 @@ export class SkinShadingPlugin extends BABYLON.MaterialPluginBase {
         sAdd += finalColor.rgb * sRim * skinTerms.y * (0.4 + 0.6 * max(0.0, sNL + 0.3));
         // Back-light through thin parts, when looking toward the light.
         float sThin = vSkinThin;
-        float sBack = pow(max(0.0, dot(-sV, sL)), 3.0) * max(0.0, -sNL + 0.2);
+        // Only looking nearly INTO the light: a cube lobe still lit a hand
+        // with the sun 60 degrees off the line of sight.
+        float sBack = pow(max(0.0, dot(-sV, sL)), 8.0) * max(0.0, -sNL + 0.2);
         sAdd += skinSunColor.rgb * skinSun.w * sBack * sThin * skinTerms.z;
         finalColor.rgb += sAdd;
       }
