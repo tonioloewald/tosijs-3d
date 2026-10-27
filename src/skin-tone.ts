@@ -19,7 +19,10 @@ because blood under it absorbs blue and green), and a body painted with the
 swatches looks grey and bloodless. So `skinAlbedo`, the colour for a
 material, takes only each tone's LIGHTNESS from the scale, at a plausible
 reflectance (fair skin reflects about 60% of red light, not 90%), and gives
-it skin's own warmth: pinker at the fair end, more golden in the middle.
+it skin's own warmth: pinker at the fair end, more golden in the middle,
+and nearly white at the very end (porcelain). `redness` is gentle near its
+middle and strong at its ends: 0 drains the skin to a grey-white (a vampire,
+or a goth's powder), 1 is flushed.
 `skinColor` is the scale's swatch, for a UI.
 
 IRIS colour is a dial too: `irisColor(t)` runs from dark brown through
@@ -139,18 +142,25 @@ export function skinAlbedo(tone: number, redness = 0.5): Rgb {
   const lum = 0.2126 * swatch.r + 0.7152 * swatch.g + 0.0722 * swatch.b
   const t = clamp01(tone)
   const d = (clamp01(redness) - 0.5) * 2
-  // The palest end (porcelain) is lighter and less pink than measured fair
+  // Redness grows toward both ends of its dial, so the middle stays subtle
+  // and the ends reach past life: drained grey-white (a vampire) at 0,
+  // flushed at 1.
+  const k = d * (1 + 1.5 * Math.abs(d))
+  // The palest end (porcelain) is lighter and whiter than measured fair
   // skin: 0.68 reflectance throughout could not make anyone pale enough.
-  const pale = Math.max(0, 1 - t / 0.35) ** 2
+  const pale = Math.max(0, 1 - t / 0.4) ** 2
   const g =
-    (WARMTH_FAIR.g + (WARMTH_DARK.g - WARMTH_FAIR.g) * t + 0.05 * pale) *
-    (1 - 0.1 * d)
+    (WARMTH_FAIR.g + (WARMTH_DARK.g - WARMTH_FAIR.g) * t + 0.12 * pale) *
+    (1 - 0.1 * k)
   const b =
-    (WARMTH_FAIR.b + (WARMTH_DARK.b - WARMTH_FAIR.b) * t + 0.07 * pale) *
-    (1 - 0.14 * d)
+    (WARMTH_FAIR.b + (WARMTH_DARK.b - WARMTH_FAIR.b) * t + 0.17 * pale) *
+    (1 - 0.14 * k)
   // Scale so the colour keeps the swatch's lightness, at 68% reflectance
-  // (up to 84% at the palest end).
-  const r = (lum * (0.68 + 0.16 * pale)) / (0.2126 + 0.7152 * g + 0.0722 * b)
+  // (up to 88% at the palest end).
+  const r = Math.min(
+    0.92,
+    (lum * (0.68 + 0.2 * pale)) / (0.2126 + 0.7152 * g + 0.0722 * b)
+  )
   return { r, g: r * g, b: r * b }
 }
 

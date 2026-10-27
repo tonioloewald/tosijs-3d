@@ -12,6 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Changed:** `skinAlbedo` (skin-tone) is paler and whiter at the fair end, and `redness` is stronger toward both ends of its dial (subtle near 0.5): 0 is a drained grey-white, 1 is flushed. A recipe at a fair tone or an extreme redness looks different.
 - **Fixed:** closing a popup from the settings panel (its ×, or a press on its title bar) no longer closes the panel too. The press was never marked as taken by a panel, so the panel's close-on-a-background-press saw it.
 - **Fixed:** a popup hung from a panel whose plane had been stretched to new content (the flat settings panel, after a section opened) took the stretch: it came out up to half again too tall. It now keeps its opener's size and its own shape.
 - **Changed:** collapsible sections in the settings panel (and `foldSections`) open one at a time, as an accordion: opening one closes the others, and all may be closed. Of several declared `open: true`, the first wins. `panelSections="folds"` (`mode: 'folds'`) keeps the old behaviour, several open at once; the rig tool and effect tool use it.
