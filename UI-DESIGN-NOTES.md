@@ -1164,7 +1164,8 @@ Mac trackpad, whose pinch sends many tiny, smooth wheel events, that felt fine;
 on a Windows PC trackpad, which sends fewer and coarser ones, the character
 builder went from its default view to far too close in one or two events and
 nothing in between could be reached. `touchOrbit` now zooms by a share of the
-distance (1% per unit of wheel delta, Babylon's `wheelDeltaPercentage`), which
+distance (Babylon's `wheelDeltaPercentage` at 0.01: a 100-unit notch moves about
+1%, and inertia carries it on), which
 is the same feel at arm's length and across a field.
 
 The lesson is about where to test, not about zoom: the best input hardware
