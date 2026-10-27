@@ -334,14 +334,18 @@ export function underCover(
  * the vertices `mask` marks (0..1 each) relaxed toward their neighbours, as
  * cloth stretched over them would lie. Unmarked vertices stay put, so the
  * relaxed patch meets the body at its edge. A new array; the skin keeps the
- * shape it had.
+ * shape it had. `bridge` (0..1) lets thicker cloth flatten the curve too.
  */
 export function smoothUnder(
   positions: ArrayLike<number>,
   triangles: ArrayLike<number>,
   mask: ArrayLike<number>,
-  passes = 24
+  options: { passes?: number; bridge?: number } = {}
 ): Float32Array {
+  const passes = options.passes ?? 24
+  // 0 takes the bump away and keeps the curve under it; toward 1 the cloth
+  // also flattens the curve, as thick cloth does.
+  const bridge = Math.min(1, Math.max(0, options.bridge ?? 0))
   const out = Float32Array.from(positions)
   const n = out.length / 3
   // Each marked vertex's neighbours, and how far it follows them (a faint
@@ -387,7 +391,7 @@ export function smoothUnder(
   // small bump goes and the curve it sits on (a breast) stays.
   for (let pass = 0; pass < passes; pass++) {
     step(0.5)
-    step(-0.53)
+    step(-0.53 * (1 - bridge))
   }
   return out
 }

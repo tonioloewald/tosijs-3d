@@ -461,7 +461,10 @@ preview.append(
           // The garment cut from the outlines, bound like any other.
           const outline = mirrorOutline(tailorShapes.filter((s) => s.length >= 3))
           if (outline.length) {
-            const cut = cutGarment(clothBody, pack.triangles, { front: outline, thickness: walker.tailorThickness.value, ease: 6 })
+            // Thicker cloth bridges more of the chest.
+            const thickness = walker.tailorThickness.value
+            const cutOn = nipples ? smoothUnder(current, pack.triangles, nipples, { bridge: thickness / 0.02 }) : clothBody
+            const cut = cutGarment(cutOn, pack.triangles, { front: outline, thickness, ease: 6, fitOn: clothBody })
             tailoredCut = cut
             wearing.push({ ...cut, name: 'tailored', category: 'clothes', slot: 'top', material: { alpha: false, twoSided: false } })
           } else tailoredCut = null

@@ -48,6 +48,12 @@ export interface GarmentCutOptions {
   hem?: boolean
   /** UV scale: texture repeats per metre in the front view. Default 1. */
   uvScale?: number
+  /**
+   * The body the binding will be fitted on, if not `positions` (every base
+   * vertex). The cloth keeps the shape it was cut to: cut on a body smoothed
+   * for thick cloth, fitted on the plain one.
+   */
+  fitOn?: ArrayLike<number>
 }
 
 export interface GarmentCut extends ProxyBinding {
@@ -560,6 +566,16 @@ export function cutGarment(
 
   const offset: number[] = []
   for (let i = 0; i < rows * 3; i++) offset.push(pos[i] - base[i])
+  const fitOn = options.fitOn
+  if (fitOn) {
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < 3; c++) {
+        const v = ref[r * 3 + c]
+        const w = weight[r * 3 + c]
+        for (let k = 0; k < 3; k++)
+          offset[r * 3 + k] += (P[v * 3 + k] - fitOn[v * 3 + k]) * w
+      }
+  }
   const uvs: number[] = []
   for (let r = 0; r < rows; r++)
     uvs.push(base[r * 3] * uvScale, base[r * 3 + 1] * uvScale)

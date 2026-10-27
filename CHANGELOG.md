@@ -12,6 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Added:** `smoothUnder`'s `bridge` (0..1) lets thicker cloth flatten the curve under a bump too, and `cutGarment`'s `fitOn` keeps a garment cut on one body in that shape when it is fitted on another. The builder's Tailor bridges more of the chest the thicker the cloth.
 - **Fixed:** a garment cut (`cutGarment`, the builder's Tailor) that goes round a limb is now square to the limb: a sleeve ending on the forearm was cut along the outline's line, which crosses hm08's forward-reaching forearms at a long slant. Cuts round the body and the neck still follow the line.
 - **Fixed:** clothes in the character builder no longer show nipples: they are fitted over the body with its nipples smoothed (`smoothUnder` in proxy-fit, with the pack's new `nipples` region; pack `?v=17`). The skin keeps them.
 - **Changed:** `skinAlbedo` (skin-tone) is paler and whiter at the fair end, and `redness` is stronger toward both ends of its dial (subtle near 0.5): 0 is a drained grey-white, 1 is flushed. A recipe at a fair tone or an extreme redness looks different.

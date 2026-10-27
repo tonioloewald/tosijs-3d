@@ -202,4 +202,27 @@ describe.skipIf(!existsSync(PACK))('hm08 trousers', () => {
     for (const q of neck) expect(Math.abs(q[1] - 0.6)).toBeLessThan(0.002)
     for (const q of front) expect(Math.abs(q[1] - 0.25)).toBeLessThan(0.002)
   })
+
+  test('fitOn: a garment cut on one body keeps that shape on another', async () => {
+    const pack = await loadHumanPack(PACK, fromDisk)
+    const plain = pack.positions
+    const lower = Float32Array.from(plain)
+    for (let i = 2; i < lower.length; i += 3) lower[i] -= 0.01
+    const front = [
+      [
+        [-0.3, 0.0],
+        [0.3, 0.0],
+        [0.3, 0.3],
+        [-0.3, 0.3],
+      ],
+    ] as [number, number][][]
+    const cut = cutGarment(lower, pack.triangles, { front, fitOn: plain, hem: false })
+    const own = cutGarment(lower, pack.triangles, { front, hem: false })
+    const a = fitProxy(cut, plain)
+    const b = fitProxy(own, lower)
+    let worst = 0
+    for (let i = 0; i < a.length; i++) worst = Math.max(worst, Math.abs(a[i] - b[i]))
+    expect(worst).toBeLessThan(1e-5)
+  })
 })
+
