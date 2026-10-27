@@ -652,8 +652,8 @@ preview.append(
         const known = new Int32Array(pack.manifest.vertexCount).fill(-1)
         skin.vertices.forEach((v, i) => { known[v] = i })
         const allWeights = nearestWeights(first, known, weights)
-        // The skin a skirt-cut garment may hang from: not the arms, or a
-        // poncho or a robe swings with them.
+        // The skin a skirt may go round: not the arms, which it cannot
+        // follow without cloth simulation.
         const armBone = new Set(rig0.joints.map((j, i) => (/^(clavicle|upperarm|lowerarm|hand|thumb|index|middle|ring|pinky)/.test(j.name) ? i : -1)).filter((i) => i >= 0))
         const notArm = new Uint8Array(pack.manifest.vertexCount)
         for (let v = 0; v < notArm.length; v++) {

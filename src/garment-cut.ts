@@ -26,16 +26,17 @@ do ([proxy-fit](/proxy-fit/)).
   cloth with a thickness rather than a paper shell.
 - `delete` lists the body vertices the garment covers (for `coverBody`).
 
-`skirtGarment` takes the same outlines and makes a skirt, kilt, robe or
-poncho instead: at each height, the cloth goes round the CONVEX outline of
+`skirtGarment` takes the same outlines and makes a skirt, kilt or robe
+instead: at each height, the cloth goes round the CONVEX outline of
 the body inside the cut (both legs as one, or the torso and arms), so it
 spans the gaps instead of following each leg. Below its widest ring it hangs
 straight down. It is an open tube, no top or bottom, to be drawn two-sided.
+It is for the torso and legs: skirts, kilts, robes.
 Each point is bound between the nearest skin on the left and on the right,
 blended across the middle, so it moves with both legs and tears between
-neither. `anchor` says which skin it hangs from: a poncho or robe that goes round
-the arms hangs from the torso, and the arms only pull on the cloth near
-them, more the nearer they are, so it moves with them without tearing.
+neither. `anchor` says which skin a skirt may go round; the builder leaves out the
+arms (a skirt cannot follow a swinging arm without cloth simulation), so a
+robe drawn over the arms is a skirt over the body and its sleeves a cut.
 
 Pure: positions and triangles in, a binding out.
 */
@@ -716,15 +717,14 @@ export interface SkirtOptions {
   uvScale?: number
   /**
    * Which body vertices the cloth may be bound to (non-zero), every base
-   * vertex. Leave out the arms for a poncho or a robe: the outline still
-   * goes round them and the cloth hangs from the torso, while an arm pulls
-   * on the cloth near it, by how much nearer it is than the torso.
+   * vertex; the rest is outside the skirt whatever the outline says. Leave
+   * out the arms: cloth that went round them stood still while they swung
+   * through it, or crumpled round them, and without cloth simulation there
+   * is no third choice. A robe drawn over the arms is then a skirt over the
+   * body, and its sleeves a `cutGarment`.
    */
   anchor?: ArrayLike<number>
 }
-
-/** How far an arm under the cloth can pull it (1 = cloth on it moves wholly with it). */
-const ARM_PULL = 0.85
 
 /** A convex hull of 2D points (Andrew's monotone chain), counter-clockwise. */
 function hull2d(pts: ViewPoint[]): ViewPoint[] {
@@ -766,7 +766,7 @@ function rayExit(poly: ViewPoint[], c: ViewPoint, d: ViewPoint): number {
 }
 
 /**
- * A skirt (or kilt, robe, poncho) from outlines: rings round the convex
+ * A skirt (or kilt, robe) from outlines: rings round the convex
  * outline of the body at each height, as an open tube bound to the body.
  */
 export function skirtGarment(
@@ -786,9 +786,10 @@ export function skirtGarment(
   for (let t = 0; t < triangles.length; t++) used[triangles[t]] = 1
 
   // The skin inside the cut, and the cut's height.
+  const anchor = options.anchor
   const inside: number[] = []
   for (let v = 0; v < n; v++) {
-    if (!used[v]) continue
+    if (!used[v] || (anchor && !anchor[v])) continue
     if (views.every((view) => insideView(view, P[v * 3 + view.u], P[v * 3 + 1])))
       inside.push(v)
   }
@@ -871,13 +872,10 @@ export function skirtGarment(
   const weight: number[] = []
   const offset: number[] = []
   const uvs: number[] = []
-  const anchor = options.anchor
-  const bindable = anchor ? inside.filter((v) => anchor[v]) : inside
   const nearest = (band: number[], x: number, z: number, y: number, side: number) => {
     let best = -1
     let bd = Infinity
     for (const v of band) {
-      if (anchor && !anchor[v]) continue
       if (side !== 0 && Math.sign(P[v * 3]) !== side) continue
       const d = (P[v * 3] - x) ** 2 + (P[v * 3 + 1] - y) ** 2 + (P[v * 3 + 2] - z) ** 2
       if (d < bd) {
@@ -888,9 +886,7 @@ export function skirtGarment(
     return best
   }
   levels.forEach((y, i) => {
-    // The ring's skin it may bind to, or the nearest bindable skin at all
-    // (a sleeve-less band of a poncho is all arm).
-    const band = anchor && !bands[i].some((v) => anchor[v]) ? bindable : bands[i]
+    const band = bands[i]
     const c = centres[i]
     let halfWidth = 1e-3
     for (const v of band) halfWidth = Math.max(halfWidth, Math.abs(P[v * 3] - c[0]))
@@ -906,37 +902,12 @@ export function skirtGarment(
       // Left (+X) fades to right across the middle third.
       const t = Math.min(1, Math.max(0, (x - c[0]) / halfWidth / 0.66 + 0.5))
       const wl = t * t * (3 - 2 * t)
-      // Skin it may not hang from (an arm) still pulls on it, by how much
-      // nearer it is than the skin it hangs from: cloth over an arm goes
-      // mostly with the arm, cloth over the chest not at all, and smoothly
-      // between, so nothing tears.
-      let arm = -1
-      let wa = 0
-      if (anchor) {
-        const d2 = (v: number) =>
-          (P[v * 3] - x) ** 2 + (P[v * 3 + 1] - y) ** 2 + (P[v * 3 + 2] - z) ** 2
-        let da = Infinity
-        for (const v of bands[i])
-          if (!anchor[v] && d2(v) < da) {
-            da = d2(v)
-            arm = v
-          }
-        if (arm >= 0) {
-          const dt = Math.sqrt(Math.min(d2(a), d2(b)))
-          da = Math.sqrt(da)
-          wa = ARM_PULL * (dt / (dt + da + 1e-6))
-        }
-      }
-      const w = [wl * (1 - wa), (1 - wl) * (1 - wa), wa]
-      ref.push(a, b, arm >= 0 ? arm : a)
+      const w = [wl, 1 - wl, 0]
+      ref.push(a, b, a)
       weight.push(w[0], w[1], w[2])
       for (let k = 0; k < 3; k++) {
         const q = [x, y, z][k]
-        const on =
-          P[a * 3 + k] * w[0] +
-          P[b * 3 + k] * w[1] +
-          (arm >= 0 ? P[arm * 3 + k] : 0) * w[2]
-        offset.push(q - on)
+        offset.push(q - (P[a * 3 + k] * w[0] + P[b * 3 + k] * w[1]))
       }
       // u runs once round the ring, by arc length at the widest ring.
       uvs.push((j / M) * 1.5 * uvScale, y * uvScale)
