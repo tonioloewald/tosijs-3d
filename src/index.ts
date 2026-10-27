@@ -1824,7 +1824,10 @@ export {
   garmentRigidity,
   referenceName,
   metaFromName,
+  unwrapGarment,
 } from './garment-file.js'
+export { unwrapUvs, carryUnwrapped } from './uv-unwrap.js'
+export type { Unwrapped, UnwrapOptions } from './uv-unwrap.js'
 export {
   rigidGroups,
   similarityFit,

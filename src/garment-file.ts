@@ -30,9 +30,11 @@ Roughness (and Metallic); set the material's blend mode to Alpha Clip or
 Alpha Blend for a cut-out or see-through one. The exporter packs roughness
 and metalness into one image, and the images travel inside the GLB. Where the
 parts use several materials, the first part's is the one read
-(`materialCount` says how many there were). A garment cut from the body has
-UVs in metres, its front view (front and back share them), which suits a
-tiling fabric; unwrap it in Blender for a map painted to the garment.
+(`materialCount` says how many there were). `unwrapGarment` gives a garment UVs from
+its shape ([uv-unwrap](/uv-unwrap/)): a front and a back for each side, like
+a sewing pattern, packed into the unit square, so a map can be painted on it
+or a pattern run across it. The character builder unwraps a cut before
+exporting it; unwrap it again in Blender if you want other seams.
 
 Leave out the `garment` to export the body alone, to model a garment from
 nothing: every object you add beside it comes back as the garment. The body
@@ -63,6 +65,7 @@ const { garment, meta } = readGarment(await file.arrayBuffer())
 import { rigidGroups, type MeshPart, type RigidSpec } from './proxy-rigid.js'
 import { vertexNormals } from './hair-fit.js'
 import { DEFAULT_HUMAN_BODY } from './human-morph.js'
+import { carryUnwrapped, unwrapUvs, type UnwrapOptions } from './uv-unwrap.js'
 
 /** A mesh as triangles: positions (xyz), optional normals and UVs. */
 export interface GarmentMesh {
@@ -74,6 +77,42 @@ export interface GarmentMesh {
   parts?: MeshPart[] | null
   /** Each vertex's own rigidity (a `_rigid` attribute or paint), NaN where none. */
   rigid?: Float32Array | null
+}
+
+/**
+ * A garment with UVs worked out from its shape ([uv-unwrap](/uv-unwrap/)):
+ * cut along the planes between left and right and between front and back,
+ * each piece flattened, packed into the unit square. Normals are carried
+ * across the seams, so the shading does not break there. A garment of
+ * several parts keeps its own UVs (each part is the artist's).
+ */
+export function unwrapGarment(
+  g: GarmentMesh,
+  options?: UnwrapOptions
+): GarmentMesh {
+  if ((g.parts?.length ?? 0) > 1) return g
+  const u = unwrapUvs(g.positions, g.triangles, options)
+  const normals = carryUnwrapped(
+    g.normals ?? vertexNormals(g.positions, g.triangles),
+    3,
+    u
+  )
+  for (let i = 0; i < normals.length; i += 3) {
+    const l = Math.hypot(normals[i], normals[i + 1], normals[i + 2]) || 1
+    normals[i] /= l
+    normals[i + 1] /= l
+    normals[i + 2] /= l
+  }
+  return {
+    positions: u.positions,
+    triangles: u.triangles,
+    normals,
+    uvs: u.uvs,
+    rigid: g.rigid ? carryUnwrapped(g.rigid, 1, u) : null,
+    parts: g.parts?.length
+      ? [{ ...g.parts[0], first: 0, count: u.positions.length / 3 }]
+      : null,
+  }
 }
 
 /**
