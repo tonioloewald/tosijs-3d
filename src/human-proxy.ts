@@ -83,7 +83,8 @@ export function proxyMaterial(
     m.useMetallnessFromMetallicTextureBlue = true
     m.useRoughnessFromMetallicTextureAlpha = false
   }
-  if (m.bumpTexture && pm.normalScale != null) m.bumpTexture.level = pm.normalScale
+  if (m.bumpTexture && pm.normalScale != null)
+    m.bumpTexture.level = pm.normalScale
   if (pm.baseColor) {
     // glTF's normal maps are OpenGL's (green up), on a mesh mirrored into
     // Babylon's left-handed scene, with V flipped to the OBJ convention.

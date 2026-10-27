@@ -22,7 +22,8 @@ beforeAll(async () => {
 const box = () => {
   const positions: number[] = []
   for (const x of [-0.2, 0.2])
-    for (const y of [0, 1.8]) for (const z of [-0.1, 0.1]) positions.push(x, y, z)
+    for (const y of [0, 1.8])
+      for (const z of [-0.1, 0.1]) positions.push(x, y, z)
   // Vertex i is x bit 4, y bit 2, z bit 1.
   const quads = [
     [0, 1, 3, 2],

@@ -105,9 +105,7 @@ describe('garment-file', () => {
       alphaCutoff: 0.3,
       doubleSided: true,
     }
-    const back = readGarment(
-      writeGarmentGlb({ garment, body, meta, material })
-    )
+    const back = readGarment(writeGarmentGlb({ garment, body, meta, material }))
     expect(back.materialCount).toBe(1)
     const m = back.material!
     expect(Array.from(m.baseColorTexture!.bytes)).toEqual([
@@ -136,7 +134,9 @@ describe('garment-file', () => {
     expect(plain.alphaMode).toBe('OPAQUE')
     expect(plain.doubleSided).toBe(false)
     // An OBJ carries none.
-    expect(readGarment(writeGarmentObj({ garment, meta })).material).toBeUndefined()
+    expect(
+      readGarment(writeGarmentObj({ garment, meta })).material
+    ).toBeUndefined()
   })
 
   test('the body alone: what is modelled beside it comes back with its metadata', () => {

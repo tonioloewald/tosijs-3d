@@ -74,7 +74,9 @@ function upright(u: Unwrapped, least = 0.005) {
 describe('uv-unwrap', () => {
   test('a flat sheet lies flat, unstretched and upright, cut down the middle', () => {
     const sheet = grid(8, 6, (u, v) => [u * 2 - 1, v * 1.5, 0])
-    const u = unwrapUvs(sheet.positions, sheet.triangles, { seams: { z: false } })
+    const u = unwrapUvs(sheet.positions, sheet.triangles, {
+      seams: { z: false },
+    })
     expect(u.charts).toBe(2)
     for (const r of ratios(u)) expect(r).toBeCloseTo(1, 4)
     expect(upright(u)).toBe(1)
@@ -136,15 +138,20 @@ describe('uv-unwrap', () => {
   })
 
   test('a ball falls into four pieces, none folded over, packed apart', () => {
-    const ball = grid(24, 12, (u, v) => {
-      const a = u * Math.PI * 2
-      const b = (v - 0.5) * Math.PI
-      return [
-        Math.cos(b) * Math.cos(a) * 0.1,
-        Math.sin(b) * 0.1,
-        -Math.cos(b) * Math.sin(a) * 0.1,
-      ]
-    }, true)
+    const ball = grid(
+      24,
+      12,
+      (u, v) => {
+        const a = u * Math.PI * 2
+        const b = (v - 0.5) * Math.PI
+        return [
+          Math.cos(b) * Math.cos(a) * 0.1,
+          Math.sin(b) * 0.1,
+          -Math.cos(b) * Math.sin(a) * 0.1,
+        ]
+      },
+      true
+    )
     const u = unwrapUvs(ball.positions, ball.triangles)
     expect(u.charts).toBe(4)
     // The poles' slivers are degenerate; the rest keep their winding.
@@ -162,7 +169,8 @@ describe('uv-unwrap', () => {
     for (let i = 0; i < box.length; i++)
       for (let j = i + 1; j < box.length; j++) {
         const [a, b] = [box[i], box[j]]
-        const apart = a[2] <= b[0] || b[2] <= a[0] || a[3] <= b[1] || b[3] <= a[1]
+        const apart =
+          a[2] <= b[0] || b[2] <= a[0] || a[3] <= b[1] || b[3] <= a[1]
         expect(apart).toBe(true)
       }
   })
@@ -211,8 +219,12 @@ describe.skipIf(!existsSync(PACK))('hm08: trousers unwrapped', () => {
     expect(even / r.length).toBeGreaterThan(0.95)
     expect(upright(u)).toBeGreaterThan(0.95)
     console.log(
-      `trousers: ${u.charts} pieces, ${g.rows} → ${u.positions.length / 3} vertices, ` +
-        `${((even / r.length) * 100).toFixed(1)}% within 2× area, ${folded} folded`
+      `trousers: ${u.charts} pieces, ${g.rows} → ${
+        u.positions.length / 3
+      } vertices, ` +
+        `${((even / r.length) * 100).toFixed(
+          1
+        )}% within 2× area, ${folded} folded`
     )
   })
 })

@@ -116,7 +116,8 @@ function slice(m: Cut, axis: number, at: number, eps: number): Cut {
     if (v != null) return v
     const t = d(a) / (d(a) - d(b))
     v = P.length / 3
-    for (let k = 0; k < 3; k++) P.push(P[a * 3 + k] * (1 - t) + P[b * 3 + k] * t)
+    for (let k = 0; k < 3; k++)
+      P.push(P[a * 3 + k] * (1 - t) + P[b * 3 + k] * t)
     // Mix the two ends' inputs, at most four.
     const mix = new Map<number, number>()
     for (const [x, f] of [
@@ -125,7 +126,8 @@ function slice(m: Cut, axis: number, at: number, eps: number): Cut {
     ])
       for (let j = 0; j < 4; j++) {
         const w = m.weight[x * 4 + j] * f
-        if (w > 0) mix.set(m.ref[x * 4 + j], (mix.get(m.ref[x * 4 + j]) ?? 0) + w)
+        if (w > 0)
+          mix.set(m.ref[x * 4 + j], (mix.get(m.ref[x * 4 + j]) ?? 0) + w)
       }
     const top = [...mix].sort((p, q) => q[1] - p[1]).slice(0, 4)
     const sum = top.reduce((s, [, w]) => s + w, 0) || 1
@@ -268,11 +270,7 @@ function solve(
  * Flatten one piece: its triangles over local vertices 0..n-1, positions
  * per local vertex. Returns UVs in metres (area preserved overall).
  */
-function lscm(
-  pos: Float64Array,
-  tris: number[],
-  n: number
-): Float64Array {
+function lscm(pos: Float64Array, tris: number[], n: number): Float64Array {
   // Pin the two vertices farthest apart (two sweeps), at their distance.
   const far = (from: number) => {
     let best = from
@@ -304,7 +302,10 @@ function lscm(
   const free = new Int32Array(n * 2).fill(-1)
   let nf = 0
   for (let i = 0; i < n * 2; i++) if (!pinned.has(i)) free[i] = nf++
-  const rows: Map<number, number>[] = Array.from({ length: nf }, () => new Map())
+  const rows: Map<number, number>[] = Array.from(
+    { length: nf },
+    () => new Map()
+  )
   const rhs = new Float64Array(nf)
   const coef = new Float64Array(6)
   const idx = new Int32Array(6)
@@ -494,7 +495,8 @@ export function unwrapUvs(
     if (flip < 0) gx = -gx
     const k = Math.abs(signed) > 0 ? Math.sqrt(area3 / Math.abs(signed)) : 1
     // Turn the height gradient onto +v (a flat, level piece is left as is).
-    const turn = Math.hypot(gx, gy) > 1e-9 ? Math.PI / 2 - Math.atan2(gy, gx) : 0
+    const turn =
+      Math.hypot(gx, gy) > 1e-9 ? Math.PI / 2 - Math.atan2(gy, gx) : 0
     const cos = Math.cos(turn)
     const sin = Math.sin(turn)
     let minU = Infinity
