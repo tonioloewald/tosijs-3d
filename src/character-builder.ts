@@ -318,7 +318,9 @@ preview.append(
         // Wear a saved garment's file as a choice in its slot.
         const addCustom = async (bytes) => {
           const content = readGarment(bytes)
-          const { name, slot } = content.meta
+          const { name } = content.meta
+          // A slot this page has, or a top.
+          const slot = SLOTS.includes(content.meta.slot) ? content.meta.slot : 'top'
           proxyMaterials.delete(`${name}:`)
           const proxy = await asProxy(content, name, slot)
           custom.set(name, { proxy, cut: content.meta.cut, look: content.meta.look })
@@ -400,7 +402,7 @@ preview.append(
             walker.tailorRecolour.value = 0
           }
           if (meta.name && !walker.tailorName.value) walker.tailorName.value = meta.name === 'tailored' ? '' : meta.name
-          if (meta.slot) walker.tailorSlot.value = meta.slot
+          if (SLOTS.includes(meta.slot)) walker.tailorSlot.value = meta.slot
           dress()
           el.refreshScenePanel?.()
         }
