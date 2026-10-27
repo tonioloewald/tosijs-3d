@@ -26,6 +26,10 @@ expect from a 3D viewer, on every device. `<tosi-b3d>`'s default camera and
 - **A wheel over a panel is the panel's**: panels take it before the canvas
   sees it, so a list scrolls and the scene stays put.
 
+- **Zoom is proportional**: a wheel step or pinch moves the camera by a share
+  of its distance (`WHEEL_SHARE`, as Babylon's `wheelDeltaPercentage`), so it
+  is as gentle at arm's length as across a field. A page that set
+  `wheelPrecision` or `wheelDeltaPercentage` itself keeps its own.
 - **Zoom stops short of the target**: with no `lowerRadiusLimit` of your own,
   it is set to twice the camera's near plane (at least 1 cm), because Babylon
   has none and zooming in went through the target and flipped the view.
@@ -69,6 +73,9 @@ function panBy(camera: BABYLON.ArcRotateCamera, dx: number, dy: number): void {
   camera.target.addInPlace(right).addInPlace(up)
 }
 
+/** A wheel step's share of the camera's distance (Babylon's `wheelDeltaPercentage`). */
+export const WHEEL_SHARE = 0.01
+
 export function touchOrbit(
   camera: BABYLON.ArcRotateCamera,
   options: { trackpadPan?: boolean } = {}
@@ -81,6 +88,12 @@ export function touchOrbit(
   // radius went through zero and the view flipped. A limit a page set wins.
   if (camera.lowerRadiusLimit == null || camera.lowerRadiusLimit <= 0) {
     camera.lowerRadiusLimit = Math.max(0.01, camera.minZ * 2)
+  }
+  // The wheel zooms by a share of the distance, not a fixed one: Babylon's
+  // default moved ~0.8 m a notch, so close up one notch went too close. A
+  // page's own wheel setting wins.
+  if (camera.wheelDeltaPercentage === 0 && camera.wheelPrecision === 3) {
+    camera.wheelDeltaPercentage = WHEEL_SHARE
   }
   const pointers = camera.inputs?.attached?.pointers as
     | BABYLON.ArcRotateCameraPointersInput

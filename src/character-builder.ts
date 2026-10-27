@@ -194,6 +194,9 @@ preview.append(
         studioEnvironment(scene)
         const cam = new BABYLON.ArcRotateCamera('c', Math.PI / 2 - 0.5, 1.35, 4, new BABYLON.Vector3(0, 0.9, 0), scene)
         cam.minZ = 0.05
+        // Close enough for a face, far enough for the whole floor.
+        cam.lowerRadiusLimit = 0.3
+        cam.upperRadiusLimit = 10
         cam.attachControl(el.querySelector('canvas'), true)
         el.setActiveCamera(cam)
         // A floor with a metre grid (and faint quarters), which takes the sun's shadow.
