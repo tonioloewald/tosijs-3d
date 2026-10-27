@@ -33,8 +33,9 @@ spans the gaps instead of following each leg. Below its widest ring it hangs
 straight down. It is an open tube, no top or bottom, to be drawn two-sided.
 Each point is bound between the nearest skin on the left and on the right,
 blended across the middle, so it moves with both legs and tears between
-neither. `anchor` limits that to some of the skin: a poncho or robe that
-goes round the arms is bound to the torso, or it follows each arm's swing.
+neither. `anchor` says which skin it hangs from: a poncho or robe that goes round
+the arms hangs from the torso, and the arms only pull on the cloth near
+them, more the nearer they are, so it moves with them without tearing.
 
 Pure: positions and triangles in, a binding out.
 */
@@ -716,11 +717,14 @@ export interface SkirtOptions {
   /**
    * Which body vertices the cloth may be bound to (non-zero), every base
    * vertex. Leave out the arms for a poncho or a robe: the outline still
-   * goes round them, but the cloth moves with the torso and legs, not with
-   * an arm's swing.
+   * goes round them and the cloth hangs from the torso, while an arm pulls
+   * on the cloth near it, by how much nearer it is than the torso.
    */
   anchor?: ArrayLike<number>
 }
+
+/** How far an arm under the cloth can pull it (1 = cloth on it moves wholly with it). */
+const ARM_PULL = 0.85
 
 /** A convex hull of 2D points (Andrew's monotone chain), counter-clockwise. */
 function hull2d(pts: ViewPoint[]): ViewPoint[] {
@@ -902,11 +906,37 @@ export function skirtGarment(
       // Left (+X) fades to right across the middle third.
       const t = Math.min(1, Math.max(0, (x - c[0]) / halfWidth / 0.66 + 0.5))
       const wl = t * t * (3 - 2 * t)
-      ref.push(a, b, a)
-      weight.push(wl, 1 - wl, 0)
+      // Skin it may not hang from (an arm) still pulls on it, by how much
+      // nearer it is than the skin it hangs from: cloth over an arm goes
+      // mostly with the arm, cloth over the chest not at all, and smoothly
+      // between, so nothing tears.
+      let arm = -1
+      let wa = 0
+      if (anchor) {
+        const d2 = (v: number) =>
+          (P[v * 3] - x) ** 2 + (P[v * 3 + 1] - y) ** 2 + (P[v * 3 + 2] - z) ** 2
+        let da = Infinity
+        for (const v of bands[i])
+          if (!anchor[v] && d2(v) < da) {
+            da = d2(v)
+            arm = v
+          }
+        if (arm >= 0) {
+          const dt = Math.sqrt(Math.min(d2(a), d2(b)))
+          da = Math.sqrt(da)
+          wa = ARM_PULL * (dt / (dt + da + 1e-6))
+        }
+      }
+      const w = [wl * (1 - wa), (1 - wl) * (1 - wa), wa]
+      ref.push(a, b, arm >= 0 ? arm : a)
+      weight.push(w[0], w[1], w[2])
       for (let k = 0; k < 3; k++) {
         const q = [x, y, z][k]
-        offset.push(q - (P[a * 3 + k] * wl + P[b * 3 + k] * (1 - wl)))
+        const on =
+          P[a * 3 + k] * w[0] +
+          P[b * 3 + k] * w[1] +
+          (arm >= 0 ? P[arm * 3 + k] : 0) * w[2]
+        offset.push(q - on)
       }
       // u runs once round the ring, by arc length at the widest ring.
       uvs.push((j / M) * 1.5 * uvScale, y * uvScale)
