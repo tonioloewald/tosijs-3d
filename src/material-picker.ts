@@ -66,8 +66,8 @@ is why the scene has `studioEnvironment`.
 
 ## Previews
 
-Each swatch and preset is the material rendered on a sphere in a fixed
-studio. One hidden engine draws every preview on the page, made the first
+Each swatch and preset is the material rendered on a teapot (The Base
+Mesh's, CC0) in a fixed studio. One hidden engine draws every preview on the page, made the first
 time one is wanted (one more WebGL context, once), one at a time, and each
 recipe is drawn once and kept. While you drag a slider the row shows the
 last picture until you pause. Until a picture is ready, or where WebGL is not

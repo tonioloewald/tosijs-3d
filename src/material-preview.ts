@@ -1,6 +1,7 @@
 /*
-A material's swatch, rendered: one small picture of a recipe on a sphere in
-a fixed studio, cached by the recipe, so a picker shows what a material LOOKS
+A material's swatch, rendered: one small picture of a recipe on a teapot
+(The Base Mesh's, CC0, from the CDN; a sphere until it loads or if it cannot)
+in a fixed studio, cached by the recipe, so a picker shows what a material LOOKS
 like rather than its base colour.
 
 One hidden engine renders every preview on the page, made the first time one
@@ -10,10 +11,16 @@ in a headset renders each once.
 */
 
 import * as BABYLON from '@babylonjs/core'
+// The teapot is a glb: register the loader even when this is imported alone.
+import '@babylonjs/loaders'
 import { applyMaterial } from './material-apply.js'
 import { clothShading } from './cloth-shading.js'
 import { studioEnvironment } from './environment.js'
 import { canonicalMaterial, type MaterialRecipe } from './material-recipe.js'
+import { assetUrl } from './asset-url.js'
+
+/** What previews are drawn on: curves, a spout and a handle, a lid's crease. */
+export const PREVIEW_MESH = 'thebasemesh/kitchen/teapot.glb'
 
 const SIZE = 128
 
@@ -23,7 +30,10 @@ interface Stage {
   canvas: HTMLCanvasElement
   pbr: BABYLON.PBRMaterial
   cloth: BABYLON.PBRMaterial
-  ball: BABYLON.Mesh
+  /** What the material goes on: the sphere, or the teapot's meshes once loaded. */
+  shapes: BABYLON.AbstractMesh[]
+  /** Loading the teapot; previews wait for it. */
+  ready: Promise<void>
 }
 
 let stage: Stage | null = null
@@ -49,8 +59,10 @@ function makeStage(): Stage | null {
   studioEnvironment(scene, { intensity: 0.9 })
   const camera = new BABYLON.ArcRotateCamera(
     'preview',
-    -Math.PI / 2 - 0.5,
-    1.15,
+    // From the side, a little ahead: the teapot's spout and handle lie
+    // along z, so spout, handle and lid all show.
+    0.45,
+    1.2,
     3.1,
     BABYLON.Vector3.Zero(),
     scene
@@ -69,23 +81,45 @@ function makeStage(): Stage | null {
   )
   const pbr = new BABYLON.PBRMaterial('preview-pbr', scene)
   const cloth = new BABYLON.PBRMaterial('preview-cloth', scene)
-  return { engine, scene, canvas, pbr, cloth, ball }
+  const s: Stage = { engine, scene, canvas, pbr, cloth, shapes: [ball], ready: Promise.resolve() }
+  s.ready = BABYLON.SceneLoader.LoadAssetContainerAsync(assetUrl(PREVIEW_MESH), '', scene)
+    .then((container) => {
+      container.addAllToScene()
+      const meshes = container.meshes.filter((m) => m.getTotalVertices() > 0)
+      if (meshes.length === 0) return
+      // Fit it to the sphere's place: centred, about as big.
+      const root = container.meshes[0]
+      const { min, max } = root.getHierarchyBoundingVectors()
+      const size = Math.max(max.x - min.x, max.y - min.y, max.z - min.z)
+      root.scaling.scaleInPlace(2.1 / size)
+      root.computeWorldMatrix(true)
+      const b = root.getHierarchyBoundingVectors()
+      root.position.subtractInPlace(b.min.add(b.max).scale(0.5))
+      ball.dispose()
+      s.shapes = meshes
+    })
+    .catch(() => {})
+  return s
 }
 
 async function draw(recipe: MaterialRecipe): Promise<string | null> {
   stage ??= makeStage()
   if (stage == null) return null
-  const { scene, canvas, ball } = stage
+  await stage.ready
+  const { scene, canvas } = stage
+  const wear = (m: BABYLON.Material) => {
+    for (const shape of stage!.shapes) shape.material = m
+  }
   if (recipe.type === 'pbr') {
     applyMaterial(stage.pbr, recipe)
-    ball.material = stage.pbr
+    wear(stage.pbr)
   } else if (recipe.type === 'cloth') {
     // A fresh look each time: the shading keeps what a recipe leaves out.
     stage.cloth.roughness = 0.85
     stage.cloth.metallic = 0
     stage.cloth.sheen.isEnabled = false
     clothShading(stage.cloth).set({ recipe })
-    ball.material = stage.cloth
+    wear(stage.cloth)
   } else return null
   await scene.whenReadyAsync()
   scene.render()
