@@ -10,43 +10,6 @@ plays UAL's clips at any shape.
 
 ## Demo
 
-Open the settings (the owl): the body sliders reshape it
-while it walks, since every body carries its own joints. The skin weights are
-bone heat's, worked out from the mesh once when the page loads. The eyes
-([human-face](/human-face/)) follow the camera, and the hair
-([human-hair](/human-hair/)) is Quaternius' CC0 hairstyles, made for another
-head and fitted to this one.
-
-**Tailor** cuts a garment of your own out of the body. **Draw the outline**
-opens the front view beside the panel; click out an outline over it (you draw the character's left, on your right; the other
-side is its mirror), and the skin inside it, front and back, becomes cloth.
-A rectangle from the waist to the ankles is a pair of trousers. Click the
-first point to close a shape, drag a point to move it, press an edge to add
-one ([garment-cut](/garment-cut/)).
-
-A cut is a start, not a finished garment: **export** it (glTF or OBJ, the
-garment and the body it was made on), shape it in Blender (a collar, pockets,
-its own UV unwrap), and **import** it back. It is bound to the body again by
-its shape, so it fits every body like the rest ([garment-file](/garment-file/)).
-Or **export the body alone** and model a garment from nothing beside it.
-In Blender, tick Include → Custom Properties when exporting, so the file still
-says which body it was made on.
-
-New objects come in as part of the garment. Anything hard (a knee pad, a
-plate, a visor) gets a `rigid` custom property so it keeps its shape instead
-of bulging with the body under it ([proxy-rigid](/proxy-rigid/)).
-
-Its surface is made in Blender too: the garment's material comes back with
-its base colour, normal, roughness and alpha maps, and fabric **as made**
-with **recolour** at 0 shows it untouched. Recolour above 0 tints the base
-colour map, read as grey.
-
-**Hide other clothes** shows the garment on its own. **Name** it, pick its
-**slot** and **save as an option**: it is kept in this browser and becomes a
-choice in that slot like MakeHuman's own, with the fabric and colour it was
-saved with. A saved cut can be **edit**ed again from its outline; **forget**
-removes it.
-
 ```js
 import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, unwrapGarment } from 'tosijs-3d'
 import { tosi } from 'tosijs'
@@ -674,7 +637,9 @@ preview.append(
         skin.vertices.forEach((v, i) => { known[v] = i })
         const allWeights = nearestWeights(first, known, weights)
         let current = first
-        tailorBody = { positions: first, indices: pack.triangles }
+        // The body as it is now, read when the outline opens: the cut is made
+        // on the current body, so the view it is drawn over must be that one.
+        tailorBody = { get positions() { return current }, indices: pack.triangles }
         void loadSaved()
 
         // The face: MakeHuman's face pose units as morph targets, in layers.
@@ -841,6 +806,43 @@ preview.append(
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+Open the settings (the owl): the body sliders reshape it
+while it walks, since every body carries its own joints. The skin weights are
+bone heat's, worked out from the mesh once when the page loads. The eyes
+([human-face](/human-face/)) follow the camera, and the hair
+([human-hair](/human-hair/)) is Quaternius' CC0 hairstyles, made for another
+head and fitted to this one.
+
+**Tailor** cuts a garment of your own out of the body. **Draw the outline**
+opens the front view beside the panel; click out an outline over it (you draw the character's left, on your right; the other
+side is its mirror), and the skin inside it, front and back, becomes cloth.
+A rectangle from the waist to the ankles is a pair of trousers. Click the
+first point to close a shape, drag a point to move it, press an edge to add
+one ([garment-cut](/garment-cut/)).
+
+A cut is a start, not a finished garment: **export** it (glTF or OBJ, the
+garment and the body it was made on), shape it in Blender (a collar, pockets,
+its own UV unwrap), and **import** it back. It is bound to the body again by
+its shape, so it fits every body like the rest ([garment-file](/garment-file/)).
+Or **export the body alone** and model a garment from nothing beside it.
+In Blender, tick Include → Custom Properties when exporting, so the file still
+says which body it was made on.
+
+New objects come in as part of the garment. Anything hard (a knee pad, a
+plate, a visor) gets a `rigid` custom property so it keeps its shape instead
+of bulging with the body under it ([proxy-rigid](/proxy-rigid/)).
+
+Its surface is made in Blender too: the garment's material comes back with
+its base colour, normal, roughness and alpha maps, and fabric **as made**
+with **recolour** at 0 shows it untouched. Recolour above 0 tints the base
+colour map, read as grey.
+
+**Hide other clothes** shows the garment on its own. **Name** it, pick its
+**slot** and **save as an option**: it is kept in this browser and becomes a
+choice in that slot like MakeHuman's own, with the fabric and colour it was
+saved with. A saved cut can be **edit**ed again from its outline; **forget**
+removes it.
 
 ## humanBody
 
