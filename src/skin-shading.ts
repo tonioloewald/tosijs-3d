@@ -99,7 +99,7 @@ export interface SkinShadingOptions {
   scatter?: number
   /** The grazing-angle lift (default 0.6). */
   rim?: number
-  /** Light through thin parts from behind (default 2.5: an ear glows against the sun). */
+  /** Light through thin parts from behind (default 1.2: an ear warms against the sun; 2.5 read as a glow). */
   backlight?: number
   /** The colour light comes out of skin, linear (default a deep red). */
   tint?: BABYLON.Color3
@@ -110,7 +110,7 @@ export interface SkinShadingOptions {
 export class SkinShadingPlugin extends BABYLON.MaterialPluginBase {
   scatter = 1
   rim = 0.6
-  backlight = 2.5
+  backlight = 1.2
   tint = new BABYLON.Color3(0.9, 0.28, 0.16)
   sun: BABYLON.DirectionalLight | null = null
   private _isEnabled = false
