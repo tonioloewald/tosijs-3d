@@ -221,6 +221,38 @@ describe.skipIf(!havePack)('hm08 chest and bust', () => {
     expect(await girth(0)).toBeLessThan(mid - 0.03)
     expect(await girth(1)).toBeGreaterThan(mid + 0.03)
   })
+  test('the narrow waist is narrower from the front, and the hips stay', async () => {
+    const pack = await loadHumanPack(PACK, fromDisk)
+    const used = [...new Set<number>(pack.triangles)]
+    const morph = (waist: number) =>
+      morphHuman(
+        pack,
+        macroWeights({ ...DEFAULT_HUMAN_BODY, gender: 0, waist }, (n) =>
+          pack.has(n)
+        )
+      )
+    const a = await morph(0.5)
+    const b = await morph(0)
+    let lo = Infinity
+    let hi = -Infinity
+    for (const v of used) {
+      lo = Math.min(lo, a[v * 3 + 1])
+      hi = Math.max(hi, a[v * 3 + 1])
+    }
+    // Full width of the torso at a fraction of the height (the band is
+    // picked on the neutral body, so both are measured at the same place).
+    const width = (p: Float32Array, f: number) => {
+      const y = lo + (hi - lo) * f
+      let x = 0
+      for (const v of used) {
+        if (Math.abs(a[v * 3 + 1] - y) < 0.006 && Math.abs(a[v * 3]) < 0.2)
+          x = Math.max(x, Math.abs(p[v * 3]))
+      }
+      return x * 2
+    }
+    expect(width(b, 0.645)).toBeLessThan(width(a, 0.645) - 0.03)
+    expect(Math.abs(width(b, 0.53) - width(a, 0.53))).toBeLessThan(0.008)
+  })
 })
 
 describe.skipIf(!havePack)('hm08, rigged from its joint cubes', () => {

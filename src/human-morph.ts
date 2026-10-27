@@ -20,6 +20,8 @@ The sliders, each from 0 to 1:
 - **height**: shortest at 0, average for the rest of the body at 0.5, tallest at 1
 - **proportions**: uncommon at 0, neutral at 0.5, ideal at 1
 - **waist**: narrowest at 0, as the rest of the body has it at 0.5, widest at 1
+  (MakeHuman's waist circumference, plus a pinch toward the centre line below
+  0.5, because that target mostly takes depth off)
 
 `african`, `asian` and `caucasian` are an ancestry MIX, normalised to sum to 1
 (all zero is an even mix).
@@ -234,7 +236,84 @@ export function macroWeights(
   for (const [t, w] of bipolar(body.waist ?? 0.5, 'decr', 'incr')) {
     add(`measure/measure-waist-circ-${t}`, w)
   }
+  /*
+  MakeHuman's waist circumference mostly takes DEPTH off (about 4 cm to 1.5
+  across), and none of its shapes narrows the waist from the front alone (hip
+  width takes the hips too, V-shape widens the shoulders, torso width takes the
+  ribs). So the narrow end also pinches the waist toward the centre line, a
+  shape computed here rather than a target in the pack.
+  */
+  const narrow = (0.5 - clamp01(body.waist ?? 0.5)) * 2
+  if (narrow > 1e-6) out.set(WAIST_NARROW, narrow)
   return out
+}
+
+/** The computed waist pinch's name in a `macroWeights` map (not a pack target). */
+export const WAIST_NARROW = 'shape/waist-narrow'
+
+/** How much of the waist's width the pinch takes at most. */
+const WAIST_PINCH = 0.14
+
+// Which vertices the pinch moves and how much (0..1), from the BASE mesh,
+// where the arms are far from the waist; once per pack.
+const pinchMasks = new WeakMap<object, Float32Array>()
+function waistMask(base: ArrayLike<number>, triangles: ArrayLike<number>): Float32Array {
+  let mask = pinchMasks.get(base as object)
+  if (mask != null) return mask
+  const n = base.length / 3
+  let lo = Infinity
+  let hi = -Infinity
+  for (let i = 0; i < triangles.length; i++) {
+    const y = base[triangles[i] * 3 + 1]
+    if (y < lo) lo = y
+    if (y > hi) hi = y
+  }
+  const h = hi - lo
+  // The waist: the narrowest torso between 58% and 72% of the height.
+  let waistY = lo + h * 0.645
+  let narrowest = Infinity
+  for (let f = 0.58; f <= 0.72; f += 0.005) {
+    const y = lo + h * f
+    let w = 0
+    for (let i = 0; i < triangles.length; i++) {
+      const v = triangles[i]
+      const x = Math.abs(base[v * 3])
+      if (Math.abs(base[v * 3 + 1] - y) < 0.004 && x < 0.2 && x > w) w = x
+    }
+    if (w > 0 && w < narrowest) {
+      narrowest = w
+      waistY = y
+    }
+  }
+  const sigma = h * 0.05
+  mask = new Float32Array(n)
+  for (let v = 0; v < n; v++) {
+    const dy = (base[v * 3 + 1] - waistY) / sigma
+    const ax = Math.abs(base[v * 3])
+    // The torso only: faded out well before the arms (26 cm out in the base).
+    const side = ax < 0.16 ? 1 : ax > 0.2 ? 0 : (0.2 - ax) / 0.04
+    mask[v] = Math.exp(-0.5 * dy * dy) * side
+  }
+  pinchMasks.set(base as object, mask)
+  return mask
+}
+
+/**
+ * Pinch the waist toward the centre line by `amount` (0..1) of `WAIST_PINCH`.
+ * The band is found on the pack's base mesh; `out` is the morphed body. Pure
+ * apart from a cache of the band per base mesh.
+ */
+export function pinchWaist(
+  out: Float32Array,
+  base: ArrayLike<number>,
+  triangles: ArrayLike<number>,
+  amount: number
+): void {
+  const mask = waistMask(base, triangles)
+  const k = WAIST_PINCH * amount
+  for (let v = 0; v < mask.length; v++) {
+    if (mask[v] > 1e-4) out[v * 3] *= 1 - k * mask[v]
+  }
 }
 
 /** Add `weight` × a target into `out` (xyz per vertex). Pure. */
@@ -266,13 +345,13 @@ export async function morphHuman(
   weights: Map<string, number>,
   into?: Float32Array
 ): Promise<Float32Array> {
-  const targets = await Promise.all(
-    [...weights.keys()].map((n) => pack.target(n))
-  )
+  const names = [...weights.keys()].filter((n) => n !== WAIST_NARROW)
+  const targets = await Promise.all(names.map((n) => pack.target(n)))
   const out = into ?? new Float32Array(pack.positions.length)
   out.set(pack.positions)
-  let i = 0
-  for (const w of weights.values()) addHumanTarget(out, targets[i++], w)
+  names.forEach((n, i) => addHumanTarget(out, targets[i], weights.get(n)!))
+  const narrow = weights.get(WAIST_NARROW) ?? 0
+  if (narrow > 0) pinchWaist(out, pack.positions, pack.triangles, narrow)
   return out
 }
 
