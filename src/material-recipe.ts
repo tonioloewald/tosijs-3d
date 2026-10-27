@@ -37,16 +37,26 @@ An input left out takes its default, so a recipe says only what differs.
 
 ## Types
 
-`pbr` ships: Babylon's PBR material, which is the one most of what we draw
-uses. Its inputs are `albedo`, `alpha`, `roughness`, `metallic`,
-`reflections` (how much it reflects its surroundings), `sheen` and
-`sheenRoughness` (the grazing glow of cloth), `emissive` and `normal`.
-`registerMaterialType` adds another.
+Two ship, and `registerMaterialType` adds another.
+
+- `pbr`: Babylon's PBR material, which is the one most of what we draw uses.
+  Its inputs are `albedo`, `alpha`, `roughness`, `metallic`, `reflections`
+  (how much it reflects its surroundings), `sheen` and `sheenRoughness` (the
+  grazing glow of cloth), `emissive` and `normal`. `applyMaterial` puts one on
+  a Babylon material.
+- `cloth`: [[cloth-shading]] over a garment's own texture: `albedo` and
+  `recolour` (0 keeps the texture's colours, 1 is the colour wholly), and a
+  surface (`roughness`, `metallic`, `sheen`, `sheenRoughness`) whose inputs
+  are OPTIONAL: one left out is the garment's own, as made. `clothShading`'s
+  `set({ recipe })` applies one.
 
 ## Collections
 
-Named sets of presets. `fabrics` is [[cloth-shading]]'s `FABRICS` as
-recipes, from cotton to chrome.
+Named sets of presets. `fabrics` is [[cloth-shading]]'s `FABRICS` as `cloth`
+recipes, from cotton to chrome; `materialAsType` gives a picker of another type the
+inputs it shares. `applyMaterialPreset(current, preset, keep)` lays a preset over a
+recipe, leaving the `keep` inputs it does not set itself, so picking cotton
+keeps your colour and gold brings its own.
 */
 /*{ "parent": "ui-controls", "order": 48 }*/
 
@@ -71,6 +81,11 @@ export interface MaterialInputDecl {
   image?: boolean
   /** A strength beside the value (an emissive colour's brightness). */
   intensity?: { default: number; min?: number; max?: number }
+  /**
+   * Left out, the material keeps its OWN value (a garment's roughness map):
+   * it resolves to `null`, and `default` is only where a control starts.
+   */
+  optional?: boolean
 }
 
 /** A shader type: its name and the inputs it takes. */
@@ -125,7 +140,37 @@ export const PBR_MATERIAL: MaterialTypeDecl = {
   ],
 }
 
-const types = new Map<string, MaterialTypeDecl>([['pbr', PBR_MATERIAL]])
+/**
+ * Cloth over a garment's own texture (`cloth-shading`): a recolour, and a
+ * surface that is the garment's own until a fabric or a slider sets it.
+ */
+export const CLOTH_MATERIAL: MaterialTypeDecl = {
+  name: 'cloth',
+  label: 'cloth',
+  inputs: [
+    { name: 'albedo', label: 'colour', kind: 'rgb', default: '#7a2e2e' },
+    // 0 keeps the texture's colours, 1 is the colour wholly.
+    { name: 'recolour', kind: 'grey', default: 0 },
+    { name: 'roughness', kind: 'grey', default: 0.85, optional: true },
+    { name: 'metallic', kind: 'grey', default: 0, optional: true },
+    { name: 'sheen', kind: 'grey', default: 0.25, optional: true },
+    { name: 'sheenRoughness', label: 'sheen spread', kind: 'grey', default: 0.6, optional: true },
+  ],
+}
+
+const clamp = (v: number, lo: number, hi: number) =>
+  Math.min(hi, Math.max(lo, v))
+
+const canonColour = (s: string, alpha: boolean): string | null => {
+  const c = parseColor(s)
+  if (c == null) return null
+  return formatColor(alpha ? c : { ...c, a: 1 })
+}
+
+const types = new Map<string, MaterialTypeDecl>([
+  ['pbr', PBR_MATERIAL],
+  ['cloth', CLOTH_MATERIAL],
+])
 
 /** Add a shader type (or replace one of the same name). */
 export function registerMaterialType(decl: MaterialTypeDecl): void {
@@ -153,15 +198,19 @@ export interface MaterialCollection {
 const fabricRecipe = (f: (typeof FABRICS)[string]): MaterialRecipe => {
   const inputs: Record<string, MaterialInput> = {
     roughness: f.roughness,
+    metallic: f.metallic ?? 0,
     sheen: f.sheen,
     sheenRoughness: f.sheenRoughness,
   }
-  if (f.metallic) inputs.metallic = f.metallic
-  if (f.tint) inputs.albedo = f.tint
-  return { type: 'pbr', inputs }
+  // A finish that IS a colour (gold, copper) brings it, wholly.
+  if (f.tint) Object.assign(inputs, { albedo: f.tint, recolour: 1 })
+  return canonicalMaterial({ type: 'cloth', inputs })
 }
 
-/** Shipped collections. `fabrics` is `FABRICS` as recipes. */
+/**
+ * Shipped collections. `fabrics` is `FABRICS` as `cloth` recipes; a picker of
+ * another type takes the inputs it shares (`materialAsType`).
+ */
 export const MATERIAL_COLLECTIONS: Record<string, MaterialCollection> = {
   fabrics: {
     name: 'fabrics',
@@ -172,15 +221,6 @@ export const MATERIAL_COLLECTIONS: Record<string, MaterialCollection> = {
   },
 }
 
-const clamp = (v: number, lo: number, hi: number) =>
-  Math.min(hi, Math.max(lo, v))
-
-const canonColour = (s: string, alpha: boolean): string | null => {
-  const c = parseColor(s)
-  if (c == null) return null
-  return formatColor(alpha ? c : { ...c, a: 1 })
-}
-
 /** One input of a type, from whatever the recipe says (or its default). */
 export function resolveInput(
   decl: MaterialInputDecl,
@@ -188,7 +228,7 @@ export function resolveInput(
 ): ResolvedInput {
   const intensity0 = decl.intensity?.default ?? 1
   const flat = (): number | string | null => {
-    if (decl.kind === 'image') return null
+    if (decl.kind === 'image' || decl.optional) return null
     return decl.default
   }
   const out: ResolvedInput = { value: flat(), image: null, intensity: intensity0 }
@@ -238,7 +278,43 @@ export function writeInput(
   if (r.value == null) return undefined
   const value = typeof r.value === 'number' ? round(r.value) : r.value
   if (intensity != null && typeof value === 'string') return { colour: value, intensity }
-  return value === decl.default ? undefined : value
+  return value === decl.default && !decl.optional ? undefined : value
+}
+
+/** A recipe as another type: the inputs that type also declares, by name. */
+export function materialAsType(recipe: MaterialRecipe, type: string): MaterialRecipe {
+  const decl = materialType(type)
+  if (decl == null || recipe.type === type) return canonicalMaterial(recipe)
+  const inputs: Record<string, MaterialInput> = {}
+  for (const d of decl.inputs)
+    if (recipe.inputs?.[d.name] !== undefined) inputs[d.name] = recipe.inputs[d.name]
+  return canonicalMaterial({ type, inputs })
+}
+
+/**
+ * Lay a preset over a recipe. The preset replaces everything except the
+ * `keep` inputs it does not set itself: picking cotton keeps your colour,
+ * picking gold brings its own.
+ */
+export function applyMaterialPreset(
+  current: MaterialRecipe,
+  preset: MaterialRecipe,
+  keep: string[] = []
+): MaterialRecipe {
+  const p = materialAsType(preset, current.type)
+  const inputs = { ...p.inputs }
+  for (const k of keep)
+    if (inputs[k] === undefined && current.inputs[k] !== undefined) inputs[k] = current.inputs[k]
+  return canonicalMaterial({ type: current.type, inputs })
+}
+
+/** Whether a recipe is a preset (ignoring the `keep` inputs the preset does not set). */
+export function isMaterialPreset(
+  current: MaterialRecipe,
+  preset: MaterialRecipe,
+  keep: string[] = []
+): boolean {
+  return JSON.stringify(applyMaterialPreset(current, preset, keep)) === JSON.stringify(canonicalMaterial(current))
 }
 
 /**

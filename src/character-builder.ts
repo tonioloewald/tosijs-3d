@@ -11,10 +11,10 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, unwrapGarment, smoothUnder, skirtGarment } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, clothRecipe, materialPicker3d, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, unwrapGarment, smoothUnder, skirtGarment } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorFabric: 'cotton', tailorColour: '#3b5b8a', tailorRecolour: 1, tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true } })
 let mat = null
 let paint = () => {}
 let eyes = null
@@ -29,8 +29,10 @@ const styles = { hair: ['none'], beard: ['none'], moustache: ['none'], brows: ['
 // A bodysuit is a base layer and armour goes over anything; an outfit replaces a top and bottom.
 const SLOTS = ['outfit', 'bodysuit', 'armour', 'top', 'bottom', 'shoes', 'gloves', 'hat', 'mask', 'glasses']
 for (const slot of SLOTS) styles[slot] = ['none']
-// Each slot's look, fabric and recolour, kept while another is being edited.
-const cloth = Object.fromEntries(SLOTS.map((s) => [s, { look: 'as made', fabric: s === 'shoes' ? 'leather' : 'cotton', colour: '#7a2e2e', recolour: 0 }]))
+// Each slot's colourway (look) and material, kept while another is being edited.
+const cloth = Object.fromEntries(SLOTS.map((s) => [s, { look: 'as made', material: clothRecipe({ fabric: s === 'shoes' ? 'leather' : 'cotton', colour: '#7a2e2e', recolour: 0 }) }]))
+// A saved look: a material recipe, or the fabric, colour and recolour saved before recipes.
+const lookRecipe = (look) => look?.material ?? clothRecipe(look ?? {})
 const clips = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Dance_Loop', 'Crouch_Fwd_Loop']
 let rebuild = () => {}
 // A garment of your own, cut from the body along outlines you draw (the
@@ -58,8 +60,10 @@ const popupButton = (label, open) => {
   button.setHost = (h) => { host = h; setHost?.call(button, h) }
   return button
 }
-// 'as made' leaves a garment's own surface (a file's roughness map) alone.
-const FABRIC_OPTIONS = ['as made', ...Object.keys(FABRICS)]
+// One picker per garment: the fabrics as presets, plus 'as made', which
+// leaves a garment's own surface (a file's roughness map) alone. A preset
+// keeps the colour and recolour unless it brings its own (gold, copper).
+const clothPicker = (label, value) => materialPicker3d({ label, value, types: ['cloth'], collections: ['fabrics'], presets: [{ name: 'as made', recipe: { type: 'cloth', inputs: {} } }], keep: ['albedo', 'recolour'] })
 
 const slider = (label, key) =>
   slider3d({ label, value: walker[key], min: 0, max: 1, step: 0.01 })
@@ -112,16 +116,15 @@ preview.append(
         slider3d({ label: 'size', value: walker.hairSize, min: 0.9, max: 1.1, step: 0.005 }),
         label3d({ text: 'Clothes', collapsible: true }),
         ...SLOTS.map((slot) => select3d({ label: slot, value: walker[slot], options: styles[slot], stayOpen: true })),
-        // One editor for whichever worn thing is chosen: its colourway, fabric,
-        // and a recolour over its texture (0 keeps the texture's own colours).
+        // One editor for whichever worn thing is chosen: its colourway, and its
+        // material (a fabric, a colour, and a recolour over its texture: 0
+        // keeps the texture's own colours).
         select3d({ label: 'edit', value: walker.editing, options: SLOTS }),
         // Its colourways, where it has any (only some of MakeHuman's suits do).
         ...(Object.keys(packProxies[walker[walker.editing.value].value]?.material?.looks ?? {}).length
           ? [select3d({ label: 'look', value: walker.look, options: ['as made', ...Object.keys(packProxies[walker[walker.editing.value].value].material.looks)] })]
           : []),
-        select3d({ label: 'fabric', value: walker.fabric, options: FABRIC_OPTIONS }),
-        colorPicker3d({ label: 'colour', value: walker.colour, alpha: false }),
-        slider3d({ label: 'recolour', value: walker.recolour, min: 0, max: 1, step: 0.01 }),
+        clothPicker('material', walker.clothLook),
         label3d({ text: 'Tailor', collapsible: true }),
         ...(tailorBody
           ? [
@@ -139,9 +142,7 @@ preview.append(
               slider3d({ label: 'thickness', value: walker.tailorThickness, min: 0.001, max: 0.02, step: 0.001 }),
               // Round the outline at each height: skirts, kilts, robes.
               toggle3d({ label: 'skirt', value: walker.tailorSkirt }),
-              select3d({ label: 'fabric', value: walker.tailorFabric, options: FABRIC_OPTIONS }),
-              colorPicker3d({ label: 'colour', value: walker.tailorColour, alpha: false }),
-              slider3d({ label: 'recolour', value: walker.tailorRecolour, min: 0, max: 1, step: 0.01 }),
+              clothPicker('material', walker.tailorLook),
               // Name it and keep it: it becomes a choice in its slot, like MakeHuman's.
               ui.inputField({ value: walker.tailorName.value, placeholder: 'name the garment', handleChange: (v) => { walker.tailorName.value = v } }),
               select3d({ label: 'slot', value: walker.tailorSlot, options: SLOTS }),
@@ -239,14 +240,14 @@ preview.append(
         styles.beard.push(...kinds('beard', (n) => !/moustache/i.test(n)))
         styles.moustache.push(...kinds('beard', (n) => /moustache/i.test(n)))
         const proxyMaterials = new Map()
-        // Each clothes material's fabric and recolour, and which slot wears which.
+        // Each clothes material's shading (fabric and recolour), and which slot wears which.
         const clothes = new Map()
         const slotMaterial = {}
         const refabric = () => {
-          for (const [slot, m] of Object.entries(slotMaterial)) clothes.get(m)?.set({ fabric: cloth[slot].fabric, colour: cloth[slot].colour, amount: cloth[slot].recolour })
+          for (const [slot, m] of Object.entries(slotMaterial)) clothes.get(m)?.set({ recipe: cloth[slot].material })
         }
         const retailor = () => {
-          for (const name of ['tailored', ...imported.map((g) => g.name)]) clothes.get(proxyMaterials.get(`${name}:`))?.set({ fabric: walker.tailorFabric.value, colour: walker.tailorColour.value, amount: walker.tailorRecolour.value })
+          for (const name of ['tailored', ...imported.map((g) => g.name)]) clothes.get(proxyMaterials.get(`${name}:`))?.set({ recipe: walker.tailorLook.value })
         }
         // The body's slider values, which rebuild the shape a garment was made on.
         const bodyValues = () => Object.fromEntries(Object.keys(DEFAULT_HUMAN_BODY).map((k) => [k, Number(walker[k].value)]))
@@ -259,7 +260,7 @@ preview.append(
           setTimeout(() => URL.revokeObjectURL(a.href), 1000)
         }
         const baseMeta = () => ({ format: 'tosijs-garment', version: 1, base: pack.manifest.base, pack: pack.manifest.version, body: bodyValues(), name: 'tailored', slot: 'top' })
-        const tailorLook = () => ({ fabric: walker.tailorFabric.value, colour: walker.tailorColour.value, recolour: walker.tailorRecolour.value })
+        const tailorLook = () => ({ material: walker.tailorLook.value })
         // The cut as worn on the body shown.
         // Unwrapped for an editor: a front and back per side, like a sewing pattern.
         const cutMesh = () => unwrapGarment({ positions: drawnPositions(tailoredCut, fitProxy(tailoredCut, clothBody)), triangles: tailoredCut.triangles })
@@ -360,9 +361,7 @@ preview.append(
           walker.tailorThickness.value = saved.cut.thickness
           walker.tailorSkirt.value = saved.cut.skirt === true
           walker.tailorName.value = name
-          if (saved.look?.fabric) walker.tailorFabric.value = saved.look.fabric
-          if (saved.look?.colour) walker.tailorColour.value = saved.look.colour
-          if (saved.look?.recolour != null) walker.tailorRecolour.value = saved.look.recolour
+          if (saved.look) walker.tailorLook.value = lookRecipe(saved.look)
           walker[slot].value = 'none'
           dress()
           el.refreshScenePanel?.()
@@ -384,8 +383,7 @@ preview.append(
           imported.push({ ...proxy, file: { garment: content.garment, material: content.material, meta } })
           // A garment with its own maps keeps them: no fabric preset, no recolour.
           if (content.material?.baseColorTexture || content.material?.metallicRoughnessTexture) {
-            walker.tailorFabric.value = 'as made'
-            walker.tailorRecolour.value = 0
+            walker.tailorLook.value = { type: 'cloth', inputs: { albedo: walker.tailorLook.value.inputs.albedo ?? '#7a2e2e', recolour: 0 } }
           }
           if (meta.name && !walker.tailorName.value) walker.tailorName.value = meta.name === 'tailored' ? '' : meta.name
           if (SLOTS.includes(meta.slot)) walker.tailorSlot.value = meta.slot
@@ -412,9 +410,7 @@ preview.append(
         }
         walker.tailorThickness.observe(() => dress())
         walker.tailorSkirt.observe(() => dress())
-        walker.tailorFabric.observe(retailor)
-        walker.tailorColour.observe(retailor)
-        walker.tailorRecolour.observe(retailor)
+        walker.tailorLook.observe(retailor)
         walker.tailorAlone.observe(() => dress())
         walker.tailorSlot.observe(() => el.refreshScenePanel?.())
         // What this browser has saved, once the body is up (see below).
@@ -581,9 +577,7 @@ preview.append(
           loading = true
           const c = cloth[walker.editing.value]
           walker.look.value = c.look
-          walker.fabric.value = c.fabric
-          walker.colour.value = c.colour
-          walker.recolour.value = c.recolour
+          walker.clothLook.value = c.material
           loading = false
           el.refreshScenePanel?.()
         }
@@ -594,21 +588,14 @@ preview.append(
           cloth[slot].look = 'as made'
           // A saved garment comes as it was saved.
           const saved = custom.get(walker[slot].value)?.look
-          if (saved) Object.assign(cloth[slot], { fabric: saved.fabric ?? cloth[slot].fabric, colour: saved.colour ?? cloth[slot].colour, recolour: saved.recolour ?? cloth[slot].recolour })
+          if (saved) cloth[slot].material = lookRecipe(saved)
           if (walker.editing.value === slot) load()
           else walker.editing.value = slot
         })
         walker.look.observe(() => { if (loading) return; cloth[walker.editing.value].look = walker.look.value; dress() })
-        // A finish that IS a colour (gold, copper) brings it.
-        walker.fabric.observe(() => {
-          const tint = FABRICS[walker.fabric.value]?.tint
-          if (loading || !tint) return
-          walker.colour.value = tint
-          walker.recolour.value = 1
-        })
-        for (const key of ['fabric', 'colour', 'recolour']) walker[key].observe(() => {
+        walker.clothLook.observe(() => {
           if (loading) return
-          cloth[walker.editing.value][key] = walker[key].value
+          cloth[walker.editing.value].material = walker.clothLook.value
           refabric()
         })
         // Colours repaint whoever sets them: a picker, a preset, or code.
@@ -888,14 +875,14 @@ plate, a visor) gets a `rigid` custom property so it keeps its shape instead
 of bulging with the body under it ([proxy-rigid](/proxy-rigid/)).
 
 Its surface is made in Blender too: the garment's material comes back with
-its base colour, normal, roughness and alpha maps, and fabric **as made**
-with **recolour** at 0 shows it untouched. Recolour above 0 tints the base
-colour map, read as grey.
+its base colour, normal, roughness and alpha maps, and its **material** set
+to **as made** with **recolour** at 0 shows it untouched. Recolour above 0
+tints the base colour map, read as grey.
 
 **Hide other clothes** shows the garment on its own. **Name** it, pick its
 **slot** and **save as an option**: it is kept in this browser and becomes a
-choice in that slot like MakeHuman's own, with the fabric and colour it was
-saved with. A saved cut can be **edit**ed again from its outline; **forget**
+choice in that slot like MakeHuman's own, with the material it was saved
+with. A saved cut can be **edit**ed again from its outline; **forget**
 removes it.
 
 ## humanBody

@@ -629,7 +629,11 @@ export {
 } from './material-picker.js'
 export {
   PBR_MATERIAL,
+  CLOTH_MATERIAL,
   MATERIAL_COLLECTIONS,
+  materialAsType,
+  applyMaterialPreset,
+  isMaterialPreset,
   registerMaterialType,
   materialType,
   materialTypes,
@@ -1875,7 +1879,7 @@ export type {
 } from './garment-file.js'
 export type { OutlineField, OutlineField3dOptions } from './outline-field.js'
 export type { GarmentCut, GarmentCutOptions, ViewPoint } from './garment-cut.js'
-export { clothShading, FABRICS } from './cloth-shading.js'
+export { clothShading, clothRecipe, FABRICS } from './cloth-shading.js'
 export {
   faceDeltas,
   humanExpressions,

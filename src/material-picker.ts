@@ -81,7 +81,9 @@ import {
   type WidgetHost,
 } from './widgets3d.js'
 import {
+  applyMaterialPreset,
   canonicalMaterial,
+  isMaterialPreset,
   MATERIAL_COLLECTIONS,
   materialSwatch,
   materialType,
@@ -108,6 +110,12 @@ export interface MaterialPicker3dOptions {
   collections?: Array<string | MaterialCollection>
   /** Presets of your own, offered first. */
   presets?: MaterialPreset[]
+  /**
+   * Inputs a preset leaves as they are unless it sets them: `['albedo']`
+   * makes the fabrics surfaces, so cotton keeps your colour and gold brings
+   * its own.
+   */
+  keep?: string[]
   handleChange?: (recipe: MaterialRecipe) => void
   handleCommit?: (recipe: MaterialRecipe) => void
 }
@@ -157,10 +165,11 @@ export function materialPicker3d(
     ...(config.collections ?? []).flatMap((c) =>
       typeof c === 'string' ? MATERIAL_COLLECTIONS[c]?.presets ?? [] : c.presets
     ),
-  ].filter((p) => allowed.includes(p.recipe.type))
+  ]
+  const keep = config.keep ?? []
 
   const presetName = (): string =>
-    presets().find((p) => same(canon(p.recipe), value))?.name ?? ''
+    presets().find((p) => isMaterialPreset(value, p.recipe, keep))?.name ?? ''
 
   const H = Math.round(w3dTheme.fontSize * 2.2)
   const PAD = Math.max(6, Math.round(w3dTheme.spacing * 0.6))
@@ -253,8 +262,9 @@ export function materialPicker3d(
     } else if (d.kind === 'grey') {
       rows.push(
         slider3d({
-          label,
-          value: now.value as number,
+          // An optional input left out is the material's own (as made).
+          label: now.value == null ? `${label} (as made)` : label,
+          value: (now.value ?? d.default) as number,
           min: d.min ?? 0,
           max: d.max ?? 1,
           step: 0.01,
@@ -315,7 +325,7 @@ export function materialPicker3d(
           handleChange: (name) => {
             const p = list.find((q) => q.name === name)
             if (p == null) return
-            set(p.recipe, true)
+            set(applyMaterialPreset(value, p.recipe, keep), true)
             reopen()
           },
         })

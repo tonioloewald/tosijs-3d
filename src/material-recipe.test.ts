@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import {
+  applyMaterialPreset,
+  materialAsType,
   canonicalMaterial,
+  isMaterialPreset,
   MATERIAL_COLLECTIONS,
   materialSwatch,
   resolveMaterial,
@@ -45,13 +48,41 @@ describe('material recipes', () => {
     expect(canonicalMaterial({ type: 'pbr', inputs: { emissive: { colour: '#ff0000', intensity: 3 } } }).inputs).toEqual({ emissive: { colour: '#ff0000', intensity: 3 } })
   })
 
-  test('fabrics are presets, with the metals tinted', () => {
+  test('fabrics are cloth presets, with the metals tinted', () => {
     const fabrics = MATERIAL_COLLECTIONS.fabrics.presets
     expect(fabrics.map((p) => p.name)).toEqual(Object.keys(FABRICS))
     const gold = fabrics.find((p) => p.name === 'gold')!.recipe
+    expect(gold.type).toBe('cloth')
     expect(resolveMaterial(gold).metallic.value).toBe(1)
+    expect(resolveMaterial(gold).recolour.value).toBe(1)
     expect(materialSwatch(gold)).toBe('#e8c065')
     for (const p of fabrics) expect(validateMaterial(p.recipe)).toEqual([])
+  })
+
+  test('an optional input left out is the material\'s own', () => {
+    const r = resolveMaterial({ type: 'cloth', inputs: {} })
+    expect(r.roughness.value).toBeNull()
+    // Set to its default, it is still SET: kept, not dropped.
+    expect(canonicalMaterial({ type: 'cloth', inputs: { roughness: 0.85 } }).inputs).toEqual({ roughness: 0.85 })
+  })
+
+  test('a preset keeps what it does not set, from the keep list', () => {
+    const fabric = (n: string) => MATERIAL_COLLECTIONS.fabrics.presets.find((p) => p.name === n)!.recipe
+    const red = applyMaterialPreset({ type: 'cloth', inputs: { albedo: '#aa0000', recolour: 0.7 } }, fabric('gold'), ['albedo', 'recolour'])
+    expect(red.inputs.albedo).toBe('#e8c065')
+    const cotton = applyMaterialPreset(red, fabric('cotton'), ['albedo', 'recolour'])
+    expect(cotton.inputs.albedo).toBe('#e8c065')
+    expect(cotton.inputs.metallic).toBe(0)
+    expect(isMaterialPreset(cotton, fabric('cotton'), ['albedo', 'recolour'])).toBe(true)
+    expect(isMaterialPreset(cotton, fabric('denim'), ['albedo', 'recolour'])).toBe(false)
+    // As made: the surface goes back to the garment's own.
+    const asMade = applyMaterialPreset(cotton, { type: 'cloth', inputs: {} }, ['albedo', 'recolour'])
+    expect(asMade.inputs).toEqual({ albedo: '#e8c065', recolour: 1 })
+  })
+
+  test('another type takes the inputs it shares', () => {
+    const p = materialAsType(MATERIAL_COLLECTIONS.fabrics.presets.find((q) => q.name === 'gold')!.recipe, 'pbr')
+    expect(p).toEqual({ type: 'pbr', inputs: { albedo: '#e8c065', roughness: 0.2, metallic: 1 } })
   })
 
   test('validation names what is wrong', () => {

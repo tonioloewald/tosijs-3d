@@ -28,6 +28,14 @@ import * as BABYLON from '@babylonjs/core'
 import { parseColor } from './color.js'
 
 import { FABRICS } from './fabrics.js'
+import {
+  materialAsType,
+  canonicalMaterial,
+  MATERIAL_COLLECTIONS,
+  resolveMaterial,
+  type MaterialInput,
+  type MaterialRecipe,
+} from './material-recipe.js'
 export { FABRICS, type Fabric } from './fabrics.js'
 
 const toLinear = (c: number) =>
@@ -116,6 +124,30 @@ export interface ClothLook {
   colour?: string
   /** 0 keeps the texture's colours, 1 is the colour wholly. */
   amount?: number
+  /**
+   * A material recipe (a `cloth` one; another type gives the inputs it
+   * shares): its colour and recolour, and the surface inputs it sets. One
+   * left out keeps the garment's own.
+   */
+  recipe?: MaterialRecipe
+}
+
+/**
+ * The old `{ fabric, colour, recolour }` look as a `cloth` recipe, for looks
+ * saved before recipes. `'as made'` (or no fabric) sets no surface.
+ */
+export function clothRecipe(look: {
+  fabric?: string
+  colour?: string
+  recolour?: number
+}): MaterialRecipe {
+  const preset = MATERIAL_COLLECTIONS.fabrics.presets.find(
+    (p) => p.name === look.fabric
+  )
+  const inputs: Record<string, MaterialInput> = { ...preset?.recipe.inputs }
+  if (look.colour != null) inputs.albedo = look.colour
+  if (look.recolour != null) inputs.recolour = look.recolour
+  return canonicalMaterial({ type: 'cloth', inputs })
 }
 
 export interface ClothShading {
@@ -163,7 +195,25 @@ export function clothShading(
       plugin.mean = mean
     })
   }
-  const set = (l: ClothLook) => {
+  const set = (look: ClothLook) => {
+    let l = look
+    if (look.recipe) {
+      const r = resolveMaterial(materialAsType(look.recipe, 'cloth'))
+      const n = (k: string) => r[k].value as number | null
+      if (n('roughness') != null) material.roughness = n('roughness')!
+      if (n('metallic') != null) material.metallic = n('metallic')!
+      if (n('sheen') != null) {
+        material.sheen.isEnabled = n('sheen')! > 0
+        material.sheen.intensity = n('sheen')!
+      }
+      if (n('sheenRoughness') != null)
+        material.sheen.roughness = n('sheenRoughness')!
+      l = {
+        ...look,
+        colour: look.colour ?? (r.albedo.value as string),
+        amount: look.amount ?? (r.recolour.value as number),
+      }
+    }
     const fabric = l.fabric != null ? FABRICS[l.fabric] : undefined
     if (fabric) {
       material.roughness = fabric.roughness
