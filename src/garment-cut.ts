@@ -18,7 +18,7 @@ do ([proxy-fit](/proxy-fit/)).
   so the hem has no cracks.
 - A cut that goes **round a limb** (a sleeve, a trouser leg) is square to
   the limb, wherever the outline's line crosses it; a cut round the body
-  (a waist, a hem) follows the line.
+  or the neck (a waist, a hem, a neckline) follows the line.
 - `thickness` pushes the cloth out along the body's normals; `ease` relaxes it
   across creases (between the legs, under the buttocks), so cloth bridges a
   hollow instead of following the skin into it.
@@ -154,16 +154,18 @@ interface LimbPlane {
 }
 
 /*
-A cut that closes round a limb (an arm, a leg, the neck) is made square to
+A cut that closes round a limb (an arm or a leg) is made square to
 the limb, not along the outline's line through the body: a sleeve drawn over
 an arm that hangs out and forward ended in a slant. Each ring of crossed body
 edges small enough to be a limb (`LIMB_RADIUS`) is measured: the limb's axis
 is the long direction of the skin around the ring, and the vertices near it
 are re-sorted by a plane through the ring's centre, square to that axis.
-Bigger rings (a waist, a hem round the hips) keep the outline's line.
+Bigger rings (a waist, a hem round the hips) and rings on the centre line
+(a neckline) keep the outline's line.
 */
 const LIMB_RADIUS = 0.09
 const LIMB_REACH = 0.07
+const LIMB_OFF_CENTRE = 0.06
 
 function squareLimbCuts(
   P: ArrayLike<number>,
@@ -234,7 +236,9 @@ function squareLimbCuts(
       const p = at(ends[i][0])
       radius = Math.max(radius, Math.hypot(p[0] - c[0], p[1] - c[1], p[2] - c[2]))
     }
-    if (radius > LIMB_RADIUS) continue
+    // Arms and legs only: a ring on the centre line is a neck (or a
+    // waist), and a neckline is the line as drawn.
+    if (radius > LIMB_RADIUS || Math.abs(c[0]) < LIMB_OFF_CENTRE) continue
     // First guess at the axis: from the outside of the ring to the inside.
     let a: [number, number, number] | null = norm([inC[0] - outC[0], inC[1] - outC[1], inC[2] - outC[2]])
     if (a == null) continue

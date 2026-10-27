@@ -194,6 +194,12 @@ describe.skipIf(!existsSync(PACK))('hm08 trousers', () => {
       .flatMap((h) => h.map(pt))
       .filter((q) => q[0] > 0.03 && q[0] < 0.1 && q[1] < 0.3)
     expect(front.length).toBeGreaterThan(4)
+    // So does the neckline: a ring on the centre line is not a limb.
+    const neck = g.hems
+      .flatMap((h) => h.map(pt))
+      .filter((q) => q[0] > 0.01 && q[0] < 0.04 && q[1] > 0.5)
+    expect(neck.length).toBeGreaterThan(2)
+    for (const q of neck) expect(Math.abs(q[1] - 0.6)).toBeLessThan(0.002)
     for (const q of front) expect(Math.abs(q[1] - 0.25)).toBeLessThan(0.002)
   })
 })
