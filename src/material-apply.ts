@@ -6,7 +6,7 @@ picker dragging a slider does not reload them.
 
 import * as BABYLON from '@babylonjs/core'
 import {
-  materialType,
+  materialAsType,
   resolveMaterial,
   type MaterialRecipe,
 } from './material-recipe.js'
@@ -27,15 +27,16 @@ function texture(scene: BABYLON.Scene, url: string): BABYLON.Texture {
 const linear = (hex: string) =>
   BABYLON.Color3.FromHexString(hex.slice(0, 7)).toLinearSpace()
 
-/** Set a PBR material from a `pbr` recipe. Inputs left out go back to their defaults. */
+/**
+ * Set a PBR material from a recipe. Inputs left out go back to their
+ * defaults; a recipe of another type (a fabric) gives the inputs it shares.
+ */
 export function applyMaterial(
   material: BABYLON.PBRMaterial,
   recipe: MaterialRecipe
 ): void {
-  if (materialType(recipe.type)?.name !== 'pbr')
-    throw new Error(`applyMaterial: no Babylon material for type ${recipe.type}`)
   const scene = material.getScene()
-  const r = resolveMaterial(recipe)
+  const r = resolveMaterial(materialAsType(recipe, 'pbr'))
   const img = (url: string | null) => (url == null ? null : texture(scene, url))
 
   material.albedoTexture = img(r.albedo.image)

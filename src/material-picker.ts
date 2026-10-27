@@ -2,8 +2,9 @@
 # materialPicker3d
 
 **A material as one row: tap the swatch, edit in a popup.** The
-[[color-field|colour picker]]'s shape, for a whole material. The popup has the
-presets first (a collection, such as the fabrics), then a control per input
+[[color-field|colour picker]]'s shape, for a whole material. The swatch is a
+small render of the material, and the popup has the presets first (a
+collection, such as the fabrics) as a grid of renders, then a control per input
 of the material's type, drawn from the type's own declaration: a slider for
 a grey value, a colour picker for a colour, a strength beside it where the
 input has one. A picture in place of a flat value shows as a row you can
@@ -38,7 +39,7 @@ preview.append(
     b3dSun({}),
   ),
   panel3d({ width: 300 },
-    materialPicker3d({ label: 'finish', value: matDemo.look, collections: ['fabrics'] }),
+    materialPicker3d({ label: 'finish', value: matDemo.look, types: ['pbr'], collections: ['fabrics'] }),
   ),
 )
 matDemo.look.observe(show)
@@ -63,7 +64,14 @@ is why the scene has `studioEnvironment`.
 | `handleChange` | | Live, mid-drag included, with the canonical recipe |
 | `handleCommit` | | Once per preset, type change, or when the popup closes after an edit: one undo step |
 
-Swatches are flat colours (the albedo) for now; rendered previews are next.
+## Previews
+
+Each swatch and preset is the material rendered on a sphere in a fixed
+studio. One hidden engine draws every preview on the page, made the first
+time one is wanted (one more WebGL context, once), one at a time, and each
+recipe is drawn once and kept. While you drag a slider the row shows the
+last picture until you pause. Until a picture is ready, or where WebGL is not
+available, the swatch is the material's flat colour.
 */
 /*{ "parent": "ui-controls", "order": 47 }*/
 
@@ -80,10 +88,12 @@ import {
   type Widget3d,
   type WidgetHost,
 } from './widgets3d.js'
+import { materialPreview } from './material-preview.js'
 import {
   applyMaterialPreset,
   canonicalMaterial,
   isMaterialPreset,
+  materialAsType,
   MATERIAL_COLLECTIONS,
   materialSwatch,
   materialType,
@@ -97,7 +107,91 @@ import {
   type MaterialRecipe,
 } from './material-recipe.js'
 
-const { g, rect, text } = svgElements as any
+const { g, rect, text, image } = svgElements as any
+
+/** A grid of preset thumbnails, each its rendered preview with its name under it. */
+function presetTiles(opts: {
+  presets: MaterialPreset[]
+  /** The preset as it would be picked now (with the kept inputs). */
+  recipeOf: (p: MaterialPreset) => MaterialRecipe
+  isCurrent: (p: MaterialPreset) => boolean
+  pick: (p: MaterialPreset) => void
+}): Widget3d {
+  const TILE = 56
+  const GAP = 6
+  const NAME = Math.round(w3dTheme.fontSize * 0.75)
+  const CELL_H = TILE + NAME + 6
+  const el = g({ 'data-w3d': 'material-presets' })
+  let cols = 1
+  const cellAt = (i: number) => ({
+    x: (i % cols) * (TILE + GAP),
+    y: Math.floor(i / cols) * (CELL_H + GAP),
+  })
+  const draw = (): void => {
+    while (el.firstChild) el.removeChild(el.firstChild)
+    opts.presets.forEach((p, i) => {
+      const c = cellAt(i)
+      const recipe = opts.recipeOf(p)
+      const current = opts.isCurrent(p)
+      const tile = g({ transform: `translate(${c.x}, ${c.y})` })
+      tile.append(
+        rect({
+          width: TILE,
+          height: TILE,
+          rx: 8,
+          fill: w3dTheme.rowBg,
+          stroke: current ? w3dTheme.accent : w3dTheme.muted,
+          'stroke-width': current ? 2.5 : 1,
+        }),
+        // The flat colour until the picture comes.
+        rect({ x: TILE / 2 - 14, y: TILE / 2 - 14, width: 28, height: 28, rx: 14, fill: materialSwatch(recipe) }),
+        text(
+          {
+            x: TILE / 2,
+            y: TILE + NAME,
+            'text-anchor': 'middle',
+            'font-family': w3dTheme.fontFamily,
+            // A long name shrinks to its tile rather than running into the next.
+            'font-size': String(Math.min(NAME, (NAME * 9) / Math.max(1, p.name.length))),
+            fill: current ? w3dTheme.text : w3dTheme.muted,
+          },
+          p.name
+        )
+      )
+      el.appendChild(tile)
+      void materialPreview(recipe).then((url) => {
+        if (url == null || tile.parentNode !== el) return
+        tile.insertBefore(
+          image({ href: url, x: 2, y: 2, width: TILE - 4, height: TILE - 4 }),
+          tile.childNodes[1]
+        )
+        tile.removeChild(tile.childNodes[2])
+      })
+    })
+  }
+  const indexAt = (x: number, y: number): number => {
+    const col = Math.floor(x / (TILE + GAP))
+    const row = Math.floor(y / (CELL_H + GAP))
+    if (col < 0 || col >= cols || x - col * (TILE + GAP) > TILE) return -1
+    const i = row * cols + col
+    return i >= 0 && i < opts.presets.length ? i : -1
+  }
+  return {
+    el,
+    layout(w: number) {
+      cols = Math.max(1, Math.floor((w + GAP) / (TILE + GAP)))
+      draw()
+      const rows = Math.ceil(opts.presets.length / cols)
+      return rows * (CELL_H + GAP)
+    },
+    hitTest: (x, y) => indexAt(x, y) >= 0,
+    handle(kind: PointerKind, x: number, y: number) {
+      if (kind !== 'up') return
+      const i = indexAt(x, y)
+      if (i >= 0) opts.pick(opts.presets[i])
+    },
+  }
+}
 
 export interface MaterialPicker3dOptions {
   label?: string
@@ -144,8 +238,9 @@ export function materialPicker3d(
       ? (config.value as { value: MaterialRecipe; observe(cb: () => void): unknown })
       : null
   const canon = (r: MaterialRecipe | undefined): MaterialRecipe => {
-    const type = r != null && allowed.includes(r.type) ? r.type : allowed[0]
-    return canonicalMaterial({ type, inputs: r?.type === type ? r.inputs ?? {} : {} })
+    if (r == null) return canonicalMaterial({ type: allowed[0], inputs: {} })
+    // A recipe of a type it may not be keeps the inputs the first type shares.
+    return materialAsType(r, allowed.includes(r.type) ? r.type : allowed[0])
   }
   let value = canon(box ? box.value : (config.value as MaterialRecipe | undefined))
   let host: WidgetHost | null = null
@@ -201,16 +296,44 @@ export function materialPicker3d(
     stroke: w3dTheme.muted,
     'stroke-width': 1,
   })
-  el.append(bg, caption, nameText, swatch)
+  // The rendered preview over the swatch, once there is one.
+  const picture = image({ y: 2, width: H - 4, height: H - 4 })
+  el.append(bg, caption, nameText, swatch, picture)
+  let previewTimer: ReturnType<typeof setTimeout> | null = null
+  /*
+  Rendered a moment after the last change, not on every one: a slider drag
+  would otherwise render (and cache) each step. The flat colour shows until
+  the picture is ready.
+  */
+  const preview = (): void => {
+    if (previewTimer != null) clearTimeout(previewTimer)
+    previewTimer = setTimeout(() => {
+      previewTimer = null
+      const want = JSON.stringify(value)
+      void materialPreview(value).then((url) => {
+        if (JSON.stringify(value) !== want) return
+        if (url == null) {
+          picture.removeAttribute('href')
+          swatch.setAttribute('fill', materialSwatch(value))
+          return
+        }
+        picture.setAttribute('href', url)
+        swatch.setAttribute('fill', w3dTheme.rowBg)
+      })
+    }, 150)
+  }
 
   const paint = (): void => {
     caption.textContent = config.label ?? ''
     nameText.textContent =
       presetName() ||
       (allowed.length > 1 ? materialType(value.type)?.label ?? value.type : '')
-    swatch.setAttribute('fill', materialSwatch(value))
+    if (!picture.getAttribute('href'))
+      swatch.setAttribute('fill', materialSwatch(value))
     const x = Math.max(0, width - PAD - SW)
     swatch.setAttribute('x', String(x))
+    picture.setAttribute('x', String(x + (SW - (H - 4)) / 2))
+    preview()
     nameText.setAttribute('x', String(Math.max(0, x - PAD)))
   }
 
@@ -314,17 +437,11 @@ export function materialPicker3d(
     const list = presets()
     if (list.length > 0)
       out.push(
-        select3d({
-          label: 'preset',
-          value: presetName(),
-          options: [
-            { label: 'custom', value: '' },
-            ...list.map((p) => ({ label: p.name, value: p.name })),
-          ],
-          stayOpen: true,
-          handleChange: (name) => {
-            const p = list.find((q) => q.name === name)
-            if (p == null) return
+        presetTiles({
+          presets: list,
+          recipeOf: (p) => applyMaterialPreset(value, p.recipe, keep),
+          isCurrent: (p) => isMaterialPreset(value, p.recipe, keep),
+          pick: (p) => {
             set(applyMaterialPreset(value, p.recipe, keep), true)
             reopen()
           },
