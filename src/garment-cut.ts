@@ -16,6 +16,9 @@ do ([proxy-fit](/proxy-fit/)).
 - The skin is cut **along** the outline, not at the nearest triangle edge, so
   a hem is a straight line, and neighbouring triangles share their cut points,
   so the hem has no cracks.
+- A cut that goes **round a limb** (a sleeve, a trouser leg) is square to
+  the limb, wherever the outline's line crosses it; a cut round the body
+  (a waist, a hem) follows the line.
 - `thickness` pushes the cloth out along the body's normals; `ease` relaxes it
   across creases (between the legs, under the buttocks), so cloth bridges a
   hollow instead of following the skin into it.
@@ -143,6 +146,173 @@ function segmentsCross(
   return d1 * d2 < 0 && d3 * d4 < 0
 }
 
+interface LimbPlane {
+  /** A point on the plane and its normal (toward the inside). */
+  c: [number, number, number]
+  a: [number, number, number]
+  key: string
+}
+
+/*
+A cut that closes round a limb (an arm, a leg, the neck) is made square to
+the limb, not along the outline's line through the body: a sleeve drawn over
+an arm that hangs out and forward ended in a slant. Each ring of crossed body
+edges small enough to be a limb (`LIMB_RADIUS`) is measured: the limb's axis
+is the long direction of the skin around the ring, and the vertices near it
+are re-sorted by a plane through the ring's centre, square to that axis.
+Bigger rings (a waist, a hem round the hips) keep the outline's line.
+*/
+const LIMB_RADIUS = 0.09
+const LIMB_REACH = 0.07
+
+function squareLimbCuts(
+  P: ArrayLike<number>,
+  triangles: ArrayLike<number>,
+  inside: Uint8Array
+): Map<number, LimbPlane> {
+  // Crossed body edges, joined into rings through the triangles they share.
+  const edgeId = new Map<string, number>()
+  const ends: [number, number][] = []
+  const uses: number[] = []
+  const parent: number[] = []
+  const find = (i: number): number =>
+    parent[i] === i ? i : (parent[i] = find(parent[i]))
+  const edge = (a: number, b: number) => {
+    const key = a < b ? `${a}:${b}` : `${b}:${a}`
+    let id = edgeId.get(key)
+    if (id == null) {
+      id = ends.length
+      edgeId.set(key, id)
+      // Inside end first.
+      ends.push(inside[a] ? [a, b] : [b, a])
+      uses.push(0)
+      parent.push(id)
+    }
+    uses[id]++
+    return id
+  }
+  for (let t = 0; t < triangles.length; t += 3) {
+    const tri = [triangles[t], triangles[t + 1], triangles[t + 2]]
+    const crossed: number[] = []
+    for (let k = 0; k < 3; k++) {
+      const a = tri[k]
+      const b = tri[(k + 1) % 3]
+      if (inside[a] !== inside[b]) crossed.push(edge(a, b))
+    }
+    if (crossed.length === 2) parent[find(crossed[0])] = find(crossed[1])
+  }
+  const rings = new Map<number, number[]>()
+  for (let i = 0; i < ends.length; i++) {
+    const r = find(i)
+    rings.set(r, [...(rings.get(r) ?? []), i])
+  }
+
+  const planes = new Map<number, LimbPlane>()
+  const at = (v: number): [number, number, number] => [
+    P[v * 3],
+    P[v * 3 + 1],
+    P[v * 3 + 2],
+  ]
+  const n = P.length / 3
+  for (const [root, ids] of rings) {
+    // Closed: every crossed edge has a triangle on each side.
+    if (ids.length < 6 || ids.some((i) => uses[i] !== 2)) continue
+    const c: [number, number, number] = [0, 0, 0]
+    const inC: [number, number, number] = [0, 0, 0]
+    const outC: [number, number, number] = [0, 0, 0]
+    for (const i of ids) {
+      const p = at(ends[i][0])
+      const q = at(ends[i][1])
+      for (let k = 0; k < 3; k++) {
+        c[k] += (p[k] + q[k]) / 2 / ids.length
+        inC[k] += p[k] / ids.length
+        outC[k] += q[k] / ids.length
+      }
+    }
+    let radius = 0
+    for (const i of ids) {
+      const p = at(ends[i][0])
+      radius = Math.max(radius, Math.hypot(p[0] - c[0], p[1] - c[1], p[2] - c[2]))
+    }
+    if (radius > LIMB_RADIUS) continue
+    // First guess at the axis: from the outside of the ring to the inside.
+    let a: [number, number, number] | null = norm([inC[0] - outC[0], inC[1] - outC[1], inC[2] - outC[2]])
+    if (a == null) continue
+    // Refine it from the skin of the limb on both sides of the ring.
+    let near: number[] = []
+    for (let pass = 0; pass < 3 && a; pass++) {
+      near = []
+      for (let v = 0; v < n; v++) {
+        const d = [P[v * 3] - c[0], P[v * 3 + 1] - c[1], P[v * 3 + 2] - c[2]]
+        const along = d[0] * a[0] + d[1] * a[1] + d[2] * a[2]
+        if (Math.abs(along) > LIMB_REACH) continue
+        const off = Math.hypot(
+          d[0] - along * a[0],
+          d[1] - along * a[1],
+          d[2] - along * a[2]
+        )
+        if (off < radius * 1.3) near.push(v)
+      }
+      const axis = longAxis(P, near)
+      if (axis == null) break
+      // Keep it pointing into the garment.
+      const sign: number = axis[0] * a[0] + axis[1] * a[1] + axis[2] * a[2] < 0 ? -1 : 1
+      a = [axis[0] * sign, axis[1] * sign, axis[2] * sign]
+    }
+    if (a == null) continue
+    const plane: LimbPlane = { c, a, key: `limb${root}` }
+    for (const v of near) {
+      const along =
+        (P[v * 3] - c[0]) * a[0] +
+        (P[v * 3 + 1] - c[1]) * a[1] +
+        (P[v * 3 + 2] - c[2]) * a[2]
+      inside[v] = along > 0 ? 1 : 0
+      planeOf(planes, v, plane)
+    }
+  }
+  return planes
+}
+
+function planeOf(
+  planes: Map<number, LimbPlane>,
+  v: number,
+  plane: LimbPlane
+): void {
+  if (!planes.has(v)) planes.set(v, plane)
+}
+
+function norm(
+  v: [number, number, number]
+): [number, number, number] | null {
+  const l = Math.hypot(v[0], v[1], v[2])
+  return l > 1e-9 ? [v[0] / l, v[1] / l, v[2] / l] : null
+}
+
+/** The direction the points spread furthest (power iteration on their covariance). */
+function longAxis(
+  P: ArrayLike<number>,
+  verts: number[]
+): [number, number, number] | null {
+  if (verts.length < 8) return null
+  const m = [0, 0, 0]
+  for (const v of verts)
+    for (let k = 0; k < 3; k++) m[k] += P[v * 3 + k] / verts.length
+  const C = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+  for (const v of verts) {
+    const d = [P[v * 3] - m[0], P[v * 3 + 1] - m[1], P[v * 3 + 2] - m[2]]
+    for (let i = 0; i < 3; i++)
+      for (let j = 0; j < 3; j++) C[i * 3 + j] += d[i] * d[j]
+  }
+  let x: [number, number, number] | null = [0.3, 0.9, 0.2]
+  for (let k = 0; k < 40 && x; k++)
+    x = norm([
+      C[0] * x[0] + C[1] * x[1] + C[2] * x[2],
+      C[3] * x[0] + C[4] * x[1] + C[5] * x[2],
+      C[6] * x[0] + C[7] * x[1] + C[8] * x[2],
+    ])
+  return x
+}
+
 /**
  * Cut a garment out of a body. `positions` are every base vertex (xyz, the
  * pack's frame) and `triangles` the body's (in threes, indexing them).
@@ -175,6 +345,8 @@ export function cutGarment(
     }
     inside[v] = ok ? 1 : 0
   }
+
+  const planeOf = squareLimbCuts(P, triangles, inside)
 
   // Area-weighted vertex normals, counter-clockwise outward.
   const N = new Float32Array(n * 3)
@@ -259,22 +431,35 @@ export function cutGarment(
       out.push(vertexRow(tri[0]), vertexRow(tri[1]), vertexRow(tri[2]))
       continue
     }
-    const cross = crossingOf(tri)
-    if (cross == null || cross === 'many') {
-      // A corner of the outline, or a crossing too fine to find: keep the
-      // triangle when most of it is inside.
-      if (count >= 2)
-        out.push(vertexRow(tri[0]), vertexRow(tri[1]), vertexRow(tri[2]))
-      continue
-    }
-    // Clip by the crossing edge's line: its signed distance is linear over
-    // the triangle, so where it is zero along a body edge is the cut point.
-    const view = views[Number(cross.key.split(':')[0])]
-    const q0 = cross.poly[cross.edge]
-    const q1 = cross.poly[(cross.edge + 1) % cross.poly.length]
-    const side = (v: number) => {
-      const [a, b] = at(v, view)
-      return (q1[0] - q0[0]) * (b - q0[1]) - (q1[1] - q0[1]) * (a - q0[0])
+    let side: (v: number) => number
+    let crossKey: string
+    const plane = tri.map((v) => planeOf.get(v)).find((q) => q != null)
+    if (plane) {
+      // A cut around a limb, square to it.
+      side = (v) =>
+        (P[v * 3] - plane.c[0]) * plane.a[0] +
+        (P[v * 3 + 1] - plane.c[1]) * plane.a[1] +
+        (P[v * 3 + 2] - plane.c[2]) * plane.a[2]
+      crossKey = plane.key
+    } else {
+      const cross = crossingOf(tri)
+      if (cross == null || cross === 'many') {
+        // A corner of the outline, or a crossing too fine to find: keep the
+        // triangle when most of it is inside.
+        if (count >= 2)
+          out.push(vertexRow(tri[0]), vertexRow(tri[1]), vertexRow(tri[2]))
+        continue
+      }
+      // Clip by the crossing edge's line: its signed distance is linear over
+      // the triangle, so where it is zero along a body edge is the cut point.
+      const view = views[Number(cross.key.split(':')[0])]
+      const q0 = cross.poly[cross.edge]
+      const q1 = cross.poly[(cross.edge + 1) % cross.poly.length]
+      side = (v: number) => {
+        const [a, b] = at(v, view)
+        return (q1[0] - q0[0]) * (b - q0[1]) - (q1[1] - q0[1]) * (a - q0[0])
+      }
+      crossKey = cross.key
     }
     const s = tri.map(side)
     // The sign of "inside" is the sign of an inside vertex.
@@ -294,7 +479,7 @@ export function cutGarment(
         const slo = lo === a ? sa : sb
         const shi = lo === a ? sb : sa
         const f = slo / (slo - shi)
-        poly.push(row(`e${lo}:${hi}:${cross.key}`, [lo, hi], [1 - f, f]))
+        poly.push(row(`e${lo}:${hi}:${crossKey}`, [lo, hi], [1 - f, f]))
       }
     }
     for (let k = 1; k + 1 < poly.length; k++)

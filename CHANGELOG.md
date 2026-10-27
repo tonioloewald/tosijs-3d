@@ -12,6 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Fixed:** a garment cut (`cutGarment`, the builder's Tailor) that goes round a limb is now square to the limb: a sleeve ending on the forearm was cut along the outline's line, which crosses hm08's forward-reaching forearms at a long slant. Cuts round the body still follow the line.
 - **Fixed:** clothes in the character builder no longer show nipples: they are fitted over the body with its nipples smoothed (`smoothUnder` in proxy-fit, with the pack's new `nipples` region; pack `?v=17`). The skin keeps them.
 - **Changed:** `skinAlbedo` (skin-tone) is paler and whiter at the fair end, and `redness` is stronger toward both ends of its dial (subtle near 0.5): 0 is a drained grey-white, 1 is flushed. A recipe at a fair tone or an extreme redness looks different.
 - **Fixed:** closing a popup from the settings panel (its ×, or a press on its title bar) no longer closes the panel too. The press was never marked as taken by a panel, so the panel's close-on-a-background-press saw it.

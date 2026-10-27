@@ -153,4 +153,47 @@ describe.skipIf(!existsSync(PACK))('hm08 trousers', () => {
     expect(maxX).toBeLessThan(0.3)
     expect(g.delete.length).toBeGreaterThan(1000)
   })
+
+  test('a sleeve cut across a forearm is square to it, not along the line', async () => {
+    const pack = await loadHumanPack(PACK, fromDisk)
+    // hm08's forearms reach forward: a level line at y 0.25 crosses one at
+    // a long slant. The hem should be a ring the forearm's own size.
+    const g = cutGarment(pack.positions, pack.triangles, {
+      front: [
+        [
+          [0, 0.25],
+          [0.75, 0.25],
+          [0.75, 0.6],
+          [0, 0.6],
+        ],
+      ],
+    })
+    const P = pack.positions
+    const pt = (r: number) => {
+      const q = [0, 0, 0]
+      for (let c = 0; c < 3; c++) {
+        const v = g.ref[r * 3 + c]
+        for (let k = 0; k < 3; k++) q[k] += P[v * 3 + k] * g.weight[r * 3 + c]
+      }
+      return q
+    }
+    const sleeve = g.hems
+      .map((h) => h.map(pt))
+      .find((pts) => pts.every((q) => q[0] > 0.3))!
+    expect(sleeve).toBeDefined()
+    const m = [0, 1, 2].map(
+      (k) => sleeve.reduce((s, q) => s + q[k], 0) / sleeve.length
+    )
+    const r = Math.max(
+      ...sleeve.map((q) => Math.hypot(q[0] - m[0], q[1] - m[1], q[2] - m[2]))
+    )
+    // Square across a forearm about 7 cm thick; along the line it was 13 cm.
+    expect(r).toBeLessThan(0.05)
+    // The hem round the body still follows the line.
+    const front = g.hems
+      .flatMap((h) => h.map(pt))
+      .filter((q) => q[0] > 0.03 && q[0] < 0.1 && q[1] < 0.3)
+    expect(front.length).toBeGreaterThan(4)
+    for (const q of front) expect(Math.abs(q[1] - 0.25)).toBeLessThan(0.002)
+  })
 })
