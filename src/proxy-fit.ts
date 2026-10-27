@@ -30,6 +30,9 @@ Pure, so a recipe's outfit is fitted or checked headless:
   hides, so skin never shows through it
 - `underCover(hat, hair, triangles)` drops the hair a hat covers, so hair
   never pokes through a hat
+- `smoothUnder(positions, triangles, mask)` smooths the body where `mask`
+  says (the pack's `nipples` region), for clothes to be fitted over: cloth
+  bridges a small bump, it does not follow it
 
 A binding with `rigid` groups keeps those parts' shape in all three
 (position, weights, expression movement): see [proxy-rigid](/proxy-rigid/).
@@ -324,6 +327,69 @@ export function underCover(
     }
   }
   return Uint32Array.from(keep)
+}
+
+/**
+ * The body clothes are fitted over: `positions` (every base vertex, xyz) with
+ * the vertices `mask` marks (0..1 each) relaxed toward their neighbours, as
+ * cloth stretched over them would lie. Unmarked vertices stay put, so the
+ * relaxed patch meets the body at its edge. A new array; the skin keeps the
+ * shape it had.
+ */
+export function smoothUnder(
+  positions: ArrayLike<number>,
+  triangles: ArrayLike<number>,
+  mask: ArrayLike<number>,
+  passes = 24
+): Float32Array {
+  const out = Float32Array.from(positions)
+  const n = out.length / 3
+  // Each marked vertex's neighbours, and how far it follows them (a faint
+  // mark still follows fully, or the patch's rim keeps a ridge).
+  const nbr = new Map<number, Set<number>>()
+  for (let t = 0; t < triangles.length; t += 3) {
+    for (let k = 0; k < 3; k++) {
+      const a = triangles[t + k]
+      if (!(mask[a] > 0)) continue
+      let set = nbr.get(a)
+      if (!set) nbr.set(a, (set = new Set()))
+      set.add(triangles[t + ((k + 1) % 3)])
+      set.add(triangles[t + ((k + 2) % 3)])
+    }
+  }
+  const verts = [...nbr.keys()].filter((v) => v < n)
+  const follow = verts.map((v) => Math.min(1, mask[v] * 4))
+  const next = new Float32Array(verts.length * 3)
+  const step = (by: number) => {
+    verts.forEach((v, i) => {
+      let x = 0
+      let y = 0
+      let z = 0
+      const set = nbr.get(v)!
+      for (const m of set) {
+        x += out[m * 3]
+        y += out[m * 3 + 1]
+        z += out[m * 3 + 2]
+      }
+      const k = 1 / set.size
+      const f = follow[i] * by
+      next[i * 3] = out[v * 3] + (x * k - out[v * 3]) * f
+      next[i * 3 + 1] = out[v * 3 + 1] + (y * k - out[v * 3 + 1]) * f
+      next[i * 3 + 2] = out[v * 3 + 2] + (z * k - out[v * 3 + 2]) * f
+    })
+    verts.forEach((v, i) => {
+      out[v * 3] = next[i * 3]
+      out[v * 3 + 1] = next[i * 3 + 1]
+      out[v * 3 + 2] = next[i * 3 + 2]
+    })
+  }
+  // Taubin's smoothing: a step in and a slightly larger one back out, so a
+  // small bump goes and the curve it sits on (a breast) stays.
+  for (let pass = 0; pass < passes; pass++) {
+    step(0.5)
+    step(-0.53)
+  }
+  return out
 }
 
 /**

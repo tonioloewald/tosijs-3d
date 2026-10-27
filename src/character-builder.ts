@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, unwrapGarment } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, unwrapGarment, smoothUnder } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', fabric: 'cotton', colour: '#7a2e2e', recolour: 0, paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorFabric: 'cotton', tailorColour: '#3b5b8a', tailorRecolour: 1, tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true } })
@@ -211,7 +211,7 @@ preview.append(
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
 
-        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 16)).catch((e) => {
+        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 17)).catch((e) => {
           el.setLoading(`could not load the body: ${e.message}`, { spin: false })
           throw e
         })
@@ -260,7 +260,7 @@ preview.append(
         const tailorLook = () => ({ fabric: walker.tailorFabric.value, colour: walker.tailorColour.value, recolour: walker.tailorRecolour.value })
         // The cut as worn on the body shown.
         // Unwrapped for an editor: a front and back per side, like a sewing pattern.
-        const cutMesh = () => unwrapGarment({ positions: drawnPositions(tailoredCut, fitProxy(tailoredCut, current)), triangles: tailoredCut.triangles })
+        const cutMesh = () => unwrapGarment({ positions: drawnPositions(tailoredCut, fitProxy(tailoredCut, clothBody)), triangles: tailoredCut.triangles })
         // The file's contents (a GLB's bytes or an OBJ's text), or null.
         const garmentFile = (format, bodyAlone = false) => {
           if (!tailoredCut && !bodyAlone) return null
@@ -439,7 +439,7 @@ preview.append(
         // Let the message paint before the binding takes the thread.
         await new Promise((r) => setTimeout(r, 50))
         const skin = humanSkin(pack)
-        const [lips, eyePart, lashPart] = await Promise.all([pack.region('lips'), pack.part('eyes'), pack.part('eyelashes')])
+        const [lips, nipples, eyePart, lashPart] = await Promise.all([pack.region('lips'), pack.region('nipples'), pack.part('eyes'), pack.part('eyelashes')])
         eyes = eyeTexture(scene, { iris: walker.iris.value })
         eyes.setIrisColour(walker.irisColour.value)
         const faceMaterials = { eye: eyeMaterial(scene, eyes), lashes: lashMaterial(scene) }
@@ -461,7 +461,7 @@ preview.append(
           // The garment cut from the outlines, bound like any other.
           const outline = mirrorOutline(tailorShapes.filter((s) => s.length >= 3))
           if (outline.length) {
-            const cut = cutGarment(current, pack.triangles, { front: outline, thickness: walker.tailorThickness.value, ease: 6 })
+            const cut = cutGarment(clothBody, pack.triangles, { front: outline, thickness: walker.tailorThickness.value, ease: 6 })
             tailoredCut = cut
             wearing.push({ ...cut, name: 'tailored', category: 'clothes', slot: 'top', material: { alpha: false, twoSided: false } })
           } else tailoredCut = null
@@ -494,7 +494,7 @@ preview.append(
             if (slot) slotMaterial[slot] = m
             // A hat sits a little out from the head, over the hair.
             const hatFit = slot === 'hat' ? { inflate: { centre: scalp.centre, by: HAT_LIFT } } : slot === 'armour' ? { lift: 0.005 } : {}
-            const mesh = humanProxy(scene, built, proxy, current, allWeights, m, hatFit)
+            const mesh = humanProxy(scene, built, proxy, clothBody, allWeights, m, hatFit)
             mesh.metadata = { category: proxy.category }
             hairMeshes.push(mesh)
           }
@@ -532,7 +532,7 @@ preview.append(
           }
           // Skin under clothes is hidden, so it cannot show through.
           // The garments as fitted, for the skin they cover but do not list.
-          const drawn = new Map(wearing.filter((p) => p.category === 'clothes').map((p) => [p.name, drawnPositions(p, fitProxy(p, current))]))
+          const drawn = new Map(wearing.filter((p) => p.category === 'clothes').map((p) => [p.name, drawnPositions(p, fitProxy(p, clothBody))]))
           coverBody(built, skin.triangles, skin.vertices, wearing, { drawn })
           // Clothes tuck the skin they cover, so the feet are measured again.
           if (playing) clipLow = measureClip(playing)
@@ -640,6 +640,10 @@ preview.append(
         skin.vertices.forEach((v, i) => { known[v] = i })
         const allWeights = nearestWeights(first, known, weights)
         let current = first
+        // What clothes are fitted over: the body with its nipples smoothed,
+        // because cloth bridges them (the skin keeps them).
+        const smoothed = (p) => nipples ? smoothUnder(p, pack.triangles, nipples) : p
+        let clothBody = smoothed(first)
         // The body as it is now, read when the outline opens: the cut is made
         // on the current body, so the view it is drawn over must be that one.
         tailorBody = { get positions() { return current }, indices: pack.triangles }
@@ -798,6 +802,7 @@ preview.append(
           busy = true
           const full = await morphHuman(pack, body())
           current = full
+          clothBody = smoothed(full)
           stubbleMask = null
           const rig = humanRig(pack.manifest, full, undefined, { triangles: pack.triangles })
           face?.dispose()

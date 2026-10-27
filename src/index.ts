@@ -1811,6 +1811,7 @@ export {
   inflate,
   proxyDelta,
   coveredBy,
+  smoothUnder,
 } from './proxy-fit.js'
 export type { ProxyBinding, VertexWeights } from './proxy-fit.js'
 export { humanProxy, proxyMaterial, coverBody } from './human-proxy.js'

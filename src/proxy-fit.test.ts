@@ -3,6 +3,7 @@ import {
   fitProxy,
   underCover,
   coveredTriangles,
+  smoothUnder,
   type ProxyBinding,
 } from './proxy-fit.js'
 
@@ -53,5 +54,29 @@ describe('proxy-fit', () => {
     expect(Array.from(underCover(hat, hair, [0, 1, 2, 3, 4, 5]))).toEqual([
       3, 4, 5,
     ])
+  })
+
+  test('smoothUnder flattens a marked bump and leaves the rest alone', () => {
+    // A 9 x 9 grid, 1 cm apart, with a 5 mm bump at its centre.
+    const pos: number[] = []
+    const mask: number[] = []
+    for (let j = 0; j < 9; j++)
+      for (let i = 0; i < 9; i++) {
+        const r = Math.hypot(i - 4, j - 4)
+        pos.push(i * 0.01, j * 0.01, r === 0 ? 0.005 : r < 1.5 ? 0.002 : 0)
+        mask.push(r < 2.5 ? 1 - r / 2.5 : 0)
+      }
+    const tri: number[] = []
+    for (let j = 0; j < 8; j++)
+      for (let i = 0; i < 8; i++) {
+        const a = j * 9 + i
+        tri.push(a, a + 1, a + 10, a, a + 10, a + 9)
+      }
+    const out = smoothUnder(pos, tri, mask)
+    const centre = 40
+    expect(out[centre * 3 + 2]).toBeLessThan(0.0025)
+    for (let v = 0; v < 81; v++)
+      if (mask[v] === 0) expect(out[v * 3 + 2]).toBe(pos[v * 3 + 2])
+    expect(pos[centre * 3 + 2]).toBe(0.005)
   })
 })
