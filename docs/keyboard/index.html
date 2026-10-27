@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=7917dccc76d6" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=c3f9a510fbae" data-tosi-doc-system />
   <title>keyboard — tosijs-3d</title>
   <meta name="description" content="The on-screen keyboard and text field: the typing surface for a headset, where there is no OS keyboard and no DOM &lt;input&gt; to fall back on." />
   <link rel="canonical" href="https://3d.tosijs.net/keyboard/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=10b0e7b75506" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=d4cb551793b9" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="keyboard.ts">
 <h1 id="keyboard">keyboard</h1>
 <p>The <strong>on-screen keyboard and text field</strong>: the typing surface for a headset, where
@@ -38,31 +38,6 @@ there is no OS keyboard and no DOM <code>&lt;input&gt;</code> to fall back on. B
 they drop into a <a href="/widget-box/" class="wikilink">widget-box</a> / <a href="/surface/" class="wikilink">surface</a> panel like any other control and work
 identically as a flat overlay and rasterized onto a plane.</p>
 <h2 id="demo">Demo</h2>
-<p><strong>Two fields, one keyboard.</strong> Tap a field and the keyboard pops up as an <strong>overlay
-panel</strong> (close it with ×): it is not part of the main UI, as an on-screen keyboard
-should not be. The <strong>lit caret</strong> marks the RECEIVER, the field the keys land in; the
-other field&#39;s caret stays visible but dim. &quot;Who has the D-pad focus&quot; and &quot;where text
-goes&quot; are different facts, so the receiver stays lit even while you tap keys.</p>
-<p>Tap the keys. <code>?123</code> switches to symbols, <code>⇧</code> shifts.</p>
-<p><strong>Hold <code>o</code></strong> (or <code>a e i n s u y z c</code>) for the accents. Two ways to take one, because
-touch and pointer want different things: <strong>slide onto it and release</strong>, or <strong>lift your
-finger</strong>, and the strip stays up so you can tap the one you want.</p>
-<p><strong>Hold the spacebar and slide</strong> to drag the caret through the text. The drag continues
-outside the key and outside the keyboard entirely (as iOS does), because a
-spacebar-width gesture would only buy you a spacebar of travel.</p>
-<p><strong>D-pad / arrow keys</strong>: the keyboard is one panel row but MANY focus stops. It
-implements the inner-focus protocol (<code>focusMove</code> returns <code>false</code> when a move runs off
-the edge), so the D-pad walks key to key, arriving on the edge you entered from and
-escaping at the edges rather than trapping focus (the VR demo below shows the escape
-onto a sibling field). Clicking a key focuses it too, and <strong>Space presses the focused
-key</strong> (the action-button convention). A hardware pad works via <code>gamepadFocus</code>
-(menu/A presses); a hardware keyboard also just types: printable keys go straight into
-the receiver, Backspace deletes, arrows walk, Enter presses. (Click the demo once so it
-has browser keyboard focus. With several demos on the page, the one you last touched
-claims the gamepad.)</p>
-<p>There is no completion or suggestion strip. The open question is not <em>whether</em> but
-<em>from what</em>: a known, relevant word is better <strong>clicked than typed</strong>, so typing&#39;s
-fallback role points completion at the player&#39;s own vocabulary rather than the world&#39;s.</p>
 <pre><code class="language-js">import { HardwareGamepadSource, ui } from &#39;tosijs-3d&#39;
 const {
   surface,
@@ -162,6 +137,31 @@ svgEl.addEventListener(&#39;pointerup&#39;, (e) =&gt; s.handlePointer(&#39;up&#3
 
 preview.append(div({ style: &#39;padding:16px;background:#0c0e14&#39; }, svgEl))
 </code></pre>
+<p><strong>Two fields, one keyboard.</strong> Tap a field and the keyboard pops up as an <strong>overlay
+panel</strong> (close it with ×): it is not part of the main UI, as an on-screen keyboard
+should not be. The <strong>lit caret</strong> marks the RECEIVER, the field the keys land in; the
+other field&#39;s caret stays visible but dim. &quot;Who has the D-pad focus&quot; and &quot;where text
+goes&quot; are different facts, so the receiver stays lit even while you tap keys.</p>
+<p>Tap the keys. <code>?123</code> switches to symbols, <code>⇧</code> shifts.</p>
+<p><strong>Hold <code>o</code></strong> (or <code>a e i n s u y z c</code>) for the accents. Two ways to take one, because
+touch and pointer want different things: <strong>slide onto it and release</strong>, or <strong>lift your
+finger</strong>, and the strip stays up so you can tap the one you want.</p>
+<p><strong>Hold the spacebar and slide</strong> to drag the caret through the text. The drag continues
+outside the key and outside the keyboard entirely (as iOS does), because a
+spacebar-width gesture would only buy you a spacebar of travel.</p>
+<p><strong>D-pad / arrow keys</strong>: the keyboard is one panel row but MANY focus stops. It
+implements the inner-focus protocol (<code>focusMove</code> returns <code>false</code> when a move runs off
+the edge), so the D-pad walks key to key, arriving on the edge you entered from and
+escaping at the edges rather than trapping focus (the VR demo below shows the escape
+onto a sibling field). Clicking a key focuses it too, and <strong>Space presses the focused
+key</strong> (the action-button convention). A hardware pad works via <code>gamepadFocus</code>
+(menu/A presses); a hardware keyboard also just types: printable keys go straight into
+the receiver, Backspace deletes, arrows walk, Enter presses. (Click the demo once so it
+has browser keyboard focus. With several demos on the page, the one you last touched
+claims the gamepad.)</p>
+<p>There is no completion or suggestion strip. The open question is not <em>whether</em> but
+<em>from what</em>: a known, relevant word is better <strong>clicked than typed</strong>, so typing&#39;s
+fallback role points completion at the player&#39;s own vocabulary rather than the world&#39;s.</p>
 <h2 id="in-vr-the-case-it-exists-for">In VR, the case it exists for</h2>
 <p>The same keyboard rasterized onto a plane in a 3D scene. Press <strong>Enter VR</strong> (top-left)
 on a headset and type with the controller ray. That path is the reason this exists:
@@ -470,6 +470,7 @@ caret&quot; are the same code path.</p>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="../environment/">environment</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
     </ul>
     </details></li>
@@ -560,9 +561,36 @@ caret&quot; are the same code path.</p>
           <li><a class="doc-link" href="../human-morph/">human-morph</a></li>
           <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
           <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
+          <li><a class="doc-link" href="../skin-shading/">skin-shading</a></li>
           <li><a class="doc-link" href="../human-face/">human-face</a></li>
-          <li><a class="doc-link" href="../human-hair/">human-hair</a></li>
-          <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          <li><a class="doc-link" href="../human-expression/">human-expression</a></li>
+          <li><details><summary><a class="doc-link" href="../human-hair/">human-hair</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../hair-shading/">hair-shading</a></li>
+            <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          </ul>
+          </details></li>
+          <li><details><summary><a class="doc-link" href="../human-proxy/">human-proxy</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../proxy-fit/">proxy-fit</a></li>
+            <li><a class="doc-link" href="../cloth-shading/">cloth-shading</a></li>
+            <li><details><summary><a class="doc-link" href="../garment-cut/">garment-cut</a></summary>
+            <ul>
+              <li><a class="doc-link" href="../outline-field/">outline field</a></li>
+            </ul>
+            </details></li>
+            <li><details><summary><a class="doc-link" href="../garment-bind/">garment-bind</a></summary>
+            <ul>
+              <li><details><summary><a class="doc-link" href="../garment-file/">garment-file</a></summary>
+              <ul>
+                <li><a class="doc-link" href="../uv-unwrap/">uv-unwrap</a></li>
+              </ul>
+              </details></li>
+              <li><a class="doc-link" href="../proxy-rigid/">proxy-rigid</a></li>
+            </ul>
+            </details></li>
+          </ul>
+          </details></li>
         </ul>
         </details></li>
       </ul>
@@ -777,11 +805,17 @@ caret&quot; are the same code path.</p>
       <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
     </ul>
     </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../clock/">clock</a></li>
+    </ul>
+    </details></li>
     <li><details><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
     <ul>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.11.5/">0.11.5</a></li>
         <li><a class="doc-link" href="../v0.11.4/">0.11.4</a></li>
         <li><a class="doc-link" href="../v0.11.3/">0.11.3</a></li>
         <li><a class="doc-link" href="../v0.11.2/">0.11.2</a></li>
@@ -861,6 +895,6 @@ caret&quot; are the same code path.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-0nmn3nad.js"></script>
+  <script type="module" src="../hydrate-fymfsbgh.js"></script>
 </body>
 </html>

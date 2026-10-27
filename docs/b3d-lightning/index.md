@@ -6,12 +6,6 @@ under them, seeded, so the same seed gives the same storm.
 
 ## Demo
 
-A storm at night. Watch the landscape jump out of the dark with each
-strike, the cloud light from inside, and count the seconds to the thunder
-(click the scene first; browsers only play sound after a gesture). Open the
-settings panel (the owl) for the storm's size, how often it strikes, the cloud cover around it
-and how dramatic the flash is.
-
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dCloudDeck, b3dWeatherCell, b3dLightning, b3dTerrain, b3dDecorator, label3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
@@ -100,6 +94,12 @@ preview.append(
 .preview { height: 100%; }
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+A storm at night. Watch the landscape jump out of the dark with each
+strike, the cloud light from inside, and count the seconds to the thunder
+(click the scene first; browsers only play sound after a gesture). Open the
+settings panel (the owl) for the storm's size, how often it strikes, the cloud cover around it
+and how dramatic the flash is.
 
 ## What it does
 

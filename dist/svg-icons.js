@@ -10,10 +10,6 @@ SVG texture (the VR panels), so one icon set serves both presentations.
 
 ## Demo
 
-The whole set, plus a few composed variants (rotate / flip / opacity / a
-generator redirect). `color` sets `currentColor`, which the stroked glyphs follow
-and the baked-color cube ignores.
-
 ```js
 import { svgIcons, iconNames } from 'tosijs-3d'
 import { elements } from 'tosijs'
@@ -48,6 +44,10 @@ preview.append(
   )
 )
 ```
+
+The whole set, plus a few composed variants (rotate / flip / opacity / a
+generator redirect). `color` sets `currentColor`, which the stroked glyphs follow
+and the baked-color cube ignores.
 
 ## Bringing your own icons
 

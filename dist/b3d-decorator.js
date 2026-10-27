@@ -10,10 +10,6 @@ palms at a warm shoreline.
 
 ## Demo
 
-A temperate valley in autumn. Open the settings panel (the owl): `season`
-runs the year, and the leaves turn and fall bare while the pines stay green;
-`clump` goes from an even spread to copses with open ground between them.
-
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dDecorator, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
@@ -78,6 +74,10 @@ preview.append(
 .preview { height: 100%; }
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+A temperate valley in autumn. Open the settings panel (the owl): `season`
+runs the year, and the leaves turn and fall bare while the pines stay green;
+`clump` goes from an even spread to copses with open ground between them.
 
 ## What it places, and why it matches the ground
 
@@ -184,6 +184,7 @@ import { mantaAxes } from './biome-chart.js';
 import { attachBiomePlugin, groundClimateAt, } from './biome-plugin.js';
 import { rockFromName, rockGeometry } from './procedural-rock.js';
 import { isDefaultLibrary, scatterPlacements, NearIndex, seatDip, pruneScatterCache, NATURE_KIT_RULES, NATURE_RULES, NATURE_ROLES, roleFor, } from './scatter.js';
+import { realNow } from './clock.js';
 /*
 A layer bit the camera does not see (its default mask is 0x0FFFFFFF). The shadow
 pass renders its explicit caster list WITHOUT checking layer masks
@@ -464,14 +465,13 @@ export class B3dDecorator extends B3dChild {
             this._build(terrain, here, off);
         }
         this._syncRockBiome(terrain);
-        if (performance.now() >= this._nextShadowCheck) {
-            this._nextShadowCheck = performance.now() + 300;
+        if (realNow() >= this._nextShadowCheck) {
+            this._nextShadowCheck = realNow() + 300;
             this._pickShadowCasters(here, off);
             this._syncShadows();
         }
-        if (!isOff(this.colliders) &&
-            performance.now() >= this._nextColliderCheck) {
-            this._nextColliderCheck = performance.now() + 250;
+        if (!isOff(this.colliders) && realNow() >= this._nextColliderCheck) {
+            this._nextColliderCheck = realNow() + 250;
             this._placeColliders(here, off);
         }
     }
@@ -675,7 +675,7 @@ export class B3dDecorator extends B3dChild {
         this._drawn = [];
     }
     _build(terrain, here, off) {
-        const t0 = performance.now();
+        const t0 = realNow();
         const height = terrain.heightSampler();
         const cfg = terrain.biomePlugin?.params ?? {
             seaLevel: 0,
@@ -804,7 +804,7 @@ export class B3dDecorator extends B3dChild {
         }
         this._shadowFrom = null; // re-pick the near casters for this build
         this._syncShadows();
-        this.lastBuildMs = performance.now() - t0;
+        this.lastBuildMs = realNow() - t0;
         this._builds++;
     }
     _scratch = {
@@ -1003,10 +1003,10 @@ export class B3dDecorator extends B3dChild {
                 const frames = [];
                 const gpu = [];
                 const draws = [];
-                let last = performance.now();
+                let last = realNow();
                 let n = 0;
                 const obs = scene.onAfterRenderObservable.add(() => {
-                    const now = performance.now();
+                    const now = realNow();
                     if (n++ > 5) {
                         frames.push(now - last);
                         draws.push(sceneI.drawCallsCounter.current);

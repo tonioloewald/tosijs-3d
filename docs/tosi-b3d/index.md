@@ -98,14 +98,9 @@ setInterval(() => {
 }, 1000)
 ```
 ```css
-tosi-b3d {
-  width: 100%;
-  height: 100%;
-}
+.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 .debug-panel {
-  position: absolute;
-  top: 10px;
-  right: 10px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -114,7 +109,6 @@ tosi-b3d {
   color: #fff;
   border-radius: 6px;
   font-size: 14px;
-  z-index: 10;
 }
 .debug-panel label {
   display: flex;
@@ -127,22 +121,6 @@ tosi-b3d {
 ```
 
 ## Demo — pause, start screens, and the VR entry gesture
-
-> **⚠️ EXPERIMENTAL.** The flat behaviour below is verified; the VR half — the
-> Continue tap carrying a user gesture into `enterXRAsync`, and taking the
-> headset off pausing — has not been through a headset yet. That's the half the
-> feature is *for*, so treat these attributes as unsettled until it has.
-
-
-A second, deliberately small scene. It starts paused with its own panel, so the
-first thing you see is a Start screen; backgrounding the tab pauses it again.
-
-The reason this shape matters is not tidiness. **`enterXRAsync` requires a user
-gesture** — a scene cannot enter VR on load, the browser refuses. So "come up
-paused, put the headset on, press Continue" is the only arrangement that
-reliably enters VR. `enterXrOnResume` closes the loop: set it on the scene below
-and the button changes to "Continue in VR" on a device that has it. Leaving VR
-pauses every scene: entering unpauses, so leaving is its inverse.
 
 ```js
 import { b3d, b3dBox, b3dSphere, label3d, button3d, select3d, sceneDelta } from 'tosijs-3d'
@@ -245,6 +223,21 @@ for (const [label, fn] of [
 preview.append(scene, readout, bar)
 ```
 
+> **⚠️ EXPERIMENTAL.** The flat behaviour above is verified; the VR half — the
+> Continue tap carrying a user gesture into `enterXRAsync`, and taking the
+> headset off pausing — has not been through a headset yet. That's the half the
+> feature is *for*, so treat these attributes as unsettled until it has.
+
+A second, deliberately small scene. It starts paused with its own panel, so the
+first thing you see is a Start screen; backgrounding the tab pauses it again.
+
+The reason this shape matters is not tidiness. **`enterXRAsync` requires a user
+gesture** — a scene cannot enter VR on load, the browser refuses. So "come up
+paused, put the headset on, press Continue" is the only arrangement that
+reliably enters VR. `enterXrOnResume` closes the loop: set it on the scene above
+and the button changes to "Continue in VR" on a device that has it. Leaving VR
+pauses every scene: entering unpauses, so leaving is its inverse.
+
 ## Usage
 
 ```javascript
@@ -268,7 +261,7 @@ document.body.append(
 | `glowLayerIntensity` | `0` | Glow effect intensity (0 = off) |
 | `clearColor` | `''` | The colour behind everything (`'#000'` for space); empty keeps Babylon's default |
 | `frameRate` | `30` | Target frame rate |
-| `timeScale` | `1` | How fast simulation time runs against wall time: `1` is real time, `0.25` slow motion, `0` stops the simulation while the scene keeps rendering. Everything integrating with `sceneDelta` scales; anything that must not slow (UI animation, a countdown in wall seconds) reads `realDt` from the frame package |
+| `timeScale` | `1` | How fast simulation time runs against wall time: `1` is real time, `0.25` slow motion, `0` stops the simulation while the scene keeps rendering. Everything integrating with `sceneDelta` scales, and so do Babylon's animation groups and particles (times any `animationTimeScale` or `updateSpeed` the app set); anything that must not slow (UI animation, a countdown in wall seconds) reads `realDt` from the frame package |
 | `quality` | `'auto'` | Device tier. `'auto'` follows the measured or cached device profile (and probes in the background on a first visit); `'low'`, `'medium'` or `'high'` force one. Drives the `auto` defaults of shadows, reflections, terrain and render scaling. See [[b3d-quality]] |
 | `pixelRatio` | `0` | Device pixels per CSS pixel, flat. `0` is auto: the display's own ratio, capped by the device tier (high 2, medium 1.5, low 1). A positive value is an explicit cap and wins: `1` renders at CSS resolution, `2` full Retina, `0.75` below CSS for speed. Ignored in a headset |
 | `groundDetail` | `'auto'` | The ground shader's form: `full`, `lite` (three noise samples a pixel for eight, for a GPU that cannot afford the full one), or `auto` (from the device tier: lite on the low tier, and in a headset on the medium one) |
@@ -292,7 +285,7 @@ document.body.append(
 | `flatUi` | `'scene'` | Where the flat view's own controls are drawn. `'scene'`: in the scene (the system bar, settings panel and pause), the same UI a headset gets. `'dom'`: HTML corner buttons, settings panel and pause (where `::part(...)` styling of them shows). Any other value warns once and means `'scene'` |
 | `scenePanelOpen` | `false` | Start with the settings panel open instead of closed behind the owl |
 | `panelTitle` | `''` | The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row) |
-| `panelSections` | `'fold'` | How collapsible sections in the settings panel present: `'fold'` (headers you open and close) or `'tabs'` (file tabs, one section at a time) |
+| `panelSections` | `'fold'` | How collapsible sections in the settings panel present: `'fold'` (headers you open and close, one open at a time: opening one closes the others), `'folds'` (several may be open) or `'tabs'` (file tabs, one section at a time) |
 | `stats` | `false` | Add a Perf Stats section to the settings panel, flat and in a headset. `#perf` or `#debug` (or `?perf`, `?debug`) in the page URL, or calling `showB3dStats()`, shows it on every scene |
 | `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = the default layout (everything but the d-pad); a value like `"a,b,left_stick"` selects controls, and naming `view` or `menu` also puts them on the headset's system bar. A plain property, read once at setup |
 | `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
@@ -311,3 +304,12 @@ Set these in the `b3d()` config.
 | `scenePanel(el)` | returns the settings panel's widgets, drawn flat and in a headset from the same list; rebuilt each time it opens, and `refreshScenePanel()` updates an open one |
 | `pausePanel(el, resume)` | returns the pause panel's rows in place of the default title and Continue button; `resume` lets the player back in |
 | `setupXr(el)` | replaces the built-in WebXR setup and Enter-VR button with your own |
+
+## Loading
+
+The spinner shows until the scene first renders. A page that loads its own
+content after that (models, a body, a terrain) holds it up with
+`el.setLoading('loading the body…')`, which shows the spinner with the
+message below it; `setLoading(true)` is the spinner alone, `setLoading(false)`
+lets it go, and `{ spin: false }` shows a message without the spinner (a load
+that failed).

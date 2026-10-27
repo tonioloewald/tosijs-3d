@@ -18,7 +18,7 @@ on a screen without being empty.
 ```js
 import { b3d, b3dLight, b3dStarSystem, spaceBackdrop, voxelGalaxy, label3d, slider3d, toggle3d, select3d } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
-const { div, p, pre } = elements
+const { div, pre } = elements
 
 const galaxy = voxelGalaxy({ seed: 1234, brightBudget: 1000 }).view({ generatePlanets: true })
 
@@ -114,7 +114,6 @@ preview.append(
   scene,
   div(
     { class: 'debug-panel' },
-    p('Scroll to zoom, drag to orbit'),
     infoEl,
   )
 )
@@ -148,14 +147,9 @@ for (const key of ['animate', 'showOrbits']) {
 updateInfo()
 ```
 ```css
-tosi-b3d {
-  width: 100%;
-  height: 100%;
-}
+.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 .debug-panel {
-  position: absolute;
-  top: 8px;
-  right: 8px;
   background: rgba(0,0,0,0.6);
   color: white;
   padding: 8px 12px;
@@ -173,6 +167,8 @@ tosi-b3d {
   margin: 0;
 }
 ```
+
+Scroll to zoom, drag to orbit.
 
 > The panel's readout opts out of the doc system's `<pre>` styling. A `<pre>`
 > is rendered as a CODE BLOCK there (light background, its own colour), and

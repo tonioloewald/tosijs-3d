@@ -20,9 +20,6 @@ front of you.
 
 ## Demo
 
-**Fly it into the ground.** (W/S pitch, A/D bank, R/Q throttle.) Watch it burn, then press
-Respawn on the floating panel.
-
 ```js
 import { b3d, b3dAircraft, b3dDeath, b3dLibrary, b3dGround, b3dLight, b3dSun, b3dSkybox, inputFocus } from 'tosijs-3d'
 
@@ -62,6 +59,9 @@ preview.append(scene)
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+**Fly it into the ground.** (W/S pitch, A/D bank, R/Q throttle.) Watch it burn, then press
+Respawn on the floating panel.
 
 ## What it deliberately does NOT do
 

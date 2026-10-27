@@ -5,23 +5,6 @@ Opt-in collision detection via mesh naming conventions authored in Blender.
 
 ## Demo — where did it hit, and which way is the surface facing?
 
-Hail falls on the scout. Each impact is found by a SWEPT RAY (the segment the
-stone travelled this frame, not its position), and the marker shows both things
-you actually need: the **point**, and a disc lying flat on the surface with a
-stalk along the **normal**. Watch the discs tilt to follow the fuselage, and
-lie flat the moment a stone misses and lands on the ground.
-
-Misses count too — a stone that hits nothing still hits the WORLD, and a demo
-that only reports the interesting case quietly teaches you that misses are free.
-Ground hits are the same marker in a cooler colour and a shorter life, because
-they are the common case and at equal weight they drown out the ones you care
-about.
-
-The sweep is the part worth copying. Testing "is the stone inside the rock now?"
-misses anything moving faster than its own radius per frame — at 60fps a stone
-falling at 12 m/s moves 0.2m, so a thin surface is a coin toss. Casting the
-segment cannot tunnel.
-
 ```js
 import { b3d, b3dLibrary, label3d, slider3d } from 'tosijs-3d'
 import { demoStage, orbitCam, impactMarker } from 'demo-utils'
@@ -139,6 +122,23 @@ const scene = b3d(
 
 preview.append(scene, readout)
 ```
+
+Hail falls on the scout. Each impact is found by a SWEPT RAY (the segment the
+stone travelled this frame, not its position), and the marker shows both things
+you actually need: the **point**, and a disc lying flat on the surface with a
+stalk along the **normal**. Watch the discs tilt to follow the fuselage, and
+lie flat the moment a stone misses and lands on the ground.
+
+Misses count too — a stone that hits nothing still hits the WORLD, and a demo
+that only reports the interesting case quietly teaches you that misses are free.
+Ground hits are the same marker in a cooler colour and a shorter life, because
+they are the common case and at equal weight they drown out the ones you care
+about.
+
+The sweep is the part worth copying. Testing "is the stone inside the rock now?"
+misses anything moving faster than its own radius per frame — at 60fps a stone
+falling at 12 m/s moves 0.2m, so a thin surface is a coin toss. Casting the
+segment cannot tunnel.
 
 ## Naming Conventions
 

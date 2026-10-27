@@ -12,8 +12,6 @@ and no behaviour, which is most of what populates a level.
 
 ## Demo
 
-Three props from one Kenney kit, placed declaratively.
-
 ```js
 import { b3d, b3dLight, b3dSun, b3dSkybox, b3dLibrary, b3dProp, b3dGround } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -41,6 +39,8 @@ preview.append(
 ```css
 .preview { height: 100%; }
 ```
+
+Three props from one Kenney kit, placed declaratively.
 
 ## Why a prop
 

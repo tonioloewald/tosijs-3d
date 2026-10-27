@@ -15,9 +15,6 @@ worth more than a cloud that merely looks convincing.
 
 ## Demo
 
-**Climb into the cloud layer** (R to throttle up, W/S pitch). Watch the world white out as
-you enter, and the readout climb. Then dive back out.
-
 ```js
 import { b3d, b3dAircraft, b3dClouds } from 'tosijs-3d'
 import { flightStage } from 'tosijs-3d/demo-utils'
@@ -48,14 +45,17 @@ setInterval(() => {
 preview.append(scene, readout)
 ```
 ```css
-tosi-b3d { width: 100%; height: 100%; }
+.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 .readout {
-  position: absolute; bottom: 12px; left: 12px;
   padding: 6px 12px; border-radius: 6px;
   background: rgba(0,0,0,0.55); color: #9fb;
   font: 13px ui-monospace, monospace; z-index: 10;
 }
 ```
+
+**Climb into the cloud layer** (R to throttle up, W/S pitch). Watch the world white out as
+you enter, and the readout climb. Then dive back out.
 
 ## How it works
 

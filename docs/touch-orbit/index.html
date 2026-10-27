@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=7917dccc76d6" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=c3f9a510fbae" data-tosi-doc-system />
   <title>touch-orbit — tosijs-3d</title>
   <meta name="description" content="TouchOrbit(camera) gives an ArcRotateCamera the view controls people expect from a 3D viewer, on every device." />
   <link rel="canonical" href="https://3d.tosijs.net/touch-orbit/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=10b0e7b75506" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=d4cb551793b9" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="touch-orbit.ts">
 <h1 id="touch-orbit">touch-orbit</h1>
 <p><code>touchOrbit(camera)</code> gives an <code>ArcRotateCamera</code> the view controls people
@@ -65,20 +65,35 @@ expect from a 3D viewer, on every device. <code>&lt;tosi-b3d&gt;</code>&#39;s de
 </tr>
 </tbody></table>
 <ul>
-<li><strong>Pan follows the pointer.</strong> Pixels become world units at the TARGET&#39;s depth
+<li><p><strong>Pan follows the pointer.</strong> Pixels become world units at the TARGET&#39;s depth
 (<code>2·r·tan(fov/2)</code> per viewport height), applied straight to the target, so
 the point you grabbed moves with you at any distance. Babylon&#39;s own pan is a
 fixed <code>1/panningSensibility</code> fed through its inertia, so it slows relative to
-the view the further out you are.</li>
-<li><strong>A trackpad&#39;s two-finger drag pans; a pinch zooms.</strong> Both arrive as <code>wheel</code>
+the view the further out you are.</p>
+</li>
+<li><p><strong>A trackpad&#39;s two-finger drag pans; a pinch zooms.</strong> Both arrive as <code>wheel</code>
 events, as a mouse wheel does: <code>wheelClassifier</code> (below) tells them apart (a pinch carries <code>ctrlKey</code>, a mouse notch
 is big, a trackpad moves sideways or starts small). No browser says which
 device sent a wheel event, so it is a heuristic; shift-drag pans on
-anything. <code>{ trackpadPan: false }</code> leaves the wheel to Babylon (it zooms).</li>
-<li><strong>Touch:</strong> one finger orbits, two fingers moving together pan, a pinch
-zooms; the decision is made once per gesture (<code>twoFingerGesture</code>, below).</li>
-<li><strong>A wheel over a panel is the panel&#39;s</strong>: panels take it before the canvas
-sees it, so a list scrolls and the scene stays put.</li>
+anything. <code>{ trackpadPan: false }</code> leaves the wheel to Babylon (it zooms).</p>
+</li>
+<li><p><strong>Touch:</strong> one finger orbits, two fingers moving together pan, a pinch
+zooms; the decision is made once per gesture (<code>twoFingerGesture</code>, below).</p>
+</li>
+<li><p><strong>A wheel over a panel is the panel&#39;s</strong>: panels take it before the canvas
+sees it, so a list scrolls and the scene stays put.</p>
+</li>
+<li><p><strong>Zoom is proportional</strong>: a wheel step or pinch moves the camera by a share
+of its distance (<code>WHEEL_SHARE</code>, as Babylon&#39;s <code>wheelDeltaPercentage</code>), so it
+is as gentle at arm&#39;s length as across a field. A page that set
+<code>wheelPrecision</code> or <code>wheelDeltaPercentage</code> itself keeps its own. A
+trackpad pinch scales the distance by the pinch (<code>PINCH_SHARE</code>): it sends
+many small steps, which the wheel&#39;s share per notch barely moved.</p>
+</li>
+<li><p><strong>Zoom stops short of the target</strong>: with no <code>lowerRadiusLimit</code> of your own,
+it is set to twice the camera&#39;s near plane (at least 1 cm), because Babylon
+has none and zooming in went through the target and flipped the view.</p>
+</li>
 </ul>
 <p>Returns a function that restores Babylon&#39;s handlers.</p>
 <h2 id="two-fingers-pan-or-zoom-decided-once">Two fingers: pan OR zoom, decided once</h2>
@@ -158,6 +173,7 @@ target&#39;s depth as above.</p>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="../environment/">environment</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
     </ul>
     </details></li>
@@ -248,9 +264,36 @@ target&#39;s depth as above.</p>
           <li><a class="doc-link" href="../human-morph/">human-morph</a></li>
           <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
           <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
+          <li><a class="doc-link" href="../skin-shading/">skin-shading</a></li>
           <li><a class="doc-link" href="../human-face/">human-face</a></li>
-          <li><a class="doc-link" href="../human-hair/">human-hair</a></li>
-          <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          <li><a class="doc-link" href="../human-expression/">human-expression</a></li>
+          <li><details><summary><a class="doc-link" href="../human-hair/">human-hair</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../hair-shading/">hair-shading</a></li>
+            <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          </ul>
+          </details></li>
+          <li><details><summary><a class="doc-link" href="../human-proxy/">human-proxy</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../proxy-fit/">proxy-fit</a></li>
+            <li><a class="doc-link" href="../cloth-shading/">cloth-shading</a></li>
+            <li><details><summary><a class="doc-link" href="../garment-cut/">garment-cut</a></summary>
+            <ul>
+              <li><a class="doc-link" href="../outline-field/">outline field</a></li>
+            </ul>
+            </details></li>
+            <li><details><summary><a class="doc-link" href="../garment-bind/">garment-bind</a></summary>
+            <ul>
+              <li><details><summary><a class="doc-link" href="../garment-file/">garment-file</a></summary>
+              <ul>
+                <li><a class="doc-link" href="../uv-unwrap/">uv-unwrap</a></li>
+              </ul>
+              </details></li>
+              <li><a class="doc-link" href="../proxy-rigid/">proxy-rigid</a></li>
+            </ul>
+            </details></li>
+          </ul>
+          </details></li>
         </ul>
         </details></li>
       </ul>
@@ -465,11 +508,17 @@ target&#39;s depth as above.</p>
       <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
     </ul>
     </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../clock/">clock</a></li>
+    </ul>
+    </details></li>
     <li><details><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
     <ul>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.11.5/">0.11.5</a></li>
         <li><a class="doc-link" href="../v0.11.4/">0.11.4</a></li>
         <li><a class="doc-link" href="../v0.11.3/">0.11.3</a></li>
         <li><a class="doc-link" href="../v0.11.2/">0.11.2</a></li>
@@ -549,6 +598,6 @@ target&#39;s depth as above.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-0nmn3nad.js"></script>
+  <script type="module" src="../hydrate-fymfsbgh.js"></script>
 </body>
 </html>

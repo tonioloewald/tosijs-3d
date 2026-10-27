@@ -3,15 +3,15 @@
 
 Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface.
 Longitude (u) wraps seamlessly; latitude (v) reflects at the midpoint, creating
-symmetric hemispheres with no singularities. Two noise layers (gross contour
-+ fine detail) each pass through gradient filters for shaping plateaus, mesas, etc.
+symmetric hemispheres with no singularities. Two noise layers (gross
+contour and fine detail) each pass through gradient filters for shaping plateaus, mesas, etc.
 
 ## Demo
 
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dCloudDeck, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dDeath, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField, volcano } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
-const { div, span, p } = elements
+const { div, span } = elements
 
 const { demo } = tosi({
   demo: {
@@ -27,7 +27,7 @@ const { demo } = tosi({
     grossScale: 0.015,
     detailScale: 0.09,
     horizScale: 8,
-    grossAmplitude: 250,
+    grossAmplitude: 350,
     detailAmplitude: 45,
     wireframe: false,
     debugColor: false,
@@ -42,7 +42,7 @@ const { demo } = tosi({
 // ~250 and the peaks stand out of the overcast, and you have to get down into
 // the valleys to see anything at all.
 const { sky } = tosi({
-  sky: { coverage: 0.55, altitude: 700, timeOfDay: 10, orographic: 0.8 },
+  sky: { coverage: 0.3, altitude: 400, timeOfDay: 10, orographic: 0.8 },
 })
 
 // Priority-pool quadtree LOD: one shared pool of tiles, fine near / coarse far,
@@ -86,15 +86,15 @@ terrain.regenerate()
 
 const posDisplay = span({ class: 'pos-display' })
 
-// Fly the terrain in the VTOL aircraft. It spawns high (well above the ~210 peaks
-// with v size 200), so it's already above the hover ceiling → in FLIGHT mode:
+// Fly the terrain in the VTOL aircraft. It spawns under the cloud base (400) and
+// above the peaks, already above the hover ceiling → in FLIGHT mode:
 // right trigger = forward throttle, pull back to climb, turn stick banks.
 const plane = () => b3dAircraft({
   library: 'vehicles', meshName: 'scout',
   // A ceiling ABOVE the cloud deck, because the whole point of a deck is that
   // you can be under it, in it, or over it. The stock 300 m is a low-level
   // strike ceiling and it sat below even the spawn altitude here.
-  player: true, y: 400, ceiling: 1600, vtolSpeed: 6, maxSpeed: 50,
+  player: true, y: 320, ceiling: 1600, vtolSpeed: 6, maxSpeed: 50,
 })
 const focus = inputFocus(gameController(), plane())
 
@@ -197,7 +197,6 @@ preview.append(
   scene,
   div(
     { class: 'debug-panel' },
-    p('Pull back to climb, triggers up/down (throttle when fast), turn to bank. Tweak terrain via the scene panel (works in VR too).'),
     posDisplay,
   )
 )
@@ -210,14 +209,9 @@ for (const key of ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmpl
 }
 ```
 ```css
-tosi-b3d {
-  width: 100%;
-  height: 100%;
-}
+.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 .debug-panel {
-  position: absolute;
-  top: 10px;
-  right: 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -226,7 +220,6 @@ tosi-b3d {
   color: #fff;
   border-radius: 6px;
   font-size: 13px;
-  z-index: 10;
 }
 .debug-panel label {
   display: flex;
@@ -243,6 +236,8 @@ tosi-b3d {
   opacity: 0.7;
 }
 ```
+
+Pull back on the stick to climb, the triggers go up and down (they are the throttle once you are fast), and turn to bank. The terrain's settings are in the scene panel (the owl), in VR too.
 
 ## How it works
 
@@ -402,6 +397,7 @@ const freshBiomeMemo = () => ({
 import { touchesExtent } from './landform.js';
 import { b3dEffect } from './b3d-effect.js';
 import { chartTemperature } from './biome-chart.js';
+import { realNow } from './clock.js';
 /** Default `worldV`: a quarter turn from BOTH of CylinderSampler's mirror
  * planes (v = 0 and v = 0.5), which is the furthest you can sit from either. */
 const MIRROR_SAFE_V = 0.25;
@@ -417,9 +413,7 @@ const cellKeyNum = (level, gx, gz) => level * 4_398_046_511_104 + // 2^42
 // Two clocks, so profiling costs literally nothing when it's off — no branch inside the
 // vertex loop, just a nullary that folds to a constant.
 const ZERO = () => 0;
-const PERF_NOW = typeof performance !== 'undefined' && performance.now
-    ? () => performance.now()
-    : () => Date.now();
+const PERF_NOW = () => realNow();
 const emptyTileProfile = () => ({
     tiles: 0,
     samples: 0,

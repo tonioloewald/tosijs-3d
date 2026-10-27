@@ -51,6 +51,7 @@ The timing is passed in as `now` rather than read from a clock, so the ramp is
 deterministic and testable — same discipline as the rest of the pure models here.
 */
 /*{ "parent": "ui-in-scene", "order": 40 }*/
+import { realNow } from './clock.js';
 const DIRS = [
     { key: 'dpadLeft', dx: -1, dy: 0 },
     { key: 'dpadRight', dx: 1, dy: 0 },
@@ -138,7 +139,7 @@ export function gamepadFocus(opts) {
             return;
         // Always RUN the pulse (it holds the edge/repeat state — skipping it would
         // burst stale presses on activation); only APPLY it when active.
-        const p = pulse(opts.poll(), performance.now());
+        const p = pulse(opts.poll(), realNow());
         if (claimed === null || claimed === token) {
             for (const m of p.moves)
                 opts.target.focusMove(m.dx, m.dy);

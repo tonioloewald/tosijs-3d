@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css?v=c3f9a510fbae" data-tosi-doc-system />
+  <title>0.11.5 — tosijs-3d</title>
+  <meta name="description" content="The character creator gets dressed. Clothes (MakeHuman&#39;s CC0 garments, fitted to any body shape, with fabrics and recolouring), the Tailor (cut a garment out…" />
+  <link rel="canonical" href="https://3d.tosijs.net/v0.11.5/" />
+  <link rel="alternate" type="text/markdown" href="index.md" title="0.11.5 — tosijs-3d (markdown)" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="0.11.5 — tosijs-3d" />
+  <meta property="og:description" content="The character creator gets dressed. Clothes (MakeHuman&#39;s CC0 garments, fitted to any body shape, with fabrics and recolouring), the Tailor (cut a garment out…" />
+  <meta property="og:url" content="https://3d.tosijs.net/v0.11.5/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"0.11.5","description":"The character creator gets dressed. Clothes (MakeHuman's CC0 garments, fitted to any body shape, with fabrics and recolouring), the Tailor (cut a garment out…","url":"https://3d.tosijs.net/v0.11.5/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json?v=d4cb551793b9" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <article class="doc-content" data-doc="v0.11.5.md">
+<h1 id="0115">0.11.5</h1>
+<!--{ "parent": "CHANGELOG", "order": 9988995 }-->
+
+<p>The character creator gets dressed. Clothes (MakeHuman&#39;s CC0 garments, fitted to any body shape, with fabrics and recolouring), the Tailor (cut a garment out of the body by drawing its outline, or a skirt, kilt or robe in skirt mode; save it, or take it to Blender and back, rigid armour parts included), faces that move (MakeHuman&#39;s face units: blinking, talking, expressions), hair and skin shading, stubble, and new body controls (waist, chest, bust).</p>
+<p>Size: barrel (min, packages external) 1352.5 KB raw / 465.5 KB gz, +7.28% on 0.11.4 (clothing, the Tailor, expressions, shading).</p>
+<h2 id="added">Added</h2>
+<ul>
+<li><code>skirtGarment(positions, triangles, { front, side?, thickness })</code> (garment-cut): a skirt, kilt or robe from the same outlines as <code>cutGarment</code>. At each height the cloth goes round the convex outline of the body inside the cut, hangs straight below its widest ring, and is an open tube (no top or bottom) to draw two-sided; each point is bound between the nearest skin left and right, so it moves with both legs; <code>anchor</code> says which skin it may go round (the builder leaves out the arms, which a skirt cannot follow without cloth simulation; sleeves are a cut garment). The builder&#39;s Tailor has a <code>skirt</code> toggle, saved with the garment. A two-sided proxy material (<code>humanProxy</code>) lights its inside as an inside (<code>twoSidedLighting</code>).</li>
+<li><code>smoothUnder</code>&#39;s <code>bridge</code> (0..1) lets thicker cloth flatten the curve under a bump too, and <code>cutGarment</code>&#39;s <code>fitOn</code> keeps a garment cut on one body in that shape when it is fitted on another. The builder&#39;s Tailor bridges more of the chest the thicker the cloth.</li>
+<li>A popup opened with <code>side: &#39;right&#39;</code> or <code>&#39;left&#39;</code> in a scene panel&#39;s layer (<code>showLayer</code>) hangs beside the panel, level with its anchor, and may be up to twice the panel&#39;s width; it was always centred over the panel and no wider than it. The character builder&#39;s Tailor draws its outline in one (<strong>draw the outline…</strong>), with delete point and clear.</li>
+<li>A <code>waist</code> macro (human-morph, 0.5 neutral) on MakeHuman&#39;s waist-circumference targets, and a <strong>waist</strong> slider in the character builder: the weight macros barely narrow a woman&#39;s waist (about 1 cm from average to least). Needs the human pack from 2026-10-27 or later (<code>hm08.json?v=16</code>); an older pack lacks the targets and the slider does nothing. Below 0.5 it also pinches the waist toward the centre line (<code>pinchWaist</code>, <code>WAIST_NARROW</code> in the weights map), because MakeHuman&#39;s waist target mostly takes depth off: at 0 a woman&#39;s waist is about 4.5 cm narrower from the front, with the chest and hips unchanged.</li>
+<li><code>unwrapUvs(positions, triangles, options?)</code> (uv-unwrap): UVs from a mesh&#39;s shape. It is cut along the plane between left and right and the one between front and back (vertices near a plane are used as the seam, triangles crossing it are cut), each piece is flattened by least-squares conformal maps at its true area with the mesh&#39;s up as +v, and the pieces are packed into the unit square (<code>fit: false</code> keeps metres; <code>metresPerUnit</code> gives the scale). A ball falls into four pieces, trousers into a front and back per leg. <code>carryUnwrapped</code> takes normals or any per-vertex data over to the cut mesh. <code>unwrapGarment</code> (garment-file) unwraps a garment with its normals carried across the seams, and the character builder&#39;s Tailor now exports and saves a cut unwrapped, so a pattern runs across it in Blender and a map can be painted on it.</li>
+<li><code>readGarment</code> returns the garment&#39;s <code>material</code> from a GLB, which is what Blender&#39;s Principled BSDF exports: a base colour map (its alpha is the garment&#39;s alpha), a normal map, a roughness and metalness map, their factors, the alpha mode and double-sidedness, with the images copied out of the file (<code>materialCount</code> says how many the parts used; the first part&#39;s is read). <code>writeGarmentGlb</code> takes a <code>material</code> and writes the images into the GLB. A proxy&#39;s <code>material</code> takes the same (<code>metallicRoughness</code>, <code>roughness</code>, <code>metallic</code>, <code>baseColor</code>, <code>blend</code>, <code>alphaCutoff</code>, <code>normalScale</code>) and <code>proxyMaterial</code> draws them. The builder&#39;s Tailor draws an imported garment with its own maps, has a <strong>recolour</strong> slider, and the fabric <strong>as made</strong>, which leaves a garment&#39;s surface alone.</li>
+<li>The builder&#39;s Tailor can <strong>hide other clothes</strong>, and <strong>save as an option</strong>: a named garment, cut or imported, is kept in the browser (IndexedDB) and becomes a choice in its slot with the fabric and colour it was saved with; a saved cut can be edited again from its outline, and <strong>forget</strong> removes it. <code>GarmentMeta</code> carries <code>cut</code> and <code>look</code> for this.</li>
+<li><code>cutGarment(positions, triangles, { front, side?, thickness, ease, hem })</code> (garment-cut): a garment cut out of the body by polygons drawn in the front view (and optionally the side view), cut along the outline, pushed out, eased across creases and hemmed. It returns an ordinary proxy binding, so it fits every body shape and bends with every clip; <code>humanProxy</code> draws it and <code>delete</code> lists the skin it covers. A rectangle from the waist to the ankles is a pair of trousers.</li>
+<li><code>outlineField3d</code> (outline-field): a scene-panel control for drawing those outlines over the body&#39;s front view. Click out points and click the first to close; drag a point; press an edge to add one; <code>removeSelected()</code> and <code>clear()</code> for buttons. With symmetry on (the default) you draw one side and <code>mirrorOutline</code> (garment-cut) makes it whole: a half with an edge on the centre line becomes one garment across the body, any other a mirrored pair. The character builder has it as <strong>Tailor</strong>, with thickness, fabric and colour.</li>
+<li>A garment out to Blender and back. <code>writeGarmentGlb</code> / <code>writeGarmentObj</code> (garment-file) save a garment with, optionally, the body it was made on as a translucent <code>body-reference</code> marked as a helper; the base, pack version and body sliders travel as glTF <code>extras</code> (in Blender, export with Include → Custom Properties). <code>readGarment</code> reads either format back, skipping the helper, and <code>bindGarment</code> (garment-bind) binds any mesh to the body by its nearest skin, so a hand-made collar or a garment with its own UV unwrap fits every body. The builder&#39;s Tailor has export glTF, export OBJ, include the body, and import.</li>
+<li>Rigid parts in a bound garment (<code>proxy-rigid</code>): an armour plate, a visor and its ring, a buckle keep their shape. A binding&#39;s <code>rigid</code> groups are placed on a new body shape by the best rotation, uniform scale and shift of their flexible fit, share one set of skin weights so a clip carries them without bending, and move as one with an expression; rigidity is a 0 to 1 dial per vertex, so a part can stiffen gradually. <code>fitProxy</code>, <code>proxyWeights</code> and <code>proxyDelta</code> honour it. From Blender, a <code>rigid</code> custom property on an object says how (<code>1</code>, a fraction, <code>parts</code> for each loose island, <code>paint</code> for vertex colour, or a group name shared by objects that move together), a <code>_rigid</code> float attribute sets it per vertex, and a name ending <code>_rigid</code> or <code>_rigidParts</code> works without custom properties. <code>garmentRigidity(garment)</code> resolves it for <code>bindGarment</code>.</li>
+<li>Export the body alone, to model a garment from nothing: <code>writeGarmentGlb</code> / <code>writeGarmentObj</code> take no <code>garment</code>, and the builder&#39;s Tailor has <strong>export the body alone</strong>. Everything modelled beside it comes back as the garment. The body helper now carries the metadata too, and <code>readGarment</code> reads it from there when no garment node has it.</li>
+<li>The body helper&#39;s name carries the body, for files that lose the metadata (an OBJ through Blender, a glTF exported without custom properties): <code>body-reference_hm08_p15_weight72_muscle100</code> is the base, the pack version and each non-default slider as a whole percentage. <code>readGarment</code> reads it when nothing better is there; <code>referenceName</code> / <code>metaFromName</code> (garment-file) write and read it. Keep the name when editing.</li>
+<li><code>&lt;tosi-b3d-aircraft dropShadow=&quot;on&quot;&gt;</code> (off by default): a soft blob shadow straight below the craft, darkest on the ground and fading and spreading as it climbs, so its height reads at a glance. Meant for scenes without real shadows; beside a sun&#39;s shadow it contradicts it.</li>
+<li>The rig tool imports animations made on another rig (<code>load animations…</code>, <code>rig.loadClips(file | url)</code>): a GLB&#39;s clips (Mixamo, mocap, another library) are retargeted onto the character and the comparison mannequin. Mixamo&#39;s FBX needs converting to GLB first.</li>
+<li>A slow-motion button beside Pause in the settings panel&#39;s icon bar: world time at a quarter speed (<code>timeScale</code> 0.25) and back.</li>
+<li>The rig tool binds a model with no skeleton itself (<code>load model file…</code> takes a GLB or OBJ): eight markers on its outline, guessed and then dragged onto the joints, place a skeleton, and bone heat binds the mesh to it. <code>bind from markers</code> does the same for a model that has a skeleton, ignoring it. The markers are saved in the recipe as <code>binding</code> (<code>RigBinding</code>).</li>
+<li><code>skinShading</code> (<code>skin-shading</code>), a PBR material plugin for skin: a reddened, softened terminator (scatter), a grazing rim, and back-light through thin parts (ears, nose, fingers) from <code>skinThinness</code>, a per-vertex thinness carried in the vertex colour&#39;s alpha (<code>lipTint</code> takes it). <code>skinMaterial</code> turns it on (<code>shading: false</code> for plain PBR) and is a little glossier (roughness 0.42).</li>
+<li>Hair shading (a highlight band along the strands from PBR anisotropy, a sheen rim) and dye: <code>hairDye(natural, hue, saturation)</code> and <code>HairMaterial.setHair(light, red, { hue, saturation })</code> turn the natural colour toward a hue at the hair&#39;s own lightness (blue over dark hair is blue-black, pink over bleached hair pastel). The builder has dye hue and strength sliders.</li>
+<li>CLOTHING. <code>proxy-fit</code> is MakeHuman&#39;s <code>.mhclo</code> binding (three base vertices, weights and an axis-scaled offset per vertex), so a garment follows every body shape with no per-body fitting: <code>fitProxy</code>, <code>drawnPositions</code>, <code>proxyWeights</code> (skin weights from the vertices it is bound to), <code>nearestWeights</code> (for the helper vertices clothes bind to), <code>coveredTriangles</code>. <code>human-proxy</code> puts one on a built body, skinned to its skeleton: <code>humanProxy</code>, <code>proxyMaterial</code>, <code>coverBody</code> (hides covered skin). The human pack (<code>?v=5</code>) carries MakeHuman&#39;s CC0 system assets as proxies: 20 suits and shoes, a fedora, 10 hairstyles and 12 brows (<code>pack.proxy(name)</code>). The builder has outfit, shoes and hat menus, MakeHuman&#39;s hair and brows beside Quaternius&#39;, and beard nudges.</li>
+<li><code>underCover(hat, hair, triangles)</code> hides the hair a hat covers (above its brim, within its reach, followed around a tilted brim), so hair no longer pokes through hats; MakeHuman&#39;s CC0 beards and moustaches (Bodyparts 05) in the pack (<code>?v=6</code>), bound to the body like clothes, so they sit on any face. The builder&#39;s sun takes <code>shadowNormalBias: 0.008</code>: the default thinned a body&#39;s shadow.</li>
+<li><code>hairShading</code> (<code>hair-shading</code>): hair coloured by a BASE and a HIGHLIGHT colour, the way a colourist describes it: a material plugin tints the texture with the base and leans its brighter strands to the highlight (and the strand sheen takes it), with <code>desaturate</code> for libraries whose hair textures are already coloured (MakeHuman&#39;s), so one pair of colours works on every library. <code>HAIR_COLOURS</code> are paired presets, natural and dyed. The builder&#39;s hair colour is a preset menu and two colour pickers, replacing the light, red and dye sliders.</li>
+<li>Clothing materials. <code>clothShading</code> (<code>cloth-shading</code>) puts a fabric on a garment (<code>FABRICS</code>: cotton, denim, wool, linen, velvet, silk, satin, synthetic, leather, rubber, as roughness and PBR sheen) and a recolour over its texture (read as grey, tinted, blended by <code>amount</code>; 0 keeps the texture&#39;s colours). <code>proxyMaterial(scene, proxy, look)</code> draws one of a garment&#39;s alternate textures; the pack (<code>?v=7</code>) carries MakeHuman&#39;s CC0 colourways for the elegant and casual suits. The builder has look, fabric, colour and recolour per outfit, shoes and hat.</li>
+<li>Separate garments and accessories in the human pack (<code>?v=8</code>), each with a <code>slot</code> (outfit, top, bottom, shoes, hat, glasses, gloves; one of each worn at a time): MakeHuman&#39;s CC0 shirts, pants, skirts, suits, shoes, hats, glasses and gloves. The builder wears one per slot (an outfit replaces a top and bottom) and edits whichever is chosen. <code>inflate</code> pushes a proxy out from a point: the builder&#39;s hats sit 12 mm out from the skull, over the hair, and <code>underCover</code> drops only hair wholly under a hat (dropping any triangle across the brim left bare scalp below it).</li>
+<li><code>studioEnvironment(scene)</code>, a procedural studio (sky, horizon, floor) as the scene&#39;s environment, so gloss and metal have something to reflect; metal and gloss finishes in <code>FABRICS</code> (vinyl, foil, chrome, brushed steel, gold, copper, silver lamé; <code>metallic</code>, and a <code>tint</code> for finishes that are a colour); a <code>mask</code> slot and MakeHuman&#39;s CC0 sci-fi suits, helmets and masks in the pack (<code>?v=9</code>).</li>
+<li>FACES THAT MOVE (<code>human-expression</code>). MakeHuman&#39;s 59 CC0 face pose units (lids, jaw, lips, mouth corners, brows, cheeks, tongue) are baked into the human pack (<code>?v=12</code>) as shape targets (<code>expression/&lt;Unit&gt;</code>): its face rig posed per unit and the base skinned with its own weights, offline. At runtime they are morph targets on the body, the eyelashes, the teeth and tongue and whatever is bound to the face (a beard follows the jaw): <code>faceDeltas</code>, <code>humanExpressions</code> (weights in named LAYERS, summed per unit), <code>blinker</code> (a person&#39;s rhythm, sometimes twice), <code>lidsFollow</code> (upper lids follow the eyes up and down), <code>lipSync</code> (any Web Audio source: loudness opens the jaw, bright sound widens, dark rounds), <code>babble</code> (talking with no audio), <code>VISEMES</code>. <code>proxyDelta</code> moves a bound proxy with the face. The pack also carries MakeHuman&#39;s teeth and tongue, and the builder wears them. The builder has a Face section: blink, talk, mic (lip sync from your microphone), smile, brows, frown.</li>
+<li><code>select3d({ stayOpen: true })</code> keeps its list open after a pick, until it is closed or something behind it is pressed, for trying options one after another; the character builder&#39;s style, clothes and clip menus use it.</li>
+<li>Stubble. <code>stubbleTint(colours, mask, amount, skinRgb, hairRgb)</code> darkens the skin toward the hair colour where a mask says the beard grows; the character builder makes the mask from MakeHuman&#39;s full beard fitted to the body (below the cheekbones, faded) and has a stubble slider.</li>
+<li>Chest and bust controls in <code>MacroBody</code> (all optional, 0.5 neutral): <code>chestDepth</code>, <code>pecs</code>, and <code>bustSize</code> / <code>bustFirmness</code>, which blend MakeHuman&#39;s breast targets across gender, age, muscle and weight like the macros and apply in proportion to how female the body is. The human pack (<code>?v=15</code>) carries the targets; the character builder has the four sliders.</li>
+</ul>
+<h2 id="changed">Changed</h2>
+<ul>
+<li>A neckline drawn level (<code>cutGarment</code>, the builder&#39;s Tailor) is cut 15° lower in front than behind, as most are: hm08&#39;s neck leans forward, so a ring level in the world rose toward the front. A V or a scoop is cut as drawn.</li>
+<li><code>skinAlbedo</code> (skin-tone) is paler and whiter at the fair end, and <code>redness</code> is stronger toward both ends of its dial (subtle near 0.5): 0 is a drained grey-white, 1 is flushed. A recipe at a fair tone or an extreme redness looks different.</li>
+<li>Collapsible sections in the settings panel (and <code>foldSections</code>) open one at a time, as an accordion: opening one closes the others, and all may be closed. Of several declared <code>open: true</code>, the first wins. <code>panelSections=&quot;folds&quot;</code> (<code>mode: &#39;folds&#39;</code>) keeps the old behaviour, several open at once; the rig tool and effect tool use it.</li>
+<li><code>touchOrbit</code> makes the wheel and a trackpad pinch zoom by a share of the camera&#39;s distance (<code>WHEEL_SHARE</code>, 1%, as Babylon&#39;s <code>wheelDeltaPercentage</code>) instead of Babylon&#39;s fixed step, which moved about 0.8 m a notch and went from the default view to far too close in one or two. It applies to <code>&lt;tosi-b3d&gt;</code>&#39;s default camera, <code>orbitCam</code> and any orbit camera given to it; a page that set <code>wheelPrecision</code> or <code>wheelDeltaPercentage</code> keeps its own. The character builder&#39;s camera stays between 0.3 m and 10 m.</li>
+<li><code>readGarment</code> reads every mesh in the file except the body helper as the garment (an object added in Blender, a collar or a plate, was dropped), and returns them as <code>parts</code>; <code>writeGarmentGlb</code> / <code>writeGarmentObj</code> write a garment&#39;s parts as separate objects.</li>
+<li><code>clothShading</code> colours an untextured garment (one cut from the body) by its albedo; it only recoloured a texture before.</li>
+<li>In a headset&#39;s chase view, <code>b3d-aircraft</code>&#39;s HUD is an overlay like the flat one: face on, centred on the aircraft and at its distance, so both eyes see it where they see the craft, drawn over the scene, covering the angle the flat overlay covers, with no horizon. It used to hang ahead of the craft level with its heading and ring it in the world. <code>b3d-hud</code>&#39;s <code>attachInScene</code> takes <code>onTop</code> for this.</li>
+<li><code>stubbleTint</code> is about twice as dark at full: a shadow going most of the way to a darkened, slightly cool hair colour (it was barely visible, worst on light-brown hair).</li>
+<li>The character builder&#39;s hair colours are two <code>colorPicker3d</code> rows (a swatch that opens a picker with named presets); a base preset brings its usual highlight.</li>
+<li>The character builder: beards and moustaches are separate choices and MakeHuman&#39;s (Quaternius&#39; facial hair, drawn for its own stylised mouth, drooped and tilted on ours); MakeHuman&#39;s hair and brows are the defaults and listed first; hair, brows and beards keep their texture&#39;s alpha (pack <code>?v=10</code>).</li>
+<li>Clothes TUCK the skin they cover rather than cutting it: <code>coverBody</code> drops only triangles wholly under a garment and draws the covered skin 6 mm in (<code>tuck</code>), so a neckline no longer shows holes where a garment&#39;s edge and its listed vertices disagree (<code>coveredTriangles</code> takes <code>mode: &#39;all&#39;</code>). <code>underCover</code> likewise tucks hair in under a hat (<code>tuck</code>).</li>
+<li>Hair colour is normalised by each texture&#39;s own measured brightness (<code>HairShadingPlugin.mean</code>), so a preset is the same colour on every library&#39;s hair; MakeHuman&#39;s hair is rougher and reflects its surroundings less (it shone like wet plastic); highlights are subtler. Skin reflects the environment faintly (<code>environmentIntensity</code> 0.3, roughness 0.5): very dark skin looked polished.</li>
+<li>Clothes are categorised by where they sit on the body, not by the pack they came in (pack <code>?v=14</code>): hoods are hats, the viking boots, pants and tunic are separate, shorts and miniskirts are bottoms. Two new slots: <code>bodysuit</code> (a base layer) and <code>armour</code> (an overlay, worn over anything; <code>humanProxy</code>&#39;s <code>lift</code> sets it 5 mm out along its surface so it does not fight what is beneath).</li>
+<li>No wall clock in game code. The system clock is read only in <code>clock</code> (<code>realNow</code>, <code>wallMs</code>, <code>wallDate</code>), and a test fails on a read anywhere else. The exploder&#39;s debris, the biome shader&#39;s drift and the stars&#39; twinkle now run on the scene&#39;s clock (<code>sceneSeconds</code>), so they stop in a pause and follow <code>timeScale</code>.</li>
+<li>Physics is repeatable. <code>JoltPlugin</code> steps Jolt by a fixed step (1/60 s, <code>setTimeStep</code>) as many times as WORLD time covers (<code>sceneDelta</code>: zero while paused, scaled by <code>timeScale</code>), carrying the remainder; it used to step by however much real time had passed, so no run repeated and physics carried on through a pause. Kinematic bodies are given their target before each step. The sky&#39;s day cycle (<code>realtimeScale</code>) runs on world time too: it stops in a pause and follows <code>timeScale</code>.</li>
+<li>Controllables (bipeds, vehicles, aircraft) step by world time (<code>sceneDelta</code>), so slow motion slows them too; input stays real-time. While the world is not running, a controllable still reads its input and discards it, so nothing accumulated during a pause (a wheel&#39;s scroll) arrives on resume.</li>
+<li>The character builder has a gridded floor that takes the sun&#39;s shadow, and an eye colour slider under its own heading.</li>
+<li>Hair is carried from the head it was modelled on, skin to skin (<code>headScalp</code> now warps the library&#39;s own heads, carried in the hairstyles library as of <code>?v=2</code>; <code>shellWarp</code>, <code>applyWarp</code>, <code>headRegion</code>), instead of fitting a buzz cut to the scalp, which sank every style by its own thickness. Women&#39;s styles use Quaternius&#39; female head, brows are placed from the eyes, moustaches above the lip, and <code>nudge</code> adjusts a style by hand. <code>headScalp</code>&#39;s arguments and <code>HeadScalp</code> changed; <code>humanHair</code> and <code>placeHair</code> take the piece&#39;s <code>head</code> (<code>library.headFor(name)</code>).</li>
+</ul>
+<h2 id="fixed">Fixed</h2>
+<ul>
+<li>A garment cut (<code>cutGarment</code>, the builder&#39;s Tailor) that goes round a limb is now square to the limb: a sleeve ending on the forearm was cut along the outline&#39;s line, which crosses hm08&#39;s forward-reaching forearms at a long slant. Cuts round the body and the neck, and round a limb already within 30° of square to the line (a leg under a level hem), still follow the line.</li>
+<li>Clothes in the character builder no longer show nipples: they are fitted over the body with its nipples smoothed (<code>smoothUnder</code> in proxy-fit, with the pack&#39;s new <code>nipples</code> region; pack <code>?v=17</code>). The skin keeps them.</li>
+<li>Closing a popup from the settings panel (its ×, or a press on its title bar) no longer closes the panel too. The press was never marked as taken by a panel, so the panel&#39;s close-on-a-background-press saw it.</li>
+<li>A popup hung from a panel whose plane had been stretched to new content (the flat settings panel, after a section opened) took the stretch: it came out up to half again too tall. It now keeps its opener&#39;s size and its own shape.</li>
+<li>The Tailor&#39;s outline view showed the body the page loaded with, not the one you shaped, so on a different body (a woman&#39;s, a shorter one) an outline drawn at the neck cut through the face. It now shows the current body each time it opens.</li>
+<li>Skin&#39;s back-light (skin-shading) lit the whole body when seen against the sun, not just the thin parts: Babylon drops a vertex colour&#39;s alpha, where the thinness rides, unless the mesh blends by vertex alpha. The plugin now carries it in its own varying, so only ears, fingers and toes glow. It is also narrower: it shows only when looking nearly into the sun (a power of 8, was 3), and <code>skinThinness</code> counts up to 2.2 cm as thin (was 3.5), so a fist, a palm or the sole of a foot no longer glows; ears and finger edges still do, at about half the old strength (<code>backlight</code> 1.2, was 2.5).</li>
+<li>A trackpad pinch zoomed far too little after the wheel became proportional: it arrives as many small ctrl-wheel steps, which the wheel&#39;s 1% share per notch barely moved. <code>touchOrbit</code> now scales the distance by the pinch (<code>PINCH_SHARE</code>: doubling the fingers&#39; spread about halves it); a mouse wheel is unchanged.</li>
+<li>The character builder&#39;s body stood 1 to 4 cm into the floor: it was grounded at rest, but a retargeted clip carries the feet lower (Idle by about 4 cm). The clip is now sampled over a cycle when it starts and whenever the clothes change, and the body stands on its lowest point.</li>
+<li><code>outlineField3d</code> leaves 4 cm of room around the body, so an outline can reach past it. Points were held to the silhouette&#39;s own edges, so socks could not be drawn below the soles: the sole was left out of the cut and showed through an open bottom.</li>
+<li><code>mirrorOutline</code> keeps a shape that already crosses the centre line (by more than 2 cm each side) as it is. Mirrored, it lay on itself, and the cut ragged its edges.</li>
+<li><code>readGarment</code> fails on a broken OBJ with the line and what is wrong (a vertex that is not three numbers, a face index that is 0, not a number or past the end, a face with fewer than three corners) instead of returning NaN positions. A <code>.gltf</code> JSON file, a binary file that is not a GLB (an FBX) and a file with only the body each say so. The builder&#39;s Tailor shows the message under <strong>import…</strong>.</li>
+<li><code>writeGarmentGlb</code> always writes normals (smooth ones when the garment has none), and <code>writeGarmentObj</code> marks each object smooth. Without them Blender imported the garment flat-shaded, split every face, and sent it back faceted with six times the vertices.</li>
+<li>A headset no longer hangs mid-flight when it switches to hand tracking. Babylon parents the topmost ancestor of the hand mesh beneath the XR rig, and with the rig riding an aircraft that ancestor was the aircraft (or its chase anchor), which was then its own ancestor. Every node the rig hangs from now refuses such a parent. <code>refuseOwnAncestors(node)</code> (b3d-utils) guards a node and everything above it.</li>
+<li>In a headset, the death and pause modals sit at your own eye height, a little below and facing you. They assumed a standing 1.6 m, so seated they came up above you, tilted towards a point over your head.</li>
+<li><code>b3d-aircraft</code> puts its HUD away when it crashes in a scene with <code>&lt;tosi-b3d-death&gt;</code>. A wreck stops updating the HUD, so in a headset&#39;s chase view it went on hanging over the wreck as it fell.</li>
+<li><code>&lt;tosi-b3d&gt;</code>&#39;s <code>timeScale</code> slows Babylon&#39;s own clocks too: animation groups (<code>scene.animationTimeScale</code>) and particle ageing (each system&#39;s <code>updateSpeed</code>) are the app&#39;s value times <code>timeScale</code>, and particles stop in a pause. A consumer that multiplied <code>speedRatio</code> by <code>timeScale</code> to work around it should drop that, or slow motion compounds.</li>
+<li>In a headset, the <code>body</code> frame takes the piloting recenter as the <code>eye</code> frame does, so panels on it (the death and pause modals among them) come up ahead of you. Sat in a cockpit facing away from the headset&#39;s own forward, they appeared that far to one side, which read as no respawn panel at all. The chase view also waits for a real head pose before taking its forward, as the cockpit already did.</li>
+<li>In a headset, a controller press on a moving vehicle reaches the system bar and other <code>ui</code>/<code>modal</code> panels. A press carried the previous frame&#39;s ray, which stopped short of a panel that had moved on with the vehicle (the button lit, the click was lost); it is now aimed from the controller&#39;s current pose.</li>
+<li><code>b3d-hud</code> tracks a radar contact only inside its ring. A contact in the corners of the HUD&#39;s square was drawn there, outside the circle; it is now pinned to the outer ring along its bearing, like any other contact off the HUD. <code>hudPointFromUV</code> takes an optional <code>radius</code> for this.</li>
+<li>In a headset, panels on the <code>ui</code> and <code>modal</code> layers (the system bar among them) no longer trail a moving vehicle by a frame. They were placed before the vehicle moved, which left them most of a metre behind at flying speed, so they jumped around. They are now placed again just before drawing. <code>freshWorldMatrix(node)</code> (b3d-utils) gives a node&#39;s world matrix with its ancestors updated first.</li>
+<li>The character builder&#39;s stubble covers the upper lip (the moustache&#39;s coverage is added to the full beard&#39;s, which has none) and the throat and sides of the neck (carried 5 cm down from the beard&#39;s edge, fading), and leaves the lips bare.</li>
+<li>The owl shows on the flat system bar whenever its panel has anything in it, including only the icon bar (Pause). A scene with no settings rows of its own (the Biped Playground) had no owl flat, though it had one in a headset.</li>
+<li>Auto-rig: fingers a mesh does not show lie on the nearest one it does, so a mitten hand is aimed along the mitten (omnidude&#39;s hands curled into hooks).</li>
+<li><code>&lt;tosi-b3d-light&gt;</code> applies its attributes when its light is made. Before, a light whose element rendered before the scene was ready kept Babylon&#39;s defaults (intensity 1, a black ground colour) whatever it was given, so a page that hit it (the character builder did) now gets the fill it asked for. The demos that set a very dim fill (colour picker, beacon, solar system, planet) render exactly as before: they were not hit.</li>
+<li>Hair is matched to the head it was modelled on by how closely it hugs that head (the crown rule put Balding on the wrong one), and every vertex keeps its height above the skin (<code>skinGaps</code>, <code>keepHeight</code>), so beards are as thick on the chin as on their own head; a face is fitted with one scale (<code>fitToScalp</code>&#39;s <code>scaling: &#39;uniform&#39;</code>), since a stylised face&#39;s flatter depth squashed beards back.</li>
+<li>Every orbit camera given to <code>setActiveCamera</code> gets <code>touchOrbit</code>&#39;s view controls, so shift-drag (and a trackpad&#39;s two-finger drag) pans in demos that build their own camera (the character builder, auto-rig, spring bones and others could not pan on a laptop); <code>touchOrbit</code> is once per camera.</li>
+<li>An orbit camera&#39;s zoom stops short of its target (<code>touchOrbit</code> sets <code>lowerRadiusLimit</code> to twice the near plane when a page has not set one): a two-finger scroll could zoom through zero and flip the view.</li>
+<li>The human pack publishes its textures (they 404&#39;d on the CDN, and clothes drew Babylon&#39;s missing-texture checkerboard).</li>
+<li>A character builder body stands on its soles: <code>humanRig(…, { triangles })</code> puts the floor at the skin&#39;s lowest point (the foot&#39;s joint cubes are inside the foot, and the body sank by an ankle&#39;s height), and worn shoes lift it by their sole.</li>
+<li>The face moves with the head (<code>stiffenHead</code>: skin above the head joint weighted wholly to it, blended over 4 cm), so the eyelids no longer slide over the eyeballs when a clip moves the neck; a moustache&#39;s lower edge sits 4 mm above the lip.</li>
+<li>Faces no longer shear when a clip turns the neck: <code>stiffenHead</code> now makes the whole face rigid with the head (the jaw, chin and mouth, in front of the head joint, which sits at about nose height on hm08), not only the skin above the joint. Idle&#39;s look-around showed it most.</li>
+<li>Skin no longer shows through trousers and skirts at the knees and thighs: <code>coverBody({ drawn })</code> finds skin a garment covers by geometry (<code>coveredBy</code>: garment surface just outside it along its normal), not only its listed vertices, and tucks lower garments&#39; skin deeper. Hair colours tint only hair, brows and beards (the teeth came out brown).</li>
+<li>Closing a popup no longer sometimes closes the panel behind it: a press on a popup&#39;s close is claimed, so the parent never sees it (only the close: claiming a drag&#39;s press broke dragging and dismissed everything). A <code>select3d</code>&#39;s menu is as wide as its longest option (at least 220, at most 420), and a long value is ellipsized instead of running into the row&#39;s caption.</li>
+<li>The lower chest no longer narrows when a clip lowers the arms: <code>armsOffTorso</code> moves arm and collarbone weight off the ribcage below the armpit to the spine (bone heat let the arms claim the ribcage&#39;s sides, since MakeHuman&#39;s rest pose holds them close; Idle lost 5 to 6 cm of width there). The builder&#39;s clothes editor shows <code>look</code> only for items that have colourways.</li>
+<li>Tucking under clothes is gentler: only body garments tuck skin they cover by geometry (not glasses, hats or masks, which pulled the eyelids in), at most 10 mm, faded in over 3 cm from the covered skin&#39;s edge (<code>coverBody</code>&#39;s <code>fade</code>), so a cuff no longer pinches the wrist. Glasses&#39; lenses are blended glass (pack <code>?v=13</code>). Eyes look together or not at all (past the limit, both look ahead) and follow the active camera, so in a headset they find you. The palest skin tone is paler. <code>EyeTexture.setIrisColour</code>; the builder&#39;s eye colour is a colour picker with presets.</li>
+<li><code>&lt;tosi-b3d-manipulator&gt;</code>&#39;s handles follow a move drag instead of staying where the drag began until release; they still ignore a target&#39;s parent animation while you drag.</li>
+<li>In flat view, a popup opened partly off the screen is moved back on (its corners projected, the overshoot turned into a move at its depth), or centred when it is too big to fit; a headset is left alone.</li>
+<li>A panel&#39;s popups on a page (its DOM layer) are mounted in the document body, not beside the panel, so a clipping container (a doc page&#39;s demo frame, a scrolling sidebar) no longer cuts them off; they still scroll with the page and close when their panel leaves it. <code>useDomLayer(container)</code> still mounts in the container given.</li>
+<li>Retargeting drives the middle of a three-bone spine (new role <code>midSpine</code>; UAL&#39;s <code>spine_02</code>). Without it a clip&#39;s mid-back bend was dropped and the bones either side bent harder, creasing the lower back in a crouch.</li>
+</ul>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../getting-started/">Getting started</a></li>
+    <li><details><summary><a class="doc-link" href="../demos/">Demos</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
+      <li><a class="doc-link" href="../solar-system/">Solar System</a></li>
+      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li><a class="doc-link" href="../rig-tool/">Rig tool</a></li>
+      <li><a class="doc-link" href="../effect-tool/">Effect tool</a></li>
+      <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
+      <li><a class="doc-link" href="../land-and-sky/">Land and Sky</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../tosi-b3d/">b3d</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-loader/">b3d-loader</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-primitives/">Primitives: box, sphere, ground</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-library/">b3d-library</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../sky-and-light/">Sky and light</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
+        <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-shadows/">Sun and shadows (b3d-shadows)</a></li>
+      <li><a class="doc-link" href="../b3d-light/">Ambient light (b3d-light)</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-lamp/">Lamps</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
+        <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="../environment/">environment</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../weather-and-clouds/">Weather and clouds</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-weather-cell/">b3d-weather-cell</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../weather/">weather</a></li>
+        <li><a class="doc-link" href="../wind/">wind</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../terrain/">Terrain</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+        <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+        <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+        <li><details><summary><a class="doc-link" href="../landform/">landform</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../landform-schemas/">landform schemas</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
+        <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
+        <li><a class="doc-link" href="../gradient-filter/">gradient-filter</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../scatter/">scatter</a></li>
+        <li><a class="doc-link" href="../procedural-rock/">procedural-rock</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../carve/">carve</a></li>
+        <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../water/">Water</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-water/">b3d-water</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../medium/">medium</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-effect/">b3d-effect</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-trail/">b3d-trail</a></li>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../characters-and-vehicles/">Characters and vehicles</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-biped/">b3d-biped</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../aim/">aim</a></li>
+        <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
+        <li><a class="doc-link" href="../retarget/">retarget</a></li>
+        <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
+        <li><details><summary><a class="doc-link" href="../rig-build/">auto-rig</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../rig-markers/">rig markers</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../spring-chain-babylon/">spring bones</a></li>
+        <li><details><summary><a class="doc-link" href="../character-builder/">character builder</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../human-pack/">human-pack</a></li>
+          <li><a class="doc-link" href="../human-morph/">human-morph</a></li>
+          <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
+          <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
+          <li><a class="doc-link" href="../skin-shading/">skin-shading</a></li>
+          <li><a class="doc-link" href="../human-face/">human-face</a></li>
+          <li><a class="doc-link" href="../human-expression/">human-expression</a></li>
+          <li><details><summary><a class="doc-link" href="../human-hair/">human-hair</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../hair-shading/">hair-shading</a></li>
+            <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          </ul>
+          </details></li>
+          <li><details><summary><a class="doc-link" href="../human-proxy/">human-proxy</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../proxy-fit/">proxy-fit</a></li>
+            <li><a class="doc-link" href="../cloth-shading/">cloth-shading</a></li>
+            <li><details><summary><a class="doc-link" href="../garment-cut/">garment-cut</a></summary>
+            <ul>
+              <li><a class="doc-link" href="../outline-field/">outline field</a></li>
+            </ul>
+            </details></li>
+            <li><details><summary><a class="doc-link" href="../garment-bind/">garment-bind</a></summary>
+            <ul>
+              <li><details><summary><a class="doc-link" href="../garment-file/">garment-file</a></summary>
+              <ul>
+                <li><a class="doc-link" href="../uv-unwrap/">uv-unwrap</a></li>
+              </ul>
+              </details></li>
+              <li><a class="doc-link" href="../proxy-rigid/">proxy-rigid</a></li>
+            </ul>
+            </details></li>
+          </ul>
+          </details></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../fly-by-wire/">fly-by-wire</a></li>
+        <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../spatial-transform/">spatial-transform</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
+      <li><details><summary><a class="doc-link" href="../inspect-view/">inspect-view</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../seam-material/">seam-material</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><details><summary><a class="doc-link" href="../input-internals/">How input works</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../control-input/">control-input</a></li>
+        <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+        <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+        <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../interacting/">Interacting with the world</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../interaction/">interaction</a></li>
+        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../ballistics/">ballistics</a></li>
+        <li><a class="doc-link" href="../guidance/">guidance</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-radar/">b3d-radar</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><details><summary><a class="doc-link" href="../inventory/">inventory</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../formations/">formations</a></li>
+        <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../widgets3d/">widgets3d</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../carry/">carry</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../carry-box/">carry-box</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../dials/">dials</a></li>
+      <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
+        <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+        <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
+        <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+        <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
+        <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
+        <li><details><summary><a class="doc-link" href="../color-field/">color3d</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../color/">color</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../picker/">picker</a></li>
+        <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+        <li><details><summary><a class="doc-link" href="../table/">table</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../selection/">selection</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-containers/">Containers</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../box/">box</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+          <li><a class="doc-link" href="../anchor-layout/">anchor-layout</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../surface/">surface</a></li>
+        <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-in-scene/">In the scene and XR</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../b3d-panel/">b3d-panel</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+          <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+          <li><details><summary><a class="doc-link" href="../system-bar/">system-bar</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../bar-menu/">bar-menu</a></li>
+          </ul>
+          </details></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+        <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+        <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-theme/">Theme and icons</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../w3d-theme/">w3d-theme</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../gas-giant/">gas-giant</a></li>
+      <li><a class="doc-link" href="../rocky-world/">rocky-world</a></li>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../sphere-map/">sphere-map</a></li>
+      <li><a class="doc-link" href="../planet-map/">planet-map</a></li>
+      <li><a class="doc-link" href="../space-backdrop/">space-backdrop</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-probe/">b3d-probe</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+        <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../cost-sweep/">Cost sweep</a></li>
+      <li><a class="doc-link" href="../draw-order/">Draw order</a></li>
+      <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../clock/">clock</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../Migration/">Migration</a></li>
+      <li><details open><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
+      <ul>
+        <li><a class="doc-link current" href="../v0.11.5/" aria-current="page">0.11.5</a></li>
+        <li><a class="doc-link" href="../v0.11.4/">0.11.4</a></li>
+        <li><a class="doc-link" href="../v0.11.3/">0.11.3</a></li>
+        <li><a class="doc-link" href="../v0.11.2/">0.11.2</a></li>
+        <li><a class="doc-link" href="../v0.11.1/">0.11.1</a></li>
+        <li><a class="doc-link" href="../v0.11.0/">0.11.0</a></li>
+        <li><a class="doc-link" href="../v0.10.20/">0.10.20</a></li>
+        <li><a class="doc-link" href="../v0.10.19/">0.10.19</a></li>
+        <li><a class="doc-link" href="../v0.10.18/">0.10.18</a></li>
+        <li><a class="doc-link" href="../v0.10.17/">0.10.17</a></li>
+        <li><a class="doc-link" href="../v0.10.16/">0.10.16</a></li>
+        <li><a class="doc-link" href="../v0.10.15/">0.10.15</a></li>
+        <li><a class="doc-link" href="../v0.10.14/">0.10.14</a></li>
+        <li><a class="doc-link" href="../v0.10.13/">0.10.13</a></li>
+        <li><a class="doc-link" href="../v0.10.12/">0.10.12</a></li>
+        <li><a class="doc-link" href="../v0.10.11/">0.10.11</a></li>
+        <li><a class="doc-link" href="../v0.10.10/">0.10.10</a></li>
+        <li><a class="doc-link" href="../v0.10.9/">0.10.9</a></li>
+        <li><a class="doc-link" href="../v0.10.8/">0.10.8</a></li>
+        <li><a class="doc-link" href="../v0.10.7/">0.10.7</a></li>
+        <li><a class="doc-link" href="../v0.10.6/">0.10.6</a></li>
+        <li><a class="doc-link" href="../v0.10.5/">0.10.5</a></li>
+        <li><a class="doc-link" href="../v0.10.4/">0.10.4</a></li>
+        <li><a class="doc-link" href="../v0.10.3/">0.10.3</a></li>
+        <li><a class="doc-link" href="../v0.10.2/">0.10.2</a></li>
+        <li><a class="doc-link" href="../v0.10.1/">0.10.1</a></li>
+        <li><a class="doc-link" href="../v0.10.0/">0.10.0</a></li>
+        <li><a class="doc-link" href="../v0.9.0/">0.9.0</a></li>
+        <li><a class="doc-link" href="../v0.8.15/">0.8.15</a></li>
+        <li><a class="doc-link" href="../v0.8.14/">0.8.14</a></li>
+        <li><a class="doc-link" href="../v0.8.13/">0.8.13</a></li>
+        <li><a class="doc-link" href="../v0.8.12/">0.8.12</a></li>
+        <li><a class="doc-link" href="../v0.8.11/">0.8.11</a></li>
+        <li><a class="doc-link" href="../v0.8.10/">0.8.10</a></li>
+        <li><a class="doc-link" href="../v0.8.9/">0.8.9</a></li>
+        <li><a class="doc-link" href="../v0.8.8/">0.8.8</a></li>
+        <li><a class="doc-link" href="../v0.8.7/">0.8.7</a></li>
+        <li><a class="doc-link" href="../v0.8.6/">0.8.6</a></li>
+        <li><a class="doc-link" href="../v0.8.5/">0.8.5</a></li>
+        <li><a class="doc-link" href="../v0.8.4/">0.8.4</a></li>
+        <li><a class="doc-link" href="../v0.8.3/">0.8.3</a></li>
+        <li><a class="doc-link" href="../v0.8.2/">0.8.2</a></li>
+        <li><a class="doc-link" href="../v0.8.1/">0.8.1</a></li>
+        <li><a class="doc-link" href="../v0.8.0/">0.8.0</a></li>
+        <li><a class="doc-link" href="../v0.7.8/">0.7.8</a></li>
+        <li><a class="doc-link" href="../v0.7.7/">0.7.7</a></li>
+        <li><a class="doc-link" href="../v0.7.6/">0.7.6</a></li>
+        <li><a class="doc-link" href="../v0.7.5/">0.7.5</a></li>
+        <li><a class="doc-link" href="../v0.7.4/">0.7.4</a></li>
+        <li><a class="doc-link" href="../v0.7.3/">0.7.3</a></li>
+        <li><a class="doc-link" href="../v0.7.2/">0.7.2</a></li>
+        <li><a class="doc-link" href="../v0.7.1/">0.7.1</a></li>
+        <li><a class="doc-link" href="../v0.7.0/">0.7.0</a></li>
+        <li><a class="doc-link" href="../v0.7.0-rc.1/">0.7.0-rc.1</a></li>
+        <li><a class="doc-link" href="../v0.6.2/">0.6.2</a></li>
+        <li><a class="doc-link" href="../v0.6.1/">0.6.1</a></li>
+        <li><a class="doc-link" href="../v0.6.0/">0.6.0</a></li>
+        <li><a class="doc-link" href="../v0.5.2/">0.5.2</a></li>
+        <li><a class="doc-link" href="../v0.5.1/">0.5.1</a></li>
+        <li><a class="doc-link" href="../v0.5.0/">0.5.0</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
+      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
+      <li><a class="doc-link" href="../noise-texture/">Noise texture</a></li>
+    </ul>
+    </details></li>
+    <li><a class="doc-link" href="../design-notes/">Design notes</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate-fymfsbgh.js"></script>
+</body>
+</html>

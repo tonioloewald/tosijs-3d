@@ -116,12 +116,17 @@
         "description": "Whether a biped can enter"
       },
       {
+        "name": "dropShadow",
+        "default": "'off'",
+        "description": "`'on'` puts a soft blob shadow straight below the craft, darkest on the ground and fading and spreading as it climbs, so its height reads at a glance. For a scene without real shadows: beside a sun's shadow it is a second, contradicting one"
+      },
+      {
         "name": "ceiling"
       },
       {
         "name": "hudChaseOff",
         "default": "false",
-        "description": "Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene"
+        "description": "Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene. In a headset's chase view the same HUD is a plane between your eyes and the aircraft, centred on it and covering the angle the flat overlay does"
       },
       {
         "name": "hudSize",
@@ -5792,7 +5797,7 @@
       {
         "name": "panelSections",
         "default": "'fold'",
-        "description": "How collapsible sections in the settings panel present: `'fold'` (headers you open and close) or `'tabs'` (file tabs, one section at a time)"
+        "description": "How collapsible sections in the settings panel present: `'fold'` (headers you open and close, one open at a time: opening one closes the others), `'folds'` (several may be open) or `'tabs'` (file tabs, one section at a time)"
       },
       {
         "name": "gamepadScale",
@@ -5877,7 +5882,7 @@
       {
         "name": "timeScale",
         "default": "1",
-        "description": "How fast simulation time runs against wall time: `1` is real time, `0.25` slow motion, `0` stops the simulation while the scene keeps rendering. Everything integrating with `sceneDelta` scales; anything that must not slow (UI animation, a countdown in wall seconds) reads `realDt` from the frame package"
+        "description": "How fast simulation time runs against wall time: `1` is real time, `0.25` slow motion, `0` stops the simulation while the scene keeps rendering. Everything integrating with `sceneDelta` scales, and so do Babylon's animation groups and particles (times any `animationTimeScale` or `updateSpeed` the app set); anything that must not slow (UI animation, a countdown in wall seconds) reads `realDt` from the frame package"
       },
       {
         "name": "windSpeed",

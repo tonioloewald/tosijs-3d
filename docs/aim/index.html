@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=7917dccc76d6" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=c3f9a510fbae" data-tosi-doc-system />
   <title>aim — tosijs-3d</title>
   <meta name="description" content="Where a character is pointing, as opposed to where it is facing. Pure — degrees and plain {x, y, z}, no Babylon — so the whole of walk-and-aim can be tested…" />
   <link rel="canonical" href="https://3d.tosijs.net/aim/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=10b0e7b75506" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=d4cb551793b9" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="aim.ts">
 <h1 id="aim">aim</h1>
 <p><strong>Where a character is pointing, as opposed to where it is facing.</strong> Pure —
@@ -42,21 +42,6 @@ the aim drives and <a href="/animation-layers/">animation-layers</a> plays it; s
 look and an NPC&#39;s lead with the same code, which is the point: an NPC that aims
 through the same slew limit as a player is one whose misses are legible.</p>
 <h2 id="demo--watch-the-shoulders-lead-and-the-feet-follow">Demo — watch the shoulders lead and the feet follow</h2>
-<p>The white marker is the body&#39;s <strong>facing</strong>, the orange one is where it is
-<strong>aiming</strong>, and the red sphere is what it is aiming at. Nothing here is a
-character: it is the model on its own, so you can see the rule rather than an
-animation of it.</p>
-<p>What to watch for:</p>
-<ul>
-<li><strong><code>free twist</code></strong> — how far the shoulders turn before the feet move at all.
-Drop it to 0 and the body chases every twitch; raise it to 90 and the
-character never turns, it just cranes.</li>
-<li><strong><code>slew</code></strong> — how fast the aim itself moves. Low is the bad shooter: the orange
-marker visibly trails the target, which is a miss you can <em>watch</em> rather than
-a dice roll you cannot.</li>
-<li><strong><code>wobble</code></strong> — a shooter who cannot hold still. Deterministic, so the same
-fight always produces the same misses.</li>
-</ul>
 <pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLight, b3dGround, sceneDelta, slider3d, label3d } from &#39;tosijs-3d&#39;
 import { aimToward, stepAim, bodyCatchUp, aimWobble, wrapDeg, aimAuthority } from &#39;tosijs-3d&#39;
 import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
@@ -162,6 +147,21 @@ preview.append(readout)
 </code></pre>
 <pre><code class="language-css">.preview { height: 100%; position: relative; }
 </code></pre>
+<p>The white marker is the body&#39;s <strong>facing</strong>, the orange one is where it is
+<strong>aiming</strong>, and the red sphere is what it is aiming at. Nothing here is a
+character: it is the model on its own, so you can see the rule rather than an
+animation of it.</p>
+<p>What to watch for:</p>
+<ul>
+<li><strong><code>free twist</code></strong> — how far the shoulders turn before the feet move at all.
+Drop it to 0 and the body chases every twitch; raise it to 90 and the
+character never turns, it just cranes.</li>
+<li><strong><code>slew</code></strong> — how fast the aim itself moves. Low is the bad shooter: the orange
+marker visibly trails the target, which is a miss you can <em>watch</em> rather than
+a dice roll you cannot.</li>
+<li><strong><code>wobble</code></strong> — a shooter who cannot hold still. Deterministic, so the same
+fight always produces the same misses.</li>
+</ul>
 <h2 id="aim-is-relative-to-the-body-and-that-is-the-whole-design">Aim is RELATIVE to the body, and that is the whole design</h2>
 <p>The stored value is the twist between the hips and the shoulders, not a world
 direction. Everything falls out of that choice:</p>
@@ -263,6 +263,7 @@ with <code>aimWobble</code> for a shooter who cannot hold still.</p>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="../environment/">environment</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
     </ul>
     </details></li>
@@ -353,9 +354,36 @@ with <code>aimWobble</code> for a shooter who cannot hold still.</p>
           <li><a class="doc-link" href="../human-morph/">human-morph</a></li>
           <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
           <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
+          <li><a class="doc-link" href="../skin-shading/">skin-shading</a></li>
           <li><a class="doc-link" href="../human-face/">human-face</a></li>
-          <li><a class="doc-link" href="../human-hair/">human-hair</a></li>
-          <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          <li><a class="doc-link" href="../human-expression/">human-expression</a></li>
+          <li><details><summary><a class="doc-link" href="../human-hair/">human-hair</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../hair-shading/">hair-shading</a></li>
+            <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          </ul>
+          </details></li>
+          <li><details><summary><a class="doc-link" href="../human-proxy/">human-proxy</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../proxy-fit/">proxy-fit</a></li>
+            <li><a class="doc-link" href="../cloth-shading/">cloth-shading</a></li>
+            <li><details><summary><a class="doc-link" href="../garment-cut/">garment-cut</a></summary>
+            <ul>
+              <li><a class="doc-link" href="../outline-field/">outline field</a></li>
+            </ul>
+            </details></li>
+            <li><details><summary><a class="doc-link" href="../garment-bind/">garment-bind</a></summary>
+            <ul>
+              <li><details><summary><a class="doc-link" href="../garment-file/">garment-file</a></summary>
+              <ul>
+                <li><a class="doc-link" href="../uv-unwrap/">uv-unwrap</a></li>
+              </ul>
+              </details></li>
+              <li><a class="doc-link" href="../proxy-rigid/">proxy-rigid</a></li>
+            </ul>
+            </details></li>
+          </ul>
+          </details></li>
         </ul>
         </details></li>
       </ul>
@@ -570,11 +598,17 @@ with <code>aimWobble</code> for a shooter who cannot hold still.</p>
       <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
     </ul>
     </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../clock/">clock</a></li>
+    </ul>
+    </details></li>
     <li><details><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
     <ul>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.11.5/">0.11.5</a></li>
         <li><a class="doc-link" href="../v0.11.4/">0.11.4</a></li>
         <li><a class="doc-link" href="../v0.11.3/">0.11.3</a></li>
         <li><a class="doc-link" href="../v0.11.2/">0.11.2</a></li>
@@ -654,6 +688,6 @@ with <code>aimWobble</code> for a shooter who cannot hold still.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-0nmn3nad.js"></script>
+  <script type="module" src="../hydrate-fymfsbgh.js"></script>
 </body>
 </html>

@@ -17,8 +17,8 @@ export interface RigModel {
     /** A recipe to start from. */
     recipe?: Partial<RigRecipe>;
     /**
-     * A mesh with no skeleton (an OBJ, or a GLB's `mesh`): rig it from these
-     * markers, as the auto-rig page does. `url` is the mesh file.
+     * A mesh with no skeleton (an OBJ, or a GLB's `mesh`): bind it from these
+     * markers (a recipe's `binding` takes their place). `url` is the mesh file.
      */
     autorig?: {
         markers: Markers;
@@ -54,6 +54,11 @@ export interface RigToolApi {
     /** Play a clip (the current one if none is named); `null` stands it at rest. */
     play(clip?: string | null): void;
     load(model: RigModel | File): Promise<void> | undefined;
+    /**
+     * Add the clips in a GLB made on another rig (Mixamo, mocap, another
+     * library) to the clip list, retargeted onto the character.
+     */
+    loadClips(file: File | string): Promise<void> | undefined;
 }
 export interface RigToolOptions {
     /** The characters to choose from (default: the demo characters). */

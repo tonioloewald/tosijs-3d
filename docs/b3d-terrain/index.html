@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=7917dccc76d6" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=c3f9a510fbae" data-tosi-doc-system />
   <title>b3d-terrain — tosijs-3d</title>
   <meta name="description" content="Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface. Longitude (u) wraps seamlessly; latitude (v) reflects at the midpoint…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-terrain/" />
@@ -30,19 +30,17 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=10b0e7b75506" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=d4cb551793b9" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="b3d-terrain.ts">
 <h1 id="b3d-terrain">b3d-terrain</h1>
 <p>Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface.
 Longitude (u) wraps seamlessly; latitude (v) reflects at the midpoint, creating
-symmetric hemispheres with no singularities. Two noise layers (gross contour</p>
-<ul>
-<li>fine detail) each pass through gradient filters for shaping plateaus, mesas, etc.</li>
-</ul>
+symmetric hemispheres with no singularities. Two noise layers (gross
+contour and fine detail) each pass through gradient filters for shaping plateaus, mesas, etc.</p>
 <h2 id="demo">Demo</h2>
 <pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dCloudDeck, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dDeath, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField, volcano } from &#39;tosijs-3d&#39;
 import { tosi, elements } from &#39;tosijs&#39;
-const { div, span, p } = elements
+const { div, span } = elements
 
 const { demo } = tosi({
   demo: {
@@ -58,7 +56,7 @@ const { demo } = tosi({
     grossScale: 0.015,
     detailScale: 0.09,
     horizScale: 8,
-    grossAmplitude: 250,
+    grossAmplitude: 350,
     detailAmplitude: 45,
     wireframe: false,
     debugColor: false,
@@ -73,7 +71,7 @@ const { demo } = tosi({
 // ~250 and the peaks stand out of the overcast, and you have to get down into
 // the valleys to see anything at all.
 const { sky } = tosi({
-  sky: { coverage: 0.55, altitude: 700, timeOfDay: 10, orographic: 0.8 },
+  sky: { coverage: 0.3, altitude: 400, timeOfDay: 10, orographic: 0.8 },
 })
 
 // Priority-pool quadtree LOD: one shared pool of tiles, fine near / coarse far,
@@ -117,15 +115,15 @@ terrain.regenerate()
 
 const posDisplay = span({ class: &#39;pos-display&#39; })
 
-// Fly the terrain in the VTOL aircraft. It spawns high (well above the ~210 peaks
-// with v size 200), so it&#39;s already above the hover ceiling → in FLIGHT mode:
+// Fly the terrain in the VTOL aircraft. It spawns under the cloud base (400) and
+// above the peaks, already above the hover ceiling → in FLIGHT mode:
 // right trigger = forward throttle, pull back to climb, turn stick banks.
 const plane = () =&gt; b3dAircraft({
   library: &#39;vehicles&#39;, meshName: &#39;scout&#39;,
   // A ceiling ABOVE the cloud deck, because the whole point of a deck is that
   // you can be under it, in it, or over it. The stock 300 m is a low-level
   // strike ceiling and it sat below even the spawn altitude here.
-  player: true, y: 400, ceiling: 1600, vtolSpeed: 6, maxSpeed: 50,
+  player: true, y: 320, ceiling: 1600, vtolSpeed: 6, maxSpeed: 50,
 })
 const focus = inputFocus(gameController(), plane())
 
@@ -228,7 +226,6 @@ preview.append(
   scene,
   div(
     { class: &#39;debug-panel&#39; },
-    p(&#39;Pull back to climb, triggers up/down (throttle when fast), turn to bank. Tweak terrain via the scene panel (works in VR too).&#39;),
     posDisplay,
   )
 )
@@ -240,14 +237,9 @@ for (const key of [&#39;seed&#39;, &#39;grossScale&#39;, &#39;detailScale&#39;, 
   })
 }
 </code></pre>
-<pre><code class="language-css">tosi-b3d {
-  width: 100%;
-  height: 100%;
-}
+<pre><code class="language-css">.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 .debug-panel {
-  position: absolute;
-  top: 10px;
-  right: 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -256,7 +248,6 @@ for (const key of [&#39;seed&#39;, &#39;grossScale&#39;, &#39;detailScale&#39;, 
   color: #fff;
   border-radius: 6px;
   font-size: 13px;
-  z-index: 10;
 }
 .debug-panel label {
   display: flex;
@@ -273,6 +264,7 @@ for (const key of [&#39;seed&#39;, &#39;grossScale&#39;, &#39;detailScale&#39;, 
   opacity: 0.7;
 }
 </code></pre>
+<p>Pull back on the stick to climb, the triggers go up and down (they are the throttle once you are fast), and turn to bank. The terrain&#39;s settings are in the scene panel (the owl), in VR too.</p>
 <h2 id="how-it-works">How it works</h2>
 <p>The terrain streams from one shared <strong>priority pool</strong> of tiles over a <strong>quadtree
 LOD</strong>: fine near the camera, coarse far, with exactly one LOD per patch of ground
@@ -644,6 +636,7 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="../environment/">environment</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
     </ul>
     </details></li>
@@ -734,9 +727,36 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
           <li><a class="doc-link" href="../human-morph/">human-morph</a></li>
           <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
           <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
+          <li><a class="doc-link" href="../skin-shading/">skin-shading</a></li>
           <li><a class="doc-link" href="../human-face/">human-face</a></li>
-          <li><a class="doc-link" href="../human-hair/">human-hair</a></li>
-          <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          <li><a class="doc-link" href="../human-expression/">human-expression</a></li>
+          <li><details><summary><a class="doc-link" href="../human-hair/">human-hair</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../hair-shading/">hair-shading</a></li>
+            <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          </ul>
+          </details></li>
+          <li><details><summary><a class="doc-link" href="../human-proxy/">human-proxy</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../proxy-fit/">proxy-fit</a></li>
+            <li><a class="doc-link" href="../cloth-shading/">cloth-shading</a></li>
+            <li><details><summary><a class="doc-link" href="../garment-cut/">garment-cut</a></summary>
+            <ul>
+              <li><a class="doc-link" href="../outline-field/">outline field</a></li>
+            </ul>
+            </details></li>
+            <li><details><summary><a class="doc-link" href="../garment-bind/">garment-bind</a></summary>
+            <ul>
+              <li><details><summary><a class="doc-link" href="../garment-file/">garment-file</a></summary>
+              <ul>
+                <li><a class="doc-link" href="../uv-unwrap/">uv-unwrap</a></li>
+              </ul>
+              </details></li>
+              <li><a class="doc-link" href="../proxy-rigid/">proxy-rigid</a></li>
+            </ul>
+            </details></li>
+          </ul>
+          </details></li>
         </ul>
         </details></li>
       </ul>
@@ -951,11 +971,17 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
       <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
     </ul>
     </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../clock/">clock</a></li>
+    </ul>
+    </details></li>
     <li><details><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
     <ul>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.11.5/">0.11.5</a></li>
         <li><a class="doc-link" href="../v0.11.4/">0.11.4</a></li>
         <li><a class="doc-link" href="../v0.11.3/">0.11.3</a></li>
         <li><a class="doc-link" href="../v0.11.2/">0.11.2</a></li>
@@ -1035,6 +1061,6 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-0nmn3nad.js"></script>
+  <script type="module" src="../hydrate-fymfsbgh.js"></script>
 </body>
 </html>

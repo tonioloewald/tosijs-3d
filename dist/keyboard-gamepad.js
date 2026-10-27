@@ -38,6 +38,7 @@ Mouse wheel adjusts the ZOOM axis (d-pad up/down), not the look stick.
 import { Component } from 'tosijs';
 import { emptyGamepad } from './virtual-gamepad.js';
 import { isTextEntry } from './text-entry.js';
+import { realNow } from './clock.js';
 function keycode(evt) {
     return evt.code.replace(/Key|Digit/, '');
 }
@@ -182,7 +183,7 @@ export class KeyboardGamepadSource extends Component {
         this.wheelAccum = clamp(-1, this.wheelAccum + event.deltaY * this.wheelSensitivity * 0.01, 1);
     };
     _updateSmoothing = () => {
-        const now = Date.now();
+        const now = realNow();
         const dt = (now - this.lastUpdate) * 0.001;
         this.lastUpdate = now;
         // Axes: positive/negative keys produce -1..1
@@ -238,7 +239,7 @@ export class KeyboardGamepadSource extends Component {
         this.pressedKeys = new Set();
         this.axisState = {};
         this.buttonState = {};
-        this.lastUpdate = Date.now();
+        this.lastUpdate = realNow();
         this.interval = window.setInterval(this._updateSmoothing, this.updateIntervalMs);
         window.addEventListener('keydown', this._handleKeyDown);
         window.addEventListener('keyup', this._handleKeyUp);

@@ -8,12 +8,6 @@ sun in it rather than a lit backdrop. Drop one into a scene with a
 
 ## Demo
 
-Afternoon under a broken deck, looking toward the sun. Open the settings panel (the owl):
-`cloud cover` below 0.5 has no shafts, near 1 only slits; `time of day`
-moves the sun (and the shafts with it). Drag to look away from the sun and
-they fade. The full weather, terrain and all, is in
-[Land and Sky](/land-and-sky/): set its cloud cover to about 0.85.
-
 ```js
 import { b3d, b3dSun, b3dLight, b3dSkybox, b3dCloudDeck, b3dLightShafts, b3dGround, slider3d, label3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
@@ -70,6 +64,12 @@ preview.append(
 .preview { height: 100%; }
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+Afternoon under a broken deck, looking toward the sun. Open the settings panel (the owl):
+`cloud cover` below 0.5 has no shafts, near 1 only slits; `time of day`
+moves the sun (and the shafts with it). Drag to look away from the sun and
+they fade. The full weather, terrain and all, is in
+[Land and Sky](/land-and-sky/): set its cloud cover to about 0.85.
 
 ## Under the water
 

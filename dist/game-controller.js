@@ -52,6 +52,7 @@ Call `getInputProvider(mapping?)` to get a `MappedInputProvider`. Default mappin
 import { Component } from 'tosijs';
 import { emptyGamepad, MappedInputProvider, bipedMapping, } from './virtual-gamepad.js';
 import { HardwareGamepadSource } from './hardware-gamepad.js';
+import { realNow } from './clock.js';
 function keycode(evt) {
     return evt.code.replace(/Key|Digit/, '');
 }
@@ -223,7 +224,7 @@ export class GameController extends Component {
         stale 15.8s gap scaled a full-strength movement down to 0.002, which is how
         this was found).
         */
-        const now = Date.now();
+        const now = realNow();
         const frameDt = this._lastPoll > 0 ? (now - this._lastPoll) / 1000 : 1 / 60;
         this._lastPoll = now;
         if (this._lookDx !== 0 || this._lookDy !== 0) {
@@ -333,7 +334,7 @@ export class GameController extends Component {
             event.preventDefault();
     };
     _updateSmoothing = () => {
-        const now = Date.now();
+        const now = realNow();
         const dt = (now - this.lastUpdate) * 0.001;
         this.lastUpdate = now;
         for (const axis of this.axes) {
@@ -415,7 +416,7 @@ export class GameController extends Component {
         this.pressedKeys = new Set();
         this.axisState = {};
         this.buttonState = {};
-        this.lastUpdate = Date.now();
+        this.lastUpdate = realNow();
         this.interval = window.setInterval(this._updateSmoothing, this.updateIntervalMs);
         window.addEventListener('keydown', this._handleKeyDown);
         window.addEventListener('keyup', this._handleKeyUp);

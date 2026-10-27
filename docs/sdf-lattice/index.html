@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=7917dccc76d6" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=c3f9a510fbae" data-tosi-doc-system />
   <title>Carved landforms — tosijs-3d</title>
   <meta name="description" content="Ground you can cut holes in. Caves, lava tubes, arches, sea caves, overhangs, mine shafts — everything a heightfield cannot say, because a heightfield has one" />
   <link rel="canonical" href="https://3d.tosijs.net/sdf-lattice/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=10b0e7b75506" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=d4cb551793b9" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="sdf-lattice.ts">
 <h1 id="carved-landforms">Carved landforms</h1>
 <p><strong>Ground you can cut holes in.</strong> Caves, lava tubes, arches, sea caves, overhangs,
@@ -40,11 +40,6 @@ height per point and none of these do.</p>
 unit-tested, in the same spirit as <a href="/b3d-terrain/" class="wikilink">b3d-terrain</a>. It knows about signed
 distance fields and triangles, and nothing about scenes or materials.</p>
 <h2 id="demo--a-volcano-in-cross-section-with-its-lava-tubes">Demo — a volcano in cross-section, with its lava tubes</h2>
-<p>The province vocabulary in one object: <strong>a landform for the mount, carves for the
-tubes, and one more carve to slice it open.</strong> The cutaway is a box of <em>air</em>
-subtracted from the volume, exactly like the tubes — only possible because the
-ground is a density field rather than a height. Volcanism ramps with depth below
-the surface, so the cut face reads as molten interior.</p>
 <pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLight, carve, volcano, PerlinNoise, slider3d, label3d } from &#39;tosijs-3d&#39;
 import { volumetricDemo } from &#39;demo-utils&#39;
 import { tosi } from &#39;tosijs&#39;
@@ -134,6 +129,11 @@ const scene = b3d(
 
 preview.append(scene)
 </code></pre>
+<p>The province vocabulary in one object: <strong>a landform for the mount, carves for the
+tubes, and one more carve to slice it open.</strong> The cutaway is a box of <em>air</em>
+subtracted from the volume, exactly like the tubes — only possible because the
+ground is a density field rather than a height. Volcanism ramps with depth below
+the surface, so the cut face reads as molten interior.</p>
 <h2 id="the-theory-briefly">The theory, briefly</h2>
 <p><strong>A signed distance field</strong> is a function <code>f(x, y, z)</code> that returns how far you
 are from a surface, negative on one side and positive on the other. The surface
@@ -162,27 +162,6 @@ weathering all round things off anyway, and the cheapness matters more than the
 creases when a tile has a millisecond budget.</p>
 <h2 id="the-one-idea-that-makes-it-usable-a-global-lattice">The one idea that makes it usable: a GLOBAL lattice</h2>
 <h2 id="demo--does-a-volumetric-tile-match-the-heightfield-it-would-replace">Demo — does a volumetric tile match the heightfield it would replace?</h2>
-<p>The question the volumetric-terrain direction turns on. Both surfaces are built
-from the same terrain at the same <strong>5.33 m</strong> spacing (a 128 m tile at 24
-subdivisions — the heightfield&#39;s own finest), so if extraction reproduces it, the
-two are indistinguishable and swapping one for the other shows nothing.</p>
-<p>The volumetric surface wears the terrain shader; the heightfield is overlaid as a
-<strong>red wireframe</strong>, so it compares without occluding — a solid reference covers
-the very thing you are looking for, since a bore&#39;s mouths sit in the
-heightfield&#39;s unbroken surface.</p>
-<p>Then <strong>punch a bore through the ridge</strong> — the thing a heightfield cannot say at
-all. The ridge is <em>authored</em> (a gaussian across the diagonal) rather than hunted
-for in noise, which is TUNNEL-DESIGN&#39;s own rule: where a tunnel must meet the
-surface, author the surface. It puts <strong>37 m of rock over the bore</strong> and gives a
-clean mouth at each end.</p>
-<p>The bore is on by default; <strong>fill the bore in</strong> to see the ridge without it.</p>
-<blockquote>
-<p><strong>A feature has to be bigger than the lattice.</strong> At 5.33 m spacing a 12 m bore
-is barely two cells across and surface nets can hardly express it; the tile
-here extracts at 4 m for that reason. It is the same rule <a href="/carve/" class="wikilink">carve</a> states for
-clearance — certify the hole you want against the resolution you have, or you
-get a dimple where you asked for a tunnel.</p>
-</blockquote>
 <pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLight, PerlinNoise, carve, toggle3d, label3d } from &#39;tosijs-3d&#39;
 import { volumetricDemo } from &#39;demo-utils&#39;
 import { tosi } from &#39;tosijs&#39;
@@ -255,6 +234,27 @@ const scene = b3d(
 
 preview.append(scene)
 </code></pre>
+<p>The question the volumetric-terrain direction turns on. Both surfaces are built
+from the same terrain at the same <strong>5.33 m</strong> spacing (a 128 m tile at 24
+subdivisions — the heightfield&#39;s own finest), so if extraction reproduces it, the
+two are indistinguishable and swapping one for the other shows nothing.</p>
+<p>The volumetric surface wears the terrain shader; the heightfield is overlaid as a
+<strong>red wireframe</strong>, so it compares without occluding — a solid reference covers
+the very thing you are looking for, since a bore&#39;s mouths sit in the
+heightfield&#39;s unbroken surface.</p>
+<p>Then <strong>punch a bore through the ridge</strong> — the thing a heightfield cannot say at
+all. The ridge is <em>authored</em> (a gaussian across the diagonal) rather than hunted
+for in noise, which is TUNNEL-DESIGN&#39;s own rule: where a tunnel must meet the
+surface, author the surface. It puts <strong>37 m of rock over the bore</strong> and gives a
+clean mouth at each end.</p>
+<p>The bore is on by default; <strong>fill the bore in</strong> to see the ridge without it.</p>
+<blockquote>
+<p><strong>A feature has to be bigger than the lattice.</strong> At 5.33 m spacing a 12 m bore
+is barely two cells across and surface nets can hardly express it; the tile
+here extracts at 4 m for that reason. It is the same rule <a href="/carve/" class="wikilink">carve</a> states for
+clearance — certify the hole you want against the resolution you have, or you
+get a dimple where you asked for a tunnel.</p>
+</blockquote>
 <p>Every chunk of every patch extracts from <strong>one world-aligned lattice</strong> — spacing
 <code>L</code>, each vertex displaced by a deterministic hash of its INTEGER lattice
 coordinate. Because a lattice point&#39;s position depends only on its integer
@@ -345,6 +345,7 @@ real corners.</p>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="../environment/">environment</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
     </ul>
     </details></li>
@@ -435,9 +436,36 @@ real corners.</p>
           <li><a class="doc-link" href="../human-morph/">human-morph</a></li>
           <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
           <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
+          <li><a class="doc-link" href="../skin-shading/">skin-shading</a></li>
           <li><a class="doc-link" href="../human-face/">human-face</a></li>
-          <li><a class="doc-link" href="../human-hair/">human-hair</a></li>
-          <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          <li><a class="doc-link" href="../human-expression/">human-expression</a></li>
+          <li><details><summary><a class="doc-link" href="../human-hair/">human-hair</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../hair-shading/">hair-shading</a></li>
+            <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          </ul>
+          </details></li>
+          <li><details><summary><a class="doc-link" href="../human-proxy/">human-proxy</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../proxy-fit/">proxy-fit</a></li>
+            <li><a class="doc-link" href="../cloth-shading/">cloth-shading</a></li>
+            <li><details><summary><a class="doc-link" href="../garment-cut/">garment-cut</a></summary>
+            <ul>
+              <li><a class="doc-link" href="../outline-field/">outline field</a></li>
+            </ul>
+            </details></li>
+            <li><details><summary><a class="doc-link" href="../garment-bind/">garment-bind</a></summary>
+            <ul>
+              <li><details><summary><a class="doc-link" href="../garment-file/">garment-file</a></summary>
+              <ul>
+                <li><a class="doc-link" href="../uv-unwrap/">uv-unwrap</a></li>
+              </ul>
+              </details></li>
+              <li><a class="doc-link" href="../proxy-rigid/">proxy-rigid</a></li>
+            </ul>
+            </details></li>
+          </ul>
+          </details></li>
         </ul>
         </details></li>
       </ul>
@@ -652,11 +680,17 @@ real corners.</p>
       <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
     </ul>
     </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../clock/">clock</a></li>
+    </ul>
+    </details></li>
     <li><details><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
     <ul>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.11.5/">0.11.5</a></li>
         <li><a class="doc-link" href="../v0.11.4/">0.11.4</a></li>
         <li><a class="doc-link" href="../v0.11.3/">0.11.3</a></li>
         <li><a class="doc-link" href="../v0.11.2/">0.11.2</a></li>
@@ -736,6 +770,6 @@ real corners.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-0nmn3nad.js"></script>
+  <script type="module" src="../hydrate-fymfsbgh.js"></script>
 </body>
 </html>

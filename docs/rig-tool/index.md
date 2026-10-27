@@ -29,12 +29,26 @@ up with the flesh, and stands it still; `free` orbits and plays the clip.
 Turn on `animate` (or pick a clip) to see it move. In a headset you are the
 camera, so the view only switches between still and playing.
 
-The panel has four sections.
+The panel has these sections.
 
-- **Model.** A demo character, or `load model file…` for a GLB of your own
-  (a single file: a `.gltf` with separate buffers cannot be opened this
-  way). A model needs a skeleton; one without can be rigged on the
-  [auto-rig](/rig-build/) page first.
+- **Model.** A demo character, or `load model file…` for a GLB or OBJ of
+  your own (a single file: a `.gltf` with separate buffers cannot be opened
+  this way). It should face +Z, standing, arms out or down.
+- **Animations.** `load animations…` adds the clips in a GLB made on
+  another rig to the clip list: Mixamo's, a mocap file's, another library's.
+  Which bone is which is read from the names (UE, Mixamo, Kenney and Blender
+  spellings), so each clip is retargeted onto the character, and onto the
+  mannequin to compare. Mixamo downloads are FBX, which a browser cannot
+  read: import them into Blender and export a GLB (with the skin).
+- **Binding**, for a model with no skeleton (an OBJ, or a GLB without one,
+  like the weasels and the space marine). It is given one: the eight
+  markers on its outline place the joints (chin, groin, wrists, elbows,
+  knees), a skeleton is fitted to them and the mesh is bound to it by bone
+  heat. They start where they are guessed from the outline; drag one onto
+  its joint and the model is fitted and bound again when you let go.
+  `symmetry` moves both sides together, `tail` adds a tail (place its tip in
+  the side view; it is a bone chain, `tail_01` on, for a spring). The
+  markers are saved in the recipe as `binding`.
 - **Roles.** Which bone is the hips, the head, the left forearm, each finger
   joint. They are guessed from the names; fix one by tapping, as above, or
   pick a role and then the bone that plays it, or `(none)` to leave it out. `arm space` turns the arms out

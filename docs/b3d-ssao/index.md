@@ -8,13 +8,6 @@ attribute on `<tosi-b3d>` fixes it: `ssao="auto"`.
 
 ## Demo
 
-Open the settings panel (the owl) and switch `ssao` between `off` and `on`. Watch the foot of
-the walls, the gaps between the crates and the underside of the lintel, then
-orbit in on the bust: a beard, a laurel and a collar are the kind of creased,
-organic shape occlusion does most for. It works in VR too, with the default
-`projected` method; `screen` is Babylon's own and switches itself off in a
-headset. See "Two methods" below.
-
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLight, b3dBox, b3dSphere, b3dGround, b3dProp, assetUrl, select3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
@@ -83,6 +76,13 @@ preview.append(
   )
 )
 ```
+
+Open the settings panel (the owl) and switch `ssao` between `off` and `on`. Watch the foot of
+the walls, the gaps between the crates and the underside of the lintel, then
+orbit in on the bust: a beard, a laurel and a collar are the kind of creased,
+organic shape occlusion does most for. It works in VR too, with the default
+`projected` method; `screen` is Babylon's own and switches itself off in a
+headset. See "Two methods" below.
 
 ## Two methods
 

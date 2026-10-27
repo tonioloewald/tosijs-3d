@@ -86,12 +86,14 @@ const scene = b3d(
 )
 
 // The pad's clusters sit OVER the scene: touch/drag them to drive the cube.
-preview.append(div({ class: 'glass-stage' }, scene, readout))
+preview.append(div({ class: 'glass-stage' }, scene), readout)
 ```
 ```css
+.preview { display: flex; flex-direction: column; height: 100%; }
 .glass-stage {
   position: relative;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   background: #0b0f14;
   border-radius: 8px;
   overflow: hidden;
@@ -101,11 +103,7 @@ preview.append(div({ class: 'glass-stage' }, scene, readout))
   position: absolute;
   inset: 0;
 }
-.glass-stage .readout {
-  position: absolute;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
+.readout {
   margin: 0;
   padding: 4px 8px;
   background: #222;
@@ -170,6 +168,7 @@ import { Component, elements, StyleSheet } from 'tosijs';
 import { TouchGamepadSource, } from './touch-gamepad.js';
 import { emptyGamepad, mergeGamepads, } from './virtual-gamepad.js';
 import { glassGamepadSvg } from './gamepad-art.js';
+import { realNow } from './clock.js';
 const { div } = elements;
 // Offsets in cqmin so they scale with the host container (see `container-type`).
 const ANCHOR_CSS = {
@@ -718,13 +717,13 @@ export class B3dGamepad extends Component {
      * for `ms`, long enough for every controllable's edge detector to see it.
      */
     pulse(part, ms = 150) {
-        this._pulses[part] = performance.now() + ms;
+        this._pulses[part] = realNow() + ms;
     }
     _pulses = {};
     poll() {
         let merged = emptyGamepad();
         // A pulse is a deliberate press, so it gets through a suppressed pad.
-        const now = performance.now();
+        const now = realNow();
         for (const [part, until] of Object.entries(this._pulses))
             if (until > now)
                 merged[part] = 1;

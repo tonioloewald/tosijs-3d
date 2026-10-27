@@ -352,11 +352,25 @@ export function fitSkeleton(markers, mesh, options = {}) {
             ['ring', -0.2],
             ['pinky', -0.6],
         ];
+        /*
+        A FINGER THE MESH DOES NOT SHOW, BESIDE ONES IT DOES, lies on the nearest
+        real one. Placed by proportion it went across the palm's span, and that
+        span includes the thumb: omnidude's mitten is his index, so his made-up
+        middle finger sat beside the thumb, 42° off the hand's line, and the
+        retarget, which aims a hand by its middle finger, turned the whole hand by
+        that much (a hook at the wrist, Tonio #3468). It takes no skin either way.
+        */
+        const shown = fingers.filter(([f]) => names.includes(f));
         for (const [f, off] of fingers) {
             const k = names.indexOf(f);
             if (k >= 0) {
                 chain(f, found.fingers[k]);
                 real.push(f);
+                continue;
+            }
+            if (shown.length > 0) {
+                const [near] = shown.reduce((a, b) => Math.abs(b[1] - off) < Math.abs(a[1] - off) ? b : a);
+                chain(f, found.fingers[names.indexOf(near)]);
                 continue;
             }
             const z = palmZ + off * half;

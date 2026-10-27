@@ -6,10 +6,6 @@ model under them is described at the end ("The model").
 
 ## Demo
 
-The turret case: a gun's placement on a ship restricts where it can bear. Drag the arc's **edges** to change its width
-and its **middle** to swing it — the grey sector is blocked by the ship, and the
-control shows it rather than silently snapping.
-
 ```js
 import { panel3d, label3d, angle3d, arc3d, select3d, arcOf } from 'tosijs-3d'
 import { elements } from 'tosijs'
@@ -77,6 +73,10 @@ preview.append(
   color: #9aa4b2;
 }
 ```
+
+The turret case: a gun's placement on a ship restricts where it can bear. Drag the arc's **edges** to change its width
+and its **middle** to swing it — the grey sector is blocked by the ship, and the
+control shows it rather than silently snapping.
 
 ## Why not a slider
 

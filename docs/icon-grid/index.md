@@ -6,9 +6,6 @@ flat, on an in-scene panel and in a headset unchanged.
 
 ## Demo
 
-One grid per meaning, so the difference is visible rather than described. The
-last one shows `change` imposing a rule the modes do not have.
-
 ```js
 import { b3d, b3dLight, panelScene, panel3d, label3d, iconGrid3d } from 'tosijs-3d'
 import { elements } from 'tosijs'
@@ -156,6 +153,9 @@ preview.append(
   height: 100%;
 }
 ```
+
+One grid per meaning, so the difference is visible rather than described. The
+last one shows `change` imposing a rule the modes do not have.
 
 > Three grids, one control. The first fires and forgets, the second is one-of-N,
 > the third is any-of-N — and the third also enforces a tool rule, that

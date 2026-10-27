@@ -3,6 +3,7 @@
   <url><loc>https://3d.tosijs.net/</loc></url>
   <url><loc>https://3d.tosijs.net/getting-started/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-effect/</loc></url>
+  <url><loc>https://3d.tosijs.net/clock/</loc></url>
   <url><loc>https://3d.tosijs.net/demos/</loc></url>
   <url><loc>https://3d.tosijs.net/tosi-b3d/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-biped/</loc></url>
@@ -35,6 +36,8 @@
   <url><loc>https://3d.tosijs.net/fly-by-wire/</loc></url>
   <url><loc>https://3d.tosijs.net/formations/</loc></url>
   <url><loc>https://3d.tosijs.net/frame-panel/</loc></url>
+  <url><loc>https://3d.tosijs.net/garment-file/</loc></url>
+  <url><loc>https://3d.tosijs.net/hair-shading/</loc></url>
   <url><loc>https://3d.tosijs.net/human-pack/</loc></url>
   <url><loc>https://3d.tosijs.net/interaction/</loc></url>
   <url><loc>https://3d.tosijs.net/inventory-box/</loc></url>
@@ -42,7 +45,9 @@
   <url><loc>https://3d.tosijs.net/curve-program/</loc></url>
   <url><loc>https://3d.tosijs.net/light-modulation/</loc></url>
   <url><loc>https://3d.tosijs.net/Migration/</loc></url>
+  <url><loc>https://3d.tosijs.net/outline-field/</loc></url>
   <url><loc>https://3d.tosijs.net/perf-probe/</loc></url>
+  <url><loc>https://3d.tosijs.net/proxy-fit/</loc></url>
   <url><loc>https://3d.tosijs.net/mersenne-twister/</loc></url>
   <url><loc>https://3d.tosijs.net/rig-markers/</loc></url>
   <url><loc>https://3d.tosijs.net/scatter/</loc></url>
@@ -73,15 +78,19 @@
   <url><loc>https://3d.tosijs.net/b3d-trigger/</loc></url>
   <url><loc>https://3d.tosijs.net/biome-plugin/</loc></url>
   <url><loc>https://3d.tosijs.net/CHANGELOG/</loc></url>
+  <url><loc>https://3d.tosijs.net/cloth-shading/</loc></url>
   <url><loc>https://3d.tosijs.net/cloud-shadows/</loc></url>
+  <url><loc>https://3d.tosijs.net/garment-cut/</loc></url>
   <url><loc>https://3d.tosijs.net/glb-manifest/</loc></url>
   <url><loc>https://3d.tosijs.net/guidance/</loc></url>
+  <url><loc>https://3d.tosijs.net/hair-fit/</loc></url>
   <url><loc>https://3d.tosijs.net/human-morph/</loc></url>
   <url><loc>https://3d.tosijs.net/interactive-behavior/</loc></url>
   <url><loc>https://3d.tosijs.net/patch-field/</loc></url>
   <url><loc>https://3d.tosijs.net/perlin-noise/</loc></url>
   <url><loc>https://3d.tosijs.net/prefab/</loc></url>
   <url><loc>https://3d.tosijs.net/procedural-rock/</loc></url>
+  <url><loc>https://3d.tosijs.net/proxy-rigid/</loc></url>
   <url><loc>https://3d.tosijs.net/selection/</loc></url>
   <url><loc>https://3d.tosijs.net/sky-and-light/</loc></url>
   <url><loc>https://3d.tosijs.net/solar-system/</loc></url>
@@ -89,6 +98,7 @@
   <url><loc>https://3d.tosijs.net/b3d-shadows/</loc></url>
   <url><loc>https://3d.tosijs.net/surface/</loc></url>
   <url><loc>https://3d.tosijs.net/svg-icons/</loc></url>
+  <url><loc>https://3d.tosijs.net/uv-unwrap/</loc></url>
   <url><loc>https://3d.tosijs.net/wind/</loc></url>
   <url><loc>https://3d.tosijs.net/world-store/</loc></url>
   <url><loc>https://3d.tosijs.net/xr-frames/</loc></url>
@@ -102,6 +112,7 @@
   <url><loc>https://3d.tosijs.net/b3d-weather-cell/</loc></url>
   <url><loc>https://3d.tosijs.net/sdf-lattice/</loc></url>
   <url><loc>https://3d.tosijs.net/curve-field/</loc></url>
+  <url><loc>https://3d.tosijs.net/garment-bind/</loc></url>
   <url><loc>https://3d.tosijs.net/glass-gamepad/</loc></url>
   <url><loc>https://3d.tosijs.net/human-rig/</loc></url>
   <url><loc>https://3d.tosijs.net/popup-surface/</loc></url>
@@ -136,6 +147,7 @@
   <url><loc>https://3d.tosijs.net/touch-orbit/</loc></url>
   <url><loc>https://3d.tosijs.net/inspect-view/</loc></url>
   <url><loc>https://3d.tosijs.net/gas-giant/</loc></url>
+  <url><loc>https://3d.tosijs.net/skin-shading/</loc></url>
   <url><loc>https://3d.tosijs.net/color-picker/</loc></url>
   <url><loc>https://3d.tosijs.net/rocky-world/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-ambient/</loc></url>
@@ -152,6 +164,7 @@
   <url><loc>https://3d.tosijs.net/min-sim-conformance/</loc></url>
   <url><loc>https://3d.tosijs.net/province-climate/</loc></url>
   <url><loc>https://3d.tosijs.net/water/</loc></url>
+  <url><loc>https://3d.tosijs.net/human-expression/</loc></url>
   <url><loc>https://3d.tosijs.net/human-hair/</loc></url>
   <url><loc>https://3d.tosijs.net/animation-layers/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-fog/</loc></url>
@@ -163,10 +176,10 @@
   <url><loc>https://3d.tosijs.net/debug-sink/</loc></url>
   <url><loc>https://3d.tosijs.net/dials/</loc></url>
   <url><loc>https://3d.tosijs.net/effects/</loc></url>
-  <url><loc>https://3d.tosijs.net/hair-fit/</loc></url>
   <url><loc>https://3d.tosijs.net/sphere-map/</loc></url>
   <url><loc>https://3d.tosijs.net/terrain-editor/</loc></url>
   <url><loc>https://3d.tosijs.net/planet-map/</loc></url>
+  <url><loc>https://3d.tosijs.net/human-proxy/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-death/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-reflections/</loc></url>
   <url><loc>https://3d.tosijs.net/characters-and-vehicles/</loc></url>
@@ -187,6 +200,7 @@
   <url><loc>https://3d.tosijs.net/scene-schemas/</loc></url>
   <url><loc>https://3d.tosijs.net/spatial-transform/</loc></url>
   <url><loc>https://3d.tosijs.net/asset-url/</loc></url>
+  <url><loc>https://3d.tosijs.net/environment/</loc></url>
   <url><loc>https://3d.tosijs.net/interacting/</loc></url>
   <url><loc>https://3d.tosijs.net/shadow-decal/</loc></url>
   <url><loc>https://3d.tosijs.net/table/</loc></url>
@@ -200,7 +214,9 @@
   <url><loc>https://3d.tosijs.net/ui-containers/</loc></url>
   <url><loc>https://3d.tosijs.net/ui-in-scene/</loc></url>
   <url><loc>https://3d.tosijs.net/ui-theme/</loc></url>
+  <url><loc>https://3d.tosijs.net/utilities/</loc></url>
   <url><loc>https://3d.tosijs.net/input-internals/</loc></url>
+  <url><loc>https://3d.tosijs.net/v0.11.5/</loc></url>
   <url><loc>https://3d.tosijs.net/v0.11.4/</loc></url>
   <url><loc>https://3d.tosijs.net/v0.11.3/</loc></url>
   <url><loc>https://3d.tosijs.net/v0.11.2/</loc></url>

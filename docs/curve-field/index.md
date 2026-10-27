@@ -11,10 +11,6 @@ treeline without writing code. See the [[b3d-terrain|province editor]] demo belo
 
 ## Demo — a province editor
 
-Two curves and a terrain block. The **shape** says what height the province wants
-at each distance from its centre; the **falloff** says how strongly it overrides
-the terrain around it. Drag the points, or pick a preset.
-
 ```js
 import { b3d, b3dLight, panel3d, label3d, button3d, toggle3d, curve3d, footprint3d, slider3d, select3d, presetsFor, PerlinNoise, attachBiomePlugin, blendSample } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -219,6 +215,10 @@ preview.append(
   height: 100%;
 }
 ```
+
+Two curves and a terrain block. The **shape** says what height the province wants
+at each distance from its centre; the **falloff** says how strongly it overrides
+the terrain around it. Drag the points, or pick a preset.
 
 ## Deleting a point is a BUTTON, not a gesture
 

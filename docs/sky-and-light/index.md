@@ -18,5 +18,6 @@ The rest is atmosphere: [fog](/b3d-fog/), [light shafts](/b3d-light-shafts/),
 - [b3d-fog](/b3d-fog/)
 - [b3d-reflections](/b3d-reflections/)
 - [Ambient occlusion (SSAO)](/b3d-ssao/)
+- [environment](/environment/)
 - [shadow-decal](/shadow-decal/)
 <!-- /toc -->

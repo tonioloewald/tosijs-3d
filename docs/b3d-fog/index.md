@@ -6,9 +6,6 @@ When `syncSkybox` is true, the fog color automatically tracks the sibling
 
 ## Demo
 
-**A colonnade marching into the murk.** `syncSkybox` matches the fog to the horizon colour, so the
-far crates dissolve into the sky rather than into a flat grey wall. Drag to orbit.
-
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dFog, b3dGround, b3dBox } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -32,6 +29,9 @@ preview.append(scene)
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+**A colonnade marching into the murk.** `syncSkybox` matches the fog to the horizon colour, so the
+far crates dissolve into the sky rather than into a flat grey wall. Drag to orbit.
 
 ## Attributes
 

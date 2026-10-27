@@ -9,16 +9,6 @@ proportions. This makes the clips play anyway.
 
 ## Demo
 
-One clip, four bodies. On the right, UAL's own mannequin plays the original;
-then the same clip retargeted onto a Quaternius superhero (the same 65 bones,
-other proportions), omnidude (Mixamo's bones, 0.88 m tall) and a Kenney
-chibi (seven bones: one for each whole leg, arm and the torso; shown three
-times its size). Pick a clip in the panel.
-
-A chibi's arms are long for its height: hanging where the clip's hang, its
-hands would go through the floor. `armSpaceDeg` (Mixamo's "Character
-Arm-Space") turns the upper arms out from the body, and the chibi takes 55°.
-
 ```js
 import { b3d, b3dLight, assetUrl, readSkeleton, retargetClip, select3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
@@ -95,6 +85,16 @@ preview.append(
 )
 ```
 
+One clip, four bodies. On the right, UAL's own mannequin plays the original;
+then the same clip retargeted onto a Quaternius superhero (the same 65 bones,
+other proportions), omnidude (Mixamo's bones, 0.88 m tall) and a Kenney
+chibi (seven bones: one for each whole leg, arm and the torso; shown three
+times its size). Pick a clip in the panel.
+
+A chibi's arms are long for its height: hanging where the clip's hang, its
+hands would go through the floor. `armSpaceDeg` (Mixamo's "Character
+Arm-Space") turns the upper arms out from the body, and the chibi takes 55°.
+
 ## How it works
 
 1. **Roles.** `humanoidRoles(bones)` says which bone is the hips, the chest,
@@ -119,9 +119,10 @@ Babylon-free and deterministic (plain `{x, y, z, w}` quaternions), like
 `fly-by-wire`: the Babylon side (`retarget-babylon`) reads the skeletons and
 writes the result.
 
-A mesh with no skeleton at all can be rigged for these clips too: see
-[auto-rig](/rig-build/), which fits a skeleton from eight markers dragged
-over the mesh, as Mixamo's auto-rigger does, and binds the mesh to it.
+A mesh with no skeleton at all can be rigged for these clips too: the
+[rig tool](/rig-tool/) fits a skeleton from eight markers dragged over the
+mesh, as Mixamo's auto-rigger does, and binds the mesh to it
+([auto-rig](/rig-build/) is the code underneath).
 */
 /*{ "parent": "b3d-biped", "order": 70 }*/
 import { quatConjugate, quatMul, rotateVector, sub, } from './spatial-transform.js';
@@ -135,6 +136,7 @@ export const FINGERS = [
 export const ROLES = [
     'hips',
     'spine',
+    'midSpine',
     'chest',
     'neck',
     'head',
@@ -274,6 +276,14 @@ export function humanoidRoles(bones, overrides = {}) {
         roles.chest = spines[spines.length - 1];
         if (spines.length > 1)
             roles.spine = spines[0];
+        /*
+        THE MIDDLE OF A THREE-BONE SPINE TOO. With only \`spine\` and \`chest\`, UAL's
+        \`spine_02\` was never driven: the clip's mid-back bend was dropped and the
+        bones either side bent harder to make the shape, which creased the skin
+        across the lower back in a crouch (Tonio, #3475).
+        */
+        if (spines.length > 2)
+            roles.midSpine = spines[Math.floor(spines.length / 2)];
     }
     return { ...roles, ...overrides };
 }
@@ -355,7 +365,8 @@ Roles, not children, so a twist bone or a finger cannot decide the direction.
 */
 const NEXT = {
     hips: 'spine',
-    spine: 'chest',
+    spine: 'midSpine',
+    midSpine: 'chest',
     chest: 'neck',
     neck: 'head',
     clavicle: 'upperArm',
@@ -379,6 +390,7 @@ const NEXT = {
 const AXIAL = new Set([
     'hips',
     'spine',
+    'midSpine',
     'chest',
     'neck',
     'head',

@@ -15,9 +15,6 @@ and floating panels live on a [[surface]], which holds a box.
 
 ## Demo — the same box in the DOM and on a 3D texture
 
-`box.el` is an SVG `<g>`; wrap it in an `<svg>` to show it flat, or hand it to a
-`b3dSvgPlane` to rasterize it onto a plane. Same object, both surfaces.
-
 ```js
 import { b3d, b3dLight, panelScene, ui } from 'tosijs-3d'
 const { box, textBlock, button, svgPoint } = ui
@@ -106,6 +103,9 @@ preview.append(
 ```css
 .preview { height: 100%; }
 ```
+
+`box.el` is an SVG `<g>`; wrap it in an `<svg>` to show it flat, or hand it to a
+`b3dSvgPlane` to rasterize it onto a plane. Same object, both surfaces.
 
 > Click a button in either pane, or move between them with the arrow keys. The
 > two are not copies of each other — they are ONE box rendered twice, so

@@ -42,6 +42,7 @@ document.body.append(
 import * as BABYLON from '@babylonjs/core';
 import { B3dControllable } from './b3d-controllable.js';
 import { carMapping } from './virtual-gamepad.js';
+import { realNow } from './clock.js';
 export class B3dCar extends B3dControllable {
     static preferredTagName = 'tosi-b3d-car';
     inputMapping = carMapping;
@@ -139,7 +140,7 @@ export class B3dCar extends B3dControllable {
                     const lower = m.name.toLowerCase();
                     return lower.includes('_wheel') || lower.includes('wheel');
                 });
-                this.lastUpdate = Date.now();
+                this.lastUpdate = realNow();
                 scene.registerBeforeRender(this._update);
             });
         }

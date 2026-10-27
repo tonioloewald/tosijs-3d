@@ -125,7 +125,10 @@ export function attachSceneLayer(opts: {
     wants the room. Still one viewBox unit to one, capped at twice the panel.
     */
     const beside = config.side === 'right' || config.side === 'left'
-    const worldW = Math.min(width * (beside ? 2 : 0.95), width * (popW / panelVbW))
+    const worldW = Math.min(
+      width * (beside ? 2 : 0.95),
+      width * (popW / panelVbW)
+    )
     const worldH = worldW * (popH / popW)
 
     /*
@@ -206,7 +209,8 @@ export function attachSceneLayer(opts: {
           the scene layer exists rather than reusing the panel overlay.
           */
         x: beside
-          ? (config.side === 'right' ? 1 : -1) * (width / 2 + worldW / 2 + width * 0.03)
+          ? (config.side === 'right' ? 1 : -1) *
+            (width / 2 + worldW / 2 + width * 0.03)
           : 0,
         y: anchorBottomY - worldH / 2,
         // NEARER the viewer — the z-separation is the point, not a nicety:

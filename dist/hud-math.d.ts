@@ -52,6 +52,12 @@ export declare function hudTrace(viewer: Pose, target: Vec3, opts: HudTraceOptio
 export declare function hudPointFromUV(u: number, v: number, opts: {
     center: number;
     pinRadius: number;
+    /**
+     * The HUD's ring, in viewBox units. Given, a contact is tracked only
+     * inside it: the corners of the square are outside the circle the HUD
+     * draws, and a contact there read as off the HUD.
+     */
+    radius?: number;
 }): {
     x: number;
     y: number;

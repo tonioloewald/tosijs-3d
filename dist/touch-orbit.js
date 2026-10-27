@@ -26,6 +26,16 @@ expect from a 3D viewer, on every device. `<tosi-b3d>`'s default camera and
 - **A wheel over a panel is the panel's**: panels take it before the canvas
   sees it, so a list scrolls and the scene stays put.
 
+- **Zoom is proportional**: a wheel step or pinch moves the camera by a share
+  of its distance (`WHEEL_SHARE`, as Babylon's `wheelDeltaPercentage`), so it
+  is as gentle at arm's length as across a field. A page that set
+  `wheelPrecision` or `wheelDeltaPercentage` itself keeps its own. A
+  trackpad pinch scales the distance by the pinch (`PINCH_SHARE`): it sends
+  many small steps, which the wheel's share per notch barely moved.
+- **Zoom stops short of the target**: with no `lowerRadiusLimit` of your own,
+  it is set to twice the camera's near plane (at least 1 cm), because Babylon
+  has none and zooming in went through the target and flipped the view.
+
 Returns a function that restores Babylon's handlers.
 
 ## Two fingers: pan OR zoom, decided once
@@ -63,7 +73,31 @@ function panBy(camera, dx, dy) {
     up.scaleInPlace(dy * perPx);
     camera.target.addInPlace(right).addInPlace(up);
 }
+/** A wheel step's share of the camera's distance (Babylon's `wheelDeltaPercentage`). */
+export const WHEEL_SHARE = 0.01;
+/**
+ * A trackpad pinch's zoom per unit of `deltaY`: the distance scales by
+ * `exp(deltaY * PINCH_SHARE)`, so doubling the fingers' spread (about 70
+ * units in Chrome) roughly halves it.
+ */
+export const PINCH_SHARE = 0.01;
 export function touchOrbit(camera, options = {}) {
+    // Once per camera: `<tosi-b3d>` applies it to any orbit camera it is given,
+    // and a page may have called it already.
+    const done = camera._tosiTouchOrbit;
+    if (done != null)
+        return done;
+    // Zoom stops short of the target: Babylon's default has no floor, and the
+    // radius went through zero and the view flipped. A limit a page set wins.
+    if (camera.lowerRadiusLimit == null || camera.lowerRadiusLimit <= 0) {
+        camera.lowerRadiusLimit = Math.max(0.01, camera.minZ * 2);
+    }
+    // The wheel zooms by a share of the distance, not a fixed one: Babylon's
+    // default moved ~0.8 m a notch, so close up one notch went too close. A
+    // page's own wheel setting wins.
+    if (camera.wheelDeltaPercentage === 0 && camera.wheelPrecision === 3) {
+        camera.wheelDeltaPercentage = WHEEL_SHARE;
+    }
     const pointers = camera.inputs?.attached?.pointers;
     if (pointers == null)
         return () => { };
@@ -118,7 +152,19 @@ export function touchOrbit(camera, options = {}) {
     const onWheel = (e) => {
         if (camera.getScene().activeCamera !== camera)
             return;
-        if (wheels.kind(e, e.timeStamp) !== 'pan')
+        const kind = wheels.kind(e, e.timeStamp);
+        if (e.ctrlKey && kind === 'zoom' && e.deltaMode === 0) {
+            // A trackpad pinch: many small events, not a mouse's notches of ~100,
+            // so the wheel's share per unit hardly moved the camera. Scale by the
+            // pinch instead, as a touch pinch does.
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            const lo = camera.lowerRadiusLimit ?? 0.001;
+            const hi = camera.upperRadiusLimit ?? Infinity;
+            camera.radius = Math.min(hi, Math.max(lo, camera.radius * Math.exp(e.deltaY * PINCH_SHARE)));
+            return;
+        }
+        if (kind !== 'pan')
             return;
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -130,10 +176,13 @@ export function touchOrbit(camera, options = {}) {
             capture: true,
             passive: false,
         });
-    return () => {
+    const restore = () => {
         pointers.onMultiTouch = original;
         pointers.onTouch = originalTouch;
         canvas?.removeEventListener('wheel', onWheel, { capture: true });
+        delete camera._tosiTouchOrbit;
     };
+    camera._tosiTouchOrbit = restore;
+    return restore;
 }
 //# sourceMappingURL=touch-orbit.js.map

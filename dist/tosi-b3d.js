@@ -99,14 +99,9 @@ setInterval(() => {
 }, 1000)
 ```
 ```css
-tosi-b3d {
-  width: 100%;
-  height: 100%;
-}
+.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 .debug-panel {
-  position: absolute;
-  top: 10px;
-  right: 10px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -115,7 +110,6 @@ tosi-b3d {
   color: #fff;
   border-radius: 6px;
   font-size: 14px;
-  z-index: 10;
 }
 .debug-panel label {
   display: flex;
@@ -128,22 +122,6 @@ tosi-b3d {
 ```
 
 ## Demo — pause, start screens, and the VR entry gesture
-
-> **⚠️ EXPERIMENTAL.** The flat behaviour below is verified; the VR half — the
-> Continue tap carrying a user gesture into `enterXRAsync`, and taking the
-> headset off pausing — has not been through a headset yet. That's the half the
-> feature is *for*, so treat these attributes as unsettled until it has.
-
-
-A second, deliberately small scene. It starts paused with its own panel, so the
-first thing you see is a Start screen; backgrounding the tab pauses it again.
-
-The reason this shape matters is not tidiness. **`enterXRAsync` requires a user
-gesture** — a scene cannot enter VR on load, the browser refuses. So "come up
-paused, put the headset on, press Continue" is the only arrangement that
-reliably enters VR. `enterXrOnResume` closes the loop: set it on the scene below
-and the button changes to "Continue in VR" on a device that has it. Leaving VR
-pauses every scene: entering unpauses, so leaving is its inverse.
 
 ```js
 import { b3d, b3dBox, b3dSphere, label3d, button3d, select3d, sceneDelta } from 'tosijs-3d'
@@ -246,6 +224,21 @@ for (const [label, fn] of [
 preview.append(scene, readout, bar)
 ```
 
+> **⚠️ EXPERIMENTAL.** The flat behaviour above is verified; the VR half — the
+> Continue tap carrying a user gesture into `enterXRAsync`, and taking the
+> headset off pausing — has not been through a headset yet. That's the half the
+> feature is *for*, so treat these attributes as unsettled until it has.
+
+A second, deliberately small scene. It starts paused with its own panel, so the
+first thing you see is a Start screen; backgrounding the tab pauses it again.
+
+The reason this shape matters is not tidiness. **`enterXRAsync` requires a user
+gesture** — a scene cannot enter VR on load, the browser refuses. So "come up
+paused, put the headset on, press Continue" is the only arrangement that
+reliably enters VR. `enterXrOnResume` closes the loop: set it on the scene above
+and the button changes to "Continue in VR" on a device that has it. Leaving VR
+pauses every scene: entering unpauses, so leaving is its inverse.
+
 ## Usage
 
 ```javascript
@@ -269,7 +262,7 @@ document.body.append(
 | `glowLayerIntensity` | `0` | Glow effect intensity (0 = off) |
 | `clearColor` | `''` | The colour behind everything (`'#000'` for space); empty keeps Babylon's default |
 | `frameRate` | `30` | Target frame rate |
-| `timeScale` | `1` | How fast simulation time runs against wall time: `1` is real time, `0.25` slow motion, `0` stops the simulation while the scene keeps rendering. Everything integrating with `sceneDelta` scales; anything that must not slow (UI animation, a countdown in wall seconds) reads `realDt` from the frame package |
+| `timeScale` | `1` | How fast simulation time runs against wall time: `1` is real time, `0.25` slow motion, `0` stops the simulation while the scene keeps rendering. Everything integrating with `sceneDelta` scales, and so do Babylon's animation groups and particles (times any `animationTimeScale` or `updateSpeed` the app set); anything that must not slow (UI animation, a countdown in wall seconds) reads `realDt` from the frame package |
 | `quality` | `'auto'` | Device tier. `'auto'` follows the measured or cached device profile (and probes in the background on a first visit); `'low'`, `'medium'` or `'high'` force one. Drives the `auto` defaults of shadows, reflections, terrain and render scaling. See [[b3d-quality]] |
 | `pixelRatio` | `0` | Device pixels per CSS pixel, flat. `0` is auto: the display's own ratio, capped by the device tier (high 2, medium 1.5, low 1). A positive value is an explicit cap and wins: `1` renders at CSS resolution, `2` full Retina, `0.75` below CSS for speed. Ignored in a headset |
 | `groundDetail` | `'auto'` | The ground shader's form: `full`, `lite` (three noise samples a pixel for eight, for a GPU that cannot afford the full one), or `auto` (from the device tier: lite on the low tier, and in a headset on the medium one) |
@@ -293,7 +286,7 @@ document.body.append(
 | `flatUi` | `'scene'` | Where the flat view's own controls are drawn. `'scene'`: in the scene (the system bar, settings panel and pause), the same UI a headset gets. `'dom'`: HTML corner buttons, settings panel and pause (where `::part(...)` styling of them shows). Any other value warns once and means `'scene'` |
 | `scenePanelOpen` | `false` | Start with the settings panel open instead of closed behind the owl |
 | `panelTitle` | `''` | The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row) |
-| `panelSections` | `'fold'` | How collapsible sections in the settings panel present: `'fold'` (headers you open and close) or `'tabs'` (file tabs, one section at a time) |
+| `panelSections` | `'fold'` | How collapsible sections in the settings panel present: `'fold'` (headers you open and close, one open at a time: opening one closes the others), `'folds'` (several may be open) or `'tabs'` (file tabs, one section at a time) |
 | `stats` | `false` | Add a Perf Stats section to the settings panel, flat and in a headset. `#perf` or `#debug` (or `?perf`, `?debug`) in the page URL, or calling `showB3dStats()`, shows it on every scene |
 | `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = the default layout (everything but the d-pad); a value like `"a,b,left_stick"` selects controls, and naming `view` or `menu` also puts them on the headset's system bar. A plain property, read once at setup |
 | `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
@@ -312,6 +305,15 @@ Set these in the `b3d()` config.
 | `scenePanel(el)` | returns the settings panel's widgets, drawn flat and in a headset from the same list; rebuilt each time it opens, and `refreshScenePanel()` updates an open one |
 | `pausePanel(el, resume)` | returns the pause panel's rows in place of the default title and Continue button; `resume` lets the player back in |
 | `setupXr(el)` | replaces the built-in WebXR setup and Enter-VR button with your own |
+
+## Loading
+
+The spinner shows until the scene first renders. A page that loads its own
+content after that (models, a body, a terrain) holds it up with
+`el.setLoading('loading the body…')`, which shows the spinner with the
+message below it; `setLoading(true)` is the spinner alone, `setLoading(false)`
+lets it go, and `{ spin: false }` shows a message without the spinner (a load
+that failed).
 */
 /*{ "parent": "core", "order": 10 }*/
 import { Component, elements, updates } from 'tosijs';
@@ -330,7 +332,7 @@ import { sendDebug } from './debug-sink.js';
 import { b3dSvgPlane } from './b3d-svg-plane.js';
 import { createMakers } from './make-mesh.js';
 import { openPopup, } from './popup-surface.js';
-import { cameraIsAttached, isNoCollide, insideCarrier, isOff, markUiMesh, replaceKeepingLayers, refuseOwnAncestor, } from './b3d-utils.js';
+import { cameraIsAttached, freshWorldMatrix, isNoCollide, insideCarrier, isOff, markUiMesh, replaceKeepingLayers, refuseOwnAncestor, refuseOwnAncestors, } from './b3d-utils.js';
 import { NO_WIND, gustAt, windFromPolar } from './wind.js';
 import { CALM, weatherAt as composeWeather, } from './weather.js';
 import { faceViewer } from './dialog-placement.js';
@@ -354,6 +356,7 @@ import { nearFirst } from './draw-order.js';
 import { setBiomeLite, biomeLite, setBiomeComputedNoise, biomeComputedNoise, } from './biome-plugin.js';
 const SWEEP_KEY = 'tosi-b3d-cost-sweep';
 import { allocateAmbient, ratchetPool, recoverPool, } from './ambient-budget.js';
+import { realNow, wallDate, wallMs } from './clock.js';
 const { canvas, div, span, slot, button } = elements;
 // Site-wide opt-in for the 📊 perf overlay: a host (the doc site) calls
 // `showB3dStats()` once so the toggle appears on EVERY scene without a per-scene
@@ -446,9 +449,23 @@ function pressWithEitherHand(xr, scene) {
             if (main == null || frames == null)
                 return;
             main.onButtonStateChangedObservable.add((c) => {
-                if (!c.changes.pressed?.current)
+                if (c.changes.pressed == null)
                     return;
                 const id = controller.uniqueId;
+                /*
+                A PRESS IS AIMED NOW, not a frame ago. Babylon reads the buttons
+                before it picks, so a press or release carries the previous frame's
+                ray, cut to that frame's hit distance. On a moving vehicle the bar
+                has moved on with it since, and the stale ray stops short of it:
+                hover (picked fresh) lit the button and the click never landed.
+                */
+                const ray = sel._controllers?.[id]?.pick?.ray;
+                if (ray != null) {
+                    freshWorldMatrix(controller.pointer);
+                    controller.getWorldPointerRayToRef(ray);
+                }
+                if (!c.changes.pressed.current)
+                    return;
                 if (sel._attachedController === id ||
                     !sel.setAttachedController?.(id))
                     return;
@@ -579,8 +596,8 @@ export class B3d extends Component {
         scenePanelOpen: false,
         // The settings panel's name, drawn in its title bar beside move and close.
         panelTitle: '',
-        /** How collapsible sections present: 'fold' (headers you open and close)
-         * or 'tabs' (file tabs, one section at a time). */
+        /** How collapsible sections present: 'fold' (headers you open and close,
+         * one open at a time), 'folds' (several open) or 'tabs' (file tabs). */
         panelSections: 'fold',
         // Scale factor for the glass gamepad clusters. Touch-target pixel sizes vary
         // wildly across devices, so this is exposed for tuning per scene/device.
@@ -749,10 +766,30 @@ export class B3d extends Component {
             borderRadius: '50%',
             animation: 'tosi-spin 0.8s linear infinite',
             transition: 'opacity 0.3s ease-out',
+            // Above the canvas, so `setLoading` can show it over a running scene.
+            zIndex: '3',
+            pointerEvents: 'none',
         },
         ':host .spinner.hidden': {
             opacity: '0',
             pointerEvents: 'none',
+        },
+        // What is loading, below the spinner (`setLoading('…')`).
+        ':host .loading-caption': {
+            position: 'absolute',
+            top: 'calc(50% + 36px)',
+            left: '0',
+            right: '0',
+            textAlign: 'center',
+            color: '#fff',
+            font: '13px system-ui, sans-serif',
+            textShadow: '0 1px 3px rgba(0,0,0,0.8)',
+            zIndex: '3',
+            pointerEvents: 'none',
+            transition: 'opacity 0.3s ease-out',
+        },
+        ':host .loading-caption.hidden': {
+            opacity: '0',
         },
         '@keyframes tosi-spin': {
             to: { transform: 'rotate(360deg)' },
@@ -959,6 +996,7 @@ export class B3d extends Component {
     };
     content = [
         div({ class: 'spinner', part: 'spinner' }),
+        div({ class: 'loading-caption hidden', part: 'loadingCaption' }),
         canvas({ part: 'canvas' }),
         // Top-left lozenge holding two icon buttons side by side: scene settings
         // (opens the panel) and Enter VR (the purpose-built xrColor mark) — so VR
@@ -1035,6 +1073,25 @@ export class B3d extends Component {
     xrActive = false;
     /** True from ENTERING_XR to the end of EXITING_XR: wider than `xrActive`. */
     _xrPresenting = false;
+    /** Whether a page is holding the spinner up (`setLoading`). */
+    _loadingHeld = false;
+    /**
+     * The loading spinner, for a page that loads its own content after the
+     * scene is up: `true` shows it, a string shows it with that message below,
+     * `false` hides it. Until it is called the spinner is the scene's own and
+     * goes when the scene first renders; once a page holds it, that page lets
+     * it go. `{ spin: false }` shows the message alone (a load that failed).
+     */
+    setLoading(message, options = {}) {
+        const spinner = this.parts.spinner;
+        const caption = this.parts.loadingCaption;
+        this._loadingHeld = message !== false;
+        spinner?.classList.toggle('hidden', message === false || options.spin === false);
+        if (caption) {
+            caption.textContent = typeof message === 'string' ? message : '';
+            caption.classList.toggle('hidden', typeof message !== 'string');
+        }
+    }
     // The scene the pointer last entered / pressed — so that when a page hosts several
     // live demos, global keyboard/gamepad input only drives the one you're interacting
     // with (see `hasInputFocus`). Null until the first interaction (then everything is
@@ -1225,7 +1282,7 @@ export class B3d extends Component {
         this._frozen = on;
         // Don't hand the held time back as one giant step on the first live frame.
         if (!on)
-            this.lastRender = Date.now();
+            this.lastRender = realNow();
     }
     /**
      * Stop BABYLON'S OWN clocks too, not just ours.
@@ -1267,6 +1324,35 @@ export class B3d extends Component {
             scene.physicsEnabled = this._physicsWere;
         }
     }
+    /**
+     * SLOW MOTION REACHES BABYLON'S CLOCKS TOO: animation groups
+     * (`scene.animationTimeScale`) and particle ageing (each system's
+     * `updateSpeed`). Physics already steps on `sceneDelta`.
+     *
+     * Each is the app's own value TIMES `timeScale`. What was written last is
+     * remembered with the value it came from, so a value that differs from it
+     * is the app's new choice, and becomes the base: an app's own speed-up
+     * still works, and resuming hands back what it set.
+     */
+    _animationScale = null;
+    _particleScale = new WeakMap();
+    _scaleEngineTime(scale) {
+        const scene = this.scene;
+        if (scene == null)
+            return;
+        const scaled = (was, now) => {
+            const base = was == null || now !== was.written ? now : was.base;
+            return { base, written: base * scale };
+        };
+        const a = scaled(this._animationScale, scene.animationTimeScale);
+        scene.animationTimeScale = a.written;
+        this._animationScale = a;
+        for (const ps of scene.particleSystems) {
+            const p = scaled(this._particleScale.get(ps), ps.updateSpeed);
+            ps.updateSpeed = p.written;
+            this._particleScale.set(ps, p);
+        }
+    }
     pause(reason = 'user') {
         if (this._paused)
             return;
@@ -1302,7 +1388,7 @@ export class B3d extends Component {
         this._repaintPanels();
         // A resume must not deliver the whole absence as one frame. `frameDelta` is
         // already clamped to 0.1s, but resetting the baseline keeps even that away.
-        this.lastRender = Date.now();
+        this.lastRender = realNow();
         this.dispatchEvent(new CustomEvent('resume', { bubbles: true }));
         if (this.enterXrOnResume === 'on' && !this.xrActive) {
             const base = this.xrHelper?.baseExperience;
@@ -1533,14 +1619,18 @@ export class B3d extends Component {
             // A panel you read and then press: in front, at arm's length and a
             // touch low, riding the body frame so a glance away does not take it
             // with you but turning round brings it along.
+            // Measured from the eye: the body frame's origin is the rig's floor, and
+            // the eye is the head's height above it, which is yours, not a standing
+            // 1.6 m. Seated, a fixed 1.6 put the panel over your head, tilted to
+            // face a point above it.
+            const eyeY = xrCam.position.y > 0.3 ? xrCam.position.y : 1.6;
             const panel = attachFramePanel(scene, xrCam, xrFrames.get('body'), {
                 frame: 'body',
-                // Measured from the eye: the body frame's origin is your feet.
                 anchor: {
                     azimuthDeg: 0,
                     elevationDeg: -10,
                     distance: 1.1 * nearer,
-                    focus: [0, 1.6, 0],
+                    focus: [0, eyeY, 0],
                 },
                 presence: 'both',
                 reveal: 'always',
@@ -2070,6 +2160,11 @@ export class B3d extends Component {
         if (attach) {
             camera.attachControl(cnv, preventDefault);
         }
+        // Every orbit camera gets the house view controls (shift-drag and a
+        // trackpad's two-finger drag pan): a demo that built its own camera was
+        // left with Babylon's, and could not pan on a laptop.
+        if (camera instanceof BABYLON.ArcRotateCamera)
+            touchOrbit(camera);
     }
     /**
      * Switch the **gameplay viewpoint** — chase↔cockpit, a death spectator orbit, climbing into a
@@ -2761,7 +2856,7 @@ export class B3d extends Component {
             // The WALL clock keeps running, which is the one state `realDt` exists
             // for (a spinner on the pause panel). It used to publish 0 here and hold
             // `realElapsed`/`frame` still, contradicting FrameInfo's own doc.
-            const nowPaused = Date.now();
+            const nowPaused = realNow();
             const realPaused = this.lastRender > 0
                 ? Math.min((nowPaused - this.lastRender) / 1000, 0.1)
                 : 0;
@@ -2769,6 +2864,7 @@ export class B3d extends Component {
             // Babylon's own clocks as well — see `_stopEngineTime`. Ours is the
             // smaller half of a pause.
             this._stopEngineTime(true);
+            this._scaleEngineTime(0);
             if (this.scene != null) {
                 if (this.scene.metadata == null)
                     this.scene.metadata = {};
@@ -2821,7 +2917,7 @@ export class B3d extends Component {
             if (this.update !== noop) {
                 this.update(this, BABYLON);
             }
-            const now = Date.now();
+            const now = realNow();
             if (this.xrActive ||
                 now - this.lastRender >= 1000 / this.frameRate) {
                 // THE authoritative frame delta — wall clock between actual renders.
@@ -2850,6 +2946,7 @@ export class B3d extends Component {
                 */
                 const scale = Math.max(0, Number(this.timeScale ?? 1) || 0);
                 this._stopEngineTime(false);
+                this._scaleEngineTime(scale);
                 this.frameDelta = realDt * scale;
                 this._realDelta = realDt;
                 this._simElapsed += this.frameDelta;
@@ -2973,7 +3070,7 @@ export class B3d extends Component {
      * of waiting for quiet — see DECISIONS.md. This is the fix that doesn't need one.
      */
     _probeWhenIdle() {
-        const start = Date.now();
+        const start = realNow();
         let quietFrames = 0;
         const tick = () => {
             if (this.engine == null || this.scene == null)
@@ -2981,7 +3078,7 @@ export class B3d extends Component {
             // Give up waiting after 30s and measure anyway: a scene that streams
             // forever (an endless world) would otherwise never probe at all, and a
             // stale default is worse than a slightly noisy measurement.
-            const timedOut = Date.now() - start > 30000;
+            const timedOut = realNow() - start > 30000;
             quietFrames = this.sceneBusy ? 0 : quietFrames + 1;
             // ~1s of consecutive settled frames — one quiet frame mid-load proves nothing.
             if (quietFrames < 60 && !timedOut) {
@@ -3350,7 +3447,7 @@ export class B3d extends Component {
         const rate = this.frameRate;
         const run = {
             n: this._sweepRuns.reduce((m, r) => Math.max(m, r.n), 0) + 1,
-            began: Date.now(),
+            began: wallMs(),
             lines: [],
             starting: 'baseline',
             kind: what,
@@ -3461,7 +3558,7 @@ export class B3d extends Component {
     _svgCostAt = { t: 0, checks: 0, repaints: 0, ms: 0 };
     _svgCostText = 'svg textures: measuring';
     _svgCostLine() {
-        const now = performance.now();
+        const now = realNow();
         const was = this._svgCostAt;
         const dt = (now - was.t) / 1000;
         if (dt >= 1) {
@@ -3779,7 +3876,7 @@ export class B3d extends Component {
         }
         if (blob == null)
             return null;
-        const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const stamp = wallDate().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         const base = String(this.panelTitle || 'scene')
             .trim()
             .replace(/[^\w-]+/g, '-') || 'scene';
@@ -4070,6 +4167,23 @@ export class B3d extends Component {
                 this._repaintPanels();
             },
         });
+        /*
+        SLOW MOTION, beside Pause: world time at a quarter speed and back. Input,
+        the UI and the camera stay in real time; everything stepping by
+        `sceneDelta` slows (physics, bipeds, vehicles, the sky).
+        */
+        const scale = Number(this.timeScale ?? 1);
+        out.push({
+            id: '__slow',
+            name: scale < 1 ? 'Normal speed' : 'Slow motion',
+            icon: 'clock',
+            active: scale < 1,
+            handleClick: () => {
+                ;
+                this.timeScale = scale < 1 ? 1 : 0.25;
+                this._repaintPanels();
+            },
+        });
         const pad = this.querySelector('tosi-b3d-gamepad');
         if (pad?.setFade != null) {
             const forced = String(pad.fade) === 'off';
@@ -4245,7 +4359,7 @@ export class B3d extends Component {
             minute or two with Perf Stats open ran indefinitely with it closed
             (#3135). The cause inside that path is not known; this only does it less.
             */
-            const now = performance.now();
+            const now = realNow();
             if (this.xrActive && now - last < 2000)
                 return;
             last = now;
@@ -4564,7 +4678,7 @@ export class B3d extends Component {
                 return;
             const due = queue;
             queue = [];
-            const now = performance.now();
+            const now = realNow();
             for (const { cb } of due) {
                 try {
                     cb(now);
@@ -4823,7 +4937,9 @@ export class B3d extends Component {
                     return;
                 revealed = true;
                 cnv.classList.add('ready');
-                spinner.classList.add('hidden');
+                // Not a spinner a page is holding up for its own loading.
+                if (!this._loadingHeld)
+                    spinner.classList.add('hidden');
                 // Enable the toolbar only now the scene is up — the gear + Enter VR
                 // shouldn't be clickable while the scene is still loading.
                 const gearBtn = this.parts.scenePanelGear;
@@ -5297,7 +5413,7 @@ export class B3d extends Component {
         // XR controllers drive THAT (via XrGamepadSource → its mapping) and the rig
         // chase-follows it instead of free walk/fly. Looked up once; .focused is live.
         const focusEl = this.querySelector('tosi-b3d-input-focus');
-        let last = Date.now();
+        let last = realNow();
         // Reused scratch vectors — never allocate inside the per-frame loop (in XR
         // that runs at 72-120fps, and the garbage was driving the perf creep).
         const fwd = new BABYLON.Vector3();
@@ -5510,7 +5626,7 @@ export class B3d extends Component {
         const ZOOM_RATE = 0.8;
         const MAX_PEEK = 0.8; // radians of temporary look (right stick X), ~46°
         const frame = base.sessionManager.onXRFrameObservable.add(() => {
-            const now = Date.now();
+            const now = realNow();
             // Re-seat confirmation: capture the yaw from where you are looking WHEN
             // YOU PULL, not from where you had to look to press the button. Either
             // hand. Edge-triggered, and `triggerWasDown` starts true so a trigger
@@ -5582,6 +5698,7 @@ export class B3d extends Component {
                 if (isCockpit) {
                     if (rig.parent !== piloted) {
                         rig.parent = piloted;
+                        refuseOwnAncestors(rig);
                         yawCaptureNeeded = true;
                     }
                     // Capture the head's entry yaw so we can recenter the CAMERA to look out the
@@ -5647,7 +5764,10 @@ export class B3d extends Component {
                 const targetX = headPos ? headPos.x : piloted.position.x - fwd.x * back;
                 const targetY = headPos ? headPos.y : piloted.position.y + up;
                 const targetZ = headPos ? headPos.z : piloted.position.z - fwd.z * back;
-                if (chaseFirstFrame || lastPiloted !== piloted) {
+                // Only from a real head pose, as the cockpit and free captures wait:
+                // a session's first frames can carry a stale rotation, which left the
+                // bar and panels off to one side until a re-seat.
+                if ((chaseFirstFrame || lastPiloted !== piloted) && hasViewerPose()) {
                     // Align to where the headset is currently looking so it doesn't snap.
                     chaseFirstFrame = false;
                     lastPiloted = piloted;
@@ -5692,6 +5812,7 @@ export class B3d extends Component {
                 if (chaseAnchor != null) {
                     if (rig.parent !== chaseAnchor) {
                         rig.parent = chaseAnchor;
+                        refuseOwnAncestors(rig);
                         rig.scaling.set(1, 1, 1);
                     }
                     BABYLON.Quaternion.RotationYawPitchRollToRef(peekYaw - chaseYawOffset, 0, 0, yawQuat);
@@ -6209,10 +6330,12 @@ export class B3d extends Component {
                 this._closeScenePanel();
             });
         }
-        // Reveal the gear when the panel has any widgets — the scenePanel hook's, or
-        // the opted-in perf-stats section. (Enter VR is a SEPARATE button grouped next
-        // to the gear — see the toolbar — so XR availability no longer gates the gear.)
-        if (this._panelWidgets().length > 0) {
+        // Reveal the gear when the panel has anything in it: the scenePanel hook's
+        // rows, or its icon bar (Pause is always there). Rows alone hid the owl on a
+        // page with no settings of its own, which the headset still showed.
+        // (Enter VR is a SEPARATE button grouped next to the gear — see the toolbar —
+        // so XR availability no longer gates the gear.)
+        if (this._panelWidgets().length > 0 || this._barItems().length > 0) {
             gear.hidden = false;
             if (this.scenePanelOpen)
                 this._openScenePanel();
@@ -6515,7 +6638,10 @@ export class B3d extends Component {
     _xrToolbar(scene, cam, frames, act) {
         const mk = (icon, title, click) => {
             const b = button({ type: 'button', title }, icon);
-            b.addEventListener('click', click);
+            b.addEventListener('click', () => {
+                sendDebug('xr-bar', { click: title });
+                click();
+            });
             return b;
         };
         // The owl, as on the flat bar: the gear button's own icon.
@@ -6544,6 +6670,18 @@ export class B3d extends Component {
         ];
         const bar = systemBar(buttons);
         this._xrBarSvg = bar.svg;
+        /*
+        WHAT A PRESS ON THE BAR DID, to the debug sink: in the aircraft a headset
+        lit a button and the press never landed, while the emulated headset's
+        presses clicked. Presses and releases are rare, so this is cheap.
+        */
+        const barSvg = bar.svg;
+        const handle = barSvg.handlePointer;
+        barSvg.handlePointer = (k, x, y) => {
+            if (k === 'down' || k === 'up')
+                sendDebug('xr-bar', { kind: k, x: Math.round(x), y: Math.round(y) });
+            handle(k, x, y);
+        };
         const vb = bar.svg.viewBox.baseVal;
         const width = 0.0022 * (vb.width || 100);
         const panel = attachFramePanel(scene, cam, frames.eye, {

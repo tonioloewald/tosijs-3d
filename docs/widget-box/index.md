@@ -15,10 +15,6 @@ slider.
 
 ## Demo
 
-widgets3d controls living inside a `surface` panel — **drag the title bar** to move it,
-× to close. The slider drags properly because `BoxChild.handlePointer` captures: the
-gesture survives the pointer leaving the track.
-
 ```js
 import {
   b3d,
@@ -94,6 +90,10 @@ preview.append(
 ```css
 .preview { height: 100%; }
 ```
+
+widgets3d controls living inside a `surface` panel — **drag the title bar** to move it,
+× to close. The slider drags properly because `BoxChild.handlePointer` captures: the
+gesture survives the pointer leaving the track.
 
 > Drag the sliders in either pane — same panel, same drags. A drag that leaves
 > the track keeps working, which is the whole reason `BoxChild.handlePointer`

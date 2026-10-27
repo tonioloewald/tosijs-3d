@@ -1,3 +1,4 @@
+import { wallMs } from './clock.js';
 /*#
 # debug-sink
 
@@ -34,7 +35,7 @@ export function sendDebug(tag, event) {
     try {
         navigator.sendBeacon(debugSink.url, 
         // `page`: three sweeps in a row say nothing about which scene each was.
-        JSON.stringify({ t: Date.now(), page: location.pathname, tag, ...event }));
+        JSON.stringify({ t: wallMs(), page: location.pathname, tag, ...event }));
     }
     catch {
         /* a diagnostic must never be what breaks the page */

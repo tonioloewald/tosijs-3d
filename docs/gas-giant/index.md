@@ -7,12 +7,6 @@ moon's sky ([`<tosi-b3d-moon gas="jupiter">`](/b3d-moon/)) and one you orbit.
 
 ## Demo
 
-A giant as a body you can fly round:
-[`<tosi-b3d-planet gas="saturn">`](/b3d-planet/). Drag to orbit it. The sun
-is where the scene's sun is, so swing round to the night side. The bands'
-three colours and the ring are yours to set: pick another planet and note how
-thin and faint every ring but Saturn's is.
-
 ```js
 import { b3d, b3dPlanet, spaceBackdrop, GAS_GIANTS, select3d, slider3d, label3d, colorPicker3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
@@ -89,6 +83,12 @@ rebuild()
 ```css
 .preview { height: 100%; }
 ```
+
+A giant as a body you can fly round:
+[`<tosi-b3d-planet gas="saturn">`](/b3d-planet/). Drag to orbit it. The sun
+is where the scene's sun is, so swing round to the night side. The bands'
+three colours and the ring are yours to set: pick another planet and note how
+thin and faint every ring but Saturn's is.
 
 ## In a moon's sky
 

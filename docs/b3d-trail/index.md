@@ -9,9 +9,6 @@ hidden when slow, and tinted differently under water.
 
 ## Demo
 
-A drone circles with two engine trails, dipping under the water and back.
-The trails change tint as they cross the surface.
-
 ```js
 import { b3d, b3dBox, b3dTrail, b3dWater, b3dLight, b3dSkybox, b3dGround, sceneDelta } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -48,6 +45,9 @@ preview.append(
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+A drone circles with two engine trails, dipping under the water and back.
+The trails change tint as they cross the surface.
 
 ## Attributes
 

@@ -257,7 +257,10 @@ const WAIST_PINCH = 0.14
 // Which vertices the pinch moves and how much (0..1), from the BASE mesh,
 // where the arms are far from the waist; once per pack.
 const pinchMasks = new WeakMap<object, Float32Array>()
-function waistMask(base: ArrayLike<number>, triangles: ArrayLike<number>): Float32Array {
+function waistMask(
+  base: ArrayLike<number>,
+  triangles: ArrayLike<number>
+): Float32Array {
   let mask = pinchMasks.get(base as object)
   if (mask != null) return mask
   const n = base.length / 3

@@ -216,12 +216,17 @@ describe.skipIf(!existsSync(PACK))('hm08 trousers', () => {
         [-0.3, 0.3],
       ],
     ] as [number, number][][]
-    const cut = cutGarment(lower, pack.triangles, { front, fitOn: plain, hem: false })
+    const cut = cutGarment(lower, pack.triangles, {
+      front,
+      fitOn: plain,
+      hem: false,
+    })
     const own = cutGarment(lower, pack.triangles, { front, hem: false })
     const a = fitProxy(cut, plain)
     const b = fitProxy(own, lower)
     let worst = 0
-    for (let i = 0; i < a.length; i++) worst = Math.max(worst, Math.abs(a[i] - b[i]))
+    for (let i = 0; i < a.length; i++)
+      worst = Math.max(worst, Math.abs(a[i] - b[i]))
     expect(worst).toBeLessThan(1e-5)
   })
 
@@ -252,8 +257,12 @@ describe.skipIf(!existsSync(PACK))('hm08 trousers', () => {
     const knee = Array.from({ length: g.rows }, (_, r) => r).filter(
       (r) => Math.abs(f[r * 3 + 1] + 0.3) < 0.011
     )
-    expect(knee.some((r) => Math.abs(f[r * 3]) < 0.02 && f[r * 3 + 2] > 0.05)).toBe(true)
-    expect(knee.some((r) => Math.abs(f[r * 3]) < 0.02 && f[r * 3 + 2] < -0.02)).toBe(true)
+    expect(
+      knee.some((r) => Math.abs(f[r * 3]) < 0.02 && f[r * 3 + 2] > 0.05)
+    ).toBe(true)
+    expect(
+      knee.some((r) => Math.abs(f[r * 3]) < 0.02 && f[r * 3 + 2] < -0.02)
+    ).toBe(true)
     // Open: two hems, the waist and the bottom.
     expect(g.hems.length).toBe(2)
   })
@@ -275,7 +284,8 @@ describe.skipIf(!existsSync(PACK))('hm08 trousers', () => {
       for (const h of g.hems)
         for (const r of h) {
           let py = 0
-          for (let c = 0; c < 3; c++) py += P[g.ref[r * 3 + c] * 3 + 1] * g.weight[r * 3 + c]
+          for (let c = 0; c < 3; c++)
+            py += P[g.ref[r * 3 + c] * 3 + 1] * g.weight[r * 3 + c]
           if (py < 0) expect(Math.abs(py - y)).toBeLessThan(0.002)
         }
     }
@@ -312,4 +322,3 @@ describe.skipIf(!existsSync(PACK))('hm08 trousers', () => {
     expect(back - front).toBeGreaterThan(0.01)
   })
 })
-

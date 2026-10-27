@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=7917dccc76d6" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=c3f9a510fbae" data-tosi-doc-system />
   <title>b3d — tosijs-3d</title>
   <meta name="description" content="The root 3D scene container. All other components (b3dSun, b3dSkybox, b3dLoader, etc.) must be children of a b3d element." />
   <link rel="canonical" href="https://3d.tosijs.net/tosi-b3d/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=10b0e7b75506" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=d4cb551793b9" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="tosi-b3d.ts">
 <h1 id="b3d">b3d</h1>
 <p>The root 3D scene container. All other components (<code>b3dSun</code>, <code>b3dSkybox</code>, <code>b3dLoader</code>, etc.)
@@ -127,14 +127,9 @@ setInterval(() =&gt; {
   if (skybox) demo.time.value = skybox.timeOfDay
 }, 1000)
 </code></pre>
-<pre><code class="language-css">tosi-b3d {
-  width: 100%;
-  height: 100%;
-}
+<pre><code class="language-css">.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 .debug-panel {
-  position: absolute;
-  top: 10px;
-  right: 10px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -143,7 +138,6 @@ setInterval(() =&gt; {
   color: #fff;
   border-radius: 6px;
   font-size: 14px;
-  z-index: 10;
 }
 .debug-panel label {
   display: flex;
@@ -155,20 +149,6 @@ setInterval(() =&gt; {
 }
 </code></pre>
 <h2 id="demo--pause-start-screens-and-the-vr-entry-gesture">Demo — pause, start screens, and the VR entry gesture</h2>
-<blockquote>
-<p><strong>⚠️ EXPERIMENTAL.</strong> The flat behaviour below is verified; the VR half — the
-Continue tap carrying a user gesture into <code>enterXRAsync</code>, and taking the
-headset off pausing — has not been through a headset yet. That&#39;s the half the
-feature is <em>for</em>, so treat these attributes as unsettled until it has.</p>
-</blockquote>
-<p>A second, deliberately small scene. It starts paused with its own panel, so the
-first thing you see is a Start screen; backgrounding the tab pauses it again.</p>
-<p>The reason this shape matters is not tidiness. <strong><code>enterXRAsync</code> requires a user
-gesture</strong> — a scene cannot enter VR on load, the browser refuses. So &quot;come up
-paused, put the headset on, press Continue&quot; is the only arrangement that
-reliably enters VR. <code>enterXrOnResume</code> closes the loop: set it on the scene below
-and the button changes to &quot;Continue in VR&quot; on a device that has it. Leaving VR
-pauses every scene: entering unpauses, so leaving is its inverse.</p>
 <pre><code class="language-js">import { b3d, b3dBox, b3dSphere, label3d, button3d, select3d, sceneDelta } from &#39;tosijs-3d&#39;
 import { demoStage } from &#39;tosijs-3d/demo-utils&#39;
 import { tosi } from &#39;tosijs&#39;
@@ -268,6 +248,20 @@ for (const [label, fn] of [
 
 preview.append(scene, readout, bar)
 </code></pre>
+<blockquote>
+<p><strong>⚠️ EXPERIMENTAL.</strong> The flat behaviour above is verified; the VR half — the
+Continue tap carrying a user gesture into <code>enterXRAsync</code>, and taking the
+headset off pausing — has not been through a headset yet. That&#39;s the half the
+feature is <em>for</em>, so treat these attributes as unsettled until it has.</p>
+</blockquote>
+<p>A second, deliberately small scene. It starts paused with its own panel, so the
+first thing you see is a Start screen; backgrounding the tab pauses it again.</p>
+<p>The reason this shape matters is not tidiness. <strong><code>enterXRAsync</code> requires a user
+gesture</strong> — a scene cannot enter VR on load, the browser refuses. So &quot;come up
+paused, put the headset on, press Continue&quot; is the only arrangement that
+reliably enters VR. <code>enterXrOnResume</code> closes the loop: set it on the scene above
+and the button changes to &quot;Continue in VR&quot; on a device that has it. Leaving VR
+pauses every scene: entering unpauses, so leaving is its inverse.</p>
 <h2 id="usage">Usage</h2>
 <pre><code class="language-javascript" data-highlighted><span class="token keyword">import</span> <span class="token punctuation">{</span> b3d<span class="token punctuation">,</span> b3dSun<span class="token punctuation">,</span> b3dSkybox<span class="token punctuation">,</span> b3dLoader<span class="token punctuation">,</span> b3dWater <span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'tosijs-3d'</span>
 
@@ -308,7 +302,7 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
 <tr>
 <td><code>timeScale</code></td>
 <td><code>1</code></td>
-<td>How fast simulation time runs against wall time: <code>1</code> is real time, <code>0.25</code> slow motion, <code>0</code> stops the simulation while the scene keeps rendering. Everything integrating with <code>sceneDelta</code> scales; anything that must not slow (UI animation, a countdown in wall seconds) reads <code>realDt</code> from the frame package</td>
+<td>How fast simulation time runs against wall time: <code>1</code> is real time, <code>0.25</code> slow motion, <code>0</code> stops the simulation while the scene keeps rendering. Everything integrating with <code>sceneDelta</code> scales, and so do Babylon&#39;s animation groups and particles (times any <code>animationTimeScale</code> or <code>updateSpeed</code> the app set); anything that must not slow (UI animation, a countdown in wall seconds) reads <code>realDt</code> from the frame package</td>
 </tr>
 <tr>
 <td><code>quality</code></td>
@@ -428,7 +422,7 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
 <tr>
 <td><code>panelSections</code></td>
 <td><code>&#39;fold&#39;</code></td>
-<td>How collapsible sections in the settings panel present: <code>&#39;fold&#39;</code> (headers you open and close) or <code>&#39;tabs&#39;</code> (file tabs, one section at a time)</td>
+<td>How collapsible sections in the settings panel present: <code>&#39;fold&#39;</code> (headers you open and close, one open at a time: opening one closes the others), <code>&#39;folds&#39;</code> (several may be open) or <code>&#39;tabs&#39;</code> (file tabs, one section at a time)</td>
 </tr>
 <tr>
 <td><code>stats</code></td>
@@ -491,6 +485,13 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
 <td>replaces the built-in WebXR setup and Enter-VR button with your own</td>
 </tr>
 </tbody></table>
+<h2 id="loading">Loading</h2>
+<p>The spinner shows until the scene first renders. A page that loads its own
+content after that (models, a body, a terrain) holds it up with
+<code>el.setLoading(&#39;loading the body…&#39;)</code>, which shows the spinner with the
+message below it; <code>setLoading(true)</code> is the spinner alone, <code>setLoading(false)</code>
+lets it go, and <code>{ spin: false }</code> shows a message without the spinner (a load
+that failed).</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -552,6 +553,7 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="../environment/">environment</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
     </ul>
     </details></li>
@@ -642,9 +644,36 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
           <li><a class="doc-link" href="../human-morph/">human-morph</a></li>
           <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
           <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
+          <li><a class="doc-link" href="../skin-shading/">skin-shading</a></li>
           <li><a class="doc-link" href="../human-face/">human-face</a></li>
-          <li><a class="doc-link" href="../human-hair/">human-hair</a></li>
-          <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          <li><a class="doc-link" href="../human-expression/">human-expression</a></li>
+          <li><details><summary><a class="doc-link" href="../human-hair/">human-hair</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../hair-shading/">hair-shading</a></li>
+            <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          </ul>
+          </details></li>
+          <li><details><summary><a class="doc-link" href="../human-proxy/">human-proxy</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../proxy-fit/">proxy-fit</a></li>
+            <li><a class="doc-link" href="../cloth-shading/">cloth-shading</a></li>
+            <li><details><summary><a class="doc-link" href="../garment-cut/">garment-cut</a></summary>
+            <ul>
+              <li><a class="doc-link" href="../outline-field/">outline field</a></li>
+            </ul>
+            </details></li>
+            <li><details><summary><a class="doc-link" href="../garment-bind/">garment-bind</a></summary>
+            <ul>
+              <li><details><summary><a class="doc-link" href="../garment-file/">garment-file</a></summary>
+              <ul>
+                <li><a class="doc-link" href="../uv-unwrap/">uv-unwrap</a></li>
+              </ul>
+              </details></li>
+              <li><a class="doc-link" href="../proxy-rigid/">proxy-rigid</a></li>
+            </ul>
+            </details></li>
+          </ul>
+          </details></li>
         </ul>
         </details></li>
       </ul>
@@ -859,11 +888,17 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
       <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
     </ul>
     </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../clock/">clock</a></li>
+    </ul>
+    </details></li>
     <li><details><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
     <ul>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.11.5/">0.11.5</a></li>
         <li><a class="doc-link" href="../v0.11.4/">0.11.4</a></li>
         <li><a class="doc-link" href="../v0.11.3/">0.11.3</a></li>
         <li><a class="doc-link" href="../v0.11.2/">0.11.2</a></li>
@@ -943,6 +978,6 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-0nmn3nad.js"></script>
+  <script type="module" src="../hydrate-fymfsbgh.js"></script>
 </body>
 </html>

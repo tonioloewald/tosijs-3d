@@ -5,10 +5,6 @@ dust or drifting seeds when you're not.**
 
 ## Demo — dive under
 
-**Fly down into the sea** (W/S pitch, R/Q throttle). The fog closes in, the light dims, and
-the water fills with **rising bubbles and drifting motes** — and it all fades back out as you
-break the surface.
-
 ```js
 import { b3d, b3dAircraft, b3dAmbient, b3dWater, b3dFog, b3dLibrary, b3dLight, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
 import { demoSun } from 'tosijs-3d/demo-utils'
@@ -53,6 +49,10 @@ preview.append(scene)
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+**Fly down into the sea** (W/S pitch, R/Q throttle). The fog closes in, the light dims, and
+the water fills with **rising bubbles and drifting motes** — and it all fades back out as you
+break the surface.
 
 ## How it works
 

@@ -120,9 +120,9 @@ export declare class B3d extends Component {
         xrReticle: "on" | "off";
         scenePanelOpen: boolean;
         panelTitle: string;
-        /** How collapsible sections present: 'fold' (headers you open and close)
-         * or 'tabs' (file tabs, one section at a time). */
-        panelSections: "fold" | "tabs";
+        /** How collapsible sections present: 'fold' (headers you open and close,
+         * one open at a time), 'folds' (several open) or 'tabs' (file tabs). */
+        panelSections: "fold" | "folds" | "tabs";
         gamepadScale: number;
         /** `'off'` stops the glass gamepad fading when a mouse/keyboard/pad is
          * used (see b3d-gamepad's `fade`). */
@@ -220,10 +220,28 @@ export declare class B3d extends Component {
             borderRadius: string;
             animation: string;
             transition: string;
+            zIndex: string;
+            pointerEvents: string;
         };
         ':host .spinner.hidden': {
             opacity: string;
             pointerEvents: string;
+        };
+        ':host .loading-caption': {
+            position: string;
+            top: string;
+            left: string;
+            right: string;
+            textAlign: string;
+            color: string;
+            font: string;
+            textShadow: string;
+            zIndex: string;
+            pointerEvents: string;
+            transition: string;
+        };
+        ':host .loading-caption.hidden': {
+            opacity: string;
         };
         '@keyframes tosi-spin': {
             to: {
@@ -403,6 +421,18 @@ export declare class B3d extends Component {
     xrActive: boolean;
     /** True from ENTERING_XR to the end of EXITING_XR: wider than `xrActive`. */
     private _xrPresenting;
+    /** Whether a page is holding the spinner up (`setLoading`). */
+    private _loadingHeld;
+    /**
+     * The loading spinner, for a page that loads its own content after the
+     * scene is up: `true` shows it, a string shows it with that message below,
+     * `false` hides it. Until it is called the spinner is the scene's own and
+     * goes when the scene first renders; once a page holds it, that page lets
+     * it go. `{ spin: false }` shows the message alone (a load that failed).
+     */
+    setLoading(message: string | boolean, options?: {
+        spin?: boolean;
+    }): void;
     private static _active;
     /** True when this scene should consume shared keyboard/gamepad input — it's the
      * active (last hovered/clicked) scene, or none has been touched yet. Controllables
@@ -446,7 +476,7 @@ export declare class B3d extends Component {
     xrReticle: 'on' | 'off';
     scenePanelOpen: boolean;
     panelTitle: string;
-    panelSections: 'fold' | 'tabs';
+    panelSections: 'fold' | 'folds' | 'tabs';
     /**
      * The on-screen "glass" gamepad. Absent/`false` = none; `true` or an empty
      * string = the full default layout; any other string selects and positions
@@ -539,6 +569,19 @@ export declare class B3d extends Component {
     private _animationsWere;
     private _physicsWere;
     private _stopEngineTime;
+    /**
+     * SLOW MOTION REACHES BABYLON'S CLOCKS TOO: animation groups
+     * (`scene.animationTimeScale`) and particle ageing (each system's
+     * `updateSpeed`). Physics already steps on `sceneDelta`.
+     *
+     * Each is the app's own value TIMES `timeScale`. What was written last is
+     * remembered with the value it came from, so a value that differs from it
+     * is the app's new choice, and becomes the base: an app's own speed-up
+     * still works, and resuming hands back what it set.
+     */
+    private _animationScale;
+    private _particleScale;
+    private _scaleEngineTime;
     pause(reason?: 'user' | 'hidden' | 'xr' | 'start' | string): void;
     /** Let time run again, and (if `enterXrOnResume`) take the user into VR —
      * this call is expected to be inside a user gesture, which is what makes

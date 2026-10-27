@@ -29,4 +29,11 @@ export declare const IRIS_TONES: readonly string[];
 export declare function irisColor(t: number): Rgb;
 /** A hair colour: `light` 0 (black) to 1 (platinum), `red` 0 to 1 (copper). Linear. */
 export declare function hairColor(light: number, red?: number): Rgb;
+/**
+ * Dye over a natural hair colour (linear): `hue` 0 to 1 round the colour
+ * wheel, `saturation` 0 (no dye, the natural colour) to 1 (the hue at full
+ * strength). The dye keeps the hair's lightness, as dye over hair does: over
+ * dark hair blue is blue-black, over bleached hair a little pink is pastel.
+ */
+export declare function hairDye(natural: Rgb, hue: number, saturation: number): Rgb;
 //# sourceMappingURL=skin-tone.d.ts.map

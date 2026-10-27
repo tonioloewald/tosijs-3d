@@ -18,10 +18,6 @@ is the live object: never write to it, and never hand it to a driver.
 
 ## Demo
 
-The store holds state; a [world-view](/world-view/) reconciles one mesh per entity from it every
-frame — **data flows one way, `store → meshes`**. Here we spawn a few entities and move one in the
-STORE; its cube follows. The render layer can never desync the sim.
-
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dGround, WorldStore, WorldView, sceneDelta } from 'tosijs-3d'
 
@@ -53,6 +49,10 @@ preview.append(scene)
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+The store holds state; a [world-view](/world-view/) reconciles one mesh per entity from it every
+frame — **data flows one way, `store → meshes`**. Here we spawn a few entities and move one in the
+STORE; its cube follows. The render layer can never desync the sim.
 
 Two method groups make the boundary legible in code:
 

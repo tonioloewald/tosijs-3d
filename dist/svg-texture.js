@@ -84,6 +84,7 @@ double emboldening. `unregisterSvgFont(family)` forgets one.
 /*{ "parent": "ui-in-scene", "order": 30 }*/
 import * as BABYLON from '@babylonjs/core';
 import { svgFontStyle } from './embed-font.js';
+import { realNow } from './clock.js';
 /**
  * Rasterize an SVG element onto a canvas context via Blob URL.
  * Reuses the provided Image instance to avoid per-frame allocation.
@@ -92,14 +93,14 @@ function rasterizeSvg(xml, ctx, w, h, img, callback) {
     const blob = new Blob([xml], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
     img.onload = () => {
-        const began = performance.now();
+        const began = realNow();
         ctx.save();
         ctx.clearRect(0, 0, w, h);
         ctx.translate(0, h);
         ctx.scale(1, -1);
         ctx.drawImage(img, 0, 0, w, h);
         ctx.restore();
-        svgTextureCost.ms += performance.now() - began;
+        svgTextureCost.ms += realNow() - began;
         URL.revokeObjectURL(url);
         callback(true);
     };
@@ -184,7 +185,7 @@ export class SvgTexture {
         const dt = this.texture;
         if (!dt?.getContext)
             return;
-        const began = performance.now();
+        const began = realNow();
         svgTextureCost.checks++;
         const el = this._element.cloneNode(true);
         el.removeAttribute('style');
@@ -233,7 +234,7 @@ export class SvgTexture {
         // the main fix for the in-XR perf creep, where a static panel was paying
         // for a full re-rasterize + texImage2D upload on every interval.
         if (xml === this._lastXml) {
-            svgTextureCost.ms += performance.now() - began;
+            svgTextureCost.ms += realNow() - began;
             return;
         }
         this._rendering = true;
@@ -253,10 +254,10 @@ export class SvgTexture {
             }
             if (ok) {
                 this._lastXml = xml;
-                const upload = performance.now();
+                const upload = realNow();
                 dt.update(false, this._premul);
                 svgTextureCost.repaints++;
-                svgTextureCost.ms += performance.now() - upload;
+                svgTextureCost.ms += realNow() - upload;
             }
             else if (!this._warnedFailure) {
                 // Once per instance: self-healing made failure SILENT, and a
@@ -267,7 +268,7 @@ export class SvgTexture {
                     'The SVG may be malformed or blob: URLs blocked by CSP.');
             }
         });
-        svgTextureCost.ms += performance.now() - began;
+        svgTextureCost.ms += realNow() - began;
     }
     /** Render an arbitrary SVG string to the texture. */
     renderString(svgString) {

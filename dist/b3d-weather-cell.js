@@ -14,12 +14,6 @@ and with a `lifetime` it grows, holds and dies rather than popping. See
 
 ## Demo
 
-The camera flies along a row of flagpoles and straight through a LEE: a cell
-(the ring on the water) whose wind cancels the scene's. Each flag shows the
-wind WHERE IT STANDS, streaming downwind in the open and hanging limp inside
-the ring; the leaves and waves around you go calm there too. The readout is
-the weather where the camera is.
-
 ```js
 import { b3d, b3dWeatherCell, b3dAmbient, b3dWater, b3dLight, b3dSkybox, sceneDelta } from 'tosijs-3d'
 import { elements } from 'tosijs'
@@ -100,6 +94,12 @@ preview.append(scene, readout)
 .preview { position: relative; }
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+The camera flies along a row of flagpoles and straight through a LEE: a cell
+(the ring on the water) whose wind cancels the scene's. Each flag shows the
+wind WHERE IT STANDS, streaming downwind in the open and hanging limp inside
+the ring; the leaves and waves around you go calm there too. The readout is
+the weather where the camera is.
 
 ## Attributes
 

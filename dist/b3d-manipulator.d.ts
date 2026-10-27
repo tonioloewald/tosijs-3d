@@ -81,6 +81,8 @@ export declare class B3dManipulator extends B3dChild {
     release(): boolean;
     /** Where the handles were when the grab started — see `_track`. */
     private _anchor;
+    /** The target's local position when the current drag began. */
+    private _dragFrom;
     /** Is a drag in progress? */
     get dragging(): boolean;
     /**

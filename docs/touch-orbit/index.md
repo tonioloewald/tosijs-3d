@@ -25,6 +25,16 @@ expect from a 3D viewer, on every device. `<tosi-b3d>`'s default camera and
 - **A wheel over a panel is the panel's**: panels take it before the canvas
   sees it, so a list scrolls and the scene stays put.
 
+- **Zoom is proportional**: a wheel step or pinch moves the camera by a share
+  of its distance (`WHEEL_SHARE`, as Babylon's `wheelDeltaPercentage`), so it
+  is as gentle at arm's length as across a field. A page that set
+  `wheelPrecision` or `wheelDeltaPercentage` itself keeps its own. A
+  trackpad pinch scales the distance by the pinch (`PINCH_SHARE`): it sends
+  many small steps, which the wheel's share per notch barely moved.
+- **Zoom stops short of the target**: with no `lowerRadiusLimit` of your own,
+  it is set to twice the camera's near plane (at least 1 cm), because Babylon
+  has none and zooming in went through the target and flipped the view.
+
 Returns a function that restores Babylon's handlers.
 
 ## Two fingers: pan OR zoom, decided once

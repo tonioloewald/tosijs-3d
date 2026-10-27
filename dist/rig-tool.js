@@ -30,12 +30,26 @@ up with the flesh, and stands it still; `free` orbits and plays the clip.
 Turn on `animate` (or pick a clip) to see it move. In a headset you are the
 camera, so the view only switches between still and playing.
 
-The panel has four sections.
+The panel has these sections.
 
-- **Model.** A demo character, or `load model file…` for a GLB of your own
-  (a single file: a `.gltf` with separate buffers cannot be opened this
-  way). A model needs a skeleton; one without can be rigged on the
-  [auto-rig](/rig-build/) page first.
+- **Model.** A demo character, or `load model file…` for a GLB or OBJ of
+  your own (a single file: a `.gltf` with separate buffers cannot be opened
+  this way). It should face +Z, standing, arms out or down.
+- **Animations.** `load animations…` adds the clips in a GLB made on
+  another rig to the clip list: Mixamo's, a mocap file's, another library's.
+  Which bone is which is read from the names (UE, Mixamo, Kenney and Blender
+  spellings), so each clip is retargeted onto the character, and onto the
+  mannequin to compare. Mixamo downloads are FBX, which a browser cannot
+  read: import them into Blender and export a GLB (with the skin).
+- **Binding**, for a model with no skeleton (an OBJ, or a GLB without one,
+  like the weasels and the space marine). It is given one: the eight
+  markers on its outline place the joints (chin, groin, wrists, elbows,
+  knees), a skeleton is fitted to them and the mesh is bound to it by bone
+  heat. They start where they are guessed from the outline; drag one onto
+  its joint and the model is fitted and bound again when you let go.
+  `symmetry` moves both sides together, `tail` adds a tail (place its tip in
+  the side view; it is a bone chain, `tail_01` on, for a spring). The
+  markers are saved in the recipe as `binding`.
 - **Roles.** Which bone is the hips, the head, the left forearm, each finger
   joint. They are guessed from the names; fix one by tapping, as above, or
   pick a role and then the bone that plays it, or `(none)` to leave it out. `arm space` turns the arms out
@@ -122,9 +136,10 @@ import { touchOrbit } from './touch-orbit.js';
 import { inspectView, inspectStage, seamOverlay, INSPECT_FACES, } from './inspect-view.js';
 import { viewMenu } from './bar-menu.js';
 import { b3dPanel } from './b3d-panel.js';
-import { readSkeleton, retargetClip } from './retarget-babylon.js';
+import { readSkeleton, retargetClip, } from './retarget-babylon.js';
 import { ROLES } from './retarget.js';
-import { fitSkeleton, meshQuery, objTriangles, skinSegments, } from './rig-fit.js';
+import { fitSkeleton, guessMarkers, meshQuery, objTriangles, rigSilhouette, skinSegments, } from './rig-fit.js';
+import { markerField3d } from './rig-markers.js';
 import { boneHeat } from './bone-heat.js';
 import { buildRig } from './rig-build.js';
 import { applyRigRecipe } from './rig-recipe-babylon.js';
@@ -156,7 +171,7 @@ const TAIL = {
     colliders: 'none',
 };
 export function rigToolModels() {
-    // Tonio's meshes (CC BY 4.0) with the auto-rig page's markers.
+    // Tonio's meshes (CC BY 4.0), bound from their markers.
     const tonio = (f) => assetUrl('tonio/rigging/' + f);
     return [
         {
@@ -268,7 +283,49 @@ function download(name, text) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 /** A GLB with a skeleton: the character in it (`pick`), and its biggest skin. */
-async function openGlb(scene, m) {
+/**
+ * Meshes' triangles in the frame of the file's root (a glTF's `__root__`
+ * carries the handedness mirror, which the binding must not see).
+ */
+function gather(root, meshes) {
+    root.computeWorldMatrix(true);
+    const toRoot = root.getWorldMatrix().clone().invert();
+    const positions = [];
+    const indices = [];
+    const v = new BABYLON.Vector3();
+    for (const mesh of meshes) {
+        /*
+        A SKINNED MESH IS WHERE ITS SKELETON PUTS IT: its own vertices can be in
+        other units (omnidude's are centimetres, sized by the armature), so take
+        them skinned, at rest.
+        */
+        const skin = mesh.skeleton;
+        if (skin != null) {
+            skin.returnToRest();
+            for (const b of skin.bones)
+                b.getTransformNode()?.computeWorldMatrix(true);
+            skin.prepare(true);
+        }
+        const p = skin != null
+            ? mesh.getPositionData(true, true)
+            : mesh.getVerticesData('position');
+        const ix = mesh.getIndices();
+        if (p == null || ix == null)
+            continue;
+        const m = mesh.computeWorldMatrix(true).multiply(toRoot);
+        const base = positions.length / 3;
+        for (let i = 0; i < p.length; i += 3) {
+            BABYLON.Vector3.TransformCoordinatesFromFloatsToRef(p[i], p[i + 1], p[i + 2], m, v);
+            positions.push(v.x, v.y, v.z);
+        }
+        for (const i of ix)
+            indices.push(base + i);
+    }
+    return { positions, indices };
+}
+async function openGlb(scene, m, 
+/** Its triangles even if it has a skeleton: it is to be bound here. */
+bindOwn = false) {
     const container = await BABYLON.LoadAssetContainerAsync(m instanceof File ? m : m.url, scene, m instanceof File
         ? {
             pluginExtension: m.name.toLowerCase().endsWith('.gltf')
@@ -297,46 +354,53 @@ async function openGlb(scene, m) {
     const skeleton = [...container.skeletons]
         .filter(under)
         .sort((a, b) => b.bones.length - a.bones.length)[0];
-    if (skeleton == null) {
+    if (skeleton == null || bindOwn) {
+        // No skeleton (or it is ignored): its triangles, to be bound from markers.
+        const shown = container.meshes.filter((n) => n.getTotalVertices() > 0 &&
+            n.isEnabled() &&
+            (top == null || n === top || n.isDescendantOf(top)));
+        const tris = gather(root, shown);
         container.dispose();
-        return 'has no skeleton: give it markers on the auto-rig page first';
+        return tris.indices.length > 0 ? tris : 'has no meshes';
     }
     const mesh = container.meshes.find((n) => n.skeleton === skeleton && n.isEnabled());
     return { root, skeleton, mesh, dispose: () => container.dispose() };
 }
+/** A demo model's mesh with no skeleton, as triangles. */
+async function demoTriangles(scene, url, a) {
+    if (url.toLowerCase().endsWith('.obj'))
+        return objTriangles(await (await fetch(url)).text(), a.objects);
+    const glb = await BABYLON.LoadAssetContainerAsync(url, scene);
+    const m = glb.meshes.find((m) => m.name === a.mesh) ?? glb.meshes[1];
+    const out = {
+        positions: Array.from(m.getVerticesData('position') ?? []),
+        indices: Array.from(m.getIndices() ?? []),
+    };
+    glb.dispose();
+    return out;
+}
 /*
-A MESH WITH NO SKELETON, rigged as the auto-rig page does: its triangles,
-a skeleton fitted from the eight markers (and a tail tip, for a tail), bone
-heat for the weights, and a Babylon skeleton built on it. Its tail, if any,
-is `tail_01` … `tail_leaf`: a bone chain for the springs.
+A MESH WITH NO SKELETON, BOUND FROM ITS MARKERS: a skeleton fitted from the
+eight front-view markers (and a tail tip, for a tail), bone heat for the
+weights, and a Babylon skeleton built on it. Its tail, if any, is `tail_01`
+… `tail_leaf`: a bone chain for the springs.
 */
-async function autoRig(scene, name, url, a) {
-    let positions;
-    let indices;
-    if (url.toLowerCase().endsWith('.obj')) {
-        ;
-        ({ positions, indices } = objTriangles(await (await fetch(url)).text(), a.objects));
-    }
-    else {
-        const glb = await BABYLON.LoadAssetContainerAsync(url, scene);
-        const m = glb.meshes.find((m) => m.name === a.mesh) ?? glb.meshes[1];
-        positions = Array.from(m.getVerticesData('position') ?? []);
-        indices = Array.from(m.getIndices() ?? []);
-        glb.dispose();
-    }
-    const rig = fitSkeleton(a.markers, meshQuery(positions, indices), {
-        tail: a.tail,
-        tailBones: a.tailBones,
+function bindMesh(scene, name, tris, binding, options = {}) {
+    const { positions, indices } = tris;
+    const rig = fitSkeleton(binding.markers, meshQuery(positions, indices), {
+        tail: binding.tail ?? undefined,
+        tailBones: options.tailBones,
     });
     const weights = boneHeat(positions, indices, skinSegments(rig));
     const built = buildRig(scene, name, positions, indices, rig, weights);
     const mat = new BABYLON.StandardMaterial(`${name}-skin`, scene);
-    mat.diffuseColor = BABYLON.Color3.FromHexString(a.color ?? '#8a8f99');
+    mat.diffuseColor = BABYLON.Color3.FromHexString(options.color ?? '#8a8f99');
     built.mesh.material = mat;
     return {
         root: built.root,
         skeleton: built.skeleton,
         mesh: built.mesh,
+        bound: { positions, indices, markers: binding.markers, tail: binding.tail },
         dispose() {
             mat.dispose();
             built.dispose();
@@ -389,6 +453,11 @@ export function mountRigTool(owner, options = {}) {
     let clips = [];
     let boneNames = [];
     let applied = null;
+    /** The model was bound here from markers: its mesh and markers. */
+    let bound = null;
+    let symmetry = true;
+    /** Bind the next model loaded from markers, even if it has a skeleton. */
+    let bindNext = false;
     /*
     THE PANEL. Standalone it is the scene's settings panel (the owl); hosted, a
     system panel of its own, so it stacks with the host's (ensemble #115). A
@@ -525,11 +594,84 @@ export function mountRigTool(owner, options = {}) {
                         void tool?.load(m);
                 },
             }),
+            // A model with a skeleton of its own (or one the user chose to bind
+            // here): a demo mesh bound from its built-in markers has no choice.
+            ...(applied == null || (bound != null && recipe.binding == null)
+                ? []
+                : [
+                    toggle3d({
+                        label: 'bind from markers',
+                        value: recipe.binding != null,
+                        handleChange: (v) => {
+                            /*
+                            IGNORE ITS OWN RIG AND BIND IT HERE. Any mesh can be bound
+                            from markers, so a model whose skeleton is wrong or missing
+                            bones gets one fitted to it. Its roles and chains named the
+                            old skeleton's bones, so they go with it.
+                            */
+                            if (v)
+                                bindNext = true;
+                            else
+                                delete recipe.binding;
+                            recipe.roles = {};
+                            recipe.springs = (recipe.springs ?? []).filter((s) => s.kind === 'strand');
+                            edited();
+                            ui.status = v ? 'binding…' : 'loading its own rig…';
+                            refresh();
+                            void tool?.rebind();
+                        },
+                    }),
+                ]),
             button3d({
                 label: 'load model file…',
-                handleClick: () => void chooseFile('.glb,.gltf').then((f) => f && tool?.load(f)),
+                handleClick: () => void chooseFile('.glb,.gltf,.obj').then((f) => f && tool?.load(f)),
+            }),
+            button3d({
+                label: 'load animations…',
+                handleClick: () => void chooseFile('.glb,.gltf').then((f) => f && tool?.loadClips(f)),
             }),
         ];
+        /*
+        BINDING, for a mesh that came without a skeleton: drag the markers onto
+        its joints (chin, groin, wrists, elbows, knees) and it is fitted and bound
+        again on release. The markers are saved with the recipe.
+        */
+        if (bound != null) {
+            const b = bound;
+            const rebind = (markers, tail) => {
+                recipe.binding = { markers, tail };
+                edited();
+                ui.status = 'binding…';
+                refresh();
+                void tool?.rebind();
+            };
+            const field = markerField3d({
+                positions: b.positions,
+                indices: b.indices,
+                value: b.markers,
+                tail: b.tail,
+                symmetry,
+                handleCommit: rebind,
+            });
+            w.push(label3d({ text: 'Binding', collapsible: true, open: true }), field, toggle3d({
+                label: 'symmetry',
+                value: symmetry,
+                handleChange: (v) => {
+                    field.symmetry = symmetry = v;
+                },
+            }), toggle3d({
+                label: 'tail',
+                value: b.tail != null,
+                handleChange: (v) => {
+                    // A first tip: straight behind the groin, past the body's back.
+                    let back = 0;
+                    for (let i = 2; i < b.positions.length; i += 3)
+                        back = Math.min(back, b.positions[i]);
+                    const g = b.markers.groin;
+                    rebind(b.markers, v ? { x: g.x, y: g.y, z: back * 3 } : null);
+                },
+            }), button3d({ label: 'guess markers', handleClick: () => field.guess() }));
+        }
         // Roles.
         const guessed = applied?.read.roles ?? {};
         const set = recipe.roles?.[ui.role];
@@ -1158,6 +1300,8 @@ export function mountRigTool(owner, options = {}) {
         let viewer = null;
         const made = new Map();
         let playing = [];
+        /** Clips loaded from other rigs: the clip and the skeleton it was made on. */
+        const imported = new Map();
         const stop = () => {
             for (const g of playing)
                 g.stop();
@@ -1178,13 +1322,24 @@ export function mountRigTool(owner, options = {}) {
                 return;
             }
             targets();
-            const clip = ual.animationGroups.find((g) => g.name === ui.clip);
+            // A clip from a file is retargeted onto the mannequin too, so the
+            // comparison still shows how it was meant to look.
+            const ext = imported.get(ui.clip);
+            const clip = ext?.group ?? ual.animationGroups.find((g) => g.name === ui.clip);
             if (clip == null)
                 return;
-            playing.push(clip);
+            const from = ext?.source ?? source;
+            if (ext == null)
+                playing.push(clip);
+            else {
+                const key = `mannequin:${ui.clip}`;
+                if (!made.has(key))
+                    made.set(key, retargetClip(clip, from, source, { scene }));
+                playing.push(made.get(key));
+            }
             if (applied != null) {
                 if (!made.has(ui.clip))
-                    made.set(ui.clip, retargetClip(clip, source, applied.read, {
+                    made.set(ui.clip, retargetClip(clip, from, applied.read, {
                         scene,
                         armSpaceDeg: recipe.armSpaceDeg,
                     }));
@@ -1193,6 +1348,65 @@ export function mountRigTool(owner, options = {}) {
             // Start together, so the two stay in step.
             for (const g of playing)
                 g.start(true);
+        };
+        /*
+        CLIPS FROM ANOTHER RIG (Mixamo, a mocap file, another library): any GLB
+        with a skeleton and animations. Its bones' roles are read from their
+        names (UE, Mixamo, Kenney and Blender spellings), so each clip is
+        retargeted onto the character like UAL's. The file's own character is
+        hidden; it is only the clips' source.
+        */
+        const loadClips = async (f) => {
+            const name = typeof f === 'string' ? f.split('/').pop() ?? f : f.name;
+            ui.status = `loading ${name}…`;
+            refresh();
+            try {
+                const c = await BABYLON.LoadAssetContainerAsync(f, scene, typeof f === 'string'
+                    ? undefined
+                    : {
+                        pluginExtension: f.name.toLowerCase().endsWith('.gltf')
+                            ? '.gltf'
+                            : '.glb',
+                    });
+                if (disposed)
+                    return c.dispose();
+                const skin = [...c.skeletons].sort((a, b) => b.bones.length - a.bones.length)[0];
+                if (skin == null || c.animationGroups.length === 0) {
+                    c.dispose();
+                    ui.status = `${name} has ${skin == null ? 'no skeleton' : 'no animations'} (export it with its skin)`;
+                    refresh();
+                    return;
+                }
+                c.addAllToScene();
+                for (const g of c.animationGroups)
+                    g.stop();
+                const root = (c.meshes.find((n) => n.name === '__root__') ??
+                    c.transformNodes[0]);
+                const read = readSkeleton(skin, root);
+                root.setEnabled(false);
+                cleanups.push(() => c.dispose());
+                const base = name.replace(/\.(glb|gltf)$/i, '');
+                const added = [];
+                for (const g of c.animationGroups) {
+                    // Mixamo names every clip "mixamo.com": the file names it.
+                    let label = c.animationGroups.length === 1 || /^mixamo\.com$/i.test(g.name)
+                        ? base
+                        : `${base}: ${g.name}`;
+                    while (clips.includes(label))
+                        label += ' ′';
+                    imported.set(label, { group: g, source: read });
+                    clips.push(label);
+                    added.push(label);
+                }
+                ui.clip = added[0];
+                ui.pose = 'animate';
+                ui.status = `${added.length} clip${added.length === 1 ? '' : 's'} from ${name}`;
+                play();
+            }
+            catch (e) {
+                ui.status = `could not load ${name}: ${e.message}`;
+            }
+            refresh();
         };
         const forgetClips = () => {
             for (const g of made.values())
@@ -1505,6 +1719,14 @@ export function mountRigTool(owner, options = {}) {
             if (on && model != null)
                 viewer = new BABYLON.SkeletonViewer(model.skeleton, model.mesh, scene, false, 3, { displayMode: 0 });
         };
+        let lastModel = null;
+        /** Bind the same mesh again, keeping the recipe (its markers moved). */
+        const rebind = () => {
+            if (lastModel == null)
+                return Promise.resolve();
+            given = recipe;
+            return load(lastModel);
+        };
         const load = async (m) => {
             const label = m instanceof File ? m.name : m.label;
             ui.status = `loading ${label}…`;
@@ -1520,10 +1742,45 @@ export function mountRigTool(owner, options = {}) {
             seamed = [];
             model?.dispose();
             model = null;
+            bound = null;
             try {
-                const opened = !(m instanceof File) && m.autorig != null
-                    ? await autoRig(scene, m.label, m.url, m.autorig)
-                    : await openGlb(scene, m);
+                // The recipe first: a binding is part of it. The host's recipe if
+                // it handed one over, else the one kept here, else the model's own.
+                const next = (given != null ? fresh(given) : null) ??
+                    (files ? recall(label) : null) ??
+                    fresh(m instanceof File ? {} : m.recipe);
+                given = null;
+                const bindOwn = bindNext || next.binding != null;
+                bindNext = false;
+                const auto = m instanceof File ? undefined : m.autorig;
+                const found = auto != null
+                    ? await demoTriangles(scene, m.url, auto)
+                    : m instanceof File && m.name.toLowerCase().endsWith('.obj')
+                        ? objTriangles(await m.text())
+                        : await openGlb(scene, m, bindOwn);
+                /*
+                NO SKELETON: BIND IT. From the recipe's markers, else the demo
+                model's, else a first guess read off its outline; the Binding
+                section moves them and binds again.
+                */
+                let opened;
+                if (typeof found !== 'string' && !('root' in found)) {
+                    const binding = next.binding ??
+                        (auto != null
+                            ? { markers: auto.markers, tail: auto.tail ?? null }
+                            : {
+                                markers: guessMarkers(rigSilhouette(found.positions, found.indices, 'front')),
+                                tail: null,
+                            });
+                    if (auto == null)
+                        next.binding = binding;
+                    opened = bindMesh(scene, label, found, binding, {
+                        tailBones: auto?.tailBones,
+                        color: auto?.color,
+                    });
+                }
+                else
+                    opened = found;
                 if (disposed) {
                     if (typeof opened !== 'string')
                         opened.dispose();
@@ -1540,16 +1797,12 @@ export function mountRigTool(owner, options = {}) {
                 root.parent = stand;
                 stand.scaling.setAll(m instanceof File ? 1 : m.scale ?? 1);
                 model = opened;
+                bound = opened.bound ?? null;
                 boneNames = skeleton.bones.map((b) => b.getTransformNode()?.name ?? b.name);
                 ui.model = label;
+                lastModel = m;
                 const url = m instanceof File ? undefined : m.url;
-                // The host's recipe if it handed one over, else the one kept
-                // here, else the model's own.
-                recipe =
-                    (given != null ? fresh(given) : null) ??
-                        (files ? recall(label) : null) ??
-                        fresh(m instanceof File ? {} : m.recipe);
-                given = null;
+                recipe = next;
                 recipe.model = { url, name: m instanceof File ? m.name : pick };
                 ui.spring = 0;
                 // Its height, from the meshes shown (a library holds others),
@@ -1576,6 +1829,8 @@ export function mountRigTool(owner, options = {}) {
         tool = {
             rebuild,
             load,
+            rebind,
+            loadClips,
             play,
             compare(on) {
                 ualNode.setEnabled(on);
@@ -1643,6 +1898,7 @@ export function mountRigTool(owner, options = {}) {
             refresh();
         },
         load: (m) => tool?.load(m),
+        loadClips: (f) => tool?.loadClips(f),
     };
     const handle = events;
     handle.api = api;
@@ -1679,6 +1935,8 @@ export function rigTool(options = {}) {
         style: { width: '100%', height: '100%' },
         clearColor: '#2a3340',
         panelTitle: 'Rig',
+        // A workbench: its sections are used side by side, so several stay open.
+        panelSections: 'folds',
         scenePanelOpen: true,
         scenePanel: () => handle?.widgets() ?? [],
         sceneCreated(owner) {

@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=7917dccc76d6" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=c3f9a510fbae" data-tosi-doc-system />
   <title>character builder — tosijs-3d</title>
   <meta name="description" content="Make a person, and watch them walk. The first steps of the character creator (CHARACTER-DESIGN.md): MakeHuman&#39;s CC0 body (human-pack), reshaped by sliders for…" />
   <link rel="canonical" href="https://3d.tosijs.net/character-builder/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=10b0e7b75506" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=d4cb551793b9" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="character-builder.ts">
 <h1 id="character-builder">character builder</h1>
 <p><strong>Make a person, and watch them walk.</strong> The first steps of the character
@@ -40,26 +40,55 @@ weight, height and ancestry (<a href="/human-morph/">human-morph</a>), with UAL&
 skeleton placed from its own joint cubes (<a href="/human-rig/">human-rig</a>) so it
 plays UAL&#39;s clips at any shape.</p>
 <h2 id="demo">Demo</h2>
-<p>Open the settings (the owl): the body sliders reshape it
-while it walks, since every body carries its own joints. The skin weights are
-bone heat&#39;s, worked out from the mesh once when the page loads. The eyes
-(<a href="/human-face/">human-face</a>) follow the camera, and the hair
-(<a href="/human-hair/">human-hair</a>) is Quaternius&#39; CC0 hairstyles, made for another
-head and fitted to this one.</p>
-<pre><code class="language-js">import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip } from &#39;tosijs-3d&#39;
-import { tosi, elements } from &#39;tosijs&#39;
-const { div } = elements
+<pre><code class="language-js">import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, FABRICS, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, unwrapGarment, smoothUnder, skirtGarment } from &#39;tosijs-3d&#39;
+import { tosi } from &#39;tosijs&#39;
 
-const status = div({ class: &#39;status&#39; }, &#39;loading the animations…&#39;)
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: &#39;Walk_Loop&#39;, tone: 0.3, redness: 0.5, iris: 0.2, hair: &#39;Hair_SimpleParted&#39;, beard: &#39;none&#39;, brows: &#39;Eyebrows_Regular&#39;, hairLight: 0.25, hairRed: 0.15, paused: false } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: &#39;Walk_Loop&#39;, tone: 0.3, redness: 0.5, iris: 0.2, irisColour: &#39;#5a3519&#39;, hair: &#39;short02&#39;, beard: &#39;none&#39;, moustache: &#39;none&#39;, brows: &#39;eyebrow001&#39;, hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: &#39;male_casualsuit02&#39;, bodysuit: &#39;none&#39;, armour: &#39;none&#39;, top: &#39;none&#39;, bottom: &#39;none&#39;, shoes: &#39;shoes01&#39;, hat: &#39;none&#39;, glasses: &#39;none&#39;, gloves: &#39;none&#39;, editing: &#39;outfit&#39;, look: &#39;as made&#39;, fabric: &#39;cotton&#39;, colour: &#39;#7a2e2e&#39;, recolour: 0, paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorFabric: &#39;cotton&#39;, tailorColour: &#39;#3b5b8a&#39;, tailorRecolour: 1, tailorAlone: false, tailorName: &#39;&#39;, tailorSlot: &#39;top&#39;, exportBody: true } })
 let mat = null
 let paint = () =&gt; {}
 let eyes = null
 let dress = () =&gt; {}
+// The pack&#39;s proxies, once it has loaded (the panel lists an outfit&#39;s looks).
+let packProxies = {}
+// How far a hat is pushed out from the skull, over the hair (metres).
+const HAT_LIFT = 0.012
 // Filled when the hair library loads.
-const styles = { hair: [&#39;none&#39;], beard: [&#39;none&#39;], brows: [&#39;none&#39;] }
+const styles = { hair: [&#39;none&#39;], beard: [&#39;none&#39;], moustache: [&#39;none&#39;], brows: [&#39;none&#39;] }
+// What can be worn, one of each at a time; the pack says which slot each garment fills.
+// A bodysuit is a base layer and armour goes over anything; an outfit replaces a top and bottom.
+const SLOTS = [&#39;outfit&#39;, &#39;bodysuit&#39;, &#39;armour&#39;, &#39;top&#39;, &#39;bottom&#39;, &#39;shoes&#39;, &#39;gloves&#39;, &#39;hat&#39;, &#39;mask&#39;, &#39;glasses&#39;]
+for (const slot of SLOTS) styles[slot] = [&#39;none&#39;]
+// Each slot&#39;s look, fabric and recolour, kept while another is being edited.
+const cloth = Object.fromEntries(SLOTS.map((s) =&gt; [s, { look: &#39;as made&#39;, fabric: s === &#39;shoes&#39; ? &#39;leather&#39; : &#39;cotton&#39;, colour: &#39;#7a2e2e&#39;, recolour: 0 }]))
 const clips = [&#39;Idle_Loop&#39;, &#39;Walk_Loop&#39;, &#39;Jog_Fwd_Loop&#39;, &#39;Sprint_Loop&#39;, &#39;Dance_Loop&#39;, &#39;Crouch_Fwd_Loop&#39;]
 let rebuild = () =&gt; {}
+// A garment of your own, cut from the body along outlines you draw (the
+// character&#39;s left; the right is its mirror). A rectangle from the waist to
+// the ankles makes trousers.
+let tailorShapes = []
+let tailorBody = null
+let tailorField = null
+// Garments brought back from an editor (garment-file), worn alongside.
+let imported = []
+// Why the last import or save failed, shown under the buttons.
+let importError = &#39;&#39;
+let exportGarment = () =&gt; {}
+let importGarment = () =&gt; {}
+// Garments you named and saved (kept in this browser), worn from their slot.
+const custom = new Map()
+let saveGarment = () =&gt; {}
+let forgetGarment = () =&gt; {}
+let editGarment = () =&gt; {}
+// A button that opens a popup: `open` is handed the panel host, for `showLayer`.
+const popupButton = (label, open) =&gt; {
+  let host = null
+  const button = button3d({ label, handleClick: () =&gt; host &amp;&amp; open(host) })
+  const setHost = button.setHost
+  button.setHost = (h) =&gt; { host = h; setHost?.call(button, h) }
+  return button
+}
+// &#39;as made&#39; leaves a garment&#39;s own surface (a file&#39;s roughness map) alone.
+const FABRIC_OPTIONS = [&#39;as made&#39;, ...Object.keys(FABRICS)]
 
 const slider = (label, key) =&gt;
   slider3d({ label, value: walker[key], min: 0, max: 1, step: 0.01 })
@@ -68,100 +97,567 @@ preview.append(
   b3d(
     {
       clearColor: &#39;#2a3340&#39;,
-      panelTitle: &#39;Walker&#39;,
+      panelTitle: &#39;Character Builder&#39;,
       scenePanel: () =&gt; [
-        select3d({ label: &#39;clip&#39;, value: walker.clip, options: clips }),
-        toggle3d({ label: &#39;pause&#39;, value: walker.paused }),
+        label3d({ text: &#39;Body&#39;, collapsible: true, open: true }),
         slider(&#39;gender&#39;, &#39;gender&#39;),
         slider(&#39;age&#39;, &#39;age&#39;),
         slider(&#39;muscle&#39;, &#39;muscle&#39;),
         slider(&#39;weight&#39;, &#39;weight&#39;),
+        slider(&#39;waist&#39;, &#39;waist&#39;),
         slider(&#39;height&#39;, &#39;height&#39;),
-        label3d({ text: &#39;Skin&#39; }),
+        slider(&#39;chest depth&#39;, &#39;chestDepth&#39;),
+        slider(&#39;pecs&#39;, &#39;pecs&#39;),
+        slider(&#39;bust&#39;, &#39;bustSize&#39;),
+        slider(&#39;firmness&#39;, &#39;bustFirmness&#39;),
+        label3d({ text: &#39;Motion&#39;, collapsible: true }),
+        select3d({ label: &#39;clip&#39;, value: walker.clip, options: clips, stayOpen: true }),
+        toggle3d({ label: &#39;pause&#39;, value: walker.paused }),
+        label3d({ text: &#39;Skin&#39;, collapsible: true }),
         slider3d({ label: &#39;tone&#39;, value: walker.tone, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: &#39;redness&#39;, value: walker.redness, min: 0, max: 1, step: 0.01 }),
-        slider3d({ label: &#39;eyes&#39;, value: walker.iris, min: 0, max: 1, step: 0.01 }),
-        label3d({ text: &#39;Hair&#39; }),
-        select3d({ label: &#39;hair&#39;, value: walker.hair, options: styles.hair }),
-        select3d({ label: &#39;beard&#39;, value: walker.beard, options: styles.beard }),
-        select3d({ label: &#39;brows&#39;, value: walker.brows, options: styles.brows }),
-        slider3d({ label: &#39;light&#39;, value: walker.hairLight, min: 0, max: 1, step: 0.01 }),
-        slider3d({ label: &#39;red&#39;, value: walker.hairRed, min: 0, max: 1, step: 0.01 }),
-        label3d({ text: &#39;Ancestry&#39; }),
+        label3d({ text: &#39;Eyes&#39;, collapsible: true }),
+        colorPicker3d({ label: &#39;eye colour&#39;, value: walker.irisColour, alpha: false, defaultPresets: &#39;off&#39;, presets: [[&#39;dark brown&#39;, 0], [&#39;brown&#39;, 0.15], [&#39;amber&#39;, 0.3], [&#39;hazel&#39;, 0.45], [&#39;green&#39;, 0.6], [&#39;blue-green&#39;, 0.72], [&#39;blue&#39;, 0.85], [&#39;grey&#39;, 1]].map(([name, t]) =&gt; { const c = irisColor(t); const h = (x) =&gt; Math.round(x * 255).toString(16).padStart(2, &#39;0&#39;); return { name, value: &#39;#&#39; + h(c.r) + h(c.g) + h(c.b) } }) }),
+        label3d({ text: &#39;Face&#39;, collapsible: true }),
+        toggle3d({ label: &#39;blink&#39;, value: walker.blink }),
+        toggle3d({ label: &#39;talk&#39;, value: walker.talk }),
+        toggle3d({ label: &#39;mic (lip sync)&#39;, value: walker.mic }),
+        slider3d({ label: &#39;smile&#39;, value: walker.smile, min: 0, max: 1, step: 0.01 }),
+        slider3d({ label: &#39;brows up&#39;, value: walker.browsUp, min: 0, max: 1, step: 0.01 }),
+        slider3d({ label: &#39;frown&#39;, value: walker.frown, min: 0, max: 1, step: 0.01 }),
+        label3d({ text: &#39;Hair&#39;, collapsible: true }),
+        select3d({ label: &#39;hair&#39;, value: walker.hair, options: styles.hair, stayOpen: true }),
+        select3d({ label: &#39;beard&#39;, value: walker.beard, options: styles.beard, stayOpen: true }),
+        select3d({ label: &#39;moustache&#39;, value: walker.moustache, options: styles.moustache, stayOpen: true }),
+        slider3d({ label: &#39;stubble&#39;, value: walker.stubble, min: 0, max: 1, step: 0.01 }),
+        select3d({ label: &#39;brows&#39;, value: walker.brows, options: styles.brows, stayOpen: true }),
+        // A base and a highlight, each a swatch that opens a picker with presets;
+        // a base preset brings its usual highlight with it.
+        colorPicker3d({ label: &#39;base&#39;, value: walker.hairBase, alpha: false, defaultPresets: &#39;off&#39;, presets: Object.entries(HAIR_COLOURS).map(([name, c]) =&gt; ({ name, value: c.base })) }),
+        colorPicker3d({ label: &#39;highlights&#39;, value: walker.hairHighlight, alpha: false, defaultPresets: &#39;off&#39;, presets: Object.entries(HAIR_COLOURS).map(([name, c]) =&gt; ({ name, value: c.highlight })) }),
+        // A hand adjustment, metres and a scale, after the fit.
+        slider3d({ label: &#39;up&#39;, value: walker.hairUp, min: -0.02, max: 0.02, step: 0.001 }),
+        slider3d({ label: &#39;forward&#39;, value: walker.hairForward, min: -0.02, max: 0.02, step: 0.001 }),
+        slider3d({ label: &#39;size&#39;, value: walker.hairSize, min: 0.9, max: 1.1, step: 0.005 }),
+        label3d({ text: &#39;Clothes&#39;, collapsible: true }),
+        ...SLOTS.map((slot) =&gt; select3d({ label: slot, value: walker[slot], options: styles[slot], stayOpen: true })),
+        // One editor for whichever worn thing is chosen: its colourway, fabric,
+        // and a recolour over its texture (0 keeps the texture&#39;s own colours).
+        select3d({ label: &#39;edit&#39;, value: walker.editing, options: SLOTS }),
+        // Its colourways, where it has any (only some of MakeHuman&#39;s suits do).
+        ...(Object.keys(packProxies[walker[walker.editing.value].value]?.material?.looks ?? {}).length
+          ? [select3d({ label: &#39;look&#39;, value: walker.look, options: [&#39;as made&#39;, ...Object.keys(packProxies[walker[walker.editing.value].value].material.looks)] })]
+          : []),
+        select3d({ label: &#39;fabric&#39;, value: walker.fabric, options: FABRIC_OPTIONS }),
+        colorPicker3d({ label: &#39;colour&#39;, value: walker.colour, alpha: false }),
+        slider3d({ label: &#39;recolour&#39;, value: walker.recolour, min: 0, max: 1, step: 0.01 }),
+        label3d({ text: &#39;Tailor&#39;, collapsible: true }),
+        ...(tailorBody
+          ? [
+              toggle3d({ label: &#39;hide other clothes&#39;, value: walker.tailorAlone }),
+              // The outline in a popup of its own, so it can be big.
+              popupButton(&#39;draw the outline…&#39;, (host) =&gt;
+                host.showLayer(
+                  { anchor: { x: 0, y: 0, width: host.bounds.width, height: 0 }, side: &#39;right&#39;, width: 420, maxHeight: 720, chrome: true, title: &#39;Outline&#39;, handleClose: () =&gt; { tailorField = null } },
+                  // The buttons first, so a tall outline never pushes them out of reach.
+                  button3d({ label: &#39;delete point&#39;, handleClick: () =&gt; tailorField?.removeSelected() }),
+                  button3d({ label: &#39;clear&#39;, handleClick: () =&gt; tailorField?.clear() }),
+                  (tailorField = outlineField3d({ ...tailorBody, value: tailorShapes, maxHeight: 440, handleCommit: (v) =&gt; { tailorShapes = v; dress() } }))
+                )
+              ),
+              slider3d({ label: &#39;thickness&#39;, value: walker.tailorThickness, min: 0.001, max: 0.02, step: 0.001 }),
+              // Round the outline at each height: skirts, kilts, robes.
+              toggle3d({ label: &#39;skirt&#39;, value: walker.tailorSkirt }),
+              select3d({ label: &#39;fabric&#39;, value: walker.tailorFabric, options: FABRIC_OPTIONS }),
+              colorPicker3d({ label: &#39;colour&#39;, value: walker.tailorColour, alpha: false }),
+              slider3d({ label: &#39;recolour&#39;, value: walker.tailorRecolour, min: 0, max: 1, step: 0.01 }),
+              // Name it and keep it: it becomes a choice in its slot, like MakeHuman&#39;s.
+              ui.inputField({ value: walker.tailorName.value, placeholder: &#39;name the garment&#39;, handleChange: (v) =&gt; { walker.tailorName.value = v } }),
+              select3d({ label: &#39;slot&#39;, value: walker.tailorSlot, options: SLOTS }),
+              button3d({ label: &#39;save as an option&#39;, handleClick: () =&gt; saveGarment() }),
+              ...(custom.has(walker[walker.tailorSlot.value].value)
+                ? [
+                    ...(custom.get(walker[walker.tailorSlot.value].value).cut ? [button3d({ label: `edit ${walker[walker.tailorSlot.value].value}`, handleClick: () =&gt; editGarment() })] : []),
+                    button3d({ label: `forget ${walker[walker.tailorSlot.value].value}`, handleClick: () =&gt; forgetGarment() }),
+                  ]
+                : []),
+              // Out to Blender (the garment and the body it was made on) and back.
+              toggle3d({ label: &#39;include the body (a helper)&#39;, value: walker.exportBody }),
+              button3d({ label: &#39;export glTF&#39;, handleClick: () =&gt; exportGarment(&#39;glb&#39;) }),
+              button3d({ label: &#39;export OBJ&#39;, handleClick: () =&gt; exportGarment(&#39;obj&#39;) }),
+              // The body alone, to model a garment from nothing beside it.
+              button3d({ label: &#39;export the body alone&#39;, handleClick: () =&gt; exportGarment(&#39;glb&#39;, true) }),
+              button3d({ label: &#39;import…&#39;, handleClick: () =&gt; importGarment() }),
+              ...(importError ? [text3d({ text: importError })] : []),
+              ...(imported.length ? [button3d({ label: `remove imported (${imported.length})`, handleClick: () =&gt; { imported = []; dress(); el.refreshScenePanel?.() } })] : []),
+            ]
+          : [label3d({ text: &#39;loading the body…&#39; })]),
+        label3d({ text: &#39;Ancestry&#39;, collapsible: true }),
         slider(&#39;african&#39;, &#39;african&#39;),
         slider(&#39;asian&#39;, &#39;asian&#39;),
         slider(&#39;caucasian&#39;, &#39;caucasian&#39;),
       ],
       async sceneCreated(el, BABYLON) {
         const scene = el.scene
+        el.setLoading(&#39;loading the animations…&#39;)
+        // Something for gloss and metal to reflect.
+        studioEnvironment(scene)
         const cam = new BABYLON.ArcRotateCamera(&#39;c&#39;, Math.PI / 2 - 0.5, 1.35, 4, new BABYLON.Vector3(0, 0.9, 0), scene)
         cam.minZ = 0.05
+        // Close enough for a face, far enough for the whole floor.
+        cam.lowerRadiusLimit = 0.3
+        cam.upperRadiusLimit = 10
         cam.attachControl(el.querySelector(&#39;canvas&#39;), true)
         el.setActiveCamera(cam)
-        BABYLON.MeshBuilder.CreateGround(&#39;g&#39;, { width: 8, height: 8 }, scene)
+        // A floor with a metre grid (and faint quarters), which takes the sun&#39;s shadow.
+        const floor = BABYLON.MeshBuilder.CreateGround(&#39;floor_nocast&#39;, { width: 12, height: 12 }, scene)
+        const tile = new BABYLON.DynamicTexture(&#39;floor-grid&#39;, { width: 256, height: 256 }, scene, true)
+        const ctx = tile.getContext()
+        ctx.fillStyle = &#39;#5d6672&#39;
+        ctx.fillRect(0, 0, 256, 256)
+        ctx.strokeStyle = &#39;rgba(255,255,255,0.12)&#39;
+        ctx.lineWidth = 2
+        for (const at of [64, 128, 192]) {
+          ctx.beginPath(); ctx.moveTo(at, 0); ctx.lineTo(at, 256); ctx.moveTo(0, at); ctx.lineTo(256, at); ctx.stroke()
+        }
+        ctx.strokeStyle = &#39;rgba(255,255,255,0.45)&#39;
+        ctx.lineWidth = 4
+        ctx.strokeRect(0, 0, 256, 256)
+        tile.update()
+        tile.wrapU = tile.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE
+        tile.uScale = tile.vScale = 12
+        tile.anisotropicFilteringLevel = 8
+        const floorMat = new BABYLON.StandardMaterial(&#39;floor&#39;, scene)
+        floorMat.diffuseTexture = tile
+        floorMat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05)
+        floor.material = floorMat
+        el.register({ meshes: [floor] })
 
         // UAL&#39;s mannequin is only the clips&#39; source: it stays hidden.
         const ual = await BABYLON.LoadAssetContainerAsync(assetUrl(&#39;quaternius/UAL1_core.glb&#39;, 2), scene)
-        status.textContent = &#39;loading the body…&#39;
+        el.setLoading(&#39;loading the body…&#39;)
         ual.addAllToScene()
         for (const g of ual.animationGroups) g.stop()
         const ualRoot = ual.meshes.find((m) =&gt; m.name === &#39;__root__&#39;)
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
 
-        const pack = await loadHumanPack(assetUrl(&#39;makehuman/hm08/hm08.json&#39;, 4)).catch((e) =&gt; {
-          status.textContent = `could not load the body: ${e.message}`
+        const pack = await loadHumanPack(assetUrl(&#39;makehuman/hm08/hm08.json&#39;, 17)).catch((e) =&gt; {
+          el.setLoading(`could not load the body: ${e.message}`, { spin: false })
           throw e
         })
         // Quaternius&#39; hairstyles, made for its own head, fitted to each body.
-        const hairLib = await loadHairLibrary(scene, assetUrl(&#39;quaternius/libraries/hairstyles.glb&#39;))
+        const hairLib = await loadHairLibrary(scene, assetUrl(&#39;quaternius/libraries/hairstyles.glb&#39;, 2))
         const adult = (n) =&gt; !n.endsWith(&#39;_Teen&#39;)
         const facial = (n) =&gt; /Beard|Moustache|MuttonChops/.test(n)
         styles.hair.push(...hairLib.names(&#39;hair&#39;).filter((n) =&gt; adult(n) &amp;&amp; !facial(n)))
-        styles.beard.push(...hairLib.names(&#39;hair&#39;).filter((n) =&gt; adult(n) &amp;&amp; facial(n)))
+        // Beards and moustaches are MakeHuman&#39;s, bound to this face. Quaternius&#39;
+        // are drawn for its own stylised mouth, and warped onto ours their ends
+        // droop and tilt; the library still places them (fitFor &#39;face&#39;).
         styles.brows.push(...hairLib.names(&#39;eyebrows&#39;).filter(adult))
+        // MakeHuman&#39;s own clothes, hair and brows, bound to this body (proxy-fit).
+        const proxies = pack.manifest.proxies ?? {}
+        packProxies = proxies
+        const kinds = (cat, test) =&gt; Object.keys(proxies).filter((n) =&gt; proxies[n].category === cat &amp;&amp; test(n))
+        for (const slot of SLOTS) styles[slot].push(...Object.keys(proxies).filter((n) =&gt; proxies[n].slot === slot))
+        // MakeHuman&#39;s hair and brows first: drawn for this head and bound to it.
+        // Quaternius&#39; follow, for the looks MakeHuman lacks.
+        styles.hair.splice(1, 0, ...kinds(&#39;hair&#39;, () =&gt; true))
+        styles.brows.splice(1, 0, ...kinds(&#39;eyebrows&#39;, () =&gt; true))
+        // MakeHuman&#39;s beards come without moustaches: a moustache is its own choice.
+        styles.beard.push(...kinds(&#39;beard&#39;, (n) =&gt; !/moustache/i.test(n)))
+        styles.moustache.push(...kinds(&#39;beard&#39;, (n) =&gt; /moustache/i.test(n)))
+        const proxyMaterials = new Map()
+        // Each clothes material&#39;s fabric and recolour, and which slot wears which.
+        const clothes = new Map()
+        const slotMaterial = {}
+        const refabric = () =&gt; {
+          for (const [slot, m] of Object.entries(slotMaterial)) clothes.get(m)?.set({ fabric: cloth[slot].fabric, colour: cloth[slot].colour, amount: cloth[slot].recolour })
+        }
+        const retailor = () =&gt; {
+          for (const name of [&#39;tailored&#39;, ...imported.map((g) =&gt; g.name)]) clothes.get(proxyMaterials.get(`${name}:`))?.set({ fabric: walker.tailorFabric.value, colour: walker.tailorColour.value, amount: walker.tailorRecolour.value })
+        }
+        // The body&#39;s slider values, which rebuild the shape a garment was made on.
+        const bodyValues = () =&gt; Object.fromEntries(Object.keys(DEFAULT_HUMAN_BODY).map((k) =&gt; [k, Number(walker[k].value)]))
+        let tailoredCut = null
+        const save = (data, name, type) =&gt; {
+          const a = document.createElement(&#39;a&#39;)
+          a.href = URL.createObjectURL(new Blob([data], { type }))
+          a.download = name
+          a.click()
+          setTimeout(() =&gt; URL.revokeObjectURL(a.href), 1000)
+        }
+        const baseMeta = () =&gt; ({ format: &#39;tosijs-garment&#39;, version: 1, base: pack.manifest.base, pack: pack.manifest.version, body: bodyValues(), name: &#39;tailored&#39;, slot: &#39;top&#39; })
+        const tailorLook = () =&gt; ({ fabric: walker.tailorFabric.value, colour: walker.tailorColour.value, recolour: walker.tailorRecolour.value })
+        // The cut as worn on the body shown.
+        // Unwrapped for an editor: a front and back per side, like a sewing pattern.
+        const cutMesh = () =&gt; unwrapGarment({ positions: drawnPositions(tailoredCut, fitProxy(tailoredCut, clothBody)), triangles: tailoredCut.triangles })
+        // The file&#39;s contents (a GLB&#39;s bytes or an OBJ&#39;s text), or null.
+        const garmentFile = (format, bodyAlone = false) =&gt; {
+          if (!tailoredCut &amp;&amp; !bodyAlone) return null
+          const garment = bodyAlone ? null : cutMesh()
+          // The body it was made on, as a helper to model against (left out on import).
+          const body = bodyAlone || walker.exportBody.value ? { positions: current, triangles: pack.triangles } : null
+          const meta = baseMeta()
+          return format === &#39;obj&#39; ? writeGarmentObj({ garment, body, meta }) : writeGarmentGlb({ garment, body, meta })
+        }
+        // A file&#39;s material as a proxy&#39;s: its images as object URLs.
+        const imageUrl = (img) =&gt; (img ? URL.createObjectURL(new Blob([img.bytes], { type: img.mimeType })) : undefined)
+        const fileLook = (m) =&gt;
+          m
+            ? { diffuse: imageUrl(m.baseColorTexture), normal: imageUrl(m.normalTexture), metallicRoughness: imageUrl(m.metallicRoughnessTexture), roughness: m.roughness, metallic: m.metallic, baseColor: m.baseColor, normalScale: m.normalScale, alpha: m.alphaMode !== &#39;OPAQUE&#39;, blend: m.alphaMode === &#39;BLEND&#39;, alphaCutoff: m.alphaMode === &#39;MASK&#39; ? m.alphaCutoff : undefined, twoSided: m.doubleSided }
+            : { alpha: false, twoSided: false }
+        // A garment from a file, bound to the body it was made on.
+        const asProxy = async (content, name, slot) =&gt; {
+          const { garment, meta, material } = content
+          const on = meta?.body ? await morphHuman(pack, macroWeights({ ...DEFAULT_HUMAN_BODY, ...meta.body }, (n) =&gt; pack.has(n))) : current
+          const binding = bindGarment(on, pack.triangles, garment.positions, garmentRigidity(garment))
+          return { ...binding, triangles: garment.triangles, uvs: garment.uvs ?? new Float32Array(binding.rows * 2), delete: null, name, category: &#39;clothes&#39;, slot, material: { ...fileLook(material), ...(meta?.cut?.skirt ? { twoSided: true } : {}) } }
+        }
+        // The saved garments, in IndexedDB: per browser, nothing shared yet.
+        const garmentStore = async (mode, fn) =&gt; {
+          const db = await new Promise((ok, no) =&gt; {
+            const r = indexedDB.open(&#39;tosijs-garments&#39;, 1)
+            r.onupgradeneeded = () =&gt; r.result.createObjectStore(&#39;garments&#39;)
+            r.onsuccess = () =&gt; ok(r.result)
+            r.onerror = () =&gt; no(r.error)
+          })
+          return new Promise((ok, no) =&gt; {
+            const t = db.transaction(&#39;garments&#39;, mode)
+            const req = fn(t.objectStore(&#39;garments&#39;))
+            t.oncomplete = () =&gt; ok(req?.result)
+            t.onerror = () =&gt; no(t.error)
+          })
+        }
+        // Wear a saved garment&#39;s file as a choice in its slot.
+        const addCustom = async (bytes) =&gt; {
+          const content = readGarment(bytes)
+          const { name } = content.meta
+          // A slot this page has, or a top.
+          const slot = SLOTS.includes(content.meta.slot) ? content.meta.slot : &#39;top&#39;
+          proxyMaterials.delete(`${name}:`)
+          const proxy = await asProxy(content, name, slot)
+          custom.set(name, { proxy, cut: content.meta.cut, look: content.meta.look })
+          if (!styles[slot].includes(name)) styles[slot].push(name)
+          return content.meta
+        }
+        const say = (message) =&gt; { importError = message; el.refreshScenePanel?.() }
+        saveGarment = async () =&gt; {
+          const name = walker.tailorName.value.trim()
+          const slot = walker.tailorSlot.value
+          if (!name) return say(&#39;name the garment first&#39;)
+          if (proxies[name] || name === &#39;none&#39;) return say(`&quot;${name}&quot; is taken by one of MakeHuman&#39;s; choose another name`)
+          const last = imported[imported.length - 1]
+          if (!tailoredCut &amp;&amp; !last) return say(&#39;draw a garment or import one first&#39;)
+          // The cut is kept with its outline, to edit again; an import as it came.
+          const bytes = tailoredCut
+            ? writeGarmentGlb({ garment: cutMesh(), meta: { ...baseMeta(), name, slot, look: tailorLook(), cut: { shapes: tailorShapes, thickness: walker.tailorThickness.value, skirt: walker.tailorSkirt.value } } })
+            : writeGarmentGlb({ garment: last.file.garment, material: last.file.material, meta: { ...last.file.meta, name, slot, look: tailorLook() } })
+          try {
+            await garmentStore(&#39;readwrite&#39;, (s) =&gt; s.put(bytes, name))
+          } catch (e) {
+            console.warn(&#39;tailor: could not save&#39;, e)
+            return say(`could not save: ${e?.message ?? e}`)
+          }
+          await addCustom(bytes)
+          // It is worn from its slot now, not from the tailor.
+          if (tailoredCut) { tailorShapes = []; tailorField?.setValue([]) }
+          else imported.pop()
+          importError = &#39;&#39;
+          walker[slot].value = name
+          dress()
+          el.refreshScenePanel?.()
+        }
+        forgetGarment = async () =&gt; {
+          const slot = walker.tailorSlot.value
+          const name = walker[slot].value
+          if (!custom.has(name)) return
+          await garmentStore(&#39;readwrite&#39;, (s) =&gt; s.delete(name)).catch((e) =&gt; console.warn(&#39;tailor: could not forget&#39;, e))
+          custom.delete(name)
+          styles[slot] = styles[slot].filter((n) =&gt; n !== name)
+          walker[slot].value = &#39;none&#39;
+          el.refreshScenePanel?.()
+        }
+        // Back into the tailor: its outline, to change and save again.
+        editGarment = () =&gt; {
+          const slot = walker.tailorSlot.value
+          const name = walker[slot].value
+          const saved = custom.get(name)
+          if (!saved?.cut) return
+          tailorShapes = saved.cut.shapes
+          tailorField?.setValue(tailorShapes)
+          walker.tailorThickness.value = saved.cut.thickness
+          walker.tailorSkirt.value = saved.cut.skirt === true
+          walker.tailorName.value = name
+          if (saved.look?.fabric) walker.tailorFabric.value = saved.look.fabric
+          if (saved.look?.colour) walker.tailorColour.value = saved.look.colour
+          if (saved.look?.recolour != null) walker.tailorRecolour.value = saved.look.recolour
+          walker[slot].value = &#39;none&#39;
+          dress()
+          el.refreshScenePanel?.()
+        }
+        exportGarment = (format, bodyAlone = false) =&gt; {
+          const data = garmentFile(format, bodyAlone)
+          if (data == null) return console.warn(&#39;tailor: draw a garment first&#39;)
+          save(data, bodyAlone ? &#39;body.glb&#39; : format === &#39;obj&#39; ? &#39;garment.obj&#39; : &#39;garment.glb&#39;, format === &#39;obj&#39; ? &#39;text/plain&#39; : &#39;model/gltf-binary&#39;)
+        }
+        const importFrom = async (data, fileName) =&gt; {
+          const content = readGarment(data)
+          // Bound to the body it was made on, where the file says what that
+          // was; else to the body shown, which is then what it was made on.
+          if (!content.meta) console.warn(&#39;tailor: no metadata in the file (export from Blender with custom properties); bound to the body shown&#39;)
+          const meta = content.meta ?? baseMeta()
+          if (content.materialCount &gt; 1) console.warn(`tailor: the garment uses ${content.materialCount} materials; only the first is drawn`)
+          const name = `imported-${imported.length}-${(meta.name ?? fileName).replace(/[^\w-]/g, &#39;&#39;)}`
+          const proxy = await asProxy({ ...content, meta }, name, meta.slot ?? &#39;top&#39;)
+          imported.push({ ...proxy, file: { garment: content.garment, material: content.material, meta } })
+          // A garment with its own maps keeps them: no fabric preset, no recolour.
+          if (content.material?.baseColorTexture || content.material?.metallicRoughnessTexture) {
+            walker.tailorFabric.value = &#39;as made&#39;
+            walker.tailorRecolour.value = 0
+          }
+          if (meta.name &amp;&amp; !walker.tailorName.value) walker.tailorName.value = meta.name === &#39;tailored&#39; ? &#39;&#39; : meta.name
+          if (SLOTS.includes(meta.slot)) walker.tailorSlot.value = meta.slot
+          dress()
+          el.refreshScenePanel?.()
+        }
+        importGarment = () =&gt; {
+          const input = document.createElement(&#39;input&#39;)
+          input.type = &#39;file&#39;
+          input.accept = &#39;.glb,.obj&#39;
+          input.onchange = async () =&gt; {
+            const file = input.files?.[0]
+            if (!file) return
+            try {
+              await importFrom(file.name.endsWith(&#39;.obj&#39;) ? await file.text() : await file.arrayBuffer(), file.name)
+              importError = &#39;&#39;
+            } catch (e) {
+              console.warn(&#39;tailor: could not import&#39;, e)
+              importError = `${file.name}: ${String(e?.message ?? e).replace(/^garment-file: /, &#39;&#39;)}`
+            }
+            el.refreshScenePanel?.()
+          }
+          input.click()
+        }
+        walker.tailorThickness.observe(() =&gt; dress())
+        walker.tailorSkirt.observe(() =&gt; dress())
+        walker.tailorFabric.observe(retailor)
+        walker.tailorColour.observe(retailor)
+        walker.tailorRecolour.observe(retailor)
+        walker.tailorAlone.observe(() =&gt; dress())
+        walker.tailorSlot.observe(() =&gt; el.refreshScenePanel?.())
+        // What this browser has saved, once the body is up (see below).
+        const loadSaved = async () =&gt; {
+          try {
+            const all = await garmentStore(&#39;readonly&#39;, (s) =&gt; s.getAll())
+            for (const bytes of all ?? []) await addCustom(bytes).catch((e) =&gt; console.warn(&#39;tailor: a saved garment would not load&#39;, e))
+            if (all?.length) el.refreshScenePanel?.()
+          } catch (e) {
+            console.warn(&#39;tailor: no saved garments (storage unavailable)&#39;, e)
+          }
+        }
         const tints = new Map()
+        // Every hair material&#39;s colouring (Quaternius&#39; and MakeHuman&#39;s).
+        const shades = []
         const tint = (part) =&gt; {
           const from = part.material
-          if (!tints.has(from)) tints.set(from, hairMaterial(scene, from, `hair-${tints.size}`))
+          if (!tints.has(from)) {
+            const m = hairMaterial(scene, from, `hair-${tints.size}`)
+            shades.push(hairShading(m, { base: walker.hairBase.value, highlight: walker.hairHighlight.value }))
+            tints.set(from, m)
+          }
           return tints.get(from)
         }
-        status.textContent = &#39;binding the skin…&#39;
+        el.setLoading(&#39;binding the skin…&#39;)
         // Let the message paint before the binding takes the thread.
         await new Promise((r) =&gt; setTimeout(r, 50))
         const skin = humanSkin(pack)
-        const [lips, eyePart, lashPart] = await Promise.all([pack.region(&#39;lips&#39;), pack.part(&#39;eyes&#39;), pack.part(&#39;eyelashes&#39;)])
+        const [lips, nipples, eyePart, lashPart] = await Promise.all([pack.region(&#39;lips&#39;), pack.region(&#39;nipples&#39;), pack.part(&#39;eyes&#39;), pack.part(&#39;eyelashes&#39;)])
         eyes = eyeTexture(scene, { iris: walker.iris.value })
+        eyes.setIrisColour(walker.irisColour.value)
         const faceMaterials = { eye: eyeMaterial(scene, eyes), lashes: lashMaterial(scene) }
         let face = null
         let scalp = null
+        // For poking at from the console: what this page built.
+        el.builder = { pack, hairLib, get scalp() { return scalp }, get built() { return built }, get positions() { return current }, get stubble() { return stubbleMask }, get tailor() { return tailorShapes }, set tailor(v) { tailorShapes = v; tailorField?.setValue(v); dress() }, garmentFile: (f, alone) =&gt; garmentFile(f, alone), importFrom: (d, n) =&gt; importFrom(d, n), get imported() { return imported }, save: () =&gt; saveGarment(), forget: () =&gt; forgetGarment(), edit: () =&gt; editGarment(), saved: custom, get message() { return importError } }
         let hairMeshes = []
-        dress = () =&gt; {
-          for (const m of tints.values()) m.setHair(walker.hairLight.value, walker.hairRed.value)
+        let dressing = 0
+        dress = async () =&gt; {
           if (!built || !scalp) return
+          const token = ++dressing
+          // What it wears from the pack (bound), fetched before anything changes.
+          const slots = [...[...SLOTS, &#39;hair&#39;, &#39;brows&#39;, &#39;beard&#39;, &#39;moustache&#39;].map((k) =&gt; walker[k].value), &#39;teeth_base&#39;, &#39;tongue01&#39;].filter((n) =&gt; proxies[n] || custom.has(n))
+          let wearing = await Promise.all(slots.map((n) =&gt; custom.get(n)?.proxy ?? pack.proxy(n)))
+          if (token !== dressing) return
+          // Only what the tailor is making, to see it on its own.
+          if (walker.tailorAlone.value) wearing = wearing.filter((p) =&gt; p.category !== &#39;clothes&#39;)
+          // The garment cut from the outlines, bound like any other.
+          const outline = mirrorOutline(tailorShapes.filter((s) =&gt; s.length &gt;= 3))
+          if (outline.length) {
+            // Thicker cloth bridges more of the chest.
+            const thickness = walker.tailorThickness.value
+            const cutOn = nipples ? smoothUnder(current, pack.triangles, nipples, { bridge: thickness / 0.02 }) : clothBody
+            const skirt = walker.tailorSkirt.value
+            const cut = skirt
+              ? skirtGarment(clothBody, pack.triangles, { front: outline, thickness, anchor: notArm })
+              : cutGarment(cutOn, pack.triangles, { front: outline, thickness, ease: 6, fitOn: clothBody })
+            tailoredCut = cut
+            wearing.push({ ...cut, name: &#39;tailored&#39;, category: &#39;clothes&#39;, slot: &#39;top&#39;, material: { alpha: false, twoSided: skirt } })
+          } else tailoredCut = null
+          wearing.push(...imported)
           for (const m of hairMeshes) m.dispose()
           hairMeshes = []
-          for (const key of [&#39;hair&#39;, &#39;beard&#39;, &#39;brows&#39;]) {
+          const nudge = { y: walker.hairUp.value, z: walker.hairForward.value, scale: walker.hairSize.value }
+          for (const key of [&#39;hair&#39;, &#39;beard&#39;, &#39;moustache&#39;, &#39;brows&#39;]) {
             const parts = hairLib.piece(walker[key].value)
             if (!parts) continue
-            // Brows lie on the skin; hair stands a little off it.
-            const margin = key === &#39;brows&#39; ? 0.0015 : 0.003
-            const centreY = key === &#39;brows&#39; ? scalp.brow : undefined
-            hairMeshes.push(...humanHair(scene, built, built.rig, scalp, parts, tint, { margin, name: key, centreY }))
+            // Brows and beards follow the face; hair follows the skull.
+            const style = walker[key].value
+            const on = hairLib.fitFor(style)
+            hairMeshes.push(...humanHair(scene, built, built.rig, scalp, parts, tint, { name: key, on, head: hairLib.headFor(style), centreY: key === &#39;brows&#39; ? scalp.brow : undefined, nudge: key === &#39;hair&#39; ? nudge : undefined }))
+          }
+          for (const k of Object.keys(slotMaterial)) delete slotMaterial[k]
+          for (const proxy of wearing) {
+            const slot = SLOTS.find((k) =&gt; walker[k].value === proxy.name) ?? null
+            const look = slot &amp;&amp; cloth[slot].look !== &#39;as made&#39; ? cloth[slot].look : undefined
+            const key = `${proxy.name}:${look ?? &#39;&#39;}`
+            if (!proxyMaterials.has(key)) {
+              const m = proxyMaterial(scene, proxy, look)
+              // MakeHuman&#39;s hair, brows and beards take the hair colours too;
+              // clothes take a fabric and a recolour.
+              if ([&#39;hair&#39;, &#39;eyebrows&#39;, &#39;beard&#39;].includes(proxy.category)) shades.push(hairShading(m, { desaturate: true, base: walker.hairBase.value, highlight: walker.hairHighlight.value }))
+              else if (proxy.category === &#39;clothes&#39;) clothes.set(m, clothShading(m))
+              proxyMaterials.set(key, m)
+            }
+            const m = proxyMaterials.get(key)
+            // The cache is by name: the tailored garment turns skirt (two-sided) on and off.
+            m.backFaceCulling = !proxy.material?.twoSided
+            m.twoSidedLighting = proxy.material?.twoSided === true
+            if (slot) slotMaterial[slot] = m
+            // A hat sits a little out from the head, over the hair.
+            const hatFit = slot === &#39;hat&#39; ? { inflate: { centre: scalp.centre, by: HAT_LIFT } } : slot === &#39;armour&#39; ? { lift: 0.005 } : {}
+            const mesh = humanProxy(scene, built, proxy, clothBody, allWeights, m, hatFit)
+            mesh.metadata = { category: proxy.category }
+            hairMeshes.push(mesh)
+          }
+          // A hat hides the hair under its brim, or the hair pokes through it.
+          const hat = wearing.find((p) =&gt; p.name === walker.hat.value)
+          if (hat) {
+            const crown = inflate(drawnPositions(hat, fitProxy(hat, current)), scalp.centre, HAT_LIFT)
+            const at = built.rig.at(&#39;Head&#39;)
+            for (const mesh of hairMeshes) {
+              const hair = mesh.name.startsWith(&#39;hair-&#39;) || mesh.metadata?.category === &#39;hair&#39;
+              if (!hair) continue
+              // Quaternius&#39; hair hangs on the head, in its frame less the head joint.
+              const p = Float32Array.from(mesh.getVerticesData(&#39;position&#39;))
+              if (mesh.name.startsWith(&#39;hair-&#39;)) {
+                for (let i = 0; i &lt; p.length; i += 3) { p[i] += at.x; p[i + 1] += at.y; p[i + 2] += at.z }
+              }
+              const tucked = Float32Array.from(p)
+              mesh.setIndices(Array.from(underCover(crown, p, mesh.getIndices(), 24, tucked)))
+              if (mesh.name.startsWith(&#39;hair-&#39;)) {
+                for (let i = 0; i &lt; tucked.length; i += 3) { tucked[i] -= at.x; tucked[i + 1] -= at.y; tucked[i + 2] -= at.z }
+              }
+              mesh.setVerticesData(&#39;position&#39;, tucked, true)
+            }
+          }
+          refabric()
+          retailor()
+          // Stand on the soles: shoes reach below the bare foot by their sole.
+          const shoe = wearing.find((p) =&gt; p.name === walker.shoes.value)
+          sole = 0
+          if (shoe) {
+            const fitted = fitProxy(shoe, current)
+            let low = Infinity
+            for (let i = 1; i &lt; fitted.length; i += 3) low = Math.min(low, fitted[i])
+            sole = Math.max(0, built.rig.at(&#39;root&#39;).y - low)
+          }
+          // Skin under clothes is hidden, so it cannot show through.
+          // The garments as fitted, for the skin they cover but do not list.
+          const drawn = new Map(wearing.filter((p) =&gt; p.category === &#39;clothes&#39;).map((p) =&gt; [p.name, drawnPositions(p, fitProxy(p, clothBody))]))
+          coverBody(built, skin.triangles, skin.vertices, wearing, { drawn })
+          // Clothes tuck the skin they cover, so the feet are measured again.
+          if (playing) clipLow = measureClip(playing)
+          ground()
+          // Everything that moves with the face, after the tuck (its rest).
+          if (el.builder.expressions) {
+            const expr = el.builder.expressions
+            expr.attach(built.mesh, (d) =&gt; skin.positions(d))
+            for (const m of face?.meshes ?? []) {
+              const pv = m.metadata?.packVertices
+              // The eyeballs turn; they never deform.
+              if (!pv || m.name.startsWith(&#39;eye_&#39;)) continue
+              expr.attach(m, (d) =&gt; {
+                const out = new Float32Array(pv.length * 3)
+                for (let i = 0; i &lt; pv.length; i++) { out[i * 3] = d[pv[i] * 3]; out[i * 3 + 1] = d[pv[i] * 3 + 1]; out[i * 3 + 2] = d[pv[i] * 3 + 2] }
+                return out
+              })
+            }
+            for (const proxy of wearing) {
+              const mesh = hairMeshes.find((m) =&gt; m.name === `proxy-${proxy.name}`)
+              if (mesh) expr.attach(mesh, (d) =&gt; proxyDelta(proxy, d))
+            }
           }
           el.register({ meshes: hairMeshes })
         }
-        for (const key of [&#39;hair&#39;, &#39;beard&#39;, &#39;brows&#39;]) walker[key].observe(() =&gt; dress())
-        // Colours repaint whoever sets them: a slider, or code.
-        const recolour = () =&gt; { for (const m of tints.values()) m.setHair(walker.hairLight.value, walker.hairRed.value) }
-        walker.hairLight.observe(recolour)
-        walker.hairRed.observe(recolour)
+        for (const key of [&#39;hair&#39;, &#39;beard&#39;, &#39;moustache&#39;, &#39;brows&#39;, &#39;hairUp&#39;, &#39;hairForward&#39;, &#39;hairSize&#39;, ...SLOTS]) walker[key].observe(() =&gt; dress())
+        // An outfit replaces a top and bottom, and either replaces an outfit.
+        walker.outfit.observe(() =&gt; { if (walker.outfit.value !== &#39;none&#39;) { walker.top.value = &#39;none&#39;; walker.bottom.value = &#39;none&#39; } })
+        for (const k of [&#39;top&#39;, &#39;bottom&#39;]) walker[k].observe(() =&gt; { if (walker[k].value !== &#39;none&#39;) walker.outfit.value = &#39;none&#39; })
+        // The editor shows the chosen slot&#39;s settings and writes back to them.
+        let loading = false
+        const load = () =&gt; {
+          loading = true
+          const c = cloth[walker.editing.value]
+          walker.look.value = c.look
+          walker.fabric.value = c.fabric
+          walker.colour.value = c.colour
+          walker.recolour.value = c.recolour
+          loading = false
+          el.refreshScenePanel?.()
+        }
+        walker.editing.observe(load)
+        // Wearing something new: edit it, from its own colourway.
+        for (const slot of SLOTS) walker[slot].observe(() =&gt; {
+          if (walker[slot].value === &#39;none&#39;) return
+          cloth[slot].look = &#39;as made&#39;
+          // A saved garment comes as it was saved.
+          const saved = custom.get(walker[slot].value)?.look
+          if (saved) Object.assign(cloth[slot], { fabric: saved.fabric ?? cloth[slot].fabric, colour: saved.colour ?? cloth[slot].colour, recolour: saved.recolour ?? cloth[slot].recolour })
+          if (walker.editing.value === slot) load()
+          else walker.editing.value = slot
+        })
+        walker.look.observe(() =&gt; { if (loading) return; cloth[walker.editing.value].look = walker.look.value; dress() })
+        // A finish that IS a colour (gold, copper) brings it.
+        walker.fabric.observe(() =&gt; {
+          const tint = FABRICS[walker.fabric.value]?.tint
+          if (loading || !tint) return
+          walker.colour.value = tint
+          walker.recolour.value = 1
+        })
+        for (const key of [&#39;fabric&#39;, &#39;colour&#39;, &#39;recolour&#39;]) walker[key].observe(() =&gt; {
+          if (loading) return
+          cloth[walker.editing.value][key] = walker[key].value
+          refabric()
+        })
+        // Colours repaint whoever sets them: a picker, a preset, or code.
+        const recolour = () =&gt; { for (const sh of shades) sh.setColours(walker.hairBase.value, walker.hairHighlight.value) }
+        walker.hairBase.observe(recolour)
+        walker.hairHighlight.observe(recolour)
+        // Picking a base preset brings its usual highlight.
+        walker.hairBase.observe(() =&gt; {
+          const pair = Object.values(HAIR_COLOURS).find((c) =&gt; c.base === walker.hairBase.value)
+          if (pair &amp;&amp; walker.hairHighlight.value !== pair.highlight) walker.hairHighlight.value = pair.highlight
+        })
         for (const key of Object.keys(DEFAULT_HUMAN_BODY)) walker[key].observe(() =&gt; rebuild())
         walker.tone.observe(() =&gt; paint())
+        walker.stubble.observe(() =&gt; { if (stubbleMask == null) measureStubble(); else paint() })
+        walker.hairBase.observe(() =&gt; paint())
         walker.redness.observe(() =&gt; paint())
         walker.iris.observe(() =&gt; eyes.setIris(walker.iris.value))
+        walker.irisColour.observe(() =&gt; eyes.setIrisColour(walker.irisColour.value))
         // The eyes find the camera.
-        eyeGaze(scene, { get eyes() { return face?.eyes ?? [] }, get forward() { return face?.forward ?? [] } }, () =&gt; cam.position)
+        eyeGaze(scene, { get eyes() { return face?.eyes ?? [] }, get forward() { return face?.forward ?? [] } }, () =&gt; scene.activeCamera?.globalPosition ?? cam.position)
         const body = () =&gt; {
           const b = {}
           for (const k of Object.keys(DEFAULT_HUMAN_BODY)) b[k] = Number(walker[k].value)
@@ -170,26 +666,184 @@ preview.append(
         // The weights depend only on the topology: once, on the first body.
         const first = await morphHuman(pack, body())
         // The weights depend only on the topology: once, on the first body.
-        const rig0 = humanRig(pack.manifest, first)
+        const rig0 = humanRig(pack.manifest, first, undefined, { triangles: pack.triangles })
         const weights = boneHeat(skin.positions(first), skin.triangles, skinSegments(rig0))
+        // The face moves with the head, or the lids slide over the eyes.
+        stiffenHead(weights, skin.positions(first), rig0)
+        // ...and the ribcage with the spine, not the arms.
+        armsOffTorso(weights, skin.positions(first), rig0)
+        // How thin the body is at each vertex (ears, nose, fingers), for the
+        // skin&#39;s back-light: once, like the weights.
+        const firstSkin = skin.positions(first)
+        const thin = skinThinness(firstSkin, vertexNormals(firstSkin, skin.triangles))
+        // Weights for every pack vertex, so clothes bound to helper vertices
+        // (the tights and skirt shells, which carry no skin) bend too.
+        const known = new Int32Array(pack.manifest.vertexCount).fill(-1)
+        skin.vertices.forEach((v, i) =&gt; { known[v] = i })
+        const allWeights = nearestWeights(first, known, weights)
+        // The skin a skirt may go round: not the arms, which it cannot
+        // follow without cloth simulation.
+        const armBone = new Set(rig0.joints.map((j, i) =&gt; (/^(clavicle|upperarm|lowerarm|hand|thumb|index|middle|ring|pinky)/.test(j.name) ? i : -1)).filter((i) =&gt; i &gt;= 0))
+        const notArm = new Uint8Array(pack.manifest.vertexCount)
+        for (let v = 0; v &lt; notArm.length; v++) {
+          let arm = 0
+          for (let k = 0; k &lt; 4; k++) if (armBone.has(allWeights.indices[v * 4 + k])) arm += allWeights.weights[v * 4 + k]
+          notArm[v] = arm &lt; 0.5 ? 1 : 0
+        }
+        let current = first
+        // What clothes are fitted over: the body with its nipples smoothed,
+        // because cloth bridges them (the skin keeps them).
+        const smoothed = (p) =&gt; nipples ? smoothUnder(p, pack.triangles, nipples) : p
+        let clothBody = smoothed(first)
+        // The body as it is now, read when the outline opens: the cut is made
+        // on the current body, so the view it is drawn over must be that one.
+        tailorBody = { get positions() { return current }, indices: pack.triangles }
+        void loadSaved()
+
+        // The face: MakeHuman&#39;s face pose units as morph targets, in layers.
+        const expr = humanExpressions(scene, await faceDeltas(pack))
+        el.builder.expressions = expr
+        let stopBlink = null
+        const blinking = () =&gt; {
+          stopBlink?.()
+          stopBlink = walker.blink.value ? blinker(scene, expr) : null
+        }
+        walker.blink.observe(blinking)
+        blinking()
+        lidsFollow(scene, expr, () =&gt; face)
+        let stopTalk = null
+        walker.talk.observe(() =&gt; {
+          stopTalk?.()
+          stopTalk = walker.talk.value ? babble(scene, expr) : null
+        })
+        let stopMic = null
+        walker.mic.observe(async () =&gt; {
+          stopMic?.()
+          stopMic = null
+          if (!walker.mic.value) return
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+            const ctx = new AudioContext()
+            const analyser = ctx.createAnalyser()
+            ctx.createMediaStreamSource(stream).connect(analyser)
+            const stop = lipSync(scene, expr, analyser, { gain: 1.5 })
+            stopMic = () =&gt; { stop(); stream.getTracks().forEach((t) =&gt; t.stop()); ctx.close() }
+          } catch (e) {
+            walker.mic.value = false
+            console.warn(&#39;lip sync: no microphone&#39;, e)
+          }
+        })
+        const mood = expr.layer(&#39;mood&#39;)
+        const feel = () =&gt; {
+          const s = walker.smile.value
+          const b = walker.browsUp.value
+          const f = walker.frown.value
+          mood.setMany({ MouthLeftPullUp: s, MouthRightPullUp: s, LeftCheekUp: s * 0.6, RightCheekUp: s * 0.6, LeftOuterBrowUp: b, RightOuterBrowUp: b, LeftInnerBrowUp: b, RightInnerBrowUp: b, LeftBrowDown: f, RightBrowDown: f })
+        }
+        for (const k of [&#39;smile&#39;, &#39;browsUp&#39;, &#39;frown&#39;]) walker[k].observe(feel)
 
         mat = skinMaterial(scene, { tone: walker.tone.value, redness: walker.redness.value })
         // The skin&#39;s colour, and the lips&#39; as vertex colours over it.
+        // Where a full beard grows, as a mask over the skin, for stubble: the
+        // skin MakeHuman&#39;s full beard (fitted to this body) lies on.
+        let stubbleMask = null
+        const linearHex = (hex) =&gt; {
+          const n = parseInt(hex.slice(1, 7), 16)
+          const lin = (c) =&gt; (c &lt;= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4))
+          return { r: lin(((n &gt;&gt; 16) &amp; 255) / 255), g: lin(((n &gt;&gt; 8) &amp; 255) / 255), b: lin((n &amp; 255) / 255) }
+        }
+        const proxyNamed = (re) =&gt; Object.keys(pack.manifest.proxies ?? {}).find((n) =&gt; re.test(n))
+        const beardFor = proxyNamed(/scruffy_beard/)
+        const tacheFor = proxyNamed(/moustache/)
+        const measureStubble = async () =&gt; {
+          if (!beardFor || !current) return
+          const body = skin.positions(current)
+          const normals = vertexNormals(body, skin.triangles)
+          const grownOn = async (name) =&gt; {
+            const p = await pack.proxy(name)
+            return coveredBy(body, normals, drawnPositions(p, fitProxy(p, current)), 0.02)
+          }
+          // Where a full beard grows, and a moustache: the full beard has no
+          // moustache part, so the upper lip was bare.
+          const beard = await grownOn(beardFor)
+          const tache = tacheFor ? await grownOn(tacheFor) : null
+          // The beard below the cheekbones: up to a little above the upper lip,
+          // faded (the full beard climbs the cheeks, and stubble there read as a bruise).
+          let lipTop = -Infinity
+          for (let v = 0; v &lt; lips.length; v++) if (lips[v] &gt; 0.5) lipTop = Math.max(lipTop, current[v * 3 + 1])
+          const cap = lipTop + 0.03
+          const smooth = (t) =&gt; { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t) }
+          const n = body.length / 3
+          const mask = new Float32Array(n)
+          for (let i = 0; i &lt; n; i++) {
+            const b = beard[i] === Infinity ? 0 : smooth((cap - body[i * 3 + 1]) / 0.015)
+            const t = tache &amp;&amp; tache[i] !== Infinity ? 1 : 0
+            // Not on the lips themselves.
+            mask[i] = Math.max(b, t) * (1 - smooth((lips[skin.vertices[i]] - 0.05) / 0.45))
+          }
+          // Down the neck: the full beard stops at the jaw, but stubble grows on
+          // the throat and the sides of the neck, fading over 5 cm below the
+          // beard&#39;s edge. Front and sides only (the normal faces forward or out).
+          const edge = []
+          let low = Infinity
+          for (let i = 0; i &lt; n; i++) if (mask[i] &gt; 0.5 &amp;&amp; body[i * 3 + 1] &lt; lipTop) { edge.push(i); low = Math.min(low, body[i * 3 + 1]) }
+          const REACH = 0.05
+          for (let i = 0; i &lt; n; i++) {
+            const y = body[i * 3 + 1]
+            if (mask[i] &gt; 0.5 || y &gt; lipTop || y &lt; low - REACH || normals[i * 3 + 2] &lt; -0.2) continue
+            let d = Infinity
+            for (const j of edge) {
+              if (body[j * 3 + 1] &lt; y) continue
+              const dx = body[j * 3] - body[i * 3]
+              const dy = body[j * 3 + 1] - y
+              const dz = body[j * 3 + 2] - body[i * 3 + 2]
+              d = Math.min(d, dx * dx + dy * dy + dz * dz)
+            }
+            mask[i] = Math.max(mask[i], smooth(1 - Math.sqrt(d) / REACH))
+          }
+          stubbleMask = mask
+          paint()
+        }
         paint = () =&gt; {
           mat.setSkin(walker.tone.value, walker.redness.value)
           if (lips &amp;&amp; built) {
-            built.mesh.setVerticesData(&#39;color&#39;, lipTint(skin, lips, walker.tone.value, walker.redness.value))
+            const colours = lipTint(skin, lips, walker.tone.value, walker.redness.value, undefined, thin)
+            if (stubbleMask) stubbleTint(colours, stubbleMask, walker.stubble.value, skinAlbedo(walker.tone.value, walker.redness.value), linearHex(walker.hairBase.value))
+            built.mesh.setVerticesData(&#39;color&#39;, colours)
           }
         }
         const stand = new BABYLON.TransformNode(&#39;stand&#39;, scene)
         let built = null
         let playing = null
         let read = null
+        // How far below the body&#39;s root its skin reaches while the clip plays
+        // (null: at rest), and how far shoes reach below the bare foot.
+        let clipLow = null
+        let sole = 0
+        // Stand on the floor: the body is grounded at rest, but a retargeted
+        // clip carries the feet lower (Idle by ~4 cm), so it is measured.
+        const ground = () =&gt; { stand.position.y = -(clipLow ?? built.rig.at(&#39;root&#39;).y) + sole }
+        const measureClip = (group) =&gt; {
+          const mesh = built.mesh
+          const nodes = built.root.getChildTransformNodes(false)
+          let low = Infinity
+          for (let k = 0; k &lt; 24; k++) {
+            group.goToFrame(group.from + ((group.to - group.from) * k) / 24)
+            for (const n of nodes) n.computeWorldMatrix(true)
+            built.skeleton.prepare(true)
+            mesh.refreshBoundingInfo({ applySkeleton: true, applyMorph: true })
+            low = Math.min(low, mesh.getBoundingInfo().boundingBox.minimumWorld.y)
+          }
+          group.goToFrame(group.from)
+          return low - stand.position.y
+        }
         const play = () =&gt; {
           playing?.dispose()
           const clip = ual.animationGroups.find((g) =&gt; g.name === walker.clip.value)
           playing = clip ? retargetClip(clip, source, read, { scene }) : null
           playing?.start(true)
+          clipLow = playing ? measureClip(playing) : null
+          ground()
           if (walker.paused.value) playing?.pause()
         }
         let busy = false
@@ -198,18 +852,23 @@ preview.append(
           if (busy) { again = true; return }
           busy = true
           const full = await morphHuman(pack, body())
-          const rig = humanRig(pack.manifest, full)
+          current = full
+          clothBody = smoothed(full)
+          stubbleMask = null
+          const rig = humanRig(pack.manifest, full, undefined, { triangles: pack.triangles })
           face?.dispose()
           built?.dispose()
           built = buildRig(scene, &#39;walker&#39;, skin.positions(full), skin.triangles, rig, weights)
           face = humanFace(scene, built, rig, pack.manifest, full, { eyes: eyePart, eyelashes: lashPart }, faceMaterials)
           built.rig = rig
-          scalp = headScalp(pack.manifest, full, pack.triangles, hairLib.reference)
+          scalp = headScalp(pack.manifest, full, pack.triangles, { lips })
           dress()
           built.mesh.material = mat
           built.root.parent = stand
-          stand.position.y = -rig.at(&#39;root&#39;).y
+          clipLow = null
+          ground()
           el.register({ meshes: [built.mesh, ...face.meshes] })
+          if (walker.stubble.value &gt; 0) measureStubble()
           paint()
           read = readSkeleton(built.skeleton, built.root)
           play()
@@ -217,20 +876,49 @@ preview.append(
           if (again) { again = false; rebuild() }
         }
         await rebuild()
-        status.remove()
+        el.setLoading(false)
         walker.clip.observe(play)
         walker.paused.observe(() =&gt; (walker.paused.value ? playing?.pause() : playing?.play(true)))
       },
     },
-    b3dSun({ timeOfDay: 15 }),
+    b3dSun({ timeOfDay: 16.5, shadowTextureSize: 2048, shadowMaxZ: 20, shadowNormalBias: 0.008 }),
     b3dLight({ intensity: 0.5 })
-  ),
-  status
+  )
 )
 </code></pre>
 <pre><code class="language-css">tosi-b3d { width: 100%; height: 100%; }
-.status { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.6); color: white; padding: 6px 12px; border-radius: 6px; font: 13px sans-serif; }
 </code></pre>
+<p>Open the settings (the owl): the body sliders reshape it
+while it walks, since every body carries its own joints. The skin weights are
+bone heat&#39;s, worked out from the mesh once when the page loads. The eyes
+(<a href="/human-face/">human-face</a>) follow the camera, and the hair
+(<a href="/human-hair/">human-hair</a>) is Quaternius&#39; CC0 hairstyles, made for another
+head and fitted to this one.</p>
+<p><strong>Tailor</strong> cuts a garment of your own out of the body. <strong>Draw the outline</strong>
+opens the front view beside the panel; click out an outline over it (you draw the character&#39;s left, on your right; the other
+side is its mirror), and the skin inside it, front and back, becomes cloth.
+A rectangle from the waist to the ankles is a pair of trousers. Click the
+first point to close a shape, drag a point to move it, press an edge to add
+one (<a href="/garment-cut/">garment-cut</a>).</p>
+<p>A cut is a start, not a finished garment: <strong>export</strong> it (glTF or OBJ, the
+garment and the body it was made on), shape it in Blender (a collar, pockets,
+its own UV unwrap), and <strong>import</strong> it back. It is bound to the body again by
+its shape, so it fits every body like the rest (<a href="/garment-file/">garment-file</a>).
+Or <strong>export the body alone</strong> and model a garment from nothing beside it.
+In Blender, tick Include → Custom Properties when exporting, so the file still
+says which body it was made on.</p>
+<p>New objects come in as part of the garment. Anything hard (a knee pad, a
+plate, a visor) gets a <code>rigid</code> custom property so it keeps its shape instead
+of bulging with the body under it (<a href="/proxy-rigid/">proxy-rigid</a>).</p>
+<p>Its surface is made in Blender too: the garment&#39;s material comes back with
+its base colour, normal, roughness and alpha maps, and fabric <strong>as made</strong>
+with <strong>recolour</strong> at 0 shows it untouched. Recolour above 0 tints the base
+colour map, read as grey.</p>
+<p><strong>Hide other clothes</strong> shows the garment on its own. <strong>Name</strong> it, pick its
+<strong>slot</strong> and <strong>save as an option</strong>: it is kept in this browser and becomes a
+choice in that slot like MakeHuman&#39;s own, with the fabric and colour it was
+saved with. A saved cut can be <strong>edit</strong>ed again from its outline; <strong>forget</strong>
+removes it.</p>
 <h2 id="humanbody">humanBody</h2>
 <p><code>humanBody(scene, pack)</code> draws a pack&#39;s body as one unrigged mesh, and
 <code>update(positions)</code> reshapes it in place: for a body that only needs to be
@@ -301,6 +989,7 @@ body&#39;s triangles.</p>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="../environment/">environment</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
     </ul>
     </details></li>
@@ -391,9 +1080,36 @@ body&#39;s triangles.</p>
           <li><a class="doc-link" href="../human-morph/">human-morph</a></li>
           <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
           <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
+          <li><a class="doc-link" href="../skin-shading/">skin-shading</a></li>
           <li><a class="doc-link" href="../human-face/">human-face</a></li>
-          <li><a class="doc-link" href="../human-hair/">human-hair</a></li>
-          <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          <li><a class="doc-link" href="../human-expression/">human-expression</a></li>
+          <li><details><summary><a class="doc-link" href="../human-hair/">human-hair</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../hair-shading/">hair-shading</a></li>
+            <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          </ul>
+          </details></li>
+          <li><details><summary><a class="doc-link" href="../human-proxy/">human-proxy</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../proxy-fit/">proxy-fit</a></li>
+            <li><a class="doc-link" href="../cloth-shading/">cloth-shading</a></li>
+            <li><details><summary><a class="doc-link" href="../garment-cut/">garment-cut</a></summary>
+            <ul>
+              <li><a class="doc-link" href="../outline-field/">outline field</a></li>
+            </ul>
+            </details></li>
+            <li><details><summary><a class="doc-link" href="../garment-bind/">garment-bind</a></summary>
+            <ul>
+              <li><details><summary><a class="doc-link" href="../garment-file/">garment-file</a></summary>
+              <ul>
+                <li><a class="doc-link" href="../uv-unwrap/">uv-unwrap</a></li>
+              </ul>
+              </details></li>
+              <li><a class="doc-link" href="../proxy-rigid/">proxy-rigid</a></li>
+            </ul>
+            </details></li>
+          </ul>
+          </details></li>
         </ul>
         </details></li>
       </ul>
@@ -608,11 +1324,17 @@ body&#39;s triangles.</p>
       <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
     </ul>
     </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../clock/">clock</a></li>
+    </ul>
+    </details></li>
     <li><details><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
     <ul>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.11.5/">0.11.5</a></li>
         <li><a class="doc-link" href="../v0.11.4/">0.11.4</a></li>
         <li><a class="doc-link" href="../v0.11.3/">0.11.3</a></li>
         <li><a class="doc-link" href="../v0.11.2/">0.11.2</a></li>
@@ -692,6 +1414,6 @@ body&#39;s triangles.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-0nmn3nad.js"></script>
+  <script type="module" src="../hydrate-fymfsbgh.js"></script>
 </body>
 </html>

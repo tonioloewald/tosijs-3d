@@ -8,10 +8,6 @@ lights the ground, and the boom arrives at the speed of sound.
 
 ## Demo
 
-Tap the scene once so the browser lets it make sound. The volcano's activity
-dial takes it from dormant to erupting; the explosion is 60 m away, so its
-boom comes a moment after the flash.
-
 ```js
 import { b3d, b3dEffect, b3dLight, b3dGround, b3dSkybox, slider3d, button3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -43,6 +39,10 @@ preview.append(
   )
 )
 ```
+
+Tap the scene once so the browser lets it make sound. The volcano's activity
+dial takes it from dormant to erupting; the explosion is 60 m away, so its
+boom comes a moment after the flash.
 
 ## Attributes
 

@@ -19,6 +19,9 @@ The sliders, each from 0 to 1:
 - **muscle** and **weight**: least at 0, average at 0.5, most at 1
 - **height**: shortest at 0, average for the rest of the body at 0.5, tallest at 1
 - **proportions**: uncommon at 0, neutral at 0.5, ideal at 1
+- **waist**: narrowest at 0, as the rest of the body has it at 0.5, widest at 1
+  (MakeHuman's waist circumference, plus a pinch toward the centre line below
+  0.5, because that target mostly takes depth off)
 
 `african`, `asian` and `caucasian` are an ancestry MIX, normalised to sum to 1
 (all zero is an even mix).
@@ -43,6 +46,11 @@ export const DEFAULT_HUMAN_BODY = Object.freeze({
     african: 1 / 3,
     asian: 1 / 3,
     caucasian: 1 / 3,
+    chestDepth: 0.5,
+    pecs: 0.5,
+    waist: 0.5,
+    bustSize: 0.5,
+    bustFirmness: 0.5,
 });
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 /** Female / male. */
@@ -158,11 +166,110 @@ export function macroWeights(body, has = () => true) {
                     for (const [p, pw] of proportions) {
                         add(`macrodetails/proportions/${corner}-${p}`, base * pw);
                     }
+                    /*
+                    THE BUST: MakeHuman's breast targets are corners like the macros,
+                    plus cup and firmness, for the female half of the body only; the
+                    average cup at average firmness is the base shape, so it has none.
+                    */
+                    if (g === 'female') {
+                        for (const [c, cw] of threeLevel(body.bustSize ?? 0.5, 'cup')) {
+                            for (const [f, fw] of threeLevel(body.bustFirmness ?? 0.5, 'firmness')) {
+                                if (c === 'averagecup' && f === 'averagefirmness')
+                                    continue;
+                                add(`breast/${corner}-${c}-${f}`, base * cw * fw);
+                            }
+                        }
+                    }
                 }
             }
         }
     }
+    // Chest depth and pectorals: plain pairs, independent of the macros.
+    for (const [t, w] of bipolar(body.chestDepth ?? 0.5, 'decr', 'incr')) {
+        add(`torso/torso-scale-depth-${t}`, w);
+    }
+    for (const [t, w] of bipolar(body.pecs ?? 0.5, 'decr', 'incr')) {
+        add(`torso/torso-muscle-pectoral-${t}`, w);
+    }
+    // The waist on its own: the weight macros barely narrow a woman's.
+    for (const [t, w] of bipolar(body.waist ?? 0.5, 'decr', 'incr')) {
+        add(`measure/measure-waist-circ-${t}`, w);
+    }
+    /*
+    MakeHuman's waist circumference mostly takes DEPTH off (about 4 cm to 1.5
+    across), and none of its shapes narrows the waist from the front alone (hip
+    width takes the hips too, V-shape widens the shoulders, torso width takes the
+    ribs). So the narrow end also pinches the waist toward the centre line, a
+    shape computed here rather than a target in the pack.
+    */
+    const narrow = (0.5 - clamp01(body.waist ?? 0.5)) * 2;
+    if (narrow > 1e-6)
+        out.set(WAIST_NARROW, narrow);
     return out;
+}
+/** The computed waist pinch's name in a `macroWeights` map (not a pack target). */
+export const WAIST_NARROW = 'shape/waist-narrow';
+/** How much of the waist's width the pinch takes at most. */
+const WAIST_PINCH = 0.14;
+// Which vertices the pinch moves and how much (0..1), from the BASE mesh,
+// where the arms are far from the waist; once per pack.
+const pinchMasks = new WeakMap();
+function waistMask(base, triangles) {
+    let mask = pinchMasks.get(base);
+    if (mask != null)
+        return mask;
+    const n = base.length / 3;
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (let i = 0; i < triangles.length; i++) {
+        const y = base[triangles[i] * 3 + 1];
+        if (y < lo)
+            lo = y;
+        if (y > hi)
+            hi = y;
+    }
+    const h = hi - lo;
+    // The waist: the narrowest torso between 58% and 72% of the height.
+    let waistY = lo + h * 0.645;
+    let narrowest = Infinity;
+    for (let f = 0.58; f <= 0.72; f += 0.005) {
+        const y = lo + h * f;
+        let w = 0;
+        for (let i = 0; i < triangles.length; i++) {
+            const v = triangles[i];
+            const x = Math.abs(base[v * 3]);
+            if (Math.abs(base[v * 3 + 1] - y) < 0.004 && x < 0.2 && x > w)
+                w = x;
+        }
+        if (w > 0 && w < narrowest) {
+            narrowest = w;
+            waistY = y;
+        }
+    }
+    const sigma = h * 0.05;
+    mask = new Float32Array(n);
+    for (let v = 0; v < n; v++) {
+        const dy = (base[v * 3 + 1] - waistY) / sigma;
+        const ax = Math.abs(base[v * 3]);
+        // The torso only: faded out well before the arms (26 cm out in the base).
+        const side = ax < 0.16 ? 1 : ax > 0.2 ? 0 : (0.2 - ax) / 0.04;
+        mask[v] = Math.exp(-0.5 * dy * dy) * side;
+    }
+    pinchMasks.set(base, mask);
+    return mask;
+}
+/**
+ * Pinch the waist toward the centre line by `amount` (0..1) of `WAIST_PINCH`.
+ * The band is found on the pack's base mesh; `out` is the morphed body. Pure
+ * apart from a cache of the band per base mesh.
+ */
+export function pinchWaist(out, base, triangles, amount) {
+    const mask = waistMask(base, triangles);
+    const k = WAIST_PINCH * amount;
+    for (let v = 0; v < mask.length; v++) {
+        if (mask[v] > 1e-4)
+            out[v * 3] *= 1 - k * mask[v];
+    }
 }
 /** Add `weight` × a target into `out` (xyz per vertex). Pure. */
 export function addHumanTarget(out, target, weight) {
@@ -185,12 +292,14 @@ export function addHumanTarget(out, target, weight) {
  * fetched first (all at once); pass `into` to reuse a buffer.
  */
 export async function morphHuman(pack, weights, into) {
-    const targets = await Promise.all([...weights.keys()].map((n) => pack.target(n)));
+    const names = [...weights.keys()].filter((n) => n !== WAIST_NARROW);
+    const targets = await Promise.all(names.map((n) => pack.target(n)));
     const out = into ?? new Float32Array(pack.positions.length);
     out.set(pack.positions);
-    let i = 0;
-    for (const w of weights.values())
-        addHumanTarget(out, targets[i++], w);
+    names.forEach((n, i) => addHumanTarget(out, targets[i], weights.get(n)));
+    const narrow = weights.get(WAIST_NARROW) ?? 0;
+    if (narrow > 0)
+        pinchWaist(out, pack.positions, pack.triangles, narrow);
     return out;
 }
 /** A joint's position: the centroid of its vertices. Pure. */

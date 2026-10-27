@@ -7,9 +7,6 @@ and it writes the result back.
 
 ## Demo
 
-Drag the arrows to move, the rings to turn, the cubes to scale. The pads move in
-a plane. Everything is on at once — the part you grab says what the drag means.
-
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLight, b3dGround, b3dBox, b3dManipulator, toggle3d, select3d, label3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -66,10 +63,8 @@ const panel = () => [
 ]
 
 preview.append(
-  readout,
   b3d(
     {
-      style: 'width:100%;height:100%',
       scenePanel: panel,
       sceneCreated(el) {
         orbitCam(el, { alpha: -1.1, beta: 1.05, radius: 8, target: [0, 0.5, 0] })
@@ -81,16 +76,14 @@ preview.append(
     b3dGround({ size: 40, color: '#5d6b4a' }),
     b3dBox({ id: 'thing', y: 0.5, color: '#c8963c' }),
     gizmo
-  )
+  ),
+  readout
 )
 ```
 ```css
-.preview { height: 100%; position: relative; }
+.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 .readout {
-  position: absolute;
-  z-index: 1;
-  left: 8px;
-  bottom: 8px;
   padding: 4px 10px;
   border-radius: 6px;
   font-family: ui-monospace, monospace;
@@ -99,6 +92,9 @@ preview.append(
   background: #0009;
 }
 ```
+
+Drag the arrows to move, the rings to turn, the cubes to scale. The pads move in
+a plane. Everything is on at once — the part you grab says what the drag means.
 
 ## Attributes
 
@@ -347,10 +343,28 @@ export class B3dManipulator extends B3dChild {
         purely about it feeling stable in the hand. Freezing the anchor for the
         duration of a grab is what every DCC gizmo does, and for the same reason.
         */
-        const p = this._drag != null && this._anchor != null
-            ? this._anchor
-            : node.getAbsolutePosition();
-        if (this._drag == null) {
+        /*
+        ...BUT IT FOLLOWS THE MOVE YOU ARE MAKING. Frozen outright, the handles
+        were left behind for the whole of a move drag and only caught up on
+        release. So the frozen anchor moves by the change in the target's OWN
+        position (its local position, carried into the world by its parent), which
+        is the drag's doing; the parent's animation, the breathing, is still left out.
+        */
+        let p;
+        if (this._drag != null && this._anchor != null) {
+            if (this._dragFrom == null)
+                this._dragFrom = node.position.clone();
+            const moved = node.position.subtract(this._dragFrom);
+            const parent = node.parent;
+            if (parent != null) {
+                parent.computeWorldMatrix(true);
+                BABYLON.Vector3.TransformNormalToRef(moved, parent.getWorldMatrix(), moved);
+            }
+            p = this._anchor.add(moved);
+        }
+        else {
+            this._dragFrom = null;
+            p = node.getAbsolutePosition();
             this._anchor = p.clone();
             view.setOrientation(this._rotationOf(node));
         }
@@ -499,6 +513,8 @@ export class B3dManipulator extends B3dChild {
     }
     /** Where the handles were when the grab started — see `_track`. */
     _anchor = null;
+    /** The target's local position when the current drag began. */
+    _dragFrom = null;
     /** Is a drag in progress? */
     get dragging() {
         return this._drag != null;

@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=7917dccc76d6" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=c3f9a510fbae" data-tosi-doc-system />
   <title>animation-layers — tosijs-3d</title>
   <meta name="description" content="Play two clips on one skeleton, split by a bone mask. The Babylon half of walk-and-aim: legs keep the locomotion, arms and head take the aim, and the boundary…" />
   <link rel="canonical" href="https://3d.tosijs.net/animation-layers/" />
@@ -30,19 +30,13 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=10b0e7b75506" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=d4cb551793b9" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="animation-layers.ts">
 <h1 id="animation-layers">animation-layers</h1>
 <p><strong>Play two clips on one skeleton, split by a bone mask.</strong> The Babylon half of
 walk-and-aim: legs keep the locomotion, arms and head take the aim, and the
 boundary is feathered rather than cut.</p>
 <h2 id="demo--walk-and-wave-at-once">Demo — walk and wave at once</h2>
-<p><code>walk</code> on the legs, <code>wave</code> on the arms, spine feathered between them. Drag
-<strong>falloff</strong> to 0 to see the mannequin sawn in half, and to 5 to see the twist
-spread so far the wave loses its authority. The middle is the point.</p>
-<p><code>layer</code> picks any of the rig&#39;s sixteen clips as the upper-body one, so you can
-try <code>salute</code>, <code>talk</code> or <code>look</code> — the last is the closest thing the stock rig has
-to an aim pose.</p>
 <pre><code class="language-js">import { b3d, b3dLight, b3dSkybox, b3dLoader, slider3d, select3d, label3d, toggle3d } from &#39;tosijs-3d&#39;
 import { boneHierarchy, layerGroups, boneMask, findBone, UPPER_BODY_ROOTS } from &#39;tosijs-3d&#39;
 import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
@@ -137,6 +131,12 @@ preview.append(
 </code></pre>
 <pre><code class="language-css">.preview { height: 100%; }
 </code></pre>
+<p><code>walk</code> on the legs, <code>wave</code> on the arms, spine feathered between them. Drag
+<strong>falloff</strong> to 0 to see the mannequin sawn in half, and to 5 to see the twist
+spread so far the wave loses its authority. The middle is the point.</p>
+<p><code>layer</code> picks any of the rig&#39;s sixteen clips as the upper-body one, so you can
+try <code>salute</code>, <code>talk</code> or <code>look</code> — the last is the closest thing the stock rig has
+to an aim pose.</p>
 <h2 id="the-mask">The mask</h2>
 <p><code>boneMask(bones, { root, falloff })</code> says which bones the layer drives, and how
 much. It is pure: a bone hierarchy is names and parents (<code>boneHierarchy(skeleton)</code>
@@ -242,6 +242,7 @@ what it matched so a caller can refuse rather than animate air.</p>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="../environment/">environment</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
     </ul>
     </details></li>
@@ -332,9 +333,36 @@ what it matched so a caller can refuse rather than animate air.</p>
           <li><a class="doc-link" href="../human-morph/">human-morph</a></li>
           <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
           <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
+          <li><a class="doc-link" href="../skin-shading/">skin-shading</a></li>
           <li><a class="doc-link" href="../human-face/">human-face</a></li>
-          <li><a class="doc-link" href="../human-hair/">human-hair</a></li>
-          <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          <li><a class="doc-link" href="../human-expression/">human-expression</a></li>
+          <li><details><summary><a class="doc-link" href="../human-hair/">human-hair</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../hair-shading/">hair-shading</a></li>
+            <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          </ul>
+          </details></li>
+          <li><details><summary><a class="doc-link" href="../human-proxy/">human-proxy</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../proxy-fit/">proxy-fit</a></li>
+            <li><a class="doc-link" href="../cloth-shading/">cloth-shading</a></li>
+            <li><details><summary><a class="doc-link" href="../garment-cut/">garment-cut</a></summary>
+            <ul>
+              <li><a class="doc-link" href="../outline-field/">outline field</a></li>
+            </ul>
+            </details></li>
+            <li><details><summary><a class="doc-link" href="../garment-bind/">garment-bind</a></summary>
+            <ul>
+              <li><details><summary><a class="doc-link" href="../garment-file/">garment-file</a></summary>
+              <ul>
+                <li><a class="doc-link" href="../uv-unwrap/">uv-unwrap</a></li>
+              </ul>
+              </details></li>
+              <li><a class="doc-link" href="../proxy-rigid/">proxy-rigid</a></li>
+            </ul>
+            </details></li>
+          </ul>
+          </details></li>
         </ul>
         </details></li>
       </ul>
@@ -549,11 +577,17 @@ what it matched so a caller can refuse rather than animate air.</p>
       <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
     </ul>
     </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../clock/">clock</a></li>
+    </ul>
+    </details></li>
     <li><details><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
     <ul>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.11.5/">0.11.5</a></li>
         <li><a class="doc-link" href="../v0.11.4/">0.11.4</a></li>
         <li><a class="doc-link" href="../v0.11.3/">0.11.3</a></li>
         <li><a class="doc-link" href="../v0.11.2/">0.11.2</a></li>
@@ -633,6 +667,6 @@ what it matched so a caller can refuse rather than animate air.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-0nmn3nad.js"></script>
+  <script type="module" src="../hydrate-fymfsbgh.js"></script>
 </body>
 </html>

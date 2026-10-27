@@ -54,6 +54,7 @@ import * as BABYLON from '@babylonjs/core';
 import { PerlinNoise } from './perlin-noise.js';
 import { buildSignature, readStored, writeStored, shouldRerun, isStale, resolveProfile, defaultProfile, PROBE_VERSION, DAY_MS, } from './perf-probe.js';
 import { setPerfProfile, getPerfProfile } from './b3d-quality.js';
+import { realNow, wallMs } from './clock.js';
 // ─── Benchmark workload sizes ─────────────────────────────────────────────────
 // Fixed so results are comparable across runs; bump PROBE_VERSION in perf-probe if
 // you change any of these (old cached measurements are only comparable within a
@@ -75,11 +76,11 @@ function timeScene(gl, scene, frames = FRAMES) {
     for (let i = 0; i < WARMUP; i++)
         scene.render();
     gl.finish();
-    const t0 = performance.now();
+    const t0 = realNow();
     for (let i = 0; i < frames; i++)
         scene.render();
     gl.finish();
-    return (performance.now() - t0) / frames;
+    return (realNow() - t0) / frames;
 }
 function buildFillScene(engine) {
     // Fullscreen colour layers composited with alpha → pure overdraw, no geometry.
@@ -123,7 +124,7 @@ function buildDrawScene(engine) {
 /** CPU noise batch — mirrors terrain heightAt's per-vertex cost. */
 function timeCpu() {
     const noise = new PerlinNoise(1234);
-    const t0 = performance.now();
+    const t0 = realNow();
     let acc = 0;
     for (let i = 0; i < CPU_SAMPLES; i++) {
         acc += noise.noise3D(i * 0.01, (i % 512) * 0.017, (i % 131) * 0.031);
@@ -131,7 +132,7 @@ function timeCpu() {
     // Consume acc so the loop can't be optimised away.
     if (acc === Infinity)
         throw new Error('unreachable');
-    return performance.now() - t0;
+    return realNow() - t0;
 }
 function readRenderer() {
     try {
@@ -205,7 +206,7 @@ export function hydrateProfileFromCache() {
         return false;
     setPerfProfile(resolveProfile(stored.measurements, {
         cached: true,
-        stale: isStale(stored, Date.now()),
+        stale: isStale(stored, wallMs()),
         hints: stored.hints,
     }));
     return true;
@@ -265,7 +266,7 @@ export async function runProbe(opts = {}) {
     const env = await currentEnv();
     const hints = hintsOf(env);
     const signature = buildSignature(env);
-    const now = Date.now();
+    const now = wallMs();
     const ttlMs = (opts.ttlDays || 30) * DAY_MS;
     const stored = readStored(storage);
     // Serve a cached result immediately (even if stale) so consumers never wait.
@@ -288,8 +289,8 @@ export async function runProbe(opts = {}) {
         // Backdate a contended measurement to just inside its TTL, so it survives
         // this session (no re-probing on every scene) and expires by the next one.
         measuredAt: opts.measuredWhileBusy
-            ? Date.now() - (ttlMs - 5 * 60 * 1000)
-            : Date.now(),
+            ? wallMs() - (ttlMs - 5 * 60 * 1000)
+            : wallMs(),
     });
     const profile = resolveProfile(measurements, { cached: false, hints });
     setPerfProfile(profile);

@@ -27,7 +27,7 @@ export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, e
 // shipped JSDoc instructs consumers to call it, and CLAUDE.md tells them to
 // use `semanticParent`; instructing someone to call something they cannot
 // import is worse than not documenting it.
-markUiMesh, markCollisionGroup, collisionGroups, inCollisionGroup, isNoCollide, collidable, cameraIsAttached, semanticParent, refuseOwnAncestor, conventionName, simHalted, controlsLive, } from './b3d-utils.js';
+markUiMesh, markCollisionGroup, collisionGroups, inCollisionGroup, isNoCollide, collidable, cameraIsAttached, semanticParent, refuseOwnAncestor, refuseOwnAncestors, conventionName, simHalted, controlsLive, } from './b3d-utils.js';
 // The pure flight model, so a consumer can predict what the aircraft will do
 // without instantiating one — `equilibriumSpeed` is what the HUD's set-point
 // mark is drawn from, and a mission planner wants the same number.
@@ -464,13 +464,27 @@ export { markerField3d, MARKER_LABELS } from './rig-markers.js';
 export { boneHeat } from './bone-heat.js';
 export { buildRig } from './rig-build.js';
 export { loadHumanPack, decodeHumanTarget } from './human-pack.js';
+export { fitProxy, drawnPositions, proxyWeights, nearestWeights, coveredTriangles, underCover, inflate, proxyDelta, coveredBy, smoothUnder, } from './proxy-fit.js';
+export { humanProxy, proxyMaterial, coverBody } from './human-proxy.js';
+export { cutGarment, mirrorOutline, skirtGarment } from './garment-cut.js';
+export { outlineField3d } from './outline-field.js';
+export { bindGarment, closestOnTriangle } from './garment-bind.js';
+export { writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, referenceName, metaFromName, unwrapGarment, } from './garment-file.js';
+export { unwrapUvs, carryUnwrapped } from './uv-unwrap.js';
+export { rigidGroups, similarityFit, applyRigid, rigidWeights, rigidDelta, } from './proxy-rigid.js';
+export { clothShading, FABRICS } from './cloth-shading.js';
+export { faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, VISEMES, UNITS as FACE_POSE_UNITS, FACE_UNITS, } from './human-expression.js';
+export { studioEnvironment } from './environment.js';
 export { DEFAULT_HUMAN_BODY, macroWeights, morphHuman, addHumanTarget, humanJoint, humanHeight, genderCorners, ageCorners, ageYears, ancestryCorners, } from './human-morph.js';
-export { humanBody, skinMaterial, lipTint } from './character-builder.js';
-export { MONK_TONES, skinLinear, skinColor, skinAlbedo, lipAlbedo, IRIS_TONES, irisColor, hairColor, } from './skin-tone.js';
-export { loadHairLibrary, headScalp, hairMaterial, humanHair, } from './human-hair.js';
-export { fitToScalp, applyFit, conformOutside, vertexNormals, } from './hair-fit.js';
+export { humanBody, skinMaterial, lipTint, stubbleTint, } from './character-builder.js';
+export { skinShading, skinThinness, SkinShadingPlugin } from './skin-shading.js';
+export { MONK_TONES, skinLinear, skinColor, skinAlbedo, lipAlbedo, IRIS_TONES, irisColor, hairColor, hairDye, } from './skin-tone.js';
+export { loadHairLibrary, headScalp, hairMaterial, humanHair, placeHair, QUATERNIUS_HEADS, } from './human-hair.js';
+export { hairShading, HairShadingPlugin, HAIR_COLOURS } from './hair-shading.js';
+export { fitToScalp, applyFit, conformOutside, vertexNormals, headRegion, shellWarp, applyWarp, skinGaps, keepHeight, headRegionIndices, } from './hair-fit.js';
 export { humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, HM08_EYE_UV, } from './human-face.js';
-export { humanRig, humanSkin, HM08_UAL, } from './human-rig.js';
+export { humanRig, humanSkin, stiffenHead, armsOffTorso, HM08_UAL, } from './human-rig.js';
 export { springChain, stepSpringChain, resetSpringChain, shiftSpringChain, SPRING_DEFAULTS, } from './spring-chain.js';
 export { springBones, springNodes } from './spring-chain-babylon.js';
+export { realNow, wallMs, wallDate } from './clock.js';
 //# sourceMappingURL=index.js.map

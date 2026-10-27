@@ -13,6 +13,8 @@ export declare class B3dAircraft extends B3dControllable {
         meshName: string;
         player: boolean;
         enterable: boolean;
+        /** A soft blob shadow straight below, fading with height (`'off'`: none). */
+        dropShadow: "on" | "off";
         ceiling: number;
         hudChaseOff: boolean;
         hudSize: number;
@@ -192,6 +194,19 @@ export declare class B3dAircraft extends B3dControllable {
     reticleRange: number;
     private _hud;
     private _hudMountKey;
+    /** Where a headset's chase-view HUD hangs (see `_placeChaseHud`). */
+    private _chaseHudNode;
+    private _chaseHudObs;
+    /**
+     * Put the headset chase HUD on the line from the eyes to the aircraft,
+     * facing the eyes and level with the rig, at the craft's distance, scaled
+     * to keep its angle.
+     *
+     * Placed just before the frame is drawn, from fresh matrices: the craft,
+     * its chase anchor and the rig riding it all move during the frame, and a
+     * placement from the previous frame's eye trails by a frame of travel.
+     */
+    private _chaseHudNodeFor;
     private _radar;
     private _reticleMesh;
     private meshNode;
@@ -390,6 +405,10 @@ export declare class B3dAircraft extends B3dControllable {
     /** True while the gear is up (or on its way). */
     get gearUp(): boolean;
     private _playGearSound;
+    private _dropShadow;
+    /** The craft's footprint (m), for the drop shadow. */
+    private _footprint;
+    private _placeDropShadow;
     /** Drive the gear from height above ground, with hysteresis so a bumpy
      * approach or a hill passing underneath doesn't cycle it. */
     private _updateGear;

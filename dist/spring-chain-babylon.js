@@ -8,10 +8,6 @@ body is animated; the hair is simulated.
 
 ## Demo
 
-A UAL mannequin with a ponytail it was not made with: six bones hung from
-the head, a tube skinned to them by bone heat, and the chain simulated.
-Change the clip, or the stiffness and damping, in the panel.
-
 ```js
 import { b3d, b3dLight, assetUrl, select3d, slider3d, springBones, boneHeat, sceneDelta } from 'tosijs-3d'
 import { tosi } from 'tosijs'
@@ -106,6 +102,10 @@ preview.append(
   )
 )
 ```
+
+A UAL mannequin with a ponytail it was not made with: six bones hung from
+the head, a tube skinned to them by bone heat, and the chain simulated.
+Change the clip, or the stiffness and damping, in the panel.
 
 ## Use
 

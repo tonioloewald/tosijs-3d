@@ -262,7 +262,6 @@ export declare class BiomePlugin extends BABYLON.MaterialPluginBase {
     private _isEnabled;
     private _lite;
     private _computed;
-    private _t0;
     constructor(material: BABYLON.Material);
     /**
      * Compute the fine 3D noise in the shader instead of reading it from the

@@ -11,14 +11,6 @@ names its flat home with `flatFrame`.
 
 ## Demo
 
-Four ways to show a panel, side by side. The **world panel** (a `b3d-svg-plane`) is
-a mesh in the scene — it renders in the regular flat view AND in VR, fixed in the
-world. The **Settings** panel (the `scenePanel` hook) is *dual-presence*: the owl on
-the system bar (top left) opens it in the scene, flat and in VR alike — its slider
-drives the cube in both. The **VR only** panel (`<tosi-b3d-panel>`) has no flat presence — enter VR to see
-it anchored to your view. The **Flat + VR** panel is the same element with
-`presence: 'both'`: viewer-relative on the monitor AND in the headset, one panel.
-
 ```js
 import { b3d, b3dPanel, b3dSvgPlane, b3dLight, b3dSkybox, b3dGround, b3dBox, label3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
@@ -58,6 +50,14 @@ preview.append(scene)
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+Four ways to show a panel, side by side. The **world panel** (a `b3d-svg-plane`) is
+a mesh in the scene — it renders in the regular flat view AND in VR, fixed in the
+world. The **Settings** panel (the `scenePanel` hook) is *dual-presence*: the owl on
+the system bar (top left) opens it in the scene, flat and in VR alike — its slider
+drives the cube in both. The **VR only** panel (`<tosi-b3d-panel>`) has no flat presence — enter VR to see
+it anchored to your view. The **Flat + VR** panel is the same element with
+`presence: 'both'`: viewer-relative on the monitor AND in the headset, one panel.
 
 > **The coloured axes are a readout, not a manipulator.** They show the cube's
 > orientation. To place something by dragging, use

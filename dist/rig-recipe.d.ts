@@ -1,5 +1,6 @@
 import type { Role } from './retarget.js';
 import type { Vec3 } from './spatial-transform.js';
+import { type Markers } from './rig-fit.js';
 export declare const RIG_RECIPE_VERSION = 1;
 /** A sphere a chain stays out of, on a bone. */
 export interface ColliderRecipe {
@@ -68,6 +69,18 @@ export interface RigRecipe {
     /** See `RetargetOptions.armSpaceDeg`. */
     armSpaceDeg?: number;
     springs?: SpringRecipe[];
+    /**
+     * A mesh with no skeleton: where its joints are, as Mixamo's eight
+     * front-view markers (and a tail's tip), from which a skeleton is fitted
+     * and the mesh bound to it by bone heat (see `rig-fit`, `bone-heat`).
+     */
+    binding?: RigBinding;
+}
+/** The markers a mesh with no skeleton is bound from. */
+export interface RigBinding {
+    markers: Markers;
+    /** Where a tail's tip is, for a tail chain. */
+    tail?: Vec3 | null;
 }
 export declare const STRAND_DEFAULTS: Omit<StrandSpringRecipe, 'anchor'>;
 /** A strand's direction as a unit vector, in the character's frame. */

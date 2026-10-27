@@ -8,9 +8,6 @@ so there is no new machinery here, only the arrangement.
 
 ## Demo
 
-Five hundred and sixty-one names, in the shape a real model library has them:
-`family_thing-variant`. Type to narrow, or pick a family first.
-
 ```js
 import { panel3d, label3d, picker3d } from 'tosijs-3d'
 import { elements } from 'tosijs'
@@ -52,6 +49,9 @@ preview.append(
   color: #9aa4b2;
 }
 ```
+
+Five hundred and sixty-one names, in the shape a real model library has them:
+`family_thing-variant`. Type to narrow, or pick a family first.
 
 ## Why not a bigger popup
 

@@ -9,9 +9,6 @@ whatever you like.
 
 ## Demo
 
-**Drive the rover with W/S and A/D (or the left stick).** Same controls on keyboard,
-touch, and in VR, because it's the standard controller, not a demo hack.
-
 ```js
 import { b3d, b3dController, b3dSkybox } from 'tosijs-3d'
 import { demoSun, orbitCam, patternGround } from 'tosijs-3d/demo-utils'
@@ -56,6 +53,9 @@ preview.append(scene)
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+**Drive the rover with W/S and A/D (or the left stick).** Same controls on keyboard,
+touch, and in VR, because it's the standard controller, not a demo hack.
 
 It's a [b3d-controllable](/b3d-controllable/) with no body of its own, so it also
 respects **scene input focus**: on a page with several live demos, only the scene you're

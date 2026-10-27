@@ -12,15 +12,14 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-## 0.11.4
+## 0.11.5
 
-The latest release. A character creator on MakeHuman's CC0 body: shape a
-person with sliders, give them skin, eyes and hair, and watch them walk with
-UAL's clips. [Read 0.11.4](/v0.11.4/).
+The latest release. The character creator gets dressed: MakeHuman's clothes on any body shape, the Tailor for cutting your own (skirts and robes too, out to Blender and back), faces that move, and hair, skin and cloth shading. [Read 0.11.5](/v0.11.5/).
 
 ## Every version
 
 <!-- toc -->
+- [0.11.5](/v0.11.5/)
 - [0.11.4](/v0.11.4/)
 - [0.11.3](/v0.11.3/)
 - [0.11.2](/v0.11.2/)

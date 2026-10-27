@@ -1,0 +1,5 @@
+import{fr}from"./site-qb4nmqee.js";class qi extends fr{constructor(t,a,s,e,r,i){super(s,i);this._operation=e,this._className=r,this.a=this.registerDataInput("a",t),this.b=this.registerDataInput("b",a)}_doOperation(t){let a=this.a.getValue(t),s=this.b.getValue(t);return this._operation(a,s)}getClassName(){return this._className}}
+export{qi};
+
+//# debugId=BE7050FAFE3293CD64756E2164756E21
+//# sourceMappingURL=site-ammf3ak4.js.map

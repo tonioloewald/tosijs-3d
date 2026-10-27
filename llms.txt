@@ -1,4 +1,4 @@
-# tosijs-3d v0.11.4
+# tosijs-3d v0.11.5
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -75,6 +75,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Size: barrel (min, packages external) 1245.8 KB raw / 426.2 KB gz, +0.08% on 0.11.2.
 - https://3d.tosijs.net/v0.11.4/ — 0.11.4
   Size: barrel (min, packages external) 1266.7 KB raw / 433.9 KB gz, +1.67% on 0.11.3 (the character creator).
+- https://3d.tosijs.net/v0.11.5/ — 0.11.5
+  The character creator gets dressed. Clothes (MakeHuman's CC0 garments, fitted to any body shape, with fabrics and rec...
 - https://3d.tosijs.net/v0.5.0/ — 0.5.0
   `@babylonjs/loaders`, `@babylonjs/materials` moved `^8` → `^9`. **Consumers must
 - https://3d.tosijs.net/v0.5.1/ — 0.5.1
@@ -156,7 +158,7 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/asset-url/ — asset-url
   A tiny indirection for referencing hosted blobs (models, textures, audio, …) by a
 - https://3d.tosijs.net/rig-build/ — auto-rig
-  modelling program (no skeleton, no weights) are rigged in the browser and play
+  a mesh's front view (chin, groin, wrists, elbows, knees) place UAL's 65-bone
 - https://3d.tosijs.net/tosi-b3d/ — b3d
   The root 3D scene container. All other components (`b3dSun`, `b3dSkybox`, `b3dLoader`, etc.)
 - https://3d.tosijs.net/b3d-aircraft/ — b3d-aircraft
@@ -353,6 +355,12 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Input component that maps keyboard/mouse to a virtual gamepad and optionally
 - https://3d.tosijs.net/gamepad-focus/ — gamepad-focus
   Drives an SVG UI's **focus traversal** from a [[virtual-gamepad|VirtualGamepad]] — the
+- https://3d.tosijs.net/garment-bind/ — garment-bind
+  Any mesh made around a body, bound to it: each vertex becomes the nearest
+- https://3d.tosijs.net/garment-cut/ — garment-cut
+  A garment cut out of the body: draw a polygon over the front view (a
+- https://3d.tosijs.net/garment-file/ — garment-file
+  the body it was made on, so it can be reshaped by hand (a collar, pockets,
 - https://3d.tosijs.net/gas-giant/ — gas-giant
   winds that alternate direction from belt to belt, with a long-lived storm.
 - https://3d.tosijs.net/getting-started/ — Getting started
@@ -429,6 +437,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   is implemented by BOTH Ariosto's reference store and tosijs-3d's [world-store](/world-store/). This
 - https://3d.tosijs.net/noise-texture/ — Noise texture
   Shader noise **read instead of computed**. Arithmetic noise in a fragment
+- https://3d.tosijs.net/outline-field/ — outline field
+  garment is cut along, clicked out point by point.
 - https://3d.tosijs.net/patch-field/ — patch-field
   terrain's HEIGHT, a patch post-filters its DENSITY — one dimension up, so it can
 - https://3d.tosijs.net/perf-probe/ — perf-probe
@@ -455,6 +465,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   a curve over normalised distance from the province's centre. Pure: no DOM, no
 - https://3d.tosijs.net/proxy-fit/ — proxy-fit
   Clothes, hair and anything else made for a base body, fitted to every shape
+- https://3d.tosijs.net/proxy-rigid/ — proxy-rigid
+  Parts of a garment that must keep their shape: an armour plate, a helmet's
 - https://3d.tosijs.net/mersenne-twister/ — Pseudo Random Numbers
   planet's craters, where the rocks go, who spawns) is drawn from a generator
 - https://3d.tosijs.net/reference/ — Reference
@@ -534,6 +546,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/upgrading/ — Upgrading
   changes you have to make in your own code, minor by minor. The
 - https://3d.tosijs.net/utilities/ — utilities
+- https://3d.tosijs.net/uv-unwrap/ — uv-unwrap
+  Blender gets a layout an artist can paint on and a pattern can run across,
 - https://3d.tosijs.net/vertex-animation/ — vertex-animation
   Babylon, no GPU — so the layout and the phase maths can be tested without a
 - https://3d.tosijs.net/virtual-gamepad/ — virtual-gamepad

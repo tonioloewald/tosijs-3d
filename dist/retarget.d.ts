@@ -6,7 +6,7 @@ export declare const FINGERS: readonly Finger[];
 /** A finger joint: 1 at the knuckle (the thumb's at the wrist), 3 at the tip. */
 export type FingerJoint = `${Finger}${1 | 2 | 3}`;
 /** What a bone IS in a humanoid, whatever it is called. */
-export type Role = 'hips' | 'spine' | 'chest' | 'neck' | 'head' | `${Side}-${Limb}` | `${Side}-${FingerJoint}`;
+export type Role = 'hips' | 'spine' | 'midSpine' | 'chest' | 'neck' | 'head' | `${Side}-${Limb}` | `${Side}-${FingerJoint}`;
 export declare const ROLES: readonly Role[];
 /** A bone as `humanoidRoles` needs it: its name and its parent's. */
 export interface NamedBone {

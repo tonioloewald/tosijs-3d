@@ -1,4 +1,4 @@
-# tosijs-3d v0.11.4
+# tosijs-3d v0.11.5
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -74,6 +74,9 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/v0.11.3/ — 0.11.3
   Size: barrel (min, packages external) 1245.8 KB raw / 426.2 KB gz, +0.08% on 0.11.2.
 - https://3d.tosijs.net/v0.11.4/ — 0.11.4
+  Size: barrel (min, packages external) 1266.7 KB raw / 433.9 KB gz, +1.67% on 0.11.3 (the character creator).
+- https://3d.tosijs.net/v0.11.5/ — 0.11.5
+  The character creator gets dressed. Clothes (MakeHuman's CC0 garments, fitted to any body shape, with fabrics and rec...
 - https://3d.tosijs.net/v0.5.0/ — 0.5.0
   `@babylonjs/loaders`, `@babylonjs/materials` moved `^8` → `^9`. **Consumers must
 - https://3d.tosijs.net/v0.5.1/ — 0.5.1
@@ -155,7 +158,7 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/asset-url/ — asset-url
   A tiny indirection for referencing hosted blobs (models, textures, audio, …) by a
 - https://3d.tosijs.net/rig-build/ — auto-rig
-  modelling program (no skeleton, no weights) are rigged in the browser and play
+  a mesh's front view (chin, groin, wrists, elbows, knees) place UAL's 65-bone
 - https://3d.tosijs.net/tosi-b3d/ — b3d
   The root 3D scene container. All other components (`b3dSun`, `b3dSkybox`, `b3dLoader`, etc.)
 - https://3d.tosijs.net/b3d-aircraft/ — b3d-aircraft
@@ -290,6 +293,10 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   creator (CHARACTER-DESIGN.md): MakeHuman's CC0 body
 - https://3d.tosijs.net/characters-and-vehicles/ — Characters and vehicles
   climbs; an [aircraft](/b3d-aircraft/) that hovers like a drone and flies like a
+- https://3d.tosijs.net/clock/ — clock
+  the simulation: `sceneDelta(scene)` for a frame's step and `sceneSeconds(scene)`
+- https://3d.tosijs.net/cloth-shading/ — cloth-shading
+  What makes cloth read as cloth at any distance is how it takes light, not its
 - https://3d.tosijs.net/cloud-shadows/ — cloud-shadows
   terrain. A flat decal can't conform to hills; the shadow map can't reach a cloud at 300 m
 - https://3d.tosijs.net/color/ — color
@@ -332,6 +339,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   preset (a volcano at any activity, a geyser, a splash, an explosion, a
 - https://3d.tosijs.net/effects/ — Effects
   geysers, splashes, explosions, fireballs, sparks: particles, light and sound
+- https://3d.tosijs.net/environment/ — environment
+  `studioEnvironment(scene)` gives PBR materials something to reflect: a
 - https://3d.tosijs.net/flow-layout/ — flow-layout
   Pure **flow layout** math: the CSS block + inline-block model, in SVG user
 - https://3d.tosijs.net/fly-by-wire/ — fly-by-wire
@@ -346,6 +355,12 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Input component that maps keyboard/mouse to a virtual gamepad and optionally
 - https://3d.tosijs.net/gamepad-focus/ — gamepad-focus
   Drives an SVG UI's **focus traversal** from a [[virtual-gamepad|VirtualGamepad]] — the
+- https://3d.tosijs.net/garment-bind/ — garment-bind
+  Any mesh made around a body, bound to it: each vertex becomes the nearest
+- https://3d.tosijs.net/garment-cut/ — garment-cut
+  A garment cut out of the body: draw a polygon over the front view (a
+- https://3d.tosijs.net/garment-file/ — garment-file
+  the body it was made on, so it can be reshaped by hand (a collar, pockets,
 - https://3d.tosijs.net/gas-giant/ — gas-giant
   winds that alternate direction from belt to belt, with a long-lived storm.
 - https://3d.tosijs.net/getting-started/ — Getting started
@@ -360,8 +375,12 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   round, one leads a gun, and both are used by [[b3d-launcher]] and
 - https://3d.tosijs.net/hair-fit/ — hair-fit
   Hair made for one head, worn on another. A hairstyle library such as
+- https://3d.tosijs.net/hair-shading/ — hair-shading
+  Hair coloured the way a colourist describes it: a BASE colour and a
 - https://3d.tosijs.net/input-internals/ — How input works
   pad, touch, VR controllers, an AI) produces the same `ControlInput`, and every
+- https://3d.tosijs.net/human-expression/ — human-expression
+  A [character builder](/character-builder/) face that blinks, talks and
 - https://3d.tosijs.net/human-face/ — human-face
   Eyes and eyelashes for a [character builder](/character-builder/) body, and
 - https://3d.tosijs.net/human-hair/ — human-hair
@@ -370,6 +389,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   The body sliders of the character creator (CHARACTER-DESIGN.md), as pure
 - https://3d.tosijs.net/human-pack/ — human-pack
   A **human pack** is a base body as data: its mesh, its joints and its shape
+- https://3d.tosijs.net/human-proxy/ — human-proxy
+  A [human pack](/human-pack/)'s clothes, hair and brows on a built body:
 - https://3d.tosijs.net/human-rig/ — human-rig
   UAL's 65-joint skeleton on a [human pack](/human-pack/)'s body, placed from
 - https://3d.tosijs.net/icon-grid/ — Icon grid
@@ -416,6 +437,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   is implemented by BOTH Ariosto's reference store and tosijs-3d's [world-store](/world-store/). This
 - https://3d.tosijs.net/noise-texture/ — Noise texture
   Shader noise **read instead of computed**. Arithmetic noise in a fragment
+- https://3d.tosijs.net/outline-field/ — outline field
+  garment is cut along, clicked out point by point.
 - https://3d.tosijs.net/patch-field/ — patch-field
   terrain's HEIGHT, a patch post-filters its DENSITY — one dimension up, so it can
 - https://3d.tosijs.net/perf-probe/ — perf-probe
@@ -440,6 +463,10 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   positions, normals and indices of one rock. The same seed always gives the same
 - https://3d.tosijs.net/province-climate/ — Province climate
   a curve over normalised distance from the province's centre. Pure: no DOM, no
+- https://3d.tosijs.net/proxy-fit/ — proxy-fit
+  Clothes, hair and anything else made for a base body, fitted to every shape
+- https://3d.tosijs.net/proxy-rigid/ — proxy-rigid
+  Parts of a garment that must keep their shape: an armour plate, a helmet's
 - https://3d.tosijs.net/mersenne-twister/ — Pseudo Random Numbers
   planet's craters, where the rocks go, who spawns) is drawn from a generator
 - https://3d.tosijs.net/reference/ — Reference
@@ -462,6 +489,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   The **selection-state glyph**: `circle` / `checkCircle` for single-select (radio),
 - https://3d.tosijs.net/shadow-decal/ — shadow-decal
   A **soft blob shadow** — the oldest trick in real-time 3D, and still the right one in a lot of
+- https://3d.tosijs.net/skin-shading/ — skin-shading
+  Skin that reads as skin without a subsurface pipeline: three cheap terms a
 - https://3d.tosijs.net/skin-tone/ — skin-tone
   A skin's colour from one dial, very fair (0) through to very dark (1), plus
 - https://3d.tosijs.net/sky-and-light/ — Sky and light
@@ -516,6 +545,9 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   SVG and takes pointer input as *coordinates*, never as DOM events. That single
 - https://3d.tosijs.net/upgrading/ — Upgrading
   changes you have to make in your own code, minor by minor. The
+- https://3d.tosijs.net/utilities/ — utilities
+- https://3d.tosijs.net/uv-unwrap/ — uv-unwrap
+  Blender gets a layout an artist can paint on and a pattern can run across,
 - https://3d.tosijs.net/vertex-animation/ — vertex-animation
   Babylon, no GPU — so the layout and the phase maths can be tested without a
 - https://3d.tosijs.net/virtual-gamepad/ — virtual-gamepad

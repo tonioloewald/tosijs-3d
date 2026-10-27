@@ -9,11 +9,16 @@ modelled in place on Quaternius' base head.
 
 `loadHairLibrary(scene, url)` reads the library once: each piece's vertices
 in the file's own frame (right-handed, +Z forward, the frame a human pack
-uses), its UVs, its triangles and its material. `headScalp(...)` measures a
-body's head and fits the library's buzz cut onto its scalp
-([hair-fit](/hair-fit/)), and `humanHair(...)` puts any piece on that head
-through the same fit, pushed out of the skin wherever the shapes differ, and
-hangs it on the Head bone so it moves with the clip.
+uses), its UVs, its triangles and its material, and the HEAD it was
+modelled on (`Reference_Head`, Quaternius' Regular_Male). `headScalp(...)`
+warps that head's skin onto a body's ([hair-fit](/hair-fit/)): a per-axis
+fit, then each skin point's own correction, the scalp and the face
+separately. `humanHair(...)` carries any piece through the warp, so every
+hair keeps its height above the scalp under it, and hangs it on the Head
+bone so it moves with the clip.
+
+Fitting the hair itself to the skin does not work: a style is one outer
+shell with no underside, so laid on the skin it sinks by its own thickness.
 
 The library's hair texture is a neutral grey meant to be tinted, so
 `hairMaterial` gives one material per colour from `hairColor`: black to
@@ -22,8 +27,8 @@ platinum, plus red.
 /*{ "parent": "character-builder", "order": 55 }*/
 import * as BABYLON from '@babylonjs/core';
 import { humanJoint } from './human-morph.js';
-import { hairColor } from './skin-tone.js';
-import { applyFit, conformOutside, fitToScalp, vertexNormals, } from './hair-fit.js';
+import { hairColor, hairDye } from './skin-tone.js';
+import { applyWarp, conformOutside, headRegion, headRegionIndices, keepHeight, pick, shellWarp, skinGaps, vertexNormals, } from './hair-fit.js';
 /*
 Quaternius' eyebrow pieces carry their own upper eyelashes: a strip under
 each brow, at ITS head's eyes. A body that has its own lashes would wear two
@@ -74,6 +79,50 @@ function withoutLashes(part) {
     }
     return Uint32Array.from(keep);
 }
+/**
+Quaternius' two adult heads, which its hairstyles were modelled on (the men's
+on one, the women's on the other), and where their eyes are (measured from
+their eyeball meshes).
+*/
+export const QUATERNIUS_HEADS = Object.freeze({
+    Reference_Head_Male: {
+        eyeY: 1.6986,
+        eyeZ: 0.0659,
+        midX: 0,
+        spacing: 0.0676,
+    },
+    Reference_Head_Female: {
+        eyeY: 1.656,
+        eyeZ: 0.0591,
+        midX: 0,
+        spacing: 0.069,
+    },
+});
+/** Pieces that grow on the face, not the scalp. */
+const FACIAL = /Beard|Moustache|Mustache|MuttonChops|Goatee|Stubble/i;
+/**
+How closely a piece hugs a head, lower is closer: the mean distance from that
+head's skin of the nearer half of a sample of its vertices (long strands are
+the far half), plus a penalty for vertices deep inside it. A style sits on the
+head it was made for and floats off, or sinks into, the other.
+*/
+function hug(parts, head) {
+    const sample = [];
+    for (const p of parts) {
+        const n = p.positions.length / 3;
+        const step = Math.max(1, Math.floor(n / 300));
+        for (let i = 0; i < n; i += step) {
+            sample.push(p.positions[i * 3], p.positions[i * 3 + 1], p.positions[i * 3 + 2]);
+        }
+    }
+    const g = Array.from(skinGaps(sample, head.skin, head.normals));
+    const inside = g.filter((x) => x < -0.005).length / g.length;
+    const near = g
+        .map(Math.abs)
+        .sort((x, y) => x - y)
+        .slice(0, Math.ceil(g.length / 2));
+    return near.reduce((x, y) => x + y, 0) / near.length + 0.02 * inside;
+}
 /** Load a hair library (a GLB of named pieces); `reference` hugs its scalp. */
 export async function loadHairLibrary(scene, url, options = {}) {
     const container = await BABYLON.LoadAssetContainerAsync(url, scene);
@@ -119,59 +168,130 @@ export async function loadHairLibrary(scene, url, options = {}) {
         if (parts.length > 0)
             pieces.set(node.name, { category, parts });
     }
-    const ref = pieces.get(options.reference ?? 'Hair_Buzzed');
-    if (ref == null)
-        throw new Error('human-hair: the library has no reference style');
-    return {
+    const heads = [];
+    for (const [name, landmarks] of Object.entries(options.heads ?? QUATERNIUS_HEADS)) {
+        const head = pieces.get(name);
+        if (head == null)
+            continue;
+        const part = head.parts[0];
+        heads.push({
+            name,
+            skin: part.positions,
+            normals: vertexNormals(part.positions, part.indices),
+            landmarks,
+        });
+        pieces.delete(name);
+    }
+    if (heads.length === 0) {
+        throw new Error('human-hair: the library has no reference head');
+    }
+    const chosen = new Map();
+    const library = {
         names: (category) => [...pieces]
             .filter(([, p]) => category == null || p.category === category)
             .map(([n]) => n),
         piece: (name) => pieces.get(name)?.parts,
-        reference: ref.parts[0].positions,
+        heads,
+        headFor(name) {
+            let h = chosen.get(name);
+            if (h == null) {
+                const parts = pieces.get(name)?.parts ?? [];
+                const score = new Map(heads.map((x) => [x, hug(parts, x)]));
+                h = heads.reduce((a, b) => (score.get(b) < score.get(a) ? b : a));
+                chosen.set(name, h);
+            }
+            return h;
+        },
+        fitFor: (name) => pieces.get(name)?.category === 'eyebrows' || FACIAL.test(name)
+            ? 'face'
+            : 'scalp',
         materials: container.materials,
         dispose: () => container.dispose(),
     };
+    // The moustache's lower edge marks its head's lip line.
+    const m = pieces.get(options.moustache ?? 'Hair_Moustache')?.parts[0];
+    if (m != null) {
+        let lo = Infinity;
+        let z = 0;
+        for (const v of m.indices) {
+            if (Math.abs(m.positions[v * 3]) < 0.01 && m.positions[v * 3 + 1] < lo) {
+                lo = m.positions[v * 3 + 1];
+                z = m.positions[v * 3 + 2];
+            }
+        }
+        if (lo < Infinity) {
+            library.headFor(options.moustache ?? 'Hair_Moustache').lip = { y: lo, z };
+        }
+    }
+    return library;
 }
 /**
  * Measure a morphed body's head (`positions` every pack vertex, `triangles`
- * the body's) and fit `reference` onto its scalp. The head is found from the
- * eyes, so it works at any size.
+ * the body's). The regions are found from the eyes on both heads, so any
+ * size works.
  */
-export function headScalp(manifest, positions, triangles, reference) {
+export function headScalp(manifest, positions, triangles, options = {}) {
     const [lx, ly, lz] = humanJoint(positions, manifest.joints['eye.L____head']);
     const [rx] = humanJoint(positions, manifest.joints['eye.R____head']);
-    const e = Math.abs(lx - rx);
-    const mid = (lx + rx) / 2;
+    const at = {
+        eyeY: ly,
+        eyeZ: lz,
+        midX: (lx + rx) / 2,
+        spacing: Math.abs(lx - rx),
+    };
     const normals = vertexNormals(positions, triangles);
     const used = new Uint8Array(positions.length / 3);
     for (let i = 0; i < triangles.length; i++)
         used[triangles[i]] = 1;
     const skin = [];
     const skinN = [];
-    const top = [];
+    const e = at.spacing;
     for (let v = 0; v < used.length; v++) {
         if (!used[v])
             continue;
         const x = positions[v * 3];
         const y = positions[v * 3 + 1];
-        // From the chin up, and no wider than the ears.
-        if (y < ly - 2.2 * e || Math.abs(x - mid) > 1.6 * e)
+        // From under the chin up, and no wider than the ears.
+        if (y < ly - 2.8 * e || Math.abs(x - at.midX) > 1.6 * e)
             continue;
         skin.push(x, y, positions[v * 3 + 2]);
         skinN.push(normals[v * 3], normals[v * 3 + 1], normals[v * 3 + 2]);
-        // The scalp the reference hugs: above the brow, and down to the nape
-        // and the ears behind the face (a buzz cut covers both).
-        const z = positions[v * 3 + 2];
-        if (y > ly + 0.3 * e || (y > ly - 1.6 * e && z < lz - 0.6 * e)) {
-            top.push(x, y, z);
-        }
     }
+    const mine = Float32Array.from(skin);
+    const skinNormals = Float32Array.from(skinN);
+    const warps = new Map();
     return {
-        skin: Float32Array.from(skin),
-        normals: Float32Array.from(skinN),
-        fit: fitToScalp(reference, top),
-        // About 2.5 cm above the eyeballs' centres on an adult (e ≈ 6.2 cm).
+        skin: mine,
+        normals: skinNormals,
+        landmarks: at,
         brow: ly + 0.4 * e,
+        // Between the eyes, a little higher and two eye-spacings back.
+        centre: { x: at.midX, y: ly + 0.5 * e, z: lz - 1.2 * e },
+        lipTop: (() => {
+            if (options.lips == null)
+                return null;
+            let top = -Infinity;
+            for (let v = 0; v < options.lips.length; v++) {
+                if (options.lips[v] > 0.5)
+                    top = Math.max(top, positions[v * 3 + 1]);
+            }
+            return top > -Infinity ? top : null;
+        })(),
+        warp(head, region) {
+            const key = `${head.name}:${region}`;
+            let w = warps.get(key);
+            if (w == null) {
+                const ix = headRegionIndices(mine, at, region);
+                w = shellWarp(headRegion(head.skin, head.landmarks, region), pick(mine, ix), {
+                    normals: pick(skinNormals, ix),
+                    // Hair a little high rather than through the scalp; a beard or a
+                    // brow lies on the skin.
+                    clearance: region === 'scalp' ? 0.002 : 0.0005,
+                });
+                warps.set(key, w);
+            }
+            return w;
+        },
     };
 }
 /*
@@ -185,40 +305,97 @@ export function hairMaterial(scene, from, name = 'hair') {
         : new BABYLON.PBRMaterial(name, scene));
     m.metallic = 0;
     m.backFaceCulling = false;
-    m.setHair = (light, red = 0) => {
-        const c = hairColor(light, red);
+    // A highlight band along the strands (they run along the texture's V),
+    // and a soft rim at grazing angles.
+    m.roughness = 0.4;
+    m.anisotropy.isEnabled = true;
+    m.anisotropy.intensity = 0.8;
+    m.anisotropy.direction.set(0, 1);
+    m.sheen.isEnabled = true;
+    m.sheen.intensity = 0.25;
+    m.sheen.roughness = 0.4;
+    m.setHair = (light, red = 0, dye) => {
+        const natural = hairColor(light, red);
+        const c = dye ? hairDye(natural, dye.hue, dye.saturation) : natural;
         const k = 1 / HAIR_TEXTURE_MEAN;
         m.albedoColor = new BABYLON.Color3(Math.min(1, c.r * k), Math.min(1, c.g * k), Math.min(1, c.b * k));
     };
     m.setHair(0.3);
     return m;
 }
+const gapCache = new WeakMap();
+/** A part's vertices' heights above its own head's skin (cached). */
+function gapsOf(part, head) {
+    let byHead = gapCache.get(part);
+    if (byHead == null)
+        gapCache.set(part, (byHead = new Map()));
+    let g = byHead.get(head);
+    if (g == null) {
+        g = skinGaps(part.positions, head.skin, head.normals);
+        byHead.set(head, g);
+    }
+    return g;
+}
+/** A part's vertices placed on a body's head (the pack's frame). */
+export function placeHair(head, part, options) {
+    const p = applyWarp(part.positions, head.warp(options.head, options.on ?? 'scalp'));
+    // Each vertex back at its height above the skin, as on its own head: the
+    // warp moves hair with the skull, this keeps a beard as thick on this chin.
+    keepHeight(p, gapsOf(part, options.head), head.skin, head.normals, {
+        clearance: options.on === 'face' ? 0.0005 : 0.002,
+    });
+    // The mouth: a face warp matches skin to nearest skin, which carries a
+    // moustache's ends down onto the lips. Its lower edge goes to the top of
+    // this upper lip, the correction fading with distance from the lip line,
+    // so a full beard's chin stays where the warp put it.
+    const lip = options.head.lip;
+    if (options.on === 'face' && lip != null && head.lipTop != null) {
+        const landed = applyWarp([0, lip.y, lip.z], head.warp(options.head, 'face'));
+        // Its lower edge a little ABOVE the lip's: a moustache grows above the lip.
+        const dy = head.lipTop + 0.004 - landed[1];
+        for (let v = 0; v < p.length; v += 3) {
+            const t = (part.positions[v + 1] - lip.y) / 0.02;
+            p[v + 1] += dy * Math.exp(-t * t);
+        }
+    }
+    if (options.centreY != null) {
+        let lo = Infinity;
+        let hi = -Infinity;
+        // Only what is drawn (a piece may carry vertices no triangle uses).
+        for (const v of part.indices) {
+            lo = Math.min(lo, p[v * 3 + 1]);
+            hi = Math.max(hi, p[v * 3 + 1]);
+        }
+        const dy = options.centreY - (lo + hi) / 2;
+        for (let v = 1; v < p.length; v += 3)
+            p[v] += dy;
+    }
+    const nudge = options.nudge;
+    if (nudge != null) {
+        const k = nudge.scale ?? 1;
+        const c = head.centre;
+        for (let v = 0; v < p.length; v += 3) {
+            p[v] = c.x + (p[v] - c.x) * k;
+            p[v + 1] = c.y + (p[v + 1] - c.y) * k + (nudge.y ?? 0);
+            p[v + 2] = c.z + (p[v + 2] - c.z) * k + (nudge.z ?? 0);
+        }
+    }
+    conformOutside(p, head.skin, head.normals, options.margin ?? 0.002);
+    return p;
+}
 /**
- * Put a library piece on a built body: fitted to its scalp, out of its skin
- * by `margin` metres, hung on its Head bone. One mesh per part of the piece.
+ * Put a library piece on a built body: carried from the library's head to
+ * this one, hung on its Head bone. One mesh per part of the piece.
  */
-export function humanHair(scene, built, rig, scalp, parts, material, options = {}) {
-    const headName = options.head ?? 'Head';
+export function humanHair(scene, built, rig, scalp, parts, material, options) {
+    const headName = options.bone ?? 'Head';
     const head = built.node(headName);
     const at = rig.at(headName);
     if (head == null || at == null) {
         throw new Error(`human-hair: the rig has no ${headName}`);
     }
     return parts.map((part, i) => {
-        const p = applyFit(part.positions, scalp.fit);
-        if (options.centreY != null) {
-            let lo = Infinity;
-            let hi = -Infinity;
-            // Only what is drawn (a piece may carry vertices no triangle uses).
-            for (const v of part.indices) {
-                lo = Math.min(lo, p[v * 3 + 1]);
-                hi = Math.max(hi, p[v * 3 + 1]);
-            }
-            const dy = options.centreY - (lo + hi) / 2;
-            for (let v = 1; v < p.length; v += 3)
-                p[v] += dy;
-        }
-        conformOutside(p, scalp.skin, scalp.normals, options.margin ?? 0.003);
+        const p = placeHair(scalp, part, options);
         for (let v = 0; v < p.length; v += 3) {
             p[v] -= at.x;
             p[v + 1] -= at.y;

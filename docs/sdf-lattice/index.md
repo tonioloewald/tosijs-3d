@@ -10,12 +10,6 @@ distance fields and triangles, and nothing about scenes or materials.
 
 ## Demo — a volcano in cross-section, with its lava tubes
 
-The province vocabulary in one object: **a landform for the mount, carves for the
-tubes, and one more carve to slice it open.** The cutaway is a box of *air*
-subtracted from the volume, exactly like the tubes — only possible because the
-ground is a density field rather than a height. Volcanism ramps with depth below
-the surface, so the cut face reads as molten interior.
-
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLight, carve, volcano, PerlinNoise, slider3d, label3d } from 'tosijs-3d'
 import { volumetricDemo } from 'demo-utils'
@@ -107,6 +101,12 @@ const scene = b3d(
 preview.append(scene)
 ```
 
+The province vocabulary in one object: **a landform for the mount, carves for the
+tubes, and one more carve to slice it open.** The cutaway is a box of *air*
+subtracted from the volume, exactly like the tubes — only possible because the
+ground is a density field rather than a height. Volcanism ramps with depth below
+the surface, so the cut face reads as molten interior.
+
 ## The theory, briefly
 
 **A signed distance field** is a function `f(x, y, z)` that returns how far you
@@ -139,30 +139,6 @@ creases when a tile has a millisecond budget.
 ## The one idea that makes it usable: a GLOBAL lattice
 
 ## Demo — does a volumetric tile match the heightfield it would replace?
-
-The question the volumetric-terrain direction turns on. Both surfaces are built
-from the same terrain at the same **5.33 m** spacing (a 128 m tile at 24
-subdivisions — the heightfield's own finest), so if extraction reproduces it, the
-two are indistinguishable and swapping one for the other shows nothing.
-
-The volumetric surface wears the terrain shader; the heightfield is overlaid as a
-**red wireframe**, so it compares without occluding — a solid reference covers
-the very thing you are looking for, since a bore's mouths sit in the
-heightfield's unbroken surface.
-
-Then **punch a bore through the ridge** — the thing a heightfield cannot say at
-all. The ridge is *authored* (a gaussian across the diagonal) rather than hunted
-for in noise, which is TUNNEL-DESIGN's own rule: where a tunnel must meet the
-surface, author the surface. It puts **37 m of rock over the bore** and gives a
-clean mouth at each end.
-
-The bore is on by default; **fill the bore in** to see the ridge without it.
-
-> **A feature has to be bigger than the lattice.** At 5.33 m spacing a 12 m bore
-> is barely two cells across and surface nets can hardly express it; the tile
-> here extracts at 4 m for that reason. It is the same rule [[carve]] states for
-> clearance — certify the hole you want against the resolution you have, or you
-> get a dimple where you asked for a tunnel.
 
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLight, PerlinNoise, carve, toggle3d, label3d } from 'tosijs-3d'
@@ -237,6 +213,30 @@ const scene = b3d(
 
 preview.append(scene)
 ```
+
+The question the volumetric-terrain direction turns on. Both surfaces are built
+from the same terrain at the same **5.33 m** spacing (a 128 m tile at 24
+subdivisions — the heightfield's own finest), so if extraction reproduces it, the
+two are indistinguishable and swapping one for the other shows nothing.
+
+The volumetric surface wears the terrain shader; the heightfield is overlaid as a
+**red wireframe**, so it compares without occluding — a solid reference covers
+the very thing you are looking for, since a bore's mouths sit in the
+heightfield's unbroken surface.
+
+Then **punch a bore through the ridge** — the thing a heightfield cannot say at
+all. The ridge is *authored* (a gaussian across the diagonal) rather than hunted
+for in noise, which is TUNNEL-DESIGN's own rule: where a tunnel must meet the
+surface, author the surface. It puts **37 m of rock over the bore** and gives a
+clean mouth at each end.
+
+The bore is on by default; **fill the bore in** to see the ridge without it.
+
+> **A feature has to be bigger than the lattice.** At 5.33 m spacing a 12 m bore
+> is barely two cells across and surface nets can hardly express it; the tile
+> here extracts at 4 m for that reason. It is the same rule [[carve]] states for
+> clearance — certify the hole you want against the resolution you have, or you
+> get a dimple where you asked for a tunnel.
 
 Every chunk of every patch extracts from **one world-aligned lattice** — spacing
 `L`, each vertex displaced by a deterministic hash of its INTEGER lattice

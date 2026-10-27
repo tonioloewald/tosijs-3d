@@ -14,9 +14,6 @@ Offsets are `{x, y, z}` in the encounter's local frame: **+y is up, +z is forwar
 
 ## Demo
 
-The functions just return offsets — here a crate is dropped at each slot of a **vee** so you can
-*see* the shape the pure math produces (the lead ship red, the wings blue). Drag to orbit.
-
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, vee } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -42,6 +39,9 @@ preview.append(scene)
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+The functions just return offsets — here a crate is dropped at each slot of a **vee** so you can
+*see* the shape the pure math produces (the lead ship red, the wings blue). Drag to orbit.
 
 For reference, the raw call — no scene needed, just offsets:
 

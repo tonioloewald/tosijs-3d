@@ -32,8 +32,9 @@ class Spinner extends B3dControllable {
 - `handleGainFocus()` / `handleLoseFocus()` — lifecycle hooks for input switching
 */
 /*{ "parent": "input-internals", "order": 20 }*/
-import { AbstractMesh, simHalted, controlsLive, } from './b3d-utils.js';
+import { AbstractMesh, simHalted, controlsLive, sceneDelta, } from './b3d-utils.js';
 import { emptyInput } from './control-input.js';
+import { realNow } from './clock.js';
 export class B3dControllable extends AbstractMesh {
     inputProvider = null;
     inputMapping;
@@ -150,32 +151,36 @@ export class B3dControllable extends AbstractMesh {
         this.inputProvider?.deactivate?.();
     }
     _update = () => {
-        const now = Date.now();
-        const dt = Math.min((now - this.lastUpdate) * 0.001, 0.1);
-        this.lastUpdate = now;
         /*
-        HALT, don't just zero the stick.
+        WHERE REAL TIME MEETS WORLD TIME (board #3466).
     
-        This clock is `Date.now`-based, not `sceneDelta`, so a paused scene does not
-        slow it down. Feeding the flight model empty input was not a pause: with no
-        input an aircraft COASTS, which is indistinguishable from cruising. The
-        player's report was "I can background the tab, come back and the game is
-        continuing to run, I just can't steer" (#30). `lastUpdate` is stamped above,
-        so resuming does not deliver the whole pause as one step.
+        Input lives in real time: the keyboard, a stick and the pause menu keep
+        working whatever the world is doing. The world takes input only as a
+        snapshot at its own step, and steps by WORLD time (\`sceneDelta\`: zero
+        while paused, scaled by \`timeScale\`). It used to step by real time, so
+        a world in slow motion still moved its vehicles and bipeds at full speed.
+    
+        EVENTS CANNOT QUEUE. While the world is not running (paused, halted,
+        unfocused), the provider is still read and the reading thrown away, so
+        anything it accumulates between reads (a wheel's scroll) drains instead of
+        arriving all at once on resume. Tonio: "We don't want the UI to lock up, we
+        just don't want the simulation to do anything with it."
         */
-        if (simHalted(this.owner))
+        const scene = this.owner?.scene;
+        const dt = scene != null ? sceneDelta(scene) : 0;
+        this.lastUpdate = realNow();
+        // HALT, don't just zero the stick: with no input an aircraft COASTS,
+        // which is indistinguishable from cruising (#30).
+        const stopped = simHalted(this.owner) || this._halted || dt <= 0;
+        if (stopped) {
+            this.inputProvider?.poll(0);
             return;
-        // Dead. Not merely unsteered — see `halt()`.
-        if (this._halted)
-            return;
+        }
         if (this.inputProvider == null)
             return;
         // Scene input focus: when a page hosts multiple demos, only the active (last
         // hovered/clicked) scene consumes the shared keyboard/gamepad — an unfocused
         // scene sees neutral input so it idles instead of being driven in the background.
-        // A PAUSED scene must not read input either: the render loop still runs (the
-        // pause panel has to be drawn), so without this a held stick would keep
-        // steering a world that is supposed to be stopped.
         /*
         `inputSuppressed` is a MODAL gate: a prompt that asks you to pull a trigger
         must not also fire the gun with it (the re-seat dialog). Unlike `frozen` it
@@ -183,7 +188,9 @@ export class B3dControllable extends AbstractMesh {
         freeze — which is why the two predicates are separate. See `b3d-utils`.
         */
         const live = controlsLive(this.owner);
-        const input = live ? this.inputProvider.poll(dt) : emptyInput();
+        // Read either way, so nothing builds up while the controls are not live.
+        const reading = this.inputProvider.poll(dt);
+        const input = live ? reading : emptyInput();
         this.lastInput = input;
         this.applyInput(input, dt);
     };

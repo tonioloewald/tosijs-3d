@@ -18,7 +18,10 @@ because blood under it absorbs blue and green), and a body painted with the
 swatches looks grey and bloodless. So `skinAlbedo`, the colour for a
 material, takes only each tone's LIGHTNESS from the scale, at a plausible
 reflectance (fair skin reflects about 60% of red light, not 90%), and gives
-it skin's own warmth: pinker at the fair end, more golden in the middle.
+it skin's own warmth: pinker at the fair end, more golden in the middle,
+and nearly white at the very end (porcelain). `redness` is gentle near its
+middle and strong at its ends: 0 drains the skin to a grey-white (a vampire,
+or a goth's powder), 1 is flushed.
 `skinColor` is the scale's swatch, for a UI.
 
 IRIS colour is a dial too: `irisColor(t)` runs from dark brown through

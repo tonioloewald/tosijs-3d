@@ -72,8 +72,9 @@ export declare class JoltPlugin implements IPhysicsEnginePluginV2 {
     applyAngularImpulse(body: PhysicsBody, angularImpulse: Vector3, instanceIndex?: number): void;
     applyForce(body: PhysicsBody, force: Vector3, location: Vector3, instanceIndex?: number): void;
     applyTorque(body: PhysicsBody, torque: Vector3, instanceIndex?: number): void;
-    private _lastStepTime;
-    executeStep(_delta: number, physicsBodies: Array<PhysicsBody>): void;
+    /** World time not yet stepped (seconds): carried to the next frame. */
+    private _accumulator;
+    executeStep(delta: number, physicsBodies: Array<PhysicsBody>): void;
     private _preStep;
     sync(body: PhysicsBody): void;
     syncTransform(body: PhysicsBody, transformNode: TransformNode): void;

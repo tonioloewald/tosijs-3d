@@ -13,22 +13,6 @@ through the same slew limit as a player is one whose misses are legible.
 
 ## Demo — watch the shoulders lead and the feet follow
 
-The white marker is the body's **facing**, the orange one is where it is
-**aiming**, and the red sphere is what it is aiming at. Nothing here is a
-character: it is the model on its own, so you can see the rule rather than an
-animation of it.
-
-What to watch for:
-
-- **`free twist`** — how far the shoulders turn before the feet move at all.
-  Drop it to 0 and the body chases every twitch; raise it to 90 and the
-  character never turns, it just cranes.
-- **`slew`** — how fast the aim itself moves. Low is the bad shooter: the orange
-  marker visibly trails the target, which is a miss you can *watch* rather than
-  a dice roll you cannot.
-- **`wobble`** — a shooter who cannot hold still. Deterministic, so the same
-  fight always produces the same misses.
-
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLight, b3dGround, sceneDelta, slider3d, label3d } from 'tosijs-3d'
 import { aimToward, stepAim, bodyCatchUp, aimWobble, wrapDeg, aimAuthority } from 'tosijs-3d'
@@ -136,6 +120,22 @@ preview.append(readout)
 ```css
 .preview { height: 100%; position: relative; }
 ```
+
+The white marker is the body's **facing**, the orange one is where it is
+**aiming**, and the red sphere is what it is aiming at. Nothing here is a
+character: it is the model on its own, so you can see the rule rather than an
+animation of it.
+
+What to watch for:
+
+- **`free twist`** — how far the shoulders turn before the feet move at all.
+  Drop it to 0 and the body chases every twitch; raise it to 90 and the
+  character never turns, it just cranes.
+- **`slew`** — how fast the aim itself moves. Low is the bad shooter: the orange
+  marker visibly trails the target, which is a miss you can *watch* rather than
+  a dice roll you cannot.
+- **`wobble`** — a shooter who cannot hold still. Deterministic, so the same
+  fight always produces the same misses.
 
 ## Aim is RELATIVE to the body, and that is the whole design
 

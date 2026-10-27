@@ -5,9 +5,6 @@ Water plane with reflections, waves, and underwater fog effect.
 
 ## Demo
 
-**A lake with a few crates on the shore.** The sun rakes across the surface; the water reflects the
-sky and the crates. Drag to orbit — dip the camera below the surface and the world tints and dims.
-
 ```js
 import { b3d, b3dSkybox, b3dWater, b3dReflections, b3dGround, sceneDelta } from 'tosijs-3d'
 import { demoSun, orbitCam, spinner } from 'tosijs-3d/demo-utils'
@@ -39,6 +36,9 @@ preview.append(scene)
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+**A lake with a few crates on the shore.** The sun rakes across the surface; the water reflects the
+sky and the crates. Drag to orbit — dip the camera below the surface and the world tints and dims.
 
 ## Attributes
 
@@ -184,6 +184,7 @@ import { cloudShadowMapOf } from './cloud-shadows.js';
 import { nearFirst } from './draw-order.js';
 import { seasonOf } from './biome-plugin.js';
 import { planetTemperature } from './biome-chart.js';
+import { realNow } from './clock.js';
 export class B3dWater extends AbstractMesh {
     static preferredTagName = 'tosi-b3d-water';
     static initAttributes = {
@@ -1328,7 +1329,7 @@ export class B3dWater extends AbstractMesh {
     }
     _shoreTick;
     _shoreNext = 0;
-    _shoreSince = performance.now();
+    _shoreSince = realNow();
     _warnedNoTerrain = false;
     /*
     Write [depth, ice] for every vertex from the terrain under it. Cheap (one
@@ -1342,7 +1343,7 @@ export class B3dWater extends AbstractMesh {
         const owner = this.owner;
         if (shore == null || mesh == null || owner == null)
             return;
-        const now = performance.now();
+        const now = realNow();
         if (!force && now < this._shoreNext)
             return;
         this._shoreNext = now + 250;

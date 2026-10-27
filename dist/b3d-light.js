@@ -83,6 +83,10 @@ export class B3dLight extends B3dChild {
         this.owner = owner;
         const attrs = this;
         this.light = new BABYLON.HemisphericLight('light', new BABYLON.Vector3(attrs.x, attrs.y, attrs.z), scene);
+        // Its attributes now: `render()` may have run before the light existed,
+        // and nothing re-runs it, which left every b3dLight at Babylon's defaults
+        // (intensity 1, a black ground colour) whatever it was given.
+        this.render();
         owner.register({ lights: [this.light] });
     }
     sceneDispose() {

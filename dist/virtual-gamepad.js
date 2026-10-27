@@ -8,9 +8,6 @@ wire all of this for you; this page is for when you assemble it yourself.
 
 ## Demo
 
-Try the controls below — press WASD, plug in a gamepad, or touch the SVG.
-All sources merge and drive the same readout.
-
 ```js
 import {
   gamepadSvg, TouchGamepadSource, KeyboardGamepadSource,
@@ -53,9 +50,9 @@ mappingSelect.addEventListener('change', () => {
   touchSource.showLabels(desc.labels)
 })
 
-let lastTime = Date.now()
+let lastTime = performance.now()
 function update() {
-  const now = Date.now()
+  const now = performance.now()
   const dt = Math.min((now - lastTime) * 0.001, 0.1)
   lastTime = now
 
@@ -144,6 +141,9 @@ preview.append(div(
   pointer-events: none;
 }
 ```
+
+Try the controls above — press WASD, plug in a gamepad, or touch the SVG.
+All sources merge and drive the same readout.
 
 ## How to wire up controls
 

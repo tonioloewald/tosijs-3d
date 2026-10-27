@@ -8,12 +8,6 @@ does: on a page, on a panel in a flat scene, on a panel in a headset.
 
 ## Demo
 
-A bag and a pair of hands. Drag a thing to a hand, or tap it and then tap
-the hand. While something is held, the hands that would take it light up
-and the others dim; point at a dim one to see why. The rifle needs both
-hands free; the shield is cracked (its outline) and the lamp is running low
-(its bar).
-
 ```js
 import { ui, createCarry, carryTile, carrySocket, carryPanel } from 'tosijs-3d'
 import { svgElements } from 'tosijs'
@@ -97,6 +91,12 @@ window.addEventListener('pointerup', () => {
 })
 ```
 
+A bag and a pair of hands. Drag a thing to a hand, or tap it and then tap
+the hand. While something is held, the hands that would take it light up
+and the others dim; point at a dim one to see why. The rifle needs both
+hands free; the shield is cracked (its outline) and the lamp is running low
+(its bar).
+
 ## How it fits together
 
 - **`carryTile`** is a thing you can pick up: a label and its DECORATIONS,
@@ -124,6 +124,7 @@ outside every panel and the host cancels (the demo listens on `window`).
 import { svgElements } from 'tosijs';
 import { DRAG_THRESHOLD } from './carry.js';
 import { iconGlyph } from './svg-icons.js';
+import { realNow } from './clock.js';
 const OUTLINES = {
     damaged: '#e0a030',
     broken: '#e04838',
@@ -523,11 +524,11 @@ function carryGhost(parent) {
         springBack(from, to, reason) {
             const mine = ++run;
             why.textContent = reason;
-            const t0 = performance.now();
+            const t0 = realNow();
             const step = () => {
                 if (mine !== run)
                     return;
-                const t = Math.min(1, (performance.now() - t0) / SPRING_MS);
+                const t = Math.min(1, (realNow() - t0) / SPRING_MS);
                 const e = 1 - (1 - t) ** 3;
                 place(from.x + (to.x - from.x) * e, from.y + (to.y + LIFT - from.y) * e);
                 if (t < 1)

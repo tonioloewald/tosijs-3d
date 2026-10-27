@@ -7,9 +7,6 @@ from *hovered*.
 
 ## Demo
 
-The same four rows under each mode. Click to select — and note that **hover and
-selection never fight**: hover is background intensity, selection is the glyph.
-
 ```js
 import { iconGlyph, ui } from 'tosijs-3d'
 const { selectionIcon, applySelection, svgPoint } = ui
@@ -84,6 +81,9 @@ sheet.addEventListener('pointerdown', (e) => {
 
 preview.append(div({ style: 'padding:16px;background:#0c0e14' }, sheet, readout))
 ```
+
+The same four rows under each mode. Click to select — and note that **hover and
+selection never fight**: hover is background intensity, selection is the glyph.
 
 Deliberately **name-only, no drawing**: emitting a glyph here would mean importing the
 icon layer, which imports tosijs, which needs a DOM — and then this module could no

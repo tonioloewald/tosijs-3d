@@ -104,7 +104,7 @@ See [popup-surface](?popup-surface.ts).
 import * as BABYLON from '@babylonjs/core';
 import { anchorLayout, anchorLength, } from './anchor-layout.js';
 import { SvgTexture } from './svg-texture.js';
-import { markUiMesh } from './b3d-utils.js';
+import { markUiMesh, freshWorldMatrix } from './b3d-utils.js';
 import { gazeReveal } from './xr-frames.js';
 import { faceViewer } from './dialog-placement.js';
 import { panelRim } from './panel-rim.js';
@@ -470,12 +470,25 @@ export function attachFramePanel(scene, cam, frame, spec) {
     const sync = () => {
         if (shown === plane)
             return;
-        plane.computeWorldMatrix(true);
+        freshWorldMatrix(plane);
         plane
             .getWorldMatrix()
             .decompose(shown.scaling, shown.rotationQuaternion, shown.position);
         shown.visibility = plane.visibility;
     };
+    /*
+    A LAYERED COPY IS PLACED AGAIN JUST BEFORE THE FRAME IS DRAWN.
+  
+    `update()` runs in the XR frame observer, before the scene's own
+    before-render work, and that is where a vehicle moves: its chase anchor,
+    and the rig and frames riding it, move after the copy was placed. The
+    original is parented and so is drawn where it belongs; the copy, in its
+    own layer scene, was left a frame of the vehicle's travel behind (most of
+    a metre at flying speed), so the system bar jumped about in an aircraft.
+    */
+    const resync = shown === plane
+        ? null
+        : scene.onBeforeCameraRenderObservable.add(() => sync());
     // Orient to face the focus point (your head), tilted to its height. The
     // panel doesn't rotate after this — the frame carries it (until focus moves
     // it, which places it again).
@@ -1108,6 +1121,8 @@ export function attachFramePanel(scene, cam, frame, spec) {
             return { x: r.left + p.x * k, y: r.top + p.y * k };
         },
         dispose() {
+            if (resync != null)
+                scene.onBeforeCameraRenderObservable.remove(resync);
             releaseCamera();
             el?.removeEventListener('panelfocus', onFocus);
             if (pointerObs != null)

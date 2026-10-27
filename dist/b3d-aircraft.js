@@ -128,14 +128,13 @@ const scene = b3d(
 preview.append(scene, kills, turb)
 ```
 ```css
-tosi-b3d { width: 100%; height: 100%; }
+.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 .turb {
-  position: absolute; top: 44px; right: 10px; z-index: 10;
   padding: 6px 12px; border-radius: 4px;
   background: rgba(0, 0, 0, 0.55); color: #9fdcf0; font: 14px monospace;
 }
 .kills {
-  position: absolute; top: 10px; right: 10px; z-index: 10;
   padding: 6px 12px; border-radius: 4px;
   background: rgba(0, 0, 0, 0.55); color: #ffcf6a; font: 14px monospace;
 }
@@ -211,6 +210,7 @@ turns the pilot's head in the cockpit, springs back on release).
 | `meshName` | `''` | Node name to instantiate from library |
 | `player` | `false` | Whether this aircraft receives input (and gets the gun reticle) |
 | `enterable` | `false` | Whether a biped can enter |
+| `dropShadow` | `'off'` | `'on'` puts a soft blob shadow straight below the craft, darkest on the ground and fading and spreading as it climbs, so its height reads at a glance. For a scene without real shadows: beside a sun's shadow it is a second, contradicting one |
 | `maxSpeed` | `50` | Top speed at full lever, **military** thrust (m/s). A released trigger leaves the lever where it was, so speed settles wherever that lever meets drag |
 | `afterburnerSpeed` | `75` | Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner. |
 | `acceleration` | `12` | Throttle / lean authority (speed change rate) |
@@ -239,7 +239,7 @@ turns the pilot's head in the cockpit, springs back on release).
 | `turbulence` | `'on'` | The weather reaches the airframe: wind makes it drift and crab, storms (storminess) and strong wind buffet it. Changes nothing in a calm scene; `'off'` ignores the weather |
 | `turbulenceScale` | `1` | Scales the buffeting |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
-| `hudChaseOff` | `false` | Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene |
+| `hudChaseOff` | `false` | Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene. In a headset's chase view the same HUD is a plane between your eyes and the aircraft, centred on it and covering the angle the flat overlay does |
 | `hudSize` | `0.7` | In-cockpit HUD plane size (metres) |
 | `hudForward` | `1.6` | How far ahead of the pilot's eye the HUD floats (metres) |
 | `weapons` | `'on'` | `'off'` disarms all weapons |
@@ -391,9 +391,11 @@ import { canonicalize, applyCenterOfGravity } from './model-transform.js';
 import { B3dControllable } from './b3d-controllable.js';
 import { aircraftMapping } from './virtual-gamepad.js';
 import { equilibriumSpeed, flyByWireStep, targetVelocity, turbulence, chaseVelocity, } from './fly-by-wire.js';
-import { placeOnSurface, boundingBottomOffset, hierarchyExtents, isOff, collidable, } from './b3d-utils.js';
+import { createShadowDecal } from './shadow-decal.js';
+import { placeOnSurface, boundingBottomOffset, hierarchyExtents, isOff, collidable, freshWorldMatrix, } from './b3d-utils.js';
 import { spawnProjectile, spawnMissile } from './b3d-launcher.js';
 import { DestroyableBehavior } from './destroyable-behavior.js';
+import { realNow } from './clock.js';
 // Small gap kept between the model's belly and the ground.
 const GROUND_SEPARATION = 0.05;
 const DEG2RAD = Math.PI / 180;
@@ -430,6 +432,9 @@ const GROUND_FRICTION = 1.2;
 // You must climb this far above the pad before a touchdown can register as a crash. Keeps a
 // wobbly VTOL liftoff (rise a little, tip, settle back) from exploding on takeoff.
 const TAKEOFF_MARGIN = 2.5;
+/** What the aircraft pushes flight state to — a `<tosi-b3d-hud>`, loosely typed. */
+/** The distance a headset's chase HUD is BUILT for, metres; it is scaled to the craft's. */
+const CHASE_HUD_DISTANCE = 2;
 let nextTurbulenceSeed = 1;
 export class B3dAircraft extends B3dControllable {
     static preferredTagName = 'tosi-b3d-aircraft';
@@ -441,6 +446,8 @@ export class B3dAircraft extends B3dControllable {
         meshName: '',
         player: false,
         enterable: false,
+        /** A soft blob shadow straight below, fading with height (`'off'`: none). */
+        dropShadow: 'off',
         // Service ceiling (m): the aircraft can't climb past it, and it reads full on
         // a linked HUD's altitude gauge.
         ceiling: 300,
@@ -715,6 +722,65 @@ export class B3dAircraft extends B3dControllable {
     respawn), so this costs no new teardown path.
     */
     _hudMountKey = null;
+    /** Where a headset's chase-view HUD hangs (see `_placeChaseHud`). */
+    _chaseHudNode = null;
+    _chaseHudObs = null;
+    /**
+     * Put the headset chase HUD on the line from the eyes to the aircraft,
+     * facing the eyes and level with the rig, at the craft's distance, scaled
+     * to keep its angle.
+     *
+     * Placed just before the frame is drawn, from fresh matrices: the craft,
+     * its chase anchor and the rig riding it all move during the frame, and a
+     * placement from the previous frame's eye trails by a frame of travel.
+     */
+    _chaseHudNodeFor(node) {
+        if (this._chaseHudNode != null)
+            return this._chaseHudNode;
+        const scene = node.getScene();
+        const hudNode = new BABYLON.TransformNode('hud-chase', scene);
+        hudNode.rotationQuaternion = BABYLON.Quaternion.Identity();
+        this._chaseHudNode = hudNode;
+        const inv = new BABYLON.Matrix();
+        const craft = new BABYLON.Vector3();
+        this._chaseHudObs = scene.onBeforeCameraRenderObservable.add((cam) => {
+            // The headset camera itself: each eye is a rig camera rendered after
+            // it, and placing for an eye would swing the HUD between the two.
+            if (cam.isRigCamera)
+                return;
+            /*
+            IN THE CAMERA'S OWN SPACE. The HUD hangs from whatever the headset
+            camera hangs from (the XR rig, riding the chase anchor: level, the
+            craft's heading), so it is placed where the camera is, not from world
+            positions that move during the frame. Your eye is the camera's local
+            position; the craft is brought into the same space.
+            */
+            const rig = cam.parent;
+            if (rig != null && hudNode.parent !== rig)
+                hudNode.parent = rig;
+            const craftWorld = freshWorldMatrix(node).getTranslation();
+            if (rig != null) {
+                freshWorldMatrix(rig).invertToRef(inv);
+                BABYLON.Vector3.TransformCoordinatesToRef(craftWorld, inv, craft);
+            }
+            else
+                craft.copyFrom(craftWorld);
+            const toCraft = craft.subtract(cam.position);
+            const far = toCraft.length();
+            if (far < 1e-3)
+                return;
+            const dir = toCraft.scaleInPlace(1 / far);
+            // At the craft: its parallax, so it fuses where the craft does.
+            const d = far;
+            hudNode.position.copyFrom(cam.position).addInPlace(dir.scale(d));
+            // A plane's readable face is local -Z, so +Z points away from the eye.
+            // FromLookDirectionLH turns +Z to MINUS the direction it is given.
+            // Up is the rig's, which is level.
+            BABYLON.Quaternion.FromLookDirectionLHToRef(dir.negate(), BABYLON.Vector3.Up(), hudNode.rotationQuaternion);
+            hudNode.scaling.setAll(d / CHASE_HUD_DISTANCE);
+        });
+        return hudNode;
+    }
     // The attached <tosi-b3d-radar> child (found once). undefined = unresolved,
     // null = none. Drives the HUD radar traces and the missile's lock target.
     _radar = undefined;
@@ -1003,39 +1069,58 @@ export class B3dAircraft extends B3dControllable {
             // and in VR — parented to the airframe just ahead of the pilot's eye, banking
             // with the plane (not head-locked).
             /*
-            IN A HEADSET THE IN-SCENE PLANE IS THE ONLY HUD THERE IS.
+            IN A HEADSET'S CHASE VIEW THE HUD IS AN OVERLAY ON THE AIRCRAFT.
       
-            The flat overlay is DOM, which a headset does not composite, so a chase
-            view in a session had no instruments at all (manta-recon, #3209). There
-            the plane hangs off the chase anchor (position and heading, level, so it
-            does not bank with the craft) at the same spot ahead of the airframe, and
-            is scaled up so that from the chase seat it covers the angle it covers
-            from the cockpit. That match is for the seat zoomed all the way in:
-            zoom out and it covers less, like everything else near the craft.
+            The flat chase HUD is page DOM, which a headset does not draw, so there
+            the same plane stands in for it: face on to you, centred on the craft and
+            AT the craft's distance, so each eye sees it where it sees the craft and
+            the two fuse at the craft's depth (a nearer plane doubles when you look
+            at the craft). Drawn over the scene, as a nearer plane would be. It
+            covers the angle the flat overlay covers on the chase camera, is level
+            with the rig, and has no horizon, like the flat one.
             */
             const inCockpit = this.cameraView === 'cockpit';
-            const xrChase = !inCockpit && this.owner?.xrActive === true;
+            const chaseHud = !attrs.hudChaseOff;
+            const xrChase = !inCockpit && chaseHud && this.owner?.xrActive === true;
             const hudAhead = this.cockpitForward + attrs.hudForward;
-            const hudKey = `${attrs.hudSize}|${attrs.hudForward}|${this.eyeHeight}|${xrChase ? this.chaseDistance : 'seat'}`;
+            const viewDeg = ((this._hud.size ?? 70) / 100) *
+                (((this.chaseCamera?.fov ?? 0.8) * 180) / Math.PI);
+            const hudKey = xrChase
+                ? `chase|${viewDeg.toFixed(2)}`
+                : `${attrs.hudSize}|${attrs.hudForward}|${this.eyeHeight}`;
+            // A rig disposed at the end of a session takes the HUD node with it.
+            if (this._chaseHudNode?.isDisposed()) {
+                this._chaseHudObs?.remove();
+                this._chaseHudObs = null;
+                this._chaseHudNode = null;
+                this._hudMountKey = '';
+            }
             if (this._hudMountKey !== hudKey && this._hud.attachInScene != null) {
                 this._hudMountKey = hudKey;
-                this._hud.attachInScene((xrChase ? this.getChaseAnchor() : null) ?? node, {
-                    size: xrChase
-                        ? (attrs.hudSize * (this.chaseDistance * 0.8 + hudAhead)) /
-                            Math.max(0.1, attrs.hudForward)
-                        : attrs.hudSize,
-                    position: new BABYLON.Vector3(0, this.eyeHeight, hudAhead),
-                });
+                if (xrChase) {
+                    this._hud.attachInScene(this._chaseHudNodeFor(node), {
+                        size: 2 *
+                            CHASE_HUD_DISTANCE *
+                            Math.tan(((viewDeg / 2) * Math.PI) / 180),
+                        position: BABYLON.Vector3.Zero(),
+                        onTop: true,
+                    });
+                }
+                else {
+                    this._hud.attachInScene(node, {
+                        size: attrs.hudSize,
+                        position: new BABYLON.Vector3(0, this.eyeHeight, hudAhead),
+                    });
+                }
             }
             // In cockpit view the 3D canopy HUD is the HUD; the flat DOM overlay is
-            // for the chase view, and the plane again for a chase view in a headset.
-            const chaseHud = !attrs.hudChaseOff;
-            this._hud.setInSceneVisible?.(inCockpit || (xrChase && chaseHud));
+            // for the chase view, and the overlay plane for a chase view in a headset.
+            this._hud.setInSceneVisible?.(inCockpit || xrChase);
             // The HUD is useful from ANY view — speed, altitude, radar, warnings are
             // true wherever the camera is. The horizon is the exception: outside the
             // cockpit it contradicts the real horizon behind the aircraft, so it's
-            // dropped in chase and the rest stays. (`hudChase: false` still forces
-            // the old cockpit-only behaviour for anyone who wants a clean chase.)
+            // dropped in chase and the rest stays. (`hudChaseOff` still forces the
+            // cockpit-only behaviour for anyone who wants a clean chase.)
             const showHud = inCockpit || chaseHud;
             this._hud.setVisible(!inCockpit && chaseHud);
             this._hud.setHorizonVisible?.(inCockpit);
@@ -1140,6 +1225,7 @@ export class B3dAircraft extends B3dControllable {
             this.owner?.insideCavity(node.position.x, node.position.y, node.position.z) ?? false;
         const groundDist = this.groundDistance(node); // the ONE raycast this frame
         this._lastGroundDist = groundDist;
+        this._placeDropShadow(node, groundDist);
         const wasGrounded = this.grounded;
         if (groundDist < this.groundClearance) {
             // First contact this approach: a fast or inverted/banked impact is a
@@ -1743,6 +1829,39 @@ export class B3dAircraft extends B3dControllable {
         }
         this._gearSound.play();
     }
+    _dropShadow = null;
+    /** The craft's footprint (m), for the drop shadow. */
+    _footprint = 4;
+    /*
+    THE DROP SHADOW: where the ground is straight below (this frame's ground
+    ray, so no ray of its own), the size of the craft's footprint, darkest at
+    rest and fading and spreading with height. The sun's shadow falls off to
+    one side and fades out with distance; this one says how high you are.
+    */
+    _placeDropShadow(node, groundDist) {
+        const off = isOff(this.dropShadow);
+        if (off || !this.owner) {
+            this._dropShadow?.setEnabled(false);
+            return;
+        }
+        const agl = groundDist - this.groundClearance;
+        if (!Number.isFinite(groundDist) || this._inCavity || agl > 120) {
+            this._dropShadow?.setEnabled(false);
+            return;
+        }
+        if (this._dropShadow == null)
+            this._dropShadow = createShadowDecal(this.owner.scene, {
+                name: 'aircraft-drop-shadow',
+            });
+        const d = this._dropShadow;
+        d.setEnabled(true);
+        const o = this.originWorld(node);
+        d.position.set(o.x, o.y - groundDist + 0.05, o.z);
+        const h = Math.max(0, agl);
+        const size = this._footprint * (1 + h / 40);
+        d.scaling.x = d.scaling.z = size;
+        d.visibility = Math.max(0, 1 - h / 120) * 0.9;
+    }
     /** Drive the gear from height above ground, with hysteresis so a bumpy
      * approach or a hill passing underneath doesn't cycle it. */
     _updateGear(groundDist) {
@@ -1804,6 +1923,16 @@ export class B3dAircraft extends B3dControllable {
             // this read as broken hardware in the first place.
             this._hud?.setWarnings([{ text: 'CRASHED' }]);
             console.warn('tosi-b3d-aircraft: crashed with no <tosi-b3d-death> in the scene — input focus released. Handle the `crash` event (respawn, or add a <tosi-b3d-death>) to give the player something to fly.');
+        }
+        else {
+            // The HUD is not updated past this point (a wreck returns early), so
+            // put it away now: in a headset's chase view it hangs on the craft and
+            // would ride the wreck down. The next aircraft mounts it afresh.
+            this._hud?.setInSceneVisible?.(false);
+            this._hud?.setVisible(false);
+            this._chaseHudObs?.remove();
+            this._chaseHudObs = null;
+            this._hudMountKey = '';
         }
         // b3d-death frames the third-person aftermath itself (spectate) — no camera switch needed here.
         this.dispatchEvent(new CustomEvent('crash', { bubbles: true }));
@@ -2123,6 +2252,9 @@ export class B3dAircraft extends B3dControllable {
         // clearance from geometry so flight keeps the body (not the origin) above
         // the surface.
         this.groundClearance = boundingBottomOffset(root) + GROUND_SEPARATION;
+        const ext = hierarchyExtents(root);
+        if (ext != null)
+            this._footprint = Math.max(1, 0.9 * Math.max(ext.max.x - ext.min.x, ext.max.z - ext.min.z));
         this.fitCameras(root);
         placeOnSurface(root, this.y ?? 0, GROUND_SEPARATION);
         // Set up follow camera now that we have a mesh (may have been deferred if
@@ -2130,7 +2262,7 @@ export class B3dAircraft extends B3dControllable {
         if (this.inputProvider) {
             this.setupFollowCamera();
         }
-        this.lastUpdate = Date.now();
+        this.lastUpdate = realNow();
         owner.scene.registerBeforeRender(this._update);
         this._createReticle(owner);
     }
@@ -2242,6 +2374,8 @@ export class B3dAircraft extends B3dControllable {
         if (this.owner?.scene) {
             this.owner.scene.unregisterBeforeRender(this._update);
         }
+        this._dropShadow?.dispose();
+        this._dropShadow = null;
         // DISPOSE them, don't just unparent. Leaving them in the scene leaked a camera per
         // aircraft — and, because setupFollowCamera used to look them up BY NAME, a dead
         // plane's abandoned camera stopped the next one from ever building its own.
@@ -2259,6 +2393,12 @@ export class B3dAircraft extends B3dControllable {
         // it, and let the next craft mount it afresh.
         this._hud?.setInSceneVisible?.(false);
         this._hudMountKey = '';
+        if (this._chaseHudObs != null) {
+            this._chaseHudObs.remove();
+            this._chaseHudObs = null;
+        }
+        this._chaseHudNode?.dispose();
+        this._chaseHudNode = null;
         if (this._chaseAnchor) {
             // Anything parented to it (the XR rig) must not be disposed with it.
             for (const child of this._chaseAnchor.getChildren())

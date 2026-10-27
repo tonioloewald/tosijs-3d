@@ -18,6 +18,7 @@ What the manifest holds:
 - **joints**: a joint name → the vertices whose centroid it is (MakeHuman's joint cubes)
 - **bones**: a bone → its parent, and the joints at its head and tail
 - **regions**: a mask name (`lips`) → a uint8 per vertex, for tinting without UVs
+- **proxies**: clothes, hair and brows bound to the base (MakeHuman's `.mhclo`: three base vertices, weights and a scaled offset per vertex), with their mesh, UVs, the base vertices they cover, and textures; see [proxy-fit](/proxy-fit/)
 - **parts**: extra geometry on the body's own vertices (`eyes`, `eyelashes`), so every target moves it with the body: the pack vertices it uses (uint32), triangles indexing that list (uint32), and UVs (float32 pairs) where it has a texture
 - **targets**: a target name → its file, its int16 step (metres), and whether it is dense
 

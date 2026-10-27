@@ -162,7 +162,7 @@ rather than degrade.
 /*{ "parent": "ui-containers", "order": 30 }*/
 import * as BABYLON from '@babylonjs/core';
 import { b3dSvgPlane } from './b3d-svg-plane.js';
-import { panelLayerOf } from './frame-panel.js';
+import { claimPointer, panelLayerOf } from './frame-panel.js';
 import { iconGlyph } from './svg-icons.js';
 import { chromeLayout, chromeHit, uvToViewBox } from './popup-chrome.js';
 import { panelRim } from './panel-rim.js';
@@ -373,7 +373,7 @@ function wirePointer(owner) {
     where both scenes do get it.
     */
     let seen = null;
-    const onPointer = (info) => {
+    const onPointer = (info, state) => {
         const ev = info.event;
         if (ev != null &&
             ev === seen &&
@@ -472,6 +472,13 @@ function wirePointer(owner) {
                 return;
             bringToFront(owner, target);
             /*
+            THE PRESS IS THE POPUP'S, wherever on it it landed. The settings panel
+            closes on a press on the background (a DOM listener on the scene), and a
+            press on a popup's × or title bar was never marked as taken, so closing
+            a popup closed its parent panel with it. Its content marks its own.
+            */
+            claimPointer(info.event);
+            /*
             Where in the panel did the press land? The texture coordinate is the
             panel's own space, so the hit regions are expressed in the same units the
             chrome was drawn in — no world-space arithmetic, and it stays correct
@@ -494,7 +501,20 @@ function wirePointer(owner) {
             const what = chromeHit(pt.x, pt.y, target.chromeLayout);
             if (what === 'content')
                 return; // the panel's own UI must reach it
+            /*
+            CLAIM THE PRESS. Everything else listening for pointers (the parent
+            panel behind this popup above all) would otherwise see it too: its own
+            pick looks only for its own plane, so it took the press as on whatever
+            lay behind the ×, and when the release came, with the popup gone, it saw
+            a whole tap there. Often its own close: "Closing popups sometimes closes
+            the parent." This observer is registered first, so stopping here works.
+            */
             if (what === 'close') {
+                // Only the close: a drag needs the rest of this event (Babylon's own
+                // drag handling listens for the same press), and claiming it there
+                // left the release to dismiss everything.
+                if (state)
+                    state.skipNextObservers = true;
                 target.close();
                 return;
             }
@@ -506,14 +526,85 @@ function wirePointer(owner) {
             hit?.pickedPoint ?? info.pickInfo?.pickedPoint ?? undefined, pressRay ?? undefined);
         }
     };
-    scene.onPointerObservable.add(onPointer);
+    // FIRST in line, so a press it claims (the title bar) reaches no one else.
+    scene.onPointerObservable.add(onPointer, undefined, true);
     const layers = new WeakSet();
     layerListeners.set(owner, (s) => {
         if (s === scene || layers.has(s))
             return;
         layers.add(s);
-        s.onPointerObservable.add(onPointer);
+        s.onPointerObservable.add(onPointer, undefined, true);
     });
+}
+/**
+ * How far to move `mesh` (in its parent's frame) so all of it is on screen,
+ * or null when it already is or there is no flat screen to fit (a headset).
+ * Pixels off an edge become world units at the mesh's depth.
+ */
+function intoView(mesh) {
+    const scene = mesh.getScene();
+    const camera = scene.activeCamera;
+    if (camera == null || camera.getClassName() === 'WebXRCamera')
+        return null;
+    const engine = scene.getEngine();
+    const w = engine.getRenderWidth(true);
+    const h = engine.getRenderHeight(true);
+    if (!w || !h)
+        return null;
+    mesh.refreshBoundingInfo({});
+    const corners = mesh.getBoundingInfo().boundingBox.vectorsWorld;
+    const viewport = camera.viewport.toGlobal(w, h);
+    const transform = scene.getTransformMatrix();
+    let left = Infinity;
+    let right = -Infinity;
+    let top = Infinity;
+    let bottom = -Infinity;
+    for (const c of corners) {
+        const s = BABYLON.Vector3.Project(c, BABYLON.Matrix.Identity(), transform, viewport);
+        left = Math.min(left, s.x);
+        right = Math.max(right, s.x);
+        top = Math.min(top, s.y);
+        bottom = Math.max(bottom, s.y);
+    }
+    const margin = 8;
+    let dx = 0;
+    let dy = 0;
+    // Off an edge: back in by that much. Too big to fit at all: centred.
+    if (right - left < w - margin * 2) {
+        if (left < margin)
+            dx = margin - left;
+        else if (right > w - margin)
+            dx = w - margin - right;
+    }
+    else
+        dx = w / 2 - (left + right) / 2;
+    if (bottom - top < h - margin * 2) {
+        if (top < margin)
+            dy = margin - top;
+        else if (bottom > h - margin)
+            dy = h - margin - bottom;
+    }
+    else
+        dy = h / 2 - (top + bottom) / 2;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1)
+        return null;
+    if (dx === 0 && dy === 0)
+        return null;
+    const centre = mesh.getBoundingInfo().boundingBox.centerWorld;
+    const depth = BABYLON.Vector3.Distance(camera.globalPosition, centre);
+    const fov = camera.fov ?? 0.8;
+    const perPx = (2 * depth * Math.tan(fov / 2)) / h;
+    // Screen right and down, as world directions.
+    const world = camera
+        .getDirection(BABYLON.Axis.X)
+        .scale(dx * perPx)
+        .add(camera.getDirection(BABYLON.Axis.Y).scale(-dy * perPx));
+    const parent = mesh.parent;
+    if (parent != null) {
+        const inv = parent.computeWorldMatrix(true).clone().invert();
+        BABYLON.Vector3.TransformNormalToRef(world, inv, world);
+    }
+    return { x: world.x, y: world.y };
 }
 /** Per owner: hear pointer events in a layer scene a popup was made in. */
 const layerListeners = new WeakMap();
@@ -617,6 +708,7 @@ export function openPopup(owner, opts) {
     move the mesh. (Same family as `ry` being degrees: when an element manages a
     node, the element's fields are the source of truth and the node's are output.)
     */
+    let unstretch = null;
     const place = () => {
         const mesh = plane.mesh;
         if (mesh == null)
@@ -637,6 +729,19 @@ export function openPopup(owner, opts) {
         }
         if (opener != null)
             mesh.parent = opener;
+        /*
+        THE OPENER'S SIZE, NOT ITS STRETCH. A panel grows by scaling its plane, by
+        different amounts across and down when its content changes shape, and a
+        popup hung from it took the stretch too: the Tailor's outline came out half
+        again too tall, off both ends of the screen. Each frame, the popup's height
+        scale cancels its opener's, so it inherits a size and keeps its own shape.
+        */
+        unstretch ??= mesh.getScene().onBeforeRenderObservable.add(() => {
+            const p = mesh.parent;
+            const sx = p?.scaling?.x ?? 1;
+            const sy = p?.scaling?.y ?? 1;
+            mesh.scaling.y = mesh.scaling.x * (sy !== 0 ? sx / sy : 1);
+        });
         plane.x = offset.x ?? 0;
         plane.y = offset.y ?? 0;
         plane.z = (offset.z ?? 0) - lift;
@@ -652,6 +757,18 @@ export function openPopup(owner, opts) {
         // appears.
         mesh.position.set(plane.x, plane.y, plane.z);
         mesh.computeWorldMatrix(true);
+        // On a screen, keep it on the screen: shift it back into view by whatever
+        // falls off an edge.
+        // A few passes: in perspective one shift does not land exactly.
+        for (let pass = 0; pass < 4; pass++) {
+            const shift = intoView(mesh);
+            if (shift == null)
+                break;
+            plane.x += shift.x;
+            plane.y += shift.y;
+            mesh.position.set(plane.x, plane.y, plane.z);
+            mesh.computeWorldMatrix(true);
+        }
     };
     /** Run `fn` once the plane has a mesh — now, or on the first frame it does. */
     const whenMesh = (fn) => {
@@ -923,6 +1040,8 @@ export function openPopup(owner, opts) {
             // blocking has to become reachable again.
             if (drag != null)
                 plane.mesh?.removeBehavior(drag);
+            unstretch?.remove();
+            unstretch = null;
             const list = openPopups.get(owner);
             if (list != null) {
                 const i = list.indexOf(api);

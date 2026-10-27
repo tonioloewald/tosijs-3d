@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=7917dccc76d6" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=c3f9a510fbae" data-tosi-doc-system />
   <title>b3d-collisions — tosijs-3d</title>
   <meta name="description" content="Opt-in collision detection via mesh naming conventions authored in Blender." />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-collisions/" />
@@ -30,25 +30,11 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=10b0e7b75506" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=d4cb551793b9" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="b3d-collisions.ts">
 <h1 id="b3d-collisions">b3d-collisions</h1>
 <p>Opt-in collision detection via mesh naming conventions authored in Blender.</p>
 <h2 id="demo--where-did-it-hit-and-which-way-is-the-surface-facing">Demo — where did it hit, and which way is the surface facing?</h2>
-<p>Hail falls on the scout. Each impact is found by a SWEPT RAY (the segment the
-stone travelled this frame, not its position), and the marker shows both things
-you actually need: the <strong>point</strong>, and a disc lying flat on the surface with a
-stalk along the <strong>normal</strong>. Watch the discs tilt to follow the fuselage, and
-lie flat the moment a stone misses and lands on the ground.</p>
-<p>Misses count too — a stone that hits nothing still hits the WORLD, and a demo
-that only reports the interesting case quietly teaches you that misses are free.
-Ground hits are the same marker in a cooler colour and a shorter life, because
-they are the common case and at equal weight they drown out the ones you care
-about.</p>
-<p>The sweep is the part worth copying. Testing &quot;is the stone inside the rock now?&quot;
-misses anything moving faster than its own radius per frame — at 60fps a stone
-falling at 12 m/s moves 0.2m, so a thin surface is a coin toss. Casting the
-segment cannot tunnel.</p>
 <pre><code class="language-js">import { b3d, b3dLibrary, label3d, slider3d } from &#39;tosijs-3d&#39;
 import { demoStage, orbitCam, impactMarker } from &#39;demo-utils&#39;
 import { tosi } from &#39;tosijs&#39;
@@ -165,6 +151,20 @@ const scene = b3d(
 
 preview.append(scene, readout)
 </code></pre>
+<p>Hail falls on the scout. Each impact is found by a SWEPT RAY (the segment the
+stone travelled this frame, not its position), and the marker shows both things
+you actually need: the <strong>point</strong>, and a disc lying flat on the surface with a
+stalk along the <strong>normal</strong>. Watch the discs tilt to follow the fuselage, and
+lie flat the moment a stone misses and lands on the ground.</p>
+<p>Misses count too — a stone that hits nothing still hits the WORLD, and a demo
+that only reports the interesting case quietly teaches you that misses are free.
+Ground hits are the same marker in a cooler colour and a shorter life, because
+they are the common case and at equal weight they drown out the ones you care
+about.</p>
+<p>The sweep is the part worth copying. Testing &quot;is the stone inside the rock now?&quot;
+misses anything moving faster than its own radius per frame — at 60fps a stone
+falling at 12 m/s moves 0.2m, so a thin surface is a coin toss. Casting the
+segment cannot tunnel.</p>
 <h2 id="naming-conventions">Naming Conventions</h2>
 <p>Add these suffixes to mesh names in Blender:</p>
 <table>
@@ -268,6 +268,7 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="../environment/">environment</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
     </ul>
     </details></li>
@@ -358,9 +359,36 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
           <li><a class="doc-link" href="../human-morph/">human-morph</a></li>
           <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
           <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
+          <li><a class="doc-link" href="../skin-shading/">skin-shading</a></li>
           <li><a class="doc-link" href="../human-face/">human-face</a></li>
-          <li><a class="doc-link" href="../human-hair/">human-hair</a></li>
-          <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          <li><a class="doc-link" href="../human-expression/">human-expression</a></li>
+          <li><details><summary><a class="doc-link" href="../human-hair/">human-hair</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../hair-shading/">hair-shading</a></li>
+            <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          </ul>
+          </details></li>
+          <li><details><summary><a class="doc-link" href="../human-proxy/">human-proxy</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../proxy-fit/">proxy-fit</a></li>
+            <li><a class="doc-link" href="../cloth-shading/">cloth-shading</a></li>
+            <li><details><summary><a class="doc-link" href="../garment-cut/">garment-cut</a></summary>
+            <ul>
+              <li><a class="doc-link" href="../outline-field/">outline field</a></li>
+            </ul>
+            </details></li>
+            <li><details><summary><a class="doc-link" href="../garment-bind/">garment-bind</a></summary>
+            <ul>
+              <li><details><summary><a class="doc-link" href="../garment-file/">garment-file</a></summary>
+              <ul>
+                <li><a class="doc-link" href="../uv-unwrap/">uv-unwrap</a></li>
+              </ul>
+              </details></li>
+              <li><a class="doc-link" href="../proxy-rigid/">proxy-rigid</a></li>
+            </ul>
+            </details></li>
+          </ul>
+          </details></li>
         </ul>
         </details></li>
       </ul>
@@ -575,11 +603,17 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
       <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
     </ul>
     </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../clock/">clock</a></li>
+    </ul>
+    </details></li>
     <li><details><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
     <ul>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.11.5/">0.11.5</a></li>
         <li><a class="doc-link" href="../v0.11.4/">0.11.4</a></li>
         <li><a class="doc-link" href="../v0.11.3/">0.11.3</a></li>
         <li><a class="doc-link" href="../v0.11.2/">0.11.2</a></li>
@@ -659,6 +693,6 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-0nmn3nad.js"></script>
+  <script type="module" src="../hydrate-fymfsbgh.js"></script>
 </body>
 </html>

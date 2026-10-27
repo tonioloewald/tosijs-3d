@@ -15,9 +15,6 @@ one.
 
 ## Demo
 
-One dial, and the clouds and the water agree. Set `wind` to `'own'` on either
-and it falls back to its own attributes.
-
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLight, b3dWater, b3dClouds, angle3d, slider3d, label3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -68,6 +65,9 @@ preview.append(scene)
 ```css
 .preview { height: 100%; }
 ```
+
+One dial, and the clouds and the water agree. Set `wind` to `'own'` on either
+and it falls back to its own attributes.
 
 ## Cartesian inside, degrees at the edge
 

@@ -19,7 +19,10 @@ because blood under it absorbs blue and green), and a body painted with the
 swatches looks grey and bloodless. So `skinAlbedo`, the colour for a
 material, takes only each tone's LIGHTNESS from the scale, at a plausible
 reflectance (fair skin reflects about 60% of red light, not 90%), and gives
-it skin's own warmth: pinker at the fair end, more golden in the middle.
+it skin's own warmth: pinker at the fair end, more golden in the middle,
+and nearly white at the very end (porcelain). `redness` is gentle near its
+middle and strong at its ends: 0 drains the skin to a grey-white (a vampire,
+or a goth's powder), 1 is flushed.
 `skinColor` is the scale's swatch, for a UI.
 
 IRIS colour is a dial too: `irisColor(t)` runs from dark brown through
@@ -122,10 +125,20 @@ export function skinAlbedo(tone, redness = 0.5) {
     const lum = 0.2126 * swatch.r + 0.7152 * swatch.g + 0.0722 * swatch.b;
     const t = clamp01(tone);
     const d = (clamp01(redness) - 0.5) * 2;
-    const g = (WARMTH_FAIR.g + (WARMTH_DARK.g - WARMTH_FAIR.g) * t) * (1 - 0.1 * d);
-    const b = (WARMTH_FAIR.b + (WARMTH_DARK.b - WARMTH_FAIR.b) * t) * (1 - 0.14 * d);
-    // Scale so the colour keeps the swatch's lightness at 68% reflectance.
-    const r = (lum * 0.68) / (0.2126 + 0.7152 * g + 0.0722 * b);
+    // Redness grows toward both ends of its dial, so the middle stays subtle
+    // and the ends reach past life: drained grey-white (a vampire) at 0,
+    // flushed at 1.
+    const k = d * (1 + 1.5 * Math.abs(d));
+    // The palest end (porcelain) is lighter and whiter than measured fair
+    // skin: 0.68 reflectance throughout could not make anyone pale enough.
+    const pale = Math.max(0, 1 - t / 0.4) ** 2;
+    const g = (WARMTH_FAIR.g + (WARMTH_DARK.g - WARMTH_FAIR.g) * t + 0.12 * pale) *
+        (1 - 0.1 * k);
+    const b = (WARMTH_FAIR.b + (WARMTH_DARK.b - WARMTH_FAIR.b) * t + 0.17 * pale) *
+        (1 - 0.14 * k);
+    // Scale so the colour keeps the swatch's lightness, at 68% reflectance
+    // (up to 88% at the palest end).
+    const r = Math.min(0.92, (lum * (0.68 + 0.2 * pale)) / (0.2126 + 0.7152 * g + 0.0722 * b));
     return { r, g: r * g, b: r * b };
 }
 /** Iris colours from most melanin to least: dark brown to grey, sRGB. */
@@ -185,6 +198,45 @@ export function hairColor(light, red = 0) {
         r: c.r * (1 + 0.9 * k),
         g: c.g * (1 - 0.35 * k),
         b: c.b * (1 - 0.6 * k),
+    };
+}
+/**
+ * Dye over a natural hair colour (linear): `hue` 0 to 1 round the colour
+ * wheel, `saturation` 0 (no dye, the natural colour) to 1 (the hue at full
+ * strength). The dye keeps the hair's lightness, as dye over hair does: over
+ * dark hair blue is blue-black, over bleached hair a little pink is pastel.
+ */
+export function hairDye(natural, hue, saturation) {
+    const s = clamp01(saturation);
+    if (s === 0)
+        return natural;
+    // The hue as a pure sRGB colour, then in linear light.
+    const h = (((hue % 1) + 1) % 1) * 6;
+    const x = 1 - Math.abs((h % 2) - 1);
+    const [r, g, b] = h < 1
+        ? [1, x, 0]
+        : h < 2
+            ? [x, 1, 0]
+            : h < 3
+                ? [0, 1, x]
+                : h < 4
+                    ? [0, x, 1]
+                    : h < 5
+                        ? [x, 0, 1]
+                        : [1, 0, x];
+    const pure = { r: toLinear(r), g: toLinear(g), b: toLinear(b) };
+    const lum = (c) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+    // At the natural colour's lightness; a channel cannot pass 1.
+    const k = lum(natural) / Math.max(1e-4, lum(pure));
+    const dyed = {
+        r: Math.min(1, pure.r * k),
+        g: Math.min(1, pure.g * k),
+        b: Math.min(1, pure.b * k),
+    };
+    return {
+        r: natural.r + (dyed.r - natural.r) * s,
+        g: natural.g + (dyed.g - natural.g) * s,
+        b: natural.b + (dyed.b - natural.b) * s,
     };
 }
 //# sourceMappingURL=skin-tone.js.map

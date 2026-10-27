@@ -8,13 +8,6 @@ agree about where things are.
 
 ## Demo
 
-A small world, and the same world as a globe hung in its own sky. The globe
-is not a picture of the terrain: it is built from the terrain's own height
-function (`terrain.planetSurface()`), so its coasts are the coasts below. The
-red pin is where the camera is, and the globe turns to keep your side of the
-world facing you. Fly about (arrow keys, drag to look) and the land under the
-pin changes; the readout is your latitude and longitude.
-
 ```js
 import { b3d, b3dTerrain, b3dPlanet, b3dWater, b3dSun, b3dSkybox, b3dLight, latLonToDirection } from 'tosijs-3d'
 import { elements } from 'tosijs'
@@ -89,6 +82,13 @@ preview.append(
 .preview { height: 100%; position: relative; }
 .readout { position: absolute; left: 12px; bottom: 12px; padding: 6px 10px; border-radius: 6px; background: rgba(0,0,0,0.6); color: #fff; font: 13px ui-monospace, monospace; }
 ```
+
+A small world, and the same world as a globe hung in its own sky. The globe
+is not a picture of the terrain: it is built from the terrain's own height
+function (`terrain.planetSurface()`), so its coasts are the coasts below. The
+red pin is where the camera is, and the globe turns to keep your side of the
+world facing you. Fly about (arrow keys, drag to look) and the land under the
+pin changes; the readout is your latitude and longitude.
 
 ## Three names for one place
 

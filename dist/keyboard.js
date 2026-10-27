@@ -8,37 +8,6 @@ identically as a flat overlay and rasterized onto a plane.
 
 ## Demo
 
-**Two fields, one keyboard.** Tap a field and the keyboard pops up as an **overlay
-panel** (close it with ×): it is not part of the main UI, as an on-screen keyboard
-should not be. The **lit caret** marks the RECEIVER, the field the keys land in; the
-other field's caret stays visible but dim. "Who has the D-pad focus" and "where text
-goes" are different facts, so the receiver stays lit even while you tap keys.
-
-Tap the keys. `?123` switches to symbols, `⇧` shifts.
-
-**Hold `o`** (or `a e i n s u y z c`) for the accents. Two ways to take one, because
-touch and pointer want different things: **slide onto it and release**, or **lift your
-finger**, and the strip stays up so you can tap the one you want.
-
-**Hold the spacebar and slide** to drag the caret through the text. The drag continues
-outside the key and outside the keyboard entirely (as iOS does), because a
-spacebar-width gesture would only buy you a spacebar of travel.
-
-**D-pad / arrow keys**: the keyboard is one panel row but MANY focus stops. It
-implements the inner-focus protocol (`focusMove` returns `false` when a move runs off
-the edge), so the D-pad walks key to key, arriving on the edge you entered from and
-escaping at the edges rather than trapping focus (the VR demo below shows the escape
-onto a sibling field). Clicking a key focuses it too, and **Space presses the focused
-key** (the action-button convention). A hardware pad works via `gamepadFocus`
-(menu/A presses); a hardware keyboard also just types: printable keys go straight into
-the receiver, Backspace deletes, arrows walk, Enter presses. (Click the demo once so it
-has browser keyboard focus. With several demos on the page, the one you last touched
-claims the gamepad.)
-
-There is no completion or suggestion strip. The open question is not *whether* but
-*from what*: a known, relevant word is better **clicked than typed**, so typing's
-fallback role points completion at the player's own vocabulary rather than the world's.
-
 ```js
 import { HardwareGamepadSource, ui } from 'tosijs-3d'
 const {
@@ -139,6 +108,37 @@ svgEl.addEventListener('pointerup', (e) => s.handlePointer('up', ...at(e)))
 
 preview.append(div({ style: 'padding:16px;background:#0c0e14' }, svgEl))
 ```
+
+**Two fields, one keyboard.** Tap a field and the keyboard pops up as an **overlay
+panel** (close it with ×): it is not part of the main UI, as an on-screen keyboard
+should not be. The **lit caret** marks the RECEIVER, the field the keys land in; the
+other field's caret stays visible but dim. "Who has the D-pad focus" and "where text
+goes" are different facts, so the receiver stays lit even while you tap keys.
+
+Tap the keys. `?123` switches to symbols, `⇧` shifts.
+
+**Hold `o`** (or `a e i n s u y z c`) for the accents. Two ways to take one, because
+touch and pointer want different things: **slide onto it and release**, or **lift your
+finger**, and the strip stays up so you can tap the one you want.
+
+**Hold the spacebar and slide** to drag the caret through the text. The drag continues
+outside the key and outside the keyboard entirely (as iOS does), because a
+spacebar-width gesture would only buy you a spacebar of travel.
+
+**D-pad / arrow keys**: the keyboard is one panel row but MANY focus stops. It
+implements the inner-focus protocol (`focusMove` returns `false` when a move runs off
+the edge), so the D-pad walks key to key, arriving on the edge you entered from and
+escaping at the edges rather than trapping focus (the VR demo below shows the escape
+onto a sibling field). Clicking a key focuses it too, and **Space presses the focused
+key** (the action-button convention). A hardware pad works via `gamepadFocus`
+(menu/A presses); a hardware keyboard also just types: printable keys go straight into
+the receiver, Backspace deletes, arrows walk, Enter presses. (Click the demo once so it
+has browser keyboard focus. With several demos on the page, the one you last touched
+claims the gamepad.)
+
+There is no completion or suggestion strip. The open question is not *whether* but
+*from what*: a known, relevant word is better **clicked than typed**, so typing's
+fallback role points completion at the player's own vocabulary rather than the world's.
 
 ## In VR, the case it exists for
 

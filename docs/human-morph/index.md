@@ -18,6 +18,9 @@ The sliders, each from 0 to 1:
 - **muscle** and **weight**: least at 0, average at 0.5, most at 1
 - **height**: shortest at 0, average for the rest of the body at 0.5, tallest at 1
 - **proportions**: uncommon at 0, neutral at 0.5, ideal at 1
+- **waist**: narrowest at 0, as the rest of the body has it at 0.5, widest at 1
+  (MakeHuman's waist circumference, plus a pinch toward the centre line below
+  0.5, because that target mostly takes depth off)
 
 `african`, `asian` and `caucasian` are an ancestry MIX, normalised to sum to 1
 (all zero is an even mix).

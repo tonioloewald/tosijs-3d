@@ -6,9 +6,6 @@ disagree with the element it edits.
 
 ## Demo
 
-Drag anything and the terrain rebuilds. The panel is the scene panel, so it is
-the same editor flat and in a headset.
-
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dLight, terrainEditor3d, label3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -54,6 +51,9 @@ preview.append(
 ```css
 .preview { height: 100%; }
 ```
+
+Drag anything and the terrain rebuilds. The panel is the scene panel, so it is
+the same editor flat and in a headset.
 
 ## Why schema-driven rather than hand-built
 

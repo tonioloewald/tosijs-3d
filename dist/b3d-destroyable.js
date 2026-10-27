@@ -10,11 +10,6 @@ combat tick.
 
 ## Demo
 
-**Click any cube** to damage it (1/click) — it flashes on a hit and dies at 0 hp. The
-front grid are independent targets; the **back row is chain-linked**, so killing the
-leftmost cascades the reaction down the line (chains are wired after mount, since they
-reference combat ids that only exist once the targets have mounted).
-
 ```js
 import { b3d, b3dDestroyable, b3dLight, b3dSkybox, b3dGround } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -60,6 +55,11 @@ wireChain()
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+**Click any cube** to damage it (1/click) — it flashes on a hit and dies at 0 hp. The
+front grid are independent targets; the **back row is chain-linked**, so killing the
+leftmost cascades the reaction down the line (chains are wired after mount, since they
+reference combat ids that only exist once the targets have mounted).
 
 ## Death outcomes
 

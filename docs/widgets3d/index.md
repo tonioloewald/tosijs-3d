@@ -274,6 +274,7 @@ drag *and* the reported value, so a slider can be discrete without becoming a
 | | `format` | step-derived | `(v) => string` — units, precision |
 | `toggle3d` | `label` / `value` | | |
 | `select3d` | `options` | | opens a list (downward chevron); steps only with no host |
+| | `stayOpen` | `false` | keeps the list open after a pick, until closed or pressed behind: for trying options one after another |
 | `inputField` | **`type`** | `'text'` | `text`/`number`/`integer`/`email`/`url`/`tel` |
 | | `placeholder` / `value` / `height` / `fontSize` | | |
 | `list3d` | `items` / `handleSelect` | | items may carry `icon` and `disabled` |
@@ -281,7 +282,7 @@ drag *and* the reported value, so a slider can be discrete without becoming a
 | | `menu` | — | makes it a MENU button — opens actions instead of firing `handleClick` |
 | `menu3d` | `items` / `handleSelect` | | rows of `MenuAction`; usually via `openMenu3d` |
 | `iconBar3d` | `items` | | `{icon, handleClick}` |
-| `foldSections` | `key` / `mode` / `repaint` | `'fold'` | the rows to show for collapsible sections: folded, or as `tabs3d` (`mode: 'tabs'`); rebuild your panel on `repaint` |
+| `foldSections` | `key` / `mode` / `repaint` | `'fold'` | the rows to show for collapsible sections: folded one open at a time (`'fold'`, an accordion), folded with several open (`'folds'`), or as `tabs3d` (`'tabs'`); rebuild your panel on `repaint` |
 | `tabs3d` | `tabs` / `active` / `handleSelect` | `0` | file tabs; a tab is a caption or `{ icon, title }`; at most half the strip each, overlapping around the active one when they don't fit |
 | `spinner3d` | `label` / `size` | | INDETERMINATE busy — call `dispose()` when done |
 | `progress3d` | `label` / `value` / `showValue` | | determinate `0..1`; `setValue(f)` |

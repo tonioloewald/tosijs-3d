@@ -19,6 +19,7 @@ What the manifest holds:
 - **joints**: a joint name → the vertices whose centroid it is (MakeHuman's joint cubes)
 - **bones**: a bone → its parent, and the joints at its head and tail
 - **regions**: a mask name (`lips`) → a uint8 per vertex, for tinting without UVs
+- **proxies**: clothes, hair and brows bound to the base (MakeHuman's `.mhclo`: three base vertices, weights and a scaled offset per vertex), with their mesh, UVs, the base vertices they cover, and textures; see [proxy-fit](/proxy-fit/)
 - **parts**: extra geometry on the body's own vertices (`eyes`, `eyelashes`), so every target moves it with the body: the pack vertices it uses (uint32), triangles indexing that list (uint32), and UVs (float32 pairs) where it has a texture
 - **targets**: a target name → its file, its int16 step (metres), and whether it is dense
 
@@ -63,6 +64,7 @@ export async function loadHumanPack(url, fetcher = fetchBytes) {
     const regions = new Map();
     const done = new Map();
     const parts = new Map();
+    const proxies = new Map();
     return {
         manifest,
         positions,
@@ -96,6 +98,50 @@ export async function loadHumanPack(url, fetcher = fetchBytes) {
                     uvs: uv != null ? new Float32Array(uv) : null,
                 }));
                 parts.set(name, p);
+            }
+            return p;
+        },
+        proxy(name) {
+            const e = manifest.proxies?.[name];
+            if (e == null)
+                return Promise.resolve(null);
+            let p = proxies.get(name);
+            if (p == null) {
+                p = Promise.all([
+                    fetcher(dir + e.binding),
+                    fetcher(dir + e.source),
+                    fetcher(dir + e.triangles),
+                    fetcher(dir + e.uvs),
+                    e.delete != null ? fetcher(dir + e.delete) : null,
+                ]).then(([b, src, tri, uv, del]) => ({
+                    name,
+                    category: e.category,
+                    slot: e.slot,
+                    rows: e.rows,
+                    ref: new Uint32Array(b, 0, e.rows * 3),
+                    weight: new Float32Array(b, e.rows * 12, e.rows * 3),
+                    offset: new Float32Array(b, e.rows * 24, e.rows * 3),
+                    scale: e.scale,
+                    source: new Uint32Array(src),
+                    triangles: new Uint32Array(tri),
+                    uvs: new Float32Array(uv),
+                    delete: del != null ? new Uint32Array(del) : null,
+                    material: {
+                        ...e.material,
+                        diffuse: e.material.diffuse ? dir + e.material.diffuse : undefined,
+                        normal: e.material.normal ? dir + e.material.normal : undefined,
+                        looks: e.material.looks
+                            ? Object.fromEntries(Object.entries(e.material.looks).map(([n, l]) => [
+                                n,
+                                {
+                                    diffuse: dir + l.diffuse,
+                                    normal: l.normal ? dir + l.normal : undefined,
+                                },
+                            ]))
+                            : undefined,
+                    },
+                }));
+                proxies.set(name, p);
             }
             return p;
         },

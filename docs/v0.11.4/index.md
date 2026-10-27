@@ -14,3 +14,5 @@
 ## Fixed
 
 - **Retargeting no longer lines a character's collarbones up with the clip's.** A collarbone's rest direction is the body's shape, like the spine's; where two rigs differed (UAL's runs back to the shoulder, MakeHuman's lies flat), every clip shrugged the shoulders.
+
+Size: barrel (min, packages external) 1266.7 KB raw / 433.9 KB gz, +1.67% on 0.11.3 (the character creator).

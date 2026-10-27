@@ -275,6 +275,7 @@ drag *and* the reported value, so a slider can be discrete without becoming a
 | | `format` | step-derived | `(v) => string` — units, precision |
 | `toggle3d` | `label` / `value` | | |
 | `select3d` | `options` | | opens a list (downward chevron); steps only with no host |
+| | `stayOpen` | `false` | keeps the list open after a pick, until closed or pressed behind: for trying options one after another |
 | `inputField` | **`type`** | `'text'` | `text`/`number`/`integer`/`email`/`url`/`tel` |
 | | `placeholder` / `value` / `height` / `fontSize` | | |
 | `list3d` | `items` / `handleSelect` | | items may carry `icon` and `disabled` |
@@ -282,7 +283,7 @@ drag *and* the reported value, so a slider can be discrete without becoming a
 | | `menu` | — | makes it a MENU button — opens actions instead of firing `handleClick` |
 | `menu3d` | `items` / `handleSelect` | | rows of `MenuAction`; usually via `openMenu3d` |
 | `iconBar3d` | `items` | | `{icon, handleClick}` |
-| `foldSections` | `key` / `mode` / `repaint` | `'fold'` | the rows to show for collapsible sections: folded, or as `tabs3d` (`mode: 'tabs'`); rebuild your panel on `repaint` |
+| `foldSections` | `key` / `mode` / `repaint` | `'fold'` | the rows to show for collapsible sections: folded one open at a time (`'fold'`, an accordion), folded with several open (`'folds'`), or as `tabs3d` (`'tabs'`); rebuild your panel on `repaint` |
 | `tabs3d` | `tabs` / `active` / `handleSelect` | `0` | file tabs; a tab is a caption or `{ icon, title }`; at most half the strip each, overlapping around the active one when they don't fit |
 | `spinner3d` | `label` / `size` | | INDETERMINATE busy — call `dispose()` when done |
 | `progress3d` | `label` / `value` / `showValue` | | determinate `0..1`; `setValue(f)` |
@@ -798,7 +799,10 @@ export function tabs3d(config) {
  * `label3d({ collapsible: true })` heads a section: every row after it, up to
  * the next one, belongs to it. This returns the rows to SHOW:
  *
- * - `mode: 'fold'` (the default): every header, plus the rows of open sections.
+ * - `mode: 'fold'` (the default): every header, plus the rows of the open
+ *   section. One is open at a time, as an accordion: opening one closes the
+ *   others, and all may be closed. Of sections declared or saved open, the first wins.
+ * - `mode: 'folds'`: the same, but several may be open at once.
  * - `mode: 'tabs'`: rows before the first section, a `tabs3d` strip of the
  *   sections (a section's `icon` becomes its tab), and the active section's rows.
  *
@@ -854,9 +858,17 @@ export function foldSections(rows, opts) {
         });
         return [...head, strip, ...sections[active].rows];
     }
+    /*
+    ONE OPEN AT A TIME ('fold'), as an accordion: opening a section closes the
+    rest, and all of them may be closed. A panel's sections are long, so two
+    open push the second's rows out of reach. 'folds' lets several stay open.
+    */
+    const single = opts.mode !== 'folds';
+    const titles = [];
     const out = [];
     let showing = true;
     let first = true;
+    let anyOpen = false;
     for (const row of rows) {
         const sec = row.section;
         if (sec == null) {
@@ -864,10 +876,18 @@ export function foldSections(rows, opts) {
                 out.push(row);
             continue;
         }
-        const isOpen = state.open.get(sec.title) ?? sec.open ?? first;
+        titles.push(sec.title);
+        let isOpen = state.open.get(sec.title) ?? sec.open ?? first;
+        // Saved or declared, only the first open section stays open.
+        if (single && anyOpen)
+            isOpen = false;
+        anyOpen ||= isOpen;
         first = false;
         sec.isOpen = isOpen;
         sec.toggle = () => {
+            if (single && !isOpen)
+                for (const t of titles)
+                    state.open.set(t, false);
             state.open.set(sec.title, !isOpen);
             save();
             opts.repaint();
@@ -1884,8 +1904,12 @@ export function select3d(config) {
         const i = opts.findIndex((o) => o.value === bound.get());
         return i < 0 ? 0 : i;
     };
+    /** Room for the value, set by layout (it ellipsizes rather than running into the caption). */
+    let valRoom = Infinity;
     const reflect = () => {
-        val.textContent = opts[indexOf()]?.label ?? '';
+        const label = String(opts[indexOf()]?.label ?? '');
+        val.textContent =
+            valRoom === Infinity ? label : ellipsize(label, valRoom, TH.TEXT_FONT);
     };
     const step = (d) => {
         const n = opts.length;
@@ -1945,13 +1969,17 @@ export function select3d(config) {
             // Anchored to the VALUE, not to the whole row: a menu that drops from
             // the far left of a wide row looks unrelated to what it changes.
             anchor: { x: clusterX, y: 0, width: clusterW, height: TH.ROW },
-            width: Math.max(clusterW, 140),
+            // Wide enough for its longest option (a list cut off mid-word reads
+            // as broken), and never narrower than a comfortable menu.
+            width: Math.max(clusterW, 220, Math.min(420, Math.max(...opts.map((o) => measureTextWidth(String(o.label), TH.TEXT_FONT))) +
+                TH.PAD_X * 3)),
         }, list3d({
             items: opts.map((o) => ({ label: String(o.label) })),
             handleSelect: (_item, i) => {
                 bound.set(opts[i].value);
                 reflect();
-                closeMenu();
+                if (!config.stayOpen)
+                    closeMenu();
             },
         }));
     };
@@ -1970,6 +1998,7 @@ export function select3d(config) {
             const caretX = width - TH.PAD_X - CARET;
             caret.setAttribute('transform', `translate(${caretX} ${TH.ROW / 2 - 7})`);
             val.setAttribute('x', String(caretX - 8));
+            valRoom = Math.max(24, clusterW - CARET - 12);
             // The value cluster wins the right-hand side, so the caption takes what
             // is left of the row rather than printing through it.
             if (lbl) {
@@ -3527,8 +3556,20 @@ export function panel3d(config, ...widgets) {
                 sheet.appendChild(closeGlyph);
             }
             holder.appendChild(sheet);
-            // Beside the panel — see the note above on shadow hosts.
-            const parent = container ?? root.parentNode;
+            /*
+            IN THE DOCUMENT BODY by default, not beside the panel. A panel usually
+            sits in something that CLIPS (a doc page's demo frame, a scrolling
+            sidebar), and a popup inserted beside it was cut off at that frame's
+            edge however well it was placed in the viewport (#3478: the colour
+            picker's popup lost its presets below the demo). In the body nothing
+            clips it, and absolute page coordinates still scroll it with its field.
+            A container passed to `useDomLayer` is still used as given.
+            */
+            // Only for a panel in the document itself: inside a shadow root the popup
+            // stays beside its panel, in the same root (ensemble's topology).
+            const inBody = container == null && root.isConnected && root.getRootNode() === document;
+            const parent = container ??
+                (inBody ? document.body : root.parentNode);
             if (parent == null)
                 return { close: () => { } };
             /*
@@ -3537,10 +3578,12 @@ export function panel3d(config, ...widgets) {
             to the page and lands somewhere unrelated. A `ShadowRoot` has no style, so
             the host is the thing to reach for there.
             */
-            const positioned = container ??
-                (parent instanceof ShadowRoot
-                    ? parent.host
-                    : parent);
+            const positioned = inBody
+                ? null
+                : container ??
+                    (parent instanceof ShadowRoot
+                        ? parent.host
+                        : parent);
             if (positioned?.style != null &&
                 getComputedStyle(positioned).position === 'static') {
                 positioned.style.position = 'relative';
@@ -3558,7 +3601,10 @@ export function panel3d(config, ...widgets) {
             the cross axis. Running it in VIEWPORT coordinates and converting once at
             the end keeps one placement rule for both presentations.
             */
-            const box = positioned?.getBoundingClientRect?.() ?? { left: 0, top: 0 };
+            // In the body, offsets are page coordinates (the viewport plus scroll).
+            const box = inBody
+                ? { left: -window.scrollX, top: -window.scrollY }
+                : positioned?.getBoundingClientRect?.() ?? { left: 0, top: 0 };
             const vw = window.innerWidth || 1024;
             const vh = window.innerHeight || 768;
             const placed = placePopup({
@@ -3572,8 +3618,23 @@ export function panel3d(config, ...widgets) {
             holder.style.top = `${placed.y - box.top}px`;
             if (container != null)
                 container.appendChild(holder);
+            else if (inBody) {
+                holder.style.zIndex = '1000';
+                document.body.appendChild(holder);
+            }
             else
                 parent.insertBefore(holder, root.nextSibling);
+            // In the body it no longer leaves with its panel's container, so it
+            // leaves when its panel does.
+            let gone;
+            if (inBody) {
+                gone = setInterval(() => {
+                    if (!root.isConnected) {
+                        clearInterval(gone);
+                        holder.remove();
+                    }
+                }, 500);
+            }
             /*
             DRAG IT. The clamp above stops the first frame being off-screen; this is
             what lets someone move it off the thing they are typing into.
@@ -3663,7 +3724,12 @@ export function panel3d(config, ...widgets) {
             holder.addEventListener('pointermove', onMove, true);
             holder.addEventListener('pointerup', onUp, true);
             holder.addEventListener('pointercancel', onUp, true);
-            return { close: () => holder.remove() };
+            return {
+                close: () => {
+                    clearInterval(gone);
+                    holder.remove();
+                },
+            };
         };
         /*
         NOT `drawsChrome`. That flag means "always draws, so always reserve", which

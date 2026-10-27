@@ -114,8 +114,11 @@ export function hudTrace(viewer, target, opts) {
  * drift apart. Note SVG's +y is DOWN, hence the flip.
  */
 export function hudPointFromUV(u, v, opts) {
-    const { center, pinRadius } = opts;
-    if (Math.abs(u) <= 1 && Math.abs(v) <= 1) {
+    const { center, pinRadius, radius } = opts;
+    const inside = Math.abs(u) <= 1 &&
+        Math.abs(v) <= 1 &&
+        (radius == null || Math.hypot(u, v) * center <= radius);
+    if (inside) {
         return { x: center + u * center, y: center - v * center, tracked: true };
     }
     const len = Math.hypot(u, v) || 1;

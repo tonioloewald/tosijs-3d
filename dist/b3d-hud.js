@@ -15,10 +15,6 @@ shows it in the cockpit view; `setInSceneVisible(bool)` toggles it.
 
 ## Demo
 
-Scrub the meters and attitude in the settings panel; the radar traces orbit the origin,
-tracking inside the ring when in the field of view and pinning to the periphery when
-they swing out or behind.
-
 ```js
 import { b3d, b3dHud, b3dSkybox, label3d, slider3d, select3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
@@ -83,6 +79,10 @@ setInterval(() => {
 tosi-b3d { width: 100%; height: 100%; }
 ```
 
+Scrub the meters and attitude in the settings panel; the radar traces orbit the origin,
+tracking inside the ring when in the field of view and pinning to the periphery when
+they swing out or behind.
+
 ## Attributes
 
 | Attribute | Default | Description |
@@ -139,7 +139,7 @@ horizonTransform(10, 30, 8) // { offsetY: 80, rollDeg: -30 }
 /*{ "parent": "b3d-aircraft", "order": 20 }*/
 import { B3dChild } from './b3d-utils.js';
 import { SvgTexture } from './svg-texture.js';
-import { loadHud, buildFallbackHud, HUD_CENTER, HUD_PIN_RADIUS, } from './hud.js';
+import { loadHud, buildFallbackHud, HUD_CENTER, HUD_PIN_RADIUS, HUD_RING_RADIUS, } from './hud.js';
 import { glassUV, hudPointFromUV, hudSizePx } from './hud-math.js';
 import * as BABYLON from '@babylonjs/core';
 let warnedTraceCamera = false;
@@ -292,6 +292,8 @@ export class B3dHud extends B3dChild {
         plane.position =
             this._inSceneOpts?.position?.clone() ?? new BABYLON.Vector3(0, 0.9, 1.3);
         plane.isPickable = false;
+        if (this._inSceneOpts?.onTop)
+            plane.renderingGroupId = 1;
         const mat = new BABYLON.StandardMaterial('hud-3d-mat', scene);
         // Unlit, self-glowing, alpha from the HUD SVG's own transparency.
         mat.emissiveTexture = this._svgTex.texture;
@@ -417,6 +419,7 @@ export class B3dHud extends B3dChild {
         return hudPointFromUV(uv.u, uv.v, {
             center: HUD_CENTER,
             pinRadius: HUD_PIN_RADIUS,
+            radius: HUD_RING_RADIUS,
         });
     }
     /** Flat-overlay projection: Babylon projects the world point to SCREEN (its real
@@ -449,6 +452,7 @@ export class B3dHud extends B3dChild {
         return hudPointFromUV(u, v, {
             center: HUD_CENTER,
             pinRadius: HUD_PIN_RADIUS,
+            radius: HUD_RING_RADIUS,
         });
     }
     /** Replace the radar traces from WORLD positions — the HUD projects them onto its

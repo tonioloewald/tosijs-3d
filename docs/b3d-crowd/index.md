@@ -6,10 +6,6 @@ vertex shader, and thin instances so the CPU does nothing per figure per frame.
 
 ## Demo — the bench
 
-Drag `figures` up and watch **GPU worst**, not the wall clock. The slider is
-LOGARITHMIC and goes to 200,000 on purpose: a load that never bends anything
-reads as flat, and then vsync is doing the talking.
-
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLight, b3dGround, b3dCrowd, slider3d, label3d, toggle3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -128,6 +124,10 @@ preview.append(scene)
 ```css
 .preview { height: 100%; }
 ```
+
+Drag `figures` up and watch **GPU worst**, not the wall clock. The slider is
+LOGARITHMIC and goes to 200,000 on purpose: a load that never bends anything
+reads as flat, and then vsync is doing the talking.
 
 ### Reading it
 

@@ -258,13 +258,23 @@ function squareLimbCuts(
     let radius = 0
     for (const i of ids) {
       const p = at(ends[i][0])
-      radius = Math.max(radius, Math.hypot(p[0] - c[0], p[1] - c[1], p[2] - c[2]))
+      radius = Math.max(
+        radius,
+        Math.hypot(p[0] - c[0], p[1] - c[1], p[2] - c[2])
+      )
     }
     // Arms and legs are squared; a ring on the centre line is a neck, and
     // only dropped in front if drawn level.
     if (radius > LIMB_RADIUS) continue
     if (Math.abs(c[0]) < LIMB_OFF_CENTRE) {
-      const neck = neckPlane(P, ids.map((i) => ends[i]), c, inC, outC, radius)
+      const neck = neckPlane(
+        P,
+        ids.map((i) => ends[i]),
+        c,
+        inC,
+        outC,
+        radius
+      )
       if (neck) {
         const plane: LimbPlane = { c, a: neck.a, key: `neck${root}` }
         for (const v of neck.near) {
@@ -275,7 +285,11 @@ function squareLimbCuts(
       continue
     }
     // First guess at the axis: from the outside of the ring to the inside.
-    let a: [number, number, number] | null = norm([inC[0] - outC[0], inC[1] - outC[1], inC[2] - outC[2]])
+    let a: [number, number, number] | null = norm([
+      inC[0] - outC[0],
+      inC[1] - outC[1],
+      inC[2] - outC[2],
+    ])
     if (a == null) continue
     // Refine it from the skin of the limb on both sides of the ring.
     let near: number[] = []
@@ -295,7 +309,8 @@ function squareLimbCuts(
       const axis = longAxis(P, near)
       if (axis == null) break
       // Keep it pointing into the garment.
-      const sign: number = axis[0] * a[0] + axis[1] * a[1] + axis[2] * a[2] < 0 ? -1 : 1
+      const sign: number =
+        axis[0] * a[0] + axis[1] * a[1] + axis[2] * a[2] < 0 ? -1 : 1
       a = [axis[0] * sign, axis[1] * sign, axis[2] * sign]
     }
     if (a == null) continue
@@ -387,9 +402,7 @@ function planeOf(
   if (!planes.has(v)) planes.set(v, plane)
 }
 
-function norm(
-  v: [number, number, number]
-): [number, number, number] | null {
+function norm(v: [number, number, number]): [number, number, number] | null {
   const l = Math.hypot(v[0], v[1], v[2])
   return l > 1e-9 ? [v[0] / l, v[1] / l, v[2] / l] : null
 }
@@ -800,14 +813,20 @@ function hull2d(pts: ViewPoint[]): ViewPoint[] {
     (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
   const lower: ViewPoint[] = []
   for (const q of p) {
-    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], q) <= 0)
+    while (
+      lower.length >= 2 &&
+      cross(lower[lower.length - 2], lower[lower.length - 1], q) <= 0
+    )
       lower.pop()
     lower.push(q)
   }
   const upper: ViewPoint[] = []
   for (let i = p.length - 1; i >= 0; i--) {
     const q = p[i]
-    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], q) <= 0)
+    while (
+      upper.length >= 2 &&
+      cross(upper[upper.length - 2], upper[upper.length - 1], q) <= 0
+    )
       upper.pop()
     upper.push(q)
   }
@@ -856,7 +875,9 @@ export function skirtGarment(
   const inside: number[] = []
   for (let v = 0; v < n; v++) {
     if (!used[v] || (anchor && !anchor[v])) continue
-    if (views.every((view) => insideView(view, P[v * 3 + view.u], P[v * 3 + 1])))
+    if (
+      views.every((view) => insideView(view, P[v * 3 + view.u], P[v * 3 + 1]))
+    )
       inside.push(v)
   }
   let top = -Infinity
@@ -920,7 +941,8 @@ export function skirtGarment(
   // round the same centre.
   let widest = 0
   const area = (r: number[]) => r.reduce((s, x) => s + x * x, 0)
-  for (let i = 1; i < radii.length; i++) if (area(radii[i]) > area(radii[widest])) widest = i
+  for (let i = 1; i < radii.length; i++)
+    if (area(radii[i]) > area(radii[widest])) widest = i
   for (let i = widest + 1; i < radii.length; i++) {
     centres[i] = centres[i - 1]
     radii[i] = radii[i].map((r, j) => {
@@ -938,12 +960,19 @@ export function skirtGarment(
   const weight: number[] = []
   const offset: number[] = []
   const uvs: number[] = []
-  const nearest = (band: number[], x: number, z: number, y: number, side: number) => {
+  const nearest = (
+    band: number[],
+    x: number,
+    z: number,
+    y: number,
+    side: number
+  ) => {
     let best = -1
     let bd = Infinity
     for (const v of band) {
       if (side !== 0 && Math.sign(P[v * 3]) !== side) continue
-      const d = (P[v * 3] - x) ** 2 + (P[v * 3 + 1] - y) ** 2 + (P[v * 3 + 2] - z) ** 2
+      const d =
+        (P[v * 3] - x) ** 2 + (P[v * 3 + 1] - y) ** 2 + (P[v * 3 + 2] - z) ** 2
       if (d < bd) {
         bd = d
         best = v
@@ -955,7 +984,8 @@ export function skirtGarment(
     const band = bands[i]
     const c = centres[i]
     let halfWidth = 1e-3
-    for (const v of band) halfWidth = Math.max(halfWidth, Math.abs(P[v * 3] - c[0]))
+    for (const v of band)
+      halfWidth = Math.max(halfWidth, Math.abs(P[v * 3] - c[0]))
     for (let j = 0; j <= M; j++) {
       const jj = j % M
       const x = c[0] + dirs[jj][0] * radii[i][jj]
@@ -993,7 +1023,10 @@ export function skirtGarment(
     }
   const rows = ref.length / 3
   const firstRing = Array.from({ length: M }, (_, j) => j)
-  const lastRing = Array.from({ length: M }, (_, j) => (levels.length - 1) * row + j)
+  const lastRing = Array.from(
+    { length: M },
+    (_, j) => (levels.length - 1) * row + j
+  )
   return {
     rows,
     ref: Uint32Array.from(ref),

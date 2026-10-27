@@ -12,11 +12,6 @@ b3dAircraft({ player: true, y: 0 },
 
 ## Demo — watch a lock build and decay
 
-The mast **sweeps**, so contacts enter and leave the cone on their own. Watch the
-lock column: a contact inside the *acquire* cone climbs toward 1.00, holds while
-it stays in the wider *maintain* cone, and drops the moment it falls out. The
-grey contact is `faction: 'neutral'` — detected, never locked.
-
 ```js
 import { b3d, b3dRadar, b3dRadarBlip, b3dBox, label3d, slider3d } from 'tosijs-3d'
 import { demoStage, orbitCam } from 'tosijs-3d/demo-utils'
@@ -84,6 +79,11 @@ const scene = b3d(
 
 preview.append(scene, readout)
 ```
+
+The mast **sweeps**, so contacts enter and leave the cone on their own. Watch the
+lock column: a contact inside the *acquire* cone climbs toward 1.00, holds while
+it stays in the wider *maintain* cone, and drops the moment it falls out. The
+grey contact is `faction: 'neutral'` — detected, never locked.
 
 The platform reads `radar.tracks` (to plot the HUD) and `radar.nearestLock` (a homing
 missile's target — no lock ⇒ the missile flies ballistic). A **turret** wants a cheap

@@ -6,9 +6,6 @@ and it writes the result back.
 
 ## Demo
 
-Drag the arrows to move, the rings to turn, the cubes to scale. The pads move in
-a plane. Everything is on at once — the part you grab says what the drag means.
-
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLight, b3dGround, b3dBox, b3dManipulator, toggle3d, select3d, label3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -65,10 +62,8 @@ const panel = () => [
 ]
 
 preview.append(
-  readout,
   b3d(
     {
-      style: 'width:100%;height:100%',
       scenePanel: panel,
       sceneCreated(el) {
         orbitCam(el, { alpha: -1.1, beta: 1.05, radius: 8, target: [0, 0.5, 0] })
@@ -80,16 +75,14 @@ preview.append(
     b3dGround({ size: 40, color: '#5d6b4a' }),
     b3dBox({ id: 'thing', y: 0.5, color: '#c8963c' }),
     gizmo
-  )
+  ),
+  readout
 )
 ```
 ```css
-.preview { height: 100%; position: relative; }
+.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 .readout {
-  position: absolute;
-  z-index: 1;
-  left: 8px;
-  bottom: 8px;
   padding: 4px 10px;
   border-radius: 6px;
   font-family: ui-monospace, monospace;
@@ -98,6 +91,9 @@ preview.append(
   background: #0009;
 }
 ```
+
+Drag the arrows to move, the rings to turn, the cubes to scale. The pads move in
+a plane. Everything is on at once — the part you grab says what the drag means.
 
 ## Attributes
 

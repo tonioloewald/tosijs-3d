@@ -9,22 +9,6 @@ pinned here by unit tests, one function per shader expression.
 
 ## Demo — one shader, bottom muck → coral → beach → forest → snow
 
-Flat-colour chart cells. The terrain uses **localized [[slope-profile]]s** — sea cliffs in
-one region, mid-level mesas in another, smooth beach plain in a third, with
-continuous transitions between (cliffs of Dover walking down into Brighton
-beach) — so every spec transition is on screen at once: the marine column
-under the water, the beach at the shoreline, forest/steppe/dune bands by
-moisture, snow on the high tops, slope-override cliffs on the risers.
-
-Three sliders make the CHART's behaviour visible, not just the picture:
-**sea level** drives the water plane AND the classifier's `seaLevel` together —
-drag it and the water *forces* the shoreline transition up and down the
-terrain (beach chases the waterline, drowned slopes turn seagrass);
-**climate** (base temperature) — drag it cold and the beach→…→ice run
-collapses until ice meets the waterline, exactly as the spec asks, emergent
-from the lapse; **map moisture** — sweep forest → steppe → dune on the same
-terrain. Drag to orbit.
-
 ```js
 import {
   b3d, b3dSun, b3dSkybox, b3dLight, b3dTerrain, b3dWater, slider3d, label3d,
@@ -136,6 +120,22 @@ preview.append(scene)
 ```css
 .preview { height: 100%; }
 ```
+
+Flat-colour chart cells. The terrain uses **localized [[slope-profile]]s** — sea cliffs in
+one region, mid-level mesas in another, smooth beach plain in a third, with
+continuous transitions between (cliffs of Dover walking down into Brighton
+beach) — so every spec transition is on screen at once: the marine column
+under the water, the beach at the shoreline, forest/steppe/dune bands by
+moisture, snow on the high tops, slope-override cliffs on the risers.
+
+Three sliders make the CHART's behaviour visible, not just the picture:
+**sea level** drives the water plane AND the classifier's `seaLevel` together —
+drag it and the water *forces* the shoreline transition up and down the
+terrain (beach chases the waterline, drowned slopes turn seagrass);
+**climate** (base temperature) — drag it cold and the beach→…→ice run
+collapses until ice meets the waterline, exactly as the spec asks, emergent
+from the lapse; **map moisture** — sweep forest → steppe → dune on the same
+terrain. Drag to orbit.
 
 ## One picker, two front-ends
 

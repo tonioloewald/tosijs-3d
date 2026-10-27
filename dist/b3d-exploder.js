@@ -85,7 +85,7 @@ preview.append(scene)
 */
 /*{ "parent": "effects", "order": 40 }*/
 import * as BABYLON from '@babylonjs/core';
-import { markCollisionGroup, markUiMesh, sceneDelta } from './b3d-utils.js';
+import { markCollisionGroup, markUiMesh, sceneDelta, sceneSeconds, } from './b3d-utils.js';
 /**
  * Shatter a mesh into fragments and animate them flying apart.
  * The original mesh is hidden (or disposed). Fragments are automatically
@@ -332,14 +332,15 @@ function explodeGeometry(mesh, scene, options = {}) {
         return true;
     };
     // Animate fragments
-    const startTime = Date.now();
+    // World time: a paused game holds its debris where it is.
+    const startTime = sceneSeconds(scene) * 1000;
     const useFrustum = duration === 'frustum';
     const durationMs = useFrustum ? Infinity : duration * 1000;
     const fadeStartMs = useFrustum ? Infinity : fadeStart * durationMs;
     // For frustum mode, start checking after a brief delay so fragments can leave
     const frustumGraceMs = 500;
     const beforeRender = () => {
-        const elapsed = Date.now() - startTime;
+        const elapsed = sceneSeconds(scene) * 1000 - startTime;
         // Time-based end
         if (!useFrustum && elapsed >= durationMs) {
             cleanup();

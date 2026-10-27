@@ -9,6 +9,16 @@ export interface MacroBody {
     african: number;
     asian: number;
     caucasian: number;
+    /** Front-to-back depth of the chest, 0.5 neutral. */
+    chestDepth?: number;
+    /** Pectoral muscle, 0.5 neutral. */
+    pecs?: number;
+    /** Waist circumference, 0.5 neutral (MakeHuman's measure-waist-circ). */
+    waist?: number;
+    /** Bust size (cup), 0.5 average; applies in proportion to how female the body is. */
+    bustSize?: number;
+    /** Bust firmness, 0.5 average. */
+    bustFirmness?: number;
 }
 export declare const DEFAULT_HUMAN_BODY: Readonly<MacroBody>;
 type Corners = [string, number][];
@@ -26,6 +36,14 @@ export declare function ancestryCorners(body: MacroBody): Corners;
  * left out, so the list is also what to fetch.
  */
 export declare function macroWeights(body: MacroBody, has?: (name: string) => boolean): Map<string, number>;
+/** The computed waist pinch's name in a `macroWeights` map (not a pack target). */
+export declare const WAIST_NARROW = "shape/waist-narrow";
+/**
+ * Pinch the waist toward the centre line by `amount` (0..1) of `WAIST_PINCH`.
+ * The band is found on the pack's base mesh; `out` is the morphed body. Pure
+ * apart from a cache of the band per base mesh.
+ */
+export declare function pinchWaist(out: Float32Array, base: ArrayLike<number>, triangles: ArrayLike<number>, amount: number): void;
 /** Add `weight` × a target into `out` (xyz per vertex). Pure. */
 export declare function addHumanTarget(out: Float32Array, target: HumanTarget, weight: number): void;
 /**

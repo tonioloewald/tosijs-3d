@@ -25,6 +25,7 @@ from straight ahead, and make small saccades, the jumps eyes really make
 import * as BABYLON from '@babylonjs/core';
 import { humanJoint } from './human-morph.js';
 import { irisColor } from './skin-tone.js';
+import { parseColor } from './color.js';
 import { sceneDelta } from './b3d-utils.js';
 /** Where MakeHuman's eye UVs put each iris (u, v from the bottom) and its radius. */
 export const HM08_EYE_UV = Object.freeze({
@@ -43,8 +44,7 @@ export function eyeTexture(scene, options = {}) {
         const h = Math.sin(i * 12.9898) * 43758.5453;
         return { a: (i / 140) * Math.PI * 2, k: h - Math.floor(h) };
     });
-    tex.setIris = (t) => {
-        const c = irisColor(t);
+    const paint = (c) => {
         const rgb = (k, a = 1) => `rgba(${Math.round(Math.min(1, c.r * k) * 255)},${Math.round(Math.min(1, c.g * k) * 255)},${Math.round(Math.min(1, c.b * k) * 255)},${a})`;
         ctx.fillStyle = '#d8cbc2';
         ctx.fillRect(0, 0, size, size);
@@ -90,6 +90,12 @@ export function eyeTexture(scene, options = {}) {
         }
         tex.update();
     };
+    tex.setIris = (t) => paint(irisColor(t));
+    tex.setIrisColour = (colour) => {
+        const c = parseColor(colour);
+        if (c)
+            paint(c);
+    };
     tex.setIris(options.iris ?? 0.2);
     return tex;
 }
@@ -115,6 +121,7 @@ export function lashMaterial(scene) {
 /** A part's faces over `positions` less `origin`, as a mesh under `parent`. */
 function partMesh(scene, name, part, positions, origin, keep, parent) {
     const remap = new Int32Array(part.vertices.length).fill(-1);
+    const source = [];
     const pos = [];
     const uvs = [];
     const indices = [];
@@ -126,6 +133,7 @@ function partMesh(scene, name, part, positions, origin, keep, parent) {
             const c = t[i + k];
             if (remap[c] < 0) {
                 remap[c] = pos.length / 3;
+                source.push(part.vertices[c]);
                 const v = part.vertices[c] * 3;
                 pos.push(positions[v] - origin.x, positions[v + 1] - origin.y, positions[v + 2] - origin.z);
                 if (part.uvs)
@@ -135,6 +143,8 @@ function partMesh(scene, name, part, positions, origin, keep, parent) {
         }
     }
     const mesh = new BABYLON.Mesh(name, scene);
+    // Which pack vertex each of its vertices is (expressions move them).
+    mesh.metadata = { packVertices: Uint32Array.from(source) };
     const data = new BABYLON.VertexData();
     data.positions = pos;
     data.indices = indices;
@@ -318,7 +328,8 @@ export function eyeGaze(scene, face, target, options = {}) {
             const r = Math.tan(saccade) * d;
             jitter = new BABYLON.Vector3((Math.random() * 2 - 1) * r, (Math.random() * 2 - 1) * r * 0.6, (Math.random() * 2 - 1) * r);
         }
-        face.eyes.forEach((eye, i) => {
+        // Both eyes' turns first: the pair looks together or not at all.
+        const turns = face.eyes.map((eye, i) => {
             const fwd = face.forward[i];
             let dir = fwd;
             if (aim != null) {
@@ -330,13 +341,15 @@ export function eyeGaze(scene, face, target, options = {}) {
                 if (local.lengthSquared() > 1e-8)
                     dir = local.normalize();
             }
-            let angle = Math.acos(Math.min(1, Math.max(-1, BABYLON.Vector3.Dot(fwd, dir))));
-            const axis = BABYLON.Vector3.Cross(fwd, dir);
-            if (angle > max) {
-                // Too far round: the head would turn, so the eyes go back to ahead.
-                angle = 0;
-            }
-            if (axis.lengthSquared() < 1e-10 || angle === 0)
+            const angle = Math.acos(Math.min(1, Math.max(-1, BABYLON.Vector3.Dot(fwd, dir))));
+            return { angle, axis: BABYLON.Vector3.Cross(fwd, dir) };
+        });
+        // Too far round for EITHER eye, and both go back to ahead (the head would
+        // turn). Deciding per eye left one tracking while the other gave up.
+        const ahead = turns.some((t) => t.angle > max);
+        face.eyes.forEach((eye, i) => {
+            const { angle, axis } = turns[i];
+            if (ahead || axis.lengthSquared() < 1e-10 || angle === 0)
                 q.copyFromFloats(0, 0, 0, 1);
             else
                 BABYLON.Quaternion.RotationAxisToRef(axis.normalize(), angle, q);

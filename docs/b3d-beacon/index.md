@@ -7,10 +7,6 @@ land on, so none of them can be clicked.
 
 ## Demo
 
-Three lamps with `geometry: 'off'` — so there is genuinely nothing in the scene
-but the light they cast. Click where one is and the readout names it. The hulls
-are invisible; the toggle shows you what you are actually hitting.
-
 ```js
 import { b3d, b3dLight, b3dSkybox, b3dGround, b3dPointLight, b3dBeacon, beaconOwner, toggle3d, label3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -58,15 +54,12 @@ const sceneEl = b3d(
   lamp('blue lamp', 6, 2, '#5588ff')
 )
 
-preview.append(readout, sceneEl)
+preview.append(sceneEl, readout)
 ```
 ```css
-.preview { height: 100%; position: relative; }
+.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 .readout {
-  position: absolute;
-  z-index: 1;
-  left: 8px;
-  bottom: 8px;
   padding: 4px 10px;
   border-radius: 6px;
   font-family: ui-monospace, monospace;
@@ -75,6 +68,10 @@ preview.append(readout, sceneEl)
   background: #0009;
 }
 ```
+
+Three lamps with `geometry: 'off'` — so there is genuinely nothing in the scene
+but the light they cast. Click where one is and the readout names it. The hulls
+are invisible; the toggle shows you what you are actually hitting.
 
 ## Attributes
 

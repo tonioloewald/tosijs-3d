@@ -6,14 +6,6 @@ boundary is feathered rather than cut.
 
 ## Demo — walk and wave at once
 
-`walk` on the legs, `wave` on the arms, spine feathered between them. Drag
-**falloff** to 0 to see the mannequin sawn in half, and to 5 to see the twist
-spread so far the wave loses its authority. The middle is the point.
-
-`layer` picks any of the rig's sixteen clips as the upper-body one, so you can
-try `salute`, `talk` or `look` — the last is the closest thing the stock rig has
-to an aim pose.
-
 ```js
 import { b3d, b3dLight, b3dSkybox, b3dLoader, slider3d, select3d, label3d, toggle3d } from 'tosijs-3d'
 import { boneHierarchy, layerGroups, boneMask, findBone, UPPER_BODY_ROOTS } from 'tosijs-3d'
@@ -110,6 +102,14 @@ preview.append(
 ```css
 .preview { height: 100%; }
 ```
+
+`walk` on the legs, `wave` on the arms, spine feathered between them. Drag
+**falloff** to 0 to see the mannequin sawn in half, and to 5 to see the twist
+spread so far the wave loses its authority. The middle is the point.
+
+`layer` picks any of the rig's sixteen clips as the upper-body one, so you can
+try `salute`, `talk` or `look` — the last is the closest thing the stock rig has
+to an aim pose.
 
 ## The mask
 

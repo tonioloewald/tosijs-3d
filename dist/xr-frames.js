@@ -284,6 +284,7 @@ export class XrFrames {
         // standing/sitting) AND align with where you actually look.
         this.eye.position.copyFrom(cam.position);
         BABYLON.Quaternion.RotationYawPitchRollToRef(this.eyeYawOffset, 0, 0, this.eye.rotationQuaternion);
+        this.body.rotationQuaternion.copyFrom(this.eye.rotationQuaternion);
         // Neck: head pose pushed down + back to the pivot; yaw-only so UI pinned here
         // turns with you but you can tip your head to look past it.
         const q = cam.rotationQuaternion ?? BABYLON.Quaternion.Identity();

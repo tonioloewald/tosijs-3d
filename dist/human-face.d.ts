@@ -17,6 +17,8 @@ export declare const HM08_EYE_UV: Readonly<{
 export interface EyeTexture extends BABYLON.DynamicTexture {
     /** Repaint the iris: 0 dark brown to 1 grey (see `irisColor`). */
     setIris(t: number): void;
+    /** Repaint the iris any colour (sRGB, anything `parseColor` reads). */
+    setIrisColour(colour: string): void;
 }
 /** The eye drawn in code on MakeHuman's eye UV layout. */
 export declare function eyeTexture(scene: BABYLON.Scene, options?: {

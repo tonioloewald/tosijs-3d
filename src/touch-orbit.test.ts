@@ -4,7 +4,14 @@ import { touchOrbit, WHEEL_SHARE } from './touch-orbit.js'
 
 const camera = (set?: (c: BABYLON.ArcRotateCamera) => void) => {
   const scene = new BABYLON.Scene(new BABYLON.NullEngine())
-  const c = new BABYLON.ArcRotateCamera('c', 0, 1, 4, BABYLON.Vector3.Zero(), scene)
+  const c = new BABYLON.ArcRotateCamera(
+    'c',
+    0,
+    1,
+    4,
+    BABYLON.Vector3.Zero(),
+    scene
+  )
   set?.(c)
   touchOrbit(c)
   return c
@@ -19,7 +26,9 @@ describe('touchOrbit', () => {
     const precise = camera((c) => (c.wheelPrecision = 60))
     expect(precise.wheelDeltaPercentage).toBe(0)
     expect(precise.wheelPrecision).toBe(60)
-    expect(camera((c) => (c.wheelDeltaPercentage = 0.02)).wheelDeltaPercentage).toBe(0.02)
+    expect(
+      camera((c) => (c.wheelDeltaPercentage = 0.02)).wheelDeltaPercentage
+    ).toBe(0.02)
   })
 
   test('zoom stops short of the target', () => {

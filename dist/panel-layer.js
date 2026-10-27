@@ -83,7 +83,13 @@ export function attachSceneLayer(opts) {
           rather than dwarfing it.
           */
         const panelVbW = vb && vb.width > 0 ? vb.width : popW;
-        const worldW = Math.min(width * 0.95, width * (popW / panelVbW));
+        /*
+        BESIDE THE PANEL (`side: 'right'` or `'left'`), a popup hangs off its edge
+        instead of over it, so it may be wider than the panel: a drawing surface
+        wants the room. Still one viewBox unit to one, capped at twice the panel.
+        */
+        const beside = config.side === 'right' || config.side === 'left';
+        const worldW = Math.min(width * (beside ? 2 : 0.95), width * (popW / panelVbW));
         const worldH = worldW * (popH / popW);
         /*
           PROJECT THE ANCHOR into the plane's own space.
@@ -110,7 +116,8 @@ export function attachSceneLayer(opts) {
         */
         const MARGIN = 8;
         const room = opts.screenRoom?.() ?? null;
-        let topVb = a.y + a.height;
+        // Beside the panel its top is level with the anchor's; else it hangs below.
+        let topVb = beside ? a.y : a.y + a.height;
         if (room != null) {
             topVb = Math.max(room.top + MARGIN, Math.min(topVb, room.bottom - MARGIN - popH));
         }
@@ -158,6 +165,10 @@ export function attachSceneLayer(opts) {
                   hanging below the panel costs nothing — which is the whole reason
                   the scene layer exists rather than reusing the panel overlay.
                   */
+                x: beside
+                    ? (config.side === 'right' ? 1 : -1) *
+                        (width / 2 + worldW / 2 + width * 0.03)
+                    : 0,
                 y: anchorBottomY - worldH / 2,
                 // NEARER the viewer — the z-separation is the point, not a nicety:
                 // coplanar panels re-sort as you orbit.

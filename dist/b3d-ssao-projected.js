@@ -25,6 +25,7 @@ pixels fail the depth check and are left alone, which shows as a thin
 unoccluded sliver beside a near object, never as a ghost.
 */
 import * as BABYLON from '@babylonjs/core';
+import { realNow } from './clock.js';
 const AO_SHADER = 'tosiProjectedAo';
 const BLUR_SHADER = 'tosiProjectedAoBlur';
 const MAX_SAMPLES = 32;
@@ -352,7 +353,7 @@ export class ProjectedAoController {
         const scene = this._scene;
         if (p == null || scene.activeCamera == null)
             return;
-        const now = performance.now();
+        const now = realNow();
         // Shaders compile asynchronously and a mesh whose depth shader is not
         // ready is simply left out of that drawing. So the first drawings after a
         // build are not rate-limited, or a slow rate would keep a picture with

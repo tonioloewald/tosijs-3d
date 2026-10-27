@@ -37,13 +37,6 @@ preview.append(scene)
 
 ## Demo — the encoded sky
 
-A baked sky is a raster of a thing that is almost entirely empty, and the
-stars are the expensive part. The PAIR that `bakeSkyPair()` emits splits the
-sky the way the measurements argued for: nebulae (low-frequency) in a small
-smooth cube, stars and distant galaxies (points) in a DATA cube the shader
-decodes — so stars stay points at any zoom instead of being a smear baked at
-one resolution. Zoom into the band and watch them stay sharp.
-
 ```js
 import { b3d, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -72,6 +65,13 @@ const scene = b3d(
 )
 preview.append(scene)
 ```
+
+A baked sky is a raster of a thing that is almost entirely empty, and the
+stars are the expensive part. The PAIR that `bakeSkyPair()` emits splits the
+sky the way the measurements argued for: nebulae (low-frequency) in a small
+smooth cube, stars and distant galaxies (points) in a DATA cube the shader
+decodes — so stars stay points at any zoom instead of being a smear baked at
+one resolution. Zoom into the band and watch them stay sharp.
 
 ### Pin the shipped sky in a document
 
@@ -159,8 +159,9 @@ and derive our own from it.
 */
 import '@babylonjs/materials/sky/sky.vertex.js';
 import '@babylonjs/materials/sky/sky.fragment.js';
-import { AbstractMesh, fetchedUrl } from './b3d-utils.js';
+import { AbstractMesh, fetchedUrl, sceneSeconds } from './b3d-utils.js';
 import { band } from './atmosphere.js';
+import { realNow } from './clock.js';
 const DEG_TO_RAD = Math.PI / 180;
 function hexToColor3(hex) {
     const r = parseInt(hex.slice(1, 3), 16) / 255;
@@ -1819,7 +1820,8 @@ export class B3dSkybox extends AbstractMesh {
         // TWINKLE runs every frame: its clock, and its strength — which is the
         // GAS (vacuum and dust do not twinkle stars; turbulent air does).
         const attrs = this;
-        sm.setFloat('b3dTime', performance.now() * 0.001);
+        // World seconds: stars stop twinkling in a pause like everything else.
+        sm.setFloat('b3dTime', sceneSeconds(this.owner.scene));
         sm.setFloat('b3dTwinkle', Math.max(0, Number(attrs.starfieldTwinkle) || 0) * this._gas);
     }
     updateSky() {
@@ -2335,10 +2337,24 @@ export class B3dSkybox extends AbstractMesh {
         day/night cycle that is scenery, not a simulation.
         */
         const MAX_STEP_MS = 250;
-        let lastTick = Date.now();
+        /*
+        WORLD TIME, not real time (board #3466, Tonio: "day night cycle should
+        pause when we pause the clock"). The timer only says how OFTEN to update;
+        how far the sun moves is the world's elapsed time (\`sceneSeconds\`), so a
+        pause stops it and \`timeScale\` speeds or slows the day. A world that is
+        not driven by <tosi-b3d> has no world clock, and keeps real time.
+        */
+        const worldNow = () => {
+            const scene = this.owner?.scene;
+            return scene != null ? sceneSeconds(scene) * 1000 : realNow();
+        };
+        let lastTick = worldNow();
         this.interval = window.setInterval(() => {
-            const now = Date.now();
-            const elapsed = Math.min(MAX_STEP_MS, Math.max(0, now - lastTick));
+            const now = worldNow();
+            // World time cannot jump (a hidden tab runs no frames), and capping it
+            // would slow a sped-up day; only the real-time fallback is capped.
+            const raw = Math.max(0, now - lastTick);
+            const elapsed = this.owner?.scene != null ? raw : Math.min(MAX_STEP_MS, raw);
             lastTick = now;
             attrs.timeOfDay =
                 (((attrs.timeOfDay + attrs.realtimeScale * elapsed * 1e-6) / 24) % 1) *

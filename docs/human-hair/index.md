@@ -8,11 +8,16 @@ modelled in place on Quaternius' base head.
 
 `loadHairLibrary(scene, url)` reads the library once: each piece's vertices
 in the file's own frame (right-handed, +Z forward, the frame a human pack
-uses), its UVs, its triangles and its material. `headScalp(...)` measures a
-body's head and fits the library's buzz cut onto its scalp
-([hair-fit](/hair-fit/)), and `humanHair(...)` puts any piece on that head
-through the same fit, pushed out of the skin wherever the shapes differ, and
-hangs it on the Head bone so it moves with the clip.
+uses), its UVs, its triangles and its material, and the HEAD it was
+modelled on (`Reference_Head`, Quaternius' Regular_Male). `headScalp(...)`
+warps that head's skin onto a body's ([hair-fit](/hair-fit/)): a per-axis
+fit, then each skin point's own correction, the scalp and the face
+separately. `humanHair(...)` carries any piece through the warp, so every
+hair keeps its height above the scalp under it, and hangs it on the Head
+bone so it moves with the clip.
+
+Fitting the hair itself to the skin does not work: a style is one outer
+shell with no underside, so laid on the skin it sinks by its own thickness.
 
 The library's hair texture is a neutral grey meant to be tinted, so
 `hairMaterial` gives one material per colour from `hairColor`: black to

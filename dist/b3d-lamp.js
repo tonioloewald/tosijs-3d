@@ -13,16 +13,6 @@ you turn it off or replace it when the scene has a real fixture to put there.
 
 ## Demo
 
-A dark room with a **matte, patterned floor**, the two things a lighting demo
-needs. A glossy untextured plane reflects the lamp back at you and shows nothing
-about falloff; a lit scene with no shadow receivers lets every light shine
-straight through the objects.
-
-Three zones so the lamps do not wash each other out: a warm lamp with hard
-shadows, a fluorescent that strikes and dies, and a gelled spot throwing a
-window pattern across a clear patch of floor. Switch them off to watch each
-one's decay.
-
 ```js
 import {
   b3d, b3dLight, b3dPointLight, b3dSpotLight,
@@ -176,6 +166,16 @@ preview.append(
 tosi-b3d { width: 100%; height: 100%; }
 .preview { height: 100%; }
 ```
+
+A dark room with a **matte, patterned floor**, the two things a lighting demo
+needs. A glossy untextured plane reflects the lamp back at you and shows nothing
+about falloff; a lit scene with no shadow receivers lets every light shine
+straight through the objects.
+
+Three zones so the lamps do not wash each other out: a warm lamp with hard
+shadows, a fluorescent that strikes and dies, and a gelled spot throwing a
+window pattern across a clear patch of floor. Switch them off to watch each
+one's decay.
 
 ## What each type can actually do
 
@@ -364,6 +364,7 @@ import { SvgTexture } from './svg-texture.js';
 import { canonicalize } from './model-transform.js';
 import { resolveBudget } from './b3d-quality.js';
 import { isAnimated, lightPhase, sampleLight, shiftHue, } from './light-modulation.js';
+import { realNow } from './clock.js';
 /**
  * Lowest the fixture's emissive goes, as a fraction of full.
  *
@@ -791,7 +792,7 @@ export class B3dLamp extends B3dChild {
         */
         if (this.timeSource === 'sim')
             return sceneDeltaSeconds(scene);
-        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        const now = realNow();
         if (this._lastRealMs === 0) {
             this._lastRealMs = now;
             return 0;

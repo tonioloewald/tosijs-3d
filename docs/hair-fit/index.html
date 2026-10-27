@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=7917dccc76d6" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=c3f9a510fbae" data-tosi-doc-system />
   <title>hair-fit — tosijs-3d</title>
   <meta name="description" content="Hair made for one head, worn on another. A hairstyle library such as Quaternius&#39; is modelled around ITS base head, in world space; a character builder body has…" />
   <link rel="canonical" href="https://3d.tosijs.net/hair-fit/" />
@@ -30,29 +30,40 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=10b0e7b75506" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=d4cb551793b9" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="hair-fit.ts">
 <h1 id="hair-fit">hair-fit</h1>
 <p>Hair made for one head, worn on another. A hairstyle library such as
 Quaternius&#39; is modelled around ITS base head, in world space; a
 <a href="/character-builder/">character builder</a> body has a different skull for
-every slider setting. Two steps carry a style across, both pure:</p>
+every slider setting. The style is carried from the head it was modelled
+on to this one, skin to skin, all pure:</p>
 <ol>
-<li><strong><code>fitToScalp(reference, scalp)</code></strong> fits a scale and an offset per axis that
-lay a REFERENCE that hugs the library&#39;s scalp (a buzz cut) onto this body&#39;s
-scalp, by iterated nearest points (ICP without rotation: both heads face
-+Z, up +Y). The same fit then moves every style, eyebrows and beards too,
-because they were all modelled on that one head.</li>
-<li><strong><code>conformOutside(positions, scalp, normals, margin)</code></strong> pushes any vertex
-that ends up inside the skin (or closer than <code>margin</code> to it) back out along
-the skin&#39;s normal, so a shape the fit cannot capture exactly (a longer
-skull, a heavier brow) never shows skin through hair.</li>
+<li><strong><code>headRegion(skin, landmarks, region)</code></strong> picks the same region on any
+head from where its eyes are: the <code>scalp</code> (above the brow, and down to the
+nape behind the face) or the <code>face</code> (chin to forehead).</li>
+<li><strong><code>shellWarp(source, target)</code></strong> warps one head&#39;s region onto the other&#39;s:
+<code>fitToScalp</code>, a scale and offset per axis by iterated nearest points (ICP
+without rotation: both heads face +Z, up +Y), then what that fit missed,
+measured at each source skin point as the step to the nearest target skin.
+Given the target&#39;s normals, a <code>clearance</code> is added out along them.</li>
+<li><strong><code>applyWarp(positions, warp)</code></strong> carries hair through it: the fit, then the
+correction of the few source skin points nearest each hair vertex, so a
+hair keeps its height above the scalp under it whatever the skulls&#39; shapes.</li>
+<li><strong><code>conformOutside(positions, skin, normals, margin)</code></strong> pushes any vertex
+still inside the skin back out along the skin&#39;s normal: a guard.</li>
 </ol>
-<p><code>vertexNormals(positions, triangles)</code> gives the skin&#39;s normals for the second
-step (counter-clockwise outward, as OBJ and glTF wind).</p>
-<pre><code class="language-javascript" data-highlighted><span class="token keyword">const</span> fit <span class="token operator">=</span> <span class="token function">fitToScalp</span><span class="token punctuation">(</span>buzzCut<span class="token punctuation">,</span> scalp<span class="token punctuation">)</span>
-<span class="token keyword">const</span> placed <span class="token operator">=</span> <span class="token function">applyFit</span><span class="token punctuation">(</span>styleVertices<span class="token punctuation">,</span> fit<span class="token punctuation">)</span>
-<span class="token function">conformOutside</span><span class="token punctuation">(</span>placed<span class="token punctuation">,</span> scalp<span class="token punctuation">,</span> scalpNormals<span class="token punctuation">,</span> <span class="token number">0.003</span><span class="token punctuation">)</span>
+<p>Fitting the HAIR to the skin, which this did first, does not work: a style
+is one outer shell with no underside, so laid on the skin it sinks by its own
+thickness. The library&#39;s styles are also tucked into their own skin in
+places, which a warp keeps and the clearance covers.</p>
+<p><code>vertexNormals(positions, triangles)</code> gives a skin&#39;s normals (counter-clockwise
+outward, as OBJ and glTF wind).</p>
+<pre><code class="language-javascript" data-highlighted><span class="token keyword">const</span> warp <span class="token operator">=</span> <span class="token function">shellWarp</span><span class="token punctuation">(</span>
+  <span class="token function">headRegion</span><span class="token punctuation">(</span>libraryHead<span class="token punctuation">,</span> libraryEyes<span class="token punctuation">,</span> <span class="token string">'scalp'</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+  <span class="token function">headRegion</span><span class="token punctuation">(</span>bodyHead<span class="token punctuation">,</span> bodyEyes<span class="token punctuation">,</span> <span class="token string">'scalp'</span><span class="token punctuation">)</span>
+<span class="token punctuation">)</span>
+<span class="token keyword">const</span> placed <span class="token operator">=</span> <span class="token function">applyWarp</span><span class="token punctuation">(</span>styleVertices<span class="token punctuation">,</span> warp<span class="token punctuation">)</span>
 </code></pre>
 
   </article>
@@ -115,6 +126,7 @@ step (counter-clockwise outward, as OBJ and glTF wind).</p>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="../environment/">environment</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
     </ul>
     </details></li>
@@ -205,9 +217,36 @@ step (counter-clockwise outward, as OBJ and glTF wind).</p>
           <li><a class="doc-link" href="../human-morph/">human-morph</a></li>
           <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
           <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
+          <li><a class="doc-link" href="../skin-shading/">skin-shading</a></li>
           <li><a class="doc-link" href="../human-face/">human-face</a></li>
-          <li><a class="doc-link" href="../human-hair/">human-hair</a></li>
-          <li><a class="doc-link current" href="../hair-fit/" aria-current="page">hair-fit</a></li>
+          <li><a class="doc-link" href="../human-expression/">human-expression</a></li>
+          <li><details open><summary><a class="doc-link" href="../human-hair/">human-hair</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../hair-shading/">hair-shading</a></li>
+            <li><a class="doc-link current" href="../hair-fit/" aria-current="page">hair-fit</a></li>
+          </ul>
+          </details></li>
+          <li><details><summary><a class="doc-link" href="../human-proxy/">human-proxy</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../proxy-fit/">proxy-fit</a></li>
+            <li><a class="doc-link" href="../cloth-shading/">cloth-shading</a></li>
+            <li><details><summary><a class="doc-link" href="../garment-cut/">garment-cut</a></summary>
+            <ul>
+              <li><a class="doc-link" href="../outline-field/">outline field</a></li>
+            </ul>
+            </details></li>
+            <li><details><summary><a class="doc-link" href="../garment-bind/">garment-bind</a></summary>
+            <ul>
+              <li><details><summary><a class="doc-link" href="../garment-file/">garment-file</a></summary>
+              <ul>
+                <li><a class="doc-link" href="../uv-unwrap/">uv-unwrap</a></li>
+              </ul>
+              </details></li>
+              <li><a class="doc-link" href="../proxy-rigid/">proxy-rigid</a></li>
+            </ul>
+            </details></li>
+          </ul>
+          </details></li>
         </ul>
         </details></li>
       </ul>
@@ -422,11 +461,17 @@ step (counter-clockwise outward, as OBJ and glTF wind).</p>
       <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
     </ul>
     </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../clock/">clock</a></li>
+    </ul>
+    </details></li>
     <li><details><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
     <ul>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.11.5/">0.11.5</a></li>
         <li><a class="doc-link" href="../v0.11.4/">0.11.4</a></li>
         <li><a class="doc-link" href="../v0.11.3/">0.11.3</a></li>
         <li><a class="doc-link" href="../v0.11.2/">0.11.2</a></li>
@@ -506,6 +551,6 @@ step (counter-clockwise outward, as OBJ and glTF wind).</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-0nmn3nad.js"></script>
+  <script type="module" src="../hydrate-fymfsbgh.js"></script>
 </body>
 </html>

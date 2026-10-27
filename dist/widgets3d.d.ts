@@ -180,7 +180,10 @@ export declare function tabs3d(config: {
  * `label3d({ collapsible: true })` heads a section: every row after it, up to
  * the next one, belongs to it. This returns the rows to SHOW:
  *
- * - `mode: 'fold'` (the default): every header, plus the rows of open sections.
+ * - `mode: 'fold'` (the default): every header, plus the rows of the open
+ *   section. One is open at a time, as an accordion: opening one closes the
+ *   others, and all may be closed. Of sections declared or saved open, the first wins.
+ * - `mode: 'folds'`: the same, but several may be open at once.
  * - `mode: 'tabs'`: rows before the first section, a `tabs3d` strip of the
  *   sections (a section's `icon` becomes its tab), and the active section's rows.
  *
@@ -196,7 +199,7 @@ export declare function tabs3d(config: {
  */
 export declare function foldSections(rows: Widget3d[], opts: {
     key?: string;
-    mode?: 'fold' | 'tabs';
+    mode?: 'fold' | 'folds' | 'tabs';
     repaint: () => void;
 }): Widget3d[];
 /** What a panel offers the widgets inside it. */
@@ -620,6 +623,12 @@ export declare function select3d(config: {
     }>;
     /** Only for the hostless step fallback: wrap past the ends (default true). */
     wrap?: boolean;
+    /**
+     * Keep the menu open after a pick, until it is closed or something behind
+     * it is pressed: for trying options one after another (a hairstyle, an
+     * outfit) and watching each take effect.
+     */
+    stayOpen?: boolean;
     /** Fired as the value changes. */
     handleChange?: (v: string | number) => void;
 }): Widget3d;

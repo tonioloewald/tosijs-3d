@@ -73,6 +73,8 @@ export declare class B3dHud extends B3dChild {
         size?: number;
         position?: BABYLON.Vector3;
         resolution?: number;
+        /** Drawn over the scene (a later rendering group), not hidden by it. */
+        onTop?: boolean;
     }): void;
     private _buildInScenePlane;
     /** Show/hide the in-scene cockpit HUD plane (independent of the DOM overlay). */

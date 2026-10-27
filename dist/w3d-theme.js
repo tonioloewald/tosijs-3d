@@ -16,16 +16,6 @@ before the bundle loads (tosijs's `vars`/`StyleSheet` at startup is fine).
 
 ## Demo
 
-**The same panel twice — flat DOM (top left) and as a texture in a 3D scene
-(bottom left) — with the editor on the right.** Change a token and both
-rebuild, which is the point: one UI, two presentations, and a theme that has to
-reach them identically or the pair drifts.
-
-The editor is [[theme-editor]], a component rather than demo code, so an adopter
-gets this UI instead of copying it. Alpha comes from tosijs-ui's `colorInput`
-passed in — the native `<input type="color">` cannot express it, and half this
-palette is `rgba()`.
-
 ```js
 import { b3d, b3dLight, panelScene, panel3d, row3d, label3d, slider3d,
          toggle3d, button3d, iconBar3d, ui, themeEditor,
@@ -161,6 +151,16 @@ preview.append(div(
 tosi-example .preview { background: #1b1f27; color: #e6e6e6; min-height: 620px; }
 tosi-b3d { width: 100%; height: 100%; border-radius: 8px; overflow: hidden; }
 ```
+
+**The same panel twice — flat DOM (top left) and as a texture in a 3D scene
+(bottom left) — with the editor on the right.** Change a token and both
+rebuild, which is the point: one UI, two presentations, and a theme that has to
+reach them identically or the pair drifts.
+
+The editor is [[theme-editor]], a component rather than demo code, so an adopter
+gets this UI instead of copying it. Alpha comes from tosijs-ui's `colorInput`
+passed in — the native `<input type="color">` cannot express it, and half this
+palette is `rgba()`.
 
 */
 /*{ "parent": "ui-theme", "order": 10 }*/

@@ -1,3 +1,4 @@
+import { realNow } from './clock.js';
 /** Median and 95th percentile of a list of frame intervals. */
 export function summarise(intervals) {
     if (intervals.length === 0)
@@ -181,7 +182,7 @@ export async function costSweep(scene, options = {}) {
                 const intervals = [];
                 let last = 0;
                 const obs = scene.onAfterRenderObservable.add(() => {
-                    const now = performance.now();
+                    const now = realNow();
                     if (last > 0)
                         intervals.push(now - last);
                     last = now;

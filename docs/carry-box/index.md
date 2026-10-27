@@ -7,12 +7,6 @@ does: on a page, on a panel in a flat scene, on a panel in a headset.
 
 ## Demo
 
-A bag and a pair of hands. Drag a thing to a hand, or tap it and then tap
-the hand. While something is held, the hands that would take it light up
-and the others dim; point at a dim one to see why. The rifle needs both
-hands free; the shield is cracked (its outline) and the lamp is running low
-(its bar).
-
 ```js
 import { ui, createCarry, carryTile, carrySocket, carryPanel } from 'tosijs-3d'
 import { svgElements } from 'tosijs'
@@ -95,6 +89,12 @@ window.addEventListener('pointerup', () => {
   if (carry.state.mode === 'drag') carry.cancel()
 })
 ```
+
+A bag and a pair of hands. Drag a thing to a hand, or tap it and then tap
+the hand. While something is held, the hands that would take it light up
+and the others dim; point at a dim one to see why. The rifle needs both
+hands free; the shield is cracked (its outline) and the lamp is running low
+(its bar).
 
 ## How it fits together
 

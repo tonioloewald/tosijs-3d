@@ -28,16 +28,6 @@ b3dSpawner({ prefab: 'mothership-group', maxAlive: 1, minDistance: 800, maxDista
 
 ## Demo — hunt the mothership
 
-Two hostile groups are out there, each a **mothership ringed by escorts**. The motherships
-carry a **waypoint blip** (`profile: -1` — always detectable), so the HUD shows you where to
-go; the escorts don't, so you only see them when your radar picks them up.
-
-**Kill a mothership and its waypoint vanishes** — not because anything cleans it up, but
-because the blip follows that mesh, and a destroyed mesh reports no position. The marker
-stops existing because the thing it marked stopped existing.
-
-Clear a group and the spawner puts a fresh one somewhere else.
-
 ```js
 import { b3d, b3dAircraft, b3dRadar, b3dRadarBlip, b3dHud, b3dLibrary, b3dDestroyable, b3dSpawner, b3dDeath, b3dLight, b3dSun, b3dSkybox, b3dGround, definePrefab, escorts, at, gameController, inputFocus } from 'tosijs-3d'
 
@@ -87,6 +77,16 @@ preview.append(scene)
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+Two hostile groups are out there, each a **mothership ringed by escorts**. The motherships
+carry a **waypoint blip** (`profile: -1` — always detectable), so the HUD shows you where to
+go; the escorts don't, so you only see them when your radar picks them up.
+
+**Kill a mothership and its waypoint vanishes** — not because anything cleans it up, but
+because the blip follows that mesh, and a destroyed mesh reports no position. The marker
+stops existing because the thing it marked stopped existing.
+
+Clear a group and the spawner puts a fresh one somewhere else.
 
 ## The rules it follows
 

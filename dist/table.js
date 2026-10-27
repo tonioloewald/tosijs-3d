@@ -8,13 +8,6 @@ and rasterized onto a plane.
 
 ## Demo
 
-Scroll the body by **dragging** it (or the wheel). Click a row to select it. Then click
-into the table and use **arrow keys + Enter** — that's the D-pad path, and it's the only
-one that exists in a headset.
-
-Three independent channels, so a row can be all three at once and each still reads:
-**hover** = background, **selection** = icon, **focus** = ring.
-
 ```js
 import { b3d, b3dLight, panelScene, ui } from 'tosijs-3d'
 const { surface, widgetBox, box, textBlock, table, svgPoint } = ui
@@ -106,6 +99,14 @@ preview.append(
 ```css
 .preview { height: 100%; }
 ```
+
+Scroll the body by **dragging** it (or the wheel). Click a row to select it. Then click
+into the table and use **arrow keys + Enter** — that's the D-pad path, and it's the only
+one that exists in a headset.
+
+Three independent channels, so a row can be all three at once and each still reads:
+**hover** = background, **selection** = icon, **focus** = ring.
+
 ## Filtering and row actions
 
 `filter` (or `setFilter`) shows only the rows a predicate matches, and `counts`

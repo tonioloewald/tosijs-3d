@@ -127,14 +127,13 @@ const scene = b3d(
 preview.append(scene, kills, turb)
 ```
 ```css
-tosi-b3d { width: 100%; height: 100%; }
+.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
 .turb {
-  position: absolute; top: 44px; right: 10px; z-index: 10;
   padding: 6px 12px; border-radius: 4px;
   background: rgba(0, 0, 0, 0.55); color: #9fdcf0; font: 14px monospace;
 }
 .kills {
-  position: absolute; top: 10px; right: 10px; z-index: 10;
   padding: 6px 12px; border-radius: 4px;
   background: rgba(0, 0, 0, 0.55); color: #ffcf6a; font: 14px monospace;
 }
@@ -210,6 +209,7 @@ turns the pilot's head in the cockpit, springs back on release).
 | `meshName` | `''` | Node name to instantiate from library |
 | `player` | `false` | Whether this aircraft receives input (and gets the gun reticle) |
 | `enterable` | `false` | Whether a biped can enter |
+| `dropShadow` | `'off'` | `'on'` puts a soft blob shadow straight below the craft, darkest on the ground and fading and spreading as it climbs, so its height reads at a glance. For a scene without real shadows: beside a sun's shadow it is a second, contradicting one |
 | `maxSpeed` | `50` | Top speed at full lever, **military** thrust (m/s). A released trigger leaves the lever where it was, so speed settles wherever that lever meets drag |
 | `afterburnerSpeed` | `75` | Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner. |
 | `acceleration` | `12` | Throttle / lean authority (speed change rate) |
@@ -238,7 +238,7 @@ turns the pilot's head in the cockpit, springs back on release).
 | `turbulence` | `'on'` | The weather reaches the airframe: wind makes it drift and crab, storms (storminess) and strong wind buffet it. Changes nothing in a calm scene; `'off'` ignores the weather |
 | `turbulenceScale` | `1` | Scales the buffeting |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
-| `hudChaseOff` | `false` | Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene |
+| `hudChaseOff` | `false` | Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene. In a headset's chase view the same HUD is a plane between your eyes and the aircraft, centred on it and covering the angle the flat overlay does |
 | `hudSize` | `0.7` | In-cockpit HUD plane size (metres) |
 | `hudForward` | `1.6` | How far ahead of the pilot's eye the HUD floats (metres) |
 | `weapons` | `'on'` | `'off'` disarms all weapons |

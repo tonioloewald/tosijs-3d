@@ -14,192 +14,65 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=7917dccc76d6" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=c3f9a510fbae" data-tosi-doc-system />
   <title>auto-rig — tosijs-3d</title>
-  <meta name="description" content="A character nobody rigged, walking. Four meshes as they came out of a modelling program (no skeleton, no weights) are rigged in the browser and play UAL&#39;s…" />
+  <meta name="description" content="Binding a mesh to a skeleton, with no rig to start from. Eight markers on a mesh&#39;s front view (chin, groin, wrists, elbows, knees) place UAL&#39;s 65-bone skeleton…" />
   <link rel="canonical" href="https://3d.tosijs.net/rig-build/" />
   <link rel="alternate" type="text/markdown" href="index.md" title="auto-rig — tosijs-3d (markdown)" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
   <meta property="og:title" content="auto-rig — tosijs-3d" />
-  <meta property="og:description" content="A character nobody rigged, walking. Four meshes as they came out of a modelling program (no skeleton, no weights) are rigged in the browser and play UAL&#39;s…" />
+  <meta property="og:description" content="Binding a mesh to a skeleton, with no rig to start from. Eight markers on a mesh&#39;s front view (chin, groin, wrists, elbows, knees) place UAL&#39;s 65-bone skeleton…" />
   <meta property="og:url" content="https://3d.tosijs.net/rig-build/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"auto-rig","description":"A character nobody rigged, walking. Four meshes as they came out of a modelling program (no skeleton, no weights) are rigged in the browser and play UAL's…","url":"https://3d.tosijs.net/rig-build/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"auto-rig","description":"Binding a mesh to a skeleton, with no rig to start from. Eight markers on a mesh's front view (chin, groin, wrists, elbows, knees) place UAL's 65-bone skeleton…","url":"https://3d.tosijs.net/rig-build/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=10b0e7b75506" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=d4cb551793b9" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="rig-build.ts">
 <h1 id="auto-rig">auto-rig</h1>
-<p><strong>A character nobody rigged, walking.</strong> Four meshes as they came out of a
-modelling program (no skeleton, no weights) are rigged in the browser and play
-UAL&#39;s clips: eight markers per mesh place a 65-bone skeleton (<code>fitSkeleton</code>),
-bone heat binds the skin to it (<code>boneHeat</code>), <code>buildRig</code> makes a Babylon
-skeleton of the result, and <code>retargetClip</code> plays the clips on it. The weasels
-have tails, which no clip animates, so their tails run on spring bones.</p>
-<h2 id="demo">Demo</h2>
-<p>Omnidude, a weasel, a skinny weasel and a space marine (shown at 42% of his
-4.4 m), by Tonio Loewald, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.</p>
-<p>Open the panel (the owl) to <strong>rig one yourself</strong>: pick a character and its
-front view appears with the eight markers on it. Drag a marker (the other side
-follows while symmetry is on) and when you let go the character is fitted,
-bound and walking again. <strong>guess</strong> places the markers from the silhouette
-alone, which is where you would start with a new mesh. The weasels&#39; tail tips
-are placed in the side view. The clip, the bones and tail stiffness are below.</p>
-<pre><code class="language-js">import {
-  b3d, b3dLight, assetUrl, select3d, slider3d, toggle3d, button3d, label3d,
-  objTriangles, fitSkeleton, meshQuery, skinSegments, boneHeat, buildRig,
-  readSkeleton, retargetClip, springNodes, markerField3d,
+<p><strong>Binding a mesh to a skeleton, with no rig to start from.</strong> Eight markers on
+a mesh&#39;s front view (chin, groin, wrists, elbows, knees) place UAL&#39;s 65-bone
+skeleton (<code>fitSkeleton</code>), bone heat binds the skin to it (<code>boneHeat</code>), and
+<code>buildRig</code> makes a Babylon skeleton of the result, so <code>retargetClip</code> plays
+UAL&#39;s clips on it and <code>springNodes</code> swings a tail.</p>
+<p>To do this by hand, use the <a href="/rig-tool/">rig tool</a>: load a GLB or OBJ with
+no skeleton (or turn on <code>bind from markers</code> to ignore the one it has), drag
+the markers onto its joints, and it is bound again each time you let go. The
+markers are saved in its recipe. This page is the code underneath, for doing
+the same in your own page or pipeline.</p>
+<h2 id="usage">Usage</h2>
+<pre><code>import {
+  objTriangles, guessMarkers, rigSilhouette, fitSkeleton, meshQuery,
+  skinSegments, boneHeat, buildRig, readSkeleton, retargetClip,
 } from &#39;tosijs-3d&#39;
-import { tosi } from &#39;tosijs&#39;
 
-const { autorig } = tosi({
-  autorig: { who: &#39;skinny weasel&#39;, clip: &#39;Walk_Loop&#39;, bones: false, tail: 0.25, symmetry: true },
+// The mesh as triangles, in its file&#39;s own (right-handed) frame,
+// facing +Z with its left on +X.
+const { positions, indices } = objTriangles(await (await fetch(url)).text())
+
+// Markers: guessed from the outline, or from a rig tool recipe&#39;s `binding`.
+const markers = recipe?.binding?.markers ??
+  guessMarkers(rigSilhouette(positions, indices, &#39;front&#39;))
+
+const rig = fitSkeleton(markers, meshQuery(positions, indices), {
+  tail: recipe?.binding?.tail ?? undefined,
 })
-const clips = [&#39;Idle_Loop&#39;, &#39;Walk_Loop&#39;, &#39;Jog_Fwd_Loop&#39;, &#39;Sprint_Loop&#39;, &#39;Dance_Loop&#39;, &#39;Crouch_Fwd_Loop&#39;]
+const weights = boneHeat(positions, indices, skinSegments(rig))
+const built = buildRig(scene, &#39;weasel&#39;, positions, indices, rig, weights)
+built.root.parent = stand // move it by a parent of root, never root itself
 
-// Mixamo&#39;s eight markers on the front view (the character&#39;s left is +X),
-// given for the left side and mirrored.
-const markers = (chin, groin, wrist, elbow, knee) =&gt; {
-  const p = ([x, y]) =&gt; ({ x, y })
-  const m = ([x, y]) =&gt; ({ x: -x, y })
-  return {
-    chin: p(chin), groin: p(groin),
-    wristL: p(wrist), wristR: m(wrist), elbowL: p(elbow), elbowR: m(elbow), kneeL: p(knee), kneeR: m(knee),
-  }
-}
-const cast = [
-  { name: &#39;omnidude&#39;, file: &#39;omnidude.obj&#39;, objects: [&#39;Omnidude&#39;, &#39;Head&#39;], color: [0.55, 0.6, 0.7],
-    markers: markers([0, 1.338], [0, 0.467], [0.74, 1.075], [0.47, 1.095], [0.152, 0.258]) },
-  { name: &#39;weasel&#39;, file: &#39;weasel.obj&#39;, objects: [&#39;Weasel&#39;], color: [0.6, 0.42, 0.25], tail: { x: 0, y: 0.5, z: -0.95 },
-    markers: markers([0, 0.967], [0, 0.358], [0.51, 0.763], [0.397, 0.763], [0.142, 0.174]) },
-  { name: &#39;skinny weasel&#39;, file: &#39;weasel-skinny.obj&#39;, objects: [&#39;Body&#39;, &#39;Head&#39;, &#39;Tail&#39;], color: [0.8, 0.5, 0.25], tail: { x: 0, y: 0.77, z: -0.95 },
-    markers: markers([0, 1.259], [0, 0.64], [0.657, 1.154], [0.404, 1.14], [0.106, 0.34]) },
-  { name: &#39;space marine&#39;, file: &#39;space-marine.glb&#39;, mesh: &#39;EvilMarineBody&#39;, color: [0.3, 0.4, 0.3], scale: 0.42,
-    markers: markers([0, 3.594], [0, 1.656], [1.966, 2.937], [1.18, 3.064], [0.388, 0.943]) },
-]
-
-let bodies = []
-let field = null
-
-// Tall enough for the marker panel beside the characters.
-preview.closest(&#39;tosi-example&#39;)?.style.setProperty(&#39;--tosi-example-height&#39;, &#39;560px&#39;)
-preview.append(
-  b3d(
-    {
-      style: &#39;width:100%;height:100%&#39;,
-      clearColor: &#39;#2a3340&#39;,
-      panelTitle: &#39;Auto-rig&#39;,
-      scenePanel: () =&gt; {
-        const i = cast.findIndex((c) =&gt; c.name === autorig.who.value)
-        const body = bodies[i]
-        field = body
-          ? markerField3d({
-              positions: body.positions, indices: body.indices,
-              value: body.markers, tail: body.tail, symmetry: autorig.symmetry.value,
-              handleCommit: (m, t) =&gt; { body.markers = m; body.tail = t; body.rig() },
-            })
-          : null
-        return [
-          select3d({ label: &#39;rig&#39;, value: autorig.who, options: cast.map((c) =&gt; c.name) }),
-          field ?? label3d({ text: &#39;loading…&#39; }),
-          toggle3d({ label: &#39;symmetry&#39;, value: autorig.symmetry }),
-          button3d({ label: &#39;guess&#39;, handleClick: () =&gt; field?.guess() }),
-          select3d({ label: &#39;clip&#39;, value: autorig.clip, options: clips }),
-          toggle3d({ label: &#39;bones&#39;, value: autorig.bones }),
-          slider3d({ label: &#39;tail stiffness&#39;, value: autorig.tail, min: 0, max: 1, step: 0.01 }),
-        ]
-      },
-      async sceneCreated(el, BABYLON) {
-        const scene = el.scene
-        const cam = new BABYLON.ArcRotateCamera(&#39;c&#39;, Math.PI / 2, 1.35, 6.5, new BABYLON.Vector3(0, 0.8, 0), scene)
-        cam.attachControl(el.querySelector(&#39;canvas&#39;), true)
-        el.setActiveCamera(cam)
-        const ground = BABYLON.MeshBuilder.CreateGround(&#39;g&#39;, { width: 12, height: 6 }, scene)
-        ground.position.y = -0.01
-
-        // The meshes, as triangles in the file&#39;s own (right-handed) frame.
-        const triangles = async (c) =&gt; {
-          const url = assetUrl(&#39;tonio/rigging/&#39; + c.file)
-          if (c.file.endsWith(&#39;.obj&#39;)) return objTriangles(await (await fetch(url)).text(), c.objects)
-          const glb = await BABYLON.LoadAssetContainerAsync(url, scene)
-          const m = glb.meshes.find((m) =&gt; m.name === c.mesh)
-          const out = { positions: Array.from(m.getVerticesData(&#39;position&#39;)), indices: Array.from(m.getIndices()) }
-          glb.dispose()
-          return out
-        }
-
-        // UAL&#39;s mannequin is only the clips&#39; source: it stays hidden.
-        const ual = await BABYLON.LoadAssetContainerAsync(assetUrl(&#39;quaternius/UAL1_core.glb&#39;, 2), scene)
-        ual.addAllToScene()
-        for (const g of ual.animationGroups) g.stop()
-        const ualRoot = ual.meshes.find((m) =&gt; m.name === &#39;__root__&#39;)
-        const source = readSkeleton(ual.skeletons[0], ualRoot)
-        ualRoot.setEnabled(false)
-
-        // Retarget a clip to a body the first time it is asked for.
-        const clipFor = (body, name) =&gt; {
-          if (!body.clips.has(name)) {
-            const clip = ual.animationGroups.find((g) =&gt; g.name === name)
-            body.clips.set(name, clip ? retargetClip(clip, source, body.read, { scene }) : null)
-          }
-          return body.clips.get(name)
-        }
-        const play = (body) =&gt; {
-          body.playing?.stop()
-          body.playing = clipFor(body, autorig.clip.value)
-          body.playing?.start(true)
-        }
-
-        bodies = []
-        for (const [i, c] of cast.entries()) {
-          const { positions, indices } = await triangles(c)
-          const mat = new BABYLON.StandardMaterial(c.file, scene)
-          mat.diffuseColor = new BABYLON.Color3(...c.color)
-          // Place and scale by a node above the rig&#39;s own (mirrored) root.
-          const stand = new BABYLON.TransformNode(c.file + &#39;-stand&#39;, scene)
-          stand.position.x = 2.4 - 1.6 * i
-          stand.scaling.setAll(c.scale ?? 1)
-          const body = { positions, indices, markers: c.markers, tail: c.tail ?? null, clips: new Map() }
-          // Fit, bind and build, then play: again whenever the markers move.
-          body.rig = () =&gt; {
-            for (const g of body.clips.values()) g?.dispose()
-            body.clips.clear()
-            body.playing = null
-            body.spring?.dispose()
-            body.viewer?.dispose()
-            body.built?.dispose()
-            const rig = fitSkeleton(body.markers, meshQuery(positions, indices), { tail: body.tail ?? undefined })
-            const weights = boneHeat(positions, indices, skinSegments(rig))
-            const built = buildRig(scene, c.file, positions, indices, rig, weights)
-            built.mesh.material = mat
-            built.root.parent = stand
-            const tail = [&#39;tail_01&#39;, &#39;tail_02&#39;, &#39;tail_03&#39;, &#39;tail_04&#39;, &#39;tail_05&#39;, &#39;tail_leaf&#39;].map((n) =&gt; built.node(n))
-            body.spring = tail[0] ? springNodes(scene, tail, { params: { stiffness: autorig.tail.value } }) : null
-            body.viewer = new BABYLON.SkeletonViewer(built.skeleton, built.mesh, scene, false, 3, { displayMode: 0 })
-            body.viewer.isEnabled = autorig.bones.value
-            body.built = built
-            body.read = readSkeleton(built.skeleton, built.root)
-            play(body)
-          }
-          body.rig()
-          bodies.push(body)
-        }
-        el.refreshScenePanel()
-
-        autorig.who.observe(() =&gt; el.refreshScenePanel())
-        autorig.symmetry.observe(() =&gt; { if (field) field.symmetry = autorig.symmetry.value })
-        autorig.clip.observe(() =&gt; { for (const b of bodies) play(b) })
-        autorig.bones.observe(() =&gt; { for (const b of bodies) b.viewer.isEnabled = autorig.bones.value })
-        autorig.tail.observe(() =&gt; { for (const b of bodies) if (b.spring) b.spring.params.stiffness = autorig.tail.value })
-      },
-    },
-    b3dLight({ intensity: 0.9 })
-  )
-)
+// ualWalk, ualSkin and ualRoot: a clip, skeleton and __root__ from UAL&#39;s GLB.
+const walk = retargetClip(ualWalk, readSkeleton(ualSkin, ualRoot),
+  readSkeleton(built.skeleton, built.root), { scene })
+walk.start(true)
 </code></pre>
+<p>A tail, when <code>fitSkeleton</code> is given its tip, is the bone chain <code>tail_01</code> …
+<code>tail_leaf</code>: hand <code>built.node(name)</code> for each to <code>springNodes</code> and it swings.
+Binding takes about 0.1 to 0.3 s for 1,000 to 6,000 vertices, so do it once
+and keep the result.</p>
 <h2 id="how-it-is-built">How it is built</h2>
 <p>AUTO-RIG, THE BABYLON SIDE: a fitted skeleton (<code>rig-fit</code>) and its skin
 weights (<code>bone-heat</code>) become a real Babylon skeleton on a mesh, built the way
@@ -276,6 +149,7 @@ parent of <code>root</code>, not <code>root</code> itself.</p>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="../environment/">environment</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
     </ul>
     </details></li>
@@ -366,9 +240,36 @@ parent of <code>root</code>, not <code>root</code> itself.</p>
           <li><a class="doc-link" href="../human-morph/">human-morph</a></li>
           <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
           <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
+          <li><a class="doc-link" href="../skin-shading/">skin-shading</a></li>
           <li><a class="doc-link" href="../human-face/">human-face</a></li>
-          <li><a class="doc-link" href="../human-hair/">human-hair</a></li>
-          <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          <li><a class="doc-link" href="../human-expression/">human-expression</a></li>
+          <li><details><summary><a class="doc-link" href="../human-hair/">human-hair</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../hair-shading/">hair-shading</a></li>
+            <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+          </ul>
+          </details></li>
+          <li><details><summary><a class="doc-link" href="../human-proxy/">human-proxy</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../proxy-fit/">proxy-fit</a></li>
+            <li><a class="doc-link" href="../cloth-shading/">cloth-shading</a></li>
+            <li><details><summary><a class="doc-link" href="../garment-cut/">garment-cut</a></summary>
+            <ul>
+              <li><a class="doc-link" href="../outline-field/">outline field</a></li>
+            </ul>
+            </details></li>
+            <li><details><summary><a class="doc-link" href="../garment-bind/">garment-bind</a></summary>
+            <ul>
+              <li><details><summary><a class="doc-link" href="../garment-file/">garment-file</a></summary>
+              <ul>
+                <li><a class="doc-link" href="../uv-unwrap/">uv-unwrap</a></li>
+              </ul>
+              </details></li>
+              <li><a class="doc-link" href="../proxy-rigid/">proxy-rigid</a></li>
+            </ul>
+            </details></li>
+          </ul>
+          </details></li>
         </ul>
         </details></li>
       </ul>
@@ -583,11 +484,17 @@ parent of <code>root</code>, not <code>root</code> itself.</p>
       <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
     </ul>
     </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../clock/">clock</a></li>
+    </ul>
+    </details></li>
     <li><details><summary><a class="doc-link" href="../upgrading/">Upgrading</a></summary>
     <ul>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.11.5/">0.11.5</a></li>
         <li><a class="doc-link" href="../v0.11.4/">0.11.4</a></li>
         <li><a class="doc-link" href="../v0.11.3/">0.11.3</a></li>
         <li><a class="doc-link" href="../v0.11.2/">0.11.2</a></li>
@@ -667,6 +574,6 @@ parent of <code>root</code>, not <code>root</code> itself.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-0nmn3nad.js"></script>
+  <script type="module" src="../hydrate-fymfsbgh.js"></script>
 </body>
 </html>

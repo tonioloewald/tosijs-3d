@@ -56,7 +56,13 @@ describe('foldSections', () => {
     // The caller rebuilds from the same rows: Sea is open now, and Sky,
     // open before it, has closed (one at a time).
     const again = w.foldSections(rows(), opts)
-    expect(names(again)).toEqual(['intro', 'Sky', 'Sea', 'sea row 1', 'sea row 2'])
+    expect(names(again)).toEqual([
+      'intro',
+      'Sky',
+      'Sea',
+      'sea row 1',
+      'sea row 2',
+    ])
   })
 
   test('fold is an accordion that can close completely', () => {
@@ -82,7 +88,11 @@ describe('foldSections', () => {
   })
 
   test('folds: several sections may be open at once', () => {
-    const opts = { key: 'test-folds', mode: 'folds' as const, repaint: () => {} }
+    const opts = {
+      key: 'test-folds',
+      mode: 'folds' as const,
+      repaint: () => {},
+    }
     const first = w.foldSections(rows(), opts) as any[]
     first.find((r) => r.section?.title === 'Sea').section.toggle()
     expect(w.foldSections(rows(), opts).length).toBe(6)

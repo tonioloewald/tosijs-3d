@@ -6,10 +6,6 @@ overlay and on a panel in an immersive session without changing.
 
 ## Demo
 
-Change the colour and watch the light take it. The picker drives a real lamp,
-which is the only way to tell whether the colour you picked is the colour you
-meant.
-
 ```js
 import { b3d, b3dLight, b3dPointLight, panel3d, label3d, color3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -67,6 +63,10 @@ preview.append(
 ```css
 .preview { height: 100%; }
 ```
+
+Change the colour and watch the light take it. The picker drives a real lamp,
+which is the only way to tell whether the colour you picked is the colour you
+meant.
 
 ## Why it exists
 

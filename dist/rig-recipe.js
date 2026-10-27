@@ -16,6 +16,7 @@ Lengths are metres, angles degrees. A strand's `offset` and direction are in
 the CHARACTER's frame (its placement, not glTF's mirrored `__root__`), with
 the character in its rest pose: +Y up, +Z the way the model faces.
 */
+import { MARKER_NAMES } from './rig-fit.js';
 export const RIG_RECIPE_VERSION = 1;
 export const STRAND_DEFAULTS = {
     kind: 'strand',
@@ -148,6 +149,19 @@ export function validateRigRecipe(doc) {
                 if (typeof v !== 'string')
                     out.push(`roles.${k} is not a bone name`);
     }
+    if (r.binding != null) {
+        const b = r.binding;
+        if (typeof b !== 'object' || b.markers == null)
+            out.push('binding has no markers');
+        else
+            for (const n of MARKER_NAMES) {
+                const p = b.markers[n];
+                if (p == null || !isNum(p.x) || !isNum(p.y))
+                    out.push(`binding.markers.${n} is not {x, y}`);
+            }
+        if (b?.tail != null && !isVec(b.tail))
+            out.push('binding.tail is not {x, y, z}');
+    }
     const springs = r.springs ?? [];
     if (!Array.isArray(springs))
         return [...out, 'springs is not a list'];
@@ -275,6 +289,34 @@ export function rigRecipeSchema() {
                 maximum: 90,
                 default: 0,
                 ...DEG,
+            },
+            binding: {
+                type: 'object',
+                description: 'A mesh with no skeleton: the markers its skeleton is fitted from (front view, metres, left on +X).',
+                properties: {
+                    markers: {
+                        type: 'object',
+                        properties: Object.fromEntries(MARKER_NAMES.map((n) => [
+                            n,
+                            {
+                                type: 'object',
+                                properties: { x: { type: 'number' }, y: { type: 'number' } },
+                                required: ['x', 'y'],
+                                additionalProperties: false,
+                            },
+                        ])),
+                        required: [...MARKER_NAMES],
+                        additionalProperties: false,
+                    },
+                    tail: {
+                        oneOf: [
+                            vec3('Where a tail’s tip is, for a tail chain.'),
+                            { type: 'null' },
+                        ],
+                    },
+                },
+                required: ['markers'],
+                additionalProperties: false,
             },
             springs: {
                 type: 'array',
