@@ -42,6 +42,16 @@ const walk = retargetClip(ualWalk, readSkeleton(ualSkin, ualRoot),
 walk.start(true)
 ```
 
+For a model file, `loadRigTriangles(scene, urlOrFile, { pick })` reads its
+triangles (its own skeleton ignored), and `autoRig(scene, name, tris)` does
+the rest in one call (markers guessed unless you pass them), returning the
+built rig with its `rig` and `markers`:
+
+```
+const body = autoRig(scene, 'body', await loadRigTriangles(scene, url))
+body.root.parent = stand
+```
+
 A tail, when `fitSkeleton` is given its tip, is the bone chain `tail_01` …
 `tail_leaf`: hand `built.node(name)` for each to `springNodes` and it swings.
 Binding takes about 0.1 to 0.3 s for 1,000 to 6,000 vertices, so do it once
@@ -70,8 +80,16 @@ parent of `root`, not `root` itself.
 /*{ "parent": "b3d-biped", "order": 71 }*/
 
 import * as BABYLON from '@babylonjs/core'
-import type { FittedRig } from './rig-fit.js'
-import type { SkinWeights } from './bone-heat.js'
+import {
+  fitSkeleton,
+  guessMarkers,
+  meshQuery,
+  rigSilhouette,
+  skinSegments,
+  type FittedRig,
+  type Markers,
+} from './rig-fit.js'
+import { boneHeat, type SkinWeights } from './bone-heat.js'
 
 export interface BuiltRig {
   /** The container: move, turn and scale the character by this. */
@@ -172,4 +190,132 @@ export function buildRig(
       root.dispose()
     },
   }
+}
+
+/** A mesh as triangles, in its file's own (right-handed) frame. */
+export interface RigTriangles {
+  positions: number[]
+  indices: number[]
+}
+
+/**
+ * Meshes' triangles in the frame of the file's root (a glTF's `__root__`
+ * carries the handedness mirror, which the binding must not see).
+ */
+export function gatherTriangles(
+  root: BABYLON.TransformNode,
+  meshes: BABYLON.AbstractMesh[]
+): RigTriangles {
+  root.computeWorldMatrix(true)
+  const toRoot = root.getWorldMatrix().clone().invert()
+  const positions: number[] = []
+  const indices: number[] = []
+  const v = new BABYLON.Vector3()
+  for (const mesh of meshes) {
+    /*
+    A SKINNED MESH IS WHERE ITS SKELETON PUTS IT: its own vertices can be in
+    other units (omnidude's are centimetres, sized by the armature), so take
+    them skinned, at rest.
+    */
+    const skin = mesh.skeleton
+    if (skin != null) {
+      skin.returnToRest()
+      for (const b of skin.bones) b.getTransformNode()?.computeWorldMatrix(true)
+      skin.prepare(true)
+    }
+    const p =
+      skin != null
+        ? mesh.getPositionData(true, true)
+        : mesh.getVerticesData('position')
+    const ix = mesh.getIndices()
+    if (p == null || ix == null) continue
+    const m = mesh.computeWorldMatrix(true).multiply(toRoot)
+    const base = positions.length / 3
+    for (let i = 0; i < p.length; i += 3) {
+      BABYLON.Vector3.TransformCoordinatesFromFloatsToRef(
+        p[i],
+        p[i + 1],
+        p[i + 2],
+        m,
+        v
+      )
+      positions.push(v.x, v.y, v.z)
+    }
+    for (const i of ix) indices.push(base + i)
+  }
+  return { positions, indices }
+}
+
+/**
+ * A model file's triangles, its skeleton (if any) ignored: a URL or a File
+ * (GLB or glTF), and optionally the one node in it to take (`pick`, with its
+ * children; a library holds many characters).
+ */
+export async function loadRigTriangles(
+  scene: BABYLON.Scene,
+  source: string | File,
+  options: { pick?: string } = {}
+): Promise<RigTriangles> {
+  const file = source instanceof File
+  const container = await BABYLON.LoadAssetContainerAsync(
+    source,
+    scene,
+    file
+      ? {
+          pluginExtension: source.name.toLowerCase().endsWith('.gltf')
+            ? '.gltf'
+            : '.glb',
+        }
+      : undefined
+  )
+  try {
+    const root = (container.meshes.find((n) => n.name === '__root__') ??
+      container.transformNodes[0]) as BABYLON.TransformNode
+    const top =
+      options.pick != null
+        ? container.transformNodes.find((n) => n.name === options.pick) ??
+          container.meshes.find((n) => n.name === options.pick)
+        : undefined
+    if (options.pick != null && top == null)
+      throw new Error(`no "${options.pick}" in the file`)
+    if (top != null) top.position.set(0, 0, 0)
+    const meshes = container.meshes.filter(
+      (n) =>
+        n.getTotalVertices() > 0 &&
+        (top == null || n === top || n.isDescendantOf(top))
+    )
+    const tris = gatherTriangles(root, meshes)
+    if (tris.indices.length === 0) throw new Error('the file has no meshes')
+    return tris
+  } finally {
+    container.dispose()
+  }
+}
+
+export interface AutoRigged extends BuiltRig {
+  /** The fitted skeleton (`rig.at(name)` for a joint's rest position). */
+  rig: FittedRig
+  /** The markers it was fitted from: guessed, unless they were given. */
+  markers: Markers
+}
+
+/**
+ * The whole auto-rig on a mesh's triangles: markers (guessed from its front
+ * outline unless given), UAL's skeleton fitted to them, bone heat, and a
+ * Babylon skeleton. The mesh faces +Z with its left on +X, standing on y = 0.
+ * Bone heat takes about a second for 20,000 vertices.
+ */
+export function autoRig(
+  scene: BABYLON.Scene,
+  name: string,
+  tris: RigTriangles,
+  options: { markers?: Markers } = {}
+): AutoRigged {
+  const { positions, indices } = tris
+  const markers =
+    options.markers ?? guessMarkers(rigSilhouette(positions, indices, 'front'))
+  const rig = fitSkeleton(markers, meshQuery(positions, indices))
+  const weights = boneHeat(positions, indices, skinSegments(rig))
+  const built = buildRig(scene, name, positions, indices, rig, weights)
+  return { ...built, rig, markers }
 }

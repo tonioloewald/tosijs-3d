@@ -1821,8 +1821,8 @@ export type {
 export { markerField3d, MARKER_LABELS } from './rig-markers.js'
 export type { MarkerField, MarkerField3dOptions } from './rig-markers.js'
 export { boneHeat } from './bone-heat.js'
-export { buildRig } from './rig-build.js'
-export type { BuiltRig } from './rig-build.js'
+export { buildRig, gatherTriangles, loadRigTriangles, autoRig } from './rig-build.js'
+export type { BuiltRig, RigTriangles, AutoRigged } from './rig-build.js'
 export { loadHumanPack, decodeHumanTarget } from './human-pack.js'
 export type {
   HumanPack,

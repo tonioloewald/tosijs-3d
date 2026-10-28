@@ -11,10 +11,10 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, clothRecipe, materialPicker3d, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, unwrapGarment, smoothUnder, skirtGarment } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, clothRecipe, materialPicker3d, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, unwrapGarment, smoothUnder, skirtGarment, loadRigTriangles, autoRig } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true } })
+const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, source: 'MakeHuman' } })
 let mat = null
 let paint = () => {}
 let eyes = null
@@ -35,6 +35,23 @@ const cloth = Object.fromEntries(SLOTS.map((s) => [s, { look: 'as made', materia
 const lookRecipe = (look) => look?.material ?? clothRecipe(look ?? {})
 const clips = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Dance_Loop', 'Crouch_Fwd_Loop']
 let rebuild = () => {}
+// Where the body comes from: MakeHuman's, which the sliders shape, or a mesh
+// of anyone's, whose own skeleton (if it has one) is ignored: UAL's is fitted
+// to it from its outline and the skin bound by bone heat (auto-rig).
+const SOURCES = {
+  'MakeHuman': null,
+  'Blender: female, realistic': { url: assetUrl('blender/human-base-meshes/body-female-realistic.glb') },
+  'Blender: male, realistic': { url: assetUrl('blender/human-base-meshes/body-male-realistic.glb') },
+  'Blender: female, stylized': { url: assetUrl('blender/human-base-meshes/body-female-stylized.glb') },
+  'Blender: male, stylized': { url: assetUrl('blender/human-base-meshes/body-male-stylized.glb') },
+  'Quaternius: superhero, male': { url: assetUrl('quaternius/libraries/characters-superhero-male.glb'), pick: 'Superhero_Male_FullBody' },
+  'Quaternius: superhero, female': { url: assetUrl('quaternius/libraries/characters-superhero-female.glb'), pick: 'Superhero_Female_FullBody' },
+}
+// A mesh opened from a file (a choice in the list once opened).
+let openBody = () => {}
+// What the imported body is doing, or why it failed.
+let sourceNote = ''
+const madeHuman = () => walker.source.value === 'MakeHuman'
 // A garment of your own, cut from the body along outlines you draw (the
 // character's left; the right is its mirror). A rectangle from the waist to
 // the ankles makes trousers.
@@ -73,8 +90,10 @@ preview.append(
     {
       clearColor: '#2a3340',
       panelTitle: 'Character Builder',
-      scenePanel: () => [
+      scenePanel: () => madeHuman() ? [
         label3d({ text: 'Body', collapsible: true, open: true }),
+        select3d({ label: 'source', value: walker.source, options: Object.keys(SOURCES), stayOpen: true }),
+        button3d({ label: 'open a mesh…', handleClick: () => openBody() }),
         slider('gender', 'gender'),
         slider('age', 'age'),
         slider('muscle', 'muscle'),
@@ -168,6 +187,19 @@ preview.append(
         slider('african', 'african'),
         slider('asian', 'asian'),
         slider('caucasian', 'caucasian'),
+      ] : [
+        // A body of anyone's: what MakeHuman's carries (shape, face, hair,
+        // clothes) is not there; the clips and the skin are.
+        label3d({ text: 'Body', collapsible: true, open: true }),
+        select3d({ label: 'source', value: walker.source, options: Object.keys(SOURCES), stayOpen: true }),
+        button3d({ label: 'open a mesh…', handleClick: () => openBody() }),
+        ...(sourceNote ? [text3d({ text: sourceNote })] : []),
+        label3d({ text: 'Motion', collapsible: true, open: true }),
+        select3d({ label: 'clip', value: walker.clip, options: clips, stayOpen: true }),
+        toggle3d({ label: 'pause', value: walker.paused }),
+        label3d({ text: 'Skin', collapsible: true }),
+        slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01 }),
+        slider3d({ label: 'redness', value: walker.redness, min: 0, max: 1, step: 0.01 }),
       ],
       async sceneCreated(el, BABYLON) {
         const scene = el.scene
@@ -772,6 +804,9 @@ preview.append(
         }
         const stand = new BABYLON.TransformNode('stand', scene)
         let built = null
+        // The body the clip plays on and the floor holds up: MakeHuman's
+        // (built) or an imported one.
+        let shown = null
         let playing = null
         let read = null
         // How far below the body's root its skin reaches while the clip plays
@@ -780,15 +815,15 @@ preview.append(
         let sole = 0
         // Stand on the floor: the body is grounded at rest, but a retargeted
         // clip carries the feet lower (Idle by ~4 cm), so it is measured.
-        const ground = () => { stand.position.y = -(clipLow ?? built.rig.at('root').y) + sole }
+        const ground = () => { if (shown) stand.position.y = -(clipLow ?? shown.rig.at('root').y) + (shown === built ? sole : 0) }
         const measureClip = (group) => {
-          const mesh = built.mesh
-          const nodes = built.root.getChildTransformNodes(false)
+          const mesh = shown.mesh
+          const nodes = shown.root.getChildTransformNodes(false)
           let low = Infinity
           for (let k = 0; k < 24; k++) {
             group.goToFrame(group.from + ((group.to - group.from) * k) / 24)
             for (const n of nodes) n.computeWorldMatrix(true)
-            built.skeleton.prepare(true)
+            shown.skeleton.prepare(true)
             mesh.refreshBoundingInfo({ applySkeleton: true, applyMorph: true })
             low = Math.min(low, mesh.getBoundingInfo().boundingBox.minimumWorld.y)
           }
@@ -828,12 +863,81 @@ preview.append(
           el.register({ meshes: [built.mesh, ...face.meshes] })
           if (walker.stubble.value > 0) measureStubble()
           paint()
-          read = readSkeleton(built.skeleton, built.root)
-          play()
+          if (madeHuman()) {
+            shown = built
+            read = readSkeleton(built.skeleton, built.root)
+            play()
+          } else built.root.setEnabled(false)
           busy = false
           if (again) { again = false; rebuild() }
         }
         await rebuild()
+        // An imported body: loaded, fitted and bound once, then kept.
+        const rigged = new Map()
+        let other = null
+        let choosing = 0
+        const choose = async () => {
+          const token = ++choosing
+          const name = walker.source.value
+          other?.root.setEnabled(false)
+          if (madeHuman()) {
+            built.root.setEnabled(true)
+            shown = built
+            read = readSkeleton(built.skeleton, built.root)
+            sourceNote = ''
+            el.refreshScenePanel?.()
+            play()
+            return
+          }
+          built.root.setEnabled(false)
+          if (!rigged.has(name)) {
+            sourceNote = 'fitting the skeleton and binding the skin…'
+            el.refreshScenePanel?.()
+            el.setLoading(`rigging ${name}…`)
+            // Let the message paint before the binding takes the thread.
+            await new Promise((r) => setTimeout(r, 50))
+            try {
+              const from = SOURCES[name]
+              const tris = await loadRigTriangles(scene, from.file ?? from.url, { pick: from.pick })
+              const r = autoRig(scene, `body-${rigged.size}`, tris)
+              r.mesh.material = mat
+              r.root.parent = stand
+              r.root.setEnabled(false)
+              el.register({ meshes: [r.mesh] })
+              rigged.set(name, r)
+              sourceNote = ''
+            } catch (e) {
+              console.warn('character builder: could not rig', name, e)
+              sourceNote = `${name}: ${e?.message ?? e}`
+            }
+            el.setLoading(false)
+          }
+          if (token !== choosing) return
+          other = rigged.get(name) ?? null
+          if (!other) { el.refreshScenePanel?.(); return }
+          other.root.setEnabled(true)
+          shown = other
+          read = readSkeleton(other.skeleton, other.root)
+          el.refreshScenePanel?.()
+          play()
+        }
+        walker.source.observe(choose)
+        openBody = () => {
+          const input = document.createElement('input')
+          input.type = 'file'
+          input.accept = '.glb,.gltf'
+          input.onchange = () => {
+            const file = input.files?.[0]
+            if (!file) return
+            SOURCES[file.name] = { file }
+            rigged.delete(file.name)
+            if (walker.source.value === file.name) choose()
+            else walker.source.value = file.name
+          }
+          input.click()
+        }
+        el.builder.choose = choose
+        el.builder.rigged = rigged
         el.setLoading(false)
         walker.clip.observe(play)
         walker.paused.observe(() => (walker.paused.value ? playing?.pause() : playing?.play(true)))
@@ -847,6 +951,14 @@ preview.append(
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+**Source** picks the body. MakeHuman's is the one the sliders shape and
+the clothes, hair and face are made for. The others are meshes from
+elsewhere (Blender Studio's Human Base Meshes, Quaternius' superheroes), or
+your own with **open a mesh…** (GLB or glTF): any skeleton the file has is
+ignored, and UAL's is fitted to the mesh's outline and the skin bound by bone
+heat ([auto-rig](/rig-build/)), in a second or two. They walk and take the
+skin; the rest of the panel is MakeHuman's and is hidden for them.
 
 Open the settings (the owl): the body sliders reshape it
 while it walks, since every body carries its own joints. The skin weights are

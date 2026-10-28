@@ -169,7 +169,7 @@ import {
 } from './rig-fit.js'
 import { markerField3d, type MarkerField } from './rig-markers.js'
 import { boneHeat } from './bone-heat.js'
-import { buildRig } from './rig-build.js'
+import { buildRig, gatherTriangles as gather } from './rig-build.js'
 import type { Vec3 } from './spatial-transform.js'
 import { applyRigRecipe, type AppliedRig } from './rig-recipe-babylon.js'
 import {
@@ -428,54 +428,6 @@ interface Triangles {
 }
 
 /** A GLB with a skeleton: the character in it (`pick`), and its biggest skin. */
-/**
- * Meshes' triangles in the frame of the file's root (a glTF's `__root__`
- * carries the handedness mirror, which the binding must not see).
- */
-function gather(
-  root: BABYLON.TransformNode,
-  meshes: BABYLON.AbstractMesh[]
-): Triangles {
-  root.computeWorldMatrix(true)
-  const toRoot = root.getWorldMatrix().clone().invert()
-  const positions: number[] = []
-  const indices: number[] = []
-  const v = new BABYLON.Vector3()
-  for (const mesh of meshes) {
-    /*
-    A SKINNED MESH IS WHERE ITS SKELETON PUTS IT: its own vertices can be in
-    other units (omnidude's are centimetres, sized by the armature), so take
-    them skinned, at rest.
-    */
-    const skin = mesh.skeleton
-    if (skin != null) {
-      skin.returnToRest()
-      for (const b of skin.bones) b.getTransformNode()?.computeWorldMatrix(true)
-      skin.prepare(true)
-    }
-    const p =
-      skin != null
-        ? mesh.getPositionData(true, true)
-        : mesh.getVerticesData('position')
-    const ix = mesh.getIndices()
-    if (p == null || ix == null) continue
-    const m = mesh.computeWorldMatrix(true).multiply(toRoot)
-    const base = positions.length / 3
-    for (let i = 0; i < p.length; i += 3) {
-      BABYLON.Vector3.TransformCoordinatesFromFloatsToRef(
-        p[i],
-        p[i + 1],
-        p[i + 2],
-        m,
-        v
-      )
-      positions.push(v.x, v.y, v.z)
-    }
-    for (const i of ix) indices.push(base + i)
-  }
-  return { positions, indices }
-}
-
 async function openGlb(
   scene: BABYLON.Scene,
   m: RigModel | File,
