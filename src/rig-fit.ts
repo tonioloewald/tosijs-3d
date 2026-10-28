@@ -1069,6 +1069,65 @@ export function rigSilhouette(
   }
 }
 
+/*
+ARMS THAT HANG (an A-pose, or arms at the sides with a gap). Below the armpit
+the left arm is the outermost run on its side of the row, apart from the torso
+(or, lower, the leg) inside it. Its centres from the armpit down to the
+fingertips give the arm's line. The shoulder joint is a little above the
+armpit; the elbow and wrist go at a person's proportions along the line from
+shoulder to fingertip (upper arm 0.42 of it, forearm to 0.75).
+*/
+function armHanging(
+  rows: Map<number, Array<{ u0: number; u1: number }>>,
+  nRows: number,
+  groinV: number,
+  vOf: (k: number) => number,
+  H: number
+): { elbow: Point2; wrist: Point2 } | null {
+  const centres: Array<{ x: number; y: number }> = []
+  let gap = 0
+  for (let k = Math.round(nRows * 0.85); k > 0; k--) {
+    const runs = (rows.get(k) ?? []).filter((r) => r.u1 > 0)
+    const outer = runs.reduce<{ u0: number; u1: number } | null>(
+      (o, r) => (o == null || r.u0 > o.u0 ? r : o),
+      null
+    )
+    const apart =
+      outer != null && outer.u0 > 0 && runs.some((r) => r.u1 < outer.u0)
+    if (apart) {
+      centres.push({ x: (outer!.u0 + outer!.u1) / 2, y: vOf(k) })
+      gap = 0
+    } else if (centres.length > 0 && ++gap > 2) break
+  }
+  if (centres.length < 2 || centres[0].y - centres[centres.length - 1].y < 0.15 * H)
+    return null
+  // The arm hangs from above the crotch, or what was found is not an arm.
+  if (centres[0].y < groinV) return null
+  // x as a straight line in y, by least squares.
+  let sy = 0
+  let sx = 0
+  let syy = 0
+  let sxy = 0
+  for (const c of centres) {
+    sy += c.y
+    sx += c.x
+    syy += c.y * c.y
+    sxy += c.x * c.y
+  }
+  const n = centres.length
+  const slope = (n * sxy - sx * sy) / (n * syy - sy * sy || 1e-9)
+  const icept = (sx - slope * sy) / n
+  const xAt = (y: number) => icept + slope * y
+  const shoulderY = centres[0].y + 0.04 * H
+  const tipY = centres[n - 1].y
+  const len = shoulderY - tipY
+  const point = (t: number) => {
+    const y = shoulderY - t * len
+    return { x: xAt(y), y }
+  }
+  return { elbow: point(0.42), wrist: point(0.75) }
+}
+
 /** A first placement of the eight markers, read off a front silhouette. */
 export function guessMarkers(s: Silhouette): Markers {
   const H = s.max.v - s.min.v
@@ -1107,14 +1166,15 @@ export function guessMarkers(s: Silhouette): Markers {
   }
   const armV = vOf(armK)
   const torsoW = extent(rowAt(groinV))
-  // No arms out to the side (an A-pose): fall back to proportions.
+  // Arms out to the side (a T-pose): along the widest row.
   const armsOut = armW > torsoW * 1.6
+  const down = armsOut ? null : armHanging(rows, nRows, groinV, vOf, H)
   const wrist = armsOut
     ? { x: armW * 0.78, y: armV }
-    : { x: torsoW * 1.1, y: s.min.v + 0.5 * H }
+    : down?.wrist ?? { x: torsoW * 1.1, y: s.min.v + 0.5 * H }
   const elbow = armsOut
     ? { x: wrist.x * 0.62, y: armV }
-    : { x: torsoW * 1.05, y: s.min.v + 0.63 * H }
+    : down?.elbow ?? { x: torsoW * 1.05, y: s.min.v + 0.63 * H }
 
   // The neck: the narrowest row between the arms and the top of the head.
   let chinV = s.min.v + 0.82 * H

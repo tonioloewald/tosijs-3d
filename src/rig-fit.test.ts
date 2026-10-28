@@ -161,7 +161,7 @@ function readObj(file: string, keep?: string[]): Soup {
   return { pos: positions, idx: indices }
 }
 
-function readGlb(file: string): Soup {
+function readGlb(file: string, which: (json: any) => number = () => 0): Soup {
   const d = readFileSync(file)
   const jl = d.readUInt32LE(12)
   const j = JSON.parse(d.subarray(20, 20 + jl).toString())
@@ -188,7 +188,7 @@ function readGlb(file: string): Soup {
       }
     return out
   }
-  const p = j.meshes[0].primitives[0]
+  const p = j.meshes[which(j)].primitives[0]
   return { pos: read(p.attributes.POSITION), idx: read(p.indices) }
 }
 
@@ -530,6 +530,41 @@ describe.skipIf(!existsSync(DIR))('guessMarkers on real meshes', () => {
       expect(g.wristR.x).toBe(-g.wristL.x)
       expect(g.kneeL.y).toBeLessThan(g.groin.y)
       expect(g.groin.y).toBeLessThan(g.chin.y)
+    })
+  }
+})
+
+/*
+A-POSE: Blender Studio's Human Base Meshes (CC0, cdn.tosijs.net/blender/
+human-base-meshes/), arms hanging out from the sides. The arm is traced down
+its silhouette, so the elbow and wrist land ON the arm, in order down it, and
+the shoulder the fit puts above them is inside the body.
+*/
+const HBM = join(import.meta.dir, '../../static-assets/assets/blender/human-base-meshes')
+
+// The mesh on the node of that name (the bodies come with their eyes).
+const readGlbMesh = (file: string, name: string): Soup =>
+  readGlb(file, (j) => j.nodes.find((n: any) => n.name === name).mesh)
+
+describe.skipIf(!existsSync(HBM))('guessMarkers on arms that hang (A-pose)', () => {
+  for (const body of ['female-realistic', 'male-realistic', 'female-stylized', 'male-stylized']) {
+    test(body, () => {
+      const s = readGlbMesh(join(HBM, `body-${body}.glb`), `GEO-body_${body.replace('-', '_')}`)
+      const sil = rigSilhouette(s.pos, s.idx)
+      const g = guessMarkers(sil)
+      const q = soupQuery(s)
+      // On the arm: inside the mesh, and out beyond the torso's side.
+      for (const k of ['elbowL', 'wristL'] as const) {
+        expect(q.spans(g[k].x, g[k].y).length).toBeGreaterThan(0)
+        expect(q.spans(g[k].x - 0.06, g[k].y).length).toBe(0)
+      }
+      expect(g.wristL.y).toBeLessThan(g.elbowL.y)
+      expect(g.wristL.x).toBeGreaterThan(g.elbowL.x)
+      const rig = fitSkeleton(g, q)
+      const sh = rig.at('upperarm_l')!
+      expect(q.spans(sh.x, sh.y).length).toBeGreaterThan(0)
+      expect(sh.y).toBeGreaterThan(g.elbowL.y)
+      expect(sh.x).toBeLessThan(g.elbowL.x)
     })
   }
 })
