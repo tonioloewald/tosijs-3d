@@ -60,6 +60,6 @@ describe('acknowledgements', () => {
 
   test('the page says how to ask for a correction or a takedown', () => {
     expect(page).toContain('## Corrections and takedowns')
-    expect(page).toContain('github.com/tonioloewald/tosijs-3d/issues')
+    expect(page).toContain('discord.gg/')
   })
 })

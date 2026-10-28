@@ -9,8 +9,9 @@ libraries and ideas. Most of it was given away with no conditions at all
 ## Corrections and takedowns
 
 If something here is yours and the credit is wrong or missing, or you want it
-taken down, [open an issue](https://github.com/tonioloewald/tosijs-3d/issues)
-and say what it is and where it appears. We will fix the credit, or remove the
+taken down, post in the feedback channel on the
+[tosijs Discord](https://discord.gg/ramJ9rgky5) and say what it is and where
+it appears. We will fix the credit, or remove the
 content from this site and from the asset CDN (`cdn.tosijs.net`), promptly and
 without argument.
 
@@ -38,6 +39,11 @@ headers, so a file found on its own still says where it came from.
 - **Tonio Loewald**: omnidude, the weasels, the space marine and the other
   meshes under `cdn.tosijs.net/tonio/`.
   [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
+## Sound
+
+- **Tonio Loewald**: the hum the sound demo plays, made with
+  [Suno](https://suno.com).
 
 ## Maps and measurements
 
