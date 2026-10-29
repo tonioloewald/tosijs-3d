@@ -29,9 +29,17 @@ The pack is right-handed and a character faces +Z with its left on +X, as
 */
 /*{ "parent": "character-builder", "order": 30 }*/
 
-import type { FittedJoint, FittedRig } from './rig-fit.js'
+import { skinSegments, type FittedJoint, type FittedRig } from './rig-fit.js'
 import type { HumanPack, HumanPackManifest } from './human-pack.js'
-import { humanJoint } from './human-morph.js'
+import {
+  humanJoint,
+  macroWeights,
+  morphHuman,
+  DEFAULT_HUMAN_BODY,
+  type MacroBody,
+} from './human-morph.js'
+import { boneHeat, type SkinWeights } from './bone-heat.js'
+import type { RiggedBody } from './rigged-body.js'
 
 type Vec3 = { x: number; y: number; z: number }
 
@@ -383,5 +391,91 @@ export function armsOffTorso(
       weights.indices[v * 4 + slot] = to
     }
     weights.weights[v * 4 + slot] += moved
+  }
+}
+
+/**
+ * MakeHuman's body as a rigged body (see rigged-body), with what its own
+ * extras need beside it: every pack vertex's position (`full`: helpers and
+ * joint cubes too, which clothes, eyes and hair are fitted to) and the skin's
+ * map onto them.
+ */
+export interface HumanRiggedBody extends RiggedBody {
+  full: Float32Array
+  skin: HumanSkin
+}
+
+export interface HumanBodyMaker {
+  skin: HumanSkin
+  /** The first body's (shared by every body: they depend on the topology). */
+  weights: SkinWeights
+  /** The body the maker was made with. */
+  first: HumanRiggedBody
+  /** A body at these slider values (missing ones are the defaults). */
+  body(values?: Partial<MacroBody>): Promise<HumanRiggedBody>
+}
+
+/**
+ * MAKEHUMAN AS A PRODUCER of rigged bodies. The skin weights depend only on
+ * the topology, so they are bound once, on the first body, by bone heat, then
+ * the head made rigid (`stiffenHead`) and the ribcage kept off the arms
+ * (`armsOffTorso`); every later body reuses them. Each body is the pack
+ * morphed to its sliders with UAL's joints placed from its joint cubes.
+ */
+export async function humanBodyMaker(
+  pack: HumanPack,
+  values: Partial<MacroBody> = {}
+): Promise<HumanBodyMaker> {
+  const skin = humanSkin(pack)
+  const [lips, nipples] = await Promise.all([
+    pack.region('lips'),
+    pack.region('nipples'),
+  ])
+  const regions: Record<string, Float32Array> = {}
+  for (const [name, mask] of [
+    ['lips', lips],
+    ['nipples', nipples],
+  ] as const) {
+    if (mask == null) continue
+    const out = new Float32Array(skin.vertices.length)
+    skin.vertices.forEach((v, i) => {
+      out[i] = mask[v]
+    })
+    regions[name] = out
+  }
+  const morph = async (v: Partial<MacroBody>) => {
+    const body = { ...DEFAULT_HUMAN_BODY, ...v } as MacroBody
+    const full = await morphHuman(pack, macroWeights(body, (n) => pack.has(n)))
+    const rig = humanRig(pack.manifest, full, undefined, {
+      triangles: pack.triangles,
+    })
+    return { body, full, rig, positions: skin.positions(full) }
+  }
+  const m0 = await morph(values)
+  const weights = boneHeat(m0.positions, skin.triangles, skinSegments(m0.rig))
+  // The face moves with the head, or the lids slide over the eyes; and the
+  // ribcage with the spine, not the arms.
+  stiffenHead(weights, m0.positions, m0.rig)
+  armsOffTorso(weights, m0.positions, m0.rig)
+  const make = (m: typeof m0): HumanRiggedBody => ({
+    positions: m.positions,
+    indices: skin.triangles,
+    rig: m.rig,
+    weights,
+    regions,
+    made: {
+      by: 'makehuman',
+      base: pack.manifest.base,
+      version: pack.manifest.version,
+      body: { ...m.body } as Record<string, number>,
+    },
+    full: m.full,
+    skin,
+  })
+  return {
+    skin,
+    weights,
+    first: make(m0),
+    body: async (v = {}) => make(await morph(v)),
   }
 }

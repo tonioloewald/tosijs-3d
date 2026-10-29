@@ -1821,8 +1821,10 @@ export type {
 export { markerField3d, MARKER_LABELS } from './rig-markers.js'
 export type { MarkerField, MarkerField3dOptions } from './rig-markers.js'
 export { boneHeat } from './bone-heat.js'
-export { buildRig, gatherTriangles, loadRigTriangles, autoRig } from './rig-build.js'
-export type { BuiltRig, RigTriangles, AutoRigged } from './rig-build.js'
+export { buildRig, buildBody, gatherTriangles, loadRigTriangles, autoRig } from './rig-build.js'
+export type { BuiltRig, BuiltBody, RigTriangles, AutoRigged } from './rig-build.js'
+export { bodyFromMarkers } from './rigged-body.js'
+export type { RiggedBody, RiggedBodyOrigin, BodyTriangles } from './rigged-body.js'
 export { loadHumanPack, decodeHumanTarget } from './human-pack.js'
 export type {
   HumanPack,
@@ -1985,9 +1987,10 @@ export {
   humanSkin,
   stiffenHead,
   armsOffTorso,
+  humanBodyMaker,
   HM08_UAL,
 } from './human-rig.js'
-export type { HumanRigRow, HumanSkin } from './human-rig.js'
+export type { HumanRigRow, HumanSkin, HumanRiggedBody, HumanBodyMaker } from './human-rig.js'
 export type { HumanBody, SkinMaterial } from './character-builder.js'
 export type { HeatBone, SkinWeights } from './bone-heat.js'
 export {

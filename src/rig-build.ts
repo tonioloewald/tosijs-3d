@@ -80,16 +80,9 @@ parent of `root`, not `root` itself.
 /*{ "parent": "b3d-biped", "order": 71 }*/
 
 import * as BABYLON from '@babylonjs/core'
-import {
-  fitSkeleton,
-  guessMarkers,
-  meshQuery,
-  rigSilhouette,
-  skinSegments,
-  type FittedRig,
-  type Markers,
-} from './rig-fit.js'
-import { boneHeat, type SkinWeights } from './bone-heat.js'
+import type { FittedRig, Markers } from './rig-fit.js'
+import type { SkinWeights } from './bone-heat.js'
+import { bodyFromMarkers, type RiggedBody } from './rigged-body.js'
 
 export interface BuiltRig {
   /** The container: move, turn and scale the character by this. */
@@ -292,18 +285,36 @@ export async function loadRigTriangles(
   }
 }
 
-export interface AutoRigged extends BuiltRig {
-  /** The fitted skeleton (`rig.at(name)` for a joint's rest position). */
+export interface BuiltBody extends BuiltRig {
+  /** The rigged body it was built from. */
+  body: RiggedBody
+  /** Its skeleton (`rig.at(name)` for a joint's rest position). */
   rig: FittedRig
+}
+
+/**
+ * A rigged body (rig-tool or MakeHuman, see rigged-body) as a Babylon
+ * skeleton on its mesh, normals shared across the mesh's split vertices.
+ */
+export function buildBody(
+  scene: BABYLON.Scene,
+  name: string,
+  body: RiggedBody
+): BuiltBody {
+  const built = buildRig(scene, name, body.positions, body.indices, body.rig, body.weights, {
+    normals: weldedNormals(body.positions, body.indices),
+  })
+  return { ...built, body, rig: body.rig }
+}
+
+export interface AutoRigged extends BuiltBody {
   /** The markers it was fitted from: guessed, unless they were given. */
   markers: Markers
 }
 
 /**
- * The whole auto-rig on a mesh's triangles: markers (guessed from its front
- * outline unless given), UAL's skeleton fitted to them, bone heat, and a
- * Babylon skeleton. The mesh faces +Z with its left on +X, standing on y = 0.
- * Bone heat takes about a second for 20,000 vertices.
+ * The whole auto-rig on a mesh's triangles in one call: `bodyFromMarkers`
+ * (markers guessed unless given) then `buildBody`.
  */
 export function autoRig(
   scene: BABYLON.Scene,
@@ -311,15 +322,9 @@ export function autoRig(
   tris: RigTriangles,
   options: { markers?: Markers } = {}
 ): AutoRigged {
-  const { positions, indices } = tris
-  const markers =
-    options.markers ?? guessMarkers(rigSilhouette(positions, indices, 'front'))
-  const rig = fitSkeleton(markers, meshQuery(positions, indices))
-  const weights = boneHeat(positions, indices, skinSegments(rig))
-  const built = buildRig(scene, name, positions, indices, rig, weights, {
-    normals: weldedNormals(positions, indices),
-  })
-  return { ...built, rig, markers }
+  const body = bodyFromMarkers(tris, options)
+  const made = body.made as { markers: Markers }
+  return { ...buildBody(scene, name, body), markers: made.markers }
 }
 
 /*

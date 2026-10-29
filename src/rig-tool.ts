@@ -159,17 +159,14 @@ import {
 } from './retarget-babylon.js'
 import { ROLES, type Role } from './retarget.js'
 import {
-  fitSkeleton,
   guessMarkers,
-  meshQuery,
   objTriangles,
   rigSilhouette,
-  skinSegments,
   type Markers,
 } from './rig-fit.js'
 import { markerField3d, type MarkerField } from './rig-markers.js'
-import { boneHeat } from './bone-heat.js'
-import { buildRig, gatherTriangles as gather } from './rig-build.js'
+import { buildBody, gatherTriangles as gather } from './rig-build.js'
+import { bodyFromMarkers, type RiggedBody } from './rigged-body.js'
 import type { Vec3 } from './spatial-transform.js'
 import { applyRigRecipe, type AppliedRig } from './rig-recipe-babylon.js'
 import {
@@ -418,6 +415,8 @@ interface Opened {
   mesh: BABYLON.AbstractMesh
   /** Bound here from markers (it had no skeleton): what to place them on. */
   bound?: Triangles & RigBinding
+  /** That binding as a rigged body (rigged-body), for the character builder. */
+  body?: RiggedBody
   dispose(): void
 }
 
@@ -516,12 +515,13 @@ function bindMesh(
   options: { tailBones?: number; color?: string } = {}
 ): Opened {
   const { positions, indices } = tris
-  const rig = fitSkeleton(binding.markers, meshQuery(positions, indices), {
-    tail: binding.tail ?? undefined,
+  // A rigged body (rigged-body), as MakeHuman's are: one shape for both.
+  const body = bodyFromMarkers(tris, {
+    markers: binding.markers,
+    tail: binding.tail,
     tailBones: options.tailBones,
   })
-  const weights = boneHeat(positions, indices, skinSegments(rig))
-  const built = buildRig(scene, name, positions, indices, rig, weights)
+  const built = buildBody(scene, name, body)
   const mat = new BABYLON.StandardMaterial(`${name}-skin`, scene)
   mat.diffuseColor = BABYLON.Color3.FromHexString(options.color ?? '#8a8f99')
   built.mesh.material = mat
@@ -530,6 +530,7 @@ function bindMesh(
     skeleton: built.skeleton,
     mesh: built.mesh,
     bound: { positions, indices, markers: binding.markers, tail: binding.tail },
+    body,
     dispose() {
       mat.dispose()
       built.dispose()

@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, clothRecipe, materialPicker3d, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, unwrapGarment, smoothUnder, skirtGarment, loadRigTriangles, autoRig, writeCharacter, readCharacter } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, clothRecipe, materialPicker3d, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, unwrapGarment, smoothUnder, skirtGarment, loadRigTriangles, autoRig, writeCharacter, readCharacter, humanBodyMaker, buildBody } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 // Everything the panel sets, as it starts: what a saved character is read against.
@@ -670,20 +670,14 @@ preview.append(
         walker.irisColour.observe(() => eyes.setIrisColour(walker.irisColour.value))
         // The eyes find the camera.
         eyeGaze(scene, { get eyes() { return face?.eyes ?? [] }, get forward() { return face?.forward ?? [] } }, () => scene.activeCamera?.globalPosition ?? cam.position)
-        const body = () => {
-          const b = {}
-          for (const k of Object.keys(DEFAULT_HUMAN_BODY)) b[k] = Number(walker[k].value)
-          return macroWeights(b, (n) => pack.has(n))
-        }
-        // The weights depend only on the topology: once, on the first body.
-        const first = await morphHuman(pack, body())
-        // The weights depend only on the topology: once, on the first body.
-        const rig0 = humanRig(pack.manifest, first, undefined, { triangles: pack.triangles })
-        const weights = boneHeat(skin.positions(first), skin.triangles, skinSegments(rig0))
-        // The face moves with the head, or the lids slide over the eyes.
-        stiffenHead(weights, skin.positions(first), rig0)
-        // ...and the ribcage with the spine, not the arms.
-        armsOffTorso(weights, skin.positions(first), rig0)
+        // MakeHuman makes rigged bodies (rigged-body): each shape the
+        // sliders give, on UAL's skeleton, with weights bound once on the
+        // first (they depend only on the topology).
+        const sliders = () => Object.fromEntries(Object.keys(DEFAULT_HUMAN_BODY).map((k) => [k, Number(walker[k].value)]))
+        const maker = await humanBodyMaker(pack, sliders())
+        const first = maker.first.full
+        const rig0 = maker.first.rig
+        const weights = maker.weights
         // How thin the body is at each vertex (ears, nose, fingers), for the
         // skin's back-light: once, like the weights.
         const firstSkin = skin.positions(first)
@@ -866,14 +860,15 @@ preview.append(
         rebuild = async () => {
           if (busy) { again = true; return }
           busy = true
-          const full = await morphHuman(pack, body())
+          const made = await maker.body(sliders())
+          const full = made.full
           current = full
           clothBody = smoothed(full)
           stubbleMask = null
-          const rig = humanRig(pack.manifest, full, undefined, { triangles: pack.triangles })
+          const rig = made.rig
           face?.dispose()
           built?.dispose()
-          built = buildRig(scene, 'walker', skin.positions(full), skin.triangles, rig, weights)
+          built = buildBody(scene, 'walker', made)
           face = humanFace(scene, built, rig, pack.manifest, full, { eyes: eyePart, eyelashes: lashPart }, faceMaterials)
           built.rig = rig
           scalp = headScalp(pack.manifest, full, pack.triangles, { lips })
