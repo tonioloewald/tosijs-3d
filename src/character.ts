@@ -205,22 +205,27 @@ export interface CharacterSource {
   pick?: string
 }
 
+// A hosted body: its URL is read when it is used, after the page has set
+// the asset base (computed at import, it came out relative to the page).
+const hosted = (path: string, pick?: string): CharacterSource => ({
+  get url() {
+    return assetUrl(path)
+  },
+  ...(pick != null ? { pick } : {}),
+})
+
 /** The bodies a character can have besides MakeHuman's. */
 export const CHARACTER_SOURCES: Record<string, CharacterSource> = {
-  'Blender: female, realistic': {
-    url: assetUrl('blender/human-base-meshes/body-female-realistic.glb'),
-  },
-  'Blender: male, realistic': {
-    url: assetUrl('blender/human-base-meshes/body-male-realistic.glb'),
-  },
-  'Quaternius: superhero, male': {
-    url: assetUrl('quaternius/libraries/characters-superhero-male.glb'),
-    pick: 'Superhero_Male_FullBody',
-  },
-  'Quaternius: superhero, female': {
-    url: assetUrl('quaternius/libraries/characters-superhero-female.glb'),
-    pick: 'Superhero_Female_FullBody',
-  },
+  'Blender: female, realistic': hosted('blender/human-base-meshes/body-female-realistic.glb'),
+  'Blender: male, realistic': hosted('blender/human-base-meshes/body-male-realistic.glb'),
+  'Quaternius: superhero, male': hosted(
+    'quaternius/libraries/characters-superhero-male.glb',
+    'Superhero_Male_FullBody'
+  ),
+  'Quaternius: superhero, female': hosted(
+    'quaternius/libraries/characters-superhero-female.glb',
+    'Superhero_Female_FullBody'
+  ),
 }
 
 
