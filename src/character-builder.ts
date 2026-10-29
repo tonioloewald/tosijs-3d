@@ -1167,10 +1167,16 @@ tosi-b3d { width: 100%; height: 100%; }
 **Source** picks the body. MakeHuman's is the one the sliders shape and
 the clothes, hair and face are made for. The others are meshes from
 elsewhere (Blender Studio's Human Base Meshes, Quaternius' superheroes), or
-your own with **open a mesh…** (GLB or glTF): any skeleton the file has is
-ignored, and UAL's is fitted to the mesh's outline and the skin bound by bone
-heat ([auto-rig](/rig-build/)), in a second or two. They walk and take the
-skin; the rest of the panel is MakeHuman's and is hidden for them.
+your own with **open a mesh…** (GLB or glTF). A file skinned to UAL's
+skeleton already, as Quaternius' characters are, is taken as it is: its own
+joints and weights ([rigged-body](/rigged-body/)). Bind your own mesh to that
+skeleton in Blender and it is too; it comes with Quaternius'
+[Universal Animation Library](https://quaternius.itch.io/universal-animation-library)
+and [Universal Base Characters](https://quaternius.itch.io/universal-base-characters)
+(CC0, pay what you want). Any other mesh has UAL's skeleton fitted to its
+outline and its skin bound by bone heat ([auto-rig](/rig-build/)), in a
+second or two. They walk and take the skin; the rest of the panel is
+MakeHuman's and is hidden for them.
 
 **Rig…** opens the [rig tool](/rig-tool/) on that body (its panel is on the
 bar): drag the markers onto the joints and it is bound again on release; add

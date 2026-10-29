@@ -20,7 +20,11 @@ THREE PRODUCERS: `bodyFromMarkers` (any mesh and its markers), `humanBodyMaker`
 (MakeHuman's sliders), and `loadSkinnedBody` (in [auto-rig](/rig-build/)): a
 file already skinned to UAL's skeleton, as Quaternius' characters are or as
 you can bind a mesh to it in Blender, taken as it is: its joints, its weights,
-no markers.
+no markers. The skeleton to bind to comes with Quaternius'
+[Universal Animation Library](https://quaternius.itch.io/universal-animation-library)
+and [Universal Base Characters](https://quaternius.itch.io/universal-base-characters)
+(CC0, pay what you want; the Blender sources are in the paid tiers): get it
+there rather than from the copies this site's demos load.
 
 A rigged body is plain data, Babylon-free:
 

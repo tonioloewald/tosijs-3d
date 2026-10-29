@@ -26,7 +26,12 @@ headers, so a file found on its own still says where it came from.
 - **[Quaternius](https://quaternius.com)**: the Universal Animation Library
   (the clips every rigged character plays), the mannequins, characters,
   hairstyles and the nature library (trees, rocks, plants) the terrain is
-  decorated with. CC0.
+  decorated with. CC0. Get them from Quaternius on itch.io, where the
+  [Universal Animation Library](https://quaternius.itch.io/universal-animation-library)
+  (and [its sequel](https://quaternius.itch.io/universal-animation-library-2))
+  and the [Universal Base Characters](https://quaternius.itch.io/universal-base-characters)
+  are pay what you want, and paying more gets the Blender sources and pays
+  for more of them.
 - **[MakeHuman](http://www.makehumancommunity.org)**: the base body, its
   shape targets, eyes, expressions and clothes behind the character builder,
   converted from MakeHuman's own assets. CC0 since 2020. None of MakeHuman's
