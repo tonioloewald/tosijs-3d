@@ -42,8 +42,6 @@ const SOURCES = {
   'MakeHuman': null,
   'Blender: female, realistic': { url: assetUrl('blender/human-base-meshes/body-female-realistic.glb') },
   'Blender: male, realistic': { url: assetUrl('blender/human-base-meshes/body-male-realistic.glb') },
-  'Blender: female, stylized': { url: assetUrl('blender/human-base-meshes/body-female-stylized.glb') },
-  'Blender: male, stylized': { url: assetUrl('blender/human-base-meshes/body-male-stylized.glb') },
   'Quaternius: superhero, male': { url: assetUrl('quaternius/libraries/characters-superhero-male.glb'), pick: 'Superhero_Male_FullBody' },
   'Quaternius: superhero, female': { url: assetUrl('quaternius/libraries/characters-superhero-female.glb'), pick: 'Superhero_Female_FullBody' },
 }

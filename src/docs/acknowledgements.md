@@ -32,8 +32,8 @@ headers, so a file found on its own still says where it came from.
   converted from MakeHuman's own assets. CC0 since 2020. None of MakeHuman's
   (AGPL) code is used.
 - **[Blender Studio and community contributors](https://www.blender.org/download/demo-files/#assets)**
-  (Blender Foundation): the Human Base Meshes, four bodies, realistic and
-  stylized, for rigging any mesh. CC0.
+  (Blender Foundation): the Human Base Meshes, a woman's and a man's body,
+  for rigging any mesh. CC0.
 - **[The Base Mesh](https://www.thebasemesh.com)**: the teapot material
   previews are drawn on, and the globe. CC0.
 - **Tonio Loewald**: omnidude, the weasels, the space marine and the other

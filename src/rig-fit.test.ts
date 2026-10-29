@@ -547,7 +547,7 @@ const readGlbMesh = (file: string, name: string): Soup =>
   readGlb(file, (j) => j.nodes.find((n: any) => n.name === name).mesh)
 
 describe.skipIf(!existsSync(HBM))('guessMarkers on arms that hang (A-pose)', () => {
-  for (const body of ['female-realistic', 'male-realistic', 'female-stylized', 'male-stylized']) {
+  for (const body of ['female-realistic', 'male-realistic']) {
     test(body, () => {
       const s = readGlbMesh(join(HBM, `body-${body}.glb`), `GEO-body_${body.replace('-', '_')}`)
       const sil = rigSilhouette(s.pos, s.idx)
