@@ -30,6 +30,29 @@ describe('character-file', () => {
     expect(Array.from(character.garments.cape)).toEqual([0, 1, 2, 250, 255])
   })
 
+  test('a mesh body travels with it: a URL as a URL, a file as its bytes', () => {
+    const bodies = {
+      weasel: { file: { name: 'weasel.glb', bytes: new Uint8Array([7, 8, 9, 200]) } },
+      hero: { url: 'https://example.com/hero.glb', pick: 'Hero_FullBody' },
+    }
+    const json = JSON.stringify(writeCharacter({ ...ada, bodies }))
+    const { character, warnings } = readCharacter(json, defaults)
+    expect(warnings).toEqual([])
+    expect(character.bodies?.hero).toEqual({ url: 'https://example.com/hero.glb', pick: 'Hero_FullBody' })
+    expect(character.bodies?.weasel.file?.name).toBe('weasel.glb')
+    expect(Array.from(character.bodies!.weasel.file!.bytes)).toEqual([7, 8, 9, 200])
+    // A file without bodies (MakeHuman's) has none.
+    expect(readCharacter(JSON.stringify(writeCharacter(ada)), defaults).character.bodies).toBeUndefined()
+  })
+
+  test('an unreadable body is skipped and said', () => {
+    const doc = writeCharacter(ada) as any
+    doc.bodies = { odd: { pick: 'x' }, bad: 'no' }
+    const { character, warnings } = readCharacter(doc, defaults)
+    expect(character.bodies).toBeUndefined()
+    expect(warnings).toEqual(['body odd: unreadable; skipped', 'body bad: unreadable; skipped'])
+  })
+
   test('the document says what it is and which layout', () => {
     const doc = writeCharacter(ada)
     expect(doc.format).toBe(CHARACTER_FORMAT)

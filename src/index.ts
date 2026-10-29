@@ -1877,6 +1877,7 @@ export {
 export type {
   Character,
   CharacterDoc,
+  CharacterBody,
   SlotLook,
   ReadCharacter,
 } from './character-file.js'

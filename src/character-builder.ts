@@ -50,6 +50,21 @@ const clips = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Dance_L
 // of anyone's (CHARACTER_SOURCES, and files opened here).
 const SOURCES = { ...CHARACTER_SOURCES }
 const sourceNames = () => ['MakeHuman', ...Object.keys(SOURCES)]
+// A file's bytes, read once, so a character file can carry the body.
+const fileBytes = new Map()
+const keepBytes = (file) => {
+  if (!fileBytes.has(file)) fileBytes.set(file, file.arrayBuffer().then((b) => void fileBytes.set(file, new Uint8Array(b))))
+  return Promise.resolve(fileBytes.get(file))
+}
+// Where a mesh body comes from, as a character file says it.
+const bodyOf = (name) => {
+  const from = SOURCES[name]
+  if (!from) return null
+  const pick = from.pick != null ? { pick: from.pick } : {}
+  if (from.url) return { url: from.url, ...pick }
+  const bytes = from.file && fileBytes.get(from.file)
+  return bytes instanceof Uint8Array ? { file: { name: from.file.name, bytes }, ...pick } : null
+}
 // A setting's choices (hair, beards, each slot), once the character is made.
 const choices = (key) => ch?.choices(key) ?? ['none']
 // A mesh opened from a file (a choice in the list once opened).
@@ -576,6 +591,8 @@ preview.append(
         const openFile = (file) => {
           ch.addSource(file.name, { file })
           SOURCES[file.name] = { file }
+          // Kept again once it can carry the file.
+          keepBytes(file).then(() => character.changed?.())
           if (walker.source.value !== file.name) walker.source.value = file.name
         }
         el.builder.openFile = openFile
@@ -628,6 +645,7 @@ preview.append(
               if (loaded) {
                 SOURCES[name] = { file: loaded }
                 ch.addSource(name, { file: loaded })
+                keepBytes(loaded).then(() => character.changed?.())
               }
               if (body) ch.adopt(name, body, recipe)
               walker.rigs.value = { ...plain(walker.rigs.value), [name]: plain(recipe) }
@@ -671,7 +689,10 @@ preview.append(
             if (g?.bytes) garments[walker[slot].value] = g.bytes
           }
           const cloth = Object.fromEntries(SLOTS.map((slot) => [slot, plain(ch.cloth(slot))]))
-          return writeCharacter({ name, settings: kept, cloth, tailor: plain(tailorShapes), garments }, { saved: new Date().toISOString() })
+          // And its body, when it is a mesh: where it comes from, or the file.
+          const body = bodyOf(kept.source)
+          const bodies = body ? { [kept.source]: body } : {}
+          return writeCharacter({ name, settings: kept, cloth, tailor: plain(tailorShapes), garments, bodies }, { saved: new Date().toISOString() })
         }
         const tell = (message) => { character.note = message; el.refreshScenePanel?.() }
         let restoring = false
@@ -686,7 +707,15 @@ preview.append(
               await garmentStore('readwrite', (st) => st.put(bytes, name)).catch(() => {})
               await ch.addGarment(bytes)
             }
-            // A mesh opened from a file is not in the list here.
+            // A body the file carries and this page does not have becomes a source.
+            for (const [name, b] of Object.entries(c.bodies ?? {})) {
+              if (name in SOURCES) continue
+              const file = b.file ? new File([b.file.bytes], b.file.name) : null
+              if (file) fileBytes.set(file, b.file.bytes)
+              const from = { ...(file ? { file } : { url: b.url }), ...(b.pick != null ? { pick: b.pick } : {}) }
+              SOURCES[name] = from
+              ch.addSource(name, from)
+            }
             if (c.settings.source !== 'MakeHuman' && !(c.settings.source in SOURCES)) {
               warnings.push(`body ${c.settings.source}: open that file again; MakeHuman's shown`)
               c.settings.source = 'MakeHuman'

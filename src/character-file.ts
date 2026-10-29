@@ -31,6 +31,11 @@ loads as far as it can and says what it skipped).
 GARMENTS TRAVEL INSIDE IT. A garment saved from the tailor lives in the
 browser that saved it; the document carries each one the character wears as
 its GLB (base64), so the figure is whole wherever it is opened.
+
+SO DOES ITS BODY, when it is a mesh. `bodies` says where the body on show
+comes from: a URL (and the object picked in it) when it has one, or the file
+itself (base64, with its name) when it was opened from disk. A page that
+does not have that body makes it from there.
 */
 /*{ "parent": "character-builder", "order": 20 }*/
 
@@ -55,6 +60,17 @@ export interface Character {
   tailor: Array<Array<[number, number]>>
   /** Garments of the wearer's own that it wears, by name, as GLB bytes. */
   garments: Record<string, Uint8Array>
+  /** Where its mesh body (by source name) comes from: a URL, or the file's bytes. */
+  bodies?: Record<string, CharacterBody>
+}
+
+/** Where a mesh body comes from: `url` (and `pick`), or the file itself. */
+export interface CharacterBody {
+  url?: string
+  /** The object in the file that is the body. */
+  pick?: string
+  /** The file's bytes and its name (the extension says how to read it). */
+  file?: { name: string; bytes: Uint8Array }
 }
 
 export interface CharacterDoc {
@@ -68,6 +84,8 @@ export interface CharacterDoc {
   tailor: Array<Array<[number, number]>>
   /** name → GLB, base64. */
   garments: Record<string, string>
+  /** source → `{ url, pick }`, or `{ file, data (base64), pick }`. */
+  bodies?: Record<string, { url?: string; pick?: string; file?: string; data?: string }>
 }
 
 /** A character as a document, ready for `JSON.stringify`. */
@@ -91,6 +109,20 @@ export function writeCharacter(
     garments: Object.fromEntries(
       Object.entries(c.garments).map(([k, v]) => [k, toBase64(v)])
     ),
+    ...(c.bodies && Object.keys(c.bodies).length
+      ? {
+          bodies: Object.fromEntries(
+            Object.entries(c.bodies).map(([k, b]) => [
+              k,
+              {
+                ...(b.url != null ? { url: b.url } : {}),
+                ...(b.pick != null ? { pick: b.pick } : {}),
+                ...(b.file ? { file: b.file.name, data: toBase64(b.file.bytes) } : {}),
+              },
+            ])
+          ),
+        }
+      : {}),
   }
 }
 
@@ -163,6 +195,20 @@ export function readCharacter(
     }
   }
 
+  const bodies: Record<string, CharacterBody> = {}
+  for (const [name, b] of Object.entries(isObject(doc.bodies) ? doc.bodies : {})) {
+    try {
+      if (!isObject(b)) throw new Error('not a body')
+      const pick = typeof b.pick === 'string' ? { pick: b.pick } : {}
+      if (typeof b.data === 'string')
+        bodies[name] = { ...pick, file: { name: typeof b.file === 'string' ? b.file : name, bytes: fromBase64(b.data) } }
+      else if (typeof b.url === 'string') bodies[name] = { ...pick, url: b.url }
+      else throw new Error('no url or data')
+    } catch {
+      warnings.push(`body ${name}: unreadable; skipped`)
+    }
+  }
+
   return {
     character: {
       name: typeof doc.name === 'string' ? doc.name : '',
@@ -170,6 +216,7 @@ export function readCharacter(
       cloth,
       tailor,
       garments,
+      ...(Object.keys(bodies).length ? { bodies } : {}),
     },
     warnings,
   }
@@ -198,7 +245,19 @@ const kind = (v: unknown) => (v === null ? 'null' : Array.isArray(v) ? 'array' :
 const sameKind = (v: unknown, fallback: unknown) =>
   fallback == null ? true : kind(v) === kind(fallback) && (typeof v !== 'number' || Number.isFinite(v))
 
+// The builder writes the working figure after every change, and a body is
+// megabytes: each byte array is encoded once.
+const encoded = new WeakMap<Uint8Array, string>()
+
 function toBase64(bytes: Uint8Array): string {
+  const known = encoded.get(bytes)
+  if (known != null) return known
+  const out = encode(bytes)
+  encoded.set(bytes, out)
+  return out
+}
+
+function encode(bytes: Uint8Array): string {
   let s = ''
   for (let i = 0; i < bytes.length; i += 0x8000)
     s += String.fromCharCode(...bytes.subarray(i, i + 0x8000))

@@ -180,7 +180,7 @@ animation is doing with that hand.
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `url` | `''` | GLB model URL |
-| `character` | `''` | A character file's URL (the [character builder](/character-builder/)'s **export JSON**), in place of `url`: the character is made from it ([character](/character/)) and UAL's clips are retargeted onto it, so use `ualAnimationStates()`. A body from a file other than the builder's own sources falls back to MakeHuman's. Set `characterDoc` (the parsed file) instead to skip the fetch |
+| `character` | `''` | A character file's URL (the [character builder](/character-builder/)'s **export JSON**), in place of `url`: the character is made from it ([character](/character/)) and UAL's clips are retargeted onto it, so use `ualAnimationStates()`. A mesh body comes from where the file says (its URL, or the mesh itself when it was opened from disk); a file that says neither falls back to MakeHuman's. Set `characterDoc` (the parsed file) instead to skip the fetch |
 | `animations` | UAL1 | Where a `character`'s clips come from: a GLB whose clips have UAL's names and skeleton |
 | `skin` | `''` | Optional albedo texture URL applied to the `skin` material (reskin) |
 | `scale` | `1` | Uniform scale applied to the loaded model |
@@ -3760,18 +3760,29 @@ export class B3dBiped extends B3dControllable {
         changes
       )
     const settings: Record<string, any> = c.settings
-    if (
-      settings.source !== 'MakeHuman' &&
-      !(settings.source in CHARACTER_SOURCES)
-    ) {
+    // A mesh body comes from the page's sources, or from where the file says
+    // (a URL, or the mesh itself inside the file).
+    const sources = { ...CHARACTER_SOURCES }
+    for (const [name, b] of Object.entries(c.bodies ?? {})) {
+      if (name in sources) continue
+      const pick = b.pick != null ? { pick: b.pick } : {}
+      if (b.file)
+        sources[name] = {
+          file: new File([b.file.bytes as BlobPart], b.file.name),
+          ...pick,
+        }
+      else if (b.url) sources[name] = { url: b.url, ...pick }
+    }
+    if (settings.source !== 'MakeHuman' && !(settings.source in sources)) {
       console.warn(
-        `<tosi-b3d-biped>: body ${settings.source} is a file the page does not have; MakeHuman's shown`
+        `<tosi-b3d-biped>: the character file does not say where body ${settings.source} comes from; MakeHuman's shown`
       )
       settings.source = 'MakeHuman'
     }
     const assets = await sharedAssets(scene, () => loadCharacterAssets(scene))
     const ch = await makeCharacter(scene, assets, {
       settings,
+      sources,
       cloth: c.cloth as any,
       garments: Object.values(c.garments),
       handleMeshes: (meshes) => owner.register({ meshes }),
