@@ -1861,6 +1861,18 @@ export {
   unwrapGarment,
 } from './garment-file.js'
 export { unwrapUvs, carryUnwrapped } from './uv-unwrap.js'
+export {
+  writeCharacter,
+  readCharacter,
+  CHARACTER_FORMAT,
+  CHARACTER_VERSION,
+} from './character-file.js'
+export type {
+  Character,
+  CharacterDoc,
+  SlotLook,
+  ReadCharacter,
+} from './character-file.js'
 export type { Unwrapped, UnwrapOptions } from './uv-unwrap.js'
 export {
   rigidGroups,

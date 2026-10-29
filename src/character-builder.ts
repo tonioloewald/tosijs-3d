@@ -11,10 +11,32 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, clothRecipe, materialPicker3d, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, unwrapGarment, smoothUnder, skirtGarment, loadRigTriangles, autoRig } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanRig, humanSkin, stiffenHead, armsOffTorso, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, clothRecipe, materialPicker3d, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, skinSegments, boneHeat, buildRig, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, unwrapGarment, smoothUnder, skirtGarment, loadRigTriangles, autoRig, writeCharacter, readCharacter } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { walker } = tosi({ walker: { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, source: 'MakeHuman' } })
+// Everything the panel sets, as it starts: what a saved character is read against.
+const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, source: 'MakeHuman', characterName: '', characterPick: '' }
+const { walker } = tosi({ walker: structuredClone(START) })
+// What a character file keeps: not the editor's view of one slot (that is in
+// cloth), the microphone (it would ask on load), or the save controls.
+const KEPT = Object.keys(START).filter((k) => !['editing', 'look', 'clothLook', 'mic', 'characterName', 'characterPick'].includes(k))
+// Saving and loading characters, wired when the page is up.
+const character = { save: () => {}, load: () => {}, forget: () => {}, exportJson: () => {}, importJson: () => {}, changed: () => {}, saved: [], note: '' }
+const characterRows = () => [
+  label3d({ text: 'Character', collapsible: true }),
+  ui.inputField({ value: walker.characterName.value, placeholder: 'name the character', handleChange: (v) => { walker.characterName.value = v } }),
+  button3d({ label: 'save', handleClick: () => character.save() }),
+  ...(character.saved.length
+    ? [
+        select3d({ label: 'saved', value: walker.characterPick, options: character.saved }),
+        button3d({ label: 'load', handleClick: () => character.load() }),
+        button3d({ label: 'forget', handleClick: () => character.forget() }),
+      ]
+    : []),
+  button3d({ label: 'export JSON', handleClick: () => character.exportJson() }),
+  button3d({ label: 'import JSON…', handleClick: () => character.importJson() }),
+  ...(character.note ? [text3d({ text: character.note })] : []),
+]
 let mat = null
 let paint = () => {}
 let eyes = null
@@ -89,6 +111,7 @@ preview.append(
       clearColor: '#2a3340',
       panelTitle: 'Character Builder',
       scenePanel: () => madeHuman() ? [
+        ...characterRows(),
         label3d({ text: 'Body', collapsible: true, open: true }),
         select3d({ label: 'source', value: walker.source, options: Object.keys(SOURCES), stayOpen: true }),
         button3d({ label: 'open a mesh…', handleClick: () => openBody() }),
@@ -153,7 +176,7 @@ preview.append(
                   // The buttons first, so a tall outline never pushes them out of reach.
                   button3d({ label: 'delete point', handleClick: () => tailorField?.removeSelected() }),
                   button3d({ label: 'clear', handleClick: () => tailorField?.clear() }),
-                  (tailorField = outlineField3d({ ...tailorBody, value: tailorShapes, maxHeight: 440, handleCommit: (v) => { tailorShapes = v; dress() } }))
+                  (tailorField = outlineField3d({ ...tailorBody, value: tailorShapes, maxHeight: 440, handleCommit: (v) => { tailorShapes = v; dress(); character.changed() } }))
                 )
               ),
               slider3d({ label: 'thickness', value: walker.tailorThickness, min: 0.001, max: 0.02, step: 0.001 }),
@@ -188,6 +211,7 @@ preview.append(
       ] : [
         // A body of anyone's: what MakeHuman's carries (shape, face, hair,
         // clothes) is not there; the clips and the skin are.
+        ...characterRows(),
         label3d({ text: 'Body', collapsible: true, open: true }),
         select3d({ label: 'source', value: walker.source, options: Object.keys(SOURCES), stayOpen: true }),
         button3d({ label: 'open a mesh…', handleClick: () => openBody() }),
@@ -339,7 +363,7 @@ preview.append(
           const slot = SLOTS.includes(content.meta.slot) ? content.meta.slot : 'top'
           proxyMaterials.delete(`${name}:`)
           const proxy = await asProxy(content, name, slot)
-          custom.set(name, { proxy, cut: content.meta.cut, look: content.meta.look })
+          custom.set(name, { proxy, cut: content.meta.cut, look: content.meta.look, bytes: new Uint8Array(bytes) })
           if (!styles[slot].includes(name)) styles[slot].push(name)
           return content.meta
         }
@@ -686,7 +710,7 @@ preview.append(
         // The body as it is now, read when the outline opens: the cut is made
         // on the current body, so the view it is drawn over must be that one.
         tailorBody = { get positions() { return current }, indices: pack.triangles }
-        void loadSaved()
+        // (the saved garments load below, before the working figure that may wear them)
 
         // The face: MakeHuman's face pose units as morph targets, in layers.
         const expr = humanExpressions(scene, await faceDeltas(pack))
@@ -936,6 +960,138 @@ preview.append(
         }
         el.builder.choose = choose
         el.builder.rigged = rigged
+
+        // CHARACTERS (character-file): the figure you are working on is kept
+        // in this browser as you change it and comes back when the page opens;
+        // named ones are saved beside it; a file carries one anywhere.
+        const WORKING = '(working)'
+        const characterStore = async (mode, fn) => {
+          const db = await new Promise((ok, no) => {
+            const r = indexedDB.open('tosijs-characters', 1)
+            r.onupgradeneeded = () => r.result.createObjectStore('characters')
+            r.onsuccess = () => ok(r.result)
+            r.onerror = () => no(r.error)
+          })
+          return new Promise((ok, no) => {
+            const t = db.transaction('characters', mode)
+            const req = fn(t.objectStore('characters'))
+            t.oncomplete = () => ok(req?.result)
+            t.onerror = () => no(t.error)
+          })
+        }
+        const plain = (v) => JSON.parse(JSON.stringify(v))
+        const snapshot = (name) => {
+          const settings = Object.fromEntries(KEPT.map((k) => [k, plain(walker[k].value)]))
+          // The garments of your own it wears travel inside it.
+          const garments = {}
+          for (const slot of SLOTS) {
+            const g = custom.get(walker[slot].value)
+            if (g?.bytes) garments[walker[slot].value] = g.bytes
+          }
+          return writeCharacter({ name, settings, cloth: plain(cloth), tailor: plain(tailorShapes), garments }, { saved: new Date().toISOString() })
+        }
+        const tell = (message) => { character.note = message; el.refreshScenePanel?.() }
+        let restoring = false
+        const apply = async (doc) => {
+          const { character: c, warnings } = readCharacter(doc, { settings: Object.fromEntries(KEPT.map((k) => [k, START[k]])), slots: cloth })
+          restoring = true
+          try {
+            // Its own garments first, so the slots can wear them.
+            for (const [name, bytes] of Object.entries(c.garments)) {
+              if (custom.has(name)) continue
+              await garmentStore('readwrite', (st) => st.put(bytes, name)).catch(() => {})
+              await addCustom(bytes)
+            }
+            // A mesh opened from a file is not in the list here.
+            if (!(c.settings.source in SOURCES)) {
+              warnings.push(`body ${c.settings.source}: open that file again; MakeHuman's shown`)
+              c.settings.source = 'MakeHuman'
+            }
+            // An outfit before a top and bottom (each clears the other).
+            const keys = ['outfit', ...KEPT.filter((k) => k !== 'outfit')]
+            for (const k of keys) walker[k].value = c.settings[k]
+            // The slots' looks after the slots, which reset them as they change.
+            for (const slot of SLOTS) cloth[slot] = c.cloth[slot]
+            load()
+            refabric()
+            tailorShapes = c.tailor
+            tailorField?.setValue(tailorShapes)
+            walker.characterName.value = c.name === WORKING ? '' : c.name
+            dress()
+          } finally {
+            restoring = false
+          }
+          if (warnings.length) console.warn('character builder: loaded with changes', warnings)
+          tell(warnings.length ? `loaded; ${warnings.length} setting(s) skipped (see the console)` : '')
+        }
+        const listSaved = async () => {
+          const keys = await characterStore('readonly', (st) => st.getAllKeys()).catch(() => [])
+          character.saved = (keys ?? []).filter((k) => k !== WORKING).sort()
+          if (!character.saved.includes(walker.characterPick.value)) walker.characterPick.value = character.saved[0] ?? ''
+          el.refreshScenePanel?.()
+        }
+        // Kept a moment after the last change, so a slider drag is one write.
+        let pending = null
+        character.changed = () => {
+          if (restoring) return
+          clearTimeout(pending)
+          pending = setTimeout(() => {
+            characterStore('readwrite', (st) => st.put(snapshot(WORKING), WORKING)).catch((e) => console.warn('character builder: could not keep the working figure', e))
+          }, 800)
+        }
+        for (const k of [...KEPT, 'look', 'clothLook']) walker[k].observe(() => character.changed())
+        character.save = async () => {
+          const name = walker.characterName.value.trim()
+          if (!name || name === WORKING) return tell('name the character first')
+          try {
+            await characterStore('readwrite', (st) => st.put(snapshot(name), name))
+          } catch (e) {
+            return tell(`could not save: ${e?.message ?? e}`)
+          }
+          walker.characterPick.value = name
+          tell(`saved ${name}`)
+          listSaved()
+        }
+        character.load = async () => {
+          const name = walker.characterPick.value
+          const doc = name && (await characterStore('readonly', (st) => st.get(name)).catch(() => null))
+          if (!doc) return tell(`no character called ${name}`)
+          await apply(doc).catch((e) => tell(`could not load: ${e?.message ?? e}`))
+          character.changed()
+        }
+        character.forget = async () => {
+          const name = walker.characterPick.value
+          if (!name) return
+          await characterStore('readwrite', (st) => st.delete(name)).catch(() => {})
+          tell(`forgot ${name}`)
+          listSaved()
+        }
+        character.exportJson = () => {
+          const name = walker.characterName.value.trim() || 'character'
+          save(JSON.stringify(snapshot(name), null, 1), `${name.replace(/[^\w-]/g, '_')}.character.json`, 'application/json')
+        }
+        character.importJson = () => {
+          const input = document.createElement('input')
+          input.type = 'file'
+          input.accept = '.json,application/json'
+          input.onchange = async () => {
+            const file = input.files?.[0]
+            if (!file) return
+            try {
+              await apply(await file.text())
+              character.changed()
+            } catch (e) {
+              tell(`${file.name}: ${String(e?.message ?? e).replace(/^character-file: /, '')}`)
+            }
+          }
+          input.click()
+        }
+        el.builder.character = { snapshot, apply, store: characterStore }
+        // The figure you were working on, as you left it (after the saved garments it may wear).
+        await loadSaved()
+        const working = await characterStore('readonly', (st) => st.get(WORKING)).catch(() => null)
+        if (working) await apply(working).catch((e) => console.warn('character builder: the working figure would not load', e))
+        await listSaved()
         el.setLoading(false)
         walker.clip.observe(play)
         walker.paused.observe(() => (walker.paused.value ? playing?.pause() : playing?.play(true)))
@@ -957,6 +1113,13 @@ your own with **open a mesh…** (GLB or glTF): any skeleton the file has is
 ignored, and UAL's is fitted to the mesh's outline and the skin bound by bone
 heat ([auto-rig](/rig-build/)), in a second or two. They walk and take the
 skin; the rest of the panel is MakeHuman's and is hidden for them.
+
+**Character** keeps your work. The figure you are working on is kept in this
+browser as you change it and comes back when you open the page again. **Save**
+it under a name to keep several, **load** or **forget** one, or **export
+JSON** to take it elsewhere and **import JSON…** to bring one in. A file
+carries everything the panel sets, and the garments of your own the character
+wears travel inside it ([character-file](/character-file/)).
 
 Open the settings (the owl): the body sliders reshape it
 while it walks, since every body carries its own joints. The skin weights are
