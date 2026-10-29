@@ -11,12 +11,12 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, clothRecipe, materialPicker3d, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, readSkeleton, retargetClip, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, smoothUnder, loadRigTriangles, bodyFromMarkers, applyRigRecipe, writeCharacter, readCharacter, humanBodyMaker, buildBody, mountTailorTool, chooseFile, loadSkinnedBody, b3dPanel, panel3d, soleVertices, lowestOf, surfaceMaterial } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 
 // Everything the panel sets, as it starts: what a saved character is read against.
-const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, source: 'MakeHuman', characterName: '', characterPick: '' }
+const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, source: 'MakeHuman', characterName: '', characterPick: '' }
 const { walker } = tosi({ walker: structuredClone(START) })
 // What a character file keeps: not the editor's view of one slot (that is in
 // cloth), the microphone (it would ask on load), or the save controls.
@@ -38,68 +38,61 @@ const characterRows = () => [
   button3d({ label: 'import JSON…', handleClick: () => character.importJson() }),
   ...(character.note ? [text3d({ text: character.note })] : []),
 ]
-let mat = null
-let paint = () => {}
-let eyes = null
-let dress = () => {}
-// The same for a mesh's body (the garments made on it).
-let dressOther = () => {}
-// Dress whichever body is shown.
-const redress = () => (madeHuman() ? dress() : dressOther())
+// The character (character.ts): what the panel sets, made in the scene.
+let ch = null
 // The pack's proxies, once it has loaded (the panel lists an outfit's looks).
 let packProxies = {}
-// How far a hat is pushed out from the skull, over the hair (metres).
-const HAT_LIFT = 0.012
-// Filled when the hair library loads.
-const styles = { hair: ['none'], beard: ['none'], moustache: ['none'], brows: ['none'] }
 // What can be worn, one of each at a time; the pack says which slot each garment fills.
 // A bodysuit is a base layer and armour goes over anything; an outfit replaces a top and bottom.
-const SLOTS = ['outfit', 'bodysuit', 'armour', 'top', 'bottom', 'shoes', 'gloves', 'hat', 'mask', 'glasses']
-for (const slot of SLOTS) styles[slot] = ['none']
-// Each slot's colourway (look) and material, kept while another is being edited.
-const cloth = Object.fromEntries(SLOTS.map((s) => [s, { look: 'as made', material: clothRecipe({ fabric: s === 'shoes' ? 'leather' : 'cotton', colour: '#7a2e2e', recolour: 0 }) }]))
-// A saved look: a material recipe, or the fabric, colour and recolour saved before recipes.
-const lookRecipe = (look) => look?.material ?? clothRecipe(look ?? {})
+const SLOTS = CHARACTER_SLOTS
 const clips = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Dance_Loop', 'Crouch_Fwd_Loop']
-let rebuild = () => {}
 // Where the body comes from: MakeHuman's, which the sliders shape, or a mesh
-// of anyone's, whose own skeleton (if it has one) is ignored: UAL's is fitted
-// to it from its outline and the skin bound by bone heat (auto-rig).
-const SOURCES = {
-  'MakeHuman': null,
-  'Blender: female, realistic': { url: assetUrl('blender/human-base-meshes/body-female-realistic.glb') },
-  'Blender: male, realistic': { url: assetUrl('blender/human-base-meshes/body-male-realistic.glb') },
-  'Quaternius: superhero, male': { url: assetUrl('quaternius/libraries/characters-superhero-male.glb'), pick: 'Superhero_Male_FullBody' },
-  'Quaternius: superhero, female': { url: assetUrl('quaternius/libraries/characters-superhero-female.glb'), pick: 'Superhero_Female_FullBody' },
-}
+// of anyone's (CHARACTER_SOURCES, and files opened here).
+const SOURCES = { ...CHARACTER_SOURCES }
+const sourceNames = () => ['MakeHuman', ...Object.keys(SOURCES)]
+// A setting's choices (hair, beards, each slot), once the character is made.
+const choices = (key) => ch?.choices(key) ?? ['none']
 // A mesh opened from a file (a choice in the list once opened).
 let openBody = () => {}
 // The rig tool, mounted on the body while it is being rigged.
 let rigging = null
 let openRig = (file = null) => {}
-// What the imported body is doing, or why it failed.
-let sourceNote = ''
-// The imported body's surfaces (its file's materials), each as made or skin.
-let surfaceRows = () => []
 const madeHuman = () => walker.source.value === 'MakeHuman'
+// The imported body's surfaces (its file's materials), each as made or skin.
+const surfaceRows = () => {
+  const surfaces = ch?.surfaces() ?? []
+  if (!surfaces.length) return []
+  const source = walker.source.value
+  return [
+    label3d({ text: 'Surfaces', collapsible: true, open: true }),
+    ...surfaces.map(({ name, choice }) =>
+      select3d({
+        label: name,
+        value: choice,
+        options: ['as made', 'skin'],
+        handleChange: (v) => {
+          const all = JSON.parse(JSON.stringify(walker.surfaces.value))
+          walker.surfaces.value = { ...all, [source]: { ...all[source], [name]: v } }
+        },
+      })
+    ),
+  ]
+}
 // A garment of your own, cut from the body along outlines you draw (the
 // character's left; the right is its mirror). A rectangle from the waist to
 // the ankles makes trousers.
 let tailorShapes = []
-// The body the tailor cuts from (the rigged body shown), and the tool, open.
-let currentBody = null
 let tailoring = null
 let openTailor = () => {}
-// What the tailor would cut from: { body, built, source } for the body shown.
-let tailorTarget = () => null
+// What the tailor cuts from: the body shown, once it is there (and not while
+// the rig tool has it).
+const tailorTarget = () => (!rigging && ch?.shown?.source === walker.source.value ? ch.shown : null)
 // The body the open tailor cuts from (a source's name).
 let tailoringOn = null
 // Why the last import or save failed, shown under the buttons.
 let importError = ''
 let exportGarment = () => {}
 let importGarment = () => {}
-// Garments you named and saved (kept in this browser), worn from their slot.
-const custom = new Map()
 let forgetGarment = () => {}
 let editGarment = () => {}
 // One picker per garment: the fabrics as presets, plus 'as made', which
@@ -107,21 +100,14 @@ let editGarment = () => {}
 // keeps the colour and recolour unless it brings its own (gold, copper).
 const clothPicker = (label, value) => materialPicker3d({ label, value, types: ['cloth'], collections: ['fabrics'], presets: [{ name: 'as made', recipe: { type: 'cloth', inputs: {} } }], keep: ['albedo', 'recolour'] })
 
-// What the body shown can wear: MakeHuman's wardrobe and the garments made
-// on MakeHuman for it; for a mesh's body, only the garments made on that mesh
-// (a garment is bound to the body it was cut from).
-const slotOptions = (slot) =>
-  madeHuman()
-    ? styles[slot].filter((n) => (custom.get(n)?.source ?? 'MakeHuman') === 'MakeHuman')
-    : ['none', ...[...custom].filter(([, c]) => c.source === walker.source.value && c.slot === slot).map(([n]) => n)]
 // A garment of your own worn in a slot, if it was made on the body shown.
 const ownIn = (slot) => {
-  const c = custom.get(walker[slot].value)
-  return c && c.source === walker.source.value ? c : null
+  const g = ch?.garments.get(walker[slot].value)
+  return g && g.source === walker.source.value ? g : null
 }
 const clothesRows = () => [
   label3d({ text: 'Clothes', collapsible: true }),
-  ...SLOTS.map((slot) => select3d({ label: slot, value: walker[slot], options: slotOptions(slot), stayOpen: true })),
+  ...SLOTS.map((slot) => select3d({ label: slot, value: walker[slot], options: choices(slot), stayOpen: true })),
   // One editor for whichever worn thing is chosen: its colourway, and its
   // material (a fabric, a colour, and a recolour over its texture: 0
   // keeps the texture's own colours).
@@ -172,7 +158,7 @@ preview.append(
       scenePanel: () => madeHuman() ? [
         ...characterRows(),
         label3d({ text: 'Body', collapsible: true, open: true }),
-        select3d({ label: 'source', value: walker.source, options: Object.keys(SOURCES), stayOpen: true }),
+        select3d({ label: 'source', value: walker.source, options: sourceNames(), stayOpen: true }),
         button3d({ label: 'open a mesh…', handleClick: () => openBody() }),
         slider('gender', 'gender'),
         slider('age', 'age'),
@@ -200,11 +186,11 @@ preview.append(
         slider3d({ label: 'brows up', value: walker.browsUp, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: 'frown', value: walker.frown, min: 0, max: 1, step: 0.01 }),
         label3d({ text: 'Hair', collapsible: true }),
-        select3d({ label: 'hair', value: walker.hair, options: styles.hair, stayOpen: true }),
-        select3d({ label: 'beard', value: walker.beard, options: styles.beard, stayOpen: true }),
-        select3d({ label: 'moustache', value: walker.moustache, options: styles.moustache, stayOpen: true }),
+        select3d({ label: 'hair', value: walker.hair, options: choices('hair'), stayOpen: true }),
+        select3d({ label: 'beard', value: walker.beard, options: choices('beard'), stayOpen: true }),
+        select3d({ label: 'moustache', value: walker.moustache, options: choices('moustache'), stayOpen: true }),
         slider3d({ label: 'stubble', value: walker.stubble, min: 0, max: 1, step: 0.01 }),
-        select3d({ label: 'brows', value: walker.brows, options: styles.brows, stayOpen: true }),
+        select3d({ label: 'brows', value: walker.brows, options: choices('brows'), stayOpen: true }),
         // A base and a highlight, each a swatch that opens a picker with presets;
         // a base preset brings its usual highlight with it.
         colorPicker3d({ label: 'base', value: walker.hairBase, alpha: false, defaultPresets: 'off', presets: Object.entries(HAIR_COLOURS).map(([name, c]) => ({ name, value: c.base })) }),
@@ -224,9 +210,9 @@ preview.append(
         // clothes) is not there; the clips and the skin are.
         ...characterRows(),
         label3d({ text: 'Body', collapsible: true, open: true }),
-        select3d({ label: 'source', value: walker.source, options: Object.keys(SOURCES), stayOpen: true }),
+        select3d({ label: 'source', value: walker.source, options: sourceNames(), stayOpen: true }),
         button3d({ label: 'open a mesh…', handleClick: () => openBody() }),
-        ...(sourceNote ? [text3d({ text: sourceNote })] : []),
+        ...(ch?.problem ? [text3d({ text: ch.problem })] : []),
         // Its rig is the rig tool's: markers, tail, springs, arm space. The
         // recipe is kept with the character.
         ...(rigging
@@ -289,40 +275,14 @@ preview.append(
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
 
-        const pack = await loadHumanPack(assetUrl('makehuman/hm08/hm08.json', 17)).catch((e) => {
+        // MakeHuman's pack and Quaternius' hairstyles, shared by any character.
+        const assets = await loadCharacterAssets(scene).catch((e) => {
           el.setLoading(`could not load the body: ${e.message}`, { spin: false })
           throw e
         })
-        // Quaternius' hairstyles, made for its own head, fitted to each body.
-        const hairLib = await loadHairLibrary(scene, assetUrl('quaternius/libraries/hairstyles.glb', 2))
-        const adult = (n) => !n.endsWith('_Teen')
-        const facial = (n) => /Beard|Moustache|MuttonChops/.test(n)
-        styles.hair.push(...hairLib.names('hair').filter((n) => adult(n) && !facial(n)))
-        // Beards and moustaches are MakeHuman's, bound to this face. Quaternius'
-        // are drawn for its own stylised mouth, and warped onto ours their ends
-        // droop and tilt; the library still places them (fitFor 'face').
-        styles.brows.push(...hairLib.names('eyebrows').filter(adult))
-        // MakeHuman's own clothes, hair and brows, bound to this body (proxy-fit).
-        const proxies = pack.manifest.proxies ?? {}
-        packProxies = proxies
-        const kinds = (cat, test) => Object.keys(proxies).filter((n) => proxies[n].category === cat && test(n))
-        for (const slot of SLOTS) styles[slot].push(...Object.keys(proxies).filter((n) => proxies[n].slot === slot))
-        // MakeHuman's hair and brows first: drawn for this head and bound to it.
-        // Quaternius' follow, for the looks MakeHuman lacks.
-        styles.hair.splice(1, 0, ...kinds('hair', () => true))
-        styles.brows.splice(1, 0, ...kinds('eyebrows', () => true))
-        // MakeHuman's beards come without moustaches: a moustache is its own choice.
-        styles.beard.push(...kinds('beard', (n) => !/moustache/i.test(n)))
-        styles.moustache.push(...kinds('beard', (n) => /moustache/i.test(n)))
-        const proxyMaterials = new Map()
-        // Each clothes material's shading (fabric and recolour), and which slot wears which.
-        const clothes = new Map()
-        const slotMaterial = {}
-        const refabric = () => {
-          for (const [slot, m] of Object.entries(slotMaterial)) clothes.get(m)?.set({ recipe: cloth[slot].material })
-        }
-        // The body's slider values, which rebuild the shape a garment was made on.
-        const bodyValues = () => Object.fromEntries(Object.keys(DEFAULT_HUMAN_BODY).map((k) => [k, Number(walker[k].value)]))
+        const pack = assets.pack
+        packProxies = pack.manifest.proxies ?? {}
+        const plain = (v) => JSON.parse(JSON.stringify(v))
         const save = (data, name, type) => {
           const a = document.createElement('a')
           a.href = URL.createObjectURL(new Blob([data], { type }))
@@ -330,55 +290,20 @@ preview.append(
           a.click()
           setTimeout(() => URL.revokeObjectURL(a.href), 1000)
         }
-        // What a garment was made on: MakeHuman's body (its slider values), or
-        // a mesh's (its source), which is the only body it is worn on.
-        const baseMeta = (source = walker.source.value) =>
-          source === 'MakeHuman'
-            ? { format: 'tosijs-garment', version: 1, base: pack.manifest.base, pack: pack.manifest.version, body: bodyValues(), name: 'tailored', slot: 'top' }
-            : { format: 'tosijs-garment', version: 1, source, name: 'tailored', slot: 'top' }
-        // The garment to take to an editor: the one being tailored, else the
-        // one of your own in the chosen slot. A GLB's bytes or an OBJ's text.
-        const garmentFile = (format, bodyAlone = false) => {
-          let garment = null
-          let meta = baseMeta()
-          if (!bodyAlone) {
-            const own = custom.get(walker[walker.tailorSlot.value].value)
-            const open = tailoring?.garment()
-            if (open) garment = open
-            else if (own) ({ garment, meta } = readGarment(own.bytes))
-            else return null
-          }
-          // The body it was made on, as a helper to model against (left out on import).
-          const shown = tailorTarget()
-          const body = bodyAlone || walker.exportBody.value
-            ? madeHuman() ? { positions: current, triangles: pack.triangles } : shown && { positions: shown.body.positions, triangles: shown.body.indices }
-            : null
-          return format === 'obj' ? writeGarmentObj({ garment, body, meta }) : writeGarmentGlb({ garment, body, meta })
+
+        // THE CLIP, on whatever body is shown, standing on the floor.
+        let playing = null
+        const play = () => {
+          playing?.dispose()
+          playing = null
+          if (!ch?.skeleton || rigging) return
+          const clip = ual.animationGroups.find((g) => g.name === walker.clip.value)
+          playing = clip ? retargetClip(clip, source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg }) : null
+          playing?.start(true)
+          ch.groundFor(playing)
+          if (walker.paused.value) playing?.pause()
         }
-        // A file's material as a proxy's: its images as object URLs.
-        const imageUrl = (img) => (img ? URL.createObjectURL(new Blob([img.bytes], { type: img.mimeType })) : undefined)
-        const fileLook = (m) =>
-          m
-            ? { diffuse: imageUrl(m.baseColorTexture), normal: imageUrl(m.normalTexture), metallicRoughness: imageUrl(m.metallicRoughnessTexture), roughness: m.roughness, metallic: m.metallic, baseColor: m.baseColor, normalScale: m.normalScale, alpha: m.alphaMode !== 'OPAQUE', blend: m.alphaMode === 'BLEND', alphaCutoff: m.alphaMode === 'MASK' ? m.alphaCutoff : undefined, twoSided: m.doubleSided }
-            : { alpha: false, twoSided: false }
-        // A garment from a file, bound to the body it was made on.
-        const proxyFrom = (binding, content, name, slot) => {
-          const { garment, meta, material } = content
-          return { ...binding, triangles: garment.triangles, uvs: garment.uvs ?? new Float32Array(binding.rows * 2), delete: null, name, category: 'clothes', slot, material: { ...fileLook(material), ...(meta?.cut?.skirt ? { twoSided: true } : {}) } }
-        }
-        const asProxy = async (content, name, slot) => {
-          const { garment, meta } = content
-          const on = meta?.body ? await morphHuman(pack, macroWeights({ ...DEFAULT_HUMAN_BODY, ...meta.body }, (n) => pack.has(n))) : current
-          return proxyFrom(bindGarment(on, pack.triangles, garment.positions, garmentRigidity(garment)), content, name, slot)
-        }
-        // A garment made on a mesh's body, bound to it once it is rigged.
-        const proxyOn = (c, r) => {
-          if (!c.bound.has(r)) {
-            const { garment } = c.content
-            c.bound.set(r, proxyFrom(bindGarment(r.body.positions, r.body.indices, garment.positions, garmentRigidity(garment)), c.content, c.name, c.slot))
-          }
-          return c.bound.get(r)
-        }
+
         // The saved garments, in IndexedDB: per browser, nothing shared yet.
         const garmentStore = async (mode, fn) => {
           const db = await new Promise((ok, no) => {
@@ -394,25 +319,135 @@ preview.append(
             t.onerror = () => no(t.error)
           })
         }
-        // Wear a saved garment's file as a choice in its slot.
-        const addCustom = async (bytes) => {
-          const content = readGarment(bytes)
-          const { name } = content.meta
-          // A slot this page has, or a top.
-          const slot = SLOTS.includes(content.meta.slot) ? content.meta.slot : 'top'
-          const source = content.meta.source ?? 'MakeHuman'
-          proxyMaterials.delete(`${name}:`)
-          const proxy = source === 'MakeHuman' ? await asProxy(content, name, slot) : null
-          custom.set(name, { name, slot, source, proxy, content, bound: new WeakMap(), cut: content.meta.cut, look: content.meta.look, bytes: new Uint8Array(bytes) })
-          if (source === 'MakeHuman' && !styles[slot].includes(name)) styles[slot].push(name)
-          return content.meta
+        const savedGarments = await garmentStore('readonly', (st) => st.getAll()).catch((e) => {
+          console.warn('tailor: no saved garments (storage unavailable)', e)
+          return []
+        })
+
+        // THE CHARACTER: everything the panel sets that is about it (not the
+        // clip, the tailor's work or the save controls).
+        const OWN = Object.keys(DEFAULT_CHARACTER).filter((k) => k in START)
+        const settings = () => ({ ...Object.fromEntries(OWN.map((k) => [k, plain(walker[k].value)])), hideClothes: walker.tailorAlone.value })
+        ch = await makeCharacter(scene, assets, {
+          settings: settings(),
+          sources: SOURCES,
+          garments: savedGarments ?? [],
+          gaze: () => scene.activeCamera?.globalPosition ?? cam.position,
+          handleStatus: (m) => el.setLoading(m),
+          handleMeshes: (meshes) => el.register({ meshes }),
+          handleShown: (shown) => {
+            // A garment being cut is cut from the body as it is now.
+            if (shown && tailoringOn === shown.source) tailoring?.setBody(shown.body, shown.built)
+            el.refreshScenePanel?.()
+            play()
+          },
+        })
+        el.builder = {
+          character: null,
+          pack,
+          get ch() { return ch },
+          get built() { return ch.shown?.built },
+          get body() { return ch.shown?.body },
+          get tailorShapes() { return tailorShapes },
+          set tailorShapes(v) { tailorShapes = v },
+          get tailor() { return tailoring },
+          openTailor: () => openTailor(),
+          garmentFile: (f, alone) => garmentFile(f, alone),
+          importFrom: (d, n) => importFrom(d, n),
+          forget: () => forgetGarment(),
+          edit: () => editGarment(),
+          saved: ch.garments,
+          get message() { return importError },
+          get expressions() { return ch.expressions },
+        }
+        // Each of the character's settings goes to it as it changes.
+        for (const k of OWN) walker[k].observe(() => ch.set({ [k]: plain(walker[k].value) }))
+        walker.tailorAlone.observe(() => ch.set({ hideClothes: walker.tailorAlone.value }))
+        // An outfit replaces a top and bottom, and either replaces an outfit.
+        walker.outfit.observe(() => { if (walker.outfit.value !== 'none') { walker.top.value = 'none'; walker.bottom.value = 'none' } })
+        for (const k of ['top', 'bottom']) walker[k].observe(() => { if (walker[k].value !== 'none') walker.outfit.value = 'none' })
+        // Picking a base preset brings its usual highlight.
+        walker.hairBase.observe(() => {
+          const pair = Object.values(HAIR_COLOURS).find((c) => c.base === walker.hairBase.value)
+          if (pair && walker.hairHighlight.value !== pair.highlight) walker.hairHighlight.value = pair.highlight
+        })
+        // The editor shows the chosen slot's look and material and writes back to them.
+        let loading = false
+        const load = () => {
+          loading = true
+          const c = ch.cloth(walker.editing.value)
+          walker.look.value = c.look
+          walker.clothLook.value = plain(c.material)
+          loading = false
+          el.refreshScenePanel?.()
+        }
+        walker.editing.observe(load)
+        // Wearing something new: edit it (the character resets its look).
+        for (const slot of SLOTS) walker[slot].observe(() => {
+          if (walker[slot].value === 'none') return
+          if (walker.editing.value === slot) load()
+          else walker.editing.value = slot
+        })
+        walker.look.observe(() => { if (!loading) ch.setCloth(walker.editing.value, { look: walker.look.value }) })
+        walker.clothLook.observe(() => { if (!loading) ch.setCloth(walker.editing.value, { material: plain(walker.clothLook.value) }) })
+        // The microphone drives the lips (it asks first, so it is never saved).
+        let stopMic = null
+        walker.mic.observe(async () => {
+          stopMic?.()
+          stopMic = null
+          if (!walker.mic.value) return
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+            const ctx = new AudioContext()
+            const analyser = ctx.createAnalyser()
+            ctx.createMediaStreamSource(stream).connect(analyser)
+            const stop = lipSync(scene, ch.expressions, analyser, { gain: 1.5 })
+            stopMic = () => { stop(); stream.getTracks().forEach((t) => t.stop()); ctx.close() }
+          } catch (e) {
+            walker.mic.value = false
+            console.warn('lip sync: no microphone', e)
+          }
+        })
+        // Another body: the rig tool on this one goes, and the tailor when it
+        // was cutting from the one before.
+        walker.source.observe(() => {
+          if (rigging) { rigging.unmount(); rigging = null; ch.hide(false) }
+          if (tailoring && tailoringOn !== walker.source.value) tailoring.cancel()
+        })
+
+        // GARMENTS OF YOUR OWN: what a garment was made on (MakeHuman's body,
+        // its slider values; or a mesh's, its source, the only body it is
+        // worn on), and the files kept in this browser.
+        const bodyValues = () => Object.fromEntries(Object.keys(DEFAULT_HUMAN_BODY).map((k) => [k, Number(walker[k].value)]))
+        const baseMeta = (from = walker.source.value) =>
+          from === 'MakeHuman'
+            ? { format: 'tosijs-garment', version: 1, base: pack.manifest.base, pack: pack.manifest.version, body: bodyValues(), name: 'tailored', slot: 'top' }
+            : { format: 'tosijs-garment', version: 1, source: from, name: 'tailored', slot: 'top' }
+        // The garment to take to an editor: the one being tailored, else the
+        // one of your own in the chosen slot. A GLB's bytes or an OBJ's text.
+        const garmentFile = (format, bodyAlone = false) => {
+          let garment = null
+          let meta = baseMeta()
+          if (!bodyAlone) {
+            const own = ownIn(walker.tailorSlot.value)
+            const open = tailoring?.garment()
+            if (open) garment = open
+            else if (own) ({ garment, meta } = readGarment(own.bytes))
+            else return null
+          }
+          // The body it was made on, as a helper to model against (left out on import).
+          const shown = ch.shown
+          const body = bodyAlone || walker.exportBody.value
+            ? madeHuman() ? { positions: ch.human.positions, triangles: pack.triangles } : shown && { positions: shown.body.positions, triangles: shown.body.indices }
+            : null
+          return format === 'obj' ? writeGarmentObj({ garment, body, meta }) : writeGarmentGlb({ garment, body, meta })
         }
         const say = (message) => { importError = message; el.refreshScenePanel?.() }
         // A name of its own: not MakeHuman's, and not another garment's
         // unless it is the one being replaced.
         const freeName = (wanted, replacing) => {
           const base = (wanted || 'garment').trim()
-          const taken = (n) => n === 'none' || proxies[n] || (custom.has(n) && n !== replacing)
+          const taken = (n) => n === 'none' || packProxies[n] || (ch.garments.has(n) && n !== replacing)
           let n = base
           for (let i = 2; taken(n); i++) n = `${base} ${i}`
           return n
@@ -420,19 +455,18 @@ preview.append(
         // A garment file kept in this browser and worn from its slot.
         const keep = async (bytes, slot) => {
           await garmentStore('readwrite', (st) => st.put(bytes, readGarment(bytes).meta.name))
-          const meta = await addCustom(bytes)
+          const g = await ch.addGarment(bytes)
           importError = ''
-          walker[slot].value = meta.name
-          redress()
+          if (walker[slot].value === g.name) ch.redress()
+          else walker[slot].value = g.name
           el.refreshScenePanel?.()
         }
         forgetGarment = async () => {
           const slot = walker.tailorSlot.value
           const name = walker[slot].value
           if (!ownIn(slot)) return
-          await garmentStore('readwrite', (s) => s.delete(name)).catch((e) => console.warn('tailor: could not forget', e))
-          custom.delete(name)
-          styles[slot] = styles[slot].filter((n) => n !== name)
+          await garmentStore('readwrite', (st) => st.delete(name)).catch((e) => console.warn('tailor: could not forget', e))
+          ch.forgetGarment(name)
           walker[slot].value = 'none'
           el.refreshScenePanel?.()
         }
@@ -454,7 +488,7 @@ preview.append(
             look: plain(walker.tailorLook.value),
             name: walker.tailorName.value,
             slot: walker.tailorSlot.value,
-            slots: SLOTS,
+            slots: [...SLOTS],
             hideOthers: walker.tailorAlone.value,
             handleHideOthers: (v) => { walker.tailorAlone.value = v },
             handleChange: ({ cut, look, name, slot }) => {
@@ -492,13 +526,13 @@ preview.append(
         editGarment = () => {
           const slot = walker.tailorSlot.value
           const name = walker[slot].value
-          const saved = custom.get(name)
-          if (!saved?.cut || tailoring || saved.source !== walker.source.value) return
+          const saved = ownIn(slot)
+          if (!saved?.cut || tailoring) return
           tailorShapes = saved.cut.shapes
           walker.tailorThickness.value = saved.cut.thickness
           walker.tailorSkirt.value = saved.cut.skirt === true
           walker.tailorName.value = name
-          if (saved.look) walker.tailorLook.value = lookRecipe(saved.look)
+          if (saved.look) walker.tailorLook.value = saved.look.material ?? clothRecipe(saved.look)
           openTailor({ slot, name })
         }
         exportGarment = (format, bodyAlone = false) => {
@@ -530,609 +564,26 @@ preview.append(
               await importFrom(file.name.endsWith('.obj') ? await file.text() : await file.arrayBuffer(), file.name)
             } catch (e) {
               console.warn('tailor: could not import', e)
-              say(`${file.name}: ${String(e?.message ?? e).replace(/^garment-file: /, '')}`)
+              say(`${file.name}: ${e?.message ?? e}`)
             }
           })
         }
-        walker.tailorAlone.observe(() => redress())
-        walker.tailorSlot.observe(() => el.refreshScenePanel?.())
-        // What this browser has saved, once the body is up (see below).
-        const loadSaved = async () => {
-          try {
-            const all = await garmentStore('readonly', (s) => s.getAll())
-            for (const bytes of all ?? []) await addCustom(bytes).catch((e) => console.warn('tailor: a saved garment would not load', e))
-            if (all?.length) el.refreshScenePanel?.()
-          } catch (e) {
-            console.warn('tailor: no saved garments (storage unavailable)', e)
-          }
-        }
-        const tints = new Map()
-        // Every hair material's colouring (Quaternius' and MakeHuman's).
-        const shades = []
-        const tint = (part) => {
-          const from = part.material
-          if (!tints.has(from)) {
-            const m = hairMaterial(scene, from, `hair-${tints.size}`)
-            shades.push(hairShading(m, { base: walker.hairBase.value, highlight: walker.hairHighlight.value }))
-            tints.set(from, m)
-          }
-          return tints.get(from)
-        }
-        el.setLoading('binding the skin…')
-        // Let the message paint before the binding takes the thread.
-        await new Promise((r) => setTimeout(r, 50))
-        const skin = humanSkin(pack)
-        const [lips, nipples, eyePart, lashPart] = await Promise.all([pack.region('lips'), pack.region('nipples'), pack.part('eyes'), pack.part('eyelashes')])
-        eyes = eyeTexture(scene, { iris: walker.iris.value })
-        eyes.setIrisColour(walker.irisColour.value)
-        const faceMaterials = { eye: eyeMaterial(scene, eyes), lashes: lashMaterial(scene) }
-        let face = null
-        let scalp = null
-        // For poking at from the console: what this page built.
-        el.builder = { pack, hairLib, get scalp() { return scalp }, get built() { return built }, get positions() { return current }, get stubble() { return stubbleMask }, get tailorShapes() { return tailorShapes }, set tailorShapes(v) { tailorShapes = v }, get tailor() { return tailoring }, openTailor: () => openTailor(), get body() { return currentBody }, garmentFile: (f, alone) => garmentFile(f, alone), importFrom: (d, n) => importFrom(d, n), forget: () => forgetGarment(), edit: () => editGarment(), saved: custom, get message() { return importError } }
-        let hairMeshes = []
-        let dressing = 0
-        // A worn thing's material, one per garment and colourway (shared).
-        const garmentMaterial = (proxy, slot) => {
-          const look = slot && cloth[slot].look !== 'as made' ? cloth[slot].look : undefined
-          const key = `${proxy.name}:${look ?? ''}`
-          if (!proxyMaterials.has(key)) {
-            const m = proxyMaterial(scene, proxy, look)
-            // MakeHuman's hair, brows and beards take the hair colours too;
-            // clothes take a fabric and a recolour.
-            if (['hair', 'eyebrows', 'beard'].includes(proxy.category)) shades.push(hairShading(m, { desaturate: true, base: walker.hairBase.value, highlight: walker.hairHighlight.value }))
-            else if (proxy.category === 'clothes') clothes.set(m, clothShading(m))
-            proxyMaterials.set(key, m)
-          }
-          const m = proxyMaterials.get(key)
-          // The cache is by name: the tailored garment turns skirt (two-sided) on and off.
-          m.backFaceCulling = !proxy.material?.twoSided
-          m.twoSidedLighting = proxy.material?.twoSided === true
-          if (slot) slotMaterial[slot] = m
-          return m
-        }
-        dress = async () => {
-          if (!built || !scalp) return
-          const token = ++dressing
-          // What it wears from the pack (bound), fetched before anything changes.
-          const slots = [...[...SLOTS, 'hair', 'brows', 'beard', 'moustache'].map((k) => walker[k].value), 'teeth_base', 'tongue01'].filter((n) => proxies[n] || custom.get(n)?.proxy)
-          let wearing = await Promise.all(slots.map((n) => custom.has(n) ? custom.get(n).proxy : pack.proxy(n)))
-          if (token !== dressing) return
-          // Only what the tailor is making, to see it on its own.
-          if (walker.tailorAlone.value) wearing = wearing.filter((p) => p.category !== 'clothes')
-          for (const m of hairMeshes) m.dispose()
-          hairMeshes = []
-          const nudge = { y: walker.hairUp.value, z: walker.hairForward.value, scale: walker.hairSize.value }
-          for (const key of ['hair', 'beard', 'moustache', 'brows']) {
-            const parts = hairLib.piece(walker[key].value)
-            if (!parts) continue
-            // Brows and beards follow the face; hair follows the skull.
-            const style = walker[key].value
-            const on = hairLib.fitFor(style)
-            hairMeshes.push(...humanHair(scene, built, built.rig, scalp, parts, tint, { name: key, on, head: hairLib.headFor(style), centreY: key === 'brows' ? scalp.brow : undefined, nudge: key === 'hair' ? nudge : undefined }))
-          }
-          for (const k of Object.keys(slotMaterial)) delete slotMaterial[k]
-          for (const proxy of wearing) {
-            const slot = SLOTS.find((k) => walker[k].value === proxy.name) ?? null
-            const m = garmentMaterial(proxy, slot)
-            // A hat sits a little out from the head, over the hair.
-            const hatFit = slot === 'hat' ? { inflate: { centre: scalp.centre, by: HAT_LIFT } } : slot === 'armour' ? { lift: 0.005 } : {}
-            const mesh = humanProxy(scene, built, proxy, clothBody, allWeights, m, hatFit)
-            mesh.metadata = { category: proxy.category }
-            hairMeshes.push(mesh)
-          }
-          // A hat hides the hair under its brim, or the hair pokes through it.
-          const hat = wearing.find((p) => p.name === walker.hat.value)
-          if (hat) {
-            const crown = inflate(drawnPositions(hat, fitProxy(hat, current)), scalp.centre, HAT_LIFT)
-            const at = built.rig.at('Head')
-            for (const mesh of hairMeshes) {
-              const hair = mesh.name.startsWith('hair-') || mesh.metadata?.category === 'hair'
-              if (!hair) continue
-              // Quaternius' hair hangs on the head, in its frame less the head joint.
-              const p = Float32Array.from(mesh.getVerticesData('position'))
-              if (mesh.name.startsWith('hair-')) {
-                for (let i = 0; i < p.length; i += 3) { p[i] += at.x; p[i + 1] += at.y; p[i + 2] += at.z }
-              }
-              const tucked = Float32Array.from(p)
-              mesh.setIndices(Array.from(underCover(crown, p, mesh.getIndices(), 24, tucked)))
-              if (mesh.name.startsWith('hair-')) {
-                for (let i = 0; i < tucked.length; i += 3) { tucked[i] -= at.x; tucked[i + 1] -= at.y; tucked[i + 2] -= at.z }
-              }
-              mesh.setVerticesData('position', tucked, true)
-            }
-          }
-          refabric()
-          // Stand on the soles: shoes reach below the bare foot by their sole.
-          const shoe = wearing.find((p) => p.name === walker.shoes.value)
-          sole = 0
-          if (shoe) {
-            const fitted = fitProxy(shoe, current)
-            let low = Infinity
-            for (let i = 1; i < fitted.length; i += 3) low = Math.min(low, fitted[i])
-            sole = Math.max(0, built.rig.at('root').y - low)
-          }
-          // Skin under clothes is hidden, so it cannot show through.
-          // The garments as fitted, for the skin they cover but do not list.
-          const drawn = new Map(wearing.filter((p) => p.category === 'clothes').map((p) => [p.name, drawnPositions(p, fitProxy(p, clothBody))]))
-          coverBody(built, skin.triangles, skin.vertices, wearing, { drawn })
-          // Clothes tuck the skin they cover, so the feet are measured again.
-          if (playing) clipLow = measureClip(playing)
-          ground()
-          // Everything that moves with the face, after the tuck (its rest).
-          if (el.builder.expressions) {
-            const expr = el.builder.expressions
-            expr.attach(built.mesh, (d) => skin.positions(d))
-            for (const m of face?.meshes ?? []) {
-              const pv = m.metadata?.packVertices
-              // The eyeballs turn; they never deform.
-              if (!pv || m.name.startsWith('eye_')) continue
-              expr.attach(m, (d) => {
-                const out = new Float32Array(pv.length * 3)
-                for (let i = 0; i < pv.length; i++) { out[i * 3] = d[pv[i] * 3]; out[i * 3 + 1] = d[pv[i] * 3 + 1]; out[i * 3 + 2] = d[pv[i] * 3 + 2] }
-                return out
-              })
-            }
-            for (const proxy of wearing) {
-              const mesh = hairMeshes.find((m) => m.name === `proxy-${proxy.name}`)
-              if (mesh) expr.attach(mesh, (d) => proxyDelta(proxy, d))
-            }
-          }
-          el.register({ meshes: hairMeshes })
-        }
-        for (const key of ['hair', 'beard', 'moustache', 'brows', 'hairUp', 'hairForward', 'hairSize']) walker[key].observe(() => dress())
-        for (const key of SLOTS) walker[key].observe(() => redress())
-        // An outfit replaces a top and bottom, and either replaces an outfit.
-        walker.outfit.observe(() => { if (walker.outfit.value !== 'none') { walker.top.value = 'none'; walker.bottom.value = 'none' } })
-        for (const k of ['top', 'bottom']) walker[k].observe(() => { if (walker[k].value !== 'none') walker.outfit.value = 'none' })
-        // The editor shows the chosen slot's settings and writes back to them.
-        let loading = false
-        const load = () => {
-          loading = true
-          const c = cloth[walker.editing.value]
-          walker.look.value = c.look
-          walker.clothLook.value = c.material
-          loading = false
-          el.refreshScenePanel?.()
-        }
-        walker.editing.observe(load)
-        // Wearing something new: edit it, from its own colourway.
-        for (const slot of SLOTS) walker[slot].observe(() => {
-          if (walker[slot].value === 'none') return
-          cloth[slot].look = 'as made'
-          // A saved garment comes as it was saved.
-          const saved = custom.get(walker[slot].value)?.look
-          if (saved) cloth[slot].material = lookRecipe(saved)
-          if (walker.editing.value === slot) load()
-          else walker.editing.value = slot
-        })
-        walker.look.observe(() => { if (loading) return; cloth[walker.editing.value].look = walker.look.value; dress() })
-        walker.clothLook.observe(() => {
-          if (loading) return
-          cloth[walker.editing.value].material = walker.clothLook.value
-          refabric()
-        })
-        // Colours repaint whoever sets them: a picker, a preset, or code.
-        const recolour = () => { for (const sh of shades) sh.setColours(walker.hairBase.value, walker.hairHighlight.value) }
-        walker.hairBase.observe(recolour)
-        walker.hairHighlight.observe(recolour)
-        // Picking a base preset brings its usual highlight.
-        walker.hairBase.observe(() => {
-          const pair = Object.values(HAIR_COLOURS).find((c) => c.base === walker.hairBase.value)
-          if (pair && walker.hairHighlight.value !== pair.highlight) walker.hairHighlight.value = pair.highlight
-        })
-        for (const key of Object.keys(DEFAULT_HUMAN_BODY)) walker[key].observe(() => rebuild())
-        walker.tone.observe(() => paint())
-        walker.stubble.observe(() => { if (stubbleMask == null) measureStubble(); else paint() })
-        walker.hairBase.observe(() => paint())
-        walker.redness.observe(() => paint())
-        walker.iris.observe(() => eyes.setIris(walker.iris.value))
-        walker.irisColour.observe(() => eyes.setIrisColour(walker.irisColour.value))
-        // The eyes find the camera.
-        eyeGaze(scene, { get eyes() { return face?.eyes ?? [] }, get forward() { return face?.forward ?? [] } }, () => scene.activeCamera?.globalPosition ?? cam.position)
-        // MakeHuman makes rigged bodies (rigged-body): each shape the
-        // sliders give, on UAL's skeleton, with weights bound once on the
-        // first (they depend only on the topology).
-        const sliders = () => Object.fromEntries(Object.keys(DEFAULT_HUMAN_BODY).map((k) => [k, Number(walker[k].value)]))
-        const maker = await humanBodyMaker(pack, sliders())
-        const first = maker.first.full
-        const weights = maker.weights
-        // How thin the body is at each vertex (ears, nose, fingers), for the
-        // skin's back-light: once, like the weights.
-        const firstSkin = skin.positions(first)
-        const thin = skinThinness(firstSkin, vertexNormals(firstSkin, skin.triangles))
-        // Weights for every pack vertex, so clothes bound to helper vertices
-        // (the tights and skirt shells, which carry no skin) bend too.
-        const known = new Int32Array(pack.manifest.vertexCount).fill(-1)
-        skin.vertices.forEach((v, i) => { known[v] = i })
-        const allWeights = nearestWeights(first, known, weights)
-        let current = first
-        // What clothes are fitted over: the body with its nipples smoothed,
-        // because cloth bridges them (the skin keeps them).
-        const smoothed = (p) => nipples ? smoothUnder(p, pack.triangles, nipples) : p
-        let clothBody = smoothed(first)
-        // (the saved garments load below, before the working figure that may wear them)
 
-        // The face: MakeHuman's face pose units as morph targets, in layers.
-        const expr = humanExpressions(scene, await faceDeltas(pack))
-        el.builder.expressions = expr
-        let stopBlink = null
-        const blinking = () => {
-          stopBlink?.()
-          stopBlink = walker.blink.value ? blinker(scene, expr) : null
-        }
-        walker.blink.observe(blinking)
-        blinking()
-        lidsFollow(scene, expr, () => face)
-        let stopTalk = null
-        walker.talk.observe(() => {
-          stopTalk?.()
-          stopTalk = walker.talk.value ? babble(scene, expr) : null
-        })
-        let stopMic = null
-        walker.mic.observe(async () => {
-          stopMic?.()
-          stopMic = null
-          if (!walker.mic.value) return
-          try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-            const ctx = new AudioContext()
-            const analyser = ctx.createAnalyser()
-            ctx.createMediaStreamSource(stream).connect(analyser)
-            const stop = lipSync(scene, expr, analyser, { gain: 1.5 })
-            stopMic = () => { stop(); stream.getTracks().forEach((t) => t.stop()); ctx.close() }
-          } catch (e) {
-            walker.mic.value = false
-            console.warn('lip sync: no microphone', e)
-          }
-        })
-        const mood = expr.layer('mood')
-        const feel = () => {
-          const s = walker.smile.value
-          const b = walker.browsUp.value
-          const f = walker.frown.value
-          mood.setMany({ MouthLeftPullUp: s, MouthRightPullUp: s, LeftCheekUp: s * 0.6, RightCheekUp: s * 0.6, LeftOuterBrowUp: b, RightOuterBrowUp: b, LeftInnerBrowUp: b, RightInnerBrowUp: b, LeftBrowDown: f, RightBrowDown: f })
-        }
-        for (const k of ['smile', 'browsUp', 'frown']) walker[k].observe(feel)
-
-        mat = skinMaterial(scene, { tone: walker.tone.value, redness: walker.redness.value })
-        // The skin's colour, and the lips' as vertex colours over it.
-        // Where a full beard grows, as a mask over the skin, for stubble: the
-        // skin MakeHuman's full beard (fitted to this body) lies on.
-        let stubbleMask = null
-        const linearHex = (hex) => {
-          const n = parseInt(hex.slice(1, 7), 16)
-          const lin = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4))
-          return { r: lin(((n >> 16) & 255) / 255), g: lin(((n >> 8) & 255) / 255), b: lin((n & 255) / 255) }
-        }
-        const proxyNamed = (re) => Object.keys(pack.manifest.proxies ?? {}).find((n) => re.test(n))
-        const beardFor = proxyNamed(/scruffy_beard/)
-        const tacheFor = proxyNamed(/moustache/)
-        const measureStubble = async () => {
-          if (!beardFor || !current) return
-          const body = skin.positions(current)
-          const normals = vertexNormals(body, skin.triangles)
-          const grownOn = async (name) => {
-            const p = await pack.proxy(name)
-            return coveredBy(body, normals, drawnPositions(p, fitProxy(p, current)), 0.02)
-          }
-          // Where a full beard grows, and a moustache: the full beard has no
-          // moustache part, so the upper lip was bare.
-          const beard = await grownOn(beardFor)
-          const tache = tacheFor ? await grownOn(tacheFor) : null
-          // The beard below the cheekbones: up to a little above the upper lip,
-          // faded (the full beard climbs the cheeks, and stubble there read as a bruise).
-          let lipTop = -Infinity
-          for (let v = 0; v < lips.length; v++) if (lips[v] > 0.5) lipTop = Math.max(lipTop, current[v * 3 + 1])
-          const cap = lipTop + 0.03
-          const smooth = (t) => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t) }
-          const n = body.length / 3
-          const mask = new Float32Array(n)
-          for (let i = 0; i < n; i++) {
-            const b = beard[i] === Infinity ? 0 : smooth((cap - body[i * 3 + 1]) / 0.015)
-            const t = tache && tache[i] !== Infinity ? 1 : 0
-            // Not on the lips themselves.
-            mask[i] = Math.max(b, t) * (1 - smooth((lips[skin.vertices[i]] - 0.05) / 0.45))
-          }
-          // Down the neck: the full beard stops at the jaw, but stubble grows on
-          // the throat and the sides of the neck, fading over 5 cm below the
-          // beard's edge. Front and sides only (the normal faces forward or out).
-          const edge = []
-          let low = Infinity
-          for (let i = 0; i < n; i++) if (mask[i] > 0.5 && body[i * 3 + 1] < lipTop) { edge.push(i); low = Math.min(low, body[i * 3 + 1]) }
-          const REACH = 0.05
-          for (let i = 0; i < n; i++) {
-            const y = body[i * 3 + 1]
-            if (mask[i] > 0.5 || y > lipTop || y < low - REACH || normals[i * 3 + 2] < -0.2) continue
-            let d = Infinity
-            for (const j of edge) {
-              if (body[j * 3 + 1] < y) continue
-              const dx = body[j * 3] - body[i * 3]
-              const dy = body[j * 3 + 1] - y
-              const dz = body[j * 3 + 2] - body[i * 3 + 2]
-              d = Math.min(d, dx * dx + dy * dy + dz * dz)
-            }
-            mask[i] = Math.max(mask[i], smooth(1 - Math.sqrt(d) / REACH))
-          }
-          stubbleMask = mask
-          paint()
-        }
-        paint = () => {
-          mat.setSkin(walker.tone.value, walker.redness.value)
-          if (lips && built) {
-            const colours = lipTint(skin, lips, walker.tone.value, walker.redness.value, undefined, thin)
-            if (stubbleMask) stubbleTint(colours, stubbleMask, walker.stubble.value, skinAlbedo(walker.tone.value, walker.redness.value), linearHex(walker.hairBase.value))
-            built.mesh.setVerticesData('color', colours)
-          }
-        }
-        const stand = new BABYLON.TransformNode('stand', scene)
-        let built = null
-        // The body the clip plays on and the floor holds up: MakeHuman's
-        // (built) or an imported one.
-        let shown = null
-        let playing = null
-        let read = null
-        // How far below the body's root its skin reaches while the clip plays
-        // (null: at rest), and how far shoes reach below the bare foot.
-        let clipLow = null
-        let sole = 0
-        // Stand on the floor: the body is grounded at rest, but a retargeted
-        // clip carries the feet lower (Idle by ~4 cm), so it is measured.
-        const ground = () => { if (shown) stand.position.y = -(clipLow ?? shown.rig.at('root').y) + (shown === built ? sole : 0) }
-        const measureClip = (group) => {
-          const mesh = shown.mesh
-          const nodes = shown.root.getChildTransformNodes(false)
-          // The soles only: a tail on a spring hangs anywhere while sampled.
-          shown.soles ??= soleVertices(shown.body)
-          let low = Infinity
-          for (let k = 0; k < 24; k++) {
-            group.goToFrame(group.from + ((group.to - group.from) * k) / 24)
-            for (const n of nodes) n.computeWorldMatrix(true)
-            shown.skeleton.prepare(true)
-            if (shown.soles.length) low = Math.min(low, lowestOf(mesh, shown.soles))
-            else {
-              mesh.refreshBoundingInfo({ applySkeleton: true, applyMorph: true })
-              low = Math.min(low, mesh.getBoundingInfo().boundingBox.minimumWorld.y)
-            }
-          }
-          group.goToFrame(group.from)
-          return low - stand.position.y
-        }
-        const play = () => {
-          playing?.dispose()
-          const clip = ual.animationGroups.find((g) => g.name === walker.clip.value)
-          playing = clip ? retargetClip(clip, source, read, { scene, armSpaceDeg: shown?.recipe?.armSpaceDeg }) : null
-          playing?.start(true)
-          clipLow = playing ? measureClip(playing) : null
-          ground()
-          if (walker.paused.value) playing?.pause()
-        }
-        let busy = false
-        let again = false
-        rebuild = async () => {
-          if (busy) { again = true; return }
-          busy = true
-          const made = await maker.body(sliders())
-          const full = made.full
-          current = full
-          clothBody = smoothed(full)
-          stubbleMask = null
-          const rig = made.rig
-          face?.dispose()
-          built?.dispose()
-          built = buildBody(scene, 'walker', made)
-          currentBody = made
-          face = humanFace(scene, built, rig, pack.manifest, full, { eyes: eyePart, eyelashes: lashPart }, faceMaterials)
-          built.rig = rig
-          scalp = headScalp(pack.manifest, full, pack.triangles, { lips })
-          dress()
-          built.mesh.material = mat
-          built.root.parent = stand
-          clipLow = null
-          ground()
-          el.register({ meshes: [built.mesh, ...face.meshes] })
-          if (walker.stubble.value > 0) measureStubble()
-          paint()
-          // A garment being cut is cut from the body as it is now.
-          if (tailoringOn === 'MakeHuman') tailoring?.setBody(made, built)
-          if (madeHuman()) {
-            shown = built
-            read = readSkeleton(built.skeleton, built.root)
-            play()
-          } else built.root.setEnabled(false)
-          busy = false
-          if (again) { again = false; rebuild() }
-        }
-        await rebuild()
-        // An imported body: its triangles loaded once, then bound from its
-        // rig recipe (the rig tool's markers, else a first guess off its
-        // outline) and kept until the recipe changes.
-        const plain = (v) => JSON.parse(JSON.stringify(v))
-        const triangles = new Map()
-        const rigged = new Map()
-        let other = null
-        let choosing = 0
-        const recipeOf = (name) => plain(walker.rigs.value)[name] ?? null
-        const keepRecipe = (name, recipe) => {
-          walker.rigs.value = { ...plain(walker.rigs.value), [name]: plain(recipe) }
-        }
-        // A file skinned to UAL's skeleton already (Quaternius' characters,
-        // or a mesh bound to it in a modeller) is taken as it is: its own
-        // joints and weights, unless its recipe binds it from markers.
-        const skinned = new Map()
-        const rig = async (name) => {
-          const from = SOURCES[name]
-          const kept0 = recipeOf(name)
-          if (!kept0?.binding) {
-            if (!skinned.has(name)) skinned.set(name, await loadSkinnedBody(scene, from.file ?? from.url, { pick: from.pick }))
-            const own = skinned.get(name)
-            if (own) return wear(own, kept0, name)
-          }
-          if (!triangles.has(name)) triangles.set(name, await loadRigTriangles(scene, from.file ?? from.url, { pick: from.pick }))
-          const tris = triangles.get(name)
-          const kept = recipeOf(name)
-          return wear(bodyFromMarkers(tris, { markers: kept?.binding?.markers, tail: kept?.binding?.tail, tailBase: kept?.binding?.tailBase, joints: kept?.binding?.joints, source: name }), kept, name)
-        }
-        // A rigged body on the stand in the builder's skin, with its recipe.
-        const wear = (body, kept, name) => {
-          const r = buildBody(scene, `body-${rigged.size}`, body)
-          r.kept = JSON.stringify(kept)
-          // A body bound from markers carries them in its recipe, so the rig
-          // tool binds the same mesh from the same markers; one with its own
-          // skin opens on its own skeleton.
-          r.recipe = { version: 1, roles: {}, armSpaceDeg: 0, springs: [], ...kept, ...(body.made.by === 'markers' ? { binding: { markers: body.made.markers, tail: body.made.tail ?? null, ...(body.made.tailBase ? { tailBase: body.made.tailBase } : {}), ...(body.made.joints ? { joints: body.made.joints } : {}) } } : {}) }
-          r.source = name
-          dressSurfaces(r)
-          const dispose = r.dispose
-          r.dispose = () => { r.multi?.dispose(false, false, false); for (const m of r.clothes ?? []) m.dispose(); dispose() }
-          r.root.parent = stand
-          r.root.setEnabled(false)
-          el.register({ meshes: [r.mesh] })
-          return r
-        }
-        // EACH SURFACE AS MADE OR IN THE SKIN: a file's own materials (its
-        // textures, metal, glass) or the builder's skin shader, per material.
-        // A plain mesh of one untextured material takes the skin; anything
-        // with textures or several materials is shown as made.
-        const surfaceChoice = (r, surface) => {
-          const kept = plain(walker.surfaces.value)[r.source]?.[surface.name]
-          if (kept) return kept
-          const made = surface.material
-          const textured = (made?.getActiveTextures().length ?? 0) > 0
-          return made && (textured || r.body.surfaces.length > 1) ? 'as made' : 'skin'
-        }
-        const dressSurfaces = (r) => {
-          r.multi?.dispose(false, false, false)
-          const m = surfaceMaterial(scene, r.mesh.name, r.body, (surface) =>
-            surface?.material && surfaceChoice(r, surface) === 'as made' ? surface.material : mat)
-          r.multi = m instanceof BABYLON.MultiMaterial ? m : null
-          r.mesh.material = m
-        }
-        surfaceRows = () => {
-          // One row per material, however many runs of triangles use it.
-          const surfaces = [...new Map((other?.body.surfaces ?? []).filter((x) => x.material).map((x) => [x.name, x])).values()]
-          if (!surfaces.length) return []
-          const r = other
-          return [
-            label3d({ text: 'Surfaces', collapsible: true, open: true }),
-            ...surfaces.map((surface) =>
-              select3d({
-                label: surface.name,
-                value: surfaceChoice(r, surface),
-                options: ['as made', 'skin'],
-                handleChange: (v) => {
-                  const all = plain(walker.surfaces.value)
-                  walker.surfaces.value = { ...all, [r.source]: { ...all[r.source], [surface.name]: v } }
-                },
-              })
-            ),
-          ]
-        }
-        // A surface chosen again (or a character loaded) redresses every body.
-        walker.surfaces.observe(() => { for (const r of rigged.values()) dressSurfaces(r) })
-        // A MESH'S BODY DRESSED: the garments made on it, in their slots, bound
-        // to its skin; the skin under them tucked in.
-        dressOther = () => {
-          const r = other
-          if (!r) return
-          for (const m of r.clothes ?? []) m.dispose()
-          r.clothes = []
-          for (const k of Object.keys(slotMaterial)) delete slotMaterial[k]
-          const worn = walker.tailorAlone.value ? [] : SLOTS.filter((slot) => ownIn(slot)?.slot === slot)
-          const wearing = worn.map((slot) => proxyOn(ownIn(slot), r))
-          worn.forEach((slot, i) => {
-            const mesh = humanProxy(scene, r, wearing[i], r.body.positions, r.body.weights, garmentMaterial(wearing[i], slot), slot === 'armour' ? { lift: 0.005 } : {})
-            mesh.metadata = { category: 'clothes' }
-            r.clothes.push(mesh)
-          })
-          refabric()
-          const drawn = new Map(wearing.map((p) => [p.name, drawnPositions(p, fitProxy(p, r.body.positions))]))
-          r.everyVertex ??= Uint32Array.from({ length: r.body.positions.length / 3 }, (_, i) => i)
-          coverBody(r, r.body.indices, r.everyVertex, wearing, { drawn })
-          el.register({ meshes: r.clothes })
-        }
-        // What the tailor cuts from: the body shown, once it is there (and not
-        // while the rig tool has it).
-        tailorTarget = () =>
-          madeHuman()
-            ? currentBody && { body: currentBody, built, source: 'MakeHuman' }
-            : other && !rigging && other.source === walker.source.value ? { body: other.body, built: other, source: other.source } : null
-        const hide = () => {
-          other?.applied?.dispose()
-          if (other) other.applied = null
-          other?.root.setEnabled(false)
-        }
-        const choose = async () => {
-          const token = ++choosing
-          const name = walker.source.value
-          // Another body: the rig tool on this one goes, its edits with it.
-          if (rigging) { rigging.unmount(); rigging = null }
-          // The tailor cuts from the body it opened on: it goes when that body does.
-          if (tailoring && tailoringOn !== name) tailoring.cancel()
-          hide()
-          if (madeHuman()) {
-            built.root.setEnabled(true)
-            shown = built
-            read = readSkeleton(built.skeleton, built.root)
-            sourceNote = ''
-            dress()
-            el.refreshScenePanel?.()
-            play()
-            return
-          }
-          built.root.setEnabled(false)
-          if (!rigged.has(name)) {
-            sourceNote = 'fitting the skeleton and binding the skin…'
-            el.refreshScenePanel?.()
-            el.setLoading(`rigging ${name}…`)
-            // Let the message paint before the binding takes the thread.
-            await new Promise((r) => setTimeout(r, 50))
-            try {
-              rigged.set(name, await rig(name))
-              sourceNote = ''
-            } catch (e) {
-              console.warn('character builder: could not rig', name, e)
-              sourceNote = `${name}: ${e?.message ?? e}`
-            }
-            el.setLoading(false)
-          }
-          if (token !== choosing) return
-          other = rigged.get(name) ?? null
-          if (!other) { el.refreshScenePanel?.(); return }
-          other.root.setEnabled(true)
-          dressOther()
-          shown = other
-          // The recipe's springs (a tail, a ponytail) on the body shown.
-          other.applied = applyRigRecipe(scene, other.root, other.skeleton, other.recipe)
-          read = other.applied.read
-          el.refreshScenePanel?.()
-          play()
-        }
-        walker.source.observe(choose)
+        // A MESH FILE becomes a body source (a choice in the list) and is shown.
         openBody = () => {
           chooseFile('.glb,.gltf').then((file) => file && openFile(file))
         }
-        // A mesh file becomes a body source (a choice in the list) and is shown.
         const openFile = (file) => {
+          ch.addSource(file.name, { file })
           SOURCES[file.name] = { file }
-          // A file opened again: the copy loaded before, its materials with it.
-          for (const s of [...(triangles.get(file.name)?.surfaces ?? []), ...(skinned.get(file.name)?.surfaces ?? [])]) s.material?.dispose(false, true)
-          triangles.delete(file.name)
-          skinned.delete(file.name)
-          rigged.get(file.name)?.dispose()
-          rigged.delete(file.name)
-          if (walker.source.value === file.name) choose()
-          else walker.source.value = file.name
+          if (walker.source.value !== file.name) walker.source.value = file.name
         }
         el.builder.openFile = openFile
-        // THE RIG TOOL, on the body shown: the builder's body steps aside while
-        // the tool shows the same mesh bound from the same recipe, and takes the
-        // recipe back when you are done (bound again from its markers, its
-        // springs hung). Cancel puts back the recipe it started with.
         // THE RIG TOOL'S BUTTON is always on the bar: it rigs the body shown
         // (a mesh's), or a mesh file opened in it, and done makes what it
-        // rigged the builder's body (a choice under source). While it works,
-        // the tool has the panel; after, these two buttons are back.
+        // rigged the builder's body (a choice under source). The character's
+        // body steps aside while the tool shows the same mesh bound from the
+        // same recipe; cancel puts it back as it was.
         const rigPanel = b3dPanel({ icon: 'rig', title: 'Rig', exclusive: 'off' })
         const idleRig = () =>
           panel3d(
@@ -1146,14 +597,14 @@ preview.append(
         walker.source.observe(() => { if (!rigging) rigPanel.svg = idleRig() })
         openRig = (file = null) => {
           if (rigging) return
-          if (!file && (madeHuman() || !other)) return
+          if (!file && (madeHuman() || !ch.recipe)) return
           const opened = file ? file.name : walker.source.value
           const from = file ? { file } : SOURCES[opened]
-          hide()
-          built.root.setEnabled(false)
+          ch.hide(true)
           playing?.stop()
           const done = () => {
             rigging = null
+            ch.hide(false)
             rigPanel.svg = idleRig()
             rigPanel.hide?.()
           }
@@ -1161,7 +612,7 @@ preview.append(
             models: [{ label: opened, url: from.url ?? '', file: from.file, pick: from.pick }],
             // A file starts from nothing: bound from markers, or on its own
             // skeleton when it has one.
-            recipe: file ? undefined : plain(other.recipe),
+            recipe: file ? undefined : plain(ch.recipe),
             files: false,
             stage: false,
             camera: cam,
@@ -1176,41 +627,20 @@ preview.append(
               const name = model instanceof File ? model.name : model?.label ?? opened
               if (loaded) {
                 SOURCES[name] = { file: loaded }
-                triangles.delete(name)
-                skinned.delete(name)
+                ch.addSource(name, { file: loaded })
               }
-              const old = rigged.get(name)
-              if (old) {
-                if (old === other) { hide(); other = null }
-                old.dispose()
-                rigged.delete(name)
-              }
-              if (body) rigged.set(name, wear(body, recipe))
-              keepRecipe(name, recipe)
-              if (walker.source.value === name) choose()
-              else walker.source.value = name
+              if (body) ch.adopt(name, body, recipe)
+              walker.rigs.value = { ...plain(walker.rigs.value), [name]: plain(recipe) }
+              if (walker.source.value !== name) walker.source.value = name
+              else play()
             },
             handleCancel: () => {
               done()
-              choose()
+              play()
             },
           })
           el.refreshScenePanel?.()
         }
-        // A body bound from a recipe that is no longer the character's (rigged
-        // again, or a character loaded) is bound again.
-        walker.rigs.observe(() => {
-          let again = false
-          for (const [name, r] of [...rigged]) {
-            if (r.kept === JSON.stringify(recipeOf(name))) continue
-            if (r === other) { hide(); other = null; again = walker.source.value === name }
-            r.dispose()
-            rigged.delete(name)
-          }
-          if (again && !rigging) choose()
-        })
-        el.builder.choose = choose
-        el.builder.rigged = rigged
         el.builder.rigTool = () => rigging
         el.builder.openRig = (file) => openRig(file)
 
@@ -1233,42 +663,45 @@ preview.append(
           })
         }
         const snapshot = (name) => {
-          const settings = Object.fromEntries(KEPT.map((k) => [k, plain(walker[k].value)]))
+          const kept = Object.fromEntries(KEPT.map((k) => [k, plain(walker[k].value)]))
           // The garments of your own it wears travel inside it.
           const garments = {}
           for (const slot of SLOTS) {
-            const g = custom.get(walker[slot].value)
+            const g = ch.garments.get(walker[slot].value)
             if (g?.bytes) garments[walker[slot].value] = g.bytes
           }
-          return writeCharacter({ name, settings, cloth: plain(cloth), tailor: plain(tailorShapes), garments }, { saved: new Date().toISOString() })
+          const cloth = Object.fromEntries(SLOTS.map((slot) => [slot, plain(ch.cloth(slot))]))
+          return writeCharacter({ name, settings: kept, cloth, tailor: plain(tailorShapes), garments }, { saved: new Date().toISOString() })
         }
         const tell = (message) => { character.note = message; el.refreshScenePanel?.() }
         let restoring = false
         const apply = async (doc) => {
-          const { character: c, warnings } = readCharacter(doc, { settings: Object.fromEntries(KEPT.map((k) => [k, START[k]])), slots: cloth })
+          const slotLooks = Object.fromEntries(SLOTS.map((slot) => [slot, plain(ch.cloth(slot))]))
+          const { character: c, warnings } = readCharacter(doc, { settings: Object.fromEntries(KEPT.map((k) => [k, START[k]])), slots: slotLooks })
           restoring = true
           try {
             // Its own garments first, so the slots can wear them.
             for (const [name, bytes] of Object.entries(c.garments)) {
-              if (custom.has(name)) continue
+              if (ch.garments.has(name)) continue
               await garmentStore('readwrite', (st) => st.put(bytes, name)).catch(() => {})
-              await addCustom(bytes)
+              await ch.addGarment(bytes)
             }
             // A mesh opened from a file is not in the list here.
-            if (!(c.settings.source in SOURCES)) {
+            if (c.settings.source !== 'MakeHuman' && !(c.settings.source in SOURCES)) {
               warnings.push(`body ${c.settings.source}: open that file again; MakeHuman's shown`)
               c.settings.source = 'MakeHuman'
             }
             // An outfit before a top and bottom (each clears the other).
             const keys = ['outfit', ...KEPT.filter((k) => k !== 'outfit')]
             for (const k of keys) walker[k].value = c.settings[k]
-            // The slots' looks after the slots, which reset them as they change.
-            for (const slot of SLOTS) cloth[slot] = c.cloth[slot]
+            // The character takes them now, then the slots' looks (which
+            // wearing something new resets).
+            ch.set(Object.fromEntries(OWN.map((k) => [k, plain(c.settings[k])])))
+            for (const slot of SLOTS) ch.setCloth(slot, c.cloth[slot])
+            await ch.ready()
             load()
-            refabric()
             tailorShapes = c.tailor
             walker.characterName.value = c.name === WORKING ? '' : c.name
-            dress()
           } finally {
             restoring = false
           }
@@ -1333,12 +766,13 @@ preview.append(
           })
         }
         el.builder.character = { snapshot, apply, store: characterStore }
-        // The figure you were working on, as you left it (after the saved garments it may wear).
-        await loadSaved()
+        // The figure you were working on, as you left it.
         const working = await characterStore('readonly', (st) => st.get(WORKING)).catch(() => null)
         if (working) await apply(working).catch((e) => console.warn('character builder: the working figure would not load', e))
         await listSaved()
         el.setLoading(false)
+        play()
+        el.refreshScenePanel?.()
         walker.clip.observe(play)
         walker.paused.observe(() => (walker.paused.value ? playing?.pause() : playing?.play(true)))
       },

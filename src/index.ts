@@ -2014,3 +2014,18 @@ export type {
 export { springBones, springNodes } from './spring-chain-babylon.js'
 export type { SpringBones, SpringBoneCollider } from './spring-chain-babylon.js'
 export { realNow, wallMs, wallDate } from './clock.js'
+export {
+  makeCharacter,
+  loadCharacterAssets,
+  DEFAULT_CHARACTER,
+  CHARACTER_SLOTS,
+  CHARACTER_SOURCES,
+} from './character.js'
+export type {
+  SceneCharacter,
+  CharacterAssets,
+  CharacterOptions,
+  CharacterSource,
+  CharacterGarment,
+  ShownBody,
+} from './character.js'
