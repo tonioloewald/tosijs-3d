@@ -347,7 +347,7 @@ function leg(slopeDeg: number): Skeleton {
 }
 
 describe('feet', () => {
-  test('a foot whose bone slopes differently still stands flat (heading only is lined up)', () => {
+  test('a foot whose bone slopes differently still stands flat (feet are not lined up)', () => {
     // UAL's foot bone falls 31° to the ball, MakeHuman's 18°: both soles are
     // flat. The clip at rest leaves the target's foot at ITS rest, not
     // tipped 13° onto its toes.
