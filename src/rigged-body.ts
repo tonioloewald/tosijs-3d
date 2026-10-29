@@ -106,6 +106,14 @@ export interface RiggedBody {
   colors?: Float32Array
   /** Its triangles in runs, one per material (a file's). */
   surfaces?: BodySurface[]
+  /** Its eyeballs (a file's), left first, not part of the mesh above. */
+  eyes?: BodyEye[]
+}
+
+/** An eyeball: its own triangles, in the body's frame. */
+export interface BodyEye {
+  positions: Float32Array
+  indices: Uint32Array
 }
 
 /**
@@ -127,6 +135,7 @@ export interface BodyTriangles {
   uvs?: ArrayLike<number>
   colors?: ArrayLike<number>
   surfaces?: BodySurface[]
+  eyes?: BodyEye[]
 }
 
 /**
@@ -191,10 +200,105 @@ export function bodyFromMarkers(
 /** A file's uvs, colours and surfaces, carried onto the body made from it. */
 export function surfaceOf(
   tris: BodyTriangles
-): Pick<RiggedBody, 'uvs' | 'colors' | 'surfaces'> {
+): Pick<RiggedBody, 'uvs' | 'colors' | 'surfaces' | 'eyes'> {
   return {
+    ...(tris.eyes?.length ? { eyes: tris.eyes } : {}),
     ...(tris.uvs ? { uvs: Float32Array.from(tris.uvs) } : {}),
     ...(tris.colors ? { colors: Float32Array.from(tris.colors) } : {}),
     ...(tris.surfaces?.length ? { surfaces: tris.surfaces.map((s) => ({ ...s })) } : {}),
   }
+}
+
+/** An object is an eye when its name says so (`eye`, `eyes`, `eyeball`; not a brow or lash). */
+export function isEyeName(name: string): boolean {
+  return name
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .split(/[^A-Za-z]+/)
+    .some((w) => /^eye(s|ball|balls)?$/i.test(w))
+}
+
+/**
+ * Eye triangles (one object or several) as one eye per side: each triangle
+ * goes to the side its centre is on (left is +X). Left first; a side with
+ * none is left out.
+ */
+export function splitEyes(
+  positions: ArrayLike<number>,
+  indices: ArrayLike<number>
+): BodyEye[] {
+  const sides = [1, -1].map((sign) => {
+    const remap = new Map<number, number>()
+    const pos: number[] = []
+    const ix: number[] = []
+    for (let t = 0; t < indices.length; t += 3) {
+      const x = positions[indices[t] * 3] + positions[indices[t + 1] * 3] + positions[indices[t + 2] * 3]
+      if (x * sign <= 0) continue
+      for (let k = 0; k < 3; k++) {
+        const v = indices[t + k]
+        let at = remap.get(v)
+        if (at == null) {
+          at = pos.length / 3
+          remap.set(v, at)
+          pos.push(positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2])
+        }
+        ix.push(at)
+      }
+    }
+    return { positions: Float32Array.from(pos), indices: Uint32Array.from(ix) }
+  })
+  return sides.filter((e) => e.indices.length > 0)
+}
+
+/** An eye's centre (the middle of its bounds) and radius. */
+export function eyeCentre(eye: BodyEye): { centre: Vec3; radius: number } {
+  const lo = [Infinity, Infinity, Infinity]
+  const hi = [-Infinity, -Infinity, -Infinity]
+  const p = eye.positions
+  for (let i = 0; i < p.length; i += 3)
+    for (let k = 0; k < 3; k++) {
+      lo[k] = Math.min(lo[k], p[i + k])
+      hi[k] = Math.max(hi[k], p[i + k])
+    }
+  const c = lo.map((l, k) => (l + hi[k]) / 2)
+  let r = 0
+  for (let i = 0; i < p.length; i += 3)
+    r = Math.max(r, Math.hypot(p[i] - c[0], p[i + 1] - c[1], p[i + 2] - c[2]))
+  return { centre: { x: c[0], y: c[1], z: c[2] }, radius: r }
+}
+
+/*
+AN EYE'S UVS ARE MADE, NOT READ: a file's eye can be mapped any way, so it is
+mapped the same way every time. Each point goes by its angle from straight
+ahead (+Z, where the body faces) and its direction round that axis: the iris
+(about 29° across the radius, a real iris on a real eyeball) lands on the
+disc an eye texture paints, and the sclera round it, to a ring where the back
+of the eye, unseen in the socket, gathers.
+*/
+/**
+ * UVs for an eye on an eye texture's layout: the iris centred on `at` (u, v
+ * from the bottom), `iris` its radius in UV.
+ */
+export function eyeUvs(
+  eye: BodyEye,
+  layout: { at: { u: number; v: number }; iris: number },
+  options: { irisDeg?: number; back?: number } = {}
+): Float32Array {
+  const irisAngle = ((options.irisDeg ?? 29) * Math.PI) / 180
+  const back = options.back ?? layout.iris * 2.5
+  const { centre } = eyeCentre(eye)
+  const p = eye.positions
+  const out = new Float32Array((p.length / 3) * 2)
+  for (let i = 0, j = 0; i < p.length; i += 3, j += 2) {
+    const x = p[i] - centre.x
+    const y = p[i + 1] - centre.y
+    const z = p[i + 2] - centre.z
+    const side = Math.hypot(x, y)
+    const r = Math.min(back, (layout.iris * Math.atan2(side, z)) / irisAngle)
+    // Left is +X: seen from the front, the eye's +X is the picture's left.
+    const cos = side > 1e-9 ? -x / side : 0
+    const sin = side > 1e-9 ? y / side : 0
+    out[j] = layout.at.u + r * cos
+    out[j + 1] = layout.at.v + r * sin
+  }
+  return out
 }

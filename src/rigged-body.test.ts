@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { bodyFromMarkers, type RiggedBody } from './rigged-body.js'
+import { bodyFromMarkers, eyeCentre, eyeUvs, isEyeName, splitEyes, type RiggedBody } from './rigged-body.js'
 import { humanBodyMaker } from './human-rig.js'
 import { loadHumanPack } from './human-pack.js'
 import { objTriangles } from './rig-fit.js'
@@ -107,5 +107,44 @@ describe('rigged body', () => {
     // A different shape: the same vertices, somewhere else.
     expect(heavy.positions.length).toBe(maker.first.positions.length)
     expect(heavy.positions).not.toEqual(maker.first.positions)
+  })
+})
+
+describe('a file\'s eyes', () => {
+  // An octahedron of radius r at c: front pole (+Z) first.
+  const ball = (c: number[], r: number) => {
+    const p = [[0, 0, 1], [1, 0, 0], [0, 1, 0], [-1, 0, 0], [0, -1, 0], [0, 0, -1]]
+    const positions = p.flatMap((v) => v.map((x, k) => c[k] + x * r))
+    const indices = [0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 1, 5, 2, 1, 5, 3, 2, 5, 4, 3, 5, 1, 4]
+    return { positions, indices }
+  }
+
+  test('objects named as eyes are eyes; brows and lashes are not', () => {
+    for (const n of ['GEO-body_male_realistic.eye.L', 'male_v008Eyes', 'Eyeball_R', 'eyes']) expect(isEyeName(n)).toBe(true)
+    for (const n of ['eyebrow001', 'Eyelashes', 'body', 'GEO-body_male_realistic', 'Monkey']) expect(isEyeName(n)).toBe(false)
+  })
+
+  test('eye triangles split by side, left (+X) first', () => {
+    const l = ball([0.03, 1.57, 0.12], 0.012)
+    const r = ball([-0.03, 1.57, 0.12], 0.012)
+    const eyes = splitEyes([...r.positions, ...l.positions], [...r.indices, ...l.indices.map((i) => i + 6)])
+    expect(eyes.length).toBe(2)
+    expect(eyeCentre(eyes[0]).centre.x).toBeCloseTo(0.03)
+    expect(eyeCentre(eyes[1]).centre.x).toBeCloseTo(-0.03)
+    expect(eyeCentre(eyes[0]).radius).toBeCloseTo(0.012)
+  })
+
+  test('the front of an eye is the iris centre, and the iris is ~29° round it', () => {
+    const b = ball([0.03, 1.57, 0.12], 0.012)
+    const eye = { positions: Float32Array.from(b.positions), indices: Uint32Array.from(b.indices) }
+    const at = { u: 0.7, v: 0.7 }
+    const uv = eyeUvs(eye, { at, iris: 0.1 }, { irisDeg: 30 })
+    // Front pole: the iris centre.
+    expect(uv[0]).toBeCloseTo(0.7)
+    expect(uv[1]).toBeCloseTo(0.7)
+    // A side point (90°) would be three iris radii out: held at the back ring (2.5).
+    expect(Math.hypot(uv[2] - 0.7, uv[3] - 0.7)).toBeCloseTo(0.25)
+    // The upper point is above the centre in the texture.
+    expect(uv[5]).toBeGreaterThan(0.7)
   })
 })

@@ -82,7 +82,7 @@ parent of `root`, not `root` itself.
 import * as BABYLON from '@babylonjs/core'
 import type { FittedRig, Markers } from './rig-fit.js'
 import type { SkinWeights } from './bone-heat.js'
-import { bodyFromMarkers, surfaceOf, type BodySurface, type RiggedBody } from './rigged-body.js'
+import { bodyFromMarkers, isEyeName, splitEyes, surfaceOf, type BodyEye, type BodySurface, type RiggedBody } from './rigged-body.js'
 import { materialConventions } from './b3d-utils.js'
 
 export interface BuiltRig {
@@ -211,6 +211,20 @@ export interface RigTriangles {
   colors?: number[]
   /** The triangles in runs, one per material, with the file's materials. */
   surfaces?: BodySurface[]
+  /** The eyeballs, when the file has them as objects of their own (left first). */
+  eyes?: BodyEye[]
+}
+
+/*
+A FILE'S EYEBALLS are not skin: objects named as eyes are kept out of the
+body (bone heat would bind them as islands, and they would be drawn in the
+skin) and handed back on their own, to hang on pivots and turn.
+*/
+function eyesOf(root: BABYLON.TransformNode, meshes: BABYLON.AbstractMesh[]): BodyEye[] {
+  const named = meshes.filter((m) => isEyeName(m.name))
+  if (!named.length) return []
+  const t = gatherTriangles(root, named)
+  return splitEyes(t.positions, t.indices)
 }
 
 /**
@@ -401,13 +415,16 @@ export async function loadRigTriangles(
     if (options.pick != null && top == null)
       throw new Error(`no "${options.pick}" in the file`)
     if (top != null) top.position.set(0, 0, 0)
-    const meshes = container.meshes.filter(
+    const all = container.meshes.filter(
       (n) =>
         n.getTotalVertices() > 0 &&
         (top == null || n === top || n.isDescendantOf(top))
     )
-    const tris = gatherTriangles(root, meshes)
+    const meshes = all.filter((m) => !isEyeName(m.name))
+    const tris: RigTriangles = gatherTriangles(root, meshes)
     if (tris.indices.length === 0) throw new Error('the file has no meshes')
+    const eyes = eyesOf(root, all)
+    if (eyes.length) tris.eyes = eyes
     keepMaterials(container, scene, tris.surfaces)
     return tris
   } finally {
@@ -466,11 +483,13 @@ export async function loadSkinnedBody(
     const names = new Set(skeleton.bones.map(nameOf))
     if (!UAL_CORE.every((n) => names.has(n))) return null
     const meshes = container.meshes.filter(
-      (m) => m.skeleton === skeleton && m.getTotalVertices() > 0 && under(m)
+      (m) => m.skeleton === skeleton && m.getTotalVertices() > 0 && under(m) && !isEyeName(m.name)
     )
     if (!meshes.length) return null
     // The skin at rest, in the file's frame (gatherTriangles returns it to rest).
-    const tris = gatherTriangles(root, meshes)
+    const tris: RigTriangles = gatherTriangles(root, meshes)
+    const eyes = eyesOf(root, container.meshes.filter((m) => m.getTotalVertices() > 0 && under(m)))
+    if (eyes.length) tris.eyes = eyes
     const toRoot = root.getWorldMatrix().clone().invert()
 
     // Its joints where its skeleton puts them, parents first.

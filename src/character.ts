@@ -91,6 +91,7 @@ import { humanSkin, humanBodyMaker } from './human-rig.js'
 import { skinMaterial, lipTint, stubbleTint } from './character-builder.js'
 import {
   humanFace,
+  bodyEyes,
   eyeGaze,
   eyeTexture,
   eyeMaterial,
@@ -550,9 +551,12 @@ export async function makeCharacter(
     mood.setMany({ MouthLeftPullUp: sm, MouthRightPullUp: sm, LeftCheekUp: sm * 0.6, RightCheekUp: sm * 0.6, LeftOuterBrowUp: b, RightOuterBrowUp: b, LeftInnerBrowUp: b, RightInnerBrowUp: b, LeftBrowDown: f, RightBrowDown: f })
   }
   feel()
+  // Whose eyes look (set once what is shown is known; frames run before that).
+  let eyesShown: () => any = () => face
   const stopGaze = eyeGaze(
     scene,
-    { get eyes() { return face?.eyes ?? [] }, get forward() { return face?.forward ?? [] } } as any,
+    // The shown body's eyes: MakeHuman's, or a file's own eyeballs.
+    { get eyes() { return eyesShown()?.eyes ?? [] }, get forward() { return eyesShown()?.forward ?? [] } } as any,
     () => options.gaze?.() ?? null
   )
 
@@ -800,8 +804,14 @@ export async function makeCharacter(
     const m: any = made.made
     r.recipe = { version: 1, roles: {}, armSpaceDeg: 0, springs: [], ...kept, ...(m.by === 'markers' ? { binding: { markers: m.markers, tail: m.tail ?? null, ...(m.tailBase ? { tailBase: m.tailBase } : {}), ...(m.joints ? { joints: m.joints } : {}) } } : {}) }
     dressSurfaces(r)
+    // Its own eyeballs, if the file has them: on pivots, in the eye material.
+    if (made.eyes?.length) {
+      r.face = bodyEyes(scene, r, made.rig, made.eyes, faceMaterials.eye)
+      register(r.face.meshes)
+    }
     const dispose = r.dispose
     r.dispose = () => {
+      r.face?.dispose()
       r.applied?.dispose()
       r.multi?.dispose(false, false, false)
       for (const c of r.clothes ?? []) c.dispose()
@@ -873,6 +883,7 @@ export async function makeCharacter(
     placeRoot()
     options.handleShown?.(shown())
   }
+  eyesShown = () => (shownNow == null ? null : shownNow === built ? face : shownNow.face ?? null)
   const shown = (): ShownBody | null =>
     shownNow == null
       ? null

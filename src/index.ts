@@ -1825,7 +1825,8 @@ export { boneHeat } from './bone-heat.js'
 export { buildRig, buildBody, gatherTriangles, loadRigTriangles, autoRig } from './rig-build.js'
 export type { BuiltRig, BuiltBody, RigTriangles, AutoRigged } from './rig-build.js'
 export { bodyFromMarkers } from './rigged-body.js'
-export type { RiggedBody, RiggedBodyOrigin, BodyTriangles, BodySurface } from './rigged-body.js'
+export type { RiggedBody, RiggedBodyOrigin, BodyTriangles, BodySurface, BodyEye } from './rigged-body.js'
+export { isEyeName, splitEyes, eyeCentre, eyeUvs } from './rigged-body.js'
 export { mountTailorTool } from './tailor-tool.js'
 export { chooseFile } from './choose-file.js'
 export { loadSkinnedBody, soleVertices, lowestOf, surfaceMaterial } from './rig-build.js'
@@ -1980,6 +1981,7 @@ export {
 export type { AxisFit, HeadLandmarks, ShellWarp } from './hair-fit.js'
 export {
   humanFace,
+  bodyEyes,
   eyeGaze,
   eyeTexture,
   eyeMaterial,
