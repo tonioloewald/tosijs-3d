@@ -895,12 +895,31 @@ export function mountRigTool(
           label: 'tail',
           value: b.tail != null,
           handleChange: (v) => {
-            // A first tip: straight behind the groin, past the body's back
-            // (place it from the side view).
-            let back = 0
-            for (let i = 2; i < b.positions.length; i += 3)
-              back = Math.min(back, b.positions[i])
+            /*
+            A FIRST TIP at the mesh's furthest-back point: the end of a tail
+            it has. Three times the back's depth put it far beyond a weasel
+            whose mesh already has its tail (Tonio). A body with no tail in
+            the mesh gets one a little behind its back, at the groin's height.
+            */
+            let back = Infinity
+            let backY = b.markers.groin.y
+            let lo = Infinity
+            let hi = -Infinity
+            for (let i = 0; i < b.positions.length; i += 3) {
+              const y = b.positions[i + 1]
+              lo = Math.min(lo, y)
+              hi = Math.max(hi, y)
+              if (b.positions[i + 2] < back) {
+                back = b.positions[i + 2]
+                backY = y
+              }
+            }
+            const tall = hi - lo || 1
             const g = b.markers.groin
+            const hasTail = back < -0.2 * tall
+            const tip = hasTail
+              ? { x: 0, y: backY, z: back }
+              : { x: g.x, y: g.y, z: back - 0.25 * tall }
             /*
             A TAIL SWINGS: its chain (tail_01 on, made when it is bound) gets
             its spring with it, and loses it with it. It took a third step
@@ -912,7 +931,7 @@ export function mountRigTool(
             if (v) springs.push(JSON.parse(JSON.stringify(TAIL)))
             recipe.springs = springs
             ui.spring = Math.max(0, springs.length - 1)
-            setMarkers(b.markers, v ? { x: g.x, y: g.y, z: back * 3 } : null)
+            setMarkers(b.markers, v ? tip : null)
           },
         }),
         button3d({
@@ -2262,7 +2281,8 @@ export function mountRigTool(
         const f = toFile(ray.origin.add(ray.direction.scale(d)))
         if (key === 'tail') {
           if (tail == null) return
-          tail = { ...tail, x: symmetry ? 0 : f.x, y: f.y }
+          // From the side it moves in depth too (the front keeps its depth).
+          tail = { x: symmetry ? 0 : f.x, y: f.y, z: f.z }
           handle.position.copyFrom(toScene(tail.x, tail.y, tail.z))
           return
         }
