@@ -106,6 +106,11 @@ export interface RigBinding {
   markers: Markers
   /** Where a tail's tip is, for a tail chain. */
   tail?: Vec3 | null
+  /**
+   * Joints moved by hand after the fit (a thumb, a toe, a shoulder): name →
+   * where it is, in the mesh's frame. They win over where the fit put them.
+   */
+  joints?: Record<string, Vec3>
 }
 
 export const STRAND_DEFAULTS: Omit<StrandSpringRecipe, 'anchor'> = {
@@ -269,6 +274,13 @@ export function validateRigRecipe(doc: unknown): string[] {
       }
     if (b?.tail != null && !isVec(b.tail))
       out.push('binding.tail is not {x, y, z}')
+    if (b?.joints != null) {
+      if (typeof b.joints !== 'object' || Array.isArray(b.joints))
+        out.push('binding.joints is not name → {x, y, z}')
+      else
+        for (const [k, v] of Object.entries(b.joints))
+          if (!isVec(v)) out.push(`binding.joints.${k} is not {x, y, z}`)
+    }
   }
   const springs = r.springs ?? []
   if (!Array.isArray(springs)) return [...out, 'springs is not a list']
@@ -419,6 +431,12 @@ export function rigRecipeSchema(): Record<string, unknown> {
               vec3('Where a tail’s tip is, for a tail chain.'),
               { type: 'null' },
             ],
+          },
+          joints: {
+            type: 'object',
+            description:
+              'Joints moved by hand after the fit (a thumb, a toe, a shoulder), by name, in the mesh’s frame.',
+            additionalProperties: vec3('Where the joint is.'),
           },
         },
         required: ['markers'],

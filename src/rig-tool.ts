@@ -529,6 +529,7 @@ function bindMesh(
   const body = bodyFromMarkers(tris, {
     markers: binding.markers,
     tail: binding.tail,
+    joints: binding.joints,
     tailBones: options.tailBones,
   })
   const built = buildBody(scene, name, body)
@@ -539,7 +540,7 @@ function bindMesh(
     root: built.root,
     skeleton: built.skeleton,
     mesh: built.mesh,
-    bound: { positions, indices, markers: binding.markers, tail: binding.tail },
+    bound: { positions, indices, markers: binding.markers, tail: binding.tail, joints: binding.joints },
     body,
     dispose() {
       mat.dispose()
@@ -660,6 +661,10 @@ export function mountRigTool(
     /** Snapped to a view (orthographic), or `free` to orbit. */
     /** The rest pose opens on the front, orthographic; animating orbits. */
     view: 'front' as RigView,
+    /** Show every joint of a mesh bound from markers, to move by hand. */
+    joints: false,
+    /** Dragging a joint moves it (and what hangs from it) or turns what hangs from it. */
+    jointDrag: 'move' as 'move' | 'turn',
   }
   let recipe = fresh(given ?? {})
   let clips: string[] = []
@@ -672,6 +677,50 @@ export function mountRigTool(
   let bindNext = false
   /** The model as a rigged body, when it was bound here from markers. */
   let body: RiggedBody | null = null
+  /*
+  MOVED, NOT YET BOUND. Binding takes a second or two and shows nothing in
+  the rest pose, so moving a marker only moves it (Tonio); the mesh is bound
+  again when you look (animate) or finish (done).
+  */
+  let stale = false
+  function setMarkers(markers: Markers, tail: Vec3 | null) {
+    const joints = recipe.binding?.joints
+    recipe.binding = { markers, tail, ...(joints ? { joints } : {}) }
+    if (bound != null) bound = { ...bound, markers, tail }
+    stale = true
+    ui.status = 'bound again when you animate or press done'
+    edited()
+    commitNow()
+    refresh()
+    tool?.targets()
+  }
+  // A joint moved by hand (a thumb, a toe, a shoulder): kept in the binding.
+  function setJoints(name: string, moved: Record<string, Vec3>) {
+    if (bound == null) return
+    const binding = recipe.binding ?? { markers: bound.markers, tail: bound.tail ?? null }
+    binding.joints = { ...(binding.joints ?? {}), ...moved }
+    recipe.binding = binding
+    bound = { ...bound, joints: binding.joints }
+    stale = true
+    ui.status = `${name} moved: bound again when you animate or press done`
+    edited()
+    commitNow()
+    refresh()
+    tool?.targets()
+  }
+  async function bindIfMoved() {
+    if (!stale) return
+    stale = false
+    ui.status = 'binding…'
+    refresh()
+    await tool?.rebind()
+  }
+  // Animate: bound first if a marker moved.
+  function animate() {
+    if (ui.pose === 'animate' && stale) void bindIfMoved().then(() => tool?.play())
+    else tool?.play()
+    refresh()
+  }
 
   /*
   THE PANEL. Standalone it is the scene's settings panel (the owl); hosted, a
@@ -764,8 +813,7 @@ export function mountRigTool(
         value: ui.pose === 'animate',
         handleChange: (v) => {
           ui.pose = v ? 'animate' : 'rest'
-          tool?.play()
-          refresh()
+          animate()
         },
       }),
       select3d({
@@ -775,11 +823,48 @@ export function mountRigTool(
         handleChange: (v) => {
           ui.clip = String(v)
           ui.pose = 'animate'
-          tool?.play()
-          refresh()
+          animate()
         },
       }),
-      ...(ui.pose === 'rest'
+      ...(ui.pose === 'rest' && bound != null
+        ? [
+            label3d({
+              text: 'drag the red markers onto the joints',
+              muted: true,
+              compact: true,
+            }),
+            toggle3d({
+              label: 'move joints',
+              value: ui.joints,
+              handleChange: (v) => {
+                ui.joints = v
+                tool?.targets()
+                refresh()
+              },
+            }),
+            ...(ui.joints
+              ? [
+                  select3d({
+                    label: 'dragging',
+                    value: ui.jointDrag,
+                    options: [
+                      { label: 'moves the joint', value: 'move' },
+                      { label: 'turns what hangs from it', value: 'turn' },
+                    ],
+                    handleChange: (v) => {
+                      ui.jointDrag = v as 'move' | 'turn'
+                      refresh()
+                    },
+                  }),
+                  label3d({
+                    text: 'blue dots: fingers and thumbs from the top view, feet from the side',
+                    muted: true,
+                    compact: true,
+                  }),
+                ]
+              : []),
+          ]
+        : ui.pose === 'rest'
         ? [
             select3d({
               label: 'clicking sets',
@@ -880,13 +965,7 @@ export function mountRigTool(
     */
     if (bound != null) {
       const b = bound
-      const rebind = (markers: Markers, tail: Vec3 | null) => {
-        recipe.binding = { markers, tail }
-        edited()
-        ui.status = 'binding…'
-        refresh()
-        void tool?.rebind()
-      }
+      const rebind = (markers: Markers, tail: Vec3 | null) => setMarkers(markers, tail)
       const field: MarkerField = markerField3d({
         positions: b.positions,
         indices: b.indices,
@@ -1780,13 +1859,37 @@ export function mountRigTool(
     const pickedMat = dotMat('rig-role-picked', '#ffd60a')
     const springMat = dotMat('rig-spring', '#5ac8fa')
     const springPickedMat = dotMat('rig-spring-picked', '#ff9f0a')
+    const markerMat = dotMat('rig-marker', '#ff375f')
+    const jointMat = dotMat('rig-joint', '#64d2ff')
+    cleanups.push(() => jointMat.dispose())
     let dots: BABYLON.Mesh[] = []
     cleanups.push(() => {
       for (const d of dots) d.dispose()
       dots = []
-      for (const m of [roleMat, pickedMat, springMat, springPickedMat])
+      for (const m of [roleMat, pickedMat, springMat, springPickedMat, markerMat])
         m.dispose()
     })
+    /*
+    THE MARKERS ON THE BODY, Mixamo's way: a mesh bound from markers shows
+    them on its front, where you drag them onto its joints (chin, groin,
+    elbows, wrists, knees, and a tail's tip), and is bound again on release.
+    Its bones are UAL's by name, so it has no role dots to tap. Markers are
+    in the mesh's own (file) frame; the model's root carries it into the
+    scene.
+    */
+    const markerBound = () => bound != null && model != null
+    const toScene = (x: number, y: number, z: number) =>
+      BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(x, y, z), model!.root.getWorldMatrix())
+    const toFile = (p: BABYLON.Vector3) =>
+      BABYLON.Vector3.TransformCoordinates(p, model!.root.getWorldMatrix().clone().invert())
+    const frontOf = () => {
+      let f = -Infinity
+      const P = bound!.positions
+      for (let i = 2; i < P.length; i += 3) f = Math.max(f, P[i])
+      return f
+    }
+    const mirrorKey = (k: string) =>
+      k.endsWith('L') ? k.slice(0, -1) + 'R' : k.endsWith('R') ? k.slice(0, -1) + 'L' : null
     const dot = (
       at: BABYLON.Vector3,
       size: number,
@@ -1810,7 +1913,23 @@ export function mountRigTool(
       dots = []
       if (ui.pose !== 'rest' || applied == null) return
       const r = height * 0.022
-      for (const role of Object.keys(applied.read.roles) as Role[]) {
+      if (markerBound()) {
+        const b = bound!
+        const z = frontOf() + 0.01 * height
+        for (const [key, m] of Object.entries(b.markers))
+          dot(toScene(m.x, m.y, z), r * 1.6, markerMat, { marker: key, handle: -1 })
+        if (b.tail) dot(toScene(b.tail.x, b.tail.y, b.tail.z), r * 1.6, markerMat, { marker: 'tail', handle: -1 })
+        // Every joint, to move by hand: where it was moved to, else the fit's.
+        if (ui.joints)
+          for (const [name, node] of applied.read.nodes) {
+            if (name === 'root') continue
+            const m = b.joints?.[name]
+            const at = m != null ? toScene(m.x, m.y, m.z) : node.getAbsolutePosition()
+            const small = /^(thumb|index|middle|ring|pinky)_|ball/.test(name)
+            dot(at, r * (small ? 0.5 : 0.8), jointMat, { joint: name, handle: -2 })
+          }
+      }
+      for (const role of (markerBound() ? [] : Object.keys(applied.read.roles)) as Role[]) {
         const node = applied.read.nodes.get(applied.read.roles[role]!)
         if (node == null) continue
         const finger = /\d$/.test(role)
@@ -1898,6 +2017,14 @@ export function mountRigTool(
         window.addEventListener('pointerup', done, true)
         return
       }
+      if (handle.metadata.marker != null && markerBound()) {
+        dragMarker(handle, handle.metadata.marker as string)
+        return
+      }
+      if (handle.metadata.joint != null && markerBound()) {
+        dragJoint(handle, handle.metadata.joint as string)
+        return
+      }
       const i = handle.metadata.rigSpring as number
       const strand = recipe.springs?.[i]
       if (strand?.kind !== 'strand') return
@@ -1943,6 +2070,130 @@ export function mountRigTool(
         changed()
         commitNow()
         refresh()
+      }
+      window.addEventListener('pointermove', move, true)
+      window.addEventListener('pointerup', up, true)
+    }
+    /*
+    A JOINT DRAGGED on the plane facing the camera (the view chooses which
+    way: fingers from the top, feet from the side). What hangs from it comes
+    too: moving a wrist carries the hand (Tonio). Turning swings what hangs
+    from it about the joint, in the view's plane: a hand or foot angled in
+    the mesh is turned to match at once, not joint by joint.
+    */
+    function dragJoint(handle: BABYLON.Mesh, name: string) {
+      if (applied == null) return
+      const nodes = applied.read.nodes
+      const nameOf = new Map([...nodes].map(([n, node]) => [node, n]))
+      const node = nodes.get(name)
+      const below = (node?.getDescendants(false) ?? [])
+        .map((d) => nameOf.get(d as BABYLON.TransformNode))
+        .filter((n): n is string => n != null)
+      const dotOf = (n: string) => dots.find((d) => d.metadata?.joint === n)
+      const group = [name, ...below]
+        .map((n) => ({ n, d: dotOf(n) }))
+        .filter((g): g is { n: string; d: BABYLON.Mesh } => g.d != null)
+      const start = new Map(group.map((g) => [g.n, g.d.position.clone()]))
+      const turn = ui.jointDrag === 'turn'
+      const pivot = handle.position.clone()
+      const axis = cam.getForwardRay().direction.normalize()
+      cam.detachControl()
+      const plane = BABYLON.Plane.FromPositionAndNormal(pivot, axis)
+      const hit = (ev: PointerEvent) => {
+        const p = toRender(ev)
+        const ray = scene.createPickingRay(p.x, p.y, BABYLON.Matrix.Identity(), cam)
+        const d = ray.intersectsPlane(plane)
+        return d == null ? null : ray.origin.add(ray.direction.scale(d))
+      }
+      let from: BABYLON.Vector3 | null = null
+      ui.status = turn ? `turning what hangs from ${name}` : name
+      refresh()
+      const move = (ev: PointerEvent) => {
+        const at = hit(ev)
+        if (at == null) return
+        from ??= at
+        if (!turn) {
+          const delta = at.subtract(from)
+          for (const g of group) g.d.position.copyFrom(start.get(g.n)!.add(delta))
+          return
+        }
+        // The angle from where the press began to here, about the joint.
+        const u = from.subtract(pivot)
+        const v = at.subtract(pivot)
+        if (u.lengthSquared() < 1e-10 || v.lengthSquared() < 1e-10) return
+        const angle = Math.atan2(
+          BABYLON.Vector3.Dot(axis, BABYLON.Vector3.Cross(u, v)),
+          BABYLON.Vector3.Dot(u, v)
+        )
+        const q = BABYLON.Quaternion.RotationAxis(axis, angle)
+        for (const g of group) {
+          if (g.n === name) continue
+          const off = start.get(g.n)!.subtract(pivot)
+          g.d.position.copyFrom(pivot.add(off.applyRotationQuaternion(q)))
+        }
+      }
+      const up = () => {
+        window.removeEventListener('pointermove', move, true)
+        window.removeEventListener('pointerup', up, true)
+        cam.attachControl(canvas, true)
+        if (from == null) return
+        const moved: Record<string, Vec3> = {}
+        for (const g of group) {
+          const f = toFile(g.d.position)
+          moved[g.n] = { x: f.x, y: f.y, z: f.z }
+          // Its mirror follows, as the markers' do (the left is on +X).
+          if (symmetry && /_[lr]$/.test(g.n))
+            moved[g.n.replace(/_([lr])$/, (_, s) => (s === 'l' ? '_r' : '_l'))] = { x: -f.x, y: f.y, z: f.z }
+        }
+        setJoints(name, moved)
+      }
+      window.addEventListener('pointermove', move, true)
+      window.addEventListener('pointerup', up, true)
+    }
+    // A marker dragged on the front plane; its mirror follows (symmetry on).
+    function dragMarker(handle: BABYLON.Mesh, key: string) {
+      const b = bound!
+      const markers: Markers = JSON.parse(JSON.stringify(b.markers))
+      let tail = b.tail ? { ...b.tail } : null
+      const other = key === 'tail' ? null : mirrorKey(key)
+      const twin = other != null ? dots.find((d) => d.metadata?.marker === other) : undefined
+      cam.detachControl()
+      const plane = BABYLON.Plane.FromPositionAndNormal(
+        handle.position,
+        cam.getForwardRay().direction
+      )
+      const move = (ev: PointerEvent) => {
+        const p = toRender(ev)
+        const ray = scene.createPickingRay(p.x, p.y, BABYLON.Matrix.Identity(), cam)
+        const d = ray.intersectsPlane(plane)
+        if (d == null) return
+        const f = toFile(ray.origin.add(ray.direction.scale(d)))
+        if (key === 'tail') {
+          if (tail == null) return
+          tail = { ...tail, x: symmetry ? 0 : f.x, y: f.y }
+          handle.position.copyFrom(toScene(tail.x, tail.y, tail.z))
+          return
+        }
+        let x = f.x
+        if (symmetry) {
+          if (other == null) x = 0 // chin and groin sit on the centre line
+          else if (key.endsWith('L')) x = Math.max(0, x)
+          else x = Math.min(0, x)
+        }
+        const k = key as keyof Markers
+        const fileZ = toFile(handle.position).z
+        markers[k] = { x, y: f.y }
+        handle.position.copyFrom(toScene(x, f.y, fileZ))
+        if (symmetry && other != null && twin != null) {
+          markers[other as keyof Markers] = { x: -x, y: f.y }
+          twin.position.copyFrom(toScene(-x, f.y, fileZ))
+        }
+      }
+      const up = () => {
+        window.removeEventListener('pointermove', move, true)
+        window.removeEventListener('pointerup', up, true)
+        cam.attachControl(canvas, true)
+        setMarkers(markers, tail)
       }
       window.addEventListener('pointermove', move, true)
       window.addEventListener('pointerup', up, true)
@@ -2249,6 +2500,11 @@ export function mountRigTool(
 
   /** Done or cancelled: unmount, then tell the host. */
   function finish(done: boolean) {
+    // Bound from where the markers are now, before it is handed back.
+    if (done && stale) {
+      void bindIfMoved().then(() => finish(true))
+      return
+    }
     const rig: RigDone = { recipe: copy() }
     if (body != null) rig.body = body
     handle.unmount()

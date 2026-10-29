@@ -66,6 +66,8 @@ export type RiggedBodyOrigin =
       source?: string
       markers: Markers
       tail?: Vec3 | null
+      /** Joints moved by hand after the fit, by name. */
+      joints?: Record<string, Vec3>
     }
   | {
       /**
@@ -113,16 +115,31 @@ export function bodyFromMarkers(
     tail?: Vec3 | null
     tailBones?: number
     source?: string
+    /**
+     * Joints moved by hand after the fit (a thumb, a toe, a shoulder): name
+     * → where it is. They win over where the fit put them.
+     */
+    joints?: Record<string, Vec3>
   } = {}
 ): RiggedBody {
   const positions = Float32Array.from(tris.positions)
   const indices = Uint32Array.from(tris.indices)
   const markers =
     options.markers ?? guessMarkers(rigSilhouette(positions, indices, 'front'))
-  const rig = fitSkeleton(markers, meshQuery(positions, indices), {
+  const fitted = fitSkeleton(markers, meshQuery(positions, indices), {
     tail: options.tail ?? undefined,
     tailBones: options.tailBones,
   })
+  const moved = options.joints ?? {}
+  const rig: FittedRig = Object.keys(moved).length
+    ? (() => {
+        const joints = fitted.joints.map((j) =>
+          moved[j.name] != null ? { ...j, position: { ...moved[j.name] } } : j
+        )
+        const byName = new Map(joints.map((j) => [j.name, j.position]))
+        return { ...fitted, joints, at: (name: string) => byName.get(name) }
+      })()
+    : fitted
   return {
     positions,
     indices,
@@ -134,6 +151,7 @@ export function bodyFromMarkers(
       source: options.source,
       markers,
       tail: options.tail ?? null,
+      ...(Object.keys(moved).length ? { joints: { ...moved } } : {}),
     },
   }
 }

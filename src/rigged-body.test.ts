@@ -55,6 +55,23 @@ describe('rigged body', () => {
     if (body.made.by === 'markers') expect(body.made.markers.chin).toBeDefined()
   })
 
+  test.skipIf(!existsSync(RIGGING))('joints moved by hand win over the fit, and are kept', () => {
+    const tris = objTriangles(readFileSync(join(RIGGING, 'weasel.obj'), 'utf8'), ['Body'])
+    const fitted = bodyFromMarkers(tris)
+    const t = fitted.rig.at('thumb_01_l')!
+    const moved = { x: t.x + 0.02, y: t.y - 0.01, z: t.z + 0.03 }
+    const body = bodyFromMarkers(tris, {
+      markers: (fitted.made as { markers: any }).markers,
+      joints: { thumb_01_l: moved },
+    })
+    keepsTheContract(body)
+    expect(body.rig.at('thumb_01_l')).toEqual(moved)
+    expect(body.rig.joints.find((j) => j.name === 'thumb_01_l')!.position).toEqual(moved)
+    // The others are where the fit put them.
+    expect(body.rig.at('thumb_01_r')).toEqual(fitted.rig.at('thumb_01_r'))
+    expect(body.made).toMatchObject({ by: 'markers', joints: { thumb_01_l: moved } })
+  })
+
   test.skipIf(!existsSync(PACK))('from MakeHuman: two shapes, one set of weights', async () => {
     const pack = await loadHumanPack(PACK, fromDisk)
     const maker = await humanBodyMaker(pack)
