@@ -267,6 +267,114 @@ export function eyeCentre(eye: BodyEye): { centre: Vec3; radius: number } {
 }
 
 /*
+A BLINK FROM THE SHAPE: a body with eyeballs but no lid targets (Blender's
+base meshes) closes its eyes by turning its lids about the eye's centre, so
+the skin slides over the eyeball rather than through it. The opening is read
+off the skin near the eyeball: across the eye, in strips, the lowest point
+of skin above the centre is the upper lid's edge and the highest below it
+the lower lid's. The lids meet `close` of the way up the opening (the upper
+lid does most of the work), and the skin further from the edge moves less.
+No opening (skin over the eye, as on a painted face) means no blink: null.
+*/
+const smooth = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t))
+/**
+ * A blink for one eye as a morph: how far each of the body's vertices moves
+ * (three numbers each, most of them zero), or null if the skin has no
+ * opening round the eye.
+ */
+export function lidBlink(
+  positions: ArrayLike<number>,
+  eye: BodyEye,
+  options: { close?: number; reach?: number } = {}
+): Float32Array | null {
+  const close = options.close ?? 0.3
+  const reach = options.reach ?? 2
+  const { centre: c, radius: r } = eyeCentre(eye)
+  const n = positions.length / 3
+  const strips = 9
+  const span = 1.3
+  const upper = new Array(strips).fill(Infinity)
+  const lower = new Array(strips).fill(-Infinity)
+  const stripOf = (x: number) => Math.round((((x - c.x) / r / span + 1) / 2) * (strips - 1))
+  for (let i = 0; i < n; i++) {
+    const dx = positions[i * 3] - c.x
+    const dy = positions[i * 3 + 1] - c.y
+    const dz = positions[i * 3 + 2] - c.z
+    if (dz < 0 || Math.abs(dx) > span * r) continue
+    if (Math.hypot(dx, dy, dz) > 1.5 * r) continue
+    const k = stripOf(positions[i * 3])
+    const a = Math.atan2(dy, dz)
+    if (a > 0) upper[k] = Math.min(upper[k], a)
+    else lower[k] = Math.max(lower[k], a)
+  }
+  // Strips with no edge take their nearest neighbour's.
+  const fill = (edges: number[]) => {
+    for (let k = 0; k < strips; k++) {
+      if (Number.isFinite(edges[k])) continue
+      for (let step = 1; step < strips; step++) {
+        const near = [edges[k - step], edges[k + step]].find((e) => e != null && Number.isFinite(e))
+        if (near != null) {
+          edges[k] = near
+          break
+        }
+      }
+    }
+  }
+  const mid = (strips - 1) / 2
+  const open = upper[mid] - lower[mid]
+  // An opening a lid could close: more than a slit, less than a missing face.
+  if (!(open > (8 * Math.PI) / 180 && open < (140 * Math.PI) / 180)) return null
+  fill(upper)
+  fill(lower)
+  const edgeAt = (edges: number[], x: number) => {
+    const f = Math.max(0, Math.min(strips - 1, (((x - c.x) / r / span + 1) / 2) * (strips - 1)))
+    const k = Math.min(strips - 2, Math.floor(f))
+    return edges[k] + (edges[k + 1] - edges[k]) * (f - k)
+  }
+  const upperFold = (60 * Math.PI) / 180
+  const lowerFold = (35 * Math.PI) / 180
+  const overlap = (3 * Math.PI) / 180
+  const band = (6 * Math.PI) / 180
+  const out = new Float32Array(positions.length)
+  for (let i = 0; i < n; i++) {
+    const x = positions[i * 3]
+    const dx = x - c.x
+    const dy = positions[i * 3 + 1] - c.y
+    const dz = positions[i * 3 + 2] - c.z
+    const d = Math.hypot(dx, dy, dz)
+    if (d > reach * r || dz < -0.2 * r) continue
+    const across = 1 - smooth((Math.abs(dx) / r - 1.3) / 0.5)
+    const near = 1 - smooth((d / r - 1.3) / (reach - 1.3))
+    const weight = across * near
+    if (weight <= 0) continue
+    const up = edgeAt(upper, x)
+    const down = edgeAt(lower, x)
+    const meet = down + close * (up - down)
+    const a = Math.atan2(dy, dz)
+    // Each lid goes a little past where they meet, so no seam shows. Its
+    // edge (the skin within `band` of it, and any the strips read as inside
+    // the opening) lands on that line exactly, or the edge is as ragged
+    // closed as its vertices are uneven open; the fold above eases back.
+    const top = meet - overlap
+    const bottom = meet + overlap
+    let turn: number
+    if (a > meet) {
+      const edge = up + band
+      turn = a <= edge ? top - a : (top - edge) * (1 - smooth((a - edge) / (upperFold - band)))
+    } else {
+      const edge = down - band
+      turn = a >= edge ? bottom - a : (bottom - edge) * (1 - smooth((edge - a) / (lowerFold - band)))
+    }
+    turn *= weight
+    if (turn === 0) continue
+    const yz = Math.hypot(dy, dz)
+    out[i * 3 + 1] = yz * Math.sin(a + turn) - dy
+    out[i * 3 + 2] = yz * Math.cos(a + turn) - dz
+  }
+  return out
+}
+
+/*
 AN EYE'S UVS ARE MADE, NOT READ: a file's eye can be mapped any way, so it is
 mapped the same way every time. Each point goes by its angle from straight
 ahead (+Z, where the body faces) and its direction round that axis: the iris

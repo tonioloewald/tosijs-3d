@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { bodyFromMarkers, eyeCentre, eyeUvs, isEyeName, splitEyes, type RiggedBody } from './rigged-body.js'
+import { bodyFromMarkers, eyeCentre, eyeUvs, isEyeName, lidBlink, splitEyes, type RiggedBody } from './rigged-body.js'
 import { humanBodyMaker } from './human-rig.js'
 import { loadHumanPack } from './human-pack.js'
 import { objTriangles } from './rig-fit.js'
@@ -146,5 +146,50 @@ describe('a file\'s eyes', () => {
     expect(Math.hypot(uv[2] - 0.7, uv[3] - 0.7)).toBeCloseTo(0.25)
     // The upper point is above the centre in the texture.
     expect(uv[5]).toBeGreaterThan(0.7)
+  })
+})
+
+describe('a blink from the shape', () => {
+  // Skin as a shell of points round an eyeball of radius 1, open in front
+  // from 15° below the centre to 20° above it.
+  const r = 1
+  const eye = { positions: new Float32Array([0, 0, r, r, 0, 0, -r, 0, 0, 0, r, 0, 0, -r, 0, 0, 0, -r]), indices: new Uint32Array([0, 1, 3]) }
+  const deg = Math.PI / 180
+  const shell = (openFrom: number, openTo: number) => {
+    const p: number[] = []
+    for (let x = -1.2; x <= 1.21; x += 0.2)
+      for (let a = -80; a <= 80; a += 5) {
+        if (a > openFrom && a < openTo) continue
+        const yz = 1.1 * Math.sqrt(Math.max(0, 1 - (x / 1.25) ** 2)) + 0.05
+        p.push(x, yz * Math.sin(a * deg), yz * Math.cos(a * deg))
+      }
+    return Float32Array.from(p)
+  }
+
+  test('the upper lid comes down, the lower up, over the eyeball', () => {
+    const skin = shell(-15, 20)
+    const d = lidBlink(skin, eye)!
+    expect(d).not.toBeNull()
+    const at = (x: number, a: number) => {
+      for (let i = 0; i < skin.length; i += 3)
+        if (Math.abs(skin[i] - x) < 1e-6 && Math.abs(Math.atan2(skin[i + 1], skin[i + 2]) / deg - a) < 1e-3) return i
+      throw new Error('no such point')
+    }
+    const upper = at(0, 20)
+    const lower = at(0, -15)
+    const angle = (i: number) => Math.atan2(skin[i + 1] + d[i + 1], skin[i + 2] + d[i + 2]) / deg
+    // They meet 30% of the way up the opening, each 3° past the other.
+    expect(angle(upper)).toBeCloseTo(-15 + 0.3 * 35 - 3, 0)
+    expect(angle(lower)).toBeCloseTo(-15 + 0.3 * 35 + 3, 0)
+    // Turned, not pushed: still as far from the eye's centre.
+    const dist = (i: number) => Math.hypot(skin[i] + d[i], skin[i + 1] + d[i + 1], skin[i + 2] + d[i + 2])
+    expect(dist(upper)).toBeCloseTo(Math.hypot(skin[upper], skin[upper + 1], skin[upper + 2]))
+    // Skin far above the lid does not move.
+    const brow = at(0, 80)
+    expect(Math.hypot(d[brow + 1], d[brow + 2])).toBeLessThan(1e-6)
+  })
+
+  test('skin over the eye (no opening) gives no blink', () => {
+    expect(lidBlink(shell(0, 0), eye)).toBeNull()
   })
 })

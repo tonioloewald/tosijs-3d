@@ -1826,7 +1826,7 @@ export { buildRig, buildBody, gatherTriangles, loadRigTriangles, autoRig } from 
 export type { BuiltRig, BuiltBody, RigTriangles, AutoRigged } from './rig-build.js'
 export { bodyFromMarkers } from './rigged-body.js'
 export type { RiggedBody, RiggedBodyOrigin, BodyTriangles, BodySurface, BodyEye } from './rigged-body.js'
-export { isEyeName, splitEyes, eyeCentre, eyeUvs } from './rigged-body.js'
+export { isEyeName, splitEyes, eyeCentre, eyeUvs, lidBlink } from './rigged-body.js'
 export { mountTailorTool } from './tailor-tool.js'
 export { chooseFile } from './choose-file.js'
 export { loadSkinnedBody, soleVertices, lowestOf, surfaceMaterial } from './rig-build.js'

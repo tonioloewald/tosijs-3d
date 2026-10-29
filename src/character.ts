@@ -140,7 +140,7 @@ import {
   surfaceMaterial,
   type BuiltBody,
 } from './rig-build.js'
-import { bodyFromMarkers, type RiggedBody } from './rigged-body.js'
+import { bodyFromMarkers, lidBlink, type RiggedBody } from './rigged-body.js'
 import { applyRigRecipe } from './rig-recipe-babylon.js'
 import type { RigRecipe } from './rig-recipe.js'
 import { assetUrl } from './asset-url.js'
@@ -533,9 +533,15 @@ export async function makeCharacter(
   // The face: MakeHuman's face pose units as morph targets, in layers.
   const expressions = humanExpressions(scene, await faceDeltas(pack))
   let stopBlink: (() => void) | null = null
+  // Bodies with lids made from their shape blink with the same timer.
+  const lidded = new Set<any>()
   const blinking = () => {
     stopBlink?.()
     stopBlink = s.blink ? blinker(scene, expressions) : null
+    for (const r of lidded) {
+      r.stopBlink?.()
+      r.stopBlink = s.blink ? blinker(scene, r.lids) : null
+    }
   }
   blinking()
   const stopLids = lidsFollow(scene, expressions, () => face)
@@ -808,9 +814,29 @@ export async function makeCharacter(
     if (made.eyes?.length) {
       r.face = bodyEyes(scene, r, made.rig, made.eyes, faceMaterials.eye)
       register(r.face.meshes)
+      // And lids that close over them, if the skin opens round them: on a
+      // body rigged from markers (Blender's base meshes, your own). A file
+      // that comes skinned is an artist's character, and Quaternius' big
+      // stylised eyes stand proud of the face, so a lid turned over them
+      // leaves a line of white.
+      const [left, right] = made.made.by === 'markers' ? made.eyes.map((eye) => lidBlink(made.positions, eye)) : []
+      const units = new Map<string, Float32Array>()
+      if (left) units.set('LeftUpperLidClosed', left)
+      if (right) units.set('RightUpperLidClosed', right)
+      if (units.size) {
+        r.lids = humanExpressions(scene, units)
+        r.lids.attach(r.mesh, (d: Float32Array) => d)
+        r.stopLids = lidsFollow(scene, r.lids, () => r.face)
+        r.stopBlink = s.blink ? blinker(scene, r.lids) : null
+        lidded.add(r)
+      }
     }
     const dispose = r.dispose
     r.dispose = () => {
+      lidded.delete(r)
+      r.stopBlink?.()
+      r.stopLids?.()
+      r.lids?.dispose()
       r.face?.dispose()
       r.applied?.dispose()
       r.multi?.dispose(false, false, false)
@@ -857,6 +883,8 @@ export async function makeCharacter(
     const drawn = new Map(wearing.map((p: any) => [p.name, drawnPositions(p, fitProxy(p, r.body.positions))]))
     r.everyVertex ??= Uint32Array.from({ length: r.body.positions.length / 3 }, (_, i) => i)
     coverBody(r, r.body.indices, r.everyVertex, wearing, { drawn })
+    // The lids again, over the tucked skin (a target holds whole positions).
+    r.lids?.attach(r.mesh, (d: Float32Array) => d)
     register(r.clothes)
   }
   const hideOther = () => {
