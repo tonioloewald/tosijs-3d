@@ -82,7 +82,8 @@ parent of `root`, not `root` itself.
 import * as BABYLON from '@babylonjs/core'
 import type { FittedRig, Markers } from './rig-fit.js'
 import type { SkinWeights } from './bone-heat.js'
-import { bodyFromMarkers, type RiggedBody } from './rigged-body.js'
+import { bodyFromMarkers, surfaceOf, type BodySurface, type RiggedBody } from './rigged-body.js'
+import { materialConventions } from './b3d-utils.js'
 
 export interface BuiltRig {
   /** The container: move, turn and scale the character by this. */
@@ -105,7 +106,13 @@ export function buildRig(
   indices: ArrayLike<number>,
   rig: FittedRig,
   weights: SkinWeights,
-  options: { normals?: ArrayLike<number> } = {}
+  options: {
+    normals?: ArrayLike<number>
+    uvs?: ArrayLike<number>
+    colors?: ArrayLike<number>
+    /** Runs of triangles, one sub-mesh each (material index = its place). */
+    surfaces?: BodySurface[]
+  } = {}
 ): BuiltRig {
   const root = new BABYLON.TransformNode(name, scene)
   root.rotationQuaternion = new BABYLON.Quaternion(0, 1, 0, 0)
@@ -157,7 +164,16 @@ export function buildRig(
     })
     data.normals = normals
   }
+  if (options.uvs != null) data.uvs = Array.from(options.uvs)
+  if (options.colors != null) data.colors = Array.from(options.colors)
   data.applyToMesh(mesh)
+  if (options.surfaces != null && options.surfaces.length > 1) {
+    const vertices = mesh.getTotalVertices()
+    mesh.subMeshes = []
+    options.surfaces.forEach(
+      (s, i) => new BABYLON.SubMesh(i, 0, vertices, s.start, s.count, mesh)
+    )
+  }
   // As the glTF loader does for its mirrored root: the mirror turns the
   // file's counter-clockwise faces clockwise, which is Babylon's front.
   mesh.sideOrientation = BABYLON.Material.ClockWiseSideOrientation
@@ -189,6 +205,12 @@ export function buildRig(
 export interface RigTriangles {
   positions: number[]
   indices: number[]
+  /** Texture coordinates, when any of the meshes has them. */
+  uvs?: number[]
+  /** Vertex colours (RGBA), when any of the meshes has them. */
+  colors?: number[]
+  /** The triangles in runs, one per material, with the file's materials. */
+  surfaces?: BodySurface[]
 }
 
 /**
@@ -204,6 +226,24 @@ export function gatherTriangles(
   const positions: number[] = []
   const indices: number[] = []
   const v = new BABYLON.Vector3()
+  const uvs: number[] = []
+  const colors: number[] = []
+  let hasUvs = false
+  let hasColors = false
+  const surfaces: BodySurface[] = []
+  const names = new Map<BABYLON.Material | null, string>()
+  const used = new Set<string>()
+  const nameOf = (m: BABYLON.Material | null) => {
+    let name = names.get(m)
+    if (name == null) {
+      const base = m?.name || 'surface'
+      name = base
+      for (let k = 2; used.has(name); k++) name = `${base} ${k}`
+      used.add(name)
+      names.set(m, name)
+    }
+    return name
+  }
   for (const mesh of meshes) {
     /*
     A SKINNED MESH IS WHERE ITS SKELETON PUTS IT: its own vertices can be in
@@ -224,6 +264,33 @@ export function gatherTriangles(
     if (p == null || ix == null) continue
     const m = mesh.computeWorldMatrix(true).multiply(toRoot)
     const base = positions.length / 3
+    const count = p.length / 3
+    const uv = mesh.getVerticesData('uv')
+    const col = mesh.getVerticesData('color')
+    if (uv != null && !hasUvs) {
+      hasUvs = true
+      uvs.push(...new Array(base * 2).fill(0))
+    }
+    if (hasUvs) for (let i = 0; i < count * 2; i++) uvs.push(uv?.[i] ?? 0)
+    if (col != null && !hasColors) {
+      hasColors = true
+      colors.push(...new Array(base * 4).fill(1))
+    }
+    if (hasColors) {
+      const k = col != null ? col.length / count : 0
+      for (let i = 0; i < count; i++)
+        for (let c = 0; c < 4; c++) colors.push(c < k ? col![i * k + c] : 1)
+    }
+    // Its triangles by material: one run per sub-mesh.
+    const at = indices.length
+    const parts = mesh.subMeshes?.length ? mesh.subMeshes : null
+    const own = mesh.material
+    if (parts == null) surfaces.push({ start: at, count: ix.length, name: '', material: own ?? undefined })
+    else
+      for (const sm of parts) {
+        const mat = own instanceof BABYLON.MultiMaterial ? own.subMaterials[sm.materialIndex] ?? null : own
+        surfaces.push({ start: at + sm.indexStart, count: sm.indexCount, name: '', material: mat ?? undefined })
+      }
     for (let i = 0; i < p.length; i += 3) {
       BABYLON.Vector3.TransformCoordinatesFromFloatsToRef(
         p[i],
@@ -236,7 +303,69 @@ export function gatherTriangles(
     }
     for (const i of ix) indices.push(base + i)
   }
-  return { positions, indices }
+  for (const s of surfaces) s.name = nameOf(s.material ?? null)
+  return {
+    positions,
+    indices,
+    ...(hasUvs ? { uvs } : {}),
+    ...(hasColors ? { colors } : {}),
+    ...(surfaces.length ? { surfaces: mergeRuns(surfaces) } : {}),
+  }
+}
+
+/** Runs that follow one another with the same material, as one. */
+function mergeRuns(surfaces: BodySurface[]): BodySurface[] {
+  const out: BodySurface[] = []
+  for (const s of surfaces) {
+    const last = out[out.length - 1]
+    if (last && last.name === s.name && last.start + last.count === s.start) last.count += s.count
+    else out.push({ ...s })
+  }
+  return out
+}
+
+/*
+A FILE'S OWN MATERIALS outlive the file: the loaded container is disposed,
+so the materials its surfaces use (and their textures) are taken out of it
+and into the scene first, with the loader's translucency rules applied
+(near-opaque snapped to opaque; translucent sorted with a depth pre-pass).
+*/
+function keepMaterials(
+  container: BABYLON.AssetContainer,
+  scene: BABYLON.Scene,
+  surfaces: BodySurface[] | undefined
+): void {
+  const kept = new Set(surfaces?.map((s) => s.material).filter((m) => m != null))
+  for (const mat of kept) {
+    const i = container.materials.indexOf(mat!)
+    if (i >= 0) container.materials.splice(i, 1)
+    scene.addMaterial(mat!)
+    for (const t of mat!.getActiveTextures()) {
+      const j = container.textures.indexOf(t)
+      if (j >= 0) container.textures.splice(j, 1)
+      if (!scene.textures.includes(t)) scene.addTexture(t)
+    }
+    materialConventions(mat!)
+  }
+}
+
+/**
+ * A material for a built body, chosen per surface: `pick` is given each of
+ * the body's surfaces (or null when it has none) and returns its material.
+ * Several surfaces make a MultiMaterial (dispose it without its children).
+ */
+export function surfaceMaterial(
+  scene: BABYLON.Scene,
+  name: string,
+  body: RiggedBody,
+  pick: (surface: BodySurface | null) => BABYLON.Material
+): BABYLON.Material {
+  const surfaces = body.surfaces ?? []
+  if (surfaces.length === 0) return pick(null)
+  if (surfaces.length === 1) return pick(surfaces[0])
+  const multi = new BABYLON.MultiMaterial(`${name}-surfaces`, scene)
+  multi.subMaterials = surfaces.map(pick)
+  return multi
 }
 
 /**
@@ -279,6 +408,7 @@ export async function loadRigTriangles(
     )
     const tris = gatherTriangles(root, meshes)
     if (tris.indices.length === 0) throw new Error('the file has no meshes')
+    keepMaterials(container, scene, tris.surfaces)
     return tris
   } finally {
     container.dispose()
@@ -393,12 +523,14 @@ export async function loadSkinnedBody(
       v0 += count
     }
     if (v0 !== n) return null
+    keepMaterials(container, scene, tris.surfaces)
     return {
       positions: Float32Array.from(tris.positions),
       indices: Uint32Array.from(tris.indices),
       rig,
       weights,
       regions: {},
+      ...surfaceOf(tris),
       made: { by: 'skin', source: file ? source.name : source },
     }
   } finally {
@@ -424,6 +556,9 @@ export function buildBody(
 ): BuiltBody {
   const built = buildRig(scene, name, body.positions, body.indices, body.rig, body.weights, {
     normals: weldedNormals(body.positions, body.indices),
+    uvs: body.uvs,
+    colors: body.colors,
+    surfaces: body.surfaces,
   })
   return { ...built, body, rig: body.rig }
 }

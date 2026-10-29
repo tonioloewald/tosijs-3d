@@ -11,12 +11,12 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, clothRecipe, materialPicker3d, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, readSkeleton, retargetClip, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, smoothUnder, loadRigTriangles, bodyFromMarkers, applyRigRecipe, writeCharacter, readCharacter, humanBodyMaker, buildBody, mountTailorTool, chooseFile, loadSkinnedBody, b3dPanel, panel3d, soleVertices, lowestOf } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, clothRecipe, materialPicker3d, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, readSkeleton, retargetClip, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, smoothUnder, loadRigTriangles, bodyFromMarkers, applyRigRecipe, writeCharacter, readCharacter, humanBodyMaker, buildBody, mountTailorTool, chooseFile, loadSkinnedBody, b3dPanel, panel3d, soleVertices, lowestOf, surfaceMaterial } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 
 // Everything the panel sets, as it starts: what a saved character is read against.
-const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, source: 'MakeHuman', characterName: '', characterPick: '' }
+const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, source: 'MakeHuman', characterName: '', characterPick: '' }
 const { walker } = tosi({ walker: structuredClone(START) })
 // What a character file keeps: not the editor's view of one slot (that is in
 // cloth), the microphone (it would ask on load), or the save controls.
@@ -75,6 +75,8 @@ let rigging = null
 let openRig = (file = null) => {}
 // What the imported body is doing, or why it failed.
 let sourceNote = ''
+// The imported body's surfaces (its file's materials), each as made or skin.
+let surfaceRows = () => []
 const madeHuman = () => walker.source.value === 'MakeHuman'
 // A garment of your own, cut from the body along outlines you draw (the
 // character's left; the right is its mirror). A rectangle from the waist to
@@ -208,6 +210,7 @@ preview.append(
         label3d({ text: 'Motion', collapsible: true, open: true }),
         select3d({ label: 'clip', value: walker.clip, options: clips, stayOpen: true }),
         toggle3d({ label: 'pause', value: walker.paused }),
+        ...surfaceRows(),
         label3d({ text: 'Skin', collapsible: true }),
         slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: 'redness', value: walker.redness, min: 0, max: 1, step: 0.01 }),
@@ -905,27 +908,70 @@ preview.append(
           if (!kept0?.binding) {
             if (!skinned.has(name)) skinned.set(name, await loadSkinnedBody(scene, from.file ?? from.url, { pick: from.pick }))
             const own = skinned.get(name)
-            if (own) return wear(own, kept0)
+            if (own) return wear(own, kept0, name)
           }
           if (!triangles.has(name)) triangles.set(name, await loadRigTriangles(scene, from.file ?? from.url, { pick: from.pick }))
           const tris = triangles.get(name)
           const kept = recipeOf(name)
-          return wear(bodyFromMarkers(tris, { markers: kept?.binding?.markers, tail: kept?.binding?.tail, tailBase: kept?.binding?.tailBase, joints: kept?.binding?.joints, source: name }), kept)
+          return wear(bodyFromMarkers(tris, { markers: kept?.binding?.markers, tail: kept?.binding?.tail, tailBase: kept?.binding?.tailBase, joints: kept?.binding?.joints, source: name }), kept, name)
         }
         // A rigged body on the stand in the builder's skin, with its recipe.
-        const wear = (body, kept) => {
+        const wear = (body, kept, name) => {
           const r = buildBody(scene, `body-${rigged.size}`, body)
           r.kept = JSON.stringify(kept)
           // A body bound from markers carries them in its recipe, so the rig
           // tool binds the same mesh from the same markers; one with its own
           // skin opens on its own skeleton.
           r.recipe = { version: 1, roles: {}, armSpaceDeg: 0, springs: [], ...kept, ...(body.made.by === 'markers' ? { binding: { markers: body.made.markers, tail: body.made.tail ?? null, ...(body.made.tailBase ? { tailBase: body.made.tailBase } : {}), ...(body.made.joints ? { joints: body.made.joints } : {}) } } : {}) }
-          r.mesh.material = mat
+          r.source = name
+          dressSurfaces(r)
+          const dispose = r.dispose
+          r.dispose = () => { r.multi?.dispose(false, false, false); dispose() }
           r.root.parent = stand
           r.root.setEnabled(false)
           el.register({ meshes: [r.mesh] })
           return r
         }
+        // EACH SURFACE AS MADE OR IN THE SKIN: a file's own materials (its
+        // textures, metal, glass) or the builder's skin shader, per material.
+        // A plain mesh of one untextured material takes the skin; anything
+        // with textures or several materials is shown as made.
+        const surfaceChoice = (r, surface) => {
+          const kept = plain(walker.surfaces.value)[r.source]?.[surface.name]
+          if (kept) return kept
+          const made = surface.material
+          const textured = (made?.getActiveTextures().length ?? 0) > 0
+          return made && (textured || r.body.surfaces.length > 1) ? 'as made' : 'skin'
+        }
+        const dressSurfaces = (r) => {
+          r.multi?.dispose(false, false, false)
+          const m = surfaceMaterial(scene, r.mesh.name, r.body, (surface) =>
+            surface?.material && surfaceChoice(r, surface) === 'as made' ? surface.material : mat)
+          r.multi = m instanceof BABYLON.MultiMaterial ? m : null
+          r.mesh.material = m
+        }
+        surfaceRows = () => {
+          // One row per material, however many runs of triangles use it.
+          const surfaces = [...new Map((other?.body.surfaces ?? []).filter((x) => x.material).map((x) => [x.name, x])).values()]
+          if (!surfaces.length) return []
+          const r = other
+          return [
+            label3d({ text: 'Surfaces', collapsible: true, open: true }),
+            ...surfaces.map((surface) =>
+              select3d({
+                label: surface.name,
+                value: surfaceChoice(r, surface),
+                options: ['as made', 'skin'],
+                handleChange: (v) => {
+                  const all = plain(walker.surfaces.value)
+                  walker.surfaces.value = { ...all, [r.source]: { ...all[r.source], [surface.name]: v } }
+                },
+              })
+            ),
+          ]
+        }
+        // A surface chosen again (or a character loaded) redresses every body.
+        walker.surfaces.observe(() => { for (const r of rigged.values()) dressSurfaces(r) })
         const hide = () => {
           other?.applied?.dispose()
           if (other) other.applied = null
@@ -982,6 +1028,8 @@ preview.append(
         // A mesh file becomes a body source (a choice in the list) and is shown.
         const openFile = (file) => {
           SOURCES[file.name] = { file }
+          // A file opened again: the copy loaded before, its materials with it.
+          for (const s of [...(triangles.get(file.name)?.surfaces ?? []), ...(skinned.get(file.name)?.surfaces ?? [])]) s.material?.dispose(false, true)
           triangles.delete(file.name)
           skinned.delete(file.name)
           rigged.get(file.name)?.dispose()

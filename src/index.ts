@@ -111,6 +111,7 @@ export {
   actualMeshes,
   enterXR,
   applyMaterialConventions,
+  materialConventions,
   publicName,
   isIgnored,
   placeOnSurface,
@@ -1824,10 +1825,10 @@ export { boneHeat } from './bone-heat.js'
 export { buildRig, buildBody, gatherTriangles, loadRigTriangles, autoRig } from './rig-build.js'
 export type { BuiltRig, BuiltBody, RigTriangles, AutoRigged } from './rig-build.js'
 export { bodyFromMarkers } from './rigged-body.js'
-export type { RiggedBody, RiggedBodyOrigin, BodyTriangles } from './rigged-body.js'
+export type { RiggedBody, RiggedBodyOrigin, BodyTriangles, BodySurface } from './rigged-body.js'
 export { mountTailorTool } from './tailor-tool.js'
 export { chooseFile } from './choose-file.js'
-export { loadSkinnedBody, soleVertices, lowestOf } from './rig-build.js'
+export { loadSkinnedBody, soleVertices, lowestOf, surfaceMaterial } from './rig-build.js'
 export type { TailorTool, TailorToolOptions, TailorCut, TailorState, TailoredGarment } from './tailor-tool.js'
 export { loadHumanPack, decodeHumanTarget } from './human-pack.js'
 export type {

@@ -72,6 +72,29 @@ describe('rigged body', () => {
     expect(body.made).toMatchObject({ by: 'markers', joints: { thumb_01_l: moved } })
   })
 
+  test.skipIf(!existsSync(RIGGING))("a file's uvs, colours and surfaces are carried onto the body", () => {
+    const tris = objTriangles(readFileSync(join(RIGGING, 'weasel.obj'), 'utf8'), ['Body'])
+    const n = tris.positions.length / 3
+    const uvs = Array.from({ length: n * 2 }, (_, i) => i / (n * 2))
+    const colors = new Array(n * 4).fill(0.5)
+    const half = Math.floor(tris.indices.length / 6) * 3
+    const surfaces = [
+      { start: 0, count: half, name: 'fur' },
+      { start: half, count: tris.indices.length - half, name: 'glass' },
+    ]
+    const body = bodyFromMarkers({ ...tris, uvs, colors, surfaces })
+    keepsTheContract(body)
+    expect(Array.from(body.uvs!)).toEqual(Array.from(Float32Array.from(uvs)))
+    expect(body.colors!.length).toBe(n * 4)
+    expect(body.surfaces).toEqual(surfaces)
+    // A copy: the body's surfaces are its own.
+    expect(body.surfaces![0]).not.toBe(surfaces[0])
+    // None given, none made up.
+    const plain = bodyFromMarkers(tris)
+    expect(plain.uvs).toBeUndefined()
+    expect(plain.surfaces).toBeUndefined()
+  })
+
   test.skipIf(!existsSync(PACK))('from MakeHuman: two shapes, one set of weights', async () => {
     const pack = await loadHumanPack(PACK, fromDisk)
     const maker = await humanBodyMaker(pack)

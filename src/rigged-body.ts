@@ -41,11 +41,16 @@ A rigged body is plain data, Babylon-free:
 - **`made`**: how it was made, enough to make it again: the markers (and
   where the mesh came from), MakeHuman's slider values, or `skin` (the file's
   own).
+- **`uvs`, `colors`, `surfaces`** (a file's, when it has them): its texture
+  coordinates, vertex colours (RGBA), and its triangles in runs, one per
+  material, each with the file's own material. A consumer draws each surface
+  as made or puts its own material on it (the builder's skin).
 
 `buildBody` (in [auto-rig](/rig-build/)) makes it a Babylon skeleton.
 */
 /*{ "parent": "b3d-biped", "order": 70 }*/
 
+import type { Material } from '@babylonjs/core'
 import type { Vec3 } from './spatial-transform.js'
 import {
   fitSkeleton,
@@ -95,12 +100,33 @@ export interface RiggedBody {
   /** Per-vertex masks (0 to 1) the maker knows: `lips`, `nipples`. */
   regions: Record<string, Float32Array>
   made: RiggedBodyOrigin
+  /** Texture coordinates, two per vertex (a file's). */
+  uvs?: Float32Array
+  /** Vertex colours, RGBA per vertex (a file's). */
+  colors?: Float32Array
+  /** Its triangles in runs, one per material (a file's). */
+  surfaces?: BodySurface[]
+}
+
+/**
+ * A run of a body's triangles drawn with one material: `start` and `count`
+ * are in `indices`, `name` is the material's (unique within the body), and
+ * `material` the file's own, loaded (a handle, not data: it is not saved).
+ */
+export interface BodySurface {
+  start: number
+  count: number
+  name: string
+  material?: Material
 }
 
 /** A mesh as triangles, in its file's own (right-handed) frame. */
 export interface BodyTriangles {
   positions: ArrayLike<number>
   indices: ArrayLike<number>
+  uvs?: ArrayLike<number>
+  colors?: ArrayLike<number>
+  surfaces?: BodySurface[]
 }
 
 /**
@@ -150,6 +176,7 @@ export function bodyFromMarkers(
     rig,
     weights: boneHeat(positions, indices, skinSegments(rig)),
     regions: {},
+    ...surfaceOf(tris),
     made: {
       by: 'markers',
       source: options.source,
@@ -158,5 +185,16 @@ export function bodyFromMarkers(
       ...(options.tail != null && options.tailBase != null ? { tailBase: options.tailBase } : {}),
       ...(Object.keys(moved).length ? { joints: { ...moved } } : {}),
     },
+  }
+}
+
+/** A file's uvs, colours and surfaces, carried onto the body made from it. */
+export function surfaceOf(
+  tris: BodyTriangles
+): Pick<RiggedBody, 'uvs' | 'colors' | 'surfaces'> {
+  return {
+    ...(tris.uvs ? { uvs: Float32Array.from(tris.uvs) } : {}),
+    ...(tris.colors ? { colors: Float32Array.from(tris.colors) } : {}),
+    ...(tris.surfaces?.length ? { surfaces: tris.surfaces.map((s) => ({ ...s })) } : {}),
   }
 }
