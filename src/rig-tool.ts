@@ -171,7 +171,6 @@ import {
   inspectView,
   inspectStage,
   seamOverlay,
-  INSPECT_FACES,
   type InspectFace,
 } from './inspect-view.js'
 import { viewMenu } from './bar-menu.js'
@@ -1072,14 +1071,9 @@ export function mountRigTool(
           void chooseFile('.glb,.gltf').then((f) => f && tool?.loadClips(f)),
       }),
 
-      // VIEW: where it is seen from, and what is shown beside it.
+      // VIEW: what is shown beside it (where it is seen from is the
+      // toolbar on the bar: the camera).
       label3d({ text: 'View', collapsible: true }),
-      select3d({
-        label: 'view',
-        value: ui.view,
-        options: [...INSPECT_FACES, 'free'],
-        handleChange: (v) => tool?.view((ui.view = v as RigView)),
-      }),
       toggle3d({
         label: 'mannequin',
         value: ui.compare,
@@ -1723,7 +1717,9 @@ export function mountRigTool(
         const pose = f === 'free' ? 'animate' : 'rest'
         if (pose !== ui.pose) {
           ui.pose = pose
-          play()
+          // Moved markers or joints are bound before it moves.
+          if (pose === 'animate' && stale) void bindIfMoved().then(() => play())
+          else play()
         } else frame()
         menu?.update()
         seams()
