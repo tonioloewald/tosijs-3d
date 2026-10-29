@@ -587,6 +587,12 @@ export interface RigToolOptions {
   handleDone?: (rig: RigDone) => void
   /** Cancelled: the tool unmounts and this is called. */
   handleCancel?: () => void
+  /**
+   * Hosted: a `<tosi-b3d-panel>` of the host's to show the tool in, so its
+   * button stays on the bar when the tool goes (the host puts its own
+   * content back). Without one the tool brings its own and removes it.
+   */
+  panel?: HTMLElement & { svg: SVGSVGElement | null; show?: () => void }
 }
 
 /** What `handleDone` is handed: the recipe, and the body bound from it. */
@@ -599,6 +605,8 @@ export interface RigDone {
    * `applyRigRecipe`. Absent for a model rigged on its own skeleton.
    */
   body?: RiggedBody
+  /** The model it was rigged on (one of `models`, or a file loaded in it). */
+  model?: RigModel | File
 }
 
 /** A rig tool mounted in a scene: `change` and `commit` events, its API, unmount. */
@@ -683,6 +691,8 @@ export function mountRigTool(
   again when you look (animate) or finish (done).
   */
   let stale = false
+  /** The model loaded now (what `done` hands back). */
+  let loadedModel: RigModel | File | null = null
   function setMarkers(markers: Markers, tail: Vec3 | null) {
     const joints = recipe.binding?.joints
     recipe.binding = { markers, tail, ...(joints ? { joints } : {}) }
@@ -1422,7 +1432,12 @@ export function mountRigTool(
     ]
   }
 
-  if (hosted) {
+  if (hosted && options.panel != null) {
+    // The host's panel: shown, and left on the bar for the host.
+    panelEl = options.panel
+    panelEl.svg = panelSvg()
+    options.panel.show?.()
+  } else if (hosted) {
     panelEl = b3dPanel({
       icon: 'rig',
       title: 'Rig',
@@ -2313,6 +2328,7 @@ export function mountRigTool(
     }
 
     let lastModel: RigModel | File | null = null
+    cleanups.push(() => { loadedModel = null })
     /** Bind the same mesh again, keeping the recipe (its markers moved). */
     const rebind = () => {
       if (lastModel == null) return Promise.resolve()
@@ -2397,6 +2413,7 @@ export function mountRigTool(
         )
         ui.model = label
         lastModel = m
+        loadedModel = m
         const url = m instanceof File ? undefined : m.url
         recipe = next
         recipe.model = { url, name: m instanceof File ? m.name : pick }
@@ -2507,6 +2524,7 @@ export function mountRigTool(
     }
     const rig: RigDone = { recipe: copy() }
     if (body != null) rig.body = body
+    if (loadedModel != null) rig.model = loadedModel
     handle.unmount()
     if (done) options.handleDone?.(rig)
     else options.handleCancel?.()

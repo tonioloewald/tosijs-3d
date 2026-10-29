@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, clothRecipe, materialPicker3d, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, readSkeleton, retargetClip, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, smoothUnder, loadRigTriangles, bodyFromMarkers, applyRigRecipe, writeCharacter, readCharacter, humanBodyMaker, buildBody, mountTailorTool, chooseFile, loadSkinnedBody } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, clothRecipe, materialPicker3d, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, readSkeleton, retargetClip, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, smoothUnder, loadRigTriangles, bodyFromMarkers, applyRigRecipe, writeCharacter, readCharacter, humanBodyMaker, buildBody, mountTailorTool, chooseFile, loadSkinnedBody, b3dPanel, panel3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 
@@ -72,7 +72,7 @@ const SOURCES = {
 let openBody = () => {}
 // The rig tool, mounted on the body while it is being rigged.
 let rigging = null
-let openRig = () => {}
+let openRig = (file = null) => {}
 // What the imported body is doing, or why it failed.
 let sourceNote = ''
 const madeHuman = () => walker.source.value === 'MakeHuman'
@@ -989,24 +989,53 @@ preview.append(
         // the tool shows the same mesh bound from the same recipe, and takes the
         // recipe back when you are done (bound again from its markers, its
         // springs hung). Cancel puts back the recipe it started with.
-        openRig = () => {
-          const name = walker.source.value
-          const from = SOURCES[name]
-          if (madeHuman() || !other || rigging) return
+        // THE RIG TOOL'S BUTTON is always on the bar: it rigs the body shown
+        // (a mesh's), or a mesh file opened in it, and done makes what it
+        // rigged the builder's body (a choice under source). While it works,
+        // the tool has the panel; after, these two buttons are back.
+        const rigPanel = b3dPanel({ icon: 'rig', title: 'Rig', exclusive: 'off' })
+        const idleRig = () =>
+          panel3d(
+            { width: 300 },
+            label3d({ text: 'rig a mesh to play the clips', muted: true, compact: true }),
+            ...(madeHuman() ? [] : [button3d({ label: `rig ${walker.source.value}`, handleClick: () => openRig() })]),
+            button3d({ label: 'open a mesh file…', handleClick: () => chooseFile('.glb,.gltf,.obj').then((f) => f && openRig(f)) })
+          )
+        rigPanel.svg = idleRig()
+        el.append(rigPanel)
+        walker.source.observe(() => { if (!rigging) rigPanel.svg = idleRig() })
+        openRig = (file = null) => {
+          if (rigging) return
+          if (!file && (madeHuman() || !other)) return
+          const name = file ? file.name : walker.source.value
+          const from = file ? { file } : SOURCES[name]
           hide()
+          built.root.setEnabled(false)
           playing?.stop()
-          const back = () => { rigging = null; if (walker.source.value === name) choose(); else el.refreshScenePanel?.() }
+          const done = () => {
+            rigging = null
+            rigPanel.svg = idleRig()
+            rigPanel.hide?.()
+          }
           rigging = mountRigTool(el, {
             models: [{ label: name, url: from.url ?? '', file: from.file, pick: from.pick }],
-            recipe: plain(other.recipe),
+            // A file starts from nothing: bound from markers, or on its own
+            // skeleton when it has one.
+            recipe: file ? undefined : plain(other.recipe),
             files: false,
             stage: false,
             camera: cam,
+            panel: rigPanel,
             // The rig it hands back is worn as it is: the body the tool bound,
             // its recipe kept with the character.
             handleDone: ({ recipe, body }) => {
-              rigging = null
+              done()
               delete recipe.model
+              if (file) {
+                SOURCES[name] = { file }
+                triangles.delete(name)
+                skinned.delete(name)
+              }
               const old = rigged.get(name)
               if (old) {
                 if (old === other) { hide(); other = null }
@@ -1016,15 +1045,19 @@ preview.append(
               if (body) rigged.set(name, wear(body, recipe))
               keepRecipe(name, recipe)
               if (walker.source.value === name) choose()
+              else walker.source.value = name
             },
-            handleCancel: back,
+            handleCancel: () => {
+              done()
+              choose()
+            },
           })
           el.refreshScenePanel?.()
         }
         el.builder.choose = choose
         el.builder.rigged = rigged
         el.builder.rigTool = () => rigging
-        el.builder.openRig = () => openRig()
+        el.builder.openRig = (file) => openRig(file)
 
         // CHARACTERS (character-file): the figure you are working on is kept
         // in this browser as you change it and comes back when the page opens;
