@@ -142,6 +142,7 @@ mountRigTool(scene, {
 /*{ "parent": "demos", "order": 35 }*/
 
 import * as BABYLON from '@babylonjs/core'
+import { chooseFile } from './choose-file.js'
 import { b3d } from './tosi-b3d.js'
 import { b3dLight } from './b3d-light.js'
 import { b3dSun } from './b3d-shadows.js'
@@ -404,17 +405,6 @@ function recall(key: string): RigRecipe | null {
   } catch {
     return null
   }
-}
-
-function chooseFile(accept: string): Promise<File | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = accept
-    input.addEventListener('change', () => resolve(input.files?.[0] ?? null))
-    input.addEventListener('cancel', () => resolve(null))
-    input.click()
-  })
 }
 
 function download(name: string, text: string): void {

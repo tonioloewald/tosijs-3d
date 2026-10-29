@@ -62,6 +62,7 @@ shared driver and sprites, which go with a scene's last player.
 */
 /*{ "parent": "demos", "order": 36 }*/
 
+import { chooseFile } from './choose-file.js'
 import * as BABYLON from '@babylonjs/core'
 import { b3d } from './tosi-b3d.js'
 import { b3dLight } from './b3d-light.js'
@@ -111,17 +112,6 @@ const recall = (key: string): EffectRecipe | null => {
   }
 }
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v))
-
-function chooseFile(accept: string): Promise<File | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = accept
-    input.addEventListener('change', () => resolve(input.files?.[0] ?? null))
-    input.addEventListener('cancel', () => resolve(null))
-    input.click()
-  })
-}
 
 /** `effectTool()`'s element carries this as `.effect`. */
 export interface EffectToolApi {

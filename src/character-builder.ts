@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, clothRecipe, materialPicker3d, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, readSkeleton, retargetClip, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, smoothUnder, loadRigTriangles, bodyFromMarkers, applyRigRecipe, writeCharacter, readCharacter, humanBodyMaker, buildBody, mountTailorTool } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, clothRecipe, materialPicker3d, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, readSkeleton, retargetClip, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, smoothUnder, loadRigTriangles, bodyFromMarkers, applyRigRecipe, writeCharacter, readCharacter, humanBodyMaker, buildBody, mountTailorTool, chooseFile } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 
@@ -469,11 +469,7 @@ preview.append(
           await keep(writeGarmentGlb({ garment: content.garment, material: content.material, meta: { ...meta, name, slot, ...(look ? { look } : {}) } }), slot)
         }
         importGarment = () => {
-          const input = document.createElement('input')
-          input.type = 'file'
-          input.accept = '.glb,.obj'
-          input.onchange = async () => {
-            const file = input.files?.[0]
+          chooseFile('.glb,.obj').then(async (file) => {
             if (!file) return
             try {
               await importFrom(file.name.endsWith('.obj') ? await file.text() : await file.arrayBuffer(), file.name)
@@ -481,8 +477,7 @@ preview.append(
               console.warn('tailor: could not import', e)
               say(`${file.name}: ${String(e?.message ?? e).replace(/^garment-file: /, '')}`)
             }
-          }
-          input.click()
+          })
         }
         walker.tailorAlone.observe(() => dress())
         walker.tailorSlot.observe(() => el.refreshScenePanel?.())
@@ -966,21 +961,18 @@ preview.append(
         }
         walker.source.observe(choose)
         openBody = () => {
-          const input = document.createElement('input')
-          input.type = 'file'
-          input.accept = '.glb,.gltf'
-          input.onchange = () => {
-            const file = input.files?.[0]
-            if (!file) return
-            SOURCES[file.name] = { file }
-            triangles.delete(file.name)
-            rigged.get(file.name)?.dispose()
-            rigged.delete(file.name)
-            if (walker.source.value === file.name) choose()
-            else walker.source.value = file.name
-          }
-          input.click()
+          chooseFile('.glb,.gltf').then((file) => file && openFile(file))
         }
+        // A mesh file becomes a body source (a choice in the list) and is shown.
+        const openFile = (file) => {
+          SOURCES[file.name] = { file }
+          triangles.delete(file.name)
+          rigged.get(file.name)?.dispose()
+          rigged.delete(file.name)
+          if (walker.source.value === file.name) choose()
+          else walker.source.value = file.name
+        }
+        el.builder.openFile = openFile
         // THE RIG TOOL, on the body shown: the builder's body steps aside while
         // the tool shows the same mesh bound from the same recipe, and takes the
         // recipe back when you are done (bound again from its markers, its
@@ -1130,11 +1122,7 @@ preview.append(
           save(JSON.stringify(snapshot(name), null, 1), `${name.replace(/[^\w-]/g, '_')}.character.json`, 'application/json')
         }
         character.importJson = () => {
-          const input = document.createElement('input')
-          input.type = 'file'
-          input.accept = '.json,application/json'
-          input.onchange = async () => {
-            const file = input.files?.[0]
+          chooseFile('.json,application/json').then(async (file) => {
             if (!file) return
             try {
               await apply(await file.text())
@@ -1142,8 +1130,7 @@ preview.append(
             } catch (e) {
               tell(`${file.name}: ${String(e?.message ?? e).replace(/^character-file: /, '')}`)
             }
-          }
-          input.click()
+          })
         }
         el.builder.character = { snapshot, apply, store: characterStore }
         // The figure you were working on, as you left it (after the saved garments it may wear).
