@@ -19,7 +19,9 @@ const built = buildBody(scene, 'weasel', body)     // a Babylon skeleton on it
 A rigged body is plain data, Babylon-free:
 
 - **`positions`, `indices`**: the rest mesh, right-handed (as glTF and OBJ
-  are): metres, +Y up, facing +Z, its left on +X, standing on y = 0 or near.
+  are): metres, +Y up, facing +Z, its left on +X, in its maker's own frame
+  (a file's, standing on y = 0 or near; MakeHuman's is centred on the hips).
+  `rig.at('root')` says where its feet are.
 - **`rig`**: UAL's 65 joints (`rig.at(name)`), from `fitSkeleton` or MakeHuman's
   joint cubes.
 - **`weights`**: four joints and weights per vertex, indexing `rig.joints`.

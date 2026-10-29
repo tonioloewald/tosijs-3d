@@ -28,3 +28,5 @@ release, copied the same way, renamed so it sits beside our own `backpack`;
 it marks the inventory's **unequip** target (2026-10, may be replaced).
 
 `stroked/feather/clock.svg` is Feather's clock (MIT, 2026-10), for the watch's system-bar button. `stroked/feather/download.svg` is Feather's download (MIT, 2026-10), for the scene panel's screenshot tool.
+
+`stroked/feather/scissors.svg` is Feather's scissors (MIT, via tosijs-ui, 2026-10), for the tailor's system-bar button.

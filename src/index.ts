@@ -1825,6 +1825,8 @@ export { buildRig, buildBody, gatherTriangles, loadRigTriangles, autoRig } from 
 export type { BuiltRig, BuiltBody, RigTriangles, AutoRigged } from './rig-build.js'
 export { bodyFromMarkers } from './rigged-body.js'
 export type { RiggedBody, RiggedBodyOrigin, BodyTriangles } from './rigged-body.js'
+export { mountTailorTool } from './tailor-tool.js'
+export type { TailorTool, TailorToolOptions, TailorCut, TailorState, TailoredGarment } from './tailor-tool.js'
 export { loadHumanPack, decodeHumanTarget } from './human-pack.js'
 export type {
   HumanPack,
