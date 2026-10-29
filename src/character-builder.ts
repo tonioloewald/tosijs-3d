@@ -905,7 +905,7 @@ preview.append(
           if (!triangles.has(name)) triangles.set(name, await loadRigTriangles(scene, from.file ?? from.url, { pick: from.pick }))
           const tris = triangles.get(name)
           const kept = recipeOf(name)
-          return wear(bodyFromMarkers(tris, { markers: kept?.binding?.markers, tail: kept?.binding?.tail, joints: kept?.binding?.joints, source: name }), kept)
+          return wear(bodyFromMarkers(tris, { markers: kept?.binding?.markers, tail: kept?.binding?.tail, tailBase: kept?.binding?.tailBase, joints: kept?.binding?.joints, source: name }), kept)
         }
         // A rigged body on the stand in the builder's skin, with its recipe.
         const wear = (body, kept) => {
@@ -914,7 +914,7 @@ preview.append(
           // A body bound from markers carries them in its recipe, so the rig
           // tool binds the same mesh from the same markers; one with its own
           // skin opens on its own skeleton.
-          r.recipe = { version: 1, roles: {}, armSpaceDeg: 0, springs: [], ...kept, ...(body.made.by === 'markers' ? { binding: { markers: body.made.markers, tail: body.made.tail ?? null, ...(body.made.joints ? { joints: body.made.joints } : {}) } } : {}) }
+          r.recipe = { version: 1, roles: {}, armSpaceDeg: 0, springs: [], ...kept, ...(body.made.by === 'markers' ? { binding: { markers: body.made.markers, tail: body.made.tail ?? null, ...(body.made.tailBase ? { tailBase: body.made.tailBase } : {}), ...(body.made.joints ? { joints: body.made.joints } : {}) } } : {}) }
           r.mesh.material = mat
           r.root.parent = stand
           r.root.setEnabled(false)

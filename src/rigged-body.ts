@@ -66,6 +66,7 @@ export type RiggedBodyOrigin =
       source?: string
       markers: Markers
       tail?: Vec3 | null
+      tailBase?: Vec3 | null
       /** Joints moved by hand after the fit, by name. */
       joints?: Record<string, Vec3>
     }
@@ -113,6 +114,8 @@ export function bodyFromMarkers(
     markers?: Markers
     /** A tail's tip (seen from the side), for a tail chain. */
     tail?: Vec3 | null
+    /** Where the tail starts, if not the back of the pelvis. */
+    tailBase?: Vec3 | null
     tailBones?: number
     source?: string
     /**
@@ -128,6 +131,7 @@ export function bodyFromMarkers(
     options.markers ?? guessMarkers(rigSilhouette(positions, indices, 'front'))
   const fitted = fitSkeleton(markers, meshQuery(positions, indices), {
     tail: options.tail ?? undefined,
+    tailStart: options.tail != null ? options.tailBase ?? undefined : undefined,
     tailBones: options.tailBones,
   })
   const moved = options.joints ?? {}
@@ -151,6 +155,7 @@ export function bodyFromMarkers(
       source: options.source,
       markers,
       tail: options.tail ?? null,
+      ...(options.tail != null && options.tailBase != null ? { tailBase: options.tailBase } : {}),
       ...(Object.keys(moved).length ? { joints: { ...moved } } : {}),
     },
   }

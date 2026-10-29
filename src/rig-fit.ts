@@ -286,6 +286,8 @@ export interface FitOptions {
    */
   tail?: Vec3
   tailBones?: number
+  /** Where the tail starts (its first joint), if not the back of the pelvis. */
+  tailStart?: Vec3
 }
 
 export function fitSkeleton(
@@ -632,10 +634,12 @@ export function fitSkeleton(
     const d = minus(tip, pelvis)
     const len = Math.hypot(d.x, d.y, d.z)
     if (len > 1e-9) {
-      const start = add(
-        pelvis,
-        scale(d, Math.min(0.9, (Number.isFinite(half) ? half : 0) / len))
-      )
+      const start =
+        options.tailStart ??
+        add(
+          pelvis,
+          scale(d, Math.min(0.9, (Number.isFinite(half) ? half : 0) / len))
+        )
       const count = Math.max(1, Math.round(options.tailBones ?? 5))
       let parent = 'pelvis'
       for (let i = 0; i <= count; i++) {

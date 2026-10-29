@@ -268,7 +268,7 @@ const TAIL: SpringRecipe = {
   kind: 'bones',
   name: 'tail',
   root: 'tail_01',
-  params: { stiffness: 0.6, damping: 0.85, gravity: 9.8 },
+  params: { stiffness: 0.3, damping: 0.85, gravity: 9.8 },
   colliders: 'none',
 }
 
@@ -538,6 +538,7 @@ function bindMesh(
   const body = bodyFromMarkers(tris, {
     markers: binding.markers,
     tail: binding.tail,
+    tailBase: binding.tailBase,
     joints: binding.joints,
     tailBones: options.tailBones,
   })
@@ -549,7 +550,7 @@ function bindMesh(
     root: built.root,
     skeleton: built.skeleton,
     mesh: built.mesh,
-    bound: { positions, indices, markers: binding.markers, tail: binding.tail, joints: binding.joints },
+    bound: { positions, indices, markers: binding.markers, tail: binding.tail, tailBase: binding.tailBase, joints: binding.joints },
     body,
     dispose() {
       mat.dispose()
@@ -558,10 +559,18 @@ function bindMesh(
   }
 }
 
-/** The joint each marker places (its depth is where the marker is drawn). */
+/*
+A MARKER IS A JOINT (Tonio): each is drawn on the joint it places and moves
+it. The chin, elbows, wrists and knees sit where their joints are; the groin
+is the crotch and the pelvis a little above it, so it is drawn at the pelvis
+and converted back by that offset. The tail's base and tip are its first
+joint and its end.
+*/
 const MARKER_JOINT: Record<string, string> = {
-  chin: 'neck_01',
+  chin: 'Head',
   groin: 'pelvis',
+  tailBase: 'tail_01',
+  tail: 'tail_leaf',
   wristL: 'hand_l',
   wristR: 'hand_r',
   elbowL: 'lowerarm_l',
@@ -716,20 +725,37 @@ export function mountRigTool(
   */
   let query: MeshQuery | null = null
   let queryOf: ArrayLike<number> | null = null
-  function fittedJoints(): Map<string, Vec3> | null {
-    if (bound == null) return null
-    if (queryOf !== bound.positions) {
-      query = meshQuery(bound.positions, bound.indices)
-      queryOf = bound.positions
+  function fittedJoints(
+    from: (Triangles & RigBinding) | null = bound,
+    withMoved = true
+  ): Map<string, Vec3> | null {
+    if (from == null) return null
+    if (queryOf !== from.positions) {
+      query = meshQuery(from.positions, from.indices)
+      queryOf = from.positions
     }
     try {
-      const rig = fitSkeleton(bound.markers, query!, { tail: bound.tail ?? undefined })
+      const rig = fitSkeleton(from.markers, query!, {
+        tail: from.tail ?? undefined,
+        tailStart: from.tail != null ? from.tailBase ?? undefined : undefined,
+      })
+      parents = new Map(rig.joints.map((j) => [j.name, j.parent]))
       const out = new Map(rig.joints.map((j) => [j.name, j.position]))
-      for (const [n, p] of Object.entries(bound.joints ?? {})) out.set(n, p)
+      if (withMoved)
+        for (const [n, p] of Object.entries(from.joints ?? {})) out.set(n, p)
       return out
     } catch {
       return null
     }
+  }
+  /** Each fitted joint's parent (from the last fit). */
+  let parents = new Map<string, string | null>()
+  const markerJoints = new Set(Object.values(MARKER_JOINT))
+  /** The marker joint a joint hangs from (itself if it is one), or null. */
+  const markerAbove = (name: string): string | null => {
+    for (let n: string | null | undefined = name; n != null; n = parents.get(n))
+      if (markerJoints.has(n)) return n
+    return null
   }
   /*
   MOVED, NOT YET BOUND. Binding takes a second or two and shows nothing in
@@ -739,10 +765,30 @@ export function mountRigTool(
   let stale = false
   /** The model loaded now (what `done` hands back). */
   let loadedModel: RigModel | File | null = null
-  function setMarkers(markers: Markers, tail: Vec3 | null) {
-    const joints = recipe.binding?.joints
-    recipe.binding = { markers, tail, ...(joints ? { joints } : {}) }
-    if (bound != null) bound = { ...bound, markers, tail }
+  function setMarkers(
+    markers: Markers,
+    tail: Vec3 | null,
+    tailBase: Vec3 | null = tail != null ? bound?.tailBase ?? null : null
+  ) {
+    /*
+    What hangs from a marker comes with it: a joint moved by hand below one
+    (a finger under the wrist) moves as far as the marker's joint did, and a
+    marker's own joint is the marker's, so no hand-moved copy of it stays.
+    */
+    const before = fittedJoints(bound, false)
+    const next = bound != null ? { ...bound, markers, tail, tailBase } : null
+    const after = fittedJoints(next, false)
+    const joints: Record<string, Vec3> = {}
+    for (const [n, p] of Object.entries(recipe.binding?.joints ?? {})) {
+      if (markerJoints.has(n)) continue
+      const m = markerAbove(n)
+      const a = m != null ? before?.get(m) : undefined
+      const b = m != null ? after?.get(m) : undefined
+      joints[n] = a && b ? { x: p.x + b.x - a.x, y: p.y + b.y - a.y, z: p.z + b.z - a.z } : p
+    }
+    const moved = Object.keys(joints).length ? { joints } : {}
+    recipe.binding = { markers, tail, ...(tailBase ? { tailBase } : {}), ...moved }
+    if (next != null) bound = { ...next, joints: Object.keys(joints).length ? joints : undefined }
     stale = true
     ui.status = 'bound again when you animate or press done'
     edited()
@@ -2022,14 +2068,23 @@ export function mountRigTool(
         // from the top and side too (a front-plane marker floated in front).
         const z0 = frontOf() + 0.01 * height
         const fit = fittedJoints()
-        const depth = (key: string) => fit?.get(MARKER_JOINT[key] ?? '')?.z ?? z0
+        // On its joint (where the fit puts it), else where it was marked.
+        const onJoint = (key: string, m: { x: number; y: number; z?: number }) => {
+          const j = fit?.get(MARKER_JOINT[key] ?? '')
+          return j != null ? toScene(j.x, j.y, j.z) : toScene(m.x, m.y, m.z ?? z0)
+        }
         for (const [key, m] of Object.entries(b.markers))
-          dot(toScene(m.x, m.y, depth(key)), r * 1.6, markerMat, { marker: key, handle: -1 })
-        if (b.tail) dot(toScene(b.tail.x, b.tail.y, b.tail.z), r * 1.6, markerMat, { marker: 'tail', handle: -1 })
+          dot(onJoint(key, m), r * 1.6, markerMat, { marker: key, handle: -1 })
+        if (b.tail) {
+          dot(onJoint('tail', b.tail), r * 1.6, markerMat, { marker: 'tail', handle: -1 })
+          const base = fit?.get('tail_01')
+          if (base) dot(toScene(base.x, base.y, base.z), r * 1.6, markerMat, { marker: 'tailBase', handle: -1 })
+        }
         // Every joint, to move by hand: where it was moved to, else the fit's.
         if (ui.joints)
           for (const [name, node] of applied.read.nodes) {
-            if (name === 'root') continue
+            // A marker's joint is its marker (red), not a second dot.
+            if (name === 'root' || markerJoints.has(name)) continue
             const m = fit?.get(name)
             const at = m != null ? toScene(m.x, m.y, m.z) : node.getAbsolutePosition()
             const small = /^(thumb|index|middle|ring|pinky)_|ball/.test(name)
@@ -2262,8 +2317,19 @@ export function mountRigTool(
       const b = bound!
       const markers: Markers = JSON.parse(JSON.stringify(b.markers))
       let tail = b.tail ? { ...b.tail } : null
-      const other = key === 'tail' ? null : mirrorKey(key)
+      let tailBase = b.tailBase ? { ...b.tailBase } : null
+      const tailKey = key === 'tail' || key === 'tailBase'
+      const other = tailKey ? null : mirrorKey(key)
       const twin = other != null ? dots.find((d) => d.metadata?.marker === other) : undefined
+      // The marker is its joint: what the marker stores is the joint less
+      // the joint's offset from it (the pelvis above the crotch).
+      const fit = fittedJoints(b, false)
+      const offset = (k: string) => {
+        const j = fit?.get(MARKER_JOINT[k] ?? '')
+        const m = (b.markers as Record<string, { x: number; y: number }>)[k]
+        return j != null && m != null ? { x: j.x - m.x, y: j.y - m.y } : { x: 0, y: 0 }
+      }
+      const off = tailKey ? { x: 0, y: 0 } : offset(key)
       cam.detachControl()
       const plane = BABYLON.Plane.FromPositionAndNormal(
         handle.position,
@@ -2275,11 +2341,12 @@ export function mountRigTool(
         const d = ray.intersectsPlane(plane)
         if (d == null) return
         const f = toFile(ray.origin.add(ray.direction.scale(d)))
-        if (key === 'tail') {
-          if (tail == null) return
-          // From the side it moves in depth too (the front keeps its depth).
-          tail = { x: symmetry ? 0 : f.x, y: f.y, z: f.z }
-          handle.position.copyFrom(toScene(tail.x, tail.y, tail.z))
+        if (tailKey) {
+          // The tail's base and tip move in 3D (in depth from the side).
+          const at = { x: symmetry ? 0 : f.x, y: f.y, z: f.z }
+          if (key === 'tail') tail = at
+          else tailBase = at
+          handle.position.copyFrom(toScene(at.x, at.y, at.z))
           return
         }
         let x = f.x
@@ -2290,18 +2357,18 @@ export function mountRigTool(
         }
         const k = key as keyof Markers
         const fileZ = toFile(handle.position).z
-        markers[k] = { x, y: f.y }
+        markers[k] = { x: x - off.x, y: f.y - off.y }
         handle.position.copyFrom(toScene(x, f.y, fileZ))
         if (symmetry && other != null && twin != null) {
-          markers[other as keyof Markers] = { x: -x, y: f.y }
-          twin.position.copyFrom(toScene(-x, f.y, fileZ))
+          markers[other as keyof Markers] = { x: -(x - off.x), y: f.y - off.y }
+          twin.position.copyFrom(toScene(-x, f.y, toFile(twin.position).z))
         }
       }
       const up = () => {
         window.removeEventListener('pointermove', move, true)
         window.removeEventListener('pointerup', up, true)
         cam.attachControl(canvas, true)
-        setMarkers(markers, tail)
+        setMarkers(markers, tail, tail != null ? tailBase : null)
       }
       window.addEventListener('pointermove', move, true)
       window.addEventListener('pointerup', up, true)

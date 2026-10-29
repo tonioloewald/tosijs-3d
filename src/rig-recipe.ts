@@ -106,6 +106,8 @@ export interface RigBinding {
   markers: Markers
   /** Where a tail's tip is, for a tail chain. */
   tail?: Vec3 | null
+  /** Where the tail starts (its first joint), if not the back of the pelvis. */
+  tailBase?: Vec3 | null
   /**
    * Joints moved by hand after the fit (a thumb, a toe, a shoulder): name →
    * where it is, in the mesh's frame. They win over where the fit put them.
@@ -274,6 +276,8 @@ export function validateRigRecipe(doc: unknown): string[] {
       }
     if (b?.tail != null && !isVec(b.tail))
       out.push('binding.tail is not {x, y, z}')
+    if (b?.tailBase != null && !isVec(b.tailBase))
+      out.push('binding.tailBase is not {x, y, z}')
     if (b?.joints != null) {
       if (typeof b.joints !== 'object' || Array.isArray(b.joints))
         out.push('binding.joints is not name → {x, y, z}')
@@ -429,6 +433,12 @@ export function rigRecipeSchema(): Record<string, unknown> {
           tail: {
             oneOf: [
               vec3('Where a tail’s tip is, for a tail chain.'),
+              { type: 'null' },
+            ],
+          },
+          tailBase: {
+            oneOf: [
+              vec3('Where the tail starts (its first joint), if not the back of the pelvis.'),
               { type: 'null' },
             ],
           },
