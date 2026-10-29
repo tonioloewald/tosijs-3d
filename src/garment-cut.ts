@@ -666,7 +666,10 @@ export function cutGarment(
   for (const [a, b] of open) onHem[a] = onHem[b] = 1
 
   // Stand the cloth off the skin, then relax it across creases, never
-  // letting it sink closer to the skin than its thickness.
+  // letting it sink closer to the skin than its thickness. ONLY OUTWARD,
+  // along the skin's normal: relaxed sideways too, a point slid toward its
+  // neighbours' middle, which on a coarse body (faces centimetres across) is
+  // centimetres away from the skin it covers, and that skin came through.
   const pos = new Float32Array(rows * 3)
   for (let i = 0; i < rows * 3; i++) pos[i] = base[i] + nrm[i] * thickness
   const next = new Float32Array(pos)
@@ -685,11 +688,13 @@ export function cutGarment(
       x = x * k - base[r * 3]
       y = y * k - base[r * 3 + 1]
       z = z * k - base[r * 3 + 2]
-      const along = x * nrm[r * 3] + y * nrm[r * 3 + 1] + z * nrm[r * 3 + 2]
-      const lift = Math.max(0, thickness - along)
-      next[r * 3] = base[r * 3] + x + nrm[r * 3] * lift
-      next[r * 3 + 1] = base[r * 3 + 1] + y + nrm[r * 3 + 1] * lift
-      next[r * 3 + 2] = base[r * 3 + 2] + z + nrm[r * 3 + 2] * lift
+      const along = Math.max(
+        thickness,
+        x * nrm[r * 3] + y * nrm[r * 3 + 1] + z * nrm[r * 3 + 2]
+      )
+      next[r * 3] = base[r * 3] + nrm[r * 3] * along
+      next[r * 3 + 1] = base[r * 3 + 1] + nrm[r * 3 + 1] * along
+      next[r * 3 + 2] = base[r * 3 + 2] + nrm[r * 3 + 2] * along
     }
     pos.set(next)
   }

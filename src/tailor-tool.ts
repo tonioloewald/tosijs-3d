@@ -176,6 +176,9 @@ export function mountTailorTool(
   */
   let fitOn: Float32Array = body.positions
   let notArm: Uint8Array = new Uint8Array(0)
+  // The triangles cloth is cut from: not a tail's (behind the body, inside
+  // any outline drawn round the hips, and swung by its spring).
+  let cutFrom: Uint32Array = body.indices
   const readBody = () => {
     const nipples = body.regions.nipples
     fitOn = nipples
@@ -196,6 +199,25 @@ export function mountTailorTool(
       for (let k = 0; k < 4; k++)
         if (arm.has(w.indices[v * 4 + k])) a += w.weights[v * 4 + k]
       notArm[v] = a < 0.5 ? 1 : 0
+    }
+    const tail = new Set(
+      body.rig.joints.map((j, i) => (/^tail_/.test(j.name) ? i : -1)).filter((i) => i >= 0)
+    )
+    if (tail.size === 0) cutFrom = body.indices
+    else {
+      const onTail = new Uint8Array(n)
+      for (let v = 0; v < n; v++) {
+        let t = 0
+        for (let k = 0; k < 4; k++)
+          if (tail.has(w.indices[v * 4 + k])) t += w.weights[v * 4 + k]
+        onTail[v] = t >= 0.5 ? 1 : 0
+      }
+      const kept: number[] = []
+      const I = body.indices
+      for (let i = 0; i < I.length; i += 3)
+        if (!onTail[I[i]] && !onTail[I[i + 1]] && !onTail[I[i + 2]])
+          kept.push(I[i], I[i + 1], I[i + 2])
+      cutFrom = Uint32Array.from(kept)
     }
   }
   readBody()
@@ -229,8 +251,8 @@ export function mountTailorTool(
           ? smoothUnder(body.positions, body.indices, nipples, { bridge: cut.thickness / 0.02 })
           : fitOn
         made = cut.skirt
-          ? skirtGarment(fitOn, body.indices, { front: outline, thickness: cut.thickness, anchor: notArm })
-          : cutGarment(cutOn, body.indices, { front: outline, thickness: cut.thickness, ease: EASE, fitOn })
+          ? skirtGarment(fitOn, cutFrom, { front: outline, thickness: cut.thickness, anchor: notArm })
+          : cutGarment(cutOn, cutFrom, { front: outline, thickness: cut.thickness, ease: EASE, fitOn })
         const proxy = shell(made)
         if (material == null) {
           material = proxyMaterial(scene, proxy)

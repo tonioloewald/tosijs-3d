@@ -38,6 +38,28 @@ describe('garment-cut', () => {
     expect([...g.delete].sort()).toEqual([0, 1, 4])
   })
 
+  test('easing never slides the cloth across the skin (a coarse body)', () => {
+    // A pyramid on the sheet, its apex off-centre and 0.5 up: faces a unit
+    // across, and its neighbours' middle far from it.
+    const pyramid = [...sheet.slice(0, 12), 0.6, 0.3, 0.5]
+    const g = cutGarment(pyramid, tris, {
+      front: [[[-2, -2], [2, -2], [2, 2], [-2, 2]]],
+      thickness: 0.01,
+      ease: 6,
+      hem: false,
+    })
+    const fitted = fitProxy(g, pyramid)
+    for (let r = 0; r < g.rows; r++) {
+      if (g.weight[r * 3] !== 1) continue
+      const v = g.ref[r * 3]
+      const d = [0, 1, 2].map((k) => fitted[r * 3 + k] - pyramid[v * 3 + k])
+      // Off the skin by its thickness or more, and over its own vertex: the
+      // apex is not smoothed away into its neighbours' middle.
+      expect(Math.hypot(...d)).toBeGreaterThanOrEqual(0.01 - 1e-6)
+      expect(Math.hypot(...d)).toBeLessThan(0.05)
+    }
+  })
+
   test('neighbouring triangles share their cut points', () => {
     const g = cutGarment(sheet, tris, {
       front: [

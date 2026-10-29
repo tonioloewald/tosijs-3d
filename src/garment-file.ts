@@ -144,7 +144,7 @@ function nameRigidity(name: string): RigidSpec | null {
  * then each slider that is not the default as a whole percentage.
  */
 export function referenceName(meta: GarmentMeta): string {
-  const out = ['body-reference', meta.base.replace(/[^\w-]/g, '')]
+  const out = ['body-reference', (meta.base ?? 'mesh').replace(/[^\w-]/g, '')]
   if (meta.pack != null) out.push(`p${meta.pack}`)
   const defaults = DEFAULT_HUMAN_BODY as Record<string, number | undefined>
   for (const [key, value] of Object.entries(meta.body ?? {})) {
@@ -163,6 +163,8 @@ export function metaFromName(name: string): GarmentMeta | null {
   // Blender appends `.001` to a duplicate name.
   const [head, base, ...rest] = name.replace(/\.\d+$/, '').split('_')
   if (!/^body[-.]?reference$/i.test(head) || !base) return null
+  // A mesh's body: which one is not in the name, so it is the body shown.
+  if (base === 'mesh') return { format: 'tosijs-garment', version: 1 }
   const meta: GarmentMeta = {
     format: 'tosijs-garment',
     version: 1,
@@ -182,8 +184,13 @@ export function metaFromName(name: string): GarmentMeta | null {
 export interface GarmentMeta {
   format: 'tosijs-garment'
   version: 1
-  /** The base body (`hm08`). */
-  base: string
+  /** MakeHuman's base body (`hm08`); absent for a mesh's body. */
+  base?: string
+  /**
+   * The mesh's body it was made on (the builder's source name), when it was
+   * not MakeHuman's: it is worn on that body only.
+   */
+  source?: string
   /** The human pack's version. */
   pack?: number
   /** The body's slider values (`MacroBody`), to rebuild the shape it was made on. */
