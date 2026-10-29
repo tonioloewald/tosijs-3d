@@ -122,6 +122,22 @@ tool.unmount() // everything it added goes; safe to call twice
   limits. Without a camera it brings its own and puts the active one back.
 - `tool.api` is the same API as the page's `.rig`; setting `api.recipe`
   applies it without echoing a `change`.
+
+**Rigging one body for a host** (the [character builder](/character-builder/)
+does this): give it `handleDone` and the panel has **done** and **cancel**
+at its top. Done unmounts the tool and hands the callback the rig: the
+`recipe`, and the `body` bound from its markers (a
+[rigged body](/rigged-body/), ready for `buildBody` and `applyRigRecipe`).
+
+```javascript
+mountRigTool(scene, {
+  models: [{ label: 'body', url: '/body.glb' }],
+  recipe: { version: 1, binding }, // bind from these markers
+  files: false,
+  handleDone: ({ recipe, body }) => wear(body, recipe),
+  handleCancel: () => {},
+})
+```
 */
 /*{ "parent": "demos", "order": 35 }*/
 
@@ -573,6 +589,25 @@ export interface RigToolOptions {
    * the standalone `rigTool()` passes false.
    */
   hosted?: boolean
+  /**
+   * Done rigging: the panel gets **done** and **cancel** at its top, and
+   * **done** unmounts the tool and hands this the rig (see `RigDone`).
+   */
+  handleDone?: (rig: RigDone) => void
+  /** Cancelled: the tool unmounts and this is called. */
+  handleCancel?: () => void
+}
+
+/** What `handleDone` is handed: the recipe, and the body bound from it. */
+export interface RigDone {
+  /** The working recipe (its `binding` holds the markers). */
+  recipe: RigRecipe
+  /**
+   * The mesh as a rigged body (rigged-body), when it was bound here from
+   * markers: build it with `buildBody` and put the recipe on it with
+   * `applyRigRecipe`. Absent for a model rigged on its own skeleton.
+   */
+  body?: RiggedBody
 }
 
 /** A rig tool mounted in a scene: `change` and `commit` events, its API, unmount. */
@@ -584,6 +619,10 @@ export interface RigToolHandle extends EventTarget {
   widgets(): Widget3d[]
   /** Remove everything it added and put the host's camera back. Safe twice. */
   unmount(): void
+  /** What the panel's done does: unmount, and hand `handleDone` the rig. */
+  done(): void
+  /** What the panel's cancel does: unmount, and call `handleCancel`. */
+  cancel(): void
 }
 
 /** What `change` and `commit` carry: a copy of the recipe. */
@@ -641,6 +680,8 @@ export function mountRigTool(
   let symmetry = true
   /** Bind the next model loaded from markers, even if it has a skeleton. */
   let bindNext = false
+  /** The model as a rigged body, when it was bound here from markers. */
+  let body: RiggedBody | null = null
 
   /*
   THE PANEL. Standalone it is the scene's settings panel (the owl); hosted, a
@@ -718,6 +759,16 @@ export function mountRigTool(
 
   const panel = (): Widget3d[] => {
     const w: Widget3d[] = [
+      // Opened by a host for one job: finished (or abandoned) from here.
+      ...(options.handleDone != null || options.handleCancel != null
+        ? [
+            row3d(
+              {},
+              button3d({ label: 'done', handleClick: () => finish(true) }),
+              button3d({ label: 'cancel', handleClick: () => finish(false) })
+            ),
+          ]
+        : []),
       toggle3d({
         label: 'animate',
         value: ui.pose === 'animate',
@@ -2042,6 +2093,7 @@ export function mountRigTool(
       model?.dispose()
       model = null
       bound = null
+      body = null
       try {
         // The recipe first: a binding is part of it. The host's recipe if
         // it handed one over, else the one kept here, else the model's own.
@@ -2098,6 +2150,7 @@ export function mountRigTool(
         stand.scaling.setAll(m instanceof File ? 1 : m.scale ?? 1)
         model = opened
         bound = opened.bound ?? null
+        body = opened.body ?? null
         boneNames = skeleton.bones.map(
           (b) => b.getTransformNode()?.name ?? b.name
         )
@@ -2204,10 +2257,21 @@ export function mountRigTool(
     loadClips: (f: File | string) => tool?.loadClips(f),
   }
 
+  /** Done or cancelled: unmount, then tell the host. */
+  function finish(done: boolean) {
+    const rig: RigDone = { recipe: copy() }
+    if (body != null) rig.body = body
+    handle.unmount()
+    if (done) options.handleDone?.(rig)
+    else options.handleCancel?.()
+  }
+
   const handle = events as RigToolHandle
   handle.api = api
   handle.ready = ready
   handle.widgets = panel
+  handle.done = () => finish(true)
+  handle.cancel = () => finish(false)
   handle.unmount = () => {
     if (disposed) return
     commitNow()

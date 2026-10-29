@@ -73,7 +73,6 @@ let openBody = () => {}
 // The rig tool, mounted on the body while it is being rigged.
 let rigging = null
 let openRig = () => {}
-let finishRig = () => {}
 // What the imported body is doing, or why it failed.
 let sourceNote = ''
 const madeHuman = () => walker.source.value === 'MakeHuman'
@@ -225,9 +224,7 @@ preview.append(
         // recipe is kept with the character.
         ...(rigging
           ? [
-              text3d({ text: 'Rigging: the Rig panel is on the bar. Drag the markers onto the joints; the body is bound again on release.' }),
-              button3d({ label: 'done rigging', handleClick: () => finishRig() }),
-              button3d({ label: 'cancel', handleClick: () => finishRig(false) }),
+              text3d({ text: 'Rigging: in the Rig panel (on the bar). Done there brings the body back.' }),
             ]
           : [button3d({ label: 'rig…', handleClick: () => openRig() })]),
         label3d({ text: 'Motion', collapsible: true, open: true }),
@@ -920,7 +917,10 @@ preview.append(
           if (!triangles.has(name)) triangles.set(name, await loadRigTriangles(scene, from.file ?? from.url, { pick: from.pick }))
           const tris = triangles.get(name)
           const kept = recipeOf(name)
-          const body = bodyFromMarkers(tris, { markers: kept?.binding?.markers, tail: kept?.binding?.tail, source: name })
+          return wear(bodyFromMarkers(tris, { markers: kept?.binding?.markers, tail: kept?.binding?.tail, source: name }), kept)
+        }
+        // A rigged body on the stand in the builder's skin, with its recipe.
+        const wear = (body, kept) => {
           const r = buildBody(scene, `body-${rigged.size}`, body)
           r.kept = JSON.stringify(kept)
           // A recipe always carries its binding, so the rig tool binds the
@@ -940,7 +940,8 @@ preview.append(
         const choose = async () => {
           const token = ++choosing
           const name = walker.source.value
-          if (rigging) finishRig(false)
+          // Another body: the rig tool on this one goes, its edits with it.
+          if (rigging) { rigging.unmount(); rigging = null }
           hide()
           if (madeHuman()) {
             built.root.setEnabled(true)
@@ -1005,48 +1006,36 @@ preview.append(
           if (madeHuman() || !other || rigging) return
           hide()
           playing?.stop()
-          const started = plain(other.recipe)
+          const back = () => { rigging = null; if (walker.source.value === name) choose(); else el.refreshScenePanel?.() }
           rigging = mountRigTool(el, {
             models: [{ label: name, url: from.url ?? '', file: from.file, pick: from.pick }],
-            recipe: started,
+            recipe: plain(other.recipe),
             files: false,
             stage: false,
             camera: cam,
+            // The rig it hands back is worn as it is: the body the tool bound,
+            // its recipe kept with the character.
+            handleDone: ({ recipe, body }) => {
+              rigging = null
+              delete recipe.model
+              const old = rigged.get(name)
+              if (old) {
+                if (old === other) { hide(); other = null }
+                old.dispose()
+                rigged.delete(name)
+              }
+              if (body) rigged.set(name, wear(body, recipe))
+              keepRecipe(name, recipe)
+              if (walker.source.value === name) choose()
+            },
+            handleCancel: back,
           })
-          rigging.started = started
-          rigging.source = name
           el.refreshScenePanel?.()
         }
-        finishRig = (keep = true) => {
-          if (!rigging) return
-          const tool = rigging
-          rigging = null
-          const recipe = keep ? tool.api.recipe : tool.started
-          tool.unmount()
-          delete recipe.model
-          const name = tool.source
-          const changed = JSON.stringify(recipe) !== JSON.stringify(tool.started)
-          // A new recipe binds the body again (the observer below).
-          if (changed) keepRecipe(name, recipe)
-          else if (walker.source.value === name) choose()
-        }
-        // A body bound from a recipe that is no longer the character's (rigged
-        // again, or a character loaded) is bound again.
-        walker.rigs.observe(() => {
-          let again = false
-          for (const [name, r] of [...rigged]) {
-            if (r.kept === JSON.stringify(recipeOf(name))) continue
-            if (r === other) { hide(); other = null; again = walker.source.value === name }
-            r.dispose()
-            rigged.delete(name)
-          }
-          if (again && !rigging) choose()
-        })
         el.builder.choose = choose
         el.builder.rigged = rigged
         el.builder.rigTool = () => rigging
         el.builder.openRig = () => openRig()
-        el.builder.finishRig = (keep) => finishRig(keep)
 
         // CHARACTERS (character-file): the figure you are working on is kept
         // in this browser as you change it and comes back when the page opens;
@@ -1202,9 +1191,9 @@ skin; the rest of the panel is MakeHuman's and is hidden for them.
 
 **Rig…** opens the [rig tool](/rig-tool/) on that body (its panel is on the
 bar): drag the markers onto the joints and it is bound again on release; add
-a tail, springs (a ponytail, a tail) or arm space. **Done rigging** brings
-the body back bound from that recipe, and the recipe is saved with the
-character; **cancel** keeps the one it had. The first binding is a guess read
+a tail, springs (a ponytail, a tail) or arm space. **Done** (at the top of the
+Rig panel) brings the body back bound from that recipe, and the recipe is
+saved with the character; **cancel** keeps the one it had. The first binding is a guess read
 off the body's outline.
 
 **Character** keeps your work. The figure you are working on is kept in this
