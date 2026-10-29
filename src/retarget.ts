@@ -764,8 +764,28 @@ export function retargeter(
     }
     const ds = restDirection(r, source, sRest, toward)
     const dt2 = toward != null ? restDirection(r, target, tRest, toward) : dt
-    // A hand and its fingers keep their roll: lined up by direction and palm.
     const [side, limb] = r.split('-')
+    /*
+    A FOOT IS LINED UP BY ITS HEADING ONLY. Every rig stands with its soles
+    flat, but the foot bone runs from the ankle to the ball, and how steeply
+    depends on where the ankle joint sits in the foot: UAL's falls 31°,
+    MakeHuman's 18°, the Blender bodies' 40°. Lined up by direction, a clip
+    tipped MakeHuman's feet 13° down (on tiptoe through Idle, pointed like a
+    dancer's in a jog) and curled the Blender bodies' toes up (Tonio). Only
+    the turn about the vertical (feet turned out or in) is lined up.
+    */
+    if (limb === 'foot' || limb === 'toes') {
+      const flat = (v: Vec3 | null) => {
+        if (v == null) return null
+        const l = Math.hypot(v.x, v.z)
+        return l > 1e-6 ? { x: v.x / l, y: 0, z: v.z / l } : null
+      }
+      const a = flat(dt2)
+      const b = flat(ds)
+      align.set(r, a != null && b != null ? rotationBetween(a, b) : IDENTITY)
+      continue
+    }
+    // A hand and its fingers keep their roll: lined up by direction and palm.
     const handPart = limb === 'hand' || fingerOf(limb ?? '') != null
     const ns = handPart ? palmNormal(side, source, sRest) : null
     const nt = handPart ? palmNormal(side, target, tRest) : null

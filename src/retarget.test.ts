@@ -326,6 +326,40 @@ describe('retargetPose', () => {
   })
 })
 
+/** hips → thigh → calf → foot → ball, the foot falling `slopeDeg` to the ball at rest. */
+function leg(slopeDeg: number): Skeleton {
+  const a = (slopeDeg * Math.PI) / 180
+  const b = (name: string, parent: string | null, x: number, y: number, z: number): RestBone => ({
+    name,
+    parent,
+    rotation: Q0,
+    position: { x, y, z },
+  })
+  const bones: RestBone[] = [
+    b('hips', null, 0, 1, 0),
+    b('thigh_l', 'hips', 0.1, -0.05, 0),
+    b('calf_l', 'thigh_l', 0, -0.45, 0),
+    b('foot_l', 'calf_l', 0, -0.42, 0),
+    b('ball_l', 'foot_l', 0, -0.15 * Math.sin(a), 0.15 * Math.cos(a)),
+    b('ball_leaf_l', 'ball_l', 0, 0, 0.07),
+  ]
+  return { bones, roles: humanoidRoles(bones) }
+}
+
+describe('feet', () => {
+  test('a foot whose bone slopes differently still stands flat (heading only is lined up)', () => {
+    // UAL's foot bone falls 31° to the ball, MakeHuman's 18°: both soles are
+    // flat. The clip at rest leaves the target's foot at ITS rest, not
+    // tipped 13° onto its toes.
+    const rt = retargeter(leg(31), leg(18))
+    const out = rt.pose(new Map()).rotations
+    for (const name of ['foot_l', 'ball_l']) {
+      const q = out.get(name) ?? Q0
+      expect(Math.abs(q.w)).toBeCloseTo(1, 6)
+    }
+  })
+})
+
 function multiply(a: any, b: any) {
   return {
     w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,

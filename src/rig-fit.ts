@@ -610,12 +610,19 @@ export function fitSkeleton(
         }
       }
     }
-    const ballY = floor + 0.3 * (ankleY - floor)
-    put(`ball_${side}`, `foot_${side}`, {
-      x: lerp(ankle.x, toe.x, 0.65),
-      y: ballY,
-      z: lerp(ankle.z, toe.z, 0.65),
-    })
+    /*
+    THE BALL IN THE MIDDLE OF THE FOOT'S THICKNESS, as UAL's is (1.5 cm up
+    a 3 cm foot). At a fixed 30% of the ankle's height it sat on the top of
+    the Blender bodies' feet, and every clip curled the toes up.
+    */
+    const ballX = lerp(ankle.x, toe.x, 0.65)
+    const ballZ = lerp(ankle.z, toe.z, 0.65)
+    let top = floor
+    const rise = Math.max((ankleY - floor) / 60, 1e-4)
+    for (let y = floor; y <= ankleY; y += rise)
+      if (mesh.spans(ballX, y).some((s) => s.back <= ballZ && s.front >= ballZ)) top = y
+    const ballY = top > floor ? (floor + top) / 2 : floor + 0.15 * (ankleY - floor)
+    put(`ball_${side}`, `foot_${side}`, { x: ballX, y: ballY, z: ballZ })
     put(`ball_leaf_${side}`, `ball_${side}`, { x: toe.x, y: ballY, z: toe.z })
   }
 
