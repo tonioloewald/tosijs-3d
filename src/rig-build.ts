@@ -428,6 +428,49 @@ export function buildBody(
   return { ...built, body, rig: body.rig }
 }
 
+/*
+WHAT IT STANDS ON. A body is grounded by the lowest point of its skin while
+a clip plays, but not all of the skin: a tail on a spring hangs wherever the
+simulation left it when the clip is sampled, and lifted the weasel until its
+drooping tail touched the floor (Tonio: "floats in the air"). So only the
+soles count: the vertices skinned mostly to a foot or its toes.
+*/
+/** The vertices a rigged body stands on: skinned mostly to a foot or its toes. */
+export function soleVertices(body: RiggedBody): Uint32Array {
+  const feet = new Set<number>()
+  body.rig.joints.forEach((j, i) => {
+    if (/^(foot|ball)_[lr]$/.test(j.name)) feet.add(i)
+  })
+  const out: number[] = []
+  const n = body.positions.length / 3
+  for (let v = 0; v < n; v++) {
+    let w = 0
+    for (let k = 0; k < 4; k++)
+      if (feet.has(body.weights.indices[v * 4 + k])) w += body.weights.weights[v * 4 + k]
+    if (w > 0.5) out.push(v)
+  }
+  return Uint32Array.from(out)
+}
+
+/**
+ * The lowest of `vertices` in the world as the mesh is posed now (its
+ * skeleton prepared): the soles' height. Infinity with none.
+ */
+export function lowestOf(mesh: BABYLON.AbstractMesh, vertices: ArrayLike<number>): number {
+  if (vertices.length === 0 || !(mesh instanceof BABYLON.Mesh)) return Infinity
+  const p = mesh.getPositionData(true, true)
+  if (p == null) return Infinity
+  const m = mesh.computeWorldMatrix(true)
+  const v = new BABYLON.Vector3()
+  let low = Infinity
+  for (let i = 0; i < vertices.length; i++) {
+    const k = vertices[i] * 3
+    BABYLON.Vector3.TransformCoordinatesFromFloatsToRef(p[k], p[k + 1], p[k + 2], m, v)
+    if (v.y < low) low = v.y
+  }
+  return low
+}
+
 export interface AutoRigged extends BuiltBody {
   /** The markers it was fitted from: guessed, unless they were given. */
   markers: Markers

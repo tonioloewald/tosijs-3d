@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, clothRecipe, materialPicker3d, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, readSkeleton, retargetClip, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, smoothUnder, loadRigTriangles, bodyFromMarkers, applyRigRecipe, writeCharacter, readCharacter, humanBodyMaker, buildBody, mountTailorTool, chooseFile, loadSkinnedBody, b3dPanel, panel3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, clothRecipe, materialPicker3d, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, readSkeleton, retargetClip, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, smoothUnder, loadRigTriangles, bodyFromMarkers, applyRigRecipe, writeCharacter, readCharacter, humanBodyMaker, buildBody, mountTailorTool, chooseFile, loadSkinnedBody, b3dPanel, panel3d, soleVertices, lowestOf } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 
@@ -821,13 +821,18 @@ preview.append(
         const measureClip = (group) => {
           const mesh = shown.mesh
           const nodes = shown.root.getChildTransformNodes(false)
+          // The soles only: a tail on a spring hangs anywhere while sampled.
+          shown.soles ??= soleVertices(shown.body)
           let low = Infinity
           for (let k = 0; k < 24; k++) {
             group.goToFrame(group.from + ((group.to - group.from) * k) / 24)
             for (const n of nodes) n.computeWorldMatrix(true)
             shown.skeleton.prepare(true)
-            mesh.refreshBoundingInfo({ applySkeleton: true, applyMorph: true })
-            low = Math.min(low, mesh.getBoundingInfo().boundingBox.minimumWorld.y)
+            if (shown.soles.length) low = Math.min(low, lowestOf(mesh, shown.soles))
+            else {
+              mesh.refreshBoundingInfo({ applySkeleton: true, applyMorph: true })
+              low = Math.min(low, mesh.getBoundingInfo().boundingBox.minimumWorld.y)
+            }
           }
           group.goToFrame(group.from)
           return low - stand.position.y

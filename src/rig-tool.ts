@@ -190,7 +190,7 @@ import {
   type MeshQuery,
   type Markers,
 } from './rig-fit.js'
-import { buildBody, gatherTriangles as gather } from './rig-build.js'
+import { buildBody, gatherTriangles as gather, soleVertices, lowestOf } from './rig-build.js'
 import { bodyFromMarkers, type RiggedBody } from './rigged-body.js'
 import type { Vec3 } from './spatial-transform.js'
 import { applyRigRecipe, type AppliedRig } from './rig-recipe-babylon.js'
@@ -1834,8 +1834,53 @@ export function mountRigTool(
       for (const g of playing) g.stop()
       playing = []
     }
+    /*
+    ON THE FLOOR WHILE IT MOVES (Tonio: the weasel "binds nicely but floats in
+    the air"). A clip is retargeted by joint turns and the hips' travel scaled
+    by hip height, so a body whose legs come out shorter or longer than the
+    mannequin's floats or sinks. The clip is sampled, and the body lifted or
+    lowered so its lowest point while it plays is where it is at rest.
+    */
+    let soles: Uint32Array = new Uint32Array(0)
+    let solesOf: RiggedBody | null = null
+    const lowest = () => {
+      if (model == null) return Infinity
+      for (const n of model.root.getChildTransformNodes(false)) n.computeWorldMatrix(true)
+      model.skeleton.prepare(true)
+      // The soles only (a tail on a spring hangs anywhere while sampled).
+      if (body != null) {
+        if (solesOf !== body) {
+          soles = soleVertices(body)
+          solesOf = body
+        }
+        if (soles.length) return lowestOf(model.mesh, soles)
+      }
+      let low = Infinity
+      for (const m of model.root.getChildMeshes(false)) {
+        if (m.skeleton == null || !m.isEnabled()) continue
+        m.computeWorldMatrix(true)
+        m.refreshBoundingInfo({ applySkeleton: true, applyMorph: true })
+        low = Math.min(low, m.getBoundingInfo().boundingBox.minimumWorld.y)
+      }
+      return low
+    }
+    const ground = (group: BABYLON.AnimationGroup) => {
+      if (model == null) return
+      stand.position.y = 0
+      stand.computeWorldMatrix(true)
+      model.skeleton.returnToRest()
+      const rest = lowest()
+      let low = Infinity
+      for (let k = 0; k < 24; k++) {
+        group.goToFrame(group.from + ((group.to - group.from) * k) / 24)
+        low = Math.min(low, lowest())
+      }
+      group.goToFrame(group.from)
+      if (Number.isFinite(rest) && Number.isFinite(low)) stand.position.y = rest - low
+    }
     const play = () => {
       stop()
+      stand.position.y = 0
       // Standing still: a held face (the one last used); moving: orbit.
       inspect.face = ui.pose === 'rest' ? restFace : 'free'
       frame()
@@ -1875,6 +1920,8 @@ export function mountRigTool(
       }
       // Start together, so the two stay in step.
       for (const g of playing) g.start(true)
+      const mine = applied != null ? made.get(ui.clip) : undefined
+      if (mine != null) ground(mine)
     }
     /*
     CLIPS FROM ANOTHER RIG (Mixamo, a mocap file, another library): any GLB
