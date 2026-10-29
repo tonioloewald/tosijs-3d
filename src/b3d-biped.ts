@@ -180,6 +180,8 @@ animation is doing with that hand.
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `url` | `''` | GLB model URL |
+| `character` | `''` | A character file's URL (the [character builder](/character-builder/)'s **export JSON**), in place of `url`: the character is made from it ([character](/character/)) and UAL's clips are retargeted onto it, so use `ualAnimationStates()`. A body from a file other than the builder's own sources falls back to MakeHuman's. Set `characterDoc` (the parsed file) instead to skip the fetch |
+| `animations` | UAL1 | Where a `character`'s clips come from: a GLB whose clips have UAL's names and skeleton |
 | `skin` | `''` | Optional albedo texture URL applied to the `skin` material (reskin) |
 | `scale` | `1` | Uniform scale applied to the loaded model |
 | `animation` | `''` | Current animation state name |
@@ -525,6 +527,23 @@ const _fwdScratch = new BABYLON.Vector3()
 /** Scratch for the derived right axis, same reason. */
 const _rightScratch = new BABYLON.Vector3()
 
+/*
+MakeHuman's pack and the hair library, once per scene however many
+characters it has.
+*/
+const characterAssets = new WeakMap<BABYLON.Scene, Promise<any>>()
+function sharedAssets(
+  scene: BABYLON.Scene,
+  load: () => Promise<any>
+): Promise<any> {
+  let p = characterAssets.get(scene)
+  if (p == null) {
+    p = load()
+    characterAssets.set(scene, p)
+  }
+  return p
+}
+
 export class B3dBiped extends B3dControllable {
   static preferredTagName = 'tosi-b3d-biped'
   // Attributes read directly as `this.x` (the rest go through `as any`).
@@ -535,6 +554,11 @@ export class B3dBiped extends B3dControllable {
   static initAttributes = {
     ...B3dControllable.initAttributes,
     url: '',
+    // A character file's URL (the character builder's export): the character
+    // is made from it, and UAL's clips (from `animations`) are retargeted onto it.
+    character: '',
+    // Where a character's clips come from: a GLB of UAL-named clips.
+    animations: '',
     // Optional skin texture URL applied to the model's `skin` material. Kenney
     // characters ship textureless with one `skin` material + separate skin PNGs,
     // so reskinning is just swapping this albedo texture.
@@ -3664,9 +3688,23 @@ export class B3dBiped extends B3dControllable {
     }
   }
 
+  /** A character file, parsed: set it to make the character without a fetch. */
+  characterDoc: unknown = null
+  /** The character made (a `SceneCharacter`, see character.ts), when it was made from one. */
+  figure: any = null
+
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     super.sceneReady(owner, scene)
     const attrs = this as any
+    if (
+      (attrs.character !== '' || this.characterDoc != null) &&
+      !this.entries
+    ) {
+      this._loadCharacter(owner, scene).catch((e) =>
+        console.warn('<tosi-b3d-biped>: could not make the character', e)
+      )
+      return
+    }
     if (attrs.url !== '' && !this.entries) {
       this.loadAssetContainer(scene, attrs.url, (container) => {
         this._eased.clear()
@@ -3678,31 +3716,143 @@ export class B3dBiped extends B3dControllable {
             '<tosi-b3d-biped> expects a container with exactly one root node'
           )
         }
-        const meshes = this.entries.rootNodes
-          .map((node) => node.getChildMeshes())
-          .flat()
-        this.mesh = this.entries.rootNodes[0] as BABYLON.Mesh
-        if (attrs.scale !== 1) this.mesh.scaling.setAll(attrs.scale)
-        // Derive eye height from the model (after scaling, so it's the real size) so first-person sits at the head, not
-        // the origin (the feet). ~0.93 of total height ≈ eye level. Used as a
-        // fallback when there's no head node to anchor to.
-        const bounds = this.mesh.getHierarchyBoundingVectors()
-        const height = bounds.max.y - bounds.min.y
-        ;(this as any).eyeHeight = height * 0.93
-        this.chaseHeight = height * 1.5
-        this.chaseDistance = height * 2.0
-        // Find the head BONE node (e.g. `mixamorig:Head`) so first-person anchors
-        // to the actual animated head — which moves forward when walking and down
-        // when crouching. Exclude meshes so we get the animated joint, not the
-        // (static) `head` mesh node.
-        this.headNode =
-          this.mesh
-            .getChildTransformNodes(false)
-            .find(
-              (n) =>
-                /head/i.test(n.name) && !(n instanceof BABYLON.AbstractMesh)
-            ) ?? null
-        /*
+        this._modelReady(owner, scene)
+      })
+    }
+  }
+
+  /*
+  A CHARACTER IN PLACE OF A MODEL: made from its file (character.ts, loaded
+  only here, so a biped without one does not carry MakeHuman), with the clips
+  its states name retargeted onto its skeleton and named as they were. The
+  result is shaped like a loaded model: one root node, its skeleton, its
+  clips, so everything after is the same.
+  */
+  private async _loadCharacter(owner: B3d, scene: BABYLON.Scene) {
+    const attrs = this as any
+    const [
+      {
+        makeCharacter,
+        loadCharacterAssets,
+        DEFAULT_CHARACTER,
+        CHARACTER_SOURCES,
+      },
+      { readCharacter },
+      { readSkeleton, retargetClip },
+      { assetUrl },
+    ] = await Promise.all([
+      import('./character.js'),
+      import('./character-file.js'),
+      import('./retarget-babylon.js'),
+      import('./asset-url.js'),
+    ])
+    const doc =
+      this.characterDoc ?? (await (await fetch(attrs.character)).text())
+    const { character: c, warnings } = readCharacter(doc, {
+      settings: DEFAULT_CHARACTER,
+    })
+    // The builder keeps its own settings in the file too (the clip, the
+    // tailor's): those are expected, and skipped quietly.
+    const changes = warnings.filter((w) => !/not a setting here/.test(w))
+    if (changes.length)
+      console.warn(
+        '<tosi-b3d-biped>: the character file, read with changes',
+        changes
+      )
+    const settings: Record<string, any> = c.settings
+    if (
+      settings.source !== 'MakeHuman' &&
+      !(settings.source in CHARACTER_SOURCES)
+    ) {
+      console.warn(
+        `<tosi-b3d-biped>: body ${settings.source} is a file the page does not have; MakeHuman's shown`
+      )
+      settings.source = 'MakeHuman'
+    }
+    const assets = await sharedAssets(scene, () => loadCharacterAssets(scene))
+    const ch = await makeCharacter(scene, assets, {
+      settings,
+      cloth: c.cloth as any,
+      garments: Object.values(c.garments),
+      handleMeshes: (meshes) => owner.register({ meshes }),
+    })
+    await ch.ready()
+    if (this.owner == null) {
+      ch.dispose()
+      return
+    }
+    // The clips the states name, from the library, retargeted and named as they were.
+    const library = await BABYLON.LoadAssetContainerAsync(
+      attrs.animations || assetUrl('quaternius/UAL1_core.glb', 2),
+      scene
+    )
+    library.addAllToScene()
+    for (const g of library.animationGroups) g.stop()
+    const libRoot =
+      library.meshes.find((m) => m.name === '__root__') ??
+      library.transformNodes[0]
+    const from = readSkeleton(library.skeletons[0], libRoot)
+    const wanted = new Set(
+      this.animationStates.map((st: any) => st.animation ?? st.name)
+    )
+    const clips: BABYLON.AnimationGroup[] = []
+    for (const g of library.animationGroups) {
+      if (!wanted.has(g.name)) continue
+      clips.push(
+        retargetClip(g, from, ch.skeleton!, {
+          scene,
+          name: g.name,
+          armSpaceDeg: ch.recipe?.armSpaceDeg,
+        })
+      )
+    }
+    library.dispose()
+    // The root the biped moves: the character stands on it, soles on y = 0.
+    const root = new BABYLON.Mesh('biped-character', scene)
+    ch.root.parent = root
+    ch.groundFor(clips.find((g) => g.name === 'Idle_Loop') ?? null)
+    this.figure = ch
+    this._eased.clear()
+    this.entries = {
+      rootNodes: [root],
+      skeletons: ch.shown ? [ch.shown.built.skeleton] : [],
+      animationGroups: clips,
+      dispose: () => {
+        for (const g of clips) g.dispose()
+        ch.dispose()
+        root.dispose()
+      },
+    } as unknown as BABYLON.InstantiatedEntries
+    this._modelReady(owner, scene)
+  }
+
+  private _modelReady(owner: B3d, scene: BABYLON.Scene) {
+    const attrs = this as any
+    if (this.entries == null) return
+    const meshes = this.entries.rootNodes
+      .map((node) => node.getChildMeshes())
+      .flat()
+    this.mesh = this.entries.rootNodes[0] as BABYLON.Mesh
+    if (attrs.scale !== 1) this.mesh.scaling.setAll(attrs.scale)
+    // Derive eye height from the model (after scaling, so it's the real size) so first-person sits at the head, not
+    // the origin (the feet). ~0.93 of total height ≈ eye level. Used as a
+    // fallback when there's no head node to anchor to.
+    const bounds = this.mesh.getHierarchyBoundingVectors()
+    const height = bounds.max.y - bounds.min.y
+    ;(this as any).eyeHeight = height * 0.93
+    this.chaseHeight = height * 1.5
+    this.chaseDistance = height * 2.0
+    // Find the head BONE node (e.g. `mixamorig:Head`) so first-person anchors
+    // to the actual animated head — which moves forward when walking and down
+    // when crouching. Exclude meshes so we get the animated joint, not the
+    // (static) `head` mesh node.
+    this.headNode =
+      this.mesh
+        .getChildTransformNodes(false)
+        .find(
+          (n) => /head/i.test(n.name) && !(n instanceof BABYLON.AbstractMesh)
+        ) ?? null
+    /*
         THE COLLISION BODY STARTS A STEP ABOVE THE FEET.
 
         Its bottom used to sit exactly ON the feet, which was survivable only
@@ -3722,42 +3872,40 @@ export class B3dBiped extends B3dControllable {
         Kept below `STEP_UP` (the probe's reach), so anything the body walks over
         is something the probe can then stand you on.
         */
-        this.mesh.ellipsoid = new BABYLON.Vector3(0.3, STAND_HALF, 0.3)
-        this.mesh.ellipsoidOffset = new BABYLON.Vector3(
-          0,
-          STAND_HALF + STEP_OFFSET,
-          0
-        )
-        this.mesh.checkCollisions = true
-        owner.register({ meshes })
-        // Skin materials that export as alphaMode MASK + base-color alpha 0 (an FBX
-        // artifact) render the character fully invisible; they're opaque, so fix it
-        // whether or not a `skin` is applied.
-        for (const mm of meshes) {
-          const mat = (mm as BABYLON.AbstractMesh).material
-          if (mat instanceof BABYLON.PBRMaterial && /skin/i.test(mat.name)) {
-            mat.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_OPAQUE
-          }
-        }
-        this.setAnimationState(attrs.initialState)
-        if (attrs.skin) this.applySkin(attrs.skin)
-
-        // If inputFocus wired input before GLB loaded, it may have been
-        // cleared by a dispose/re-init cycle. Re-wire directly.
-        if (attrs.player && this.inputProvider == null) {
-          const focusManager = this.closest('tosi-b3d-input-focus') as any
-          if (focusManager?.inputMappedProvider) {
-            this.inputProvider = new CompositeInputProvider(
-              focusManager.inputMappedProvider
-            )
-          }
-        }
-
-        this.lastUpdate = realNow()
-        scene.registerBeforeRender(this._update)
-        this.queueRender()
-      })
+    this.mesh.ellipsoid = new BABYLON.Vector3(0.3, STAND_HALF, 0.3)
+    this.mesh.ellipsoidOffset = new BABYLON.Vector3(
+      0,
+      STAND_HALF + STEP_OFFSET,
+      0
+    )
+    this.mesh.checkCollisions = true
+    owner.register({ meshes })
+    // Skin materials that export as alphaMode MASK + base-color alpha 0 (an FBX
+    // artifact) render the character fully invisible; they're opaque, so fix it
+    // whether or not a `skin` is applied.
+    for (const mm of meshes) {
+      const mat = (mm as BABYLON.AbstractMesh).material
+      if (mat instanceof BABYLON.PBRMaterial && /skin/i.test(mat.name)) {
+        mat.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_OPAQUE
+      }
     }
+    this.setAnimationState(attrs.initialState)
+    if (attrs.skin) this.applySkin(attrs.skin)
+
+    // If inputFocus wired input before GLB loaded, it may have been
+    // cleared by a dispose/re-init cycle. Re-wire directly.
+    if (attrs.player && this.inputProvider == null) {
+      const focusManager = this.closest('tosi-b3d-input-focus') as any
+      if (focusManager?.inputMappedProvider) {
+        this.inputProvider = new CompositeInputProvider(
+          focusManager.inputMappedProvider
+        )
+      }
+    }
+
+    this.lastUpdate = realNow()
+    scene.registerBeforeRender(this._update)
+    this.queueRender()
   }
 
   sceneDispose() {
@@ -3774,6 +3922,13 @@ export class B3dBiped extends B3dControllable {
       this.fpvCamera = null
     }
     this.hiddenBody = []
+    if (this.owner != null && this.entries && this.figure) {
+      this.owner.scene.unregisterBeforeRender(this._update)
+      this.entries.dispose()
+      this.figure = null
+      this.entries = undefined
+      this._eased.clear()
+    }
     if (this.owner != null && this.entries) {
       this.owner.scene.unregisterBeforeRender(this._update)
       for (const node of this.entries.rootNodes) {

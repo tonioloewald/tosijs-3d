@@ -8,6 +8,41 @@ a character's SETTINGS (a body, a skin, hair, clothes, a face, a rig), and
 settings, read from a [character file](/character-file/), make the same
 character anywhere: a game puts it under a biped and plays clips on it.
 
+## Demo
+
+```js
+import { b3d, b3dBiped, b3dSun, b3dLight, b3dGround, inputFocus, ualAnimationStates } from 'tosijs-3d'
+
+preview.append(
+  b3d(
+    { style: 'width:100%;height:100%', gamepad: 'left_stick,right_stick' },
+    b3dSun({ timeOfDay: 15, shadowTextureSize: 2048 }),
+    b3dLight({ intensity: 0.5 }),
+    b3dGround({ width: 40, height: 40, color: '#5d6672' }),
+    inputFocus(
+      b3dBiped({
+        character: '/characters/casual.character.json',
+        animationStates: ualAnimationStates(),
+        player: true,
+        cameraType: 'follow',
+      })
+    )
+  )
+)
+```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+```
+
+A character file exported from the [character builder](/character-builder/)
+(**export JSON**), walking under a `<tosi-b3d-biped character="…">`: move with
+WASD or the left stick, look with the mouse or the right stick. The biped
+makes the character from the file and retargets UAL's clips onto it, so its
+states are UAL's (`ualAnimationStates`). Making it takes a few seconds: the
+body's skin is bound when it is made.
+
+## In code
+
 ```
 const assets = await loadCharacterAssets(scene)
 const character = await makeCharacter(scene, assets, {
