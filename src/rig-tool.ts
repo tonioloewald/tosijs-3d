@@ -1355,7 +1355,7 @@ export function mountRigTool(
 
   if (hosted) {
     panelEl = b3dPanel({
-      icon: 'personStanding',
+      icon: 'rig',
       title: 'Rig',
       exclusive: 'off',
       open: true,

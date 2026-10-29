@@ -925,6 +925,8 @@ preview.append(
           const name = walker.source.value
           // Another body: the rig tool on this one goes, its edits with it.
           if (rigging) { rigging.unmount(); rigging = null }
+          // The tailor cuts from MakeHuman's body: it goes when that body does.
+          if (tailoring && !madeHuman()) tailoring.cancel()
           hide()
           if (madeHuman()) {
             built.root.setEnabled(true)
