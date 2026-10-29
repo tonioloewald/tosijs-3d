@@ -1057,6 +1057,18 @@ preview.append(
           })
           el.refreshScenePanel?.()
         }
+        // A body bound from a recipe that is no longer the character's (rigged
+        // again, or a character loaded) is bound again.
+        walker.rigs.observe(() => {
+          let again = false
+          for (const [name, r] of [...rigged]) {
+            if (r.kept === JSON.stringify(recipeOf(name))) continue
+            if (r === other) { hide(); other = null; again = walker.source.value === name }
+            r.dispose()
+            rigged.delete(name)
+          }
+          if (again && !rigging) choose()
+        })
         el.builder.choose = choose
         el.builder.rigged = rigged
         el.builder.rigTool = () => rigging

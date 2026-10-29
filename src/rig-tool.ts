@@ -901,6 +901,17 @@ export function mountRigTool(
             for (let i = 2; i < b.positions.length; i += 3)
               back = Math.min(back, b.positions[i])
             const g = b.markers.groin
+            /*
+            A TAIL SWINGS: its chain (tail_01 on, made when it is bound) gets
+            its spring with it, and loses it with it. It took a third step
+            nothing mentioned (Tonio: "I can't make the weasel's tail work").
+            */
+            const springs = (recipe.springs ?? []).filter(
+              (sp) => !(sp.kind === 'bones' && sp.root === 'tail_01')
+            )
+            if (v) springs.push(JSON.parse(JSON.stringify(TAIL)))
+            recipe.springs = springs
+            ui.spring = Math.max(0, springs.length - 1)
             setMarkers(b.markers, v ? { x: g.x, y: g.y, z: back * 3 } : null)
           },
         }),
@@ -1135,10 +1146,20 @@ export function mountRigTool(
       button3d({
         label: '+ bone chain',
         handleClick: () => {
-          const root =
-            boneNames.find((n) => /tail|hair|pony|braid/i.test(n)) ??
-            boneNames[0]
-          if (root == null) return
+          /*
+          A CHAIN OF BONES THE MODEL HAS (a tail, a ponytail rigged in a
+          modeller): it swings them. With none to hang from it used to take
+          the first bone, the skeleton's root, and swung the spine like a
+          second skeleton (Tonio).
+          */
+          const root = boneNames.find((n) => /tail|hair|pony|braid/i.test(n))
+          if (root == null) {
+            ui.status = bound != null
+              ? 'no tail or hair bones: turn on tail (Markers) for a tail, or + strand for hair'
+              : 'no tail or hair bones: + strand hangs a new one'
+            refresh()
+            return
+          }
           springs.push({
             kind: 'bones',
             name: 'chain',
