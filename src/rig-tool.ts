@@ -185,7 +185,10 @@ import {
 /** A character the tool offers. */
 export interface RigModel {
   label: string
+  /** Where the model is (empty when it is a `file`). */
   url: string
+  /** A file opened in the page, in place of `url` (GLB or glTF). */
+  file?: File
   /** In a library file of several characters, the one to use. */
   pick?: string
   /** Shown this much bigger (a Kenney chibi is 0.6 m). */
@@ -433,12 +436,13 @@ async function openGlb(
   /** Its triangles even if it has a skeleton: it is to be bound here. */
   bindOwn = false
 ): Promise<Opened | Triangles | string> {
+  const file = m instanceof File ? m : m.file
   const container = await BABYLON.LoadAssetContainerAsync(
-    m instanceof File ? m : m.url,
+    file ?? (m as RigModel).url,
     scene,
-    m instanceof File
+    file != null
       ? {
-          pluginExtension: m.name.toLowerCase().endsWith('.gltf')
+          pluginExtension: file.name.toLowerCase().endsWith('.gltf')
             ? '.gltf'
             : '.glb',
         }

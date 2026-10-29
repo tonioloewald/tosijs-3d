@@ -11,11 +11,12 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, clothRecipe, materialPicker3d, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, unwrapGarment, smoothUnder, skirtGarment, loadRigTriangles, autoRig, writeCharacter, readCharacter, humanBodyMaker, buildBody } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, clothRecipe, materialPicker3d, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, readSkeleton, retargetClip, cutGarment, mirrorOutline, outlineField3d, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, unwrapGarment, smoothUnder, skirtGarment, loadRigTriangles, bodyFromMarkers, applyRigRecipe, writeCharacter, readCharacter, humanBodyMaker, buildBody } from 'tosijs-3d'
 import { tosi } from 'tosijs'
+import { mountRigTool } from 'tosijs-3d/rig-tool'
 
 // Everything the panel sets, as it starts: what a saved character is read against.
-const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, source: 'MakeHuman', characterName: '', characterPick: '' }
+const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, source: 'MakeHuman', characterName: '', characterPick: '' }
 const { walker } = tosi({ walker: structuredClone(START) })
 // What a character file keeps: not the editor's view of one slot (that is in
 // cloth), the microphone (it would ask on load), or the save controls.
@@ -69,6 +70,10 @@ const SOURCES = {
 }
 // A mesh opened from a file (a choice in the list once opened).
 let openBody = () => {}
+// The rig tool, mounted on the body while it is being rigged.
+let rigging = null
+let openRig = () => {}
+let finishRig = () => {}
 // What the imported body is doing, or why it failed.
 let sourceNote = ''
 const madeHuman = () => walker.source.value === 'MakeHuman'
@@ -216,6 +221,15 @@ preview.append(
         select3d({ label: 'source', value: walker.source, options: Object.keys(SOURCES), stayOpen: true }),
         button3d({ label: 'open a mesh…', handleClick: () => openBody() }),
         ...(sourceNote ? [text3d({ text: sourceNote })] : []),
+        // Its rig is the rig tool's: markers, tail, springs, arm space. The
+        // recipe is kept with the character.
+        ...(rigging
+          ? [
+              text3d({ text: 'Rigging: the Rig panel is on the bar. Drag the markers onto the joints; the body is bound again on release.' }),
+              button3d({ label: 'done rigging', handleClick: () => finishRig() }),
+              button3d({ label: 'cancel', handleClick: () => finishRig(false) }),
+            ]
+          : [button3d({ label: 'rig…', handleClick: () => openRig() })]),
         label3d({ text: 'Motion', collapsible: true, open: true }),
         select3d({ label: 'clip', value: walker.clip, options: clips, stayOpen: true }),
         toggle3d({ label: 'pause', value: walker.paused }),
@@ -849,7 +863,7 @@ preview.append(
         const play = () => {
           playing?.dispose()
           const clip = ual.animationGroups.find((g) => g.name === walker.clip.value)
-          playing = clip ? retargetClip(clip, source, read, { scene }) : null
+          playing = clip ? retargetClip(clip, source, read, { scene, armSpaceDeg: shown?.recipe?.armSpaceDeg }) : null
           playing?.start(true)
           clipLow = playing ? measureClip(playing) : null
           ground()
@@ -889,14 +903,45 @@ preview.append(
           if (again) { again = false; rebuild() }
         }
         await rebuild()
-        // An imported body: loaded, fitted and bound once, then kept.
+        // An imported body: its triangles loaded once, then bound from its
+        // rig recipe (the rig tool's markers, else a first guess off its
+        // outline) and kept until the recipe changes.
+        const plain = (v) => JSON.parse(JSON.stringify(v))
+        const triangles = new Map()
         const rigged = new Map()
         let other = null
         let choosing = 0
+        const recipeOf = (name) => plain(walker.rigs.value)[name] ?? null
+        const keepRecipe = (name, recipe) => {
+          walker.rigs.value = { ...plain(walker.rigs.value), [name]: plain(recipe) }
+        }
+        const rig = async (name) => {
+          const from = SOURCES[name]
+          if (!triangles.has(name)) triangles.set(name, await loadRigTriangles(scene, from.file ?? from.url, { pick: from.pick }))
+          const tris = triangles.get(name)
+          const kept = recipeOf(name)
+          const body = bodyFromMarkers(tris, { markers: kept?.binding?.markers, tail: kept?.binding?.tail, source: name })
+          const r = buildBody(scene, `body-${rigged.size}`, body)
+          r.kept = JSON.stringify(kept)
+          // A recipe always carries its binding, so the rig tool binds the
+          // same mesh from the same markers (never its own skeleton).
+          r.recipe = { version: 1, roles: {}, armSpaceDeg: 0, springs: [], ...kept, binding: { markers: body.made.markers, tail: body.made.tail ?? null } }
+          r.mesh.material = mat
+          r.root.parent = stand
+          r.root.setEnabled(false)
+          el.register({ meshes: [r.mesh] })
+          return r
+        }
+        const hide = () => {
+          other?.applied?.dispose()
+          if (other) other.applied = null
+          other?.root.setEnabled(false)
+        }
         const choose = async () => {
           const token = ++choosing
           const name = walker.source.value
-          other?.root.setEnabled(false)
+          if (rigging) finishRig(false)
+          hide()
           if (madeHuman()) {
             built.root.setEnabled(true)
             shown = built
@@ -914,14 +959,7 @@ preview.append(
             // Let the message paint before the binding takes the thread.
             await new Promise((r) => setTimeout(r, 50))
             try {
-              const from = SOURCES[name]
-              const tris = await loadRigTriangles(scene, from.file ?? from.url, { pick: from.pick })
-              const r = autoRig(scene, `body-${rigged.size}`, tris)
-              r.mesh.material = mat
-              r.root.parent = stand
-              r.root.setEnabled(false)
-              el.register({ meshes: [r.mesh] })
-              rigged.set(name, r)
+              rigged.set(name, await rig(name))
               sourceNote = ''
             } catch (e) {
               console.warn('character builder: could not rig', name, e)
@@ -934,7 +972,9 @@ preview.append(
           if (!other) { el.refreshScenePanel?.(); return }
           other.root.setEnabled(true)
           shown = other
-          read = readSkeleton(other.skeleton, other.root)
+          // The recipe's springs (a tail, a ponytail) on the body shown.
+          other.applied = applyRigRecipe(scene, other.root, other.skeleton, other.recipe)
+          read = other.applied.read
           el.refreshScenePanel?.()
           play()
         }
@@ -947,14 +987,66 @@ preview.append(
             const file = input.files?.[0]
             if (!file) return
             SOURCES[file.name] = { file }
+            triangles.delete(file.name)
+            rigged.get(file.name)?.dispose()
             rigged.delete(file.name)
             if (walker.source.value === file.name) choose()
             else walker.source.value = file.name
           }
           input.click()
         }
+        // THE RIG TOOL, on the body shown: the builder's body steps aside while
+        // the tool shows the same mesh bound from the same recipe, and takes the
+        // recipe back when you are done (bound again from its markers, its
+        // springs hung). Cancel puts back the recipe it started with.
+        openRig = () => {
+          const name = walker.source.value
+          const from = SOURCES[name]
+          if (madeHuman() || !other || rigging) return
+          hide()
+          playing?.stop()
+          const started = plain(other.recipe)
+          rigging = mountRigTool(el, {
+            models: [{ label: name, url: from.url ?? '', file: from.file, pick: from.pick }],
+            recipe: started,
+            files: false,
+            stage: false,
+            camera: cam,
+          })
+          rigging.started = started
+          rigging.source = name
+          el.refreshScenePanel?.()
+        }
+        finishRig = (keep = true) => {
+          if (!rigging) return
+          const tool = rigging
+          rigging = null
+          const recipe = keep ? tool.api.recipe : tool.started
+          tool.unmount()
+          delete recipe.model
+          const name = tool.source
+          const changed = JSON.stringify(recipe) !== JSON.stringify(tool.started)
+          // A new recipe binds the body again (the observer below).
+          if (changed) keepRecipe(name, recipe)
+          else if (walker.source.value === name) choose()
+        }
+        // A body bound from a recipe that is no longer the character's (rigged
+        // again, or a character loaded) is bound again.
+        walker.rigs.observe(() => {
+          let again = false
+          for (const [name, r] of [...rigged]) {
+            if (r.kept === JSON.stringify(recipeOf(name))) continue
+            if (r === other) { hide(); other = null; again = walker.source.value === name }
+            r.dispose()
+            rigged.delete(name)
+          }
+          if (again && !rigging) choose()
+        })
         el.builder.choose = choose
         el.builder.rigged = rigged
+        el.builder.rigTool = () => rigging
+        el.builder.openRig = () => openRig()
+        el.builder.finishRig = (keep) => finishRig(keep)
 
         // CHARACTERS (character-file): the figure you are working on is kept
         // in this browser as you change it and comes back when the page opens;
@@ -974,7 +1066,6 @@ preview.append(
             t.onerror = () => no(t.error)
           })
         }
-        const plain = (v) => JSON.parse(JSON.stringify(v))
         const snapshot = (name) => {
           const settings = Object.fromEntries(KEPT.map((k) => [k, plain(walker[k].value)]))
           // The garments of your own it wears travel inside it.
@@ -1108,6 +1199,13 @@ your own with **open a mesh…** (GLB or glTF): any skeleton the file has is
 ignored, and UAL's is fitted to the mesh's outline and the skin bound by bone
 heat ([auto-rig](/rig-build/)), in a second or two. They walk and take the
 skin; the rest of the panel is MakeHuman's and is hidden for them.
+
+**Rig…** opens the [rig tool](/rig-tool/) on that body (its panel is on the
+bar): drag the markers onto the joints and it is bound again on release; add
+a tail, springs (a ponytail, a tail) or arm space. **Done rigging** brings
+the body back bound from that recipe, and the recipe is saved with the
+character; **cancel** keeps the one it had. The first binding is a guess read
+off the body's outline.
 
 **Character** keeps your work. The figure you are working on is kept in this
 browser as you change it and comes back when you open the page again. **Save**
