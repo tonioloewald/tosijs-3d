@@ -1360,11 +1360,34 @@ export function guessMarkers(s: Silhouette): Markers {
   // Arms out to the side (a T-pose): along the widest row.
   const armsOut = armW > torsoW * 1.6
   const down = armsOut ? null : armHanging(rows, nRows, groinV, vOf, H)
+  /*
+  IN THE MIDDLE OF THE ARM, not on its underside. The widest row is the
+  arm's lowest (ties keep the first going up) or where the hand droops, so a
+  marker there sat low (Tonio). At each marker's place along the arm, the
+  rows the arm fills round the widest one are found and their middle taken.
+  */
+  const covers = (k: number, x: number) =>
+    (rows.get(k) ?? []).some((r) => r.u0 <= x && r.u1 >= x)
+  const armMiddle = (x: number) => {
+    // The nearest row the arm fills there, above or below the widest.
+    let k0 = -1
+    for (let d = 0; d <= nRows * 0.06 && k0 < 0; d++) {
+      if (covers(armK - d, x)) k0 = armK - d
+      else if (covers(armK + d, x)) k0 = armK + d
+    }
+    if (k0 < 0) return armV
+    let lo = k0
+    let hi = k0
+    while (covers(lo - 1, x)) lo--
+    while (covers(hi + 1, x)) hi++
+    return (vOf(lo) + vOf(hi)) / 2
+  }
+  const wristX = armW * 0.78
   const wrist = armsOut
-    ? { x: armW * 0.78, y: armV }
+    ? { x: wristX, y: armMiddle(wristX) }
     : down?.wrist ?? { x: torsoW * 1.1, y: s.min.v + 0.5 * H }
   const elbow = armsOut
-    ? { x: wrist.x * 0.62, y: armV }
+    ? { x: wrist.x * 0.62, y: armMiddle(wrist.x * 0.62) }
     : down?.elbow ?? { x: torsoW * 1.05, y: s.min.v + 0.63 * H }
 
   // The neck: the narrowest row between the arms and the top of the head.

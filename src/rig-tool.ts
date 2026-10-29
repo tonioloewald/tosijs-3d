@@ -176,9 +176,12 @@ import {
 } from './retarget-babylon.js'
 import { ROLES, type Role } from './retarget.js'
 import {
+  fitSkeleton,
   guessMarkers,
+  meshQuery,
   objTriangles,
   rigSilhouette,
+  type MeshQuery,
   type Markers,
 } from './rig-fit.js'
 import { markerField3d, type MarkerField } from './rig-markers.js'
@@ -441,7 +444,7 @@ async function openGlb(
   m: RigModel | File,
   /** Its triangles even if it has a skeleton: it is to be bound here. */
   bindOwn = false
-): Promise<Opened | Triangles | string> {
+): Promise<Opened | (Triangles & { ownSkeleton?: boolean }) | string> {
   const file = m instanceof File ? m : m.file
   const container = await BABYLON.LoadAssetContainerAsync(
     file ?? (m as RigModel).url,
@@ -485,7 +488,8 @@ async function openGlb(
     )
     const tris = gather(root, shown)
     container.dispose()
-    return tris.indices.length > 0 ? tris : 'has no meshes'
+    // Whether it had a skeleton of its own (then it can go back to it).
+    return tris.indices.length > 0 ? { ...tris, ownSkeleton: skeleton != null } : 'has no meshes'
   }
   const mesh = container.meshes.find(
     (n) => n.skeleton === skeleton && n.isEnabled()
@@ -547,6 +551,18 @@ function bindMesh(
       built.dispose()
     },
   }
+}
+
+/** The joint each marker places (its depth is where the marker is drawn). */
+const MARKER_JOINT: Record<string, string> = {
+  chin: 'neck_01',
+  groin: 'pelvis',
+  wristL: 'hand_l',
+  wristR: 'hand_r',
+  elbowL: 'lowerarm_l',
+  elbowR: 'lowerarm_r',
+  kneeL: 'calf_l',
+  kneeR: 'calf_r',
 }
 
 /** The panel's view of a role: what it is set to, and what was guessed. */
@@ -685,6 +701,31 @@ export function mountRigTool(
   let bindNext = false
   /** The model as a rigged body, when it was bound here from markers. */
   let body: RiggedBody | null = null
+  /** The model loaded has a skeleton of its own (it may use it or not). */
+  let hasOwnSkeleton = false
+  /*
+  THE JOINTS FOLLOW THE MARKERS. Fitting the skeleton is quick; binding the
+  skin is what takes the time. So the joints are fitted again from the
+  markers as they are now (and the joints moved by hand put where they were
+  moved), and drawn from that, while the binding waits for animate or done.
+  */
+  let query: MeshQuery | null = null
+  let queryOf: ArrayLike<number> | null = null
+  function fittedJoints(): Map<string, Vec3> | null {
+    if (bound == null) return null
+    if (queryOf !== bound.positions) {
+      query = meshQuery(bound.positions, bound.indices)
+      queryOf = bound.positions
+    }
+    try {
+      const rig = fitSkeleton(bound.markers, query!, { tail: bound.tail ?? undefined })
+      const out = new Map(rig.joints.map((j) => [j.name, j.position]))
+      for (const [n, p] of Object.entries(bound.joints ?? {})) out.set(n, p)
+      return out
+    } catch {
+      return null
+    }
+  }
   /*
   MOVED, NOT YET BOUND. Binding takes a second or two and shows nothing in
   the rest pose, so moving a marker only moves it (Tonio); the mesh is bound
@@ -928,15 +969,16 @@ export function mountRigTool(
           if (m) void tool?.load(m)
         },
       }),
-      // A model with a skeleton of its own (or one the user chose to bind
-      // here): a demo mesh bound from its built-in markers has no choice.
-      ...(applied == null || (bound != null && recipe.binding == null)
+      // Only a model with a skeleton of its own can use it: a mesh with
+      // none (an OBJ, Blender's bodies) has nothing to go back to.
+      ...(applied == null || !hasOwnSkeleton
         ? []
         : [
             toggle3d({
-              label: 'bind from markers',
-              value: recipe.binding != null,
-              handleChange: (v) => {
+              label: 'use its own skeleton',
+              value: recipe.binding == null,
+              handleChange: (own) => {
+                const v = !own
                 /*
                 IGNORE ITS OWN RIG AND BIND IT HERE. Any mesh can be bound
                 from markers, so a model whose skeleton is wrong or missing
@@ -1930,15 +1972,19 @@ export function mountRigTool(
       const r = height * 0.022
       if (markerBound()) {
         const b = bound!
-        const z = frontOf() + 0.01 * height
+        // Each at the depth of the joint it places, so it sits on the body
+        // from the top and side too (a front-plane marker floated in front).
+        const z0 = frontOf() + 0.01 * height
+        const fit = fittedJoints()
+        const depth = (key: string) => fit?.get(MARKER_JOINT[key] ?? '')?.z ?? z0
         for (const [key, m] of Object.entries(b.markers))
-          dot(toScene(m.x, m.y, z), r * 1.6, markerMat, { marker: key, handle: -1 })
+          dot(toScene(m.x, m.y, depth(key)), r * 1.6, markerMat, { marker: key, handle: -1 })
         if (b.tail) dot(toScene(b.tail.x, b.tail.y, b.tail.z), r * 1.6, markerMat, { marker: 'tail', handle: -1 })
         // Every joint, to move by hand: where it was moved to, else the fit's.
         if (ui.joints)
           for (const [name, node] of applied.read.nodes) {
             if (name === 'root') continue
-            const m = b.joints?.[name]
+            const m = fit?.get(name)
             const at = m != null ? toScene(m.x, m.y, m.z) : node.getAbsolutePosition()
             const small = /^(thumb|index|middle|ring|pinky)_|ball/.test(name)
             dot(at, r * (small ? 0.5 : 0.8), jointMat, { joint: name, handle: -2 })
@@ -2408,6 +2454,8 @@ export function mountRigTool(
         model = opened
         bound = opened.bound ?? null
         body = opened.body ?? null
+        hasOwnSkeleton =
+          opened.bound == null || (found as { ownSkeleton?: boolean }).ownSkeleton === true
         boneNames = skeleton.bones.map(
           (b) => b.getTransformNode()?.name ?? b.name
         )
