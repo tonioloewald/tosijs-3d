@@ -21,8 +21,8 @@ const tailor = mountTailorTool(scene, {
 })
 ```
 
-**Its panel is a system panel** (scissors, on the bar), with **done** and
-**cancel** at its top, then:
+**Its panel is a system panel** (scissors, on the bar), with **cancel** and
+**done** at its top, then:
 
 - **the outline**: you draw the character's left, on your right, and the
   other side is its mirror. Click out points, click the first to close a
@@ -264,8 +264,8 @@ export function mountTailorTool(
   const widgets = (): Widget3d[] => [
     row3d(
       {},
-      button3d({ label: 'done', handleClick: () => finish(true) }),
-      button3d({ label: 'cancel', handleClick: () => finish(false) })
+      button3d({ label: 'cancel', handleClick: () => finish(false) }),
+      button3d({ label: 'done', handleClick: () => finish(true) })
     ),
     ...(status ? [label3d({ text: status, muted: true, compact: true })] : []),
     (field = outlineField3d({

@@ -17,56 +17,63 @@ preview.append(rigTool())
 
 ## Using it
 
-It opens standing still in its REST pose (a T or an A), with a dot on the
-bone each role uses: tap a dot to choose that role (it turns yellow), then
-tap the body where that bone is to give the role to it. A tap on the body
-does nothing until a dot has been chosen, and only the first one counts, so
-orbiting on a phone cannot reassign a bone. Set `clicking sets` to the chain
-and that tap hangs the chosen spring chain there instead. A
-strand's path is a row of orange handles: drag them along the tail or the
-ponytail, `+ point` for another one beyond the tip. `view` snaps to a
-face (front, back, left, right, top, bottom), which is how you line a point
-up with the flesh, and stands it still; `free` orbits and plays the clip.
-Turn on `animate` (or pick a clip) to see it move. In a headset you are the
-camera, so the view only switches between still and playing.
+It opens standing still in its REST pose (a T or an A), in the front view.
+A mesh with no skeleton of its own (an OBJ, or a GLB without one, like the
+weasels and the space marine) gets UAL's fitted to it from eight red
+**markers** on its body, Mixamo's way: drag each onto its joint (chin,
+groin, elbows, wrists, knees). They start where they are guessed from the
+outline. A model with a skeleton of its own shows a dot on the bone each
+**role** uses instead: tap a dot (it turns yellow), then the body where that
+bone is.
 
-The panel has these sections.
+`view` snaps to a face (front, back, left, right, top, bottom), which is how
+you line a marker, joint or handle up with the flesh, and stands it still;
+`free` orbits. Turn on `animate` (or pick a clip) to see it move: a mesh
+whose markers or joints moved is bound to them again then (binding takes a
+second or two and shows nothing at rest). In a headset you are the camera,
+so the view only switches between still and playing.
 
+The panel has these sections, its job first.
+
+- **Markers**, for a mesh bound from them. `symmetry` moves both sides
+  together; `tail` adds a tail (place its tip from the side view; it is a
+  bone chain, `tail_01` on, for a spring); `guess markers` starts again from
+  the outline. The joints follow the markers. `move joints` shows every
+  joint (blue) to drag by hand from the view that suits: shoulders from the
+  front, fingers and thumbs from the top, feet from the side. What hangs from
+  a joint comes with it; set `dragging` to turn what hangs from it instead
+  (a hand or foot at an angle). Markers and moved joints are saved in the
+  recipe as `binding`.
+- **Roles**, for a model on its own skeleton: which bone is the hips, the
+  head, the left forearm, each finger joint. They are guessed from the
+  names; fix one by tapping, as above, or pick a role and then the bone that
+  plays it, or `(none)` to leave it out. Set `clicking sets` to the chain and
+  a tap hangs the chosen spring chain there instead.
+- **Motion.** `animate` and the clip; `arm space` turns the arms out from
+  the body, for a character whose arms are long for its height;
+  `load animations…` adds the clips in a GLB made on another rig to the
+  list: Mixamo's, a mocap file's, another library's. Which bone is which is
+  read from the names (UE, Mixamo, Kenney and Blender spellings), so each
+  clip is retargeted onto the character, and onto the mannequin to compare.
+  Mixamo downloads are FBX, which a browser cannot read: import them into
+  Blender and export a GLB (with the skin).
+- **View.** `view`; `mannequin` shows UAL's mannequin (a ghost) playing the
+  original beside it; `bones` draws the skeleton.
 - **Model.** A demo character, or `load model file…` for a GLB or OBJ of
   your own (a single file: a `.gltf` with separate buffers cannot be opened
-  this way). It should face +Z, standing, arms out or down.
-- **Animations.** `load animations…` adds the clips in a GLB made on
-  another rig to the clip list: Mixamo's, a mocap file's, another library's.
-  Which bone is which is read from the names (UE, Mixamo, Kenney and Blender
-  spellings), so each clip is retargeted onto the character, and onto the
-  mannequin to compare. Mixamo downloads are FBX, which a browser cannot
-  read: import them into Blender and export a GLB (with the skin).
-- **Binding**, for a model with no skeleton (an OBJ, or a GLB without one,
-  like the weasels and the space marine). It is given one: the eight
-  markers on its outline place the joints (chin, groin, wrists, elbows,
-  knees), a skeleton is fitted to them and the mesh is bound to it by bone
-  heat. They start where they are guessed from the outline; drag one onto
-  its joint and the model is fitted and bound again when you let go.
-  `symmetry` moves both sides together, `tail` adds a tail (place its tip in
-  the side view; it is a bone chain, `tail_01` on, for a spring). The
-  markers are saved in the recipe as `binding`.
-- **Roles.** Which bone is the hips, the head, the left forearm, each finger
-  joint. They are guessed from the names; fix one by tapping, as above, or
-  pick a role and then the bone that plays it, or `(none)` to leave it out. `arm space` turns the arms out
-  from the body, for a character whose arms are long for its height.
+  this way). It should face +Z, standing, arms out or down. A model with a
+  skeleton of its own can `use its own skeleton`, or be bound from markers
+  like any mesh.
 - **Springs.** `+ strand` hangs a new chain with a tube from a bone (a
-  ponytail): lay out its path with the handles (add points for a curve),
-  choose how many `links` it has (they are spaced evenly along the path),
-  size it, and tune how it swings. A straight one can also be set by
-  `offset`, `yaw`, `pitch` and `length`. `+ bone chain` simulates bones the model already has (a
-  tail): pick the chain's first bone. Stiffness and damping change live;
-  the rest rebuild the chain.
+  ponytail): lay out its path with the orange handles (`+ point` for another
+  beyond the tip), choose how many `links` it has (they are spaced evenly
+  along the path), size it, and tune how it swings. A straight one can also
+  be set by `offset`, `yaw`, `pitch` and `length`. `+ bone chain` simulates
+  bones the model already has (a tail): pick the chain's first bone.
+  Stiffness and damping change live; the rest rebuild the chain.
 - **Recipe.** `save` downloads the recipe as JSON, `load` reads one back,
   `copy` puts it on the clipboard. The working recipe is also kept in this
   browser, per model, so a reload does not lose it.
-
-Pick a clip at the top. `mannequin` shows UAL's mannequin (a ghost) playing the
-original beside it; `bones` draws the skeleton.
 
 ## A recipe in a game
 
@@ -184,7 +191,6 @@ import {
   type MeshQuery,
   type Markers,
 } from './rig-fit.js'
-import { markerField3d, type MarkerField } from './rig-markers.js'
 import { buildBody, gatherTriangles as gather } from './rig-build.js'
 import { bodyFromMarkers, type RiggedBody } from './rigged-body.js'
 import type { Vec3 } from './spatial-transform.js'
@@ -848,17 +854,158 @@ export function mountRigTool(
   const current = (): SpringRecipe | undefined => recipe.springs?.[ui.spring]
 
   const panel = (): Widget3d[] => {
+    /*
+    THE PANEL, its job first. Finished (or abandoned) at the top when a host
+    opened it for one job, then what it is doing; then the markers (a mesh
+    bound from them) or the roles (a model on its own skeleton), which are
+    the work; then how it moves, how it is seen, which model, its springs
+    and its recipe.
+    */
     const w: Widget3d[] = [
-      // Opened by a host for one job: finished (or abandoned) from here.
       ...(options.handleDone != null || options.handleCancel != null
         ? [
             row3d(
               {},
-              button3d({ label: 'done', handleClick: () => finish(true) }),
-              button3d({ label: 'cancel', handleClick: () => finish(false) })
+              button3d({ label: 'cancel', handleClick: () => finish(false) }),
+              button3d({ label: 'done', handleClick: () => finish(true) })
             ),
           ]
         : []),
+      label3d({ text: ui.status, muted: true, compact: true }),
+    ]
+
+    if (bound != null) {
+      /*
+      MARKERS, on the body: drag them onto its joints; the joints follow, and
+      the mesh is bound again when you animate or press done. Its bones are
+      UAL's by name, so there are no roles to set.
+      */
+      const b = bound
+      w.push(
+        label3d({ text: 'Markers', collapsible: true, open: true }),
+        label3d({ text: 'drag the red markers onto the joints', muted: true, compact: true }),
+        toggle3d({
+          label: 'symmetry',
+          value: symmetry,
+          handleChange: (v) => {
+            symmetry = v
+          },
+        }),
+        toggle3d({
+          label: 'tail',
+          value: b.tail != null,
+          handleChange: (v) => {
+            // A first tip: straight behind the groin, past the body's back
+            // (place it from the side view).
+            let back = 0
+            for (let i = 2; i < b.positions.length; i += 3)
+              back = Math.min(back, b.positions[i])
+            const g = b.markers.groin
+            setMarkers(b.markers, v ? { x: g.x, y: g.y, z: back * 3 } : null)
+          },
+        }),
+        button3d({
+          label: 'guess markers',
+          handleClick: () =>
+            setMarkers(guessMarkers(rigSilhouette(b.positions, b.indices, 'front')), b.tail ?? null),
+        }),
+        toggle3d({
+          label: 'move joints',
+          value: ui.joints,
+          handleChange: (v) => {
+            ui.joints = v
+            tool?.targets()
+            refresh()
+          },
+        }),
+        ...(ui.joints
+          ? [
+              select3d({
+                label: 'dragging',
+                value: ui.jointDrag,
+                options: [
+                  { label: 'moves the joint', value: 'move' },
+                  { label: 'turns what hangs from it', value: 'turn' },
+                ],
+                handleChange: (v) => {
+                  ui.jointDrag = v as 'move' | 'turn'
+                  refresh()
+                },
+              }),
+              label3d({
+                text: 'blue dots: fingers and thumbs from the top view, feet from the side',
+                muted: true,
+                compact: true,
+              }),
+            ]
+          : [])
+      )
+    } else {
+      // ROLES, for a model on its own skeleton: which bone plays which part.
+      const guessed = applied?.read.roles ?? {}
+      const set = recipe.roles?.[ui.role]
+      w.push(
+        label3d({ text: 'Roles', collapsible: true, open: true }),
+        select3d({
+          label: 'clicking sets',
+          value: ui.clickSets,
+          options: [
+            { label: "the role's bone", value: 'role' },
+            { label: "the chain's bone", value: 'chain' },
+          ],
+          handleChange: (v) => {
+            ui.clickSets = v as 'role' | 'chain'
+            ui.armed = true
+            refresh()
+          },
+        }),
+        label3d({
+          text: !ui.armed
+            ? 'tap a dot, then its bone'
+            : ui.clickSets === 'role'
+            ? `now tap the ${roleLabel(ui.role)}'s bone`
+            : 'now tap where the chain hangs from',
+          muted: true,
+          compact: true,
+        }),
+        select3d({
+          label: 'role',
+          value: ui.role,
+          options: ROLES.map((r) => ({
+            label: `${roleLabel(r)}${guessed[r] ? '' : ' –'}`,
+            value: r,
+          })),
+          handleChange: (v) => {
+            ui.role = v as Role
+            ui.clickSets = 'role'
+            ui.armed = true
+            tool?.targets()
+            refresh()
+          },
+        }),
+        select3d({
+          label: 'bone',
+          value: set == null ? GUESS : set === '' ? NONE : set,
+          options: [GUESS, NONE, ...boneNames],
+          handleChange: (v) => {
+            const roles = (recipe.roles ??= {})
+            if (v === GUESS) delete roles[ui.role]
+            else roles[ui.role] = v === NONE ? '' : String(v)
+            changed(true)
+            refresh()
+          },
+        }),
+        label3d({
+          text: `plays it: ${guessed[ui.role] ?? 'nothing'}`,
+          muted: true,
+          compact: true,
+        })
+      )
+    }
+
+    // MOTION: the clips it plays, how they sit on it, and more of them.
+    w.push(
+      label3d({ text: 'Motion', collapsible: true, open: true }),
       toggle3d({
         label: 'animate',
         value: ui.pose === 'animate',
@@ -877,70 +1024,32 @@ export function mountRigTool(
           animate()
         },
       }),
-      ...(ui.pose === 'rest' && bound != null
-        ? [
-            label3d({
-              text: 'drag the red markers onto the joints',
-              muted: true,
-              compact: true,
-            }),
-            toggle3d({
-              label: 'move joints',
-              value: ui.joints,
-              handleChange: (v) => {
-                ui.joints = v
-                tool?.targets()
-                refresh()
-              },
-            }),
-            ...(ui.joints
-              ? [
-                  select3d({
-                    label: 'dragging',
-                    value: ui.jointDrag,
-                    options: [
-                      { label: 'moves the joint', value: 'move' },
-                      { label: 'turns what hangs from it', value: 'turn' },
-                    ],
-                    handleChange: (v) => {
-                      ui.jointDrag = v as 'move' | 'turn'
-                      refresh()
-                    },
-                  }),
-                  label3d({
-                    text: 'blue dots: fingers and thumbs from the top view, feet from the side',
-                    muted: true,
-                    compact: true,
-                  }),
-                ]
-              : []),
-          ]
-        : ui.pose === 'rest'
-        ? [
-            select3d({
-              label: 'clicking sets',
-              value: ui.clickSets,
-              options: [
-                { label: "the role's bone", value: 'role' },
-                { label: "the chain's bone", value: 'chain' },
-              ],
-              handleChange: (v) => {
-                ui.clickSets = v as 'role' | 'chain'
-                ui.armed = true
-                refresh()
-              },
-            }),
-            label3d({
-              text: !ui.armed
-                ? 'tap a dot, then its bone'
-                : ui.clickSets === 'role'
-                ? `now tap the ${roleLabel(ui.role)}'s bone`
-                : 'now tap where the chain hangs from',
-              muted: true,
-              compact: true,
-            }),
-          ]
-        : []),
+      slider3d({
+        label: 'arm space',
+        value: recipe.armSpaceDeg ?? 0,
+        min: -30,
+        max: 90,
+        step: 1,
+        format: (v) => `${v}°`,
+        handleChange: (v) => {
+          recipe.armSpaceDeg = v
+          changed(true)
+        },
+      }),
+      button3d({
+        label: 'load animations…',
+        handleClick: () =>
+          void chooseFile('.glb,.gltf').then((f) => f && tool?.loadClips(f)),
+      }),
+
+      // VIEW: where it is seen from, and what is shown beside it.
+      label3d({ text: 'View', collapsible: true }),
+      select3d({
+        label: 'view',
+        value: ui.view,
+        options: [...INSPECT_FACES, 'free'],
+        handleChange: (v) => tool?.view((ui.view = v as RigView)),
+      }),
       toggle3d({
         label: 'mannequin',
         value: ui.compare,
@@ -951,24 +1060,23 @@ export function mountRigTool(
         value: ui.bones,
         handleChange: (v) => tool?.bones((ui.bones = v)),
       }),
-      select3d({
-        label: 'view',
-        value: ui.view,
-        options: [...INSPECT_FACES, 'free'],
-        handleChange: (v) => tool?.view((ui.view = v as RigView)),
-      }),
-      label3d({ text: ui.status, muted: true, compact: true }),
 
-      label3d({ text: 'Model', collapsible: true, open: true }),
-      select3d({
-        label: 'model',
-        value: ui.model,
-        options: [...new Set([...models.map((m) => m.label), ui.model])],
-        handleChange: (v) => {
-          const m = models.find((m) => m.label === v)
-          if (m) void tool?.load(m)
-        },
-      }),
+      // MODEL: which one, and how it is rigged.
+      label3d({ text: 'Model', collapsible: true }),
+      // A choice only when there is one (a host's one model has none).
+      ...(models.length > 1 || models[0]?.label !== ui.model
+        ? [
+            select3d({
+              label: 'model',
+              value: ui.model,
+              options: [...new Set([...models.map((m) => m.label), ui.model])],
+              handleChange: (v) => {
+                const m = models.find((m) => m.label === v)
+                if (m) void tool?.load(m)
+              },
+            }),
+          ]
+        : []),
       // Only a model with a skeleton of its own can use it: a mesh with
       // none (an OBJ, Blender's bodies) has nothing to go back to.
       ...(applied == null || !hasOwnSkeleton
@@ -1002,104 +1110,6 @@ export function mountRigTool(
         label: 'load model file…',
         handleClick: () =>
           void chooseFile('.glb,.gltf,.obj').then((f) => f && tool?.load(f)),
-      }),
-      button3d({
-        label: 'load animations…',
-        handleClick: () =>
-          void chooseFile('.glb,.gltf').then((f) => f && tool?.loadClips(f)),
-      }),
-    ]
-
-    /*
-    BINDING, for a mesh that came without a skeleton: drag the markers onto
-    its joints (chin, groin, wrists, elbows, knees) and it is fitted and bound
-    again on release. The markers are saved with the recipe.
-    */
-    if (bound != null) {
-      const b = bound
-      const rebind = (markers: Markers, tail: Vec3 | null) => setMarkers(markers, tail)
-      const field: MarkerField = markerField3d({
-        positions: b.positions,
-        indices: b.indices,
-        value: b.markers,
-        tail: b.tail,
-        symmetry,
-        handleCommit: rebind,
-      })
-      w.push(
-        label3d({ text: 'Binding', collapsible: true, open: true }),
-        field,
-        toggle3d({
-          label: 'symmetry',
-          value: symmetry,
-          handleChange: (v) => {
-            field.symmetry = symmetry = v
-          },
-        }),
-        toggle3d({
-          label: 'tail',
-          value: b.tail != null,
-          handleChange: (v) => {
-            // A first tip: straight behind the groin, past the body's back.
-            let back = 0
-            for (let i = 2; i < b.positions.length; i += 3)
-              back = Math.min(back, b.positions[i])
-            const g = b.markers.groin
-            rebind(b.markers, v ? { x: g.x, y: g.y, z: back * 3 } : null)
-          },
-        }),
-        button3d({ label: 'guess markers', handleClick: () => field.guess() })
-      )
-    }
-
-    // Roles.
-    const guessed = applied?.read.roles ?? {}
-    const set = recipe.roles?.[ui.role]
-    w.push(
-      label3d({ text: 'Roles', collapsible: true, open: true }),
-      select3d({
-        label: 'role',
-        value: ui.role,
-        options: ROLES.map((r) => ({
-          label: `${roleLabel(r)}${guessed[r] ? '' : ' –'}`,
-          value: r,
-        })),
-        handleChange: (v) => {
-          ui.role = v as Role
-          ui.clickSets = 'role'
-          ui.armed = true
-          tool?.targets()
-          refresh()
-        },
-      }),
-      select3d({
-        label: 'bone',
-        value: set == null ? GUESS : set === '' ? NONE : set,
-        options: [GUESS, NONE, ...boneNames],
-        handleChange: (v) => {
-          const roles = (recipe.roles ??= {})
-          if (v === GUESS) delete roles[ui.role]
-          else roles[ui.role] = v === NONE ? '' : String(v)
-          changed(true)
-          refresh()
-        },
-      }),
-      label3d({
-        text: `plays it: ${guessed[ui.role] ?? 'nothing'}`,
-        muted: true,
-        compact: true,
-      }),
-      slider3d({
-        label: 'arm space',
-        value: recipe.armSpaceDeg ?? 0,
-        min: -30,
-        max: 90,
-        step: 1,
-        format: (v) => `${v}°`,
-        handleChange: (v) => {
-          recipe.armSpaceDeg = v
-          changed(true)
-        },
       })
     )
 

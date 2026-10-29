@@ -1007,8 +1007,8 @@ preview.append(
         openRig = (file = null) => {
           if (rigging) return
           if (!file && (madeHuman() || !other)) return
-          const name = file ? file.name : walker.source.value
-          const from = file ? { file } : SOURCES[name]
+          const opened = file ? file.name : walker.source.value
+          const from = file ? { file } : SOURCES[opened]
           hide()
           built.root.setEnabled(false)
           playing?.stop()
@@ -1018,7 +1018,7 @@ preview.append(
             rigPanel.hide?.()
           }
           rigging = mountRigTool(el, {
-            models: [{ label: name, url: from.url ?? '', file: from.file, pick: from.pick }],
+            models: [{ label: opened, url: from.url ?? '', file: from.file, pick: from.pick }],
             // A file starts from nothing: bound from markers, or on its own
             // skeleton when it has one.
             recipe: file ? undefined : plain(other.recipe),
@@ -1028,11 +1028,14 @@ preview.append(
             panel: rigPanel,
             // The rig it hands back is worn as it is: the body the tool bound,
             // its recipe kept with the character.
-            handleDone: ({ recipe, body }) => {
+            handleDone: ({ recipe, body, model }) => {
               done()
               delete recipe.model
-              if (file) {
-                SOURCES[name] = { file }
+              // What it rigged: the model it opened on, or a file loaded in it.
+              const loaded = model instanceof File ? model : model?.file ?? null
+              const name = model instanceof File ? model.name : model?.label ?? opened
+              if (loaded) {
+                SOURCES[name] = { file: loaded }
                 triangles.delete(name)
                 skinned.delete(name)
               }
