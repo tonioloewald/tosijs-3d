@@ -285,6 +285,127 @@ export async function loadRigTriangles(
   }
 }
 
+/** The bones a skin needs to be taken as UAL's skeleton (its core; fingers optional). */
+const UAL_CORE = [
+  'root', 'pelvis', 'spine_01', 'spine_02', 'spine_03', 'neck_01', 'Head',
+  ...['l', 'r'].flatMap((s) =>
+    ['clavicle', 'upperarm', 'lowerarm', 'hand', 'thigh', 'calf', 'foot', 'ball'].map((b) => `${b}_${s}`)
+  ),
+]
+
+/*
+A FILE ALREADY SKINNED TO UAL'S SKELETON: Quaternius' characters come that
+way (UAL is Quaternius' own library), and anyone can bind a mesh to it in a
+modeller. Its joints and weights are the artist's, so it is taken as it is:
+no markers, no bone heat. Its thumbs, toes and shoulders bend as made.
+*/
+/**
+ * A file's character as a rigged body from its OWN skin, or null when its
+ * skeleton is not UAL's (then bind it from markers). `pick` chooses one
+ * character in a library file.
+ */
+export async function loadSkinnedBody(
+  scene: BABYLON.Scene,
+  source: string | File,
+  options: { pick?: string } = {}
+): Promise<RiggedBody | null> {
+  const file = source instanceof File
+  const container = await BABYLON.LoadAssetContainerAsync(
+    source,
+    scene,
+    file
+      ? { pluginExtension: source.name.toLowerCase().endsWith('.gltf') ? '.gltf' : '.glb' }
+      : undefined
+  )
+  try {
+    const root = (container.meshes.find((n) => n.name === '__root__') ??
+      container.transformNodes[0]) as BABYLON.TransformNode
+    const top =
+      options.pick != null
+        ? container.transformNodes.find((n) => n.name === options.pick) ??
+          container.meshes.find((n) => n.name === options.pick)
+        : undefined
+    if (options.pick != null && top == null) return null
+    if (top != null) top.position.set(0, 0, 0)
+    const under = (n: BABYLON.Node) => top == null || n === top || n.isDescendantOf(top)
+    const nameOf = (b: BABYLON.Bone) => b.getTransformNode()?.name ?? b.name
+    const skeleton = container.skeletons
+      .filter((sk) => sk.bones.some((b) => { const t = b.getTransformNode(); return t != null && under(t) }) || top == null)
+      .sort((a, b) => b.bones.length - a.bones.length)[0]
+    if (skeleton == null) return null
+    const names = new Set(skeleton.bones.map(nameOf))
+    if (!UAL_CORE.every((n) => names.has(n))) return null
+    const meshes = container.meshes.filter(
+      (m) => m.skeleton === skeleton && m.getTotalVertices() > 0 && under(m)
+    )
+    if (!meshes.length) return null
+    // The skin at rest, in the file's frame (gatherTriangles returns it to rest).
+    const tris = gatherTriangles(root, meshes)
+    const toRoot = root.getWorldMatrix().clone().invert()
+
+    // Its joints where its skeleton puts them, parents first.
+    const bones = [...skeleton.bones]
+    const depth = (b: BABYLON.Bone): number => (b.getParent() ? 1 + depth(b.getParent()!) : 0)
+    bones.sort((a, b) => depth(a) - depth(b))
+    const joints = bones.map((b) => {
+      const t = b.getTransformNode()
+      t?.computeWorldMatrix(true)
+      const w = t != null ? t.getAbsolutePosition() : b.getAbsolutePosition()
+      const p = BABYLON.Vector3.TransformCoordinates(w, toRoot)
+      return { name: nameOf(b), parent: b.getParent() ? nameOf(b.getParent()!) : null, position: { x: p.x, y: p.y, z: p.z } }
+    })
+    const index = new Map(joints.map((j, i) => [j.name, i]))
+    const byName = new Map(joints.map((j) => [j.name, j.position]))
+    const rig: FittedRig = {
+      joints,
+      at: (name) => byName.get(name),
+      fingers: {
+        l: ['thumb', 'index', 'middle', 'ring', 'pinky'].filter((f) => index.has(`${f}_01_l`)),
+        r: ['thumb', 'index', 'middle', 'ring', 'pinky'].filter((f) => index.has(`${f}_01_r`)),
+      },
+    }
+
+    // Its weights, onto those joints: the four strongest, summing to one.
+    const n = tris.positions.length / 3
+    const weights: SkinWeights = { indices: new Float32Array(n * 4), weights: new Float32Array(n * 4) }
+    const boneJoint = skeleton.bones.map((b) => index.get(nameOf(b)) ?? 0)
+    let v0 = 0
+    for (const m of meshes) {
+      const count = m.getTotalVertices()
+      if (m.getIndices() == null) continue
+      const mi = m.getVerticesData('matricesIndices') ?? []
+      const mw = m.getVerticesData('matricesWeights') ?? []
+      const xi = m.getVerticesData('matricesIndicesExtra')
+      const xw = m.getVerticesData('matricesWeightsExtra')
+      for (let v = 0; v < count; v++) {
+        const pairs: Array<[number, number]> = []
+        for (let k = 0; k < 4; k++) pairs.push([mi[v * 4 + k], mw[v * 4 + k]])
+        if (xi && xw) for (let k = 0; k < 4; k++) pairs.push([xi[v * 4 + k], xw[v * 4 + k]])
+        pairs.sort((a, b) => b[1] - a[1])
+        const top4 = pairs.slice(0, 4)
+        const sum = top4.reduce((s, p) => s + p[1], 0) || 1
+        for (let k = 0; k < 4; k++) {
+          const [bi, w] = top4[k] ?? [0, 0]
+          weights.indices[(v0 + v) * 4 + k] = boneJoint[bi] ?? 0
+          weights.weights[(v0 + v) * 4 + k] = w / sum
+        }
+      }
+      v0 += count
+    }
+    if (v0 !== n) return null
+    return {
+      positions: Float32Array.from(tris.positions),
+      indices: Uint32Array.from(tris.indices),
+      rig,
+      weights,
+      regions: {},
+      made: { by: 'skin', source: file ? source.name : source },
+    }
+  } finally {
+    container.dispose()
+  }
+}
+
 export interface BuiltBody extends BuiltRig {
   /** The rigged body it was built from. */
   body: RiggedBody

@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, clothRecipe, materialPicker3d, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, readSkeleton, retargetClip, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, smoothUnder, loadRigTriangles, bodyFromMarkers, applyRigRecipe, writeCharacter, readCharacter, humanBodyMaker, buildBody, mountTailorTool, chooseFile } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, loadHumanPack, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, humanSkin, skinMaterial, lipTint, humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, loadHairLibrary, headScalp, hairMaterial, humanHair, skinThinness, vertexNormals, nearestWeights, coveredBy, skinAlbedo, stubbleTint, humanProxy, proxyMaterial, coverBody, fitProxy, drawnPositions, underCover, inflate, hairShading, HAIR_COLOURS, colorPicker3d, clothShading, clothRecipe, materialPicker3d, studioEnvironment, irisColor, faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, proxyDelta, readSkeleton, retargetClip, button3d, ui, bindGarment, writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, smoothUnder, loadRigTriangles, bodyFromMarkers, applyRigRecipe, writeCharacter, readCharacter, humanBodyMaker, buildBody, mountTailorTool, chooseFile, loadSkinnedBody } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 
@@ -890,8 +890,18 @@ preview.append(
         const keepRecipe = (name, recipe) => {
           walker.rigs.value = { ...plain(walker.rigs.value), [name]: plain(recipe) }
         }
+        // A file skinned to UAL's skeleton already (Quaternius' characters,
+        // or a mesh bound to it in a modeller) is taken as it is: its own
+        // joints and weights, unless its recipe binds it from markers.
+        const skinned = new Map()
         const rig = async (name) => {
           const from = SOURCES[name]
+          const kept0 = recipeOf(name)
+          if (!kept0?.binding) {
+            if (!skinned.has(name)) skinned.set(name, await loadSkinnedBody(scene, from.file ?? from.url, { pick: from.pick }))
+            const own = skinned.get(name)
+            if (own) return wear(own, kept0)
+          }
           if (!triangles.has(name)) triangles.set(name, await loadRigTriangles(scene, from.file ?? from.url, { pick: from.pick }))
           const tris = triangles.get(name)
           const kept = recipeOf(name)
@@ -901,9 +911,10 @@ preview.append(
         const wear = (body, kept) => {
           const r = buildBody(scene, `body-${rigged.size}`, body)
           r.kept = JSON.stringify(kept)
-          // A recipe always carries its binding, so the rig tool binds the
-          // same mesh from the same markers (never its own skeleton).
-          r.recipe = { version: 1, roles: {}, armSpaceDeg: 0, springs: [], ...kept, binding: { markers: body.made.markers, tail: body.made.tail ?? null } }
+          // A body bound from markers carries them in its recipe, so the rig
+          // tool binds the same mesh from the same markers; one with its own
+          // skin opens on its own skeleton.
+          r.recipe = { version: 1, roles: {}, armSpaceDeg: 0, springs: [], ...kept, ...(body.made.by === 'markers' ? { binding: { markers: body.made.markers, tail: body.made.tail ?? null } } : {}) }
           r.mesh.material = mat
           r.root.parent = stand
           r.root.setEnabled(false)
@@ -967,6 +978,7 @@ preview.append(
         const openFile = (file) => {
           SOURCES[file.name] = { file }
           triangles.delete(file.name)
+          skinned.delete(file.name)
           rigged.get(file.name)?.dispose()
           rigged.delete(file.name)
           if (walker.source.value === file.name) choose()

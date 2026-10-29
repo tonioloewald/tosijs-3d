@@ -1827,6 +1827,7 @@ export { bodyFromMarkers } from './rigged-body.js'
 export type { RiggedBody, RiggedBodyOrigin, BodyTriangles } from './rigged-body.js'
 export { mountTailorTool } from './tailor-tool.js'
 export { chooseFile } from './choose-file.js'
+export { loadSkinnedBody } from './rig-build.js'
 export type { TailorTool, TailorToolOptions, TailorCut, TailorState, TailoredGarment } from './tailor-tool.js'
 export { loadHumanPack, decodeHumanTarget } from './human-pack.js'
 export type {

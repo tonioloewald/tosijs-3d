@@ -16,6 +16,12 @@ const body = bodyFromMarkers(objTriangles(text))   // markers guessed
 const built = buildBody(scene, 'weasel', body)     // a Babylon skeleton on it
 ```
 
+THREE PRODUCERS: `bodyFromMarkers` (any mesh and its markers), `humanBodyMaker`
+(MakeHuman's sliders), and `loadSkinnedBody` (in [auto-rig](/rig-build/)): a
+file already skinned to UAL's skeleton, as Quaternius' characters are or as
+you can bind a mesh to it in Blender, taken as it is: its joints, its weights,
+no markers.
+
 A rigged body is plain data, Babylon-free:
 
 - **`positions`, `indices`**: the rest mesh, right-handed (as glTF and OBJ
@@ -29,7 +35,8 @@ A rigged body is plain data, Babylon-free:
   knows them: `lips` and `nipples` from MakeHuman. A consumer that wants one
   and finds none does without (or works it out from the shape).
 - **`made`**: how it was made, enough to make it again: the markers (and
-  where the mesh came from), or MakeHuman's slider values.
+  where the mesh came from), MakeHuman's slider values, or `skin` (the file's
+  own).
 
 `buildBody` (in [auto-rig](/rig-build/)) makes it a Babylon skeleton.
 */
@@ -55,6 +62,14 @@ export type RiggedBodyOrigin =
       source?: string
       markers: Markers
       tail?: Vec3 | null
+    }
+  | {
+      /**
+       * Skinned to UAL's skeleton already (in a modeller, or as Quaternius'
+       * characters come): its own joints and weights, no markers.
+       */
+      by: 'skin'
+      source?: string
     }
   | {
       by: 'makehuman'
