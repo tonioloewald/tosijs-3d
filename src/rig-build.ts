@@ -316,6 +316,63 @@ export function autoRig(
     options.markers ?? guessMarkers(rigSilhouette(positions, indices, 'front'))
   const rig = fitSkeleton(markers, meshQuery(positions, indices))
   const weights = boneHeat(positions, indices, skinSegments(rig))
-  const built = buildRig(scene, name, positions, indices, rig, weights)
+  const built = buildRig(scene, name, positions, indices, rig, weights, {
+    normals: weldedNormals(positions, indices),
+  })
   return { ...built, rig, markers }
+}
+
+/*
+NORMALS ACROSS SEAMS. A file splits a vertex wherever its UVs or materials
+do, and normals worked out per vertex then differ on the two sides of every
+seam: the body is lit in bands (Tonio saw them across a Blender body's chest,
+waist and arms). Vertices at the same place share one normal here, the area-
+weighted mean of every face round that place. Right-handed, as the data is.
+*/
+export function weldedNormals(
+  positions: ArrayLike<number>,
+  indices: ArrayLike<number>
+): Float32Array {
+  const n = positions.length / 3
+  const id = new Int32Array(n)
+  const at = new Map<string, number>()
+  for (let i = 0; i < n; i++) {
+    const key = `${Math.round(positions[i * 3] * 1e5)},${Math.round(
+      positions[i * 3 + 1] * 1e5
+    )},${Math.round(positions[i * 3 + 2] * 1e5)}`
+    let w = at.get(key)
+    if (w == null) at.set(key, (w = at.size))
+    id[i] = w
+  }
+  const sum = new Float64Array(at.size * 3)
+  for (let t = 0; t < indices.length; t += 3) {
+    const a = indices[t] * 3
+    const b = indices[t + 1] * 3
+    const c = indices[t + 2] * 3
+    const ux = positions[b] - positions[a]
+    const uy = positions[b + 1] - positions[a + 1]
+    const uz = positions[b + 2] - positions[a + 2]
+    const vx = positions[c] - positions[a]
+    const vy = positions[c + 1] - positions[a + 1]
+    const vz = positions[c + 2] - positions[a + 2]
+    // Twice the face's area, outward for counter-clockwise faces.
+    const nx = uy * vz - uz * vy
+    const ny = uz * vx - ux * vz
+    const nz = ux * vy - uy * vx
+    for (const v of [indices[t], indices[t + 1], indices[t + 2]]) {
+      const w = id[v] * 3
+      sum[w] += nx
+      sum[w + 1] += ny
+      sum[w + 2] += nz
+    }
+  }
+  const out = new Float32Array(n * 3)
+  for (let i = 0; i < n; i++) {
+    const w = id[i] * 3
+    const len = Math.hypot(sum[w], sum[w + 1], sum[w + 2]) || 1
+    out[i * 3] = sum[w] / len
+    out[i * 3 + 1] = sum[w + 1] / len
+    out[i * 3 + 2] = sum[w + 2] / len
+  }
+  return out
 }

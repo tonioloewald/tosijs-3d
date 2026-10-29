@@ -77,6 +77,28 @@ export interface MeshQuery {
    * they are separate only from above.
    */
   fromAbove?(): MeshQuery
+  /**
+   * The same mesh turned `angle` radians about the Z axis through
+   * (`cx`, `cy`) (positive turns +X toward +Y). How a hanging hand is read:
+   * turned level, palm-in becomes palm-down.
+   */
+  turnedAboutZ?(
+    angle: number,
+    cx: number,
+    cy: number,
+    crop?: HandCrop
+  ): MeshQuery
+}
+
+/**
+ * Only the part of a mesh beyond a point along a direction (in the front
+ * view), within `radius` of it, and joined to it there: a hand on its own,
+ * without the thigh it hangs beside.
+ */
+export interface HandCrop {
+  from: Vec3
+  along: Point2
+  radius: number
 }
 
 /**
@@ -164,6 +186,19 @@ export function meshQuery(
         above = meshQuery(p, indices)
       }
       return above
+    },
+    turnedAboutZ(angle, cx, cy, crop) {
+      const c = Math.cos(angle)
+      const sn = Math.sin(angle)
+      const p = Array.from(positions)
+      const kept = crop != null ? cropped(positions, indices, crop) : indices
+      for (let i = 0; i + 2 < p.length; i += 3) {
+        const x = p[i] - cx
+        const y = p[i + 1] - cy
+        p[i] = cx + c * x - sn * y
+        p[i + 1] = cy + sn * x + c * y
+      }
+      return meshQuery(p, kept)
     },
     spans(x, y) {
       if (x < min.x || x > max.x || y < min.y || y > max.y) return []
@@ -397,51 +432,88 @@ export function fitSkeleton(
     )
     const wrist = put(`hand_${side}`, `lowerarm_${side}`, at(wrist2, elbow.z))
 
+    /*
+    A HANGING HAND IS READ TURNED LEVEL. Fingers are found from above, on a
+    hand held out palm-down; a hand hanging at the side (an A-pose) is
+    palm-in, and from above it is a blob, so its fingers were placed by
+    proportion and fanned out across ten centimetres (Tonio: twisted hands
+    on Blender's bodies). Turned about the front-to-back axis until the
+    forearm is level, a palm-in hand IS palm-down: the mesh is turned about
+    the wrist, read exactly as a T-pose hand is, and the joints turned back.
+    */
+    const hangs =
+      mesh.turnedAboutZ != null &&
+      Math.abs(wrist2.y - elbow2.y) > Math.abs(wrist2.x - elbow2.x)
+    const turn = hangs
+      ? Math.atan2(0, sign) - Math.atan2(wrist2.y - elbow2.y, wrist2.x - elbow2.x)
+      : 0
+    const turnPoint = <T extends Point2>(p: T, a: number): T => {
+      const c = Math.cos(a)
+      const sn = Math.sin(a)
+      const x = p.x - wrist.x
+      const y = p.y - wrist.y
+      return { ...p, x: wrist.x + c * x - sn * y, y: wrist.y + sn * x + c * y }
+    }
+    // The hand alone: beyond the wrist, within a forearm's length of it.
+    const foreLen = Math.hypot(wrist2.x - elbow2.x, wrist2.y - elbow2.y)
+    const hm = hangs
+      ? mesh.turnedAboutZ!(turn, wrist.x, wrist.y, {
+          from: wrist,
+          along: { x: wrist2.x - elbow2.x, y: wrist2.y - elbow2.y },
+          radius: foreLen,
+        })
+      : mesh
+    const hInside = (x: number, y: number) => hm.spans(x, y).length > 0
+    const hw2 = turnPoint(wrist2, turn)
+    const he2 = turnPoint(elbow2, turn)
+    const hw = turnPoint(wrist, turn)
+    const putHand = (name: string, parent: string, p: Vec3) =>
+      put(name, parent, turnPoint(p, -turn))
     // The hand: walk on from the wrist until the ray leaves the mesh.
-    const dir = { x: wrist2.x - elbow2.x, y: wrist2.y - elbow2.y }
+    const dir = { x: hw2.x - he2.x, y: hw2.y - he2.y }
     const dl = Math.hypot(dir.x, dir.y) || 1
     const ux = dir.x / dl
     const uy = dir.y / dl
     let reach = 0
-    for (let d = 0; d < 2 * dl + (mesh.max.x - mesh.min.x); d += step) {
-      if (inside(wrist2.x + ux * d, wrist2.y + uy * d)) reach = d
+    for (let d = 0; d < 2 * dl + (hm.max.x - hm.min.x); d += step) {
+      if (hInside(hw2.x + ux * d, hw2.y + uy * d)) reach = d
       else if (d > reach + 4 * step) break
     }
     reach = Math.max(reach, 0.25 * dl)
     const tip = {
-      x: wrist2.x + ux * reach,
-      y: wrist2.y + uy * reach,
-      z: wrist.z,
+      x: hw2.x + ux * reach,
+      y: hw2.y + uy * reach,
+      z: hw.z,
     }
     // Palm down in a T-pose, so the hand's width runs along Z: thumb and
     // index to the front, pinky to the back.
     const palm2 = {
-      x: wrist2.x + ux * reach * 0.35,
-      y: wrist2.y + uy * reach * 0.35,
+      x: hw2.x + ux * reach * 0.35,
+      y: hw2.y + uy * reach * 0.35,
     }
-    const ps = mesh.spans(palm2.x, palm2.y)[0]
+    const ps = hm.spans(palm2.x, palm2.y)[0]
     const half = ps != null ? (ps.front - ps.back) / 2 : 0.15 * reach
-    const palmZ = ps != null ? (ps.front + ps.back) / 2 : wrist.z
+    const palmZ = ps != null ? (ps.front + ps.back) / 2 : hw.z
     /*
     THE FINGERS THE MESH HAS, found from above (Tonio: the skinny weasel has
     three fingers and a thumb, and they were not rigged). A finger is placed
     joint by joint along the real one and takes the skin; one the mesh does
     not show is placed by proportion, as before, and takes none.
     */
-    const above = mesh.fromAbove?.()
-    let found = above != null ? findFingers(above, wrist, sign, reach) : null
+    const above = hm.fromAbove?.()
+    let found = above != null ? findFingers(above, hw, sign, reach) : null
     // No separate fingers: one mitten or claw, and a thumb without a gap.
     if (above != null && (found == null || found.fingers.length === 0)) {
-      const m = findMitten(mesh, above, wrist, sign, reach)
+      const m = findMitten(hm, above, hw, sign, reach)
       if (m != null)
         found = { fingers: [m.mitten], thumb: found?.thumb ?? m.thumb }
     }
     const real: string[] = []
     const chain = (f: string, pts: Vec3[]) => {
-      put(`${f}_01_${side}`, `hand_${side}`, pts[0])
-      put(`${f}_02_${side}`, `${f}_01_${side}`, pts[1])
-      put(`${f}_03_${side}`, `${f}_02_${side}`, pts[2])
-      put(`${f}_04_leaf_${side}`, `${f}_03_${side}`, pts[3])
+      putHand(`${f}_01_${side}`, `hand_${side}`, pts[0])
+      putHand(`${f}_02_${side}`, `${f}_01_${side}`, pts[1])
+      putHand(`${f}_03_${side}`, `${f}_02_${side}`, pts[2])
+      putHand(`${f}_04_leaf_${side}`, `${f}_03_${side}`, pts[3])
     }
     const names = found != null ? FINGER_NAMES[found.fingers.length] ?? [] : []
     const fingers: Array<[string, number]> = [
@@ -475,8 +547,8 @@ export function fitSkeleton(
       }
       const z = palmZ + off * half
       const base = {
-        x: lerp(wrist.x, tip.x, 0.45),
-        y: lerp(wrist.y, tip.y, 0.45),
+        x: lerp(hw.x, tip.x, 0.45),
+        y: lerp(hw.y, tip.y, 0.45),
         z,
       }
       const end = { x: tip.x, y: tip.y, z }
@@ -487,13 +559,13 @@ export function fitSkeleton(
       real.push('thumb')
     } else {
       const base = {
-        x: lerp(wrist.x, tip.x, 0.12),
-        y: lerp(wrist.y, tip.y, 0.12),
+        x: lerp(hw.x, tip.x, 0.12),
+        y: lerp(hw.y, tip.y, 0.12),
         z: palmZ + 0.5 * half,
       }
       const end = {
-        x: lerp(wrist.x, tip.x, 0.6),
-        y: lerp(wrist.y, tip.y, 0.6),
+        x: lerp(hw.x, tip.x, 0.6),
+        y: lerp(hw.y, tip.y, 0.6),
         z: palmZ + 1.6 * half,
       }
       chain('thumb', [base, along(base, end, 0.4), along(base, end, 0.7), end])
@@ -509,22 +581,42 @@ export function fitSkeleton(
     put(`thigh_${side}`, 'pelvis', hip)
     const knee = put(`calf_${side}`, `thigh_${side}`, at(knee2, hip.z))
     const ankleY = floor + 0.28 * (knee2.y - floor)
+    /*
+    THE FOOT WHERE IT IS, not under the knee. Legs angle in and feet turn
+    out (Blender's base meshes: the ray under the knee missed the foot, the
+    toe fell back to just in front of the ankle, the foot bone pointed down,
+    and every clip turned the foot through 90°). The ankle is the middle of
+    the leg's run across the front view at its height; the toe is the
+    farthest-forward point of the foot's run near the ground.
+    */
+    const ankleRun = runAcross(mesh, ankleY, knee2.x, sign)
     const ankle = put(
       `foot_${side}`,
       `calf_${side}`,
-      at({ x: knee2.x, y: ankleY }, knee.z)
+      at({ x: ankleRun != null ? (ankleRun.lo + ankleRun.hi) / 2 : knee2.x, y: ankleY }, knee.z)
     )
     // The foot reaches forward: the front of the mesh near the ground.
     const soleY = floor + 0.15 * (ankleY - floor)
-    const sole = mesh.spans(knee2.x, soleY)[0]
-    const toeZ = sole != null ? sole.front : ankle.z + 0.5 * (ankleY - floor)
+    const footRun = runAcross(mesh, soleY, ankle.x, sign)
+    let toe = { x: ankle.x, z: ankle.z + 0.5 * (ankleY - floor) }
+    if (footRun != null) {
+      let best = -Infinity
+      const step = Math.max((footRun.hi - footRun.lo) / 24, 1e-4)
+      for (let x = footRun.lo; x <= footRun.hi + 1e-9; x += step) {
+        const f = mesh.spans(x, soleY)[0]?.front
+        if (f != null && f > best) {
+          best = f
+          toe = { x, z: f }
+        }
+      }
+    }
     const ballY = floor + 0.3 * (ankleY - floor)
     put(`ball_${side}`, `foot_${side}`, {
-      x: knee2.x,
+      x: lerp(ankle.x, toe.x, 0.65),
       y: ballY,
-      z: lerp(ankle.z, toeZ, 0.65),
+      z: lerp(ankle.z, toe.z, 0.65),
     })
-    put(`ball_leaf_${side}`, `ball_${side}`, { x: knee2.x, y: ballY, z: toeZ })
+    put(`ball_leaf_${side}`, `ball_${side}`, { x: toe.x, y: ballY, z: toe.z })
   }
 
   if (options.tail != null) {
@@ -553,6 +645,98 @@ export function fitSkeleton(
     at: (name) => byName.get(name)?.position,
     fingers: fingersFound,
   }
+}
+
+/**
+ * The run of the mesh across the front view at height `y` nearest `x`, on
+ * its side of the middle (`sign`: +1 the left, on +X), or null if none is
+ * within 15% of the mesh's width.
+ */
+function runAcross(
+  mesh: MeshQuery,
+  y: number,
+  x: number,
+  sign: number
+): { lo: number; hi: number } | null {
+  const width = mesh.max.x - mesh.min.x
+  const step = width / 400
+  const inside = (u: number) => u * sign > 0 && mesh.spans(u, y).length > 0
+  let start: number | null = null
+  for (let d = 0; d <= 0.15 * width && start == null; d += step)
+    for (const u of [x + d, x - d]) if (start == null && inside(u)) start = u
+  if (start == null) return null
+  let lo = start
+  let hi = start
+  while (inside(lo - step)) lo -= step
+  while (inside(hi + step)) hi += step
+  return { lo, hi }
+}
+
+/**
+ * The triangles of a `HandCrop`: every corner near enough and beyond the
+ * point, and of those, the ones joined (through shared corners, welded by
+ * position) to the corner nearest the point.
+ */
+function cropped(
+  positions: ArrayLike<number>,
+  indices: ArrayLike<number>,
+  crop: HandCrop
+): number[] {
+  const { from, along, radius } = crop
+  const al = Math.hypot(along.x, along.y) || 1
+  const ok = (v: number) => {
+    const x = positions[v * 3] - from.x
+    const y = positions[v * 3 + 1] - from.y
+    const z = positions[v * 3 + 2] - from.z
+    return (
+      Math.hypot(x, y, z) <= radius &&
+      (x * along.x + y * along.y) / al >= -0.1 * radius
+    )
+  }
+  const weld = new Map<string, number>()
+  const id = (v: number) => {
+    const k = `${Math.round(positions[v * 3] * 1e5)},${Math.round(
+      positions[v * 3 + 1] * 1e5
+    )},${Math.round(positions[v * 3 + 2] * 1e5)}`
+    let w = weld.get(k)
+    if (w == null) weld.set(k, (w = weld.size))
+    return w
+  }
+  const tris: number[] = []
+  for (let t = 0; t + 2 < indices.length; t += 3)
+    if (ok(indices[t]) && ok(indices[t + 1]) && ok(indices[t + 2])) tris.push(t)
+  // Union the welded corners of each kept triangle.
+  const parent: number[] = []
+  const find = (a: number): number => {
+    while (parent[a] !== a) a = parent[a] = parent[parent[a]]
+    return a
+  }
+  const ids = tris.map((t) => [0, 1, 2].map((k) => id(indices[t + k])))
+  for (let i = 0; i < weld.size; i++) parent[i] = i
+  for (const [a, b, c] of ids) {
+    parent[find(b)] = find(a)
+    parent[find(c)] = find(a)
+  }
+  // The piece holding the corner nearest the point.
+  let near = -1
+  let best = Infinity
+  tris.forEach((t, i) => {
+    const v = indices[t]
+    const d = Math.hypot(
+      positions[v * 3] - from.x,
+      positions[v * 3 + 1] - from.y,
+      positions[v * 3 + 2] - from.z
+    )
+    if (d < best) {
+      best = d
+      near = find(ids[i][0])
+    }
+  })
+  const out: number[] = []
+  tris.forEach((t, i) => {
+    if (find(ids[i][0]) === near) out.push(indices[t], indices[t + 1], indices[t + 2])
+  })
+  return out
 }
 
 /** Which UAL fingers a hand of n fingers uses, front (thumb side) first. */

@@ -565,6 +565,20 @@ describe.skipIf(!existsSync(HBM))('guessMarkers on arms that hang (A-pose)', () 
       expect(q.spans(sh.x, sh.y).length).toBeGreaterThan(0)
       expect(sh.y).toBeGreaterThan(g.elbowL.y)
       expect(sh.x).toBeLessThan(g.elbowL.x)
+      // The hanging hand is read turned level: all five fingers, found, not
+      // made up, the index in front of the pinky, each pointing down the hand.
+      for (const side of ['l', 'r'] as const) {
+        expect([...(rig.fingers?.[side] ?? [])].sort()).toEqual(['index', 'middle', 'pinky', 'ring', 'thumb'])
+        expect(rig.at(`index_01_${side}`)!.z).toBeGreaterThan(rig.at(`pinky_01_${side}`)!.z)
+        expect(rig.at(`middle_04_leaf_${side}`)!.y).toBeLessThan(rig.at(`hand_${side}`)!.y)
+      }
+      // The foot runs forward from the ankle to the toe, on the mesh.
+      for (const side of ['l', 'r'] as const) {
+        const ankle = rig.at(`foot_${side}`)!
+        const toe = rig.at(`ball_leaf_${side}`)!
+        expect(toe.z - ankle.z).toBeGreaterThan(0.1)
+        expect(q.spans(toe.x, toe.y).length).toBeGreaterThan(0)
+      }
     })
   }
 })
