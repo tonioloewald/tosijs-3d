@@ -130,8 +130,29 @@ export abstract class B3dGroundVehicle extends B3dControllable {
       steer: input.turn,
       handbrake: input.jump,
     }
-    this.lookWant = { x: input.lookX, y: input.lookY }
+    this.aimInput(input.lookX, input.lookY, _dt)
   }
+
+  /** The right stick. A car looks around with it; a tank aims its turret. */
+  protected aimInput(x: number, y: number, _dt: number) {
+    this.lookWant = { x, y }
+  }
+
+  /** Which way the chase camera faces, given its lagged follow of the heading. */
+  protected viewYaw(followYaw: number): number {
+    return followYaw + this.look.x * Math.PI * 0.75
+  }
+
+  /** The right stick's tilt of the view, -1..1. */
+  protected viewTilt(): number {
+    return this.look.y
+  }
+
+  /** Called on gaining focus with the vehicle's heading (radians). */
+  protected resetView(_heading: number) {}
+
+  /** Called after each step of the model, while it is running. */
+  protected afterStep(_state: VehicleState, _dt: number) {}
 
   handleGainFocus() {
     super.handleGainFocus()
@@ -163,6 +184,7 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     this.rig = chaseRigFor(this.spec.size)
     this.camYaw = headingOf(state)
     this.look = { x: 0, y: 0 }
+    this.resetView(this.camYaw)
     this.aimCamera(0)
     owner.setActiveCamera(this.chaseCamera, { attach: false })
   }
@@ -181,12 +203,7 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     const ease = dt > 0 ? 1 - Math.exp(-dt * 8) : 1
     this.look.x += (this.lookWant.x - this.look.x) * ease
     this.look.y += (this.lookWant.y - this.look.y) * ease
-    const { eye, target } = chasePose(
-      state.position,
-      this.camYaw + this.look.x * Math.PI * 0.75,
-      this.look.y,
-      rig
-    )
+    const { eye, target } = chasePose(state.position, this.viewYaw(this.camYaw), this.viewTilt(), rig)
     // Something between the vehicle and the camera (a wall it backed up to, or
     // swung round into while looking): come in in front of it.
     const from = new BABYLON.Vector3(state.position.x, state.position.y + rig.aimHeight + 1, state.position.z)
@@ -329,6 +346,7 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     const before = { ...state.position }
     stepVehicle(spec, state, this.inputProvider ? this.controls : IDLE, dt, this.ground)
     this.blockByWalls(before, state)
+    this.afterStep(state, dt)
     this.place()
     if (this.chaseCamera != null && scene.activeCamera === this.chaseCamera) this.aimCamera(dt)
   }

@@ -16,7 +16,7 @@ import { b3d, b3dTank, inputFocus, playground } from 'tosijs-3d'
 const tank = b3dTank({ x: -4, z: 10, player: true })
 preview.append(
   b3d(
-    { style: 'width: 100%; height: 100%' },
+    { style: 'width: 100%; height: 100%', gamepad: 'left_stick,right_stick,left_trigger,right_trigger' },
     ...playground({ targets: 0 }),
     inputFocus(tank)
   )
@@ -28,15 +28,18 @@ preview.append(
 
 **W** and **S** (on a gamepad the right and left triggers) drive forward and
 back, **A** and **D** (the left stick) steer; with nothing else held they pivot
-it where it stands.
+it where it stands. The **arrow keys** (the right stick) aim the turret: left
+and right traverse it, up and down elevate the gun. The camera looks where the
+gun points, and the turret holds its aim while the hull turns under it.
 
 ## Its body
 
 Given no `url` or `library`, it builds a plain one: a hull, a turret, and two
 tracks whose treads move with the belts. A model of your own needs its tracks
 as meshes with **`track`** in their names, one each side; the tank stands them
-on five points along their undersides. A turret is a
-[b3d-turret](/b3d-turret/) nested in it.
+on five points along their undersides. A node named **`turret`** turns on the
+hull, and one inside it named **`gun`**, **`barrel`** or **`cannon`** elevates
+(from -8° to 20°); put each one's origin on its pivot.
 
 ## Attributes
 
@@ -53,7 +56,33 @@ tank's defaults: 20 t, 12 m/s, 3 m/s². And:
 import * as BABYLON from '@babylonjs/core'
 import { B3dGroundVehicle } from './b3d-ground-vehicle.js'
 import { carMapping } from './virtual-gamepad.js'
-import type { TrackSpec, VehicleSpec, VehicleState } from './ground-vehicle.js'
+import { headingOf, type TrackSpec, type VehicleSpec, type VehicleState } from './ground-vehicle.js'
+
+const DEG = Math.PI / 180
+/** Turret traverse, radians per second. */
+const TRAVERSE = 60 * DEG
+/** How fast the stick swings the aim, radians per second at full stick. */
+const AIM_RATE = 90 * DEG
+/** Gun elevation: how fast, and its limits. */
+const ELEVATE = 20 * DEG
+const GUN_LOW = -8 * DEG
+const GUN_HIGH = 20 * DEG
+
+interface Part {
+  node: BABYLON.TransformNode
+  rest: BABYLON.Quaternion
+}
+const partOf = (node: BABYLON.TransformNode): Part => ({
+  node,
+  rest: (node.rotationQuaternion ?? BABYLON.Quaternion.FromEulerVector(node.rotation)).clone(),
+})
+/** The outermost descendant whose name matches (a turret's own parts are not turrets). */
+function outermost(root: BABYLON.Node, re: RegExp): BABYLON.TransformNode | null {
+  const found = root
+    .getDescendants(false)
+    .filter((n): n is BABYLON.TransformNode => n instanceof BABYLON.TransformNode && re.test(n.name))
+  return found.find((n) => !found.some((o) => o !== n && n.isDescendantOf(o))) ?? null
+}
 
 /** One stripe of tread, metres. */
 const TREAD = 0.25
@@ -95,6 +124,59 @@ export class B3dTank extends B3dGroundVehicle {
   declare turnSpeed: number
 
   private trackParts: TrackPart[] = []
+  private turret: Part | null = null
+  private gun: Part | null = null
+  /** Where the gun is aimed, world yaw (radians): the stick moves it. */
+  private aimYaw = 0
+  /** The turret's turn on the hull, radians. */
+  turretYaw = 0
+  /** The gun's elevation, radians (up positive). */
+  gunPitch = 0
+  private aim = { x: 0, y: 0 }
+
+  /** The right stick traverses the turret and elevates the gun. */
+  protected aimInput(x: number, y: number) {
+    this.aim = { x, y }
+  }
+
+  /** The camera looks where the gun is aimed. */
+  protected viewYaw(): number {
+    return this.aimYaw
+  }
+
+  protected viewTilt(): number {
+    return 0
+  }
+
+  protected resetView(heading: number) {
+    this.aimYaw = heading + this.turretYaw
+    this.aim = { x: 0, y: 0 }
+  }
+
+  handleLoseFocus() {
+    super.handleLoseFocus()
+    this.aim = { x: 0, y: 0 }
+  }
+
+  /*
+  THE TURRET HOLDS ITS AIM IN THE WORLD. The stick moves the aim point; the
+  turret traverses toward it at its own rate, so turning the hull does not
+  swing the gun off target (GTA's tank works this way).
+  */
+  protected afterStep(state: VehicleState, dt: number) {
+    if (this.turret == null) return
+    // Nobody aboard: the turret stays as it is on the hull.
+    if (this.inputProvider == null) {
+      this.aimYaw = headingOf(state) + this.turretYaw
+      return
+    }
+    this.aimYaw += this.aim.x * AIM_RATE * dt
+    const want = this.aimYaw - headingOf(state)
+    let d = want - this.turretYaw
+    d = Math.atan2(Math.sin(d), Math.cos(d))
+    this.turretYaw += Math.max(-TRAVERSE * dt, Math.min(TRAVERSE * dt, d))
+    this.gunPitch = Math.max(GUN_LOW, Math.min(GUN_HIGH, this.gunPitch + this.aim.y * ELEVATE * dt))
+  }
 
   protected makeDefaultBody(scene: BABYLON.Scene): BABYLON.TransformNode {
     const root = new BABYLON.TransformNode('tank', scene)
@@ -114,11 +196,19 @@ export class B3dTank extends B3dGroundVehicle {
     const glacis = part(BABYLON.MeshBuilder.CreateBox('glacis', { width: 2.4, height: 0.5, depth: 1 }, scene))
     glacis.position.set(0, 1.0, 2.45)
     glacis.rotation.x = 0.6
-    const turret = part(BABYLON.MeshBuilder.CreateCylinder('turret', { diameter: 2, height: 0.6, tessellation: 8 }, scene))
+    // The turret turns on its ring, the gun elevates on its trunnion.
+    const turret = new BABYLON.TransformNode('turret', scene)
+    turret.parent = body
     turret.position.set(0, 1.8, -0.2)
+    const ring = part(BABYLON.MeshBuilder.CreateCylinder('turret-body', { diameter: 2, height: 0.6, tessellation: 8 }, scene))
+    ring.parent = turret
+    const gun = new BABYLON.TransformNode('gun', scene)
+    gun.parent = turret
+    gun.position.set(0, 0, 0.8)
     const barrel = part(BABYLON.MeshBuilder.CreateCylinder('barrel', { diameter: 0.18, height: 3, tessellation: 12 }, scene))
+    barrel.parent = gun
     barrel.rotation.x = Math.PI / 2
-    barrel.position.set(0, 1.8, 2)
+    barrel.position.set(0, 0, 1.4)
 
     for (const side of [-1, 1]) {
       const mat = new BABYLON.StandardMaterial(`track-${side}`, scene)
@@ -138,6 +228,10 @@ export class B3dTank extends B3dGroundVehicle {
   }
 
   protected specFor(control: BABYLON.TransformNode): VehicleSpec | null {
+    const turret = outermost(control, /turret/i)
+    const gun = turret ? outermost(turret, /gun|barrel|cannon/i) : null
+    this.turret = turret ? partOf(turret) : null
+    this.gun = gun ? partOf(gun) : null
     const tracks = control.getChildMeshes(false).filter((m) => /track/i.test(m.name))
     const sides = [tracks.filter((m) => this.centreX(m) < 0), tracks.filter((m) => this.centreX(m) >= 0)]
     if (sides.some((s) => s.length === 0)) return null
@@ -191,6 +285,13 @@ export class B3dTank extends B3dGroundVehicle {
   }
 
   protected pose(state: VehicleState) {
+    if (this.turret) {
+      this.turret.node.rotationQuaternion = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Y, this.turretYaw).multiply(this.turret.rest)
+    }
+    if (this.gun) {
+      // A positive turn about +X dips +Z: elevation is the negative.
+      this.gun.node.rotationQuaternion = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.X, -this.gunPitch).multiply(this.gun.rest)
+    }
     this.trackParts.forEach((part, i) => {
       const offset = state.tracks[i]?.offset ?? 0
       const shift = -((offset * part.perMetre) % 1)
@@ -203,6 +304,7 @@ export class B3dTank extends B3dGroundVehicle {
 
   sceneDispose() {
     this.trackParts = []
+    this.turret = this.gun = null
     super.sceneDispose()
   }
 }
