@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, characterStore, WORKING_CHARACTER } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 
@@ -665,21 +665,10 @@ preview.append(
         // CHARACTERS (character-file): the figure you are working on is kept
         // in this browser as you change it and comes back when the page opens;
         // named ones are saved beside it; a file carries one anywhere.
-        const WORKING = '(working)'
-        const characterStore = async (mode, fn) => {
-          const db = await new Promise((ok, no) => {
-            const r = indexedDB.open('tosijs-characters', 1)
-            r.onupgradeneeded = () => r.result.createObjectStore('characters')
-            r.onsuccess = () => ok(r.result)
-            r.onerror = () => no(r.error)
-          })
-          return new Promise((ok, no) => {
-            const t = db.transaction('characters', mode)
-            const req = fn(t.objectStore('characters'))
-            t.oncomplete = () => ok(req?.result)
-            t.onerror = () => no(t.error)
-          })
-        }
+        // In this browser's character store, which keeps a mesh once
+        // however many saves wear it, and which other pages read too.
+        const WORKING = WORKING_CHARACTER
+        const store = characterStore()
         const snapshot = (name) => {
           const kept = Object.fromEntries(KEPT.map((k) => [k, plain(walker[k].value)]))
           // The garments of your own it wears travel inside it.
@@ -738,8 +727,7 @@ preview.append(
           tell(warnings.length ? `loaded; ${warnings.length} setting(s) skipped (see the console)` : '')
         }
         const listSaved = async () => {
-          const keys = await characterStore('readonly', (st) => st.getAllKeys()).catch(() => [])
-          character.saved = (keys ?? []).filter((k) => k !== WORKING).sort()
+          character.saved = await store.list().catch(() => [])
           if (!character.saved.includes(walker.characterPick.value)) walker.characterPick.value = character.saved[0] ?? ''
           el.refreshScenePanel?.()
         }
@@ -749,7 +737,7 @@ preview.append(
           if (restoring) return
           clearTimeout(pending)
           pending = setTimeout(() => {
-            characterStore('readwrite', (st) => st.put(snapshot(WORKING), WORKING)).catch((e) => console.warn('character builder: could not keep the working figure', e))
+            store.put(WORKING, snapshot(WORKING)).catch((e) => console.warn('character builder: could not keep the working figure', e))
           }, 800)
         }
         for (const k of [...KEPT, 'look', 'clothLook']) walker[k].observe(() => character.changed())
@@ -757,7 +745,7 @@ preview.append(
           const name = walker.characterName.value.trim()
           if (!name || name === WORKING) return tell('name the character first')
           try {
-            await characterStore('readwrite', (st) => st.put(snapshot(name), name))
+            await store.put(name, snapshot(name))
           } catch (e) {
             return tell(`could not save: ${e?.message ?? e}`)
           }
@@ -767,7 +755,7 @@ preview.append(
         }
         character.load = async () => {
           const name = walker.characterPick.value
-          const doc = name && (await characterStore('readonly', (st) => st.get(name)).catch(() => null))
+          const doc = name && (await store.get(name).catch(() => null))
           if (!doc) return tell(`no character called ${name}`)
           await apply(doc).catch((e) => tell(`could not load: ${e?.message ?? e}`))
           character.changed()
@@ -775,7 +763,7 @@ preview.append(
         character.forget = async () => {
           const name = walker.characterPick.value
           if (!name) return
-          await characterStore('readwrite', (st) => st.delete(name)).catch(() => {})
+          await store.delete(name).catch(() => {})
           tell(`forgot ${name}`)
           listSaved()
         }
@@ -794,9 +782,9 @@ preview.append(
             }
           })
         }
-        el.builder.character = { snapshot, apply, store: characterStore }
+        el.builder.character = { snapshot, apply, store }
         // The figure you were working on, as you left it.
-        const working = await characterStore('readonly', (st) => st.get(WORKING)).catch(() => null)
+        const working = await store.get(WORKING).catch(() => null)
         if (working) await apply(working).catch((e) => console.warn('character builder: the working figure would not load', e))
         await listSaved()
         el.setLoading(false)

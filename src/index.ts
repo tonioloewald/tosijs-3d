@@ -1882,6 +1882,14 @@ export type {
   SlotLook,
   ReadCharacter,
 } from './character-file.js'
+export {
+  characterStore,
+  splitBlobs,
+  joinBlobs,
+  CHARACTER_DB,
+  WORKING_CHARACTER,
+} from './character-store.js'
+export type { CharacterStore } from './character-store.js'
 export type { Unwrapped, UnwrapOptions } from './uv-unwrap.js'
 export {
   rigidGroups,
