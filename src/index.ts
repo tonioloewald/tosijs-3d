@@ -605,6 +605,19 @@ export {
   type TrackState,
   type Suspension,
 } from './ground-vehicle.js'
+export {
+  cityLayout,
+  roadPiece,
+  turnMask,
+  SIDE_BIT as CITY_SIDE_BIT,
+  type CityLayout,
+  type CityLayoutOptions,
+  type RoadCell,
+  type RoadPiece,
+  type Lot as CityLot,
+  type Rect as CityRect,
+  type Side as CitySide,
+} from './city-layout.js'
 export { B3dAircraft, b3dAircraft } from './b3d-aircraft.js'
 
 // The callback-naming shim. `handleX` is the name across this library; `onX`
