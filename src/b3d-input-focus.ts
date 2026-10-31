@@ -29,10 +29,10 @@ import { assetUrl, b3d, b3dBiped, b3dCar, b3dLibrary, inputFocus } from 'tosijs-
 
 document.body.append(
   b3d({},
-    b3dLibrary({ url: assetUrl('kenney/libraries/car-kit.glb'), type: 'cars' }),
+    b3dLibrary({ url: assetUrl('tonio/vehicles/cars.glb'), type: 'cars' }),
     inputFocus(
       b3dBiped({ url: '/character.glb', player: true, cameraType: 'follow' }),
-      b3dCar({ library: 'cars', meshName: 'sedan', scale: 1.7, enterable: true, x: 5 })
+      b3dCar({ library: 'cars', meshName: 'Sedan', scale: 2, enterable: true, x: 5 })
     )
   )
 )

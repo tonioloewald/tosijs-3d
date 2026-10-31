@@ -12,7 +12,7 @@ car drives in any scene with ground under it.
 ```js
 import { assetUrl, b3d, b3dBiped, b3dCar, b3dTank, b3dLibrary, inputFocus, playground, ualAnimationStates } from 'tosijs-3d'
 
-const cars = b3dLibrary({ url: assetUrl('kenney/libraries/car-kit.glb'), type: 'cars' })
+const cars = b3dLibrary({ url: assetUrl('tonio/vehicles/cars.glb'), type: 'cars' })
 const hero = b3dBiped({
   url: assetUrl('quaternius/UAL1_core.glb', 2),
   animationStates: ualAnimationStates(),
@@ -25,8 +25,8 @@ preview.append(
     ...playground({ targets: 0 }),
     inputFocus(
       hero,
-      b3dCar({ library: 'cars', meshName: 'sedan-sports', scale: 1.7, enterable: true, x: 0, z: 12, ry: 90 }),
-      b3dCar({ library: 'cars', meshName: 'suv', scale: 1.7, enterable: true, x: 3, z: 4, ry: 180, drive: 'all' }),
+      b3dCar({ library: 'cars', meshName: 'Coupe', scale: 2, enterable: true, x: 0, z: 12, ry: 90 }),
+      b3dCar({ library: 'cars', meshName: 'SUV', scale: 2, enterable: true, x: 3, z: 4, ry: 180, drive: 'all' }),
       b3dTank({ enterable: true, x: -12, z: 2 })
     )
   )
@@ -42,13 +42,13 @@ out. **W** drives, **S** brakes and then reverses, **A** and **D** steer, and
 Let go below walking pace and the brakes hold the car where it is, even on the
 ramp. The tank turns on the spot with **A** or **D** alone.
 
-The cars are Kenney's Car Kit (CC0), at 1.7 times their size: they are made
-smaller than life.
+The cars are Tonio Loewald's (CC BY 4.0), at twice their size: they are made
+half life size.
 
 ## A model to drive
 
 Any model whose wheels are separate objects with **`wheel`** in their names
-(Kenney's are `wheel-front-left` and so on). The car measures them: where each
+(these are `Wheel_FL` and so on). The car measures them: where each
 sits is where its hub rests, its height is its diameter. The wheels in front
 of the middle steer, and `drive` says which are driven. Author it the
 library's way: facing −Y in Blender (+Z here), its origin on the ground
