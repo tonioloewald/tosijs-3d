@@ -161,6 +161,16 @@ export function validateRigRecipe(doc) {
             }
         if (b?.tail != null && !isVec(b.tail))
             out.push('binding.tail is not {x, y, z}');
+        if (b?.tailBase != null && !isVec(b.tailBase))
+            out.push('binding.tailBase is not {x, y, z}');
+        if (b?.joints != null) {
+            if (typeof b.joints !== 'object' || Array.isArray(b.joints))
+                out.push('binding.joints is not name → {x, y, z}');
+            else
+                for (const [k, v] of Object.entries(b.joints))
+                    if (!isVec(v))
+                        out.push(`binding.joints.${k} is not {x, y, z}`);
+        }
     }
     const springs = r.springs ?? [];
     if (!Array.isArray(springs))
@@ -313,6 +323,17 @@ export function rigRecipeSchema() {
                             vec3('Where a tail’s tip is, for a tail chain.'),
                             { type: 'null' },
                         ],
+                    },
+                    tailBase: {
+                        oneOf: [
+                            vec3('Where the tail starts (its first joint), if not the back of the pelvis.'),
+                            { type: 'null' },
+                        ],
+                    },
+                    joints: {
+                        type: 'object',
+                        description: 'Joints moved by hand after the fit (a thumb, a toe, a shoulder), by name, in the mesh’s frame.',
+                        additionalProperties: vec3('Where the joint is.'),
                     },
                 },
                 required: ['markers'],

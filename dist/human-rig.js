@@ -28,7 +28,9 @@ The pack is right-handed and a character faces +Z with its left on +X, as
 `rig-fit` assumes, so MakeHuman's `.L` is UAL's `_l`.
 */
 /*{ "parent": "character-builder", "order": 30 }*/
-import { humanJoint } from './human-morph.js';
+import { skinSegments } from './rig-fit.js';
+import { humanJoint, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, } from './human-morph.js';
+import { boneHeat } from './bone-heat.js';
 const FINGERS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 function hm08Table() {
     const rows = [
@@ -310,5 +312,67 @@ export function armsOffTorso(weights, positions, rig, options = {}) {
         }
         weights.weights[v * 4 + slot] += moved;
     }
+}
+/**
+ * MAKEHUMAN AS A PRODUCER of rigged bodies. The skin weights depend only on
+ * the topology, so they are bound once, on the first body, by bone heat, then
+ * the head made rigid (`stiffenHead`) and the ribcage kept off the arms
+ * (`armsOffTorso`); every later body reuses them. Each body is the pack
+ * morphed to its sliders with UAL's joints placed from its joint cubes.
+ */
+export async function humanBodyMaker(pack, values = {}) {
+    const skin = humanSkin(pack);
+    const [lips, nipples] = await Promise.all([
+        pack.region('lips'),
+        pack.region('nipples'),
+    ]);
+    const regions = {};
+    for (const [name, mask] of [
+        ['lips', lips],
+        ['nipples', nipples],
+    ]) {
+        if (mask == null)
+            continue;
+        const out = new Float32Array(skin.vertices.length);
+        skin.vertices.forEach((v, i) => {
+            out[i] = mask[v];
+        });
+        regions[name] = out;
+    }
+    const morph = async (v) => {
+        const body = { ...DEFAULT_HUMAN_BODY, ...v };
+        const full = await morphHuman(pack, macroWeights(body, (n) => pack.has(n)));
+        const rig = humanRig(pack.manifest, full, undefined, {
+            triangles: pack.triangles,
+        });
+        return { body, full, rig, positions: skin.positions(full) };
+    };
+    const m0 = await morph(values);
+    const weights = boneHeat(m0.positions, skin.triangles, skinSegments(m0.rig));
+    // The face moves with the head, or the lids slide over the eyes; and the
+    // ribcage with the spine, not the arms.
+    stiffenHead(weights, m0.positions, m0.rig);
+    armsOffTorso(weights, m0.positions, m0.rig);
+    const make = (m) => ({
+        positions: m.positions,
+        indices: skin.triangles,
+        rig: m.rig,
+        weights,
+        regions,
+        made: {
+            by: 'makehuman',
+            base: pack.manifest.base,
+            version: pack.manifest.version,
+            body: { ...m.body },
+        },
+        full: m.full,
+        skin,
+    });
+    return {
+        skin,
+        weights,
+        first: make(m0),
+        body: async (v = {}) => make(await morph(v)),
+    };
 }
 //# sourceMappingURL=human-rig.js.map

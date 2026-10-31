@@ -8,9 +8,10 @@ skeleton (`fitSkeleton`), bone heat binds the skin to it (`boneHeat`), and
 UAL's clips on it and `springNodes` swings a tail.
 
 To do this by hand, use the [rig tool](/rig-tool/): load a GLB or OBJ with
-no skeleton (or turn on `bind from markers` to ignore the one it has), drag
-the markers onto its joints, and it is bound again each time you let go. The
-markers are saved in its recipe. This page is the code underneath, for doing
+no skeleton (or turn off `use its own skeleton` to ignore the one it has),
+drag the markers onto its joints (the skeleton follows each time you let go,
+and the skin is bound again when you animate or press done). The markers are
+saved in its recipe. This page is the code underneath, for doing
 the same in your own page or pipeline.
 
 ## Usage
@@ -82,7 +83,15 @@ parent of `root`, not `root` itself.
 import * as BABYLON from '@babylonjs/core'
 import type { FittedRig, Markers } from './rig-fit.js'
 import type { SkinWeights } from './bone-heat.js'
-import { bodyFromMarkers, isEyeName, splitEyes, surfaceOf, type BodyEye, type BodySurface, type RiggedBody } from './rigged-body.js'
+import {
+  bodyFromMarkers,
+  isEyeName,
+  splitEyes,
+  surfaceOf,
+  type BodyEye,
+  type BodySurface,
+  type RiggedBody,
+} from './rigged-body.js'
 import { materialConventions } from './b3d-utils.js'
 
 export interface BuiltRig {
@@ -220,7 +229,10 @@ A FILE'S EYEBALLS are not skin: objects named as eyes are kept out of the
 body (bone heat would bind them as islands, and they would be drawn in the
 skin) and handed back on their own, to hang on pivots and turn.
 */
-function eyesOf(root: BABYLON.TransformNode, meshes: BABYLON.AbstractMesh[]): BodyEye[] {
+function eyesOf(
+  root: BABYLON.TransformNode,
+  meshes: BABYLON.AbstractMesh[]
+): BodyEye[] {
   const named = meshes.filter((m) => isEyeName(m.name))
   if (!named.length) return []
   const t = gatherTriangles(root, named)
@@ -299,11 +311,25 @@ export function gatherTriangles(
     const at = indices.length
     const parts = mesh.subMeshes?.length ? mesh.subMeshes : null
     const own = mesh.material
-    if (parts == null) surfaces.push({ start: at, count: ix.length, name: '', material: own ?? undefined })
+    if (parts == null)
+      surfaces.push({
+        start: at,
+        count: ix.length,
+        name: '',
+        material: own ?? undefined,
+      })
     else
       for (const sm of parts) {
-        const mat = own instanceof BABYLON.MultiMaterial ? own.subMaterials[sm.materialIndex] ?? null : own
-        surfaces.push({ start: at + sm.indexStart, count: sm.indexCount, name: '', material: mat ?? undefined })
+        const mat =
+          own instanceof BABYLON.MultiMaterial
+            ? own.subMaterials[sm.materialIndex] ?? null
+            : own
+        surfaces.push({
+          start: at + sm.indexStart,
+          count: sm.indexCount,
+          name: '',
+          material: mat ?? undefined,
+        })
       }
     for (let i = 0; i < p.length; i += 3) {
       BABYLON.Vector3.TransformCoordinatesFromFloatsToRef(
@@ -332,7 +358,8 @@ function mergeRuns(surfaces: BodySurface[]): BodySurface[] {
   const out: BodySurface[] = []
   for (const s of surfaces) {
     const last = out[out.length - 1]
-    if (last && last.name === s.name && last.start + last.count === s.start) last.count += s.count
+    if (last && last.name === s.name && last.start + last.count === s.start)
+      last.count += s.count
     else out.push({ ...s })
   }
   return out
@@ -349,7 +376,9 @@ function keepMaterials(
   scene: BABYLON.Scene,
   surfaces: BodySurface[] | undefined
 ): void {
-  const kept = new Set(surfaces?.map((s) => s.material).filter((m) => m != null))
+  const kept = new Set(
+    surfaces?.map((s) => s.material).filter((m) => m != null)
+  )
   for (const mat of kept) {
     const i = container.materials.indexOf(mat!)
     if (i >= 0) container.materials.splice(i, 1)
@@ -434,9 +463,24 @@ export async function loadRigTriangles(
 
 /** The bones a skin needs to be taken as UAL's skeleton (its core; fingers optional). */
 const UAL_CORE = [
-  'root', 'pelvis', 'spine_01', 'spine_02', 'spine_03', 'neck_01', 'Head',
+  'root',
+  'pelvis',
+  'spine_01',
+  'spine_02',
+  'spine_03',
+  'neck_01',
+  'Head',
   ...['l', 'r'].flatMap((s) =>
-    ['clavicle', 'upperarm', 'lowerarm', 'hand', 'thigh', 'calf', 'foot', 'ball'].map((b) => `${b}_${s}`)
+    [
+      'clavicle',
+      'upperarm',
+      'lowerarm',
+      'hand',
+      'thigh',
+      'calf',
+      'foot',
+      'ball',
+    ].map((b) => `${b}_${s}`)
   ),
 ]
 
@@ -461,7 +505,11 @@ export async function loadSkinnedBody(
     source,
     scene,
     file
-      ? { pluginExtension: source.name.toLowerCase().endsWith('.gltf') ? '.gltf' : '.glb' }
+      ? {
+          pluginExtension: source.name.toLowerCase().endsWith('.gltf')
+            ? '.gltf'
+            : '.glb',
+        }
       : undefined
   )
   try {
@@ -474,34 +522,53 @@ export async function loadSkinnedBody(
         : undefined
     if (options.pick != null && top == null) return null
     if (top != null) top.position.set(0, 0, 0)
-    const under = (n: BABYLON.Node) => top == null || n === top || n.isDescendantOf(top)
+    const under = (n: BABYLON.Node) =>
+      top == null || n === top || n.isDescendantOf(top)
     const nameOf = (b: BABYLON.Bone) => b.getTransformNode()?.name ?? b.name
     const skeleton = container.skeletons
-      .filter((sk) => sk.bones.some((b) => { const t = b.getTransformNode(); return t != null && under(t) }) || top == null)
+      .filter(
+        (sk) =>
+          sk.bones.some((b) => {
+            const t = b.getTransformNode()
+            return t != null && under(t)
+          }) || top == null
+      )
       .sort((a, b) => b.bones.length - a.bones.length)[0]
     if (skeleton == null) return null
     const names = new Set(skeleton.bones.map(nameOf))
     if (!UAL_CORE.every((n) => names.has(n))) return null
     const meshes = container.meshes.filter(
-      (m) => m.skeleton === skeleton && m.getTotalVertices() > 0 && under(m) && !isEyeName(m.name)
+      (m) =>
+        m.skeleton === skeleton &&
+        m.getTotalVertices() > 0 &&
+        under(m) &&
+        !isEyeName(m.name)
     )
     if (!meshes.length) return null
     // The skin at rest, in the file's frame (gatherTriangles returns it to rest).
     const tris: RigTriangles = gatherTriangles(root, meshes)
-    const eyes = eyesOf(root, container.meshes.filter((m) => m.getTotalVertices() > 0 && under(m)))
+    const eyes = eyesOf(
+      root,
+      container.meshes.filter((m) => m.getTotalVertices() > 0 && under(m))
+    )
     if (eyes.length) tris.eyes = eyes
     const toRoot = root.getWorldMatrix().clone().invert()
 
     // Its joints where its skeleton puts them, parents first.
     const bones = [...skeleton.bones]
-    const depth = (b: BABYLON.Bone): number => (b.getParent() ? 1 + depth(b.getParent()!) : 0)
+    const depth = (b: BABYLON.Bone): number =>
+      b.getParent() ? 1 + depth(b.getParent()!) : 0
     bones.sort((a, b) => depth(a) - depth(b))
     const joints = bones.map((b) => {
       const t = b.getTransformNode()
       t?.computeWorldMatrix(true)
       const w = t != null ? t.getAbsolutePosition() : b.getAbsolutePosition()
       const p = BABYLON.Vector3.TransformCoordinates(w, toRoot)
-      return { name: nameOf(b), parent: b.getParent() ? nameOf(b.getParent()!) : null, position: { x: p.x, y: p.y, z: p.z } }
+      return {
+        name: nameOf(b),
+        parent: b.getParent() ? nameOf(b.getParent()!) : null,
+        position: { x: p.x, y: p.y, z: p.z },
+      }
     })
     const index = new Map(joints.map((j, i) => [j.name, i]))
     const byName = new Map(joints.map((j) => [j.name, j.position]))
@@ -509,14 +576,21 @@ export async function loadSkinnedBody(
       joints,
       at: (name) => byName.get(name),
       fingers: {
-        l: ['thumb', 'index', 'middle', 'ring', 'pinky'].filter((f) => index.has(`${f}_01_l`)),
-        r: ['thumb', 'index', 'middle', 'ring', 'pinky'].filter((f) => index.has(`${f}_01_r`)),
+        l: ['thumb', 'index', 'middle', 'ring', 'pinky'].filter((f) =>
+          index.has(`${f}_01_l`)
+        ),
+        r: ['thumb', 'index', 'middle', 'ring', 'pinky'].filter((f) =>
+          index.has(`${f}_01_r`)
+        ),
       },
     }
 
     // Its weights, onto those joints: the four strongest, summing to one.
     const n = tris.positions.length / 3
-    const weights: SkinWeights = { indices: new Float32Array(n * 4), weights: new Float32Array(n * 4) }
+    const weights: SkinWeights = {
+      indices: new Float32Array(n * 4),
+      weights: new Float32Array(n * 4),
+    }
     const boneJoint = skeleton.bones.map((b) => index.get(nameOf(b)) ?? 0)
     let v0 = 0
     for (const m of meshes) {
@@ -529,7 +603,8 @@ export async function loadSkinnedBody(
       for (let v = 0; v < count; v++) {
         const pairs: Array<[number, number]> = []
         for (let k = 0; k < 4; k++) pairs.push([mi[v * 4 + k], mw[v * 4 + k]])
-        if (xi && xw) for (let k = 0; k < 4; k++) pairs.push([xi[v * 4 + k], xw[v * 4 + k]])
+        if (xi && xw)
+          for (let k = 0; k < 4; k++) pairs.push([xi[v * 4 + k], xw[v * 4 + k]])
         pairs.sort((a, b) => b[1] - a[1])
         const top4 = pairs.slice(0, 4)
         const sum = top4.reduce((s, p) => s + p[1], 0) || 1
@@ -573,12 +648,20 @@ export function buildBody(
   name: string,
   body: RiggedBody
 ): BuiltBody {
-  const built = buildRig(scene, name, body.positions, body.indices, body.rig, body.weights, {
-    normals: weldedNormals(body.positions, body.indices),
-    uvs: body.uvs,
-    colors: body.colors,
-    surfaces: body.surfaces,
-  })
+  const built = buildRig(
+    scene,
+    name,
+    body.positions,
+    body.indices,
+    body.rig,
+    body.weights,
+    {
+      normals: weldedNormals(body.positions, body.indices),
+      uvs: body.uvs,
+      colors: body.colors,
+      surfaces: body.surfaces,
+    }
+  )
   return { ...built, body, rig: body.rig }
 }
 
@@ -600,7 +683,8 @@ export function soleVertices(body: RiggedBody): Uint32Array {
   for (let v = 0; v < n; v++) {
     let w = 0
     for (let k = 0; k < 4; k++)
-      if (feet.has(body.weights.indices[v * 4 + k])) w += body.weights.weights[v * 4 + k]
+      if (feet.has(body.weights.indices[v * 4 + k]))
+        w += body.weights.weights[v * 4 + k]
     if (w > 0.5) out.push(v)
   }
   return Uint32Array.from(out)
@@ -610,7 +694,10 @@ export function soleVertices(body: RiggedBody): Uint32Array {
  * The lowest of `vertices` in the world as the mesh is posed now (its
  * skeleton prepared): the soles' height. Infinity with none.
  */
-export function lowestOf(mesh: BABYLON.AbstractMesh, vertices: ArrayLike<number>): number {
+export function lowestOf(
+  mesh: BABYLON.AbstractMesh,
+  vertices: ArrayLike<number>
+): number {
   if (vertices.length === 0 || !(mesh instanceof BABYLON.Mesh)) return Infinity
   const p = mesh.getPositionData(true, true)
   if (p == null) return Infinity
@@ -619,7 +706,13 @@ export function lowestOf(mesh: BABYLON.AbstractMesh, vertices: ArrayLike<number>
   let low = Infinity
   for (let i = 0; i < vertices.length; i++) {
     const k = vertices[i] * 3
-    BABYLON.Vector3.TransformCoordinatesFromFloatsToRef(p[k], p[k + 1], p[k + 2], m, v)
+    BABYLON.Vector3.TransformCoordinatesFromFloatsToRef(
+      p[k],
+      p[k + 1],
+      p[k + 2],
+      m,
+      v
+    )
     if (v.y < low) low = v.y
   }
   return low

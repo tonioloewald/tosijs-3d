@@ -154,7 +154,8 @@ export function mountTailorTool(
     skirt: options.cut?.skirt ?? false,
   }
   let look: MaterialRecipe =
-    options.look ?? clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 })
+    options.look ??
+    clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 })
   let name = options.name ?? ''
   let slot = options.slot ?? options.slots?.[0] ?? 'top'
   let hideOthers = options.hideOthers ?? false
@@ -187,7 +188,11 @@ export function mountTailorTool(
     const arm = new Set(
       body.rig.joints
         .map((j, i) =>
-          /^(clavicle|upperarm|lowerarm|hand|thumb|index|middle|ring|pinky)/.test(j.name) ? i : -1
+          /^(clavicle|upperarm|lowerarm|hand|thumb|index|middle|ring|pinky)/.test(
+            j.name
+          )
+            ? i
+            : -1
         )
         .filter((i) => i >= 0)
     )
@@ -201,7 +206,9 @@ export function mountTailorTool(
       notArm[v] = a < 0.5 ? 1 : 0
     }
     const tail = new Set(
-      body.rig.joints.map((j, i) => (/^tail_/.test(j.name) ? i : -1)).filter((i) => i >= 0)
+      body.rig.joints
+        .map((j, i) => (/^tail_/.test(j.name) ? i : -1))
+        .filter((i) => i >= 0)
     )
     if (tail.size === 0) cutFrom = body.indices
     else {
@@ -248,11 +255,22 @@ export function mountTailorTool(
         const nipples = body.regions.nipples
         // Thicker cloth bridges more of the chest.
         const cutOn = nipples
-          ? smoothUnder(body.positions, body.indices, nipples, { bridge: cut.thickness / 0.02 })
+          ? smoothUnder(body.positions, body.indices, nipples, {
+              bridge: cut.thickness / 0.02,
+            })
           : fitOn
         made = cut.skirt
-          ? skirtGarment(fitOn, cutFrom, { front: outline, thickness: cut.thickness, anchor: notArm })
-          : cutGarment(cutOn, cutFrom, { front: outline, thickness: cut.thickness, ease: EASE, fitOn })
+          ? skirtGarment(fitOn, cutFrom, {
+              front: outline,
+              thickness: cut.thickness,
+              anchor: notArm,
+            })
+          : cutGarment(cutOn, cutFrom, {
+              front: outline,
+              thickness: cut.thickness,
+              ease: EASE,
+              fitOn,
+            })
         const proxy = shell(made)
         if (material == null) {
           material = proxyMaterial(scene, proxy)
@@ -304,7 +322,10 @@ export function mountTailorTool(
     })),
     row3d(
       {},
-      button3d({ label: 'delete point', handleClick: () => field?.removeSelected() }),
+      button3d({
+        label: 'delete point',
+        handleClick: () => field?.removeSelected(),
+      }),
       button3d({ label: 'clear', handleClick: () => field?.clear() })
     ),
     slider3d({
@@ -381,7 +402,10 @@ export function mountTailorTool(
     open: true,
   }) as unknown as HTMLElement & { svg: SVGSVGElement | null }
   const panelSvg = () =>
-    panel3d({ width: 340, height: 'fit', maxHeight: 720 }, ...widgets()) as unknown as SVGSVGElement
+    panel3d(
+      { width: 340, height: 'fit', maxHeight: 720 },
+      ...widgets()
+    ) as unknown as SVGSVGElement
   function refresh() {
     if (!disposed) panelEl.svg = panelSvg()
   }

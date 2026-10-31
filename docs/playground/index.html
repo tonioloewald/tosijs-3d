@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=c3f9a510fbae" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=08c4b739ac51" data-tosi-doc-system />
   <title>Biped Playground — tosijs-3d</title>
   <meta name="description" content="A place to run around and murder things in. One call returns a whole arena — ground, light, cover, crates, a catwalk and something to shoot — as ordinary scene…" />
   <link rel="canonical" href="https://3d.tosijs.net/playground/" />
@@ -30,13 +30,14 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=d4cb551793b9" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=009437d58172" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="playground.ts">
 <h1 id="biped-playground">Biped Playground</h1>
 <p><strong>A place to run around and murder things in.</strong> One call returns a whole
 arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.</p>
-<pre><code class="language-js">import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, inputFocus, playground, ualAnimationStates } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, characterStore, inputFocus, playground, select3d, ualAnimationStates } from &#39;tosijs-3d&#39;
+import { tosi } from &#39;tosijs&#39;
 import { demoLoadout } from &#39;tosijs-3d/demo-utils&#39;
 
 // A REAL PISTOL, from Kenney&#39;s weapon pack — 37 of them are already on the CDN.
@@ -82,9 +83,14 @@ const gun = b3dLauncher({
 //
 // The wider clip set is the bonus: `Jog_Bwd_Loop` and the `Crouch_*` clips give
 // a real backwards jog and a crouch to sneak in.
-const hero = b3dBiped(
+//
+// OR A CHARACTER YOU BUILT: the settings panel lists the characters the
+// character builder saved in this browser, and picking one swaps the hero for
+// a biped made from it (`characterDoc`), carrying the pistol across.
+const MANNEQUIN = &#39;UAL mannequin&#39;
+const makeHero = (doc, at) =&gt; b3dBiped(
   {
-    url: assetUrl(&#39;quaternius/UAL1_core.glb&#39;, 2),
+    ...(doc ? { characterDoc: doc } : { url: assetUrl(&#39;quaternius/UAL1_core.glb&#39;, 2) }),
     animationStates: ualAnimationStates(),
     // WHERE THE ARENA IS IN FRONT OF YOU. Spawning at the origin put `pillar-b`
     // (0, -12.3) literally touching your muzzle line, so every shot from the
@@ -92,11 +98,12 @@ const hero = b3dBiped(
     // me&quot; was. From here the cover line is 22m ahead with the low wall to the
     // left and the railing to the right, which is the comparison the arena is
     // built around, and there is room to see a round travel.
-    x: -4, z: 10,
+    x: at.x, z: at.z, ry: at.ry ?? 0,
     player: true, cameraType: &#39;follow&#39;,
   },
   gun
 )
+let hero = makeHero(null, { x: -4, z: 10 })
 
 // THE PISTOL LIVES ON YOUR HIP. The loadout (a button on the system bar)
 // says where it is, and that decides the mode: in a hand, the gun is up; on
@@ -106,16 +113,44 @@ const hero = b3dBiped(
 const loadout = demoLoadout({ equip: { right_side: &#39;pistol&#39; } })
 const body = (slot) =&gt; ({ holder: &#39;hero&#39;, container: &#39;body&#39;, slot })
 const pistolAt = () =&gt; loadout.inv.where(&#39;pistol&#39;)?.slot
-hero.whenWeapon = (up) =&gt; {
-  const at = pistolAt()
-  if (up &amp;&amp; (at === &#39;right_side&#39; || at === &#39;left_side&#39;))
-    loadout.inv.move({ item: &#39;pistol&#39;, to: body(&#39;hand_right&#39;), swap: true })
-  else if (!up &amp;&amp; (at === &#39;hand_right&#39; || at === &#39;hand_left&#39;))
-    loadout.inv.move({ item: &#39;pistol&#39;, to: body(&#39;right_side&#39;), swap: true })
+const inHand = () =&gt; pistolAt() === &#39;hand_right&#39; || pistolAt() === &#39;hand_left&#39;
+const wire = (h) =&gt; {
+  h.whenWeapon = (up) =&gt; {
+    const at = pistolAt()
+    if (up &amp;&amp; (at === &#39;right_side&#39; || at === &#39;left_side&#39;))
+      loadout.inv.move({ item: &#39;pistol&#39;, to: body(&#39;hand_right&#39;), swap: true })
+    else if (!up &amp;&amp; inHand())
+      loadout.inv.move({ item: &#39;pistol&#39;, to: body(&#39;right_side&#39;), swap: true })
+  }
+  return h
 }
-loadout.inv.subscribe(() =&gt;
-  hero.setGunplay(pistolAt() === &#39;hand_right&#39; || pistolAt() === &#39;hand_left&#39;)
-)
+wire(hero)
+loadout.inv.subscribe(() =&gt; hero.setGunplay(inHand()))
+
+// The characters saved in this browser, and swapping the hero for one.
+const store = characterStore()
+const { playChar } = tosi({ playChar: { pick: MANNEQUIN } })
+let saved = []
+const listSaved = (host) =&gt;
+  store.list().then((names) =&gt; {
+    if (names.join() === saved.join()) return
+    saved = names
+    host?.refreshScenePanel?.()
+  }).catch(() =&gt; {})
+listSaved()
+const useCharacter = async (name) =&gt; {
+  const doc = name === MANNEQUIN ? null : await store.get(name).catch(() =&gt; null)
+  if (name !== MANNEQUIN &amp;&amp; !doc) return
+  // Where the hero is now and which way he faces, so the new one takes over there.
+  const was = hero.entries?.rootNodes[0]
+  const p = was?.position
+  const yaw = was?.rotationQuaternion?.toEulerAngles().y ?? 0
+  const at = p ? { x: p.x, z: p.z, ry: (yaw * 180) / Math.PI } : { x: -4, z: 10 }
+  const next = wire(makeHero(doc, at))
+  hero.replaceWith(next)
+  hero = next
+  next.setGunplay(inHand())
+}
 
 preview.append(
   b3d(
@@ -129,6 +164,17 @@ preview.append(
         &#39;left_stick,right_stick,left_stick_click,right_stick_click,A,B,X,Y,right_bumper,left_bumper,left_trigger,right_trigger&#39;,
       // Not armed on load. Right bumper (or the on-screen RB) raises and lowers
       // the weapon.
+      scenePanel: (host) =&gt; {
+        listSaved(host)
+        return [
+          select3d({
+            label: &#39;character&#39;,
+            value: playChar.pick,
+            options: [MANNEQUIN, ...saved],
+            handleChange: (name) =&gt; useCharacter(String(name)),
+          }),
+        ]
+      },
     },
     weapons,
     ...playground(),
@@ -150,6 +196,11 @@ the trigger is free to do both jobs.</p>
 <p><strong>WASD</strong> moves, <strong>arrow keys</strong> look, <strong>space</strong> jumps, <strong>left shift</strong> sneaks,
 <strong>E</strong> interacts, <strong>Y</strong> switches between third and first person. On a pad,
 clicking the left stick sneaks.</p>
+<p><strong>Play as a character you built</strong>: save one in the
+<a href="/character-builder/">character builder</a>, then pick it from <strong>character</strong> in
+this page&#39;s settings panel (the goggles on the bar). It takes the hero&#39;s
+place where he stands, pistol and all. Saves belong to the browser that made
+them.</p>
 <p>Things to try: put the pistol in the bag and try to raise it (nothing to raise), drag it back into your hand (it comes up); swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
 and watch the ring disappear behind it until you stand; walk the cover line and
 compare the railing with the wall beside it.</p>
@@ -349,6 +400,7 @@ showing you&quot;</em> can be one line of data.</p>
         <li><a class="doc-link" href="../aim/">aim</a></li>
         <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
         <li><a class="doc-link" href="../retarget/">retarget</a></li>
+        <li><a class="doc-link" href="../rigged-body/">rigged-body</a></li>
         <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
         <li><details><summary><a class="doc-link" href="../rig-build/">auto-rig</a></summary>
         <ul>
@@ -359,8 +411,14 @@ showing you&quot;</em> can be one line of data.</p>
         <li><details><summary><a class="doc-link" href="../character-builder/">character builder</a></summary>
         <ul>
           <li><a class="doc-link" href="../human-pack/">human-pack</a></li>
+          <li><details><summary><a class="doc-link" href="../character-file/">character-file</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../character-store/">character-store</a></li>
+          </ul>
+          </details></li>
           <li><a class="doc-link" href="../human-morph/">human-morph</a></li>
           <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
+          <li><a class="doc-link" href="../tailor-tool/">tailor tool</a></li>
           <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
           <li><a class="doc-link" href="../skin-shading/">skin-shading</a></li>
           <li><a class="doc-link" href="../human-face/">human-face</a></li>
@@ -392,6 +450,7 @@ showing you&quot;</em> can be one line of data.</p>
             </details></li>
           </ul>
           </details></li>
+          <li><a class="doc-link" href="../character/">character</a></li>
         </ul>
         </details></li>
       </ul>
@@ -518,6 +577,8 @@ showing you&quot;</em> can be one line of data.</p>
         <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
         <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
         <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
+        <li><a class="doc-link" href="../material-picker/">materialPicker3d</a></li>
+        <li><a class="doc-link" href="../material-recipe/">material-recipe</a></li>
         <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
         <li><details><summary><a class="doc-link" href="../color-field/">color3d</a></summary>
         <ul>
@@ -616,6 +677,7 @@ showing you&quot;</em> can be one line of data.</p>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.11.6/">0.11.6</a></li>
         <li><a class="doc-link" href="../v0.11.5/">0.11.5</a></li>
         <li><a class="doc-link" href="../v0.11.4/">0.11.4</a></li>
         <li><a class="doc-link" href="../v0.11.3/">0.11.3</a></li>
@@ -688,6 +750,7 @@ showing you&quot;</em> can be one line of data.</p>
     </ul>
     </details></li>
     <li><a class="doc-link" href="../design-notes/">Design notes</a></li>
+    <li><a class="doc-link" href="../acknowledgements/">Acknowledgements</a></li>
   </ul>
   </nav>
   <ul class="doc-navbar">
@@ -696,6 +759,6 @@ showing you&quot;</em> can be one line of data.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-fymfsbgh.js"></script>
+  <script type="module" src="../hydrate-j44j00c3.js"></script>
 </body>
 </html>

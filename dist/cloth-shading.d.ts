@@ -1,24 +1,28 @@
 import * as BABYLON from '@babylonjs/core';
-export interface Fabric {
-    /** How rough the surface is, 0 (mirror) to 1. */
-    roughness: number;
-    /** 1 for a metal: it reflects its surroundings in its own colour. Default 0. */
-    metallic?: number;
-    /** A colour the finish IS (gold, copper): choosing it recolours wholly. */
-    tint?: string;
-    /** The grazing glow of fibres, 0 to 1, and how spread it is. */
-    sheen: number;
-    sheenRoughness: number;
-}
-/** Fabric presets, by how they take light. */
-export declare const FABRICS: Readonly<Record<string, Fabric>>;
+import { type MaterialRecipe } from './material-recipe.js';
+export { FABRICS, type Fabric } from './fabrics.js';
 export interface ClothLook {
     fabric?: string;
     /** The recolour, sRGB (anything `parseColor` reads). */
     colour?: string;
     /** 0 keeps the texture's colours, 1 is the colour wholly. */
     amount?: number;
+    /**
+     * A material recipe (a `cloth` one; another type gives the inputs it
+     * shares): its colour and recolour, and the surface inputs it sets. One
+     * left out keeps the garment's own.
+     */
+    recipe?: MaterialRecipe;
 }
+/**
+ * The old `{ fabric, colour, recolour }` look as a `cloth` recipe, for looks
+ * saved before recipes. `'as made'` (or no fabric) sets no surface.
+ */
+export declare function clothRecipe(look: {
+    fabric?: string;
+    colour?: string;
+    recolour?: number;
+}): MaterialRecipe;
 export interface ClothShading {
     set(look: ClothLook): void;
 }

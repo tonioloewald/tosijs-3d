@@ -1,5 +1,8 @@
-import type { FittedRig } from './rig-fit.js';
+import { type FittedRig } from './rig-fit.js';
 import type { HumanPack, HumanPackManifest } from './human-pack.js';
+import { type MacroBody } from './human-morph.js';
+import { type SkinWeights } from './bone-heat.js';
+import type { RiggedBody } from './rigged-body.js';
 /** A UAL joint: its parent, and the joint cube at its position (and its end). */
 export interface HumanRigRow {
     name: string;
@@ -70,4 +73,31 @@ export declare function armsOffTorso(weights: {
 }, positions: ArrayLike<number>, rig: FittedRig, options?: {
     blend?: number;
 }): void;
+/**
+ * MakeHuman's body as a rigged body (see rigged-body), with what its own
+ * extras need beside it: every pack vertex's position (`full`: helpers and
+ * joint cubes too, which clothes, eyes and hair are fitted to) and the skin's
+ * map onto them.
+ */
+export interface HumanRiggedBody extends RiggedBody {
+    full: Float32Array;
+    skin: HumanSkin;
+}
+export interface HumanBodyMaker {
+    skin: HumanSkin;
+    /** The first body's (shared by every body: they depend on the topology). */
+    weights: SkinWeights;
+    /** The body the maker was made with. */
+    first: HumanRiggedBody;
+    /** A body at these slider values (missing ones are the defaults). */
+    body(values?: Partial<MacroBody>): Promise<HumanRiggedBody>;
+}
+/**
+ * MAKEHUMAN AS A PRODUCER of rigged bodies. The skin weights depend only on
+ * the topology, so they are bound once, on the first body, by bone heat, then
+ * the head made rigid (`stiffenHead`) and the ribcage kept off the arms
+ * (`armsOffTorso`); every later body reuses them. Each body is the pack
+ * morphed to its sliders with UAL's joints placed from its joint cubes.
+ */
+export declare function humanBodyMaker(pack: HumanPack, values?: Partial<MacroBody>): Promise<HumanBodyMaker>;
 //# sourceMappingURL=human-rig.d.ts.map

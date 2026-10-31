@@ -85,7 +85,7 @@ export declare function iconExists(name: string): boolean;
  * {@link svgIcons}, for in-scene / in-panel glyphs.
  *
  * `color` icons keep their baked palette; `stroked`/`filled` icons are tinted to
- * `color`. Composed and mirrored names work here too (`chevron270r`,
+ * `color`, and a `stroked filled` icon's fill is `knockout`. Composed and mirrored names work here too (`chevron270r`,
  * `cornerUpLeft`): the rotation or flip is applied as an SVG transform on the
  * returned group, so position a WRAPPER rather than overwriting its `transform`.
  */
@@ -95,6 +95,11 @@ export declare function iconGlyph(name: string, opts?: {
     x?: number;
     y?: number;
     strokeWidth?: number;
+    /**
+     * A `stroked filled` icon's fill: the colour behind it, which its filled
+     * parts knock out to (default the theme's button background).
+     */
+    knockout?: string;
 }): SVGGElement;
 /** The default icon proxy, over tosijs-3d's generated icon set. */
 export declare const svgIcons: Record<string, SvgIconCreator>;

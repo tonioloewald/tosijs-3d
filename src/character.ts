@@ -217,8 +217,12 @@ const hosted = (path: string, pick?: string): CharacterSource => ({
 
 /** The bodies a character can have besides MakeHuman's. */
 export const CHARACTER_SOURCES: Record<string, CharacterSource> = {
-  'Blender: female, realistic': hosted('blender/human-base-meshes/body-female-realistic.glb'),
-  'Blender: male, realistic': hosted('blender/human-base-meshes/body-male-realistic.glb'),
+  'Blender: female, realistic': hosted(
+    'blender/human-base-meshes/body-female-realistic.glb'
+  ),
+  'Blender: male, realistic': hosted(
+    'blender/human-base-meshes/body-male-realistic.glb'
+  ),
   'Quaternius: superhero, male': hosted(
     'quaternius/libraries/characters-superhero-male.glb',
     'Superhero_Male_FullBody'
@@ -228,7 +232,6 @@ export const CHARACTER_SOURCES: Record<string, CharacterSource> = {
     'Superhero_Female_FullBody'
   ),
 }
-
 
 /** What every character in a scene shares: MakeHuman's pack, the hair. */
 export interface CharacterAssets {
@@ -365,16 +368,29 @@ export async function makeCharacter(
 ): Promise<SceneCharacter> {
   const { pack, hair: hairLib } = assets
   const SLOTS: readonly string[] = CHARACTER_SLOTS
-  const s: Record<string, any> = { ...plain(DEFAULT_CHARACTER), ...plain(options.settings ?? {}) }
-  const sources: Record<string, CharacterSource> = { ...(options.sources ?? CHARACTER_SOURCES) }
+  const s: Record<string, any> = {
+    ...plain(DEFAULT_CHARACTER),
+    ...plain(options.settings ?? {}),
+  }
+  const sources: Record<string, CharacterSource> = {
+    ...(options.sources ?? CHARACTER_SOURCES),
+  }
   const status = (m: string | false) => options.handleStatus?.(m)
-  const register = (meshes: BABYLON.AbstractMesh[]) => options.handleMeshes?.(meshes)
+  const register = (meshes: BABYLON.AbstractMesh[]) =>
+    options.handleMeshes?.(meshes)
   const cloth: Record<string, SlotLook> = Object.fromEntries(
     SLOTS.map((slot) => [
       slot,
       options.cloth?.[slot]
         ? plain(options.cloth[slot])
-        : { look: 'as made', material: clothRecipe({ fabric: slot === 'shoes' ? 'leather' : 'cotton', colour: '#7a2e2e', recolour: 0 }) },
+        : {
+            look: 'as made',
+            material: clothRecipe({
+              fabric: slot === 'shoes' ? 'leather' : 'cotton',
+              colour: '#7a2e2e',
+              recolour: 0,
+            }),
+          },
     ])
   )
   const madeHuman = () => s.source === 'MakeHuman'
@@ -396,15 +412,26 @@ export async function makeCharacter(
   const adult = (n: string) => !n.endsWith('_Teen')
   const facial = (n: string) => /Beard|Moustache|MuttonChops/.test(n)
   const styles: Record<string, string[]> = {
-    hair: ['none', ...kinds('hair', () => true), ...hairLib.names('hair').filter((n) => adult(n) && !facial(n))],
+    hair: [
+      'none',
+      ...kinds('hair', () => true),
+      ...hairLib.names('hair').filter((n) => adult(n) && !facial(n)),
+    ],
     // MakeHuman's beards come without moustaches: a moustache is its own
     // choice. Quaternius' are drawn for its own stylised mouth.
     beard: ['none', ...kinds('beard', (n) => !/moustache/i.test(n))],
     moustache: ['none', ...kinds('beard', (n) => /moustache/i.test(n))],
-    brows: ['none', ...kinds('eyebrows', () => true), ...hairLib.names('eyebrows').filter(adult)],
+    brows: [
+      'none',
+      ...kinds('eyebrows', () => true),
+      ...hairLib.names('eyebrows').filter(adult),
+    ],
   }
   for (const slot of SLOTS)
-    styles[slot] = ['none', ...Object.keys(proxies).filter((n) => proxies[n].slot === slot)]
+    styles[slot] = [
+      'none',
+      ...Object.keys(proxies).filter((n) => proxies[n].slot === slot),
+    ]
 
   /*
   MATERIALS: one per worn thing and colourway, shared; clothes take a
@@ -423,18 +450,27 @@ export async function makeCharacter(
     const from = part.material
     if (!tints.has(from)) {
       const m = hairMaterial(scene, from, `hair-${tints.size}`)
-      shades.push(hairShading(m as any, { base: s.hairBase, highlight: s.hairHighlight }))
+      shades.push(
+        hairShading(m as any, { base: s.hairBase, highlight: s.hairHighlight })
+      )
       tints.set(from, m)
     }
     return tints.get(from)!
   }
   const garmentMaterial = (proxy: any, slot: string | null) => {
-    const look = slot && cloth[slot].look !== 'as made' ? cloth[slot].look : undefined
+    const look =
+      slot && cloth[slot].look !== 'as made' ? cloth[slot].look : undefined
     const key = `${proxy.name}:${look ?? ''}`
     if (!proxyMaterials.has(key)) {
       const m = proxyMaterial(scene, proxy, look)
       if (['hair', 'eyebrows', 'beard'].includes(proxy.category))
-        shades.push(hairShading(m, { desaturate: true, base: s.hairBase, highlight: s.hairHighlight }))
+        shades.push(
+          hairShading(m, {
+            desaturate: true,
+            base: s.hairBase,
+            highlight: s.hairHighlight,
+          })
+        )
       else if (proxy.category === 'clothes') clothes.set(m, clothShading(m))
       proxyMaterials.set(key, m)
     }
@@ -453,19 +489,63 @@ export async function makeCharacter(
   */
   const garments = new Map<string, any>()
   const imageUrl = (img: any) =>
-    img ? URL.createObjectURL(new Blob([img.bytes], { type: img.mimeType })) : undefined
+    img
+      ? URL.createObjectURL(new Blob([img.bytes], { type: img.mimeType }))
+      : undefined
   const fileLook = (m: any) =>
     m
-      ? { diffuse: imageUrl(m.baseColorTexture), normal: imageUrl(m.normalTexture), metallicRoughness: imageUrl(m.metallicRoughnessTexture), roughness: m.roughness, metallic: m.metallic, baseColor: m.baseColor, normalScale: m.normalScale, alpha: m.alphaMode !== 'OPAQUE', blend: m.alphaMode === 'BLEND', alphaCutoff: m.alphaMode === 'MASK' ? m.alphaCutoff : undefined, twoSided: m.doubleSided }
+      ? {
+          diffuse: imageUrl(m.baseColorTexture),
+          normal: imageUrl(m.normalTexture),
+          metallicRoughness: imageUrl(m.metallicRoughnessTexture),
+          roughness: m.roughness,
+          metallic: m.metallic,
+          baseColor: m.baseColor,
+          normalScale: m.normalScale,
+          alpha: m.alphaMode !== 'OPAQUE',
+          blend: m.alphaMode === 'BLEND',
+          alphaCutoff: m.alphaMode === 'MASK' ? m.alphaCutoff : undefined,
+          twoSided: m.doubleSided,
+        }
       : { alpha: false, twoSided: false }
-  const proxyFrom = (binding: any, content: any, name: string, slot: string) => {
+  const proxyFrom = (
+    binding: any,
+    content: any,
+    name: string,
+    slot: string
+  ) => {
     const { garment, meta, material } = content
-    return { ...binding, triangles: garment.triangles, uvs: garment.uvs ?? new Float32Array(binding.rows * 2), delete: null, name, category: 'clothes', slot, material: { ...fileLook(material), ...(meta?.cut?.skirt ? { twoSided: true } : {}) } }
+    return {
+      ...binding,
+      triangles: garment.triangles,
+      uvs: garment.uvs ?? new Float32Array(binding.rows * 2),
+      delete: null,
+      name,
+      category: 'clothes',
+      slot,
+      material: {
+        ...fileLook(material),
+        ...(meta?.cut?.skirt ? { twoSided: true } : {}),
+      },
+    }
   }
   const proxyOn = (g: any, r: any) => {
     if (!g.bound.has(r)) {
       const { garment } = g.content
-      g.bound.set(r, proxyFrom(bindGarment(r.body.positions, r.body.indices, garment.positions, garmentRigidity(garment)), g.content, g.name, g.slot))
+      g.bound.set(
+        r,
+        proxyFrom(
+          bindGarment(
+            r.body.positions,
+            r.body.indices,
+            garment.positions,
+            garmentRigidity(garment)
+          ),
+          g.content,
+          g.name,
+          g.slot
+        )
+      )
     }
     return g.bound.get(r)
   }
@@ -478,12 +558,40 @@ export async function makeCharacter(
     proxyMaterials.delete(`${name}:`)
     let proxy = null
     if (source === 'MakeHuman') {
-      const on = meta.body ? await morphHuman(pack, macroWeights({ ...DEFAULT_HUMAN_BODY, ...meta.body }, (n) => pack.has(n))) : current
+      const on = meta.body
+        ? await morphHuman(
+            pack,
+            macroWeights({ ...DEFAULT_HUMAN_BODY, ...meta.body }, (n) =>
+              pack.has(n)
+            )
+          )
+        : current
       const { garment } = content
-      proxy = proxyFrom(bindGarment(on, pack.triangles, garment.positions, garmentRigidity(garment)), content, name, slot)
+      proxy = proxyFrom(
+        bindGarment(
+          on,
+          pack.triangles,
+          garment.positions,
+          garmentRigidity(garment)
+        ),
+        content,
+        name,
+        slot
+      )
       if (!styles[slot].includes(name)) styles[slot].push(name)
     }
-    const g = { name, slot, source, proxy, content, bound: new WeakMap(), bytes: new Uint8Array(bytes), meta, cut: meta.cut, look: meta.look }
+    const g = {
+      name,
+      slot,
+      source,
+      proxy,
+      content,
+      bound: new WeakMap(),
+      bytes: new Uint8Array(bytes),
+      meta,
+      cut: meta.cut,
+      look: meta.look,
+    }
     garments.set(name, g)
     return g as CharacterGarment
   }
@@ -501,11 +609,22 @@ export async function makeCharacter(
   // Let a message paint before the binding takes the thread.
   await new Promise((r) => setTimeout(r, 50))
   const skin = humanSkin(pack)
-  const [lips, nipples, eyePart, lashPart] = await Promise.all([pack.region('lips'), pack.region('nipples'), pack.part('eyes'), pack.part('eyelashes')])
+  const [lips, nipples, eyePart, lashPart] = await Promise.all([
+    pack.region('lips'),
+    pack.region('nipples'),
+    pack.part('eyes'),
+    pack.part('eyelashes'),
+  ])
   const eyes = eyeTexture(scene, { iris: s.iris })
   eyes.setIrisColour(s.irisColour)
-  const faceMaterials = { eye: eyeMaterial(scene, eyes), lashes: lashMaterial(scene) }
-  const sliders = () => Object.fromEntries(Object.keys(DEFAULT_HUMAN_BODY).map((k) => [k, Number(s[k])]))
+  const faceMaterials = {
+    eye: eyeMaterial(scene, eyes),
+    lashes: lashMaterial(scene),
+  }
+  const sliders = () =>
+    Object.fromEntries(
+      Object.keys(DEFAULT_HUMAN_BODY).map((k) => [k, Number(s[k])])
+    )
   const maker = await humanBodyMaker(pack, sliders())
   const first = maker.first.full
   // How thin the body is at each vertex (ears, nose, fingers), for the
@@ -522,7 +641,8 @@ export async function makeCharacter(
   let current: Float32Array = first
   // What clothes are fitted over: the body with its nipples smoothed,
   // because cloth bridges them (the skin keeps them).
-  const smoothed = (p: Float32Array) => (nipples ? smoothUnder(p, pack.triangles, nipples) : p)
+  const smoothed = (p: Float32Array) =>
+    nipples ? smoothUnder(p, pack.triangles, nipples) : p
   let clothBody = smoothed(first)
   let human: RiggedBody | null = null
   let built: any = null
@@ -554,7 +674,18 @@ export async function makeCharacter(
   const mood = expressions.layer('mood')
   const feel = () => {
     const { smile: sm, browsUp: b, frown: f } = s
-    mood.setMany({ MouthLeftPullUp: sm, MouthRightPullUp: sm, LeftCheekUp: sm * 0.6, RightCheekUp: sm * 0.6, LeftOuterBrowUp: b, RightOuterBrowUp: b, LeftInnerBrowUp: b, RightInnerBrowUp: b, LeftBrowDown: f, RightBrowDown: f })
+    mood.setMany({
+      MouthLeftPullUp: sm,
+      MouthRightPullUp: sm,
+      LeftCheekUp: sm * 0.6,
+      RightCheekUp: sm * 0.6,
+      LeftOuterBrowUp: b,
+      RightOuterBrowUp: b,
+      LeftInnerBrowUp: b,
+      RightInnerBrowUp: b,
+      LeftBrowDown: f,
+      RightBrowDown: f,
+    })
   }
   feel()
   // Whose eyes look (set once what is shown is known; frames run before that).
@@ -562,7 +693,14 @@ export async function makeCharacter(
   const stopGaze = eyeGaze(
     scene,
     // The shown body's eyes: MakeHuman's, or a file's own eyeballs.
-    { get eyes() { return eyesShown()?.eyes ?? [] }, get forward() { return eyesShown()?.forward ?? [] } } as any,
+    {
+      get eyes() {
+        return eyesShown()?.eyes ?? []
+      },
+      get forward() {
+        return eyesShown()?.forward ?? []
+      },
+    } as any,
     () => options.gaze?.() ?? null
   )
 
@@ -572,14 +710,22 @@ export async function makeCharacter(
   */
   const mat = skinMaterial(scene, { tone: s.tone, redness: s.redness })
   let stubbleMask: Float32Array | null = null
-  const proxyNamed = (re: RegExp) => Object.keys(proxies).find((n) => re.test(n))
+  const proxyNamed = (re: RegExp) =>
+    Object.keys(proxies).find((n) => re.test(n))
   const beardFor = proxyNamed(/scruffy_beard/)
   const tacheFor = proxyNamed(/moustache/)
   const paint = () => {
     mat.setSkin(s.tone, s.redness)
     if (lips && built) {
       const colours = lipTint(skin, lips, s.tone, s.redness, undefined, thin)
-      if (stubbleMask) stubbleTint(colours, stubbleMask, s.stubble, skinAlbedo(s.tone, s.redness), linearHex(s.hairBase))
+      if (stubbleMask)
+        stubbleTint(
+          colours,
+          stubbleMask,
+          s.stubble,
+          skinAlbedo(s.tone, s.redness),
+          linearHex(s.hairBase)
+        )
       built.mesh.setVerticesData('color', colours)
     }
   }
@@ -589,7 +735,12 @@ export async function makeCharacter(
     const normals = vertexNormals(body, skin.triangles)
     const grownOn = async (name: string) => {
       const p = (await pack.proxy(name))!
-      return coveredBy(body, normals, drawnPositions(p, fitProxy(p, current)), 0.02)
+      return coveredBy(
+        body,
+        normals,
+        drawnPositions(p, fitProxy(p, current)),
+        0.02
+      )
     }
     // Where a full beard grows, and a moustache: the full beard has no
     // moustache part, so the upper lip was bare.
@@ -598,7 +749,8 @@ export async function makeCharacter(
     // The beard below the cheekbones: up to a little above the upper lip,
     // faded (the full beard climbs the cheeks, and stubble there read as a bruise).
     let lipTop = -Infinity
-    for (let v = 0; v < lips!.length; v++) if (lips![v] > 0.5) lipTop = Math.max(lipTop, current[v * 3 + 1])
+    for (let v = 0; v < lips!.length; v++)
+      if (lips![v] > 0.5) lipTop = Math.max(lipTop, current[v * 3 + 1])
     const cap = lipTop + 0.03
     const smooth = (t: number) => {
       t = Math.min(1, Math.max(0, t))
@@ -607,10 +759,12 @@ export async function makeCharacter(
     const n = body.length / 3
     const mask = new Float32Array(n)
     for (let i = 0; i < n; i++) {
-      const b = beard[i] === Infinity ? 0 : smooth((cap - body[i * 3 + 1]) / 0.015)
+      const b =
+        beard[i] === Infinity ? 0 : smooth((cap - body[i * 3 + 1]) / 0.015)
       const t = tache && tache[i] !== Infinity ? 1 : 0
       // Not on the lips themselves.
-      mask[i] = Math.max(b, t) * (1 - smooth((lips![skin.vertices[i]] - 0.05) / 0.45))
+      mask[i] =
+        Math.max(b, t) * (1 - smooth((lips![skin.vertices[i]] - 0.05) / 0.45))
     }
     // Down the neck: the full beard stops at the jaw, but stubble grows on
     // the throat and the sides of the neck, fading over 5 cm below the
@@ -625,7 +779,13 @@ export async function makeCharacter(
     const REACH = 0.05
     for (let i = 0; i < n; i++) {
       const y = body[i * 3 + 1]
-      if (mask[i] > 0.5 || y > lipTop || y < low - REACH || normals[i * 3 + 2] < -0.2) continue
+      if (
+        mask[i] > 0.5 ||
+        y > lipTop ||
+        y < low - REACH ||
+        normals[i * 3 + 2] < -0.2
+      )
+        continue
       let d = Infinity
       for (const j of edge) {
         if (body[j * 3 + 1] < y) continue
@@ -650,8 +810,16 @@ export async function makeCharacter(
   const dress = async () => {
     if (!built || !scalp) return
     const token = ++dressing
-    const names = [...[...SLOTS, 'hair', 'brows', 'beard', 'moustache'].map((k) => s[k]), 'teeth_base', 'tongue01'].filter((n) => proxies[n] || garments.get(n)?.proxy)
-    let wearing: any[] = await Promise.all(names.map((n) => (garments.has(n) ? garments.get(n).proxy : pack.proxy(n))))
+    const names = [
+      ...[...SLOTS, 'hair', 'brows', 'beard', 'moustache'].map((k) => s[k]),
+      'teeth_base',
+      'tongue01',
+    ].filter((n) => proxies[n] || garments.get(n)?.proxy)
+    let wearing: any[] = await Promise.all(
+      names.map((n) =>
+        garments.has(n) ? garments.get(n).proxy : pack.proxy(n)
+      )
+    )
     if (token !== dressing || disposed) return
     if (s.hideClothes) wearing = wearing.filter((p) => p.category !== 'clothes')
     for (const m of hairMeshes) m.dispose()
@@ -662,25 +830,51 @@ export async function makeCharacter(
       if (!parts) continue
       // Brows and beards follow the face; hair follows the skull.
       const style = s[key]
-      hairMeshes.push(...humanHair(scene, built, built.rig, scalp, parts, tint, { name: key, on: hairLib.fitFor(style), head: hairLib.headFor(style), centreY: key === 'brows' ? scalp.brow : undefined, nudge: key === 'hair' ? nudge : undefined }))
+      hairMeshes.push(
+        ...humanHair(scene, built, built.rig, scalp, parts, tint, {
+          name: key,
+          on: hairLib.fitFor(style),
+          head: hairLib.headFor(style),
+          centreY: key === 'brows' ? scalp.brow : undefined,
+          nudge: key === 'hair' ? nudge : undefined,
+        })
+      )
     }
     for (const k of Object.keys(slotMaterial)) delete slotMaterial[k]
     for (const proxy of wearing) {
       const slot = SLOTS.find((k) => s[k] === proxy.name) ?? null
       const m = garmentMaterial(proxy, slot)
       // A hat sits a little out from the head, over the hair.
-      const fit = slot === 'hat' ? { inflate: { centre: scalp.centre, by: HAT_LIFT } } : slot === 'armour' ? { lift: 0.005 } : {}
-      const mesh = humanProxy(scene, built, proxy, clothBody, allWeights, m, fit)
+      const fit =
+        slot === 'hat'
+          ? { inflate: { centre: scalp.centre, by: HAT_LIFT } }
+          : slot === 'armour'
+          ? { lift: 0.005 }
+          : {}
+      const mesh = humanProxy(
+        scene,
+        built,
+        proxy,
+        clothBody,
+        allWeights,
+        m,
+        fit
+      )
       mesh.metadata = { category: proxy.category }
       hairMeshes.push(mesh)
     }
     // A hat hides the hair under its brim, or the hair pokes through it.
     const hat = wearing.find((p) => p.name === s.hat)
     if (hat) {
-      const crown = inflate(drawnPositions(hat, fitProxy(hat, current)), scalp.centre, HAT_LIFT)
+      const crown = inflate(
+        drawnPositions(hat, fitProxy(hat, current)),
+        scalp.centre,
+        HAT_LIFT
+      )
       const at = built.rig.at('Head')
       for (const mesh of hairMeshes) {
-        const isHair = mesh.name.startsWith('hair-') || mesh.metadata?.category === 'hair'
+        const isHair =
+          mesh.name.startsWith('hair-') || mesh.metadata?.category === 'hair'
         if (!isHair || !(mesh instanceof BABYLON.Mesh)) continue
         // Quaternius' hair hangs on the head, in its frame less the head joint.
         const p = Float32Array.from(mesh.getVerticesData('position')!)
@@ -691,7 +885,9 @@ export async function makeCharacter(
             p[i + 2] += at.z
           }
         const tucked = Float32Array.from(p)
-        mesh.setIndices(Array.from(underCover(crown, p, mesh.getIndices()!, 24, tucked)))
+        mesh.setIndices(
+          Array.from(underCover(crown, p, mesh.getIndices()!, 24, tucked))
+        )
         if (mesh.name.startsWith('hair-'))
           for (let i = 0; i < tucked.length; i += 3) {
             tucked[i] -= at.x
@@ -713,7 +909,11 @@ export async function makeCharacter(
     }
     // Skin under clothes is hidden, so it cannot show through: the garments
     // as fitted, for the skin they cover but do not list.
-    const drawn = new Map(wearing.filter((p) => p.category === 'clothes').map((p) => [p.name, drawnPositions(p, fitProxy(p, clothBody))]))
+    const drawn = new Map(
+      wearing
+        .filter((p) => p.category === 'clothes')
+        .map((p) => [p.name, drawnPositions(p, fitProxy(p, clothBody))])
+    )
     coverBody(built, skin.triangles, skin.vertices, wearing, { drawn })
     // Everything that moves with the face, after the tuck (its rest).
     expressions.attach(built.mesh, (d: Float32Array) => skin.positions(d))
@@ -733,7 +933,10 @@ export async function makeCharacter(
     }
     for (const proxy of wearing) {
       const mesh = hairMeshes.find((m) => m.name === `proxy-${proxy.name}`)
-      if (mesh) expressions.attach(mesh as BABYLON.Mesh, (d: Float32Array) => proxyDelta(proxy, d))
+      if (mesh)
+        expressions.attach(mesh as BABYLON.Mesh, (d: Float32Array) =>
+          proxyDelta(proxy, d)
+        )
     }
     register(hairMeshes)
     placeRoot()
@@ -747,7 +950,8 @@ export async function makeCharacter(
   let shownNow: any = null
   const placeRoot = () => {
     if (!shownNow) return
-    body.position.y = -(clipLow ?? shownNow.rig.at('root').y) + (shownNow === built ? sole : 0)
+    body.position.y =
+      -(clipLow ?? shownNow.rig.at('root').y) + (shownNow === built ? sole : 0)
   }
 
   const rebuild = async () => {
@@ -761,7 +965,15 @@ export async function makeCharacter(
     built?.dispose()
     built = buildBody(scene, 'character-human', made)
     human = made
-    face = humanFace(scene, built, made.rig, pack.manifest, full, { eyes: eyePart, eyelashes: lashPart }, faceMaterials)
+    face = humanFace(
+      scene,
+      built,
+      made.rig,
+      pack.manifest,
+      full,
+      { eyes: eyePart, eyelashes: lashPart },
+      faceMaterials
+    )
     built.rig = made.rig
     scalp = headScalp(pack.manifest, full, pack.triangles, { lips })
     built.mesh.material = mat
@@ -790,14 +1002,36 @@ export async function makeCharacter(
     if (!from) throw new Error('no such body')
     const kept0 = recipeOf(name)
     if (!kept0?.binding) {
-      if (!skinned.has(name)) skinned.set(name, await loadSkinnedBody(scene, from.file ?? from.url!, { pick: from.pick }))
+      if (!skinned.has(name))
+        skinned.set(
+          name,
+          await loadSkinnedBody(scene, from.file ?? from.url!, {
+            pick: from.pick,
+          })
+        )
       const own = skinned.get(name)
       if (own) return wear(own, kept0, name)
     }
-    if (!triangles.has(name)) triangles.set(name, await loadRigTriangles(scene, from.file ?? from.url!, { pick: from.pick }))
+    if (!triangles.has(name))
+      triangles.set(
+        name,
+        await loadRigTriangles(scene, from.file ?? from.url!, {
+          pick: from.pick,
+        })
+      )
     const kept = recipeOf(name)
     const b = kept?.binding
-    return wear(bodyFromMarkers(triangles.get(name), { markers: b?.markers, tail: b?.tail, tailBase: b?.tailBase, joints: b?.joints, source: name }), kept, name)
+    return wear(
+      bodyFromMarkers(triangles.get(name), {
+        markers: b?.markers,
+        tail: b?.tail,
+        tailBase: b?.tailBase,
+        joints: b?.joints,
+        source: name,
+      }),
+      kept,
+      name
+    )
   }
   // A rigged body on the stand, with its recipe.
   const wear = (made: RiggedBody, kept: any, name: string) => {
@@ -808,7 +1042,23 @@ export async function makeCharacter(
     // binds the same mesh from the same markers; one with its own skin opens
     // on its own skeleton.
     const m: any = made.made
-    r.recipe = { version: 1, roles: {}, armSpaceDeg: 0, springs: [], ...kept, ...(m.by === 'markers' ? { binding: { markers: m.markers, tail: m.tail ?? null, ...(m.tailBase ? { tailBase: m.tailBase } : {}), ...(m.joints ? { joints: m.joints } : {}) } } : {}) }
+    r.recipe = {
+      version: 1,
+      roles: {},
+      armSpaceDeg: 0,
+      springs: [],
+      ...kept,
+      ...(m.by === 'markers'
+        ? {
+            binding: {
+              markers: m.markers,
+              tail: m.tail ?? null,
+              ...(m.tailBase ? { tailBase: m.tailBase } : {}),
+              ...(m.joints ? { joints: m.joints } : {}),
+            },
+          }
+        : {}),
+    }
     dressSurfaces(r)
     // Its own eyeballs, if the file has them: on pivots, in the eye material.
     if (made.eyes?.length) {
@@ -819,7 +1069,10 @@ export async function makeCharacter(
       // that comes skinned is an artist's character, and Quaternius' big
       // stylised eyes stand proud of the face, so a lid turned over them
       // leaves a line of white.
-      const [left, right] = made.made.by === 'markers' ? made.eyes.map((eye) => lidBlink(made.positions, eye)) : []
+      const [left, right] =
+        made.made.by === 'markers'
+          ? made.eyes.map((eye) => lidBlink(made.positions, eye))
+          : []
       const units = new Map<string, Float32Array>()
       if (left) units.set('LeftUpperLidClosed', left)
       if (right) units.set('RightUpperLidClosed', right)
@@ -861,7 +1114,10 @@ export async function makeCharacter(
   const dressSurfaces = (r: any) => {
     r.multi?.dispose(false, false, false)
     const m = surfaceMaterial(scene, r.mesh.name, r.body, (surface) =>
-      surface?.material && surfaceChoice(r, surface) === 'as made' ? surface.material : mat)
+      surface?.material && surfaceChoice(r, surface) === 'as made'
+        ? surface.material
+        : mat
+    )
     r.multi = m instanceof BABYLON.MultiMaterial ? m : null
     r.mesh.material = m
   }
@@ -872,16 +1128,34 @@ export async function makeCharacter(
     for (const m of r.clothes ?? []) m.dispose()
     r.clothes = []
     for (const k of Object.keys(slotMaterial)) delete slotMaterial[k]
-    const worn = s.hideClothes ? [] : SLOTS.filter((slot) => ownIn(slot)?.slot === slot)
+    const worn = s.hideClothes
+      ? []
+      : SLOTS.filter((slot) => ownIn(slot)?.slot === slot)
     const wearing = worn.map((slot) => proxyOn(ownIn(slot), r))
     worn.forEach((slot, i) => {
-      const mesh = humanProxy(scene, r, wearing[i], r.body.positions, r.body.weights, garmentMaterial(wearing[i], slot), slot === 'armour' ? { lift: 0.005 } : {})
+      const mesh = humanProxy(
+        scene,
+        r,
+        wearing[i],
+        r.body.positions,
+        r.body.weights,
+        garmentMaterial(wearing[i], slot),
+        slot === 'armour' ? { lift: 0.005 } : {}
+      )
       mesh.metadata = { category: 'clothes' }
       r.clothes.push(mesh)
     })
     refabric()
-    const drawn = new Map(wearing.map((p: any) => [p.name, drawnPositions(p, fitProxy(p, r.body.positions))]))
-    r.everyVertex ??= Uint32Array.from({ length: r.body.positions.length / 3 }, (_, i) => i)
+    const drawn = new Map(
+      wearing.map((p: any) => [
+        p.name,
+        drawnPositions(p, fitProxy(p, r.body.positions)),
+      ])
+    )
+    r.everyVertex ??= Uint32Array.from(
+      { length: r.body.positions.length / 3 },
+      (_, i) => i
+    )
     coverBody(r, r.body.indices, r.everyVertex, wearing, { drawn })
     // The lids again, over the tucked skin (a target holds whole positions).
     r.lids?.attach(r.mesh, (d: Float32Array) => d)
@@ -911,13 +1185,19 @@ export async function makeCharacter(
     placeRoot()
     options.handleShown?.(shown())
   }
-  eyesShown = () => (shownNow == null ? null : shownNow === built ? face : shownNow.face ?? null)
+  eyesShown = () =>
+    shownNow == null ? null : shownNow === built ? face : shownNow.face ?? null
   const shown = (): ShownBody | null =>
     shownNow == null
       ? null
       : shownNow === built
-        ? { source: 'MakeHuman', body: human!, built, recipe: null }
-        : { source: shownNow.source, body: shownNow.body, built: shownNow, recipe: shownNow.recipe }
+      ? { source: 'MakeHuman', body: human!, built, recipe: null }
+      : {
+          source: shownNow.source,
+          body: shownNow.body,
+          built: shownNow,
+          recipe: shownNow.recipe,
+        }
   let choosing = 0
   const choose = async () => {
     const token = ++choosing
@@ -974,13 +1254,23 @@ export async function makeCharacter(
   CHANGES: each setting to what it touches.
   */
   const BODY = new Set(Object.keys(DEFAULT_HUMAN_BODY))
-  const HAIR = new Set(['hair', 'beard', 'moustache', 'brows', 'hairUp', 'hairForward', 'hairSize'])
+  const HAIR = new Set([
+    'hair',
+    'beard',
+    'moustache',
+    'brows',
+    'hairUp',
+    'hairForward',
+    'hairSize',
+  ])
   const dressShown = () => (madeHuman() ? dress() : dressOther())
   const recolour = () => {
     for (const sh of shades) sh.setColours(s.hairBase, s.hairHighlight)
   }
   const set = (changes: Record<string, any>) => {
-    const changed = Object.keys(changes).filter((k) => JSON.stringify(s[k]) !== JSON.stringify(changes[k]))
+    const changed = Object.keys(changes).filter(
+      (k) => JSON.stringify(s[k]) !== JSON.stringify(changes[k])
+    )
     if (!changed.length) return
     for (const k of changed) s[k] = plain(changes[k])
     const has = (k: string) => changed.includes(k)
@@ -1004,14 +1294,17 @@ export async function makeCharacter(
       if (has('source')) await choose()
       else if (has('hideClothes') || SLOTS.some(has)) await dressShown()
       else if (changed.some((k) => HAIR.has(k))) await dress()
-      if (has('stubble') && stubbleMask == null && s.stubble > 0) await measureStubble()
+      if (has('stubble') && stubbleMask == null && s.stubble > 0)
+        await measureStubble()
       if (['tone', 'redness', 'stubble', 'hairBase'].some(has)) paint()
     })
   }
 
   await rebuild()
   for (const bytes of options.garments ?? [])
-    await addGarment(bytes).catch((e) => console.warn('character: a garment would not load', e))
+    await addGarment(bytes).catch((e) =>
+      console.warn('character: a garment would not load', e)
+    )
   if (options.garments) await dress()
   if (!madeHuman()) await choose()
   status(false)
@@ -1033,10 +1326,17 @@ export async function makeCharacter(
     },
     choices: (key) =>
       SLOTS.includes(key) && !madeHuman()
-        ? ['none', ...[...garments.values()].filter((g) => g.source === s.source && g.slot === key).map((g) => g.name)]
+        ? [
+            'none',
+            ...[...garments.values()]
+              .filter((g) => g.source === s.source && g.slot === key)
+              .map((g) => g.name),
+          ]
         : SLOTS.includes(key)
-          ? styles[key].filter((n) => (garments.get(n)?.source ?? 'MakeHuman') === 'MakeHuman')
-          : styles[key] ?? [],
+        ? styles[key].filter(
+            (n) => (garments.get(n)?.source ?? 'MakeHuman') === 'MakeHuman'
+          )
+        : styles[key] ?? [],
     get shown() {
       return shown()
     },
@@ -1062,7 +1362,11 @@ export async function makeCharacter(
     addSource(name, source) {
       sources[name] = source
       // A file opened again: the copy loaded before, its materials with it.
-      for (const sf of [...(triangles.get(name)?.surfaces ?? []), ...(skinned.get(name)?.surfaces ?? [])]) sf.material?.dispose(false, true)
+      for (const sf of [
+        ...(triangles.get(name)?.surfaces ?? []),
+        ...(skinned.get(name)?.surfaces ?? []),
+      ])
+        sf.material?.dispose(false, true)
       triangles.delete(name)
       skinned.delete(name)
       const old = rigged.get(name)
@@ -1098,8 +1402,12 @@ export async function makeCharacter(
       const r = shownNow && shownNow !== built ? shownNow : null
       // One per material, however many runs of triangles use it.
       const byName = new Map<string, any>()
-      for (const sf of r?.body.surfaces ?? []) if (sf.material) byName.set(sf.name, sf)
-      return [...byName.values()].map((sf) => ({ name: sf.name, choice: surfaceChoice(r, sf) }))
+      for (const sf of r?.body.surfaces ?? [])
+        if (sf.material) byName.set(sf.name, sf)
+      return [...byName.values()].map((sf) => ({
+        name: sf.name,
+        choice: surfaceChoice(r, sf),
+      }))
     },
     redress: () => {
       queue(dressShown)

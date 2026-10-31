@@ -3,13 +3,17 @@ import { type Widget3d } from './widgets3d.js';
 import { type InspectFace } from './inspect-view.js';
 import { type Role } from './retarget.js';
 import { type Markers } from './rig-fit.js';
+import { type RiggedBody } from './rigged-body.js';
 import type { Vec3 } from './spatial-transform.js';
 import { type AppliedRig } from './rig-recipe-babylon.js';
 import { type RigRecipe } from './rig-recipe.js';
 /** A character the tool offers. */
 export interface RigModel {
     label: string;
+    /** Where the model is (empty when it is a `file`). */
     url: string;
+    /** A file opened in the page, in place of `url` (GLB or glTF). */
+    file?: File;
     /** In a library file of several characters, the one to use. */
     pick?: string;
     /** Shown this much bigger (a Kenney chibi is 0.6 m). */
@@ -87,6 +91,35 @@ export interface RigToolOptions {
      * the standalone `rigTool()` passes false.
      */
     hosted?: boolean;
+    /**
+     * Done rigging: the panel gets **done** and **cancel** at its top, and
+     * **done** unmounts the tool and hands this the rig (see `RigDone`).
+     */
+    handleDone?: (rig: RigDone) => void;
+    /** Cancelled: the tool unmounts and this is called. */
+    handleCancel?: () => void;
+    /**
+     * Hosted: a `<tosi-b3d-panel>` of the host's to show the tool in, so its
+     * button stays on the bar when the tool goes (the host puts its own
+     * content back). Without one the tool brings its own and removes it.
+     */
+    panel?: HTMLElement & {
+        svg: SVGSVGElement | null;
+        show?: () => void;
+    };
+}
+/** What `handleDone` is handed: the recipe, and the body bound from it. */
+export interface RigDone {
+    /** The working recipe (its `binding` holds the markers). */
+    recipe: RigRecipe;
+    /**
+     * The mesh as a rigged body (rigged-body), when it was bound here from
+     * markers: build it with `buildBody` and put the recipe on it with
+     * `applyRigRecipe`. Absent for a model rigged on its own skeleton.
+     */
+    body?: RiggedBody;
+    /** The model it was rigged on (one of `models`, or a file loaded in it). */
+    model?: RigModel | File;
 }
 /** A rig tool mounted in a scene: `change` and `commit` events, its API, unmount. */
 export interface RigToolHandle extends EventTarget {
@@ -97,6 +130,10 @@ export interface RigToolHandle extends EventTarget {
     widgets(): Widget3d[];
     /** Remove everything it added and put the host's camera back. Safe twice. */
     unmount(): void;
+    /** What the panel's done does: unmount, and hand `handleDone` the rig. */
+    done(): void;
+    /** What the panel's cancel does: unmount, and call `handleCancel`. */
+    cancel(): void;
 }
 /** What `change` and `commit` carry: a copy of the recipe. */
 export type RigToolEvent = CustomEvent<{

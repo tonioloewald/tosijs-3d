@@ -1822,15 +1822,49 @@ export type {
 export { markerField3d, MARKER_LABELS } from './rig-markers.js'
 export type { MarkerField, MarkerField3dOptions } from './rig-markers.js'
 export { boneHeat } from './bone-heat.js'
-export { buildRig, buildBody, gatherTriangles, loadRigTriangles, autoRig } from './rig-build.js'
-export type { BuiltRig, BuiltBody, RigTriangles, AutoRigged } from './rig-build.js'
+export {
+  buildRig,
+  buildBody,
+  gatherTriangles,
+  loadRigTriangles,
+  autoRig,
+} from './rig-build.js'
+export type {
+  BuiltRig,
+  BuiltBody,
+  RigTriangles,
+  AutoRigged,
+} from './rig-build.js'
 export { bodyFromMarkers } from './rigged-body.js'
-export type { RiggedBody, RiggedBodyOrigin, BodyTriangles, BodySurface, BodyEye } from './rigged-body.js'
-export { isEyeName, splitEyes, eyeCentre, eyeUvs, lidBlink } from './rigged-body.js'
+export type {
+  RiggedBody,
+  RiggedBodyOrigin,
+  BodyTriangles,
+  BodySurface,
+  BodyEye,
+} from './rigged-body.js'
+export {
+  isEyeName,
+  splitEyes,
+  eyeCentre,
+  eyeUvs,
+  lidBlink,
+} from './rigged-body.js'
 export { mountTailorTool } from './tailor-tool.js'
 export { chooseFile } from './choose-file.js'
-export { loadSkinnedBody, soleVertices, lowestOf, surfaceMaterial } from './rig-build.js'
-export type { TailorTool, TailorToolOptions, TailorCut, TailorState, TailoredGarment } from './tailor-tool.js'
+export {
+  loadSkinnedBody,
+  soleVertices,
+  lowestOf,
+  surfaceMaterial,
+} from './rig-build.js'
+export type {
+  TailorTool,
+  TailorToolOptions,
+  TailorCut,
+  TailorState,
+  TailoredGarment,
+} from './tailor-tool.js'
 export { loadHumanPack, decodeHumanTarget } from './human-pack.js'
 export type {
   HumanPack,
@@ -2006,7 +2040,12 @@ export {
   humanBodyMaker,
   HM08_UAL,
 } from './human-rig.js'
-export type { HumanRigRow, HumanSkin, HumanRiggedBody, HumanBodyMaker } from './human-rig.js'
+export type {
+  HumanRigRow,
+  HumanSkin,
+  HumanRiggedBody,
+  HumanBodyMaker,
+} from './human-rig.js'
 export type { HumanBody, SkinMaterial } from './character-builder.js'
 export type { HeatBone, SkinWeights } from './bone-heat.js'
 export {

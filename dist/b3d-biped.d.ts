@@ -52,6 +52,8 @@ export declare class B3dBiped extends B3dControllable {
     blendSeconds: number;
     static initAttributes: {
         url: string;
+        character: string;
+        animations: string;
         skin: string;
         scale: number;
         player: boolean;
@@ -702,7 +704,13 @@ export declare class B3dBiped extends B3dControllable {
     equip(boneName: string, url: string): void;
     /** Remove whatever is equipped on a bone. */
     unequip(boneName: string): void;
+    /** A character file, parsed: set it to make the character without a fetch. */
+    characterDoc: unknown;
+    /** The character made (a `SceneCharacter`, see character.ts), when it was made from one. */
+    figure: any;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
+    private _loadCharacter;
+    private _modelReady;
     sceneDispose(): void;
     render(): void;
 }

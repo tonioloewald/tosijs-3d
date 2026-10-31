@@ -2463,6 +2463,18 @@ export function titled3d(first, config = {}) {
     // Where the content lived, to give it back there (a panel's own child).
     let home = content.parentNode;
     let next = content.nextSibling;
+    /*
+    ONE OUTLINE. A panel3d wears its own rim; framed, it sat just inside the
+    frame's, a second border under the title bar (Tonio: "like there's a second
+    frame in it"). The content's rim is hidden while it is framed, and shown
+    again when it is given back.
+    */
+    const ownRims = (c) => Array.from(c.children).filter((n) => n.hasAttribute('data-w3d-rim'));
+    const quiet = (c) => {
+        for (const r of ownRims(c))
+            r.style.display = 'none';
+    };
+    quiet(content);
     root.append(bg, content, chrome);
     let bar = chromeLayout(1, 1, 1, grip);
     let w = 0;
@@ -2494,6 +2506,8 @@ export function titled3d(first, config = {}) {
     // size changed. (No attributeFilter: happy-dom matched no 'viewBox' with one.)
     watch?.observe(content, { attributes: true });
     const giveBack = () => {
+        for (const r of ownRims(content))
+            r.style.display = '';
         content.removeAttribute('x');
         content.removeAttribute('y');
         if (home != null)
@@ -2571,6 +2585,7 @@ export function titled3d(first, config = {}) {
             content = c;
             home = c.parentNode;
             next = c.nextSibling;
+            quiet(c);
             root.insertBefore(c, chrome);
             w = 0;
             h = 0;

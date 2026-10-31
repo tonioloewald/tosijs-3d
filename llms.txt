@@ -1,4 +1,4 @@
-# tosijs-3d v0.11.5
+# tosijs-3d v0.11.6
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -77,6 +77,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Size: barrel (min, packages external) 1266.7 KB raw / 433.9 KB gz, +1.67% on 0.11.3 (the character creator).
 - https://3d.tosijs.net/v0.11.5/ — 0.11.5
   The character creator gets dressed. Clothes (MakeHuman's CC0 garments, fitted to any body shape, with fabrics and rec...
+- https://3d.tosijs.net/v0.11.6/ — 0.11.6
+  The character leaves the builder. Any body (MakeHuman's, Blender's, Quaternius', or a mesh of your own) is rigged, dr...
 - https://3d.tosijs.net/v0.5.0/ — 0.5.0
   `@babylonjs/loaders`, `@babylonjs/materials` moved `^8` → `^9`. **Consumers must
 - https://3d.tosijs.net/v0.5.1/ — 0.5.1
@@ -143,6 +145,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   the weather and decoration elements and sound, with sections, so a schema-
 - https://3d.tosijs.net/v0.9.0/ — 0.9.0
   takes the depth and the distance to land from the terrain and draws surf that
+- https://3d.tosijs.net/acknowledgements/ — Acknowledgements
+  tosijs-3d stands on other people's work: models, maps, measurements, icons,
 - https://3d.tosijs.net/aim/ — aim
   degrees and plain `{x, y, z}`, no Babylon — so the whole of walk-and-aim can be
 - https://3d.tosijs.net/b3d-light/ — Ambient light (b3d-light)
@@ -289,8 +293,14 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   mine shafts — everything a heightfield cannot say, because a heightfield has one
 - https://3d.tosijs.net/CHANGELOG/ — Changelog
   All notable changes to **tosijs-3d**, one page per version: each lives in
+- https://3d.tosijs.net/character/ — character
+  a character's SETTINGS (a body, a skin, hair, clothes, a face, a rig), and
 - https://3d.tosijs.net/character-builder/ — character builder
   creator (CHARACTER-DESIGN.md): MakeHuman's CC0 body
+- https://3d.tosijs.net/character-file/ — character-file
+  shape, skin, eyes, face, hair, clothes and their materials, the clip, the
+- https://3d.tosijs.net/character-store/ — character-store
+  saves here (the figure you are working on, and named ones), and any page on
 - https://3d.tosijs.net/characters-and-vehicles/ — Characters and vehicles
   climbs; an [aircraft](/b3d-aircraft/) that hovers like a drone and flies like a
 - https://3d.tosijs.net/clock/ — clock
@@ -429,6 +439,10 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   the four things everyone forgets already done.
 - https://3d.tosijs.net/b3d-utils/ — Material Conventions
   These conventions apply to all meshes entering the scene — via
+- https://3d.tosijs.net/material-recipe/ — material-recipe
+  inputs. `{ type: 'pbr', inputs: { albedo: '#7a2e2e', roughness: 0.85 } }` is
+- https://3d.tosijs.net/material-picker/ — materialPicker3d
+  small render of the material, and the popup has the presets first (a
 - https://3d.tosijs.net/medium/ — medium
   Babylon-free description of the *substance* a thing is moving through — air,
 - https://3d.tosijs.net/Migration/ — Migration
@@ -477,6 +491,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   auto-rigger asks for eight points on a front view (chin, wrists, elbows,
 - https://3d.tosijs.net/rig-tool/ — Rig tool
   result.** Pick one of the demo characters or load your own GLB. Check which
+- https://3d.tosijs.net/rigged-body/ — rigged-body
+  rest mesh on UAL's skeleton with its skin weights: what the
 - https://3d.tosijs.net/rocky-world/ — rocky-world
   Io, Titan, an ice moon and an Earth, each a sea, an air, clouds, relief, craters and a climate.
 - https://3d.tosijs.net/scatter/ — scatter
@@ -527,6 +543,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   sits in the top-left corner of the screen; in a headset, up ahead of you. It opens the scene's settings panel (the owl),
 - https://3d.tosijs.net/table/ — table
   A **data table** as a `Widget3d`: a header that stays put, a virtualized scrolling
+- https://3d.tosijs.net/tailor-tool/ — tailor tool
+  body's front view and the skin inside it, front and back, becomes cloth:
 - https://3d.tosijs.net/terrain/ — Terrain
   from seafloor to mountain; its climate, shape and landforms are the pages
 - https://3d.tosijs.net/terrain-editor/ — terrainEditor3d

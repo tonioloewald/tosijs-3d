@@ -16,56 +16,63 @@ preview.append(rigTool())
 
 ## Using it
 
-It opens standing still in its REST pose (a T or an A), with a dot on the
-bone each role uses: tap a dot to choose that role (it turns yellow), then
-tap the body where that bone is to give the role to it. A tap on the body
-does nothing until a dot has been chosen, and only the first one counts, so
-orbiting on a phone cannot reassign a bone. Set `clicking sets` to the chain
-and that tap hangs the chosen spring chain there instead. A
-strand's path is a row of orange handles: drag them along the tail or the
-ponytail, `+ point` for another one beyond the tip. `view` snaps to a
-face (front, back, left, right, top, bottom), which is how you line a point
-up with the flesh, and stands it still; `free` orbits and plays the clip.
-Turn on `animate` (or pick a clip) to see it move. In a headset you are the
-camera, so the view only switches between still and playing.
+It opens standing still in its REST pose (a T or an A), in the front view.
+A mesh with no skeleton of its own (an OBJ, or a GLB without one, like the
+weasels and the space marine) gets UAL's fitted to it from eight red
+**markers** on its body, Mixamo's way: drag each onto its joint (chin,
+groin, elbows, wrists, knees). They start where they are guessed from the
+outline. A model with a skeleton of its own shows a dot on the bone each
+**role** uses instead: tap a dot (it turns yellow), then the body where that
+bone is.
 
-The panel has these sections.
+`view` snaps to a face (front, back, left, right, top, bottom), which is how
+you line a marker, joint or handle up with the flesh, and stands it still;
+`free` orbits. Turn on `animate` (or pick a clip) to see it move: a mesh
+whose markers or joints moved is bound to them again then (binding takes a
+second or two and shows nothing at rest). In a headset you are the camera,
+so the view only switches between still and playing.
 
+The panel has these sections, its job first.
+
+- **Markers**, for a mesh bound from them. `symmetry` moves both sides
+  together; `tail` adds a tail (place its tip from the side view; it is a
+  bone chain, `tail_01` on, for a spring); `guess markers` starts again from
+  the outline. The joints follow the markers. `move joints` shows every
+  joint (blue) to drag by hand from the view that suits: shoulders from the
+  front, fingers and thumbs from the top, feet from the side. What hangs from
+  a joint comes with it; set `dragging` to turn what hangs from it instead
+  (a hand or foot at an angle). Markers and moved joints are saved in the
+  recipe as `binding`.
+- **Roles**, for a model on its own skeleton: which bone is the hips, the
+  head, the left forearm, each finger joint. They are guessed from the
+  names; fix one by tapping, as above, or pick a role and then the bone that
+  plays it, or `(none)` to leave it out. Set `clicking sets` to the chain and
+  a tap hangs the chosen spring chain there instead.
+- **Motion.** `animate` and the clip; `arm space` turns the arms out from
+  the body, for a character whose arms are long for its height;
+  `load animations…` adds the clips in a GLB made on another rig to the
+  list: Mixamo's, a mocap file's, another library's. Which bone is which is
+  read from the names (UE, Mixamo, Kenney and Blender spellings), so each
+  clip is retargeted onto the character, and onto the mannequin to compare.
+  Mixamo downloads are FBX, which a browser cannot read: import them into
+  Blender and export a GLB (with the skin).
+- **View.** `view`; `mannequin` shows UAL's mannequin (a ghost) playing the
+  original beside it; `bones` draws the skeleton.
 - **Model.** A demo character, or `load model file…` for a GLB or OBJ of
   your own (a single file: a `.gltf` with separate buffers cannot be opened
-  this way). It should face +Z, standing, arms out or down.
-- **Animations.** `load animations…` adds the clips in a GLB made on
-  another rig to the clip list: Mixamo's, a mocap file's, another library's.
-  Which bone is which is read from the names (UE, Mixamo, Kenney and Blender
-  spellings), so each clip is retargeted onto the character, and onto the
-  mannequin to compare. Mixamo downloads are FBX, which a browser cannot
-  read: import them into Blender and export a GLB (with the skin).
-- **Binding**, for a model with no skeleton (an OBJ, or a GLB without one,
-  like the weasels and the space marine). It is given one: the eight
-  markers on its outline place the joints (chin, groin, wrists, elbows,
-  knees), a skeleton is fitted to them and the mesh is bound to it by bone
-  heat. They start where they are guessed from the outline; drag one onto
-  its joint and the model is fitted and bound again when you let go.
-  `symmetry` moves both sides together, `tail` adds a tail (place its tip in
-  the side view; it is a bone chain, `tail_01` on, for a spring). The
-  markers are saved in the recipe as `binding`.
-- **Roles.** Which bone is the hips, the head, the left forearm, each finger
-  joint. They are guessed from the names; fix one by tapping, as above, or
-  pick a role and then the bone that plays it, or `(none)` to leave it out. `arm space` turns the arms out
-  from the body, for a character whose arms are long for its height.
+  this way). It should face +Z, standing, arms out or down. A model with a
+  skeleton of its own can `use its own skeleton`, or be bound from markers
+  like any mesh.
 - **Springs.** `+ strand` hangs a new chain with a tube from a bone (a
-  ponytail): lay out its path with the handles (add points for a curve),
-  choose how many `links` it has (they are spaced evenly along the path),
-  size it, and tune how it swings. A straight one can also be set by
-  `offset`, `yaw`, `pitch` and `length`. `+ bone chain` simulates bones the model already has (a
-  tail): pick the chain's first bone. Stiffness and damping change live;
-  the rest rebuild the chain.
+  ponytail): lay out its path with the orange handles (`+ point` for another
+  beyond the tip), choose how many `links` it has (they are spaced evenly
+  along the path), size it, and tune how it swings. A straight one can also
+  be set by `offset`, `yaw`, `pitch` and `length`. `+ bone chain` simulates
+  bones the model already has (a tail): pick the chain's first bone.
+  Stiffness and damping change live; the rest rebuild the chain.
 - **Recipe.** `save` downloads the recipe as JSON, `load` reads one back,
   `copy` puts it on the clipboard. The working recipe is also kept in this
   browser, per model, so a reload does not lose it.
-
-Pick a clip at the top. `mannequin` shows UAL's mannequin (a ghost) playing the
-original beside it; `bones` draws the skeleton.
 
 ## A recipe in a game
 
@@ -121,3 +128,19 @@ tool.unmount() // everything it added goes; safe to call twice
   limits. Without a camera it brings its own and puts the active one back.
 - `tool.api` is the same API as the page's `.rig`; setting `api.recipe`
   applies it without echoing a `change`.
+
+**Rigging one body for a host** (the [character builder](/character-builder/)
+does this): give it `handleDone` and the panel has **done** and **cancel**
+at its top. Done unmounts the tool and hands the callback the rig: the
+`recipe`, and the `body` bound from its markers (a
+[rigged body](/rigged-body/), ready for `buildBody` and `applyRigRecipe`).
+
+```javascript
+mountRigTool(scene, {
+  models: [{ label: 'body', url: '/body.glb' }],
+  recipe: { version: 1, binding }, // bind from these markers
+  files: false,
+  handleDone: ({ recipe, body }) => wear(body, recipe),
+  handleCancel: () => {},
+})
+```

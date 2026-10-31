@@ -43,7 +43,14 @@ describe('garment-cut', () => {
     // across, and its neighbours' middle far from it.
     const pyramid = [...sheet.slice(0, 12), 0.6, 0.3, 0.5]
     const g = cutGarment(pyramid, tris, {
-      front: [[[-2, -2], [2, -2], [2, 2], [-2, 2]]],
+      front: [
+        [
+          [-2, -2],
+          [2, -2],
+          [2, 2],
+          [-2, 2],
+        ],
+      ],
       thickness: 0.01,
       ease: 6,
       hem: false,

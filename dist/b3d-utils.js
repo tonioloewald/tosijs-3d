@@ -723,21 +723,27 @@ export function applyMaterialConventions(meshes) {
         const mat = mesh.material;
         if (mat == null)
             continue;
-        // Snap near-opaque alpha to 1.0 — avoids blend pipeline for no visual benefit
-        if (mat.alpha > ALPHA_OPAQUE_THRESHOLD && mat.alpha < 1) {
-            mat.alpha = 1;
-        }
-        // Translucent materials: correct sorting + perf optimizations
-        // backFaceCulling is left as-is — driven by glTF doubleSided / Blender's setting
-        if (mat.alpha <= ALPHA_OPAQUE_THRESHOLD) {
-            mat.needDepthPrePass = true;
-            mat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
-            // Tag for shadow exclusion (read by b3d-shadows / dynamic-shadows)
-            if (!mesh.name.includes('_transparent')) {
-                mesh.name += '_transparent';
-            }
+        // Tag for shadow exclusion (read by b3d-shadows / dynamic-shadows)
+        if (materialConventions(mat) && !mesh.name.includes('_transparent')) {
+            mesh.name += '_transparent';
         }
     }
+}
+/**
+ * The same rules on one material: near-opaque alpha snapped to 1, a
+ * translucent one sorted with a depth pre-pass. True when it is translucent.
+ */
+export function materialConventions(mat) {
+    // Snap near-opaque alpha to 1.0 — avoids blend pipeline for no visual benefit
+    if (mat.alpha > ALPHA_OPAQUE_THRESHOLD && mat.alpha < 1)
+        mat.alpha = 1;
+    // Translucent materials: correct sorting + perf optimizations
+    // backFaceCulling is left as-is — driven by glTF doubleSided / Blender's setting
+    if (mat.alpha > ALPHA_OPAQUE_THRESHOLD)
+        return false;
+    mat.needDepthPrePass = true;
+    mat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+    return true;
 }
 /*#
 # B3dChild

@@ -20,10 +20,22 @@ on MakeHuman's eye UV layout, so the iris is a dial and no image is shipped.
 after the clip has posed the head: they converge on it, stop at `maxDeg`
 from straight ahead, and make small saccades, the jumps eyes really make
 (they never glide), so a held gaze looks alive.
+
+A FILE'S EYES work the same way: `bodyEyes(scene, built, eyes, material)`
+hangs a rigged body's `eyes` (eyeballs that are objects of their own in the
+file, as in Blender's Human Base Meshes) on pivots at their centres under the
+head, mapped onto the same eye texture (`eyeUvs`), so the iris dial and
+`eyeGaze` work on them too. Such a body has no lid targets, so its blink is
+made from its shape: `lidBlink(positions, eye)` finds the opening in the
+skin round the eyeball and turns the lids over it, a morph the same
+`blinker` drives (and `lidsFollow` half-closes when the eyes look down). The
+character builder gives lids to bodies rigged from markers, not to files
+that come skinned.
 */
 /*{ "parent": "character-builder", "order": 50 }*/
 import * as BABYLON from '@babylonjs/core';
 import { humanJoint } from './human-morph.js';
+import { eyeCentre, eyeUvs } from './rigged-body.js';
 import { irisColor } from './skin-tone.js';
 import { parseColor } from './color.js';
 import { sceneDelta } from './b3d-utils.js';
@@ -291,6 +303,64 @@ export function humanFace(scene, built, rig, manifest, positions, parts, materia
             for (const m of meshes)
                 m.dispose();
             for (const e of eyes)
+                e.dispose();
+        },
+    };
+}
+/**
+ * A rigged body's own eyeballs (`body.eyes`, left first) on pivots under its
+ * head, drawn on an `eyeTexture`'s layout: a face for `eyeGaze`.
+ */
+export function bodyEyes(scene, built, rig, eyes, material, options = {}) {
+    const headName = options.head ?? 'Head';
+    const head = built.node(headName);
+    const at = rig.at(headName);
+    if (head == null || at == null)
+        throw new Error(`human-face: the rig has no ${headName}`);
+    const layout = options.layout ?? HM08_EYE_UV;
+    const pivots = [];
+    const meshes = [];
+    eyes.forEach((eye, i) => {
+        const side = eye.positions[0] > 0 ? 'l' : 'r';
+        const { centre: c } = eyeCentre(eye);
+        const pivot = new BABYLON.TransformNode(`eye_${side}`, scene);
+        pivot.parent = head;
+        pivot.position = new BABYLON.Vector3(c.x - at.x, c.y - at.y, c.z - at.z);
+        pivot.rotationQuaternion = BABYLON.Quaternion.Identity();
+        const pos = new Float32Array(eye.positions.length);
+        for (let k = 0; k < pos.length; k += 3) {
+            pos[k] = eye.positions[k] - c.x;
+            pos[k + 1] = eye.positions[k + 1] - c.y;
+            pos[k + 2] = eye.positions[k + 2] - c.z;
+        }
+        const mesh = new BABYLON.Mesh(`eye_${side}${i > 1 ? i : ''}`, scene);
+        const data = new BABYLON.VertexData();
+        data.positions = pos;
+        data.indices = eye.indices;
+        data.uvs = eyeUvs(eye, { at: layout.l, iris: layout.iris });
+        const normals = [];
+        // Counter-clockwise, outward: the file's handedness, under the rig's mirror.
+        BABYLON.VertexData.ComputeNormals(pos, eye.indices, normals, {
+            useRightHandedSystem: true,
+        });
+        data.normals = normals;
+        data.applyToMesh(mesh);
+        mesh.sideOrientation = BABYLON.Material.ClockWiseSideOrientation;
+        mesh.parent = pivot;
+        if (material)
+            mesh.material = material;
+        pivots.push(pivot);
+        meshes.push(mesh);
+    });
+    return {
+        eyes: pivots,
+        // A body faces +Z at rest, and so do its eyes.
+        forward: pivots.map(() => new BABYLON.Vector3(0, 0, 1)),
+        meshes,
+        dispose() {
+            for (const m of meshes)
+                m.dispose();
+            for (const e of pivots)
                 e.dispose();
         },
     };

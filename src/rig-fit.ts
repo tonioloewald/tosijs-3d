@@ -447,7 +447,8 @@ export function fitSkeleton(
       mesh.turnedAboutZ != null &&
       Math.abs(wrist2.y - elbow2.y) > Math.abs(wrist2.x - elbow2.x)
     const turn = hangs
-      ? Math.atan2(0, sign) - Math.atan2(wrist2.y - elbow2.y, wrist2.x - elbow2.x)
+      ? Math.atan2(0, sign) -
+        Math.atan2(wrist2.y - elbow2.y, wrist2.x - elbow2.x)
       : 0
     const turnPoint = <T extends Point2>(p: T, a: number): T => {
       const c = Math.cos(a)
@@ -595,7 +596,13 @@ export function fitSkeleton(
     const ankle = put(
       `foot_${side}`,
       `calf_${side}`,
-      at({ x: ankleRun != null ? (ankleRun.lo + ankleRun.hi) / 2 : knee2.x, y: ankleY }, knee.z)
+      at(
+        {
+          x: ankleRun != null ? (ankleRun.lo + ankleRun.hi) / 2 : knee2.x,
+          y: ankleY,
+        },
+        knee.z
+      )
     )
     // The foot reaches forward: the front of the mesh near the ground.
     const soleY = floor + 0.15 * (ankleY - floor)
@@ -622,8 +629,10 @@ export function fitSkeleton(
     let top = floor
     const rise = Math.max((ankleY - floor) / 60, 1e-4)
     for (let y = floor; y <= ankleY; y += rise)
-      if (mesh.spans(ballX, y).some((s) => s.back <= ballZ && s.front >= ballZ)) top = y
-    const ballY = top > floor ? (floor + top) / 2 : floor + 0.15 * (ankleY - floor)
+      if (mesh.spans(ballX, y).some((s) => s.back <= ballZ && s.front >= ballZ))
+        top = y
+    const ballY =
+      top > floor ? (floor + top) / 2 : floor + 0.15 * (ankleY - floor)
     put(`ball_${side}`, `foot_${side}`, { x: ballX, y: ballY, z: ballZ })
     put(`ball_leaf_${side}`, `ball_${side}`, { x: toe.x, y: ballY, z: toe.z })
   }
@@ -745,7 +754,8 @@ function cropped(
   })
   const out: number[] = []
   tris.forEach((t, i) => {
-    if (find(ids[i][0]) === near) out.push(indices[t], indices[t + 1], indices[t + 2])
+    if (find(ids[i][0]) === near)
+      out.push(indices[t], indices[t + 1], indices[t + 2])
   })
   return out
 }
@@ -1294,7 +1304,10 @@ function armHanging(
       gap = 0
     } else if (centres.length > 0 && ++gap > 2) break
   }
-  if (centres.length < 2 || centres[0].y - centres[centres.length - 1].y < 0.15 * H)
+  if (
+    centres.length < 2 ||
+    centres[0].y - centres[centres.length - 1].y < 0.15 * H
+  )
     return null
   // The arm hangs from above the crotch, or what was found is not an arm.
   if (centres[0].y < groinV) return null

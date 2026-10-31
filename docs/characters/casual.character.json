@@ -1,0 +1,178 @@
+{
+ "format": "tosijs-character",
+ "version": 1,
+ "name": "casual",
+ "settings": {
+  "gender": 1,
+  "age": 0.5,
+  "muscle": 0.5,
+  "weight": 0.5,
+  "height": 0.5,
+  "proportions": 0.5,
+  "african": 0.3333333333333333,
+  "asian": 0.3333333333333333,
+  "caucasian": 0.3333333333333333,
+  "chestDepth": 0.5,
+  "pecs": 0.5,
+  "waist": 0.5,
+  "bustSize": 0.5,
+  "bustFirmness": 0.5,
+  "tone": 0.3,
+  "redness": 0.5,
+  "iris": 0.2,
+  "irisColour": "#5a3519",
+  "hair": "short02",
+  "beard": "none",
+  "moustache": "none",
+  "brows": "eyebrow001",
+  "hairBase": "#4a3122",
+  "hairHighlight": "#9a6b43",
+  "hairUp": 0,
+  "hairForward": 0,
+  "hairSize": 1,
+  "outfit": "male_casualsuit02",
+  "bodysuit": "none",
+  "armour": "none",
+  "top": "none",
+  "bottom": "none",
+  "shoes": "shoes01",
+  "hat": "none",
+  "glasses": "none",
+  "gloves": "none",
+  "mask": "none",
+  "stubble": 0,
+  "blink": true,
+  "talk": false,
+  "smile": 0.2,
+  "browsUp": 0,
+  "frown": 0,
+  "source": "MakeHuman",
+  "hideClothes": false
+ },
+ "cloth": {
+  "outfit": {
+   "look": "as made",
+   "material": {
+    "type": "cloth",
+    "inputs": {
+     "roughness": 0.85,
+     "metallic": 0,
+     "sheen": 0.25,
+     "sheenRoughness": 0.6
+    }
+   }
+  },
+  "bodysuit": {
+   "look": "as made",
+   "material": {
+    "type": "cloth",
+    "inputs": {
+     "roughness": 0.85,
+     "metallic": 0,
+     "sheen": 0.25,
+     "sheenRoughness": 0.6
+    }
+   }
+  },
+  "armour": {
+   "look": "as made",
+   "material": {
+    "type": "cloth",
+    "inputs": {
+     "roughness": 0.85,
+     "metallic": 0,
+     "sheen": 0.25,
+     "sheenRoughness": 0.6
+    }
+   }
+  },
+  "top": {
+   "look": "as made",
+   "material": {
+    "type": "cloth",
+    "inputs": {
+     "albedo": "#3b5b8a",
+     "recolour": 1,
+     "roughness": 0.85,
+     "metallic": 0,
+     "sheen": 0.25,
+     "sheenRoughness": 0.6
+    }
+   }
+  },
+  "bottom": {
+   "look": "as made",
+   "material": {
+    "type": "cloth",
+    "inputs": {
+     "roughness": 0.85,
+     "metallic": 0,
+     "sheen": 0.25,
+     "sheenRoughness": 0.6
+    }
+   }
+  },
+  "shoes": {
+   "look": "as made",
+   "material": {
+    "type": "cloth",
+    "inputs": {
+     "roughness": 0.45,
+     "metallic": 0,
+     "sheen": 0,
+     "sheenRoughness": 0.5
+    }
+   }
+  },
+  "gloves": {
+   "look": "as made",
+   "material": {
+    "type": "cloth",
+    "inputs": {
+     "roughness": 0.85,
+     "metallic": 0,
+     "sheen": 0.25,
+     "sheenRoughness": 0.6
+    }
+   }
+  },
+  "hat": {
+   "look": "as made",
+   "material": {
+    "type": "cloth",
+    "inputs": {
+     "roughness": 0.85,
+     "metallic": 0,
+     "sheen": 0.25,
+     "sheenRoughness": 0.6
+    }
+   }
+  },
+  "mask": {
+   "look": "as made",
+   "material": {
+    "type": "cloth",
+    "inputs": {
+     "roughness": 0.85,
+     "metallic": 0,
+     "sheen": 0.25,
+     "sheenRoughness": 0.6
+    }
+   }
+  },
+  "glasses": {
+   "look": "as made",
+   "material": {
+    "type": "cloth",
+    "inputs": {
+     "roughness": 0.85,
+     "metallic": 0,
+     "sheen": 0.25,
+     "sheenRoughness": 0.6
+    }
+   }
+  }
+ },
+ "tailor": [],
+ "garments": {}
+}

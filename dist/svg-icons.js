@@ -317,6 +317,19 @@ function buildSvgIcon(spec, parts, style) {
         // `color` icons (incl. `color filled`, e.g. xrColor) keep their baked-in
         // per-path fills/strokes — impose no currentColor tint.
     }
+    else if (classes.has('stroked') && classes.has('filled')) {
+        /*
+        STROKED AND FILLED: drawn in two roles, an outline in the ink and a fill
+        that KNOCKS OUT what lies behind it (the near arm hides the body), in the
+        colour behind the icon. A path drawn `fill="none"` stays open.
+        */
+        if (!svg.style.stroke)
+            svg.style.stroke = varDefault.tosiIconStroke('currentColor');
+        if (!svg.style.fill)
+            svg.style.fill = varDefault.tosiIconKnockout(varDefault.w3dButtonBg('#2a2f3a'));
+        if (!svg.style.strokeWidth)
+            svg.style.strokeWidth = varDefault.tosiIconStrokeWidth('2px');
+    }
     else if (classes.has('filled')) {
         if (!svg.style.stroke)
             svg.style.stroke = 'none';
@@ -528,7 +541,7 @@ export function iconExists(name) {
  * {@link svgIcons}, for in-scene / in-panel glyphs.
  *
  * `color` icons keep their baked palette; `stroked`/`filled` icons are tinted to
- * `color`. Composed and mirrored names work here too (`chevron270r`,
+ * `color`, and a `stroked filled` icon's fill is `knockout`. Composed and mirrored names work here too (`chevron270r`,
  * `cornerUpLeft`): the rotation or flip is applied as an SVG transform on the
  * returned group, so position a WRAPPER rather than overwriting its `transform`.
  */
@@ -544,7 +557,7 @@ export function iconGlyph(name, opts = {}) {
     An explicit option still wins, since an icon used as a mark rather than as UI
     chrome may want its own weight.
     */
-    const { color = '#000', size = 24, x = 0, y = 0, strokeWidth = w3dTheme.strokeWidth, } = opts;
+    const { color = '#000', size = 24, x = 0, y = 0, strokeWidth = w3dTheme.strokeWidth, knockout = w3dTheme.buttonBg, } = opts;
     const resolved = resolveToMarkup(DEFAULT_MAP, name);
     if (!resolved)
         warnOnce(`iconGlyph: unknown icon "${name}"`);
@@ -590,6 +603,14 @@ export function iconGlyph(name, opts = {}) {
     }, ...Array.from(src.children));
     if (classes.has('color')) {
         // baked per-path colours — leave them
+    }
+    else if (classes.has('stroked') && classes.has('filled')) {
+        // An outline in the ink over a knockout in the colour behind it.
+        g.setAttribute('fill', knockout);
+        g.setAttribute('stroke', color);
+        g.setAttribute('stroke-width', String(strokeWidth));
+        g.setAttribute('stroke-linecap', 'round');
+        g.setAttribute('stroke-linejoin', 'round');
     }
     else if (classes.has('filled')) {
         g.setAttribute('fill', color);

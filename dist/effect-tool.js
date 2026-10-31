@@ -61,6 +61,7 @@ returns the scene's counts to where they were, including the effect player's
 shared driver and sprites, which go with a scene's last player.
 */
 /*{ "parent": "demos", "order": 36 }*/
+import { chooseFile } from './choose-file.js';
 import * as BABYLON from '@babylonjs/core';
 import { b3d } from './tosi-b3d.js';
 import { b3dLight } from './b3d-light.js';
@@ -93,16 +94,6 @@ const recall = (key) => {
     }
 };
 const clone = (v) => JSON.parse(JSON.stringify(v));
-function chooseFile(accept) {
-    return new Promise((resolve) => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = accept;
-        input.addEventListener('change', () => resolve(input.files?.[0] ?? null));
-        input.addEventListener('cancel', () => resolve(null));
-        input.click();
-    });
-}
 /**
  * MOUNT THE EFFECT TOOL in an existing `<tosi-b3d>` (tosijs-3d#122), on the
  * same contract as `mountRigTool`: `change` per edit and `commit` per

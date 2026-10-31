@@ -7,9 +7,10 @@ skeleton (`fitSkeleton`), bone heat binds the skin to it (`boneHeat`), and
 UAL's clips on it and `springNodes` swings a tail.
 
 To do this by hand, use the [rig tool](/rig-tool/): load a GLB or OBJ with
-no skeleton (or turn on `bind from markers` to ignore the one it has), drag
-the markers onto its joints, and it is bound again each time you let go. The
-markers are saved in its recipe. This page is the code underneath, for doing
+no skeleton (or turn off `use its own skeleton` to ignore the one it has),
+drag the markers onto its joints (the skeleton follows each time you let go,
+and the skin is bound again when you animate or press done). The markers are
+saved in its recipe. This page is the code underneath, for doing
 the same in your own page or pipeline.
 
 ## Usage
@@ -39,6 +40,16 @@ built.root.parent = stand // move it by a parent of root, never root itself
 const walk = retargetClip(ualWalk, readSkeleton(ualSkin, ualRoot),
   readSkeleton(built.skeleton, built.root), { scene })
 walk.start(true)
+```
+
+For a model file, `loadRigTriangles(scene, urlOrFile, { pick })` reads its
+triangles (its own skeleton ignored), and `autoRig(scene, name, tris)` does
+the rest in one call (markers guessed unless you pass them), returning the
+built rig with its `rig` and `markers`:
+
+```
+const body = autoRig(scene, 'body', await loadRigTriangles(scene, url))
+body.root.parent = stand
 ```
 
 A tail, when `fitSkeleton` is given its tip, is the bone chain `tail_01` …

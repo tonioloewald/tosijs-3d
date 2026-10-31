@@ -637,6 +637,16 @@
         "description": "GLB model URL"
       },
       {
+        "name": "character",
+        "default": "''",
+        "description": "A character file's URL (the [character builder](/character-builder/)'s **export JSON**), in place of `url`: the character is made from it ([character](/character/)) and UAL's clips are retargeted onto it, so use `ualAnimationStates()`. A mesh body comes from where the file says (its URL, or the mesh itself when it was opened from disk); a file that says neither falls back to MakeHuman's. Set `characterDoc` (the parsed file) instead to skip the fetch"
+      },
+      {
+        "name": "animations",
+        "default": "UAL1",
+        "description": "Where a `character`'s clips come from: a GLB whose clips have UAL's names and skeleton"
+      },
+      {
         "name": "skin",
         "default": "''",
         "description": "Optional albedo texture URL applied to the `skin` material (reskin)"
@@ -5473,6 +5483,44 @@
         "name": "hue",
         "default": "**shifts** the base hue, `0.5` = unchanged, scaled by `hueShiftDeg",
         "description": "hue is circular with no meaningful zero, so an absolute mapping would discard the colour you chose"
+      }
+    ]
+  },
+  {
+    "module": "material-picker",
+    "summary": "materialPicker3d",
+    "attributes": [
+      {
+        "name": "label",
+        "default": "''",
+        "description": "The caption on the row"
+      },
+      {
+        "name": "value",
+        "default": "pbr",
+        "description": "A recipe, or a reactive value holding one"
+      },
+      {
+        "name": "types",
+        "default": "every registered type",
+        "description": "The types it may be. One type: no choice of type is shown"
+      },
+      {
+        "name": "collections",
+        "default": "[]",
+        "description": "Names from `MATERIAL_COLLECTIONS`, or collections of your own, offered as presets"
+      },
+      {
+        "name": "presets",
+        "description": "More presets of your own, `{ name, recipe }`, offered first"
+      },
+      {
+        "name": "handleChange",
+        "description": "Live, mid-drag included, with the canonical recipe"
+      },
+      {
+        "name": "handleCommit",
+        "description": "Once per preset, type change, or when the popup closes after an edit: one undo step"
       }
     ]
   },

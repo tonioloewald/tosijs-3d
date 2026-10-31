@@ -159,6 +159,8 @@ b3d-biped
   rz
   axes
   url  = ''  — GLB model URL
+  character  = ''  — A character file's URL (the [character builder](/character-builder/)'s **export JSON**), in place of `url`: the character is made from it ([character](/character/)) and UAL's clips are retargeted onto it, so use `ualAnimationStates()`. A mesh body comes from where the file says (its URL, or the mesh itself when it was opened from disk); a file that says neither falls back to MakeHuman's. Set `characterDoc` (the parsed file) instead to skip the fetch
+  animations  = UAL1  — Where a `character`'s clips come from: a GLB whose clips have UAL's names and skeleton
   skin  = ''  — Optional albedo texture URL applied to the `skin` material (reskin)
   scale  = 1  — Uniform scale applied to the loaded model
   player  = false  — Whether this biped receives input
@@ -1350,6 +1352,17 @@ Light programs
   range  = **multiplies** the base range  — a range of zero is a light that lights nothing
   saturation  = **multiplies** saturation — `0` is white, `saturationScale` sets what `1` means  — saturation has a meaningful zero and reaching it is the point
   hue  = **shifts** the base hue, `0.5` = unchanged, scaled by `hueShiftDeg  — hue is circular with no meaningful zero, so an absolute mapping would discard the colour you chose
+
+## material-picker
+materialPicker3d
+
+  label  = ''  — The caption on the row
+  value  = pbr  — A recipe, or a reactive value holding one
+  types  = every registered type  — The types it may be. One type: no choice of type is shown
+  collections  = []  — Names from `MATERIAL_COLLECTIONS`, or collections of your own, offered as presets
+  presets  — More presets of your own, `{ name, recipe }`, offered first
+  handleChange  — Live, mid-drag included, with the canonical recipe
+  handleCommit  — Once per preset, type change, or when the popup closes after an edit: one undo step
 
 ## picker
 picker

@@ -6,21 +6,43 @@ import {
   CHARACTER_VERSION,
 } from './character-file.js'
 
-const settings = { gender: 0.5, hair: 'none', blink: true, look: { type: 'cloth', inputs: {} } }
-const slots = { top: { look: 'as made', material: { type: 'cloth', inputs: {} } } }
+const settings = {
+  gender: 0.5,
+  hair: 'none',
+  blink: true,
+  look: { type: 'cloth', inputs: {} },
+}
+const slots = {
+  top: { look: 'as made', material: { type: 'cloth', inputs: {} } },
+}
 const defaults = { settings, slots }
 
 const ada = {
   name: 'Ada',
-  settings: { gender: 0.1, hair: 'short02', blink: false, look: { type: 'cloth', inputs: { albedo: '#123456' } } },
-  cloth: { top: { look: 'blue', material: { type: 'cloth', inputs: { recolour: 1 } } } },
-  tailor: [[[0.1, 1], [0.2, 1], [0.2, 0.5]]] as Array<Array<[number, number]>>,
+  settings: {
+    gender: 0.1,
+    hair: 'short02',
+    blink: false,
+    look: { type: 'cloth', inputs: { albedo: '#123456' } },
+  },
+  cloth: {
+    top: { look: 'blue', material: { type: 'cloth', inputs: { recolour: 1 } } },
+  },
+  tailor: [
+    [
+      [0.1, 1],
+      [0.2, 1],
+      [0.2, 0.5],
+    ],
+  ] as Array<Array<[number, number]>>,
   garments: { cape: new Uint8Array([0, 1, 2, 250, 255]) },
 }
 
 describe('character-file', () => {
   test('a character round-trips through JSON, garments included', () => {
-    const json = JSON.stringify(writeCharacter(ada, { saved: '2026-10-29T00:00:00Z' }))
+    const json = JSON.stringify(
+      writeCharacter(ada, { saved: '2026-10-29T00:00:00Z' })
+    )
     const { character, warnings } = readCharacter(json, defaults)
     expect(warnings).toEqual([])
     expect(character.name).toBe('Ada')
@@ -32,17 +54,27 @@ describe('character-file', () => {
 
   test('a mesh body travels with it: a URL as a URL, a file as its bytes', () => {
     const bodies = {
-      weasel: { file: { name: 'weasel.glb', bytes: new Uint8Array([7, 8, 9, 200]) } },
+      weasel: {
+        file: { name: 'weasel.glb', bytes: new Uint8Array([7, 8, 9, 200]) },
+      },
       hero: { url: 'https://example.com/hero.glb', pick: 'Hero_FullBody' },
     }
     const json = JSON.stringify(writeCharacter({ ...ada, bodies }))
     const { character, warnings } = readCharacter(json, defaults)
     expect(warnings).toEqual([])
-    expect(character.bodies?.hero).toEqual({ url: 'https://example.com/hero.glb', pick: 'Hero_FullBody' })
+    expect(character.bodies?.hero).toEqual({
+      url: 'https://example.com/hero.glb',
+      pick: 'Hero_FullBody',
+    })
     expect(character.bodies?.weasel.file?.name).toBe('weasel.glb')
-    expect(Array.from(character.bodies!.weasel.file!.bytes)).toEqual([7, 8, 9, 200])
+    expect(Array.from(character.bodies!.weasel.file!.bytes)).toEqual([
+      7, 8, 9, 200,
+    ])
     // A file without bodies (MakeHuman's) has none.
-    expect(readCharacter(JSON.stringify(writeCharacter(ada)), defaults).character.bodies).toBeUndefined()
+    expect(
+      readCharacter(JSON.stringify(writeCharacter(ada)), defaults).character
+        .bodies
+    ).toBeUndefined()
   })
 
   test('an unreadable body is skipped and said', () => {
@@ -50,7 +82,10 @@ describe('character-file', () => {
     doc.bodies = { odd: { pick: 'x' }, bad: 'no' }
     const { character, warnings } = readCharacter(doc, defaults)
     expect(character.bodies).toBeUndefined()
-    expect(warnings).toEqual(['body odd: unreadable; skipped', 'body bad: unreadable; skipped'])
+    expect(warnings).toEqual([
+      'body odd: unreadable; skipped',
+      'body bad: unreadable; skipped',
+    ])
   })
 
   test('the document says what it is and which layout', () => {
@@ -79,12 +114,17 @@ describe('character-file', () => {
   })
 
   test('a slot with no or broken look gets its default', () => {
-    const doc = writeCharacter({ ...ada, cloth: { top: { look: 3 as any, material: null } } })
+    const doc = writeCharacter({
+      ...ada,
+      cloth: { top: { look: 3 as any, material: null } },
+    })
     expect(readCharacter(doc, defaults).character.cloth.top).toEqual(slots.top)
   })
 
   test('not a character, or newer than this reader: refused', () => {
-    expect(() => readCharacter({ format: 'something' }, defaults)).toThrow(/not a character/)
+    expect(() => readCharacter({ format: 'something' }, defaults)).toThrow(
+      /not a character/
+    )
     const doc = { ...writeCharacter(ada), version: CHARACTER_VERSION + 1 }
     expect(() => readCharacter(doc, defaults)).toThrow(/newer/)
   })

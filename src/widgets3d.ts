@@ -3324,7 +3324,9 @@ export function titled3d(
   again when it is given back.
   */
   const ownRims = (c: SVGSVGElement) =>
-    Array.from(c.children).filter((n) => n.hasAttribute('data-w3d-rim')) as SVGElement[]
+    Array.from(c.children).filter((n) =>
+      n.hasAttribute('data-w3d-rim')
+    ) as SVGElement[]
   const quiet = (c: SVGSVGElement) => {
     for (const r of ownRims(c)) r.style.display = 'none'
   }

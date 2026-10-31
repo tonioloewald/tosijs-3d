@@ -37,8 +37,13 @@ const content = () => {
 
 describe("titled3d: the settings panel's title bar over any content", () => {
   test("one outline: a panel's own rim is hidden while framed, back after", () => {
-    const panel = w3d.panel3d({ width: 200 }, w3d.label3d({ text: 'x' })) as unknown as SVGSVGElement
-    const rim = Array.from(panel.children).find((n) => n.hasAttribute('data-w3d-rim')) as SVGElement
+    const panel = w3d.panel3d(
+      { width: 200 },
+      w3d.label3d({ text: 'x' })
+    ) as unknown as SVGSVGElement
+    const rim = Array.from(panel.children).find((n) =>
+      n.hasAttribute('data-w3d-rim')
+    ) as SVGElement
     expect(rim).toBeDefined()
     const t = w3d.titled3d(panel, {}) as any
     expect(rim.style.display).toBe('none')

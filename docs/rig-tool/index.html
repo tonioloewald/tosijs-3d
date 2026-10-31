@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=c3f9a510fbae" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=08c4b739ac51" data-tosi-doc-system />
   <title>Rig tool — tosijs-3d</title>
   <meta name="description" content="Put a character on our animations, give it hair or a tail, and save the result. Pick one of the demo characters or load your own GLB." />
   <link rel="canonical" href="https://3d.tosijs.net/rig-tool/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=d4cb551793b9" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=009437d58172" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="rig-tool.ts">
 <h1 id="rig-tool">Rig tool</h1>
 <p><strong>Put a character on our animations, give it hair or a tail, and save the
@@ -45,55 +45,62 @@ preview.closest(&#39;tosi-example&#39;)?.style.setProperty(&#39;--tosi-example-h
 preview.append(rigTool())
 </code></pre>
 <h2 id="using-it">Using it</h2>
-<p>It opens standing still in its REST pose (a T or an A), with a dot on the
-bone each role uses: tap a dot to choose that role (it turns yellow), then
-tap the body where that bone is to give the role to it. A tap on the body
-does nothing until a dot has been chosen, and only the first one counts, so
-orbiting on a phone cannot reassign a bone. Set <code>clicking sets</code> to the chain
-and that tap hangs the chosen spring chain there instead. A
-strand&#39;s path is a row of orange handles: drag them along the tail or the
-ponytail, <code>+ point</code> for another one beyond the tip. <code>view</code> snaps to a
-face (front, back, left, right, top, bottom), which is how you line a point
-up with the flesh, and stands it still; <code>free</code> orbits and plays the clip.
-Turn on <code>animate</code> (or pick a clip) to see it move. In a headset you are the
-camera, so the view only switches between still and playing.</p>
-<p>The panel has these sections.</p>
+<p>It opens standing still in its REST pose (a T or an A), in the front view.
+A mesh with no skeleton of its own (an OBJ, or a GLB without one, like the
+weasels and the space marine) gets UAL&#39;s fitted to it from eight red
+<strong>markers</strong> on its body, Mixamo&#39;s way: drag each onto its joint (chin,
+groin, elbows, wrists, knees). They start where they are guessed from the
+outline. A model with a skeleton of its own shows a dot on the bone each
+<strong>role</strong> uses instead: tap a dot (it turns yellow), then the body where that
+bone is.</p>
+<p><code>view</code> snaps to a face (front, back, left, right, top, bottom), which is how
+you line a marker, joint or handle up with the flesh, and stands it still;
+<code>free</code> orbits. Turn on <code>animate</code> (or pick a clip) to see it move: a mesh
+whose markers or joints moved is bound to them again then (binding takes a
+second or two and shows nothing at rest). In a headset you are the camera,
+so the view only switches between still and playing.</p>
+<p>The panel has these sections, its job first.</p>
 <ul>
+<li><strong>Markers</strong>, for a mesh bound from them. <code>symmetry</code> moves both sides
+together; <code>tail</code> adds a tail (place its tip from the side view; it is a
+bone chain, <code>tail_01</code> on, for a spring); <code>guess markers</code> starts again from
+the outline. The joints follow the markers. <code>move joints</code> shows every
+joint (blue) to drag by hand from the view that suits: shoulders from the
+front, fingers and thumbs from the top, feet from the side. What hangs from
+a joint comes with it; set <code>dragging</code> to turn what hangs from it instead
+(a hand or foot at an angle). Markers and moved joints are saved in the
+recipe as <code>binding</code>.</li>
+<li><strong>Roles</strong>, for a model on its own skeleton: which bone is the hips, the
+head, the left forearm, each finger joint. They are guessed from the
+names; fix one by tapping, as above, or pick a role and then the bone that
+plays it, or <code>(none)</code> to leave it out. Set <code>clicking sets</code> to the chain and
+a tap hangs the chosen spring chain there instead.</li>
+<li><strong>Motion.</strong> <code>animate</code> and the clip; <code>arm space</code> turns the arms out from
+the body, for a character whose arms are long for its height;
+<code>load animations…</code> adds the clips in a GLB made on another rig to the
+list: Mixamo&#39;s, a mocap file&#39;s, another library&#39;s. Which bone is which is
+read from the names (UE, Mixamo, Kenney and Blender spellings), so each
+clip is retargeted onto the character, and onto the mannequin to compare.
+Mixamo downloads are FBX, which a browser cannot read: import them into
+Blender and export a GLB (with the skin).</li>
+<li><strong>View.</strong> <code>view</code>; <code>mannequin</code> shows UAL&#39;s mannequin (a ghost) playing the
+original beside it; <code>bones</code> draws the skeleton.</li>
 <li><strong>Model.</strong> A demo character, or <code>load model file…</code> for a GLB or OBJ of
 your own (a single file: a <code>.gltf</code> with separate buffers cannot be opened
-this way). It should face +Z, standing, arms out or down.</li>
-<li><strong>Animations.</strong> <code>load animations…</code> adds the clips in a GLB made on
-another rig to the clip list: Mixamo&#39;s, a mocap file&#39;s, another library&#39;s.
-Which bone is which is read from the names (UE, Mixamo, Kenney and Blender
-spellings), so each clip is retargeted onto the character, and onto the
-mannequin to compare. Mixamo downloads are FBX, which a browser cannot
-read: import them into Blender and export a GLB (with the skin).</li>
-<li><strong>Binding</strong>, for a model with no skeleton (an OBJ, or a GLB without one,
-like the weasels and the space marine). It is given one: the eight
-markers on its outline place the joints (chin, groin, wrists, elbows,
-knees), a skeleton is fitted to them and the mesh is bound to it by bone
-heat. They start where they are guessed from the outline; drag one onto
-its joint and the model is fitted and bound again when you let go.
-<code>symmetry</code> moves both sides together, <code>tail</code> adds a tail (place its tip in
-the side view; it is a bone chain, <code>tail_01</code> on, for a spring). The
-markers are saved in the recipe as <code>binding</code>.</li>
-<li><strong>Roles.</strong> Which bone is the hips, the head, the left forearm, each finger
-joint. They are guessed from the names; fix one by tapping, as above, or
-pick a role and then the bone that plays it, or <code>(none)</code> to leave it out. <code>arm space</code> turns the arms out
-from the body, for a character whose arms are long for its height.</li>
+this way). It should face +Z, standing, arms out or down. A model with a
+skeleton of its own can <code>use its own skeleton</code>, or be bound from markers
+like any mesh.</li>
 <li><strong>Springs.</strong> <code>+ strand</code> hangs a new chain with a tube from a bone (a
-ponytail): lay out its path with the handles (add points for a curve),
-choose how many <code>links</code> it has (they are spaced evenly along the path),
-size it, and tune how it swings. A straight one can also be set by
-<code>offset</code>, <code>yaw</code>, <code>pitch</code> and <code>length</code>. <code>+ bone chain</code> simulates bones the model already has (a
-tail): pick the chain&#39;s first bone. Stiffness and damping change live;
-the rest rebuild the chain.</li>
+ponytail): lay out its path with the orange handles (<code>+ point</code> for another
+beyond the tip), choose how many <code>links</code> it has (they are spaced evenly
+along the path), size it, and tune how it swings. A straight one can also
+be set by <code>offset</code>, <code>yaw</code>, <code>pitch</code> and <code>length</code>. <code>+ bone chain</code> simulates
+bones the model already has (a tail): pick the chain&#39;s first bone.
+Stiffness and damping change live; the rest rebuild the chain.</li>
 <li><strong>Recipe.</strong> <code>save</code> downloads the recipe as JSON, <code>load</code> reads one back,
 <code>copy</code> puts it on the clipboard. The working recipe is also kept in this
 browser, per model, so a reload does not lose it.</li>
 </ul>
-<p>Pick a clip at the top. <code>mannequin</code> shows UAL&#39;s mannequin (a ghost) playing the
-original beside it; <code>bones</code> draws the skeleton.</p>
 <h2 id="a-recipe-in-a-game">A recipe in a game</h2>
 <pre><code>import { applyRigRecipe, readSkeleton, retargetClip } from &#39;tosijs-3d&#39;
 
@@ -141,6 +148,19 @@ limits. Without a camera it brings its own and puts the active one back.</li>
 <li><code>tool.api</code> is the same API as the page&#39;s <code>.rig</code>; setting <code>api.recipe</code>
 applies it without echoing a <code>change</code>.</li>
 </ul>
+<p><strong>Rigging one body for a host</strong> (the <a href="/character-builder/">character builder</a>
+does this): give it <code>handleDone</code> and the panel has <strong>done</strong> and <strong>cancel</strong>
+at its top. Done unmounts the tool and hands the callback the rig: the
+<code>recipe</code>, and the <code>body</code> bound from its markers (a
+<a href="/rigged-body/">rigged body</a>, ready for <code>buildBody</code> and <code>applyRigRecipe</code>).</p>
+<pre><code class="language-javascript" data-highlighted><span class="token function">mountRigTool</span><span class="token punctuation">(</span>scene<span class="token punctuation">,</span> <span class="token punctuation">{</span>
+  <span class="token literal-property property">models</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">{</span> <span class="token literal-property property">label</span><span class="token operator">:</span> <span class="token string">'body'</span><span class="token punctuation">,</span> <span class="token literal-property property">url</span><span class="token operator">:</span> <span class="token string">'/body.glb'</span> <span class="token punctuation">}</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+  <span class="token literal-property property">recipe</span><span class="token operator">:</span> <span class="token punctuation">{</span> <span class="token literal-property property">version</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span> binding <span class="token punctuation">}</span><span class="token punctuation">,</span> <span class="token comment">// bind from these markers</span>
+  <span class="token literal-property property">files</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
+  <span class="token function-variable function">handleDone</span><span class="token operator">:</span> <span class="token punctuation">(</span><span class="token parameter"><span class="token punctuation">{</span> recipe<span class="token punctuation">,</span> body <span class="token punctuation">}</span></span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token function">wear</span><span class="token punctuation">(</span>body<span class="token punctuation">,</span> recipe<span class="token punctuation">)</span><span class="token punctuation">,</span>
+  <span class="token function-variable function">handleCancel</span><span class="token operator">:</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span><span class="token punctuation">}</span><span class="token punctuation">,</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span>
+</code></pre>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -280,6 +300,7 @@ applies it without echoing a <code>change</code>.</li>
         <li><a class="doc-link" href="../aim/">aim</a></li>
         <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
         <li><a class="doc-link" href="../retarget/">retarget</a></li>
+        <li><a class="doc-link" href="../rigged-body/">rigged-body</a></li>
         <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
         <li><details><summary><a class="doc-link" href="../rig-build/">auto-rig</a></summary>
         <ul>
@@ -290,8 +311,14 @@ applies it without echoing a <code>change</code>.</li>
         <li><details><summary><a class="doc-link" href="../character-builder/">character builder</a></summary>
         <ul>
           <li><a class="doc-link" href="../human-pack/">human-pack</a></li>
+          <li><details><summary><a class="doc-link" href="../character-file/">character-file</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../character-store/">character-store</a></li>
+          </ul>
+          </details></li>
           <li><a class="doc-link" href="../human-morph/">human-morph</a></li>
           <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
+          <li><a class="doc-link" href="../tailor-tool/">tailor tool</a></li>
           <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
           <li><a class="doc-link" href="../skin-shading/">skin-shading</a></li>
           <li><a class="doc-link" href="../human-face/">human-face</a></li>
@@ -323,6 +350,7 @@ applies it without echoing a <code>change</code>.</li>
             </details></li>
           </ul>
           </details></li>
+          <li><a class="doc-link" href="../character/">character</a></li>
         </ul>
         </details></li>
       </ul>
@@ -449,6 +477,8 @@ applies it without echoing a <code>change</code>.</li>
         <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
         <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
         <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
+        <li><a class="doc-link" href="../material-picker/">materialPicker3d</a></li>
+        <li><a class="doc-link" href="../material-recipe/">material-recipe</a></li>
         <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
         <li><details><summary><a class="doc-link" href="../color-field/">color3d</a></summary>
         <ul>
@@ -547,6 +577,7 @@ applies it without echoing a <code>change</code>.</li>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.11.6/">0.11.6</a></li>
         <li><a class="doc-link" href="../v0.11.5/">0.11.5</a></li>
         <li><a class="doc-link" href="../v0.11.4/">0.11.4</a></li>
         <li><a class="doc-link" href="../v0.11.3/">0.11.3</a></li>
@@ -619,6 +650,7 @@ applies it without echoing a <code>change</code>.</li>
     </ul>
     </details></li>
     <li><a class="doc-link" href="../design-notes/">Design notes</a></li>
+    <li><a class="doc-link" href="../acknowledgements/">Acknowledgements</a></li>
   </ul>
   </nav>
   <ul class="doc-navbar">
@@ -627,6 +659,6 @@ applies it without echoing a <code>change</code>.</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-fymfsbgh.js"></script>
+  <script type="module" src="../hydrate-j44j00c3.js"></script>
 </body>
 </html>

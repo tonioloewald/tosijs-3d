@@ -85,7 +85,10 @@ export interface CharacterDoc {
   /** name → GLB, base64. */
   garments: Record<string, string>
   /** source → `{ url, pick }`, or `{ file, data (base64), pick }`. */
-  bodies?: Record<string, { url?: string; pick?: string; file?: string; data?: string }>
+  bodies?: Record<
+    string,
+    { url?: string; pick?: string; file?: string; data?: string }
+  >
 }
 
 /** A character as a document, ready for `JSON.stringify`. */
@@ -105,7 +108,9 @@ export function writeCharacter(
         { look: v.look, material: v.material },
       ])
     ),
-    tailor: c.tailor.map((shape) => shape.map((p) => [p[0], p[1]] as [number, number])),
+    tailor: c.tailor.map((shape) =>
+      shape.map((p) => [p[0], p[1]] as [number, number])
+    ),
     garments: Object.fromEntries(
       Object.entries(c.garments).map(([k, v]) => [k, toBase64(v)])
     ),
@@ -117,7 +122,9 @@ export function writeCharacter(
               {
                 ...(b.url != null ? { url: b.url } : {}),
                 ...(b.pick != null ? { pick: b.pick } : {}),
-                ...(b.file ? { file: b.file.name, data: toBase64(b.file.bytes) } : {}),
+                ...(b.file
+                  ? { file: b.file.name, data: toBase64(b.file.bytes) }
+                  : {}),
               },
             ])
           ),
@@ -140,10 +147,17 @@ export interface ReadCharacter {
  */
 export function readCharacter(
   input: string | unknown,
-  defaults: { settings: Record<string, unknown>; slots?: Record<string, SlotLook> }
+  defaults: {
+    settings: Record<string, unknown>
+    slots?: Record<string, SlotLook>
+  }
 ): ReadCharacter {
   const raw = typeof input === 'string' ? JSON.parse(input) : input
-  if (raw == null || typeof raw !== 'object' || (raw as any).format !== CHARACTER_FORMAT)
+  if (
+    raw == null ||
+    typeof raw !== 'object' ||
+    (raw as any).format !== CHARACTER_FORMAT
+  )
     throw new Error('character-file: not a character document')
   const doc = migrate(raw as any)
   const warnings: string[] = []
@@ -159,11 +173,14 @@ export function readCharacter(
     if (sameKind(v, fallback)) settings[key] = v
     else {
       settings[key] = fallback
-      warnings.push(`${key}: expected ${kind(fallback)}, got ${kind(v)}; kept the default`)
+      warnings.push(
+        `${key}: expected ${kind(fallback)}, got ${kind(v)}; kept the default`
+      )
     }
   }
   for (const key of Object.keys(given))
-    if (!(key in defaults.settings)) warnings.push(`${key}: not a setting here; skipped`)
+    if (!(key in defaults.settings))
+      warnings.push(`${key}: not a setting here; skipped`)
 
   const cloth: Record<string, SlotLook> = {}
   const looks = isObject(doc.cloth) ? doc.cloth : {}
@@ -180,13 +197,20 @@ export function readCharacter(
         .filter(Array.isArray)
         .map((shape: unknown[]) =>
           shape
-            .filter((p: any) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]))
+            .filter(
+              (p: any) =>
+                Array.isArray(p) &&
+                Number.isFinite(p[0]) &&
+                Number.isFinite(p[1])
+            )
             .map((p: any) => [p[0], p[1]] as [number, number])
         )
     : []
 
   const garments: Record<string, Uint8Array> = {}
-  for (const [name, b64] of Object.entries(isObject(doc.garments) ? doc.garments : {})) {
+  for (const [name, b64] of Object.entries(
+    isObject(doc.garments) ? doc.garments : {}
+  )) {
     try {
       if (typeof b64 !== 'string') throw new Error('not base64')
       garments[name] = fromBase64(b64)
@@ -196,12 +220,20 @@ export function readCharacter(
   }
 
   const bodies: Record<string, CharacterBody> = {}
-  for (const [name, b] of Object.entries(isObject(doc.bodies) ? doc.bodies : {})) {
+  for (const [name, b] of Object.entries(
+    isObject(doc.bodies) ? doc.bodies : {}
+  )) {
     try {
       if (!isObject(b)) throw new Error('not a body')
       const pick = typeof b.pick === 'string' ? { pick: b.pick } : {}
       if (typeof b.data === 'string')
-        bodies[name] = { ...pick, file: { name: typeof b.file === 'string' ? b.file : name, bytes: fromBase64(b.data) } }
+        bodies[name] = {
+          ...pick,
+          file: {
+            name: typeof b.file === 'string' ? b.file : name,
+            bytes: fromBase64(b.data),
+          },
+        }
       else if (typeof b.url === 'string') bodies[name] = { ...pick, url: b.url }
       else throw new Error('no url or data')
     } catch {
@@ -239,11 +271,15 @@ function migrate(doc: any): any {
 const isObject = (v: unknown): v is Record<string, any> =>
   v != null && typeof v === 'object' && !Array.isArray(v)
 
-const kind = (v: unknown) => (v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v)
+const kind = (v: unknown) =>
+  v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v
 
 /** A value can stand in for the default when it is the same kind of thing. */
 const sameKind = (v: unknown, fallback: unknown) =>
-  fallback == null ? true : kind(v) === kind(fallback) && (typeof v !== 'number' || Number.isFinite(v))
+  fallback == null
+    ? true
+    : kind(v) === kind(fallback) &&
+      (typeof v !== 'number' || Number.isFinite(v))
 
 // The builder writes the working figure after every change, and a body is
 // megabytes: each byte array is encoded once.

@@ -356,6 +356,11 @@ export declare function disposeMeshTree(mesh: BABYLON.AbstractMesh): void;
  */
 export declare function applyMaterialConventions(meshes: BABYLON.AbstractMesh[]): void;
 /**
+ * The same rules on one material: near-opaque alpha snapped to 1, a
+ * translucent one sorted with a depth pre-pass. True when it is translucent.
+ */
+export declare function materialConventions(mat: BABYLON.Material): boolean;
+/**
  * Base for every element that lives INSIDE a `<tosi-b3d>` scene. The whole
  * pull-model lifecycle lives here, in ONE place. On connect (by which point tosijs
  * has drained this element's attributes), the child finds its b3d owner and asks to

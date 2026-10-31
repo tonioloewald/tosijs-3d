@@ -144,7 +144,14 @@ function presetTiles(opts: {
           'stroke-width': current ? 2.5 : 1,
         }),
         // The flat colour until the picture comes.
-        rect({ x: TILE / 2 - 14, y: TILE / 2 - 14, width: 28, height: 28, rx: 14, fill: materialSwatch(recipe) }),
+        rect({
+          x: TILE / 2 - 14,
+          y: TILE / 2 - 14,
+          width: 28,
+          height: 28,
+          rx: 14,
+          fill: materialSwatch(recipe),
+        }),
         text(
           {
             x: TILE / 2,
@@ -152,7 +159,9 @@ function presetTiles(opts: {
             'text-anchor': 'middle',
             'font-family': w3dTheme.fontFamily,
             // A long name shrinks to its tile rather than running into the next.
-            'font-size': String(Math.min(NAME, (NAME * 9) / Math.max(1, p.name.length))),
+            'font-size': String(
+              Math.min(NAME, (NAME * 9) / Math.max(1, p.name.length))
+            ),
             fill: current ? w3dTheme.text : w3dTheme.muted,
           },
           p.name
@@ -233,16 +242,20 @@ export function materialPicker3d(
   )
   if (allowed.length === 0) throw new Error('materialPicker3d: no known type')
   const box =
-    config.value != null &&
-    typeof (config.value as any).observe === 'function'
-      ? (config.value as { value: MaterialRecipe; observe(cb: () => void): unknown })
+    config.value != null && typeof (config.value as any).observe === 'function'
+      ? (config.value as {
+          value: MaterialRecipe
+          observe(cb: () => void): unknown
+        })
       : null
   const canon = (r: MaterialRecipe | undefined): MaterialRecipe => {
     if (r == null) return canonicalMaterial({ type: allowed[0], inputs: {} })
     // A recipe of a type it may not be keeps the inputs the first type shares.
     return materialAsType(r, allowed.includes(r.type) ? r.type : allowed[0])
   }
-  let value = canon(box ? box.value : (config.value as MaterialRecipe | undefined))
+  let value = canon(
+    box ? box.value : (config.value as MaterialRecipe | undefined)
+  )
   let host: WidgetHost | null = null
   let open: { close: () => void } | null = null
   let width = 0
@@ -374,7 +387,9 @@ export function materialPicker3d(
     const rows: Widget3d[] = []
     if (now.image != null) {
       const file = now.image.split(/[/\\]/).pop() ?? now.image
-      rows.push(label3d({ text: `${label}: ${file}`, muted: true, compact: true }))
+      rows.push(
+        label3d({ text: `${label}: ${file}`, muted: true, compact: true })
+      )
       if (d.kind !== 'image')
         rows.push(
           button3d({
@@ -426,7 +441,10 @@ export function materialPicker3d(
         select3d({
           label: 'type',
           value: value.type,
-          options: allowed.map((t) => ({ label: materialType(t)!.label, value: t })),
+          options: allowed.map((t) => ({
+            label: materialType(t)!.label,
+            value: t,
+          })),
           handleChange: (t) => {
             if (t === value.type) return
             set({ type: String(t), inputs: {} }, true)

@@ -5,7 +5,8 @@ arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, inputFocus, playground, ualAnimationStates } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, characterStore, inputFocus, playground, select3d, ualAnimationStates } from 'tosijs-3d'
+import { tosi } from 'tosijs'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
 // A REAL PISTOL, from Kenney's weapon pack — 37 of them are already on the CDN.
@@ -51,9 +52,14 @@ const gun = b3dLauncher({
 //
 // The wider clip set is the bonus: `Jog_Bwd_Loop` and the `Crouch_*` clips give
 // a real backwards jog and a crouch to sneak in.
-const hero = b3dBiped(
+//
+// OR A CHARACTER YOU BUILT: the settings panel lists the characters the
+// character builder saved in this browser, and picking one swaps the hero for
+// a biped made from it (`characterDoc`), carrying the pistol across.
+const MANNEQUIN = 'UAL mannequin'
+const makeHero = (doc, at) => b3dBiped(
   {
-    url: assetUrl('quaternius/UAL1_core.glb', 2),
+    ...(doc ? { characterDoc: doc } : { url: assetUrl('quaternius/UAL1_core.glb', 2) }),
     animationStates: ualAnimationStates(),
     // WHERE THE ARENA IS IN FRONT OF YOU. Spawning at the origin put `pillar-b`
     // (0, -12.3) literally touching your muzzle line, so every shot from the
@@ -61,11 +67,12 @@ const hero = b3dBiped(
     // me" was. From here the cover line is 22m ahead with the low wall to the
     // left and the railing to the right, which is the comparison the arena is
     // built around, and there is room to see a round travel.
-    x: -4, z: 10,
+    x: at.x, z: at.z, ry: at.ry ?? 0,
     player: true, cameraType: 'follow',
   },
   gun
 )
+let hero = makeHero(null, { x: -4, z: 10 })
 
 // THE PISTOL LIVES ON YOUR HIP. The loadout (a button on the system bar)
 // says where it is, and that decides the mode: in a hand, the gun is up; on
@@ -75,16 +82,44 @@ const hero = b3dBiped(
 const loadout = demoLoadout({ equip: { right_side: 'pistol' } })
 const body = (slot) => ({ holder: 'hero', container: 'body', slot })
 const pistolAt = () => loadout.inv.where('pistol')?.slot
-hero.whenWeapon = (up) => {
-  const at = pistolAt()
-  if (up && (at === 'right_side' || at === 'left_side'))
-    loadout.inv.move({ item: 'pistol', to: body('hand_right'), swap: true })
-  else if (!up && (at === 'hand_right' || at === 'hand_left'))
-    loadout.inv.move({ item: 'pistol', to: body('right_side'), swap: true })
+const inHand = () => pistolAt() === 'hand_right' || pistolAt() === 'hand_left'
+const wire = (h) => {
+  h.whenWeapon = (up) => {
+    const at = pistolAt()
+    if (up && (at === 'right_side' || at === 'left_side'))
+      loadout.inv.move({ item: 'pistol', to: body('hand_right'), swap: true })
+    else if (!up && inHand())
+      loadout.inv.move({ item: 'pistol', to: body('right_side'), swap: true })
+  }
+  return h
 }
-loadout.inv.subscribe(() =>
-  hero.setGunplay(pistolAt() === 'hand_right' || pistolAt() === 'hand_left')
-)
+wire(hero)
+loadout.inv.subscribe(() => hero.setGunplay(inHand()))
+
+// The characters saved in this browser, and swapping the hero for one.
+const store = characterStore()
+const { playChar } = tosi({ playChar: { pick: MANNEQUIN } })
+let saved = []
+const listSaved = (host) =>
+  store.list().then((names) => {
+    if (names.join() === saved.join()) return
+    saved = names
+    host?.refreshScenePanel?.()
+  }).catch(() => {})
+listSaved()
+const useCharacter = async (name) => {
+  const doc = name === MANNEQUIN ? null : await store.get(name).catch(() => null)
+  if (name !== MANNEQUIN && !doc) return
+  // Where the hero is now and which way he faces, so the new one takes over there.
+  const was = hero.entries?.rootNodes[0]
+  const p = was?.position
+  const yaw = was?.rotationQuaternion?.toEulerAngles().y ?? 0
+  const at = p ? { x: p.x, z: p.z, ry: (yaw * 180) / Math.PI } : { x: -4, z: 10 }
+  const next = wire(makeHero(doc, at))
+  hero.replaceWith(next)
+  hero = next
+  next.setGunplay(inHand())
+}
 
 preview.append(
   b3d(
@@ -98,6 +133,17 @@ preview.append(
         'left_stick,right_stick,left_stick_click,right_stick_click,A,B,X,Y,right_bumper,left_bumper,left_trigger,right_trigger',
       // Not armed on load. Right bumper (or the on-screen RB) raises and lowers
       // the weapon.
+      scenePanel: (host) => {
+        listSaved(host)
+        return [
+          select3d({
+            label: 'character',
+            value: playChar.pick,
+            options: [MANNEQUIN, ...saved],
+            handleChange: (name) => useCharacter(String(name)),
+          }),
+        ]
+      },
     },
     weapons,
     ...playground(),
@@ -122,6 +168,12 @@ the trigger is free to do both jobs.
 **WASD** moves, **arrow keys** look, **space** jumps, **left shift** sneaks,
 **E** interacts, **Y** switches between third and first person. On a pad,
 clicking the left stick sneaks.
+
+**Play as a character you built**: save one in the
+[character builder](/character-builder/), then pick it from **character** in
+this page's settings panel (the goggles on the bar). It takes the hero's
+place where he stands, pistol and all. Saves belong to the browser that made
+them.
 
 Things to try: put the pistol in the bag and try to raise it (nothing to raise), drag it back into your hand (it comes up); swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
 and watch the ring disappear behind it until you stand; walk the cover line and

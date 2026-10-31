@@ -81,6 +81,13 @@ export interface RigBinding {
     markers: Markers;
     /** Where a tail's tip is, for a tail chain. */
     tail?: Vec3 | null;
+    /** Where the tail starts (its first joint), if not the back of the pelvis. */
+    tailBase?: Vec3 | null;
+    /**
+     * Joints moved by hand after the fit (a thumb, a toe, a shoulder): name →
+     * where it is, in the mesh's frame. They win over where the fit put them.
+     */
+    joints?: Record<string, Vec3>;
 }
 export declare const STRAND_DEFAULTS: Omit<StrandSpringRecipe, 'anchor'>;
 /** A strand's direction as a unit vector, in the character's frame. */

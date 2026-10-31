@@ -445,7 +445,10 @@ export async function humanBodyMaker(
   }
   const morph = async (v: Partial<MacroBody>) => {
     const body = { ...DEFAULT_HUMAN_BODY, ...v } as MacroBody
-    const full = await morphHuman(pack, macroWeights(body, (n) => pack.has(n)))
+    const full = await morphHuman(
+      pack,
+      macroWeights(body, (n) => pack.has(n))
+    )
     const rig = humanRig(pack.manifest, full, undefined, {
       triangles: pack.triangles,
     })

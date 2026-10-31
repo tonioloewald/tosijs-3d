@@ -12,13 +12,14 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-## 0.11.5
+## 0.11.6
 
-The latest release. The character creator gets dressed: MakeHuman's clothes on any body shape, the Tailor for cutting your own (skirts and robes too, out to Blender and back), faces that move, and hair, skin and cloth shading. [Read 0.11.5](/v0.11.5/).
+The latest release. The character leaves the builder: any body (MakeHuman's, Blender's, Quaternius' or your own mesh) rigged, dressed and tailored the same way; a character file that carries its body; `makeCharacter`, and `<tosi-b3d-biped character>` to walk it in a game; a material picker. [Read 0.11.6](/v0.11.6/).
 
 ## Every version
 
 <!-- toc -->
+- [0.11.6](/v0.11.6/)
 - [0.11.5](/v0.11.5/)
 - [0.11.4](/v0.11.4/)
 - [0.11.3](/v0.11.3/)

@@ -1323,6 +1323,9 @@ export class B3dLauncher extends AbstractMesh {
         this._stopLoad?.();
         this._stopLoad = null;
         this._muzzleNode = null;
+        // Moved to another holder (a new hero) it comes back as a placeholder
+        // box: load the model again there, or the box is what it fires from.
+        this._libLoaded = false;
         if (this._tick != null) {
             this.owner?.scene.onBeforeRenderObservable.remove(this._tick);
             this._tick = undefined;

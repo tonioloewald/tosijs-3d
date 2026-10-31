@@ -25,6 +25,22 @@ export interface MeshQuery {
      * they are separate only from above.
      */
     fromAbove?(): MeshQuery;
+    /**
+     * The same mesh turned `angle` radians about the Z axis through
+     * (`cx`, `cy`) (positive turns +X toward +Y). How a hanging hand is read:
+     * turned level, palm-in becomes palm-down.
+     */
+    turnedAboutZ?(angle: number, cx: number, cy: number, crop?: HandCrop): MeshQuery;
+}
+/**
+ * Only the part of a mesh beyond a point along a direction (in the front
+ * view), within `radius` of it, and joined to it there: a hand on its own,
+ * without the thigh it hangs beside.
+ */
+export interface HandCrop {
+    from: Vec3;
+    along: Point2;
+    radius: number;
 }
 /**
  * A mesh you can ask how deep it is, from a triangle soup (positions xyz,
@@ -63,6 +79,8 @@ export interface FitOptions {
      */
     tail?: Vec3;
     tailBones?: number;
+    /** Where the tail starts (its first joint), if not the back of the pelvis. */
+    tailStart?: Vec3;
 }
 export declare function fitSkeleton(markers: Markers, mesh: MeshQuery, options?: FitOptions): FittedRig;
 /**

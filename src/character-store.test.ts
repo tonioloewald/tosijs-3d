@@ -10,16 +10,23 @@ describe('a character stored apart from its bytes', () => {
     tailor: [],
     garments: { cape: new Uint8Array([1, 2, 3]) },
     bodies: {
-      'weasel.obj': { file: { name: 'weasel.obj', bytes: new Uint8Array([9, 8, 7, 6]) } },
+      'weasel.obj': {
+        file: { name: 'weasel.obj', bytes: new Uint8Array([9, 8, 7, 6]) },
+      },
       'Blender: male': { url: 'https://example.com/male.glb' },
     },
   })
 
   test('the bytes come out, and go back the same', () => {
     const { doc: bare, blobs } = splitBlobs(doc)
-    expect(Object.keys(blobs).sort()).toEqual(['bodies/weasel.obj', 'garments/cape'])
+    expect(Object.keys(blobs).sort()).toEqual([
+      'bodies/weasel.obj',
+      'garments/cape',
+    ])
     expect(JSON.stringify(bare)).not.toContain(doc.bodies!['weasel.obj'].data!)
-    expect(bare.bodies!['Blender: male'].url).toBe('https://example.com/male.glb')
+    expect(bare.bodies!['Blender: male'].url).toBe(
+      'https://example.com/male.glb'
+    )
     expect(joinBlobs(bare, blobs)).toEqual(doc)
   })
 

@@ -351,7 +351,9 @@ function buildSvgIcon(
     if (!svg.style.stroke)
       svg.style.stroke = varDefault.tosiIconStroke('currentColor')
     if (!svg.style.fill)
-      svg.style.fill = varDefault.tosiIconKnockout(varDefault.w3dButtonBg('#2a2f3a'))
+      svg.style.fill = varDefault.tosiIconKnockout(
+        varDefault.w3dButtonBg('#2a2f3a')
+      )
     if (!svg.style.strokeWidth)
       svg.style.strokeWidth = varDefault.tosiIconStrokeWidth('2px')
   } else if (classes.has('filled')) {

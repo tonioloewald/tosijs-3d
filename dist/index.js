@@ -21,7 +21,7 @@ export { WorldView, defaultMeshFactory } from './world-view.js';
 export { proximityRung, rungNominal, routePortals, containmentPath, } from './world-topology.js';
 export { runMinSimConformance } from './min-sim-conformance.js';
 // Utilities
-export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, publicName, isIgnored, placeOnSurface, boundingBottomOffset, hierarchyExtents, sceneDelta, sceneFrame, 
+export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, materialConventions, publicName, isIgnored, placeOnSurface, boundingBottomOffset, hierarchyExtents, sceneDelta, sceneFrame, 
 // Documented API that was reachable only by a deep import — which `exports`
 // (a bare string) blocks with ERR_PACKAGE_PATH_NOT_EXPORTED. `isNoCollide`'s
 // shipped JSDoc instructs consumers to call it, and CLAUDE.md tells them to
@@ -154,6 +154,9 @@ export { color3d } from './color-field.js';
 export { terrainEditor3d } from './terrain-editor.js';
 export { colorPicker3d, } from './color-picker.js';
 export { COLOR_PRESETS, SWATCH_KEY, presetList, presetCells, createSwatchStore, sharedSwatches, } from './color-presets.js';
+export { materialPicker3d, } from './material-picker.js';
+export { PBR_MATERIAL, CLOTH_MATERIAL, MATERIAL_COLLECTIONS, materialAsType, applyMaterialPreset, isMaterialPreset, registerMaterialType, materialType, materialTypes, resolveMaterial, resolveInput, writeInput, withInput, canonicalMaterial, materialSwatch, materialRecipeSchema, validateMaterial, } from './material-recipe.js';
+export { applyMaterial } from './material-apply.js';
 // Manipulator — pure maths, the Babylon handles, and the element that wires them
 export { NO_TRANSFORMS, RING_BASIS, WORLD_FRAME, noTransforms, otherAxes, axisVector, axisComponent, axisClosestApproach, angleAboutAxis, rayPlanePoint, rayPerpendicularDistance, snap, snapVec3, normaliseDegrees, scaleFactor, beginDrag, updateDrag, commitTransform, dragChanged, } from './manipulator.js';
 export { createHandles, composeRotation, axisFrameOf, HANDLE_TAG, DRAWN_TAG, NEAR_RADIUS, } from './manipulator-view.js';
@@ -462,7 +465,12 @@ export { applyRigRecipe } from './rig-recipe-babylon.js';
 export { fitSkeleton, fittedRestBones, meshQuery, objTriangles, skinSegments, MARKER_NAMES, rigSilhouette, guessMarkers, } from './rig-fit.js';
 export { markerField3d, MARKER_LABELS } from './rig-markers.js';
 export { boneHeat } from './bone-heat.js';
-export { buildRig } from './rig-build.js';
+export { buildRig, buildBody, gatherTriangles, loadRigTriangles, autoRig, } from './rig-build.js';
+export { bodyFromMarkers } from './rigged-body.js';
+export { isEyeName, splitEyes, eyeCentre, eyeUvs, lidBlink, } from './rigged-body.js';
+export { mountTailorTool } from './tailor-tool.js';
+export { chooseFile } from './choose-file.js';
+export { loadSkinnedBody, soleVertices, lowestOf, surfaceMaterial, } from './rig-build.js';
 export { loadHumanPack, decodeHumanTarget } from './human-pack.js';
 export { fitProxy, drawnPositions, proxyWeights, nearestWeights, coveredTriangles, underCover, inflate, proxyDelta, coveredBy, smoothUnder, } from './proxy-fit.js';
 export { humanProxy, proxyMaterial, coverBody } from './human-proxy.js';
@@ -471,8 +479,10 @@ export { outlineField3d } from './outline-field.js';
 export { bindGarment, closestOnTriangle } from './garment-bind.js';
 export { writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, referenceName, metaFromName, unwrapGarment, } from './garment-file.js';
 export { unwrapUvs, carryUnwrapped } from './uv-unwrap.js';
+export { writeCharacter, readCharacter, CHARACTER_FORMAT, CHARACTER_VERSION, } from './character-file.js';
+export { characterStore, splitBlobs, joinBlobs, CHARACTER_DB, WORKING_CHARACTER, } from './character-store.js';
 export { rigidGroups, similarityFit, applyRigid, rigidWeights, rigidDelta, } from './proxy-rigid.js';
-export { clothShading, FABRICS } from './cloth-shading.js';
+export { clothShading, clothRecipe, FABRICS } from './cloth-shading.js';
 export { faceDeltas, humanExpressions, blinker, lidsFollow, lipSync, babble, VISEMES, UNITS as FACE_POSE_UNITS, FACE_UNITS, } from './human-expression.js';
 export { studioEnvironment } from './environment.js';
 export { DEFAULT_HUMAN_BODY, macroWeights, morphHuman, addHumanTarget, humanJoint, humanHeight, genderCorners, ageCorners, ageYears, ancestryCorners, } from './human-morph.js';
@@ -482,9 +492,10 @@ export { MONK_TONES, skinLinear, skinColor, skinAlbedo, lipAlbedo, IRIS_TONES, i
 export { loadHairLibrary, headScalp, hairMaterial, humanHair, placeHair, QUATERNIUS_HEADS, } from './human-hair.js';
 export { hairShading, HairShadingPlugin, HAIR_COLOURS } from './hair-shading.js';
 export { fitToScalp, applyFit, conformOutside, vertexNormals, headRegion, shellWarp, applyWarp, skinGaps, keepHeight, headRegionIndices, } from './hair-fit.js';
-export { humanFace, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, HM08_EYE_UV, } from './human-face.js';
-export { humanRig, humanSkin, stiffenHead, armsOffTorso, HM08_UAL, } from './human-rig.js';
+export { humanFace, bodyEyes, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, HM08_EYE_UV, } from './human-face.js';
+export { humanRig, humanSkin, stiffenHead, armsOffTorso, humanBodyMaker, HM08_UAL, } from './human-rig.js';
 export { springChain, stepSpringChain, resetSpringChain, shiftSpringChain, SPRING_DEFAULTS, } from './spring-chain.js';
 export { springBones, springNodes } from './spring-chain-babylon.js';
 export { realNow, wallMs, wallDate } from './clock.js';
+export { makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, } from './character.js';
 //# sourceMappingURL=index.js.map

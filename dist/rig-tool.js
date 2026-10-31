@@ -17,56 +17,63 @@ preview.append(rigTool())
 
 ## Using it
 
-It opens standing still in its REST pose (a T or an A), with a dot on the
-bone each role uses: tap a dot to choose that role (it turns yellow), then
-tap the body where that bone is to give the role to it. A tap on the body
-does nothing until a dot has been chosen, and only the first one counts, so
-orbiting on a phone cannot reassign a bone. Set `clicking sets` to the chain
-and that tap hangs the chosen spring chain there instead. A
-strand's path is a row of orange handles: drag them along the tail or the
-ponytail, `+ point` for another one beyond the tip. `view` snaps to a
-face (front, back, left, right, top, bottom), which is how you line a point
-up with the flesh, and stands it still; `free` orbits and plays the clip.
-Turn on `animate` (or pick a clip) to see it move. In a headset you are the
-camera, so the view only switches between still and playing.
+It opens standing still in its REST pose (a T or an A), in the front view.
+A mesh with no skeleton of its own (an OBJ, or a GLB without one, like the
+weasels and the space marine) gets UAL's fitted to it from eight red
+**markers** on its body, Mixamo's way: drag each onto its joint (chin,
+groin, elbows, wrists, knees). They start where they are guessed from the
+outline. A model with a skeleton of its own shows a dot on the bone each
+**role** uses instead: tap a dot (it turns yellow), then the body where that
+bone is.
 
-The panel has these sections.
+`view` snaps to a face (front, back, left, right, top, bottom), which is how
+you line a marker, joint or handle up with the flesh, and stands it still;
+`free` orbits. Turn on `animate` (or pick a clip) to see it move: a mesh
+whose markers or joints moved is bound to them again then (binding takes a
+second or two and shows nothing at rest). In a headset you are the camera,
+so the view only switches between still and playing.
 
+The panel has these sections, its job first.
+
+- **Markers**, for a mesh bound from them. `symmetry` moves both sides
+  together; `tail` adds a tail (place its tip from the side view; it is a
+  bone chain, `tail_01` on, for a spring); `guess markers` starts again from
+  the outline. The joints follow the markers. `move joints` shows every
+  joint (blue) to drag by hand from the view that suits: shoulders from the
+  front, fingers and thumbs from the top, feet from the side. What hangs from
+  a joint comes with it; set `dragging` to turn what hangs from it instead
+  (a hand or foot at an angle). Markers and moved joints are saved in the
+  recipe as `binding`.
+- **Roles**, for a model on its own skeleton: which bone is the hips, the
+  head, the left forearm, each finger joint. They are guessed from the
+  names; fix one by tapping, as above, or pick a role and then the bone that
+  plays it, or `(none)` to leave it out. Set `clicking sets` to the chain and
+  a tap hangs the chosen spring chain there instead.
+- **Motion.** `animate` and the clip; `arm space` turns the arms out from
+  the body, for a character whose arms are long for its height;
+  `load animations…` adds the clips in a GLB made on another rig to the
+  list: Mixamo's, a mocap file's, another library's. Which bone is which is
+  read from the names (UE, Mixamo, Kenney and Blender spellings), so each
+  clip is retargeted onto the character, and onto the mannequin to compare.
+  Mixamo downloads are FBX, which a browser cannot read: import them into
+  Blender and export a GLB (with the skin).
+- **View.** `view`; `mannequin` shows UAL's mannequin (a ghost) playing the
+  original beside it; `bones` draws the skeleton.
 - **Model.** A demo character, or `load model file…` for a GLB or OBJ of
   your own (a single file: a `.gltf` with separate buffers cannot be opened
-  this way). It should face +Z, standing, arms out or down.
-- **Animations.** `load animations…` adds the clips in a GLB made on
-  another rig to the clip list: Mixamo's, a mocap file's, another library's.
-  Which bone is which is read from the names (UE, Mixamo, Kenney and Blender
-  spellings), so each clip is retargeted onto the character, and onto the
-  mannequin to compare. Mixamo downloads are FBX, which a browser cannot
-  read: import them into Blender and export a GLB (with the skin).
-- **Binding**, for a model with no skeleton (an OBJ, or a GLB without one,
-  like the weasels and the space marine). It is given one: the eight
-  markers on its outline place the joints (chin, groin, wrists, elbows,
-  knees), a skeleton is fitted to them and the mesh is bound to it by bone
-  heat. They start where they are guessed from the outline; drag one onto
-  its joint and the model is fitted and bound again when you let go.
-  `symmetry` moves both sides together, `tail` adds a tail (place its tip in
-  the side view; it is a bone chain, `tail_01` on, for a spring). The
-  markers are saved in the recipe as `binding`.
-- **Roles.** Which bone is the hips, the head, the left forearm, each finger
-  joint. They are guessed from the names; fix one by tapping, as above, or
-  pick a role and then the bone that plays it, or `(none)` to leave it out. `arm space` turns the arms out
-  from the body, for a character whose arms are long for its height.
+  this way). It should face +Z, standing, arms out or down. A model with a
+  skeleton of its own can `use its own skeleton`, or be bound from markers
+  like any mesh.
 - **Springs.** `+ strand` hangs a new chain with a tube from a bone (a
-  ponytail): lay out its path with the handles (add points for a curve),
-  choose how many `links` it has (they are spaced evenly along the path),
-  size it, and tune how it swings. A straight one can also be set by
-  `offset`, `yaw`, `pitch` and `length`. `+ bone chain` simulates bones the model already has (a
-  tail): pick the chain's first bone. Stiffness and damping change live;
-  the rest rebuild the chain.
+  ponytail): lay out its path with the orange handles (`+ point` for another
+  beyond the tip), choose how many `links` it has (they are spaced evenly
+  along the path), size it, and tune how it swings. A straight one can also
+  be set by `offset`, `yaw`, `pitch` and `length`. `+ bone chain` simulates
+  bones the model already has (a tail): pick the chain's first bone.
+  Stiffness and damping change live; the rest rebuild the chain.
 - **Recipe.** `save` downloads the recipe as JSON, `load` reads one back,
   `copy` puts it on the clipboard. The working recipe is also kept in this
   browser, per model, so a reload does not lose it.
-
-Pick a clip at the top. `mannequin` shows UAL's mannequin (a ghost) playing the
-original beside it; `bones` draws the skeleton.
 
 ## A recipe in a game
 
@@ -122,9 +129,26 @@ tool.unmount() // everything it added goes; safe to call twice
   limits. Without a camera it brings its own and puts the active one back.
 - `tool.api` is the same API as the page's `.rig`; setting `api.recipe`
   applies it without echoing a `change`.
+
+**Rigging one body for a host** (the [character builder](/character-builder/)
+does this): give it `handleDone` and the panel has **done** and **cancel**
+at its top. Done unmounts the tool and hands the callback the rig: the
+`recipe`, and the `body` bound from its markers (a
+[rigged body](/rigged-body/), ready for `buildBody` and `applyRigRecipe`).
+
+```javascript
+mountRigTool(scene, {
+  models: [{ label: 'body', url: '/body.glb' }],
+  recipe: { version: 1, binding }, // bind from these markers
+  files: false,
+  handleDone: ({ recipe, body }) => wear(body, recipe),
+  handleCancel: () => {},
+})
+```
 */
 /*{ "parent": "demos", "order": 35 }*/
 import * as BABYLON from '@babylonjs/core';
+import { chooseFile } from './choose-file.js';
 import { b3d } from './tosi-b3d.js';
 import { b3dLight } from './b3d-light.js';
 import { b3dSun } from './b3d-shadows.js';
@@ -133,15 +157,14 @@ import { button3d, label3d, panel3d, row3d, select3d, slider3d, toggle3d, } from
 import { vector3d } from './vector-field.js';
 import { pointerClaimedByPanel } from './frame-panel.js';
 import { touchOrbit } from './touch-orbit.js';
-import { inspectView, inspectStage, seamOverlay, INSPECT_FACES, } from './inspect-view.js';
+import { inspectView, inspectStage, seamOverlay, } from './inspect-view.js';
 import { viewMenu } from './bar-menu.js';
 import { b3dPanel } from './b3d-panel.js';
 import { readSkeleton, retargetClip, } from './retarget-babylon.js';
 import { ROLES } from './retarget.js';
-import { fitSkeleton, guessMarkers, meshQuery, objTriangles, rigSilhouette, skinSegments, } from './rig-fit.js';
-import { markerField3d } from './rig-markers.js';
-import { boneHeat } from './bone-heat.js';
-import { buildRig } from './rig-build.js';
+import { fitSkeleton, guessMarkers, meshQuery, objTriangles, rigSilhouette, } from './rig-fit.js';
+import { buildBody, gatherTriangles as gather, soleVertices, lowestOf, } from './rig-build.js';
+import { bodyFromMarkers } from './rigged-body.js';
 import { applyRigRecipe } from './rig-recipe-babylon.js';
 import { RIG_RECIPE_VERSION, STRAND_DEFAULTS, validateRigRecipe, strandPath, setStrandPath, pathLength, } from './rig-recipe.js';
 /** Mixamo's eight front-view markers, given for the left and mirrored. */
@@ -167,7 +190,7 @@ const TAIL = {
     kind: 'bones',
     name: 'tail',
     root: 'tail_01',
-    params: { stiffness: 0.6, damping: 0.85, gravity: 9.8 },
+    params: { stiffness: 0.3, damping: 0.85, gravity: 9.8 },
     colliders: 'none',
 };
 export function rigToolModels() {
@@ -264,16 +287,6 @@ function recall(key) {
         return null;
     }
 }
-function chooseFile(accept) {
-    return new Promise((resolve) => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = accept;
-        input.addEventListener('change', () => resolve(input.files?.[0] ?? null));
-        input.addEventListener('cancel', () => resolve(null));
-        input.click();
-    });
-}
 function download(name, text) {
     const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
     const a = document.createElement('a');
@@ -283,52 +296,13 @@ function download(name, text) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 /** A GLB with a skeleton: the character in it (`pick`), and its biggest skin. */
-/**
- * Meshes' triangles in the frame of the file's root (a glTF's `__root__`
- * carries the handedness mirror, which the binding must not see).
- */
-function gather(root, meshes) {
-    root.computeWorldMatrix(true);
-    const toRoot = root.getWorldMatrix().clone().invert();
-    const positions = [];
-    const indices = [];
-    const v = new BABYLON.Vector3();
-    for (const mesh of meshes) {
-        /*
-        A SKINNED MESH IS WHERE ITS SKELETON PUTS IT: its own vertices can be in
-        other units (omnidude's are centimetres, sized by the armature), so take
-        them skinned, at rest.
-        */
-        const skin = mesh.skeleton;
-        if (skin != null) {
-            skin.returnToRest();
-            for (const b of skin.bones)
-                b.getTransformNode()?.computeWorldMatrix(true);
-            skin.prepare(true);
-        }
-        const p = skin != null
-            ? mesh.getPositionData(true, true)
-            : mesh.getVerticesData('position');
-        const ix = mesh.getIndices();
-        if (p == null || ix == null)
-            continue;
-        const m = mesh.computeWorldMatrix(true).multiply(toRoot);
-        const base = positions.length / 3;
-        for (let i = 0; i < p.length; i += 3) {
-            BABYLON.Vector3.TransformCoordinatesFromFloatsToRef(p[i], p[i + 1], p[i + 2], m, v);
-            positions.push(v.x, v.y, v.z);
-        }
-        for (const i of ix)
-            indices.push(base + i);
-    }
-    return { positions, indices };
-}
 async function openGlb(scene, m, 
 /** Its triangles even if it has a skeleton: it is to be bound here. */
 bindOwn = false) {
-    const container = await BABYLON.LoadAssetContainerAsync(m instanceof File ? m : m.url, scene, m instanceof File
+    const file = m instanceof File ? m : m.file;
+    const container = await BABYLON.LoadAssetContainerAsync(file ?? m.url, scene, file != null
         ? {
-            pluginExtension: m.name.toLowerCase().endsWith('.gltf')
+            pluginExtension: file.name.toLowerCase().endsWith('.gltf')
                 ? '.gltf'
                 : '.glb',
         }
@@ -361,7 +335,10 @@ bindOwn = false) {
             (top == null || n === top || n.isDescendantOf(top)));
         const tris = gather(root, shown);
         container.dispose();
-        return tris.indices.length > 0 ? tris : 'has no meshes';
+        // Whether it had a skeleton of its own (then it can go back to it).
+        return tris.indices.length > 0
+            ? { ...tris, ownSkeleton: skeleton != null }
+            : 'has no meshes';
     }
     const mesh = container.meshes.find((n) => n.skeleton === skeleton && n.isEnabled());
     return { root, skeleton, mesh, dispose: () => container.dispose() };
@@ -387,12 +364,15 @@ weights, and a Babylon skeleton built on it. Its tail, if any, is `tail_01`
 */
 function bindMesh(scene, name, tris, binding, options = {}) {
     const { positions, indices } = tris;
-    const rig = fitSkeleton(binding.markers, meshQuery(positions, indices), {
-        tail: binding.tail ?? undefined,
+    // A rigged body (rigged-body), as MakeHuman's are: one shape for both.
+    const body = bodyFromMarkers(tris, {
+        markers: binding.markers,
+        tail: binding.tail,
+        tailBase: binding.tailBase,
+        joints: binding.joints,
         tailBones: options.tailBones,
     });
-    const weights = boneHeat(positions, indices, skinSegments(rig));
-    const built = buildRig(scene, name, positions, indices, rig, weights);
+    const built = buildBody(scene, name, body);
     const mat = new BABYLON.StandardMaterial(`${name}-skin`, scene);
     mat.diffuseColor = BABYLON.Color3.FromHexString(options.color ?? '#8a8f99');
     built.mesh.material = mat;
@@ -400,13 +380,40 @@ function bindMesh(scene, name, tris, binding, options = {}) {
         root: built.root,
         skeleton: built.skeleton,
         mesh: built.mesh,
-        bound: { positions, indices, markers: binding.markers, tail: binding.tail },
+        bound: {
+            positions,
+            indices,
+            markers: binding.markers,
+            tail: binding.tail,
+            tailBase: binding.tailBase,
+            joints: binding.joints,
+        },
+        body,
         dispose() {
             mat.dispose();
             built.dispose();
         },
     };
 }
+/*
+A MARKER IS A JOINT (Tonio): each is drawn on the joint it places and moves
+it. The chin, elbows, wrists and knees sit where their joints are; the groin
+is the crotch and the pelvis a little above it, so it is drawn at the pelvis
+and converted back by that offset. The tail's base and tip are its first
+joint and its end.
+*/
+const MARKER_JOINT = {
+    chin: 'Head',
+    groin: 'pelvis',
+    tailBase: 'tail_01',
+    tail: 'tail_leaf',
+    wristL: 'hand_l',
+    wristR: 'hand_r',
+    elbowL: 'lowerarm_l',
+    elbowR: 'lowerarm_r',
+    kneeL: 'calf_l',
+    kneeR: 'calf_r',
+};
 /** The panel's view of a role: what it is set to, and what was guessed. */
 const roleLabel = (r) => r.replace(/^l-/, 'left ').replace(/^r-/, 'right ');
 /**
@@ -448,6 +455,10 @@ export function mountRigTool(owner, options = {}) {
         /** Snapped to a view (orthographic), or `free` to orbit. */
         /** The rest pose opens on the front, orthographic; animating orbits. */
         view: 'front',
+        /** Show every joint of a mesh bound from markers, to move by hand. */
+        joints: false,
+        /** Dragging a joint moves it (and what hangs from it) or turns what hangs from it. */
+        jointDrag: 'move',
     };
     let recipe = fresh(given ?? {});
     let clips = [];
@@ -458,6 +469,133 @@ export function mountRigTool(owner, options = {}) {
     let symmetry = true;
     /** Bind the next model loaded from markers, even if it has a skeleton. */
     let bindNext = false;
+    /** The model as a rigged body, when it was bound here from markers. */
+    let body = null;
+    /** The model loaded has a skeleton of its own (it may use it or not). */
+    let hasOwnSkeleton = false;
+    /*
+    THE JOINTS FOLLOW THE MARKERS. Fitting the skeleton is quick; binding the
+    skin is what takes the time. So the joints are fitted again from the
+    markers as they are now (and the joints moved by hand put where they were
+    moved), and drawn from that, while the binding waits for animate or done.
+    */
+    let query = null;
+    let queryOf = null;
+    function fittedJoints(from = bound, withMoved = true) {
+        if (from == null)
+            return null;
+        if (queryOf !== from.positions) {
+            query = meshQuery(from.positions, from.indices);
+            queryOf = from.positions;
+        }
+        try {
+            const rig = fitSkeleton(from.markers, query, {
+                tail: from.tail ?? undefined,
+                tailStart: from.tail != null ? from.tailBase ?? undefined : undefined,
+            });
+            parents = new Map(rig.joints.map((j) => [j.name, j.parent]));
+            const out = new Map(rig.joints.map((j) => [j.name, j.position]));
+            if (withMoved)
+                for (const [n, p] of Object.entries(from.joints ?? {}))
+                    out.set(n, p);
+            return out;
+        }
+        catch {
+            return null;
+        }
+    }
+    /** Each fitted joint's parent (from the last fit). */
+    let parents = new Map();
+    const markerJoints = new Set(Object.values(MARKER_JOINT));
+    /** The marker joint a joint hangs from (itself if it is one), or null. */
+    const markerAbove = (name) => {
+        for (let n = name; n != null; n = parents.get(n))
+            if (markerJoints.has(n))
+                return n;
+        return null;
+    };
+    /*
+    MOVED, NOT YET BOUND. Binding takes a second or two and shows nothing in
+    the rest pose, so moving a marker only moves it (Tonio); the mesh is bound
+    again when you look (animate) or finish (done).
+    */
+    let stale = false;
+    /** The model loaded now (what `done` hands back). */
+    let loadedModel = null;
+    function setMarkers(markers, tail, tailBase = tail != null ? bound?.tailBase ?? null : null) {
+        /*
+        What hangs from a marker comes with it: a joint moved by hand below one
+        (a finger under the wrist) moves as far as the marker's joint did, and a
+        marker's own joint is the marker's, so no hand-moved copy of it stays.
+        */
+        const before = fittedJoints(bound, false);
+        const next = bound != null ? { ...bound, markers, tail, tailBase } : null;
+        const after = fittedJoints(next, false);
+        const joints = {};
+        for (const [n, p] of Object.entries(recipe.binding?.joints ?? {})) {
+            if (markerJoints.has(n))
+                continue;
+            const m = markerAbove(n);
+            const a = m != null ? before?.get(m) : undefined;
+            const b = m != null ? after?.get(m) : undefined;
+            joints[n] =
+                a && b
+                    ? { x: p.x + b.x - a.x, y: p.y + b.y - a.y, z: p.z + b.z - a.z }
+                    : p;
+        }
+        const moved = Object.keys(joints).length ? { joints } : {};
+        recipe.binding = {
+            markers,
+            tail,
+            ...(tailBase ? { tailBase } : {}),
+            ...moved,
+        };
+        if (next != null)
+            bound = {
+                ...next,
+                joints: Object.keys(joints).length ? joints : undefined,
+            };
+        stale = true;
+        ui.status = 'bound again when you animate or press done';
+        edited();
+        commitNow();
+        refresh();
+        tool?.targets();
+    }
+    // A joint moved by hand (a thumb, a toe, a shoulder): kept in the binding.
+    function setJoints(name, moved) {
+        if (bound == null)
+            return;
+        const binding = recipe.binding ?? {
+            markers: bound.markers,
+            tail: bound.tail ?? null,
+        };
+        binding.joints = { ...(binding.joints ?? {}), ...moved };
+        recipe.binding = binding;
+        bound = { ...bound, joints: binding.joints };
+        stale = true;
+        ui.status = `${name} moved: bound again when you animate or press done`;
+        edited();
+        commitNow();
+        refresh();
+        tool?.targets();
+    }
+    async function bindIfMoved() {
+        if (!stale)
+            return;
+        stale = false;
+        ui.status = 'binding…';
+        refresh();
+        await tool?.rebind();
+    }
+    // Animate: bound first if a marker moved.
+    function animate() {
+        if (ui.pose === 'animate' && stale)
+            void bindIfMoved().then(() => tool?.play());
+        else
+            tool?.play();
+        refresh();
+    }
     /*
     THE PANEL. Standalone it is the scene's settings panel (the owl); hosted, a
     system panel of its own, so it stacks with the host's (ensemble #115). A
@@ -519,193 +657,186 @@ export function mountRigTool(owner, options = {}) {
     };
     const current = () => recipe.springs?.[ui.spring];
     const panel = () => {
+        /*
+        THE PANEL, its job first. Finished (or abandoned) at the top when a host
+        opened it for one job, then what it is doing; then the markers (a mesh
+        bound from them) or the roles (a model on its own skeleton), which are
+        the work; then how it moves, how it is seen, which model, its springs
+        and its recipe.
+        */
         const w = [
-            toggle3d({
-                label: 'animate',
-                value: ui.pose === 'animate',
-                handleChange: (v) => {
-                    ui.pose = v ? 'animate' : 'rest';
-                    tool?.play();
-                    refresh();
-                },
-            }),
-            select3d({
-                label: 'clip',
-                value: ui.clip,
-                options: clips.length ? clips : [ui.clip],
-                handleChange: (v) => {
-                    ui.clip = String(v);
-                    ui.pose = 'animate';
-                    tool?.play();
-                    refresh();
-                },
-            }),
-            ...(ui.pose === 'rest'
+            ...(options.handleDone != null || options.handleCancel != null
                 ? [
-                    select3d({
-                        label: 'clicking sets',
-                        value: ui.clickSets,
-                        options: [
-                            { label: "the role's bone", value: 'role' },
-                            { label: "the chain's bone", value: 'chain' },
-                        ],
-                        handleChange: (v) => {
-                            ui.clickSets = v;
-                            ui.armed = true;
-                            refresh();
-                        },
-                    }),
-                    label3d({
-                        text: !ui.armed
-                            ? 'tap a dot, then its bone'
-                            : ui.clickSets === 'role'
-                                ? `now tap the ${roleLabel(ui.role)}'s bone`
-                                : 'now tap where the chain hangs from',
-                        muted: true,
-                        compact: true,
-                    }),
+                    row3d({}, button3d({ label: 'cancel', handleClick: () => finish(false) }), button3d({ label: 'done', handleClick: () => finish(true) })),
                 ]
                 : []),
-            toggle3d({
-                label: 'mannequin',
-                value: ui.compare,
-                handleChange: (v) => tool?.compare((ui.compare = v)),
-            }),
-            toggle3d({
-                label: 'bones',
-                value: ui.bones,
-                handleChange: (v) => tool?.bones((ui.bones = v)),
-            }),
-            select3d({
-                label: 'view',
-                value: ui.view,
-                options: [...INSPECT_FACES, 'free'],
-                handleChange: (v) => tool?.view((ui.view = v)),
-            }),
             label3d({ text: ui.status, muted: true, compact: true }),
-            label3d({ text: 'Model', collapsible: true, open: true }),
-            select3d({
-                label: 'model',
-                value: ui.model,
-                options: [...new Set([...models.map((m) => m.label), ui.model])],
-                handleChange: (v) => {
-                    const m = models.find((m) => m.label === v);
-                    if (m)
-                        void tool?.load(m);
-                },
-            }),
-            // A model with a skeleton of its own (or one the user chose to bind
-            // here): a demo mesh bound from its built-in markers has no choice.
-            ...(applied == null || (bound != null && recipe.binding == null)
-                ? []
-                : [
-                    toggle3d({
-                        label: 'bind from markers',
-                        value: recipe.binding != null,
-                        handleChange: (v) => {
-                            /*
-                            IGNORE ITS OWN RIG AND BIND IT HERE. Any mesh can be bound
-                            from markers, so a model whose skeleton is wrong or missing
-                            bones gets one fitted to it. Its roles and chains named the
-                            old skeleton's bones, so they go with it.
-                            */
-                            if (v)
-                                bindNext = true;
-                            else
-                                delete recipe.binding;
-                            recipe.roles = {};
-                            recipe.springs = (recipe.springs ?? []).filter((s) => s.kind === 'strand');
-                            edited();
-                            ui.status = v ? 'binding…' : 'loading its own rig…';
-                            refresh();
-                            void tool?.rebind();
-                        },
-                    }),
-                ]),
-            button3d({
-                label: 'load model file…',
-                handleClick: () => void chooseFile('.glb,.gltf,.obj').then((f) => f && tool?.load(f)),
-            }),
-            button3d({
-                label: 'load animations…',
-                handleClick: () => void chooseFile('.glb,.gltf').then((f) => f && tool?.loadClips(f)),
-            }),
         ];
-        /*
-        BINDING, for a mesh that came without a skeleton: drag the markers onto
-        its joints (chin, groin, wrists, elbows, knees) and it is fitted and bound
-        again on release. The markers are saved with the recipe.
-        */
         if (bound != null) {
+            /*
+            MARKERS, on the body: drag them onto its joints; the joints follow, and
+            the mesh is bound again when you animate or press done. Its bones are
+            UAL's by name, so there are no roles to set.
+            */
             const b = bound;
-            const rebind = (markers, tail) => {
-                recipe.binding = { markers, tail };
-                edited();
-                ui.status = 'binding…';
-                refresh();
-                void tool?.rebind();
-            };
-            const field = markerField3d({
-                positions: b.positions,
-                indices: b.indices,
-                value: b.markers,
-                tail: b.tail,
-                symmetry,
-                handleCommit: rebind,
-            });
-            w.push(label3d({ text: 'Binding', collapsible: true, open: true }), field, toggle3d({
+            w.push(label3d({ text: 'Markers', collapsible: true, open: true }), label3d({
+                text: 'drag the red markers onto the joints',
+                muted: true,
+                compact: true,
+            }), toggle3d({
                 label: 'symmetry',
                 value: symmetry,
                 handleChange: (v) => {
-                    field.symmetry = symmetry = v;
+                    symmetry = v;
                 },
             }), toggle3d({
                 label: 'tail',
                 value: b.tail != null,
                 handleChange: (v) => {
-                    // A first tip: straight behind the groin, past the body's back.
-                    let back = 0;
-                    for (let i = 2; i < b.positions.length; i += 3)
-                        back = Math.min(back, b.positions[i]);
+                    /*
+                    A FIRST TIP at the mesh's furthest-back point: the end of a tail
+                    it has. Three times the back's depth put it far beyond a weasel
+                    whose mesh already has its tail (Tonio). A body with no tail in
+                    the mesh gets one a little behind its back, at the groin's height.
+                    */
+                    let back = Infinity;
+                    let backY = b.markers.groin.y;
+                    let lo = Infinity;
+                    let hi = -Infinity;
+                    for (let i = 0; i < b.positions.length; i += 3) {
+                        const y = b.positions[i + 1];
+                        lo = Math.min(lo, y);
+                        hi = Math.max(hi, y);
+                        if (b.positions[i + 2] < back) {
+                            back = b.positions[i + 2];
+                            backY = y;
+                        }
+                    }
+                    const tall = hi - lo || 1;
                     const g = b.markers.groin;
-                    rebind(b.markers, v ? { x: g.x, y: g.y, z: back * 3 } : null);
+                    const hasTail = back < -0.2 * tall;
+                    const tip = hasTail
+                        ? { x: 0, y: backY, z: back }
+                        : { x: g.x, y: g.y, z: back - 0.25 * tall };
+                    /*
+                    A TAIL SWINGS: its chain (tail_01 on, made when it is bound) gets
+                    its spring with it, and loses it with it. It took a third step
+                    nothing mentioned (Tonio: "I can't make the weasel's tail work").
+                    */
+                    const springs = (recipe.springs ?? []).filter((sp) => !(sp.kind === 'bones' && sp.root === 'tail_01'));
+                    if (v)
+                        springs.push(JSON.parse(JSON.stringify(TAIL)));
+                    recipe.springs = springs;
+                    ui.spring = Math.max(0, springs.length - 1);
+                    setMarkers(b.markers, v ? tip : null);
                 },
-            }), button3d({ label: 'guess markers', handleClick: () => field.guess() }));
+            }), button3d({
+                label: 'guess markers',
+                handleClick: () => setMarkers(guessMarkers(rigSilhouette(b.positions, b.indices, 'front')), b.tail ?? null),
+            }), toggle3d({
+                label: 'move joints',
+                value: ui.joints,
+                handleChange: (v) => {
+                    ui.joints = v;
+                    tool?.targets();
+                    refresh();
+                },
+            }), ...(ui.joints
+                ? [
+                    select3d({
+                        label: 'dragging',
+                        value: ui.jointDrag,
+                        options: [
+                            { label: 'moves the joint', value: 'move' },
+                            { label: 'turns what hangs from it', value: 'turn' },
+                        ],
+                        handleChange: (v) => {
+                            ui.jointDrag = v;
+                            refresh();
+                        },
+                    }),
+                    label3d({
+                        text: 'blue dots: fingers and thumbs from the top view, feet from the side',
+                        muted: true,
+                        compact: true,
+                    }),
+                ]
+                : []));
         }
-        // Roles.
-        const guessed = applied?.read.roles ?? {};
-        const set = recipe.roles?.[ui.role];
-        w.push(label3d({ text: 'Roles', collapsible: true, open: true }), select3d({
-            label: 'role',
-            value: ui.role,
-            options: ROLES.map((r) => ({
-                label: `${roleLabel(r)}${guessed[r] ? '' : ' –'}`,
-                value: r,
-            })),
+        else {
+            // ROLES, for a model on its own skeleton: which bone plays which part.
+            const guessed = applied?.read.roles ?? {};
+            const set = recipe.roles?.[ui.role];
+            w.push(label3d({ text: 'Roles', collapsible: true, open: true }), select3d({
+                label: 'clicking sets',
+                value: ui.clickSets,
+                options: [
+                    { label: "the role's bone", value: 'role' },
+                    { label: "the chain's bone", value: 'chain' },
+                ],
+                handleChange: (v) => {
+                    ui.clickSets = v;
+                    ui.armed = true;
+                    refresh();
+                },
+            }), label3d({
+                text: !ui.armed
+                    ? 'tap a dot, then its bone'
+                    : ui.clickSets === 'role'
+                        ? `now tap the ${roleLabel(ui.role)}'s bone`
+                        : 'now tap where the chain hangs from',
+                muted: true,
+                compact: true,
+            }), select3d({
+                label: 'role',
+                value: ui.role,
+                options: ROLES.map((r) => ({
+                    label: `${roleLabel(r)}${guessed[r] ? '' : ' –'}`,
+                    value: r,
+                })),
+                handleChange: (v) => {
+                    ui.role = v;
+                    ui.clickSets = 'role';
+                    ui.armed = true;
+                    tool?.targets();
+                    refresh();
+                },
+            }), select3d({
+                label: 'bone',
+                value: set == null ? GUESS : set === '' ? NONE : set,
+                options: [GUESS, NONE, ...boneNames],
+                handleChange: (v) => {
+                    const roles = (recipe.roles ??= {});
+                    if (v === GUESS)
+                        delete roles[ui.role];
+                    else
+                        roles[ui.role] = v === NONE ? '' : String(v);
+                    changed(true);
+                    refresh();
+                },
+            }), label3d({
+                text: `plays it: ${guessed[ui.role] ?? 'nothing'}`,
+                muted: true,
+                compact: true,
+            }));
+        }
+        // MOTION: the clips it plays, how they sit on it, and more of them.
+        w.push(label3d({ text: 'Motion', collapsible: true, open: true }), toggle3d({
+            label: 'animate',
+            value: ui.pose === 'animate',
             handleChange: (v) => {
-                ui.role = v;
-                ui.clickSets = 'role';
-                ui.armed = true;
-                tool?.targets();
-                refresh();
+                ui.pose = v ? 'animate' : 'rest';
+                animate();
             },
         }), select3d({
-            label: 'bone',
-            value: set == null ? GUESS : set === '' ? NONE : set,
-            options: [GUESS, NONE, ...boneNames],
+            label: 'clip',
+            value: ui.clip,
+            options: clips.length ? clips : [ui.clip],
             handleChange: (v) => {
-                const roles = (recipe.roles ??= {});
-                if (v === GUESS)
-                    delete roles[ui.role];
-                else
-                    roles[ui.role] = v === NONE ? '' : String(v);
-                changed(true);
-                refresh();
+                ui.clip = String(v);
+                ui.pose = 'animate';
+                animate();
             },
-        }), label3d({
-            text: `plays it: ${guessed[ui.role] ?? 'nothing'}`,
-            muted: true,
-            compact: true,
         }), slider3d({
             label: 'arm space',
             value: recipe.armSpaceDeg ?? 0,
@@ -717,6 +848,69 @@ export function mountRigTool(owner, options = {}) {
                 recipe.armSpaceDeg = v;
                 changed(true);
             },
+        }), button3d({
+            label: 'load animations…',
+            handleClick: () => void chooseFile('.glb,.gltf').then((f) => f && tool?.loadClips(f)),
+        }), 
+        // VIEW: what is shown beside it (where it is seen from is the
+        // toolbar on the bar: the camera).
+        label3d({ text: 'View', collapsible: true }), toggle3d({
+            label: 'mannequin',
+            value: ui.compare,
+            handleChange: (v) => tool?.compare((ui.compare = v)),
+        }), toggle3d({
+            label: 'bones',
+            value: ui.bones,
+            handleChange: (v) => tool?.bones((ui.bones = v)),
+        }), 
+        // MODEL: which one, and how it is rigged.
+        label3d({ text: 'Model', collapsible: true }), 
+        // A choice only when there is one (a host's one model has none).
+        ...(models.length > 1 || models[0]?.label !== ui.model
+            ? [
+                select3d({
+                    label: 'model',
+                    value: ui.model,
+                    options: [...new Set([...models.map((m) => m.label), ui.model])],
+                    handleChange: (v) => {
+                        const m = models.find((m) => m.label === v);
+                        if (m)
+                            void tool?.load(m);
+                    },
+                }),
+            ]
+            : []), 
+        // Only a model with a skeleton of its own can use it: a mesh with
+        // none (an OBJ, Blender's bodies) has nothing to go back to.
+        ...(applied == null || !hasOwnSkeleton
+            ? []
+            : [
+                toggle3d({
+                    label: 'use its own skeleton',
+                    value: recipe.binding == null,
+                    handleChange: (own) => {
+                        const v = !own;
+                        /*
+                        IGNORE ITS OWN RIG AND BIND IT HERE. Any mesh can be bound
+                        from markers, so a model whose skeleton is wrong or missing
+                        bones gets one fitted to it. Its roles and chains named the
+                        old skeleton's bones, so they go with it.
+                        */
+                        if (v)
+                            bindNext = true;
+                        else
+                            delete recipe.binding;
+                        recipe.roles = {};
+                        recipe.springs = (recipe.springs ?? []).filter((s) => s.kind === 'strand');
+                        edited();
+                        ui.status = v ? 'binding…' : 'loading its own rig…';
+                        refresh();
+                        void tool?.rebind();
+                    },
+                }),
+            ]), button3d({
+            label: 'load model file…',
+            handleClick: () => void chooseFile('.glb,.gltf,.obj').then((f) => f && tool?.load(f)),
         }));
         // Springs.
         const springs = recipe.springs ?? [];
@@ -738,10 +932,21 @@ export function mountRigTool(owner, options = {}) {
         }), button3d({
             label: '+ bone chain',
             handleClick: () => {
-                const root = boneNames.find((n) => /tail|hair|pony|braid/i.test(n)) ??
-                    boneNames[0];
-                if (root == null)
+                /*
+                A CHAIN OF BONES THE MODEL HAS (a tail, a ponytail rigged in a
+                modeller): it swings them. With none to hang from it used to take
+                the first bone, the skeleton's root, and swung the spine like a
+                second skeleton (Tonio).
+                */
+                const root = boneNames.find((n) => /tail|hair|pony|braid/i.test(n));
+                if (root == null) {
+                    ui.status =
+                        bound != null
+                            ? 'no tail or hair bones: turn on tail (Markers) for a tail, or + strand for hair'
+                            : 'no tail or hair bones: + strand hangs a new one';
+                    refresh();
                     return;
+                }
                 springs.push({
                     kind: 'bones',
                     name: 'chain',
@@ -1058,9 +1263,15 @@ export function mountRigTool(owner, options = {}) {
             }),
         ];
     }
-    if (hosted) {
+    if (hosted && options.panel != null) {
+        // The host's panel: shown, and left on the bar for the host.
+        panelEl = options.panel;
+        panelEl.svg = panelSvg();
+        options.panel.show?.();
+    }
+    else if (hosted) {
         panelEl = b3dPanel({
-            icon: 'personStanding',
+            icon: 'rig',
             title: 'Rig',
             exclusive: 'off',
             open: true,
@@ -1240,7 +1451,11 @@ export function mountRigTool(owner, options = {}) {
                 const pose = f === 'free' ? 'animate' : 'rest';
                 if (pose !== ui.pose) {
                     ui.pose = pose;
-                    play();
+                    // Moved markers or joints are bound before it moves.
+                    if (pose === 'animate' && stale)
+                        void bindIfMoved().then(() => play());
+                    else
+                        play();
                 }
                 else
                     frame();
@@ -1307,8 +1522,59 @@ export function mountRigTool(owner, options = {}) {
                 g.stop();
             playing = [];
         };
+        /*
+        ON THE FLOOR WHILE IT MOVES (Tonio: the weasel "binds nicely but floats in
+        the air"). A clip is retargeted by joint turns and the hips' travel scaled
+        by hip height, so a body whose legs come out shorter or longer than the
+        mannequin's floats or sinks. The clip is sampled, and the body lifted or
+        lowered so its lowest point while it plays is where it is at rest.
+        */
+        let soles = new Uint32Array(0);
+        let solesOf = null;
+        const lowest = () => {
+            if (model == null)
+                return Infinity;
+            for (const n of model.root.getChildTransformNodes(false))
+                n.computeWorldMatrix(true);
+            model.skeleton.prepare(true);
+            // The soles only (a tail on a spring hangs anywhere while sampled).
+            if (body != null) {
+                if (solesOf !== body) {
+                    soles = soleVertices(body);
+                    solesOf = body;
+                }
+                if (soles.length)
+                    return lowestOf(model.mesh, soles);
+            }
+            let low = Infinity;
+            for (const m of model.root.getChildMeshes(false)) {
+                if (m.skeleton == null || !m.isEnabled())
+                    continue;
+                m.computeWorldMatrix(true);
+                m.refreshBoundingInfo({ applySkeleton: true, applyMorph: true });
+                low = Math.min(low, m.getBoundingInfo().boundingBox.minimumWorld.y);
+            }
+            return low;
+        };
+        const ground = (group) => {
+            if (model == null)
+                return;
+            stand.position.y = 0;
+            stand.computeWorldMatrix(true);
+            model.skeleton.returnToRest();
+            const rest = lowest();
+            let low = Infinity;
+            for (let k = 0; k < 24; k++) {
+                group.goToFrame(group.from + ((group.to - group.from) * k) / 24);
+                low = Math.min(low, lowest());
+            }
+            group.goToFrame(group.from);
+            if (Number.isFinite(rest) && Number.isFinite(low))
+                stand.position.y = rest - low;
+        };
         const play = () => {
             stop();
+            stand.position.y = 0;
             // Standing still: a held face (the one last used); moving: orbit.
             inspect.face = ui.pose === 'rest' ? restFace : 'free';
             frame();
@@ -1348,6 +1614,9 @@ export function mountRigTool(owner, options = {}) {
             // Start together, so the two stay in step.
             for (const g of playing)
                 g.start(true);
+            const mine = applied != null ? made.get(ui.clip) : undefined;
+            if (mine != null)
+                ground(mine);
         };
         /*
         CLIPS FROM ANOTHER RIG (Mixamo, a mocap file, another library): any GLB
@@ -1476,14 +1745,46 @@ export function mountRigTool(owner, options = {}) {
         const pickedMat = dotMat('rig-role-picked', '#ffd60a');
         const springMat = dotMat('rig-spring', '#5ac8fa');
         const springPickedMat = dotMat('rig-spring-picked', '#ff9f0a');
+        const markerMat = dotMat('rig-marker', '#ff375f');
+        const jointMat = dotMat('rig-joint', '#64d2ff');
+        cleanups.push(() => jointMat.dispose());
         let dots = [];
         cleanups.push(() => {
             for (const d of dots)
                 d.dispose();
             dots = [];
-            for (const m of [roleMat, pickedMat, springMat, springPickedMat])
+            for (const m of [
+                roleMat,
+                pickedMat,
+                springMat,
+                springPickedMat,
+                markerMat,
+            ])
                 m.dispose();
         });
+        /*
+        THE MARKERS ON THE BODY, Mixamo's way: a mesh bound from markers shows
+        them on its front, where you drag them onto its joints (chin, groin,
+        elbows, wrists, knees, and a tail's tip), and is bound again on release.
+        Its bones are UAL's by name, so it has no role dots to tap. Markers are
+        in the mesh's own (file) frame; the model's root carries it into the
+        scene.
+        */
+        const markerBound = () => bound != null && model != null;
+        const toScene = (x, y, z) => BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(x, y, z), model.root.getWorldMatrix());
+        const toFile = (p) => BABYLON.Vector3.TransformCoordinates(p, model.root.getWorldMatrix().clone().invert());
+        const frontOf = () => {
+            let f = -Infinity;
+            const P = bound.positions;
+            for (let i = 2; i < P.length; i += 3)
+                f = Math.max(f, P[i]);
+            return f;
+        };
+        const mirrorKey = (k) => k.endsWith('L')
+            ? k.slice(0, -1) + 'R'
+            : k.endsWith('R')
+                ? k.slice(0, -1) + 'L'
+                : null;
         const dot = (at, size, mat, meta) => {
             const d = BABYLON.MeshBuilder.CreateSphere('rig-dot', { diameter: size, segments: 8 }, scene);
             d.position.copyFrom(at);
@@ -1500,7 +1801,51 @@ export function mountRigTool(owner, options = {}) {
             if (ui.pose !== 'rest' || applied == null)
                 return;
             const r = height * 0.022;
-            for (const role of Object.keys(applied.read.roles)) {
+            if (markerBound()) {
+                const b = bound;
+                // Each at the depth of the joint it places, so it sits on the body
+                // from the top and side too (a front-plane marker floated in front).
+                const z0 = frontOf() + 0.01 * height;
+                const fit = fittedJoints();
+                // On its joint (where the fit puts it), else where it was marked.
+                const onJoint = (key, m) => {
+                    const j = fit?.get(MARKER_JOINT[key] ?? '');
+                    return j != null
+                        ? toScene(j.x, j.y, j.z)
+                        : toScene(m.x, m.y, m.z ?? z0);
+                };
+                for (const [key, m] of Object.entries(b.markers))
+                    dot(onJoint(key, m), r * 1.6, markerMat, { marker: key, handle: -1 });
+                if (b.tail) {
+                    dot(onJoint('tail', b.tail), r * 1.6, markerMat, {
+                        marker: 'tail',
+                        handle: -1,
+                    });
+                    const base = fit?.get('tail_01');
+                    if (base)
+                        dot(toScene(base.x, base.y, base.z), r * 1.6, markerMat, {
+                            marker: 'tailBase',
+                            handle: -1,
+                        });
+                }
+                // Every joint, to move by hand: where it was moved to, else the fit's.
+                if (ui.joints)
+                    for (const [name, node] of applied.read.nodes) {
+                        // A marker's joint is its marker (red), not a second dot.
+                        if (name === 'root' || markerJoints.has(name))
+                            continue;
+                        const m = fit?.get(name);
+                        const at = m != null ? toScene(m.x, m.y, m.z) : node.getAbsolutePosition();
+                        const small = /^(thumb|index|middle|ring|pinky)_|ball/.test(name);
+                        dot(at, r * (small ? 0.5 : 0.8), jointMat, {
+                            joint: name,
+                            handle: -2,
+                        });
+                    }
+            }
+            for (const role of (markerBound()
+                ? []
+                : Object.keys(applied.read.roles))) {
                 const node = applied.read.nodes.get(applied.read.roles[role]);
                 if (node == null)
                     continue;
@@ -1579,6 +1924,14 @@ export function mountRigTool(owner, options = {}) {
                 window.addEventListener('pointerup', done, true);
                 return;
             }
+            if (handle.metadata.marker != null && markerBound()) {
+                dragMarker(handle, handle.metadata.marker);
+                return;
+            }
+            if (handle.metadata.joint != null && markerBound()) {
+                dragJoint(handle, handle.metadata.joint);
+                return;
+            }
             const i = handle.metadata.rigSpring;
             const strand = recipe.springs?.[i];
             if (strand?.kind !== 'strand')
@@ -1620,6 +1973,153 @@ export function mountRigTool(owner, options = {}) {
             window.addEventListener('pointermove', move, true);
             window.addEventListener('pointerup', up, true);
         };
+        /*
+        A JOINT DRAGGED on the plane facing the camera (the view chooses which
+        way: fingers from the top, feet from the side). What hangs from it comes
+        too: moving a wrist carries the hand (Tonio). Turning swings what hangs
+        from it about the joint, in the view's plane: a hand or foot angled in
+        the mesh is turned to match at once, not joint by joint.
+        */
+        function dragJoint(handle, name) {
+            if (applied == null)
+                return;
+            const nodes = applied.read.nodes;
+            const nameOf = new Map([...nodes].map(([n, node]) => [node, n]));
+            const node = nodes.get(name);
+            const below = (node?.getDescendants(false) ?? [])
+                .map((d) => nameOf.get(d))
+                .filter((n) => n != null);
+            const dotOf = (n) => dots.find((d) => d.metadata?.joint === n);
+            const group = [name, ...below]
+                .map((n) => ({ n, d: dotOf(n) }))
+                .filter((g) => g.d != null);
+            const start = new Map(group.map((g) => [g.n, g.d.position.clone()]));
+            const turn = ui.jointDrag === 'turn';
+            const pivot = handle.position.clone();
+            const axis = cam.getForwardRay().direction.normalize();
+            cam.detachControl();
+            const plane = BABYLON.Plane.FromPositionAndNormal(pivot, axis);
+            const hit = (ev) => {
+                const p = toRender(ev);
+                const ray = scene.createPickingRay(p.x, p.y, BABYLON.Matrix.Identity(), cam);
+                const d = ray.intersectsPlane(plane);
+                return d == null ? null : ray.origin.add(ray.direction.scale(d));
+            };
+            let from = null;
+            ui.status = turn ? `turning what hangs from ${name}` : name;
+            refresh();
+            const move = (ev) => {
+                const at = hit(ev);
+                if (at == null)
+                    return;
+                from ??= at;
+                if (!turn) {
+                    const delta = at.subtract(from);
+                    for (const g of group)
+                        g.d.position.copyFrom(start.get(g.n).add(delta));
+                    return;
+                }
+                // The angle from where the press began to here, about the joint.
+                const u = from.subtract(pivot);
+                const v = at.subtract(pivot);
+                if (u.lengthSquared() < 1e-10 || v.lengthSquared() < 1e-10)
+                    return;
+                const angle = Math.atan2(BABYLON.Vector3.Dot(axis, BABYLON.Vector3.Cross(u, v)), BABYLON.Vector3.Dot(u, v));
+                const q = BABYLON.Quaternion.RotationAxis(axis, angle);
+                for (const g of group) {
+                    if (g.n === name)
+                        continue;
+                    const off = start.get(g.n).subtract(pivot);
+                    g.d.position.copyFrom(pivot.add(off.applyRotationQuaternion(q)));
+                }
+            };
+            const up = () => {
+                window.removeEventListener('pointermove', move, true);
+                window.removeEventListener('pointerup', up, true);
+                cam.attachControl(canvas, true);
+                if (from == null)
+                    return;
+                const moved = {};
+                for (const g of group) {
+                    const f = toFile(g.d.position);
+                    moved[g.n] = { x: f.x, y: f.y, z: f.z };
+                    // Its mirror follows, as the markers' do (the left is on +X).
+                    if (symmetry && /_[lr]$/.test(g.n))
+                        moved[g.n.replace(/_([lr])$/, (_, s) => (s === 'l' ? '_r' : '_l'))] = { x: -f.x, y: f.y, z: f.z };
+                }
+                setJoints(name, moved);
+            };
+            window.addEventListener('pointermove', move, true);
+            window.addEventListener('pointerup', up, true);
+        }
+        // A marker dragged on the front plane; its mirror follows (symmetry on).
+        function dragMarker(handle, key) {
+            const b = bound;
+            const markers = JSON.parse(JSON.stringify(b.markers));
+            let tail = b.tail ? { ...b.tail } : null;
+            let tailBase = b.tailBase ? { ...b.tailBase } : null;
+            const tailKey = key === 'tail' || key === 'tailBase';
+            const other = tailKey ? null : mirrorKey(key);
+            const twin = other != null
+                ? dots.find((d) => d.metadata?.marker === other)
+                : undefined;
+            // The marker is its joint: what the marker stores is the joint less
+            // the joint's offset from it (the pelvis above the crotch).
+            const fit = fittedJoints(b, false);
+            const offset = (k) => {
+                const j = fit?.get(MARKER_JOINT[k] ?? '');
+                const m = b.markers[k];
+                return j != null && m != null
+                    ? { x: j.x - m.x, y: j.y - m.y }
+                    : { x: 0, y: 0 };
+            };
+            const off = tailKey ? { x: 0, y: 0 } : offset(key);
+            cam.detachControl();
+            const plane = BABYLON.Plane.FromPositionAndNormal(handle.position, cam.getForwardRay().direction);
+            const move = (ev) => {
+                const p = toRender(ev);
+                const ray = scene.createPickingRay(p.x, p.y, BABYLON.Matrix.Identity(), cam);
+                const d = ray.intersectsPlane(plane);
+                if (d == null)
+                    return;
+                const f = toFile(ray.origin.add(ray.direction.scale(d)));
+                if (tailKey) {
+                    // The tail's base and tip move in 3D (in depth from the side).
+                    const at = { x: symmetry ? 0 : f.x, y: f.y, z: f.z };
+                    if (key === 'tail')
+                        tail = at;
+                    else
+                        tailBase = at;
+                    handle.position.copyFrom(toScene(at.x, at.y, at.z));
+                    return;
+                }
+                let x = f.x;
+                if (symmetry) {
+                    if (other == null)
+                        x = 0; // chin and groin sit on the centre line
+                    else if (key.endsWith('L'))
+                        x = Math.max(0, x);
+                    else
+                        x = Math.min(0, x);
+                }
+                const k = key;
+                const fileZ = toFile(handle.position).z;
+                markers[k] = { x: x - off.x, y: f.y - off.y };
+                handle.position.copyFrom(toScene(x, f.y, fileZ));
+                if (symmetry && other != null && twin != null) {
+                    markers[other] = { x: -(x - off.x), y: f.y - off.y };
+                    twin.position.copyFrom(toScene(-x, f.y, toFile(twin.position).z));
+                }
+            };
+            const up = () => {
+                window.removeEventListener('pointermove', move, true);
+                window.removeEventListener('pointerup', up, true);
+                cam.attachControl(canvas, true);
+                setMarkers(markers, tail, tail != null ? tailBase : null);
+            };
+            window.addEventListener('pointermove', move, true);
+            window.addEventListener('pointerup', up, true);
+        }
         canvas.addEventListener('pointerdown', onPointerDown);
         cleanups.push(() => canvas.removeEventListener('pointerdown', onPointerDown));
         /** The bone a point on the body belongs to: the nearest bone's length. */
@@ -1720,6 +2220,9 @@ export function mountRigTool(owner, options = {}) {
                 viewer = new BABYLON.SkeletonViewer(model.skeleton, model.mesh, scene, false, 3, { displayMode: 0 });
         };
         let lastModel = null;
+        cleanups.push(() => {
+            loadedModel = null;
+        });
         /** Bind the same mesh again, keeping the recipe (its markers moved). */
         const rebind = () => {
             if (lastModel == null)
@@ -1743,6 +2246,7 @@ export function mountRigTool(owner, options = {}) {
             model?.dispose();
             model = null;
             bound = null;
+            body = null;
             try {
                 // The recipe first: a binding is part of it. The host's recipe if
                 // it handed one over, else the one kept here, else the model's own.
@@ -1798,9 +2302,14 @@ export function mountRigTool(owner, options = {}) {
                 stand.scaling.setAll(m instanceof File ? 1 : m.scale ?? 1);
                 model = opened;
                 bound = opened.bound ?? null;
+                body = opened.body ?? null;
+                hasOwnSkeleton =
+                    opened.bound == null ||
+                        found.ownSkeleton === true;
                 boneNames = skeleton.bones.map((b) => b.getTransformNode()?.name ?? b.name);
                 ui.model = label;
                 lastModel = m;
+                loadedModel = m;
                 const url = m instanceof File ? undefined : m.url;
                 recipe = next;
                 recipe.model = { url, name: m instanceof File ? m.name : pick };
@@ -1900,10 +2409,30 @@ export function mountRigTool(owner, options = {}) {
         load: (m) => tool?.load(m),
         loadClips: (f) => tool?.loadClips(f),
     };
+    /** Done or cancelled: unmount, then tell the host. */
+    function finish(done) {
+        // Bound from where the markers are now, before it is handed back.
+        if (done && stale) {
+            void bindIfMoved().then(() => finish(true));
+            return;
+        }
+        const rig = { recipe: copy() };
+        if (body != null)
+            rig.body = body;
+        if (loadedModel != null)
+            rig.model = loadedModel;
+        handle.unmount();
+        if (done)
+            options.handleDone?.(rig);
+        else
+            options.handleCancel?.();
+    }
     const handle = events;
     handle.api = api;
     handle.ready = ready;
     handle.widgets = panel;
+    handle.done = () => finish(true);
+    handle.cancel = () => finish(false);
     handle.unmount = () => {
         if (disposed)
             return;

@@ -81,8 +81,20 @@ function makeStage(): Stage | null {
   )
   const pbr = new BABYLON.PBRMaterial('preview-pbr', scene)
   const cloth = new BABYLON.PBRMaterial('preview-cloth', scene)
-  const s: Stage = { engine, scene, canvas, pbr, cloth, shapes: [ball], ready: Promise.resolve() }
-  s.ready = BABYLON.SceneLoader.LoadAssetContainerAsync(assetUrl(PREVIEW_MESH), '', scene)
+  const s: Stage = {
+    engine,
+    scene,
+    canvas,
+    pbr,
+    cloth,
+    shapes: [ball],
+    ready: Promise.resolve(),
+  }
+  s.ready = BABYLON.SceneLoader.LoadAssetContainerAsync(
+    assetUrl(PREVIEW_MESH),
+    '',
+    scene
+  )
     .then((container) => {
       container.addAllToScene()
       const meshes = container.meshes.filter((m) => m.getTotalVertices() > 0)
@@ -130,7 +142,9 @@ async function draw(recipe: MaterialRecipe): Promise<string | null> {
  * A picture of the recipe, as a data URL, or `null` where none can be drawn
  * (no WebGL, or a type with no preview). Cached by the canonical recipe.
  */
-export function materialPreview(recipe: MaterialRecipe): Promise<string | null> {
+export function materialPreview(
+  recipe: MaterialRecipe
+): Promise<string | null> {
   const key = JSON.stringify(canonicalMaterial(recipe))
   let p = cache.get(key)
   if (p == null) {

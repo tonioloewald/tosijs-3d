@@ -179,6 +179,8 @@ animation is doing with that hand.
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `url` | `''` | GLB model URL |
+| `character` | `''` | A character file's URL (the [character builder](/character-builder/)'s **export JSON**), in place of `url`: the character is made from it ([character](/character/)) and UAL's clips are retargeted onto it, so use `ualAnimationStates()`. A mesh body comes from where the file says (its URL, or the mesh itself when it was opened from disk); a file that says neither falls back to MakeHuman's. Set `characterDoc` (the parsed file) instead to skip the fetch |
+| `animations` | UAL1 | Where a `character`'s clips come from: a GLB whose clips have UAL's names and skeleton |
 | `skin` | `''` | Optional albedo texture URL applied to the `skin` material (reskin) |
 | `scale` | `1` | Uniform scale applied to the loaded model |
 | `animation` | `''` | Current animation state name |

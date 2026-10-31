@@ -41,15 +41,26 @@ import { iconGlyph } from './svg-icons.js';
 import { b3dPanel } from './b3d-panel.js';
 import { INSPECT_FACES, } from './inspect-view.js';
 const ROW = 36;
-const WIDTH = 168;
+const LIST_WIDTH = 168;
 const PAD = 6;
+/** A toolbar's cell, and its icon. */
+const CELL = 44;
+const GLYPH = 32;
+// Opaque, so a `stroked filled` icon's knockout matches what is behind it.
+const CELL_BG = '#161a22';
+const CELL_ON = '#24364d';
+const CELL_HOT = '#2f5786';
 export function barMenu(config) {
     const { svg, g, rect, text, title } = svgElements;
-    const options = config.options.map((o) => typeof o === 'string' ? { value: o, label: o } : { label: o.value, ...o });
+    const options = config.options.map((o) => typeof o === 'string'
+        ? { value: o, label: o, icon: undefined }
+        : { label: o.value, ...o });
+    const toolbar = options.length > 0 && options.every((o) => o.icon != null);
     let value = config.value ?? options[0]?.value ?? '';
     let hover = -1;
     let pressed = -1;
-    const height = PAD * 2 + options.length * ROW;
+    const WIDTH = toolbar ? PAD * 2 + options.length * CELL : LIST_WIDTH;
+    const height = toolbar ? PAD * 2 + CELL : PAD * 2 + options.length * ROW;
     const root = svg({
         xmlns: 'http://www.w3.org/2000/svg',
         viewBox: `0 0 ${WIDTH} ${height}`,
@@ -66,6 +77,28 @@ export function barMenu(config) {
             rx: 14,
             fill: 'rgba(20,24,32,0.88)',
         }), panelRim(WIDTH, height, 14));
+        if (toolbar) {
+            options.forEach((o, i) => {
+                const x = PAD + i * CELL;
+                const on = o.value === value;
+                const bg = i === pressed || i === hover ? CELL_HOT : on ? CELL_ON : CELL_BG;
+                root.append(g({}, title(o.label), rect({
+                    x: x + 2,
+                    y: PAD + 2,
+                    width: CELL - 4,
+                    height: CELL - 4,
+                    rx: 9,
+                    fill: bg,
+                }), iconGlyph(o.icon, {
+                    color: on ? '#ffffff' : '#c8d2e0',
+                    knockout: bg,
+                    size: GLYPH,
+                    x: x + (CELL - GLYPH) / 2,
+                    y: PAD + (CELL - GLYPH) / 2,
+                })));
+            });
+            return;
+        }
         options.forEach((o, i) => {
             const y = PAD + i * ROW;
             const on = o.value === value;
@@ -97,6 +130,10 @@ export function barMenu(config) {
         });
     };
     const indexAt = (x, y) => {
+        if (toolbar) {
+            const i = Math.floor((x - PAD) / CELL);
+            return y >= 0 && y <= height && i >= 0 && i < options.length ? i : -1;
+        }
         const i = Math.floor((y - PAD) / ROW);
         return x >= 0 && x <= WIDTH && i >= 0 && i < options.length ? i : -1;
     };
@@ -143,6 +180,19 @@ export function barMenu(config) {
     });
     return el;
 }
+/**
+ * Each view's icon: Tonio's biped seen from that side (the right is the left
+ * mirrored), and an orbit for the perspective.
+ */
+const FACE_ICONS = {
+    free: 'rotateCw',
+    front: 'bipedFront',
+    back: 'bipedBack',
+    left: 'bipedSide',
+    right: 'bipedSide0f',
+    top: 'bipedTop',
+    bottom: 'bipedBottom',
+};
 const FACE_LABELS = {
     free: 'perspective',
     front: 'front',
@@ -162,9 +212,11 @@ export function viewMenu(inspect, host, options = {}) {
     const menu = barMenu({
         icon: options.icon ?? 'camera',
         title: options.title ?? 'View',
+        // A toolbar: each view its icon, named by its tooltip.
         options: (options.faces ?? [...INSPECT_FACES, 'free']).map((v) => ({
             value: v,
             label: labels[v],
+            icon: FACE_ICONS[v],
         })),
         value: inspect.face,
         handleChange: (v) => {

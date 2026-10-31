@@ -121,13 +121,24 @@ export const PBR_MATERIAL: MaterialTypeDecl = {
   name: 'pbr',
   label: 'PBR',
   inputs: [
-    { name: 'albedo', label: 'colour', kind: 'rgb', default: '#cccccc', image: true },
+    {
+      name: 'albedo',
+      label: 'colour',
+      kind: 'rgb',
+      default: '#cccccc',
+      image: true,
+    },
     { name: 'alpha', kind: 'grey', default: 1, image: true },
     { name: 'roughness', kind: 'grey', default: 0.5 },
     { name: 'metallic', kind: 'grey', default: 0 },
     { name: 'reflections', kind: 'grey', default: 1, max: 2 },
     { name: 'sheen', kind: 'grey', default: 0 },
-    { name: 'sheenRoughness', label: 'sheen spread', kind: 'grey', default: 0.5 },
+    {
+      name: 'sheenRoughness',
+      label: 'sheen spread',
+      kind: 'grey',
+      default: 0.5,
+    },
     {
       name: 'emissive',
       label: 'glow',
@@ -136,7 +147,13 @@ export const PBR_MATERIAL: MaterialTypeDecl = {
       image: true,
       intensity: { default: 1, min: 0, max: 10 },
     },
-    { name: 'normal', label: 'bumps', kind: 'image', default: '', intensity: { default: 1, min: 0, max: 2 } },
+    {
+      name: 'normal',
+      label: 'bumps',
+      kind: 'image',
+      default: '',
+      intensity: { default: 1, min: 0, max: 2 },
+    },
   ],
 }
 
@@ -154,7 +171,13 @@ export const CLOTH_MATERIAL: MaterialTypeDecl = {
     { name: 'roughness', kind: 'grey', default: 0.85, optional: true },
     { name: 'metallic', kind: 'grey', default: 0, optional: true },
     { name: 'sheen', kind: 'grey', default: 0.25, optional: true },
-    { name: 'sheenRoughness', label: 'sheen spread', kind: 'grey', default: 0.6, optional: true },
+    {
+      name: 'sheenRoughness',
+      label: 'sheen spread',
+      kind: 'grey',
+      default: 0.6,
+      optional: true,
+    },
   ],
 }
 
@@ -231,7 +254,11 @@ export function resolveInput(
     if (decl.kind === 'image' || decl.optional) return null
     return decl.default
   }
-  const out: ResolvedInput = { value: flat(), image: null, intensity: intensity0 }
+  const out: ResolvedInput = {
+    value: flat(),
+    image: null,
+    intensity: intensity0,
+  }
   if (raw == null) return out
   const strength = (n: unknown) =>
     typeof n === 'number' && Number.isFinite(n)
@@ -240,7 +267,11 @@ export function resolveInput(
   if (typeof raw === 'object') {
     out.intensity = strength(raw.intensity)
     if ('image' in raw) {
-      if ((decl.image || decl.kind === 'image') && typeof raw.image === 'string' && raw.image !== '')
+      if (
+        (decl.image || decl.kind === 'image') &&
+        typeof raw.image === 'string' &&
+        raw.image !== ''
+      )
         out.image = raw.image
       return out
     }
@@ -248,7 +279,10 @@ export function resolveInput(
   }
   if (decl.kind === 'grey' && typeof raw === 'number' && Number.isFinite(raw)) {
     out.value = clamp(raw, decl.min ?? 0, decl.max ?? 1)
-  } else if ((decl.kind === 'rgb' || decl.kind === 'rgba') && typeof raw === 'string') {
+  } else if (
+    (decl.kind === 'rgb' || decl.kind === 'rgba') &&
+    typeof raw === 'string'
+  ) {
     out.value = canonColour(raw, decl.kind === 'rgba') ?? out.value
   }
   return out
@@ -261,7 +295,8 @@ export function resolveMaterial(
   const decl = materialType(recipe.type)
   const out: Record<string, ResolvedInput> = {}
   if (decl == null) return out
-  for (const d of decl.inputs) out[d.name] = resolveInput(d, recipe.inputs?.[d.name])
+  for (const d of decl.inputs)
+    out[d.name] = resolveInput(d, recipe.inputs?.[d.name])
   return out
 }
 
@@ -272,22 +307,30 @@ export function writeInput(
 ): MaterialInput | undefined {
   const round = (v: number) => Math.round(v * 1e4) / 1e4 + 0
   const i0 = decl.intensity?.default ?? 1
-  const intensity = decl.intensity && round(r.intensity) !== i0 ? round(r.intensity) : undefined
+  const intensity =
+    decl.intensity && round(r.intensity) !== i0 ? round(r.intensity) : undefined
   if (r.image != null)
-    return intensity == null ? { image: r.image } : { image: r.image, intensity }
+    return intensity == null
+      ? { image: r.image }
+      : { image: r.image, intensity }
   if (r.value == null) return undefined
   const value = typeof r.value === 'number' ? round(r.value) : r.value
-  if (intensity != null && typeof value === 'string') return { colour: value, intensity }
+  if (intensity != null && typeof value === 'string')
+    return { colour: value, intensity }
   return value === decl.default && !decl.optional ? undefined : value
 }
 
 /** A recipe as another type: the inputs that type also declares, by name. */
-export function materialAsType(recipe: MaterialRecipe, type: string): MaterialRecipe {
+export function materialAsType(
+  recipe: MaterialRecipe,
+  type: string
+): MaterialRecipe {
   const decl = materialType(type)
   if (decl == null || recipe.type === type) return canonicalMaterial(recipe)
   const inputs: Record<string, MaterialInput> = {}
   for (const d of decl.inputs)
-    if (recipe.inputs?.[d.name] !== undefined) inputs[d.name] = recipe.inputs[d.name]
+    if (recipe.inputs?.[d.name] !== undefined)
+      inputs[d.name] = recipe.inputs[d.name]
   return canonicalMaterial({ type, inputs })
 }
 
@@ -304,7 +347,8 @@ export function applyMaterialPreset(
   const p = materialAsType(preset, current.type)
   const inputs = { ...p.inputs }
   for (const k of keep)
-    if (inputs[k] === undefined && current.inputs[k] !== undefined) inputs[k] = current.inputs[k]
+    if (inputs[k] === undefined && current.inputs[k] !== undefined)
+      inputs[k] = current.inputs[k]
   return canonicalMaterial({ type: current.type, inputs })
 }
 
@@ -314,7 +358,10 @@ export function isMaterialPreset(
   preset: MaterialRecipe,
   keep: string[] = []
 ): boolean {
-  return JSON.stringify(applyMaterialPreset(current, preset, keep)) === JSON.stringify(canonicalMaterial(current))
+  return (
+    JSON.stringify(applyMaterialPreset(current, preset, keep)) ===
+    JSON.stringify(canonicalMaterial(current))
+  )
 }
 
 /**
@@ -363,12 +410,18 @@ export function materialRecipeSchema(
       { type: 'string' },
       {
         type: 'object',
-        properties: { colour: { type: 'string' }, intensity: { type: 'number' } },
+        properties: {
+          colour: { type: 'string' },
+          intensity: { type: 'number' },
+        },
         required: ['colour'],
       },
       {
         type: 'object',
-        properties: { image: { type: 'string' }, intensity: { type: 'number' } },
+        properties: {
+          image: { type: 'string' },
+          intensity: { type: 'number' },
+        },
         required: ['image'],
       },
     ],
@@ -403,7 +456,14 @@ export function validateMaterial(
     path: string
   ): CurveIssue => ({ severity, code, message, path })
   if (value == null || typeof value !== 'object' || Array.isArray(value))
-    return [issue('error', 'material/not-an-object', 'A material is an object: { type, inputs }.', '')]
+    return [
+      issue(
+        'error',
+        'material/not-an-object',
+        'A material is an object: { type, inputs }.',
+        ''
+      ),
+    ]
   const v = value as Record<string, unknown>
   const decl = typeof v.type === 'string' ? materialType(v.type) : undefined
   if (decl == null)
@@ -411,7 +471,9 @@ export function validateMaterial(
       issue(
         'error',
         'material/unknown-type',
-        `Unknown material type ${JSON.stringify(v.type)}; expected ${materialTypes()
+        `Unknown material type ${JSON.stringify(
+          v.type
+        )}; expected ${materialTypes()
           .map((t) => t.name)
           .join(', ')}.`,
         '/type'
@@ -420,51 +482,121 @@ export function validateMaterial(
   const issues: CurveIssue[] = []
   if (allowed != null && !allowed.includes(decl.name))
     issues.push(
-      issue('error', 'material/type-not-allowed', `This material must be ${allowed.join(' or ')}.`, '/type')
+      issue(
+        'error',
+        'material/type-not-allowed',
+        `This material must be ${allowed.join(' or ')}.`,
+        '/type'
+      )
     )
   const inputs = v.inputs
   if (inputs == null) return issues
   if (typeof inputs !== 'object' || Array.isArray(inputs)) {
-    issues.push(issue('error', 'material/bad-inputs', 'inputs is an object, one entry per input.', '/inputs'))
+    issues.push(
+      issue(
+        'error',
+        'material/bad-inputs',
+        'inputs is an object, one entry per input.',
+        '/inputs'
+      )
+    )
     return issues
   }
   for (const [name, raw] of Object.entries(inputs as Record<string, unknown>)) {
     const path = `/inputs/${name}`
     const d = decl.inputs.find((i) => i.name === name)
     if (d == null) {
-      issues.push(issue('warning', 'material/unknown-input', `${decl.name} has no input ${name}; it is ignored.`, path))
+      issues.push(
+        issue(
+          'warning',
+          'material/unknown-input',
+          `${decl.name} has no input ${name}; it is ignored.`,
+          path
+        )
+      )
       continue
     }
     if (raw != null && typeof raw === 'object' && !Array.isArray(raw)) {
       const o = raw as Record<string, unknown>
       if ('image' in o) {
         if (typeof o.image !== 'string')
-          issues.push(issue('error', 'material/bad-image', 'image is a URL.', `${path}/image`))
+          issues.push(
+            issue(
+              'error',
+              'material/bad-image',
+              'image is a URL.',
+              `${path}/image`
+            )
+          )
         else if (!d.image && d.kind !== 'image')
-          issues.push(issue('warning', 'material/no-image', `${name} takes no picture; it is ignored.`, path))
+          issues.push(
+            issue(
+              'warning',
+              'material/no-image',
+              `${name} takes no picture; it is ignored.`,
+              path
+            )
+          )
         continue
       }
       if ('colour' in o) {
         if (d.kind !== 'rgb' && d.kind !== 'rgba')
-          issues.push(issue('error', 'material/wrong-kind', `${name} is ${d.kind}, not a colour.`, path))
+          issues.push(
+            issue(
+              'error',
+              'material/wrong-kind',
+              `${name} is ${d.kind}, not a colour.`,
+              path
+            )
+          )
         else if (typeof o.colour !== 'string' || parseColor(o.colour) == null)
-          issues.push(issue('error', 'material/bad-colour', `${name}'s colour does not parse.`, `${path}/colour`))
+          issues.push(
+            issue(
+              'error',
+              'material/bad-colour',
+              `${name}'s colour does not parse.`,
+              `${path}/colour`
+            )
+          )
         continue
       }
-      issues.push(issue('error', 'material/bad-input', `${name} is a value, { colour } or { image }.`, path))
+      issues.push(
+        issue(
+          'error',
+          'material/bad-input',
+          `${name} is a value, { colour } or { image }.`,
+          path
+        )
+      )
       continue
     }
     if (d.kind === 'grey') {
       if (typeof raw !== 'number' || !Number.isFinite(raw))
-        issues.push(issue('error', 'material/wrong-kind', `${name} is a number.`, path))
+        issues.push(
+          issue('error', 'material/wrong-kind', `${name} is a number.`, path)
+        )
       else if (raw < (d.min ?? 0) || raw > (d.max ?? 1))
         issues.push(
-          issue('warning', 'material/out-of-range', `${name} runs ${d.min ?? 0} to ${d.max ?? 1}; it is clamped.`, path)
+          issue(
+            'warning',
+            'material/out-of-range',
+            `${name} runs ${d.min ?? 0} to ${d.max ?? 1}; it is clamped.`,
+            path
+          )
         )
     } else if (d.kind === 'image') {
-      issues.push(issue('error', 'material/wrong-kind', `${name} is a picture: { image }.`, path))
+      issues.push(
+        issue(
+          'error',
+          'material/wrong-kind',
+          `${name} is a picture: { image }.`,
+          path
+        )
+      )
     } else if (typeof raw !== 'string' || parseColor(raw) == null) {
-      issues.push(issue('error', 'material/bad-colour', `${name} is a colour.`, path))
+      issues.push(
+        issue('error', 'material/bad-colour', `${name} is a colour.`, path)
+      )
     }
   }
   return issues

@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=c3f9a510fbae" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=08c4b739ac51" data-tosi-doc-system />
   <title>animation-layers — tosijs-3d</title>
   <meta name="description" content="Play two clips on one skeleton, split by a bone mask. The Babylon half of walk-and-aim: legs keep the locomotion, arms and head take the aim, and the boundary…" />
   <link rel="canonical" href="https://3d.tosijs.net/animation-layers/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=d4cb551793b9" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=009437d58172" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="animation-layers.ts">
 <h1 id="animation-layers">animation-layers</h1>
 <p><strong>Play two clips on one skeleton, split by a bone mask.</strong> The Babylon half of
@@ -320,6 +320,7 @@ what it matched so a caller can refuse rather than animate air.</p>
         <li><a class="doc-link" href="../aim/">aim</a></li>
         <li><a class="doc-link current" href="../animation-layers/" aria-current="page">animation-layers</a></li>
         <li><a class="doc-link" href="../retarget/">retarget</a></li>
+        <li><a class="doc-link" href="../rigged-body/">rigged-body</a></li>
         <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
         <li><details><summary><a class="doc-link" href="../rig-build/">auto-rig</a></summary>
         <ul>
@@ -330,8 +331,14 @@ what it matched so a caller can refuse rather than animate air.</p>
         <li><details><summary><a class="doc-link" href="../character-builder/">character builder</a></summary>
         <ul>
           <li><a class="doc-link" href="../human-pack/">human-pack</a></li>
+          <li><details><summary><a class="doc-link" href="../character-file/">character-file</a></summary>
+          <ul>
+            <li><a class="doc-link" href="../character-store/">character-store</a></li>
+          </ul>
+          </details></li>
           <li><a class="doc-link" href="../human-morph/">human-morph</a></li>
           <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
+          <li><a class="doc-link" href="../tailor-tool/">tailor tool</a></li>
           <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
           <li><a class="doc-link" href="../skin-shading/">skin-shading</a></li>
           <li><a class="doc-link" href="../human-face/">human-face</a></li>
@@ -363,6 +370,7 @@ what it matched so a caller can refuse rather than animate air.</p>
             </details></li>
           </ul>
           </details></li>
+          <li><a class="doc-link" href="../character/">character</a></li>
         </ul>
         </details></li>
       </ul>
@@ -489,6 +497,8 @@ what it matched so a caller can refuse rather than animate air.</p>
         <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
         <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
         <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
+        <li><a class="doc-link" href="../material-picker/">materialPicker3d</a></li>
+        <li><a class="doc-link" href="../material-recipe/">material-recipe</a></li>
         <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
         <li><details><summary><a class="doc-link" href="../color-field/">color3d</a></summary>
         <ul>
@@ -587,6 +597,7 @@ what it matched so a caller can refuse rather than animate air.</p>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.11.6/">0.11.6</a></li>
         <li><a class="doc-link" href="../v0.11.5/">0.11.5</a></li>
         <li><a class="doc-link" href="../v0.11.4/">0.11.4</a></li>
         <li><a class="doc-link" href="../v0.11.3/">0.11.3</a></li>
@@ -659,6 +670,7 @@ what it matched so a caller can refuse rather than animate air.</p>
     </ul>
     </details></li>
     <li><a class="doc-link" href="../design-notes/">Design notes</a></li>
+    <li><a class="doc-link" href="../acknowledgements/">Acknowledgements</a></li>
   </ul>
   </nav>
   <ul class="doc-navbar">
@@ -667,6 +679,6 @@ what it matched so a caller can refuse rather than animate air.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-fymfsbgh.js"></script>
+  <script type="module" src="../hydrate-j44j00c3.js"></script>
 </body>
 </html>

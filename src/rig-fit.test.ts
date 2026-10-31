@@ -540,45 +540,64 @@ human-base-meshes/), arms hanging out from the sides. The arm is traced down
 its silhouette, so the elbow and wrist land ON the arm, in order down it, and
 the shoulder the fit puts above them is inside the body.
 */
-const HBM = join(import.meta.dir, '../../static-assets/assets/blender/human-base-meshes')
+const HBM = join(
+  import.meta.dir,
+  '../../static-assets/assets/blender/human-base-meshes'
+)
 
 // The mesh on the node of that name (the bodies come with their eyes).
 const readGlbMesh = (file: string, name: string): Soup =>
   readGlb(file, (j) => j.nodes.find((n: any) => n.name === name).mesh)
 
-describe.skipIf(!existsSync(HBM))('guessMarkers on arms that hang (A-pose)', () => {
-  for (const body of ['female-realistic', 'male-realistic']) {
-    test(body, () => {
-      const s = readGlbMesh(join(HBM, `body-${body}.glb`), `GEO-body_${body.replace('-', '_')}`)
-      const sil = rigSilhouette(s.pos, s.idx)
-      const g = guessMarkers(sil)
-      const q = soupQuery(s)
-      // On the arm: inside the mesh, and out beyond the torso's side.
-      for (const k of ['elbowL', 'wristL'] as const) {
-        expect(q.spans(g[k].x, g[k].y).length).toBeGreaterThan(0)
-        expect(q.spans(g[k].x - 0.06, g[k].y).length).toBe(0)
-      }
-      expect(g.wristL.y).toBeLessThan(g.elbowL.y)
-      expect(g.wristL.x).toBeGreaterThan(g.elbowL.x)
-      const rig = fitSkeleton(g, q)
-      const sh = rig.at('upperarm_l')!
-      expect(q.spans(sh.x, sh.y).length).toBeGreaterThan(0)
-      expect(sh.y).toBeGreaterThan(g.elbowL.y)
-      expect(sh.x).toBeLessThan(g.elbowL.x)
-      // The hanging hand is read turned level: all five fingers, found, not
-      // made up, the index in front of the pinky, each pointing down the hand.
-      for (const side of ['l', 'r'] as const) {
-        expect([...(rig.fingers?.[side] ?? [])].sort()).toEqual(['index', 'middle', 'pinky', 'ring', 'thumb'])
-        expect(rig.at(`index_01_${side}`)!.z).toBeGreaterThan(rig.at(`pinky_01_${side}`)!.z)
-        expect(rig.at(`middle_04_leaf_${side}`)!.y).toBeLessThan(rig.at(`hand_${side}`)!.y)
-      }
-      // The foot runs forward from the ankle to the toe, on the mesh.
-      for (const side of ['l', 'r'] as const) {
-        const ankle = rig.at(`foot_${side}`)!
-        const toe = rig.at(`ball_leaf_${side}`)!
-        expect(toe.z - ankle.z).toBeGreaterThan(0.1)
-        expect(q.spans(toe.x, toe.y).length).toBeGreaterThan(0)
-      }
-    })
+describe.skipIf(!existsSync(HBM))(
+  'guessMarkers on arms that hang (A-pose)',
+  () => {
+    for (const body of ['female-realistic', 'male-realistic']) {
+      test(body, () => {
+        const s = readGlbMesh(
+          join(HBM, `body-${body}.glb`),
+          `GEO-body_${body.replace('-', '_')}`
+        )
+        const sil = rigSilhouette(s.pos, s.idx)
+        const g = guessMarkers(sil)
+        const q = soupQuery(s)
+        // On the arm: inside the mesh, and out beyond the torso's side.
+        for (const k of ['elbowL', 'wristL'] as const) {
+          expect(q.spans(g[k].x, g[k].y).length).toBeGreaterThan(0)
+          expect(q.spans(g[k].x - 0.06, g[k].y).length).toBe(0)
+        }
+        expect(g.wristL.y).toBeLessThan(g.elbowL.y)
+        expect(g.wristL.x).toBeGreaterThan(g.elbowL.x)
+        const rig = fitSkeleton(g, q)
+        const sh = rig.at('upperarm_l')!
+        expect(q.spans(sh.x, sh.y).length).toBeGreaterThan(0)
+        expect(sh.y).toBeGreaterThan(g.elbowL.y)
+        expect(sh.x).toBeLessThan(g.elbowL.x)
+        // The hanging hand is read turned level: all five fingers, found, not
+        // made up, the index in front of the pinky, each pointing down the hand.
+        for (const side of ['l', 'r'] as const) {
+          expect([...(rig.fingers?.[side] ?? [])].sort()).toEqual([
+            'index',
+            'middle',
+            'pinky',
+            'ring',
+            'thumb',
+          ])
+          expect(rig.at(`index_01_${side}`)!.z).toBeGreaterThan(
+            rig.at(`pinky_01_${side}`)!.z
+          )
+          expect(rig.at(`middle_04_leaf_${side}`)!.y).toBeLessThan(
+            rig.at(`hand_${side}`)!.y
+          )
+        }
+        // The foot runs forward from the ankle to the toe, on the mesh.
+        for (const side of ['l', 'r'] as const) {
+          const ankle = rig.at(`foot_${side}`)!
+          const toe = rig.at(`ball_leaf_${side}`)!
+          expect(toe.z - ankle.z).toBeGreaterThan(0.1)
+          expect(q.spans(toe.x, toe.y).length).toBeGreaterThan(0)
+        }
+      })
+    }
   }
-})
+)

@@ -37,8 +37,13 @@ export declare function metaFromName(name: string): GarmentMeta | null;
 export interface GarmentMeta {
     format: 'tosijs-garment';
     version: 1;
-    /** The base body (`hm08`). */
-    base: string;
+    /** MakeHuman's base body (`hm08`); absent for a mesh's body. */
+    base?: string;
+    /**
+     * The mesh's body it was made on (the builder's source name), when it was
+     * not MakeHuman's: it is worn on that body only.
+     */
+    source?: string;
     /** The human pack's version. */
     pack?: number;
     /** The body's slider values (`MacroBody`), to rebuild the shape it was made on. */

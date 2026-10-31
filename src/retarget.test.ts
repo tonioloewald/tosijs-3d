@@ -329,7 +329,13 @@ describe('retargetPose', () => {
 /** hips → thigh → calf → foot → ball, the foot falling `slopeDeg` to the ball at rest. */
 function leg(slopeDeg: number): Skeleton {
   const a = (slopeDeg * Math.PI) / 180
-  const b = (name: string, parent: string | null, x: number, y: number, z: number): RestBone => ({
+  const b = (
+    name: string,
+    parent: string | null,
+    x: number,
+    y: number,
+    z: number
+  ): RestBone => ({
     name,
     parent,
     rotation: Q0,

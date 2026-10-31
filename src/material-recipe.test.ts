@@ -37,15 +37,36 @@ describe('material recipes', () => {
   test('canonical form leaves out defaults and orders by the type', () => {
     const c = canonicalMaterial({
       type: 'pbr',
-      inputs: { metallic: 0, sheen: 0.333333333, roughness: 0.5, albedo: '#F00', bogus: 3 },
+      inputs: {
+        metallic: 0,
+        sheen: 0.333333333,
+        roughness: 0.5,
+        albedo: '#F00',
+        bogus: 3,
+      },
     })
-    expect(c).toEqual({ type: 'pbr', inputs: { albedo: '#ff0000', sheen: 0.3333 } })
-    expect(Object.keys(withInput(c, 'albedo', undefined).inputs)).toEqual(['sheen'])
+    expect(c).toEqual({
+      type: 'pbr',
+      inputs: { albedo: '#ff0000', sheen: 0.3333 },
+    })
+    expect(Object.keys(withInput(c, 'albedo', undefined).inputs)).toEqual([
+      'sheen',
+    ])
   })
 
   test('a colour with a strength keeps both, and drops a default strength', () => {
-    expect(canonicalMaterial({ type: 'pbr', inputs: { emissive: { colour: '#ff0000', intensity: 1 } } }).inputs).toEqual({ emissive: '#ff0000' })
-    expect(canonicalMaterial({ type: 'pbr', inputs: { emissive: { colour: '#ff0000', intensity: 3 } } }).inputs).toEqual({ emissive: { colour: '#ff0000', intensity: 3 } })
+    expect(
+      canonicalMaterial({
+        type: 'pbr',
+        inputs: { emissive: { colour: '#ff0000', intensity: 1 } },
+      }).inputs
+    ).toEqual({ emissive: '#ff0000' })
+    expect(
+      canonicalMaterial({
+        type: 'pbr',
+        inputs: { emissive: { colour: '#ff0000', intensity: 3 } },
+      }).inputs
+    ).toEqual({ emissive: { colour: '#ff0000', intensity: 3 } })
   })
 
   test('fabrics are cloth presets, with the metals tinted', () => {
@@ -59,38 +80,73 @@ describe('material recipes', () => {
     for (const p of fabrics) expect(validateMaterial(p.recipe)).toEqual([])
   })
 
-  test('an optional input left out is the material\'s own', () => {
+  test("an optional input left out is the material's own", () => {
     const r = resolveMaterial({ type: 'cloth', inputs: {} })
     expect(r.roughness.value).toBeNull()
     // Set to its default, it is still SET: kept, not dropped.
-    expect(canonicalMaterial({ type: 'cloth', inputs: { roughness: 0.85 } }).inputs).toEqual({ roughness: 0.85 })
+    expect(
+      canonicalMaterial({ type: 'cloth', inputs: { roughness: 0.85 } }).inputs
+    ).toEqual({ roughness: 0.85 })
   })
 
   test('a preset keeps what it does not set, from the keep list', () => {
-    const fabric = (n: string) => MATERIAL_COLLECTIONS.fabrics.presets.find((p) => p.name === n)!.recipe
-    const red = applyMaterialPreset({ type: 'cloth', inputs: { albedo: '#aa0000', recolour: 0.7 } }, fabric('gold'), ['albedo', 'recolour'])
+    const fabric = (n: string) =>
+      MATERIAL_COLLECTIONS.fabrics.presets.find((p) => p.name === n)!.recipe
+    const red = applyMaterialPreset(
+      { type: 'cloth', inputs: { albedo: '#aa0000', recolour: 0.7 } },
+      fabric('gold'),
+      ['albedo', 'recolour']
+    )
     expect(red.inputs.albedo).toBe('#e8c065')
-    const cotton = applyMaterialPreset(red, fabric('cotton'), ['albedo', 'recolour'])
+    const cotton = applyMaterialPreset(red, fabric('cotton'), [
+      'albedo',
+      'recolour',
+    ])
     expect(cotton.inputs.albedo).toBe('#e8c065')
     expect(cotton.inputs.metallic).toBe(0)
-    expect(isMaterialPreset(cotton, fabric('cotton'), ['albedo', 'recolour'])).toBe(true)
-    expect(isMaterialPreset(cotton, fabric('denim'), ['albedo', 'recolour'])).toBe(false)
+    expect(
+      isMaterialPreset(cotton, fabric('cotton'), ['albedo', 'recolour'])
+    ).toBe(true)
+    expect(
+      isMaterialPreset(cotton, fabric('denim'), ['albedo', 'recolour'])
+    ).toBe(false)
     // As made: the surface goes back to the garment's own.
-    const asMade = applyMaterialPreset(cotton, { type: 'cloth', inputs: {} }, ['albedo', 'recolour'])
+    const asMade = applyMaterialPreset(cotton, { type: 'cloth', inputs: {} }, [
+      'albedo',
+      'recolour',
+    ])
     expect(asMade.inputs).toEqual({ albedo: '#e8c065', recolour: 1 })
   })
 
   test('another type takes the inputs it shares', () => {
-    const p = materialAsType(MATERIAL_COLLECTIONS.fabrics.presets.find((q) => q.name === 'gold')!.recipe, 'pbr')
-    expect(p).toEqual({ type: 'pbr', inputs: { albedo: '#e8c065', roughness: 0.2, metallic: 1 } })
+    const p = materialAsType(
+      MATERIAL_COLLECTIONS.fabrics.presets.find((q) => q.name === 'gold')!
+        .recipe,
+      'pbr'
+    )
+    expect(p).toEqual({
+      type: 'pbr',
+      inputs: { albedo: '#e8c065', roughness: 0.2, metallic: 1 },
+    })
   })
 
   test('validation names what is wrong', () => {
-    expect(validateMaterial({ type: 'nope' })[0].code).toBe('material/unknown-type')
-    expect(validateMaterial({ type: 'pbr' }, ['clouds'])[0].code).toBe('material/type-not-allowed')
+    expect(validateMaterial({ type: 'nope' })[0].code).toBe(
+      'material/unknown-type'
+    )
+    expect(validateMaterial({ type: 'pbr' }, ['clouds'])[0].code).toBe(
+      'material/type-not-allowed'
+    )
     const codes = validateMaterial({
       type: 'pbr',
-      inputs: { roughness: 2, albedo: 'blurple', metallic: '#fff', wat: 1, normal: 0.5, alpha: { image: 'a.png' } },
+      inputs: {
+        roughness: 2,
+        albedo: 'blurple',
+        metallic: '#fff',
+        wat: 1,
+        normal: 0.5,
+        alpha: { image: 'a.png' },
+      },
     }).map((i) => `${i.path} ${i.code}`)
     expect(codes).toEqual([
       '/inputs/roughness material/out-of-range',

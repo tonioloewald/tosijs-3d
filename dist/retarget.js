@@ -397,6 +397,108 @@ const AXIAL = new Set([
     'l-clavicle',
     'r-clavicle',
 ]);
+/*
+A HAND'S ROLL. Lining a bone up by the shortest turn between the two rest
+directions fixes where it points, not how it is turned about that line, and
+for a hand and its fingers that turn is everything: a finger curls about an
+axis across the palm. A hand hanging palm-in (an A-pose) and one held out
+palm-down (UAL's T-pose) were lined up with the curl axis anywhere, so fists
+closed sideways and thumbs bent backwards (Tonio, on Blender's bodies and
+Quaternius' heroes). So a hand and its fingers are lined up by a FRAME: the
+bone's direction and the palm's normal, which both rigs show (where the index
+and pinky knuckles are, about the hand's aim).
+*/
+function palmNormal(side, sk, world) {
+    const pos = (r) => {
+        const n = sk.roles[`${side}-${r}`];
+        return n != null ? world.position.get(n) : undefined;
+    };
+    const hand = pos('hand');
+    const front = pos('index1') ?? pos('middle1');
+    const back = pos('pinky1') ?? pos('ring1');
+    const aimAt = pos('middle1') ?? pos('index1') ?? pos('ring1');
+    if (hand == null || front == null || back == null || aimAt == null)
+        return null;
+    const aim = normalize(sub(aimAt, hand));
+    const across = normalize(sub(front, back));
+    const n = normalize({
+        x: aim.y * across.z - aim.z * across.y,
+        y: aim.z * across.x - aim.x * across.z,
+        z: aim.x * across.y - aim.y * across.x,
+    });
+    return n.x === 0 && n.y === 0 && n.z === 0 ? null : n;
+}
+/**
+ * The rotation taking the frame (`dt`, `nt`) onto (`ds`, `ns`): the first
+ * vector exactly, the second as near as it can at right angles to it.
+ */
+function frameBetween(dt, nt, ds, ns) {
+    const basis = (d, n) => {
+        const k = n.x * d.x + n.y * d.y + n.z * d.z;
+        const e2 = normalize({
+            x: n.x - k * d.x,
+            y: n.y - k * d.y,
+            z: n.z - k * d.z,
+        });
+        const e3 = {
+            x: d.y * e2.z - d.z * e2.y,
+            y: d.z * e2.x - d.x * e2.z,
+            z: d.x * e2.y - d.y * e2.x,
+        };
+        return [d, e2, e3];
+    };
+    const t = basis(dt, nt);
+    const sb = basis(ds, ns);
+    if (t[1].x === 0 && t[1].y === 0 && t[1].z === 0)
+        return rotationBetween(dt, ds);
+    if (sb[1].x === 0 && sb[1].y === 0 && sb[1].z === 0)
+        return rotationBetween(dt, ds);
+    // R = S · Tᵀ, the columns of S and T being the frames' axes.
+    const m = (i, j) => sb[0][i] * t[0][j] + sb[1][i] * t[1][j] + sb[2][i] * t[2][j];
+    const m00 = m('x', 'x'), m01 = m('x', 'y'), m02 = m('x', 'z');
+    const m10 = m('y', 'x'), m11 = m('y', 'y'), m12 = m('y', 'z');
+    const m20 = m('z', 'x'), m21 = m('z', 'y'), m22 = m('z', 'z');
+    const tr = m00 + m11 + m22;
+    let q;
+    if (tr > 0) {
+        const s4 = Math.sqrt(tr + 1) * 2;
+        q = {
+            w: s4 / 4,
+            x: (m21 - m12) / s4,
+            y: (m02 - m20) / s4,
+            z: (m10 - m01) / s4,
+        };
+    }
+    else if (m00 > m11 && m00 > m22) {
+        const s4 = Math.sqrt(1 + m00 - m11 - m22) * 2;
+        q = {
+            w: (m21 - m12) / s4,
+            x: s4 / 4,
+            y: (m01 + m10) / s4,
+            z: (m02 + m20) / s4,
+        };
+    }
+    else if (m11 > m22) {
+        const s4 = Math.sqrt(1 + m11 - m00 - m22) * 2;
+        q = {
+            w: (m02 - m20) / s4,
+            x: (m01 + m10) / s4,
+            y: s4 / 4,
+            z: (m12 + m21) / s4,
+        };
+    }
+    else {
+        const s4 = Math.sqrt(1 + m22 - m00 - m11) * 2;
+        q = {
+            w: (m10 - m01) / s4,
+            x: (m02 + m20) / s4,
+            y: (m12 + m21) / s4,
+            z: s4 / 4,
+        };
+    }
+    const l = Math.hypot(q.x, q.y, q.z, q.w);
+    return { x: q.x / l, y: q.y / l, z: q.z / l, w: q.w / l };
+}
 /** The fingers a hand is aimed along, best first: the middle runs down its centre. */
 const HAND_AIM = ['middle', 'index', 'ring', 'pinky'];
 function restDirection(role, sk, world, toward) {
@@ -575,7 +677,30 @@ export function retargeter(source, target, options = {}) {
         }
         const ds = restDirection(r, source, sRest, toward);
         const dt2 = toward != null ? restDirection(r, target, tRest, toward) : dt;
-        align.set(r, ds != null && dt2 != null ? rotationBetween(dt2, ds) : IDENTITY);
+        const [side, limb] = r.split('-');
+        /*
+        A FOOT AND ITS TOES ARE NOT LINED UP: how they lie at rest is the body's
+        shape, like the spine's. Every rig stands with its soles flat and its
+        feet forward, but the bones say otherwise: the foot bone runs from the
+        ankle to the ball, as steeply as the ankle joint sits high (UAL 31°,
+        MakeHuman 18°, Blender's bodies 40°), and the toe bone toward whichever
+        toe is longest. Lined up by direction, a clip tipped MakeHuman onto
+        tiptoe and curled the Blender bodies' toes up; by heading, it swept their
+        toes in toward the big toe (Tonio). They take the clip's turn as it is.
+        */
+        if (limb === 'foot' || limb === 'toes') {
+            align.set(r, IDENTITY);
+            continue;
+        }
+        // A hand and its fingers keep their roll: lined up by direction and palm.
+        const handPart = limb === 'hand' || fingerOf(limb ?? '') != null;
+        const ns = handPart ? palmNormal(side, source, sRest) : null;
+        const nt = handPart ? palmNormal(side, target, tRest) : null;
+        align.set(r, ds == null || dt2 == null
+            ? IDENTITY
+            : ns != null && nt != null
+                ? frameBetween(dt2, nt, ds, ns)
+                : rotationBetween(dt2, ds));
     }
     const sh = hipHeight(source, sRest);
     const th = hipHeight(target, tRest);

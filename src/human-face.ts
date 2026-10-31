@@ -413,7 +413,8 @@ export function bodyEyes(
   const headName = options.head ?? 'Head'
   const head = built.node(headName)
   const at = rig.at(headName)
-  if (head == null || at == null) throw new Error(`human-face: the rig has no ${headName}`)
+  if (head == null || at == null)
+    throw new Error(`human-face: the rig has no ${headName}`)
   const layout = options.layout ?? HM08_EYE_UV
   const pivots: BABYLON.TransformNode[] = []
   const meshes: BABYLON.Mesh[] = []
@@ -437,7 +438,9 @@ export function bodyEyes(
     data.uvs = eyeUvs(eye, { at: layout.l, iris: layout.iris })
     const normals: number[] = []
     // Counter-clockwise, outward: the file's handedness, under the rig's mirror.
-    BABYLON.VertexData.ComputeNormals(pos, eye.indices, normals, { useRightHandedSystem: true })
+    BABYLON.VertexData.ComputeNormals(pos, eye.indices, normals, {
+      useRightHandedSystem: true,
+    })
     data.normals = normals
     data.applyToMesh(mesh)
     mesh.sideOrientation = BABYLON.Material.ClockWiseSideOrientation

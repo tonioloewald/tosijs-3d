@@ -117,12 +117,20 @@ export function barMenu(config: BarMenuConfig): BarMenu {
       options.forEach((o, i) => {
         const x = PAD + i * CELL
         const on = o.value === value
-        const bg = i === pressed || i === hover ? CELL_HOT : on ? CELL_ON : CELL_BG
+        const bg =
+          i === pressed || i === hover ? CELL_HOT : on ? CELL_ON : CELL_BG
         root.append(
           g(
             {},
             title(o.label),
-            rect({ x: x + 2, y: PAD + 2, width: CELL - 4, height: CELL - 4, rx: 9, fill: bg }),
+            rect({
+              x: x + 2,
+              y: PAD + 2,
+              width: CELL - 4,
+              height: CELL - 4,
+              rx: 9,
+              fill: bg,
+            }),
             iconGlyph(o.icon!, {
               color: on ? '#ffffff' : '#c8d2e0',
               knockout: bg,

@@ -2,6 +2,7 @@ import * as BABYLON from '@babylonjs/core';
 import type { HumanPackManifest, HumanPart } from './human-pack.js';
 import type { BuiltRig } from './rig-build.js';
 import type { FittedRig } from './rig-fit.js';
+import { type BodyEye } from './rigged-body.js';
 /** Where MakeHuman's eye UVs put each iris (u, v from the bottom) and its radius. */
 export declare const HM08_EYE_UV: Readonly<{
     l: {
@@ -50,6 +51,14 @@ export declare function humanFace(scene: BABYLON.Scene, built: BuiltRig, rig: Fi
     lashes?: BABYLON.Material;
 }, options?: {
     head?: string;
+}): HumanFace;
+/**
+ * A rigged body's own eyeballs (`body.eyes`, left first) on pivots under its
+ * head, drawn on an `eyeTexture`'s layout: a face for `eyeGaze`.
+ */
+export declare function bodyEyes(scene: BABYLON.Scene, built: BuiltRig, rig: FittedRig, eyes: BodyEye[], material?: BABYLON.Material, options?: {
+    head?: string;
+    layout?: typeof HM08_EYE_UV;
 }): HumanFace;
 /**
  * Point a face's eyes at `target()` (a world point, or null to look ahead)

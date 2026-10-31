@@ -25,63 +25,9 @@ shade.set({ fabric: 'wool', colour: '#7a2e2e', amount: 0.8 })
 /*{ "parent": "human-proxy", "order": 20 }*/
 import * as BABYLON from '@babylonjs/core';
 import { parseColor } from './color.js';
-/** Fabric presets, by how they take light. */
-export const FABRICS = Object.freeze({
-    cotton: { roughness: 0.85, sheen: 0.25, sheenRoughness: 0.6 },
-    denim: { roughness: 0.9, sheen: 0.15, sheenRoughness: 0.7 },
-    wool: { roughness: 0.95, sheen: 0.45, sheenRoughness: 0.5 },
-    linen: { roughness: 0.9, sheen: 0.2, sheenRoughness: 0.65 },
-    velvet: { roughness: 0.9, sheen: 0.9, sheenRoughness: 0.25 },
-    silk: { roughness: 0.4, sheen: 0.55, sheenRoughness: 0.3 },
-    satin: { roughness: 0.28, sheen: 0.75, sheenRoughness: 0.2 },
-    synthetic: { roughness: 0.55, sheen: 0.2, sheenRoughness: 0.5 },
-    leather: { roughness: 0.45, sheen: 0, sheenRoughness: 0.5 },
-    rubber: { roughness: 0.6, sheen: 0, sheenRoughness: 0.5 },
-    // Glossy plastic: the 1950s space suit.
-    vinyl: { roughness: 0.12, sheen: 0, sheenRoughness: 0.5 },
-    // Metals reflect the scene's environment (see environment's studioEnvironment).
-    'silver lamé': {
-        roughness: 0.3,
-        metallic: 0.85,
-        sheen: 0.35,
-        sheenRoughness: 0.3,
-    },
-    foil: {
-        roughness: 0.12,
-        metallic: 1,
-        sheen: 0,
-        sheenRoughness: 0.5,
-        tint: '#d8dade',
-    },
-    chrome: {
-        roughness: 0.06,
-        metallic: 1,
-        sheen: 0,
-        sheenRoughness: 0.5,
-        tint: '#e8e8ea',
-    },
-    'brushed steel': {
-        roughness: 0.38,
-        metallic: 1,
-        sheen: 0,
-        sheenRoughness: 0.5,
-        tint: '#b8babd',
-    },
-    gold: {
-        roughness: 0.2,
-        metallic: 1,
-        sheen: 0,
-        sheenRoughness: 0.5,
-        tint: '#e8c065',
-    },
-    copper: {
-        roughness: 0.25,
-        metallic: 1,
-        sheen: 0,
-        sheenRoughness: 0.5,
-        tint: '#d08a5c',
-    },
-});
+import { FABRICS } from './fabrics.js';
+import { materialAsType, canonicalMaterial, MATERIAL_COLLECTIONS, resolveMaterial, } from './material-recipe.js';
+export { FABRICS } from './fabrics.js';
 const toLinear = (c) => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 class ClothShadingPlugin extends BABYLON.MaterialPluginBase {
     tint = new BABYLON.Color3(1, 1, 1);
@@ -141,6 +87,19 @@ class ClothShadingPlugin extends BABYLON.MaterialPluginBase {
     }
 }
 BABYLON.RegisterMaterialPlugin('ClothShadingPlugin', (material) => new ClothShadingPlugin(material));
+/**
+ * The old `{ fabric, colour, recolour }` look as a `cloth` recipe, for looks
+ * saved before recipes. `'as made'` (or no fabric) sets no surface.
+ */
+export function clothRecipe(look) {
+    const preset = MATERIAL_COLLECTIONS.fabrics.presets.find((p) => p.name === look.fabric);
+    const inputs = { ...preset?.recipe.inputs };
+    if (look.colour != null)
+        inputs.albedo = look.colour;
+    if (look.recolour != null)
+        inputs.recolour = look.recolour;
+    return canonicalMaterial({ type: 'cloth', inputs });
+}
 /** Measure a texture's mean brightness (linear) once it has loaded. */
 function measureMean(texture, done) {
     const read = () => {
@@ -178,7 +137,27 @@ export function clothShading(material, look = {}) {
             plugin.mean = mean;
         });
     }
-    const set = (l) => {
+    const set = (look) => {
+        let l = look;
+        if (look.recipe) {
+            const r = resolveMaterial(materialAsType(look.recipe, 'cloth'));
+            const n = (k) => r[k].value;
+            if (n('roughness') != null)
+                material.roughness = n('roughness');
+            if (n('metallic') != null)
+                material.metallic = n('metallic');
+            if (n('sheen') != null) {
+                material.sheen.isEnabled = n('sheen') > 0;
+                material.sheen.intensity = n('sheen');
+            }
+            if (n('sheenRoughness') != null)
+                material.sheen.roughness = n('sheenRoughness');
+            l = {
+                ...look,
+                colour: look.colour ?? r.albedo.value,
+                amount: look.amount ?? r.recolour.value,
+            };
+        }
         const fabric = l.fabric != null ? FABRICS[l.fabric] : undefined;
         if (fabric) {
             material.roughness = fabric.roughness;

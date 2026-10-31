@@ -1,0 +1,5 @@
+import{Xe}from"./site-3hzw4f8j.js";import{O,V,Js}from"./site-ge04ms28.js";import{zl}from"./site-cjqpgqj1.js";import{o}from"./site-bqt5vbzj.js";class sg extends Xe{constructor(t){super(t);this.config=t,this._easingFunctions={},this.mode=this.registerDataInput("mode",V,0),this.controlPoint1=this.registerDataInput("controlPoint1",Js),this.controlPoint2=this.registerDataInput("controlPoint2",Js),this.easingFunction=this.registerDataOutput("easingFunction",O)}_updateOutputs(t){let r=this.mode.getValue(t),e=this.controlPoint1.getValue(t),i=this.controlPoint2.getValue(t);if(r===void 0)return;let s=`${r}-${e.x}-${e.y}-${i.x}-${i.y}`;if(!this._easingFunctions[s]){let n=new zl(e.x,e.y,i.x,i.y);n.setEasingMode(r),this._easingFunctions[s]=n}this.easingFunction.setValue(this._easingFunctions[s],t)}getClassName(){return"FlowGraphBezierCurveEasing"}}var a=!1;function ng(){if(a)return;a=!0,o("FlowGraphBezierCurveEasing",sg)}ng();
+export{sg,ng};
+
+//# debugId=C4C6245429FB550764756E2164756E21
+//# sourceMappingURL=site-p2ck1hsx.js.map

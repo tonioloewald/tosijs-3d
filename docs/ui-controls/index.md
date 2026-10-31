@@ -13,6 +13,8 @@ these are the ones big enough to need their own.
 - [Curve editor](/curve-field/)
 - [Footprint editor](/footprint-field/)
 - [colorPicker3d](/color-picker/)
+- [materialPicker3d](/material-picker/)
+- [material-recipe](/material-recipe/)
 - [Icon grid](/icon-grid/)
 - [color3d](/color-field/)
 - [picker](/picker/)

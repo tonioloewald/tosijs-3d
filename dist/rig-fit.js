@@ -123,6 +123,19 @@ export function meshQuery(positions, indices) {
             }
             return above;
         },
+        turnedAboutZ(angle, cx, cy, crop) {
+            const c = Math.cos(angle);
+            const sn = Math.sin(angle);
+            const p = Array.from(positions);
+            const kept = crop != null ? cropped(positions, indices, crop) : indices;
+            for (let i = 0; i + 2 < p.length; i += 3) {
+                const x = p[i] - cx;
+                const y = p[i + 1] - cy;
+                p[i] = cx + c * x - sn * y;
+                p[i + 1] = cy + sn * x + c * y;
+            }
+            return meshQuery(p, kept);
+        },
         spans(x, y) {
             if (x < min.x || x > max.x || y < min.y || y > max.y)
                 return [];
@@ -297,53 +310,89 @@ export function fitSkeleton(markers, mesh, options = {}) {
         put(`upperarm_${side}`, `clavicle_${side}`, shoulder);
         const elbow = put(`lowerarm_${side}`, `upperarm_${side}`, at(elbow2, shoulder.z));
         const wrist = put(`hand_${side}`, `lowerarm_${side}`, at(wrist2, elbow.z));
+        /*
+        A HANGING HAND IS READ TURNED LEVEL. Fingers are found from above, on a
+        hand held out palm-down; a hand hanging at the side (an A-pose) is
+        palm-in, and from above it is a blob, so its fingers were placed by
+        proportion and fanned out across ten centimetres (Tonio: twisted hands
+        on Blender's bodies). Turned about the front-to-back axis until the
+        forearm is level, a palm-in hand IS palm-down: the mesh is turned about
+        the wrist, read exactly as a T-pose hand is, and the joints turned back.
+        */
+        const hangs = mesh.turnedAboutZ != null &&
+            Math.abs(wrist2.y - elbow2.y) > Math.abs(wrist2.x - elbow2.x);
+        const turn = hangs
+            ? Math.atan2(0, sign) -
+                Math.atan2(wrist2.y - elbow2.y, wrist2.x - elbow2.x)
+            : 0;
+        const turnPoint = (p, a) => {
+            const c = Math.cos(a);
+            const sn = Math.sin(a);
+            const x = p.x - wrist.x;
+            const y = p.y - wrist.y;
+            return { ...p, x: wrist.x + c * x - sn * y, y: wrist.y + sn * x + c * y };
+        };
+        // The hand alone: beyond the wrist, within a forearm's length of it.
+        const foreLen = Math.hypot(wrist2.x - elbow2.x, wrist2.y - elbow2.y);
+        const hm = hangs
+            ? mesh.turnedAboutZ(turn, wrist.x, wrist.y, {
+                from: wrist,
+                along: { x: wrist2.x - elbow2.x, y: wrist2.y - elbow2.y },
+                radius: foreLen,
+            })
+            : mesh;
+        const hInside = (x, y) => hm.spans(x, y).length > 0;
+        const hw2 = turnPoint(wrist2, turn);
+        const he2 = turnPoint(elbow2, turn);
+        const hw = turnPoint(wrist, turn);
+        const putHand = (name, parent, p) => put(name, parent, turnPoint(p, -turn));
         // The hand: walk on from the wrist until the ray leaves the mesh.
-        const dir = { x: wrist2.x - elbow2.x, y: wrist2.y - elbow2.y };
+        const dir = { x: hw2.x - he2.x, y: hw2.y - he2.y };
         const dl = Math.hypot(dir.x, dir.y) || 1;
         const ux = dir.x / dl;
         const uy = dir.y / dl;
         let reach = 0;
-        for (let d = 0; d < 2 * dl + (mesh.max.x - mesh.min.x); d += step) {
-            if (inside(wrist2.x + ux * d, wrist2.y + uy * d))
+        for (let d = 0; d < 2 * dl + (hm.max.x - hm.min.x); d += step) {
+            if (hInside(hw2.x + ux * d, hw2.y + uy * d))
                 reach = d;
             else if (d > reach + 4 * step)
                 break;
         }
         reach = Math.max(reach, 0.25 * dl);
         const tip = {
-            x: wrist2.x + ux * reach,
-            y: wrist2.y + uy * reach,
-            z: wrist.z,
+            x: hw2.x + ux * reach,
+            y: hw2.y + uy * reach,
+            z: hw.z,
         };
         // Palm down in a T-pose, so the hand's width runs along Z: thumb and
         // index to the front, pinky to the back.
         const palm2 = {
-            x: wrist2.x + ux * reach * 0.35,
-            y: wrist2.y + uy * reach * 0.35,
+            x: hw2.x + ux * reach * 0.35,
+            y: hw2.y + uy * reach * 0.35,
         };
-        const ps = mesh.spans(palm2.x, palm2.y)[0];
+        const ps = hm.spans(palm2.x, palm2.y)[0];
         const half = ps != null ? (ps.front - ps.back) / 2 : 0.15 * reach;
-        const palmZ = ps != null ? (ps.front + ps.back) / 2 : wrist.z;
+        const palmZ = ps != null ? (ps.front + ps.back) / 2 : hw.z;
         /*
         THE FINGERS THE MESH HAS, found from above (Tonio: the skinny weasel has
         three fingers and a thumb, and they were not rigged). A finger is placed
         joint by joint along the real one and takes the skin; one the mesh does
         not show is placed by proportion, as before, and takes none.
         */
-        const above = mesh.fromAbove?.();
-        let found = above != null ? findFingers(above, wrist, sign, reach) : null;
+        const above = hm.fromAbove?.();
+        let found = above != null ? findFingers(above, hw, sign, reach) : null;
         // No separate fingers: one mitten or claw, and a thumb without a gap.
         if (above != null && (found == null || found.fingers.length === 0)) {
-            const m = findMitten(mesh, above, wrist, sign, reach);
+            const m = findMitten(hm, above, hw, sign, reach);
             if (m != null)
                 found = { fingers: [m.mitten], thumb: found?.thumb ?? m.thumb };
         }
         const real = [];
         const chain = (f, pts) => {
-            put(`${f}_01_${side}`, `hand_${side}`, pts[0]);
-            put(`${f}_02_${side}`, `${f}_01_${side}`, pts[1]);
-            put(`${f}_03_${side}`, `${f}_02_${side}`, pts[2]);
-            put(`${f}_04_leaf_${side}`, `${f}_03_${side}`, pts[3]);
+            putHand(`${f}_01_${side}`, `hand_${side}`, pts[0]);
+            putHand(`${f}_02_${side}`, `${f}_01_${side}`, pts[1]);
+            putHand(`${f}_03_${side}`, `${f}_02_${side}`, pts[2]);
+            putHand(`${f}_04_leaf_${side}`, `${f}_03_${side}`, pts[3]);
         };
         const names = found != null ? FINGER_NAMES[found.fingers.length] ?? [] : [];
         const fingers = [
@@ -375,8 +424,8 @@ export function fitSkeleton(markers, mesh, options = {}) {
             }
             const z = palmZ + off * half;
             const base = {
-                x: lerp(wrist.x, tip.x, 0.45),
-                y: lerp(wrist.y, tip.y, 0.45),
+                x: lerp(hw.x, tip.x, 0.45),
+                y: lerp(hw.y, tip.y, 0.45),
                 z,
             };
             const end = { x: tip.x, y: tip.y, z };
@@ -388,13 +437,13 @@ export function fitSkeleton(markers, mesh, options = {}) {
         }
         else {
             const base = {
-                x: lerp(wrist.x, tip.x, 0.12),
-                y: lerp(wrist.y, tip.y, 0.12),
+                x: lerp(hw.x, tip.x, 0.12),
+                y: lerp(hw.y, tip.y, 0.12),
                 z: palmZ + 0.5 * half,
             };
             const end = {
-                x: lerp(wrist.x, tip.x, 0.6),
-                y: lerp(wrist.y, tip.y, 0.6),
+                x: lerp(hw.x, tip.x, 0.6),
+                y: lerp(hw.y, tip.y, 0.6),
                 z: palmZ + 1.6 * half,
             };
             chain('thumb', [base, along(base, end, 0.4), along(base, end, 0.7), end]);
@@ -409,18 +458,49 @@ export function fitSkeleton(markers, mesh, options = {}) {
         put(`thigh_${side}`, 'pelvis', hip);
         const knee = put(`calf_${side}`, `thigh_${side}`, at(knee2, hip.z));
         const ankleY = floor + 0.28 * (knee2.y - floor);
-        const ankle = put(`foot_${side}`, `calf_${side}`, at({ x: knee2.x, y: ankleY }, knee.z));
+        /*
+        THE FOOT WHERE IT IS, not under the knee. Legs angle in and feet turn
+        out (Blender's base meshes: the ray under the knee missed the foot, the
+        toe fell back to just in front of the ankle, the foot bone pointed down,
+        and every clip turned the foot through 90°). The ankle is the middle of
+        the leg's run across the front view at its height; the toe is the
+        farthest-forward point of the foot's run near the ground.
+        */
+        const ankleRun = runAcross(mesh, ankleY, knee2.x, sign);
+        const ankle = put(`foot_${side}`, `calf_${side}`, at({
+            x: ankleRun != null ? (ankleRun.lo + ankleRun.hi) / 2 : knee2.x,
+            y: ankleY,
+        }, knee.z));
         // The foot reaches forward: the front of the mesh near the ground.
         const soleY = floor + 0.15 * (ankleY - floor);
-        const sole = mesh.spans(knee2.x, soleY)[0];
-        const toeZ = sole != null ? sole.front : ankle.z + 0.5 * (ankleY - floor);
-        const ballY = floor + 0.3 * (ankleY - floor);
-        put(`ball_${side}`, `foot_${side}`, {
-            x: knee2.x,
-            y: ballY,
-            z: lerp(ankle.z, toeZ, 0.65),
-        });
-        put(`ball_leaf_${side}`, `ball_${side}`, { x: knee2.x, y: ballY, z: toeZ });
+        const footRun = runAcross(mesh, soleY, ankle.x, sign);
+        let toe = { x: ankle.x, z: ankle.z + 0.5 * (ankleY - floor) };
+        if (footRun != null) {
+            let best = -Infinity;
+            const step = Math.max((footRun.hi - footRun.lo) / 24, 1e-4);
+            for (let x = footRun.lo; x <= footRun.hi + 1e-9; x += step) {
+                const f = mesh.spans(x, soleY)[0]?.front;
+                if (f != null && f > best) {
+                    best = f;
+                    toe = { x, z: f };
+                }
+            }
+        }
+        /*
+        THE BALL IN THE MIDDLE OF THE FOOT'S THICKNESS, as UAL's is (1.5 cm up
+        a 3 cm foot). At a fixed 30% of the ankle's height it sat on the top of
+        the Blender bodies' feet, and every clip curled the toes up.
+        */
+        const ballX = lerp(ankle.x, toe.x, 0.65);
+        const ballZ = lerp(ankle.z, toe.z, 0.65);
+        let top = floor;
+        const rise = Math.max((ankleY - floor) / 60, 1e-4);
+        for (let y = floor; y <= ankleY; y += rise)
+            if (mesh.spans(ballX, y).some((s) => s.back <= ballZ && s.front >= ballZ))
+                top = y;
+        const ballY = top > floor ? (floor + top) / 2 : floor + 0.15 * (ankleY - floor);
+        put(`ball_${side}`, `foot_${side}`, { x: ballX, y: ballY, z: ballZ });
+        put(`ball_leaf_${side}`, `ball_${side}`, { x: toe.x, y: ballY, z: toe.z });
     }
     if (options.tail != null) {
         // From the back of the pelvis (half the body's depth toward the tip).
@@ -428,7 +508,8 @@ export function fitSkeleton(markers, mesh, options = {}) {
         const d = minus(tip, pelvis);
         const len = Math.hypot(d.x, d.y, d.z);
         if (len > 1e-9) {
-            const start = add(pelvis, scale(d, Math.min(0.9, (Number.isFinite(half) ? half : 0) / len)));
+            const start = options.tailStart ??
+                add(pelvis, scale(d, Math.min(0.9, (Number.isFinite(half) ? half : 0) / len)));
             const count = Math.max(1, Math.round(options.tailBones ?? 5));
             let parent = 'pelvis';
             for (let i = 0; i <= count; i++) {
@@ -443,6 +524,89 @@ export function fitSkeleton(markers, mesh, options = {}) {
         at: (name) => byName.get(name)?.position,
         fingers: fingersFound,
     };
+}
+/**
+ * The run of the mesh across the front view at height `y` nearest `x`, on
+ * its side of the middle (`sign`: +1 the left, on +X), or null if none is
+ * within 15% of the mesh's width.
+ */
+function runAcross(mesh, y, x, sign) {
+    const width = mesh.max.x - mesh.min.x;
+    const step = width / 400;
+    const inside = (u) => u * sign > 0 && mesh.spans(u, y).length > 0;
+    let start = null;
+    for (let d = 0; d <= 0.15 * width && start == null; d += step)
+        for (const u of [x + d, x - d])
+            if (start == null && inside(u))
+                start = u;
+    if (start == null)
+        return null;
+    let lo = start;
+    let hi = start;
+    while (inside(lo - step))
+        lo -= step;
+    while (inside(hi + step))
+        hi += step;
+    return { lo, hi };
+}
+/**
+ * The triangles of a `HandCrop`: every corner near enough and beyond the
+ * point, and of those, the ones joined (through shared corners, welded by
+ * position) to the corner nearest the point.
+ */
+function cropped(positions, indices, crop) {
+    const { from, along, radius } = crop;
+    const al = Math.hypot(along.x, along.y) || 1;
+    const ok = (v) => {
+        const x = positions[v * 3] - from.x;
+        const y = positions[v * 3 + 1] - from.y;
+        const z = positions[v * 3 + 2] - from.z;
+        return (Math.hypot(x, y, z) <= radius &&
+            (x * along.x + y * along.y) / al >= -0.1 * radius);
+    };
+    const weld = new Map();
+    const id = (v) => {
+        const k = `${Math.round(positions[v * 3] * 1e5)},${Math.round(positions[v * 3 + 1] * 1e5)},${Math.round(positions[v * 3 + 2] * 1e5)}`;
+        let w = weld.get(k);
+        if (w == null)
+            weld.set(k, (w = weld.size));
+        return w;
+    };
+    const tris = [];
+    for (let t = 0; t + 2 < indices.length; t += 3)
+        if (ok(indices[t]) && ok(indices[t + 1]) && ok(indices[t + 2]))
+            tris.push(t);
+    // Union the welded corners of each kept triangle.
+    const parent = [];
+    const find = (a) => {
+        while (parent[a] !== a)
+            a = parent[a] = parent[parent[a]];
+        return a;
+    };
+    const ids = tris.map((t) => [0, 1, 2].map((k) => id(indices[t + k])));
+    for (let i = 0; i < weld.size; i++)
+        parent[i] = i;
+    for (const [a, b, c] of ids) {
+        parent[find(b)] = find(a);
+        parent[find(c)] = find(a);
+    }
+    // The piece holding the corner nearest the point.
+    let near = -1;
+    let best = Infinity;
+    tris.forEach((t, i) => {
+        const v = indices[t];
+        const d = Math.hypot(positions[v * 3] - from.x, positions[v * 3 + 1] - from.y, positions[v * 3 + 2] - from.z);
+        if (d < best) {
+            best = d;
+            near = find(ids[i][0]);
+        }
+    });
+    const out = [];
+    tris.forEach((t, i) => {
+        if (find(ids[i][0]) === near)
+            out.push(indices[t], indices[t + 1], indices[t + 2]);
+    });
+    return out;
 }
 /** Which UAL fingers a hand of n fingers uses, front (thumb side) first. */
 const FINGER_NAMES = {
@@ -917,6 +1081,58 @@ export function rigSilhouette(positions, indices, view = 'front', cells = 160) {
         runs,
     };
 }
+/*
+ARMS THAT HANG (an A-pose, or arms at the sides with a gap). Below the armpit
+the left arm is the outermost run on its side of the row, apart from the torso
+(or, lower, the leg) inside it. Its centres from the armpit down to the
+fingertips give the arm's line. The shoulder joint is a little above the
+armpit; the elbow and wrist go at a person's proportions along the line from
+shoulder to fingertip (upper arm 0.42 of it, forearm to 0.75).
+*/
+function armHanging(rows, nRows, groinV, vOf, H) {
+    const centres = [];
+    let gap = 0;
+    for (let k = Math.round(nRows * 0.85); k > 0; k--) {
+        const runs = (rows.get(k) ?? []).filter((r) => r.u1 > 0);
+        const outer = runs.reduce((o, r) => (o == null || r.u0 > o.u0 ? r : o), null);
+        const apart = outer != null && outer.u0 > 0 && runs.some((r) => r.u1 < outer.u0);
+        if (apart) {
+            centres.push({ x: (outer.u0 + outer.u1) / 2, y: vOf(k) });
+            gap = 0;
+        }
+        else if (centres.length > 0 && ++gap > 2)
+            break;
+    }
+    if (centres.length < 2 ||
+        centres[0].y - centres[centres.length - 1].y < 0.15 * H)
+        return null;
+    // The arm hangs from above the crotch, or what was found is not an arm.
+    if (centres[0].y < groinV)
+        return null;
+    // x as a straight line in y, by least squares.
+    let sy = 0;
+    let sx = 0;
+    let syy = 0;
+    let sxy = 0;
+    for (const c of centres) {
+        sy += c.y;
+        sx += c.x;
+        syy += c.y * c.y;
+        sxy += c.x * c.y;
+    }
+    const n = centres.length;
+    const slope = (n * sxy - sx * sy) / (n * syy - sy * sy || 1e-9);
+    const icept = (sx - slope * sy) / n;
+    const xAt = (y) => icept + slope * y;
+    const shoulderY = centres[0].y + 0.04 * H;
+    const tipY = centres[n - 1].y;
+    const len = shoulderY - tipY;
+    const point = (t) => {
+        const y = shoulderY - t * len;
+        return { x: xAt(y), y };
+    };
+    return { elbow: point(0.42), wrist: point(0.75) };
+}
 /** A first placement of the eight markers, read off a front silhouette. */
 export function guessMarkers(s) {
     const H = s.max.v - s.min.v;
@@ -952,14 +1168,42 @@ export function guessMarkers(s) {
     }
     const armV = vOf(armK);
     const torsoW = extent(rowAt(groinV));
-    // No arms out to the side (an A-pose): fall back to proportions.
+    // Arms out to the side (a T-pose): along the widest row.
     const armsOut = armW > torsoW * 1.6;
+    const down = armsOut ? null : armHanging(rows, nRows, groinV, vOf, H);
+    /*
+    IN THE MIDDLE OF THE ARM, not on its underside. The widest row is the
+    arm's lowest (ties keep the first going up) or where the hand droops, so a
+    marker there sat low (Tonio). At each marker's place along the arm, the
+    rows the arm fills round the widest one are found and their middle taken.
+    */
+    const covers = (k, x) => (rows.get(k) ?? []).some((r) => r.u0 <= x && r.u1 >= x);
+    const armMiddle = (x) => {
+        // The nearest row the arm fills there, above or below the widest.
+        let k0 = -1;
+        for (let d = 0; d <= nRows * 0.06 && k0 < 0; d++) {
+            if (covers(armK - d, x))
+                k0 = armK - d;
+            else if (covers(armK + d, x))
+                k0 = armK + d;
+        }
+        if (k0 < 0)
+            return armV;
+        let lo = k0;
+        let hi = k0;
+        while (covers(lo - 1, x))
+            lo--;
+        while (covers(hi + 1, x))
+            hi++;
+        return (vOf(lo) + vOf(hi)) / 2;
+    };
+    const wristX = armW * 0.78;
     const wrist = armsOut
-        ? { x: armW * 0.78, y: armV }
-        : { x: torsoW * 1.1, y: s.min.v + 0.5 * H };
+        ? { x: wristX, y: armMiddle(wristX) }
+        : down?.wrist ?? { x: torsoW * 1.1, y: s.min.v + 0.5 * H };
     const elbow = armsOut
-        ? { x: wrist.x * 0.62, y: armV }
-        : { x: torsoW * 1.05, y: s.min.v + 0.63 * H };
+        ? { x: wrist.x * 0.62, y: armMiddle(wrist.x * 0.62) }
+        : down?.elbow ?? { x: torsoW * 1.05, y: s.min.v + 0.63 * H };
     // The neck: the narrowest row between the arms and the top of the head.
     let chinV = s.min.v + 0.82 * H;
     let narrowest = Infinity;

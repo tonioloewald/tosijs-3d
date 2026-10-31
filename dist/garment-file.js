@@ -119,7 +119,7 @@ function nameRigidity(name) {
  * then each slider that is not the default as a whole percentage.
  */
 export function referenceName(meta) {
-    const out = ['body-reference', meta.base.replace(/[^\w-]/g, '')];
+    const out = ['body-reference', (meta.base ?? 'mesh').replace(/[^\w-]/g, '')];
     if (meta.pack != null)
         out.push(`p${meta.pack}`);
     const defaults = DEFAULT_HUMAN_BODY;
@@ -137,6 +137,9 @@ export function metaFromName(name) {
     const [head, base, ...rest] = name.replace(/\.\d+$/, '').split('_');
     if (!/^body[-.]?reference$/i.test(head) || !base)
         return null;
+    // A mesh's body: which one is not in the name, so it is the body shown.
+    if (base === 'mesh')
+        return { format: 'tosijs-garment', version: 1 };
     const meta = {
         format: 'tosijs-garment',
         version: 1,

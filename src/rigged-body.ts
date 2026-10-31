@@ -191,7 +191,9 @@ export function bodyFromMarkers(
       source: options.source,
       markers,
       tail: options.tail ?? null,
-      ...(options.tail != null && options.tailBase != null ? { tailBase: options.tailBase } : {}),
+      ...(options.tail != null && options.tailBase != null
+        ? { tailBase: options.tailBase }
+        : {}),
       ...(Object.keys(moved).length ? { joints: { ...moved } } : {}),
     },
   }
@@ -205,7 +207,9 @@ export function surfaceOf(
     ...(tris.eyes?.length ? { eyes: tris.eyes } : {}),
     ...(tris.uvs ? { uvs: Float32Array.from(tris.uvs) } : {}),
     ...(tris.colors ? { colors: Float32Array.from(tris.colors) } : {}),
-    ...(tris.surfaces?.length ? { surfaces: tris.surfaces.map((s) => ({ ...s })) } : {}),
+    ...(tris.surfaces?.length
+      ? { surfaces: tris.surfaces.map((s) => ({ ...s })) }
+      : {}),
   }
 }
 
@@ -231,7 +235,10 @@ export function splitEyes(
     const pos: number[] = []
     const ix: number[] = []
     for (let t = 0; t < indices.length; t += 3) {
-      const x = positions[indices[t] * 3] + positions[indices[t + 1] * 3] + positions[indices[t + 2] * 3]
+      const x =
+        positions[indices[t] * 3] +
+        positions[indices[t + 1] * 3] +
+        positions[indices[t + 2] * 3]
       if (x * sign <= 0) continue
       for (let k = 0; k < 3; k++) {
         const v = indices[t + k]
@@ -295,7 +302,8 @@ export function lidBlink(
   const span = 1.3
   const upper = new Array(strips).fill(Infinity)
   const lower = new Array(strips).fill(-Infinity)
-  const stripOf = (x: number) => Math.round((((x - c.x) / r / span + 1) / 2) * (strips - 1))
+  const stripOf = (x: number) =>
+    Math.round((((x - c.x) / r / span + 1) / 2) * (strips - 1))
   for (let i = 0; i < n; i++) {
     const dx = positions[i * 3] - c.x
     const dy = positions[i * 3 + 1] - c.y
@@ -312,7 +320,9 @@ export function lidBlink(
     for (let k = 0; k < strips; k++) {
       if (Number.isFinite(edges[k])) continue
       for (let step = 1; step < strips; step++) {
-        const near = [edges[k - step], edges[k + step]].find((e) => e != null && Number.isFinite(e))
+        const near = [edges[k - step], edges[k + step]].find(
+          (e) => e != null && Number.isFinite(e)
+        )
         if (near != null) {
           edges[k] = near
           break
@@ -327,7 +337,10 @@ export function lidBlink(
   fill(upper)
   fill(lower)
   const edgeAt = (edges: number[], x: number) => {
-    const f = Math.max(0, Math.min(strips - 1, (((x - c.x) / r / span + 1) / 2) * (strips - 1)))
+    const f = Math.max(
+      0,
+      Math.min(strips - 1, (((x - c.x) / r / span + 1) / 2) * (strips - 1))
+    )
     const k = Math.min(strips - 2, Math.floor(f))
     return edges[k] + (edges[k + 1] - edges[k]) * (f - k)
   }
@@ -360,10 +373,16 @@ export function lidBlink(
     let turn: number
     if (a > meet) {
       const edge = up + band
-      turn = a <= edge ? top - a : (top - edge) * (1 - smooth((a - edge) / (upperFold - band)))
+      turn =
+        a <= edge
+          ? top - a
+          : (top - edge) * (1 - smooth((a - edge) / (upperFold - band)))
     } else {
       const edge = down - band
-      turn = a >= edge ? bottom - a : (bottom - edge) * (1 - smooth((edge - a) / (lowerFold - band)))
+      turn =
+        a >= edge
+          ? bottom - a
+          : (bottom - edge) * (1 - smooth((edge - a) / (lowerFold - band)))
     }
     turn *= weight
     if (turn === 0) continue

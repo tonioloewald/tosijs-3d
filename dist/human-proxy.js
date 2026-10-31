@@ -190,6 +190,13 @@ export function coverBody(built, triangles, vertices, wearing, options = {}) {
     // set, not update: an update to a buffer made without `updatable` is a
     // silent no-op in Babylon.
     mesh.setVerticesData(BABYLON.VertexBuffer.PositionKind, positions, true);
+    // Triangles are dropped only when a garment lists skin to delete; setting
+    // indices makes one sub-mesh, so a body drawn in several materials (a
+    // file's) keeps its own when nothing is dropped.
+    const cut = meta;
+    if (deleted.size === 0 && !cut.dropped)
+        return;
+    cut.dropped = deleted.size > 0;
     mesh.setIndices(deleted.size
         ? coveredTriangles(triangles, vertices, deleted, 'all')
         : Array.from(triangles));

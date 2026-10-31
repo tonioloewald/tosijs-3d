@@ -8,6 +8,7 @@ declare const _default: {
     xrColor: string;
     fog: string;
     mesh: string;
+    rig: string;
     sky: string;
     sun: string;
     terrain: string;
@@ -19,6 +20,7 @@ declare const _default: {
     keyboard: string;
     arrowUpRight: string;
     backpack: string;
+    biped: string;
     bug: string;
     camera: string;
     chevron: string;
@@ -64,9 +66,15 @@ declare const _default: {
     thermometer: string;
     thumbsUp: string;
     uploadCloud: string;
+    bipedBack: string;
+    bipedBottom: string;
+    bipedFront: string;
+    bipedSide: string;
+    bipedTop: string;
     loadout: string;
     lucideBackpack: string;
     personStanding: string;
+    scissors: string;
     maximize: string;
     minimize: string;
     mousePointer: string;

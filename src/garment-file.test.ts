@@ -168,7 +168,11 @@ describe('garment-file', () => {
     expect(back.body!.age).toBe(0.5)
     expect(metaFromName('Cube')).toBeNull()
     // A mesh's body: no base, no sliders (it is worn on the body shown).
-    const mesh = referenceName({ format: 'tosijs-garment', version: 1, source: 'weasel.glb' })
+    const mesh = referenceName({
+      format: 'tosijs-garment',
+      version: 1,
+      source: 'weasel.glb',
+    })
     expect(mesh).toBe('body-reference_mesh')
     expect(metaFromName(mesh)).toEqual({ format: 'tosijs-garment', version: 1 })
     // An OBJ whose comment was dropped still says which body it was.

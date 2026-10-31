@@ -3,6 +3,11 @@ import { type InspectFace, type InspectView } from './inspect-view.js';
 export interface BarMenuOption {
     value: string;
     label?: string;
+    /**
+     * Its icon (an `svgIcons` name). When every option has one, the menu is
+     * a TOOLBAR: one row of icons, each named by its tooltip.
+     */
+    icon?: string;
 }
 export interface BarMenuConfig {
     /** The button's icon (an `svgIcons` name). */

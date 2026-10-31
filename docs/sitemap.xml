@@ -27,6 +27,7 @@
   <url><loc>https://3d.tosijs.net/box/</loc></url>
   <url><loc>https://3d.tosijs.net/carry-box/</loc></url>
   <url><loc>https://3d.tosijs.net/carve/</loc></url>
+  <url><loc>https://3d.tosijs.net/character-store/</loc></url>
   <url><loc>https://3d.tosijs.net/color/</loc></url>
   <url><loc>https://3d.tosijs.net/control-input/</loc></url>
   <url><loc>https://3d.tosijs.net/vector-field/</loc></url>
@@ -78,6 +79,7 @@
   <url><loc>https://3d.tosijs.net/b3d-trigger/</loc></url>
   <url><loc>https://3d.tosijs.net/biome-plugin/</loc></url>
   <url><loc>https://3d.tosijs.net/CHANGELOG/</loc></url>
+  <url><loc>https://3d.tosijs.net/character-file/</loc></url>
   <url><loc>https://3d.tosijs.net/cloth-shading/</loc></url>
   <url><loc>https://3d.tosijs.net/cloud-shadows/</loc></url>
   <url><loc>https://3d.tosijs.net/garment-cut/</loc></url>
@@ -120,6 +122,7 @@
   <url><loc>https://3d.tosijs.net/slope-profile/</loc></url>
   <url><loc>https://3d.tosijs.net/svg-texture/</loc></url>
   <url><loc>https://3d.tosijs.net/system-bar/</loc></url>
+  <url><loc>https://3d.tosijs.net/tailor-tool/</loc></url>
   <url><loc>https://3d.tosijs.net/virtual-gamepad/</loc></url>
   <url><loc>https://3d.tosijs.net/weapon-fit/</loc></url>
   <url><loc>https://3d.tosijs.net/weather-and-clouds/</loc></url>
@@ -150,6 +153,8 @@
   <url><loc>https://3d.tosijs.net/skin-shading/</loc></url>
   <url><loc>https://3d.tosijs.net/color-picker/</loc></url>
   <url><loc>https://3d.tosijs.net/rocky-world/</loc></url>
+  <url><loc>https://3d.tosijs.net/material-picker/</loc></url>
+  <url><loc>https://3d.tosijs.net/material-recipe/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-ambient/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-beacon/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-black-hole/</loc></url>
@@ -187,6 +192,7 @@
   <url><loc>https://3d.tosijs.net/picker/</loc></url>
   <url><loc>https://3d.tosijs.net/portal-transform/</loc></url>
   <url><loc>https://3d.tosijs.net/retarget/</loc></url>
+  <url><loc>https://3d.tosijs.net/rigged-body/</loc></url>
   <url><loc>https://3d.tosijs.net/space-backdrop/</loc></url>
   <url><loc>https://3d.tosijs.net/surroundings/</loc></url>
   <url><loc>https://3d.tosijs.net/touch-gamepad/</loc></url>
@@ -213,9 +219,11 @@
   <url><loc>https://3d.tosijs.net/ui-controls/</loc></url>
   <url><loc>https://3d.tosijs.net/ui-containers/</loc></url>
   <url><loc>https://3d.tosijs.net/ui-in-scene/</loc></url>
+  <url><loc>https://3d.tosijs.net/character/</loc></url>
   <url><loc>https://3d.tosijs.net/ui-theme/</loc></url>
   <url><loc>https://3d.tosijs.net/utilities/</loc></url>
   <url><loc>https://3d.tosijs.net/input-internals/</loc></url>
+  <url><loc>https://3d.tosijs.net/v0.11.6/</loc></url>
   <url><loc>https://3d.tosijs.net/v0.11.5/</loc></url>
   <url><loc>https://3d.tosijs.net/v0.11.4/</loc></url>
   <url><loc>https://3d.tosijs.net/v0.11.3/</loc></url>
@@ -279,4 +287,5 @@
   <url><loc>https://3d.tosijs.net/upgrading/</loc></url>
   <url><loc>https://3d.tosijs.net/reference/</loc></url>
   <url><loc>https://3d.tosijs.net/design-notes/</loc></url>
+  <url><loc>https://3d.tosijs.net/acknowledgements/</loc></url>
 </urlset>

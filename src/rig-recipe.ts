@@ -438,7 +438,9 @@ export function rigRecipeSchema(): Record<string, unknown> {
           },
           tailBase: {
             oneOf: [
-              vec3('Where the tail starts (its first joint), if not the back of the pelvis.'),
+              vec3(
+                'Where the tail starts (its first joint), if not the back of the pelvis.'
+              ),
               { type: 'null' },
             ],
           },
