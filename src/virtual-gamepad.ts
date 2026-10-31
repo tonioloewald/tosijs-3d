@@ -574,6 +574,7 @@ export function carMapping(pad: VirtualGamepad, _dt: number): ControlInput {
   input.throttle = pad.rightTrigger
   input.interact = pad.buttonX
   input.sprint = pad.leftBumper
+  input.jump = pad.buttonA
   return input
 }
 
@@ -583,6 +584,7 @@ export const carMappingDescriptor: InputMappingDescriptor = {
     leftStickY: 'accelerate',
     leftStickX: 'steer',
     rightTrigger: 'throttle',
+    buttonA: 'handbrake',
     buttonX: 'interact',
     leftBumper: 'nitro',
   },

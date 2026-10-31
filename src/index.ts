@@ -581,6 +581,27 @@ export {
 
 // Vehicles
 export { B3dCar, b3dCar } from './b3d-car.js'
+export { B3dTank, b3dTank } from './b3d-tank.js'
+export { B3dGroundVehicle } from './b3d-ground-vehicle.js'
+export {
+  createVehicle,
+  stepVehicle,
+  shiftVehicle,
+  heightGround,
+  forwardSpeed,
+  headingOf,
+  VEHICLE_STEP,
+  type VehicleSpec,
+  type VehicleState,
+  type VehicleControls,
+  type WheelSpec,
+  type TrackSpec,
+  type GroundRay,
+  type GroundHit,
+  type ContactState,
+  type TrackState,
+  type Suspension,
+} from './ground-vehicle.js'
 export { B3dAircraft, b3dAircraft } from './b3d-aircraft.js'
 
 // The callback-naming shim. `handleX` is the name across this library; `onX`

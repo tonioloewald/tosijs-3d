@@ -422,7 +422,7 @@ b3d(
   b3dLoader({ url: './scene.glb' }),
   inputFocus(
     b3dBiped({ url: './character.glb', player: true, cameraType: 'follow' }),
-    b3dCar({ url: './car.glb', enterable: true })
+    b3dCar({ library: 'cars', meshName: 'sedan', scale: 1.7, enterable: true })
   ),
   b3dWater({ y: -0.2, twoSided: true }),
   b3dReflections()
@@ -615,7 +615,8 @@ an accessible name in the markup (an SVG `<title>`, or the mirrored button's
 | File | Purpose |
 | --- | --- |
 | `src/b3d-biped.ts` | Character controller with animation state machine, follow/XR camera |
-| `src/b3d-car.ts` | Vehicle with acceleration, steering, wheel spin, enterability |
+| `src/b3d-car.ts` / `src/b3d-tank.ts` / `src/b3d-ground-vehicle.ts` | Wheeled and tracked vehicles on the pure `ground-vehicle` model (no physics engine: Tonio's call). `B3dGroundVehicle` is the scene side: loads a model (url or library), steps the model from its OWN observer every frame (driven or not), finds the ground by picking, stops at walls with a probe swept from hub height, follows origin shifts, gives the camera a level anchor. `b3d-car` finds wheels by name (`wheel`, only those that reach the ground), measures hub and radius, steers the front, drives by `drive`; `b3d-tank` finds `track` meshes, stands them on five contacts each, scrolls the tread; with no model it builds a plain tank |
+| `src/ground-vehicle.ts` | The pure vehicle model: one rigid body on CONTACTS (wheels, points under tracks), each a raycast spring-damper preloaded to sit at its `at`, with grip limited to grip × load (friction ellipse; a track's motor takes its grip first). Ackermann steering, engine fading to `maxSpeed`, one-stick GTA throttle (back brakes then reverses, let go below 1.5 m/s and it holds, gravity included), handbrake, skid steer. Fixed 1/120 s step. A ray hit within half a wheel of the top stop is a WALL, not ground (it threw cars into the air). `heightGround` for tests. Unit-tested |
 | `src/b3d-aircraft.ts` | Aircraft with VTOL, flight dynamics, follow camera |
 | `src/fly-by-wire.ts` | Pure "drone-becomes-a-plane" attitude-command flight model (zero Babylon deps), unit-tested |
 | `src/retarget.ts` | Pure core of RETARGETING (0.11): `humanoidRoles` reads which bone is which across UE, Mixamo, Kenney and Blender spellings (each finger's three joints too; twist, IK and end bones left alone; a lone `leg` is the whole leg), and `retargeter(source, target).pose(rotations, hips)` transfers each role's world-space rotation since rest, lined up with the source's rest direction so an A-pose clip lands as shown on a T-pose rig, with the hips' travel scaled by hip height. `armSpaceDeg` (Mixamo's Arm-Space) turns the upper arms out for a body whose arms would hang through the floor or its sides (a Kenney chibi takes 55°, checked against Kenney's own walk). Tested on the real UAL, Mixamo and Kenney Mini skeletons. Fitting and binding a mesh with no skeleton: `rig-fit`, `rig-markers`, `bone-heat`, `rig-build` |

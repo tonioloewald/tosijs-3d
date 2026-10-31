@@ -230,12 +230,18 @@ b3d-car
   rz
   axes
   url  = ''  — GLB model URL
-  enterable  = false  — Whether a biped can enter this vehicle
-  maxSpeed  = 15  — Maximum forward speed
-  acceleration  = 8  — Acceleration rate
-  braking  = 15  — Braking rate
-  turnRate  = 90  — Degrees per second at full speed
-  friction  = 3  — Deceleration when coasting
+  library  = ''  — Or a model from a `b3d-library`
+  meshName  = ''  — Or a model from a `b3d-library`
+  enterable  = false  — A biped can get in (inside an `inputFocus`)
+  player
+  scale  = 1  — Uniform scale of the model
+  mass  = 1200  — kg
+  maxSpeed  = 25  — m/s; the engine gives nothing past it
+  acceleration  = 5  — m/s² from a standstill
+  braking  = 9  — m/s²
+  grip  = 1  — Tyre grip, a friction coefficient: lower slides sooner
+  steerDeg  = 35  — Full lock, degrees (less at speed)
+  drive  = 'rear'  — Driven wheels: `rear`, `front` or `all`
 
 ## b3d-cloud-deck — <tosi-b3d-cloud-deck>
 b3d-cloud-deck
@@ -1085,6 +1091,29 @@ b3d-svg-plane
   doubleSided  = 'on'  — Render both faces
   cornerRadius  = 0  — Corner radius in WORLD units. `0` = a plain rectangle. Rounds the MESH, so corners cost triangles instead of alpha — see **Keeping panels in order** below
   transparent  = 'on'  — `'off'` drops the opacity texture so the plane writes depth. Pair with `cornerRadius`. `'depth'` blends and writes depth (transparent pixels discarded): ordered by the z-buffer like an opaque panel, and a translucent theme still shows through
+
+## b3d-tank — <tosi-b3d-tank>
+b3d-tank
+
+  x
+  y
+  z
+  rx
+  ry
+  rz
+  axes
+  url
+  library
+  meshName
+  enterable
+  player
+  scale
+  mass
+  maxSpeed
+  acceleration
+  braking
+  grip
+  turnSpeed  = 1.2  — How far apart the belts run at full steer, m/s
 
 ## b3d-terrain — <tosi-b3d-terrain>
 b3d-terrain

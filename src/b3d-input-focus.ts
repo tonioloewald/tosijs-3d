@@ -25,13 +25,14 @@ When switching entities, the input mapping is swapped to match the entity type
 ## Usage
 
 ```javascript
-import { b3d, b3dBiped, b3dCar, inputFocus } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dCar, b3dLibrary, inputFocus } from 'tosijs-3d'
 
 document.body.append(
   b3d({},
+    b3dLibrary({ url: assetUrl('kenney/libraries/car-kit.glb'), type: 'cars' }),
     inputFocus(
       b3dBiped({ url: '/character.glb', player: true, cameraType: 'follow' }),
-      b3dCar({ url: '/car.glb', enterable: true, x: 5 })
+      b3dCar({ library: 'cars', meshName: 'sedan', scale: 1.7, enterable: true, x: 5 })
     )
   )
 )

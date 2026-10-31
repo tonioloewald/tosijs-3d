@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Vehicles you can drive.** `ground-vehicle` is a pure model of wheeled and tracked vehicles (springs, tyre grip that slides past its limit, Ackermann steering, skid steer), no physics engine. `<tosi-b3d-car>` is rebuilt on it: give it a model whose wheels have `wheel` in their names (Kenney's Car Kit works, at `scale: 1.7`), and it measures them. ⚠️ `b3d-car`'s `turnRate` and `friction` are gone: use `steerDeg`, `grip`, `mass` and `drive`; `acceleration` and `braking` are now m/s². `<tosi-b3d-tank>` is new: tracks, a pivot turn, and a plain tank when given no model. The car mapping's A button (space) is the handbrake.
+
 ## 0.11.6
 
 The latest release. The character leaves the builder: any body (MakeHuman's, Blender's, Quaternius' or your own mesh) rigged, dressed and tailored the same way; a character file that carries its body; `makeCharacter`, and `<tosi-b3d-biped character>` to walk it in a game; a material picker. [Read 0.11.6](/v0.11.6/).

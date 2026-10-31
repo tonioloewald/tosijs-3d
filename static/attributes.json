@@ -931,34 +931,62 @@
         "description": "GLB model URL"
       },
       {
+        "name": "library",
+        "default": "''",
+        "description": "Or a model from a `b3d-library`"
+      },
+      {
+        "name": "meshName",
+        "default": "''",
+        "description": "Or a model from a `b3d-library`"
+      },
+      {
         "name": "enterable",
         "default": "false",
-        "description": "Whether a biped can enter this vehicle"
+        "description": "A biped can get in (inside an `inputFocus`)"
+      },
+      {
+        "name": "player"
+      },
+      {
+        "name": "scale",
+        "default": "1",
+        "description": "Uniform scale of the model"
+      },
+      {
+        "name": "mass",
+        "default": "1200",
+        "description": "kg"
       },
       {
         "name": "maxSpeed",
-        "default": "15",
-        "description": "Maximum forward speed"
+        "default": "25",
+        "description": "m/s; the engine gives nothing past it"
       },
       {
         "name": "acceleration",
-        "default": "8",
-        "description": "Acceleration rate"
+        "default": "5",
+        "description": "m/s² from a standstill"
       },
       {
         "name": "braking",
-        "default": "15",
-        "description": "Braking rate"
+        "default": "9",
+        "description": "m/s²"
       },
       {
-        "name": "turnRate",
-        "default": "90",
-        "description": "Degrees per second at full speed"
+        "name": "grip",
+        "default": "1",
+        "description": "Tyre grip, a friction coefficient: lower slides sooner"
       },
       {
-        "name": "friction",
-        "default": "3",
-        "description": "Deceleration when coasting"
+        "name": "steerDeg",
+        "default": "35",
+        "description": "Full lock, degrees (less at speed)"
+      },
+      {
+        "name": "drive",
+        "default": "'rear'",
+        "description": "Driven wheels: `rear`, `front` or `all`"
       }
     ]
   },
@@ -4436,6 +4464,72 @@
         "name": "transparent",
         "default": "'on'",
         "description": "`'off'` drops the opacity texture so the plane writes depth. Pair with `cornerRadius`. `'depth'` blends and writes depth (transparent pixels discarded): ordered by the z-buffer like an opaque panel, and a translucent theme still shows through"
+      }
+    ]
+  },
+  {
+    "module": "b3d-tank",
+    "tag": "tosi-b3d-tank",
+    "summary": "b3d-tank",
+    "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
+        "name": "url"
+      },
+      {
+        "name": "library"
+      },
+      {
+        "name": "meshName"
+      },
+      {
+        "name": "enterable"
+      },
+      {
+        "name": "player"
+      },
+      {
+        "name": "scale"
+      },
+      {
+        "name": "mass"
+      },
+      {
+        "name": "maxSpeed"
+      },
+      {
+        "name": "acceleration"
+      },
+      {
+        "name": "braking"
+      },
+      {
+        "name": "grip"
+      },
+      {
+        "name": "turnSpeed",
+        "default": "1.2",
+        "description": "How far apart the belts run at full steer, m/s"
       }
     ]
   },

@@ -12,7 +12,9 @@ price of one.
 <!-- toc -->
 - [b3d-biped](/b3d-biped/)
 - [b3d-aircraft](/b3d-aircraft/)
+- [ground-vehicle](/ground-vehicle/)
 - [b3d-car](/b3d-car/)
+- [b3d-tank](/b3d-tank/)
 - [b3d-elevator](/b3d-elevator/)
 - [b3d-crowd](/b3d-crowd/)
 <!-- /toc -->
