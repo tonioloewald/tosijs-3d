@@ -6,6 +6,12 @@ where the ground is, keeps the vehicle out of walls, and moves the node.
 The model is stepped from its OWN observer, every frame, driven or not, so a
 car you jump out of rolls to a stop and one parked on a slope settles. Input
 reaches it through `applyInput`, which only records the controls.
+
+THE CHASE CAMERA is the vehicle's own (Tonio: higher, and pointed ahead of the
+car, so there is more road in front and less behind). It swings round behind
+the vehicle with a little lag, the right stick looks around and springs back
+when let go. Its pose is computed fresh from the anchor every frame, with only
+ANGLES carried between frames, so a floating-origin shift needs nothing.
 */
 
 import * as BABYLON from '@babylonjs/core'
@@ -15,11 +21,14 @@ import type { ControlInput } from './control-input.js'
 import { collidable, sceneDelta, simHalted, type SimGateOwner } from './b3d-utils.js'
 import { canonicalize } from './model-transform.js'
 import {
+  chasePose,
+  chaseRigFor,
   createVehicle,
   forwardSpeed,
   headingOf,
   shiftVehicle,
   stepVehicle,
+  type ChaseRig,
   type GroundRay,
   type VehicleControls,
   type VehicleSpec,
@@ -71,6 +80,13 @@ export abstract class B3dGroundVehicle extends B3dControllable {
   control: BABYLON.TransformNode | null = null
 
   private controls: VehicleControls = { ...IDLE }
+  /** The chase camera, made the first time the vehicle is driven. */
+  chaseCamera: BABYLON.FreeCamera | null = null
+  private rig: ChaseRig | null = null
+  private focused = false
+  private camYaw = 0
+  private look = { x: 0, y: 0 }
+  private lookWant = { x: 0, y: 0 }
   private anchor: BABYLON.TransformNode | null = null
   private probe: BABYLON.Mesh | null = null
   private probeOffset = 0
@@ -114,11 +130,75 @@ export abstract class B3dGroundVehicle extends B3dControllable {
       steer: input.turn,
       handbrake: input.jump,
     }
+    this.lookWant = { x: input.lookX, y: input.lookY }
+  }
+
+  handleGainFocus() {
+    super.handleGainFocus()
+    this.focused = true
+    this.setupFollowCamera()
   }
 
   handleLoseFocus() {
     super.handleLoseFocus()
+    this.focused = false
     this.controls = { ...IDLE }
+    this.lookWant = { x: 0, y: 0 }
+  }
+
+  /**
+   * Make the chase camera if need be and make it the scene's camera, settled
+   * behind the vehicle. Called on gaining focus, and again once the model has
+   * loaded if focus came first.
+   */
+  setupFollowCamera() {
+    const owner = this.owner
+    const state = this.state
+    if (owner == null || state == null || this.spec == null || !this.focused) return
+    if (this.chaseCamera == null) {
+      const cam = new BABYLON.FreeCamera(`${this.tagName}-chase`, BABYLON.Vector3.Zero(), owner.scene)
+      cam.minZ = 0.1
+      this.chaseCamera = cam
+    }
+    this.rig = chaseRigFor(this.spec.size)
+    this.camYaw = headingOf(state)
+    this.look = { x: 0, y: 0 }
+    this.aimCamera(0)
+    owner.setActiveCamera(this.chaseCamera, { attach: false })
+  }
+
+  private aimCamera(dt: number) {
+    const cam = this.chaseCamera
+    const state = this.state
+    const rig = this.rig
+    if (cam == null || state == null || rig == null) return
+    // Swing round behind the vehicle, and ease the look toward the stick.
+    const heading = headingOf(state)
+    const lag = dt > 0 ? 1 - Math.exp(-dt * 3) : 1
+    let d = heading - this.camYaw
+    d = Math.atan2(Math.sin(d), Math.cos(d))
+    this.camYaw += d * lag
+    const ease = dt > 0 ? 1 - Math.exp(-dt * 8) : 1
+    this.look.x += (this.lookWant.x - this.look.x) * ease
+    this.look.y += (this.lookWant.y - this.look.y) * ease
+    const { eye, target } = chasePose(
+      state.position,
+      this.camYaw + this.look.x * Math.PI * 0.75,
+      this.look.y,
+      rig
+    )
+    // Something between the vehicle and the camera (a wall it backed up to, or
+    // swung round into while looking): come in in front of it.
+    const from = new BABYLON.Vector3(state.position.x, state.position.y + rig.aimHeight + 1, state.position.z)
+    const to = V(eye).subtract(from)
+    const far = to.length()
+    const hit = this.owner?.scene.pickWithRay(
+      new BABYLON.Ray(from, to.scale(1 / far), far),
+      collidable(this.isMine)
+    )
+    const at = hit?.hit ? from.add(to.scale(Math.max(0.1, hit.distance - 0.3) / far)) : V(eye)
+    cam.position.copyFrom(at)
+    cam.setTarget(V(target))
   }
 
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
@@ -210,6 +290,8 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     scene.registerBeforeRender(this._update)
     scene.registerBeforeRender(this._drive)
     this.place()
+    // Driven before it had a body: the camera waited for one.
+    this.setupFollowCamera()
   }
 
   private contactHubs(spec: VehicleSpec): number[] {
@@ -248,6 +330,7 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     stepVehicle(spec, state, this.inputProvider ? this.controls : IDLE, dt, this.ground)
     this.blockByWalls(before, state)
     this.place()
+    if (this.chaseCamera != null && scene.activeCamera === this.chaseCamera) this.aimCamera(dt)
   }
 
   /*
@@ -310,6 +393,8 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     this.control?.dispose()
     this.anchor?.dispose()
     this.probe?.dispose()
+    this.chaseCamera?.dispose()
+    this.chaseCamera = null
     this.control = this.anchor = this.probe = null
     this.mesh = undefined
     this.spec = this.state = null

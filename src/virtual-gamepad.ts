@@ -424,7 +424,15 @@ export interface GamepadSource {
  */
 export const STICK_UP_IS_POSITIVE = true
 
-export type InputMapping = (pad: VirtualGamepad, dt: number) => ControlInput
+export type InputMapping = ((pad: VirtualGamepad, dt: number) => ControlInput) & {
+  /**
+   * Rewrites a KEYBOARD source's pad before the sources merge. For a mapping
+   * whose pad layout has no keyboard equivalent: the car's pedals are the
+   * triggers, and W/S are the left stick, so the car moves W/S onto the
+   * triggers for the keyboard alone (a pad's left stick only steers).
+   */
+  keyboard?: (pad: VirtualGamepad) => VirtualGamepad
+}
 
 /** Labels for each gamepad control — used by UI visualizers */
 export type MappingLabels = Partial<Record<keyof VirtualGamepad, string>>
@@ -567,24 +575,45 @@ export const bipedMappingDescriptor: InputMappingDescriptor = {
   },
 }
 
-export function carMapping(pad: VirtualGamepad, _dt: number): ControlInput {
-  const input = emptyInput()
-  input.forward = pad.leftStickY
-  input.turn = pad.leftStickX
-  input.throttle = pad.rightTrigger
-  input.interact = pad.buttonX
-  input.sprint = pad.leftBumper
-  input.jump = pad.buttonA
-  return input
-}
+/*
+GTA V's driving layout: the right trigger is the accelerator, the left the brake
+(held, it reverses), the left stick ONLY steers, the right stick looks around.
+On a keyboard W/S drive as before: `carMapping.keyboard` moves them onto the
+triggers for the keyboard alone.
+*/
+export const carMapping: InputMapping = Object.assign(
+  (pad: VirtualGamepad, _dt: number): ControlInput => {
+    const input = emptyInput()
+    input.forward = pad.rightTrigger - pad.leftTrigger
+    input.throttle = pad.rightTrigger
+    input.turn = pad.leftStickX
+    input.lookX = pad.rightStickX
+    input.lookY = pad.rightStickY
+    input.interact = pad.buttonX
+    input.sprint = pad.leftBumper
+    input.jump = Math.max(pad.buttonA, pad.rightBumper)
+    return input
+  },
+  {
+    keyboard: (pad: VirtualGamepad): VirtualGamepad => ({
+      ...pad,
+      rightTrigger: Math.max(pad.rightTrigger, pad.leftStickY),
+      leftTrigger: Math.max(pad.leftTrigger, -pad.leftStickY),
+      leftStickY: 0,
+    }),
+  }
+)
 
 export const carMappingDescriptor: InputMappingDescriptor = {
   map: carMapping,
   labels: {
-    leftStickY: 'accelerate',
     leftStickX: 'steer',
-    rightTrigger: 'throttle',
+    rightStickX: 'look',
+    rightStickY: 'look',
+    rightTrigger: 'accelerate',
+    leftTrigger: 'brake / reverse',
     buttonA: 'handbrake',
+    rightBumper: 'handbrake',
     buttonX: 'interact',
     leftBumper: 'nitro',
   },
@@ -709,8 +738,13 @@ export class MappedInputProvider implements InputProvider {
   /** Returns the merged VirtualGamepad before mapping — useful for visualizers */
   pollRaw(): VirtualGamepad {
     let merged = emptyGamepad()
+    const keyboard = this.mapping.keyboard
     for (const source of this.sources) {
-      merged = mergeGamepads(merged, source.poll())
+      const pad = source.poll()
+      merged = mergeGamepads(
+        merged,
+        keyboard && source.kind === 'keyboard' ? keyboard(pad) : pad
+      )
     }
     return merged
   }

@@ -50,9 +50,19 @@ engine pulls through the driven ones, fading to nothing at `maxSpeed`. A tank's
 tracks each run at a commanded belt speed; steering slows one and speeds the
 other, so it turns on the spot with the stick to one side and nothing else.
 
-Controls are one stick, the GTA way: push forward to go, pull back to brake,
-and keep pulling to reverse. Let go below walking pace and the brakes hold it,
-so a parked car stays on a hill.
+`throttle` is one axis, the GTA way: positive goes, negative brakes and then
+reverses. On a pad that is the right trigger minus the left; on a keyboard W
+and S. Off the throttle it slows gently, as an engine brakes (`coast`, m/s²);
+let go below walking pace and the brakes hold it, so a parked car stays on a
+hill. Steering at speed is held to what the tyres can take, so a turn keeps
+its speed; the handbrake is how you ask for more.
+
+## The chase view
+
+`chaseRigFor(size)` and `chasePose` place the camera behind and above the
+vehicle, aimed at a point AHEAD of it, so the road in front fills the screen
+rather than the car's roof and the ground behind it. Both scale with the
+vehicle's length, so a tank's camera stands farther back than a car's.
 
 The step is fixed (1/120 s, the remainder carried over), so the same inputs
 give the same drive at any frame rate.
@@ -132,6 +142,8 @@ export interface VehicleSpec {
   drag?: number
   /** Rolling resistance, as a share of the load. Default 0.015. */
   rolling?: number
+  /** Off the throttle at speed, how hard the engine slows it, m/s². Default 1. */
+  coast?: number
   /** Tracks: how far apart the belts run at full steer, m/s. Default 1.2. */
   turnSpeed?: number
 }
@@ -444,6 +456,9 @@ function substep(
     else drive = throttle * Math.max(0, 1 + speed / reverseSpeed)
   } else if (Math.abs(speed) < 1.5) {
     brake = 1
+  } else {
+    // Off the throttle it slows, gently: the engine brakes (GTA does the same).
+    brake = Math.min(1, (spec.mass * (spec.coast ?? 1)) / spec.brakeForce)
   }
 
   const wheels = spec.wheels ?? []
@@ -456,7 +471,6 @@ function substep(
     const axleZ = fixed.length
       ? fixed.reduce((t, w) => t + w.at.z, 0) / fixed.length
       : 0
-    const lockScale = 1 / (1 + Math.abs(speed) / 15)
     const steered = wheels.filter((w) => w.steerDeg)
     const meanZ = steered.length
       ? steered.reduce((t, w) => t + w.at.z, 0) / steered.length
@@ -464,8 +478,19 @@ function substep(
     const meanLock = steered.length
       ? steered.reduce((t, w) => t + (w.steerDeg ?? 0), 0) / steered.length
       : 0
-    const delta = ((steer * meanLock * Math.PI) / 180) * lockScale
     const base = meanZ - axleZ
+    /*
+    STEER NO TIGHTER THAN THE TYRES CAN HOLD. A turn of radius R at speed v
+    asks v²/R of the grip, and R is the wheelbase over tan(lock). Full lock at
+    speed asked several times what the tyres have: the fronts slid and scrubbed
+    the speed off, so every turn felt like braking (Tonio). The lock is capped
+    at what 85% of the grip holds, so full stick is the tightest turn that
+    still grips; the handbrake is how you ask for more.
+    */
+    const gripLock = Math.atan(
+      (Math.abs(base) * 0.85 * (spec.grip ?? 1) * G) / Math.max(speed * speed, 1e-6)
+    )
+    const delta = steer * Math.min((meanLock * Math.PI) / 180, gripLock)
     const radius = Math.abs(delta) > 1e-4 ? base / Math.tan(delta) : Infinity
     wheels.forEach((w, i) => {
       const c = state.wheels[i]
@@ -508,15 +533,24 @@ function substep(
   const tracks = spec.tracks ?? []
   if (tracks.length > 0) {
     const count = tracks.reduce((t, k) => t + k.contacts.length, 0)
-    const turn = steer * (spec.turnSpeed ?? 1.2)
+    // At speed, turn no faster than the tracks' grip can carry the hull round
+    // (v × yaw rate is the sideways pull); past it the hull slides like a hovercraft.
+    const halfTrack =
+      tracks.reduce((t, k) => t + Math.abs(k.contacts[0]?.x ?? 0), 0) / tracks.length || 1
+    const gripTurn = (halfTrack * 0.55 * (spec.grip ?? 1) * G) / Math.max(Math.abs(speed), 1e-6)
+    const turn = steer * Math.min(spec.turnSpeed ?? 1.2, gripTurn)
     const target = throttle >= 0 ? throttle * spec.maxSpeed : throttle * reverseSpeed
+    // At top speed the outer belt cannot run faster, so the INNER one slows by
+    // the whole difference: capping the outer alone halved the turn at speed.
+    const reach = Math.abs(target) + Math.abs(turn)
+    const over = Math.max(0, reach - spec.maxSpeed) * Math.sign(target)
     tracks.forEach((track, i) => {
       const ts = state.tracks[i]
       const sideX = track.contacts.reduce((t, p) => t + p.x, 0)
-      const belt = Math.max(
-        -spec.maxSpeed,
-        Math.min(spec.maxSpeed, target - Math.sign(sideX) * turn)
-      )
+      const belt = target - over - Math.sign(sideX) * turn
+      const zs = track.contacts.map((p) => p.z)
+      const midZ = (Math.min(...zs) + Math.max(...zs)) / 2
+      const halfZ = (Math.max(...zs) - Math.min(...zs)) / 2 || 1
       ts.speed = belt
       ts.offset += belt * dt
       track.contacts.forEach((at, j) => {
@@ -529,11 +563,17 @@ function substep(
             -pull,
             Math.min(pull, (belt - along) * cancel + m * G * f.y)
           )
-          // A track's ends skid sideways easily (they carry little), so it can pivot.
+          /*
+          A track's ENDS skid sideways easily, so it can pivot; its MIDDLE, near
+          the turning centre, holds, so the hull goes where it points. Half grip
+          everywhere let a tank turning at speed slide 24 degrees off its
+          heading, like a hovercraft (Tonio: "feels super weird").
+          */
+          const fromMiddle = Math.abs(at.z - midZ) / halfZ
           return {
             long,
             lat: -across * cancel + m * G * sd.y,
-            latGrip: 0.5,
+            latGrip: 1 - 0.7 * fromMiddle,
             pullFirst: true,
           }
         })
@@ -609,4 +649,48 @@ export function stepVehicle(
     state.carry -= VEHICLE_STEP
   }
   return state
+}
+
+/** Where a chase camera sits, in metres, for a vehicle of a given size. */
+export interface ChaseRig {
+  /** Behind the vehicle's origin. */
+  distance: number
+  /** Above the ground under it. */
+  height: number
+  /** How far ahead of the vehicle the camera aims. */
+  ahead: number
+  /** The height of that aim point. */
+  aimHeight: number
+}
+
+export function chaseRigFor(size: Vec3): ChaseRig {
+  const length = Math.max(size.z, 2)
+  return {
+    distance: 1.4 * length + 2,
+    height: 0.6 * length + 1.5,
+    ahead: 1.5 * length,
+    aimHeight: 0.8,
+  }
+}
+
+/**
+ * The camera's eye and aim point. `yaw` is the direction the camera faces
+ * (the vehicle's heading plus any look-around); `tilt` in -1..1 is the right
+ * stick's up and down: up lowers the eye to look up the road, down raises it
+ * to look down on the vehicle.
+ */
+export function chasePose(
+  at: Vec3,
+  yaw: number,
+  tilt: number,
+  rig: ChaseRig
+): { eye: Vec3; target: Vec3 } {
+  const fx = Math.sin(yaw)
+  const fz = Math.cos(yaw)
+  const t = Math.max(-1, Math.min(1, tilt))
+  const height = Math.max(0.6, rig.height * (1 - 0.7 * t))
+  return {
+    eye: v(at.x - fx * rig.distance, at.y + height, at.z - fz * rig.distance),
+    target: v(at.x + fx * rig.ahead, at.y + rig.aimHeight, at.z + fz * rig.ahead),
+  }
 }

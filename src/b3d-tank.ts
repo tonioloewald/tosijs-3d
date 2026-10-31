@@ -26,8 +26,9 @@ preview.append(
 .preview { height: 100%; }
 ```
 
-**W** and **S** drive forward and back, **A** and **D** steer; with nothing
-else held they pivot it where it stands.
+**W** and **S** (on a gamepad the right and left triggers) drive forward and
+back, **A** and **D** (the left stick) steer; with nothing else held they pivot
+it where it stands.
 
 ## Its body
 
