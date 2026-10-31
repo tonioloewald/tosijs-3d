@@ -202,6 +202,26 @@ describe('a tank', () => {
     expect(forwardSpeed(s)).toBeGreaterThan(8)
   })
 
+  test('its raised ends climb a step about as high as its tracks', () => {
+    const ramp = (x: number) =>
+      [[-0.25, 1.85], [0, 2.0], [0.25, 2.15]].flatMap(([y, z]) => [{ x, y, z }, { x, y, z: -z }])
+    const climber: VehicleSpec = {
+      ...tank,
+      tracks: [
+        { contacts: row(-1.3), radius: 0.35, climb: ramp(-1.3) },
+        { contacts: row(1.3), radius: 0.35, climb: ramp(1.3) },
+      ],
+    }
+    const stepped = heightGround((_x, z) => (z > 6 ? 0.6 : 0))
+    const s = createVehicle(climber, { position: { x: 0, y: TANK_STAND, z: 0 } })
+    // On the flat the raised ends touch nothing.
+    run(climber, s, idle, 1, stepped)
+    expect(s.tracks[0].contacts.slice(5).some((c) => c.grounded)).toBe(false)
+    run(climber, s, { throttle: 0.5, steer: 0 }, 6, stepped)
+    expect(s.position.z).toBeGreaterThan(15)
+    expect(s.position.y).toBeCloseTo(0.6 + TANK_STAND, 1)
+  })
+
   test('stops when let go', () => {
     const s = createVehicle(tank, { position: { x: 0, y: TANK_STAND, z: 0 } })
     run(tank, s, { throttle: 1, steer: 0 }, 3)

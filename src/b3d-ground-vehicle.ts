@@ -88,8 +88,10 @@ export abstract class B3dGroundVehicle extends B3dControllable {
   private look = { x: 0, y: 0 }
   private lookWant = { x: 0, y: 0 }
   private anchor: BABYLON.TransformNode | null = null
-  private probe: BABYLON.Mesh | null = null
-  private probeOffset = 0
+  /** The heights its wall rays run at, each with the body's extent there (its own frame). */
+  private wallBands: { h: number; min: BABYLON.Vector3; max: BABYLON.Vector3 }[] = []
+  /** A track's climbing points: the low wall rays let them onto an obstacle. */
+  private climbPoints: { x: number; z: number }[] = []
   private ownMeshes: BABYLON.AbstractMesh[] = []
   private stopLibraryWait?: () => void
   private onOrigin = (dx: number, dz: number) => {
@@ -292,16 +294,26 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     this.anchor = new BABYLON.TransformNode(`${this.tagName}-anchor`, scene)
     this.anchor.rotationQuaternion = BABYLON.Quaternion.Identity()
 
-    // Walls: one probe the width of the body, between the wheels' tops and the
-    // roof, swept with the body's motion (the ground is left to the springs).
-    // From the hubs up: a kerb under half a wheel is climbed, a taller one stops it.
-    const lo = Math.max(...this.contactHubs(spec))
-    const top = this.bodyTop(control)
-    const height = Math.max(0.2, top - lo)
-    this.probe = new BABYLON.Mesh(`${this.tagName}-probe`, scene)
-    this.probe.isPickable = false
-    this.probe.ellipsoid = new BABYLON.Vector3(spec.size.x / 2, height / 2, spec.size.x / 2)
-    this.probeOffset = lo + height / 2
+    // Walls: rays from the body's box, from just above the hubs (a kerb lower
+    // than that is the springs' business) to the roof.
+    // At each height the body is as long and wide as the parts at that height:
+    // a gun barrel sticking out ahead makes the turret long, not the hull.
+    const bounds = control.getHierarchyBoundingVectors(true)
+    const parts = this.ownMeshes.map((m) => m.getBoundingInfo().boundingBox)
+    const lo = Math.max(...this.contactHubs(spec)) + 0.05
+    const top = bounds.max.y - 0.1
+    const crest = Math.max(lo, ...(spec.tracks ?? []).flatMap((t) => (t.climb ?? []).map((c) => c.y)))
+    this.wallBands = [lo, crest + 0.05, (lo + top) / 2, top]
+      .filter((h, i, a) => h <= top && a.indexOf(h) === i)
+      .map((h) => {
+        const at = parts.filter((b) => b.minimumWorld.y <= h + 0.1 && b.maximumWorld.y >= h - 0.1)
+        if (at.length === 0) return null
+        const min = at.reduce((v, b) => BABYLON.Vector3.Minimize(v, b.minimumWorld), at[0].minimumWorld.clone())
+        const max = at.reduce((v, b) => BABYLON.Vector3.Maximize(v, b.maximumWorld), at[0].maximumWorld.clone())
+        return { h, min, max }
+      })
+      .filter((b): b is { h: number; min: BABYLON.Vector3; max: BABYLON.Vector3 } => b != null)
+    this.climbPoints = (spec.tracks ?? []).flatMap((t) => (t.climb ?? []).map((c) => ({ x: c.x, z: c.z })))
 
     owner.addOriginListener(this.onOrigin)
     scene.registerBeforeRender(this._update)
@@ -317,14 +329,9 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     return hubs.length ? hubs : [0]
   }
 
-  private bodyTop(control: BABYLON.TransformNode): number {
-    const { max } = control.getHierarchyBoundingVectors(true)
-    return max.y - control.position.y
-  }
-
-  /** The vehicle's own meshes, which its rays and its probe must not hit. */
+  /** The vehicle's own meshes, which its rays must not hit. */
   private isMine = (m: BABYLON.AbstractMesh) =>
-    m === this.probe || (this.control != null && m.isDescendantOf(this.control))
+    this.control != null && m.isDescendantOf(this.control)
 
   private ground: GroundRay = (from, dir, length) => {
     const scene = this.owner?.scene
@@ -353,30 +360,94 @@ export abstract class B3dGroundVehicle extends B3dControllable {
 
   /*
   WALLS. The springs know only the ground under each contact; a wall is found
-  by sweeping a probe from where the body was to where the model moved it. A
-  sideways correction (the probe was stopped or slid) is taken back from the
-  body, and the motion into the wall is cancelled. The vertical part is the
-  springs' business and is left alone, so a ramp is climbed, not refused.
+  by casting rays from the body's box the way it moved: three across its width
+  at each of a few heights, in the body's OWN frame (so on a slope they run up
+  the slope, not into it). Motion into what they hit is taken back and the
+  velocity into it cancelled, so the vehicle stops at a wall and slides along
+  one it meets at an angle. The vertical part is the springs' business.
+
+  Rays, not a swept ellipsoid: Babylon slides an ellipsoid up over an edge that
+  meets its rounded underside, so anything under half its height was stepped
+  over and a tank drove through a crate.
+
+  A tank's lowest rays let its track ends reach onto an obstacle (by the
+  track's radius) before it is a wall, so the raised ends get on top of a step
+  and climb it; anything above them is a wall at the box.
   */
   private blockByWalls(before: { x: number; y: number; z: number }, state: VehicleState) {
-    const probe = this.probe
-    if (probe == null) return
-    const want = V(state.position).subtract(V(before))
-    probe.position.set(before.x, before.y + this.probeOffset, before.z)
-    const mine = this.ownMeshes.filter((m) => m.checkCollisions)
-    for (const m of mine) m.checkCollisions = false
-    probe.moveWithCollisions(want)
-    for (const m of mine) m.checkCollisions = true
-    const got = probe.position.subtract(new BABYLON.Vector3(before.x, before.y + this.probeOffset, before.z))
-    const lost = new BABYLON.Vector3(got.x - want.x, 0, got.z - want.z)
-    if (lost.length() < 0.002) return
-    state.position.x = before.x + got.x
-    state.position.z = before.z + got.z
-    const n = lost.normalize()
-    const into = state.velocity.x * n.x + state.velocity.z * n.z
-    if (into < 0) {
-      state.velocity.x -= n.x * into * 1.2
-      state.velocity.z -= n.z * into * 1.2
+    const scene = this.owner?.scene
+    if (scene == null || this.wallBands.length === 0) return
+    const wx = state.position.x - before.x
+    const wz = state.position.z - before.z
+    const moved = Math.hypot(wx, wz)
+    if (moved < 1e-4) return
+    const q = state.orientation
+    const rot = new BABYLON.Quaternion(q.x, q.y, q.z, q.w)
+    const inv = BABYLON.Quaternion.Inverse(rot)
+    // The motion in the body's frame, flattened onto its floor.
+    const local = new BABYLON.Vector3(wx, 0, wz).applyRotationQuaternion(inv)
+    local.y = 0
+    if (local.length() < 1e-6) return
+    local.normalize()
+    const across = new BABYLON.Vector3(-local.z, 0, local.x)
+    const dirWorld = local.applyRotationQuaternion(rot)
+    const origin = new BABYLON.Vector3(before.x, before.y, before.z)
+    let push = 0
+    let normal: BABYLON.Vector3 | null = null
+    const pick = collidable(this.isMine)
+    // How far the climbing points reach this way: the lowest rays stop the body
+    // only once those are a little past an obstacle's face, so they get on top.
+    const climbAhead = this.climbPoints.length
+      ? Math.max(...this.climbPoints.map((p) => p.x * local.x + p.z * local.z))
+      : null
+    this.wallBands.forEach(({ h, min, max }, i) => {
+      // How far the body's edge at this height is from a point inside it, this way.
+      const edgeOf = (o: BABYLON.Vector3) => {
+        const tx = local.x > 1e-6 ? (max.x - o.x) / local.x : local.x < -1e-6 ? (min.x - o.x) / local.x : Infinity
+        const tz = local.z > 1e-6 ? (max.z - o.z) / local.z : local.z < -1e-6 ? (min.z - o.z) / local.z : Infinity
+        return Math.max(0, Math.min(tx, tz))
+      }
+      const corners = [
+        [min.x, min.z],
+        [min.x, max.z],
+        [max.x, min.z],
+        [max.x, max.z],
+      ].map(([x, z]) => x * across.x + z * across.z)
+      const a = Math.min(...corners) + 0.05
+      const b = Math.max(...corners) - 0.05
+      for (const off of [a, (a + b) / 2, b]) {
+        const o = across.scale(off)
+        o.y = h
+        const edge =
+          i === 0 && climbAhead != null
+            ? Math.max(0, climbAhead - 0.15 - (o.x * local.x + o.z * local.z))
+            : edgeOf(o)
+        const from = origin.add(o.applyRotationQuaternion(rot))
+        const hit = scene.pickWithRay(new BABYLON.Ray(from, dirWorld, edge + moved + 0.05), pick)
+        if (!hit?.hit) continue
+        let n = hit.getNormal(true, true) ?? dirWorld.negate()
+        if (BABYLON.Vector3.Dot(n, dirWorld) > 0) n = n.negate()
+        n = new BABYLON.Vector3(n.x, 0, n.z)
+        if (n.length() < 0.3) continue // a floor or a ceiling, not a wall
+        n.normalize()
+        // How far the motion goes into it past the box's edge, along its normal.
+        const into = -(wx * n.x + wz * n.z)
+        const gap = (hit.distance - edge) * -BABYLON.Vector3.Dot(dirWorld, n)
+        const over = into - Math.max(0, gap)
+        if (over > push) {
+          push = over
+          normal = n
+        }
+      }
+    })
+    if (normal == null) return
+    const n = normal as BABYLON.Vector3
+    state.position.x += n.x * push
+    state.position.z += n.z * push
+    const intoV = state.velocity.x * n.x + state.velocity.z * n.z
+    if (intoV < 0) {
+      state.velocity.x -= n.x * intoV * 1.2
+      state.velocity.z -= n.z * intoV * 1.2
     }
   }
 
@@ -410,10 +481,10 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     this.owner?.removeOriginListener(this.onOrigin)
     this.control?.dispose()
     this.anchor?.dispose()
-    this.probe?.dispose()
     this.chaseCamera?.dispose()
     this.chaseCamera = null
-    this.control = this.anchor = this.probe = null
+    this.control = this.anchor = null
+    this.wallBands = []
     this.mesh = undefined
     this.spec = this.state = null
     this.ownMeshes = []

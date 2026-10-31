@@ -116,6 +116,13 @@ export interface TrackSpec {
   contacts: Vec3[]
   /** The road wheels' radius: how far a contact's hub sits above the ground. */
   radius: number
+  /**
+   * Points at the track's raised ends (its idler and sprocket). They reach
+   * nothing on the flat and carry none of the weight; meeting the top of an
+   * obstacle, they push that end of the track up onto it, so a tank climbs a
+   * step about as high as its track instead of stopping at it.
+   */
+  climb?: Vec3[]
 }
 
 export interface VehicleSpec {
@@ -314,7 +321,7 @@ export function createVehicle(
     tracks: (spec.tracks ?? []).map((t) => ({
       speed: 0,
       offset: 0,
-      contacts: t.contacts.map(contactState),
+      contacts: [...t.contacts, ...(t.climb ?? [])].map(contactState),
     })),
     carry: 0,
   }
@@ -348,7 +355,9 @@ function touch(
     across: number,
     load: number,
     mass: number
-  ) => { long: number; lat: number; latGrip: number; pullFirst?: boolean }
+  ) => { long: number; lat: number; latGrip: number; pullFirst?: boolean },
+  /** False for a climbing point: no weight on the flat, a spring from the bottom of its reach. */
+  preload = true
 ): void {
   const s = { ...DEFAULT_SUSPENSION, ...spec.suspension }
   const q = state.orientation
@@ -381,7 +390,9 @@ function touch(
   const k = m * w * w
   const damp = 2 * s.damping * Math.sqrt(k * m)
   const rate = c.grounded ? (x - was) / dt : 0
-  let spring = m * G + k * x + damp * rate
+  // A climbing point is twice as stiff: it has to lift an end of the
+  // vehicle onto a step in the moment it takes to drive onto it.
+  let spring = preload ? m * G + k * x + damp * rate : 2 * k * (x + s.travel) + damp * rate
   // Past the top stop the bump rubber takes it, hard.
   if (x > 2 * s.travel) spring += 20 * k * (x - 2 * s.travel)
   spring = Math.max(0, spring)
@@ -553,8 +564,11 @@ function substep(
       const halfZ = (Math.max(...zs) - Math.min(...zs)) / 2 || 1
       ts.speed = belt
       ts.offset += belt * dt
-      track.contacts.forEach((at, j) => {
+      // The track's own contacts, then its raised ends (which climb, carrying nothing on the flat).
+      const points = [...track.contacts, ...(track.climb ?? [])]
+      points.forEach((at, j) => {
         const c = ts.contacts[j]
+        const climbing = j >= track.contacts.length
         touch(spec, state, c, at, track.radius, 1 / count, ground, dt, out, (f, sd, along, across, _load, m) => {
           const cancel = (m / dt) * 0.5
           // The motor pulls the belt to its speed, as hard as the engine allows.
@@ -569,14 +583,14 @@ function substep(
           everywhere let a tank turning at speed slide 24 degrees off its
           heading, like a hovercraft (Tonio: "feels super weird").
           */
-          const fromMiddle = Math.abs(at.z - midZ) / halfZ
+          const fromMiddle = Math.min(1, Math.abs(at.z - midZ) / halfZ)
           return {
             long,
             lat: -across * cancel + m * G * sd.y,
             latGrip: 1 - 0.7 * fromMiddle,
             pullFirst: true,
           }
-        })
+        }, !climbing)
         c.spin = belt / track.radius
         c.angle = (c.angle + c.spin * dt) % (2 * Math.PI)
       })

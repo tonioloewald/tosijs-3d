@@ -37,7 +37,8 @@ gun points, and the turret holds its aim while the hull turns under it.
 Given no `url` or `library`, it builds a plain one: a hull, a turret, and two
 tracks whose treads move with the belts. A model of your own needs its tracks
 as meshes with **`track`** in their names, one each side; the tank stands them
-on five points along their undersides. A node named **`turret`** turns on the
+on five points along their undersides, and its raised ends climb: it gets up
+a step about as high as its tracks. A node named **`turret`** turns on the
 hull, and one inside it named **`gun`**, **`barrel`** or **`cannon`** elevates
 (from -8° to 20°); put each one's origin on its pivot.
 
@@ -249,9 +250,23 @@ export class B3dTank extends B3dGroundVehicle {
       const x = (min.x + max.x) / 2
       const z0 = min.z + radius
       const z1 = max.z - radius
+      // The raised ends climb: three points up each end like a ramp, from the
+      // hubs to just under the track's top, each catching what the one below
+      // cannot reach.
+      const hub = min.y + radius
+      const crest = Math.max(hub + 0.1, max.y - 0.05)
+      const climb = [1, 2, 3].flatMap((k) => {
+        const y = hub + ((crest - hub) * k) / 3
+        const out = (radius * k) / 3
+        return [
+          { x, y, z: z1 + out },
+          { x, y, z: z0 - out },
+        ]
+      })
       specs.push({
         radius,
-        contacts: [0, 0.25, 0.5, 0.75, 1].map((f) => ({ x, y: min.y + radius, z: z0 + (z1 - z0) * f })),
+        contacts: [0, 0.25, 0.5, 0.75, 1].map((f) => ({ x, y: hub, z: z0 + (z1 - z0) * f })),
+        climb,
       })
       const textures = meshes
         .map((m) => {
