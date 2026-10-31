@@ -618,6 +618,8 @@ export {
   type Rect as CityRect,
   type Side as CitySide,
 } from './city-layout.js'
+export { B3dCity, b3dCity, KENNEY_CITY, type CityKit, type KitPiece } from './b3d-city.js'
+export { lightPool, LightPool, sceneDaylight, lampLevel, type VirtualLight } from './light-pool.js'
 export { B3dAircraft, b3dAircraft } from './b3d-aircraft.js'
 
 // The callback-naming shim. `handleX` is the name across this library; `onX`

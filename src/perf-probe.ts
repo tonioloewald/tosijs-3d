@@ -143,6 +143,12 @@ export interface PerfBudgets {
    */
   effectParticles: number
   effectLights: number
+  /**
+   * Real lights the LAMP pool hands out (street lights, headlights): every
+   * lamp is a virtual light and the strongest few near the viewer get one.
+   * Lit materials are raised to take them.
+   */
+  lampLights: number
   effectVoices: number
   /**
    * Fixed foveation in a headset, 0-1: how much the edges of each eye are
@@ -256,6 +262,7 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     ambientParticles: 3000,
     effectParticles: 6000,
     effectLights: 4,
+    lampLights: 6,
     effectVoices: 12,
     xrFoveation: 0,
     groundDetail: 1,
@@ -282,6 +289,7 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     ambientParticles: 1400,
     effectParticles: 3000,
     effectLights: 3,
+    lampLights: 4,
     effectVoices: 8,
     xrFoveation: 0.5,
     groundDetail: 1,
@@ -308,6 +316,7 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     ambientParticles: 500,
     effectParticles: 1200,
     effectLights: 2,
+    lampLights: 2,
     effectVoices: 6,
     xrFoveation: 1,
     groundDetail: 0,

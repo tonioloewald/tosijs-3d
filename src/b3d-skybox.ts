@@ -1142,6 +1142,13 @@ export class B3dSkybox extends AbstractMesh {
   private _colorCache = new Map<string, BABYLON.Color3>()
 
   /** Approximate horizon color based on current time of day / atmosphere. */
+  /**
+   * How much daylight there is, 0 (night) to 1 (full day), from the sun's
+   * height: what street lights, headlights and windows read to know when to
+   * come on. Updated with the sky.
+   */
+  daylight = 1
+
   get horizonColor(): BABYLON.Color3 {
     return this._horizonColor
   }
@@ -1974,6 +1981,7 @@ export class B3dSkybox extends AbstractMesh {
     const dayBrightness = isDay
       ? Math.min(Math.abs((t + 0.52) * 10), Math.abs((t - 0.52) * 10), 1)
       : 0
+    this.daylight = dayBrightness
     sunVector.rotateByQuaternionToRef(this._qTotal, sunVector)
     /*
     THE TILT IS NOT THE SUN'S. `starfieldTilt` orients the galaxy behind the

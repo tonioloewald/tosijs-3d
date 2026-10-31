@@ -16,6 +16,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 - **A city's plan**: `cityLayout({ width, depth, seed })` lays out roads, blocks and lots on a grid of cells (every road connected, every lot on a street), with each road cell's piece and rotation; it knows no kit or metres, so any kit on any grid can dress it.
 
+- **A city to drive in**: `<tosi-b3d-city>` builds roads, buildings, street lights and parked cars from a seed with Kenney's city kits (any kit, through its `kit` manifest), drawn as thin instances. **Lamps** (`lightPool`): street lights and headlights are virtual lights, and the nearest few get real lights (`lampLights`, a new device budget). The sky reports `daylight`, so street lights come on at dusk and a driven vehicle's `headlights` at night.
+
 ## 0.11.6
 
 The latest release. The character leaves the builder: any body (MakeHuman's, Blender's, Quaternius' or your own mesh) rigged, dressed and tailored the same way; a character file that carries its body; `makeCharacter`, and `<tosi-b3d-biped character>` to walk it in a game; a material picker. [Read 0.11.6](/v0.11.6/).

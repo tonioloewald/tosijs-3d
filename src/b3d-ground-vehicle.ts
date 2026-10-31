@@ -20,6 +20,7 @@ import { B3dControllable } from './b3d-controllable.js'
 import type { ControlInput } from './control-input.js'
 import { collidable, sceneDelta, simHalted, type SimGateOwner } from './b3d-utils.js'
 import { canonicalize } from './model-transform.js'
+import { lightPool, sceneDaylight, lampLevel, type VirtualLight } from './light-pool.js'
 import {
   chasePose,
   chaseRigFor,
@@ -59,6 +60,8 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     braking: 9,
     /** Tyre or track grip, as a friction coefficient. */
     grip: 1,
+    /** `'auto'`: on at night while someone drives it. `'on'` or `'off'` to say so. */
+    headlights: 'auto' as 'auto' | 'on' | 'off',
   }
   declare url: string
   declare library: string
@@ -71,6 +74,7 @@ export abstract class B3dGroundVehicle extends B3dControllable {
   declare acceleration: number
   declare braking: number
   declare grip: number
+  declare headlights: 'auto' | 'on' | 'off'
 
   /** The model's spec, once the vehicle has a body. */
   spec: VehicleSpec | null = null
@@ -89,6 +93,12 @@ export abstract class B3dGroundVehicle extends B3dControllable {
   private lookWant = { x: 0, y: 0 }
   private anchor: BABYLON.TransformNode | null = null
   /** The heights its wall rays run at, each with the body's extent there (its own frame). */
+  /** The headlights' beam (a pooled light) and the lamps you see. */
+  private beam: VirtualLight | null = null
+  private releaseBeam: (() => void) | null = null
+  private beamFrom = new BABYLON.Vector3()
+  private lamps: BABYLON.StandardMaterial | null = null
+  private tailLamps: BABYLON.StandardMaterial | null = null
   private wallBands: { h: number; min: BABYLON.Vector3; max: BABYLON.Vector3 }[] = []
   /** A track's climbing points: the low wall rays let them onto an obstacle. */
   private climbPoints: { x: number; z: number }[] = []
@@ -315,6 +325,7 @@ export abstract class B3dGroundVehicle extends B3dControllable {
       .filter((b): b is { h: number; min: BABYLON.Vector3; max: BABYLON.Vector3 } => b != null)
     this.climbPoints = (spec.tracks ?? []).flatMap((t) => (t.climb ?? []).map((c) => ({ x: c.x, z: c.z })))
 
+    this.fitLights(control, scene)
     owner.addOriginListener(this.onOrigin)
     scene.registerBeforeRender(this._update)
     scene.registerBeforeRender(this._drive)
@@ -327,6 +338,67 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     const hubs = (spec.wheels ?? []).map((w) => w.at.y)
     for (const t of spec.tracks ?? []) for (const c of t.contacts) hubs.push(c.y)
     return hubs.length ? hubs : [0]
+  }
+
+  /*
+  HEADLIGHTS. One beam per vehicle (two side by side cost two of the pool's
+  few lights for a picture hardly different), from the middle of the front at
+  lamp height, aimed a little down the road; and the lamps themselves, two in
+  front and two red behind, which glow whether or not the pool gave the beam a
+  real light.
+  */
+  private fitLights(control: BABYLON.TransformNode, scene: BABYLON.Scene) {
+    const { min, max } = control.getHierarchyBoundingVectors(true)
+    const height = min.y + (max.y - min.y) * 0.35
+    const span = (max.x - min.x) * 0.36
+    this.beamFrom.set((min.x + max.x) / 2, height, max.z)
+    const lamp = (name: string, color: BABYLON.Color3) => {
+      const m = new BABYLON.StandardMaterial(`${this.tagName}-${name}`, scene)
+      m.disableLighting = true
+      m.emissiveColor = color.scale(0.15)
+      return m
+    }
+    this.lamps = lamp('headlamp', new BABYLON.Color3(1, 0.95, 0.8))
+    this.tailLamps = lamp('taillamp', new BABYLON.Color3(1, 0.05, 0.03))
+    const size = Math.max(0.08, (max.x - min.x) * 0.07)
+    for (const [z, mat, depth] of [
+      [max.z + 0.01, this.lamps, 0.02],
+      [min.z - 0.01, this.tailLamps, 0.02],
+    ] as const) {
+      for (const side of [-1, 1]) {
+        const m = BABYLON.MeshBuilder.CreateBox(`${this.tagName}-lamp`, { width: size, height: size * 0.6, depth }, scene)
+        m.material = mat
+        m.isPickable = false
+        m.parent = control
+        m.position.set((min.x + max.x) / 2 + side * span, height, z)
+      }
+    }
+    this.beam = {
+      position: new BABYLON.Vector3(),
+      direction: new BABYLON.Vector3(0, -0.12, 1).normalize(),
+      angle: 0.9,
+      color: new BABYLON.Color3(1, 0.95, 0.85),
+      intensity: 6,
+      range: 40,
+      level: 0,
+    }
+    this.releaseBeam = lightPool(scene).add(this.beam)
+  }
+
+  private updateLights() {
+    const beam = this.beam
+    const control = this.control
+    if (beam == null || control == null) return
+    const mode = this.headlights
+    const level =
+      mode === 'on' ? 1 : mode === 'off' ? 0 : this.inputProvider != null ? lampLevel(sceneDaylight(this.owner)) : 0
+    beam.level = level
+    const world = control.getWorldMatrix()
+    BABYLON.Vector3.TransformCoordinatesToRef(this.beamFrom, world, beam.position)
+    BABYLON.Vector3.TransformNormalToRef(new BABYLON.Vector3(0, -0.12, 1), world, beam.direction!)
+    beam.direction!.normalize()
+    this.lamps?.emissiveColor.set(0.15 + 0.85 * level, 0.14 + 0.81 * level, 0.12 + 0.68 * level)
+    this.tailLamps?.emissiveColor.set(0.15 + 0.6 * level, 0.01, 0.005)
   }
 
   /** The vehicle's own meshes, which its rays must not hit. */
@@ -355,6 +427,7 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     this.blockByWalls(before, state)
     this.afterStep(state, dt)
     this.place()
+    this.updateLights()
     if (this.chaseCamera != null && scene.activeCamera === this.chaseCamera) this.aimCamera(dt)
   }
 
@@ -483,6 +556,12 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     this.anchor?.dispose()
     this.chaseCamera?.dispose()
     this.chaseCamera = null
+    this.releaseBeam?.()
+    this.releaseBeam = null
+    this.beam = null
+    this.lamps?.dispose()
+    this.tailLamps?.dispose()
+    this.lamps = this.tailLamps = null
     this.control = this.anchor = null
     this.wallBands = []
     this.mesh = undefined
