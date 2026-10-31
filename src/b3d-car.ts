@@ -20,7 +20,8 @@ const hero = b3dBiped({
 })
 preview.append(
   b3d(
-    { style: 'width: 100%; height: 100%' },
+    // On foot: move, turn, jump, get in. Driving: drive and steer, handbrake, get out.
+    { style: 'width: 100%; height: 100%', gamepad: 'left_stick,right_stick,A,X' },
     cars,
     ...playground({ targets: 0 }),
     inputFocus(
@@ -41,6 +42,9 @@ out. **W** drives, **S** brakes and then reverses, **A** and **D** steer, and
 **space** is the handbrake: hold it into a turn at speed and the back steps out.
 Let go below walking pace and the brakes hold the car where it is, even on the
 ramp. The tank turns on the spot with **A** or **D** alone.
+
+On a touch screen, use the on-screen gamepad: the left stick walks or drives,
+**X** gets in and out, **A** jumps or holds the handbrake.
 
 The cars are Tonio Loewald's (CC BY 4.0), at twice their size: they are made
 half life size.
