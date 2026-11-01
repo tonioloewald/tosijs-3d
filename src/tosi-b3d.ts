@@ -6941,8 +6941,24 @@ export class B3d extends Component {
     if (this._zoomBlocked) return
     this._zoomBlocked = true
     const stop = (e: Event) => e.preventDefault()
-    this.addEventListener('gesturestart', stop, { passive: false } as AddEventListenerOptions)
-    this.addEventListener('gesturechange', stop, { passive: false } as AddEventListenerOptions)
+    const active = { passive: false } as AddEventListenerOptions
+    this.addEventListener('gesturestart', stop, active)
+    this.addEventListener('gesturechange', stop, active)
+    // Safari's gesture events need not leave the shadow DOM; touch events do.
+    // A two-finger move here is never a page pinch, and a quick second tap is
+    // never a double-tap zoom.
+    this.addEventListener('touchmove', (e) => {
+      if (e.touches.length > 1) e.preventDefault()
+    }, active)
+    let lastTap = 0
+    this.addEventListener('touchend', (e) => {
+      const now = e.timeStamp
+      if (now - lastTap < 350) e.preventDefault()
+      lastTap = now
+    }, active)
+    // A page zoomed anyway is put back the moment you touch the scene: a scene
+    // that fills the screen leaves nowhere else to pinch out.
+    this.addEventListener('touchstart', () => resetPageZoom(), { passive: true })
     const vv = (window as { visualViewport?: VisualViewport }).visualViewport
     vv?.addEventListener('resize', () => {
       if (this.hasAttribute('data-maximized') && vv.scale > 1.01) resetPageZoom()

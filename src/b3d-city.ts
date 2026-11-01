@@ -674,9 +674,16 @@ export class B3dCity extends B3dChild {
     for (const [name, t] of this.templates) {
       if (name.startsWith('traffic:') || t.matrices.length === 0) continue
       if (Object.values(this.kit.roads).some((r) => r && `${r.library}:${r.mesh}` === name)) continue
+      // A street light is a post: its box is its foot, not the arm over the
+      // road (that box was a car-sized wall nobody could see).
+      const post = this.kit.streetLight && name === `${this.kit.streetLight.library}:${this.kit.streetLight.mesh}`
       for (const m of t.matrices) {
         const box = new Float32Array([Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity])
-        for (let i = 0; i < 8; i++) {
+        if (post) {
+          const at = BABYLON.Vector3.TransformCoordinates(BABYLON.Vector3.Zero(), m)
+          box.set([at.x - 0.15, at.y, at.z - 0.15, at.x + 0.15, at.y + 6, at.z + 0.15])
+        }
+        for (let i = 0; i < (post ? 0 : 8); i++) {
           corner.set(i & 1 ? t.max.x : t.min.x, i & 2 ? t.max.y : t.min.y, i & 4 ? t.max.z : t.min.z)
           BABYLON.Vector3.TransformCoordinatesToRef(corner, m, corner)
           box[0] = Math.min(box[0], corner.x)
