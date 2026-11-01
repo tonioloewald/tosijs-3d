@@ -317,16 +317,20 @@ export class B3dLibrary extends B3dChild {
     if (!url) return
 
     const gen = ++this.loadGeneration
+    const release = owner.holdLoading?.(`library ${type || url}`) ?? (() => {})
     BABYLON.SceneLoader.LoadAssetContainer(
       url,
       undefined,
       scene,
       (container) => {
+        release()
         if (gen !== this.loadGeneration) return // stale — discard
         this.container = container
         this._readyResolve()
         this.dispatchEvent(new CustomEvent('library-ready'))
-      }
+      },
+      undefined,
+      () => release()
     )
   }
 

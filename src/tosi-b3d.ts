@@ -308,7 +308,10 @@ Set these in the `b3d()` config.
 
 ## Loading
 
-The spinner shows until the scene first renders. A page that loads its own
+The spinner shows until the scene is built: its files loaded, its shaders
+ready, its terrain streamed in, and every child that holds it up
+(`el.holdLoading('city')` returns the release; `<tosi-b3d-city>` and
+`<tosi-b3d-library>` do) finished, for at most 20 seconds. A page that loads its own
 content after that (models, a body, a terrain) holds it up with
 `el.setLoading('loading the body…')`, which shows the spinner with the
 message below it; `setLoading(true)` is the spinner alone, `setLoading(false)`
@@ -1322,6 +1325,32 @@ export class B3d extends Component {
 
   /** Whether a page is holding the spinner up (`setLoading`). */
   private _loadingHeld = false
+
+  /** What is still building before the scene is first shown (`holdLoading`). */
+  private _loadingHolds = new Set<string>()
+  private _holdCount = 0
+
+  /**
+   * Keep the scene hidden behind its spinner while something builds itself
+   * after its files have loaded (a city laying out its blocks, a body being
+   * rigged), so the scene is never shown half made. Returns the release; call
+   * it when built, or if the build fails. Only the first showing waits, and
+   * for at most 20 s.
+   */
+  holdLoading(label = 'loading'): () => void {
+    const key = `${label}#${++this._holdCount}`
+    this._loadingHolds.add(key)
+    return () => {
+      this._loadingHolds.delete(key)
+    }
+  }
+
+  private _terrainBusy(): boolean {
+    for (const t of this.querySelectorAll('tosi-b3d-terrain')) {
+      if ((t as unknown as { busy?: boolean }).busy) return true
+    }
+    return false
+  }
 
   /**
    * The loading spinner, for a page that loads its own content after the
@@ -5510,8 +5539,15 @@ export class B3d extends Component {
         if (gearBtn) gearBtn.disabled = false
         if (vrBtn) vrBtn.disabled = false
       }
+      // Holds (`holdLoading`) and a streaming terrain keep the scene hidden,
+      // for at most this long: a hold never released must not hide it forever.
+      const giveUp = realNow() + 20000
       const checkReady = () => {
-        if (this.scene.getWaitingItemsCount() === 0) {
+        const built = this._loadingHolds.size === 0 && !this._terrainBusy()
+        if (!built && realNow() > giveUp) {
+          console.warn(`tosi-b3d: shown while still building (${[...this._loadingHolds].join(', ') || 'terrain'})`)
+        }
+        if (this.scene.getWaitingItemsCount() === 0 && (built || realNow() > giveUp)) {
           this.scene.executeWhenReady(reveal)
           // Fallback: reveal once assets are loaded even if some shaders
           // haven't compiled (e.g. SkyMaterial can take extra frames)

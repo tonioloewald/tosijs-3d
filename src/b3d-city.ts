@@ -348,6 +348,8 @@ export class B3dCity extends B3dChild {
       this.libraries.push(lib)
       this.append(lib)
     }
+    // The scene stays behind its spinner until the city is built.
+    const release = owner.holdLoading?.('city') ?? (() => {})
     const ready = async () => {
       // A library registers itself a moment after it is appended.
       let libs = Object.keys(kit.libraries).map((t) => owner.getLibrary(prefix + t))
@@ -363,7 +365,7 @@ export class B3dCity extends B3dChild {
       if (gen !== this.generation) return
       this.build(owner, scene, prefix)
     }
-    void ready()
+    void ready().finally(release)
   }
 
   private template(owner: B3d, prefix: string, piece: KitPiece, as = ''): Template | null {
