@@ -240,8 +240,28 @@ b3d-car
   acceleration  = 5  — m/s² from a standstill
   braking  = 9  — m/s²
   grip  = 1  — Tyre grip, a friction coefficient: lower slides sooner
-  steerDeg  = 35  — Full lock, degrees (less at speed)
+  headlights
+  steerDeg  = 35  — Full lock, degrees; at speed, no more than the tyres can hold
   drive  = 'rear'  — Driven wheels: `rear`, `front` or `all`
+
+## b3d-city — <tosi-b3d-city>
+b3d-city
+
+  width  = 24  — The grid, cells
+  depth  = 24  — The grid, cells
+  seed  = 1  — Same seed, same city
+  cell  = 12  — Metres a cell (Kenney's road is 0.8 of a tile: 9.6 m kerb to kerb, a lane each way and a parked car)
+  blockMin  = 3  — Block sizes, cells (see [city-layout](/city-layout/))
+  blockMax  = 6  — Block sizes, cells (see [city-layout](/city-layout/))
+  downtown  = 0.45  — How far out from the middle the tall buildings go, 0 to 1
+  lightEvery  = 2  — A street light every this many road cells
+  lampAngle  = 80  — A street light's cone, degrees; it reaches twice its height
+  flicker  = 0.08  — The share of street lights that are failing and flicker
+  parked  = 0.2  — The chance of a parked car on a stretch of road
+  traffic  = 24  — Cars driving round (they stop for yours; their headlights come on at night)
+  x
+  y
+  z
 
 ## b3d-cloud-deck — <tosi-b3d-cloud-deck>
 b3d-cloud-deck
@@ -619,6 +639,7 @@ Ambient light (b3d-light)
   diffuse  = '#ffffff'  — Diffuse color (hex)
   specular  = '#808080'  — Specular color (hex)
   groundColor  = '#000000'  — Bounce from below (hex). Babylon's default is black, which is why vertical faces look unlit however high `intensity` goes — set a dim version of your ground colour
+  nightIntensity  = -1  — With a day/night `b3dSkybox`: the brightness at night, eased from `intensity` as the sky's `daylight` goes. `-1` keeps `intensity` all day and night
 
 ## b3d-lightning — <tosi-b3d-lightning>
 b3d-lightning
@@ -1113,6 +1134,7 @@ b3d-tank
   acceleration
   braking
   grip
+  headlights
   turnSpeed  = 1.2  — How far apart the belts run at full steer, m/s
 
 ## b3d-terrain — <tosi-b3d-terrain>
@@ -1283,6 +1305,20 @@ b3d-weather-cell
   drift  = 'off'  — `'wind'` = a weather system: it travels with the scene's wind
   lifetime  = 0  — Seconds; grows, holds and dies over it (`0` = permanent). An ended cell does nothing and fires `ended`
   grow  = 0  — Seconds to GATHER from nothing to full (`0` = at once). Independent of `lifetime`, so a permanent storm can still build; with both, it gathers and then ends on its lifetime
+
+## city-layout
+city-layout
+
+  end  = north
+  bend  = north and east
+  width  — The grid, cells (x and z)
+  depth  — The grid, cells (x and z)
+  seed  = 1  — Same seed, same city
+  blockMin  = 3  — A split never leaves a block narrower than this, cells
+  blockMax  = 6  — Blocks are split until no wider than this, cells
+  lotWidth  = [1, 2]  — Lots along a street, cells wide (a range)
+  lotDepth  = 2  — How deep a lot runs back from the street, cells (less in a narrow block)
+  ring  = true  — A road round the edge of the whole grid (without it, lots on the outer edge face the edge, not a street)
 
 ## color-picker
 colorPicker3d

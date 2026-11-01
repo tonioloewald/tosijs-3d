@@ -979,14 +979,93 @@
         "description": "Tyre grip, a friction coefficient: lower slides sooner"
       },
       {
+        "name": "headlights"
+      },
+      {
         "name": "steerDeg",
         "default": "35",
-        "description": "Full lock, degrees (less at speed)"
+        "description": "Full lock, degrees; at speed, no more than the tyres can hold"
       },
       {
         "name": "drive",
         "default": "'rear'",
         "description": "Driven wheels: `rear`, `front` or `all`"
+      }
+    ]
+  },
+  {
+    "module": "b3d-city",
+    "tag": "tosi-b3d-city",
+    "summary": "b3d-city",
+    "attributes": [
+      {
+        "name": "width",
+        "default": "24",
+        "description": "The grid, cells"
+      },
+      {
+        "name": "depth",
+        "default": "24",
+        "description": "The grid, cells"
+      },
+      {
+        "name": "seed",
+        "default": "1",
+        "description": "Same seed, same city"
+      },
+      {
+        "name": "cell",
+        "default": "12",
+        "description": "Metres a cell (Kenney's road is 0.8 of a tile: 9.6 m kerb to kerb, a lane each way and a parked car)"
+      },
+      {
+        "name": "blockMin",
+        "default": "3",
+        "description": "Block sizes, cells (see [city-layout](/city-layout/))"
+      },
+      {
+        "name": "blockMax",
+        "default": "6",
+        "description": "Block sizes, cells (see [city-layout](/city-layout/))"
+      },
+      {
+        "name": "downtown",
+        "default": "0.45",
+        "description": "How far out from the middle the tall buildings go, 0 to 1"
+      },
+      {
+        "name": "lightEvery",
+        "default": "2",
+        "description": "A street light every this many road cells"
+      },
+      {
+        "name": "lampAngle",
+        "default": "80",
+        "description": "A street light's cone, degrees; it reaches twice its height"
+      },
+      {
+        "name": "flicker",
+        "default": "0.08",
+        "description": "The share of street lights that are failing and flicker"
+      },
+      {
+        "name": "parked",
+        "default": "0.2",
+        "description": "The chance of a parked car on a stretch of road"
+      },
+      {
+        "name": "traffic",
+        "default": "24",
+        "description": "Cars driving round (they stop for yours; their headlights come on at night)"
+      },
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
       }
     ]
   },
@@ -2530,6 +2609,11 @@
         "name": "groundColor",
         "default": "'#000000'",
         "description": "Bounce from below (hex). Babylon's default is black, which is why vertical faces look unlit however high `intensity` goes — set a dim version of your ground colour"
+      },
+      {
+        "name": "nightIntensity",
+        "default": "-1",
+        "description": "With a day/night `b3dSkybox`: the brightness at night, eased from `intensity` as the sky's `daylight` goes. `-1` keeps `intensity` all day and night"
       }
     ]
   },
@@ -4527,6 +4611,9 @@
         "name": "grip"
       },
       {
+        "name": "headlights"
+      },
+      {
         "name": "turnSpeed",
         "default": "1.2",
         "description": "How far apart the belts run at full steer, m/s"
@@ -5254,6 +5341,58 @@
         "name": "grow",
         "default": "0",
         "description": "Seconds to GATHER from nothing to full (`0` = at once). Independent of `lifetime`, so a permanent storm can still build; with both, it gathers and then ends on its lifetime"
+      }
+    ]
+  },
+  {
+    "module": "city-layout",
+    "summary": "city-layout",
+    "attributes": [
+      {
+        "name": "end",
+        "default": "north"
+      },
+      {
+        "name": "bend",
+        "default": "north and east"
+      },
+      {
+        "name": "width",
+        "description": "The grid, cells (x and z)"
+      },
+      {
+        "name": "depth",
+        "description": "The grid, cells (x and z)"
+      },
+      {
+        "name": "seed",
+        "default": "1",
+        "description": "Same seed, same city"
+      },
+      {
+        "name": "blockMin",
+        "default": "3",
+        "description": "A split never leaves a block narrower than this, cells"
+      },
+      {
+        "name": "blockMax",
+        "default": "6",
+        "description": "Blocks are split until no wider than this, cells"
+      },
+      {
+        "name": "lotWidth",
+        "default": "[1, 2]",
+        "description": "Lots along a street, cells wide (a range)"
+      },
+      {
+        "name": "lotDepth",
+        "default": "2",
+        "description": "How deep a lot runs back from the street, cells (less in a narrow block)"
+      },
+      {
+        "name": "ring",
+        "default": "true",
+        "description": "A road round the edge of the whole grid (without it, lots on the outer edge face the edge, not a street)"
       }
     ]
   },
