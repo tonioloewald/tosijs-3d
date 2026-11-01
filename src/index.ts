@@ -621,12 +621,15 @@ export {
 export { B3dCity, b3dCity, cityStart, KENNEY_CITY, type CityKit, type KitPiece } from './b3d-city.js'
 export {
   createTraffic,
+  recycleTraffic,
   TRAFFIC_CAR,
   stepTraffic,
   type Traffic as CityTraffic,
   type TrafficCar,
   type TrafficObstacle,
   type TrafficOptions,
+  type TrafficViewer,
+  type RecycleOptions as TrafficRecycleOptions,
 } from './city-traffic.js'
 export { windowLights, windowsLit, WindowLightsPlugin } from './window-lights.js'
 export { lightPool, LightPool, sceneDaylight, lampLevel, type VirtualLight } from './light-pool.js'

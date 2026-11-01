@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { cityLayout } from './city-layout.js'
-import { createTraffic, stepTraffic, TRAFFIC_CAR, type Traffic } from './city-traffic.js'
+import { createTraffic, recycleTraffic, stepTraffic, TRAFFIC_CAR, type Traffic } from './city-traffic.js'
 
 const layout = cityLayout({ width: 24, depth: 24, seed: 3 })
 const make = (count = 24, seed = 1) => createTraffic({ layout, cell: 12, lane: 1.4, count, seed, models: 8 })
@@ -150,5 +150,100 @@ describe('city traffic as bodies', () => {
       stepTraffic(b, 1 / 30)
     }
     expect(a.cars.map((c) => [c.x, c.z])).toEqual(b.cars.map((c) => [c.x, c.z]))
+  })
+})
+
+describe('ramming traffic', () => {
+  test('a car rammed by a body: both are knocked, the rammer loses speed', () => {
+    const t = createTraffic({ layout, cell: 12, lane: 1.4, count: 1, seed: 2, vehicle: TRAFFIC_CAR })
+    const car = t.cars[0]
+    for (let k = 0; k < 30; k++) stepTraffic(t, 1 / 30)
+    const rx = Math.cos(car.yaw)
+    const rz = -Math.sin(car.yaw)
+    // A rammer coming in from the right at 15 m/s, aimed at the car's middle.
+    const yaw = Math.atan2(-rx, -rz)
+    const rammer = {
+      position: { x: car.x + rx * 2.3, y: 0, z: car.z + rz * 2.3 },
+      orientation: { x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) },
+      velocity: { x: -rx * 15, y: 0, z: -rz * 15 },
+      angularVelocity: { x: 0, y: 0, z: 0 },
+      wheels: [],
+      tracks: [],
+      carry: 0,
+    }
+    const ob = () => ({
+      x: rammer.position.x,
+      z: rammer.position.z,
+      yaw,
+      length: 4.6,
+      width: 2.2,
+      body: rammer,
+      mass: 1200,
+    })
+    const vy0 = car.body!.velocity
+    stepTraffic(t, 1 / 60, [ob()])
+    const into = -(rammer.velocity.x * rx + rammer.velocity.z * rz)
+    expect(into).toBeLessThan(10)
+    const pushed = -(car.body!.velocity.x - vy0.x) * rx - (car.body!.velocity.z - vy0.z) * rz
+    expect(pushed).toBeGreaterThan(3)
+  })
+
+  test('two cars jammed nose to nose: one backs off and both get going', () => {
+    const t = createTraffic({ layout, cell: 12, lane: 1.4, count: 2, seed: 5, vehicle: TRAFFIC_CAR })
+    const [a, b] = t.cars
+    // b put nose to nose with a, facing it, both believing they must wait.
+    const hx = Math.sin(a.yaw)
+    const hz = Math.cos(a.yaw)
+    Object.assign(b, { cx: a.cx, cz: a.cz, dirIn: (a.dirIn + 2) % 4, dirOut: (a.dirOut + 2) % 4 })
+    b.body!.position = { x: a.x + hx * 4.8, y: 0, z: a.z + hz * 4.8 }
+    const yaw = a.yaw + Math.PI
+    b.body!.orientation = { x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) }
+    const start = [a.x, a.z, b.body!.position.x, b.body!.position.z]
+    for (let k = 0; k < 30 * 30; k++) stepTraffic(t, 1 / 30)
+    expect(Math.hypot(a.x - start[0], a.z - start[1])).toBeGreaterThan(15)
+    expect(Math.hypot(b.x - start[2], b.z - start[3])).toBeGreaterThan(15)
+  })
+})
+
+describe('the car budget', () => {
+  test('cars out of view go, and come back out of view, near, driving toward you', () => {
+    const t = createTraffic({ layout, cell: 12, lane: 1.4, count: 16, seed: 7, vehicle: TRAFFIC_CAR })
+    const viewer = { x: 0, z: 0, fx: 0, fz: 1 }
+    for (let k = 0; k < 20 * 30; k++) {
+      recycleTraffic(t, viewer, 1 / 30)
+      stepTraffic(t, 1 / 30)
+    }
+    expect(t.cars.length).toBe(16)
+    // Kept near the player.
+    for (const c of t.cars) expect(Math.hypot(c.x, c.z)).toBeLessThan(200)
+    const near = t.cars.filter((c) => Math.hypot(c.x, c.z) < 120).length
+    expect(near).toBeGreaterThanOrEqual(8)
+  })
+
+  test('a recycled car appears out of view, heading toward the viewer', () => {
+    const t = createTraffic({ layout, cell: 12, lane: 1.4, count: 4, seed: 8, vehicle: TRAFFIC_CAR })
+    const viewer = { x: 0, z: 0, fx: 0, fz: 1 }
+    // Send them all far away.
+    for (const c of t.cars) Object.assign(c, { x: 1000, z: 1000 })
+    expect(recycleTraffic(t, viewer, 1, { perSecond: 10 })).toBe(4)
+    for (const c of t.cars) {
+      const d = Math.hypot(c.x, c.z)
+      expect(d).toBeGreaterThan(45)
+      expect(d).toBeLessThan(115)
+      expect(c.z / d).toBeLessThan(0.35)
+      expect(Math.sin(c.yaw) * -c.x + Math.cos(c.yaw) * -c.z).toBeGreaterThan(-1)
+    }
+  })
+
+  test('cars in view, near, stay', () => {
+    const t = createTraffic({ layout, cell: 12, lane: 1.4, count: 24, seed: 9 })
+    const viewer = { x: 0, z: -100, fx: 0, fz: 1 }
+    const keep = t.cars.filter((c) => {
+      const d = Math.hypot(c.x - viewer.x, c.z - viewer.z)
+      return d < 60
+    })
+    const before = keep.map((c) => [c.x, c.z])
+    recycleTraffic(t, viewer, 1, { perSecond: 100 })
+    expect(keep.map((c) => [c.x, c.z])).toEqual(before)
   })
 })

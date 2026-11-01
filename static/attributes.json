@@ -1056,7 +1056,7 @@
       {
         "name": "traffic",
         "default": "24",
-        "description": "Cars driving round (they stop for yours; their headlights come on at night)"
+        "description": "The car budget: this many cars drive round near you (they stop for yours, and are knocked about by it; lamps at night). Cars far away or out of view go, and come back out of view, driving toward you"
       },
       {
         "name": "x"

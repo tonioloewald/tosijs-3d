@@ -63,7 +63,7 @@ so night falls in a few minutes; the owl's panel sets the hour and the speed.
 | `lampAngle` | `80` | A street light's cone, degrees; it reaches twice its height |
 | `flicker` | `0.08` | The share of street lights that are failing and flicker |
 | `parked` | `0.2` | The chance of a parked car on a stretch of road |
-| `traffic` | `24` | Cars driving round (they stop for yours; their headlights come on at night) |
+| `traffic` | `24` | The car budget: this many cars drive round near you (they stop for yours, and are knocked about by it; lamps at night). Cars far away or out of view go, and come back out of view, driving toward you |
 
 The city is centred on its `x`, `y`, `z`. `kit` (a property, not an
 attribute) is the manifest: which library model is each road piece, building,
@@ -83,7 +83,7 @@ import { cityLayout, type CityLayout, type CityLayoutOptions, type RoadCell, typ
 import { PRNG } from './mersenne-twister.js'
 import { lightPool, sceneDaylight, lampLevel, lampFlicker, type VirtualLight } from './light-pool.js'
 import { windowLights, windowsLit, type WindowLightsPlugin } from './window-lights.js'
-import { createTraffic, stepTraffic, TRAFFIC_CAR, type Traffic, type TrafficObstacle } from './city-traffic.js'
+import { createTraffic, recycleTraffic, stepTraffic, TRAFFIC_CAR, type Traffic, type TrafficObstacle } from './city-traffic.js'
 import { headingOf, type VehicleSpec, type VehicleState } from './ground-vehicle.js'
 
 /** One model's driving cars: its parts' instance buffers, rewritten each frame. */
@@ -574,7 +574,8 @@ export class B3dCity extends B3dChild {
   /*
   TRAFFIC: the pure model drives (each car a body on the ground-vehicle
   model), the city draws. Each model's parts are thin instances rewritten every
-  frame (and pickable, so the player's car stops at them); each car has lamps
+  frame; a vehicle that hits one is knocked about by the traffic's collisions,
+  not stopped by its wall rays (the meshes are `b3dNoCollide`); each car has lamps
   (head, tail, brake: three thin-instanced boxes for all of them) and a pooled
   headlight beam at night.
   */
@@ -612,6 +613,9 @@ export class B3dCity extends B3dChild {
         else {
           part.mesh.thinInstanceSetBuffer('matrix', buf, 16, false)
           part.mesh.receiveShadows = true
+          // The traffic's own collisions handle a car that hits it (both are
+          // knocked about); a vehicle's wall rays would stop it dead instead.
+          part.mesh.metadata = { ...(part.mesh.metadata ?? {}), b3dNoCollide: true }
         }
         return buf
       })
@@ -686,6 +690,8 @@ export class B3dCity extends B3dChild {
         width: v.spec.size.x,
         vx: v.state.velocity.x,
         vz: v.state.velocity.z,
+        body: v.state,
+        mass: v.spec.mass,
       })
     })
     return out
@@ -770,7 +776,20 @@ export class B3dCity extends B3dChild {
     }
     const traffic = this.trafficState
     if (traffic) {
-      stepTraffic(traffic, Math.min(0.1, sceneDelta(scene)), this.obstacles())
+      const dt = Math.min(0.1, sceneDelta(scene))
+      // The car budget follows the camera (the GTA way).
+      const cam = scene.activeCamera
+      if (cam) {
+        const f = cam.getDirection(BABYLON.Axis.Z)
+        const flat = Math.hypot(f.x, f.z) || 1
+        const p = cam.globalPosition
+        recycleTraffic(
+          traffic,
+          { x: p.x - root.position.x, z: p.z - root.position.z, fx: f.x / flat, fz: f.z / flat },
+          dt
+        )
+      }
+      stepTraffic(traffic, dt, this.obstacles())
       this.drawTraffic()
       traffic.cars.forEach((car, i) => {
         const beam = this.beams[i]
