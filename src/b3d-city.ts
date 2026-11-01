@@ -2,9 +2,9 @@
 # b3d-city
 
 **A city to drive around**, built from a seed: roads, blocks of buildings,
-street lights, parked cars. The plan is [city-layout](/city-layout/); this
+street lights, parked cars and [traffic](/city-traffic/). The plan is [city-layout](/city-layout/); this
 dresses it with a **kit**, Kenney's city kits unless you give it another, at
-10 m a cell. Street lights come on at dusk, each a spot pointing down from its
+12 m a cell. Street lights come on at dusk, each a spot pointing down from its
 pole (the few that matter most to your view are real lights), a few of them
 failing and flickering; a car you drive turns its headlights on.
 
@@ -54,13 +54,14 @@ so night falls in a few minutes; the owl's panel sets the hour and the speed.
 |-----------|---------|-------------|
 | `width`, `depth` | `24` | The grid, cells |
 | `seed` | `1` | Same seed, same city |
-| `cell` | `10` | Metres a cell (Kenney's road is 0.8 of a tile: 8 m of asphalt, two lanes and a parked car) |
+| `cell` | `12` | Metres a cell (Kenney's road is 0.8 of a tile: 9.6 m kerb to kerb, a lane each way and a parked car) |
 | `blockMin`, `blockMax` | `3`, `6` | Block sizes, cells (see [city-layout](/city-layout/)) |
 | `downtown` | `0.45` | How far out from the middle the tall buildings go, 0 to 1 |
 | `lightEvery` | `2` | A street light every this many road cells |
 | `lampAngle` | `80` | A street light's cone, degrees; it reaches twice its height |
 | `flicker` | `0.08` | The share of street lights that are failing and flicker |
 | `parked` | `0.2` | The chance of a parked car on a stretch of road |
+| `traffic` | `24` | Cars driving round (they stop for yours; their headlights come on at night) |
 
 The city is centred on its `x`, `y`, `z`. `kit` (a property, not an
 attribute) is the manifest: which library model is each road piece, building,
@@ -73,12 +74,21 @@ manifest. `layout` is the plan it built, `lamps` how many street lights it has.
 
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'
-import { B3dChild, sceneSeconds } from './b3d-utils.js'
+import { B3dChild, sceneDelta, sceneSeconds } from './b3d-utils.js'
 import { b3dLibrary } from './b3d-library.js'
 import { assetUrl } from './asset-url.js'
 import { cityLayout, type CityLayout, type CityLayoutOptions, type RoadCell, type RoadPiece, type Side } from './city-layout.js'
 import { PRNG } from './mersenne-twister.js'
 import { lightPool, sceneDaylight, lampLevel, lampFlicker, type VirtualLight } from './light-pool.js'
+import { createTraffic, stepTraffic, type Traffic, type TrafficObstacle } from './city-traffic.js'
+
+/** One model's driving cars: its parts' instance buffers, rewritten each frame. */
+interface TrafficModel {
+  template: Template
+  scale: number
+  cars: number[]
+  buffers: Float32Array[]
+}
 
 interface CityLamp extends VirtualLight {
   /** Where it is in the city's frame. */
@@ -107,12 +117,15 @@ export interface KitPiece {
 export interface CityKit {
   /** Model units a cell (Kenney's city kits: 1). */
   cell: number
+  /** How much of a road tile's width is roadway, kerb to kerb (Kenney's: 0.8). Default 0.8. */
+  roadway?: number
   /** Library type → URL (a CDN path goes through `assetUrl`). */
   libraries: Record<string, string>
   roads: Partial<Record<RoadPiece, KitPiece>>
   buildings: { downtown: KitPiece[]; suburbs: KitPiece[] }
   /** Its arm reaches toward -Z; `bulb` is where the light is, model units. */
   streetLight?: KitPiece & { bulb: [number, number, number] }
+  /** Cars, parked and driving. */
   parkedCars?: KitPiece[]
   /** The ground between the buildings. */
   ground?: string
@@ -132,6 +145,7 @@ const houses = 'abcdefghijklmnopqrstu'.split('').map((c) => ({
 /** Kenney's city kits (CC0): roads, commercial, suburban; Kenney's cars parked. */
 export const KENNEY_CITY: CityKit = {
   cell: 1,
+  roadway: 0.8,
   libraries: {
     roads: 'kenney/libraries/city-kit-roads.glb',
     commercial: 'kenney/libraries/city-kit-commercial.glb',
@@ -182,15 +196,26 @@ function pick<T extends { weight?: number }>(list: T[], rng: PRNG): T {
  * centre, in the right-hand lane, facing along it. Metres in the city's frame
  * (add the city's `x`, `z`); `ry` in degrees. Give it the city's options.
  */
-export function cityStart(options: CityLayoutOptions & { cell?: number }): { x: number; z: number; ry: number } {
+export function cityStart(
+  options: CityLayoutOptions & { cell?: number; roadway?: number }
+): { x: number; z: number; ry: number } {
   const layout = cityLayout(options)
-  const cell = options.cell ?? 10
+  const cell = options.cell ?? 12
   const r = startCell(layout)
   const x = (r.x + 0.5 - layout.width / 2) * cell
   const z = (r.z + 0.5 - layout.depth / 2) * cell
-  const lane = cell * 0.2
+  const { lane } = lanes(cell, options.roadway)
   // Facing north the right-hand lane is east; facing east it is south.
   return r.mask === 5 ? { x: x + lane, z, ry: 0 } : { x, z: z - lane, ry: 90 }
+}
+
+/**
+ * Where a road's lanes are, metres from its middle: a driving lane each way,
+ * and parked cars against the kerb, half a car's width clear of it.
+ */
+function lanes(cell: number, roadway = 0.8): { lane: number; kerb: number } {
+  const half = (cell * roadway) / 2
+  return { lane: half * 0.28, kerb: half - 0.9 }
 }
 
 /** The straight road nearest the middle (the city parks nothing near it). */
@@ -207,7 +232,7 @@ export class B3dCity extends B3dChild {
     width: 24,
     depth: 24,
     seed: 1,
-    cell: 10,
+    cell: 12,
     blockMin: 3,
     blockMax: 6,
     downtown: 0.45,
@@ -215,6 +240,7 @@ export class B3dCity extends B3dChild {
     lampAngle: 80,
     flicker: 0.08,
     parked: 0.2,
+    traffic: 24,
     x: 0,
     y: 0,
     z: 0,
@@ -230,6 +256,7 @@ export class B3dCity extends B3dChild {
   declare lampAngle: number
   declare flicker: number
   declare parked: number
+  declare traffic: number
   declare x: number
   declare y: number
   declare z: number
@@ -244,6 +271,10 @@ export class B3dCity extends B3dChild {
   private templates = new Map<string, Template>()
   private lampLights: CityLamp[] = []
   private releaseLamps: (() => void)[] = []
+  /** The cars driving round, and how each model draws them. */
+  trafficState: Traffic | null = null
+  private trafficModels: TrafficModel[] = []
+  private beams: VirtualLight[] = []
   private generation = 0
 
   get lamps(): number {
@@ -277,8 +308,8 @@ export class B3dCity extends B3dChild {
     void ready()
   }
 
-  private template(owner: B3d, prefix: string, piece: KitPiece): Template | null {
-    const key = `${piece.library}:${piece.mesh}`
+  private template(owner: B3d, prefix: string, piece: KitPiece, as = ''): Template | null {
+    const key = `${as}${piece.library}:${piece.mesh}`
     const known = this.templates.get(key)
     if (known) return known
     const lib = owner.getLibrary(prefix + piece.library)
@@ -310,7 +341,7 @@ export class B3dCity extends B3dChild {
 
   private build(owner: B3d, scene: BABYLON.Scene, prefix: string) {
     const kit = this.kit
-    const cell = Number(this.cell) || 10
+    const cell = Number(this.cell) || 12
     const layout = cityLayout({
       width: Number(this.width),
       depth: Number(this.depth),
@@ -447,8 +478,8 @@ export class B3dCity extends B3dChild {
       if (kit.parkedCars?.length && rng.value() < Number(this.parked) && !nearStart) {
         const side = sides[rng.value() < 0.5 ? 0 : 1]
         const [nx, nz] = STEP[side]
-        // Against the kerb (Kenney's asphalt is 0.8 of a tile), not in the lane.
-        const kerb = cell * 0.4 - 1.3
+        // Against the kerb, clear of the lane.
+        const { kerb } = lanes(cell, kit.roadway)
         const spot = centre.add(new BABYLON.Vector3(nx * kerb, 0, nz * kerb))
         // Parked with the traffic on its side of the road (driving on the right).
         const heading = northSouth ? (side === 'e' ? 0 : Math.PI) : side === 'n' ? -QUARTER : QUARTER
@@ -458,7 +489,8 @@ export class B3dCity extends B3dChild {
 
     // One draw per part: every copy is a thin instance.
     const meshes: BABYLON.AbstractMesh[] = [ground]
-    for (const t of this.templates.values()) {
+    for (const [key, t] of this.templates) {
+      if (key.startsWith('traffic:')) continue
       for (const part of t.parts) {
         if (t.matrices.length === 0) {
           part.mesh.setEnabled(false)
@@ -500,7 +532,115 @@ export class B3dCity extends B3dChild {
         this.releaseLamps.push(pool.add(v))
         return v
       })
-      scene.registerBeforeRender(this.updateLamps)
+    }
+    this.startTraffic(owner, prefix, layout, cell, unit, start)
+    scene.registerBeforeRender(this.updateLamps)
+  }
+
+  /*
+  TRAFFIC: the pure model drives, the city draws. Each model's parts are thin
+  instances rewritten every frame (and pickable, so the player's car stops at
+  them); each car carries a pooled headlight beam at night.
+  */
+  private startTraffic(
+    owner: B3d,
+    prefix: string,
+    layout: CityLayout,
+    cell: number,
+    unit: number,
+    start: RoadCell | null
+  ) {
+    const models = this.kit.parkedCars ?? []
+    const count = Math.max(0, Math.round(Number(this.traffic) || 0))
+    if (models.length === 0 || count === 0 || layout.roads.length === 0) return
+    const centre = start
+      ? { x: (start.x + 0.5 - layout.width / 2) * cell, z: (start.z + 0.5 - layout.depth / 2) * cell, radius: cell }
+      : undefined
+    const traffic = createTraffic({
+      layout,
+      cell,
+      lane: lanes(cell, this.kit.roadway).lane,
+      count,
+      seed: Number(this.seed),
+      models: models.length,
+      clear: centre,
+    })
+    this.trafficState = traffic
+    this.trafficModels = models.map((piece, m) => {
+      const template = this.template(owner, prefix, piece, 'traffic:')!
+      const cars = traffic.cars.map((c, i) => (c.model === m ? i : -1)).filter((i) => i >= 0)
+      const buffers = (template?.parts ?? []).map((part) => {
+        const buf = new Float32Array(Math.max(1, cars.length) * 16)
+        if (cars.length === 0) part.mesh.setEnabled(false)
+        else {
+          part.mesh.thinInstanceSetBuffer('matrix', buf, 16, false)
+          part.mesh.receiveShadows = true
+        }
+        return buf
+      })
+      return { template, scale: piece.scale ?? unit, cars, buffers }
+    })
+    owner.register({
+      meshes: this.trafficModels.flatMap((t) => (t.cars.length ? t.template.parts.map((p) => p.mesh) : [])),
+    })
+    const pool = lightPool(owner.scene)
+    this.beams = traffic.cars.map(() => {
+      const beam: VirtualLight = {
+        position: new BABYLON.Vector3(),
+        direction: new BABYLON.Vector3(0, -0.12, 1),
+        angle: 1.6,
+        exponent: 10,
+        color: new BABYLON.Color3(1, 0.95, 0.85),
+        intensity: 4,
+        range: 30,
+        level: 0,
+      }
+      this.releaseLamps.push(pool.add(beam))
+      return beam
+    })
+    this.drawTraffic()
+  }
+
+  /** Where the player's vehicles are, in the city's frame: traffic stops for them. */
+  private obstacles(): TrafficObstacle[] {
+    const root = this.root
+    const owner = this.owner
+    if (root == null || owner == null) return []
+    const out: TrafficObstacle[] = []
+    owner.querySelectorAll('tosi-b3d-car, tosi-b3d-tank').forEach((el) => {
+      const node = (el as unknown as { control?: BABYLON.TransformNode | null }).control
+      if (node == null) return
+      const p = node.getAbsolutePosition()
+      out.push({ x: p.x - root.position.x, z: p.z - root.position.z, radius: 2.5 })
+    })
+    return out
+  }
+
+  private drawTraffic() {
+    const traffic = this.trafficState
+    if (traffic == null) return
+    const m = new BABYLON.Matrix()
+    const placement = new BABYLON.Matrix()
+    const q = new BABYLON.Quaternion()
+    const size = new BABYLON.Vector3()
+    const at = new BABYLON.Vector3()
+    for (const model of this.trafficModels) {
+      if (model.cars.length === 0) continue
+      size.setAll(model.scale)
+      model.cars.forEach((i, n) => {
+        const car = traffic.cars[i]
+        BABYLON.Quaternion.RotationYawPitchRollToRef(car.yaw, 0, 0, q)
+        at.set(car.x, 0, car.z)
+        BABYLON.Matrix.ComposeToRef(size, q, at, placement)
+        model.template.parts.forEach((part, p) => {
+          part.rel.multiplyToRef(placement, m)
+          m.copyToArray(model.buffers[p], n * 16)
+        })
+      })
+      for (const part of model.template.parts) {
+        part.mesh.thinInstanceBufferUpdated('matrix')
+        part.mesh.thinInstanceRefreshBoundingInfo(false)
+      }
     }
   }
 
@@ -516,6 +656,20 @@ export class B3dCity extends B3dChild {
       l.flicker = l.seed ? lampFlicker(t, l.seed) : 1
       l.position.copyFrom(l.local).addInPlace(root.position)
     }
+    const traffic = this.trafficState
+    if (traffic) {
+      stepTraffic(traffic, Math.min(0.1, sceneDelta(scene)), this.obstacles())
+      this.drawTraffic()
+      traffic.cars.forEach((car, i) => {
+        const beam = this.beams[i]
+        if (beam == null) return
+        const hx = Math.sin(car.yaw)
+        const hz = Math.cos(car.yaw)
+        beam.level = level
+        beam.position.set(car.x + hx * 2.4, 0.8, car.z + hz * 2.4).addInPlace(root.position)
+        beam.direction!.set(hx, -0.12, hz).normalize()
+      })
+    }
   }
 
   sceneDispose() {
@@ -525,6 +679,9 @@ export class B3dCity extends B3dChild {
     for (const release of this.releaseLamps) release()
     this.releaseLamps = []
     this.lampLights = []
+    this.beams = []
+    this.trafficState = null
+    this.trafficModels = []
     if (this.root) this.owner?.unregisterWorldRoot(this.root)
     this.root?.dispose()
     this.root = null

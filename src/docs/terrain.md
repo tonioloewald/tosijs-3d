@@ -15,4 +15,5 @@ caves, arches, lava tubes.
 - [Carved landforms](/sdf-lattice/)
 - [city-layout](/city-layout/)
 - [b3d-city](/b3d-city/)
+- [city-traffic](/city-traffic/)
 <!-- /toc -->
