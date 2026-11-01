@@ -18,7 +18,7 @@ import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'
 import { B3dControllable } from './b3d-controllable.js'
 import type { ControlInput } from './control-input.js'
-import { collidable, sceneDelta, simHalted, type SimGateOwner } from './b3d-utils.js'
+import { collidable, pickWorld, sceneDelta, simHalted, type SimGateOwner } from './b3d-utils.js'
 import { canonicalize } from './model-transform.js'
 import { lightPool, sceneDaylight, lampLevel, type VirtualLight } from './light-pool.js'
 import {
@@ -229,11 +229,9 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     const from = new BABYLON.Vector3(state.position.x, state.position.y + rig.aimHeight + 1, state.position.z)
     const to = V(eye).subtract(from)
     const far = to.length()
-    const hit = this.owner?.scene.pickWithRay(
-      new BABYLON.Ray(from, to.scale(1 / far), far),
-      collidable(this.isMine)
-    )
-    const at = hit?.hit ? from.add(to.scale(Math.max(0.1, hit.distance - 0.3) / far)) : V(eye)
+    const scene = this.owner?.scene
+    const hit = scene ? pickWorld(scene, new BABYLON.Ray(from, to.scale(1 / far), far), this.collides) : null
+    const at = hit ? from.add(to.scale(Math.max(0.1, hit.distance - 0.3) / far)) : V(eye)
     cam.position.copyFrom(at)
     cam.setTarget(V(target))
   }
@@ -403,6 +401,9 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     const level =
       mode === 'on' ? 1 : mode === 'off' ? 0 : this.inputProvider != null ? lampLevel(sceneDaylight(this.owner)) : 0
     beam.level = level
+    // The one you drive keeps its light, wherever you look (in a headset you
+    // look round, and the pool gave it away and back: it flickered).
+    beam.weight = this.inputProvider != null ? 20 : 1
     const world = control.getWorldMatrix()
     BABYLON.Vector3.TransformCoordinatesToRef(this.beamFrom, world, beam.position)
     BABYLON.Vector3.TransformNormalToRef(new BABYLON.Vector3(0, -0.12, 1), world, beam.direction!)
@@ -414,14 +415,15 @@ export abstract class B3dGroundVehicle extends B3dControllable {
   /** The vehicle's own meshes, which its rays must not hit. */
   private isMine = (m: BABYLON.AbstractMesh) =>
     this.control != null && m.isDescendantOf(this.control)
+  /** What its rays hit: anything collidable but itself (made once, not per ray). */
+  private collides = collidable(this.isMine)
 
   private ground: GroundRay = (from, dir, length) => {
     const scene = this.owner?.scene
     if (scene == null) return null
-    const hit = scene.pickWithRay(new BABYLON.Ray(V(from), V(dir), length), collidable(this.isMine))
-    if (!hit?.hit || hit.pickedPoint == null) return null
-    let n = hit.getNormal(true, true) ?? new BABYLON.Vector3(0, 1, 0)
-    if (BABYLON.Vector3.Dot(n, V(dir)) > 0) n = n.negate()
+    const hit = pickWorld(scene, new BABYLON.Ray(V(from), V(dir), length), this.collides)
+    if (hit == null) return null
+    const n = hit.normal
     return { distance: hit.distance, normal: { x: n.x, y: n.y, z: n.z } }
   }
 
@@ -433,7 +435,10 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     const dt = sceneDelta(scene)
     if (dt <= 0 || this._halted || simHalted(this.owner as SimGateOwner | null)) return
     const before = { ...state.position }
-    stepVehicle(spec, state, this.inputProvider ? this.controls : IDLE, dt, this.ground)
+    // At most a thirtieth of a second of physics a frame. Each step casts a ray
+    // per wheel; at 6 fps that was twenty steps a frame, every one slowing the
+    // frame further (a Quest in the city). Below 30 fps it runs slow instead.
+    stepVehicle(spec, state, this.inputProvider ? this.controls : IDLE, Math.min(dt, 1 / 30), this.ground)
     this.blockByWalls(before, state)
     this.afterStep(state, dt)
     this.place()
@@ -497,7 +502,6 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     const origin = new BABYLON.Vector3(before.x, before.y, before.z)
     let push = 0
     let normal: BABYLON.Vector3 | null = null
-    const pick = collidable(this.isMine)
     // How far the climbing points reach this way: the lowest rays stop the body
     // only once those are a little past an obstacle's face, so they get on top.
     const climbAhead = this.climbPoints.length
@@ -526,11 +530,9 @@ export abstract class B3dGroundVehicle extends B3dControllable {
             ? Math.max(0, climbAhead - 0.15 - (o.x * local.x + o.z * local.z))
             : edgeOf(o)
         const from = origin.add(o.applyRotationQuaternion(rot))
-        const hit = scene.pickWithRay(new BABYLON.Ray(from, dirWorld, edge + moved + 0.05), pick)
-        if (!hit?.hit) continue
-        let n = hit.getNormal(true, true) ?? dirWorld.negate()
-        if (BABYLON.Vector3.Dot(n, dirWorld) > 0) n = n.negate()
-        n = new BABYLON.Vector3(n.x, 0, n.z)
+        const hit = pickWorld(scene, new BABYLON.Ray(from, dirWorld, edge + moved + 0.05), this.collides)
+        if (hit == null) continue
+        const n = new BABYLON.Vector3(hit.normal.x, 0, hit.normal.z)
         if (n.length() < 0.3) continue // a floor or a ceiling, not a wall
         n.normalize()
         // How far the motion goes into it past the box's edge, along its normal.

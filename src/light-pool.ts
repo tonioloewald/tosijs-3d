@@ -228,6 +228,7 @@ export class LightPool {
     const dt = Math.min(0.1, sceneDelta(scene))
     const budget = qualityBudgets().lampLights
     const to = new BABYLON.Vector3()
+    const holding = new Set([...this.points, ...this.spots].filter((s) => s.fade > 0.5).map((s) => s.owner))
     const ranked = [...this.lights]
       .map((l) => {
         l.position.subtractToRef(eye, to)
@@ -235,7 +236,9 @@ export class LightPool {
         return {
           l,
           s: poolScore({
-            intensity: l.intensity * l.level * (l.weight ?? 1),
+            // A lamp that has a light keeps it unless another is clearly better,
+            // or two near-equal lamps trade it back and forth.
+            intensity: l.intensity * l.level * (l.weight ?? 1) * (holding.has(l) ? 1.5 : 1),
             range: l.range,
             distance,
             ahead: distance > 0 ? BABYLON.Vector3.Dot(to, view) / distance : 1,

@@ -77,7 +77,7 @@ manifest. `layout` is the plan it built, `lamps` how many street lights it has.
 
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'
-import { B3dChild, sceneDelta, sceneSeconds } from './b3d-utils.js'
+import { B3dChild, rayProxies, sceneDelta, sceneSeconds, type RayProxy } from './b3d-utils.js'
 import { b3dLibrary } from './b3d-library.js'
 import { assetUrl } from './asset-url.js'
 import { cityLayout, type CityLayout, type CityLayoutOptions, type RoadCell, type RoadPiece, type Side } from './city-layout.js'
@@ -377,8 +377,30 @@ export class B3dCity extends B3dChild {
     node.rotationQuaternion = BABYLON.Quaternion.Identity()
     node.scaling.setAll(1)
     node.computeWorldMatrix(true)
-    const meshes = node.getChildMeshes(false).filter((m): m is BABYLON.Mesh => m instanceof BABYLON.Mesh && m.getTotalVertices() > 0)
-    meshes.forEach((m) => m.computeWorldMatrix(true))
+    /*
+    A model's repeated parts come in as INSTANCES of one mesh (four wheels on
+    one wheel), and an instance is not a Mesh: taking only Meshes dropped the
+    wheels of half Kenney's cars. Each is made a real copy, in its place.
+    */
+    const kids = node.getChildMeshes(false)
+    kids.forEach((m) => m.computeWorldMatrix(true))
+    const meshes: BABYLON.Mesh[] = []
+    for (const m of kids) {
+      if (m instanceof BABYLON.InstancedMesh) {
+        const copy = m.sourceMesh.clone(`${m.name}-copy`, null, true)
+        copy.setEnabled(true)
+        copy.isVisible = true
+        const scale = new BABYLON.Vector3()
+        const turn = new BABYLON.Quaternion()
+        const at = new BABYLON.Vector3()
+        m.getWorldMatrix().decompose(scale, turn, at)
+        copy.position.copyFrom(at)
+        copy.rotationQuaternion = turn
+        copy.scaling.copyFrom(scale)
+        copy.computeWorldMatrix(true)
+        meshes.push(copy)
+      } else if (m instanceof BABYLON.Mesh && m.getTotalVertices() > 0) meshes.push(m)
+    }
     const { min, max } = node.getHierarchyBoundingVectors(true)
     /*
     ONE MESH A MODEL: a model's parts (a car's body and four wheels) merged,
@@ -596,6 +618,7 @@ export class B3dCity extends B3dChild {
     }
     owner.register({ meshes })
     owner.registerWorldRoot(root)
+    this.makeRayProxy(scene, layout, cell, meshes)
 
     // THE LAMPS: a spot under each pole's lamp, pointing down, reaching twice
     // its height; the pool lights the best few. Some are failing and flicker.
@@ -633,6 +656,85 @@ export class B3dCity extends B3dChild {
     const room = new BABYLON.Vector3(cell / 2, 3, cell / 2)
     this.windows = [...materials].map((m) => windowLights(m, { origin: root, room, seed: Number(this.seed) * 17 }))
     scene.registerBeforeRender(this.updateLamps)
+  }
+
+  /*
+  RAYS, answered by the city itself (a RayProxy): its ground is flat and
+  everything standing on it is a box, filed by cell. A scene pick walked every
+  thin-instanced copy in the city for every ray; a vehicle casts one per wheel
+  every physics step, and on a Quest that was most of the frame. The meshes
+  stay pickable for everything that does not use `pickWorld`.
+  */
+  private rayProxy: RayProxy | null = null
+  private makeRayProxy(scene: BABYLON.Scene, layout: CityLayout, cell: number, meshes: BABYLON.AbstractMesh[]) {
+    const grid = new Map<number, Float32Array[]>()
+    const key = (x: number, z: number) => (z + 1) * 4096 + (x + 1)
+    const toCell = (v: number, span: number) => Math.floor(v / cell + span / 2)
+    const corner = new BABYLON.Vector3()
+    for (const [name, t] of this.templates) {
+      if (name.startsWith('traffic:') || t.matrices.length === 0) continue
+      if (Object.values(this.kit.roads).some((r) => r && `${r.library}:${r.mesh}` === name)) continue
+      for (const m of t.matrices) {
+        const box = new Float32Array([Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity])
+        for (let i = 0; i < 8; i++) {
+          corner.set(i & 1 ? t.max.x : t.min.x, i & 2 ? t.max.y : t.min.y, i & 4 ? t.max.z : t.min.z)
+          BABYLON.Vector3.TransformCoordinatesToRef(corner, m, corner)
+          box[0] = Math.min(box[0], corner.x)
+          box[1] = Math.min(box[1], corner.y)
+          box[2] = Math.min(box[2], corner.z)
+          box[3] = Math.max(box[3], corner.x)
+          box[4] = Math.max(box[4], corner.y)
+          box[5] = Math.max(box[5], corner.z)
+        }
+        for (let z = toCell(box[2], layout.depth); z <= toCell(box[5], layout.depth); z++)
+          for (let x = toCell(box[0], layout.width); x <= toCell(box[3], layout.width); x++) {
+            const list = grid.get(key(x, z)) ?? []
+            list.push(box)
+            grid.set(key(x, z), list)
+          }
+      }
+    }
+    for (const mesh of meshes) mesh.metadata = { ...(mesh.metadata ?? {}), b3dRayProxy: true }
+    const hw = (layout.width * cell) / 2
+    const hd = (layout.depth * cell) / 2
+    const o = new BABYLON.Vector3()
+    const proxy: RayProxy = {
+      cast: (origin, dir, length) => {
+        const root = this.root
+        if (root == null) return null
+        origin.subtractToRef(root.position, o)
+        let best: { distance: number; normal: BABYLON.Vector3 } | null = null
+        // The ground, flat across the city.
+        if (dir.y < -1e-6 && o.y >= 0) {
+          const t = -o.y / dir.y
+          const x = o.x + dir.x * t
+          const z = o.z + dir.z * t
+          if (t <= length && Math.abs(x) <= hw && Math.abs(z) <= hd)
+            best = { distance: t, normal: new BABYLON.Vector3(0, 1, 0) }
+        }
+        // The boxes in the cells the ray crosses (vehicle rays are short).
+        const ex = o.x + dir.x * length
+        const ez = o.z + dir.z * length
+        const x0 = toCell(Math.min(o.x, ex), layout.width)
+        const x1 = toCell(Math.max(o.x, ex), layout.width)
+        const z0 = toCell(Math.min(o.z, ez), layout.depth)
+        const z1 = toCell(Math.max(o.z, ez), layout.depth)
+        if ((x1 - x0 + 1) * (z1 - z0 + 1) > 64) return best
+        const seen = new Set<Float32Array>()
+        for (let z = z0; z <= z1; z++)
+          for (let x = x0; x <= x1; x++) {
+            for (const b of grid.get(key(x, z)) ?? []) {
+              if (seen.has(b)) continue
+              seen.add(b)
+              const hit = rayBox(o, dir, b, best ? best.distance : length)
+              if (hit) best = hit
+            }
+          }
+        return best
+      },
+    }
+    this.rayProxy = proxy
+    rayProxies(scene).add(proxy)
   }
 
   /*
@@ -899,6 +1001,8 @@ export class B3dCity extends B3dChild {
     this.trafficLamps = null
     this.citySound?.dispose()
     this.citySound = null
+    if (this.rayProxy && scene) rayProxies(scene).delete(this.rayProxy)
+    this.rayProxy = null
     for (const w of this.windows) w.isEnabled = false
     this.windows = []
     this.trafficState = null
@@ -914,3 +1018,47 @@ export class B3dCity extends B3dChild {
 }
 
 export const b3dCity = B3dCity.elementCreator()
+
+/** Where a ray (unit `dir`) enters an axis-aligned box [min xyz, max xyz] within `length`, and the face's normal. */
+function rayBox(
+  o: BABYLON.Vector3,
+  dir: BABYLON.Vector3,
+  b: Float32Array,
+  length: number
+): { distance: number; normal: BABYLON.Vector3 } | null {
+  let near = 0
+  let far = length
+  let axis = -1
+  let sign = 0
+  const os = [o.x, o.y, o.z]
+  const ds = [dir.x, dir.y, dir.z]
+  for (let i = 0; i < 3; i++) {
+    const lo = b[i]
+    const hi = b[i + 3]
+    if (Math.abs(ds[i]) < 1e-9) {
+      if (os[i] < lo || os[i] > hi) return null
+      continue
+    }
+    let t0 = (lo - os[i]) / ds[i]
+    let t1 = (hi - os[i]) / ds[i]
+    let s = -1
+    if (t0 > t1) {
+      ;[t0, t1] = [t1, t0]
+      s = 1
+    }
+    if (t0 > near) {
+      near = t0
+      axis = i
+      sign = s
+    }
+    far = Math.min(far, t1)
+    if (near > far) return null
+  }
+  // Starting inside: not a hit (a ray from within a box is leaving it).
+  if (axis < 0) return null
+  const n = new BABYLON.Vector3(0, 0, 0)
+  if (axis === 0) n.x = sign
+  else if (axis === 1) n.y = sign
+  else n.z = sign
+  return { distance: near, normal: n }
+}

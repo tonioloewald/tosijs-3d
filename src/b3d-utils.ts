@@ -420,6 +420,64 @@ export function collidable(
 }
 
 /**
+ * A RAY PROXY answers rays for meshes it owns, faster than Babylon can: a
+ * city knows its ground is flat and its buildings are boxes in a grid, where
+ * a scene pick walks every thin-instanced copy of every model (thousands, a
+ * matrix multiply each, for every wheel's ray every physics step: most of a
+ * Quest's frame). Meshes it answers for carry `metadata.b3dRayProxy = true`;
+ * `pickWorld` skips them in the scene pick and asks the proxies instead.
+ */
+export interface RayProxy {
+  /** World-space ray (unit `dir`): how far along it, and the surface's normal, or null. */
+  cast(
+    origin: BABYLON.Vector3,
+    dir: BABYLON.Vector3,
+    length: number
+  ): { distance: number; normal: BABYLON.Vector3 } | null
+}
+
+const RAY_PROXIES = new WeakMap<BABYLON.Scene, Set<RayProxy>>()
+
+/** The scene's ray proxies (add yours; remove it when you go). */
+export function rayProxies(scene: BABYLON.Scene): Set<RayProxy> {
+  let set = RAY_PROXIES.get(scene)
+  if (set == null) {
+    set = new Set()
+    RAY_PROXIES.set(scene, set)
+  }
+  return set
+}
+
+const proxied = (m: BABYLON.AbstractMesh) =>
+  (m.metadata as { b3dRayProxy?: boolean } | null)?.b3dRayProxy === true
+
+/**
+ * A pick against the world: the scene's meshes (by `predicate`, as
+ * `collidable` gives) except those a ray proxy answers for, and the proxies.
+ * The nearest hit, with its normal (facing the ray), or null.
+ */
+export function pickWorld(
+  scene: BABYLON.Scene,
+  ray: BABYLON.Ray,
+  predicate: (m: BABYLON.AbstractMesh) => boolean
+): { distance: number; normal: BABYLON.Vector3; mesh: BABYLON.AbstractMesh | null } | null {
+  const proxies = RAY_PROXIES.get(scene)
+  const hit = scene.pickWithRay(ray, proxies?.size ? (m) => predicate(m) && !proxied(m) : predicate)
+  let best: { distance: number; normal: BABYLON.Vector3; mesh: BABYLON.AbstractMesh | null } | null = null
+  if (hit?.hit && hit.pickedMesh) {
+    let n = hit.getNormal(true, true) ?? ray.direction.negate()
+    if (BABYLON.Vector3.Dot(n, ray.direction) > 0) n = n.negate()
+    best = { distance: hit.distance, normal: n, mesh: hit.pickedMesh }
+  }
+  if (proxies)
+    for (const p of proxies) {
+      const h = p.cast(ray.origin, ray.direction, best ? best.distance : ray.length)
+      if (h && (best == null || h.distance < best.distance)) best = { ...h, mesh: null }
+    }
+  return best
+}
+
+/**
  * Tag a mesh as belonging to one or more collision GROUPS.
  *
  * The single `b3dNoCollide` boolean answers "does anything hit this", which is
