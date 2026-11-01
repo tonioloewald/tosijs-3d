@@ -5527,6 +5527,23 @@ export class B3d extends Component {
       const reveal = () => {
         if (revealed) return
         revealed = true
+        mark('shown')
+        // Frame times for the 20 s after showing, a second at a time.
+        const frames: number[] = []
+        let count = 0
+        let second = realNow()
+        const watch = this.engine.onEndFrameObservable.add(() => {
+          count++
+          const now = realNow()
+          if (now - second < 1000) return
+          frames.push(Math.round((now - second) / count))
+          count = 0
+          second = now
+          if (frames.length >= 20) {
+            this.engine.onEndFrameObservable.remove(watch)
+            sendDebug('load', { ...timeline, frameMsAfter: frames.join(' ') })
+          }
+        })
         cnv.classList.add('ready')
         // Not a spinner a page is holding up for its own loading.
         if (!this._loadingHeld) spinner.classList.add('hidden')
@@ -5541,11 +5558,27 @@ export class B3d extends Component {
       }
       // Holds (`holdLoading`) and a streaming terrain keep the scene hidden,
       // for at most this long: a hold never released must not hide it forever.
-      const giveUp = realNow() + 20000
+      const started = realNow()
+      const giveUp = started + 20000
+      // A load's timeline for the debug sink: when files, holds and terrain
+      // were done, when it was shown, and the frame times after (a headset's
+      // load cannot be watched any other way).
+      const timeline: Record<string, number | string> = {}
+      const mark = (what: string) => {
+        if (!(what in timeline)) timeline[what] = Math.round(realNow() - started)
+      }
+      let lastHolds = ''
       const checkReady = () => {
+        const holds = [...this._loadingHolds].map((h) => h.replace(/#\d+$/, '')).join(', ')
+        if (holds !== lastHolds && lastHolds !== '') mark(`built ${lastHolds}`)
+        lastHolds = holds
+        if (this.scene.getWaitingItemsCount() === 0) mark('files')
+        if (this._loadingHolds.size === 0) mark('holds')
+        if (!this._terrainBusy()) mark('terrain')
         const built = this._loadingHolds.size === 0 && !this._terrainBusy()
         if (!built && realNow() > giveUp) {
-          console.warn(`tosi-b3d: shown while still building (${[...this._loadingHolds].join(', ') || 'terrain'})`)
+          timeline.gaveUp = holds || 'terrain'
+          console.warn(`tosi-b3d: shown while still building (${holds || 'terrain'})`)
         }
         if (this.scene.getWaitingItemsCount() === 0 && (built || realNow() > giveUp)) {
           this.scene.executeWhenReady(reveal)
