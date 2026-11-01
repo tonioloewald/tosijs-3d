@@ -20,9 +20,10 @@ const hero = b3dBiped({
 })
 preview.append(
   b3d(
-    // On foot: move, turn, jump, get in. Driving: the triggers are the pedals,
-    // the left stick steers, the right looks around, A is the handbrake, X gets out.
-    { style: 'width: 100%; height: 100%', gamepad: 'left_stick,right_stick,left_trigger,right_trigger,A,X' },
+    // On foot: move, turn, jump, get in. Driving: the triggers are the pedals
+    // (the right bumper brakes too), the left stick steers, the right looks
+    // around, A is the handbrake, X gets out.
+    { style: 'width: 100%; height: 100%', gamepad: 'left_stick,right_stick,left_trigger,right_trigger,right_bumper,A,X' },
     cars,
     ...playground({ targets: 0 }),
     inputFocus(
@@ -46,8 +47,10 @@ ramp. The tank turns on the spot with **A** or **D** alone.
 
 With a gamepad (or the on-screen one) it drives the GTA way: the **right
 trigger** accelerates, the **left trigger** brakes and then reverses, the
-**left stick** steers, the **right stick** looks around, **A** (or the right
-bumper) is the handbrake and **X** gets in and out. **Arrow keys** look around
+**left stick** steers, the **right stick** looks around, **A** is the
+handbrake and **X** gets in and out. One step from GTA: the **right bumper**
+brakes and reverses too, so on the on-screen pad the right thumb has both
+pedals. **Arrow keys** look around
 on a keyboard.
 
 The camera rides high behind the car and looks ahead of it, swinging round

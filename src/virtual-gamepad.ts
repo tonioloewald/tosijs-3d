@@ -579,19 +579,21 @@ export const bipedMappingDescriptor: InputMappingDescriptor = {
 GTA V's driving layout: the right trigger is the accelerator, the left the brake
 (held, it reverses), the left stick ONLY steers, the right stick looks around.
 On a keyboard W/S drive as before: `carMapping.keyboard` moves them onto the
-triggers for the keyboard alone.
+triggers for the keyboard alone. One step from GTA: the right BUMPER also
+brakes and reverses, so the right thumb drives a glass gamepad alone; A is the
+handbrake.
 */
 export const carMapping: InputMapping = Object.assign(
   (pad: VirtualGamepad, _dt: number): ControlInput => {
     const input = emptyInput()
-    input.forward = pad.rightTrigger - pad.leftTrigger
+    input.forward = pad.rightTrigger - Math.max(pad.leftTrigger, pad.rightBumper)
     input.throttle = pad.rightTrigger
     input.turn = pad.leftStickX
     input.lookX = pad.rightStickX
     input.lookY = pad.rightStickY
     input.interact = pad.buttonX
     input.sprint = pad.leftBumper
-    input.jump = Math.max(pad.buttonA, pad.rightBumper)
+    input.jump = pad.buttonA
     return input
   },
   {
@@ -613,7 +615,7 @@ export const carMappingDescriptor: InputMappingDescriptor = {
     rightTrigger: 'accelerate',
     leftTrigger: 'brake / reverse',
     buttonA: 'handbrake',
-    rightBumper: 'handbrake',
+    rightBumper: 'brake / reverse',
     buttonX: 'interact',
     leftBumper: 'nitro',
   },

@@ -109,3 +109,23 @@ describe('lamps and daylight', () => {
     expect(P.lampLevel(0)).toBe(1)
   })
 })
+
+describe('ranking and flicker', () => {
+  test('nearer lamps and lamps ahead count for more, with no cutoff', () => {
+    const near = P.poolScore({ intensity: 1, range: 10, distance: 5, ahead: 1 })
+    const far = P.poolScore({ intensity: 1, range: 10, distance: 60, ahead: 1 })
+    const behind = P.poolScore({ intensity: 1, range: 10, distance: 5, ahead: -1 })
+    expect(near).toBeGreaterThan(far)
+    expect(far).toBeGreaterThan(0)
+    expect(near).toBeGreaterThan(behind)
+    expect(P.poolScore({ intensity: 0, range: 10, distance: 5, ahead: 1 })).toBe(0)
+  })
+
+  test('a failing lamp is mostly steady, then stutters, the same way every time', () => {
+    const samples = Array.from({ length: 2000 }, (_, i) => P.lampFlicker(i * 0.01, 7))
+    const dark = samples.filter((v) => v < 1).length
+    expect(dark).toBeGreaterThan(0)
+    expect(dark).toBeLessThan(samples.length / 2)
+    expect(samples).toEqual(Array.from({ length: 2000 }, (_, i) => P.lampFlicker(i * 0.01, 7)))
+  })
+})

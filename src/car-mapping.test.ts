@@ -19,6 +19,12 @@ describe('the car mapping (GTA V)', () => {
     expect(carMapping(pad({ leftTrigger: 0.5 }), 0).forward).toBe(-0.5)
   })
 
+  test('the right bumper brakes and reverses too; A is the handbrake', () => {
+    expect(carMapping(pad({ rightBumper: 1 }), 0).forward).toBe(-1)
+    expect(carMapping(pad({ rightBumper: 1 }), 0).jump).toBe(0)
+    expect(carMapping(pad({ buttonA: 1 }), 0).jump).toBe(1)
+  })
+
   test('on a pad the left stick only steers', () => {
     const input = carMapping(pad({ leftStickY: 1, leftStickX: -0.4 }), 0)
     expect(input.forward).toBe(0)

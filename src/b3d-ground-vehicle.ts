@@ -376,7 +376,9 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     this.beam = {
       position: new BABYLON.Vector3(),
       direction: new BABYLON.Vector3(0, -0.12, 1).normalize(),
-      angle: 0.9,
+      // A wide cone with a steep falloff, so the beam has no hard edge.
+      angle: 1.6,
+      exponent: 10,
       color: new BABYLON.Color3(1, 0.95, 0.85),
       intensity: 6,
       range: 40,

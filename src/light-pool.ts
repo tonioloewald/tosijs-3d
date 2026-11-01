@@ -4,19 +4,18 @@ THE LAMP POOL: many lamps, a few real lights.
 A city has hundreds of street lights and every car has headlights, but a
 material lights itself from a handful of lights at most, and each one costs
 every lit pixel. So a lamp is a VIRTUAL light: where it is, which way it
-points, how bright and how far it reaches. Each frame the pool ranks them by
-strength × locality (`lightScore`, the effect pool's rule: how bright the
-light is at the viewer, intensity falling over its range) and gives the best
-`lampLights` (a device budget) real lights, fading a light in or out over a
-sixth of a second rather than popping. The rest are seen by their glowing
-bulbs, which their owners draw.
+points, how bright and how far it reaches. Each frame the pool ranks them
+(`poolScore`: strength, falling softly with distance, lamps ahead of the
+viewer first) and gives the best `lampLights` (a device budget) real lights,
+fading a light in or out over a sixth of a second rather than popping. Every
+real light falls off linearly to nothing at its `range`, on Standard and PBR
+materials alike.
 
 Lit materials are raised to take the extra lights (Babylon's default is four,
 and the sun and the sky's ambient are two of them).
 */
 
 import * as BABYLON from '@babylonjs/core'
-import { lightScore } from './effect-recipe.js'
 import { qualityBudgets } from './b3d-quality.js'
 import { sceneDelta } from './b3d-utils.js'
 
@@ -34,6 +33,26 @@ export interface VirtualLight {
   range: number
   /** 0..1, the owner's dimmer (night, a switch, a dying battery). */
   level: number
+  /**
+   * 0..1, a flicker on the output only: a flickering lamp keeps its place in
+   * the ranking, or it would lose its light every time it went dark.
+   */
+  flicker?: number
+  /** A spot's falloff across its cone (Babylon's `exponent`). Default 2. */
+  exponent?: number
+}
+
+/**
+ * How much a lamp matters to what the viewer sees. Not how bright it is AT the
+ * viewer: a street light lights the road you are looking at from fifty metres
+ * away. So strength falls off softly with distance in ranges (no cutoff), and
+ * lamps ahead count more than lamps behind (`ahead`, the cosine between the
+ * view and the lamp).
+ */
+export function poolScore(l: { intensity: number; range: number; distance: number; ahead: number }): number {
+  if (l.intensity <= 0 || l.range <= 0) return 0
+  const r = l.distance / (l.range * 1.5)
+  return (l.intensity * (0.35 + 0.65 * Math.max(0, l.ahead))) / (1 + r * r)
 }
 
 interface Slot {
@@ -100,6 +119,9 @@ export class LightPool {
     const light = spot
       ? new BABYLON.SpotLight(name, BABYLON.Vector3.Zero(), BABYLON.Vector3.Down(), 1, 1, this.scene)
       : new BABYLON.PointLight(name, BABYLON.Vector3.Zero(), this.scene)
+    // Linear to nothing at its range, on every material: PBR's default is the
+    // inverse square, which put a headlight's 6 at a tenth of that ten metres off.
+    light.falloffType = BABYLON.Light.FALLOFF_STANDARD
     light.setEnabled(false)
     const s: Slot = { light, owner: null, fade: 0 }
     list.push(s)
@@ -108,19 +130,27 @@ export class LightPool {
 
   private update() {
     const scene = this.scene
-    const eye = scene.activeCamera?.globalPosition
-    if (eye == null) return
+    const camera = scene.activeCamera
+    if (camera == null) return
+    const eye = camera.globalPosition
+    const view = camera.getDirection(BABYLON.Axis.Z)
     const dt = Math.min(0.1, sceneDelta(scene))
     const budget = qualityBudgets().lampLights
+    const to = new BABYLON.Vector3()
     const ranked = [...this.lights]
-      .map((l) => ({
-        l,
-        s: lightScore({
-          intensity: l.intensity * l.level,
-          range: l.range,
-          distance: BABYLON.Vector3.Distance(eye, l.position),
-        }),
-      }))
+      .map((l) => {
+        l.position.subtractToRef(eye, to)
+        const distance = to.length()
+        return {
+          l,
+          s: poolScore({
+            intensity: l.intensity * l.level,
+            range: l.range,
+            distance,
+            ahead: distance > 0 ? BABYLON.Vector3.Dot(to, view) / distance : 1,
+          }),
+        }
+      })
       .filter((x) => x.s > 0)
       .sort((a, b) => b.s - a.s)
       .slice(0, budget)
@@ -151,12 +181,12 @@ export class LightPool {
       s.light.position.copyFrom(l.position)
       s.light.diffuse.copyFrom(l.color)
       s.light.specular.copyFrom(l.color)
-      s.light.intensity = l.intensity * l.level * s.fade
+      s.light.intensity = l.intensity * l.level * (l.flicker ?? 1) * s.fade
       s.light.range = l.range
       if (s.light instanceof BABYLON.SpotLight && l.direction) {
         s.light.direction.copyFrom(l.direction)
         s.light.angle = l.angle ?? Math.PI / 3
-        s.light.exponent = 2
+        s.light.exponent = l.exponent ?? 2
       }
       s.light.setEnabled(true)
     }
@@ -185,4 +215,22 @@ export function sceneDaylight(owner: Element | null | undefined): number {
 /** A lamp's level for the daylight: off by day, up through dusk, full at night. */
 export function lampLevel(daylight: number): number {
   return Math.max(0, Math.min(1, (0.5 - daylight) / 0.35))
+}
+
+function hash(a: number, b: number): number {
+  let h = Math.imul(a | 0, 0x27d4eb2d) ^ Math.imul(b | 0, 0x165667b1)
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b)
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35)
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296
+}
+
+/**
+ * A failing lamp's flicker at `seconds`, 0..1: steady most of the time, then
+ * a spell of stutter (a couple of seconds in five), each lamp to its own
+ * `seed`. Pure, so the same lamp stutters the same way in a replay.
+ */
+export function lampFlicker(seconds: number, seed: number): number {
+  const spell = Math.floor(seconds / 1.7)
+  if (hash(seed, spell) > 0.4) return 1
+  return hash(seed + 7919, Math.floor(seconds * 14)) < 0.45 ? 0.1 : 1
 }

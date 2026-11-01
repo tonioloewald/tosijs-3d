@@ -16,7 +16,7 @@ import { b3d, b3dTank, inputFocus, playground } from 'tosijs-3d'
 const tank = b3dTank({ x: -4, z: 10, player: true })
 preview.append(
   b3d(
-    { style: 'width: 100%; height: 100%', gamepad: 'left_stick,right_stick,left_trigger,right_trigger' },
+    { style: 'width: 100%; height: 100%', gamepad: 'left_stick,right_stick,left_trigger,right_trigger,right_bumper' },
     ...playground({ targets: 0 }),
     inputFocus(tank)
   )
@@ -26,7 +26,7 @@ preview.append(
 .preview { height: 100%; }
 ```
 
-**W** and **S** (on a gamepad the right and left triggers) drive forward and
+**W** and **S** (on a gamepad the right trigger, and the left trigger or right bumper) drive forward and
 back, **A** and **D** (the left stick) steer; with nothing else held they pivot
 it where it stands. The **arrow keys** (the right stick) aim the turret: left
 and right traverse it, up and down elevate the gun. The camera looks where the
