@@ -5657,17 +5657,19 @@ export class B3d extends Component {
         fm.enableFeature(name, 'latest', { preferMultiviewOnInit: true }, true, false)
       } catch (err) {
         console.warn('tosi-b3d: multiview unavailable', err)
+        sendDebug('xr', { multiview: 'enable failed', error: String(err) })
       }
     } else if (isOff(this.xrMultiview) && has) fm.disableFeature(name)
   }
 
   /** What multiview is doing: off, asked for, or drawing. */
-  private _multiviewState(): string {
+  private _multiviewState(inSession = this.xrActive): string {
     const f = this.xrHelper?.baseExperience?.featuresManager?.getEnabledFeature(
       BABYLON.WebXRFeatureName.LAYERS
     ) as any
-    if (f == null) return 'off'
-    if (!this.xrActive) return 'requested for the next session'
+    if (f == null)
+      return isOff(this.xrMultiview) ? 'off' : 'not requested (failed to enable)'
+    if (!inSession) return 'requested for the next session'
     return f._isMultiviewEnabled === true
       ? 'ON (both eyes in one pass)'
       : 'requested, not available here'
@@ -5715,11 +5717,16 @@ export class B3d extends Component {
     this._applyXrMultiview()
     this.addDebugSource({
       name: 'XR',
-      lines: () => [`multiview: ${this._multiviewState()}`],
+      lines: () => [
+        `multiview chosen: ${isOff(this.xrMultiview) ? 'OFF' : 'ON'}`,
+        `multiview now: ${this._multiviewState()}`,
+      ],
       actions: [
         {
           label: () =>
-            `multiview ${isOff(this.xrMultiview) ? 'off' : 'on'} (next Enter VR)`,
+            isOff(this.xrMultiview)
+              ? 'Multiview is OFF: tap to turn ON (from next Enter VR)'
+              : 'Multiview is ON: tap to turn OFF (from next Enter VR)',
           handleClick: () => {
             this.xrMultiview = isOff(this.xrMultiview) ? 'on' : 'off'
             try {
@@ -5767,6 +5774,10 @@ export class B3d extends Component {
     const base = xr.baseExperience
     if (base == null) return
     base.onStateChangedObservable.add((state) => {
+      // A choice made in a session applies from the next one.
+      if (state === BABYLON.WebXRState.NOT_IN_XR) this._applyXrMultiview()
+      if (state === BABYLON.WebXRState.IN_XR)
+        sendDebug('xr', { multiview: this._multiviewState(true) })
       if (state !== BABYLON.WebXRState.IN_XR) return
       // The flat settings panel rides the flat camera; the headset has its own.
       this._disposeFlatScenePanel()
