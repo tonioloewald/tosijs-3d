@@ -14,8 +14,19 @@ started at all (the effect plays silently), exactly as thunder is skipped.
 
 import * as BABYLON from '@babylonjs/core'
 import type { VoiceKind } from './effect-recipe.js'
+import { realNow } from './clock.js'
 
 let ctx: AudioContext | null = null
+// When the next resume may be tried. Callers ask every frame, and an iPhone
+// whose audio device will not start rejects every attempt.
+let nextResume = 0
+
+function tryResume(c: AudioContext) {
+  const now = realNow()
+  if (now < nextResume) return
+  nextResume = now + 1000
+  c.resume().catch(() => {})
+}
 const buffers = new Map<string, AudioBuffer>()
 
 /** The shared audio context, running, or null (no audio yet, or none). */
@@ -32,12 +43,12 @@ export function effectAudio(): AudioContext | null {
       const doc = (globalThis as any).document as Document | undefined
       doc?.addEventListener('visibilitychange', () => {
         if (ctx == null) return
-        if (doc.hidden) void ctx.suspend()
-        else void ctx.resume()
+        if (doc.hidden) ctx.suspend().catch(() => {})
+        else tryResume(ctx)
       })
     }
     const hidden = (globalThis as any).document?.hidden === true
-    if (ctx.state === 'suspended' && !hidden) void ctx.resume()
+    if (ctx.state === 'suspended' && !hidden) tryResume(ctx)
     return ctx.state === 'running' ? ctx : null
   } catch {
     return null

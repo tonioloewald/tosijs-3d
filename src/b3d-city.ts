@@ -971,10 +971,9 @@ export class B3dCity extends B3dChild {
           dt
         )
       }
-      // At most a thirtieth of a second a frame: on a device that cannot keep
-      // up, the traffic slows down rather than taking more physics steps each
-      // frame (which made each frame slower still).
-      stepTraffic(traffic, Math.min(dt, 1 / 30), this.obstacles())
+      // At most a tenth of a second a frame, so a stall cannot pile up steps;
+      // below 10 fps the traffic slows down instead.
+      stepTraffic(traffic, Math.min(dt, 0.1), this.obstacles())
       this.drawTraffic()
       traffic.cars.forEach((car, i) => {
         const beam = this.beams[i]

@@ -435,10 +435,10 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     const dt = sceneDelta(scene)
     if (dt <= 0 || this._halted || simHalted(this.owner as SimGateOwner | null)) return
     const before = { ...state.position }
-    // At most a thirtieth of a second of physics a frame. Each step casts a ray
-    // per wheel; at 6 fps that was twenty steps a frame, every one slowing the
-    // frame further (a Quest in the city). Below 30 fps it runs slow instead.
-    stepVehicle(spec, state, this.inputProvider ? this.controls : IDLE, Math.min(dt, 1 / 30), this.ground)
+    // At most a tenth of a second of physics a frame, so a stall cannot pile up
+    // steps. A thirtieth was too tight: at 10 fps the car ran at a third of
+    // real time and felt gutless. Wheel rays are cheap now (pickWorld).
+    stepVehicle(spec, state, this.inputProvider ? this.controls : IDLE, Math.min(dt, 0.1), this.ground)
     this.blockByWalls(before, state)
     this.afterStep(state, dt)
     this.place()
