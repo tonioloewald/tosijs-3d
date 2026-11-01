@@ -18,9 +18,20 @@ import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'
 import { B3dControllable } from './b3d-controllable.js'
 import type { ControlInput } from './control-input.js'
-import { collidable, pickWorld, sceneDelta, simHalted, type SimGateOwner } from './b3d-utils.js'
+import {
+  collidable,
+  pickWorld,
+  sceneDelta,
+  simHalted,
+  type SimGateOwner,
+} from './b3d-utils.js'
 import { canonicalize } from './model-transform.js'
-import { lightPool, sceneDaylight, lampLevel, type VirtualLight } from './light-pool.js'
+import {
+  lightPool,
+  sceneDaylight,
+  lampLevel,
+  type VirtualLight,
+} from './light-pool.js'
 import {
   chasePose,
   chaseRigFor,
@@ -39,7 +50,8 @@ import {
 
 import { placeListener, startVoice, type Voice } from './effect-audio.js'
 
-const V = (p: { x: number; y: number; z: number }) => new BABYLON.Vector3(p.x, p.y, p.z)
+const V = (p: { x: number; y: number; z: number }) =>
+  new BABYLON.Vector3(p.x, p.y, p.z)
 const IDLE: VehicleControls = { throttle: 0, steer: 0, handbrake: 0 }
 
 export abstract class B3dGroundVehicle extends B3dControllable {
@@ -108,7 +120,11 @@ export abstract class B3dGroundVehicle extends B3dControllable {
   private beamFrom = new BABYLON.Vector3()
   private lamps: BABYLON.StandardMaterial | null = null
   private tailLamps: BABYLON.StandardMaterial | null = null
-  private wallBands: { h: number; min: BABYLON.Vector3; max: BABYLON.Vector3 }[] = []
+  private wallBands: {
+    h: number
+    min: BABYLON.Vector3
+    max: BABYLON.Vector3
+  }[] = []
   /** A track's climbing points: the low wall rays let them onto an obstacle. */
   private climbPoints: { x: number; z: number }[] = []
   private ownMeshes: BABYLON.AbstractMesh[] = []
@@ -123,7 +139,9 @@ export abstract class B3dGroundVehicle extends B3dControllable {
   /** Pose wheels, tracks and treads from the state. */
   protected abstract pose(state: VehicleState): void
   /** A body for a vehicle given no model (the tank has one; the car has none). */
-  protected makeDefaultBody(_scene: BABYLON.Scene): BABYLON.TransformNode | null {
+  protected makeDefaultBody(
+    _scene: BABYLON.Scene
+  ): BABYLON.TransformNode | null {
     return null
   }
 
@@ -196,9 +214,14 @@ export abstract class B3dGroundVehicle extends B3dControllable {
   setupFollowCamera() {
     const owner = this.owner
     const state = this.state
-    if (owner == null || state == null || this.spec == null || !this.focused) return
+    if (owner == null || state == null || this.spec == null || !this.focused)
+      return
     if (this.chaseCamera == null) {
-      const cam = new BABYLON.FreeCamera(`${this.tagName}-chase`, BABYLON.Vector3.Zero(), owner.scene)
+      const cam = new BABYLON.FreeCamera(
+        `${this.tagName}-chase`,
+        BABYLON.Vector3.Zero(),
+        owner.scene
+      )
       cam.minZ = 0.1
       this.chaseCamera = cam
     }
@@ -224,15 +247,32 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     const ease = dt > 0 ? 1 - Math.exp(-dt * 8) : 1
     this.look.x += (this.lookWant.x - this.look.x) * ease
     this.look.y += (this.lookWant.y - this.look.y) * ease
-    const { eye, target } = chasePose(state.position, this.viewYaw(this.camYaw), this.viewTilt(), rig)
+    const { eye, target } = chasePose(
+      state.position,
+      this.viewYaw(this.camYaw),
+      this.viewTilt(),
+      rig
+    )
     // Something between the vehicle and the camera (a wall it backed up to, or
     // swung round into while looking): come in in front of it.
-    const from = new BABYLON.Vector3(state.position.x, state.position.y + rig.aimHeight + 1, state.position.z)
+    const from = new BABYLON.Vector3(
+      state.position.x,
+      state.position.y + rig.aimHeight + 1,
+      state.position.z
+    )
     const to = V(eye).subtract(from)
     const far = to.length()
     const scene = this.owner?.scene
-    const hit = scene ? pickWorld(scene, new BABYLON.Ray(from, to.scale(1 / far), far), this.collides) : null
-    const at = hit ? from.add(to.scale(Math.max(0.1, hit.distance - 0.3) / far)) : V(eye)
+    const hit = scene
+      ? pickWorld(
+          scene,
+          new BABYLON.Ray(from, to.scale(1 / far), far),
+          this.collides
+        )
+      : null
+    const at = hit
+      ? from.add(to.scale(Math.max(0.1, hit.distance - 0.3) / far))
+      : V(eye)
     cam.position.copyFrom(at)
     cam.setTarget(V(target))
   }
@@ -245,14 +285,21 @@ export abstract class B3dGroundVehicle extends B3dControllable {
           doNotInstantiate: true,
         })
         const root = entries.rootNodes[0] as BABYLON.TransformNode
-        this.adopt(canonicalize(root, scene, `${this.tagName}-body`), owner, scene)
+        this.adopt(
+          canonicalize(root, scene, `${this.tagName}-body`),
+          owner,
+          scene
+        )
       })
     } else if (this.library !== '' && this.meshName !== '') {
       this.loadFromLibrary(owner, scene)
     } else {
       const body = this.makeDefaultBody(scene)
       if (body) this.adopt(body, owner, scene)
-      else console.warn(`${this.tagName.toLowerCase()}: needs a url, or a library and meshName`)
+      else
+        console.warn(
+          `${this.tagName.toLowerCase()}: needs a url, or a library and meshName`
+        )
     }
   }
 
@@ -265,8 +312,14 @@ export abstract class B3dGroundVehicle extends B3dControllable {
       lib.ready.then(() => {
         if (gen !== this.loadGeneration) return
         const node = lib.instantiate(this.meshName, { canonical: true })
-        if (node instanceof BABYLON.TransformNode) this.adopt(node, owner, scene)
-        else console.error(`${this.tagName.toLowerCase()}: no "${this.meshName}" in library "${this.library}"`)
+        if (node instanceof BABYLON.TransformNode)
+          this.adopt(node, owner, scene)
+        else
+          console.error(
+            `${this.tagName.toLowerCase()}: no "${this.meshName}" in library "${
+              this.library
+            }"`
+          )
       })
       return true
     }
@@ -282,7 +335,11 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     }
   }
 
-  private adopt(control: BABYLON.TransformNode, owner: B3d, scene: BABYLON.Scene) {
+  private adopt(
+    control: BABYLON.TransformNode,
+    owner: B3d,
+    scene: BABYLON.Scene
+  ) {
     const k = Number(this.scale) > 0 ? Number(this.scale) : 1
     for (const child of control.getChildren()) {
       if (child instanceof BABYLON.TransformNode) child.scaling.scaleInPlace(k)
@@ -298,7 +355,9 @@ export abstract class B3dGroundVehicle extends B3dControllable {
 
     const spec = this.specFor(control)
     if (spec == null) {
-      console.warn(`${this.tagName.toLowerCase()}: found nothing to drive on in its model`)
+      console.warn(
+        `${this.tagName.toLowerCase()}: found nothing to drive on in its model`
+      )
       return
     }
     this.spec = spec
@@ -319,18 +378,34 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     const parts = this.ownMeshes.map((m) => m.getBoundingInfo().boundingBox)
     const lo = Math.max(...this.contactHubs(spec)) + 0.05
     const top = bounds.max.y - 0.1
-    const crest = Math.max(lo, ...(spec.tracks ?? []).flatMap((t) => (t.climb ?? []).map((c) => c.y)))
+    const crest = Math.max(
+      lo,
+      ...(spec.tracks ?? []).flatMap((t) => (t.climb ?? []).map((c) => c.y))
+    )
     this.wallBands = [lo, crest + 0.05, (lo + top) / 2, top]
       .filter((h, i, a) => h <= top && a.indexOf(h) === i)
       .map((h) => {
-        const at = parts.filter((b) => b.minimumWorld.y <= h + 0.1 && b.maximumWorld.y >= h - 0.1)
+        const at = parts.filter(
+          (b) => b.minimumWorld.y <= h + 0.1 && b.maximumWorld.y >= h - 0.1
+        )
         if (at.length === 0) return null
-        const min = at.reduce((v, b) => BABYLON.Vector3.Minimize(v, b.minimumWorld), at[0].minimumWorld.clone())
-        const max = at.reduce((v, b) => BABYLON.Vector3.Maximize(v, b.maximumWorld), at[0].maximumWorld.clone())
+        const min = at.reduce(
+          (v, b) => BABYLON.Vector3.Minimize(v, b.minimumWorld),
+          at[0].minimumWorld.clone()
+        )
+        const max = at.reduce(
+          (v, b) => BABYLON.Vector3.Maximize(v, b.maximumWorld),
+          at[0].maximumWorld.clone()
+        )
         return { h, min, max }
       })
-      .filter((b): b is { h: number; min: BABYLON.Vector3; max: BABYLON.Vector3 } => b != null)
-    this.climbPoints = (spec.tracks ?? []).flatMap((t) => (t.climb ?? []).map((c) => ({ x: c.x, z: c.z })))
+      .filter(
+        (b): b is { h: number; min: BABYLON.Vector3; max: BABYLON.Vector3 } =>
+          b != null
+      )
+    this.climbPoints = (spec.tracks ?? []).flatMap((t) =>
+      (t.climb ?? []).map((c) => ({ x: c.x, z: c.z }))
+    )
 
     this.fitLights(control, scene)
     owner.addOriginListener(this.onOrigin)
@@ -343,7 +418,8 @@ export abstract class B3dGroundVehicle extends B3dControllable {
 
   private contactHubs(spec: VehicleSpec): number[] {
     const hubs = (spec.wheels ?? []).map((w) => w.at.y)
-    for (const t of spec.tracks ?? []) for (const c of t.contacts) hubs.push(c.y)
+    for (const t of spec.tracks ?? [])
+      for (const c of t.contacts) hubs.push(c.y)
     return hubs.length ? hubs : [0]
   }
 
@@ -373,7 +449,11 @@ export abstract class B3dGroundVehicle extends B3dControllable {
       [min.z - 0.01, this.tailLamps, 0.02],
     ] as const) {
       for (const side of [-1, 1]) {
-        const m = BABYLON.MeshBuilder.CreateBox(`${this.tagName}-lamp`, { width: size, height: size * 0.6, depth }, scene)
+        const m = BABYLON.MeshBuilder.CreateBox(
+          `${this.tagName}-lamp`,
+          { width: size, height: size * 0.6, depth },
+          scene
+        )
         m.material = mat
         m.isPickable = false
         m.parent = control
@@ -400,24 +480,46 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     if (beam == null || control == null) return
     const mode = this.headlights
     const level =
-      mode === 'on' ? 1 : mode === 'off' ? 0 : this.inputProvider != null ? lampLevel(sceneDaylight(this.owner)) : 0
+      mode === 'on'
+        ? 1
+        : mode === 'off'
+        ? 0
+        : this.inputProvider != null
+        ? lampLevel(sceneDaylight(this.owner))
+        : 0
     beam.level = level
     // The one you drive keeps its light, wherever you look (in a headset you
     // look round, and the pool gave it away and back: it flickered).
     beam.weight = this.inputProvider != null ? 20 : 1
     const world = control.getWorldMatrix()
-    BABYLON.Vector3.TransformCoordinatesToRef(this.beamFrom, world, beam.position)
-    BABYLON.Vector3.TransformNormalToRef(new BABYLON.Vector3(0, -0.12, 1), world, beam.direction!)
+    BABYLON.Vector3.TransformCoordinatesToRef(
+      this.beamFrom,
+      world,
+      beam.position
+    )
+    BABYLON.Vector3.TransformNormalToRef(
+      new BABYLON.Vector3(0, -0.12, 1),
+      world,
+      beam.direction!
+    )
     beam.direction!.normalize()
-    this.lamps?.emissiveColor.set(0.15 + 0.85 * level, 0.14 + 0.81 * level, 0.12 + 0.68 * level)
+    this.lamps?.emissiveColor.set(
+      0.15 + 0.85 * level,
+      0.14 + 0.81 * level,
+      0.12 + 0.68 * level
+    )
     this.tailLamps?.emissiveColor.set(0.15 + 0.6 * level, 0.01, 0.005)
   }
 
   /** The vehicle's own meshes, which its rays must not hit. */
   private isMine = (m: BABYLON.AbstractMesh) =>
     this.control != null && m.isDescendantOf(this.control)
-  /** What its rays hit: anything collidable but itself (made once, not per ray). */
-  private collides = collidable(this.isMine)
+  /**
+   * What its rays hit: anything collidable but itself and water (made once,
+   * not per ray). Water is not ground for a wheel, and the sea's big surface
+   * was half the cost of every downward ray.
+   */
+  private collides = collidable(this.isMine, { ignoreGroups: ['water'] })
 
   /*
   GROUND, once a frame. The model steps at 1/60 s and asks for the ground under
@@ -427,7 +529,11 @@ export abstract class B3dGroundVehicle extends B3dControllable {
   within a frame a wheel moves a few tens of centimetres. A contact is known by
   where its ray starts, which moves less in a step than contacts are apart.
   */
-  private groundCache: { from: Vec3; point: Vec3 | null; normal: Vec3 | null }[] = []
+  private groundCache: {
+    from: Vec3
+    point: Vec3 | null
+    normal: Vec3 | null
+  }[] = []
 
   private ground: GroundRay = (from, dir, length) => {
     const scene = this.owner?.scene
@@ -440,16 +546,31 @@ export abstract class B3dGroundVehicle extends B3dControllable {
       const facing = dir.x * normal.x + dir.y * normal.y + dir.z * normal.z
       if (facing > -1e-4) return null
       const t =
-        ((point.x - from.x) * normal.x + (point.y - from.y) * normal.y + (point.z - from.z) * normal.z) / facing
+        ((point.x - from.x) * normal.x +
+          (point.y - from.y) * normal.y +
+          (point.z - from.z) * normal.z) /
+        facing
       return t >= 0 && t <= length ? { distance: t, normal } : null
     }
-    const hit = pickWorld(scene, new BABYLON.Ray(V(from), V(dir), length), this.collides)
-    const entry = { from: { ...from }, point: null as Vec3 | null, normal: null as Vec3 | null }
+    const hit = pickWorld(
+      scene,
+      new BABYLON.Ray(V(from), V(dir), length),
+      this.collides
+    )
+    const entry = {
+      from: { ...from },
+      point: null as Vec3 | null,
+      normal: null as Vec3 | null,
+    }
     this.groundCache.push(entry)
     if (hit == null) return null
     const n = hit.normal
     entry.normal = { x: n.x, y: n.y, z: n.z }
-    entry.point = { x: from.x + dir.x * hit.distance, y: from.y + dir.y * hit.distance, z: from.z + dir.z * hit.distance }
+    entry.point = {
+      x: from.x + dir.x * hit.distance,
+      y: from.y + dir.y * hit.distance,
+      z: from.z + dir.z * hit.distance,
+    }
     return { distance: hit.distance, normal: entry.normal }
   }
 
@@ -459,19 +580,27 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     const state = this.state
     if (scene == null || spec == null || state == null) return
     const dt = sceneDelta(scene)
-    if (dt <= 0 || this._halted || simHalted(this.owner as SimGateOwner | null)) return
+    if (dt <= 0 || this._halted || simHalted(this.owner as SimGateOwner | null))
+      return
     const before = { ...state.position }
     this.groundCache.length = 0
     // At most a tenth of a second of physics a frame, so a stall cannot pile up
     // steps. A thirtieth was too tight: at 10 fps the car ran at a third of
     // real time and felt gutless. Wheel rays are cheap now (pickWorld).
-    stepVehicle(spec, state, this.inputProvider ? this.controls : IDLE, Math.min(dt, 0.1), this.ground)
+    stepVehicle(
+      spec,
+      state,
+      this.inputProvider ? this.controls : IDLE,
+      Math.min(dt, 0.1),
+      this.ground
+    )
     this.blockByWalls(before, state)
     this.afterStep(state, dt)
     this.place()
     this.updateLights()
     this.updateEngine(state)
-    if (this.chaseCamera != null && scene.activeCamera === this.chaseCamera) this.aimCamera(dt)
+    if (this.chaseCamera != null && scene.activeCamera === this.chaseCamera)
+      this.aimCamera(dt)
   }
 
   /** The engine, while driven: its note rises with speed, and it opens up on the throttle. */
@@ -490,7 +619,12 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     const speed = Math.abs(forwardSpeed(state))
     const pull = Math.abs(this.controls.throttle)
     voice.place(V(state.position).addInPlaceFromFloats(0, 0.6, 0))
-    voice.set(0.22 + 0.35 * pull, this.engineNote * (0.75 + speed / 10 + pull * 0.3), 0.3 + 0.6 * pull, 16000)
+    voice.set(
+      0.22 + 0.35 * pull,
+      this.engineNote * (0.75 + speed / 10 + pull * 0.3),
+      0.3 + 0.6 * pull,
+      16000
+    )
   }
 
   /*
@@ -509,7 +643,10 @@ export abstract class B3dGroundVehicle extends B3dControllable {
   track's radius) before it is a wall, so the raised ends get on top of a step
   and climb it; anything above them is a wall at the box.
   */
-  private blockByWalls(before: { x: number; y: number; z: number }, state: VehicleState) {
+  private blockByWalls(
+    before: { x: number; y: number; z: number },
+    state: VehicleState
+  ) {
     const scene = this.owner?.scene
     if (scene == null || this.wallBands.length === 0) return
     const wx = state.position.x - before.x
@@ -537,8 +674,18 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     this.wallBands.forEach(({ h, min, max }, i) => {
       // How far the body's edge at this height is from a point inside it, this way.
       const edgeOf = (o: BABYLON.Vector3) => {
-        const tx = local.x > 1e-6 ? (max.x - o.x) / local.x : local.x < -1e-6 ? (min.x - o.x) / local.x : Infinity
-        const tz = local.z > 1e-6 ? (max.z - o.z) / local.z : local.z < -1e-6 ? (min.z - o.z) / local.z : Infinity
+        const tx =
+          local.x > 1e-6
+            ? (max.x - o.x) / local.x
+            : local.x < -1e-6
+            ? (min.x - o.x) / local.x
+            : Infinity
+        const tz =
+          local.z > 1e-6
+            ? (max.z - o.z) / local.z
+            : local.z < -1e-6
+            ? (min.z - o.z) / local.z
+            : Infinity
         return Math.max(0, Math.min(tx, tz))
       }
       const corners = [
@@ -557,7 +704,11 @@ export abstract class B3dGroundVehicle extends B3dControllable {
             ? Math.max(0, climbAhead - 0.15 - (o.x * local.x + o.z * local.z))
             : edgeOf(o)
         const from = origin.add(o.applyRotationQuaternion(rot))
-        const hit = pickWorld(scene, new BABYLON.Ray(from, dirWorld, edge + moved + 0.05), this.collides)
+        const hit = pickWorld(
+          scene,
+          new BABYLON.Ray(from, dirWorld, edge + moved + 0.05),
+          this.collides
+        )
         if (hit == null) continue
         const n = new BABYLON.Vector3(hit.normal.x, 0, hit.normal.z)
         if (n.length() < 0.3) continue // a floor or a ceiling, not a wall
@@ -631,4 +782,3 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     super.sceneDispose()
   }
 }
-

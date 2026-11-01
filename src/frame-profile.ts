@@ -58,6 +58,7 @@ export function frameProfile(
   ]
   const totals = new Map<string, number>()
   const wrap = () => {
+    methods()
     for (const [where, obs] of [...watched, ...(options.extra?.() ?? [])]) {
       if (obs == null) continue
       for (const o of (obs as any)._observers as BABYLON.Observer<any>[]) {
@@ -75,6 +76,42 @@ export function frameProfile(
         } as any
       }
     }
+  }
+  /*
+  The frame's own stages, as METHODS: what no observer and no instrumentation
+  counter covers (the scene's render and its parts, the shadow maps). They
+  nest: `scene.render` includes the rest, and the frame minus `scene.render`
+  is the render loop's own work. The render loop's functions are not wrapped:
+  `stopRenderLoop` finds them by identity.
+  */
+  const method = (obj: any, key: string, name: string) => {
+    const fn = obj?.[key]
+    if (typeof fn !== 'function' || fn[timed]) return
+    const timedFn = function (this: unknown, ...args: any[]) {
+      const t = realNow()
+      try {
+        return fn.apply(this, args)
+      } finally {
+        totals.set(name, (totals.get(name) ?? 0) + realNow() - t)
+      }
+    }
+    ;(timedFn as any)[timed] = true
+    obj[key] = timedFn
+  }
+  const methods = () => {
+    const s = scene as any
+    method(s, 'render', 'scene.render')
+    method(s, 'animate', 'scene.animate')
+    method(s, '_evaluateActiveMeshes', 'scene.activeMeshes')
+    method(s, '_renderForCamera', 'scene.renderForCamera')
+    method(s, '_processSubCameras', 'scene.subCameras')
+    method(s._renderingManager, 'render', 'renderingManager.render')
+    for (const light of scene.lights) {
+      const g = light.getShadowGenerator?.() as any
+      method(g?.getShadowMap?.(), 'render', 'shadowMap.render')
+    }
+    for (const rt of scene.customRenderTargets)
+      method(rt, 'render', `rtt.render ${rt.name}`)
   }
   const inst = new BABYLON.SceneInstrumentation(scene)
   inst.captureActiveMeshesEvaluationTime = true
@@ -105,7 +142,7 @@ export function frameProfile(
     const n = Math.max(1, frames)
     const top = [...totals]
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 6)
+      .slice(0, 10)
       .filter(([, ms]) => ms / n >= 0.2)
       .map(([k, ms]) => `${k} ${(ms / n).toFixed(1)}`)
       .join(' | ')
