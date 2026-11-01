@@ -279,6 +279,7 @@ document.body.append(
 | `enterXrOnResume` | `'off'` | `'on'`: resuming enters immersive VR where the device supports it. The Continue tap is the user gesture `enterXRAsync` requires |
 | `reseatFreeze` | `'on'` | Freeze the clock while the re-seat dialog is up. Set `'off'` for a networked world, which cannot stop the other players; the dialog still gates your own input |
 | `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
+| `xrMultiview` | `'off'` | `'on'`: draw both eyes in one pass in a headset (WebXR layers), where the device has multiview. Read on entering a session. A custom shader that ignores multiview draws one eye wrong |
 | `xrRenderScale` | `0` | In a headset: the fraction of each eye's width and height drawn. `0` is auto (from the device tier: 0.67 on the low tier). Engine hardware scaling does not reach a headset; this does. Read on entering a session |
 | `xrFoveation` | `-1` | In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session |
 | `xrGrid` | `'auto'` | The reference grid on the floor in an immersive session. `'auto'` shows it for the built-in free-fly rig and hides it when a player entity drives the rig or you supply your own `setupXr`; `'on'` and `'off'` force it |
@@ -438,6 +439,8 @@ import {
   biomeComputedNoise,
 } from './biome-plugin.js'
 const SWEEP_KEY = 'tosi-b3d-cost-sweep'
+// The headset's multiview choice, kept across reloads (toggled from Perf Stats).
+const MULTIVIEW_KEY = 'tosi-b3d-xr-multiview'
 import {
   allocateAmbient,
   ratchetPool,
@@ -871,6 +874,14 @@ export class B3d extends Component {
     */
     xrRenderScale: 0,
     xrFoveation: -1,
+    /*
+    MULTIVIEW draws both eyes in ONE pass (WebXR layers + OVR_multiview2).
+    A Quest's VR frame is mostly the CPU issuing draw calls, once per eye, so
+    this is the big lever. Off by default while it is tried: a custom shader
+    that does not handle multiview draws one eye wrong. Read on entering a
+    session; the Perf Stats panel's XR button toggles it (remembered).
+    */
+    xrMultiview: 'off' as 'on' | 'off',
     // The ground (biome) shader's form. `auto` is the device tier's: the
     // cheap one on the low tier, and in a headset on the medium tier.
     groundDetail: 'auto' as 'auto' | 'full' | 'lite',
@@ -1487,6 +1498,7 @@ export class B3d extends Component {
   declare minDistance: number
   declare maxDistance: number
   declare noXr: boolean
+  declare xrMultiview: 'on' | 'off'
   declare xrGrid: 'on' | 'off' | 'auto'
   declare xrReticle: 'on' | 'off'
   declare scenePanelOpen: boolean
@@ -5633,6 +5645,34 @@ export class B3d extends Component {
   // overrides the whole flow. Otherwise, when an immersive-vr session is
   // supported, mount a floating Enter/Exit-VR button wired to a default XR
   // experience (its own UI suppressed so the button matches the host theme).
+  /** Request (or stop requesting) the layers feature with multiview, for the next session. */
+  private _applyXrMultiview(): void {
+    const fm = this.xrHelper?.baseExperience?.featuresManager
+    if (fm == null) return
+    const name = BABYLON.WebXRFeatureName.LAYERS
+    const has = fm.getEnabledFeature(name) != null
+    if (!isOff(this.xrMultiview) && !has) {
+      try {
+        // Optional (not required): a browser without layers still enters VR.
+        fm.enableFeature(name, 'latest', { preferMultiviewOnInit: true }, true, false)
+      } catch (err) {
+        console.warn('tosi-b3d: multiview unavailable', err)
+      }
+    } else if (isOff(this.xrMultiview) && has) fm.disableFeature(name)
+  }
+
+  /** What multiview is doing: off, asked for, or drawing. */
+  private _multiviewState(): string {
+    const f = this.xrHelper?.baseExperience?.featuresManager?.getEnabledFeature(
+      BABYLON.WebXRFeatureName.LAYERS
+    ) as any
+    if (f == null) return 'off'
+    if (!this.xrActive) return 'requested for the next session'
+    return f._isMultiviewEnabled === true
+      ? 'ON (both eyes in one pass)'
+      : 'requested, not available here'
+  }
+
   private async _setupXR(): Promise<void> {
     if (this.noXr) return
     if (this.setupXr !== noop) {
@@ -5666,6 +5706,32 @@ export class B3d extends Component {
       pointerSelectionOptions: { preferredHandedness: 'right' } as any,
     })
     this.xrHelper = xr
+    try {
+      const kept = localStorage.getItem(MULTIVIEW_KEY)
+      if (kept === 'on' || kept === 'off') this.xrMultiview = kept
+    } catch {
+      /* private mode */
+    }
+    this._applyXrMultiview()
+    this.addDebugSource({
+      name: 'XR',
+      lines: () => [`multiview: ${this._multiviewState()}`],
+      actions: [
+        {
+          label: () =>
+            `multiview ${isOff(this.xrMultiview) ? 'off' : 'on'} (next Enter VR)`,
+          handleClick: () => {
+            this.xrMultiview = isOff(this.xrMultiview) ? 'on' : 'off'
+            try {
+              localStorage.setItem(MULTIVIEW_KEY, this.xrMultiview)
+            } catch {
+              /* private mode */
+            }
+            if (!this.xrActive) this._applyXrMultiview()
+          },
+        },
+      ],
+    })
     /*
     THE POINTER DOES NOT PICK WHAT YOU ARE SITTING IN.
 

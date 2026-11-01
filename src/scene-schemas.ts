@@ -1414,6 +1414,11 @@ export function b3dSchema(extra: Record<string, unknown> = {}) {
         description:
           'In a headset: fixed foveation, 0 to 1 (the edges of each eye at reduced resolution). -1 is auto (from the device tier).',
       }),
+      xrMultiview: {
+        ...choice('off', ['on', 'off']),
+        description:
+          'In a headset: draw both eyes in one pass, where the device has multiview. Read on entering a session. Water and sky do not yet draw under it.',
+      },
       groundDetail: {
         ...choice('auto', ['auto', 'full', 'lite']),
         description:
@@ -1460,7 +1465,7 @@ export function b3dSchema(extra: Record<string, unknown> = {}) {
             'ssaoRate',
           ],
         },
-        { title: 'Headset', keys: ['xrRenderScale', 'xrFoveation'] },
+        { title: 'Headset', keys: ['xrRenderScale', 'xrFoveation', 'xrMultiview'] },
         { title: 'Ground', keys: ['groundDetail'] },
         { title: 'Wind', keys: ['windSpeed', 'windBearingDeg', 'windGust'] },
         { title: 'Time', keys: ['timeScale'] },
