@@ -285,6 +285,7 @@ export abstract class B3dGroundVehicle extends B3dControllable {
           doNotInstantiate: true,
         })
         const root = entries.rootNodes[0] as BABYLON.TransformNode
+        this.animations = entries.animationGroups
         this.adopt(
           canonicalize(root, scene, `${this.tagName}-body`),
           owner,
@@ -312,8 +313,13 @@ export abstract class B3dGroundVehicle extends B3dControllable {
       lib.ready.then(() => {
         if (gen !== this.loadGeneration) return
         const node = lib.instantiate(this.meshName, { canonical: true })
-        if (node instanceof BABYLON.TransformNode)
+        if (node instanceof BABYLON.TransformNode) {
+          this.animations =
+            ((node.metadata as any)?.animationGroups as
+              | BABYLON.AnimationGroup[]
+              | undefined) ?? []
           this.adopt(node, owner, scene)
+        }
         else
           console.error(
             `${this.tagName.toLowerCase()}: no "${this.meshName}" in library "${
@@ -334,6 +340,12 @@ export abstract class B3dGroundVehicle extends B3dControllable {
       }
     }
   }
+
+  /**
+   * The model's own animations (a tank's track links), stopped: a subclass
+   * drives them from the model in `pose` (as frames, not by playing them).
+   */
+  protected animations: BABYLON.AnimationGroup[] = []
 
   private adopt(
     control: BABYLON.TransformNode,
@@ -431,7 +443,20 @@ export abstract class B3dGroundVehicle extends B3dControllable {
   real light.
   */
   private fitLights(control: BABYLON.TransformNode, scene: BABYLON.Scene) {
-    const { min, max } = control.getHierarchyBoundingVectors(true)
+    /*
+    On the HULL (or body) where the model has one: the whole model's box
+    reaches past it (a tank's tracks and fenders), and lamps placed on that
+    hung in the air behind the tracks.
+    */
+    const volume = (m: BABYLON.AbstractMesh) => {
+      const b = m.getHierarchyBoundingVectors(true)
+      return (b.max.x - b.min.x) * (b.max.y - b.min.y) * (b.max.z - b.min.z)
+    }
+    const hull = control
+      .getChildMeshes(false)
+      .filter((m) => /(^|[^a-z])(hull|body)$/i.test(m.name))
+      .sort((a, b) => volume(b) - volume(a))[0]
+    const { min, max } = (hull ?? control).getHierarchyBoundingVectors(true)
     const height = min.y + (max.y - min.y) * 0.35
     const span = (max.x - min.x) * 0.36
     this.beamFrom.set((min.x + max.x) / 2, height, max.z)
@@ -795,6 +820,8 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     }
     this.owner?.removeOriginListener(this.onOrigin)
     this.control?.dispose()
+    for (const g of this.animations) g.dispose()
+    this.animations = []
     this.anchor?.dispose()
     this.chaseCamera?.dispose()
     this.chaseCamera = null

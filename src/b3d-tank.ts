@@ -39,8 +39,17 @@ tracks whose treads move with the belts. A model of your own needs its tracks
 as meshes with **`track`** in their names, one each side; the tank stands them
 on five points along their undersides, and its raised ends climb: it gets up
 a step about as high as its tracks. A node named **`turret`** turns on the
-hull, and one inside it named **`gun`**, **`barrel`** or **`cannon`** elevates
-(from -8° to 20°); put each one's origin on its pivot.
+hull, and one inside it named **`mantlet`** (or else **`gun`**, **`barrel`**
+or **`cannon`**) elevates (from -8° to 20°); put each one's origin on its
+pivot. Meshes named **`wheel`** turn with their side's track.
+
+Tracks can be LINKS instead (meshes named **`track_link…`**), carried round
+by the model's own animation, one cycle moving each link onto the next one's
+place: the tank plays it by the distance the track has run over the ground, so
+the links grip at the pace of the ground, either way and turning on the spot.
+Its other track meshes (a solid belt drawn over the links) are then hidden;
+`guard`s stay. [Cross Country](/cross-country/) drives Tonio's tank, built
+this way.
 
 ## Attributes
 
@@ -57,7 +66,12 @@ tank's defaults: 20 t, 12 m/s, 3 m/s². And:
 import * as BABYLON from '@babylonjs/core'
 import { B3dGroundVehicle } from './b3d-ground-vehicle.js'
 import { carMapping } from './virtual-gamepad.js'
-import { headingOf, type TrackSpec, type VehicleSpec, type VehicleState } from './ground-vehicle.js'
+import {
+  headingOf,
+  type TrackSpec,
+  type VehicleSpec,
+  type VehicleState,
+} from './ground-vehicle.js'
 
 const DEG = Math.PI / 180
 /** Turret traverse, radians per second. */
@@ -75,20 +89,52 @@ interface Part {
 }
 const partOf = (node: BABYLON.TransformNode): Part => ({
   node,
-  rest: (node.rotationQuaternion ?? BABYLON.Quaternion.FromEulerVector(node.rotation)).clone(),
+  rest: (
+    node.rotationQuaternion ?? BABYLON.Quaternion.FromEulerVector(node.rotation)
+  ).clone(),
 })
 /** The outermost descendant whose name matches (a turret's own parts are not turrets). */
-function outermost(root: BABYLON.Node, re: RegExp): BABYLON.TransformNode | null {
+function outermost(
+  root: BABYLON.Node,
+  re: RegExp
+): BABYLON.TransformNode | null {
   const found = root
     .getDescendants(false)
-    .filter((n): n is BABYLON.TransformNode => n instanceof BABYLON.TransformNode && re.test(n.name))
-  return found.find((n) => !found.some((o) => o !== n && n.isDescendantOf(o))) ?? null
+    .filter(
+      (n): n is BABYLON.TransformNode =>
+        n instanceof BABYLON.TransformNode && re.test(n.name)
+    )
+  return (
+    found.find((n) => !found.some((o) => o !== n && n.isDescendantOf(o))) ??
+    null
+  )
 }
 
 /** One stripe of tread, metres. */
 const TREAD = 0.25
 
+/** A wheel that turns with its track: its node, its rest, its radius. */
+interface Wheel {
+  part: Part
+  radius: number
+  /** 0 or 1: which track (by side) drives it. */
+  side: number
+}
+
+/**
+ * A track's LINKS, carried round by the model's own animation. One cycle of
+ * it moves each link one place on (onto the next link's spot), so the frame
+ * is the distance travelled over one link's pitch: the links keep exact pace
+ * with the ground, either way.
+ */
+interface LinkTrack {
+  group: BABYLON.AnimationGroup
+  /** Metres from one link to the next. */
+  pitch: number
+}
+
 interface TrackPart {
+  links?: LinkTrack
   textures: BABYLON.Texture[]
   /** Which way the tread runs in the texture: ours along u, a model's along v. */
   along: 'u' | 'v'
@@ -99,7 +145,12 @@ interface TrackPart {
 /** Stripes of tread: one texture per track, so each scrolls on its own. */
 function treadTexture(scene: BABYLON.Scene): BABYLON.DynamicTexture {
   // Stripes across u: the box is wrapped so u runs along the belt.
-  const t = new BABYLON.DynamicTexture('tread', { width: 64, height: 16 }, scene, false)
+  const t = new BABYLON.DynamicTexture(
+    'tread',
+    { width: 64, height: 16 },
+    scene,
+    false
+  )
   const ctx = t.getContext()
   ctx.fillStyle = '#2a2a28'
   ctx.fillRect(0, 0, 64, 16)
@@ -127,6 +178,14 @@ export class B3dTank extends B3dGroundVehicle {
   declare turnSpeed: number
 
   private trackParts: TrackPart[] = []
+  private wheels: Wheel[] = []
+  /**
+   * How far each track's belt has run against the GROUND, metres: what the
+   * links and wheels show. The model's own `offset` runs at the speed asked
+   * for, so from a standing start it raced ahead of a hull still gathering
+   * speed (29 m of belt for 11 m of ground), as if spinning in mud.
+   */
+  private belts: number[] = []
   private turret: Part | null = null
   private gun: Part | null = null
   /** Where the gun is aimed, world yaw (radians): the stick moves it. */
@@ -167,6 +226,7 @@ export class B3dTank extends B3dGroundVehicle {
   swing the gun off target (GTA's tank works this way).
   */
   protected afterStep(state: VehicleState, dt: number) {
+    this.runBelts(state, dt)
     if (this.turret == null) return
     // Nobody aboard: the turret stays as it is on the hull.
     if (this.inputProvider == null) {
@@ -178,7 +238,29 @@ export class B3dTank extends B3dGroundVehicle {
     let d = want - this.turretYaw
     d = Math.atan2(Math.sin(d), Math.cos(d))
     this.turretYaw += Math.max(-TRAVERSE * dt, Math.min(TRAVERSE * dt, d))
-    this.gunPitch = Math.max(GUN_LOW, Math.min(GUN_HIGH, this.gunPitch + this.aim.y * ELEVATE * dt))
+    this.gunPitch = Math.max(
+      GUN_LOW,
+      Math.min(GUN_HIGH, this.gunPitch + this.aim.y * ELEVATE * dt)
+    )
+  }
+
+  /** Each belt runs at the ground's speed under its track: the hull's, plus its turn. */
+  private runBelts(state: VehicleState, dt: number) {
+    const tracks = this.spec?.tracks ?? []
+    const q = state.orientation
+    const rot = new BABYLON.Quaternion(q.x, q.y, q.z, q.w)
+    const fwd = BABYLON.Vector3.Forward().applyRotationQuaternion(rot)
+    const w = state.angularVelocity
+    const omega = new BABYLON.Vector3(w.x, w.y, w.z)
+    const v = state.velocity
+    tracks.forEach((track, i) => {
+      const x =
+        track.contacts.reduce((t, p) => t + p.x, 0) /
+        Math.max(1, track.contacts.length)
+      const r = new BABYLON.Vector3(x, 0, 0).applyRotationQuaternion(rot)
+      const at = BABYLON.Vector3.Cross(omega, r).addInPlaceFromFloats(v.x, v.y, v.z)
+      this.belts[i] = (this.belts[i] ?? 0) + BABYLON.Vector3.Dot(at, fwd) * dt
+    })
   }
 
   protected makeDefaultBody(scene: BABYLON.Scene): BABYLON.TransformNode {
@@ -194,21 +276,45 @@ export class B3dTank extends B3dGroundVehicle {
       mesh.checkCollisions = true
       return mesh
     }
-    const hull = part(BABYLON.MeshBuilder.CreateBox('hull', { width: 2.4, height: 0.9, depth: 4.6 }, scene))
+    const hull = part(
+      BABYLON.MeshBuilder.CreateBox(
+        'hull',
+        { width: 2.4, height: 0.9, depth: 4.6 },
+        scene
+      )
+    )
     hull.position.y = 1.05
-    const glacis = part(BABYLON.MeshBuilder.CreateBox('glacis', { width: 2.4, height: 0.5, depth: 1 }, scene))
+    const glacis = part(
+      BABYLON.MeshBuilder.CreateBox(
+        'glacis',
+        { width: 2.4, height: 0.5, depth: 1 },
+        scene
+      )
+    )
     glacis.position.set(0, 1.0, 2.45)
     glacis.rotation.x = 0.6
     // The turret turns on its ring, the gun elevates on its trunnion.
     const turret = new BABYLON.TransformNode('turret', scene)
     turret.parent = body
     turret.position.set(0, 1.8, -0.2)
-    const ring = part(BABYLON.MeshBuilder.CreateCylinder('turret-body', { diameter: 2, height: 0.6, tessellation: 8 }, scene))
+    const ring = part(
+      BABYLON.MeshBuilder.CreateCylinder(
+        'turret-body',
+        { diameter: 2, height: 0.6, tessellation: 8 },
+        scene
+      )
+    )
     ring.parent = turret
     const gun = new BABYLON.TransformNode('gun', scene)
     gun.parent = turret
     gun.position.set(0, 0, 0.8)
-    const barrel = part(BABYLON.MeshBuilder.CreateCylinder('barrel', { diameter: 0.18, height: 3, tessellation: 12 }, scene))
+    const barrel = part(
+      BABYLON.MeshBuilder.CreateCylinder(
+        'barrel',
+        { diameter: 0.18, height: 3, tessellation: 12 },
+        scene
+      )
+    )
     barrel.parent = gun
     barrel.rotation.x = Math.PI / 2
     barrel.position.set(0, 0, 1.4)
@@ -220,7 +326,14 @@ export class B3dTank extends B3dGroundVehicle {
       const track = part(
         BABYLON.MeshBuilder.CreateBox(
           `track-${side < 0 ? 'left' : 'right'}`,
-          { width: 0.6, height: 0.8, depth: 5, wrap: true, topBaseAt: 1, bottomBaseAt: 1 },
+          {
+            width: 0.6,
+            height: 0.8,
+            depth: 5,
+            wrap: true,
+            topBaseAt: 1,
+            bottomBaseAt: 1,
+          },
           scene
         ),
         mat
@@ -232,14 +345,35 @@ export class B3dTank extends B3dGroundVehicle {
 
   protected specFor(control: BABYLON.TransformNode): VehicleSpec | null {
     const turret = outermost(control, /turret/i)
-    const gun = turret ? outermost(turret, /gun|barrel|cannon/i) : null
+    // The mantlet carries the barrel: elevate it, not the barrel on its own.
+    const gun = turret
+      ? outermost(turret, /mantlet/i) ?? outermost(turret, /gun|barrel|cannon/i)
+      : null
     this.turret = turret ? partOf(turret) : null
     this.gun = gun ? partOf(gun) : null
-    const tracks = control.getChildMeshes(false).filter((m) => /track/i.test(m.name))
-    const sides = [tracks.filter((m) => this.centreX(m) < 0), tracks.filter((m) => this.centreX(m) >= 0)]
+    let tracks = control
+      .getChildMeshes(false)
+      .filter((m) => /track/i.test(m.name))
+    /*
+    LINKS. A model whose tracks are links (`track_link…`) has them carried
+    round by its animations, and its other track meshes (a solid belt drawn
+    over the links, as in Tonio's tank) would hide them moving: they are
+    hidden. Guards stay. The links alone give each track's extent.
+    */
+    const links = tracks.filter((m) => /link/i.test(m.name))
+    if (links.length > 0) {
+      for (const m of tracks)
+        if (!/link|guard/i.test(m.name)) m.setEnabled(false)
+      tracks = links
+    }
+    const sides = [
+      tracks.filter((m) => this.centreX(m) < 0),
+      tracks.filter((m) => this.centreX(m) >= 0),
+    ]
     if (sides.some((s) => s.length === 0)) return null
     const specs: TrackSpec[] = []
     this.trackParts = []
+    this.wheels = []
     for (const meshes of sides) {
       let min = new BABYLON.Vector3(Infinity, Infinity, Infinity)
       let max = min.negate()
@@ -267,19 +401,40 @@ export class B3dTank extends B3dGroundVehicle {
       })
       specs.push({
         radius,
-        contacts: [0, 0.25, 0.5, 0.75, 1].map((f) => ({ x, y: hub, z: z0 + (z1 - z0) * f })),
+        contacts: [0, 0.25, 0.5, 0.75, 1].map((f) => ({
+          x,
+          y: hub,
+          z: z0 + (z1 - z0) * f,
+        })),
         climb,
       })
       const textures = meshes
         .map((m) => {
-          const mat = m.material as (BABYLON.Material & { diffuseTexture?: BABYLON.Texture; albedoTexture?: BABYLON.Texture }) | null
+          const mat = m.material as
+            | (BABYLON.Material & {
+                diffuseTexture?: BABYLON.Texture
+                albedoTexture?: BABYLON.Texture
+              })
+            | null
           return mat?.diffuseTexture ?? mat?.albedoTexture ?? null
         })
         .filter((t): t is BABYLON.Texture => t != null)
       const length = max.z - min.z
       const along = textures.some((t) => t.name === 'tread') ? 'u' : 'v'
       if (along === 'u') for (const t of textures) t.uScale = length / TREAD
-      this.trackParts.push({ textures, along, perMetre: along === 'u' ? 1 / TREAD : 1 / length })
+      this.trackParts.push({
+        links: links.length > 0 ? this.linkTrack(meshes) : undefined,
+        textures,
+        along,
+        perMetre: along === 'u' ? 1 / TREAD : 1 / length,
+      })
+    }
+    // Wheels (and hubs) turn with their side's track.
+    for (const m of control.getChildMeshes(false)) {
+      if (!/wheel/i.test(m.name)) continue
+      const box = m.getBoundingInfo().boundingBox
+      const radius = Math.max(0.05, (box.maximum.y - box.minimum.y) / 2)
+      this.wheels.push({ part: partOf(m), radius, side: this.centreX(m) < 0 ? 0 : 1 })
     }
     const { min, max } = control.getHierarchyBoundingVectors(true)
     const mass = Number(this.mass)
@@ -296,31 +451,74 @@ export class B3dTank extends B3dGroundVehicle {
     }
   }
 
+  /**
+   * The animation that carries these links, and their pitch (the loop's
+   * length over its links, from where they rest). Null if none moves them.
+   */
+  private linkTrack(meshes: BABYLON.AbstractMesh[]): LinkTrack | undefined {
+    const mine = new Set<BABYLON.Node>(meshes)
+    const group = this.animations.find((g) =>
+      g.targetedAnimations.some((t) => mine.has(t.target))
+    )
+    if (group == null) return undefined
+    // In name order (link .00, .01 …), the loop's length over its links.
+    const ordered = [...meshes].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { numeric: true })
+    )
+    const at = ordered.map((m) => m.getAbsolutePosition().clone())
+    let loop = 0
+    for (let i = 0; i < at.length; i++)
+      loop += BABYLON.Vector3.Distance(at[i], at[(i + 1) % at.length])
+    group.start(true, 1, group.from, group.to)
+    group.pause()
+    return { group, pitch: loop / at.length }
+  }
+
   private centreX(m: BABYLON.AbstractMesh): number {
     const { min, max } = m.getHierarchyBoundingVectors(true)
     return (min.x + max.x) / 2
   }
 
-  protected pose(state: VehicleState) {
+  protected pose(_state: VehicleState) {
     if (this.turret) {
-      this.turret.node.rotationQuaternion = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Y, this.turretYaw).multiply(this.turret.rest)
+      this.turret.node.rotationQuaternion = BABYLON.Quaternion.RotationAxis(
+        BABYLON.Axis.Y,
+        this.turretYaw
+      ).multiply(this.turret.rest)
     }
     if (this.gun) {
       // A positive turn about +X dips +Z: elevation is the negative.
-      this.gun.node.rotationQuaternion = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.X, -this.gunPitch).multiply(this.gun.rest)
+      this.gun.node.rotationQuaternion = BABYLON.Quaternion.RotationAxis(
+        BABYLON.Axis.X,
+        -this.gunPitch
+      ).multiply(this.gun.rest)
     }
     this.trackParts.forEach((part, i) => {
-      const offset = state.tracks[i]?.offset ?? 0
+      const offset = this.belts[i] ?? 0
+      if (part.links) {
+        const { group, pitch } = part.links
+        const f = offset / pitch - Math.floor(offset / pitch)
+        group.goToFrame(group.from + f * (group.to - group.from))
+      }
       const shift = -((offset * part.perMetre) % 1)
       for (const t of part.textures) {
         if (part.along === 'u') t.uOffset = shift
         else t.vOffset = shift
       }
     })
+    for (const w of this.wheels) {
+      const offset = this.belts[w.side] ?? 0
+      w.part.node.rotationQuaternion = BABYLON.Quaternion.RotationAxis(
+        BABYLON.Axis.X,
+        offset / w.radius
+      ).multiply(w.part.rest)
+    }
   }
 
   sceneDispose() {
     this.trackParts = []
+    this.wheels = []
+    this.belts = []
     this.turret = this.gun = null
     super.sceneDispose()
   }
