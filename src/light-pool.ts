@@ -203,7 +203,20 @@ export class LightPool {
 
   private update() {
     this.sweepMaterials()
-    if (this.cluster) {
+    /*
+    Not in a headset. The container bins its lamps into tiles of ONE camera's
+    screen, and a headset draws two eyes: lamps flickered and street lights
+    vanished in VR while the same Quest lit the city flat. In a session the
+    ranked pool takes over, and hands back on exit.
+    */
+    const xr = this.scene.activeCamera instanceof BABYLON.WebXRCamera
+    if (this.cluster) this.cluster.setEnabled(!xr)
+    if (this.cluster && !xr) {
+      for (const s of [...this.points, ...this.spots]) {
+        s.light.setEnabled(false)
+        s.owner = null
+        s.fade = 0
+      }
       for (const [l, real] of this.clustered) {
         const on = l.intensity * l.level * (l.flicker ?? 1)
         real.position.copyFrom(l.position)
