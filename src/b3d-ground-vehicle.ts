@@ -134,7 +134,9 @@ export abstract class B3dGroundVehicle extends B3dControllable {
    * The right stick aims something (a tank's turret and gun) rather than the
    * camera: a headset's chase view does not zoom with it.
    */
-  stickAims = false
+  get stickAims(): boolean {
+    return false
+  }
   private anchor: BABYLON.TransformNode | null = null
   /** The heights its wall rays run at, each with the body's extent there (its own frame). */
   /** The headlights' beam (a pooled light) and the lamps you see. */
@@ -272,14 +274,6 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     let d = heading - this.camYaw
     d = Math.atan2(Math.sin(d), Math.cos(d))
     this.camYaw += d * lag
-    // The orbit follows the stick and springs back; the boom moves at a
-    // rate while it is held, and stays.
-    const ease = dt > 0 ? 1 - Math.exp(-dt * 6) : 1
-    this.orbit += (this.lookWant.x * ORBIT_MAX - this.orbit) * ease
-    this.boom = Math.max(
-      0,
-      Math.min(1, this.boom - this.lookWant.y * BOOM_RATE * dt)
-    )
     /*
     OUT OF WALLS: up first, then in. The camera must see its pivot with room
     to spare (a camera right on a surface has its near plane in it). Blocked,
@@ -688,6 +682,7 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     this.place()
     this.updateLights()
     this.updateEngine(state)
+    this.updateLook(dt)
     if (this.chaseCamera != null && scene.activeCamera === this.chaseCamera)
       this.aimCamera(dt)
   }
@@ -710,6 +705,37 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     if (top <= p.y + 0.1) return
     shiftVehicle(state, 0, top + 0.3 - p.y, 0)
     state.velocity = { ...state.velocity, y: Math.max(0, state.velocity.y) }
+  }
+
+  /*
+  The look, every frame and whichever camera is drawing: a headset's chase
+  reads it too (it used to be updated only while the flat chase camera was
+  active, so the orbit never moved in VR). The orbit follows the stick and
+  springs back; the boom moves at a rate while it is held, and stays.
+  */
+  private updateLook(dt: number) {
+    const ease = dt > 0 ? 1 - Math.exp(-dt * 6) : 1
+    this.orbit += (this.lookWant.x * ORBIT_MAX - this.orbit) * ease
+    this.boom = Math.max(
+      0,
+      Math.min(1, this.boom - this.lookWant.y * BOOM_RATE * dt)
+    )
+  }
+
+  /**
+   * Which way a headset's chase view faces, from the heading, radians: the
+   * orbit (a car), or the turret and its lead (a tank). The XR rig orbits
+   * round the vehicle by it.
+   */
+  chaseView(): number {
+    const heading = this.state ? headingOf(this.state) : 0
+    const d = this.viewYaw(heading) - heading
+    return Math.atan2(Math.sin(d), Math.cos(d))
+  }
+
+  /** How far back a headset's chase sits: this vehicle's own (a tank's is farther). */
+  get chaseDistance(): number {
+    return this.rig ? this.rig.distance * 0.6 : 5
   }
 
   /** The engine, while driven: its note rises with speed, and it opens up on the throttle. */

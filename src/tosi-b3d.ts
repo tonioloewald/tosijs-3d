@@ -4458,6 +4458,19 @@ export class B3d extends Component {
     this._syncDebugPopups()
   }
 
+  /**
+   * A buzz in a headset's controller (`hand`: 'right', 'left' or 'both'):
+   * `strength` 0…1 for `ms`. Nothing in a flat view, or where the controller
+   * has no haptics.
+   */
+  haptic(strength = 0.5, ms = 40, hand: 'left' | 'right' | 'both' = 'right'): void {
+    for (const c of this.xrHelper?.input?.controllers ?? []) {
+      const side = c.inputSource.handedness
+      if (hand !== 'both' && side !== hand) continue
+      void c.motionController?.pulse(strength, ms).catch(() => false)
+    }
+  }
+
   addDebugSource(source: DebugPanelSource): () => void {
     this._debugSources.push(source)
     this.refreshScenePanel()
@@ -6167,6 +6180,7 @@ export class B3d extends Component {
          * world-space follow below. */
         getChaseAnchor?: () => BABYLON.TransformNode | null
         stickAims?: boolean
+        chaseView?: () => number
         lastInput?: {
           cameraZoom: number
           cameraPeek: number
@@ -6476,7 +6490,16 @@ export class B3d extends Component {
         const zoomIn = last?.cameraZoom || (aims ? 0 : last?.lookY ?? 0)
         const peekIn =
           last?.cameraPeek || (last?.lookX ?? 0) * (aims ? 0.4 : 1)
-        const peekYaw = peekIn * MAX_PEEK
+        /*
+        A vehicle that says which way its view faces (a car's orbit, a tank's
+        turret) is FOLLOWED, and the rig ORBITS round it by that much (Tonio:
+        "in VR the camera still pivots from behind the vehicle it doesn't
+        orbit and it doesn't track the tank's turret heading"). Otherwise the
+        stick peeks, turning the view in place.
+        */
+        const viewed = entity?.chaseView?.()
+        const orbits = viewed != null
+        const peekYaw = orbits ? viewed : peekIn * MAX_PEEK
 
         // COCKPIT: LITERALLY parent the rig to the hull — Babylon composes the
         // transform, so the camera inherits the airframe's full orientation with
@@ -6643,8 +6666,11 @@ export class B3d extends Component {
           rig.rotationQuaternion = yawQuat
           BABYLON.Matrix.FromQuaternionToRef(yawQuat, mtx)
           BABYLON.Vector3.TransformCoordinatesToRef(cam.position, mtx, tmp)
-          // Anchor-local: +Z is the entity's forward, so behind is −Z.
-          rig.position.set(-tmp.x, up - tmp.y, -back - tmp.z)
+          // Anchor-local: +Z is the entity's forward, so behind is −Z; an
+          // orbit swings "behind" round to behind where the view faces.
+          const ox = orbits ? -back * Math.sin(peekYaw) : 0
+          const oz = orbits ? -back * Math.cos(peekYaw) : -back
+          rig.position.set(ox - tmp.x, up - tmp.y, oz - tmp.z)
           frames.eyeYawOffset = chaseYawOffset - peekYaw
           return
         }

@@ -424,7 +424,10 @@ export interface GamepadSource {
  */
 export const STICK_UP_IS_POSITIVE = true
 
-export type InputMapping = ((pad: VirtualGamepad, dt: number) => ControlInput) & {
+export type InputMapping = ((
+  pad: VirtualGamepad,
+  dt: number
+) => ControlInput) & {
   /**
    * Rewrites a KEYBOARD source's pad before the sources merge. For a mapping
    * whose pad layout has no keyboard equivalent: the car's pedals are the
@@ -586,11 +589,13 @@ handbrake.
 export const carMapping: InputMapping = Object.assign(
   (pad: VirtualGamepad, _dt: number): ControlInput => {
     const input = emptyInput()
-    input.forward = pad.rightTrigger - Math.max(pad.leftTrigger, pad.rightBumper)
+    input.forward =
+      pad.rightTrigger - Math.max(pad.leftTrigger, pad.rightBumper)
     input.throttle = pad.rightTrigger
     input.turn = pad.leftStickX
     input.lookX = pad.rightStickX
     input.lookY = pad.rightStickY
+    input.lookMode = pad.rightStickPress
     input.interact = pad.buttonX
     input.sprint = pad.leftBumper
     input.jump = pad.buttonA

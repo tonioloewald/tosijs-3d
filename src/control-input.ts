@@ -34,6 +34,7 @@ const input = { ...emptyInput(), forward: 1, turn: -0.5, shoot: 1 }
 | `aim` | 0..1 | Aim down sights |
 | `weapon` | 0..1 | Raise/lower the weapon — edge-detected by consumers, so it TOGGLES |
 | `cameraZoom` | -1..1 | Camera zoom |
+| `lookMode` | 0..1 | Toggle (edge-detected) what the look stick's up and down do: a tank's gun, or its camera |
 | `sneak` | 0\|1 | Sneak toggle |
 
 ## InputProvider
@@ -85,6 +86,11 @@ export interface ControlInput {
   sneak: number // 0|1
   view: number // 0..1 (cycle camera/view — edge-detected by consumers)
   cameraPeek: number // -1..1 (temporary look left/right; snaps back to centre)
+  /**
+   * Swap what the look stick does — a TOGGLE, edge-detected by whoever
+   * consumes it: a tank's up and down elevate its gun, or move its camera.
+   */
+  lookMode: number // 0..1
 }
 
 export interface InputProvider {
@@ -113,6 +119,7 @@ export function emptyInput(): ControlInput {
     sneak: 0,
     view: 0,
     cameraPeek: 0,
+    lookMode: 0,
   }
 }
 
@@ -164,6 +171,7 @@ export class CompositeInputProvider implements InputProvider {
       result.sneak = Math.max(result.sneak, input.sneak)
       result.view = Math.max(result.view, input.view)
       result.cameraPeek = maxAbs(result.cameraPeek, input.cameraPeek)
+      result.lookMode = Math.max(result.lookMode, input.lookMode)
     }
     return result
   }

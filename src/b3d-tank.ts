@@ -30,7 +30,8 @@ preview.append(
 back, **A** and **D** (the left stick) steer; with nothing else held they pivot
 it where it stands. The **arrow keys** (the right stick) aim the turret: left
 and right traverse it, and pulling back raises the gun (pushing forward lowers
-it). The camera follows the turret, leading it a little while it turns, and
+it). Clicking the right stick swaps up and down to the camera, which then
+moves along its arc as a car's does (in a headset, in and out), and back. The camera follows the turret, leading it a little while it turns, and
 the turret holds its aim while the hull turns under it.
 
 ## Its body
@@ -67,8 +68,8 @@ tank's defaults: 20 t, 12 m/s, 3 m/s². And:
 import * as BABYLON from '@babylonjs/core'
 import { B3dGroundVehicle } from './b3d-ground-vehicle.js'
 import { carMapping } from './virtual-gamepad.js'
+import type { ControlInput } from './control-input.js'
 import {
-  CHASE_BOOM,
   headingOf,
   type TrackSpec,
   type VehicleSpec,
@@ -200,13 +201,39 @@ export class B3dTank extends B3dGroundVehicle {
   gunPitch = 0
   private aim = { x: 0, y: 0 }
 
-  /** The right stick traverses the turret and elevates the gun. */
-  protected aimInput(x: number, y: number) {
-    this.aim = { x, y }
+  /** The right stick traverses the turret and elevates the gun, or moves the camera. */
+  protected aimInput(x: number, y: number, dt: number) {
+    const gun = this.stickMode === 'gun'
+    this.aim = { x, y: gun ? y : 0 }
+    super.aimInput(0, gun ? 0 : y, dt)
   }
 
-  /** The right stick aims the turret and gun, not the camera. */
-  stickAims = true
+  applyInput(input: ControlInput, dt: number) {
+    const mode = input.lookMode ?? 0
+    if (mode > 0.5 && this.modeWas <= 0.5) {
+      this.stickMode = this.stickMode === 'gun' ? 'camera' : 'gun'
+      const owner = this.owner as any
+      owner?.haptic?.(0.6, 40)
+      if (this.stickMode === 'camera')
+        setTimeout(() => owner?.haptic?.(0.6, 40), 120)
+    }
+    this.modeWas = mode
+    super.applyInput(input, dt)
+  }
+
+  /*
+  WHAT UP AND DOWN DO: the gun, or the camera. Clicking the right stick
+  (R3) swaps them (Tonio, in a headset: "I'd actually like to be able to pull
+  the camera in and out as well as elevate the gun"), with a buzz in the
+  right hand: one for the gun, two for the camera. Left and right always turn
+  the turret.
+  */
+  stickMode: 'gun' | 'camera' = 'gun'
+  private modeWas = 0
+  /** The right stick aims the gun (not the camera) in gun mode. */
+  get stickAims(): boolean {
+    return this.stickMode === 'gun'
+  }
   /** A tank's chase sits farther back than a car's. */
   protected chaseScale = 1.35
   /** The view's lead toward where the turret is turning, radians (eased). */
@@ -223,9 +250,6 @@ export class B3dTank extends B3dGroundVehicle {
     return heading + this.turretYaw + this.peek
   }
 
-  protected viewBoom(): number {
-    return CHASE_BOOM
-  }
 
   protected resetView(heading: number) {
     this.aimYaw = heading + this.turretYaw
