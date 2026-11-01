@@ -9,10 +9,10 @@ reaches it through `applyInput`, which only records the controls.
 
 THE CHASE CAMERA is the vehicle's own (Tonio: higher, and pointed ahead of the
 car, so there is more road in front and less behind). It swings round behind
-the vehicle with a little lag. The right stick ORBITS it round the vehicle
-(sideways) and moves it along a boom (up and down: in close and low, or back
-and up to almost overhead), and it stays where you leave it; driving with the
-stick idle, it drifts back behind. Its pose is computed fresh from the anchor every frame, with only
+the vehicle with a little lag, pivoting round a point a little above it and
+looking at it. The right stick ORBITS it (sideways, springing back behind on
+release) and moves it along an arc (up and down: from close behind to almost
+above, where it stays). Its pose is computed fresh from the anchor every frame, with only
 ANGLES carried between frames, so a floating-origin shift needs nothing.
 */
 
@@ -56,8 +56,8 @@ import { placeListener, startVoice, type Voice } from './effect-audio.js'
 const V = (p: { x: number; y: number; z: number }) =>
   new BABYLON.Vector3(p.x, p.y, p.z)
 const IDLE: VehicleControls = { throttle: 0, steer: 0, handbrake: 0 }
-/** The right stick's orbit of the chase camera, radians a second at full tilt. */
-const ORBIT_RATE = 2.2
+/** The right stick's orbit of the chase camera at full tilt, radians. */
+const ORBIT_MAX = 150 * (Math.PI / 180)
 /** Its boom, the whole range a second and a bit at full tilt. */
 const BOOM_RATE = 0.8
 
@@ -115,16 +115,16 @@ export abstract class B3dGroundVehicle extends B3dControllable {
   private focused = false
   private camYaw = 0
   /*
-  THE CHASE CAMERA ON THE RIGHT STICK (Tonio: "rotate camera but keep it
-  looking over the car vs glance left from behind the car"). Sideways ORBITS
-  it round the vehicle and it stays where you leave it, drifting back behind
-  once you are driving with the stick idle (GTA's camera); up and down move it
-  along a BOOM, in close and low, or back and up to almost overhead, and it
-  holds there too.
+  THE CHASE CAMERA ON THE RIGHT STICK. It pivots round a point a little above
+  the vehicle and looks at it (Tonio: "Think of the camera as pivoting around
+  ... a point somewhat above the car"). Sideways ORBITS it, and it springs back
+  behind on release; up and down move it along an ARC from close behind to
+  almost above, and it holds there.
   */
   private orbit = 0
   private boom = CHASE_BOOM
-  private lookIdle = 0
+  /** How far back the chase camera sits, against the size's own (a tank's is farther). */
+  protected chaseScale = 1
   private lookWant = { x: 0, y: 0 }
   /**
    * The right stick aims something (a tank's turret and gun) rather than the
@@ -247,7 +247,7 @@ export abstract class B3dGroundVehicle extends B3dControllable {
       cam.minZ = 0.1
       this.chaseCamera = cam
     }
-    this.rig = chaseRigFor(this.spec.size)
+    this.rig = chaseRigFor(this.spec.size, this.chaseScale)
     this.camYaw = headingOf(state)
     this.orbit = 0
     this.boom = CHASE_BOOM
@@ -267,16 +267,14 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     let d = heading - this.camYaw
     d = Math.atan2(Math.sin(d), Math.cos(d))
     this.camYaw += d * lag
-    // Orbit and boom move at a rate while the stick is held, and stay put.
-    const sx = this.lookWant.x
-    const sy = this.lookWant.y
-    this.orbit += sx * ORBIT_RATE * dt
-    this.orbit = Math.atan2(Math.sin(this.orbit), Math.cos(this.orbit))
-    this.boom = Math.max(0, Math.min(1, this.boom - sy * BOOM_RATE * dt))
-    this.lookIdle = Math.abs(sx) > 0.1 ? 0 : this.lookIdle + dt
-    // Driving with the stick idle, the camera drifts back behind.
-    if (this.lookIdle > 1.5 && Math.abs(forwardSpeed(state)) > 2)
-      this.orbit *= Math.exp(-dt * 1.5)
+    // The orbit follows the stick and springs back; the boom moves at a
+    // rate while it is held, and stays.
+    const ease = dt > 0 ? 1 - Math.exp(-dt * 6) : 1
+    this.orbit += (this.lookWant.x * ORBIT_MAX - this.orbit) * ease
+    this.boom = Math.max(
+      0,
+      Math.min(1, this.boom - this.lookWant.y * BOOM_RATE * dt)
+    )
     const { eye, target } = chasePose(
       state.position,
       this.viewYaw(this.camYaw),
@@ -487,7 +485,13 @@ export abstract class B3dGroundVehicle extends B3dControllable {
       .filter((m) => /(^|[^a-z])(hull|body)$/i.test(m.name))
       .sort((a, b) => volume(b) - volume(a))[0]
     const { min, max } = (hull ?? control).getHierarchyBoundingVectors(true)
-    const height = min.y + (max.y - min.y) * 0.35
+    // Their HEIGHT from the whole model (a car's body includes its cabin: on
+    // that the tail lamps sat on the rear window).
+    const whole = control.getHierarchyBoundingVectors(true)
+    const height = Math.max(
+      min.y,
+      whole.min.y + (whole.max.y - whole.min.y) * 0.35
+    )
     const span = (max.x - min.x) * 0.36
     this.beamFrom.set((min.x + max.x) / 2, height, max.z)
     const lamp = (name: string, color: BABYLON.Color3) => {

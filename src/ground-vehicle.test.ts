@@ -261,34 +261,32 @@ describe('a tank', () => {
 
 describe('the chase view', () => {
   const rig = chaseRigFor({ x: 1.8, y: 1.4, z: 4.2 })
-  test('sits behind and above, aimed ahead of the vehicle', () => {
+  test('sits behind and above, looking at a point above the vehicle', () => {
     const { eye, target } = chasePose({ x: 0, y: 0, z: 0 }, 0, CHASE_BOOM, rig)
     expect(eye.z).toBeLessThan(-5)
-    expect(eye.y).toBeGreaterThan(3)
-    expect(target.z).toBeGreaterThan(4)
-    expect(target.y).toBeLessThan(eye.y)
+    expect(eye.y).toBeGreaterThan(target.y)
+    expect(target.z).toBe(0)
+    expect(target.y).toBeGreaterThan(1.4)
   })
 
-  test('turns with the heading', () => {
-    // Heading +X: the camera is on the -X side, aiming toward +X.
+  test('turns with the heading (an orbit round the vehicle)', () => {
+    // Heading +X: the camera is on the -X side, looking at the vehicle.
     const { eye, target } = chasePose({ x: 0, y: 0, z: 0 }, Math.PI / 2, CHASE_BOOM, rig)
     expect(eye.x).toBeLessThan(-5)
-    expect(target.x).toBeGreaterThan(4)
+    expect(target.x).toBe(0)
   })
 
-  test('the boom: in close and low, or back and up to almost overhead', () => {
+  test('the boom: close behind and low, up an arc to almost above', () => {
     const at = { x: 0, y: 0, z: 0 }
     const rest = chasePose(at, 0, CHASE_BOOM, rig).eye
     const near = chasePose(at, 0, 0, rig).eye
     const far = chasePose(at, 0, 1, rig).eye
     expect(near.y).toBeLessThan(rest.y)
     expect(-near.z).toBeLessThan(-rest.z)
-    expect(far.y).toBeGreaterThan(rest.y)
-    // Almost overhead: much higher than it is back.
+    expect(far.y).toBeGreaterThan(rest.y * 3)
+    // Almost above: much higher than it is back, and still a little behind.
     expect(far.y).toBeGreaterThan(-far.z * 4)
-    // At rest the rig is as chaseRigFor gives it.
-    expect(rest.y).toBeCloseTo(rig.height, 5)
-    expect(-rest.z).toBeCloseTo(rig.distance, 5)
+    expect(-far.z).toBeGreaterThan(0.5)
   })
 
   test('a longer vehicle gets a camera farther back', () => {

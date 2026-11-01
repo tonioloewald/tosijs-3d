@@ -722,34 +722,38 @@ export function stepVehicle(
 
 /** Where a chase camera sits, in metres, for a vehicle of a given size. */
 export interface ChaseRig {
-  /** Behind the vehicle's origin. */
+  /** How far from the pivot it sits, at rest. */
   distance: number
-  /** Above the ground under it. */
+  /** Kept for callers: the eye's height at rest. */
   height: number
-  /** How far ahead of the vehicle the camera aims. */
+  /** Unused since the camera looks at its pivot; kept for callers. */
   ahead: number
-  /** The height of that aim point. */
+  /** The aim point's height above the vehicle's origin (the pivot). */
   aimHeight: number
 }
 
-export function chaseRigFor(size: Vec3): ChaseRig {
+export function chaseRigFor(size: Vec3, scale = 1): ChaseRig {
   const length = Math.max(size.z, 2)
+  const distance = (1.2 * length + 2.5) * scale
   return {
-    distance: 1.4 * length + 2,
-    height: 0.6 * length + 1.5,
+    distance,
+    height: Math.max(size.y, 1) + 0.25 * distance,
     ahead: 1.5 * length,
-    aimHeight: 0.8,
+    // A point a little above the vehicle's roof: the camera looks over it.
+    aimHeight: Math.max(size.y, 1) * 0.9 + 0.6,
   }
 }
 
-/** The chase boom's resting setting: the rig as `chaseRigFor` gives it. */
+/** The chase boom's resting setting: a little up from close behind. */
 export const CHASE_BOOM = 0.3
 
 /**
- * The camera's eye and aim point. `yaw` is the direction the camera faces
- * (the vehicle's heading plus any orbit); `boom` in 0…1 is how far out and up
- * it sits: `CHASE_BOOM` is the rig as it stands, 0 is in close and low, and 1
- * is pulled back and up to almost overhead, looking down on the vehicle.
+ * The camera's eye and aim point. The camera PIVOTS round a point a little
+ * above the vehicle (`rig.aimHeight`) and looks at it, so it looks over the
+ * vehicle at the road beyond. `yaw` is the direction it faces (the heading
+ * plus any orbit). `boom` in 0…1 moves it along an arc: 0 close behind and
+ * low, `CHASE_BOOM` at rest, 1 further out and up to almost above, a little
+ * behind.
  */
 export function chasePose(
   at: Vec3,
@@ -760,27 +764,15 @@ export function chasePose(
   const fx = Math.sin(yaw)
   const fz = Math.cos(yaw)
   const b = Math.max(0, Math.min(1, boom))
-  const rest = Math.atan2(rig.height, rig.distance)
-  const reach = Math.hypot(rig.height, rig.distance)
-  let r: number
-  let angle: number
-  let ahead: number
-  if (b <= CHASE_BOOM) {
-    const k = b / CHASE_BOOM
-    r = reach * (0.55 + 0.45 * k)
-    angle = rest * (0.6 + 0.4 * k)
-    ahead = rig.ahead
-  } else {
-    const u = (b - CHASE_BOOM) / (1 - CHASE_BOOM)
-    r = reach * (1 + 0.6 * u)
-    angle = rest + (80 * (Math.PI / 180) - rest) * u * u
-    // Overhead, it looks down at the vehicle rather than up the road.
-    ahead = rig.ahead * (1 - u)
-  }
-  const back = r * Math.cos(angle)
-  const height = Math.max(0.6, r * Math.sin(angle))
+  const DEG = Math.PI / 180
+  // Up the arc: slowly at first, then up to 80 degrees.
+  const elevation = (4 + 76 * b * b) * DEG
+  const r = rig.distance * (0.75 + 1.5 * b)
+  const back = r * Math.cos(elevation)
+  const up = r * Math.sin(elevation)
+  const pivotY = at.y + rig.aimHeight
   return {
-    eye: v(at.x - fx * back, at.y + height, at.z - fz * back),
-    target: v(at.x + fx * ahead, at.y + rig.aimHeight, at.z + fz * ahead),
+    eye: v(at.x - fx * back, Math.max(at.y + 0.6, pivotY + up), at.z - fz * back),
+    target: v(at.x, pivotY, at.z),
   }
 }

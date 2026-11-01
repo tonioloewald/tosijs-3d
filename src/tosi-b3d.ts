@@ -6566,6 +6566,10 @@ export class B3d extends Component {
           : loH +
             (chaseH - loH) * chaseZoom +
             over * Math.max(0, chaseD * 3 - chaseH)
+        // Up there it looks DOWN at the vehicle (Tonio: "the camera goes up
+        // but doesn't point down"): the rig pitches toward a point a little
+        // above it, all the way at the top of the arc.
+        const lookDown = isFpv ? 0 : over * Math.atan2(up - eyeH, Math.max(back, 0.5))
         piloted.getDirectionToRef(XR_FORWARD, fwd) // world forward
         const targetYaw = Math.atan2(fwd.x, fwd.z)
         // fpv: anchor to the actual head bone if the entity exposes it.
@@ -6632,7 +6636,7 @@ export class B3d extends Component {
           }
           BABYLON.Quaternion.RotationYawPitchRollToRef(
             peekYaw - chaseYawOffset,
-            0,
+            lookDown,
             0,
             yawQuat
           )
@@ -6664,7 +6668,7 @@ export class B3d extends Component {
         // chasePos: rig = chasePos − (headLocal rotated into the rig's yaw).
         BABYLON.Quaternion.RotationYawPitchRollToRef(
           chaseYaw + peekYaw,
-          0,
+          lookDown,
           0,
           yawQuat
         )

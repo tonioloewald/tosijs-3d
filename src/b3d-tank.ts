@@ -29,9 +29,9 @@ preview.append(
 **W** and **S** (on a gamepad the right trigger, and the left trigger or right bumper) drive forward and
 back, **A** and **D** (the left stick) steer; with nothing else held they pivot
 it where it stands. The **arrow keys** (the right stick) aim the turret: left
-and right traverse it, up and down elevate the gun. The camera follows the
-turret, leading it a little while it turns, and the turret holds its aim while
-the hull turns under it.
+and right traverse it, and pulling back raises the gun (pushing forward lowers
+it). The camera follows the turret, leading it a little while it turns, and
+the turret holds its aim while the hull turns under it.
 
 ## Its body
 
@@ -207,6 +207,8 @@ export class B3dTank extends B3dGroundVehicle {
 
   /** The right stick aims the turret and gun, not the camera. */
   stickAims = true
+  /** A tank's chase sits farther back than a car's. */
+  protected chaseScale = 1.35
   /** The view's lead toward where the turret is turning, radians (eased). */
   private peek = 0
 
@@ -256,7 +258,8 @@ export class B3dTank extends B3dGroundVehicle {
     this.turretYaw += Math.max(-TRAVERSE * dt, Math.min(TRAVERSE * dt, d))
     this.gunPitch = Math.max(
       GUN_LOW,
-      Math.min(GUN_HIGH, this.gunPitch + this.aim.y * ELEVATE * dt)
+      // Pull back to raise the gun (Tonio), as a flight stick pitches.
+      Math.min(GUN_HIGH, this.gunPitch - this.aim.y * ELEVATE * dt)
     )
   }
 

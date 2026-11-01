@@ -96,8 +96,9 @@ fewer trees and no cloud deck.
 
 The right trigger or **W** drives, the left trigger, the right bumper or **S**
 brakes and reverses, and the left stick or **A** and **D** steer: a tank turns
-on the spot. The right stick or the arrow keys traverse the turret and elevate
-the gun; the turret holds its aim while the hull turns under it. The owl's
+on the spot. The right stick or the arrow keys traverse the turret, and
+pulling back raises the gun; the view follows the turret, and the turret holds
+its aim while the hull turns under it. The owl's
 panel sets the hour, the speed and the cloud.
 
 ## How it is put together
