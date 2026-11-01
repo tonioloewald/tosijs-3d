@@ -527,20 +527,29 @@ export abstract class B3dGroundVehicle extends B3dControllable {
   a frame, and more the slower the frame (a Quest in the city). Each contact's
   ray is now cast once a frame and the steps after it meet the PLANE it found:
   within a frame a wheel moves a few tens of centimetres. A contact is known by
-  where its ray starts, which moves less in a step than contacts are apart.
+  where its ray started.
+
+  But only within REUSE metres of where it was cast. A slow frame is long: at
+  13 fps a car at 30 m/s goes 2.3 m, and a plane carried that far into a dip
+  runs under the far slope, the wheel sinks into the hill, its next ray starts
+  underground and finds nothing, and the car falls out of the world (Tonio,
+  twice, on a Quest). Past it the contact casts again.
   */
   private groundCache: {
     from: Vec3
     point: Vec3 | null
     normal: Vec3 | null
   }[] = []
+  /** Whether any contact's ray found ground this frame. */
+  private groundFound = false
 
   private ground: GroundRay = (from, dir, length) => {
     const scene = this.owner?.scene
     if (scene == null) return null
+    const REUSE = 0.35
     for (const c of this.groundCache) {
-      if ((c.from.x - from.x) ** 2 + (c.from.z - from.z) ** 2 > 0.49) continue
-      c.from = { ...from }
+      if ((c.from.x - from.x) ** 2 + (c.from.z - from.z) ** 2 > REUSE * REUSE)
+        continue
       const { point, normal } = c
       if (point == null || normal == null) return null
       const facing = dir.x * normal.x + dir.y * normal.y + dir.z * normal.z
@@ -564,6 +573,7 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     }
     this.groundCache.push(entry)
     if (hit == null) return null
+    this.groundFound = true
     const n = hit.normal
     entry.normal = { x: n.x, y: n.y, z: n.z }
     entry.point = {
@@ -584,6 +594,7 @@ export abstract class B3dGroundVehicle extends B3dControllable {
       return
     const before = { ...state.position }
     this.groundCache.length = 0
+    this.groundFound = false
     // At most a tenth of a second of physics a frame, so a stall cannot pile up
     // steps. A thirtieth was too tight: at 10 fps the car ran at a third of
     // real time and felt gutless. Wheel rays are cheap now (pickWorld).
@@ -595,12 +606,33 @@ export abstract class B3dGroundVehicle extends B3dControllable {
       this.ground
     )
     this.blockByWalls(before, state)
+    if (!this.groundFound) this.surface(scene, state)
     this.afterStep(state, dt)
     this.place()
     this.updateLights()
     this.updateEngine(state)
     if (this.chaseCamera != null && scene.activeCamera === this.chaseCamera)
       this.aimCamera(dt)
+  }
+
+  /*
+  THE SAFETY NET. No wheel found ground this frame: the vehicle is in the air
+  (off a ramp, over a drop) or it is UNDER the ground, where every ray starts
+  below the surface and misses. One ray from high above tells them apart; under
+  the ground, it is put back on top, falling no faster than it was.
+  */
+  private surface(scene: BABYLON.Scene, state: VehicleState) {
+    const p = state.position
+    const hit = pickWorld(
+      scene,
+      new BABYLON.Ray(new BABYLON.Vector3(p.x, p.y + 50, p.z), BABYLON.Axis.Y.negate(), 60),
+      this.collides
+    )
+    if (hit == null) return
+    const top = p.y + 50 - hit.distance
+    if (top <= p.y + 0.1) return
+    shiftVehicle(state, 0, top + 0.3 - p.y, 0)
+    state.velocity = { ...state.velocity, y: Math.max(0, state.velocity.y) }
   }
 
   /** The engine, while driven: its note rises with speed, and it opens up on the throttle. */
