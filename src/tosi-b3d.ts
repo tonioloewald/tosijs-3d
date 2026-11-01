@@ -279,7 +279,7 @@ document.body.append(
 | `enterXrOnResume` | `'off'` | `'on'`: resuming enters immersive VR where the device supports it. The Continue tap is the user gesture `enterXRAsync` requires |
 | `reseatFreeze` | `'on'` | Freeze the clock while the re-seat dialog is up. Set `'off'` for a networked world, which cannot stop the other players; the dialog still gates your own input |
 | `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
-| `xrMultiview` | `'off'` | `'on'`: draw both eyes in one pass in a headset (WebXR layers), where the device has multiview. Read on entering a session. A custom shader that ignores multiview draws one eye wrong |
+| `xrMultiview` | `'off'` | ⚠️ Experimental, not working: `'on'` asks for both eyes in one pass (WebXR layers). On a Quest 3 it gave a blank view, and water and sky do not handle multiview |
 | `xrRenderScale` | `0` | In a headset: the fraction of each eye's width and height drawn. `0` is auto (from the device tier: 0.67 on the low tier). Engine hardware scaling does not reach a headset; this does. Read on entering a session |
 | `xrFoveation` | `-1` | In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session |
 | `xrGrid` | `'auto'` | The reference grid on the floor in an immersive session. `'auto'` shows it for the built-in free-fly rig and hides it when a player entity drives the rig or you supply your own `setupXr`; `'on'` and `'off'` force it |
@@ -439,8 +439,6 @@ import {
   biomeComputedNoise,
 } from './biome-plugin.js'
 const SWEEP_KEY = 'tosi-b3d-cost-sweep'
-// The headset's multiview choice, kept across reloads (toggled from Perf Stats).
-const MULTIVIEW_KEY = 'tosi-b3d-xr-multiview'
 import {
   allocateAmbient,
   ratchetPool,
@@ -876,10 +874,11 @@ export class B3d extends Component {
     xrFoveation: -1,
     /*
     MULTIVIEW draws both eyes in ONE pass (WebXR layers + OVR_multiview2).
-    A Quest's VR frame is mostly the CPU issuing draw calls, once per eye, so
-    this is the big lever. Off by default while it is tried: a custom shader
-    that does not handle multiview draws one eye wrong. Read on entering a
-    session; the Perf Stats panel's XR button toggles it (remembered).
+    EXPERIMENTAL and not working: on a Quest 3's browser the layers feature
+    attached but multiview was not offered, and the layer Babylon fell back to
+    drew a blank grey-blue view. Babylon's WaterMaterial and SkyMaterial (and
+    our sky fork, cloud deck and light shafts) do not handle multiview either.
+    Read on entering a session.
     */
     xrMultiview: 'off' as 'on' | 'off',
     // The ground (biome) shader's form. `auto` is the device tier's: the
@@ -5708,37 +5707,13 @@ export class B3d extends Component {
       pointerSelectionOptions: { preferredHandedness: 'right' } as any,
     })
     this.xrHelper = xr
+    this._applyXrMultiview()
     try {
-      const kept = localStorage.getItem(MULTIVIEW_KEY)
-      if (kept === 'on' || kept === 'off') this.xrMultiview = kept
+      // An earlier build kept a choice here, and on a Quest 'on' is a grey view.
+      localStorage.removeItem('tosi-b3d-xr-multiview')
     } catch {
       /* private mode */
     }
-    this._applyXrMultiview()
-    this.addDebugSource({
-      name: 'XR',
-      lines: () => [
-        `multiview chosen: ${isOff(this.xrMultiview) ? 'OFF' : 'ON'}`,
-        `multiview now: ${this._multiviewState()}`,
-      ],
-      actions: [
-        {
-          label: () =>
-            isOff(this.xrMultiview)
-              ? 'Multiview is OFF: tap to turn ON (from next Enter VR)'
-              : 'Multiview is ON: tap to turn OFF (from next Enter VR)',
-          handleClick: () => {
-            this.xrMultiview = isOff(this.xrMultiview) ? 'on' : 'off'
-            try {
-              localStorage.setItem(MULTIVIEW_KEY, this.xrMultiview)
-            } catch {
-              /* private mode */
-            }
-            if (!this.xrActive) this._applyXrMultiview()
-          },
-        },
-      ],
-    })
     /*
     THE POINTER DOES NOT PICK WHAT YOU ARE SITTING IN.
 

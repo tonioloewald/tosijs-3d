@@ -1417,7 +1417,7 @@ export function b3dSchema(extra: Record<string, unknown> = {}) {
       xrMultiview: {
         ...choice('off', ['on', 'off']),
         description:
-          'In a headset: draw both eyes in one pass, where the device has multiview. Read on entering a session. Water and sky do not yet draw under it.',
+          'Experimental, not working: both eyes in one pass in a headset. On a Quest 3 it gave a blank view.',
       },
       groundDetail: {
         ...choice('auto', ['auto', 'full', 'lite']),
