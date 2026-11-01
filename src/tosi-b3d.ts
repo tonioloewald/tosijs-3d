@@ -6166,7 +6166,12 @@ export class B3d extends Component {
          * `B3dControllable.getChaseAnchor`. Absent/null ⇒ the eased
          * world-space follow below. */
         getChaseAnchor?: () => BABYLON.TransformNode | null
-        lastInput?: { cameraZoom: number; cameraPeek: number }
+        lastInput?: {
+          cameraZoom: number
+          cameraPeek: number
+          lookX?: number
+          lookY?: number
+        }
       }
     } | null
     let last = realNow()
@@ -6455,9 +6460,17 @@ export class B3d extends Component {
           chaseFirstFrame = true
           lastView = view
         }
-        // Right stick (while piloting) zooms the chase and peeks left/right.
-        const zoomIn = entity?.lastInput?.cameraZoom ?? 0
-        const peekIn = entity?.lastInput?.cameraPeek ?? 0
+        /*
+        Right stick (while piloting) zooms the chase and peeks left/right.
+        From the camera axes if a mapping sets them, else from the LOOK axes,
+        which is where the vehicle mappings (GTA's right stick) put the stick:
+        only cameraPeek/cameraZoom were read here, nothing set them, and the
+        right stick did nothing in VR in City Drive (Tonio). Stick forward
+        (lookY > 0) zooms in: \`zoomIn\` > 0 brings the chase closer.
+        */
+        const last = entity?.lastInput
+        const zoomIn = last?.cameraZoom || (last?.lookY ?? 0)
+        const peekIn = last?.cameraPeek || (last?.lookX ?? 0)
         const peekYaw = peekIn * MAX_PEEK
 
         // COCKPIT: LITERALLY parent the rig to the hull — Babylon composes the
