@@ -34,6 +34,7 @@ import {
   type VehicleControls,
   type VehicleSpec,
   type VehicleState,
+  type Vec3,
 } from './ground-vehicle.js'
 
 import { placeListener, startVoice, type Voice } from './effect-audio.js'
@@ -418,13 +419,38 @@ export abstract class B3dGroundVehicle extends B3dControllable {
   /** What its rays hit: anything collidable but itself (made once, not per ray). */
   private collides = collidable(this.isMine)
 
+  /*
+  GROUND, once a frame. The model steps at 1/60 s and asks for the ground under
+  every contact each step: at 13 fps that is five steps, so five rays per wheel
+  a frame, and more the slower the frame (a Quest in the city). Each contact's
+  ray is now cast once a frame and the steps after it meet the PLANE it found:
+  within a frame a wheel moves a few tens of centimetres. A contact is known by
+  where its ray starts, which moves less in a step than contacts are apart.
+  */
+  private groundCache: { from: Vec3; point: Vec3 | null; normal: Vec3 | null }[] = []
+
   private ground: GroundRay = (from, dir, length) => {
     const scene = this.owner?.scene
     if (scene == null) return null
+    for (const c of this.groundCache) {
+      if ((c.from.x - from.x) ** 2 + (c.from.z - from.z) ** 2 > 0.49) continue
+      c.from = { ...from }
+      const { point, normal } = c
+      if (point == null || normal == null) return null
+      const facing = dir.x * normal.x + dir.y * normal.y + dir.z * normal.z
+      if (facing > -1e-4) return null
+      const t =
+        ((point.x - from.x) * normal.x + (point.y - from.y) * normal.y + (point.z - from.z) * normal.z) / facing
+      return t >= 0 && t <= length ? { distance: t, normal } : null
+    }
     const hit = pickWorld(scene, new BABYLON.Ray(V(from), V(dir), length), this.collides)
+    const entry = { from: { ...from }, point: null as Vec3 | null, normal: null as Vec3 | null }
+    this.groundCache.push(entry)
     if (hit == null) return null
     const n = hit.normal
-    return { distance: hit.distance, normal: { x: n.x, y: n.y, z: n.z } }
+    entry.normal = { x: n.x, y: n.y, z: n.z }
+    entry.point = { x: from.x + dir.x * hit.distance, y: from.y + dir.y * hit.distance, z: from.z + dir.z * hit.distance }
+    return { distance: hit.distance, normal: entry.normal }
   }
 
   private _drive = () => {
@@ -435,6 +461,7 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     const dt = sceneDelta(scene)
     if (dt <= 0 || this._halted || simHalted(this.owner as SimGateOwner | null)) return
     const before = { ...state.position }
+    this.groundCache.length = 0
     // At most a tenth of a second of physics a frame, so a stall cannot pile up
     // steps. A thirtieth was too tight: at 10 fps the car ran at a third of
     // real time and felt gutless. Wheel rays are cheap now (pickWorld).

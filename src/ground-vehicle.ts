@@ -64,7 +64,7 @@ vehicle, aimed at a point AHEAD of it, so the road in front fills the screen
 rather than the car's roof and the ground behind it. Both scale with the
 vehicle's length, so a tank's camera stands farther back than a car's.
 
-The step is fixed (1/120 s, the remainder carried over), so the same inputs
+The step is fixed (1/60 s, the remainder carried over), so the same inputs
 give the same drive at any frame rate.
 
 ## Directions
@@ -210,7 +210,7 @@ export interface VehicleState {
   carry: number
 }
 
-export const VEHICLE_STEP = 1 / 120
+export const VEHICLE_STEP = 1 / 60
 const G = 9.81
 const DEFAULT_SUSPENSION: Suspension = { travel: 0.15, frequency: 1.5, damping: 0.5 }
 

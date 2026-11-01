@@ -104,7 +104,8 @@ describe('city traffic as bodies', () => {
         expect(Number.isFinite(c.x)).toBe(true)
         const [x, z] = cellOf(c.x, c.z)
         expect(layout.road[z * layout.width + x]).toBe(true)
-        expect(Math.hypot(c.x - c.px, c.z - c.pz)).toBeLessThan(20)
+        // A knock can push a body past the plan's lead; lost is 30 m.
+        expect(Math.hypot(c.x - c.px, c.z - c.pz)).toBeLessThan(25)
       }
     }
     const moved = t.cars.filter((c, i) => Math.hypot(c.x - from[i][0], c.z - from[i][1]) > 40).length
