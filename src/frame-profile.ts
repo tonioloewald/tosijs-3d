@@ -38,6 +38,8 @@ export function frameProfile(
     seconds: number
     every: number
     report: (s: FrameProfileSample) => void
+    /** More observables to time, asked again each report (an XR session's arrive late). */
+    extra?: () => [string, BABYLON.Observable<any> | undefined][]
   }
 ): () => void {
   const engine = scene.getEngine()
@@ -56,7 +58,8 @@ export function frameProfile(
   ]
   const totals = new Map<string, number>()
   const wrap = () => {
-    for (const [where, obs] of watched) {
+    for (const [where, obs] of [...watched, ...(options.extra?.() ?? [])]) {
+      if (obs == null) continue
       for (const o of (obs as any)._observers as BABYLON.Observer<any>[]) {
         if (o == null || (o as any)[timed]) continue
         ;(o as any)[timed] = true

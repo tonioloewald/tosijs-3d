@@ -5551,6 +5551,13 @@ export class B3d extends Component {
             seconds: 120,
             every: 5,
             report: (s) => sendDebug('frame', { ...s }),
+            extra: () => [
+              [
+                'xrFrame',
+                this.xrHelper?.baseExperience?.sessionManager
+                  ?.onXRFrameObservable,
+              ],
+            ],
           })
         cnv.classList.add('ready')
         // Not a spinner a page is holding up for its own loading.
@@ -5597,10 +5604,20 @@ export class B3d extends Component {
           this.scene.getWaitingItemsCount() === 0 &&
           (built || realNow() > giveUp)
         ) {
-          this.scene.executeWhenReady(reveal)
-          // Fallback: reveal once assets are loaded even if some shaders
-          // haven't compiled (e.g. SkyMaterial can take extra frames)
-          setTimeout(reveal, 500)
+          /*
+          And every shader compiled: Babylon skips a mesh whose shader is not
+          ready, so a scene shown early fills in piece by piece (a Quest took
+          14 s after a reveal that waited 0.5 s for this). The fallback is for a
+          shader that never finishes, not a slow device.
+          */
+          this.scene.executeWhenReady(() => {
+            mark('shaders')
+            reveal()
+          })
+          setTimeout(() => {
+            if (!revealed) timeline.shadersGaveUp = 1
+            reveal()
+          }, 10000)
         } else {
           setTimeout(checkReady, 100)
         }
@@ -5670,6 +5687,9 @@ export class B3d extends Component {
         m.isEnabled() &&
         m.isVisible &&
         m.isPickable &&
+        // Answered by a ray proxy (a city's buildings and roads): Babylon
+        // walks every thin-instance copy for each controller's ray, every frame.
+        m.metadata?.b3dRayProxy !== true &&
         !insideCarrier(m, this._xrRig)
     }
     if (xr.pointerSelection != null) pressWithEitherHand(xr, this.scene)
