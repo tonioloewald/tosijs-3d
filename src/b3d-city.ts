@@ -84,7 +84,7 @@ import { cityLayout, type CityLayout, type CityLayoutOptions, type RoadCell, typ
 import { PRNG } from './mersenne-twister.js'
 import { pad } from './landform.js'
 import { lightPool, sceneDaylight, lampLevel, lampFlicker, type VirtualLight } from './light-pool.js'
-import { windowLights, windowsLit, type WindowLightsPlugin } from './window-lights.js'
+import { windowLights, type WindowLightsPlugin } from './window-lights.js'
 import { createTraffic, recycleTraffic, stepTraffic, TRAFFIC_CAR, type Traffic, type TrafficObstacle } from './city-traffic.js'
 import { headingOf, type VehicleSpec, type VehicleState } from './ground-vehicle.js'
 import { CitySound } from './city-sound.js'
@@ -834,10 +834,10 @@ export class B3dCity extends B3dChild {
     }
     const sky = this.owner?.querySelector('tosi-b3d-skybox') as { timeOfDay?: number } | null
     const daylight = sceneDaylight(this.owner)
-    const lit = windowsLit(Number(sky?.timeOfDay ?? 12))
+    const hour = Number(sky?.timeOfDay ?? 12)
     const glow = Math.max(0, Math.min(1, (0.6 - daylight) / 0.4))
     for (const w of this.windows) {
-      w.lit = lit
+      w.hour = hour
       w.glow = glow
     }
     const traffic = this.trafficState

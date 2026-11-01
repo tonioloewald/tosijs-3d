@@ -4,62 +4,56 @@
 **Lit windows at night.** A material plugin that finds a building's window
 glass by its colour and lights some of the rooms behind it: warm lamplight
 mostly, now and then the blue of a screen. Which rooms are lit is a hash of
-where they are, so a room stays lit or dark as you drive past, and as the
-evening goes on rooms go dark one at a time rather than all at once.
+where they are, so a room stays lit or dark as you drive past.
 
-How many are lit follows the clock (`windowsLit(hour)`): rising through the
-evening to a peak around ten, rare after midnight, back up from five as people
-get up, and none by day. [b3d-city](/b3d-city/) puts it on Kenney's buildings.
+Every room has a **habit**, from the same hash, and keeps it:
+
+| Habit | Share | Lit |
+|-------|-------|-----|
+| always dark | 15% | never (empty, or nobody home) |
+| night owl | 30% | 7 pm to 2 am |
+| early riser | 20% | 5 to 8 am, and 6 to 10 pm |
+| evening | 17% | 5.30 to 11.30 pm |
+| bathroom | 18% | a few minutes now and then, any hour of the night |
+
+Each room keeps its own hours up to an hour either side, so a street does not
+switch at once. Together: busiest around ten, rare after midnight, back up
+from five as people get up. Nothing shows by day. [b3d-city](/b3d-city/) puts
+it on Kenney's buildings.
 
 ```javascript
 const lights = windowLights(material, { origin: cityRoot })
 // every frame:
-lights.lit = windowsLit(skybox.timeOfDay)
+lights.hour = skybox.timeOfDay
 lights.glow = darkness // 0 by day, 1 at night
 ```
 
-The glass is any texel distinctly blue (Kenney's city kits draw their windows
-from one light blue); `isGlass` takes another rule for another kit. A room is
-`room` metres across (default 4 × 3 × 4: a couple of windows, one storey).
+The glass is any texel distinctly blue: Kenney's city kits draw their windows
+from one light blue. A room is `room` metres across (default 4 × 3 × 4: a
+couple of windows, one storey).
 */
 /*{ "parent": "terrain", "order": 63 }*/
 
 import * as BABYLON from '@babylonjs/core'
 
-/*
-The share of rooms lit through the day, by hour: [hour, share]. Read round
-the clock, linearly between.
-*/
-const OCCUPANCY: [number, number][] = [
-  [0, 0.16],
-  [1, 0.07],
-  [3, 0.04],
-  [4.5, 0.06],
-  [5, 0.18],
-  [6, 0.32],
-  [7.5, 0.25],
-  [9, 0.1],
-  [16, 0.1],
-  [18, 0.35],
-  [20, 0.5],
-  [22, 0.6],
-  [23, 0.4],
-]
-
-/** The share of rooms with a light on at `hour` (0 to 24). */
-export function windowsLit(hour: number): number {
-  const h = ((hour % 24) + 24) % 24
-  for (let i = 0; i < OCCUPANCY.length; i++) {
-    const [h0, v0] = OCCUPANCY[i]
-    const [h1, v1] = i + 1 < OCCUPANCY.length ? OCCUPANCY[i + 1] : [OCCUPANCY[0][0] + 24, OCCUPANCY[0][1]]
-    if (h >= h0 && h < h1) return v0 + ((v1 - v0) * (h - h0)) / (h1 - h0)
-  }
-  return OCCUPANCY[0][1]
+/**
+ * Whether a room with this habit has its light on at `hour`. `habit` and
+ * `shift` are the room's own (0 to 1; the shader takes them from the room's
+ * hash), `roll` a fresh 0 to 1 per few minutes of the clock (the bathroom).
+ * The shader mirrors this; it is here so the habits can be tested.
+ */
+export function roomLit(habit: number, shift: number, hour: number, roll: number): boolean {
+  const h = (((hour - (shift - 0.5) * 2) % 24) + 24) % 24
+  if (habit < 0.15) return false
+  if (habit < 0.45) return h >= 19 || h < 2
+  if (habit < 0.65) return (h >= 5 && h < 8) || (h >= 18 && h < 22)
+  if (habit < 0.82) return h >= 17.5 && h < 23.5
+  return roll < 0.1
 }
 
 export class WindowLightsPlugin extends BABYLON.MaterialPluginBase {
-  /** The share of rooms lit, 0 to 1. */
-  lit = 0
+  /** The time of day, hours. */
+  hour = 12
   /** How bright a lit window is, 0 by day to 1 at night. */
   glow = 0
   /** A room's size, metres. */
@@ -114,7 +108,7 @@ export class WindowLightsPlugin extends BABYLON.MaterialPluginBase {
     uniformBuffer.updateFloat4('winRoom', r.x, r.y, r.z, this.seed)
     const o = this.origin?.position
     uniformBuffer.updateFloat4('winOrigin', o?.x ?? 0, o?.y ?? 0, o?.z ?? 0, 0)
-    uniformBuffer.updateFloat4('winState', this.lit, this.glow, 0, 0)
+    uniformBuffer.updateFloat4('winState', this.hour, this.glow, 0, 0)
   }
 
   getCustomCode(shaderType: string): { [pointName: string]: string } | null {
@@ -137,10 +131,18 @@ export class WindowLightsPlugin extends BABYLON.MaterialPluginBase {
         #endif
         // Window glass: distinctly blue.
         float wGlass = step(0.35, wT.b - wT.r) * step(0.6, wT.b);
-        float wLit = winState.x;
         float wGlow = winState.y;
         vec3 wRoom = floor((vPositionW - winOrigin.xyz) / winRoom.xyz) + winRoom.w;
-        float wOn = wGlass * step(b3dWinHash(wRoom), wLit) * wGlow;
+        // The room's habit (roomLit, mirrored): kept for good.
+        float wHabit = b3dWinHash(wRoom);
+        float wH = mod(winState.x - (b3dWinHash(wRoom * 3.7 + 1.1) - 0.5) * 2.0, 24.0);
+        float wLit = 0.0;
+        if (wHabit < 0.15) wLit = 0.0;
+        else if (wHabit < 0.45) wLit = (wH >= 19.0 || wH < 2.0) ? 1.0 : 0.0;
+        else if (wHabit < 0.65) wLit = ((wH >= 5.0 && wH < 8.0) || (wH >= 18.0 && wH < 22.0)) ? 1.0 : 0.0;
+        else if (wHabit < 0.82) wLit = (wH >= 17.5 && wH < 23.5) ? 1.0 : 0.0;
+        else wLit = b3dWinHash(wRoom + floor(winState.x * 20.0) * 0.37) < 0.1 ? 1.0 : 0.0;
+        float wOn = wGlass * wLit * wGlow;
         float wKind = b3dWinHash(wRoom * 1.7 + 3.1);
         b3dWinColour = wKind > 0.85 ? vec3(0.45, 0.6, 1.0) : mix(vec3(1.0, 0.72, 0.38), vec3(1.0, 0.86, 0.6), wKind);
         b3dWinGlow = wOn * (0.7 + 0.5 * b3dWinHash(wRoom * 2.3 + 1.3));

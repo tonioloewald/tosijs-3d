@@ -631,7 +631,7 @@ export {
   type TrafficViewer,
   type RecycleOptions as TrafficRecycleOptions,
 } from './city-traffic.js'
-export { windowLights, windowsLit, WindowLightsPlugin } from './window-lights.js'
+export { roomLit, windowLights, WindowLightsPlugin } from './window-lights.js'
 export { lightPool, LightPool, sceneDaylight, lampLevel, type VirtualLight } from './light-pool.js'
 export { B3dAircraft, b3dAircraft } from './b3d-aircraft.js'
 
