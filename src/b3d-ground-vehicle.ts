@@ -58,6 +58,8 @@ const V = (p: { x: number; y: number; z: number }) =>
 const IDLE: VehicleControls = { throttle: 0, steer: 0, handbrake: 0 }
 /** The right stick's orbit of the chase camera at full tilt, radians. */
 const ORBIT_MAX = 150 * (Math.PI / 180)
+/** The steps the chase camera climbs to get out of a wall, radians. */
+const LIFTS = [0, 10, 20, 32, 45, 60].map((d) => d * (Math.PI / 180))
 /** Its boom, the whole range a second and a bit at full tilt. */
 const BOOM_RATE = 0.8
 
@@ -123,6 +125,8 @@ export abstract class B3dGroundVehicle extends B3dControllable {
   */
   private orbit = 0
   private boom = CHASE_BOOM
+  /** How far the camera has climbed its arc to see past something, radians. */
+  private camLift = 0
   /** How far back the chase camera sits, against the size's own (a tank's is farther). */
   protected chaseScale = 1
   private lookWant = { x: 0, y: 0 }
@@ -251,6 +255,7 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     this.camYaw = headingOf(state)
     this.orbit = 0
     this.boom = CHASE_BOOM
+    this.camLift = 0
     this.resetView(this.camYaw)
     this.aimCamera(0)
     owner.setActiveCamera(this.chaseCamera, { attach: false })
@@ -275,31 +280,44 @@ export abstract class B3dGroundVehicle extends B3dControllable {
       0,
       Math.min(1, this.boom - this.lookWant.y * BOOM_RATE * dt)
     )
-    const { eye, target } = chasePose(
-      state.position,
-      this.viewYaw(this.camYaw),
-      this.viewBoom(),
-      rig
-    )
-    // Something between the vehicle and the camera (a wall it backed up to, or
-    // swung round into while looking): come in in front of it.
-    const from = new BABYLON.Vector3(
-      state.position.x,
-      state.position.y + rig.aimHeight + 1,
-      state.position.z
-    )
-    const to = V(eye).subtract(from)
-    const far = to.length()
+    /*
+    OUT OF WALLS: up first, then in. The camera must see its pivot with room
+    to spare (a camera right on a surface has its near plane in it). Blocked,
+    it climbs its arc in steps until it can (a wall behind, a building it
+    swung round into); if no lift clears it, it comes in along the line
+    instead. The lift rises fast and settles back slowly, so it does not pop.
+    */
+    const yaw = this.viewYaw(this.camYaw)
+    const boom = this.viewBoom()
     const scene = this.owner?.scene
-    const hit = scene
-      ? pickWorld(
-          scene,
-          new BABYLON.Ray(from, to.scale(1 / far), far),
-          this.collides
-        )
-      : null
+    const CLEAR = 0.6
+    const blocked = (eye: Vec3, target: Vec3) => {
+      if (scene == null) return null
+      const from = V(target)
+      const to = V(eye).subtract(from)
+      const far = to.length()
+      if (far < 1e-3) return null
+      const hit = pickWorld(
+        scene,
+        new BABYLON.Ray(from, to.scale(1 / far), far + CLEAR),
+        this.collides
+      )
+      return hit ? { from, to, far, distance: hit.distance } : null
+    }
+    let need = 0
+    for (const lift of LIFTS) {
+      need = lift
+      const p = chasePose(state.position, yaw, boom, rig, lift)
+      if (blocked(p.eye, p.target) == null) break
+    }
+    const k = dt > 0 ? 1 - Math.exp(-dt * (need > this.camLift ? 10 : 1.5)) : 1
+    this.camLift += (need - this.camLift) * k
+    const { eye, target } = chasePose(state.position, yaw, boom, rig, this.camLift)
+    const hit = blocked(eye, target)
     const at = hit
-      ? from.add(to.scale(Math.max(0.1, hit.distance - 0.3) / far))
+      ? hit.from.add(
+          hit.to.scale(Math.max(0.1, hit.distance - CLEAR) / hit.far)
+        )
       : V(eye)
     cam.position.copyFrom(at)
     cam.setTarget(V(target))

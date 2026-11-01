@@ -289,6 +289,17 @@ describe('the chase view', () => {
     expect(-far.z).toBeGreaterThan(0.5)
   })
 
+  test('lift raises it up the same arc, as far from the pivot', () => {
+    const at = { x: 0, y: 0, z: 0 }
+    const a = chasePose(at, 0, CHASE_BOOM, rig)
+    const b = chasePose(at, 0, CHASE_BOOM, rig, 0.5)
+    expect(b.eye.y).toBeGreaterThan(a.eye.y)
+    expect(-b.eye.z).toBeLessThan(-a.eye.z)
+    const r = (e: { x: number; y: number; z: number }, t: { y: number }) =>
+      Math.hypot(e.x, e.y - t.y, e.z)
+    expect(r(b.eye, b.target)).toBeCloseTo(r(a.eye, a.target), 5)
+  })
+
   test('a longer vehicle gets a camera farther back', () => {
     expect(chaseRigFor({ x: 3, y: 2, z: 6 }).distance).toBeGreaterThan(
       rig.distance

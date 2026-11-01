@@ -753,20 +753,22 @@ export const CHASE_BOOM = 0.3
  * vehicle at the road beyond. `yaw` is the direction it faces (the heading
  * plus any orbit). `boom` in 0…1 moves it along an arc: 0 close behind and
  * low, `CHASE_BOOM` at rest, 1 further out and up to almost above, a little
- * behind.
+ * behind. `lift` (radians) raises it further up the same arc, which is how
+ * the camera gets out of a wall.
  */
 export function chasePose(
   at: Vec3,
   yaw: number,
   boom: number,
-  rig: ChaseRig
+  rig: ChaseRig,
+  lift = 0
 ): { eye: Vec3; target: Vec3 } {
   const fx = Math.sin(yaw)
   const fz = Math.cos(yaw)
   const b = Math.max(0, Math.min(1, boom))
   const DEG = Math.PI / 180
   // Up the arc: slowly at first, then up to 80 degrees.
-  const elevation = (4 + 76 * b * b) * DEG
+  const elevation = Math.min(85 * DEG, (4 + 76 * b * b) * DEG + lift)
   const r = rig.distance * (0.75 + 1.5 * b)
   const back = r * Math.cos(elevation)
   const up = r * Math.sin(elevation)
