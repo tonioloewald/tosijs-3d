@@ -6593,6 +6593,24 @@ export class B3d extends Component {
         // but doesn't point down"): the rig pitches toward a point a little
         // above it, all the way at the top of the arc.
         const lookDown = isFpv ? 0 : over * Math.atan2(up - eyeH, Math.max(back, 0.5))
+        /*
+        The rig's turn: facing \`yaw\`, pitched DOWN by \`pitch\` about the axis
+        across where the HEAD looks. The head faces the rig's forward turned by
+        \`offset\` (captured when the chase began), so pitching about the rig's
+        own side axis rolled the view instead, by as much as the head was
+        turned: sideways overhead (Tonio). Checked: yaw and pitch land as asked,
+        the head's side axis stays level.
+        */
+        function chaseTurn(
+          yaw: number,
+          pitch: number,
+          offset: number,
+          out: BABYLON.Quaternion
+        ) {
+          BABYLON.Quaternion.RotationAxisToRef(BABYLON.Axis.Y, yaw, out)
+          out.multiplyInPlace(BABYLON.Quaternion.RotationAxis(BABYLON.Axis.X, pitch))
+          out.multiplyInPlace(BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Y, -offset))
+        }
         piloted.getDirectionToRef(XR_FORWARD, fwd) // world forward
         const targetYaw = Math.atan2(fwd.x, fwd.z)
         // fpv: anchor to the actual head bone if the entity exposes it.
@@ -6657,12 +6675,7 @@ export class B3d extends Component {
             refuseOwnAncestors(rig)
             rig.scaling.set(1, 1, 1)
           }
-          BABYLON.Quaternion.RotationYawPitchRollToRef(
-            peekYaw - chaseYawOffset,
-            lookDown,
-            0,
-            yawQuat
-          )
+          chaseTurn(peekYaw, lookDown, chaseYawOffset, yawQuat)
           rig.rotationQuaternion = yawQuat
           BABYLON.Matrix.FromQuaternionToRef(yawQuat, mtx)
           BABYLON.Vector3.TransformCoordinatesToRef(cam.position, mtx, tmp)
@@ -6692,12 +6705,7 @@ export class B3d extends Component {
         chaseYaw += yawDiff * yawT
         // Compensate for the head's local (tracked) offset so the HEAD lands at
         // chasePos: rig = chasePos − (headLocal rotated into the rig's yaw).
-        BABYLON.Quaternion.RotationYawPitchRollToRef(
-          chaseYaw + peekYaw,
-          lookDown,
-          0,
-          yawQuat
-        )
+        chaseTurn(chaseYaw + peekYaw + chaseYawOffset, lookDown, chaseYawOffset, yawQuat)
         BABYLON.Matrix.FromQuaternionToRef(yawQuat, mtx)
         BABYLON.Vector3.TransformCoordinatesToRef(cam.position, mtx, tmp)
         rig.position.set(

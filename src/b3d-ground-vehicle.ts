@@ -285,6 +285,9 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     const boom = this.viewBoom()
     const scene = this.owner?.scene
     const CLEAR = 0.6
+    // How high over the ground under it the camera must be (on a slope a
+    // clear line to the pivot still left it in the hill: Tonio's tank).
+    const ABOVE = 1.2
     const blocked = (eye: Vec3, target: Vec3) => {
       if (scene == null) return null
       const from = V(target)
@@ -294,9 +297,19 @@ export abstract class B3dGroundVehicle extends B3dControllable {
       const hit = pickWorld(
         scene,
         new BABYLON.Ray(from, to.scale(1 / far), far + CLEAR),
-        this.collides
+        this.seesPast
       )
-      return hit ? { from, to, far, distance: hit.distance } : null
+      if (hit) return { from, to, far, distance: hit.distance }
+      const ground = pickWorld(
+        scene,
+        new BABYLON.Ray(
+          new BABYLON.Vector3(eye.x, eye.y + 30, eye.z),
+          BABYLON.Axis.Y.negate(),
+          30 + ABOVE
+        ),
+        this.seesPast
+      )
+      return ground ? { from, to, far, distance: far + CLEAR } : null
     }
     let need = 0
     for (const lift of LIFTS) {
@@ -591,6 +604,20 @@ export abstract class B3dGroundVehicle extends B3dControllable {
    * world as far as a driver could tell.
    */
   private collides = collidable(this.isMine)
+  /**
+   * What the chase camera must not be inside or behind: anything solid but
+   * the vehicle itself, TRAFFIC INCLUDED. Traffic is \`b3dNoCollide\` so a
+   * vehicle's wall rays do not stop dead on it, and the camera used the same
+   * test and went inside other cars (Tonio).
+   */
+  private seesPast = (m: BABYLON.AbstractMesh) =>
+    m.isPickable &&
+    m.isEnabled() &&
+    m.isVisible &&
+    // Not the UI in front of the camera (panels, the system bar, XR parts).
+    m.renderingGroupId === 0 &&
+    !/^xr-|panel|controller|laser|pointer|teleport|hand|skybox/i.test(m.name) &&
+    !this.isMine(m)
 
   /*
   GROUND, once a frame. The model steps at 1/60 s and asks for the ground under
