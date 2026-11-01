@@ -563,6 +563,9 @@ export function hemisphericLightSchema(extra: Record<string, unknown> = {}) {
       // ambient-only scene has vertical faces that stay dark however high
       // `intensity` goes — a dim, desaturated ground colour is the fix.
       groundColor: color('#000000'),
+      // Under a day/night sky: the brightness at night, eased from
+      // `intensity` by the sky's daylight. -1 leaves `intensity` alone.
+      nightIntensity: num(-1, { minimum: -1, maximum: 4 }),
       x: num(0, { minimum: -1, maximum: 1 }),
       y: num(1, { minimum: -1, maximum: 1 }),
       z: num(0, { minimum: -1, maximum: 1 }),

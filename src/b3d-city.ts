@@ -2,7 +2,8 @@
 # b3d-city
 
 **A city to drive around**, built from a seed: roads, blocks of buildings,
-street lights, parked cars and [traffic](/city-traffic/). The plan is [city-layout](/city-layout/); this
+street lights, parked cars, [traffic](/city-traffic/) and
+[lit windows](/window-lights/). The plan is [city-layout](/city-layout/); this
 dresses it with a **kit**, Kenney's city kits unless you give it another, at
 12 m a cell. Street lights come on at dusk, each a spot pointing down from its
 pole (the few that matter most to your view are real lights), a few of them
@@ -11,7 +12,7 @@ failing and flickering; a car you drive turns its headlights on.
 ## Demo
 
 ```js
-import { b3d, b3dCar, b3dCity, cityStart, b3dLibrary, b3dSkybox, b3dSun, inputFocus, slider3d, assetUrl } from 'tosijs-3d'
+import { b3d, b3dCar, b3dCity, cityStart, b3dLibrary, b3dLight, b3dSkybox, b3dSun, inputFocus, slider3d, assetUrl } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { cityDemo } = tosi({ cityDemo: { time: 19.5, speed: 120 } })
@@ -31,6 +32,7 @@ preview.append(
       ],
     },
     b3dSun({ shadowTextureSize: 2048 }),
+    b3dLight({ intensity: 0.5, nightIntensity: 0.06, groundColor: '#4b4d52' }),
     sky,
     b3dLibrary({ url: assetUrl('kenney/libraries/car-kit.glb'), type: 'cars' }),
     b3dCity(plan),
@@ -80,6 +82,7 @@ import { assetUrl } from './asset-url.js'
 import { cityLayout, type CityLayout, type CityLayoutOptions, type RoadCell, type RoadPiece, type Side } from './city-layout.js'
 import { PRNG } from './mersenne-twister.js'
 import { lightPool, sceneDaylight, lampLevel, lampFlicker, type VirtualLight } from './light-pool.js'
+import { windowLights, windowsLit, type WindowLightsPlugin } from './window-lights.js'
 import { createTraffic, stepTraffic, type Traffic, type TrafficObstacle } from './city-traffic.js'
 
 /** One model's driving cars: its parts' instance buffers, rewritten each frame. */
@@ -275,6 +278,7 @@ export class B3dCity extends B3dChild {
   trafficState: Traffic | null = null
   private trafficModels: TrafficModel[] = []
   private beams: VirtualLight[] = []
+  private windows: WindowLightsPlugin[] = []
   private generation = 0
 
   get lamps(): number {
@@ -534,6 +538,18 @@ export class B3dCity extends B3dChild {
       })
     }
     this.startTraffic(owner, prefix, layout, cell, unit, start)
+
+    // LIT WINDOWS on every building's material.
+    const buildings = new Set([...kit.buildings.downtown, ...kit.buildings.suburbs].map((p) => `${p.library}:${p.mesh}`))
+    const materials = new Set<BABYLON.Material>()
+    for (const [key, t] of this.templates) {
+      if (!buildings.has(key) || t.matrices.length === 0) continue
+      for (const part of t.parts) if (part.mesh.material) materials.add(part.mesh.material)
+    }
+    // Rooms half a cell across: a building is centred on its cells and its
+    // windows are symmetrical, so a room's edge falls between windows.
+    const room = new BABYLON.Vector3(cell / 2, 3, cell / 2)
+    this.windows = [...materials].map((m) => windowLights(m, { origin: root, room, seed: Number(this.seed) * 17 }))
     scene.registerBeforeRender(this.updateLamps)
   }
 
@@ -656,6 +672,14 @@ export class B3dCity extends B3dChild {
       l.flicker = l.seed ? lampFlicker(t, l.seed) : 1
       l.position.copyFrom(l.local).addInPlace(root.position)
     }
+    const sky = this.owner?.querySelector('tosi-b3d-skybox') as { timeOfDay?: number } | null
+    const daylight = sceneDaylight(this.owner)
+    const lit = windowsLit(Number(sky?.timeOfDay ?? 12))
+    const glow = Math.max(0, Math.min(1, (0.6 - daylight) / 0.4))
+    for (const w of this.windows) {
+      w.lit = lit
+      w.glow = glow
+    }
     const traffic = this.trafficState
     if (traffic) {
       stepTraffic(traffic, Math.min(0.1, sceneDelta(scene)), this.obstacles())
@@ -680,6 +704,8 @@ export class B3dCity extends B3dChild {
     this.releaseLamps = []
     this.lampLights = []
     this.beams = []
+    for (const w of this.windows) w.isEnabled = false
+    this.windows = []
     this.trafficState = null
     this.trafficModels = []
     if (this.root) this.owner?.unregisterWorldRoot(this.root)

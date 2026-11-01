@@ -619,6 +619,15 @@ export {
   type Side as CitySide,
 } from './city-layout.js'
 export { B3dCity, b3dCity, cityStart, KENNEY_CITY, type CityKit, type KitPiece } from './b3d-city.js'
+export {
+  createTraffic,
+  stepTraffic,
+  type Traffic as CityTraffic,
+  type TrafficCar,
+  type TrafficObstacle,
+  type TrafficOptions,
+} from './city-traffic.js'
+export { windowLights, windowsLit, WindowLightsPlugin } from './window-lights.js'
 export { lightPool, LightPool, sceneDaylight, lampLevel, type VirtualLight } from './light-pool.js'
 export { B3dAircraft, b3dAircraft } from './b3d-aircraft.js'
 

@@ -16,4 +16,5 @@ caves, arches, lava tubes.
 - [city-layout](/city-layout/)
 - [b3d-city](/b3d-city/)
 - [city-traffic](/city-traffic/)
+- [window-lights](/window-lights/)
 <!-- /toc -->

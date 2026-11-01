@@ -54,10 +54,16 @@ tosi-b3d { width: 100%; height: 100%; }
 | `diffuse` | `'#ffffff'` | Diffuse color (hex) |
 | `specular` | `'#808080'` | Specular color (hex) |
 | `groundColor` | `'#000000'` | Bounce from below (hex). Babylon's default is black, which is why vertical faces look unlit however high `intensity` goes — set a dim version of your ground colour |
+| `nightIntensity` | `-1` | With a day/night `b3dSkybox`: the brightness at night, eased from `intensity` as the sky's `daylight` goes. `-1` keeps `intensity` all day and night |
+
+A fixed ambient light under a day/night sky makes midnight look like an
+overcast noon; give it a `nightIntensity` and the fill falls with the sun,
+while the sun itself becomes the moon.
 */
 /*{ "parent": "sky-and-light", "order": 30 }*/
 
 import { B3dChild } from './b3d-utils.js'
+import { sceneDaylight } from './light-pool.js'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'
 
@@ -80,10 +86,12 @@ export class B3dLight extends B3dChild {
     colour is the honest value; pure black is a scene lit from a hole.
     */
     groundColor: '#000000',
+    nightIntensity: -1,
   }
 
   owner: B3d | null = null
   light?: BABYLON.HemisphericLight
+  private follow: BABYLON.Observer<BABYLON.Scene> | null = null
 
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     this.owner = owner
@@ -98,9 +106,18 @@ export class B3dLight extends B3dChild {
     // (intensity 1, a black ground colour) whatever it was given.
     this.render()
     owner.register({ lights: [this.light] })
+    this.follow = scene.onBeforeRenderObservable.add(() => {
+      const attrs = this as any
+      const night = Number(attrs.nightIntensity)
+      if (this.light == null || !(night >= 0)) return
+      const day = Number(attrs.intensity)
+      this.light.intensity = night + (day - night) * sceneDaylight(this.owner)
+    })
   }
 
   sceneDispose() {
+    if (this.follow) this.owner?.scene?.onBeforeRenderObservable.remove(this.follow)
+    this.follow = null
     if (this.light != null) {
       this.light.dispose()
       this.light = undefined
