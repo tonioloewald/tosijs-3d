@@ -10,7 +10,7 @@ is, how far its glow reaches, and how strong it is now (a city's follows its
 street lights, so it is nothing by day). The sky asks how polluted the sky is
 at the camera, every frame, and dims its faint stars and adds the glow.
 
-```js
+```javascript
 import { lightPollutionSource } from 'tosijs-3d'
 
 // A town of 500 m across whose lights are on.
