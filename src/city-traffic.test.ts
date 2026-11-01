@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { cityLayout } from './city-layout.js'
-import { createTraffic, stepTraffic, type Traffic } from './city-traffic.js'
+import { createTraffic, stepTraffic, TRAFFIC_CAR, type Traffic } from './city-traffic.js'
 
 const layout = cityLayout({ width: 24, depth: 24, seed: 3 })
 const make = (count = 24, seed = 1) => createTraffic({ layout, cell: 12, lane: 1.4, count, seed, models: 8 })
@@ -86,6 +86,69 @@ describe('city traffic', () => {
     const b = make(24, 9)
     run(a, 20)
     run(b, 20)
+    expect(a.cars.map((c) => [c.x, c.z])).toEqual(b.cars.map((c) => [c.x, c.z]))
+  })
+})
+
+describe('city traffic as bodies', () => {
+  const physical = (count = 24, seed = 1) =>
+    createTraffic({ layout, cell: 12, lane: 1.4, count, seed, models: 8, vehicle: TRAFFIC_CAR })
+
+  test('they drive their plans, on the road, upright', () => {
+    const t = physical()
+    const from = t.cars.map((c) => [c.x, c.z])
+    for (let k = 0; k < 40 * 30; k++) {
+      stepTraffic(t, 1 / 30)
+      if (k % 30) continue
+      for (const c of t.cars) {
+        expect(Number.isFinite(c.x)).toBe(true)
+        const [x, z] = cellOf(c.x, c.z)
+        expect(layout.road[z * layout.width + x]).toBe(true)
+        expect(Math.hypot(c.x - c.px, c.z - c.pz)).toBeLessThan(20)
+      }
+    }
+    const moved = t.cars.filter((c, i) => Math.hypot(c.x - from[i][0], c.z - from[i][1]) > 40).length
+    expect(moved).toBeGreaterThan(t.cars.length * 0.5)
+  })
+
+  test('a car hit from the side is pushed and turned', () => {
+    const t = physical(1)
+    const car = t.cars[0]
+    for (let k = 0; k < 30; k++) stepTraffic(t, 1 / 30)
+    const yaw = car.yaw
+    const before = { x: car.x, z: car.z }
+    // Something fast from the car's right, at its back end.
+    const rx = Math.cos(car.yaw)
+    const rz = -Math.sin(car.yaw)
+    const back = { x: car.x - Math.sin(car.yaw) * 1.8, z: car.z - Math.cos(car.yaw) * 1.8 }
+    stepTraffic(t, 1 / 30, [{ x: back.x + rx * 2.2, z: back.z + rz * 2.2, radius: 1.2, vx: -rx * 12, vz: -rz * 12 }])
+    for (let k = 0; k < 10; k++) stepTraffic(t, 1 / 30)
+    const pushed = (car.x - before.x) * -rx + (car.z - before.z) * -rz
+    expect(pushed).toBeGreaterThan(0.3)
+    expect(Math.abs(Math.atan2(Math.sin(car.yaw - yaw), Math.cos(car.yaw - yaw)))).toBeGreaterThan(0.05)
+  })
+
+  test('the kerb keeps a knocked car out of the buildings', () => {
+    const t = physical(1)
+    const car = t.cars[0]
+    for (let k = 0; k < 30; k++) stepTraffic(t, 1 / 30)
+    const rx = Math.cos(car.yaw)
+    const rz = -Math.sin(car.yaw)
+    car.body!.velocity = { x: rx * 15, y: 0, z: rz * 15 }
+    for (let k = 0; k < 60; k++) {
+      stepTraffic(t, 1 / 30)
+      const [x, z] = cellOf(car.x, car.z)
+      expect(layout.road[z * layout.width + x]).toBe(true)
+    }
+  })
+
+  test('same seed, same traffic', () => {
+    const a = physical(12, 4)
+    const b = physical(12, 4)
+    for (let k = 0; k < 300; k++) {
+      stepTraffic(a, 1 / 30)
+      stepTraffic(b, 1 / 30)
+    }
     expect(a.cars.map((c) => [c.x, c.z])).toEqual(b.cars.map((c) => [c.x, c.z]))
   })
 })

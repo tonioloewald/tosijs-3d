@@ -6,19 +6,28 @@
 the `dt` you step it by), so the same seed drives the same way in a test, a
 replay or a headset. [b3d-city](/b3d-city/) draws it.
 
-Each car drives through one road cell at a time, in the right-hand lane: in
-from one side, out by another, along a curve when it turns. Entering a cell it
-picks its way out (straight ahead three times as often as a turn; back the way
-it came only at a dead end). It slows for a turn, and for anything in its lane
-ahead: another car, or an `obstacle` you pass in (the player's car). At a
-junction a car that has waited a while for a crossing car creeps on, so a
-crossroads full of cars cannot lock up for good.
+Each car has a **plan**: a point that drives one road cell at a time in the
+right-hand lane, in from one side, out by another, along a curve when it turns.
+Entering a cell it picks its way out (straight ahead three times as often as a
+turn; back the way it came only at a dead end). It slows for a turn, and for
+anything in the lane ahead: another car, or an `obstacle` you pass in (the
+player's car). At a junction where two cars each wait on the other, the one
+that has waited longer creeps on, so a crossroads cannot lock up for good.
+
+Given a `vehicle` spec, each car is also a real **body** on the
+[ground-vehicle](/ground-vehicle/) model, the one your car drives on:
+suspension, tyres that grip until they slide, mass. It steers and works its
+pedals to follow its plan, which waits for it when it falls behind. Cars that
+touch push each other and spin (an impulse at the point of contact, mass and
+turning inertia included); a kerb that borders no road keeps them out of the
+buildings; a car knocked far from its lane or onto its roof for a few seconds
+is put back on its plan. Without a `vehicle` the plan is the car.
 
 ```javascript
-const traffic = createTraffic({ layout, cell: 12, lane: 1.4, count: 24, seed: 1 })
+const traffic = createTraffic({ layout, cell: 12, lane: 1.4, count: 24, seed: 1, vehicle: TRAFFIC_CAR })
 // every frame:
-stepTraffic(traffic, dt, [{ x: player.x, z: player.z, radius: 2 }])
-for (const car of traffic.cars) draw(car.model, car.x, car.z, car.yaw)
+stepTraffic(traffic, dt, [{ x, z, yaw, vx, vz, length: 4.6, width: 2.2 }])
+for (const car of traffic.cars) draw(car.model, car.x, car.y, car.z, car.orientation)
 ```
 
 Positions are metres in the city's frame (the grid centred on its origin, as
@@ -28,6 +37,18 @@ Positions are metres in the city's frame (the grid centred on its origin, as
 
 import type { CityLayout } from './city-layout.js'
 import { PRNG } from './mersenne-twister.js'
+import {
+  createVehicle,
+  forwardSpeed,
+  headingOf,
+  rotate,
+  stepVehicle,
+  yawQuat,
+  type GroundRay,
+  type Quat,
+  type VehicleSpec,
+  type VehicleState,
+} from './ground-vehicle.js'
 
 /** n, e, s, w as unit steps on the grid, and their mask bits. */
 const DIR: [number, number][] = [
@@ -37,6 +58,22 @@ const DIR: [number, number][] = [
   [-1, 0],
 ]
 const BIT = [1, 2, 4, 8]
+
+/** A city car as a body: Kenney's car kit at 1.7, roughly. Its origin is on the ground. */
+export const TRAFFIC_CAR: VehicleSpec = {
+  mass: 1200,
+  size: { x: 2.2, y: 1.6, z: 4.6 },
+  centreOfMass: { x: 0, y: 0.6, z: 0 },
+  wheels: [
+    { at: { x: -0.85, y: 0.4, z: 1.4 }, radius: 0.4, steerDeg: 32 },
+    { at: { x: 0.85, y: 0.4, z: 1.4 }, radius: 0.4, steerDeg: 32 },
+    { at: { x: -0.85, y: 0.4, z: -1.4 }, radius: 0.4, drive: 1 },
+    { at: { x: 0.85, y: 0.4, z: -1.4 }, radius: 0.4, drive: 1 },
+  ],
+  engineForce: 6000,
+  brakeForce: 14000,
+  maxSpeed: 16,
+}
 
 export interface TrafficOptions {
   layout: CityLayout
@@ -57,16 +94,20 @@ export interface TrafficOptions {
   brake?: number
   /** Metres left between a car and what it stops behind. Default 2. */
   gap?: number
-  /** A car's length and width, metres. Defaults 5 and 2.4. */
+  /** A car's length and width, metres. Defaults 4.6 and 2.2. */
   length?: number
   width?: number
+  /** How far in from a kerb that borders no road a car's middle must stay, metres. Default 1.4. */
+  kerb?: number
   /** Nowhere to put a car at the start (the player's car). */
   clear?: { x: number; z: number; radius: number }
+  /** Drive each car as a body on this spec (see `TRAFFIC_CAR`). Absent: the cars follow their plans exactly. */
+  vehicle?: VehicleSpec
 }
 
 export interface TrafficCar {
   model: number
-  /** The cell it is driving through, and which way (0 n, 1 e, 2 s, 3 w) it came in and goes out. */
+  /** The plan: the cell it is driving through, and which way (0 n, 1 e, 2 s, 3 w) it came in and goes out. */
   cx: number
   cz: number
   dirIn: number
@@ -74,28 +115,56 @@ export interface TrafficCar {
   /** Metres along this cell's path, and the path's length. */
   s: number
   length: number
+  /** The plan's speed. */
   speed: number
   /** Seconds it has been held up. */
   waited: number
-  /** Where it is (metres, the city's frame) and which way it faces. */
+  /** The plan's point and heading. */
+  px: number
+  pz: number
+  pyaw: number
+  /** Where the car is (metres, the city's frame) and which way it faces. */
   x: number
+  y: number
   z: number
   yaw: number
+  /** Its full turn (a body tips and rolls), the `ground-vehicle` convention. */
+  orientation: Quat
+  /** True while it brakes (for brake lights). */
+  braking: boolean
+  /** The body, when it drives as one. */
+  body: VehicleState | null
+  /** Seconds it has been lost (far from its plan, or on its side). */
+  lost: number
   /** The path through this cell: a quadratic curve. */
   path: [number, number, number, number, number, number]
 }
 
 export interface Traffic {
   cars: TrafficCar[]
-  options: Required<Omit<TrafficOptions, 'clear'>>
+  options: Required<Omit<TrafficOptions, 'clear' | 'vehicle'>> & { vehicle?: VehicleSpec }
   rng: PRNG
 }
 
+/** Something in the road that is not traffic: the player's car. */
 export interface TrafficObstacle {
   x: number
   z: number
-  /** Metres. */
-  radius: number
+  /** Facing, radians; with `length` it is a car-shaped capsule, else a circle of `radius`. */
+  yaw?: number
+  length?: number
+  width?: number
+  radius?: number
+  /** Its velocity, so a car it hits is pushed. */
+  vx?: number
+  vz?: number
+}
+
+/** Flat ground at y = 0. */
+const FLAT: GroundRay = (from, dir, length) => {
+  if (dir.y >= 0 || from.y < 0) return null
+  const t = from.y / -dir.y
+  return t <= length ? { distance: t, normal: { x: 0, y: 1, z: 0 } } : null
 }
 
 function isRoad(layout: CityLayout, x: number, z: number): boolean {
@@ -165,14 +234,37 @@ function curveAt(p: TrafficCar['path'], u: number): [number, number] {
   return [a * p[0] + b * p[2] + c * p[4], a * p[1] + b * p[3] + c * p[5]]
 }
 
-function place(car: TrafficCar) {
+/** Put the plan's point where its `s` says. */
+function placePlan(car: TrafficCar) {
   const u = Math.min(1, Math.max(0, car.s / car.length))
   const p = car.path
-  ;[car.x, car.z] = curveAt(p, u)
+  ;[car.px, car.pz] = curveAt(p, u)
   // The tangent: 2(1-u)(C-P0) + 2u(P1-C).
   const dx = (1 - u) * (p[2] - p[0]) + u * (p[4] - p[2])
   const dz = (1 - u) * (p[3] - p[1]) + u * (p[5] - p[3])
-  if (dx !== 0 || dz !== 0) car.yaw = Math.atan2(dx, dz)
+  if (dx !== 0 || dz !== 0) car.pyaw = Math.atan2(dx, dz)
+}
+
+/** The car's pose from its body, or from its plan when it has none. */
+function placeCar(car: TrafficCar) {
+  const b = car.body
+  if (b) {
+    car.x = b.position.x
+    car.y = b.position.y
+    car.z = b.position.z
+    car.yaw = headingOf(b)
+    car.orientation = b.orientation
+  } else {
+    car.x = car.px
+    car.y = 0
+    car.z = car.pz
+    car.yaw = car.pyaw
+    car.orientation = yawQuat(car.pyaw)
+  }
+}
+
+function newBody(spec: VehicleSpec, car: TrafficCar): VehicleState {
+  return createVehicle(spec, { position: { x: car.px, y: 0, z: car.pz }, headingDeg: (car.pyaw * 180) / Math.PI })
 }
 
 export function createTraffic(options: TrafficOptions): Traffic {
@@ -184,8 +276,9 @@ export function createTraffic(options: TrafficOptions): Traffic {
     accel: 2.5,
     brake: 6,
     gap: 2,
-    length: 5,
-    width: 2.4,
+    length: 4.6,
+    width: 2.2,
+    kerb: 1.4,
     ...options,
   }
   const { clear, ...rest } = opts
@@ -216,31 +309,45 @@ export function createTraffic(options: TrafficOptions): Traffic {
       length: 1,
       speed: 0,
       waited: 0,
+      px: 0,
+      pz: 0,
+      pyaw: 0,
       x: 0,
+      y: 0,
       z: 0,
       yaw: 0,
+      orientation: { x: 0, y: 0, z: 0, w: 1 },
+      braking: false,
+      body: null,
+      lost: 0,
       path: [0, 0, 0, 0, 0, 0],
     }
     cellPath(t, car)
     car.s = t.rng.value() * car.length * 0.5
-    place(car)
+    placePlan(car)
+    if (opts.vehicle) car.body = newBody(opts.vehicle, car)
+    placeCar(car)
     t.cars.push(car)
   }
   return t
 }
 
-/** Advance every car by `dt` seconds. `obstacles` are things in the road to stop for. */
+/** How far a car's plan may run ahead of its body before it waits, metres. */
+const LEAD = 12
+
+/** Advance every car by `dt` seconds. `obstacles` are things in the road to stop for (and bounce off). */
 export function stepTraffic(t: Traffic, dt: number, obstacles: TrafficObstacle[] = []): void {
   if (dt <= 0) return
   const o = t.options
   const cars = t.cars
-  for (const car of cars) {
+  const wants = cars.map((car) => {
     const hx = Math.sin(car.yaw)
     const hz = Math.cos(car.yaw)
+    const speed = car.body ? Math.max(0, forwardSpeed(car.body)) : car.speed
     const turning = car.dirIn !== car.dirOut
     let want = turning ? o.turnSpeed : o.maxSpeed
     // Look ahead along the heading for anything in the lane.
-    const reach = (car.speed * car.speed) / (2 * o.brake) + o.gap + o.length * 2
+    const reach = (speed * speed) / (2 * o.brake) + o.gap + o.length * 2
     let blocked = false
     const consider = (x: number, z: number, size: number, crossing: boolean) => {
       const rx = x - car.x
@@ -248,8 +355,10 @@ export function stepTraffic(t: Traffic, dt: number, obstacles: TrafficObstacle[]
       const along = rx * hx + rz * hz
       if (along <= 0 || along > reach + size) return
       const side = Math.abs(rx * hz - rz * hx)
-      if (side > o.width * 0.5 + size) return
-      // Held up by a crossing car for long enough: creep on.
+      // A turning car sweeps wider: it looks into the lane it is joining.
+      if (side > o.width * (turning ? 1.2 : 0.5) + size) return
+      // Two cars each waiting on the other across a junction: the one that
+      // has waited long enough creeps on.
       if (crossing && car.waited > 2.5) return
       const room = Math.max(0, along - size - o.length / 2 - o.gap)
       want = Math.min(want, Math.sqrt(2 * o.brake * room))
@@ -260,14 +369,19 @@ export function stepTraffic(t: Traffic, dt: number, obstacles: TrafficObstacle[]
       const facing = Math.sin(other.yaw) * hx + Math.cos(other.yaw) * hz
       // Oncoming traffic keeps to its own lane.
       if (facing < -0.7) continue
-      consider(other.x, other.z, o.length / 2, facing < 0.5)
+      consider(other.x, other.z, o.length / 2, facing < 0.5 && other.waited > 1)
     }
-    for (const ob of obstacles) consider(ob.x, ob.z, ob.radius, false)
-    car.waited = blocked || car.speed < 0.3 ? car.waited + dt : 0
+    for (const ob of obstacles) consider(ob.x, ob.z, ob.length ? ob.length / 2 : (ob.radius ?? 2), false)
+    car.waited = blocked || speed < 0.3 ? car.waited + dt : 0
+    return want
+  })
+
+  // The plans: each eases toward its car's wanted speed, and waits for a body left behind.
+  cars.forEach((car, i) => {
+    let want = wants[i]
+    if (car.body && Math.hypot(car.px - car.x, car.pz - car.z) > LEAD) want = 0
     const dv = want - car.speed
     car.speed = Math.max(0, car.speed + Math.max(-o.brake * dt, Math.min(o.accel * dt, dv)))
-  }
-  for (const car of cars) {
     car.s += car.speed * dt
     while (car.s >= car.length) {
       car.s -= car.length
@@ -287,6 +401,221 @@ export function stepTraffic(t: Traffic, dt: number, obstacles: TrafficObstacle[]
       car.dirOut = chooseExit(o.layout, nx, nz, dirIn, t.rng)
       cellPath(t, car)
     }
-    place(car)
+    placePlan(car)
+  })
+
+  const spec = o.vehicle
+  if (spec) {
+    // The bodies: steer at the plan, drive to keep a little behind it.
+    cars.forEach((car, i) => {
+      const body = car.body!
+      const dx = car.px - body.position.x
+      const dz = car.pz - body.position.z
+      const dist = Math.hypot(dx, dz)
+      const heading = headingOf(body)
+      let err = Math.atan2(dx, dz) - heading
+      err = Math.atan2(Math.sin(err), Math.cos(err))
+      const fwd = forwardSpeed(body)
+      const want = Math.min(wants[i], car.speed + 2, Math.max(0, (dist - 2) * 1.2))
+      let throttle = Math.max(-1, Math.min(1, (want - fwd) * 0.6))
+      // Never back up to reach a plan: brake, then hold.
+      if (fwd < 0.5) throttle = Math.max(0, throttle)
+      if (dist < 1) throttle = Math.min(throttle, 0)
+      const steer = Math.max(-1, Math.min(1, err * 2.2))
+      car.braking = throttle < -0.05 || (want < 0.3 && fwd < 1.5)
+      stepVehicle(spec, body, { throttle, steer }, dt, FLAT)
+    })
+    collide(t, obstacles)
+    cars.forEach((car) => {
+      const body = car.body!
+      kerb(t, body)
+      // Lost: far from its plan, or not on its wheels. Put it back.
+      const up = rotate(body.orientation, { x: 0, y: 1, z: 0 }).y
+      const far = Math.hypot(car.px - body.position.x, car.pz - body.position.z) > LEAD * 2.5
+      car.lost = far || up < 0.5 ? car.lost + dt : 0
+      if (car.lost > 3 || !Number.isFinite(body.position.x)) {
+        car.body = newBody(spec, car)
+        car.lost = 0
+      }
+    })
+  } else {
+    cars.forEach((car, i) => (car.braking = wants[i] < car.speed - 0.5))
   }
+  cars.forEach(placeCar)
+}
+
+/*
+COLLISIONS. Each car is a capsule along its length; where two overlap they are
+pushed apart and an impulse goes through the point of contact, so a car hit at
+the back swings round. Flat (x, z, and the turn about y): a city is flat. An
+obstacle is not moved (the player's car keeps its own physics), but its
+velocity counts.
+*/
+interface Capsule {
+  ax: number
+  az: number
+  bx: number
+  bz: number
+  r: number
+}
+
+function capsule(x: number, z: number, yaw: number, length: number, width: number): Capsule {
+  const half = Math.max(0, length / 2 - width / 2)
+  const fx = Math.sin(yaw) * half
+  const fz = Math.cos(yaw) * half
+  return { ax: x - fx, az: z - fz, bx: x + fx, bz: z + fz, r: width / 2 }
+}
+
+/** The closest points of two segments. */
+function closest(p: Capsule, q: Capsule): [number, number, number, number] {
+  const d1x = p.bx - p.ax
+  const d1z = p.bz - p.az
+  const d2x = q.bx - q.ax
+  const d2z = q.bz - q.az
+  const rx = p.ax - q.ax
+  const rz = p.az - q.az
+  const a = d1x * d1x + d1z * d1z
+  const e = d2x * d2x + d2z * d2z
+  const f = d2x * rx + d2z * rz
+  let s = 0
+  let u = 0
+  if (a <= 1e-9 && e <= 1e-9) return [p.ax, p.az, q.ax, q.az]
+  if (a <= 1e-9) {
+    u = Math.max(0, Math.min(1, f / e))
+  } else {
+    const c = d1x * rx + d1z * rz
+    if (e <= 1e-9) {
+      s = Math.max(0, Math.min(1, -c / a))
+    } else {
+      const b = d1x * d2x + d1z * d2z
+      const den = a * e - b * b
+      s = den > 1e-9 ? Math.max(0, Math.min(1, (b * f - c * e) / den)) : 0
+      u = (b * s + f) / e
+      if (u < 0) {
+        u = 0
+        s = Math.max(0, Math.min(1, -c / a))
+      } else if (u > 1) {
+        u = 1
+        s = Math.max(0, Math.min(1, (b - c) / a))
+      }
+    }
+  }
+  return [p.ax + d1x * s, p.az + d1z * s, q.ax + d2x * u, q.az + d2z * u]
+}
+
+function collide(t: Traffic, obstacles: TrafficObstacle[]) {
+  const o = t.options
+  const spec = o.vehicle!
+  const m = spec.mass
+  const inertia = (m * (o.length * o.length + o.width * o.width)) / 12
+  const bodies = t.cars.map((c) => c.body!)
+  const caps = bodies.map((b) => capsule(b.position.x, b.position.z, headingOf(b), o.length, o.width))
+  const obs = obstacles.map((ob) =>
+    ob.length != null
+      ? capsule(ob.x, ob.z, ob.yaw ?? 0, ob.length, ob.width ?? o.width)
+      : { ax: ob.x, az: ob.z, bx: ob.x, bz: ob.z, r: ob.radius ?? 2 }
+  )
+  const hit = (i: number, q: Capsule, other: VehicleState | null, ovx: number, ovz: number) => {
+    const a = bodies[i]
+    const [px, pz, qx, qz] = closest(caps[i], q)
+    let nx = px - qx
+    let nz = pz - qz
+    const d = Math.hypot(nx, nz)
+    const depth = caps[i].r + q.r - d
+    if (depth <= 0) return
+    if (d > 1e-6) {
+      nx /= d
+      nz /= d
+    } else {
+      nx = 1
+      nz = 0
+    }
+    // Apart: half each, or all of it against an obstacle.
+    const share = other ? depth / 2 : depth
+    a.position = { ...a.position, x: a.position.x + nx * share, z: a.position.z + nz * share }
+    if (other) other.position = { ...other.position, x: other.position.x - nx * share, z: other.position.z - nz * share }
+    // The impulse, through the contact point.
+    const cx = (px + qx) / 2
+    const cz = (pz + qz) / 2
+    const rax = cx - a.position.x
+    const raz = cz - a.position.z
+    const wa = a.angularVelocity.y
+    let vrx = a.velocity.x + wa * raz
+    let vrz = a.velocity.z - wa * rax
+    let rbx = 0
+    let rbz = 0
+    if (other) {
+      rbx = cx - other.position.x
+      rbz = cz - other.position.z
+      const wb = other.angularVelocity.y
+      vrx -= other.velocity.x + wb * rbz
+      vrz -= other.velocity.z - wb * rbx
+    } else {
+      vrx -= ovx
+      vrz -= ovz
+    }
+    const vn = vrx * nx + vrz * nz
+    if (vn >= 0) return
+    const ca = raz * nx - rax * nz
+    const cb = rbz * nx - rbx * nz
+    const k = 1 / m + (ca * ca) / inertia + (other ? 1 / m + (cb * cb) / inertia : 0)
+    const j = (-(1 + 0.3) * vn) / k
+    a.velocity = { ...a.velocity, x: a.velocity.x + (j * nx) / m, z: a.velocity.z + (j * nz) / m }
+    a.angularVelocity = { ...a.angularVelocity, y: a.angularVelocity.y + (ca * j) / inertia }
+    if (other) {
+      other.velocity = { ...other.velocity, x: other.velocity.x - (j * nx) / m, z: other.velocity.z - (j * nz) / m }
+      other.angularVelocity = { ...other.angularVelocity, y: other.angularVelocity.y - (cb * j) / inertia }
+    }
+  }
+  for (let i = 0; i < bodies.length; i++) {
+    for (let k = i + 1; k < bodies.length; k++) {
+      const dx = caps[i].ax - caps[k].ax
+      const dz = caps[i].az - caps[k].az
+      if (dx * dx + dz * dz > (o.length + o.width) ** 2) continue
+      hit(i, caps[k], bodies[k], 0, 0)
+    }
+    obstacles.forEach((ob, k) => hit(i, obs[k], null, ob.vx ?? 0, ob.vz ?? 0))
+  }
+}
+
+/*
+THE KERB. A car's middle stays inside the road cells, `kerb` metres in from any
+side that borders no road (where the buildings are); between two road cells
+there is no kerb. A car pushed past one is put back on it, and loses the speed
+it had into it.
+*/
+function kerb(t: Traffic, body: VehicleState) {
+  const { layout, cell } = t.options
+  const m = t.options.kerb
+  const p = body.position
+  const gx = Math.floor(p.x / cell + layout.width / 2)
+  const gz = Math.floor(p.z / cell + layout.depth / 2)
+  let best: [number, number] | null = null
+  let bestD = Infinity
+  for (let dz = -1; dz <= 1; dz++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const x = gx + dx
+      const z = gz + dz
+      if (!isRoad(layout, x, z)) continue
+      const mask = maskAt(layout, x, z)
+      const x0 = (x - layout.width / 2) * cell + (mask & 8 ? 0 : m)
+      const x1 = (x + 1 - layout.width / 2) * cell - (mask & 2 ? 0 : m)
+      const z0 = (z - layout.depth / 2) * cell + (mask & 4 ? 0 : m)
+      const z1 = (z + 1 - layout.depth / 2) * cell - (mask & 1 ? 0 : m)
+      const cx = Math.max(x0, Math.min(x1, p.x))
+      const cz = Math.max(z0, Math.min(z1, p.z))
+      const d = Math.hypot(cx - p.x, cz - p.z)
+      if (d < bestD) {
+        bestD = d
+        best = [cx, cz]
+      }
+    }
+  }
+  if (best == null || bestD < 1e-6) return
+  const nx = (best[0] - p.x) / bestD
+  const nz = (best[1] - p.z) / bestD
+  body.position = { ...p, x: best[0], z: best[1] }
+  // The speed into the kerb is gone (a little bounce).
+  const vn = body.velocity.x * nx + body.velocity.z * nz
+  if (vn < 0) body.velocity = { ...body.velocity, x: body.velocity.x - 1.2 * vn * nx, z: body.velocity.z - 1.2 * vn * nz }
 }

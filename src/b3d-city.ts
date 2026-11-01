@@ -83,7 +83,8 @@ import { cityLayout, type CityLayout, type CityLayoutOptions, type RoadCell, typ
 import { PRNG } from './mersenne-twister.js'
 import { lightPool, sceneDaylight, lampLevel, lampFlicker, type VirtualLight } from './light-pool.js'
 import { windowLights, windowsLit, type WindowLightsPlugin } from './window-lights.js'
-import { createTraffic, stepTraffic, type Traffic, type TrafficObstacle } from './city-traffic.js'
+import { createTraffic, stepTraffic, TRAFFIC_CAR, type Traffic, type TrafficObstacle } from './city-traffic.js'
+import { headingOf, type VehicleSpec, type VehicleState } from './ground-vehicle.js'
 
 /** One model's driving cars: its parts' instance buffers, rewritten each frame. */
 interface TrafficModel {
@@ -91,6 +92,18 @@ interface TrafficModel {
   scale: number
   cars: number[]
   buffers: Float32Array[]
+  /** Where its lamps are, metres in the car's frame: [x, y, front z, back z]. */
+  lamps: [number, number, number, number]
+}
+
+/** The traffic's lamps: one thin-instanced box each for head, tail and brake lights. */
+interface TrafficLamps {
+  head: BABYLON.Mesh
+  tail: BABYLON.Mesh
+  brake: BABYLON.Mesh
+  headBuf: Float32Array
+  tailBuf: Float32Array
+  brakeBuf: Float32Array
 }
 
 interface CityLamp extends VirtualLight {
@@ -278,6 +291,7 @@ export class B3dCity extends B3dChild {
   trafficState: Traffic | null = null
   private trafficModels: TrafficModel[] = []
   private beams: VirtualLight[] = []
+  private trafficLamps: TrafficLamps | null = null
   private windows: WindowLightsPlugin[] = []
   private generation = 0
 
@@ -558,9 +572,11 @@ export class B3dCity extends B3dChild {
   }
 
   /*
-  TRAFFIC: the pure model drives, the city draws. Each model's parts are thin
-  instances rewritten every frame (and pickable, so the player's car stops at
-  them); each car carries a pooled headlight beam at night.
+  TRAFFIC: the pure model drives (each car a body on the ground-vehicle
+  model), the city draws. Each model's parts are thin instances rewritten every
+  frame (and pickable, so the player's car stops at them); each car has lamps
+  (head, tail, brake: three thin-instanced boxes for all of them) and a pooled
+  headlight beam at night.
   */
   private startTraffic(
     owner: B3d,
@@ -584,6 +600,7 @@ export class B3dCity extends B3dChild {
       seed: Number(this.seed),
       models: models.length,
       clear: centre,
+      vehicle: TRAFFIC_CAR,
     })
     this.trafficState = traffic
     this.trafficModels = models.map((piece, m) => {
@@ -598,8 +615,38 @@ export class B3dCity extends B3dChild {
         }
         return buf
       })
-      return { template, scale: piece.scale ?? unit, cars, buffers }
+      const k = piece.scale ?? unit
+      const t = template
+      const lamps: TrafficModel['lamps'] = t
+        ? [t.max.x * k * 0.62, (t.min.y + (t.max.y - t.min.y) * 0.32) * k, t.max.z * k, t.min.z * k]
+        : [0.7, 0.6, 2.2, -2.2]
+      return { template, scale: k, cars, buffers, lamps }
     })
+    const scene = owner.scene
+    const lampMesh = (name: string, color: BABYLON.Color3, size: [number, number, number], count: number) => {
+      const mesh = BABYLON.MeshBuilder.CreateBox(name, { width: size[0], height: size[1], depth: size[2] }, scene)
+      const mat = new BABYLON.StandardMaterial(name, scene)
+      mat.disableLighting = true
+      mat.emissiveColor = color
+      mesh.material = mat
+      mesh.parent = this.root
+      mesh.isPickable = false
+      const buf = new Float32Array(Math.max(1, count) * 16)
+      mesh.thinInstanceSetBuffer('matrix', buf, 16, false)
+      return { mesh, buf }
+    }
+    const n = traffic.cars.length * 2
+    const head = lampMesh('traffic-headlamps', new BABYLON.Color3(0.3, 0.3, 0.27), [0.32, 0.16, 0.06], n)
+    const tail = lampMesh('traffic-taillamps', new BABYLON.Color3(0.35, 0.02, 0.01), [0.3, 0.14, 0.06], n)
+    const brake = lampMesh('traffic-brakelamps', new BABYLON.Color3(1, 0.06, 0.03), [0.34, 0.17, 0.08], n)
+    this.trafficLamps = {
+      head: head.mesh,
+      tail: tail.mesh,
+      brake: brake.mesh,
+      headBuf: head.buf,
+      tailBuf: tail.buf,
+      brakeBuf: brake.buf,
+    }
     owner.register({
       meshes: this.trafficModels.flatMap((t) => (t.cars.length ? t.template.parts.map((p) => p.mesh) : [])),
     })
@@ -621,17 +668,25 @@ export class B3dCity extends B3dChild {
     this.drawTraffic()
   }
 
-  /** Where the player's vehicles are, in the city's frame: traffic stops for them. */
+  /** The player's vehicles, in the city's frame: traffic stops for them, and is pushed by them. */
   private obstacles(): TrafficObstacle[] {
     const root = this.root
     const owner = this.owner
     if (root == null || owner == null) return []
     const out: TrafficObstacle[] = []
     owner.querySelectorAll('tosi-b3d-car, tosi-b3d-tank').forEach((el) => {
-      const node = (el as unknown as { control?: BABYLON.TransformNode | null }).control
-      if (node == null) return
-      const p = node.getAbsolutePosition()
-      out.push({ x: p.x - root.position.x, z: p.z - root.position.z, radius: 2.5 })
+      const v = el as unknown as { state?: VehicleState | null; spec?: VehicleSpec | null }
+      if (v.state == null || v.spec == null) return
+      const p = v.state.position
+      out.push({
+        x: p.x - root.position.x,
+        z: p.z - root.position.z,
+        yaw: headingOf(v.state),
+        length: v.spec.size.z,
+        width: v.spec.size.x,
+        vx: v.state.velocity.x,
+        vz: v.state.velocity.z,
+      })
     })
     return out
   }
@@ -644,22 +699,51 @@ export class B3dCity extends B3dChild {
     const q = new BABYLON.Quaternion()
     const size = new BABYLON.Vector3()
     const at = new BABYLON.Vector3()
+    const one = new BABYLON.Vector3(1, 1, 1)
+    const unscaled = new BABYLON.Matrix()
+    const offset = new BABYLON.Matrix()
+    const lamps = this.trafficLamps
+    let lamp = 0
+    let braking = 0
+    const putLamp = (buf: Float32Array, index: number, x: number, y: number, z: number) => {
+      BABYLON.Matrix.TranslationToRef(x, y, z, offset)
+      offset.multiplyToRef(unscaled, m)
+      m.copyToArray(buf, index * 16)
+    }
     for (const model of this.trafficModels) {
       if (model.cars.length === 0) continue
       size.setAll(model.scale)
+      const [lx, ly, front, back] = model.lamps
       model.cars.forEach((i, n) => {
         const car = traffic.cars[i]
-        BABYLON.Quaternion.RotationYawPitchRollToRef(car.yaw, 0, 0, q)
-        at.set(car.x, 0, car.z)
+        const o = car.orientation
+        q.set(o.x, o.y, o.z, o.w)
+        at.set(car.x, car.y, car.z)
         BABYLON.Matrix.ComposeToRef(size, q, at, placement)
         model.template.parts.forEach((part, p) => {
           part.rel.multiplyToRef(placement, m)
           m.copyToArray(model.buffers[p], n * 16)
         })
+        if (lamps) {
+          BABYLON.Matrix.ComposeToRef(one, q, at, unscaled)
+          for (const side of [-1, 1]) {
+            putLamp(lamps.headBuf, lamp, side * lx, ly, front)
+            putLamp(lamps.tailBuf, lamp, side * lx, ly, back)
+            if (car.braking) putLamp(lamps.brakeBuf, braking++, side * lx, ly, back - 0.01)
+            lamp++
+          }
+        }
       })
       for (const part of model.template.parts) {
         part.mesh.thinInstanceBufferUpdated('matrix')
         part.mesh.thinInstanceRefreshBoundingInfo(false)
+      }
+    }
+    if (lamps) {
+      lamps.brake.thinInstanceCount = braking
+      for (const mesh of [lamps.head, lamps.tail, lamps.brake]) {
+        mesh.thinInstanceBufferUpdated('matrix')
+        mesh.thinInstanceRefreshBoundingInfo(false)
       }
     }
   }
@@ -694,9 +778,18 @@ export class B3dCity extends B3dChild {
         const hx = Math.sin(car.yaw)
         const hz = Math.cos(car.yaw)
         beam.level = level
-        beam.position.set(car.x + hx * 2.4, 0.8, car.z + hz * 2.4).addInPlace(root.position)
+        beam.position.set(car.x + hx * 2.4, car.y + 0.8, car.z + hz * 2.4).addInPlace(root.position)
         beam.direction!.set(hx, -0.12, hz).normalize()
       })
+      const lamps = this.trafficLamps
+      if (lamps) {
+        ;(lamps.head.material as BABYLON.StandardMaterial).emissiveColor.set(
+          0.3 + 0.7 * level,
+          0.3 + 0.66 * level,
+          0.27 + 0.55 * level
+        )
+        ;(lamps.tail.material as BABYLON.StandardMaterial).emissiveColor.set(0.35 + 0.4 * level, 0.02, 0.01)
+      }
     }
   }
 
@@ -708,6 +801,7 @@ export class B3dCity extends B3dChild {
     this.releaseLamps = []
     this.lampLights = []
     this.beams = []
+    this.trafficLamps = null
     for (const w of this.windows) w.isEnabled = false
     this.windows = []
     this.trafficState = null
