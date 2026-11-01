@@ -329,6 +329,10 @@ export class B3dCity extends B3dChild {
     // Each part keeps where it sat in the model; the parts hang from the city's root.
     const parts = meshes.map((mesh) => {
       const rel = mesh.getWorldMatrix().clone()
+      // A copy shares its geometry with the library's, and Babylon keeps the
+      // thin-instance buffer ON the geometry: parked and driving copies of one
+      // car drew each other's places (a parked car you could hit and not see).
+      mesh.makeGeometryUnique()
       mesh.parent = this.root
       mesh.position.setAll(0)
       mesh.rotationQuaternion = BABYLON.Quaternion.Identity()
