@@ -13,4 +13,6 @@ caves, arches, lava tubes.
 - [b3d-terrain](/b3d-terrain/)
 - [b3d-decorator](/b3d-decorator/)
 - [Carved landforms](/sdf-lattice/)
+- [city-layout](/city-layout/)
+- [b3d-city](/b3d-city/)
 <!-- /toc -->
