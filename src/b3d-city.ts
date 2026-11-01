@@ -84,6 +84,7 @@ import { cityLayout, type CityLayout, type CityLayoutOptions, type RoadCell, typ
 import { PRNG } from './mersenne-twister.js'
 import { pad } from './landform.js'
 import { lightPool, sceneDaylight, lampLevel, lampFlicker, type VirtualLight } from './light-pool.js'
+import { lightPollutionSource } from './light-pollution.js'
 import { windowLights, type WindowLightsPlugin } from './window-lights.js'
 import { createTraffic, recycleTraffic, stepTraffic, TRAFFIC_CAR, type Traffic, type TrafficObstacle } from './city-traffic.js'
 import { headingOf, type VehicleSpec, type VehicleState } from './ground-vehicle.js'
@@ -459,6 +460,14 @@ export class B3dCity extends B3dChild {
     const root = new BABYLON.TransformNode('city', scene)
     root.position.set(Number(this.x) || 0, Number(this.y) || 0, Number(this.z) || 0)
     this.root = root
+    // The town's glow on the night sky, as strong as its street lights are lit.
+    this.releaseLamps.push(
+      lightPollutionSource(scene, {
+        centre: () => ({ x: root.position.x, z: root.position.z }),
+        radius: (Math.max(layout.width, layout.depth) * cell) / 2,
+        strength: () => 0.85 * lampLevel(sceneDaylight(this.owner)),
+      })
+    )
     const unit = cell / kit.cell
     // Cell (x, z) → the city's frame (centred), metres.
     const at = (x: number, z: number) =>

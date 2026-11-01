@@ -636,6 +636,7 @@ export {
 } from './city-traffic.js'
 export { roomLit, windowLights, WindowLightsPlugin } from './window-lights.js'
 export { lightPool, LightPool, sceneDaylight, lampLevel, type VirtualLight } from './light-pool.js'
+export { lightPollutionSource, lightPollutionAt, pollutionFrom, combinePollution, type LightPollutionSource } from './light-pollution.js'
 export { B3dAircraft, b3dAircraft } from './b3d-aircraft.js'
 
 // The callback-naming shim. `handleX` is the name across this library; `onX`
