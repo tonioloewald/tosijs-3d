@@ -594,6 +594,7 @@ export {
   forwardSpeed,
   headingOf,
   chaseRigFor,
+  CHASE_BOOM,
   chasePose,
   VEHICLE_STEP,
   type ChaseRig,
@@ -621,7 +622,15 @@ export {
   type Rect as CityRect,
   type Side as CitySide,
 } from './city-layout.js'
-export { B3dCity, b3dCity, cityGround, cityStart, KENNEY_CITY, type CityKit, type KitPiece } from './b3d-city.js'
+export {
+  B3dCity,
+  b3dCity,
+  cityGround,
+  cityStart,
+  KENNEY_CITY,
+  type CityKit,
+  type KitPiece,
+} from './b3d-city.js'
 export {
   createTraffic,
   recycleTraffic,
@@ -635,8 +644,20 @@ export {
   type RecycleOptions as TrafficRecycleOptions,
 } from './city-traffic.js'
 export { roomLit, windowLights, WindowLightsPlugin } from './window-lights.js'
-export { lightPool, LightPool, sceneDaylight, lampLevel, type VirtualLight } from './light-pool.js'
-export { lightPollutionSource, lightPollutionAt, pollutionFrom, combinePollution, type LightPollutionSource } from './light-pollution.js'
+export {
+  lightPool,
+  LightPool,
+  sceneDaylight,
+  lampLevel,
+  type VirtualLight,
+} from './light-pool.js'
+export {
+  lightPollutionSource,
+  lightPollutionAt,
+  pollutionFrom,
+  combinePollution,
+  type LightPollutionSource,
+} from './light-pollution.js'
 export { B3dAircraft, b3dAircraft } from './b3d-aircraft.js'
 
 // The callback-naming shim. `handleX` is the name across this library; `onX`

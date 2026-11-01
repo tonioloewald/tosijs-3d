@@ -29,8 +29,9 @@ preview.append(
 **W** and **S** (on a gamepad the right trigger, and the left trigger or right bumper) drive forward and
 back, **A** and **D** (the left stick) steer; with nothing else held they pivot
 it where it stands. The **arrow keys** (the right stick) aim the turret: left
-and right traverse it, up and down elevate the gun. The camera looks where the
-gun points, and the turret holds its aim while the hull turns under it.
+and right traverse it, up and down elevate the gun. The camera follows the
+turret, leading it a little while it turns, and the turret holds its aim while
+the hull turns under it.
 
 ## Its body
 
@@ -67,6 +68,7 @@ import * as BABYLON from '@babylonjs/core'
 import { B3dGroundVehicle } from './b3d-ground-vehicle.js'
 import { carMapping } from './virtual-gamepad.js'
 import {
+  CHASE_BOOM,
   headingOf,
   type TrackSpec,
   type VehicleSpec,
@@ -82,6 +84,8 @@ const AIM_RATE = 90 * DEG
 const ELEVATE = 20 * DEG
 const GUN_LOW = -8 * DEG
 const GUN_HIGH = 20 * DEG
+/** How far the view leads the turret at full stick. */
+const PEEK = 18 * DEG
 
 interface Part {
   node: BABYLON.TransformNode
@@ -201,13 +205,24 @@ export class B3dTank extends B3dGroundVehicle {
     this.aim = { x, y }
   }
 
-  /** The camera looks where the gun is aimed. */
+  /** The right stick aims the turret and gun, not the camera. */
+  stickAims = true
+  /** The view's lead toward where the turret is turning, radians (eased). */
+  private peek = 0
+
+  /*
+  THE VIEW FOLLOWS THE TURRET (Tonio: "View should match turret heading but
+  while pulling left or right perhaps have the view peek a bit ... as if you are
+  anticipating where you'll point the gun"). Up and down only elevate the gun:
+  the camera stays on its boom.
+  */
   protected viewYaw(): number {
-    return this.aimYaw
+    const heading = this.state ? headingOf(this.state) : 0
+    return heading + this.turretYaw + this.peek
   }
 
-  protected viewTilt(): number {
-    return 0
+  protected viewBoom(): number {
+    return CHASE_BOOM
   }
 
   protected resetView(heading: number) {
@@ -233,6 +248,7 @@ export class B3dTank extends B3dGroundVehicle {
       this.aimYaw = headingOf(state) + this.turretYaw
       return
     }
+    this.peek += (this.aim.x * PEEK - this.peek) * (1 - Math.exp(-dt * 4))
     this.aimYaw += this.aim.x * AIM_RATE * dt
     const want = this.aimYaw - headingOf(state)
     let d = want - this.turretYaw
@@ -408,7 +424,8 @@ export class B3dTank extends B3dGroundVehicle {
         })),
         climb,
       })
-      const textures = meshes
+      // Links move themselves: their texture stays put.
+      const textures = (links.length > 0 ? [] : meshes)
         .map((m) => {
           const mat = m.material as
             | (BABYLON.Material & {

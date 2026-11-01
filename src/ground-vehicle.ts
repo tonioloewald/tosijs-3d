@@ -172,7 +172,11 @@ export interface GroundHit {
 }
 
 /** Where a ray meets the ground, or null. `dir` is unit. */
-export type GroundRay = (from: Vec3, dir: Vec3, length: number) => GroundHit | null
+export type GroundRay = (
+  from: Vec3,
+  dir: Vec3,
+  length: number
+) => GroundHit | null
 
 export interface ContactState {
   grounded: boolean
@@ -212,7 +216,11 @@ export interface VehicleState {
 
 export const VEHICLE_STEP = 1 / 60
 const G = 9.81
-const DEFAULT_SUSPENSION: Suspension = { travel: 0.15, frequency: 1.5, damping: 0.5 }
+const DEFAULT_SUSPENSION: Suspension = {
+  travel: 0.15,
+  frequency: 1.5,
+  damping: 0.5,
+}
 
 // ---- small vector maths, on plain objects ----
 
@@ -265,7 +273,9 @@ export function forwardSpeed(state: VehicleState): number {
  * only as heights). Rays are marched and then bisected, so a ray that grazes
  * a hill may miss a narrow peak; fine for wheels.
  */
-export function heightGround(heightAt: (x: number, z: number) => number): GroundRay {
+export function heightGround(
+  heightAt: (x: number, z: number) => number
+): GroundRay {
   const above = (p: Vec3) => p.y - heightAt(p.x, p.z)
   return (from, dir, length) => {
     if (above(from) < 0) return null
@@ -328,7 +338,12 @@ export function createVehicle(
 }
 
 /** Move a vehicle by a floating-origin shift (or a teleport), keeping its motion. */
-export function shiftVehicle(state: VehicleState, dx: number, dy: number, dz: number) {
+export function shiftVehicle(
+  state: VehicleState,
+  dx: number,
+  dy: number,
+  dz: number
+) {
   state.position = add(state.position, v(dx, dy, dz))
 }
 
@@ -364,7 +379,10 @@ function touch(
   const up = rotate(q, v(0, 1, 0))
   const down = scale(up, -1)
   const com = spec.centreOfMass ?? v(0, 0, 0)
-  const top = add(state.position, rotate(q, add(at, scale(v(0, 1, 0), s.travel))))
+  const top = add(
+    state.position,
+    rotate(q, add(at, scale(v(0, 1, 0), s.travel)))
+  )
   const reach = 2 * s.travel + radius
   const hit = ground(top, down, reach)
   const was = c.compression
@@ -392,7 +410,9 @@ function touch(
   const rate = c.grounded ? (x - was) / dt : 0
   // A climbing point is twice as stiff: it has to lift an end of the
   // vehicle onto a step in the moment it takes to drive onto it.
-  let spring = preload ? m * G + k * x + damp * rate : 2 * k * (x + s.travel) + damp * rate
+  let spring = preload
+    ? m * G + k * x + damp * rate
+    : 2 * k * (x + s.travel) + damp * rate
   // Past the top stop the bump rubber takes it, hard.
   if (x > 2 * s.travel) spring += 20 * k * (x - 2 * s.travel)
   spring = Math.max(0, spring)
@@ -419,7 +439,10 @@ function touch(
   let lat = g.lat
   const latLimit = limit * g.latGrip
   // The friction circle (an ellipse when the side grip is less).
-  const e = Math.hypot(long / Math.max(limit, 1e-9), lat / Math.max(latLimit, 1e-9))
+  const e = Math.hypot(
+    long / Math.max(limit, 1e-9),
+    lat / Math.max(latLimit, 1e-9)
+  )
   c.sliding = e > 1
   if (e > 1 && g.pullFirst) {
     /*
@@ -429,7 +452,8 @@ function touch(
     and the tank turned at a crawl.
     */
     long = Math.max(-limit, Math.min(limit, long))
-    const left = latLimit * Math.sqrt(Math.max(0, 1 - (long / Math.max(limit, 1e-9)) ** 2))
+    const left =
+      latLimit * Math.sqrt(Math.max(0, 1 - (long / Math.max(limit, 1e-9)) ** 2))
     lat = Math.max(-left, Math.min(left, lat))
   } else if (e > 1) {
     long /= e
@@ -499,7 +523,8 @@ function substep(
     still grips; the handbrake is how you ask for more.
     */
     const gripLock = Math.atan(
-      (Math.abs(base) * 0.85 * (spec.grip ?? 1) * G) / Math.max(speed * speed, 1e-6)
+      (Math.abs(base) * 0.85 * (spec.grip ?? 1) * G) /
+        Math.max(speed * speed, 1e-6)
     )
     const delta = steer * Math.min((meanLock * Math.PI) / 180, gripLock)
     const radius = Math.abs(delta) > 1e-4 ? base / Math.tan(delta) : Infinity
@@ -507,33 +532,47 @@ function substep(
       const c = state.wheels[i]
       if (w.steerDeg) {
         const b = w.at.z - axleZ
-        c.steer = Number.isFinite(radius)
-          ? Math.atan2(b, radius - w.at.x)
-          : 0
+        c.steer = Number.isFinite(radius) ? Math.atan2(b, radius - w.at.x) : 0
       } else {
         c.steer = 0
       }
       const locked = handbrake > 0 && (w.handbrake ?? w.at.z < 0)
-      touch(spec, state, c, w.at, w.radius, 1 / count, ground, dt, out, (f, sd, along, across, load, m) => {
-        const cancel = (m / dt) * 0.5
-        let long = (spec.engineForce * drive * (w.drive ?? 0)) / driveTotal
-        const brakeCap =
-          (spec.brakeForce * brake * (w.brake ?? 1)) / brakeTotal +
-          (locked ? Infinity : 0)
-        if (brakeCap > 0) {
-          // Holding means meeting gravity too, or it creeps down a hill.
-          const hold = -along * cancel + m * G * f.y
-          long += Math.max(-brakeCap, Math.min(brakeCap, hold))
+      touch(
+        spec,
+        state,
+        c,
+        w.at,
+        w.radius,
+        1 / count,
+        ground,
+        dt,
+        out,
+        (f, sd, along, across, load, m) => {
+          const cancel = (m / dt) * 0.5
+          let long = (spec.engineForce * drive * (w.drive ?? 0)) / driveTotal
+          const brakeCap =
+            (spec.brakeForce * brake * (w.brake ?? 1)) / brakeTotal +
+            (locked ? Infinity : 0)
+          if (brakeCap > 0) {
+            // Holding means meeting gravity too, or it creeps down a hill.
+            const hold = -along * cancel + m * G * f.y
+            long += Math.max(-brakeCap, Math.min(brakeCap, hold))
+          }
+          long -=
+            Math.sign(along) *
+            Math.min(rollingK * load, Math.abs(along) * cancel)
+          return {
+            long,
+            lat: -across * cancel + m * G * sd.y,
+            latGrip: locked ? 0.5 : 1,
+          }
         }
-        long -= Math.sign(along) * Math.min(rollingK * load, Math.abs(along) * cancel)
-        return {
-          long,
-          lat: -across * cancel + m * G * sd.y,
-          latGrip: locked ? 0.5 : 1,
-        }
-      })
+      )
       if (c.grounded) {
-        c.spin = locked && handbrake > 0.5 ? 0 : speedAt(state, w.at, c.steer) / w.radius
+        c.spin =
+          locked && handbrake > 0.5
+            ? 0
+            : speedAt(state, w.at, c.steer) / w.radius
       } else {
         c.spin *= Math.max(0, 1 - dt)
       }
@@ -547,10 +586,14 @@ function substep(
     // At speed, turn no faster than the tracks' grip can carry the hull round
     // (v × yaw rate is the sideways pull); past it the hull slides like a hovercraft.
     const halfTrack =
-      tracks.reduce((t, k) => t + Math.abs(k.contacts[0]?.x ?? 0), 0) / tracks.length || 1
-    const gripTurn = (halfTrack * 0.55 * (spec.grip ?? 1) * G) / Math.max(Math.abs(speed), 1e-6)
+      tracks.reduce((t, k) => t + Math.abs(k.contacts[0]?.x ?? 0), 0) /
+        tracks.length || 1
+    const gripTurn =
+      (halfTrack * 0.55 * (spec.grip ?? 1) * G) /
+      Math.max(Math.abs(speed), 1e-6)
     const turn = steer * Math.min(spec.turnSpeed ?? 1.2, gripTurn)
-    const target = throttle >= 0 ? throttle * spec.maxSpeed : throttle * reverseSpeed
+    const target =
+      throttle >= 0 ? throttle * spec.maxSpeed : throttle * reverseSpeed
     // At top speed the outer belt cannot run faster, so the INNER one slows by
     // the whole difference: capping the outer alone halved the turn at speed.
     const reach = Math.abs(target) + Math.abs(turn)
@@ -569,28 +612,40 @@ function substep(
       points.forEach((at, j) => {
         const c = ts.contacts[j]
         const climbing = j >= track.contacts.length
-        touch(spec, state, c, at, track.radius, 1 / count, ground, dt, out, (f, sd, along, across, _load, m) => {
-          const cancel = (m / dt) * 0.5
-          // The motor pulls the belt to its speed, as hard as the engine allows.
-          const pull = (spec.engineForce + spec.brakeForce) / count
-          const long = Math.max(
-            -pull,
-            Math.min(pull, (belt - along) * cancel + m * G * f.y)
-          )
-          /*
+        touch(
+          spec,
+          state,
+          c,
+          at,
+          track.radius,
+          1 / count,
+          ground,
+          dt,
+          out,
+          (f, sd, along, across, _load, m) => {
+            const cancel = (m / dt) * 0.5
+            // The motor pulls the belt to its speed, as hard as the engine allows.
+            const pull = (spec.engineForce + spec.brakeForce) / count
+            const long = Math.max(
+              -pull,
+              Math.min(pull, (belt - along) * cancel + m * G * f.y)
+            )
+            /*
           A track's ENDS skid sideways easily, so it can pivot; its MIDDLE, near
           the turning centre, holds, so the hull goes where it points. Half grip
           everywhere let a tank turning at speed slide 24 degrees off its
           heading, like a hovercraft (Tonio: "feels super weird").
           */
-          const fromMiddle = Math.min(1, Math.abs(at.z - midZ) / halfZ)
-          return {
-            long,
-            lat: -across * cancel + m * G * sd.y,
-            latGrip: 1 - 0.7 * fromMiddle,
-            pullFirst: true,
-          }
-        }, !climbing)
+            const fromMiddle = Math.min(1, Math.abs(at.z - midZ) / halfZ)
+            return {
+              long,
+              lat: -across * cancel + m * G * sd.y,
+              latGrip: 1 - 0.7 * fromMiddle,
+              pullFirst: true,
+            }
+          },
+          !climbing
+        )
         c.spin = belt / track.radius
         c.angle = (c.angle + c.spin * dt) % (2 * Math.PI)
       })
@@ -687,24 +742,45 @@ export function chaseRigFor(size: Vec3): ChaseRig {
   }
 }
 
+/** The chase boom's resting setting: the rig as `chaseRigFor` gives it. */
+export const CHASE_BOOM = 0.3
+
 /**
  * The camera's eye and aim point. `yaw` is the direction the camera faces
- * (the vehicle's heading plus any look-around); `tilt` in -1..1 is the right
- * stick's up and down: up lowers the eye to look up the road, down raises it
- * to look down on the vehicle.
+ * (the vehicle's heading plus any orbit); `boom` in 0…1 is how far out and up
+ * it sits: `CHASE_BOOM` is the rig as it stands, 0 is in close and low, and 1
+ * is pulled back and up to almost overhead, looking down on the vehicle.
  */
 export function chasePose(
   at: Vec3,
   yaw: number,
-  tilt: number,
+  boom: number,
   rig: ChaseRig
 ): { eye: Vec3; target: Vec3 } {
   const fx = Math.sin(yaw)
   const fz = Math.cos(yaw)
-  const t = Math.max(-1, Math.min(1, tilt))
-  const height = Math.max(0.6, rig.height * (1 - 0.7 * t))
+  const b = Math.max(0, Math.min(1, boom))
+  const rest = Math.atan2(rig.height, rig.distance)
+  const reach = Math.hypot(rig.height, rig.distance)
+  let r: number
+  let angle: number
+  let ahead: number
+  if (b <= CHASE_BOOM) {
+    const k = b / CHASE_BOOM
+    r = reach * (0.55 + 0.45 * k)
+    angle = rest * (0.6 + 0.4 * k)
+    ahead = rig.ahead
+  } else {
+    const u = (b - CHASE_BOOM) / (1 - CHASE_BOOM)
+    r = reach * (1 + 0.6 * u)
+    angle = rest + (80 * (Math.PI / 180) - rest) * u * u
+    // Overhead, it looks down at the vehicle rather than up the road.
+    ahead = rig.ahead * (1 - u)
+  }
+  const back = r * Math.cos(angle)
+  const height = Math.max(0.6, r * Math.sin(angle))
   return {
-    eye: v(at.x - fx * rig.distance, at.y + height, at.z - fz * rig.distance),
-    target: v(at.x + fx * rig.ahead, at.y + rig.aimHeight, at.z + fz * rig.ahead),
+    eye: v(at.x - fx * back, at.y + height, at.z - fz * back),
+    target: v(at.x + fx * ahead, at.y + rig.aimHeight, at.z + fz * ahead),
   }
 }

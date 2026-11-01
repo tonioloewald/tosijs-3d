@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import {
+  CHASE_BOOM,
   chasePose,
   chaseRigFor,
   createVehicle,
@@ -53,19 +54,29 @@ function run(
   ground = flat,
   dt = 1 / 60
 ) {
-  for (let t = 0; t < seconds - 1e-9; t += dt) stepVehicle(spec, s, controls, dt, ground)
+  for (let t = 0; t < seconds - 1e-9; t += dt)
+    stepVehicle(spec, s, controls, dt, ground)
   return s
 }
 const idle = { throttle: 0, steer: 0 }
 
 describe('a car', () => {
   test('stands on its wheels at rest, where its hubs say', () => {
-    const s = run(car, createVehicle(car, { position: { x: 0, y: STAND + 0.1, z: 0 } }), idle, 4)
+    const s = run(
+      car,
+      createVehicle(car, { position: { x: 0, y: STAND + 0.1, z: 0 } }),
+      idle,
+      4
+    )
     expect(s.position.y).toBeCloseTo(STAND, 1)
-    expect(Math.hypot(s.velocity.x, s.velocity.y, s.velocity.z)).toBeLessThan(0.02)
+    expect(Math.hypot(s.velocity.x, s.velocity.y, s.velocity.z)).toBeLessThan(
+      0.02
+    )
     expect(s.wheels.every((w) => w.grounded)).toBe(true)
     // Level: its up is still up.
-    expect(Math.abs(s.orientation.x) + Math.abs(s.orientation.z)).toBeLessThan(0.01)
+    expect(Math.abs(s.orientation.x) + Math.abs(s.orientation.z)).toBeLessThan(
+      0.01
+    )
   })
 
   test('drives forward, and the engine fades at maxSpeed', () => {
@@ -106,7 +117,9 @@ describe('a car', () => {
     const s = createVehicle(car, { position: { x: 0, y: STAND + 0.1, z: 0 } })
     run(car, s, idle, 5, hill)
     expect(Math.abs(s.position.z)).toBeLessThan(0.15)
-    expect(Math.hypot(s.velocity.x, s.velocity.y, s.velocity.z)).toBeLessThan(0.05)
+    expect(Math.hypot(s.velocity.x, s.velocity.y, s.velocity.z)).toBeLessThan(
+      0.05
+    )
   })
 
   test('the handbrake slides the back out in a turn', () => {
@@ -120,13 +133,17 @@ describe('a car', () => {
     const s = createVehicle(car, { position: { x: 0, y: STAND + 2, z: 0 } })
     run(car, s, idle, 6)
     expect(s.position.y).toBeCloseTo(STAND, 1)
-    expect(Math.abs(s.orientation.x) + Math.abs(s.orientation.z)).toBeLessThan(0.02)
+    expect(Math.abs(s.orientation.x) + Math.abs(s.orientation.z)).toBeLessThan(
+      0.02
+    )
   })
 
   test('a face met at the top of a wheel is a wall, not a road to be thrown up by', () => {
     // The front wheels' rays start inside something (a kerb taller than a wheel).
     const kerb: typeof flat = (from, dir, length) =>
-      from.z > 1 ? { distance: 0.02, normal: { x: 0, y: 1, z: 0 } } : flat(from, dir, length)
+      from.z > 1
+        ? { distance: 0.02, normal: { x: 0, y: 1, z: 0 } }
+        : flat(from, dir, length)
     const s = createVehicle(car, { position: { x: 0, y: STAND, z: 0 } })
     run(car, s, idle, 1, kerb)
     expect(s.velocity.y).toBeLessThan(1)
@@ -194,7 +211,10 @@ describe('a tank', () => {
     for (let t = 0; t < 2; t += 1 / 60) {
       stepVehicle(tank, s, { throttle: 1, steer: 1 }, 1 / 60, flat)
       const along = Math.atan2(s.velocity.x, s.velocity.z) - headingOf(s)
-      slip = Math.max(slip, Math.abs(Math.atan2(Math.sin(along), Math.cos(along))))
+      slip = Math.max(
+        slip,
+        Math.abs(Math.atan2(Math.sin(along), Math.cos(along)))
+      )
     }
     // About 25° a second at top speed, no hovercraft drift.
     expect(headingOf(s) - h0).toBeGreaterThan(0.6)
@@ -204,7 +224,14 @@ describe('a tank', () => {
 
   test('its raised ends climb a step about as high as its tracks', () => {
     const ramp = (x: number) =>
-      [[-0.25, 1.85], [0, 2.0], [0.25, 2.15]].flatMap(([y, z]) => [{ x, y, z }, { x, y, z: -z }])
+      [
+        [-0.25, 1.85],
+        [0, 2.0],
+        [0.25, 2.15],
+      ].flatMap(([y, z]) => [
+        { x, y, z },
+        { x, y, z: -z },
+      ])
     const climber: VehicleSpec = {
       ...tank,
       tracks: [
@@ -213,7 +240,9 @@ describe('a tank', () => {
       ],
     }
     const stepped = heightGround((_x, z) => (z > 6 ? 0.6 : 0))
-    const s = createVehicle(climber, { position: { x: 0, y: TANK_STAND, z: 0 } })
+    const s = createVehicle(climber, {
+      position: { x: 0, y: TANK_STAND, z: 0 },
+    })
     // On the flat the raised ends touch nothing.
     run(climber, s, idle, 1, stepped)
     expect(s.tracks[0].contacts.slice(5).some((c) => c.grounded)).toBe(false)
@@ -233,7 +262,7 @@ describe('a tank', () => {
 describe('the chase view', () => {
   const rig = chaseRigFor({ x: 1.8, y: 1.4, z: 4.2 })
   test('sits behind and above, aimed ahead of the vehicle', () => {
-    const { eye, target } = chasePose({ x: 0, y: 0, z: 0 }, 0, 0, rig)
+    const { eye, target } = chasePose({ x: 0, y: 0, z: 0 }, 0, CHASE_BOOM, rig)
     expect(eye.z).toBeLessThan(-5)
     expect(eye.y).toBeGreaterThan(3)
     expect(target.z).toBeGreaterThan(4)
@@ -242,18 +271,29 @@ describe('the chase view', () => {
 
   test('turns with the heading', () => {
     // Heading +X: the camera is on the -X side, aiming toward +X.
-    const { eye, target } = chasePose({ x: 0, y: 0, z: 0 }, Math.PI / 2, 0, rig)
+    const { eye, target } = chasePose({ x: 0, y: 0, z: 0 }, Math.PI / 2, CHASE_BOOM, rig)
     expect(eye.x).toBeLessThan(-5)
     expect(target.x).toBeGreaterThan(4)
   })
 
-  test('tilting up lowers the eye, down raises it', () => {
-    const level = chasePose({ x: 0, y: 0, z: 0 }, 0, 0, rig).eye.y
-    expect(chasePose({ x: 0, y: 0, z: 0 }, 0, 1, rig).eye.y).toBeLessThan(level)
-    expect(chasePose({ x: 0, y: 0, z: 0 }, 0, -1, rig).eye.y).toBeGreaterThan(level)
+  test('the boom: in close and low, or back and up to almost overhead', () => {
+    const at = { x: 0, y: 0, z: 0 }
+    const rest = chasePose(at, 0, CHASE_BOOM, rig).eye
+    const near = chasePose(at, 0, 0, rig).eye
+    const far = chasePose(at, 0, 1, rig).eye
+    expect(near.y).toBeLessThan(rest.y)
+    expect(-near.z).toBeLessThan(-rest.z)
+    expect(far.y).toBeGreaterThan(rest.y)
+    // Almost overhead: much higher than it is back.
+    expect(far.y).toBeGreaterThan(-far.z * 4)
+    // At rest the rig is as chaseRigFor gives it.
+    expect(rest.y).toBeCloseTo(rig.height, 5)
+    expect(-rest.z).toBeCloseTo(rig.distance, 5)
   })
 
   test('a longer vehicle gets a camera farther back', () => {
-    expect(chaseRigFor({ x: 3, y: 2, z: 6 }).distance).toBeGreaterThan(rig.distance)
+    expect(chaseRigFor({ x: 3, y: 2, z: 6 }).distance).toBeGreaterThan(
+      rig.distance
+    )
   })
 })

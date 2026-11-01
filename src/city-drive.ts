@@ -101,7 +101,8 @@ the size, a dozen cars, a shorter view, fewer trees and no cloud deck.
 
 You start in the middle of town. The right trigger or **W** drives, the left
 trigger, the right bumper or **S** brakes and reverses, and the left stick or
-**A** and **D** steer. The right stick or the arrow keys look around. Time runs
+**A** and **D** steer. The right stick or the arrow keys swing the camera round
+the car and up toward overhead; it stays where you leave it. Time runs
 at 60×, so the sun goes down soon after you arrive. The owl's panel sets the
 hour, the speed and the cloud.
 

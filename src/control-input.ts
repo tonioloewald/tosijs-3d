@@ -23,7 +23,7 @@ const input = { ...emptyInput(), forward: 1, turn: -0.5, shoot: 1 }
 |-------|-------|---------|
 | `forward` | -1..1 | Forward/backward movement |
 | `strafe` | -1..1 | Left/right strafe |
-| `lookX`,`lookY` | -1..1 | Camera look. In a vehicle it swings the view and springs back on release; on foot it turns the body (X) and holds its pitch (Y) |
+| `lookX`,`lookY` | -1..1 | Camera look. A ground vehicle's chase camera orbits (X) and moves along its boom (Y) and holds; an aircraft's swings the view and springs back on release; a tank aims its turret and gun with it; on foot it turns the body (X) and holds its pitch (Y) |
 | `turn` | -1..1 | Turning |
 | `pitch` | -1..1 | Pitch (aircraft) |
 | `throttle` | 0..1 | Continuous throttle |

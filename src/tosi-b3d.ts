@@ -6166,6 +6166,7 @@ export class B3d extends Component {
          * `B3dControllable.getChaseAnchor`. Absent/null ⇒ the eased
          * world-space follow below. */
         getChaseAnchor?: () => BABYLON.TransformNode | null
+        stickAims?: boolean
         lastInput?: {
           cameraZoom: number
           cameraPeek: number
@@ -6468,9 +6469,13 @@ export class B3d extends Component {
         right stick did nothing in VR in City Drive (Tonio). Stick forward
         (lookY > 0) zooms in: \`zoomIn\` > 0 brings the chase closer.
         */
+        // A vehicle whose stick AIMS (a tank's gun) does not zoom with it, and
+        // peeks only a little, toward where its turret is turning.
         const last = entity?.lastInput
-        const zoomIn = last?.cameraZoom || (last?.lookY ?? 0)
-        const peekIn = last?.cameraPeek || (last?.lookX ?? 0)
+        const aims = entity?.stickAims === true
+        const zoomIn = last?.cameraZoom || (aims ? 0 : last?.lookY ?? 0)
+        const peekIn =
+          last?.cameraPeek || (last?.lookX ?? 0) * (aims ? 0.4 : 1)
         const peekYaw = peekIn * MAX_PEEK
 
         // COCKPIT: LITERALLY parent the rig to the hull — Babylon composes the
@@ -6547,9 +6552,20 @@ export class B3d extends Component {
         const loH = entity?.chaseMinHeight ?? eyeH
         const chaseH = entity?.chaseHeight ?? CHASE_HEIGHT
         const chaseD = entity?.chaseDistance ?? 5
-        // fpv: at the head (back 0). chase: behind + above (zoomable).
-        const back = isFpv ? 0 : chaseD * (0.8 + chaseZoom * 1.1)
-        const up = isFpv ? eyeH : loH + (chaseH - loH) * chaseZoom
+        /*
+        fpv: at the head (back 0). chase: behind + above (zoomable), and past
+        0.6 of the way out the boom swings up to almost overhead (Tonio: "could
+        pulling back bring you to almost overhead at its extreme").
+        */
+        const over = Math.max(0, (chaseZoom - 0.6) / 0.4) ** 2
+        const back = isFpv
+          ? 0
+          : chaseD * (0.8 + chaseZoom * 1.1) * (1 - 0.8 * over)
+        const up = isFpv
+          ? eyeH
+          : loH +
+            (chaseH - loH) * chaseZoom +
+            over * Math.max(0, chaseD * 3 - chaseH)
         piloted.getDirectionToRef(XR_FORWARD, fwd) // world forward
         const targetYaw = Math.atan2(fwd.x, fwd.z)
         // fpv: anchor to the actual head bone if the entity exposes it.

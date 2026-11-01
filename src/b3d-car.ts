@@ -47,11 +47,12 @@ ramp. The tank turns on the spot with **A** or **D** alone.
 
 With a gamepad (or the on-screen one) it drives the GTA way: the **right
 trigger** accelerates, the **left trigger** brakes and then reverses, the
-**left stick** steers, the **right stick** looks around, **A** is the
+**left stick** steers, the **right stick** swings the camera round the car
+and up and down its boom (to almost overhead), **A** is the
 handbrake and **X** gets in and out. One step from GTA: the **right bumper**
 brakes and reverses too, so on the on-screen pad the right thumb has both
-pedals. **Arrow keys** look around
-on a keyboard.
+pedals. **Arrow keys** move the camera on a keyboard. The camera stays where
+you leave it, and drifts back behind once you drive on.
 
 The camera rides high behind the car and looks ahead of it, swinging round
 behind as you turn.

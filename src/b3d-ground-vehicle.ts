@@ -9,8 +9,10 @@ reaches it through `applyInput`, which only records the controls.
 
 THE CHASE CAMERA is the vehicle's own (Tonio: higher, and pointed ahead of the
 car, so there is more road in front and less behind). It swings round behind
-the vehicle with a little lag, the right stick looks around and springs back
-when let go. Its pose is computed fresh from the anchor every frame, with only
+the vehicle with a little lag. The right stick ORBITS it round the vehicle
+(sideways) and moves it along a boom (up and down: in close and low, or back
+and up to almost overhead), and it stays where you leave it; driving with the
+stick idle, it drifts back behind. Its pose is computed fresh from the anchor every frame, with only
 ANGLES carried between frames, so a floating-origin shift needs nothing.
 */
 
@@ -33,6 +35,7 @@ import {
   type VirtualLight,
 } from './light-pool.js'
 import {
+  CHASE_BOOM,
   chasePose,
   chaseRigFor,
   createVehicle,
@@ -53,6 +56,10 @@ import { placeListener, startVoice, type Voice } from './effect-audio.js'
 const V = (p: { x: number; y: number; z: number }) =>
   new BABYLON.Vector3(p.x, p.y, p.z)
 const IDLE: VehicleControls = { throttle: 0, steer: 0, handbrake: 0 }
+/** The right stick's orbit of the chase camera, radians a second at full tilt. */
+const ORBIT_RATE = 2.2
+/** Its boom, the whole range a second and a bit at full tilt. */
+const BOOM_RATE = 0.8
 
 export abstract class B3dGroundVehicle extends B3dControllable {
   static initAttributes = {
@@ -107,8 +114,23 @@ export abstract class B3dGroundVehicle extends B3dControllable {
   private rig: ChaseRig | null = null
   private focused = false
   private camYaw = 0
-  private look = { x: 0, y: 0 }
+  /*
+  THE CHASE CAMERA ON THE RIGHT STICK (Tonio: "rotate camera but keep it
+  looking over the car vs glance left from behind the car"). Sideways ORBITS
+  it round the vehicle and it stays where you leave it, drifting back behind
+  once you are driving with the stick idle (GTA's camera); up and down move it
+  along a BOOM, in close and low, or back and up to almost overhead, and it
+  holds there too.
+  */
+  private orbit = 0
+  private boom = CHASE_BOOM
+  private lookIdle = 0
   private lookWant = { x: 0, y: 0 }
+  /**
+   * The right stick aims something (a tank's turret and gun) rather than the
+   * camera: a headset's chase view does not zoom with it.
+   */
+  stickAims = false
   private anchor: BABYLON.TransformNode | null = null
   /** The heights its wall rays run at, each with the body's extent there (its own frame). */
   /** The headlights' beam (a pooled light) and the lamps you see. */
@@ -179,12 +201,12 @@ export abstract class B3dGroundVehicle extends B3dControllable {
 
   /** Which way the chase camera faces, given its lagged follow of the heading. */
   protected viewYaw(followYaw: number): number {
-    return followYaw + this.look.x * Math.PI * 0.75
+    return followYaw + this.orbit
   }
 
-  /** The right stick's tilt of the view, -1..1. */
-  protected viewTilt(): number {
-    return this.look.y
+  /** Where the camera sits on its boom, 0…1 (`CHASE_BOOM` at rest). */
+  protected viewBoom(): number {
+    return this.boom
   }
 
   /** Called on gaining focus with the vehicle's heading (radians). */
@@ -227,7 +249,8 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     }
     this.rig = chaseRigFor(this.spec.size)
     this.camYaw = headingOf(state)
-    this.look = { x: 0, y: 0 }
+    this.orbit = 0
+    this.boom = CHASE_BOOM
     this.resetView(this.camYaw)
     this.aimCamera(0)
     owner.setActiveCamera(this.chaseCamera, { attach: false })
@@ -244,13 +267,20 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     let d = heading - this.camYaw
     d = Math.atan2(Math.sin(d), Math.cos(d))
     this.camYaw += d * lag
-    const ease = dt > 0 ? 1 - Math.exp(-dt * 8) : 1
-    this.look.x += (this.lookWant.x - this.look.x) * ease
-    this.look.y += (this.lookWant.y - this.look.y) * ease
+    // Orbit and boom move at a rate while the stick is held, and stay put.
+    const sx = this.lookWant.x
+    const sy = this.lookWant.y
+    this.orbit += sx * ORBIT_RATE * dt
+    this.orbit = Math.atan2(Math.sin(this.orbit), Math.cos(this.orbit))
+    this.boom = Math.max(0, Math.min(1, this.boom - sy * BOOM_RATE * dt))
+    this.lookIdle = Math.abs(sx) > 0.1 ? 0 : this.lookIdle + dt
+    // Driving with the stick idle, the camera drifts back behind.
+    if (this.lookIdle > 1.5 && Math.abs(forwardSpeed(state)) > 2)
+      this.orbit *= Math.exp(-dt * 1.5)
     const { eye, target } = chasePose(
       state.position,
       this.viewYaw(this.camYaw),
-      this.viewTilt(),
+      this.viewBoom(),
       rig
     )
     // Something between the vehicle and the camera (a wall it backed up to, or
