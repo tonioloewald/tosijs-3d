@@ -63,6 +63,7 @@ so night falls in a few minutes; the owl's panel sets the hour and the speed.
 | `lampAngle` | `80` | A street light's cone, degrees; it reaches twice its height |
 | `flicker` | `0.08` | The share of street lights that are failing and flicker |
 | `parked` | `0.2` | The chance of a parked car on a stretch of road |
+| `chunk` | `0` | Cells a side of a chunk. Each chunk draws its own copies, so the ones out of view are skipped; smaller chunks cull more and cost more draws. `0` draws the whole city as one, the default: measured in City Drive, 16-cell chunks doubled the draws and saved 3% of the triangles (a building is cheap; the trees are not) |
 | `sound` | `'on'` | Positional sound: the nearest traffic's engines and horns (a driver you block honks), the hum of the nearest street lights, a sputter from the failing ones. `'off'` for silence |
 | `traffic` | `24` | The car budget: this many cars drive round near you (they stop for yours, and are knocked about by it; lamps at night). Cars far away or out of view go, and come back out of view, driving toward you |
 
@@ -352,6 +353,8 @@ export class B3dCity extends B3dChild {
     lampAngle: 80,
     flicker: 0.08,
     parked: 0.2,
+    // Cells a side of a CHUNK, culled as one (0: the whole city is one).
+    chunk: 0,
     traffic: 24,
     sound: 'on' as 'on' | 'off',
     x: 0,
@@ -369,6 +372,7 @@ export class B3dCity extends B3dChild {
   declare lampAngle: number
   declare flicker: number
   declare parked: number
+  declare chunk: number
   declare traffic: number
   declare sound: 'on' | 'off'
   declare x: number
@@ -747,10 +751,22 @@ export class B3dCity extends B3dChild {
       }
     }
 
-    // One draw per part: every copy is a thin instance. Only buildings cast
-    // shadows (roads, poles and parked cars would be drawn again in every
-    // cascade for shadows nobody sees).
+    /*
+    One draw per part PER CHUNK: every copy is a thin instance, and a mesh's
+    copies are culled as one box. A city drawn as one mesh a model was always
+    in view, so every building and parked car was drawn every frame, the ones
+    behind you and blocks away too. In chunks, those out of view are skipped,
+    for a draw per model per chunk in view. Only buildings cast shadows (roads,
+    poles and parked cars would be drawn again in every cascade for shadows
+    nobody sees).
+    */
     const meshes: BABYLON.AbstractMesh[] = [ground]
+    const span = Math.max(0, Math.round(Number(this.chunk) || 0)) * cell
+    const chunkOf = (placement: BABYLON.Matrix) => {
+      if (span <= 0) return ''
+      const m = placement.m
+      return `${Math.floor(m[12] / span)},${Math.floor(m[14] / span)}`
+    }
     const casters = new Set(
       [...kit.buildings.downtown, ...kit.buildings.suburbs].map(
         (p) => `${p.library}:${p.mesh}`
@@ -761,21 +777,46 @@ export class B3dCity extends B3dChild {
       if (key.startsWith('traffic:')) continue
       if (!casters.has(key))
         for (const part of t.parts) part.mesh.name = `city-${key}_nocast`
+      const chunks = new Map<string, BABYLON.Matrix[]>()
+      for (const placement of t.matrices) {
+        const k = chunkOf(placement)
+        const list = chunks.get(k)
+        if (list) list.push(placement)
+        else chunks.set(k, [placement])
+      }
       for (const part of t.parts) {
         if (t.matrices.length === 0) {
           part.mesh.setEnabled(false)
           continue
         }
-        const buf = new Float32Array(t.matrices.length * 16)
-        const m = new BABYLON.Matrix()
-        t.matrices.forEach((placement, i) => {
-          part.rel.multiplyToRef(placement, m)
-          m.copyToArray(buf, i * 16)
-        })
-        part.mesh.thinInstanceSetBuffer('matrix', buf, 16, true)
-        part.mesh.thinInstanceRefreshBoundingInfo(false)
-        part.mesh.receiveShadows = true
-        meshes.push(part.mesh)
+        // The template's own mesh takes the first chunk; each other chunk a
+        // copy with its own geometry (Babylon keeps the copies on it).
+        const base = part.mesh
+        let first = true
+        for (const [k, list] of chunks) {
+          let mesh = base
+          if (!first) {
+            mesh = base.clone(
+              base.name.replace(/(_nocast)?$/, `@${k}$1`),
+              base.parent,
+              true
+            )
+            mesh.makeGeometryUnique()
+            mesh.isPickable = base.isPickable
+            mesh.thinInstanceEnablePicking = base.thinInstanceEnablePicking
+          }
+          first = false
+          const buf = new Float32Array(list.length * 16)
+          const m = new BABYLON.Matrix()
+          list.forEach((placement, i) => {
+            part.rel.multiplyToRef(placement, m)
+            m.copyToArray(buf, i * 16)
+          })
+          mesh.thinInstanceSetBuffer('matrix', buf, 16, true)
+          mesh.thinInstanceRefreshBoundingInfo(false)
+          mesh.receiveShadows = true
+          meshes.push(mesh)
+        }
       }
     }
     owner.register({ meshes })
