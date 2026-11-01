@@ -380,6 +380,25 @@ export class B3dCity extends B3dChild {
     const meshes = node.getChildMeshes(false).filter((m): m is BABYLON.Mesh => m instanceof BABYLON.Mesh && m.getTotalVertices() > 0)
     meshes.forEach((m) => m.computeWorldMatrix(true))
     const { min, max } = node.getHierarchyBoundingVectors(true)
+    /*
+    ONE MESH A MODEL: a model's parts (a car's body and four wheels) merged,
+    their places baked in, so each copy is one draw rather than five, and
+    one again in every shadow cascade. A Quest is CPU-bound on draws.
+    Kenney's models have one material each; several become a multi-material.
+    */
+    let merged: BABYLON.Mesh | null = null
+    if (meshes.length > 1) {
+      try {
+        merged = BABYLON.Mesh.MergeMeshes(meshes, true, true, undefined, false, true)
+      } catch {
+        merged = null
+      }
+    }
+    if (merged) {
+      merged.name = `city-${key}`
+      meshes.length = 0
+      meshes.push(merged)
+    }
     // Each part keeps where it sat in the model; the parts hang from the city's root.
     const parts = meshes.map((mesh) => {
       const rel = mesh.getWorldMatrix().clone()
@@ -549,10 +568,15 @@ export class B3dCity extends B3dChild {
       }
     }
 
-    // One draw per part: every copy is a thin instance.
+    // One draw per part: every copy is a thin instance. Only buildings cast
+    // shadows (roads, poles and parked cars would be drawn again in every
+    // cascade for shadows nobody sees).
     const meshes: BABYLON.AbstractMesh[] = [ground]
+    const casters = new Set([...kit.buildings.downtown, ...kit.buildings.suburbs].map((p) => `${p.library}:${p.mesh}`))
+    ground.name = 'city-ground_nocast'
     for (const [key, t] of this.templates) {
       if (key.startsWith('traffic:')) continue
+      if (!casters.has(key)) for (const part of t.parts) part.mesh.name = `city-${key}_nocast`
       for (const part of t.parts) {
         if (t.matrices.length === 0) {
           part.mesh.setEnabled(false)
@@ -838,7 +862,10 @@ export class B3dCity extends B3dChild {
           dt
         )
       }
-      stepTraffic(traffic, dt, this.obstacles())
+      // At most a thirtieth of a second a frame: on a device that cannot keep
+      // up, the traffic slows down rather than taking more physics steps each
+      // frame (which made each frame slower still).
+      stepTraffic(traffic, Math.min(dt, 1 / 30), this.obstacles())
       this.drawTraffic()
       traffic.cars.forEach((car, i) => {
         const beam = this.beams[i]
