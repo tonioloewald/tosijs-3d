@@ -77,17 +77,47 @@ manifest. `layout` is the plan it built, `lamps` how many street lights it has.
 
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'
-import { B3dChild, rayProxies, sceneDelta, sceneSeconds, type RayProxy } from './b3d-utils.js'
+import {
+  B3dChild,
+  rayProxies,
+  sceneDelta,
+  sceneSeconds,
+  type RayProxy,
+} from './b3d-utils.js'
 import { b3dLibrary } from './b3d-library.js'
 import { assetUrl } from './asset-url.js'
-import { cityLayout, type CityLayout, type CityLayoutOptions, type RoadCell, type RoadPiece, type Side } from './city-layout.js'
+import {
+  cityLayout,
+  type CityLayout,
+  type CityLayoutOptions,
+  type RoadCell,
+  type RoadPiece,
+  type Side,
+} from './city-layout.js'
 import { PRNG } from './mersenne-twister.js'
 import { pad } from './landform.js'
-import { lightPool, sceneDaylight, lampLevel, lampFlicker, type VirtualLight } from './light-pool.js'
+import {
+  lightPool,
+  sceneDaylight,
+  lampLevel,
+  lampFlicker,
+  type VirtualLight,
+} from './light-pool.js'
 import { lightPollutionSource } from './light-pollution.js'
 import { windowLights, type WindowLightsPlugin } from './window-lights.js'
-import { createTraffic, recycleTraffic, stepTraffic, TRAFFIC_CAR, type Traffic, type TrafficObstacle } from './city-traffic.js'
-import { headingOf, type VehicleSpec, type VehicleState } from './ground-vehicle.js'
+import {
+  createTraffic,
+  recycleTraffic,
+  stepTraffic,
+  TRAFFIC_CAR,
+  type Traffic,
+  type TrafficObstacle,
+} from './city-traffic.js'
+import {
+  headingOf,
+  type VehicleSpec,
+  type VehicleState,
+} from './ground-vehicle.js'
 import { CitySound } from './city-sound.js'
 
 /** One model's driving cars: its parts' instance buffers, rewritten each frame. */
@@ -151,7 +181,9 @@ export interface CityKit {
   ground?: string
 }
 
-const commercial = 'abcdefghijklmn'.split('').map((c) => ({ library: 'commercial', mesh: `building-${c}` }))
+const commercial = 'abcdefghijklmn'
+  .split('')
+  .map((c) => ({ library: 'commercial', mesh: `building-${c}` }))
 const towers = 'abcde'.split('').map((c) => ({
   library: 'commercial',
   mesh: `building-skyscraper-${c}`,
@@ -183,15 +215,31 @@ export const KENNEY_CITY: CityKit = {
     single: { library: 'roads', mesh: 'road-square', turns: 0 },
   },
   buildings: { downtown: [...commercial, ...towers], suburbs: houses },
-  streetLight: { library: 'roads', mesh: 'light-square', bulb: [0, 0.57, -0.19] },
-  parkedCars: ['sedan', 'sedan-sports', 'hatchback-sports', 'suv', 'taxi', 'van', 'police', 'delivery'].map(
-    (mesh) => ({ library: 'cars', mesh, scale: 1.7 })
-  ),
+  streetLight: {
+    library: 'roads',
+    mesh: 'light-square',
+    bulb: [0, 0.57, -0.19],
+  },
+  parkedCars: [
+    'sedan',
+    'sedan-sports',
+    'hatchback-sports',
+    'suv',
+    'taxi',
+    'van',
+    'police',
+    'delivery',
+  ].map((mesh) => ({ library: 'cars', mesh, scale: 1.7 })),
   ground: '#8c8a80',
 }
 
 const SIDES: Side[] = ['n', 'e', 's', 'w']
-const STEP: Record<Side, [number, number]> = { n: [0, 1], e: [1, 0], s: [0, -1], w: [-1, 0] }
+const STEP: Record<Side, [number, number]> = {
+  n: [0, 1],
+  e: [1, 0],
+  s: [0, -1],
+  w: [-1, 0],
+}
 const QUARTER = Math.PI / 2
 
 interface Template {
@@ -254,14 +302,23 @@ export function cityGround(options: {
   level: number
   /** How far the slope back up to the hills runs, metres. Default 160. */
   blend?: number
-}): { landform: (x: number, z: number, h: number) => number; clear: (x: number, z: number) => number } {
+}): {
+  landform: (x: number, z: number, h: number) => number
+  clear: (x: number, z: number) => number
+} {
   const cell = options.cell ?? 12
   const cx = options.x ?? 0
   const cz = options.z ?? 0
   const hw = (options.width * cell) / 2
   const hd = (options.depth * cell) / 2
   const radius = Math.hypot(hw, hd) + cell
-  const ground = pad({ x: cx, z: cz, radius, level: options.level, blend: options.blend ?? 160 })
+  const ground = pad({
+    x: cx,
+    z: cz,
+    radius,
+    level: options.level,
+    blend: options.blend ?? 160,
+  })
   return {
     landform: ground,
     // Nothing on the city's square, and a cell round it; thinning out beyond.
@@ -276,7 +333,8 @@ export function cityGround(options: {
 function startCell(layout: CityLayout): RoadCell {
   const straight = layout.roads.filter((r) => r.piece === 'straight')
   const roads = straight.length > 0 ? straight : layout.roads
-  const mid = (r: RoadCell) => Math.hypot(r.x + 0.5 - layout.width / 2, r.z + 0.5 - layout.depth / 2)
+  const mid = (r: RoadCell) =>
+    Math.hypot(r.x + 0.5 - layout.width / 2, r.z + 0.5 - layout.depth / 2)
   return roads.reduce((best, r) => (mid(r) < mid(best) ? r : best))
 }
 
@@ -353,10 +411,14 @@ export class B3dCity extends B3dChild {
     const release = owner.holdLoading?.('city') ?? (() => {})
     const ready = async () => {
       // A library registers itself a moment after it is appended.
-      let libs = Object.keys(kit.libraries).map((t) => owner.getLibrary(prefix + t))
+      let libs = Object.keys(kit.libraries).map((t) =>
+        owner.getLibrary(prefix + t)
+      )
       for (let i = 0; i < 100 && libs.some((l) => l == null); i++) {
         await new Promise((r) => setTimeout(r, 50))
-        libs = Object.keys(kit.libraries).map((t) => owner.getLibrary(prefix + t))
+        libs = Object.keys(kit.libraries).map((t) =>
+          owner.getLibrary(prefix + t)
+        )
       }
       if (libs.some((l) => l == null)) {
         console.error('b3d-city: a kit library never loaded')
@@ -369,12 +431,20 @@ export class B3dCity extends B3dChild {
     void ready().finally(release)
   }
 
-  private template(owner: B3d, prefix: string, piece: KitPiece, as = ''): Template | null {
+  private template(
+    owner: B3d,
+    prefix: string,
+    piece: KitPiece,
+    as = ''
+  ): Template | null {
     const key = `${as}${piece.library}:${piece.mesh}`
     const known = this.templates.get(key)
     if (known) return known
     const lib = owner.getLibrary(prefix + piece.library)
-    const node = lib?.instantiate(piece.mesh, { canonical: true, animations: false })
+    const node = lib?.instantiate(piece.mesh, {
+      canonical: true,
+      animations: false,
+    })
     if (!(node instanceof BABYLON.TransformNode)) return null
     node.position.setAll(0)
     node.rotationQuaternion = BABYLON.Quaternion.Identity()
@@ -402,7 +472,8 @@ export class B3dCity extends B3dChild {
         copy.scaling.copyFrom(scale)
         copy.computeWorldMatrix(true)
         meshes.push(copy)
-      } else if (m instanceof BABYLON.Mesh && m.getTotalVertices() > 0) meshes.push(m)
+      } else if (m instanceof BABYLON.Mesh && m.getTotalVertices() > 0)
+        meshes.push(m)
     }
     const { min, max } = node.getHierarchyBoundingVectors(true)
     /*
@@ -414,7 +485,14 @@ export class B3dCity extends B3dChild {
     let merged: BABYLON.Mesh | null = null
     if (meshes.length > 1) {
       try {
-        merged = BABYLON.Mesh.MergeMeshes(meshes, true, true, undefined, false, true)
+        merged = BABYLON.Mesh.MergeMeshes(
+          meshes,
+          true,
+          true,
+          undefined,
+          false,
+          true
+        )
       } catch {
         merged = null
       }
@@ -439,7 +517,10 @@ export class B3dCity extends B3dChild {
       mesh.thinInstanceEnablePicking = true
       return { mesh, rel }
     })
-    node.dispose(true)
+    // What is left of the instance (its wheels' originals, the model's clone).
+    // NOT dispose(true): that is "do not recurse", and it left four car
+    // hierarchies under the city, unseen, in every shadow cascade.
+    node.dispose()
     const t: Template = { parts, matrices: [], min, max }
     this.templates.set(key, t)
     return t
@@ -458,7 +539,11 @@ export class B3dCity extends B3dChild {
     this.layout = layout
     const rng = new PRNG(Number(this.seed) * 7919 + 13)
     const root = new BABYLON.TransformNode('city', scene)
-    root.position.set(Number(this.x) || 0, Number(this.y) || 0, Number(this.z) || 0)
+    root.position.set(
+      Number(this.x) || 0,
+      Number(this.y) || 0,
+      Number(this.z) || 0
+    )
     this.root = root
     // The town's glow on the night sky, as strong as its street lights are lit.
     this.releaseLamps.push(
@@ -471,15 +556,33 @@ export class B3dCity extends B3dChild {
     const unit = cell / kit.cell
     // Cell (x, z) → the city's frame (centred), metres.
     const at = (x: number, z: number) =>
-      new BABYLON.Vector3((x - layout.width / 2) * cell, 0, (z - layout.depth / 2) * cell)
-    const put = (piece: KitPiece, position: BABYLON.Vector3, yaw: number, centred = false) => {
+      new BABYLON.Vector3(
+        (x - layout.width / 2) * cell,
+        0,
+        (z - layout.depth / 2) * cell
+      )
+    const put = (
+      piece: KitPiece,
+      position: BABYLON.Vector3,
+      yaw: number,
+      centred = false
+    ) => {
       const t = this.template(owner, prefix, piece)
       if (t == null) return
       const k = piece.scale ?? unit
       if (centred) {
         // The model's own middle on the spot, whatever its origin.
-        const mid = new BABYLON.Vector3(((t.min.x + t.max.x) / 2) * k, 0, ((t.min.z + t.max.z) / 2) * k)
-        position = position.subtract(BABYLON.Vector3.TransformCoordinates(mid, BABYLON.Matrix.RotationY(yaw)))
+        const mid = new BABYLON.Vector3(
+          ((t.min.x + t.max.x) / 2) * k,
+          0,
+          ((t.min.z + t.max.z) / 2) * k
+        )
+        position = position.subtract(
+          BABYLON.Vector3.TransformCoordinates(
+            mid,
+            BABYLON.Matrix.RotationY(yaw)
+          )
+        )
       }
       t.matrices.push(
         BABYLON.Matrix.Compose(
@@ -499,7 +602,9 @@ export class B3dCity extends B3dChild {
     ground.parent = root
     ground.position.y = -0.02
     const groundMat = new BABYLON.StandardMaterial('city-ground', scene)
-    groundMat.diffuseColor = BABYLON.Color3.FromHexString(kit.ground ?? '#8c8a80')
+    groundMat.diffuseColor = BABYLON.Color3.FromHexString(
+      kit.ground ?? '#8c8a80'
+    )
     groundMat.specularColor = BABYLON.Color3.Black()
     ground.material = groundMat
     ground.receiveShadows = true
@@ -508,7 +613,11 @@ export class B3dCity extends B3dChild {
     for (const r of layout.roads) {
       const piece = kit.roads[r.piece]
       if (piece == null) continue
-      put(piece, at(r.x + 0.5, r.z + 0.5), (r.turns - (piece.turns ?? 0)) * QUARTER)
+      put(
+        piece,
+        at(r.x + 0.5, r.z + 0.5),
+        (r.turns - (piece.turns ?? 0)) * QUARTER
+      )
     }
 
     // BUILDINGS: downtown in the middle, houses further out, facing the street.
@@ -545,7 +654,9 @@ export class B3dCity extends B3dChild {
       for (let row = 0; row < rows; ) {
         let tallest = 1
         for (let i = 0; i < along; ) {
-          const fits = list.filter((p) => sizeOf(p)[0] <= along - i && sizeOf(p)[1] <= deep - row)
+          const fits = list.filter(
+            (p) => sizeOf(p)[0] <= along - i && sizeOf(p)[1] <= deep - row
+          )
           if (fits.length === 0) {
             i++
             continue
@@ -553,11 +664,22 @@ export class B3dCity extends B3dChild {
           const p = pick(fits, rng)
           const [sa, sd] = sizeOf(p)
           // The piece's rectangle in cells.
-          const x0 = front === 'n' || front === 's' ? lot.x + i : front === 'w' ? lot.x + row : lot.x + lot.width - row - sd
-          const z0 = front === 'e' || front === 'w' ? lot.z + i : front === 's' ? lot.z + row : lot.z + lot.depth - row - sd
+          const x0 =
+            front === 'n' || front === 's'
+              ? lot.x + i
+              : front === 'w'
+              ? lot.x + row
+              : lot.x + lot.width - row - sd
+          const z0 =
+            front === 'e' || front === 'w'
+              ? lot.z + i
+              : front === 's'
+              ? lot.z + row
+              : lot.z + lot.depth - row - sd
           const w = alongX ? sa : sd
           const d = alongX ? sd : sa
-          const turns = (SIDES.indexOf(front) - SIDES.indexOf(p.front ?? 'n') + 4) % 4
+          const turns =
+            (SIDES.indexOf(front) - SIDES.indexOf(p.front ?? 'n') + 4) % 4
           put(p, at(x0 + w / 2, z0 + d / 2), turns * QUARTER, true)
           tallest = Math.max(tallest, sd)
           i += sa
@@ -580,23 +702,47 @@ export class B3dCity extends B3dChild {
       if (light && (northSouth ? r.z : r.x) % every === 0) {
         const side = sides[((northSouth ? r.z : r.x) / every) % 2 === 0 ? 0 : 1]
         const [nx, nz] = STEP[side]
-        const pole = centre.add(new BABYLON.Vector3(nx * cell * 0.44, 0, nz * cell * 0.44))
+        const pole = centre.add(
+          new BABYLON.Vector3(nx * cell * 0.44, 0, nz * cell * 0.44)
+        )
         // The model's arm reaches to -Z: turn it to reach back over the road.
         const yaw = Math.atan2(nx, nz)
         put(light, pole, yaw)
         const k = light.scale ?? unit
-        const b = new BABYLON.Vector3(light.bulb[0] * k, light.bulb[1] * k, light.bulb[2] * k)
-        lamps.push({ position: pole.add(BABYLON.Vector3.TransformCoordinates(b, BABYLON.Matrix.RotationY(yaw))) })
+        const b = new BABYLON.Vector3(
+          light.bulb[0] * k,
+          light.bulb[1] * k,
+          light.bulb[2] * k
+        )
+        lamps.push({
+          position: pole.add(
+            BABYLON.Vector3.TransformCoordinates(
+              b,
+              BABYLON.Matrix.RotationY(yaw)
+            )
+          ),
+        })
       }
-      const nearStart = start != null && Math.abs(r.x - start.x) + Math.abs(r.z - start.z) <= 1
-      if (kit.parkedCars?.length && rng.value() < Number(this.parked) && !nearStart) {
+      const nearStart =
+        start != null && Math.abs(r.x - start.x) + Math.abs(r.z - start.z) <= 1
+      if (
+        kit.parkedCars?.length &&
+        rng.value() < Number(this.parked) &&
+        !nearStart
+      ) {
         const side = sides[rng.value() < 0.5 ? 0 : 1]
         const [nx, nz] = STEP[side]
         // Against the kerb, clear of the lane.
         const { kerb } = lanes(cell, kit.roadway)
         const spot = centre.add(new BABYLON.Vector3(nx * kerb, 0, nz * kerb))
         // Parked with the traffic on its side of the road (driving on the right).
-        const heading = northSouth ? (side === 'e' ? 0 : Math.PI) : side === 'n' ? -QUARTER : QUARTER
+        const heading = northSouth
+          ? side === 'e'
+            ? 0
+            : Math.PI
+          : side === 'n'
+          ? -QUARTER
+          : QUARTER
         put(pick(kit.parkedCars, rng), spot, heading)
       }
     }
@@ -605,11 +751,16 @@ export class B3dCity extends B3dChild {
     // shadows (roads, poles and parked cars would be drawn again in every
     // cascade for shadows nobody sees).
     const meshes: BABYLON.AbstractMesh[] = [ground]
-    const casters = new Set([...kit.buildings.downtown, ...kit.buildings.suburbs].map((p) => `${p.library}:${p.mesh}`))
+    const casters = new Set(
+      [...kit.buildings.downtown, ...kit.buildings.suburbs].map(
+        (p) => `${p.library}:${p.mesh}`
+      )
+    )
     ground.name = 'city-ground_nocast'
     for (const [key, t] of this.templates) {
       if (key.startsWith('traffic:')) continue
-      if (!casters.has(key)) for (const part of t.parts) part.mesh.name = `city-${key}_nocast`
+      if (!casters.has(key))
+        for (const part of t.parts) part.mesh.name = `city-${key}_nocast`
       for (const part of t.parts) {
         if (t.matrices.length === 0) {
           part.mesh.setEnabled(false)
@@ -656,16 +807,23 @@ export class B3dCity extends B3dChild {
     this.startTraffic(owner, prefix, layout, cell, unit, start)
 
     // LIT WINDOWS on every building's material.
-    const buildings = new Set([...kit.buildings.downtown, ...kit.buildings.suburbs].map((p) => `${p.library}:${p.mesh}`))
+    const buildings = new Set(
+      [...kit.buildings.downtown, ...kit.buildings.suburbs].map(
+        (p) => `${p.library}:${p.mesh}`
+      )
+    )
     const materials = new Set<BABYLON.Material>()
     for (const [key, t] of this.templates) {
       if (!buildings.has(key) || t.matrices.length === 0) continue
-      for (const part of t.parts) if (part.mesh.material) materials.add(part.mesh.material)
+      for (const part of t.parts)
+        if (part.mesh.material) materials.add(part.mesh.material)
     }
     // Rooms half a cell across: a building is centred on its cells and its
     // windows are symmetrical, so a room's edge falls between windows.
     const room = new BABYLON.Vector3(cell / 2, 3, cell / 2)
-    this.windows = [...materials].map((m) => windowLights(m, { origin: root, room, seed: Number(this.seed) * 17 }))
+    this.windows = [...materials].map((m) =>
+      windowLights(m, { origin: root, room, seed: Number(this.seed) * 17 })
+    )
     scene.registerBeforeRender(this.updateLamps)
   }
 
@@ -677,25 +835,58 @@ export class B3dCity extends B3dChild {
   stay pickable for everything that does not use `pickWorld`.
   */
   private rayProxy: RayProxy | null = null
-  private makeRayProxy(scene: BABYLON.Scene, layout: CityLayout, cell: number, meshes: BABYLON.AbstractMesh[]) {
+  private makeRayProxy(
+    scene: BABYLON.Scene,
+    layout: CityLayout,
+    cell: number,
+    meshes: BABYLON.AbstractMesh[]
+  ) {
     const grid = new Map<number, Float32Array[]>()
     const key = (x: number, z: number) => (z + 1) * 4096 + (x + 1)
     const toCell = (v: number, span: number) => Math.floor(v / cell + span / 2)
     const corner = new BABYLON.Vector3()
     for (const [name, t] of this.templates) {
       if (name.startsWith('traffic:') || t.matrices.length === 0) continue
-      if (Object.values(this.kit.roads).some((r) => r && `${r.library}:${r.mesh}` === name)) continue
+      if (
+        Object.values(this.kit.roads).some(
+          (r) => r && `${r.library}:${r.mesh}` === name
+        )
+      )
+        continue
       // A street light is a post: its box is its foot, not the arm over the
       // road (that box was a car-sized wall nobody could see).
-      const post = this.kit.streetLight && name === `${this.kit.streetLight.library}:${this.kit.streetLight.mesh}`
+      const post =
+        this.kit.streetLight &&
+        name === `${this.kit.streetLight.library}:${this.kit.streetLight.mesh}`
       for (const m of t.matrices) {
-        const box = new Float32Array([Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity])
+        const box = new Float32Array([
+          Infinity,
+          Infinity,
+          Infinity,
+          -Infinity,
+          -Infinity,
+          -Infinity,
+        ])
         if (post) {
-          const at = BABYLON.Vector3.TransformCoordinates(BABYLON.Vector3.Zero(), m)
-          box.set([at.x - 0.15, at.y, at.z - 0.15, at.x + 0.15, at.y + 6, at.z + 0.15])
+          const at = BABYLON.Vector3.TransformCoordinates(
+            BABYLON.Vector3.Zero(),
+            m
+          )
+          box.set([
+            at.x - 0.15,
+            at.y,
+            at.z - 0.15,
+            at.x + 0.15,
+            at.y + 6,
+            at.z + 0.15,
+          ])
         }
         for (let i = 0; i < (post ? 0 : 8); i++) {
-          corner.set(i & 1 ? t.max.x : t.min.x, i & 2 ? t.max.y : t.min.y, i & 4 ? t.max.z : t.min.z)
+          corner.set(
+            i & 1 ? t.max.x : t.min.x,
+            i & 2 ? t.max.y : t.min.y,
+            i & 4 ? t.max.z : t.min.z
+          )
           BABYLON.Vector3.TransformCoordinatesToRef(corner, m, corner)
           box[0] = Math.min(box[0], corner.x)
           box[1] = Math.min(box[1], corner.y)
@@ -704,15 +895,24 @@ export class B3dCity extends B3dChild {
           box[4] = Math.max(box[4], corner.y)
           box[5] = Math.max(box[5], corner.z)
         }
-        for (let z = toCell(box[2], layout.depth); z <= toCell(box[5], layout.depth); z++)
-          for (let x = toCell(box[0], layout.width); x <= toCell(box[3], layout.width); x++) {
+        for (
+          let z = toCell(box[2], layout.depth);
+          z <= toCell(box[5], layout.depth);
+          z++
+        )
+          for (
+            let x = toCell(box[0], layout.width);
+            x <= toCell(box[3], layout.width);
+            x++
+          ) {
             const list = grid.get(key(x, z)) ?? []
             list.push(box)
             grid.set(key(x, z), list)
           }
       }
     }
-    for (const mesh of meshes) mesh.metadata = { ...(mesh.metadata ?? {}), b3dRayProxy: true }
+    for (const mesh of meshes)
+      mesh.metadata = { ...(mesh.metadata ?? {}), b3dRayProxy: true }
     const hw = (layout.width * cell) / 2
     const hd = (layout.depth * cell) / 2
     const o = new BABYLON.Vector3()
@@ -775,7 +975,11 @@ export class B3dCity extends B3dChild {
     const count = Math.max(0, Math.round(Number(this.traffic) || 0))
     if (models.length === 0 || count === 0 || layout.roads.length === 0) return
     const centre = start
-      ? { x: (start.x + 0.5 - layout.width / 2) * cell, z: (start.z + 0.5 - layout.depth / 2) * cell, radius: cell }
+      ? {
+          x: (start.x + 0.5 - layout.width / 2) * cell,
+          z: (start.z + 0.5 - layout.depth / 2) * cell,
+          radius: cell,
+        }
       : undefined
     const traffic = createTraffic({
       layout,
@@ -790,7 +994,9 @@ export class B3dCity extends B3dChild {
     this.trafficState = traffic
     this.trafficModels = models.map((piece, m) => {
       const template = this.template(owner, prefix, piece, 'traffic:')!
-      const cars = traffic.cars.map((c, i) => (c.model === m ? i : -1)).filter((i) => i >= 0)
+      const cars = traffic.cars
+        .map((c, i) => (c.model === m ? i : -1))
+        .filter((i) => i >= 0)
       const buffers = (template?.parts ?? []).map((part) => {
         const buf = new Float32Array(Math.max(1, cars.length) * 16)
         if (cars.length === 0) part.mesh.setEnabled(false)
@@ -799,20 +1005,37 @@ export class B3dCity extends B3dChild {
           part.mesh.receiveShadows = true
           // The traffic's own collisions handle a car that hits it (both are
           // knocked about); a vehicle's wall rays would stop it dead instead.
-          part.mesh.metadata = { ...(part.mesh.metadata ?? {}), b3dNoCollide: true }
+          part.mesh.metadata = {
+            ...(part.mesh.metadata ?? {}),
+            b3dNoCollide: true,
+          }
         }
         return buf
       })
       const k = piece.scale ?? unit
       const t = template
       const lamps: TrafficModel['lamps'] = t
-        ? [t.max.x * k * 0.62, (t.min.y + (t.max.y - t.min.y) * 0.32) * k, t.max.z * k, t.min.z * k]
+        ? [
+            t.max.x * k * 0.62,
+            (t.min.y + (t.max.y - t.min.y) * 0.32) * k,
+            t.max.z * k,
+            t.min.z * k,
+          ]
         : [0.7, 0.6, 2.2, -2.2]
       return { template, scale: k, cars, buffers, lamps }
     })
     const scene = owner.scene
-    const lampMesh = (name: string, color: BABYLON.Color3, size: [number, number, number], count: number) => {
-      const mesh = BABYLON.MeshBuilder.CreateBox(name, { width: size[0], height: size[1], depth: size[2] }, scene)
+    const lampMesh = (
+      name: string,
+      color: BABYLON.Color3,
+      size: [number, number, number],
+      count: number
+    ) => {
+      const mesh = BABYLON.MeshBuilder.CreateBox(
+        name,
+        { width: size[0], height: size[1], depth: size[2] },
+        scene
+      )
       const mat = new BABYLON.StandardMaterial(name, scene)
       mat.disableLighting = true
       mat.emissiveColor = color
@@ -824,9 +1047,24 @@ export class B3dCity extends B3dChild {
       return { mesh, buf }
     }
     const n = traffic.cars.length * 2
-    const head = lampMesh('traffic-headlamps', new BABYLON.Color3(0.3, 0.3, 0.27), [0.32, 0.16, 0.06], n)
-    const tail = lampMesh('traffic-taillamps', new BABYLON.Color3(0.35, 0.02, 0.01), [0.3, 0.14, 0.06], n)
-    const brake = lampMesh('traffic-brakelamps', new BABYLON.Color3(1, 0.06, 0.03), [0.34, 0.17, 0.08], n)
+    const head = lampMesh(
+      'traffic-headlamps',
+      new BABYLON.Color3(0.3, 0.3, 0.27),
+      [0.32, 0.16, 0.06],
+      n
+    )
+    const tail = lampMesh(
+      'traffic-taillamps',
+      new BABYLON.Color3(0.35, 0.02, 0.01),
+      [0.3, 0.14, 0.06],
+      n
+    )
+    const brake = lampMesh(
+      'traffic-brakelamps',
+      new BABYLON.Color3(1, 0.06, 0.03),
+      [0.34, 0.17, 0.08],
+      n
+    )
     this.trafficLamps = {
       head: head.mesh,
       tail: tail.mesh,
@@ -836,7 +1074,9 @@ export class B3dCity extends B3dChild {
       brakeBuf: brake.buf,
     }
     owner.register({
-      meshes: this.trafficModels.flatMap((t) => (t.cars.length ? t.template.parts.map((p) => p.mesh) : [])),
+      meshes: this.trafficModels.flatMap((t) =>
+        t.cars.length ? t.template.parts.map((p) => p.mesh) : []
+      ),
     })
     const pool = lightPool(owner.scene)
     this.beams = traffic.cars.map(() => {
@@ -865,7 +1105,10 @@ export class B3dCity extends B3dChild {
     if (root == null || owner == null) return []
     const out: TrafficObstacle[] = []
     owner.querySelectorAll('tosi-b3d-car, tosi-b3d-tank').forEach((el) => {
-      const v = el as unknown as { state?: VehicleState | null; spec?: VehicleSpec | null }
+      const v = el as unknown as {
+        state?: VehicleState | null
+        spec?: VehicleSpec | null
+      }
       if (v.state == null || v.spec == null) return
       const p = v.state.position
       out.push({
@@ -897,7 +1140,13 @@ export class B3dCity extends B3dChild {
     const lamps = this.trafficLamps
     let lamp = 0
     let braking = 0
-    const putLamp = (buf: Float32Array, index: number, x: number, y: number, z: number) => {
+    const putLamp = (
+      buf: Float32Array,
+      index: number,
+      x: number,
+      y: number,
+      z: number
+    ) => {
       BABYLON.Matrix.TranslationToRef(x, y, z, offset)
       offset.multiplyToRef(unscaled, m)
       m.copyToArray(buf, index * 16)
@@ -921,7 +1170,8 @@ export class B3dCity extends B3dChild {
           for (const side of [-1, 1]) {
             putLamp(lamps.headBuf, lamp, side * lx, ly, front)
             putLamp(lamps.tailBuf, lamp, side * lx, ly, back)
-            if (car.braking) putLamp(lamps.brakeBuf, braking++, side * lx, ly, back - 0.01)
+            if (car.braking)
+              putLamp(lamps.brakeBuf, braking++, side * lx, ly, back - 0.01)
             lamp++
           }
         }
@@ -952,7 +1202,9 @@ export class B3dCity extends B3dChild {
       l.flicker = l.seed ? lampFlicker(t, l.seed) : 1
       l.position.copyFrom(l.local).addInPlace(root.position)
     }
-    const sky = this.owner?.querySelector('tosi-b3d-skybox') as { timeOfDay?: number } | null
+    const sky = this.owner?.querySelector('tosi-b3d-skybox') as {
+      timeOfDay?: number
+    } | null
     const daylight = sceneDaylight(this.owner)
     const hour = Number(sky?.timeOfDay ?? 12)
     const glow = Math.max(0, Math.min(1, (0.6 - daylight) / 0.4))
@@ -978,7 +1230,12 @@ export class B3dCity extends B3dChild {
         const p = cam.globalPosition
         recycleTraffic(
           traffic,
-          { x: p.x - root.position.x, z: p.z - root.position.z, fx: f.x / flat, fz: f.z / flat },
+          {
+            x: p.x - root.position.x,
+            z: p.z - root.position.z,
+            fx: f.x / flat,
+            fz: f.z / flat,
+          },
           dt
         )
       }
@@ -992,7 +1249,9 @@ export class B3dCity extends B3dChild {
         const hx = Math.sin(car.yaw)
         const hz = Math.cos(car.yaw)
         beam.level = level
-        beam.position.set(car.x + hx * 2.4, car.y + 0.8, car.z + hz * 2.4).addInPlace(root.position)
+        beam.position
+          .set(car.x + hx * 2.4, car.y + 0.8, car.z + hz * 2.4)
+          .addInPlace(root.position)
         beam.direction!.set(hx, -0.12, hz).normalize()
       })
       const lamps = this.trafficLamps
@@ -1002,7 +1261,11 @@ export class B3dCity extends B3dChild {
           0.3 + 0.66 * level,
           0.27 + 0.55 * level
         )
-        ;(lamps.tail.material as BABYLON.StandardMaterial).emissiveColor.set(0.35 + 0.4 * level, 0.02, 0.01)
+        ;(lamps.tail.material as BABYLON.StandardMaterial).emissiveColor.set(
+          0.35 + 0.4 * level,
+          0.02,
+          0.01
+        )
       }
     }
   }
