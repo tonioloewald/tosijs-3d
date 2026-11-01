@@ -963,6 +963,10 @@ export class B3d extends Component {
       background: '#000',
       height: '100%',
       maxHeight: '100vh',
+      // No page zoom from inside the scene: a double-tap on the system bar
+      // zoomed an iPhone's page, and the scene (which takes every touch)
+      // left no way to pinch it back.
+      touchAction: 'none',
     },
     // Full screen where the browser has no Fullscreen API (iPhone Safari):
     // the scene fills what is visible. dvh follows Safari's toolbars.
@@ -5243,6 +5247,7 @@ export class B3d extends Component {
 
   connectedCallback(): void {
     super.connectedCallback()
+    this._blockPageZoom()
     /*
     A MOVE MUST NOT COST A SCENE.
 
@@ -6866,6 +6871,7 @@ export class B3d extends Component {
     }
     const maximize = (on: boolean) => {
       if (on) {
+        resetPageZoom()
         this.setAttribute('data-maximized', '')
         if (pop.showPopover != null) {
           this.setAttribute('popover', 'manual')
@@ -6922,6 +6928,26 @@ export class B3d extends Component {
     }
   }
   private _fullscreenOff: (() => void) | null = null
+
+  /*
+  PAGE ZOOM, on iPhone Safari. Its pinch arrives as its own `gesture*` events,
+  which `touch-action` does not stop, so they are cancelled here; and a page
+  that got zoomed anyway (before the scene loaded, from outside it) is reset
+  whenever the scene goes full screen or the zoom changes while it is, since
+  a scene that covers the screen leaves nothing to pinch out on.
+  */
+  private _zoomBlocked = false
+  private _blockPageZoom(): void {
+    if (this._zoomBlocked) return
+    this._zoomBlocked = true
+    const stop = (e: Event) => e.preventDefault()
+    this.addEventListener('gesturestart', stop, { passive: false } as AddEventListenerOptions)
+    this.addEventListener('gesturechange', stop, { passive: false } as AddEventListenerOptions)
+    const vv = (window as { visualViewport?: VisualViewport }).visualViewport
+    vv?.addEventListener('resize', () => {
+      if (this.hasAttribute('data-maximized') && vv.scale > 1.01) resetPageZoom()
+    })
+  }
 
   private _setupScenePanel(): void {
     const gear = this.parts.scenePanelGear as HTMLButtonElement
@@ -8150,3 +8176,18 @@ export class B3d extends Component {
 }
 
 export const b3d = B3d.elementCreator()
+
+/**
+ * Put a pinch-zoomed page back to 1: briefly cap the viewport's scale, which
+ * Safari obeys by zooming out, then lift the cap so people can still zoom the
+ * page outside the scene.
+ */
+function resetPageZoom(): void {
+  const vv = (window as { visualViewport?: VisualViewport }).visualViewport
+  if (vv == null || vv.scale <= 1.01) return
+  const meta = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null
+  if (meta == null) return
+  const was = meta.content
+  meta.content = `${was.replace(/,?\s*maximum-scale=[^,]*/g, '')}, maximum-scale=1`
+  setTimeout(() => (meta.content = was), 400)
+}

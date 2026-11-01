@@ -172,6 +172,7 @@ repeats every 256 km.
 | `colliderPool` | `48` | How many colliders at most |
 | `shadowRange` | `200` | Metres around the camera whose copies cast shadows (with `shadows: 'on'`) |
 | `shadowBudget` | `600` | How many of the nearest copies cast, at most |
+| `clear` (property) | `null` | `(x, z) => 0..1`: ground kept clear (0 grows nothing), in the landform's coordinates. A city's `cityGround(...).clear` keeps trees off its streets |
 | `clump` | `-1` | How strongly things gather: 0 = even spread, 1 = clumps only. `-1` leaves it to each rule (0.95 by default). Live |
 | `clumpSize` | `0` | Metres across a clump and the gap beside it. `0` = auto, about two and a half times the average spacing, so tightening `radius` keeps the clumps. Live |
 */
@@ -319,6 +320,13 @@ export class B3dDecorator extends B3dChild {
     this._roles = roles
   }
   private _roles: Record<string, DecorationRole> | null = null
+  /**
+   * Ground kept clear: `(x, z) => 0..1` in logical world coordinates (as a
+   * landform's), 0 where nothing grows, 1 where everything may. A city's
+   * `cityGround(...).clear` keeps the trees off its streets. Set it, then the
+   * next rebuild uses it.
+   */
+  clear: ((x: number, z: number) => number) | null = null
   /** What was placed last, in LOGICAL world coordinates. */
   placements: Placement[] = []
   /**
@@ -847,16 +855,20 @@ export class B3dDecorator extends B3dChild {
       without a province.
       */
       suppress:
-        typeof terrain.provinceField === 'function'
+        typeof terrain.provinceField === 'function' || this.clear
           ? (x, z) => {
               // Asked once per plant RULE at the same point: evaluate the
               // province once per point.
               if (x !== lastX || z !== lastZ) {
                 lastX = x
                 lastZ = z
-                const v = terrain.provinceField(x, z)
-                const t = Math.max(0, Math.min(1, (v - 0.02) / 0.1))
-                lastFactor = 1 - t * t * (3 - 2 * t)
+                lastFactor = 1
+                if (typeof terrain.provinceField === 'function') {
+                  const v = terrain.provinceField(x, z)
+                  const t = Math.max(0, Math.min(1, (v - 0.02) / 0.1))
+                  lastFactor = 1 - t * t * (3 - 2 * t)
+                }
+                if (this.clear) lastFactor *= Math.max(0, Math.min(1, this.clear(x, z)))
               }
               return lastFactor
             }

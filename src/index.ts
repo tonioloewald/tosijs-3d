@@ -618,7 +618,7 @@ export {
   type Rect as CityRect,
   type Side as CitySide,
 } from './city-layout.js'
-export { B3dCity, b3dCity, cityStart, KENNEY_CITY, type CityKit, type KitPiece } from './b3d-city.js'
+export { B3dCity, b3dCity, cityGround, cityStart, KENNEY_CITY, type CityKit, type KitPiece } from './b3d-city.js'
 export {
   createTraffic,
   recycleTraffic,

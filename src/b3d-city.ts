@@ -81,6 +81,7 @@ import { b3dLibrary } from './b3d-library.js'
 import { assetUrl } from './asset-url.js'
 import { cityLayout, type CityLayout, type CityLayoutOptions, type RoadCell, type RoadPiece, type Side } from './city-layout.js'
 import { PRNG } from './mersenne-twister.js'
+import { pad } from './landform.js'
 import { lightPool, sceneDaylight, lampLevel, lampFlicker, type VirtualLight } from './light-pool.js'
 import { windowLights, windowsLit, type WindowLightsPlugin } from './window-lights.js'
 import { createTraffic, recycleTraffic, stepTraffic, TRAFFIC_CAR, type Traffic, type TrafficObstacle } from './city-traffic.js'
@@ -232,6 +233,40 @@ export function cityStart(
 function lanes(cell: number, roadway = 0.8): { lane: number; kerb: number } {
   const half = (cell * roadway) / 2
   return { lane: half * 0.28, kerb: half - 0.9 }
+}
+
+/**
+ * Ground for a city in a landscape: a terrain `landform` that is dead flat at
+ * `level` under the whole grid and eases into the hills around it (a
+ * [landform](/landform/) `pad`), and a decorator `clear` that keeps trees and
+ * rocks off it. Give it the city's size and place (`x`, `z`: its middle, as
+ * the city's own attributes). Both take the terrain's logical coordinates.
+ */
+export function cityGround(options: {
+  width: number
+  depth: number
+  cell?: number
+  x?: number
+  z?: number
+  level: number
+  /** How far the slope back up to the hills runs, metres. Default 160. */
+  blend?: number
+}): { landform: (x: number, z: number, h: number) => number; clear: (x: number, z: number) => number } {
+  const cell = options.cell ?? 12
+  const cx = options.x ?? 0
+  const cz = options.z ?? 0
+  const hw = (options.width * cell) / 2
+  const hd = (options.depth * cell) / 2
+  const radius = Math.hypot(hw, hd) + cell
+  const ground = pad({ x: cx, z: cz, radius, level: options.level, blend: options.blend ?? 160 })
+  return {
+    landform: ground,
+    // Nothing on the city's square, and a cell round it; thinning out beyond.
+    clear: (x, z) => {
+      const out = Math.max(Math.abs(x - cx) - hw, Math.abs(z - cz) - hd)
+      return Math.max(0, Math.min(1, (out - cell) / (cell * 2)))
+    },
+  }
 }
 
 /** The straight road nearest the middle (the city parks nothing near it). */
