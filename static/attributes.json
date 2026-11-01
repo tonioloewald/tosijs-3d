@@ -982,6 +982,9 @@
         "name": "headlights"
       },
       {
+        "name": "sound"
+      },
+      {
         "name": "steerDeg",
         "default": "35",
         "description": "Full lock, degrees; at speed, no more than the tyres can hold"
@@ -1057,6 +1060,11 @@
         "name": "traffic",
         "default": "24",
         "description": "The car budget: this many cars drive round near you (they stop for yours, and are knocked about by it; lamps at night). Cars far away or out of view go, and come back out of view, driving toward you"
+      },
+      {
+        "name": "sound",
+        "default": "'on'",
+        "description": "Positional sound: the nearest traffic's engines and horns (a driver you block honks), the hum of the nearest street lights, a sputter from the failing ones. `'off'` for silence"
       },
       {
         "name": "x"
@@ -4612,6 +4620,9 @@
       },
       {
         "name": "headlights"
+      },
+      {
+        "name": "sound"
       },
       {
         "name": "turnSpeed",

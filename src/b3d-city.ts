@@ -63,6 +63,7 @@ so night falls in a few minutes; the owl's panel sets the hour and the speed.
 | `lampAngle` | `80` | A street light's cone, degrees; it reaches twice its height |
 | `flicker` | `0.08` | The share of street lights that are failing and flicker |
 | `parked` | `0.2` | The chance of a parked car on a stretch of road |
+| `sound` | `'on'` | Positional sound: the nearest traffic's engines and horns (a driver you block honks), the hum of the nearest street lights, a sputter from the failing ones. `'off'` for silence |
 | `traffic` | `24` | The car budget: this many cars drive round near you (they stop for yours, and are knocked about by it; lamps at night). Cars far away or out of view go, and come back out of view, driving toward you |
 
 The city is centred on its `x`, `y`, `z`. `kit` (a property, not an
@@ -86,6 +87,7 @@ import { lightPool, sceneDaylight, lampLevel, lampFlicker, type VirtualLight } f
 import { windowLights, windowsLit, type WindowLightsPlugin } from './window-lights.js'
 import { createTraffic, recycleTraffic, stepTraffic, TRAFFIC_CAR, type Traffic, type TrafficObstacle } from './city-traffic.js'
 import { headingOf, type VehicleSpec, type VehicleState } from './ground-vehicle.js'
+import { CitySound } from './city-sound.js'
 
 /** One model's driving cars: its parts' instance buffers, rewritten each frame. */
 interface TrafficModel {
@@ -292,6 +294,7 @@ export class B3dCity extends B3dChild {
     flicker: 0.08,
     parked: 0.2,
     traffic: 24,
+    sound: 'on' as 'on' | 'off',
     x: 0,
     y: 0,
     z: 0,
@@ -308,6 +311,7 @@ export class B3dCity extends B3dChild {
   declare flicker: number
   declare parked: number
   declare traffic: number
+  declare sound: 'on' | 'off'
   declare x: number
   declare y: number
   declare z: number
@@ -327,6 +331,7 @@ export class B3dCity extends B3dChild {
   private trafficModels: TrafficModel[] = []
   private beams: VirtualLight[] = []
   private trafficLamps: TrafficLamps | null = null
+  private citySound: CitySound | null = null
   private windows: WindowLightsPlugin[] = []
   private generation = 0
 
@@ -812,8 +817,15 @@ export class B3dCity extends B3dChild {
       w.glow = glow
     }
     const traffic = this.trafficState
+    const dt = Math.min(0.1, sceneDelta(scene))
+    if (this.sound !== 'off') {
+      this.citySound ??= new CitySound()
+      this.citySound.update(scene, dt, traffic, this.lampLights, root.position)
+    } else if (this.citySound) {
+      this.citySound.dispose()
+      this.citySound = null
+    }
     if (traffic) {
-      const dt = Math.min(0.1, sceneDelta(scene))
       // The car budget follows the camera (the GTA way).
       const cam = scene.activeCamera
       if (cam) {
@@ -858,6 +870,8 @@ export class B3dCity extends B3dChild {
     this.lampLights = []
     this.beams = []
     this.trafficLamps = null
+    this.citySound?.dispose()
+    this.citySound = null
     for (const w of this.windows) w.isEnabled = false
     this.windows = []
     this.trafficState = null

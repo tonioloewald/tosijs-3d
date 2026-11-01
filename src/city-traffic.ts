@@ -25,6 +25,10 @@ sort it out by one backing away; a kerb that borders no road keeps them out of t
 buildings; a car knocked far from its lane or onto its roof for a few seconds
 is put back on its plan. Without a `vehicle` the plan is the car.
 
+A car held up by an obstacle (you) honks after a second or so, and again every
+few seconds you stay; held up a long time by a car that is going nowhere, now
+and then. `car.honk` is true on the step it does, for whoever plays the sound.
+
 `recycleTraffic(traffic, viewer, dt)` keeps the cars where the player is, the
 GTA way: `count` is a budget, and a car that is far away, or out of view and
 not close, is taken away and put back out of view a block or so off, already
@@ -151,6 +155,13 @@ export interface TrafficCar {
   /** A car that has backed off to let this one through, ignored while `goFirst` lasts. */
   through: TrafficCar | null
   goFirst: number
+  /** Its pedal, -1 to 1 (for the engine's note). */
+  throttle: number
+  /** True on the step it sounds its horn. */
+  honk: boolean
+  /** Seconds it has been held up by the same thing, and until it may honk again. */
+  patience: number
+  hornIn: number
   /** Seconds since it last got 3 m anywhere, and where it was then. */
   stuck: number
   anchor: [number, number]
@@ -351,6 +362,10 @@ export function createTraffic(options: TrafficOptions): Traffic {
       waitingFor: null,
       through: null,
       goFirst: 0,
+      throttle: 0,
+      honk: false,
+      patience: 0,
+      hornIn: 0,
       stuck: 0,
       anchor: [0, 0],
       path: [0, 0, 0, 0, 0, 0],
@@ -472,7 +487,17 @@ export function stepTraffic(t: Traffic, dt: number, obstacles: TrafficObstacle[]
     let blocked = false
     let blocker: TrafficCar | null = null
     let nearest = Infinity
-    const consider = (x: number, z: number, size: number, crossing: boolean, other: TrafficCar | null = null) => {
+    // The nearest thing in the way, whatever it is (for the horn).
+    let closest = Infinity
+    let closestIsObstacle = false
+    const consider = (
+      x: number,
+      z: number,
+      size: number,
+      crossing: boolean,
+      other: TrafficCar | null = null,
+      obstacle = false
+    ) => {
       const rx = x - car.x
       const rz = z - car.z
       const along = rx * hx + rz * hz
@@ -485,6 +510,10 @@ export function stepTraffic(t: Traffic, dt: number, obstacles: TrafficObstacle[]
       if (crossing && car.waited > 2.5) return
       const room = Math.max(0, along - size - o.length / 2 - o.gap)
       want = Math.min(want, Math.sqrt(2 * o.brake * room))
+      if (room < closest) {
+        closest = room
+        closestIsObstacle = obstacle
+      }
       if (room < 0.5) blocked = true
       if (room < 0.5 && room < nearest) {
         nearest = room
@@ -500,9 +529,24 @@ export function stepTraffic(t: Traffic, dt: number, obstacles: TrafficObstacle[]
       if (facing < -0.7) continue
       consider(other.x, other.z, o.length / 2, facing < 0.5 && other.waited > 1, other)
     }
-    for (const ob of obstacles) consider(ob.x, ob.z, ob.length ? ob.length / 2 : (ob.radius ?? 2), false)
+    for (const ob of obstacles) consider(ob.x, ob.z, ob.length ? ob.length / 2 : (ob.radius ?? 2), false, null, true)
     car.waited = blocked || speed < 0.3 ? car.waited + dt : 0
     car.waitingFor = blocker
+    /*
+    THE HORN: held up by YOU, a driver leans on it after a second or so, and
+    again every few seconds you stay there. Held up by another car that is
+    going nowhere, after a long wait, now and then.
+    */
+    car.honk = false
+    car.hornIn -= dt
+    // Held up: stopped, with something close ahead.
+    const held = speed < 1 && closest < 3
+    car.patience = held ? car.patience + dt : 0
+    const fedUp = closestIsObstacle ? car.patience > 1.2 : car.patience > 8 && car.stuck > 5
+    if (held && fedUp && car.hornIn <= 0) {
+      car.honk = true
+      car.hornIn = closestIsObstacle ? 2.5 + t.rng.value() * 3 : 8 + t.rng.value() * 10
+    }
     // JAMMED: two cars nose to nose or nose to side, both getting nowhere
     // (each creeping into the other; a bump is not progress). The later one
     // backs off, and the other goes first, paying it no mind until through.
@@ -601,6 +645,7 @@ export function stepTraffic(t: Traffic, dt: number, obstacles: TrafficObstacle[]
         car.waited = 0
       }
       car.braking = throttle < -0.05 || (want < 0.3 && fwd < 1.5)
+      car.throttle = throttle
       stepVehicle(spec, body, { throttle, steer }, dt, FLAT)
     })
     collide(t, obstacles)

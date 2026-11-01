@@ -36,6 +36,8 @@ import {
   type VehicleState,
 } from './ground-vehicle.js'
 
+import { placeListener, startVoice, type Voice } from './effect-audio.js'
+
 const V = (p: { x: number; y: number; z: number }) => new BABYLON.Vector3(p.x, p.y, p.z)
 const IDLE: VehicleControls = { throttle: 0, steer: 0, handbrake: 0 }
 
@@ -62,6 +64,8 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     grip: 1,
     /** `'auto'`: on at night while someone drives it. `'on'` or `'off'` to say so. */
     headlights: 'auto' as 'auto' | 'on' | 'off',
+    /** The engine's sound while someone drives it, positional. `'off'` for none. */
+    sound: 'on' as 'on' | 'off',
   }
   declare url: string
   declare library: string
@@ -75,6 +79,7 @@ export abstract class B3dGroundVehicle extends B3dControllable {
   declare braking: number
   declare grip: number
   declare headlights: 'auto' | 'on' | 'off'
+  declare sound: 'on' | 'off'
 
   /** The model's spec, once the vehicle has a body. */
   spec: VehicleSpec | null = null
@@ -96,6 +101,9 @@ export abstract class B3dGroundVehicle extends B3dControllable {
   /** The headlights' beam (a pooled light) and the lamps you see. */
   private beam: VirtualLight | null = null
   private releaseBeam: (() => void) | null = null
+  private engine: Voice | null = null
+  /** The engine's note relative to a car's (a tank's is lower). */
+  protected engineNote = 1
   private beamFrom = new BABYLON.Vector3()
   private lamps: BABYLON.StandardMaterial | null = null
   private tailLamps: BABYLON.StandardMaterial | null = null
@@ -430,7 +438,27 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     this.afterStep(state, dt)
     this.place()
     this.updateLights()
+    this.updateEngine(state)
     if (this.chaseCamera != null && scene.activeCamera === this.chaseCamera) this.aimCamera(dt)
+  }
+
+  /** The engine, while driven: its note rises with speed, and it opens up on the throttle. */
+  private updateEngine(state: VehicleState) {
+    const driven = this.inputProvider != null && this.sound !== 'off'
+    if (!driven) {
+      this.engine?.stop()
+      this.engine = null
+      return
+    }
+    const camera = this.owner?.scene.activeCamera
+    if (camera) placeListener(camera)
+    this.engine ??= startVoice('engine', { refDistance: 5 })
+    const voice = this.engine
+    if (voice == null) return
+    const speed = Math.abs(forwardSpeed(state))
+    const pull = Math.abs(this.controls.throttle)
+    voice.place(V(state.position).addInPlaceFromFloats(0, 0.6, 0))
+    voice.set(0.22 + 0.35 * pull, this.engineNote * (0.75 + speed / 10 + pull * 0.3), 0.3 + 0.6 * pull, 16000)
   }
 
   /*
@@ -560,6 +588,8 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     this.chaseCamera = null
     this.releaseBeam?.()
     this.releaseBeam = null
+    this.engine?.stop()
+    this.engine = null
     this.beam = null
     this.lamps?.dispose()
     this.tailLamps?.dispose()

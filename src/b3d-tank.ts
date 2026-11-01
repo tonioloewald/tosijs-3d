@@ -111,6 +111,8 @@ function treadTexture(scene: BABYLON.Scene): BABYLON.DynamicTexture {
 }
 
 export class B3dTank extends B3dGroundVehicle {
+  /** A diesel: lower than a car. */
+  protected engineNote = 0.55
   static preferredTagName = 'tosi-b3d-tank'
 
   inputMapping = carMapping

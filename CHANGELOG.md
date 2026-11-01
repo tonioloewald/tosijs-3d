@@ -20,6 +20,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 - **City Drive** (Demos): a 48 × 48 city on ground flattened for it, in green hills by the sea under the full sky (day and night, cloud deck, stars), with woods round it; drive out of town and keep going. `cityGround({ width, depth, level, x, z })` gives a terrain `landform` (a pad flat under the grid) and a decorator `clear`; `<tosi-b3d-decorator>` takes `clear`, ground kept clear of trees and rocks.
 
+- **Sound in the city** (positional, synthesised): the nearest traffic's engines (the note rises with speed, opens on the throttle), a horn from a driver you block (and, after a long wait, from one stuck behind a stuck car; `car.honk` in the pure model), the hum of the nearest street lights and a sputtering buzz from the failing ones. Your own vehicle's engine plays while you drive it (`sound="off"` to silence; a tank's is lower). New effect voices: `engine`, `hum`, `horn`. `<tosi-b3d-city sound="off">` for silence.
+
 - iPhone: the page no longer zooms from inside a scene (`<tosi-b3d>` is `touch-action: none` and cancels Safari's pinch), and a zoomed page is reset when the scene goes full screen, where nothing was left to pinch out on.
 
 - `b3dLight` takes `nightIntensity`: under a day/night `b3dSkybox` the ambient fill eases to it as the daylight goes (the sun is already the moon), so night no longer looks like an overcast noon.

@@ -247,3 +247,43 @@ describe('the car budget', () => {
     expect(keep.map((c) => [c.x, c.z])).toEqual(before)
   })
 })
+
+describe('the horn', () => {
+  test('a car you block honks after a moment, and again if you stay', () => {
+    const t = createTraffic({ layout, cell: 12, lane: 1.4, count: 1, seed: 4 })
+    const car = t.cars[0]
+    for (let k = 0; k < 30; k++) stepTraffic(t, 1 / 30)
+    const block = { x: car.x + Math.sin(car.yaw) * 7, z: car.z + Math.cos(car.yaw) * 7, radius: 1.5 }
+    const honks: number[] = []
+    for (let k = 0; k < 15 * 30; k++) {
+      stepTraffic(t, 1 / 30, [block])
+      if (car.honk) honks.push(k / 30)
+    }
+    expect(honks.length).toBeGreaterThanOrEqual(2)
+    expect(honks[0]).toBeGreaterThan(1)
+    expect(honks[1] - honks[0]).toBeGreaterThan(2)
+  })
+
+  test('a real car (a body) you block honks too', () => {
+    const t = createTraffic({ layout, cell: 12, lane: 1.4, count: 1, seed: 4, vehicle: TRAFFIC_CAR })
+    const car = t.cars[0]
+    for (let k = 0; k < 60; k++) stepTraffic(t, 1 / 30)
+    const block = { x: car.x + Math.sin(car.yaw) * 12, z: car.z + Math.cos(car.yaw) * 12, radius: 1.5 }
+    let honks = 0
+    for (let k = 0; k < 10 * 30; k++) {
+      stepTraffic(t, 1 / 30, [block])
+      if (car.honk) honks++
+    }
+    expect(honks).toBeGreaterThanOrEqual(1)
+  })
+
+  test('cars on the move do not honk', () => {
+    const t = createTraffic({ layout, cell: 12, lane: 1.4, count: 6, seed: 4 })
+    let honks = 0
+    for (let k = 0; k < 10 * 30; k++) {
+      stepTraffic(t, 1 / 30)
+      honks += t.cars.filter((c) => c.honk).length
+    }
+    expect(honks).toBe(0)
+  })
+})

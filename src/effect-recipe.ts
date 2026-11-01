@@ -54,6 +54,9 @@ export type VoiceKind =
   | 'buzz'
   | 'splash'
   | 'bubble'
+  | 'engine'
+  | 'hum'
+  | 'horn'
 export const VOICES: readonly VoiceKind[] = [
   'rumble',
   'roar',
@@ -64,6 +67,9 @@ export const VOICES: readonly VoiceKind[] = [
   'buzz',
   'splash',
   'bubble',
+  'engine',
+  'hum',
+  'horn',
 ]
 
 interface LayerBase {

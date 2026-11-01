@@ -241,6 +241,7 @@ b3d-car
   braking  = 9  — m/s²
   grip  = 1  — Tyre grip, a friction coefficient: lower slides sooner
   headlights
+  sound
   steerDeg  = 35  — Full lock, degrees; at speed, no more than the tyres can hold
   drive  = 'rear'  — Driven wheels: `rear`, `front` or `all`
 
@@ -259,6 +260,7 @@ b3d-city
   flicker  = 0.08  — The share of street lights that are failing and flicker
   parked  = 0.2  — The chance of a parked car on a stretch of road
   traffic  = 24  — The car budget: this many cars drive round near you (they stop for yours, and are knocked about by it; lamps at night). Cars far away or out of view go, and come back out of view, driving toward you
+  sound  = 'on'  — Positional sound: the nearest traffic's engines and horns (a driver you block honks), the hum of the nearest street lights, a sputter from the failing ones. `'off'` for silence
   x
   y
   z
@@ -1135,6 +1137,7 @@ b3d-tank
   braking
   grip
   headlights
+  sound
   turnSpeed  = 1.2  — How far apart the belts run at full steer, m/s
 
 ## b3d-terrain — <tosi-b3d-terrain>

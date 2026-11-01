@@ -190,7 +190,7 @@ describe('validation', () => {
     expect(problems).toContain('layers[1].range is not positive')
     expect(problems).toContain('layers[2] repeats with no duration')
     expect(problems).toContain(
-      'layers[2].voice is not one of rumble, roar, hiss, boom, crackle, whoosh, buzz, splash, bubble'
+      'layers[2].voice is not one of rumble, roar, hiss, boom, crackle, whoosh, buzz, splash, bubble, engine, hum, horn'
     )
     expect(problems).toContain(
       'layers[3].kind is not particles, light or sound'
