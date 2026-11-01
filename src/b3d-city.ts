@@ -545,7 +545,7 @@ export class B3dCity extends B3dChild {
           angle: (Number(this.lampAngle) || 80) * (Math.PI / 180),
           exponent: 4,
           color: new BABYLON.Color3(1, 0.82, 0.55),
-          intensity: 1.6,
+          intensity: 4.5,
           range: l.position.y * 2,
           level: 0,
           local: l.position.clone(),
@@ -665,6 +665,8 @@ export class B3dCity extends B3dChild {
         intensity: 4,
         range: 30,
         level: 0,
+        // Two dozen of these would take every real light from the street lights.
+        weight: 0.2,
       }
       this.releaseLamps.push(pool.add(beam))
       return beam
