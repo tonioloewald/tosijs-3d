@@ -1222,6 +1222,8 @@ export function decoratorSchema(extra: Record<string, unknown> = {}) {
       // -1 = each rule's own strength; 0 = auto size.
       clump: num(-1, { minimum: -1, maximum: 1 }),
       clumpSize: num(0, { minimum: 0, maximum: 1000, ...M }),
+      // Shapes per family (each a draw); 0 = auto, from the device tier.
+      variants: num(0, { minimum: 0, maximum: 10, multipleOf: 1 }),
       follow: choice('on', ['on', 'off']),
       shadows: choice('off', ['on', 'off']),
       colliders: choice('on', ['on', 'off']),

@@ -149,6 +149,11 @@ export interface PerfBudgets {
    * Lit materials are raised to take them.
    */
   lampLights: number
+  /**
+   * Shapes per decoration family (a tree species' variants, a rock kind's):
+   * each is a draw of its own. `0` keeps them all.
+   */
+  decoVariants: number
   effectVoices: number
   /**
    * Fixed foveation in a headset, 0-1: how much the edges of each eye are
@@ -263,6 +268,7 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     effectParticles: 6000,
     effectLights: 4,
     lampLights: 6,
+    decoVariants: 0,
     effectVoices: 12,
     xrFoveation: 0,
     groundDetail: 1,
@@ -290,6 +296,7 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     effectParticles: 3000,
     effectLights: 3,
     lampLights: 4,
+    decoVariants: 3,
     effectVoices: 8,
     xrFoveation: 0.5,
     groundDetail: 1,
@@ -317,6 +324,7 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     effectParticles: 1200,
     effectLights: 2,
     lampLights: 2,
+    decoVariants: 2,
     effectVoices: 6,
     xrFoveation: 1,
     groundDetail: 0,

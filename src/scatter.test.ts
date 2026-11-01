@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import {
+  limitVariant,
   band,
   clumpAt,
   clumpCentreFor,
@@ -625,5 +626,19 @@ describe('seatDip: sit on the mesh that is drawn', () => {
 
   test('no cell, no change', () => {
     expect(seatDip(() => 9, { x: 0, y: 0, z: 0, normal: flatUp }, 0)).toBe(0)
+  })
+})
+
+describe('limitVariant', () => {
+  test('keeps the first variants and folds the rest onto them', () => {
+    expect(limitVariant('BirchTree_1', 2)).toBe('BirchTree_1')
+    expect(limitVariant('BirchTree_2', 2)).toBe('BirchTree_2')
+    expect(limitVariant('BirchTree_3', 2)).toBe('BirchTree_1')
+    expect(limitVariant('BirchTree_4', 2)).toBe('BirchTree_2')
+    expect(limitVariant('rock:stone:7', 2)).toBe('rock:stone:1')
+  })
+  test('0 keeps everything, and an unnumbered name is left alone', () => {
+    expect(limitVariant('BirchTree_5', 0)).toBe('BirchTree_5')
+    expect(limitVariant('Fern', 2)).toBe('Fern')
   })
 })

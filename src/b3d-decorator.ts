@@ -160,6 +160,7 @@ repeats every 256 km.
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `budget` | `2000` | How many things to place. Performance cares about this, not density |
+| `variants` | `0` | Shapes kept per family (a tree species' variants, a rock kind's), each a draw of its own. `0` is auto, from the device tier: all on a desktop, 3 on the medium tier, 2 on the low tier (a Quest) |
 | `budgetScale` | `0` | Share of `budget` actually placed. `0` is auto, from the device tier (1, except 0.6 on the low tier, which is what a Quest gets in a session). A smaller share means fewer clumps in the same places, each as full, not thinner clumps. Set `1` to place the whole budget everywhere |
 | `radius` | `900` | Metres around the camera to fill |
 | `seed` | `1` | Same seed, same forest |
@@ -192,6 +193,7 @@ import {
 import { rockFromName, rockGeometry } from './procedural-rock.js'
 import {
   isDefaultLibrary,
+  limitVariant,
   scatterPlacements,
   NearIndex,
   seatDip,
@@ -255,10 +257,13 @@ export class B3dDecorator extends B3dChild {
     clump: -1,
     // 0 = auto (from the spacing); otherwise metres.
     clumpSize: 0,
+    // Shapes per family (tree species, rock kind); 0 = auto, from the device tier.
+    variants: 0,
   }
 
   declare budget: number
   declare budgetScale: number
+  declare variants: number
   declare radius: number
   declare seed: number
   declare url: string
@@ -868,7 +873,8 @@ export class B3dDecorator extends B3dChild {
                   const t = Math.max(0, Math.min(1, (v - 0.02) / 0.1))
                   lastFactor = 1 - t * t * (3 - 2 * t)
                 }
-                if (this.clear) lastFactor *= Math.max(0, Math.min(1, this.clear(x, z)))
+                if (this.clear)
+                  lastFactor *= Math.max(0, Math.min(1, this.clear(x, z)))
               }
               return lastFactor
             }
@@ -887,6 +893,10 @@ export class B3dDecorator extends B3dChild {
     */
     const cell = Number(terrain.meshCell) || 0
     for (const p of this.placements) p.y += seatDip(height, p, cell)
+    // Fewer shapes where draws are short: the same places, species and sizes.
+    const keep = resolveBudget(Number(this.variants), 'decoVariants')
+    if (keep > 0)
+      for (const p of this.placements) p.model = limitVariant(p.model, keep)
     this.near = new NearIndex(this.placements, 32)
     pruneScatterCache(this._cache, here, this.radius * 1.5)
     this._center = here
