@@ -343,7 +343,8 @@ import { panelFitWidth } from './widgets3d-layout.js'
 import { w3dTheme } from './w3d-theme.js'
 import type { Medium } from './medium.js'
 import { SvgTexture, svgTextureCost } from './svg-texture.js'
-import { sendDebug } from './debug-sink.js'
+import { debugSink, sendDebug } from './debug-sink.js'
+import { frameProfile } from './frame-profile.js'
 import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane.js'
 import { createMakers, type Makers } from './make-mesh.js'
 import {
@@ -5544,6 +5545,13 @@ export class B3d extends Component {
             sendDebug('load', { ...timeline, frameMsAfter: frames.join(' ') })
           }
         })
+        // Where those frames go, by callback, for two minutes (debug sink only).
+        if (debugSink.url !== '')
+          frameProfile(this.scene, {
+            seconds: 120,
+            every: 5,
+            report: (s) => sendDebug('frame', { ...s }),
+          })
         cnv.classList.add('ready')
         // Not a spinner a page is holding up for its own loading.
         if (!this._loadingHeld) spinner.classList.add('hidden')
@@ -5565,11 +5573,14 @@ export class B3d extends Component {
       // load cannot be watched any other way).
       const timeline: Record<string, number | string> = {}
       const mark = (what: string) => {
-        if (!(what in timeline)) timeline[what] = Math.round(realNow() - started)
+        if (!(what in timeline))
+          timeline[what] = Math.round(realNow() - started)
       }
       let lastHolds = ''
       const checkReady = () => {
-        const holds = [...this._loadingHolds].map((h) => h.replace(/#\d+$/, '')).join(', ')
+        const holds = [...this._loadingHolds]
+          .map((h) => h.replace(/#\d+$/, ''))
+          .join(', ')
         if (holds !== lastHolds && lastHolds !== '') mark(`built ${lastHolds}`)
         lastHolds = holds
         if (this.scene.getWaitingItemsCount() === 0) mark('files')
@@ -5578,9 +5589,14 @@ export class B3d extends Component {
         const built = this._loadingHolds.size === 0 && !this._terrainBusy()
         if (!built && realNow() > giveUp) {
           timeline.gaveUp = holds || 'terrain'
-          console.warn(`tosi-b3d: shown while still building (${holds || 'terrain'})`)
+          console.warn(
+            `tosi-b3d: shown while still building (${holds || 'terrain'})`
+          )
         }
-        if (this.scene.getWaitingItemsCount() === 0 && (built || realNow() > giveUp)) {
+        if (
+          this.scene.getWaitingItemsCount() === 0 &&
+          (built || realNow() > giveUp)
+        ) {
           this.scene.executeWhenReady(reveal)
           // Fallback: reveal once assets are loaded even if some shaders
           // haven't compiled (e.g. SkyMaterial can take extra frames)
@@ -7016,21 +7032,32 @@ export class B3d extends Component {
     // Safari's gesture events need not leave the shadow DOM; touch events do.
     // A two-finger move here is never a page pinch, and a quick second tap is
     // never a double-tap zoom.
-    this.addEventListener('touchmove', (e) => {
-      if (e.touches.length > 1) e.preventDefault()
-    }, active)
+    this.addEventListener(
+      'touchmove',
+      (e) => {
+        if (e.touches.length > 1) e.preventDefault()
+      },
+      active
+    )
     let lastTap = 0
-    this.addEventListener('touchend', (e) => {
-      const now = e.timeStamp
-      if (now - lastTap < 350) e.preventDefault()
-      lastTap = now
-    }, active)
+    this.addEventListener(
+      'touchend',
+      (e) => {
+        const now = e.timeStamp
+        if (now - lastTap < 350) e.preventDefault()
+        lastTap = now
+      },
+      active
+    )
     // A page zoomed anyway is put back the moment you touch the scene: a scene
     // that fills the screen leaves nowhere else to pinch out.
-    this.addEventListener('touchstart', () => resetPageZoom(), { passive: true })
+    this.addEventListener('touchstart', () => resetPageZoom(), {
+      passive: true,
+    })
     const vv = (window as { visualViewport?: VisualViewport }).visualViewport
     vv?.addEventListener('resize', () => {
-      if (this.hasAttribute('data-maximized') && vv.scale > 1.01) resetPageZoom()
+      if (this.hasAttribute('data-maximized') && vv.scale > 1.01)
+        resetPageZoom()
     })
   }
 
@@ -8270,9 +8297,14 @@ export const b3d = B3d.elementCreator()
 function resetPageZoom(): void {
   const vv = (window as { visualViewport?: VisualViewport }).visualViewport
   if (vv == null || vv.scale <= 1.01) return
-  const meta = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null
+  const meta = document.querySelector(
+    'meta[name="viewport"]'
+  ) as HTMLMetaElement | null
   if (meta == null) return
   const was = meta.content
-  meta.content = `${was.replace(/,?\s*maximum-scale=[^,]*/g, '')}, maximum-scale=1`
+  meta.content = `${was.replace(
+    /,?\s*maximum-scale=[^,]*/g,
+    ''
+  )}, maximum-scale=1`
   setTimeout(() => (meta.content = was), 400)
 }
