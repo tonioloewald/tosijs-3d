@@ -515,11 +515,11 @@ export abstract class B3dGroundVehicle extends B3dControllable {
   private isMine = (m: BABYLON.AbstractMesh) =>
     this.control != null && m.isDescendantOf(this.control)
   /**
-   * What its rays hit: anything collidable but itself and water (made once,
-   * not per ray). Water is not ground for a wheel, and the sea's big surface
-   * was half the cost of every downward ray.
+   * What its rays hit: anything collidable but itself (made once, not per
+   * ray). Water included: a car that ignored it sank to the seabed, out of the
+   * world as far as a driver could tell.
    */
-  private collides = collidable(this.isMine, { ignoreGroups: ['water'] })
+  private collides = collidable(this.isMine)
 
   /*
   GROUND, once a frame. The model steps at 1/60 s and asks for the ground under
