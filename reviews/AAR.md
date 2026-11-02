@@ -131,3 +131,11 @@
 - Surprised: both "low-hanging" backlog bugs were already fixed and their cards never closed. Check the code before scoping a stale card.
 - Friction: the dial-art generator's output was rewritten by the formatter, and the first single-quote version broke on newlines; it now emits exactly what prettier would.
 - Cycle: none.
+
+## 0.12.0 — 2026-11-02
+
+- Went well: the emulated headset answered two VR questions without a headset, each with a check that failed when the fix was reverted: getting into a car mid-session blanked the view (the gate's one major), and leaving VR put the chase camera inside the ground. Measuring the Kenney road pieces after the unmirror fix (raycast each tile edge) caught that two manifest turns had been tuned against the mirrored picture.
+- Didn't: models had been drawn mirrored since canonicalize was written; every check pinned the nose direction, none pinned chirality, and symmetric vehicles hid it until Tonio's tank had text on it. A gate on chirality (an asymmetric fixture) now exists.
+- Surprised: the headset debug sink showed the chase seat re-capturing forward mid-drive with no re-arm, and the head's tracked position growing with distance driven (#3726). Tonio felt it as occasional re-seating; the numbers say where to look.
+- Friction: the dev server's formatter left 14 files reformatted and uncommitted for a day, and I first took them for another session's work. Commit formatter churn when the server restarts.
+- Cycle: none.
