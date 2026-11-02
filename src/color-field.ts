@@ -319,6 +319,16 @@ export function color3d(config: Color3dOptions = {}): ColorField {
   }
 
   const api: ColorField = {
+    semantics: () => ({
+      role: 'colour',
+      name: config.label ?? '',
+      value: api.value,
+      set: (v: unknown) => {
+        if (parseColor(String(v)) == null) return
+        api.setValue(String(v))
+        emit(true)
+      },
+    }),
     el,
     get value() {
       return formatColor(hsvToRgb(hsv))

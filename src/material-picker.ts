@@ -507,6 +507,15 @@ export function materialPicker3d(
   }
 
   const api: MaterialPicker = {
+    semantics: () => ({
+      role: 'editor',
+      name: config.label ?? '',
+      value,
+      // A whole recipe ({ type, inputs }), as the popup would make one.
+      set: (v: unknown) => {
+        if (v != null && typeof v === 'object') set(v as MaterialRecipe, true)
+      },
+    }),
     el,
     get value() {
       return value

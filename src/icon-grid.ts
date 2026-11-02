@@ -216,6 +216,7 @@ import { iconGlyph } from './svg-icons.js'
 import { w3dTheme } from './w3d-theme.js'
 import { openMenu3d, resolveDynamic } from './widgets3d.js'
 import type { Dynamic } from './widgets3d.js'
+import type { WidgetSemantics } from './widget-semantics.js'
 import type {
   MenuAction,
   PointerKind,
@@ -538,6 +539,20 @@ export function iconGrid3d(config: IconGrid3dOptions): IconGrid {
 
   return {
     el,
+
+    semantics: () => ({
+      role: 'toolbar',
+      name: '',
+      children: items.map((item, i) => ({
+        semantics: (): WidgetSemantics => ({
+          role: mode === 'buttons' || item.menu ? 'button' : 'toggle',
+          name: item.label ?? item.title ?? '',
+          ...(mode !== 'buttons' && !item.menu ? { value: isOn(i) } : {}),
+          ...(resolveDynamic(item.disabled, false) ? { disabled: true } : {}),
+          activate: () => activate(i),
+        }),
+      })),
+    }),
 
     setHost(h: WidgetHost) {
       host = h

@@ -541,6 +541,11 @@ const SCRUB_SLOP = 3
 export interface InputFieldOptions {
   value?: string
   placeholder?: string
+  /**
+   * Its accessible name, for agents and screen readers. Without one it takes
+   * the label beside it in a row, then its placeholder, then the label above.
+   */
+  name?: string
   fontSize?: number
   height?: number
   handleChange?: (value: string) => void
@@ -1494,6 +1499,20 @@ export function inputField(config: InputFieldOptions = {}): InputField {
     isValid() {
       return isValidForType(state.text, fieldType)
     },
+    // Set as typing would: the new text, reported, then settled as Enter
+    // settles it (so a number field never keeps `1.`).
+    semantics: () => ({
+      role: fieldType === 'color' ? 'colour' : 'textbox',
+      name: config.name ?? '',
+      value: state.text,
+      ...(config.placeholder ? { placeholder: config.placeholder } : {}),
+      ...(config.min !== undefined ? { min: config.min } : {}),
+      ...(config.max !== undefined ? { max: config.max } : {}),
+      set: (v: unknown) => {
+        change(edit(String(v ?? '')))
+        commitField()
+      },
+    }),
     commit: commitField,
     setValue(v: string) {
       change(edit(v))
@@ -1967,6 +1986,8 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
   }
 
   const api: Keyboard = {
+    // Its keys type into a field; an agent sets the field instead.
+    semantics: () => ({ role: 'group', name: 'keyboard' }),
     el,
     get mode() {
       return mode

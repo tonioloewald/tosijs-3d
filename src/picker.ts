@@ -417,6 +417,19 @@ export function picker3d(config: Picker3dOptions): Picker {
   }
 
   const api: Picker = {
+    semantics: () => ({
+      role: 'select',
+      name: config.label ?? '',
+      value: options.find((o) => o.value === value)?.label ?? value,
+      options: options.map((o) => o.label ?? o.value),
+      // By label or by value.
+      set: (v: unknown) => {
+        const o =
+          options.find((o) => (o.label ?? o.value) === String(v)) ??
+          options.find((o) => o.value === String(v))
+        if (o != null) pick(o.value)
+      },
+    }),
     el,
     get value() {
       return value

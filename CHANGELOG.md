@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **`semantics()` on every panel widget** (`tosijs-3d/widget-semantics`): a control says what it is (role, name, value) and can be set or pressed through its own path, as a hand would. `panel.controls()` reads a panel as a tree of named controls, including an open popup's form; `findControl` and `nameProblems` (unnamed or duplicate controls) work on it. `inputField` and `vector3d` take a `name`; `tabs3d` a `name`. This is the base the WebMCP tools and the screen-reader mirror are built on (#3699).
+
 ## 0.12.2
 
 The latest release. More of the character, engine-free (eyes from Tonio's art, hair placement, lips and stubble as vertex colours, cloth recoloured into its texture, the extremes sweep), and the builder's save and rename ask in a popup. See [0.12.2](/v0.12.2/).

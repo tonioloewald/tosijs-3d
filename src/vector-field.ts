@@ -109,6 +109,8 @@ import type { Vec3 } from './surface-sampler.js'
 const { g, text } = svgElements
 
 export interface Vector3dOptions {
+  /** Its accessible name. Without one, it takes the label above it. */
+  name?: string
   value?: Vec3
   /** Fired on every committed edit — typing, scrubbing, or a step. */
   handleChange?: (value: Vec3) => void
@@ -252,6 +254,19 @@ function coordinateRow(
   }
 
   const api: VectorField = {
+    // Each axis set as typed, so the change is reported as typing reports it.
+    semantics: () => ({
+      role: 'vector',
+      name: config.name ?? '',
+      value: { ...current },
+      set: (v: unknown) => {
+        if (v == null || typeof v !== 'object') return
+        keys.forEach((key, i) => {
+          const n = Number((v as Record<string, unknown>)[key])
+          if (Number.isFinite(n)) fields[i].setValue(String(n))
+        })
+      },
+    }),
     el,
     layout(width: number) {
       const letterW = Math.round(fontSize * 0.7)

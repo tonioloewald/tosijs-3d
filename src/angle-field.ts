@@ -376,6 +376,17 @@ export function angle3d(config: Angle3dOptions = {}): AngleField {
   }
 
   const api: AngleField = {
+    semantics: () => ({
+      role: 'slider',
+      name: config.label ?? '',
+      value,
+      set: (v: unknown) => {
+        const n = Number(v)
+        if (!Number.isFinite(n)) return
+        set(n, true)
+        config.handleCommit?.(value)
+      },
+    }),
     el: base.el,
     get value() {
       return value
@@ -475,6 +486,17 @@ export function arc3d(config: Arc3dOptions = {}): ArcField {
   }
 
   const api: ArcField = {
+    semantics: () => ({
+      role: 'editor',
+      name: config.label ?? '',
+      value: { ...value },
+      // { centre, width }, in degrees.
+      set: (v: unknown) => {
+        if (v == null || typeof v !== 'object') return
+        set({ ...value, ...(v as Partial<Arc>) }, true)
+        config.handleCommit?.({ ...value })
+      },
+    }),
     el: base.el,
     get value() {
       return { ...value }

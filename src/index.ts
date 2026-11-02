@@ -1165,6 +1165,21 @@ export type {
   Bindable,
   Panel3d,
 } from './widgets3d.js'
+// What a control IS (role, name, value, set): read by agent tools, the
+// screen-reader mirror and the panel name test.
+export {
+  controlTree,
+  findControl,
+  nameProblems,
+  plainControls,
+  walkControls,
+} from './widget-semantics.js'
+export type {
+  WidgetSemantics,
+  WidgetRole,
+  ControlNode,
+  SemanticSource,
+} from './widget-semantics.js'
 export {
   panelFitWidth,
   panelFit,

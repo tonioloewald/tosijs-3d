@@ -527,6 +527,11 @@ import { w3dTheme } from './w3d-theme.js'
 import { iconGlyph } from './svg-icons.js'
 import { chromeLayout } from './popup-chrome.js'
 import { panelRim } from './panel-rim.js'
+import {
+  controlTree,
+  type ControlNode,
+  type WidgetSemantics,
+} from './widget-semantics.js'
 
 const { svg, g, rect, text, circle, clipPath } = svgElements
 
@@ -760,6 +765,12 @@ export interface Widget3d {
    * it leaks whatever it was handed.
    */
   dispose?(): void
+  /**
+   * What this control IS: its role, name, value, and how to set or press it
+   * through its own path (see [widget semantics](/widget-semantics/)). Read
+   * by agent tools, the screen-reader mirror and the panel name test.
+   */
+  semantics?(): WidgetSemantics
 }
 
 /**
@@ -910,6 +921,12 @@ function sectionLabel(
       bg.setAttribute('fill', kind === 'leave' ? 'transparent' : TH.BTN_HOVER)
       if (kind === 'up') section.toggle?.()
     },
+    semantics: () => ({
+      role: 'section',
+      name: config.text,
+      open: section.isOpen,
+      activate: () => section.toggle?.(),
+    }),
   }
 }
 
@@ -929,6 +946,8 @@ export function tabs3d(config: {
   /** Index of the active tab. */
   active?: number
   handleSelect?: (index: number) => void
+  /** The strip's name, for agents and screen readers. Default `tabs`. */
+  name?: string
 }): Widget3d {
   const H = 30
   const R = 7
@@ -1031,14 +1050,30 @@ export function tabs3d(config: {
     },
     handle(kind, x) {
       if (kind !== 'up') return
-      const i = tabAt(x, (root as any).__layout, active)
-      if (i < 0 || i === active) return
-      active = i
-      draw()
-      config.handleSelect?.(i)
+      pick(tabAt(x, (root as any).__layout, active))
     },
+    semantics: () => ({
+      role: 'tabs',
+      name: config.name ?? 'tabs',
+      value: tabName(config.tabs[active]),
+      options: config.tabs.map(tabName),
+      set: (v) => {
+        const i =
+          typeof v === 'number' ? v : config.tabs.map(tabName).indexOf(String(v))
+        pick(i)
+      },
+    }),
+  }
+  function pick(i: number) {
+    if (i < 0 || i >= config.tabs.length || i === active) return
+    active = i
+    draw()
+    config.handleSelect?.(i)
   }
 }
+
+const tabName = (t: Tab3d) =>
+  typeof t === 'string' ? t : t.title ?? t.icon
 
 /**
  * **Fold or tab a panel's sections** (board #2805, tosijs-3d#99). A
@@ -1100,6 +1135,7 @@ export function foldSections(
     let active = sections.findIndex((x) => x.title === state.tab)
     if (active < 0) active = 0
     const strip = tabs3d({
+      name: 'sections',
       tabs: sections.map((x) =>
         x.icon ? { icon: x.icon, title: x.title } : x.title
       ),
@@ -1555,6 +1591,7 @@ export function row3d(
         ? child.hitTest(hit.lx, hit.ly)
         : child.handle != null
     },
+    semantics: () => ({ role: 'group', name: '', children }),
   }
 }
 
@@ -1610,6 +1647,7 @@ export function label3d(config: {
       )
       return h
     },
+    semantics: () => ({ role: 'label', name: config.text }),
   }
 }
 
@@ -1672,6 +1710,7 @@ export function textBlock3d(config: {
       lines = next
       if (lastWidth > 0) paint(lastWidth)
     },
+    semantics: () => ({ role: 'text', name: '', value: lines.join('\n') }),
   }
 }
 
@@ -1777,21 +1816,38 @@ export function button3d(config: {
       } else {
         bg.setAttribute('fill', TH.BTN_HOVER) // hover / move / up
         lbl.setAttribute('fill', TH.TEXT)
-        if (kind === 'up') {
-          if (config.popup != null) {
-            showPopup(config.popup(popup))
-          } else if (config.menu != null && host != null) {
-            openMenu3d(
-              host,
-              { x: 0, y: 0, width: btnWidth, height: TH.ROW },
-              config.menu
-            )
-          } else {
-            handlerOf<() => void>(config, 'handleClick', 'onClick')?.()
-          }
-        }
+        if (kind === 'up') press()
       }
     },
+    semantics: () => ({
+      role: 'button',
+      name: config.label,
+      ...(config.menu
+        ? {
+            options: config.menu.map((m) => m.label),
+            // A menu item, chosen without opening the menu.
+            set: (v: unknown) => {
+              const item = config.menu!.find((m) => m.label === String(v))
+              if (item && resolveDynamic(item.disabled, false) !== true)
+                item.handleSelect?.()
+            },
+          }
+        : {}),
+      activate: press,
+    }),
+  }
+  function press() {
+    if (config.popup != null) {
+      showPopup(config.popup(popup))
+    } else if (config.menu != null && host != null) {
+      openMenu3d(
+        host,
+        { x: 0, y: 0, width: btnWidth, height: TH.ROW },
+        config.menu
+      )
+    } else {
+      handlerOf<() => void>(config, 'handleClick', 'onClick')?.()
+    }
   }
 }
 
@@ -2084,6 +2140,23 @@ export function iconBar3d(config: {
         handlerOf<() => void>(it, 'handleClick', 'onClick')?.()
       }
     },
+    semantics: () => ({
+      role: 'toolbar',
+      name: '',
+      children: cells.map((c) => ({
+        semantics: (): WidgetSemantics => ({
+          role: 'button',
+          name: c.item.title ?? '',
+          ...(c.item.active ? { value: true } : {}),
+          activate: () =>
+            handlerOf<() => void>(
+              c.item as Record<string, unknown>,
+              'handleClick',
+              'onClick'
+            )?.(),
+        }),
+      })),
+    }),
   }
 }
 
@@ -2166,6 +2239,16 @@ export function toggle3d(config: {
         if (kind === 'up') flip()
       }
     },
+    semantics: () => ({
+      role: 'toggle',
+      name: config.label,
+      value: !!bound.get(),
+      set: (v) => {
+        const on = v === true || v === 'true' || v === 'on' || v === 1
+        if (on !== !!bound.get()) flip()
+      },
+      activate: flip,
+    }),
   }
 }
 
@@ -2568,6 +2651,24 @@ export function slider3d(config: {
         if (kind === 'down' || kind === 'move') setFromX(x) // hover/up don't set
       }
     },
+    semantics: () => ({
+      role: 'slider',
+      name: labelText,
+      value: Number(bound.get()),
+      min,
+      max,
+      ...(step > 0 && scale === 'linear' ? { step } : {}),
+      set: (v) => {
+        const n = Number(v)
+        if (!Number.isFinite(n)) return
+        let x = Math.min(max, Math.max(zeroStop && n <= 0 ? 0 : min, n))
+        if (snap > 0) x = Math.round(x / snap) * snap
+        else if (step > 0 && scale === 'linear')
+          x = min + Math.round((x - min) / step) * step
+        bound.set(x)
+        reflect()
+      },
+    }),
   }
 }
 
@@ -2796,6 +2897,21 @@ export function select3d(config: {
         else step(1)
       }
     },
+    semantics: () => ({
+      role: 'select',
+      name: config.label ?? '',
+      value: String(opts[indexOf()]?.label ?? ''),
+      options: opts.map((o) => String(o.label)),
+      // By label, or by value: what a person reads, or what the code holds.
+      set: (v) => {
+        const o =
+          opts.find((o) => String(o.label) === String(v)) ??
+          opts.find((o) => String(o.value) === String(v))
+        if (o == null) return
+        bound.set(o.value)
+        reflect()
+      },
+    }),
   }
 }
 
@@ -2872,15 +2988,30 @@ export function list3d<
         // Checked at ACTIVATION, not at hover: an item can become disabled
         // during the gesture, and what matters is whether it was allowed at the
         // moment it fired. Same rule as `interaction.ts`'s vetoes.
-        if (enabled(i)) {
-          handlerOf<(item: T, index: number) => void>(
-            config,
-            'handleSelect',
-            'onSelect'
-          )?.(config.items[i], i)
-        }
+        choose(i)
       } else highlight(i) // down / move / hover → highlight the row under it
     },
+    semantics: () => ({
+      role: 'list',
+      name: '',
+      children: config.items.map((item, i) => ({
+        semantics: (): WidgetSemantics => ({
+          role: 'option',
+          name: item.label,
+          ...(enabled(i) ? {} : { disabled: true }),
+          activate: () => choose(i),
+        }),
+      })),
+    }),
+  }
+  function choose(i: number) {
+    if (enabled(i)) {
+      handlerOf<(item: T, index: number) => void>(
+        config,
+        'handleSelect',
+        'onSelect'
+      )?.(config.items[i], i)
+    }
   }
 }
 
@@ -3000,6 +3131,7 @@ export function spinner3d(
     hitTest() {
       return false
     },
+    semantics: () => ({ role: 'progress', name: config.label ?? '', value: 'busy' }),
     dispose() {
       spinners.delete(entry)
     },
@@ -3046,6 +3178,11 @@ export function progress3d(
   }
 
   return {
+    semantics: () => ({
+      role: 'progress',
+      name: config.label ?? '',
+      value,
+    }),
     el,
     layout(width: number) {
       const pctW = pct ? 40 : 0
@@ -3550,6 +3687,12 @@ export type Panel3d = SVGSVGElement & {
   useDomLayer: (container?: HTMLElement) => () => void
   /** Dispose its rows: unsubscribes bound widgets (#100). */
   dispose: () => void
+  /**
+   * Its controls as a tree of named controls: pinned rows, body rows, and
+   * any popup open from them, as a level named after its opener. See
+   * [widget semantics](/widget-semantics/).
+   */
+  controls: () => ControlNode[]
 }
 
 export function panel3d(
@@ -3725,6 +3868,17 @@ export function panel3d(
 
   // The panel's one tooltip, over its body and outside the clip (#112).
   const tips = tipDrawer()
+  /*
+  OPEN POPUPS, by opener, so `controls()` lists what is on screen: a form
+  an agent filled is the same popup a hand would have.
+  */
+  type OpenPopup = {
+    index: number
+    inHeader: boolean
+    items: Widget3d[]
+    sheet: Panel3d | null
+  }
+  const popups = new Set<OpenPopup>()
   const clipId = `w3d-clip-${clipSeq++}`
   const clip = clipPath(
     { id: clipId },
@@ -3984,7 +4138,9 @@ export function panel3d(
       return handle
     },
     boundedPopup(config, ...items) {
-      return baseHost.showPopup(
+      const entry: OpenPopup = { index, inHeader, items, sheet: null }
+      popups.add(entry)
+      const opened = baseHost.showPopup(
         {
           ...config,
           anchor: {
@@ -3992,9 +4148,19 @@ export function panel3d(
             x: config.anchor.x + padding,
             y: config.anchor.y + paddingTop + rowY(index, inHeader),
           },
+          handleClose: () => {
+            popups.delete(entry)
+            handlerOf<() => void>(config, 'handleClose', 'onClose')?.()
+          },
         },
         ...items
       )
+      return {
+        close: () => {
+          popups.delete(entry)
+          opened.close()
+        },
+      }
     },
     closePopup: () => {
       const slot = root as unknown as { __anchored?: { close: () => void } }
@@ -4144,9 +4310,17 @@ export function panel3d(
       */
       let closing = false
       const opened: Array<{ close: () => void }> = []
+      const entry: OpenPopup = {
+        index,
+        inHeader,
+        items,
+        sheet: sheet as Panel3d,
+      }
+      popups.add(entry)
       const closeAll = (): void => {
         if (closing) return
         closing = true
+        popups.delete(entry)
         for (const o of opened) o.close()
         handlerOf<() => void>(config, 'handleClose', 'onClose')?.()
       }
@@ -5058,6 +5232,26 @@ export function panel3d(
   panel and drops it on a rebuild calls this; a row bound to a tosijs box
   otherwise keeps the whole panel alive through tosijs's listener list.
   */
+  ;(root as unknown as { controls: () => ControlNode[] }).controls = () => {
+    const tree = [
+      ...controlTree(headerWidgets),
+      ...controlTree(widgets),
+    ]
+    for (const p of popups) {
+      const opener = (p.inHeader ? headerWidgets : widgets)[p.index]
+      const name = String(opener?.semantics?.()?.name ?? '') || 'popup'
+      const sheet = p.sheet as (Panel3d & { controls?: () => ControlNode[] }) | null
+      const inner = sheet?.controls?.() ?? controlTree(p.items, name)
+      tree.push({
+        role: 'popup',
+        name,
+        path: name,
+        interactive: false,
+        children: sheet ? rebase(inner, name) : inner,
+      })
+    }
+    return tree
+  }
   ;(root as unknown as { dispose: () => void }).dispose = () => {
     for (const w of [...headerWidgets, ...widgets]) {
       try {
@@ -5068,4 +5262,13 @@ export function panel3d(
     }
   }
   return root as unknown as Panel3d
+}
+
+/** A tree built at the top level, moved under `base`. */
+function rebase(tree: ControlNode[], base: string): ControlNode[] {
+  return tree.map((n) => ({
+    ...n,
+    path: `${base}/${n.path}`,
+    ...(n.children ? { children: rebase(n.children, base) } : {}),
+  }))
 }
