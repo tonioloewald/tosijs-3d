@@ -59,7 +59,7 @@ preview.append(
   b3d(
     {
       style: 'width: 100%; height: 100%',
-      gamepad: 'left_stick,right_stick,left_trigger,right_trigger,right_bumper,A',
+      gamepad: 'left_stick,right_stick,right_stick_click,left_trigger,right_trigger,right_bumper,A',
       panelTitle: 'Cross Country',
       scenePanel: () => [
         slider3d({ label: 'time of day', value: crossCountry.time, min: 0, max: 24, step: 0.1 }),
@@ -97,8 +97,10 @@ fewer trees and no cloud deck.
 The right trigger or **W** drives, the left trigger, the right bumper or **S**
 brakes and reverses, and the left stick or **A** and **D** steer: a tank turns
 on the spot. The right stick or the arrow keys traverse the turret, and
-pulling back raises the gun; clicking the right stick swaps up and down
-between the gun and the camera (a buzz: one for the gun, two for the camera); the view follows the turret, and the turret holds
+pulling back raises the gun; clicking the right stick, **V**, or the glass
+gamepad's button under the right stick swaps up and down between the gun and the
+camera (in a headset a buzz: one for the gun, two for the camera); the view
+follows the turret, and the turret holds
 its aim while the hull turns under it. The owl's
 panel sets the hour, the speed and the cloud.
 
