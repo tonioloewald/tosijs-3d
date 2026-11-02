@@ -570,6 +570,22 @@ export const ROCK_RULES = [
         sink: 0.3,
     },
 ];
+/**
+ * A model name limited to the first `keep` variants of its family: with
+ * `keep` 2, `BirchTree_4` becomes `BirchTree_2` and `rock:stone:7` becomes
+ * `rock:stone:1`. Every variant is a draw of its own (a tree's bark and
+ * leaves each), so a device short of draws keeps the species and loses some
+ * of their shapes. `0` (or a name with no number) keeps it as it is.
+ */
+export function limitVariant(name, keep) {
+    if (!(keep > 0))
+        return name;
+    const m = /^(.*[_:])(\d+)$/.exec(name);
+    if (m == null)
+        return name;
+    const n = Number(m[2]);
+    return n <= keep ? name : `${m[1]}${((n - 1) % keep) + 1}`;
+}
 const numbered = (prefix, count) => Array.from({ length: count }, (_, i) => `${prefix}_${i + 1}`);
 /**
  * THE DEFAULT RULES: trees, bushes and undergrowth from the curated Quaternius

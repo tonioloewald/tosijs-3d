@@ -217,6 +217,33 @@ export declare function collidable(reject?: (m: BABYLON.AbstractMesh) => boolean
     ignoreGroups?: readonly string[];
 }): (m: BABYLON.AbstractMesh) => boolean;
 /**
+ * A RAY PROXY answers rays for meshes it owns, faster than Babylon can: a
+ * city knows its ground is flat and its buildings are boxes in a grid, where
+ * a scene pick walks every thin-instanced copy of every model (thousands, a
+ * matrix multiply each, for every wheel's ray every physics step: most of a
+ * Quest's frame). Meshes it answers for carry `metadata.b3dRayProxy = true`;
+ * `pickWorld` skips them in the scene pick and asks the proxies instead.
+ */
+export interface RayProxy {
+    /** World-space ray (unit `dir`): how far along it, and the surface's normal, or null. */
+    cast(origin: BABYLON.Vector3, dir: BABYLON.Vector3, length: number): {
+        distance: number;
+        normal: BABYLON.Vector3;
+    } | null;
+}
+/** The scene's ray proxies (add yours; remove it when you go). */
+export declare function rayProxies(scene: BABYLON.Scene): Set<RayProxy>;
+/**
+ * A pick against the world: the scene's meshes (by `predicate`, as
+ * `collidable` gives) except those a ray proxy answers for, and the proxies.
+ * The nearest hit, with its normal (facing the ray), or null.
+ */
+export declare function pickWorld(scene: BABYLON.Scene, ray: BABYLON.Ray, predicate: (m: BABYLON.AbstractMesh) => boolean): {
+    distance: number;
+    normal: BABYLON.Vector3;
+    mesh: BABYLON.AbstractMesh | null;
+} | null;
+/**
  * Tag a mesh as belonging to one or more collision GROUPS.
  *
  * The single `b3dNoCollide` boolean answers "does anything hit this", which is

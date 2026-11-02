@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=08c4b739ac51" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=787031765adb" data-tosi-doc-system />
   <title>Reference — tosijs-3d</title>
   <meta name="description" content="The seeded random sources and noise everything procedural is built on." />
   <link rel="canonical" href="https://3d.tosijs.net/reference/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=009437d58172" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=fe743ba2186b" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="reference.md">
 <h1 id="reference">Reference</h1>
 <!--{"order": 900, "pin": "bottom"}-->
@@ -58,6 +58,8 @@
       <li><a class="doc-link" href="../effect-tool/">Effect tool</a></li>
       <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
       <li><a class="doc-link" href="../land-and-sky/">Land and Sky</a></li>
+      <li><a class="doc-link" href="../city-drive/">City Drive</a></li>
+      <li><a class="doc-link" href="../cross-country/">Cross Country</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
@@ -92,6 +94,7 @@
         <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
       </ul>
       </details></li>
+      <li><a class="doc-link" href="../light-pollution/">light pollution</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">Sun and shadows (b3d-shadows)</a></li>
       <li><a class="doc-link" href="../b3d-light/">Ambient light (b3d-light)</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-lamp/">Lamps</a></summary>
@@ -155,6 +158,10 @@
         <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
       </ul>
       </details></li>
+      <li><a class="doc-link" href="../city-layout/">city-layout</a></li>
+      <li><a class="doc-link" href="../b3d-city/">b3d-city</a></li>
+      <li><a class="doc-link" href="../city-traffic/">city-traffic</a></li>
+      <li><a class="doc-link" href="../window-lights/">window-lights</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../water/">Water</a></summary>
@@ -181,6 +188,12 @@
       <ul>
         <li><a class="doc-link" href="../aim/">aim</a></li>
         <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
+        <li><details><summary><a class="doc-link" href="../character-core/">character core</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../character-settings/">character settings</a></li>
+          <li><a class="doc-link" href="../proxy-cover/">proxy-cover</a></li>
+        </ul>
+        </details></li>
         <li><a class="doc-link" href="../retarget/">retarget</a></li>
         <li><a class="doc-link" href="../rigged-body/">rigged-body</a></li>
         <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
@@ -243,7 +256,9 @@
         <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
       </ul>
       </details></li>
+      <li><a class="doc-link" href="../ground-vehicle/">ground-vehicle</a></li>
       <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+      <li><a class="doc-link" href="../b3d-tank/">b3d-tank</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></summary>
       <ul>
         <li><details><summary><a class="doc-link" href="../spatial-transform/">spatial-transform</a></summary>
@@ -459,6 +474,7 @@
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.12.0/">0.12.0</a></li>
         <li><a class="doc-link" href="../v0.11.6/">0.11.6</a></li>
         <li><a class="doc-link" href="../v0.11.5/">0.11.5</a></li>
         <li><a class="doc-link" href="../v0.11.4/">0.11.4</a></li>
@@ -541,6 +557,6 @@
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-j44j00c3.js"></script>
+  <script type="module" src="../hydrate-45tqvkps.js"></script>
 </body>
 </html>

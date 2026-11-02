@@ -135,6 +135,7 @@ export declare class B3d extends Component {
         ssaoRate: number;
         xrRenderScale: number;
         xrFoveation: number;
+        xrMultiview: "on" | "off";
         groundDetail: "auto" | "full" | "lite";
         pixelRatio: number;
         stats: boolean;
@@ -194,6 +195,7 @@ export declare class B3d extends Component {
             background: string;
             height: string;
             maxHeight: string;
+            touchAction: string;
         };
         ':host([data-maximized])': {
             position: string;
@@ -423,6 +425,18 @@ export declare class B3d extends Component {
     private _xrPresenting;
     /** Whether a page is holding the spinner up (`setLoading`). */
     private _loadingHeld;
+    /** What is still building before the scene is first shown (`holdLoading`). */
+    private _loadingHolds;
+    private _holdCount;
+    /**
+     * Keep the scene hidden behind its spinner while something builds itself
+     * after its files have loaded (a city laying out its blocks, a body being
+     * rigged), so the scene is never shown half made. Returns the release; call
+     * it when built, or if the build fails. Only the first showing waits, and
+     * for at most 20 s.
+     */
+    holdLoading(label?: string): () => void;
+    private _terrainBusy;
     /**
      * The loading spinner, for a page that loads its own content after the
      * scene is up: `true` shows it, a string shows it with that message below,
@@ -472,6 +486,7 @@ export declare class B3d extends Component {
     minDistance: number;
     maxDistance: number;
     noXr: boolean;
+    xrMultiview: 'on' | 'off';
     xrGrid: 'on' | 'off' | 'auto';
     xrReticle: 'on' | 'off';
     scenePanelOpen: boolean;
@@ -1169,6 +1184,12 @@ export declare class B3d extends Component {
     /** Repaint BOTH presentations of the panel. The flat one rebuilds; the XR one rewrites
      * its contents in place. Unified on purpose — see `_panelWidgets`. */
     private _repaintPanels;
+    /**
+     * A buzz in a headset's controller (`hand`: 'right', 'left' or 'both'):
+     * `strength` 0…1 for `ms`. Nothing in a flat view, or where the controller
+     * has no haptics.
+     */
+    haptic(strength?: number, ms?: number, hand?: 'left' | 'right' | 'both'): void;
     addDebugSource(source: DebugPanelSource): () => void;
     private _errors;
     private _errorCaptureOff;
@@ -1267,6 +1288,10 @@ export declare class B3d extends Component {
     private _panelWidgets;
     private _installXrRafPump;
     connectedCallback(): void;
+    /** Request (or stop requesting) the layers feature with multiview, for the next session. */
+    private _applyXrMultiview;
+    /** What multiview is doing: off, asked for, or drawing. */
+    private _multiviewState;
     private _setupXR;
     private _startDefaultXrExperience;
     private _makePanel;
@@ -1275,6 +1300,8 @@ export declare class B3d extends Component {
     private _fullscreenWired;
     private _setupFullscreen;
     private _fullscreenOff;
+    private _zoomBlocked;
+    private _blockPageZoom;
     private _setupScenePanel;
     /**
      * Open the flat scene panel: a header row of small round buttons pinned

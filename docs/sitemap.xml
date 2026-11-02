@@ -27,6 +27,7 @@
   <url><loc>https://3d.tosijs.net/box/</loc></url>
   <url><loc>https://3d.tosijs.net/carry-box/</loc></url>
   <url><loc>https://3d.tosijs.net/carve/</loc></url>
+  <url><loc>https://3d.tosijs.net/character-settings/</loc></url>
   <url><loc>https://3d.tosijs.net/character-store/</loc></url>
   <url><loc>https://3d.tosijs.net/color/</loc></url>
   <url><loc>https://3d.tosijs.net/control-input/</loc></url>
@@ -61,6 +62,7 @@
   <url><loc>https://3d.tosijs.net/widgets3d/</loc></url>
   <url><loc>https://3d.tosijs.net/world-contract/</loc></url>
   <url><loc>https://3d.tosijs.net/anchor-layout/</loc></url>
+  <url><loc>https://3d.tosijs.net/light-pollution/</loc></url>
   <url><loc>https://3d.tosijs.net/cost-sweep/</loc></url>
   <url><loc>https://3d.tosijs.net/draw-order/</loc></url>
   <url><loc>https://3d.tosijs.net/angle-field/</loc></url>
@@ -92,6 +94,7 @@
   <url><loc>https://3d.tosijs.net/perlin-noise/</loc></url>
   <url><loc>https://3d.tosijs.net/prefab/</loc></url>
   <url><loc>https://3d.tosijs.net/procedural-rock/</loc></url>
+  <url><loc>https://3d.tosijs.net/proxy-cover/</loc></url>
   <url><loc>https://3d.tosijs.net/proxy-rigid/</loc></url>
   <url><loc>https://3d.tosijs.net/selection/</loc></url>
   <url><loc>https://3d.tosijs.net/sky-and-light/</loc></url>
@@ -105,6 +108,7 @@
   <url><loc>https://3d.tosijs.net/world-store/</loc></url>
   <url><loc>https://3d.tosijs.net/xr-frames/</loc></url>
   <url><loc>https://3d.tosijs.net/noise-texture/</loc></url>
+  <url><loc>https://3d.tosijs.net/ground-vehicle/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-light/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-car/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-collisions/</loc></url>
@@ -128,6 +132,7 @@
   <url><loc>https://3d.tosijs.net/weather-and-clouds/</loc></url>
   <url><loc>https://3d.tosijs.net/widget-box/</loc></url>
   <url><loc>https://3d.tosijs.net/world-view/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-tank/</loc></url>
   <url><loc>https://3d.tosijs.net/rig-tool/</loc></url>
   <url><loc>https://3d.tosijs.net/effect-tool/</loc></url>
   <url><loc>https://3d.tosijs.net/aim/</loc></url>
@@ -170,20 +175,27 @@
   <url><loc>https://3d.tosijs.net/province-climate/</loc></url>
   <url><loc>https://3d.tosijs.net/water/</loc></url>
   <url><loc>https://3d.tosijs.net/human-expression/</loc></url>
+  <url><loc>https://3d.tosijs.net/city-drive/</loc></url>
   <url><loc>https://3d.tosijs.net/human-hair/</loc></url>
+  <url><loc>https://3d.tosijs.net/cross-country/</loc></url>
   <url><loc>https://3d.tosijs.net/animation-layers/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-fog/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-manipulator/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-prop/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-spawner/</loc></url>
   <url><loc>https://3d.tosijs.net/carry/</loc></url>
+  <url><loc>https://3d.tosijs.net/city-layout/</loc></url>
   <url><loc>https://3d.tosijs.net/color-field/</loc></url>
   <url><loc>https://3d.tosijs.net/debug-sink/</loc></url>
   <url><loc>https://3d.tosijs.net/dials/</loc></url>
   <url><loc>https://3d.tosijs.net/effects/</loc></url>
   <url><loc>https://3d.tosijs.net/sphere-map/</loc></url>
   <url><loc>https://3d.tosijs.net/terrain-editor/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-city/</loc></url>
+  <url><loc>https://3d.tosijs.net/city-traffic/</loc></url>
   <url><loc>https://3d.tosijs.net/planet-map/</loc></url>
+  <url><loc>https://3d.tosijs.net/window-lights/</loc></url>
+  <url><loc>https://3d.tosijs.net/character-core/</loc></url>
   <url><loc>https://3d.tosijs.net/human-proxy/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-death/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-reflections/</loc></url>
@@ -223,6 +235,7 @@
   <url><loc>https://3d.tosijs.net/ui-theme/</loc></url>
   <url><loc>https://3d.tosijs.net/utilities/</loc></url>
   <url><loc>https://3d.tosijs.net/input-internals/</loc></url>
+  <url><loc>https://3d.tosijs.net/v0.12.0/</loc></url>
   <url><loc>https://3d.tosijs.net/v0.11.6/</loc></url>
   <url><loc>https://3d.tosijs.net/v0.11.5/</loc></url>
   <url><loc>https://3d.tosijs.net/v0.11.4/</loc></url>

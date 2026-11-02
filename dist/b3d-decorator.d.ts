@@ -25,9 +25,11 @@ export declare class B3dDecorator extends B3dChild {
         shadowBudget: number;
         clump: number;
         clumpSize: number;
+        variants: number;
     };
     budget: number;
     budgetScale: number;
+    variants: number;
     radius: number;
     seed: number;
     url: string;
@@ -71,6 +73,13 @@ export declare class B3dDecorator extends B3dChild {
     get roles(): Record<string, DecorationRole>;
     set roles(roles: Record<string, DecorationRole>);
     private _roles;
+    /**
+     * Ground kept clear: `(x, z) => 0..1` in logical world coordinates (as a
+     * landform's), 0 where nothing grows, 1 where everything may. A city's
+     * `cityGround(...).clear` keeps the trees off its streets. Set it, then the
+     * next rebuild uses it.
+     */
+    clear: ((x: number, z: number) => number) | null;
     /** What was placed last, in LOGICAL world coordinates. */
     placements: Placement[];
     /**

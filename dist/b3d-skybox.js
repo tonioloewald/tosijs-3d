@@ -126,6 +126,7 @@ that is already up works. `skyboxSize` is read once, when the sky is built.
 | `starfieldGain` | `0.9` | How bright the decoded stars are — the intensity cap on the whole point sky |
 | `starfieldTwinkle` | `0.35` | Scintillation strength. Scaled by the gas (none in vacuum), strongest at the horizon |
 | `starfieldFloor` | `0.4` | The faint mass's brightness — most stars sit on it; `starfieldGain` only moves the bright few above it |
+| `lightPollution` | `0` | How lit the night sky is everywhere, 0…1 (0.3 a suburb). Lit places such as `<tosi-b3d-city>` add their own glow near them ([light pollution](/light-pollution/)): the faint stars wash out and a warm glow lies along the horizon |
 | `starfieldSizeScale` | `3` | How much bigger a full-size object (a distant galaxy) is than a star |
 | `starfieldTilt` | `'0,0,0'` | Degrees `rx,ry,rz` rotating the sampling direction — both cubes — where a galactic tilt belongs |
 | `starfield` | `0` | How many background stars to build. `0` = none |
@@ -162,6 +163,7 @@ import '@babylonjs/materials/sky/sky.fragment.js';
 import { AbstractMesh, fetchedUrl, sceneSeconds } from './b3d-utils.js';
 import { band } from './atmosphere.js';
 import { realNow } from './clock.js';
+import { lightPollutionAt } from './light-pollution.js';
 const DEG_TO_RAD = Math.PI / 180;
 function hexToColor3(hex) {
     const r = parseInt(hex.slice(1, 3), 16) / 255;
@@ -565,7 +567,7 @@ function registerForkedSky() {
         .replace('#define CUSTOM_FRAGMENT_DEFINITIONS', 'varying vec3 vSkyLocal;' +
         'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform float b3dMoon;uniform vec3 b3dMoonDir;' +
         'uniform vec3 b3dSunDir;uniform float b3dSunDisc;uniform float b3dMoonDisc;uniform vec3 b3dSunDiscColor;uniform float b3dSunHdr;uniform float b3dSunSize;' +
-        'uniform vec3 b3dVeilColor;uniform float b3dVeil;' +
+        'uniform vec3 b3dVeilColor;uniform float b3dVeil;uniform float b3dPollution;uniform float b3dGlow;' +
         'uniform vec4 b3dMoonsA[4];uniform vec4 b3dMoonsB[4];uniform vec3 b3dSunLocal;' +
         'uniform vec4 b3dMoonsK[4];uniform vec4 b3dMoonsC1[4];uniform vec4 b3dMoonsC2[4];uniform vec4 b3dMoonsX[4];' +
         'uniform vec3 b3dTintZ;uniform vec3 b3dTintH;uniform float b3dTintAmt;uniform float b3dDustGrey;' +
@@ -615,7 +617,8 @@ function registerForkedSky() {
         `float b3dOcc;vec3 b3dMoonsC=b3dMoonsAt(b3dDir,b3dOcc);` +
         `vec3 b3dBack=vec3(0.0);` +
         // The RASTER backdrop — a baked cube, still supported.
-        `b3dBack+=textureCube(b3dStars,b3dDir).rgb*b3dStarLevel;` +
+        // Light pollution takes the soft backdrop (the Milky Way) first.
+        `b3dBack+=textureCube(b3dStars,b3dDir).rgb*b3dStarLevel*(1.0-b3dPollution)*(1.0-b3dPollution);` +
         /*
         AND THE DECODED ONE, which is the same light arriving by a better road:
         points reconstructed from data rather than sampled from a picture of
@@ -623,7 +626,14 @@ function registerForkedSky() {
         `b3dStars` and its stars in `b3dStarData` — which is the split the
         measurements argued for.
         */
-        `b3dBack+=b3dDecodeStars(b3dDir,normalize(vPositionW-cameraPosition).y);` +
+        /*
+        LIGHT POLLUTION washes out the faint stars and leaves the bright few:
+        a point is kept by its peak against a threshold the glow raises. At
+        none it leaves the sky exactly as it was.
+        */
+        `{vec3 b3dPts=b3dDecodeStars(b3dDir,normalize(vPositionW-cameraPosition).y);` +
+        `float b3dPk=max(b3dPts.r,max(b3dPts.g,b3dPts.b));float b3dCut=b3dPollution*0.6;` +
+        `b3dBack+=b3dPts*mix(1.0,smoothstep(b3dCut,b3dCut+0.2,b3dPk),min(1.0,b3dPollution*4.0));}` +
         `color.rgb+=b3dBack*(1.0-b3dOcc)+b3dMoonsC;` +
         // The moon, part of the backdrop, on the night arc — a CONSTANT in the
         // dome's frame (tilt⁻¹·up, see updateSky), so it rides with the stars.
@@ -677,6 +687,9 @@ function registerForkedSky() {
         front of the whole sky, stars included, so anything added after it would
         be shining through the fog rather than being hidden by it.
         */
+        // The glow of lit streets on the haze, low along the horizon.
+        `{float b3dEl=max(0.0,normalize(vPositionW-cameraPosition).y);` +
+        `color.rgb+=vec3(0.38,0.24,0.13)*b3dGlow*exp(-b3dEl*4.0);}` +
         `color.rgb=mix(color.rgb,b3dVeilColor,b3dVeil);` +
         anchor);
     return true;
@@ -750,6 +763,8 @@ function makeForkedSkyMaterial(scene) {
             'b3dTime',
             'b3dVeil',
             'b3dVeilColor',
+            'b3dPollution',
+            'b3dGlow',
             'b3dMoonDir',
             'b3dMoon',
             'b3dSunDir',
@@ -785,6 +800,8 @@ function makeForkedSkyMaterial(scene) {
     mat.setFloat('b3dTwinkle', 0);
     mat.setFloat('b3dTime', 0);
     mat.setFloat('b3dVeil', 0);
+    mat.setFloat('b3dPollution', 0);
+    mat.setFloat('b3dGlow', 0);
     mat.setVector3('b3dTintZ', new BABYLON.Vector3(1, 1, 1));
     mat.setVector3('b3dTintH', new BABYLON.Vector3(1, 1, 1));
     mat.setFloat('b3dTintAmt', 0);
@@ -952,6 +969,8 @@ export class B3dSkybox extends AbstractMesh {
          * only moves the bright few above it.
          */
         starfieldFloor: 0.4,
+        // How lit the sky is where nothing registers a glow: 0 a dark sky.
+        lightPollution: 0,
         /**
          * TWINKLE — scintillation strength, 0 for none. Scaled by the GAS (so it
          * is zero on an airless world and fades as you climb out) and strongest
@@ -1095,6 +1114,12 @@ export class B3dSkybox extends AbstractMesh {
     _lightColor = new BABYLON.Color3(1, 1, 1);
     _duskScratch = new BABYLON.Color3();
     _colorCache = new Map();
+    /**
+     * How much daylight there is, 0 (night) to 1 (full day), from the sun's
+     * height: what street lights, headlights and windows read to know when to
+     * come on. Updated with the sky.
+     */
+    daylight = 1;
     /** Approximate horizon color based on current time of day / atmosphere. */
     get horizonColor() {
         return this._horizonColor;
@@ -1824,6 +1849,22 @@ export class B3dSkybox extends AbstractMesh {
         sm.setFloat('b3dTime', sceneSeconds(this.owner.scene));
         sm.setFloat('b3dTwinkle', Math.max(0, Number(attrs.starfieldTwinkle) || 0) * this._gas);
     }
+    /** How dark the sky is (1 at night), from `updateSky`: a glow shows only against it. */
+    _night = 0;
+    /** Light pollution at the camera, every frame: it changes as you drive. */
+    _applyPollution() {
+        if (!this._forkedSky || this.owner == null || this.mesh == null)
+            return;
+        const sm = this.mesh.material;
+        const camera = this.owner.scene.activeCamera;
+        if (sm?.setFloat == null || camera == null)
+            return;
+        const at = camera.globalPosition;
+        const base = Number(this.lightPollution) || 0;
+        const p = lightPollutionAt(this.owner.scene, at.x, at.z, base);
+        sm.setFloat('b3dPollution', p);
+        sm.setFloat('b3dGlow', p * this._night * this._gas);
+    }
     updateSky() {
         if (this.mesh?.material == null)
             return;
@@ -1853,6 +1894,7 @@ export class B3dSkybox extends AbstractMesh {
         const dayBrightness = isDay
             ? Math.min(Math.abs((t + 0.52) * 10), Math.abs((t - 0.52) * 10), 1)
             : 0;
+        this.daylight = dayBrightness;
         sunVector.rotateByQuaternionToRef(this._qTotal, sunVector);
         /*
         THE TILT IS NOT THE SUN'S. `starfieldTilt` orients the galaxy behind the
@@ -2053,6 +2095,8 @@ export class B3dSkybox extends AbstractMesh {
             const sm = material;
             sm.setFloat?.('b3dStarDataLevel', 1 - Math.pow(dayBrightness * air, 0.25));
         }
+        // How dark the sky is: a town's glow shows only against a night sky.
+        this._night = 1 - Math.pow(dayBrightness * air, 0.25);
         /*
         THE DOME ORIENTS THE WHOLE SKY. Tonio: "The sky itself is little more
         than a gradient with a glowing sun and moon stuck on top of them. It's
@@ -2501,6 +2545,7 @@ export class B3dSkybox extends AbstractMesh {
             white, the sky stayed blue, and both numbers read correct.
             */
             this._applyVeil();
+            this._applyPollution();
         };
         scene.registerBeforeRender(this._sizeToCamera);
         /*

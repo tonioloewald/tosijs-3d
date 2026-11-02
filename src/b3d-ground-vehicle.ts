@@ -350,7 +350,13 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     }
     const k = dt > 0 ? 1 - Math.exp(-dt * (need > this.camLift ? 10 : 1.5)) : 1
     this.camLift += (need - this.camLift) * k
-    const { eye, target } = chasePose(state.position, yaw, boom, rig, this.camLift)
+    const { eye, target } = chasePose(
+      state.position,
+      yaw,
+      boom,
+      rig,
+      this.camLift
+    )
     const hit = blocked(eye, target)
     const at = hit
       ? hit.from.add(
@@ -404,8 +410,7 @@ export abstract class B3dGroundVehicle extends B3dControllable {
               | BABYLON.AnimationGroup[]
               | undefined) ?? []
           this.adopt(node, owner, scene)
-        }
-        else
+        } else
           console.error(
             `${this.tagName.toLowerCase()}: no "${this.meshName}" in library "${
               this.library
@@ -725,7 +730,11 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     const dt = sceneDelta(scene)
     const chasing =
       this.chaseCamera != null && scene.activeCamera === this.chaseCamera
-    if (dt <= 0 || this._halted || simHalted(this.owner as SimGateOwner | null)) {
+    if (
+      dt <= 0 ||
+      this._halted ||
+      simHalted(this.owner as SimGateOwner | null)
+    ) {
       // Stopped, but the camera is still posed: leaving VR pauses the scene,
       // and Babylon has just put the headset's pose on this camera (it sat at
       // head height at the origin, inside the ground, until Continue).
@@ -765,7 +774,11 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     const p = state.position
     const hit = pickWorld(
       scene,
-      new BABYLON.Ray(new BABYLON.Vector3(p.x, p.y + 50, p.z), BABYLON.Axis.Y.negate(), 60),
+      new BABYLON.Ray(
+        new BABYLON.Vector3(p.x, p.y + 50, p.z),
+        BABYLON.Axis.Y.negate(),
+        60
+      ),
       this.collides
     )
     if (hit == null) return

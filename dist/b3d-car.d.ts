@@ -1,19 +1,25 @@
 import * as BABYLON from '@babylonjs/core';
-import type { B3d } from './tosi-b3d.js';
-import { B3dControllable } from './b3d-controllable.js';
-import type { ControlInput } from './control-input.js';
-import { carMapping } from './virtual-gamepad.js';
-export declare class B3dCar extends B3dControllable {
+import { B3dGroundVehicle } from './b3d-ground-vehicle.js';
+import type { VehicleSpec, VehicleState } from './ground-vehicle.js';
+export declare class B3dCar extends B3dGroundVehicle {
     static preferredTagName: string;
-    inputMapping: typeof carMapping;
+    inputMapping: import("./virtual-gamepad.js").InputMapping;
     static initAttributes: {
+        steerDeg: number;
+        drive: "rear" | "front" | "all";
         url: string;
+        library: string;
+        meshName: string;
         enterable: boolean;
+        player: boolean;
+        scale: number;
+        mass: number;
         maxSpeed: number;
         acceleration: number;
         braking: number;
-        turnRate: number;
-        friction: number;
+        grip: number;
+        headlights: "auto" | "on" | "off";
+        sound: "on" | "off";
         x: number;
         y: number;
         z: number;
@@ -22,12 +28,11 @@ export declare class B3dCar extends B3dControllable {
         rz: number;
         axes: boolean;
     };
-    entries?: BABYLON.InstantiatedEntries;
-    private speed;
-    private wheels;
-    getCameraTarget(): BABYLON.Node | null;
-    applyInput(input: ControlInput, dt: number): void;
-    sceneReady(owner: B3d, scene: BABYLON.Scene): void;
+    steerDeg: number;
+    drive: 'rear' | 'front' | 'all';
+    private wheelParts;
+    protected specFor(control: BABYLON.TransformNode): VehicleSpec | null;
+    protected pose(state: VehicleState): void;
     sceneDispose(): void;
 }
 export declare const b3dCar: import("tosijs").ElementCreator<B3dCar>;

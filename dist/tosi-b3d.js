@@ -279,6 +279,7 @@ document.body.append(
 | `enterXrOnResume` | `'off'` | `'on'`: resuming enters immersive VR where the device supports it. The Continue tap is the user gesture `enterXRAsync` requires |
 | `reseatFreeze` | `'on'` | Freeze the clock while the re-seat dialog is up. Set `'off'` for a networked world, which cannot stop the other players; the dialog still gates your own input |
 | `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
+| `xrMultiview` | `'off'` | ⚠️ Experimental, not working: `'on'` asks for both eyes in one pass (WebXR layers). On a Quest 3 it gave a blank view, and water and sky do not handle multiview |
 | `xrRenderScale` | `0` | In a headset: the fraction of each eye's width and height drawn. `0` is auto (from the device tier: 0.67 on the low tier). Engine hardware scaling does not reach a headset; this does. Read on entering a session |
 | `xrFoveation` | `-1` | In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session |
 | `xrGrid` | `'auto'` | The reference grid on the floor in an immersive session. `'auto'` shows it for the built-in free-fly rig and hides it when a player entity drives the rig or you supply your own `setupXr`; `'on'` and `'off'` force it |
@@ -308,7 +309,10 @@ Set these in the `b3d()` config.
 
 ## Loading
 
-The spinner shows until the scene first renders. A page that loads its own
+The spinner shows until the scene is built: its files loaded, its shaders
+ready, its terrain streamed in, and every child that holds it up
+(`el.holdLoading('city')` returns the release; `<tosi-b3d-city>` and
+`<tosi-b3d-library>` do) finished, for at most 20 seconds. A page that loads its own
 content after that (models, a body, a terrain) holds it up with
 `el.setLoading('loading the body…')`, which shows the spinner with the
 message below it; `setLoading(true)` is the spinner alone, `setLoading(false)`
@@ -328,7 +332,8 @@ import { handlerOf } from './handler-of.js';
 import { panelFitWidth } from './widgets3d-layout.js';
 import { w3dTheme } from './w3d-theme.js';
 import { SvgTexture, svgTextureCost } from './svg-texture.js';
-import { sendDebug } from './debug-sink.js';
+import { debugSink, sendDebug } from './debug-sink.js';
+import { frameProfile } from './frame-profile.js';
 import { b3dSvgPlane } from './b3d-svg-plane.js';
 import { createMakers } from './make-mesh.js';
 import { openPopup, } from './popup-surface.js';
@@ -641,6 +646,15 @@ export class B3d extends Component {
         */
         xrRenderScale: 0,
         xrFoveation: -1,
+        /*
+        MULTIVIEW draws both eyes in ONE pass (WebXR layers + OVR_multiview2).
+        EXPERIMENTAL and not working: on a Quest 3's browser the layers feature
+        attached but multiview was not offered, and the layer Babylon fell back to
+        drew a blank grey-blue view. Babylon's WaterMaterial and SkyMaterial (and
+        our sky fork, cloud deck and light shafts) do not handle multiview either.
+        Read on entering a session.
+        */
+        xrMultiview: 'off',
         // The ground (biome) shader's form. `auto` is the device tier's: the
         // cheap one on the low tier, and in a headset on the medium tier.
         groundDetail: 'auto',
@@ -735,6 +749,10 @@ export class B3d extends Component {
             background: '#000',
             height: '100%',
             maxHeight: '100vh',
+            // No page zoom from inside the scene: a double-tap on the system bar
+            // zoomed an iPhone's page, and the scene (which takes every touch)
+            // left no way to pinch it back.
+            touchAction: 'none',
         },
         // Full screen where the browser has no Fullscreen API (iPhone Safari):
         // the scene fills what is visible. dvh follows Safari's toolbars.
@@ -1075,6 +1093,30 @@ export class B3d extends Component {
     _xrPresenting = false;
     /** Whether a page is holding the spinner up (`setLoading`). */
     _loadingHeld = false;
+    /** What is still building before the scene is first shown (`holdLoading`). */
+    _loadingHolds = new Set();
+    _holdCount = 0;
+    /**
+     * Keep the scene hidden behind its spinner while something builds itself
+     * after its files have loaded (a city laying out its blocks, a body being
+     * rigged), so the scene is never shown half made. Returns the release; call
+     * it when built, or if the build fails. Only the first showing waits, and
+     * for at most 20 s.
+     */
+    holdLoading(label = 'loading') {
+        const key = `${label}#${++this._holdCount}`;
+        this._loadingHolds.add(key);
+        return () => {
+            this._loadingHolds.delete(key);
+        };
+    }
+    _terrainBusy() {
+        for (const t of this.querySelectorAll('tosi-b3d-terrain')) {
+            if (t.busy)
+                return true;
+        }
+        return false;
+    }
     /**
      * The loading spinner, for a page that loads its own content after the
      * scene is up: `true` shows it, a string shows it with that message below,
@@ -3910,6 +3952,19 @@ export class B3d extends Component {
         */
         this._syncDebugPopups();
     }
+    /**
+     * A buzz in a headset's controller (`hand`: 'right', 'left' or 'both'):
+     * `strength` 0…1 for `ms`. Nothing in a flat view, or where the controller
+     * has no haptics.
+     */
+    haptic(strength = 0.5, ms = 40, hand = 'right') {
+        for (const c of this.xrHelper?.input?.controllers ?? []) {
+            const side = c.inputSource.handedness;
+            if (hand !== 'both' && side !== hand)
+                continue;
+            void c.motionController?.pulse(strength, ms).catch(() => false);
+        }
+    }
     addDebugSource(source) {
         this._debugSources.push(source);
         this.refreshScenePanel();
@@ -4698,6 +4753,7 @@ export class B3d extends Component {
     }
     connectedCallback() {
         super.connectedCallback();
+        this._blockPageZoom();
         /*
         A MOVE MUST NOT COST A SCENE.
     
@@ -4936,6 +4992,38 @@ export class B3d extends Component {
                 if (revealed)
                     return;
                 revealed = true;
+                mark('shown');
+                // Frame times for the 20 s after showing, a second at a time.
+                const frames = [];
+                let count = 0;
+                let second = realNow();
+                const watch = this.engine.onEndFrameObservable.add(() => {
+                    count++;
+                    const now = realNow();
+                    if (now - second < 1000)
+                        return;
+                    frames.push(Math.round((now - second) / count));
+                    count = 0;
+                    second = now;
+                    if (frames.length >= 20) {
+                        this.engine.onEndFrameObservable.remove(watch);
+                        sendDebug('load', { ...timeline, frameMsAfter: frames.join(' ') });
+                    }
+                });
+                // Where those frames go, by callback, for two minutes (debug sink only).
+                if (debugSink.url !== '')
+                    frameProfile(this.scene, {
+                        seconds: 120,
+                        every: 5,
+                        report: (s) => sendDebug('frame', { ...s }),
+                        extra: () => [
+                            [
+                                'xrFrame',
+                                this.xrHelper?.baseExperience?.sessionManager
+                                    ?.onXRFrameObservable,
+                            ],
+                        ],
+                    });
                 cnv.classList.add('ready');
                 // Not a spinner a page is holding up for its own loading.
                 if (!this._loadingHeld)
@@ -4949,12 +5037,54 @@ export class B3d extends Component {
                 if (vrBtn)
                     vrBtn.disabled = false;
             };
+            // Holds (`holdLoading`) and a streaming terrain keep the scene hidden,
+            // for at most this long: a hold never released must not hide it forever.
+            const started = realNow();
+            const giveUp = started + 20000;
+            // A load's timeline for the debug sink: when files, holds and terrain
+            // were done, when it was shown, and the frame times after (a headset's
+            // load cannot be watched any other way).
+            const timeline = {};
+            const mark = (what) => {
+                if (!(what in timeline))
+                    timeline[what] = Math.round(realNow() - started);
+            };
+            let lastHolds = '';
             const checkReady = () => {
-                if (this.scene.getWaitingItemsCount() === 0) {
-                    this.scene.executeWhenReady(reveal);
-                    // Fallback: reveal once assets are loaded even if some shaders
-                    // haven't compiled (e.g. SkyMaterial can take extra frames)
-                    setTimeout(reveal, 500);
+                const holds = [...this._loadingHolds]
+                    .map((h) => h.replace(/#\d+$/, ''))
+                    .join(', ');
+                if (holds !== lastHolds && lastHolds !== '')
+                    mark(`built ${lastHolds}`);
+                lastHolds = holds;
+                if (this.scene.getWaitingItemsCount() === 0)
+                    mark('files');
+                if (this._loadingHolds.size === 0)
+                    mark('holds');
+                if (!this._terrainBusy())
+                    mark('terrain');
+                const built = this._loadingHolds.size === 0 && !this._terrainBusy();
+                if (!built && realNow() > giveUp) {
+                    timeline.gaveUp = holds || 'terrain';
+                    console.warn(`tosi-b3d: shown while still building (${holds || 'terrain'})`);
+                }
+                if (this.scene.getWaitingItemsCount() === 0 &&
+                    (built || realNow() > giveUp)) {
+                    /*
+                    And every shader compiled: Babylon skips a mesh whose shader is not
+                    ready, so a scene shown early fills in piece by piece (a Quest took
+                    14 s after a reveal that waited 0.5 s for this). The fallback is for a
+                    shader that never finishes, not a slow device.
+                    */
+                    this.scene.executeWhenReady(() => {
+                        mark('shaders');
+                        reveal();
+                    });
+                    setTimeout(() => {
+                        if (!revealed)
+                            timeline.shadersGaveUp = 1;
+                        reveal();
+                    }, 10000);
                 }
                 else {
                     setTimeout(checkReady, 100);
@@ -4969,6 +5099,39 @@ export class B3d extends Component {
     // overrides the whole flow. Otherwise, when an immersive-vr session is
     // supported, mount a floating Enter/Exit-VR button wired to a default XR
     // experience (its own UI suppressed so the button matches the host theme).
+    /** Request (or stop requesting) the layers feature with multiview, for the next session. */
+    _applyXrMultiview() {
+        const fm = this.xrHelper?.baseExperience?.featuresManager;
+        if (fm == null)
+            return;
+        const name = BABYLON.WebXRFeatureName.LAYERS;
+        const has = fm.getEnabledFeature(name) != null;
+        if (!isOff(this.xrMultiview) && !has) {
+            try {
+                // Optional (not required): a browser without layers still enters VR.
+                fm.enableFeature(name, 'latest', { preferMultiviewOnInit: true }, true, false);
+            }
+            catch (err) {
+                console.warn('tosi-b3d: multiview unavailable', err);
+                sendDebug('xr', { multiview: 'enable failed', error: String(err) });
+            }
+        }
+        else if (isOff(this.xrMultiview) && has)
+            fm.disableFeature(name);
+    }
+    /** What multiview is doing: off, asked for, or drawing. */
+    _multiviewState(inSession = this.xrActive) {
+        const f = this.xrHelper?.baseExperience?.featuresManager?.getEnabledFeature(BABYLON.WebXRFeatureName.LAYERS);
+        if (f == null)
+            return isOff(this.xrMultiview)
+                ? 'off'
+                : 'not requested (failed to enable)';
+        if (!inSession)
+            return 'requested for the next session';
+        return f._isMultiviewEnabled === true
+            ? 'ON (both eyes in one pass)'
+            : 'requested, not available here';
+    }
     async _setupXR() {
         if (this.noXr)
             return;
@@ -5005,6 +5168,14 @@ export class B3d extends Component {
             pointerSelectionOptions: { preferredHandedness: 'right' },
         });
         this.xrHelper = xr;
+        this._applyXrMultiview();
+        try {
+            // An earlier build kept a choice here, and on a Quest 'on' is a grey view.
+            localStorage.removeItem('tosi-b3d-xr-multiview');
+        }
+        catch {
+            /* private mode */
+        }
         /*
         THE POINTER DOES NOT PICK WHAT YOU ARE SITTING IN.
     
@@ -5025,6 +5196,9 @@ export class B3d extends Component {
             xr.pointerSelection.raySelectionPredicate = (m) => m.isEnabled() &&
                 m.isVisible &&
                 m.isPickable &&
+                // Answered by a ray proxy (a city's buildings and roads): Babylon
+                // walks every thin-instance copy for each controller's ray, every frame.
+                m.metadata?.b3dRayProxy !== true &&
                 !insideCarrier(m, this._xrRig);
         }
         if (xr.pointerSelection != null)
@@ -5038,6 +5212,11 @@ export class B3d extends Component {
         if (base == null)
             return;
         base.onStateChangedObservable.add((state) => {
+            // A choice made in a session applies from the next one.
+            if (state === BABYLON.WebXRState.NOT_IN_XR)
+                this._applyXrMultiview();
+            if (state === BABYLON.WebXRState.IN_XR)
+                sendDebug('xr', { multiview: this._multiviewState(true) });
             if (state !== BABYLON.WebXRState.IN_XR)
                 return;
             // The flat settings panel rides the flat camera; the headset has its own.
@@ -5181,6 +5360,7 @@ export class B3d extends Component {
                     fc.radius = s.radius;
                 }
                 this._flatOrbitState = null;
+                this._sceneBar?.svg?.handlePointer?.('leave', 0, 0);
                 this._applyHardwareScaling(false);
                 this._applyGroundDetail(false);
                 this._xrViewportOff?.();
@@ -5496,6 +5676,8 @@ export class B3d extends Component {
             // Chase/FPV. Also re-anchors `chasePos`, which is what a re-seat means
             // for a third-person camera.
             chaseFirstFrame = true;
+            if (debugSink.url !== '')
+                sendDebug('xr', { seat: 're-armed' });
         };
         let resetSpace = null;
         const bindReset = () => {
@@ -5685,10 +5867,30 @@ export class B3d extends Component {
                     chaseFirstFrame = true;
                     lastView = view;
                 }
-                // Right stick (while piloting) zooms the chase and peeks left/right.
-                const zoomIn = entity?.lastInput?.cameraZoom ?? 0;
-                const peekIn = entity?.lastInput?.cameraPeek ?? 0;
-                const peekYaw = peekIn * MAX_PEEK;
+                /*
+                Right stick (while piloting) zooms the chase and peeks left/right.
+                From the camera axes if a mapping sets them, else from the LOOK axes,
+                which is where the vehicle mappings (GTA's right stick) put the stick:
+                only cameraPeek/cameraZoom were read here, nothing set them, and the
+                right stick did nothing in VR in City Drive (Tonio). Stick forward
+                (lookY > 0) zooms in: \`zoomIn\` > 0 brings the chase closer.
+                */
+                // A vehicle whose stick AIMS (a tank's gun) does not zoom with it, and
+                // peeks only a little, toward where its turret is turning.
+                const last = entity?.lastInput;
+                const aims = entity?.stickAims === true;
+                const zoomIn = last?.cameraZoom || (aims ? 0 : last?.lookY ?? 0);
+                const peekIn = last?.cameraPeek || (last?.lookX ?? 0) * (aims ? 0.4 : 1);
+                /*
+                A vehicle that says which way its view faces (a car's orbit, a tank's
+                turret) is FOLLOWED, and the rig ORBITS round it by that much (Tonio:
+                "in VR the camera still pivots from behind the vehicle it doesn't
+                orbit and it doesn't track the tank's turret heading"). Otherwise the
+                stick peeks, turning the view in place.
+                */
+                const viewed = entity?.chaseView?.();
+                const orbits = viewed != null;
+                const peekYaw = orbits ? viewed : peekIn * MAX_PEEK;
                 // COCKPIT: LITERALLY parent the rig to the hull — Babylon composes the
                 // transform, so the camera inherits the airframe's full orientation with
                 // zero hand-rolled quaternions. Identity local rotation = ride the hull's
@@ -5749,9 +5951,39 @@ export class B3d extends Component {
                 const loH = entity?.chaseMinHeight ?? eyeH;
                 const chaseH = entity?.chaseHeight ?? CHASE_HEIGHT;
                 const chaseD = entity?.chaseDistance ?? 5;
-                // fpv: at the head (back 0). chase: behind + above (zoomable).
-                const back = isFpv ? 0 : chaseD * (0.8 + chaseZoom * 1.1);
-                const up = isFpv ? eyeH : loH + (chaseH - loH) * chaseZoom;
+                /*
+                fpv: at the head (back 0). chase: behind + above (zoomable), and past
+                0.6 of the way out the boom swings up to almost overhead (Tonio: "could
+                pulling back bring you to almost overhead at its extreme").
+                */
+                const over = Math.max(0, (chaseZoom - 0.6) / 0.4) ** 2;
+                const back = isFpv
+                    ? 0
+                    : chaseD * (0.8 + chaseZoom * 1.1) * (1 - 0.8 * over);
+                const up = isFpv
+                    ? eyeH
+                    : loH +
+                        (chaseH - loH) * chaseZoom +
+                        over * Math.max(0, chaseD * 3 - chaseH);
+                // Up there it looks DOWN at the vehicle (Tonio: "the camera goes up
+                // but doesn't point down"): the rig pitches toward a point a little
+                // above it, all the way at the top of the arc.
+                const lookDown = isFpv
+                    ? 0
+                    : over * Math.atan2(up - eyeH, Math.max(back, 0.5));
+                /*
+                The rig's turn: facing \`yaw\`, pitched DOWN by \`pitch\` about the axis
+                across where the HEAD looks. The head faces the rig's forward turned by
+                \`offset\` (captured when the chase began), so pitching about the rig's
+                own side axis rolled the view instead, by as much as the head was
+                turned: sideways overhead (Tonio). Checked: yaw and pitch land as asked,
+                the head's side axis stays level.
+                */
+                function chaseTurn(yaw, pitch, offset, out) {
+                    BABYLON.Quaternion.RotationAxisToRef(BABYLON.Axis.Y, yaw, out);
+                    out.multiplyInPlace(BABYLON.Quaternion.RotationAxis(BABYLON.Axis.X, pitch));
+                    out.multiplyInPlace(BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Y, -offset));
+                }
                 piloted.getDirectionToRef(XR_FORWARD, fwd); // world forward
                 const targetYaw = Math.atan2(fwd.x, fwd.z);
                 // fpv: anchor to the actual head bone if the entity exposes it.
@@ -5776,6 +6008,18 @@ export class B3d extends Component {
                         : 0;
                     chaseYaw = targetYaw - chaseYawOffset;
                     chasePos.set(targetX, targetY, targetZ);
+                    // A headset's seat, for the debug sink: where the head was when the
+                    // chase took its forward (#3726, re-seating on entry).
+                    if (debugSink.url !== '') {
+                        const deg = (r) => Math.round((r * 180) / Math.PI);
+                        sendDebug('xr', {
+                            seat: 'chase',
+                            headYaw: deg(chaseYawOffset),
+                            head: [cam.position.x, cam.position.y, cam.position.z].map((n) => +n.toFixed(2)),
+                            vehicleYaw: deg(targetYaw),
+                            frame: scene.getEngine().frameId,
+                        });
+                    }
                 }
                 /*
                 PARENTED CHASE — the rigid path, when the entity offers an anchor.
@@ -5815,12 +6059,15 @@ export class B3d extends Component {
                         refuseOwnAncestors(rig);
                         rig.scaling.set(1, 1, 1);
                     }
-                    BABYLON.Quaternion.RotationYawPitchRollToRef(peekYaw - chaseYawOffset, 0, 0, yawQuat);
+                    chaseTurn(peekYaw, lookDown, chaseYawOffset, yawQuat);
                     rig.rotationQuaternion = yawQuat;
                     BABYLON.Matrix.FromQuaternionToRef(yawQuat, mtx);
                     BABYLON.Vector3.TransformCoordinatesToRef(cam.position, mtx, tmp);
-                    // Anchor-local: +Z is the entity's forward, so behind is −Z.
-                    rig.position.set(-tmp.x, up - tmp.y, -back - tmp.z);
+                    // Anchor-local: +Z is the entity's forward, so behind is −Z; an
+                    // orbit swings "behind" round to behind where the view faces.
+                    const ox = orbits ? -back * Math.sin(peekYaw) : 0;
+                    const oz = orbits ? -back * Math.cos(peekYaw) : -back;
+                    rig.position.set(ox - tmp.x, up - tmp.y, oz - tmp.z);
                     frames.eyeYawOffset = chaseYawOffset - peekYaw;
                     return;
                 }
@@ -5844,7 +6091,7 @@ export class B3d extends Component {
                 chaseYaw += yawDiff * yawT;
                 // Compensate for the head's local (tracked) offset so the HEAD lands at
                 // chasePos: rig = chasePos − (headLocal rotated into the rig's yaw).
-                BABYLON.Quaternion.RotationYawPitchRollToRef(chaseYaw + peekYaw, 0, 0, yawQuat);
+                chaseTurn(chaseYaw + peekYaw + chaseYawOffset, lookDown, chaseYawOffset, yawQuat);
                 BABYLON.Matrix.FromQuaternionToRef(yawQuat, mtx);
                 BABYLON.Vector3.TransformCoordinatesToRef(cam.position, mtx, tmp);
                 rig.position.set(chasePos.x - tmp.x, chasePos.y - tmp.y, chasePos.z - tmp.z);
@@ -6207,6 +6454,7 @@ export class B3d extends Component {
         const pop = this;
         const maximize = (on) => {
             if (on) {
+                resetPageZoom();
                 this.setAttribute('data-maximized', '');
                 if (pop.showPopover != null) {
                     this.setAttribute('popover', 'manual');
@@ -6267,6 +6515,47 @@ export class B3d extends Component {
         };
     }
     _fullscreenOff = null;
+    /*
+    PAGE ZOOM, on iPhone Safari. Its pinch arrives as its own `gesture*` events,
+    which `touch-action` does not stop, so they are cancelled here; and a page
+    that got zoomed anyway (before the scene loaded, from outside it) is reset
+    whenever the scene goes full screen or the zoom changes while it is, since
+    a scene that covers the screen leaves nothing to pinch out on.
+    */
+    _zoomBlocked = false;
+    _blockPageZoom() {
+        if (this._zoomBlocked)
+            return;
+        this._zoomBlocked = true;
+        const stop = (e) => e.preventDefault();
+        const active = { passive: false };
+        this.addEventListener('gesturestart', stop, active);
+        this.addEventListener('gesturechange', stop, active);
+        // Safari's gesture events need not leave the shadow DOM; touch events do.
+        // A two-finger move here is never a page pinch, and a quick second tap is
+        // never a double-tap zoom.
+        this.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 1)
+                e.preventDefault();
+        }, active);
+        let lastTap = 0;
+        this.addEventListener('touchend', (e) => {
+            const now = e.timeStamp;
+            if (now - lastTap < 350)
+                e.preventDefault();
+            lastTap = now;
+        }, active);
+        // A page zoomed anyway is put back the moment you touch the scene: a scene
+        // that fills the screen leaves nowhere else to pinch out.
+        this.addEventListener('touchstart', () => resetPageZoom(), {
+            passive: true,
+        });
+        const vv = window.visualViewport;
+        vv?.addEventListener('resize', () => {
+            if (this.hasAttribute('data-maximized') && vv.scale > 1.01)
+                resetPageZoom();
+        });
+    }
     _setupScenePanel() {
         const gear = this.parts.scenePanelGear;
         const host = this.parts.scenePanelHost;
@@ -7372,4 +7661,20 @@ export class B3d extends Component {
     }
 }
 export const b3d = B3d.elementCreator();
+/**
+ * Put a pinch-zoomed page back to 1: briefly cap the viewport's scale, which
+ * Safari obeys by zooming out, then lift the cap so people can still zoom the
+ * page outside the scene.
+ */
+function resetPageZoom() {
+    const vv = window.visualViewport;
+    if (vv == null || vv.scale <= 1.01)
+        return;
+    const meta = document.querySelector('meta[name="viewport"]');
+    if (meta == null)
+        return;
+    const was = meta.content;
+    meta.content = `${was.replace(/,?\s*maximum-scale=[^,]*/g, '')}, maximum-scale=1`;
+    setTimeout(() => (meta.content = was), 400);
+}
 //# sourceMappingURL=tosi-b3d.js.map

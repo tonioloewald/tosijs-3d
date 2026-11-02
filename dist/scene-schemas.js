@@ -178,6 +178,7 @@ export function skyboxSchema(extra = {}) {
         starfieldSharpness: num(3, { minimum: 0.1, maximum: 8 }),
         starfieldGain: num(0.9, { minimum: 0, maximum: 3 }),
         starfieldFloor: num(0.4, { minimum: 0, maximum: 1 }),
+        lightPollution: num(0, { minimum: 0, maximum: 1 }),
         starfieldTwinkle: num(0.35, { minimum: 0, maximum: 1 }),
         starfieldSizeScale: num(3, { minimum: 1, maximum: 12 }),
         starfieldTilt: { type: 'string', default: '0,0,0' },
@@ -245,6 +246,7 @@ export function skyboxSchema(extra = {}) {
                     'nebulaSize',
                     'starfieldGain',
                     'starfieldFloor',
+                    'lightPollution',
                     'starfieldTwinkle',
                     'starfieldSeed',
                     'starDistance',
@@ -500,6 +502,9 @@ export function hemisphericLightSchema(extra = {}) {
         // ambient-only scene has vertical faces that stay dark however high
         // `intensity` goes — a dim, desaturated ground colour is the fix.
         groundColor: color('#000000'),
+        // Under a day/night sky: the brightness at night, eased from
+        // `intensity` by the sky's daylight. -1 leaves `intensity` alone.
+        nightIntensity: num(-1, { minimum: -1, maximum: 4 }),
         x: num(0, { minimum: -1, maximum: 1 }),
         y: num(1, { minimum: -1, maximum: 1 }),
         z: num(0, { minimum: -1, maximum: 1 }),
@@ -1099,6 +1104,8 @@ export function decoratorSchema(extra = {}) {
         // -1 = each rule's own strength; 0 = auto size.
         clump: num(-1, { minimum: -1, maximum: 1 }),
         clumpSize: num(0, { minimum: 0, maximum: 1000, ...M }),
+        // Shapes per family (each a draw); 0 = auto, from the device tier.
+        variants: num(0, { minimum: 0, maximum: 10, multipleOf: 1 }),
         follow: choice('on', ['on', 'off']),
         shadows: choice('off', ['on', 'off']),
         colliders: choice('on', ['on', 'off']),
@@ -1264,6 +1271,10 @@ export function b3dSchema(extra = {}) {
             'x-useful': [0, 1],
             description: 'In a headset: fixed foveation, 0 to 1 (the edges of each eye at reduced resolution). -1 is auto (from the device tier).',
         }),
+        xrMultiview: {
+            ...choice('off', ['on', 'off']),
+            description: 'Experimental, not working: both eyes in one pass in a headset. On a Quest 3 it gave a blank view.',
+        },
         groundDetail: {
             ...choice('auto', ['auto', 'full', 'lite']),
             description: 'The ground shader: `full`, `lite` (fewer noise samples a pixel, for a weak GPU), or `auto` (from the device tier).',
@@ -1305,7 +1316,10 @@ export function b3dSchema(extra = {}) {
                     'ssaoRate',
                 ],
             },
-            { title: 'Headset', keys: ['xrRenderScale', 'xrFoveation'] },
+            {
+                title: 'Headset',
+                keys: ['xrRenderScale', 'xrFoveation', 'xrMultiview'],
+            },
             { title: 'Ground', keys: ['groundDetail'] },
             { title: 'Wind', keys: ['windSpeed', 'windBearingDeg', 'windGust'] },
             { title: 'Time', keys: ['timeScale'] },

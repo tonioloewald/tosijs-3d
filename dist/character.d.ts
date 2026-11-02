@@ -7,10 +7,7 @@ import { type BuiltBody } from './rig-build.js';
 import { type RiggedBody } from './rigged-body.js';
 import type { RigRecipe } from './rig-recipe.js';
 import type { SlotLook } from './character-file.js';
-/** What can be worn, one of each at a time. */
-export declare const CHARACTER_SLOTS: readonly ["outfit", "bodysuit", "armour", "top", "bottom", "shoes", "gloves", "hat", "mask", "glasses"];
-/** Every setting a character has, with its default. */
-export declare const DEFAULT_CHARACTER: Record<string, any>;
+export { CHARACTER_SLOTS, DEFAULT_CHARACTER } from './character-settings.js';
 /** Where a mesh's body comes from: a URL or a file, and the node to take. */
 export interface CharacterSource {
     url?: string;

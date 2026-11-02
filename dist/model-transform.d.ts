@@ -45,6 +45,9 @@ import * as BABYLON from '@babylonjs/core';
  * (edit-mode 180° about Z), never rotate in the scene or the code.
  */
 export declare function canonicalize(clone: BABYLON.TransformNode, scene: BABYLON.Scene, name: string): BABYLON.TransformNode;
+export declare function unmirrorGltf(root: BABYLON.TransformNode, animationGroups?: readonly BABYLON.AnimationGroup[]): boolean;
+/** `unmirrorGltf` on a loaded container, once, before anything is cloned from it. */
+export declare function unmirrorContainer(container: BABYLON.AssetContainer): boolean;
 export declare function normalizeScale(mesh: BABYLON.Mesh): BABYLON.Mesh;
 /**
  * Find the node a turret should ROTATE to aim — the `_barrel` suffix.

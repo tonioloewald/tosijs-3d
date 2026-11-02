@@ -23,7 +23,7 @@ const input = { ...emptyInput(), forward: 1, turn: -0.5, shoot: 1 }
 |-------|-------|---------|
 | `forward` | -1..1 | Forward/backward movement |
 | `strafe` | -1..1 | Left/right strafe |
-| `lookX`,`lookY` | -1..1 | Camera look. In a vehicle it swings the view and springs back on release; on foot it turns the body (X) and holds its pitch (Y) |
+| `lookX`,`lookY` | -1..1 | Camera look. A ground vehicle's chase camera orbits (X, springing back) and moves along an arc to almost above (Y, held); an aircraft's swings the view and springs back on release; a tank aims its turret and gun with it; on foot it turns the body (X) and holds its pitch (Y) |
 | `turn` | -1..1 | Turning |
 | `pitch` | -1..1 | Pitch (aircraft) |
 | `throttle` | 0..1 | Continuous throttle |
@@ -34,6 +34,7 @@ const input = { ...emptyInput(), forward: 1, turn: -0.5, shoot: 1 }
 | `aim` | 0..1 | Aim down sights |
 | `weapon` | 0..1 | Raise/lower the weapon — edge-detected by consumers, so it TOGGLES |
 | `cameraZoom` | -1..1 | Camera zoom |
+| `lookMode` | 0..1 | Toggle (edge-detected) what the look stick's up and down do: a tank's gun, or its camera |
 | `sneak` | 0\|1 | Sneak toggle |
 
 ## InputProvider
@@ -72,6 +73,7 @@ export function emptyInput() {
         sneak: 0,
         view: 0,
         cameraPeek: 0,
+        lookMode: 0,
     };
 }
 export class CompositeInputProvider {
@@ -119,6 +121,7 @@ export class CompositeInputProvider {
             result.sneak = Math.max(result.sneak, input.sneak);
             result.view = Math.max(result.view, input.view);
             result.cameraPeek = maxAbs(result.cameraPeek, input.cameraPeek);
+            result.lookMode = Math.max(result.lookMode, input.lookMode);
         }
         return result;
     }

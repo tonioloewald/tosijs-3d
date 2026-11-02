@@ -164,7 +164,7 @@ scene's ambient animations stay behind. Pass `animations: false` to skip;
 /*{ "parent": "core", "order": 50 }*/
 import { B3dChild, publicName, isIgnored } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
-import { canonicalize } from './model-transform.js';
+import { canonicalize, unmirrorContainer } from './model-transform.js';
 import { manifestFromNodes } from './glb-manifest.js';
 /**
  * The `.model` naming convention, pure (unit-tested): a node named
@@ -272,13 +272,18 @@ export class B3dLibrary extends B3dChild {
         if (!url)
             return;
         const gen = ++this.loadGeneration;
+        const release = owner.holdLoading?.(`library ${type || url}`) ?? (() => { });
         BABYLON.SceneLoader.LoadAssetContainer(url, undefined, scene, (container) => {
+            release();
             if (gen !== this.loadGeneration)
                 return; // stale — discard
+            // Instances are cloned out from under `__root__`, so its mirror must
+            // be in the content or every one is drawn mirrored (model-transform).
+            unmirrorContainer(container);
             this.container = container;
             this._readyResolve();
             this.dispatchEvent(new CustomEvent('library-ready'));
-        });
+        }, undefined, () => release());
     }
     /** Every node (meshes AND transform nodes — a multi-part model's top node is
      * usually a TransformNode) eligible for listing. */

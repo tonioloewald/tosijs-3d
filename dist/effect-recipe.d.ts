@@ -6,7 +6,7 @@ export type EffectCurve = ControlPoint[] | number;
 export type Range = [number, number];
 export type SpriteKind = 'puff' | 'smoke' | 'spark' | 'ember' | 'glow' | 'drop' | 'bubble';
 export declare const SPRITES: readonly SpriteKind[];
-export type VoiceKind = 'rumble' | 'roar' | 'hiss' | 'boom' | 'crackle' | 'whoosh' | 'buzz' | 'splash' | 'bubble';
+export type VoiceKind = 'rumble' | 'roar' | 'hiss' | 'boom' | 'crackle' | 'whoosh' | 'buzz' | 'splash' | 'bubble' | 'engine' | 'hum' | 'horn';
 export declare const VOICES: readonly VoiceKind[];
 interface LayerBase {
     /** For people: "ash column", "flash". */

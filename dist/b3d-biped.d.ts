@@ -677,6 +677,7 @@ export declare class B3dBiped extends B3dControllable {
     applyInput(input: ControlInput, dt: number): void;
     private setupXRInput;
     setupXRCamera(): Promise<void>;
+    handleGainFocus(): void;
     setupFollowCamera(): Promise<void>;
     /** Toggle third-person ('chase') vs first-person ('fpv'). In VR the rig reads
      * cameraView; on flat we switch the active camera. Either way the body is

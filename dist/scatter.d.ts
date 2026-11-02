@@ -219,6 +219,14 @@ export declare function seatDip(height: (x: number, z: number) => number, p: {
  */
 export declare const ROCK_RULES: ScatterRule[];
 /**
+ * A model name limited to the first `keep` variants of its family: with
+ * `keep` 2, `BirchTree_4` becomes `BirchTree_2` and `rock:stone:7` becomes
+ * `rock:stone:1`. Every variant is a draw of its own (a tree's bark and
+ * leaves each), so a device short of draws keeps the species and loses some
+ * of their shapes. `0` (or a name with no number) keeps it as it is.
+ */
+export declare function limitVariant(name: string, keep: number): string;
+/**
  * THE DEFAULT RULES: trees, bushes and undergrowth from the curated Quaternius
  * nature library (`quaternius/libraries/nature.glb`), rocks made procedurally.
  * Those models stand 2.5 to 5 units tall, so the tree scales here are about

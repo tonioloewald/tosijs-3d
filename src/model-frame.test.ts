@@ -125,7 +125,10 @@ describe('canonicalize drops scenic dressing', () => {
     expect(kids.length).toBeGreaterThan(1) // a scene file, not a single model
     const posed = kids
       .filter((k) => k.position.length() > 0.01)
-      .map((k) => ({ k, p: (k.computeWorldMatrix(true), k.getAbsolutePosition().clone()) }))
+      .map((k) => ({
+        k,
+        p: (k.computeWorldMatrix(true), k.getAbsolutePosition().clone()),
+      }))
     expect(posed.length).toBeGreaterThan(0) // non-vacuous: something IS posed
 
     canonicalize(root, scene, 'ctl-multi')
@@ -221,7 +224,11 @@ describe('unmirrorContainer', () => {
       )
       const n = BABYLON.Vector3.Cross(v[1].subtract(v[0]), v[2].subtract(v[0]))
       if (w.determinant() < 0) n.scaleInPlace(-1)
-      return { v: v.map((x) => x.asArray()), n: n.normalize().asArray(), det: w.determinant() }
+      return {
+        v: v.map((x) => x.asArray()),
+        n: n.normalize().asArray(),
+        det: w.determinant(),
+      }
     }
     const before = meshes.map(look)
     expect(before.some((b) => b.det < 0)).toBe(true) // the loader's mirror, as found
@@ -232,7 +239,11 @@ describe('unmirrorContainer', () => {
       // The same corners; the winding reversed (v1 and v2 swap), which the
       // positive determinant turns back into the same facing.
       const b = before[i].v
-      for (const [k, j] of [[0, 0], [1, 2], [2, 1]])
+      for (const [k, j] of [
+        [0, 0],
+        [1, 2],
+        [2, 1],
+      ])
         for (let c = 0; c < 3; c++) expect(a.v[k][c]).toBeCloseTo(b[j][c], 4)
       for (let c = 0; c < 3; c++) expect(a.n[c]).toBeCloseTo(before[i].n[c], 4)
     })

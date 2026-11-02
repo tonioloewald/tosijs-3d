@@ -4463,7 +4463,11 @@ export class B3d extends Component {
    * `strength` 0…1 for `ms`. Nothing in a flat view, or where the controller
    * has no haptics.
    */
-  haptic(strength = 0.5, ms = 40, hand: 'left' | 'right' | 'both' = 'right'): void {
+  haptic(
+    strength = 0.5,
+    ms = 40,
+    hand: 'left' | 'right' | 'both' = 'right'
+  ): void {
     for (const c of this.xrHelper?.input?.controllers ?? []) {
       const side = c.inputSource.handedness
       if (hand !== 'both' && side !== hand) continue
@@ -5666,7 +5670,13 @@ export class B3d extends Component {
     if (!isOff(this.xrMultiview) && !has) {
       try {
         // Optional (not required): a browser without layers still enters VR.
-        fm.enableFeature(name, 'latest', { preferMultiviewOnInit: true }, true, false)
+        fm.enableFeature(
+          name,
+          'latest',
+          { preferMultiviewOnInit: true },
+          true,
+          false
+        )
       } catch (err) {
         console.warn('tosi-b3d: multiview unavailable', err)
         sendDebug('xr', { multiview: 'enable failed', error: String(err) })
@@ -5680,7 +5690,9 @@ export class B3d extends Component {
       BABYLON.WebXRFeatureName.LAYERS
     ) as any
     if (f == null)
-      return isOff(this.xrMultiview) ? 'off' : 'not requested (failed to enable)'
+      return isOff(this.xrMultiview)
+        ? 'off'
+        : 'not requested (failed to enable)'
     if (!inSession) return 'requested for the next session'
     return f._isMultiviewEnabled === true
       ? 'ON (both eyes in one pass)'
@@ -6496,8 +6508,7 @@ export class B3d extends Component {
         const last = entity?.lastInput
         const aims = entity?.stickAims === true
         const zoomIn = last?.cameraZoom || (aims ? 0 : last?.lookY ?? 0)
-        const peekIn =
-          last?.cameraPeek || (last?.lookX ?? 0) * (aims ? 0.4 : 1)
+        const peekIn = last?.cameraPeek || (last?.lookX ?? 0) * (aims ? 0.4 : 1)
         /*
         A vehicle that says which way its view faces (a car's orbit, a tank's
         turret) is FOLLOWED, and the rig ORBITS round it by that much (Tonio:
@@ -6600,7 +6611,9 @@ export class B3d extends Component {
         // Up there it looks DOWN at the vehicle (Tonio: "the camera goes up
         // but doesn't point down"): the rig pitches toward a point a little
         // above it, all the way at the top of the arc.
-        const lookDown = isFpv ? 0 : over * Math.atan2(up - eyeH, Math.max(back, 0.5))
+        const lookDown = isFpv
+          ? 0
+          : over * Math.atan2(up - eyeH, Math.max(back, 0.5))
         /*
         The rig's turn: facing \`yaw\`, pitched DOWN by \`pitch\` about the axis
         across where the HEAD looks. The head faces the rig's forward turned by
@@ -6616,8 +6629,12 @@ export class B3d extends Component {
           out: BABYLON.Quaternion
         ) {
           BABYLON.Quaternion.RotationAxisToRef(BABYLON.Axis.Y, yaw, out)
-          out.multiplyInPlace(BABYLON.Quaternion.RotationAxis(BABYLON.Axis.X, pitch))
-          out.multiplyInPlace(BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Y, -offset))
+          out.multiplyInPlace(
+            BABYLON.Quaternion.RotationAxis(BABYLON.Axis.X, pitch)
+          )
+          out.multiplyInPlace(
+            BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Y, -offset)
+          )
         }
         piloted.getDirectionToRef(XR_FORWARD, fwd) // world forward
         const targetYaw = Math.atan2(fwd.x, fwd.z)
@@ -6727,7 +6744,12 @@ export class B3d extends Component {
         chaseYaw += yawDiff * yawT
         // Compensate for the head's local (tracked) offset so the HEAD lands at
         // chasePos: rig = chasePos − (headLocal rotated into the rig's yaw).
-        chaseTurn(chaseYaw + peekYaw + chaseYawOffset, lookDown, chaseYawOffset, yawQuat)
+        chaseTurn(
+          chaseYaw + peekYaw + chaseYawOffset,
+          lookDown,
+          chaseYawOffset,
+          yawQuat
+        )
         BABYLON.Matrix.FromQuaternionToRef(yawQuat, mtx)
         BABYLON.Vector3.TransformCoordinatesToRef(cam.position, mtx, tmp)
         rig.position.set(

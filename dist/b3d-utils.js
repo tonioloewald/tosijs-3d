@@ -380,6 +380,40 @@ export function collidable(reject, opts = {}) {
         !(ignore != null && inCollisionGroup(m, ignore)) &&
         !(reject?.(m) ?? false);
 }
+const RAY_PROXIES = new WeakMap();
+/** The scene's ray proxies (add yours; remove it when you go). */
+export function rayProxies(scene) {
+    let set = RAY_PROXIES.get(scene);
+    if (set == null) {
+        set = new Set();
+        RAY_PROXIES.set(scene, set);
+    }
+    return set;
+}
+const proxied = (m) => m.metadata?.b3dRayProxy === true;
+/**
+ * A pick against the world: the scene's meshes (by `predicate`, as
+ * `collidable` gives) except those a ray proxy answers for, and the proxies.
+ * The nearest hit, with its normal (facing the ray), or null.
+ */
+export function pickWorld(scene, ray, predicate) {
+    const proxies = RAY_PROXIES.get(scene);
+    const hit = scene.pickWithRay(ray, proxies?.size ? (m) => predicate(m) && !proxied(m) : predicate);
+    let best = null;
+    if (hit?.hit && hit.pickedMesh) {
+        let n = hit.getNormal(true, true) ?? ray.direction.negate();
+        if (BABYLON.Vector3.Dot(n, ray.direction) > 0)
+            n = n.negate();
+        best = { distance: hit.distance, normal: n, mesh: hit.pickedMesh };
+    }
+    if (proxies)
+        for (const p of proxies) {
+            const h = p.cast(ray.origin, ray.direction, best ? best.distance : ray.length);
+            if (h && (best == null || h.distance < best.distance))
+                best = { ...h, mesh: null };
+        }
+    return best;
+}
 /**
  * Tag a mesh as belonging to one or more collision GROUPS.
  *

@@ -19,14 +19,23 @@ function strip(n: number) {
 }
 
 const garment = (over: Partial<HumanProxy>): HumanProxy =>
-  ({ name: 'g', category: 'clothes', slot: 'top', delete: null, ...over }) as HumanProxy
+  ({
+    name: 'g',
+    category: 'clothes',
+    slot: 'top',
+    delete: null,
+    ...over,
+  } as HumanProxy)
 
 describe('coverSkin', () => {
   test('listed skin is tucked in, fully past the fade, and its vertices go', () => {
     const s = strip(20)
     const listed = Uint32Array.from(s.vertices.filter((v) => v % 20 >= 10))
     const { positions, deleted } = coverSkin(
-      s.positions, s.normals, s.triangles, s.vertices,
+      s.positions,
+      s.normals,
+      s.triangles,
+      s.vertices,
       [garment({ delete: listed })],
       { tuck: 0.006, fade: 0.03 }
     )
@@ -41,7 +50,10 @@ describe('coverSkin', () => {
   test('glasses list skin they do not cover, so nothing moves', () => {
     const s = strip(6)
     const { positions, deleted } = coverSkin(
-      s.positions, s.normals, s.triangles, s.vertices,
+      s.positions,
+      s.normals,
+      s.triangles,
+      s.vertices,
       [garment({ slot: 'glasses', delete: Uint32Array.from([0, 1, 2]) })]
     )
     expect(deleted.size).toBe(0)

@@ -148,6 +148,16 @@ volcanoes, geysers, explosions, fireballs, splashes and sparks; sprites and
 sounds generated, no files. The [effect tool](https://3d.tosijs.net/effect-tool/)
 edits them live.
 
+**Vehicles and a city to drive them in** — a [car](https://3d.tosijs.net/b3d-car/)
+and a [tank](https://3d.tosijs.net/b3d-tank/) on one
+[pure vehicle model](https://3d.tosijs.net/ground-vehicle/) (springs, tyre grip,
+skid steer; no physics engine), with a chase camera that orbits, booms up to
+overhead and climbs over what is in its way, flat and in a headset. A
+[procedural city](https://3d.tosijs.net/b3d-city/) of Kenney's kits with
+traffic, street lights, lit windows and their sound;
+[City Drive](https://3d.tosijs.net/city-drive/) and
+[Cross Country](https://3d.tosijs.net/cross-country/) are the demos.
+
 **Aircraft control** — a [forgiving flight model](https://3d.tosijs.net/b3d-aircraft/)
 that flies like a drone below transition speed and like a plane above it, with
 VTOL, bank-to-turn, a HUD and radar.
@@ -178,6 +188,11 @@ anticipate.
 **Adaptive by default** — a device-capability probe vends per-tier budgets, and
 performance-sensitive settings resolve to `auto` rather than to a number that is
 always wrong for something. A Quest and a workstation get different worlds.
+
+**A character core for any engine** — the character creator's working parts
+(body, shape, rig, retargeting, hair, clothes, the character file) are
+[engine-free subpaths](https://3d.tosijs.net/character-core/), so a three.js app
+or a server imports them without Babylon.
 
 **Pure models, actually tested** — the flight model, ballistics, guidance, biome
 classification, layout and text editing are engine-free and unit-tested (about

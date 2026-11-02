@@ -11,6 +11,7 @@ The rest is atmosphere: [fog](/b3d-fog/), [light shafts](/b3d-light-shafts/),
 
 <!-- toc -->
 - [b3d-skybox](/b3d-skybox/)
+- [light pollution](/light-pollution/)
 - [Sun and shadows (b3d-shadows)](/b3d-shadows/)
 - [Ambient light (b3d-light)](/b3d-light/)
 - [Lamps](/b3d-lamp/)

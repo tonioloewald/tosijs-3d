@@ -979,10 +979,14 @@
         "description": "Tyre grip, a friction coefficient: lower slides sooner"
       },
       {
-        "name": "headlights"
+        "name": "headlights",
+        "default": "'auto'",
+        "description": "`'auto'` (on at night while driven), `'on'` or `'off'`"
       },
       {
-        "name": "sound"
+        "name": "sound",
+        "default": "'on'",
+        "description": "`'off'` silences its engine"
       },
       {
         "name": "steerDeg",

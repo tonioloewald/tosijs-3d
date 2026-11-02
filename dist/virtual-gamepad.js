@@ -496,21 +496,45 @@ export const bipedMappingDescriptor = {
         dpadUp: 'zoom',
     },
 };
-export function carMapping(pad, _dt) {
+/*
+GTA V's driving layout: the right trigger is the accelerator, the left the brake
+(held, it reverses), the left stick ONLY steers, the right stick looks around.
+On a keyboard W/S drive as before: `carMapping.keyboard` moves them onto the
+triggers for the keyboard alone. One step from GTA: the right BUMPER also
+brakes and reverses, so the right thumb drives a glass gamepad alone; A is the
+handbrake.
+*/
+export const carMapping = Object.assign((pad, _dt) => {
     const input = emptyInput();
-    input.forward = pad.leftStickY;
-    input.turn = pad.leftStickX;
+    input.forward =
+        pad.rightTrigger - Math.max(pad.leftTrigger, pad.rightBumper);
     input.throttle = pad.rightTrigger;
+    input.turn = pad.leftStickX;
+    input.lookX = pad.rightStickX;
+    input.lookY = pad.rightStickY;
+    input.lookMode = pad.rightStickPress;
     input.interact = pad.buttonX;
     input.sprint = pad.leftBumper;
+    input.jump = pad.buttonA;
     return input;
-}
+}, {
+    keyboard: (pad) => ({
+        ...pad,
+        rightTrigger: Math.max(pad.rightTrigger, pad.leftStickY),
+        leftTrigger: Math.max(pad.leftTrigger, -pad.leftStickY),
+        leftStickY: 0,
+    }),
+});
 export const carMappingDescriptor = {
     map: carMapping,
     labels: {
-        leftStickY: 'accelerate',
         leftStickX: 'steer',
-        rightTrigger: 'throttle',
+        rightStickX: 'look',
+        rightStickY: 'look',
+        rightTrigger: 'accelerate',
+        leftTrigger: 'brake / reverse',
+        buttonA: 'handbrake',
+        rightBumper: 'brake / reverse',
         buttonX: 'interact',
         leftBumper: 'nitro',
     },
@@ -593,8 +617,10 @@ export class MappedInputProvider {
     /** Returns the merged VirtualGamepad before mapping — useful for visualizers */
     pollRaw() {
         let merged = emptyGamepad();
+        const keyboard = this.mapping.keyboard;
         for (const source of this.sources) {
-            merged = mergeGamepads(merged, source.poll());
+            const pad = source.poll();
+            merged = mergeGamepads(merged, keyboard && source.kind === 'keyboard' ? keyboard(pad) : pad);
         }
         return merged;
     }

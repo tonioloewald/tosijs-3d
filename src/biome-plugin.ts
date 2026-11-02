@@ -1592,10 +1592,7 @@ export function biomeLite(scene: BABYLON.Scene): boolean {
 
 // Registered so `Material.clone()` can re-instantiate it (see the note in
 // cloud-shadows.ts — an unregistered plugin makes cloning THROW).
-registerMaterialPlugin(
-  'BiomePlugin',
-  (material) => new BiomePlugin(material)
-)
+registerMaterialPlugin('BiomePlugin', (material) => new BiomePlugin(material))
 
 /**
  * Attach (or retrieve) the biome plugin on a material — for authored tiles or

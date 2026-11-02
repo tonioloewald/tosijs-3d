@@ -207,4 +207,3 @@ export function coverBody(
       : Array.from(triangles)
   )
 }
-

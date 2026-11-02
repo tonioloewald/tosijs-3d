@@ -774,7 +774,11 @@ export function chasePose(
   const up = r * Math.sin(elevation)
   const pivotY = at.y + rig.aimHeight
   return {
-    eye: v(at.x - fx * back, Math.max(at.y + 0.6, pivotY + up), at.z - fz * back),
+    eye: v(
+      at.x - fx * back,
+      Math.max(at.y + 0.6, pivotY + up),
+      at.z - fz * back
+    ),
     target: v(at.x, pivotY, at.z),
   }
 }

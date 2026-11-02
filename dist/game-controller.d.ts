@@ -31,6 +31,9 @@ export declare class GameController extends Component implements GamepadSource {
     private _lookAt;
     private _lastPoll;
     private _dragging;
+    /** Keyboard and mouse only: the hardware pad is its own source. A mapping's
+     * `keyboard` rewrite (the car's W/S onto the pedals) keys off this. */
+    readonly kind = "keyboard";
     hardwareSource: HardwareGamepadSource;
     private provider;
     private axes;

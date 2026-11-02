@@ -278,6 +278,7 @@ document.body.append(
 | `enterXrOnResume` | `'off'` | `'on'`: resuming enters immersive VR where the device supports it. The Continue tap is the user gesture `enterXRAsync` requires |
 | `reseatFreeze` | `'on'` | Freeze the clock while the re-seat dialog is up. Set `'off'` for a networked world, which cannot stop the other players; the dialog still gates your own input |
 | `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
+| `xrMultiview` | `'off'` | ⚠️ Experimental, not working: `'on'` asks for both eyes in one pass (WebXR layers). On a Quest 3 it gave a blank view, and water and sky do not handle multiview |
 | `xrRenderScale` | `0` | In a headset: the fraction of each eye's width and height drawn. `0` is auto (from the device tier: 0.67 on the low tier). Engine hardware scaling does not reach a headset; this does. Read on entering a session |
 | `xrFoveation` | `-1` | In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session |
 | `xrGrid` | `'auto'` | The reference grid on the floor in an immersive session. `'auto'` shows it for the built-in free-fly rig and hides it when a player entity drives the rig or you supply your own `setupXr`; `'on'` and `'off'` force it |
@@ -307,7 +308,10 @@ Set these in the `b3d()` config.
 
 ## Loading
 
-The spinner shows until the scene first renders. A page that loads its own
+The spinner shows until the scene is built: its files loaded, its shaders
+ready, its terrain streamed in, and every child that holds it up
+(`el.holdLoading('city')` returns the release; `<tosi-b3d-city>` and
+`<tosi-b3d-library>` do) finished, for at most 20 seconds. A page that loads its own
 content after that (models, a body, a terrain) holds it up with
 `el.setLoading('loading the body…')`, which shows the spinner with the
 message below it; `setLoading(true)` is the spinner alone, `setLoading(false)`

@@ -82,6 +82,8 @@ parent of `root`, not `root` itself.
 import * as BABYLON from '@babylonjs/core';
 import { bodyFromMarkers, isEyeName, splitEyes, surfaceOf, } from './rigged-body.js';
 import { materialConventions } from './b3d-utils.js';
+/** A surface's material is a Babylon one here; the pure core types it by name only. */
+const babylonMaterial = (m) => (m ?? null);
 /**
  * Skin a mesh (positions xyz and indices in threes, in the fitted rig's
  * space) to a fitted rig. `weights` are bone heat's, indexed by `rig.joints`.
@@ -261,7 +263,7 @@ export function gatherTriangles(root, meshes) {
             indices.push(base + i);
     }
     for (const s of surfaces)
-        s.name = nameOf(s.material ?? null);
+        s.name = nameOf(babylonMaterial(s.material));
     return {
         positions,
         indices,
@@ -289,7 +291,9 @@ and into the scene first, with the loader's translucency rules applied
 (near-opaque snapped to opaque; translucent sorted with a depth pre-pass).
 */
 function keepMaterials(container, scene, surfaces) {
-    const kept = new Set(surfaces?.map((s) => s.material).filter((m) => m != null));
+    const kept = new Set(surfaces
+        ?.map((s) => babylonMaterial(s.material))
+        .filter((m) => m != null));
     for (const mat of kept) {
         const i = container.materials.indexOf(mat);
         if (i >= 0)

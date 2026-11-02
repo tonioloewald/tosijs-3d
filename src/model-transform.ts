@@ -156,7 +156,8 @@ export function unmirrorGltf(
 ): boolean {
   if (unmirrored.has(root)) return true
   const s = root.scaling
-  const turned = root.rotationQuaternion ?? BABYLON.Quaternion.FromEulerVector(root.rotation)
+  const turned =
+    root.rotationQuaternion ?? BABYLON.Quaternion.FromEulerVector(root.rotation)
   // Babylon's own mirror and nothing else: scale (1,1,-1) and a half turn about y.
   const mirrored =
     s.x * s.y * s.z < 0 &&
@@ -165,9 +166,7 @@ export function unmirrorGltf(
   if (!mirrored) return false
   const nodes = root.getDescendants(false)
   if (
-    nodes.some(
-      (n) => n instanceof BABYLON.AbstractMesh && n.skeleton != null
-    )
+    nodes.some((n) => n instanceof BABYLON.AbstractMesh && n.skeleton != null)
   )
     return false
   const geometries = new Set<BABYLON.Geometry>()
@@ -194,8 +193,7 @@ export function unmirrorGltf(
   root.scaling.set(Math.abs(s.x), Math.abs(s.y), Math.abs(s.z))
   root.rotationQuaternion = BABYLON.Quaternion.Identity()
   root.rotation.set(0, 0, 0)
-  for (const n of nodes)
-    if (n instanceof BABYLON.Mesh) n.refreshBoundingInfo()
+  for (const n of nodes) if (n instanceof BABYLON.Mesh) n.refreshBoundingInfo()
   unmirrored.add(root)
   return true
 }
@@ -273,13 +271,19 @@ function mirrorAnimation(a: BABYLON.Animation): void {
     else if (prop === 'rotation' && v instanceof BABYLON.Vector3) {
       v.y = -v.y
       v.z = -v.z
-    } else if ((prop === 'rotation.y' || prop === 'rotation.z') && typeof v === 'number')
+    } else if (
+      (prop === 'rotation.y' || prop === 'rotation.z') &&
+      typeof v === 'number'
+    )
       k.value = -v
     // Cubic glTF keys carry tangents in the same units.
     for (const side of ['inTangent', 'outTangent'] as const) {
       const tan = (k as any)[side]
       if (prop === 'position' && tan instanceof BABYLON.Vector3) tan.x = -tan.x
-      else if (prop === 'rotationQuaternion' && tan instanceof BABYLON.Quaternion)
+      else if (
+        prop === 'rotationQuaternion' &&
+        tan instanceof BABYLON.Quaternion
+      )
         tan.set(tan.x, -tan.y, -tan.z, tan.w)
     }
   }

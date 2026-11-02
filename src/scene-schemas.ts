@@ -1467,7 +1467,10 @@ export function b3dSchema(extra: Record<string, unknown> = {}) {
             'ssaoRate',
           ],
         },
-        { title: 'Headset', keys: ['xrRenderScale', 'xrFoveation', 'xrMultiview'] },
+        {
+          title: 'Headset',
+          keys: ['xrRenderScale', 'xrFoveation', 'xrMultiview'],
+        },
         { title: 'Ground', keys: ['groundDetail'] },
         { title: 'Wind', keys: ['windSpeed', 'windBearingDeg', 'windGust'] },
         { title: 'Time', keys: ['timeScale'] },

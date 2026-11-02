@@ -3141,6 +3141,16 @@ export class B3dBiped extends B3dControllable {
             camRig.rotationQuaternion = yawQuat;
         });
     }
+    /*
+    Back in control (out of a vehicle): take the camera back. The camera is made
+    once, in setupFollowCamera, and only made active there, so getting out of a
+    car left the view on the empty car.
+    */
+    handleGainFocus() {
+        super.handleGainFocus();
+        if (this.camera != null)
+            this.setCameraView(this.cameraView);
+    }
     async setupFollowCamera() {
         if (this.owner == null || this.entries == null)
             return;

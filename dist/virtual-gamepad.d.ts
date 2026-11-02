@@ -54,7 +54,15 @@ export interface GamepadSource {
  * `stick-sign.test.ts` asserts it across the sources.
  */
 export declare const STICK_UP_IS_POSITIVE = true;
-export type InputMapping = (pad: VirtualGamepad, dt: number) => ControlInput;
+export type InputMapping = ((pad: VirtualGamepad, dt: number) => ControlInput) & {
+    /**
+     * Rewrites a KEYBOARD source's pad before the sources merge. For a mapping
+     * whose pad layout has no keyboard equivalent: the car's pedals are the
+     * triggers, and W/S are the left stick, so the car moves W/S onto the
+     * triggers for the keyboard alone (a pad's left stick only steers).
+     */
+    keyboard?: (pad: VirtualGamepad) => VirtualGamepad;
+};
 /** Labels for each gamepad control — used by UI visualizers */
 export type MappingLabels = Partial<Record<keyof VirtualGamepad, string>>;
 export interface InputMappingDescriptor {
@@ -67,7 +75,7 @@ export interface InputMappingDescriptor {
  */
 export declare function bipedMapping(pad: VirtualGamepad, _dt: number, gunplay?: boolean): ControlInput;
 export declare const bipedMappingDescriptor: InputMappingDescriptor;
-export declare function carMapping(pad: VirtualGamepad, _dt: number): ControlInput;
+export declare const carMapping: InputMapping;
 export declare const carMappingDescriptor: InputMappingDescriptor;
 export interface ThrottleDetentConfig {
     /** Detent levels as fractions 0..1 (e.g. [0.3, 0.5, 0.7]). Sorted ascending. */

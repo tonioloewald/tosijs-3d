@@ -24,6 +24,7 @@ shade.set({ fabric: 'wool', colour: '#7a2e2e', amount: 0.8 })
 */
 /*{ "parent": "human-proxy", "order": 20 }*/
 import * as BABYLON from '@babylonjs/core';
+import { registerMaterialPlugin } from './material-plugins.js';
 import { parseColor } from './color.js';
 import { FABRICS } from './fabrics.js';
 import { materialAsType, canonicalMaterial, MATERIAL_COLLECTIONS, resolveMaterial, } from './material-recipe.js';
@@ -86,7 +87,7 @@ class ClothShadingPlugin extends BABYLON.MaterialPluginBase {
         };
     }
 }
-BABYLON.RegisterMaterialPlugin('ClothShadingPlugin', (material) => new ClothShadingPlugin(material));
+registerMaterialPlugin('ClothShadingPlugin', (material) => new ClothShadingPlugin(material));
 /**
  * The old `{ fabric, colour, recolour }` look as a `cloth` recipe, for looks
  * saved before recipes. `'as made'` (or no fabric) sets no surface.

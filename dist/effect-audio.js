@@ -12,7 +12,18 @@ Browsers only play audio after a user gesture. Until then a voice is not
 started at all (the effect plays silently), exactly as thunder is skipped.
 */
 import * as BABYLON from '@babylonjs/core';
+import { realNow } from './clock.js';
 let ctx = null;
+// When the next resume may be tried. Callers ask every frame, and an iPhone
+// whose audio device will not start rejects every attempt.
+let nextResume = 0;
+function tryResume(c) {
+    const now = realNow();
+    if (now < nextResume)
+        return;
+    nextResume = now + 1000;
+    c.resume().catch(() => { });
+}
 const buffers = new Map();
 /** The shared audio context, running, or null (no audio yet, or none). */
 export function effectAudio() {
@@ -30,14 +41,14 @@ export function effectAudio() {
                 if (ctx == null)
                     return;
                 if (doc.hidden)
-                    void ctx.suspend();
+                    ctx.suspend().catch(() => { });
                 else
-                    void ctx.resume();
+                    tryResume(ctx);
             });
         }
         const hidden = globalThis.document?.hidden === true;
         if (ctx.state === 'suspended' && !hidden)
-            void ctx.resume();
+            tryResume(ctx);
         return ctx.state === 'running' ? ctx : null;
     }
     catch {
@@ -176,6 +187,56 @@ function build(ac, kind) {
             const w = src(ac, 'brown');
             w.connect(filt(ac, 'lowpass', 220)).connect(mix(ac, 0.5)).connect(out);
             return { out, sources: [c, w], filter: f, lo: 300, hi: 1400 };
+        }
+        case 'engine': {
+            // Firing pulses (a sawtooth and its octave) and some mechanical noise,
+            // through a lowpass the throttle opens. Pitch is the revs.
+            const o = ac.createOscillator();
+            o.type = 'sawtooth';
+            // High enough for a phone's or a headset's speaker: at 38 Hz the note
+            // was there only on headphones.
+            o.frequency.value = 72;
+            const o2 = ac.createOscillator();
+            o2.type = 'square';
+            o2.frequency.value = 144;
+            const f = filt(ac, 'lowpass', 500, 1.2);
+            o.connect(mix(ac, 0.8)).connect(f);
+            o2.connect(mix(ac, 0.25)).connect(f);
+            const n = src(ac, 'brown');
+            n.connect(filt(ac, 'bandpass', 260, 0.8)).connect(mix(ac, 0.9)).connect(f);
+            f.connect(out);
+            return { out, sources: [o, o2, n], filter: f, lo: 180, hi: 1800 };
+        }
+        case 'hum': {
+            // Mains hum and the buzz of a ballast: 100 Hz and its harmonics.
+            const a = ac.createOscillator();
+            a.type = 'sine';
+            a.frequency.value = 100;
+            const b = ac.createOscillator();
+            b.type = 'sine';
+            b.frequency.value = 200;
+            const c = ac.createOscillator();
+            c.type = 'sawtooth';
+            c.frequency.value = 100;
+            const f = filt(ac, 'bandpass', 1200, 2);
+            a.connect(mix(ac, 0.5)).connect(out);
+            b.connect(mix(ac, 0.25)).connect(out);
+            c.connect(f).connect(mix(ac, 0.2)).connect(out);
+            return { out, sources: [a, b, c], filter: f, lo: 600, hi: 2400 };
+        }
+        case 'horn': {
+            // A car horn is two notes a third or so apart, square and nasal.
+            const a = ac.createOscillator();
+            a.type = 'square';
+            a.frequency.value = 415;
+            const b = ac.createOscillator();
+            b.type = 'square';
+            b.frequency.value = 523;
+            const f = filt(ac, 'bandpass', 1100, 1.2);
+            a.connect(mix(ac, 0.5)).connect(f);
+            b.connect(mix(ac, 0.5)).connect(f);
+            f.connect(filt(ac, 'lowpass', 3500)).connect(out);
+            return { out, sources: [a, b], filter: f, lo: 700, hi: 1800 };
         }
         case 'splash': {
             const s = src(ac, 'white');

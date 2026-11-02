@@ -125,6 +125,7 @@ that is already up works. `skyboxSize` is read once, when the sky is built.
 | `starfieldGain` | `0.9` | How bright the decoded stars are — the intensity cap on the whole point sky |
 | `starfieldTwinkle` | `0.35` | Scintillation strength. Scaled by the gas (none in vacuum), strongest at the horizon |
 | `starfieldFloor` | `0.4` | The faint mass's brightness — most stars sit on it; `starfieldGain` only moves the bright few above it |
+| `lightPollution` | `0` | How lit the night sky is everywhere, 0…1 (0.3 a suburb). Lit places such as `<tosi-b3d-city>` add their own glow near them ([light pollution](/light-pollution/)): the faint stars wash out and a warm glow lies along the horizon |
 | `starfieldSizeScale` | `3` | How much bigger a full-size object (a distant galaxy) is than a star |
 | `starfieldTilt` | `'0,0,0'` | Degrees `rx,ry,rz` rotating the sampling direction — both cubes — where a galactic tilt belongs |
 | `starfield` | `0` | How many background stars to build. `0` = none |

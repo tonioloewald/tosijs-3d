@@ -240,8 +240,8 @@ b3d-car
   acceleration  = 5  — m/s² from a standstill
   braking  = 9  — m/s²
   grip  = 1  — Tyre grip, a friction coefficient: lower slides sooner
-  headlights
-  sound
+  headlights  = 'auto'  — `'auto'` (on at night while driven), `'on'` or `'off'`
+  sound  = 'on'  — `'off'` silences its engine
   steerDeg  = 35  — Full lock, degrees; at speed, no more than the tyres can hold
   drive  = 'rear'  — Driven wheels: `rear`, `front` or `all`
 

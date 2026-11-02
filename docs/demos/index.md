@@ -17,4 +17,6 @@ the code does.
 - [Effect tool](/effect-tool/)
 - [Skybox Baker](/skybox-baker/)
 - [Land and Sky](/land-and-sky/)
+- [City Drive](/city-drive/)
+- [Cross Country](/cross-country/)
 <!-- /toc -->

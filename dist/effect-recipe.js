@@ -35,6 +35,9 @@ export const VOICES = [
     'buzz',
     'splash',
     'bubble',
+    'engine',
+    'hum',
+    'horn',
 ];
 /** Sample a curve at `t` (clamped); a number is flat. */
 export function sampleCurve(c, t, flat = 1) {

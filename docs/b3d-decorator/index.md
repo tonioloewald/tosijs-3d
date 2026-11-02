@@ -159,6 +159,7 @@ repeats every 256 km.
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `budget` | `2000` | How many things to place. Performance cares about this, not density |
+| `variants` | `0` | Shapes kept per family (a tree species' variants, a rock kind's), each a draw of its own. `0` is auto, from the device tier: all on a desktop, 3 on the medium tier, 2 on the low tier (a Quest) |
 | `budgetScale` | `0` | Share of `budget` actually placed. `0` is auto, from the device tier (1, except 0.6 on the low tier, which is what a Quest gets in a session). A smaller share means fewer clumps in the same places, each as full, not thinner clumps. Set `1` to place the whole budget everywhere |
 | `radius` | `900` | Metres around the camera to fill |
 | `seed` | `1` | Same seed, same forest |
@@ -171,5 +172,6 @@ repeats every 256 km.
 | `colliderPool` | `48` | How many colliders at most |
 | `shadowRange` | `200` | Metres around the camera whose copies cast shadows (with `shadows: 'on'`) |
 | `shadowBudget` | `600` | How many of the nearest copies cast, at most |
+| `clear` (property) | `null` | `(x, z) => 0..1`: ground kept clear (0 grows nothing), in the landform's coordinates. A city's `cityGround(...).clear` keeps trees off its streets |
 | `clump` | `-1` | How strongly things gather: 0 = even spread, 1 = clumps only. `-1` leaves it to each rule (0.95 by default). Live |
 | `clumpSize` | `0` | Metres across a clump and the gap beside it. `0` = auto, about two and a half times the average spacing, so tightening `radius` keeps the clumps. Live |

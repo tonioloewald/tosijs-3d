@@ -155,6 +155,9 @@ export class GameController extends Component {
     _lookAt = 0;
     _lastPoll = 0;
     _dragging = false;
+    /** Keyboard and mouse only: the hardware pad is its own source. A mapping's
+     * `keyboard` rewrite (the car's W/S onto the pedals) keys off this. */
+    kind = 'keyboard';
     hardwareSource = new HardwareGamepadSource();
     provider = null;
     axes = DEFAULT_AXES;

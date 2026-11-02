@@ -695,8 +695,8 @@ export class B3dDecorator extends B3dChild {
       carried inside the instance matrices rendered every tree inside out.
       Dropping the mirror AND the flip is the same two reversals removed, so
       the winding comes out right; the model is mirrored left-to-right, which
-      no tree or rock can show. (canonicalize() strips it for the same
-      reason.)
+      no tree or rock can show. (Vehicles and library models are converted
+      instead: model-transform's unmirrorGltf; here it is not worth the copy.)
       */
       let top: BABYLON.Node = node
       while (top.parent != null) top = top.parent

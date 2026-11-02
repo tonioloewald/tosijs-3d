@@ -30,6 +30,11 @@ export interface ControlInput {
     sneak: number;
     view: number;
     cameraPeek: number;
+    /**
+     * Swap what the look stick does — a TOGGLE, edge-detected by whoever
+     * consumes it: a tank's up and down elevate its gun, or move its camera.
+     */
+    lookMode: number;
 }
 export interface InputProvider {
     poll(deltaTime: number): ControlInput;

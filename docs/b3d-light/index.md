@@ -53,3 +53,8 @@ tosi-b3d { width: 100%; height: 100%; }
 | `diffuse` | `'#ffffff'` | Diffuse color (hex) |
 | `specular` | `'#808080'` | Specular color (hex) |
 | `groundColor` | `'#000000'` | Bounce from below (hex). Babylon's default is black, which is why vertical faces look unlit however high `intensity` goes — set a dim version of your ground colour |
+| `nightIntensity` | `-1` | With a day/night `b3dSkybox`: the brightness at night, eased from `intensity` as the sky's `daylight` goes. `-1` keeps `intensity` all day and night |
+
+A fixed ambient light under a day/night sky makes midnight look like an
+overcast noon; give it a `nightIntensity` and the fill falls with the sun,
+while the sun itself becomes the moon.

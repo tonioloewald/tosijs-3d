@@ -16,26 +16,10 @@ so the same colours apply to every library's hair.
 */
 /*{ "parent": "human-hair", "order": 10 }*/
 import * as BABYLON from '@babylonjs/core';
+import { registerMaterialPlugin } from './material-plugins.js';
 import { parseColor } from './color.js';
-/** Hair colour presets: a base and its usual highlight, sRGB hex. */
-export const HAIR_COLOURS = Object.freeze({
-    black: { base: '#17130f', highlight: '#3a4152' },
-    'dark brown': { base: '#2c1f17', highlight: '#6b4a32' },
-    brown: { base: '#4a3122', highlight: '#9a6b43' },
-    chestnut: { base: '#5c321d', highlight: '#a5603a' },
-    auburn: { base: '#6a2b1a', highlight: '#b2552e' },
-    copper: { base: '#9c4622', highlight: '#df8f52' },
-    'golden blonde': { base: '#a8814b', highlight: '#e8cb90' },
-    'ash blonde': { base: '#9c937c', highlight: '#dcd5c2' },
-    platinum: { base: '#d6ccb8', highlight: '#f6f1e6' },
-    grey: { base: '#86837f', highlight: '#cfcfd2' },
-    white: { base: '#dedbd5', highlight: '#ffffff' },
-    'pastel pink': { base: '#d494a8', highlight: '#f6d4df' },
-    lavender: { base: '#9a84c0', highlight: '#d8caf0' },
-    'electric blue': { base: '#2f56b8', highlight: '#8fb0ff' },
-    teal: { base: '#2a7f7b', highlight: '#86dcd5' },
-    'cherry red': { base: '#7f1a25', highlight: '#d84a55' },
-});
+import { HAIR_COLOURS } from './character-settings.js';
+export { HAIR_COLOURS } from './character-settings.js';
 const toLin = (c) => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 const toLinear = (c) => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 /** An sRGB colour (anything `parseColor` reads) as linear `Color3`. */
@@ -122,7 +106,7 @@ export class HairShadingPlugin extends BABYLON.MaterialPluginBase {
         };
     }
 }
-BABYLON.RegisterMaterialPlugin('HairShadingPlugin', (material) => new HairShadingPlugin(material));
+registerMaterialPlugin('HairShadingPlugin', (material) => new HairShadingPlugin(material));
 /**
  * Colour a hair material by a base and a highlight. `desaturate` for a
  * texture that is already coloured.

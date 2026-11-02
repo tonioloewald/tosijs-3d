@@ -12,13 +12,14 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-## 0.11.6
+## 0.12.0
 
-The latest release. The character leaves the builder: any body (MakeHuman's, Blender's, Quaternius' or your own mesh) rigged, dressed and tailored the same way; a character file that carries its body; `makeCharacter`, and `<tosi-b3d-biped character>` to walk it in a game; a material picker. [Read 0.11.6](/v0.11.6/).
+The latest release. Vehicles you drive (a car and a tank on one pure model, with a chase camera that works flat and in a headset), a procedural city to drive them in, City Drive and Cross Country, models no longer drawn mirrored, and the character core promised engine-free. ⚠️ Breaking: see [0.12.0](/v0.12.0/) and [Migration](/Migration/).
 
 ## Every version
 
 <!-- toc -->
+- [0.12.0](/v0.12.0/)
 - [0.11.6](/v0.11.6/)
 - [0.11.5](/v0.11.5/)
 - [0.11.4](/v0.11.4/)

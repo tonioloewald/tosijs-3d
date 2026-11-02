@@ -159,7 +159,7 @@ export interface FlightStageOptions {
  * ```
  */
 export declare function flightStage(opts: FlightStageOptions): {
-    elements: (import("./b3d-primitives.js").B3dGround | import("./b3d-input-focus.js").B3dInputFocus | import("./b3d-death.js").B3dDeath | import("./b3d-shadows.js").B3dSun | import("./b3d-skybox.js").B3dSkybox | import("./b3d-fog.js").B3dFog | import("./b3d-library.js").B3dLibrary | import("./b3d-light.js").B3dLight)[];
+    elements: (import("./b3d-primitives.js").B3dGround | import("./b3d-library.js").B3dLibrary | import("./b3d-input-focus.js").B3dInputFocus | import("./b3d-death.js").B3dDeath | import("./b3d-shadows.js").B3dSun | import("./b3d-skybox.js").B3dSkybox | import("./b3d-fog.js").B3dFog | import("./b3d-light.js").B3dLight)[];
     /** The aircraft you are flying NOW — changes on respawn. */
     readonly aircraft: any;
 };

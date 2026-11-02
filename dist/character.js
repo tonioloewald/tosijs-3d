@@ -95,7 +95,7 @@ import { vertexNormals } from './hair-fit.js';
 import { nearestWeights, coveredBy, fitProxy, drawnPositions, underCover, inflate, proxyDelta, smoothUnder, } from './proxy-fit.js';
 import { skinAlbedo } from './skin-tone.js';
 import { humanProxy, proxyMaterial, coverBody } from './human-proxy.js';
-import { hairShading, HAIR_COLOURS } from './hair-shading.js';
+import { hairShading } from './hair-shading.js';
 import { clothShading, clothRecipe } from './cloth-shading.js';
 import { faceDeltas, humanExpressions, blinker, lidsFollow, babble, } from './human-expression.js';
 import { readSkeleton } from './retarget-babylon.js';
@@ -105,57 +105,8 @@ import { loadRigTriangles, loadSkinnedBody, buildBody, soleVertices, lowestOf, s
 import { bodyFromMarkers, lidBlink } from './rigged-body.js';
 import { applyRigRecipe } from './rig-recipe-babylon.js';
 import { assetUrl } from './asset-url.js';
-/** What can be worn, one of each at a time. */
-export const CHARACTER_SLOTS = [
-    'outfit',
-    'bodysuit',
-    'armour',
-    'top',
-    'bottom',
-    'shoes',
-    'gloves',
-    'hat',
-    'mask',
-    'glasses',
-];
-/** Every setting a character has, with its default. */
-export const DEFAULT_CHARACTER = {
-    ...DEFAULT_HUMAN_BODY,
-    gender: 1,
-    tone: 0.3,
-    redness: 0.5,
-    iris: 0.2,
-    irisColour: '#5a3519',
-    hair: 'short02',
-    beard: 'none',
-    moustache: 'none',
-    brows: 'eyebrow001',
-    hairBase: HAIR_COLOURS.brown.base,
-    hairHighlight: HAIR_COLOURS.brown.highlight,
-    hairUp: 0,
-    hairForward: 0,
-    hairSize: 1,
-    outfit: 'male_casualsuit02',
-    bodysuit: 'none',
-    armour: 'none',
-    top: 'none',
-    bottom: 'none',
-    shoes: 'shoes01',
-    hat: 'none',
-    glasses: 'none',
-    gloves: 'none',
-    mask: 'none',
-    stubble: 0,
-    blink: true,
-    talk: false,
-    smile: 0,
-    browsUp: 0,
-    frown: 0,
-    hideClothes: false,
-    rigs: {},
-    surfaces: {},
-    source: 'MakeHuman',
-};
+import { CHARACTER_SLOTS, DEFAULT_CHARACTER, hm08PackUrl, } from './character-settings.js';
+export { CHARACTER_SLOTS, DEFAULT_CHARACTER } from './character-settings.js';
 // A hosted body: its URL is read when it is used, after the page has set
 // the asset base (computed at import, it came out relative to the page).
 const hosted = (path, pick) => ({
@@ -174,7 +125,7 @@ export const CHARACTER_SOURCES = {
 /** Load the pack and the hair library (once per scene). */
 export async function loadCharacterAssets(scene, options = {}) {
     const [pack, hair] = await Promise.all([
-        loadHumanPack(options.pack ?? assetUrl('makehuman/hm08/hm08.json', 17)),
+        loadHumanPack(options.pack ?? hm08PackUrl()),
         loadHairLibrary(scene, options.hair ?? assetUrl('quaternius/libraries/hairstyles.glb', 2)),
     ]);
     return { pack, hair };

@@ -31,6 +31,7 @@ import { keyboardGamepad } from 'tosijs-3d'
 | rightTrigger | R |
 | buttonY | Y |
 | rightBumper | ShiftRight |
+| rightStickPress (R3) | V (GTA's camera key) |
 | dpadUp/Down/Left/Right | I / M / J / K |
 
 Mouse wheel adjusts the ZOOM axis (d-pad up/down), not the look stick.
@@ -84,6 +85,7 @@ const DEFAULT_BUTTONS = [
     { field: 'rightTrigger', keys: ['R'], attack: 5, decay: 10 },
     { field: 'buttonY', keys: ['Y'], attack: 5, decay: 10 },
     { field: 'rightBumper', keys: ['ShiftRight'], attack: 5, decay: 10 },
+    { field: 'rightStickPress', keys: ['V'], attack: 5, decay: 10 },
     { field: 'dpadUp', keys: ['I'], attack: 5, decay: 10 },
     { field: 'dpadDown', keys: ['M'], attack: 5, decay: 10 },
     { field: 'dpadLeft', keys: ['J'], attack: 5, decay: 10 },

@@ -271,7 +271,12 @@ describe('the chase view', () => {
 
   test('turns with the heading (an orbit round the vehicle)', () => {
     // Heading +X: the camera is on the -X side, looking at the vehicle.
-    const { eye, target } = chasePose({ x: 0, y: 0, z: 0 }, Math.PI / 2, CHASE_BOOM, rig)
+    const { eye, target } = chasePose(
+      { x: 0, y: 0, z: 0 },
+      Math.PI / 2,
+      CHASE_BOOM,
+      rig
+    )
     expect(eye.x).toBeLessThan(-5)
     expect(target.x).toBe(0)
   })

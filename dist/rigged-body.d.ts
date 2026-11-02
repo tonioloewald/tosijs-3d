@@ -1,4 +1,3 @@
-import type { Material } from '@babylonjs/core';
 import type { Vec3 } from './spatial-transform.js';
 import { type FittedRig, type Markers } from './rig-fit.js';
 import { type SkinWeights } from './bone-heat.js';
@@ -50,6 +49,14 @@ export interface BodyEye {
     indices: Uint32Array;
 }
 /**
+ * A loaded material, as this module sees it: only a name. In practice a
+ * Babylon `Material` (the Babylon side casts back); kept structural so the
+ * engine-free character core carries no engine in its types.
+ */
+export interface SurfaceMaterial {
+    readonly name: string;
+}
+/**
  * A run of a body's triangles drawn with one material: `start` and `count`
  * are in `indices`, `name` is the material's (unique within the body), and
  * `material` the file's own, loaded (a handle, not data: it is not saved).
@@ -58,7 +65,7 @@ export interface BodySurface {
     start: number;
     count: number;
     name: string;
-    material?: Material;
+    material?: SurfaceMaterial;
 }
 /** A mesh as triangles, in its file's own (right-handed) frame. */
 export interface BodyTriangles {

@@ -11,9 +11,11 @@ export declare class B3dLight extends B3dChild {
         diffuse: string;
         specular: string;
         groundColor: string;
+        nightIntensity: number;
     };
     owner: B3d | null;
     light?: BABYLON.HemisphericLight;
+    private follow;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;
     render(): void;

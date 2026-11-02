@@ -68,6 +68,7 @@ export declare class B3dSkybox extends AbstractMesh {
          * only moves the bright few above it.
          */
         starfieldFloor: number;
+        lightPollution: number;
         /**
          * TWINKLE — scintillation strength, 0 for none. Scaled by the GAS (so it
          * is zero on an airless world and fades as you climb out) and strongest
@@ -159,6 +160,12 @@ export declare class B3dSkybox extends AbstractMesh {
     private _lightColor;
     private _duskScratch;
     private _colorCache;
+    /**
+     * How much daylight there is, 0 (night) to 1 (full day), from the sun's
+     * height: what street lights, headlights and windows read to know when to
+     * come on. Updated with the sky.
+     */
+    daylight: number;
     /** Approximate horizon color based on current time of day / atmosphere. */
     get horizonColor(): BABYLON.Color3;
     private hex;
@@ -278,6 +285,10 @@ export declare class B3dSkybox extends AbstractMesh {
      * different number from the fog's own weight.
      */
     private _applyVeil;
+    /** How dark the sky is (1 at night), from `updateSky`: a glow shows only against it. */
+    private _night;
+    /** Light pollution at the camera, every frame: it changes as you drive. */
+    private _applyPollution;
     private updateSky;
     private _nightLightFrom;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;

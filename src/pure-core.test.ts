@@ -53,7 +53,8 @@ function specifiers(name: string): string[] {
     /(?:^|\n)\s*(?:import|export)\b[^'"`]*?from\s*['"]([^'"]+)['"]/g
   ))
     out.push(m[1])
-  for (const m of src.matchAll(/import\(\s*['"]([^'"]+)['"]\s*\)/g)) out.push(m[1])
+  for (const m of src.matchAll(/import\(\s*['"]([^'"]+)['"]\s*\)/g))
+    out.push(m[1])
   return out
 }
 

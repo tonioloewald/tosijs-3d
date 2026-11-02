@@ -251,7 +251,6 @@ export class B3dTank extends B3dGroundVehicle {
     return heading + this.turretYaw + this.peek
   }
 
-
   protected resetView(heading: number) {
     this.aimYaw = heading + this.turretYaw
     this.aim = { x: 0, y: 0 }
@@ -302,7 +301,11 @@ export class B3dTank extends B3dGroundVehicle {
         track.contacts.reduce((t, p) => t + p.x, 0) /
         Math.max(1, track.contacts.length)
       const r = new BABYLON.Vector3(x, 0, 0).applyRotationQuaternion(rot)
-      const at = BABYLON.Vector3.Cross(omega, r).addInPlaceFromFloats(v.x, v.y, v.z)
+      const at = BABYLON.Vector3.Cross(omega, r).addInPlaceFromFloats(
+        v.x,
+        v.y,
+        v.z
+      )
       this.belts[i] = (this.belts[i] ?? 0) + BABYLON.Vector3.Dot(at, fwd) * dt
     })
   }
@@ -479,7 +482,11 @@ export class B3dTank extends B3dGroundVehicle {
       if (!/wheel/i.test(m.name)) continue
       const box = m.getBoundingInfo().boundingBox
       const radius = Math.max(0.05, (box.maximum.y - box.minimum.y) / 2)
-      this.wheels.push({ part: partOf(m), radius, side: this.centreX(m) < 0 ? 0 : 1 })
+      this.wheels.push({
+        part: partOf(m),
+        radius,
+        side: this.centreX(m) < 0 ? 0 : 1,
+      })
     }
     const { min, max } = control.getHierarchyBoundingVectors(true)
     const mass = Number(this.mass)

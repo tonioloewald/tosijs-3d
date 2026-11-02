@@ -160,6 +160,7 @@ repeats every 256 km.
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `budget` | `2000` | How many things to place. Performance cares about this, not density |
+| `variants` | `0` | Shapes kept per family (a tree species' variants, a rock kind's), each a draw of its own. `0` is auto, from the device tier: all on a desktop, 3 on the medium tier, 2 on the low tier (a Quest) |
 | `budgetScale` | `0` | Share of `budget` actually placed. `0` is auto, from the device tier (1, except 0.6 on the low tier, which is what a Quest gets in a session). A smaller share means fewer clumps in the same places, each as full, not thinner clumps. Set `1` to place the whole budget everywhere |
 | `radius` | `900` | Metres around the camera to fill |
 | `seed` | `1` | Same seed, same forest |
@@ -172,6 +173,7 @@ repeats every 256 km.
 | `colliderPool` | `48` | How many colliders at most |
 | `shadowRange` | `200` | Metres around the camera whose copies cast shadows (with `shadows: 'on'`) |
 | `shadowBudget` | `600` | How many of the nearest copies cast, at most |
+| `clear` (property) | `null` | `(x, z) => 0..1`: ground kept clear (0 grows nothing), in the landform's coordinates. A city's `cityGround(...).clear` keeps trees off its streets |
 | `clump` | `-1` | How strongly things gather: 0 = even spread, 1 = clumps only. `-1` leaves it to each rule (0.95 by default). Live |
 | `clumpSize` | `0` | Metres across a clump and the gap beside it. `0` = auto, about two and a half times the average spacing, so tightening `radius` keeps the clumps. Live |
 */
@@ -183,7 +185,7 @@ import { resolveBudget } from './b3d-quality.js';
 import { mantaAxes } from './biome-chart.js';
 import { attachBiomePlugin, groundClimateAt, } from './biome-plugin.js';
 import { rockFromName, rockGeometry } from './procedural-rock.js';
-import { isDefaultLibrary, scatterPlacements, NearIndex, seatDip, pruneScatterCache, NATURE_KIT_RULES, NATURE_RULES, NATURE_ROLES, roleFor, } from './scatter.js';
+import { isDefaultLibrary, limitVariant, scatterPlacements, NearIndex, seatDip, pruneScatterCache, NATURE_KIT_RULES, NATURE_RULES, NATURE_ROLES, roleFor, } from './scatter.js';
 import { realNow } from './clock.js';
 /*
 A layer bit the camera does not see (its default mask is 0x0FFFFFFF). The shadow
@@ -216,6 +218,8 @@ export class B3dDecorator extends B3dChild {
         clump: -1,
         // 0 = auto (from the spacing); otherwise metres.
         clumpSize: 0,
+        // Shapes per family (tree species, rock kind); 0 = auto, from the device tier.
+        variants: 0,
     };
     /**
      * Whether the library in use is the default one. Asked of the RESOLVED url,
@@ -257,6 +261,13 @@ export class B3dDecorator extends B3dChild {
         this._roles = roles;
     }
     _roles = null;
+    /**
+     * Ground kept clear: `(x, z) => 0..1` in logical world coordinates (as a
+     * landform's), 0 where nothing grows, 1 where everything may. A city's
+     * `cityGround(...).clear` keeps the trees off its streets. Set it, then the
+     * next rebuild uses it.
+     */
+    clear = null;
     /** What was placed last, in LOGICAL world coordinates. */
     placements = [];
     /**
@@ -595,8 +606,8 @@ export class B3dDecorator extends B3dChild {
             carried inside the instance matrices rendered every tree inside out.
             Dropping the mirror AND the flip is the same two reversals removed, so
             the winding comes out right; the model is mirrored left-to-right, which
-            no tree or rock can show. (canonicalize() strips it for the same
-            reason.)
+            no tree or rock can show. (Vehicles and library models are converted
+            instead: model-transform's unmirrorGltf; here it is not worth the copy.)
             */
             let top = node;
             while (top.parent != null)
@@ -735,16 +746,21 @@ export class B3dDecorator extends B3dChild {
             all over black basalt. Until they can, none. Nothing is suppressed
             without a province.
             */
-            suppress: typeof terrain.provinceField === 'function'
+            suppress: typeof terrain.provinceField === 'function' || this.clear
                 ? (x, z) => {
                     // Asked once per plant RULE at the same point: evaluate the
                     // province once per point.
                     if (x !== lastX || z !== lastZ) {
                         lastX = x;
                         lastZ = z;
-                        const v = terrain.provinceField(x, z);
-                        const t = Math.max(0, Math.min(1, (v - 0.02) / 0.1));
-                        lastFactor = 1 - t * t * (3 - 2 * t);
+                        lastFactor = 1;
+                        if (typeof terrain.provinceField === 'function') {
+                            const v = terrain.provinceField(x, z);
+                            const t = Math.max(0, Math.min(1, (v - 0.02) / 0.1));
+                            lastFactor = 1 - t * t * (3 - 2 * t);
+                        }
+                        if (this.clear)
+                            lastFactor *= Math.max(0, Math.min(1, this.clear(x, z)));
                     }
                     return lastFactor;
                 }
@@ -764,6 +780,11 @@ export class B3dDecorator extends B3dChild {
         const cell = Number(terrain.meshCell) || 0;
         for (const p of this.placements)
             p.y += seatDip(height, p, cell);
+        // Fewer shapes where draws are short: the same places, species and sizes.
+        const keep = resolveBudget(Number(this.variants), 'decoVariants');
+        if (keep > 0)
+            for (const p of this.placements)
+                p.model = limitVariant(p.model, keep);
         this.near = new NearIndex(this.placements, 32);
         pruneScatterCache(this._cache, here, this.radius * 1.5);
         this._center = here;

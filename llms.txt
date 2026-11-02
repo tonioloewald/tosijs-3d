@@ -1,4 +1,4 @@
-# tosijs-3d v0.11.6
+# tosijs-3d v0.12.0
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -79,6 +79,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   The character creator gets dressed. Clothes (MakeHuman's CC0 garments, fitted to any body shape, with fabrics and rec...
 - https://3d.tosijs.net/v0.11.6/ — 0.11.6
   The character leaves the builder. Any body (MakeHuman's, Blender's, Quaternius', or a mesh of your own) is rigged, dr...
+- https://3d.tosijs.net/v0.12.0/ — 0.12.0
+  tracked vehicles (no physics engine), `<tosi-b3d-car>` rebuilt on it and a new
 - https://3d.tosijs.net/v0.5.0/ — 0.5.0
   `@babylonjs/loaders`, `@babylonjs/materials` moved `^8` → `^9`. **Consumers must
 - https://3d.tosijs.net/v0.5.1/ — 0.5.1

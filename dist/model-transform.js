@@ -46,6 +46,10 @@ import * as BABYLON from '@babylonjs/core';
  */
 export function canonicalize(clone, scene, name) {
     const wrapper = new BABYLON.TransformNode(name, scene);
+    // Move the loader's mirror into the content before it is dropped (a no-op
+    // when the caller already did, with the file's animations).
+    if (clone.name.includes('__root__'))
+        unmirrorGltf(clone);
     clone.parent = wrapper;
     clone.rotationQuaternion = BABYLON.Quaternion.Identity();
     clone.rotation.set(0, 0, 0);
@@ -111,6 +115,164 @@ export function canonicalize(clone, scene, name) {
         t.rotation.set(0, 0, 0);
     }
     return wrapper;
+}
+/*
+A glTF FILE, CONVERTED TO OUR HANDEDNESS NODE BY NODE, so nothing is mirrored.
+
+glTF is right-handed and Babylon left-handed. Babylon's loader converts with one
+mirror on `__root__` (scale z −1, yaw 180°: net x → −x), which is correct as
+long as `__root__` stays above the model. It does not: `canonicalize` strips it
+(a control node must not have a negative-determinant frame) and the library
+clones nodes out from under it, so every model was drawn as its MIRROR IMAGE,
+text backwards and left and right swapped. Symmetric vehicles hid it.
+
+So the mirror is moved off `__root__` and INTO the content: every node's
+transform is conjugated by it (position x → −x, rotation about x kept and
+about y and z reversed), every geometry's vertices are mirrored with their
+winding flipped, and so are the animation keys. Each node then has a proper
+frame, the picture is the one Babylon's loader meant, and `__root__` is left
+as identity, so dropping it changes nothing.
+
+Skinned content is left alone (its inverse bind matrices would need the same
+treatment): it keeps `__root__`'s mirror and returns false.
+*/
+const unmirrored = new WeakSet();
+export function unmirrorGltf(root, animationGroups = []) {
+    if (unmirrored.has(root))
+        return true;
+    const s = root.scaling;
+    const turned = root.rotationQuaternion ?? BABYLON.Quaternion.FromEulerVector(root.rotation);
+    // Babylon's own mirror and nothing else: scale (1,1,-1) and a half turn about y.
+    const mirrored = s.x * s.y * s.z < 0 &&
+        Math.abs(Math.abs(turned.y) - 1) < 1e-6 &&
+        root.position.lengthSquared() < 1e-12;
+    if (!mirrored)
+        return false;
+    const nodes = root.getDescendants(false);
+    if (nodes.some((n) => n instanceof BABYLON.AbstractMesh && n.skeleton != null))
+        return false;
+    const geometries = new Set();
+    for (const n of nodes) {
+        if (!(n instanceof BABYLON.TransformNode))
+            continue;
+        mirrorTransform(n);
+        if (n instanceof BABYLON.Mesh && n.geometry != null) {
+            if (!geometries.has(n.geometry)) {
+                geometries.add(n.geometry);
+                mirrorGeometry(n);
+            }
+            const targets = n.morphTargetManager;
+            for (let i = 0; i < (targets?.numTargets ?? 0); i++)
+                mirrorMorphTarget(targets.getTarget(i));
+        }
+    }
+    const animations = new Set();
+    for (const group of animationGroups)
+        for (const { animation } of group.targetedAnimations) {
+            if (animations.has(animation))
+                continue;
+            animations.add(animation);
+            mirrorAnimation(animation);
+        }
+    root.scaling.set(Math.abs(s.x), Math.abs(s.y), Math.abs(s.z));
+    root.rotationQuaternion = BABYLON.Quaternion.Identity();
+    root.rotation.set(0, 0, 0);
+    for (const n of nodes)
+        if (n instanceof BABYLON.Mesh)
+            n.refreshBoundingInfo();
+    unmirrored.add(root);
+    return true;
+}
+/** `unmirrorGltf` on a loaded container, once, before anything is cloned from it. */
+export function unmirrorContainer(container) {
+    const root = container.meshes.find((m) => m.name === '__root__');
+    return root != null && unmirrorGltf(root, container.animationGroups);
+}
+function mirrorTransform(n) {
+    n.position.x = -n.position.x;
+    const q = n.rotationQuaternion;
+    if (q != null)
+        q.set(q.x, -q.y, -q.z, q.w);
+    else
+        n.rotation.set(n.rotation.x, -n.rotation.y, -n.rotation.z);
+}
+/** x → −x on positions, normals and tangents (whose handedness flips too), winding reversed. */
+function mirrorGeometry(mesh) {
+    const K = BABYLON.VertexBuffer;
+    for (const kind of [K.PositionKind, K.NormalKind]) {
+        const data = mesh.getVerticesData(kind, true, true);
+        if (data == null)
+            continue;
+        for (let i = 0; i < data.length; i += 3)
+            data[i] = -data[i];
+        mesh.setVerticesData(kind, data, mesh.isVertexBufferUpdatable(kind));
+    }
+    const tangents = mesh.getVerticesData(K.TangentKind, true, true);
+    if (tangents != null) {
+        for (let i = 0; i < tangents.length; i += 4) {
+            tangents[i] = -tangents[i];
+            tangents[i + 3] = -tangents[i + 3];
+        }
+        mesh.setVerticesData(K.TangentKind, tangents, mesh.isVertexBufferUpdatable(K.TangentKind));
+    }
+    const indices = mesh.getIndices(true, true);
+    if (indices != null) {
+        const flipped = Array.from(indices);
+        for (let i = 0; i + 2 < flipped.length; i += 3) {
+            const t = flipped[i + 1];
+            flipped[i + 1] = flipped[i + 2];
+            flipped[i + 2] = t;
+        }
+        mesh.setIndices(flipped, null, true);
+    }
+}
+function mirrorMorphTarget(t) {
+    const flip = (data, stride) => {
+        if (data == null)
+            return null;
+        const out = Float32Array.from(data);
+        for (let i = 0; i < out.length; i += stride)
+            out[i] = -out[i];
+        return out;
+    };
+    const p = flip(t.getPositions(), 3);
+    if (p)
+        t.setPositions(p);
+    const n = flip(t.getNormals(), 3);
+    if (n)
+        t.setNormals(n);
+    const tg = flip(t.getTangents(), 3);
+    if (tg)
+        t.setTangents(tg);
+}
+function mirrorAnimation(a) {
+    const keys = a.getKeys();
+    const prop = a.targetProperty;
+    for (const k of keys) {
+        const v = k.value;
+        if (prop === 'position' && v instanceof BABYLON.Vector3)
+            v.x = -v.x;
+        else if (prop === 'position.x' && typeof v === 'number')
+            k.value = -v;
+        else if (prop === 'rotationQuaternion' && v instanceof BABYLON.Quaternion)
+            v.set(v.x, -v.y, -v.z, v.w);
+        else if (prop === 'rotation' && v instanceof BABYLON.Vector3) {
+            v.y = -v.y;
+            v.z = -v.z;
+        }
+        else if ((prop === 'rotation.y' || prop === 'rotation.z') &&
+            typeof v === 'number')
+            k.value = -v;
+        // Cubic glTF keys carry tangents in the same units.
+        for (const side of ['inTangent', 'outTangent']) {
+            const tan = k[side];
+            if (prop === 'position' && tan instanceof BABYLON.Vector3)
+                tan.x = -tan.x;
+            else if (prop === 'rotationQuaternion' &&
+                tan instanceof BABYLON.Quaternion)
+                tan.set(tan.x, -tan.y, -tan.z, tan.w);
+        }
+    }
 }
 export function normalizeScale(mesh) {
     const hadQ = mesh.rotationQuaternion != null;

@@ -1,9 +1,5 @@
 import * as BABYLON from '@babylonjs/core';
-/** Hair colour presets: a base and its usual highlight, sRGB hex. */
-export declare const HAIR_COLOURS: Readonly<Record<string, {
-    base: string;
-    highlight: string;
-}>>;
+export { HAIR_COLOURS } from './character-settings.js';
 export declare class HairShadingPlugin extends BABYLON.MaterialPluginBase {
     highlight: BABYLON.Color3;
     /** How far the bright strands lean to the highlight, 0 to 1. */

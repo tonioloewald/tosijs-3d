@@ -280,7 +280,11 @@ export class B3dSun extends B3dChild {
         */
         for (let i = this.shadowCasters.length - 1; i >= 0; i--) {
             const mesh = this.shadowCasters[i];
-            if (!mesh.isDisposed())
+            // Gone, or renamed not to cast since it registered (a city names its
+            // roads `_nocast` after the library has registered them).
+            const nocast = conventionName(mesh.name).includes('_nocast') ||
+                mesh.name.includes('-nocast');
+            if (!mesh.isDisposed() && !nocast)
                 continue;
             this.shadowCasters.splice(i, 1);
             const active = this.activeShadowCasters.indexOf(mesh);

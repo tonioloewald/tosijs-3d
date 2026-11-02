@@ -16,6 +16,7 @@ field on a torus, so it tiles by construction, bright along the cell EDGES the
 way real caustic networks are. No file, no network.
 */
 import * as BABYLON from '@babylonjs/core';
+import { registerMaterialPlugin } from './material-plugins.js';
 import { Xoshiro128 } from './mersenne-twister.js';
 /**
  * A tiling caustic network, `size`×`size` bytes of brightness (0–255).
@@ -190,5 +191,5 @@ class CausticsPlugin extends BABYLON.MaterialPluginBase {
 }
 // In the registry, or Material.clone() throws on a material that carries it
 // (the same trap cloud-shadows documents).
-BABYLON.RegisterMaterialPlugin('CausticsPlugin', (material) => new CausticsPlugin(material));
+registerMaterialPlugin('CausticsPlugin', (material) => new CausticsPlugin(material));
 //# sourceMappingURL=caustics.js.map

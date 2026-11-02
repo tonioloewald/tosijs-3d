@@ -104,6 +104,17 @@ export interface PerfBudgets {
      */
     effectParticles: number;
     effectLights: number;
+    /**
+     * Real lights the LAMP pool hands out (street lights, headlights): every
+     * lamp is a virtual light and the strongest few near the viewer get one.
+     * Lit materials are raised to take them.
+     */
+    lampLights: number;
+    /**
+     * Shapes per decoration family (a tree species' variants, a rock kind's):
+     * each is a draw of its own. `0` keeps them all.
+     */
+    decoVariants: number;
     effectVoices: number;
     /**
      * Fixed foveation in a headset, 0-1: how much the edges of each eye are

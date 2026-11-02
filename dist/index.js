@@ -27,7 +27,7 @@ export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, e
 // shipped JSDoc instructs consumers to call it, and CLAUDE.md tells them to
 // use `semanticParent`; instructing someone to call something they cannot
 // import is worse than not documenting it.
-markUiMesh, markCollisionGroup, collisionGroups, inCollisionGroup, isNoCollide, collidable, cameraIsAttached, semanticParent, refuseOwnAncestor, refuseOwnAncestors, conventionName, simHalted, controlsLive, } from './b3d-utils.js';
+markUiMesh, markCollisionGroup, collisionGroups, inCollisionGroup, isNoCollide, collidable, pickWorld, rayProxies, cameraIsAttached, semanticParent, refuseOwnAncestor, refuseOwnAncestors, conventionName, simHalted, controlsLive, } from './b3d-utils.js';
 // The pure flight model, so a consumer can predict what the aircraft will do
 // without instantiating one — `equilibriumSpeed` is what the HUD's set-point
 // mark is drawn from, and a mission planner wants the same number.
@@ -143,6 +143,15 @@ export { B3dInputFocus, inputFocus } from './b3d-input-focus.js';
 export { gamepadState, gamepadText, xrControllers, xrControllersText, } from './gamepad.js';
 // Vehicles
 export { B3dCar, b3dCar } from './b3d-car.js';
+export { B3dTank, b3dTank } from './b3d-tank.js';
+export { B3dGroundVehicle } from './b3d-ground-vehicle.js';
+export { createVehicle, stepVehicle, shiftVehicle, heightGround, forwardSpeed, headingOf, chaseRigFor, CHASE_BOOM, chasePose, VEHICLE_STEP, } from './ground-vehicle.js';
+export { cityLayout, roadPiece, turnMask, SIDE_BIT as CITY_SIDE_BIT, } from './city-layout.js';
+export { B3dCity, b3dCity, cityGround, cityStart, KENNEY_CITY, } from './b3d-city.js';
+export { createTraffic, recycleTraffic, TRAFFIC_CAR, stepTraffic, } from './city-traffic.js';
+export { roomLit, windowLights, WindowLightsPlugin } from './window-lights.js';
+export { lightPool, LightPool, sceneDaylight, lampLevel, } from './light-pool.js';
+export { lightPollutionSource, lightPollutionAt, pollutionFrom, combinePollution, } from './light-pollution.js';
 export { B3dAircraft, b3dAircraft } from './b3d-aircraft.js';
 // The callback-naming shim. `handleX` is the name across this library; `onX`
 // still works and warns once. Exported so an adopter's own widgets can follow
@@ -498,4 +507,6 @@ export { springChain, stepSpringChain, resetSpringChain, shiftSpringChain, SPRIN
 export { springBones, springNodes } from './spring-chain-babylon.js';
 export { realNow, wallMs, wallDate } from './clock.js';
 export { makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, } from './character.js';
+export { hm08PackUrl, HM08_PACK_PATH, HM08_PACK_VERSION, } from './character-settings.js';
+export { coverSkin, BODY_WRAPPING_SLOTS } from './proxy-cover.js';
 //# sourceMappingURL=index.js.map

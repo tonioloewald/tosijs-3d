@@ -361,7 +361,7 @@ Importing the editor would pull in tosijs, which needs `HTMLElement`.
 import * as BABYLON from '@babylonjs/core';
 import { B3dChild, conventionName, isOff } from './b3d-utils.js';
 import { SvgTexture } from './svg-texture.js';
-import { canonicalize } from './model-transform.js';
+import { canonicalize, unmirrorContainer } from './model-transform.js';
 import { resolveBudget } from './b3d-quality.js';
 import { isAnimated, lightPhase, sampleLight, shiftHue, } from './light-modulation.js';
 import { realNow } from './clock.js';
@@ -543,6 +543,7 @@ export class B3dLamp extends B3dChild {
                     container.dispose();
                     return;
                 }
+                unmirrorContainer(container);
                 container.addAllToScene();
                 const node = this.node;
                 for (const root of container.rootNodes) {

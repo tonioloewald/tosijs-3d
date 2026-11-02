@@ -387,7 +387,7 @@ levels down).
 */
 /*{ "parent": "characters-and-vehicles", "order": 20 }*/
 import * as BABYLON from '@babylonjs/core';
-import { canonicalize, applyCenterOfGravity } from './model-transform.js';
+import { canonicalize, applyCenterOfGravity, unmirrorContainer, } from './model-transform.js';
 import { B3dControllable } from './b3d-controllable.js';
 import { aircraftMapping } from './virtual-gamepad.js';
 import { equilibriumSpeed, flyByWireStep, targetVelocity, turbulence, chaseVelocity, } from './fly-by-wire.js';
@@ -2077,6 +2077,7 @@ export class B3dAircraft extends B3dControllable {
     }
     loadFromUrl(url, owner, scene) {
         this.loadAssetContainer(scene, url, (container) => {
+            unmirrorContainer(container);
             const entries = container.instantiateModelsToScene(undefined, false, {
                 doNotInstantiate: true,
             });
