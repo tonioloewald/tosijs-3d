@@ -1226,6 +1226,33 @@ export function button3d(config) {
     const el = css(g({ 'data-w3d': 'button' }, bg, lbl), 'cursor:pointer');
     let host = null;
     let btnWidth = 0;
+    let open = null;
+    // A press inside the popup may close it or replace its controls: done a
+    // tick later, so the popup is not torn down while it is handling the press.
+    const popup = {
+        close: () => queueMicrotask(() => {
+            const was = open;
+            open = null;
+            was?.close();
+        }),
+        show: (items) => queueMicrotask(() => showPopup(items)),
+    };
+    const showPopup = (items) => {
+        const was = open;
+        open = null;
+        was?.close();
+        if (host == null)
+            return;
+        const handle = host.showPopup({
+            anchor: { x: 0, y: 0, width: btnWidth, height: TH.ROW },
+            width: Math.max(btnWidth, 260),
+            handleClose: () => {
+                if (open === handle)
+                    open = null;
+            },
+        }, ...items);
+        open = handle;
+    };
     return {
         el,
         setHost(h) {
@@ -1256,7 +1283,10 @@ export function button3d(config) {
                 bg.setAttribute('fill', TH.BTN_HOVER); // hover / move / up
                 lbl.setAttribute('fill', TH.TEXT);
                 if (kind === 'up') {
-                    if (config.menu != null && host != null) {
+                    if (config.popup != null) {
+                        showPopup(config.popup(popup));
+                    }
+                    else if (config.menu != null && host != null) {
                         openMenu3d(host, { x: 0, y: 0, width: btnWidth, height: TH.ROW }, config.menu);
                     }
                     else {

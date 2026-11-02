@@ -1,0 +1,5 @@
+import{$e}from"./site-tabsjb83.js";import{O,V,Ks}from"./site-mb4g134k.js";import{zl}from"./site-cecfb875.js";import{o}from"./site-3k900c4f.js";class og extends $e{constructor(t){super(t);this.config=t,this._easingFunctions={},this.mode=this.registerDataInput("mode",V,0),this.controlPoint1=this.registerDataInput("controlPoint1",Ks),this.controlPoint2=this.registerDataInput("controlPoint2",Ks),this.easingFunction=this.registerDataOutput("easingFunction",O)}_updateOutputs(t){let r=this.mode.getValue(t),e=this.controlPoint1.getValue(t),i=this.controlPoint2.getValue(t);if(r===void 0)return;let s=`${r}-${e.x}-${e.y}-${i.x}-${i.y}`;if(!this._easingFunctions[s]){let n=new zl(e.x,e.y,i.x,i.y);n.setEasingMode(r),this._easingFunctions[s]=n}this.easingFunction.setValue(this._easingFunctions[s],t)}getClassName(){return"FlowGraphBezierCurveEasing"}}var a=!1;function ag(){if(a)return;a=!0,o("FlowGraphBezierCurveEasing",og)}ag();
+export{og,ag};
+
+//# debugId=C933CBE7215EEC1864756E2164756E21
+//# sourceMappingURL=site-ecanbze1.js.map

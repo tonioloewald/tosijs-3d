@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=787031765adb" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=c9f02b56e090" data-tosi-doc-system />
   <title>character builder — tosijs-3d</title>
   <meta name="description" content="Make a person, and watch them walk. The first steps of the character creator (CHARACTER-DESIGN.md): MakeHuman&#39;s CC0 body (human-pack), reshaped by sliders for…" />
   <link rel="canonical" href="https://3d.tosijs.net/character-builder/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=eab9c1a595b0" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=3e621361edb6" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="character-builder.ts">
 <h1 id="character-builder">character builder</h1>
 <p><strong>Make a person, and watch them walk.</strong> The first steps of the character
@@ -40,26 +40,58 @@ weight, height and ancestry (<a href="/human-morph/">human-morph</a>), with UAL&
 skeleton placed from its own joint cubes (<a href="/human-rig/">human-rig</a>) so it
 plays UAL&#39;s clips at any shape.</p>
 <h2 id="demo">Demo</h2>
-<pre><code class="language-js">import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, characterStore, WORKING_CHARACTER } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter } from &#39;tosijs-3d&#39;
 import { tosi } from &#39;tosijs&#39;
 import { mountRigTool } from &#39;tosijs-3d/rig-tool&#39;
 
 // Everything the panel sets, as it starts: what a saved character is read against.
-const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: &#39;Walk_Loop&#39;, tone: 0.3, redness: 0.5, iris: 0.2, irisColour: &#39;#5a3519&#39;, hair: &#39;short02&#39;, beard: &#39;none&#39;, moustache: &#39;none&#39;, brows: &#39;eyebrow001&#39;, hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: &#39;male_casualsuit02&#39;, bodysuit: &#39;none&#39;, armour: &#39;none&#39;, top: &#39;none&#39;, bottom: &#39;none&#39;, shoes: &#39;shoes01&#39;, hat: &#39;none&#39;, glasses: &#39;none&#39;, gloves: &#39;none&#39;, mask: &#39;none&#39;, editing: &#39;outfit&#39;, look: &#39;as made&#39;, clothLook: clothRecipe({ fabric: &#39;cotton&#39;, colour: &#39;#7a2e2e&#39;, recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorLook: clothRecipe({ fabric: &#39;cotton&#39;, colour: &#39;#3b5b8a&#39;, recolour: 1 }), tailorAlone: false, tailorName: &#39;&#39;, tailorSlot: &#39;top&#39;, exportBody: true, rigs: {}, surfaces: {}, source: &#39;MakeHuman&#39;, characterName: &#39;&#39;, characterPick: &#39;&#39; }
+const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: &#39;Walk_Loop&#39;, tone: 0.3, redness: 0.5, iris: 0.2, irisColour: &#39;#5a3519&#39;, eyeStyle: &#39;basic&#39;, hair: &#39;short02&#39;, beard: &#39;none&#39;, moustache: &#39;none&#39;, brows: &#39;eyebrow001&#39;, hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: &#39;male_casualsuit02&#39;, bodysuit: &#39;none&#39;, armour: &#39;none&#39;, top: &#39;none&#39;, bottom: &#39;none&#39;, shoes: &#39;shoes01&#39;, hat: &#39;none&#39;, glasses: &#39;none&#39;, gloves: &#39;none&#39;, mask: &#39;none&#39;, editing: &#39;outfit&#39;, look: &#39;as made&#39;, clothLook: clothRecipe({ fabric: &#39;cotton&#39;, colour: &#39;#7a2e2e&#39;, recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorLook: clothRecipe({ fabric: &#39;cotton&#39;, colour: &#39;#3b5b8a&#39;, recolour: 1 }), tailorAlone: false, tailorName: &#39;&#39;, tailorSlot: &#39;top&#39;, exportBody: true, rigs: {}, surfaces: {}, source: &#39;MakeHuman&#39;, characterName: &#39;&#39;, characterPick: &#39;&#39; }
 const { walker } = tosi({ walker: structuredClone(START) })
 // What a character file keeps: not the editor&#39;s view of one slot (that is in
 // cloth), the microphone (it would ask on load), or the save controls.
 const KEPT = Object.keys(START).filter((k) =&gt; ![&#39;editing&#39;, &#39;look&#39;, &#39;clothLook&#39;, &#39;mic&#39;, &#39;characterName&#39;, &#39;characterPick&#39;].includes(k))
 // Saving and loading characters, wired when the page is up.
-const character = { save: () =&gt; {}, load: () =&gt; {}, forget: () =&gt; {}, exportJson: () =&gt; {}, importJson: () =&gt; {}, changed: () =&gt; {}, saved: [], note: &#39;&#39; }
+const character = { save: () =&gt; {}, rename: () =&gt; {}, load: () =&gt; {}, forget: () =&gt; {}, exportJson: () =&gt; {}, importJson: () =&gt; {}, changed: () =&gt; {}, saved: [], note: &#39;&#39; }
+// A name asked for in a popup (works in a headset too): refused with its
+// reason, and a confirm before it replaces ANOTHER saved character.
+const namePopup = (pop, { prompt, initial, current, verb, act }) =&gt; {
+  let typed = initial
+  const go = () =&gt; {
+    const d = nameCharacter(typed, character.saved, current)
+    if (!d.ok) return pop.show(form(d.message))
+    if (!d.replaces) {
+      pop.close()
+      return act(d.name)
+    }
+    pop.show([
+      text3d({ text: `${d.name} is already saved. Replace it?` }),
+      button3d({ label: &#39;replace&#39;, handleClick: () =&gt; { pop.close(); act(d.name) } }),
+      button3d({ label: &#39;cancel&#39;, handleClick: () =&gt; pop.close() }),
+    ])
+  }
+  const form = (message) =&gt; [
+    text3d({ text: message }),
+    ui.inputField({ value: typed, placeholder: &#39;name&#39;, handleChange: (v) =&gt; { typed = v }, handleEnter: (v) =&gt; { typed = v; go() } }),
+    button3d({ label: verb, handleClick: go }),
+    button3d({ label: &#39;cancel&#39;, handleClick: () =&gt; pop.close() }),
+  ]
+  return form(prompt)
+}
 const characterRows = () =&gt; [
   label3d({ text: &#39;Character&#39;, collapsible: true }),
-  ui.inputField({ value: walker.characterName.value, placeholder: &#39;name the character&#39;, handleChange: (v) =&gt; { walker.characterName.value = v } }),
-  button3d({ label: &#39;save&#39;, handleClick: () =&gt; character.save() }),
+  ...(walker.characterName.value ? [text3d({ text: walker.characterName.value })] : []),
+  button3d({
+    label: &#39;save…&#39;,
+    popup: (pop) =&gt; namePopup(pop, { prompt: &#39;save as&#39;, initial: walker.characterName.value, current: walker.characterName.value, verb: &#39;save&#39;, act: (name) =&gt; character.save(name) }),
+  }),
   ...(character.saved.length
     ? [
         select3d({ label: &#39;saved&#39;, value: walker.characterPick, options: character.saved }),
         button3d({ label: &#39;load&#39;, handleClick: () =&gt; character.load() }),
+        button3d({
+          label: &#39;rename…&#39;,
+          popup: (pop) =&gt; namePopup(pop, { prompt: `rename ${walker.characterPick.value} to`, initial: walker.characterPick.value, current: walker.characterPick.value, verb: &#39;rename&#39;, act: (name) =&gt; character.rename(walker.characterPick.value, name) }),
+        }),
         button3d({ label: &#39;forget&#39;, handleClick: () =&gt; character.forget() }),
       ]
     : []),
@@ -221,6 +253,7 @@ preview.append(
         slider3d({ label: &#39;tone&#39;, value: walker.tone, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: &#39;redness&#39;, value: walker.redness, min: 0, max: 1, step: 0.01 }),
         label3d({ text: &#39;Eyes&#39;, collapsible: true }),
+        select3d({ label: &#39;eye style&#39;, value: walker.eyeStyle, options: [&#39;basic&#39;, &#39;anime&#39;, &#39;drawn&#39;] }),
         colorPicker3d({ label: &#39;eye colour&#39;, value: walker.irisColour, alpha: false, defaultPresets: &#39;off&#39;, presets: [[&#39;dark brown&#39;, 0], [&#39;brown&#39;, 0.15], [&#39;amber&#39;, 0.3], [&#39;hazel&#39;, 0.45], [&#39;green&#39;, 0.6], [&#39;blue-green&#39;, 0.72], [&#39;blue&#39;, 0.85], [&#39;grey&#39;, 1]].map(([name, t]) =&gt; { const c = irisColor(t); const h = (x) =&gt; Math.round(x * 255).toString(16).padStart(2, &#39;0&#39;); return { name, value: &#39;#&#39; + h(c.r) + h(c.g) + h(c.b) } }) }),
         label3d({ text: &#39;Face&#39;, collapsible: true }),
         toggle3d({ label: &#39;blink&#39;, value: walker.blink }),
@@ -770,16 +803,31 @@ preview.append(
           }, 800)
         }
         for (const k of [...KEPT, &#39;look&#39;, &#39;clothLook&#39;]) walker[k].observe(() =&gt; character.changed())
-        character.save = async () =&gt; {
-          const name = walker.characterName.value.trim()
-          if (!name || name === WORKING) return tell(&#39;name the character first&#39;)
+        character.save = async (name) =&gt; {
           try {
             await store.put(name, snapshot(name))
           } catch (e) {
             return tell(`could not save: ${e?.message ?? e}`)
           }
+          walker.characterName.value = name
           walker.characterPick.value = name
           tell(`saved ${name}`)
+          listSaved()
+        }
+        // Put under the new name, then the old one goes.
+        character.rename = async (from, to) =&gt; {
+          if (to === from) return
+          try {
+            const doc = await store.get(from)
+            if (!doc) return tell(`no character called ${from}`)
+            await store.put(to, { ...doc, name: to })
+            await store.delete(from)
+          } catch (e) {
+            return tell(`could not rename: ${e?.message ?? e}`)
+          }
+          if (walker.characterName.value === from) walker.characterName.value = to
+          walker.characterPick.value = to
+          tell(`renamed ${from} to ${to}`)
           listSaved()
         }
         character.load = async () =&gt; {
@@ -851,8 +899,10 @@ Rig panel) brings the body back bound from that recipe, and the recipe is
 saved with the character; <strong>cancel</strong> keeps the one it had. The first binding is a guess read
 off the body&#39;s outline.</p>
 <p><strong>Character</strong> keeps your work. The figure you are working on is kept in this
-browser as you change it and comes back when you open the page again. <strong>Save</strong>
-it under a name to keep several, <strong>load</strong> or <strong>forget</strong> one, or <strong>export
+browser as you change it and comes back when you open the page again. <strong>Save…</strong>
+asks for a name (the one it has, to start with) to keep it under, and asks
+first before replacing another saved character. Pick a saved one to <strong>load</strong>,
+<strong>rename…</strong> or <strong>forget</strong> it. <strong>Export
 JSON</strong> to take it elsewhere and <strong>import JSON…</strong> to bring one in. A file
 carries everything the panel sets, and the garments of your own the character
 wears travel inside it (<a href="/character-file/">character-file</a>).</p>
@@ -1052,6 +1102,12 @@ body&#39;s triangles.</p>
           <li><a class="doc-link" href="../proxy-cover/">proxy-cover</a></li>
           <li><a class="doc-link" href="../skinned-glb/">skinned-glb</a></li>
           <li><a class="doc-link" href="../glb-chunks/">glb-chunks</a></li>
+          <li><a class="doc-link" href="../skin-paint/">skin paint</a></li>
+          <li><a class="doc-link" href="../cloth-bake/">cloth bake</a></li>
+          <li><a class="doc-link" href="../eye-art/">eye art</a></li>
+          <li><a class="doc-link" href="../hair-place/">hair place</a></li>
+          <li><a class="doc-link" href="../mesh-sdf/">mesh sdf</a></li>
+          <li><a class="doc-link" href="../fit-extremes/">fit extremes</a></li>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../retarget/">retarget</a></li>
@@ -1334,6 +1390,7 @@ body&#39;s triangles.</p>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.12.2/">0.12.2</a></li>
         <li><a class="doc-link" href="../v0.12.1/">0.12.1</a></li>
         <li><a class="doc-link" href="../v0.12.0/">0.12.0</a></li>
         <li><a class="doc-link" href="../v0.11.6/">0.11.6</a></li>
@@ -1418,6 +1475,6 @@ body&#39;s triangles.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-45tqvkps.js"></script>
+  <script type="module" src="../hydrate-tzs80m6j.js"></script>
 </body>
 </html>

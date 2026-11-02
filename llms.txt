@@ -1,4 +1,4 @@
-# tosijs-3d v0.12.1
+# tosijs-3d v0.12.2
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -83,6 +83,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   tracked vehicles (no physics engine), `<tosi-b3d-car>` rebuilt on it and a new
 - https://3d.tosijs.net/v0.12.1/ — 0.12.1
   A rigged, morphing body written out as a GLB, with no engine: the skinned GLB writer, moved here from Dramatis so oth...
+- https://3d.tosijs.net/v0.12.2/ — 0.12.2
+  More of the character, engine-free: eyes from Tonio's art, hair placed with no engine, lips and stubble as vertex col...
 - https://3d.tosijs.net/v0.5.0/ — 0.5.0
   `@babylonjs/loaders`, `@babylonjs/materials` moved `^8` → `^9`. **Consumers must
 - https://3d.tosijs.net/v0.5.1/ — 0.5.1
@@ -323,6 +325,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   the `dt` you step it by), so the same seed drives the same way in a test, a
 - https://3d.tosijs.net/clock/ — clock
   the simulation: `sceneDelta(scene)` for a frame's step and `sceneSeconds(scene)`
+- https://3d.tosijs.net/cloth-bake/ — cloth bake
+  texture's pixels, so an export carries the colour the character builder
 - https://3d.tosijs.net/cloth-shading/ — cloth-shading
   What makes cloth read as cloth at any distance is how it takes light, not its
 - https://3d.tosijs.net/cloud-shadows/ — cloud-shadows
@@ -371,6 +375,10 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   geysers, splashes, explosions, fireballs, sparks: particles, light and sound
 - https://3d.tosijs.net/environment/ — environment
   `studioEnvironment(scene)` gives PBR materials something to reflect: a
+- https://3d.tosijs.net/eye-art/ — eye art
+  served from the asset CDN as 256 × 256 PNGs and the SVGs they are drawn
+- https://3d.tosijs.net/fit-extremes/ — fit extremes
+  character is judged on its worst screenshot, and the worst ones are at the
 - https://3d.tosijs.net/flow-layout/ — flow-layout
   Pure **flow layout** math: the CSS block + inline-block model, in SVG user
 - https://3d.tosijs.net/fly-by-wire/ — fly-by-wire
@@ -407,6 +415,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   grip until they slide, tracks that steer by running one side faster than the
 - https://3d.tosijs.net/guidance/ — guidance
   round, one leads a gun, and both are used by [[b3d-launcher]] and
+- https://3d.tosijs.net/hair-place/ — hair place
+  place on one of Quaternius' heads, so a piece is carried from THAT head to a
 - https://3d.tosijs.net/hair-fit/ — hair-fit
   Hair made for one head, worn on another. A hairstyle library such as
 - https://3d.tosijs.net/hair-shading/ — hair-shading
@@ -471,6 +481,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   small render of the material, and the popup has the presets first (a
 - https://3d.tosijs.net/medium/ — medium
   Babylon-free description of the *substance* a thing is moving through — air,
+- https://3d.tosijs.net/mesh-sdf/ — mesh sdf
+  triangles)` builds a signed distance to a triangle mesh: `nearest(x, y, z)`
 - https://3d.tosijs.net/Migration/ — Migration
   What to change when upgrading. Only breaking changes are listed — everything
 - https://3d.tosijs.net/min-sim-conformance/ — min-sim-conformance
@@ -533,6 +545,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   The **selection-state glyph**: `circle` / `checkCircle` for single-select (radio),
 - https://3d.tosijs.net/shadow-decal/ — shadow-decal
   A **soft blob shadow** — the oldest trick in real-time 3D, and still the right one in a lot of
+- https://3d.tosijs.net/skin-paint/ — skin paint
+  character builder paints over a body, as numbers an exporter writes out. The
 - https://3d.tosijs.net/skin-shading/ — skin-shading
   Skin that reads as skin without a subsurface pipeline: three cheap terms a
 - https://3d.tosijs.net/skin-tone/ — skin-tone

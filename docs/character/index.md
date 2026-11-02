@@ -70,7 +70,8 @@ dresses it again, a colour repaints. The work is in `ready()`.
 
 `DEFAULT_CHARACTER` lists them with their defaults: MakeHuman's macro sliders
 (`DEFAULT_HUMAN_BODY`), `tone` and `redness` (the skin), `iris` and
-`irisColour`, `stubble`, the hair (`hair`, `beard`, `moustache`, `brows`,
+`irisColour`, `eyeStyle` (Tonio's eye art, `basic` or `anime`, or `drawn` in
+code), `stubble`, the hair (`hair`, `beard`, `moustache`, `brows`,
 `hairBase`, `hairHighlight`, and `hairUp`, `hairForward`, `hairSize` to
 nudge it), one setting per clothes slot (`CHARACTER_SLOTS`, a garment's name
 or `none`), the face (`smile`, `browsUp`, `frown`, and `blink`, `talk`),

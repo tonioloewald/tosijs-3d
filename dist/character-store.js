@@ -32,6 +32,23 @@ export const CHARACTER_DB = 'tosijs-characters';
 /** The figure the builder is working on, kept as it changes. */
 export const WORKING_CHARACTER = '(working)';
 /**
+ * A name typed to save or rename a character: trimmed, refused (with a
+ * reason) when blank or the working figure's own key, and whether it
+ * REPLACES another saved character. `current` is the name being saved again
+ * or renamed: saving under it again replaces nothing.
+ */
+export function nameCharacter(typed, saved, current = '') {
+    const name = typed.trim();
+    if (!name)
+        return { ok: false, message: 'a saved character needs a name' };
+    if (name === WORKING_CHARACTER)
+        return {
+            ok: false,
+            message: `"${WORKING_CHARACTER}" is kept for the figure you are working on`,
+        };
+    return { ok: true, name, replaces: name !== current && saved.includes(name) };
+}
+/**
  * A document's bytes taken out (pure): the document left, and each base64
  * run by where it was.
  */

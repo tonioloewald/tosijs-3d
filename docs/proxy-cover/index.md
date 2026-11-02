@@ -18,3 +18,6 @@ exporter (or another engine) hides the skin exactly as the builder does.
 import { coverSkin } from 'tosijs-3d/proxy-cover'
 const { positions, deleted } = coverSkin(untucked, normals, triangles, vertices, wearing, { drawn })
 ```
+
+`coverDepths` is the rule alone (how deep each vertex goes, before the
+fade), for anything that measures against it.

@@ -3,6 +3,7 @@ import type { HumanPackManifest, HumanPart } from './human-pack.js';
 import type { BuiltRig } from './rig-build.js';
 import type { FittedRig } from './rig-fit.js';
 import { type BodyEye } from './rigged-body.js';
+import { type EyeStyle } from './eye-art.js';
 /** Where MakeHuman's eye UVs put each iris (u, v from the bottom) and its radius. */
 export declare const HM08_EYE_UV: Readonly<{
     l: {
@@ -20,12 +21,21 @@ export interface EyeTexture extends BABYLON.DynamicTexture {
     setIris(t: number): void;
     /** Repaint the iris any colour (sRGB, anything `parseColor` reads). */
     setIrisColour(colour: string): void;
+    /** Paint the eye art (`basic`, `anime`) or the eye drawn in code (`drawn`). */
+    setStyle(style: EyeTextureStyle): void;
 }
-/** The eye drawn in code on MakeHuman's eye UV layout. */
+/** What an eye texture shows: Tonio's eye art in a style, or the eye drawn in code. */
+export type EyeTextureStyle = EyeStyle | 'drawn';
+/**
+ * An eye texture on MakeHuman's eye UV layout (both eyes): Tonio's eye art in
+ * `style` with its iris recoloured, or the eye drawn in code (`drawn`, the
+ * default, and what shows while the art loads or if it cannot).
+ */
 export declare function eyeTexture(scene: BABYLON.Scene, options?: {
     iris?: number;
     size?: number;
     layout?: typeof HM08_EYE_UV;
+    style?: EyeTextureStyle;
 }): EyeTexture;
 /** A glossy eye material on an `eyeTexture`. */
 export declare function eyeMaterial(scene: BABYLON.Scene, texture: BABYLON.BaseTexture): BABYLON.PBRMaterial;

@@ -9,7 +9,9 @@ modelled in place on Quaternius' base head.
 `loadHairLibrary(scene, url)` reads the library once: each piece's vertices
 in the file's own frame (right-handed, +Z forward, the frame a human pack
 uses), its UVs, its triangles and its material, and the HEAD it was
-modelled on (`Reference_Head`, Quaternius' Regular_Male). `headScalp(...)`
+modelled on (`Reference_Head`, Quaternius' Regular_Male). The placing is
+engine-free, in [hair-place](/hair-place/) (which also reads the library
+with no engine); this module loads it into Babylon. `headScalp(...)`
 warps that head's skin onto a body's ([hair-fit](/hair-fit/)): a per-axis
 fit, then each skin point's own correction, the scalp and the face
 separately. `humanHair(...)` carries any piece through the warp, so every

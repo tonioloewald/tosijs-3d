@@ -2,6 +2,22 @@ import type { CharacterDoc } from './character-file.js';
 export declare const CHARACTER_DB = "tosijs-characters";
 /** The figure the builder is working on, kept as it changes. */
 export declare const WORKING_CHARACTER = "(working)";
+/** What a name typed to save or rename a character comes to. */
+export type CharacterName = {
+    ok: false;
+    message: string;
+} | {
+    ok: true;
+    name: string;
+    replaces: boolean;
+};
+/**
+ * A name typed to save or rename a character: trimmed, refused (with a
+ * reason) when blank or the working figure's own key, and whether it
+ * REPLACES another saved character. `current` is the name being saved again
+ * or renamed: saving under it again replaces nothing.
+ */
+export declare function nameCharacter(typed: string, saved: readonly string[], current?: string): CharacterName;
 /** Where in a document a run of bytes is: `garments/<name>` or `bodies/<name>`. */
 type BlobPath = string;
 /**

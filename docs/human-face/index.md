@@ -13,7 +13,10 @@ body has eyes that fit it, with nothing to fit.
 skeleton's head: each eye on its own pivot at the eyeball's centre (MakeHuman's
 `eye` joint), so turning the pivot turns the eye. `eyeTexture` draws the eye
 in code (sclera, a striated iris of any colour from `irisColor`, the pupil)
-on MakeHuman's eye UV layout, so the iris is a dial and no image is shipped.
+on MakeHuman's eye UV layout, so the iris is a dial and no image is shipped;
+given a `style` (`basic`, `anime`) it paints Tonio's eye art instead
+([eye-art](/eye-art/)), its iris recoloured the same way, the picture an
+export bakes. The drawn eye shows while the art loads, or if it cannot.
 
 `eyeGaze(scene, face, target)` points both eyes at a world point every frame,
 after the clip has posed the head: they converge on it, stop at `maxDeg`

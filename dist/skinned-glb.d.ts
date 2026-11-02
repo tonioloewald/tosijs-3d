@@ -18,6 +18,12 @@ export interface GlbPrimitive {
     normals: Float32Array;
     /** glTF's convention (v down from the top of the image), or omitted. */
     uvs?: Float32Array | null;
+    /**
+     * Vertex colours (linear, RGB or RGBA per vertex) written as `COLOR_0`,
+     * which glTF multiplies into the base colour: how a skin's lips and stubble
+     * travel with no texture (see skin-paint). Or omitted.
+     */
+    colors?: Float32Array | null;
     /** Four joint indices (into `joints`) per vertex. */
     joints: ArrayLike<number>;
     /** Four weights per vertex. */

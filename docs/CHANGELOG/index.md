@@ -12,13 +12,14 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-## 0.12.1
+## 0.12.2
 
-The latest release. A rigged, morphing body written out as a GLB with no engine (`tosijs-3d/skinned-glb`, with `tosijs-3d/glb-chunks`), moved here from Dramatis. See [0.12.1](/v0.12.1/).
+The latest release. More of the character, engine-free (eyes from Tonio's art, hair placement, lips and stubble as vertex colours, cloth recoloured into its texture, the extremes sweep), and the builder's save and rename ask in a popup. See [0.12.2](/v0.12.2/).
 
 ## Every version
 
 <!-- toc -->
+- [0.12.2](/v0.12.2/)
 - [0.12.1](/v0.12.1/)
 - [0.12.0](/v0.12.0/)
 - [0.11.6](/v0.11.6/)

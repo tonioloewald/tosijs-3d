@@ -19,6 +19,9 @@ exporter (or another engine) hides the skin exactly as the builder does.
 import { coverSkin } from 'tosijs-3d/proxy-cover'
 const { positions, deleted } = coverSkin(untucked, normals, triangles, vertices, wearing, { drawn })
 ```
+
+`coverDepths` is the rule alone (how deep each vertex goes, before the
+fade), for anything that measures against it.
 */
 /*{ "parent": "character-core", "order": 20 }*/
 import { coveredBy } from './proxy-fit.js';
@@ -33,38 +36,37 @@ export const BODY_WRAPPING_SLOTS = [
     'gloves',
 ];
 /**
- * The skin's positions with what is worn tucked under, and the body vertices
- * whose triangles go. `untucked`, `normals` and `triangles` are the compact
- * skin's; `vertices` maps each compact vertex to the body's.
+ * How deep each skin vertex goes under what is worn, before the fade: listed
+ * skin by `tuck`, skin a body-wrapping garment covers by geometry just far
+ * enough to sit under it (4 mm, more where it is loose, at most 10 mm). And
+ * the listed body vertices, whose triangles are dropped. `vertices` maps each
+ * of `untucked`'s vertices to the body's (omit it when they are the body's).
  */
-export function coverSkin(untucked, normals, triangles, vertices, wearing, options = {}) {
+export function coverDepths(untucked, normals, garments, options = {}) {
     const deleted = new Set();
-    for (const p of wearing) {
+    for (const p of garments) {
         // Glasses list skin they do not cover (the lids under the lenses).
         if (p?.delete && p.slot !== 'glasses')
-            for (const v of p.delete)
-                deleted.add(v);
+            for (let i = 0; i < p.delete.length; i++)
+                deleted.add(p.delete[i]);
     }
-    const positions = Float32Array.from(untucked);
     const tuck = options.tuck ?? 0.006;
-    const fadeOver = options.fade ?? 0.03;
-    // How deep each compact vertex goes: listed ones by `tuck`; ones a body
-    // garment covers by geometry just far enough to sit under it.
-    const depth = new Float32Array(vertices.length);
-    for (let i = 0; i < vertices.length; i++)
-        if (deleted.has(vertices[i]))
+    const n = untucked.length / 3;
+    const vertices = options.vertices;
+    const depth = new Float32Array(n);
+    for (let i = 0; i < n; i++)
+        if (deleted.has(vertices ? vertices[i] : i))
             depth[i] = tuck;
-    for (const p of wearing) {
+    for (const p of garments) {
         if (p == null || p.category !== 'clothes')
             continue;
         // Only what wraps the body: tucking under a hat, a mask or glasses pulled
         // the eyelids in.
         if (!BODY_WRAPPING_SLOTS.includes(p.slot ?? 'outfit'))
             continue;
-        const g = options.drawn?.get(p.name);
-        if (g == null)
+        if (p.drawn == null)
             continue;
-        const gap = coveredBy(untucked, normals, g);
+        const gap = coveredBy(untucked, normals, p.drawn);
         for (let i = 0; i < gap.length; i++) {
             if (gap[i] === Infinity)
                 continue;
@@ -73,6 +75,17 @@ export function coverSkin(untucked, normals, triangles, vertices, wearing, optio
             depth[i] = Math.max(depth[i], Math.min(0.01, 0.004 + gap[i] * 0.3));
         }
     }
+    return { depth, deleted };
+}
+/**
+ * The skin's positions with what is worn tucked under, and the body vertices
+ * whose triangles go. `untucked`, `normals` and `triangles` are the compact
+ * skin's; `vertices` maps each compact vertex to the body's.
+ */
+export function coverSkin(untucked, normals, triangles, vertices, wearing, options = {}) {
+    const { depth, deleted } = coverDepths(untucked, normals, wearing.map((p) => p && { ...p, drawn: options.drawn?.get(p.name) ?? null }), { tuck: options.tuck, vertices });
+    const positions = Float32Array.from(untucked);
+    const fadeOver = options.fade ?? 0.03;
     // FADE IN from the edge of what is covered, along the skin, so a cuff or a
     // neckline shows no dip where the tucked skin meets the rest.
     const fade = edgeDistance(triangles, untucked, depth, fadeOver);

@@ -12,23 +12,14 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-- **Baked materials, engine-free**: `tosijs-3d/skin-paint` (`lipTint`, `stubbleTint`, and `stubbleMask`, where stubble grows on a body) gives the skin's lips and stubble as per-vertex colours over its albedo, and `writeSkinnedGlb` writes them as `COLOR_0` (a primitive's new `colors`), which glTF multiplies into the base colour, so no texture is needed. `tosijs-3d/cloth-bake` (`recolourCloth`, `textureMean`, `clothSheenColour`) bakes a garment's recolour into its texture as cloth-shading draws it. `lipTint` and `stubbleTint` moved from character-builder (still exported from the barrel).
-- **Fixed:** stubble no longer darkens the lower lip (the neck's fade reached it).
-- **Character builder:** `save…` asks for the name in a popup (filled in with the current one), refuses a blank name or the working figure's with a reason, and asks before replacing another saved character; `rename…` renames the picked one. They work in a headset too. `nameCharacter` (character-store) is the rule.
-- **`button3d({ popup })`**: a button that opens a small form (controls, flat and in a headset) in a popup anchored to it; the controls get a handle to close it or show the next step.
-- **`tosijs-3d/fit-extremes`** and **`bun run extremes`**: every MakeHuman garment and Quaternius hairstyle on 133 bodies at the sliders' corners, measured for penetration (raw, and visible past the skin's tuck) and bone sanity, with a markdown/JSON report and a headless contact sheet of the worst cases. Engine-free. Moved here from Dramatis.
-- **`tosijs-3d/hair-place`**: hair placed on a body's head with no engine (`headScalp`, `placeHair`, and the hair library read from its GLB with `readHairLibrary`). `human-hair` now uses it and re-exports what it exported before.
-- **`tosijs-3d/mesh-sdf`**: signed distance to a triangle mesh.
-- **`coverDepths`** (proxy-cover): how deep each skin vertex goes under what is worn, the rule `coverSkin` applies before its fade.
-- **Eyes from a picture**: `eyeTexture({ style: 'basic' | 'anime' })` paints Tonio's CC0 eye art with its iris recoloured, and a character's new `eyeStyle` setting picks it (`basic` by default; `drawn` keeps the eye drawn in code, which also shows while the art loads). `tosijs-3d/eye-art` is the engine-free half: the art's URLs, `recolourEyePng`, and `gltfEyeUvs` for an export. `pngDecode` joins `pngEncode`. Both are in the engine-free character core.
+## 0.12.2
 
-## 0.12.1
-
-The latest release. A rigged, morphing body written out as a GLB with no engine (`tosijs-3d/skinned-glb`, with `tosijs-3d/glb-chunks`), moved here from Dramatis. See [0.12.1](/v0.12.1/).
+The latest release. More of the character, engine-free (eyes from Tonio's art, hair placement, lips and stubble as vertex colours, cloth recoloured into its texture, the extremes sweep), and the builder's save and rename ask in a popup. See [0.12.2](/v0.12.2/).
 
 ## Every version
 
 <!-- toc -->
+- [0.12.2](/v0.12.2/)
 - [0.12.1](/v0.12.1/)
 - [0.12.0](/v0.12.0/)
 - [0.11.6](/v0.11.6/)

@@ -448,6 +448,11 @@ export declare function textBlock3d(config: {
 }): Widget3d & {
     update(lines: string[]): void;
 };
+/** What a popup button's controls get: close the popup, or show others in its place. */
+export interface PopupHandle {
+    close(): void;
+    show(items: Widget3d[]): void;
+}
 /** A pressable button. */
 export declare function button3d(config: {
     label: string;
@@ -461,6 +466,14 @@ export declare function button3d(config: {
      * has no reliable meaning, and you find out which by pressing it.
      */
     menu?: MenuAction[];
+    /**
+     * Make this a POPUP button: pressing it opens these controls (a small form:
+     * a name and OK, a confirm) in a popup anchored to the button, flat and in
+     * a headset alike. It gets a handle to `close` the popup or `show` other
+     * controls in its place (a form's next step), so a press inside it can.
+     * Like `menu`, instead of `handleClick`.
+     */
+    popup?: (popup: PopupHandle) => Widget3d[];
 }): Widget3d;
 /**
  * A horizontal strip of icon toggle-buttons — a compact toolbar for a panel

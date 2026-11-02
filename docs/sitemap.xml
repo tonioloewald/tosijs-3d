@@ -136,7 +136,9 @@
   <url><loc>https://3d.tosijs.net/b3d-tank/</loc></url>
   <url><loc>https://3d.tosijs.net/glb-chunks/</loc></url>
   <url><loc>https://3d.tosijs.net/rig-tool/</loc></url>
+  <url><loc>https://3d.tosijs.net/skin-paint/</loc></url>
   <url><loc>https://3d.tosijs.net/effect-tool/</loc></url>
+  <url><loc>https://3d.tosijs.net/cloth-bake/</loc></url>
   <url><loc>https://3d.tosijs.net/aim/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-elevator/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-exploder/</loc></url>
@@ -144,6 +146,7 @@
   <url><loc>https://3d.tosijs.net/b3d-physics/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-planet/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-turret/</loc></url>
+  <url><loc>https://3d.tosijs.net/eye-art/</loc></url>
   <url><loc>https://3d.tosijs.net/footprint-field/</loc></url>
   <url><loc>https://3d.tosijs.net/gamepad-focus/</loc></url>
   <url><loc>https://3d.tosijs.net/inventory/</loc></url>
@@ -157,6 +160,7 @@
   <url><loc>https://3d.tosijs.net/touch-orbit/</loc></url>
   <url><loc>https://3d.tosijs.net/inspect-view/</loc></url>
   <url><loc>https://3d.tosijs.net/gas-giant/</loc></url>
+  <url><loc>https://3d.tosijs.net/hair-place/</loc></url>
   <url><loc>https://3d.tosijs.net/skin-shading/</loc></url>
   <url><loc>https://3d.tosijs.net/color-picker/</loc></url>
   <url><loc>https://3d.tosijs.net/rocky-world/</loc></url>
@@ -191,6 +195,7 @@
   <url><loc>https://3d.tosijs.net/debug-sink/</loc></url>
   <url><loc>https://3d.tosijs.net/dials/</loc></url>
   <url><loc>https://3d.tosijs.net/effects/</loc></url>
+  <url><loc>https://3d.tosijs.net/mesh-sdf/</loc></url>
   <url><loc>https://3d.tosijs.net/sphere-map/</loc></url>
   <url><loc>https://3d.tosijs.net/terrain-editor/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-city/</loc></url>
@@ -202,6 +207,7 @@
   <url><loc>https://3d.tosijs.net/b3d-death/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-reflections/</loc></url>
   <url><loc>https://3d.tosijs.net/characters-and-vehicles/</loc></url>
+  <url><loc>https://3d.tosijs.net/fit-extremes/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-utils/</loc></url>
   <url><loc>https://3d.tosijs.net/picker/</loc></url>
   <url><loc>https://3d.tosijs.net/portal-transform/</loc></url>
@@ -237,6 +243,7 @@
   <url><loc>https://3d.tosijs.net/ui-theme/</loc></url>
   <url><loc>https://3d.tosijs.net/utilities/</loc></url>
   <url><loc>https://3d.tosijs.net/input-internals/</loc></url>
+  <url><loc>https://3d.tosijs.net/v0.12.2/</loc></url>
   <url><loc>https://3d.tosijs.net/v0.12.1/</loc></url>
   <url><loc>https://3d.tosijs.net/v0.12.0/</loc></url>
   <url><loc>https://3d.tosijs.net/v0.11.6/</loc></url>

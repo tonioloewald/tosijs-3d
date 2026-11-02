@@ -189,6 +189,17 @@ export function writeSkinnedGlb(g) {
                     type: 'VEC2',
                 });
             }
+            if (p.colors != null) {
+                const size = p.colors.length / count;
+                if (size !== 3 && size !== 4)
+                    throw new Error(`skinned-glb: ${mesh.name}: colors are not RGB or RGBA per vertex`);
+                attributes.COLOR_0 = accessor({
+                    bufferView: bin.add(asBytes(Float32Array.from(p.colors)), ARRAY_BUFFER),
+                    componentType: FLOAT,
+                    count,
+                    type: size === 3 ? 'VEC3' : 'VEC4',
+                });
+            }
             const inf = normaliseInfluences(p.joints, p.weights);
             if (inf.maxJoint >= n)
                 throw new Error(`skinned-glb: ${mesh.name}: joint ${inf.maxJoint} is not in the skeleton`);

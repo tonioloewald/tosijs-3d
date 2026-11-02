@@ -71,7 +71,8 @@ dresses it again, a colour repaints. The work is in `ready()`.
 
 `DEFAULT_CHARACTER` lists them with their defaults: MakeHuman's macro sliders
 (`DEFAULT_HUMAN_BODY`), `tone` and `redness` (the skin), `iris` and
-`irisColour`, `stubble`, the hair (`hair`, `beard`, `moustache`, `brows`,
+`irisColour`, `eyeStyle` (Tonio's eye art, `basic` or `anime`, or `drawn` in
+code), `stubble`, the hair (`hair`, `beard`, `moustache`, `brows`,
 `hairBase`, `hairHighlight`, and `hairUp`, `hairForward`, `hairSize` to
 nudge it), one setting per clothes slot (`CHARACTER_SLOTS`, a garment's name
 or `none`), the face (`smile`, `browsUp`, `frown`, and `blink`, `talk`),
@@ -87,12 +88,14 @@ import * as BABYLON from '@babylonjs/core';
 import { loadHumanPack } from './human-pack.js';
 import { macroWeights, morphHuman, DEFAULT_HUMAN_BODY } from './human-morph.js';
 import { humanSkin, humanBodyMaker } from './human-rig.js';
-import { skinMaterial, lipTint, stubbleTint } from './character-builder.js';
+import { skinMaterial } from './character-builder.js';
+import { lipTint, stubbleMask as stubbleMask_, stubbleTint, } from './skin-paint.js';
 import { humanFace, bodyEyes, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, } from './human-face.js';
+import { eyeStyle } from './eye-art.js';
 import { loadHairLibrary, headScalp, hairMaterial, humanHair, } from './human-hair.js';
 import { skinThinness } from './skin-shading.js';
 import { vertexNormals } from './hair-fit.js';
-import { nearestWeights, coveredBy, fitProxy, drawnPositions, underCover, inflate, proxyDelta, smoothUnder, } from './proxy-fit.js';
+import { nearestWeights, fitProxy, drawnPositions, underCover, inflate, proxyDelta, smoothUnder, } from './proxy-fit.js';
 import { skinAlbedo } from './skin-tone.js';
 import { humanProxy, proxyMaterial, coverBody } from './human-proxy.js';
 import { hairShading } from './hair-shading.js';
@@ -107,6 +110,8 @@ import { applyRigRecipe } from './rig-recipe-babylon.js';
 import { assetUrl } from './asset-url.js';
 import { CHARACTER_SLOTS, DEFAULT_CHARACTER, hm08PackUrl, } from './character-settings.js';
 export { CHARACTER_SLOTS, DEFAULT_CHARACTER } from './character-settings.js';
+/** A character's `eyeStyle` setting as an eye texture's style. */
+const eyeLook = (v) => v === 'drawn' ? 'drawn' : eyeStyle(v);
 // A hosted body: its URL is read when it is used, after the page has set
 // the asset base (computed at import, it came out relative to the page).
 const hosted = (path, pick) => ({
@@ -353,7 +358,7 @@ export async function makeCharacter(scene, assets, options = {}) {
         pack.part('eyes'),
         pack.part('eyelashes'),
     ]);
-    const eyes = eyeTexture(scene, { iris: s.iris });
+    const eyes = eyeTexture(scene, { iris: s.iris, style: eyeLook(s.eyeStyle) });
     eyes.setIrisColour(s.irisColour);
     const faceMaterials = {
         eye: eyeMaterial(scene, eyes),
@@ -456,64 +461,19 @@ export async function makeCharacter(scene, assets, options = {}) {
             return;
         const body = skin.positions(current);
         const normals = vertexNormals(body, skin.triangles);
-        const grownOn = async (name) => {
+        const drawn = async (name) => {
             const p = (await pack.proxy(name));
-            return coveredBy(body, normals, drawnPositions(p, fitProxy(p, current)), 0.02);
+            return drawnPositions(p, fitProxy(p, current));
         };
-        // Where a full beard grows, and a moustache: the full beard has no
-        // moustache part, so the upper lip was bare.
-        const beard = await grownOn(beardFor);
-        const tache = tacheFor ? await grownOn(tacheFor) : null;
-        // The beard below the cheekbones: up to a little above the upper lip,
-        // faded (the full beard climbs the cheeks, and stubble there read as a bruise).
-        let lipTop = -Infinity;
-        for (let v = 0; v < lips.length; v++)
-            if (lips[v] > 0.5)
-                lipTop = Math.max(lipTop, current[v * 3 + 1]);
-        const cap = lipTop + 0.03;
-        const smooth = (t) => {
-            t = Math.min(1, Math.max(0, t));
-            return t * t * (3 - 2 * t);
-        };
-        const n = body.length / 3;
-        const mask = new Float32Array(n);
-        for (let i = 0; i < n; i++) {
-            const b = beard[i] === Infinity ? 0 : smooth((cap - body[i * 3 + 1]) / 0.015);
-            const t = tache && tache[i] !== Infinity ? 1 : 0;
-            // Not on the lips themselves.
-            mask[i] =
-                Math.max(b, t) * (1 - smooth((lips[skin.vertices[i]] - 0.05) / 0.45));
-        }
-        // Down the neck: the full beard stops at the jaw, but stubble grows on
-        // the throat and the sides of the neck, fading over 5 cm below the
-        // beard's edge. Front and sides only (the normal faces forward or out).
-        const edge = [];
-        let low = Infinity;
-        for (let i = 0; i < n; i++)
-            if (mask[i] > 0.5 && body[i * 3 + 1] < lipTop) {
-                edge.push(i);
-                low = Math.min(low, body[i * 3 + 1]);
-            }
-        const REACH = 0.05;
-        for (let i = 0; i < n; i++) {
-            const y = body[i * 3 + 1];
-            if (mask[i] > 0.5 ||
-                y > lipTop ||
-                y < low - REACH ||
-                normals[i * 3 + 2] < -0.2)
-                continue;
-            let d = Infinity;
-            for (const j of edge) {
-                if (body[j * 3 + 1] < y)
-                    continue;
-                const dx = body[j * 3] - body[i * 3];
-                const dy = body[j * 3 + 1] - y;
-                const dz = body[j * 3 + 2] - body[i * 3 + 2];
-                d = Math.min(d, dx * dx + dy * dy + dz * dz);
-            }
-            mask[i] = Math.max(mask[i], smooth(1 - Math.sqrt(d) / REACH));
-        }
-        stubbleMask = mask;
+        stubbleMask = stubbleMask_({
+            skin: body,
+            normals,
+            vertices: skin.vertices,
+            positions: current,
+            lips: lips,
+            beard: await drawn(beardFor),
+            tache: tacheFor ? await drawn(tacheFor) : null,
+        });
         paint();
     };
     /*
@@ -970,6 +930,8 @@ export async function makeCharacter(scene, assets, options = {}) {
             eyes.setIris(s.iris);
         if (has('irisColour'))
             eyes.setIrisColour(s.irisColour);
+        if (has('eyeStyle'))
+            eyes.setStyle(eyeLook(s.eyeStyle));
         if (has('hairBase') || has('hairHighlight'))
             recolour();
         queue(async () => {

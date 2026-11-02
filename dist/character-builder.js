@@ -11,26 +11,58 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, characterStore, WORKING_CHARACTER } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 
 // Everything the panel sets, as it starts: what a saved character is read against.
-const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, source: 'MakeHuman', characterName: '', characterPick: '' }
+const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, source: 'MakeHuman', characterName: '', characterPick: '' }
 const { walker } = tosi({ walker: structuredClone(START) })
 // What a character file keeps: not the editor's view of one slot (that is in
 // cloth), the microphone (it would ask on load), or the save controls.
 const KEPT = Object.keys(START).filter((k) => !['editing', 'look', 'clothLook', 'mic', 'characterName', 'characterPick'].includes(k))
 // Saving and loading characters, wired when the page is up.
-const character = { save: () => {}, load: () => {}, forget: () => {}, exportJson: () => {}, importJson: () => {}, changed: () => {}, saved: [], note: '' }
+const character = { save: () => {}, rename: () => {}, load: () => {}, forget: () => {}, exportJson: () => {}, importJson: () => {}, changed: () => {}, saved: [], note: '' }
+// A name asked for in a popup (works in a headset too): refused with its
+// reason, and a confirm before it replaces ANOTHER saved character.
+const namePopup = (pop, { prompt, initial, current, verb, act }) => {
+  let typed = initial
+  const go = () => {
+    const d = nameCharacter(typed, character.saved, current)
+    if (!d.ok) return pop.show(form(d.message))
+    if (!d.replaces) {
+      pop.close()
+      return act(d.name)
+    }
+    pop.show([
+      text3d({ text: `${d.name} is already saved. Replace it?` }),
+      button3d({ label: 'replace', handleClick: () => { pop.close(); act(d.name) } }),
+      button3d({ label: 'cancel', handleClick: () => pop.close() }),
+    ])
+  }
+  const form = (message) => [
+    text3d({ text: message }),
+    ui.inputField({ value: typed, placeholder: 'name', handleChange: (v) => { typed = v }, handleEnter: (v) => { typed = v; go() } }),
+    button3d({ label: verb, handleClick: go }),
+    button3d({ label: 'cancel', handleClick: () => pop.close() }),
+  ]
+  return form(prompt)
+}
 const characterRows = () => [
   label3d({ text: 'Character', collapsible: true }),
-  ui.inputField({ value: walker.characterName.value, placeholder: 'name the character', handleChange: (v) => { walker.characterName.value = v } }),
-  button3d({ label: 'save', handleClick: () => character.save() }),
+  ...(walker.characterName.value ? [text3d({ text: walker.characterName.value })] : []),
+  button3d({
+    label: 'save…',
+    popup: (pop) => namePopup(pop, { prompt: 'save as', initial: walker.characterName.value, current: walker.characterName.value, verb: 'save', act: (name) => character.save(name) }),
+  }),
   ...(character.saved.length
     ? [
         select3d({ label: 'saved', value: walker.characterPick, options: character.saved }),
         button3d({ label: 'load', handleClick: () => character.load() }),
+        button3d({
+          label: 'rename…',
+          popup: (pop) => namePopup(pop, { prompt: `rename ${walker.characterPick.value} to`, initial: walker.characterPick.value, current: walker.characterPick.value, verb: 'rename', act: (name) => character.rename(walker.characterPick.value, name) }),
+        }),
         button3d({ label: 'forget', handleClick: () => character.forget() }),
       ]
     : []),
@@ -192,6 +224,7 @@ preview.append(
         slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: 'redness', value: walker.redness, min: 0, max: 1, step: 0.01 }),
         label3d({ text: 'Eyes', collapsible: true }),
+        select3d({ label: 'eye style', value: walker.eyeStyle, options: ['basic', 'anime', 'drawn'] }),
         colorPicker3d({ label: 'eye colour', value: walker.irisColour, alpha: false, defaultPresets: 'off', presets: [['dark brown', 0], ['brown', 0.15], ['amber', 0.3], ['hazel', 0.45], ['green', 0.6], ['blue-green', 0.72], ['blue', 0.85], ['grey', 1]].map(([name, t]) => { const c = irisColor(t); const h = (x) => Math.round(x * 255).toString(16).padStart(2, '0'); return { name, value: '#' + h(c.r) + h(c.g) + h(c.b) } }) }),
         label3d({ text: 'Face', collapsible: true }),
         toggle3d({ label: 'blink', value: walker.blink }),
@@ -741,16 +774,31 @@ preview.append(
           }, 800)
         }
         for (const k of [...KEPT, 'look', 'clothLook']) walker[k].observe(() => character.changed())
-        character.save = async () => {
-          const name = walker.characterName.value.trim()
-          if (!name || name === WORKING) return tell('name the character first')
+        character.save = async (name) => {
           try {
             await store.put(name, snapshot(name))
           } catch (e) {
             return tell(`could not save: ${e?.message ?? e}`)
           }
+          walker.characterName.value = name
           walker.characterPick.value = name
           tell(`saved ${name}`)
+          listSaved()
+        }
+        // Put under the new name, then the old one goes.
+        character.rename = async (from, to) => {
+          if (to === from) return
+          try {
+            const doc = await store.get(from)
+            if (!doc) return tell(`no character called ${from}`)
+            await store.put(to, { ...doc, name: to })
+            await store.delete(from)
+          } catch (e) {
+            return tell(`could not rename: ${e?.message ?? e}`)
+          }
+          if (walker.characterName.value === from) walker.characterName.value = to
+          walker.characterPick.value = to
+          tell(`renamed ${from} to ${to}`)
           listSaved()
         }
         character.load = async () => {
@@ -826,8 +874,10 @@ saved with the character; **cancel** keeps the one it had. The first binding is 
 off the body's outline.
 
 **Character** keeps your work. The figure you are working on is kept in this
-browser as you change it and comes back when you open the page again. **Save**
-it under a name to keep several, **load** or **forget** one, or **export
+browser as you change it and comes back when you open the page again. **Save…**
+asks for a name (the one it has, to start with) to keep it under, and asks
+first before replacing another saved character. Pick a saved one to **load**,
+**rename…** or **forget** it. **Export
 JSON** to take it elsewhere and **import JSON…** to bring one in. A file
 carries everything the panel sets, and the garments of your own the character
 wears travel inside it ([character-file](/character-file/)).
@@ -889,7 +939,7 @@ body's triangles.
 */
 /*{ "parent": "b3d-biped", "order": 80 }*/
 import * as BABYLON from '@babylonjs/core';
-import { lipAlbedo, skinAlbedo } from './skin-tone.js';
+import { skinAlbedo } from './skin-tone.js';
 import { skinShading } from './skin-shading.js';
 export function humanBody(scene, pack, name = 'human') {
     const root = new BABYLON.TransformNode(name, scene);
@@ -968,64 +1018,5 @@ export function skinMaterial(scene, options = {}) {
     m.shading = options.shading === false ? null : skinShading(m);
     return m;
 }
-/**
- * Per-vertex colours (RGBA, the skin's vertices) that turn a skin material's
- * colour into the lips' where `lips` (a pack region, every vertex) says so.
- * They multiply the material's albedo, so they are the ratio lip / skin.
- * Their alpha carries `thin` (per skin vertex, from `skinThinness`), which
- * skin-shading's back-light reads; without it, alpha is 0 (nothing glows).
- */
-export function lipTint(skin, lips, tone, redness = 0.5, into, thin) {
-    const s = skinAlbedo(tone, redness);
-    const l = lipAlbedo(tone, redness);
-    const ratio = [l.r / s.r, l.g / s.g, l.b / s.b];
-    const out = into ?? new Float32Array(skin.vertices.length * 4);
-    skin.vertices.forEach((v, i) => {
-        // The mask is how far the lip targets move a vertex, so the lips' own
-        // edges are faint in it: anything past half is all lip.
-        const m = Math.min(1, Math.max(0, (lips[v] - 0.05) / 0.45));
-        const t = m * m * (3 - 2 * m);
-        out[i * 4] = 1 + (ratio[0] - 1) * t;
-        out[i * 4 + 1] = 1 + (ratio[1] - 1) * t;
-        out[i * 4 + 2] = 1 + (ratio[2] - 1) * t;
-        out[i * 4 + 3] = thin ? thin[i] : 0;
-    });
-    return out;
-}
-/**
- * Stubble: multiply `colours` (RGBA per skin vertex, from `lipTint`) toward
- * a hair colour where `mask` (0..1 per skin vertex) says the beard grows,
- * by `amount` (0 clean-shaven, 1 a few days' growth). `skinRgb` and `hairRgb`
- * are linear; the result stays a ratio over the skin's own colour.
- */
-export function stubbleTint(colours, mask, amount, skinRgb, hairRgb) {
-    if (amount <= 0)
-        return colours;
-    /*
-    Short hairs over skin read as a SHADOW: the hair seen through the skin is
-    darker than the hair itself, and a little cool (a five o'clock shadow is
-    blue-grey on fair skin). So the skin goes most of the way to a darkened
-    hair colour with a touch of blue. Mixing toward the hair colour itself was
-    too faint to see at full, worst on light-brown hair.
-    */
-    const dark = {
-        r: hairRgb.r * 0.45,
-        g: hairRgb.g * 0.5,
-        b: hairRgb.b * 0.6 + 0.01,
-    };
-    const ratio = [
-        (dark.r * 0.6 + skinRgb.r * 0.4) / Math.max(1e-4, skinRgb.r),
-        (dark.g * 0.6 + skinRgb.g * 0.4) / Math.max(1e-4, skinRgb.g),
-        (dark.b * 0.6 + skinRgb.b * 0.4) / Math.max(1e-4, skinRgb.b),
-    ];
-    for (let i = 0; i < mask.length; i++) {
-        const k = mask[i] * Math.min(1, amount);
-        if (k <= 0)
-            continue;
-        for (let c = 0; c < 3; c++) {
-            colours[i * 4 + c] *= 1 + (Math.min(1, ratio[c]) - 1) * k;
-        }
-    }
-    return colours;
-}
+export { lipTint, stubbleTint } from './skin-paint.js';
 //# sourceMappingURL=character-builder.js.map
