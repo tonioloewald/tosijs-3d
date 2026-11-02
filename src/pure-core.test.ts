@@ -41,6 +41,8 @@ export const CHARACTER_CORE = [
   'character-settings',
   'proxy-cover',
   'asset-url',
+  'skinned-glb',
+  'glb-chunks',
 ]
 
 /** Every import or re-export specifier in a source file, comments stripped (doc examples import the barrel). */

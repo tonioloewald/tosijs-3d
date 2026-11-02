@@ -57,6 +57,8 @@ const PURE = [
   'character-settings',
   'proxy-cover',
   'asset-url',
+  'skinned-glb',
+  'glb-chunks',
 ]
 
 describe('declared-pure modules import with no DOM', () => {

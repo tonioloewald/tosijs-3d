@@ -55,6 +55,7 @@
     "chokidar": "^4.0.3",
     "eslint": "^10.6.0",
     "globals": "^17.7.0",
+    "gltf-validator": "2.0.0-dev.3.10",
     "haltija": "^1.12.6",
     "happy-dom": "^21.0.4",
     "iwer": "^2.5.0",
