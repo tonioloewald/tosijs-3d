@@ -6272,6 +6272,7 @@ export class B3d extends Component {
       // Chase/FPV. Also re-anchors `chasePos`, which is what a re-seat means
       // for a third-person camera.
       chaseFirstFrame = true
+      if (debugSink.url !== '') sendDebug('xr', { seat: 're-armed' })
     }
     let resetSpace: XRReferenceSpace | null = null
     const bindReset = (): void => {
@@ -6635,6 +6636,20 @@ export class B3d extends Component {
             : 0
           chaseYaw = targetYaw - chaseYawOffset
           chasePos.set(targetX, targetY, targetZ)
+          // A headset's seat, for the debug sink: where the head was when the
+          // chase took its forward (#3726, re-seating on entry).
+          if (debugSink.url !== '') {
+            const deg = (r: number) => Math.round((r * 180) / Math.PI)
+            sendDebug('xr', {
+              seat: 'chase',
+              headYaw: deg(chaseYawOffset),
+              head: [cam.position.x, cam.position.y, cam.position.z].map(
+                (n) => +n.toFixed(2)
+              ),
+              vehicleYaw: deg(targetYaw),
+              frame: scene.getEngine().frameId,
+            })
+          }
         }
 
         /*
