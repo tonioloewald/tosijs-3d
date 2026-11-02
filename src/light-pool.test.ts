@@ -94,6 +94,20 @@ describe('the lamp pool', () => {
     scene.dispose()
   })
 
+  test('a lamp moved by a later observer is lit where it is THIS frame', () => {
+    const scene = world()
+    const a = lamp(2)
+    P.lightPool(scene).add(a)
+    // Added after the pool, as a vehicle's step is.
+    scene.onBeforeRenderObservable.add(() => {
+      a.position.z += 1
+    })
+    settle(scene)
+    const [l] = lit(scene)
+    expect(l.position.z).toBeCloseTo(a.position.z, 6)
+    scene.dispose()
+  })
+
   test('lit materials are raised to take the extra lights', async () => {
     const scene = world()
     const before = new BABYLON.StandardMaterial('before', scene)

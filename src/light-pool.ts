@@ -89,6 +89,7 @@ export class LightPool {
   private points: Slot[] = []
   private spots: Slot[] = []
   private observer: BABYLON.Observer<BABYLON.Scene> | null = null
+  private lastObserver: BABYLON.Observer<BABYLON.Scene> | null = null
   private materialObserver: BABYLON.Observer<BABYLON.Material> | null = null
   /**
    * CLUSTERED: where the device has it (WebGL2 with float blending, or
@@ -199,7 +200,19 @@ export class LightPool {
     this.scene.materials.forEach(raise)
     // Babylon announces a new material on the next tick, once it is built.
     this.materialObserver = this.scene.onNewMaterialAddedObservable.add(raise)
-    this.observer = this.scene.onBeforeRenderObservable.add(() => this.update())
+    /*
+    LAST of the frame's before-render work, every frame: lamps are moved by
+    observers added after this one (a vehicle's own step), and a pool that ran
+    first lit where they were a frame ago. Seen from above, a car's headlight
+    pool trailed the car.
+    */
+    // Moved from another observable: reordering the one being notified skips
+    // whichever observer comes next.
+    const obs = this.scene.onBeforeRenderObservable
+    this.observer = obs.add(() => this.update())
+    this.lastObserver = this.scene.onBeforeAnimationsObservable.add(() => {
+      if (this.observer != null) obs.makeObserverBottomPriority(this.observer)
+    })
   }
 
   private slot(spot: boolean): Slot {
@@ -344,6 +357,8 @@ export class LightPool {
 
   dispose() {
     if (this.observer) this.scene.onBeforeRenderObservable.remove(this.observer)
+    if (this.lastObserver)
+      this.scene.onBeforeAnimationsObservable.remove(this.lastObserver)
     if (this.materialObserver)
       this.scene.onNewMaterialAddedObservable.remove(this.materialObserver)
     for (const s of [...this.points, ...this.spots]) s.light.dispose()

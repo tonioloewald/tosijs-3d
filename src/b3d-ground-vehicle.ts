@@ -576,7 +576,8 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     // The one you drive keeps its light, wherever you look (in a headset you
     // look round, and the pool gave it away and back: it flickered).
     beam.weight = this.inputProvider != null ? 20 : 1
-    const world = control.getWorldMatrix()
+    // Fresh: `place()` has just moved it, and the cached matrix is last frame's.
+    const world = control.computeWorldMatrix(true)
     BABYLON.Vector3.TransformCoordinatesToRef(
       this.beamFrom,
       world,
