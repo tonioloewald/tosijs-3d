@@ -17,6 +17,7 @@ so the same colours apply to every library's hair.
 /*{ "parent": "human-hair", "order": 10 }*/
 
 import * as BABYLON from '@babylonjs/core'
+import { registerMaterialPlugin } from './material-plugins.js'
 import { parseColor } from './color.js'
 
 /** Hair colour presets: a base and its usual highlight, sRGB hex. */
@@ -141,7 +142,7 @@ export class HairShadingPlugin extends BABYLON.MaterialPluginBase {
   }
 }
 
-BABYLON.RegisterMaterialPlugin(
+registerMaterialPlugin(
   'HairShadingPlugin',
   (material) => new HairShadingPlugin(material)
 )

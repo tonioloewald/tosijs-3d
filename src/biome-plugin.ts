@@ -56,6 +56,7 @@ the degrees an author sets with `biomeTemperature`.
 /*{ "parent": "b3d-terrain", "order": 20 }*/
 
 import * as BABYLON from '@babylonjs/core'
+import { registerMaterialPlugin } from './material-plugins.js'
 import { sceneSeconds } from './b3d-utils.js'
 import { noiseVolume, sampleNoiseVolume } from './noise-volume.js'
 import { mantaAxes, planetaryAxes } from './biome-chart.js'
@@ -1591,7 +1592,7 @@ export function biomeLite(scene: BABYLON.Scene): boolean {
 
 // Registered so `Material.clone()` can re-instantiate it (see the note in
 // cloud-shadows.ts — an unregistered plugin makes cloning THROW).
-BABYLON.RegisterMaterialPlugin(
+registerMaterialPlugin(
   'BiomePlugin',
   (material) => new BiomePlugin(material)
 )

@@ -30,6 +30,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 - **Chase camera and Cross Country.** A vehicle's chase camera pivots round a point above it: the right stick orbits (springing back on release) and up/down moves it along an arc from close behind to nearly overhead, where it stays (`CHASE_BOOM`; `chasePose` takes the boom and a lift). It climbs over walls, traffic and hillsides before it pulls in, and keeps clear of the ground. In a headset it orbits too and looks down from the top. A tank's view follows its turret. `ControlInput.lookMode` is the right-stick click (R3; **V** on a keyboard, `right_stick_click` on the glass gamepad): on a tank it swaps the stick's up/down between the gun and the camera, with a buzz in a headset (`b3d.haptic()`). The track links of a model that animates them (Tonio's tank) run at ground speed. **Cross Country** (Demos): that tank in open country.
 
+- Fixed: building a scene after the page's only one was removed (a route change) lost skin, hair and cloth shading, caustics, the biome ground, cloud shadows and projected occlusion; skin shading threw 'plugin not registered'. Babylon clears material plugins when its last engine goes; ours now register again (`registerMaterialPlugin`).
+
 - iPhone: the page no longer zooms from inside a scene (`<tosi-b3d>` is `touch-action: none` and cancels Safari's pinch), and a zoomed page is reset when the scene goes full screen, where nothing was left to pinch out on.
 
 - `b3dLight` takes `nightIntensity`: under a day/night `b3dSkybox` the ambient fill eases to it as the daylight goes (the sun is already the moon), so night no longer looks like an overcast noon.

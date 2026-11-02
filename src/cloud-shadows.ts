@@ -67,6 +67,7 @@ projected along the light before stamping), so the shader stays a plain straight
 /*{ "parent": "b3d-cloud-deck", "order": 20 }*/
 
 import * as BABYLON from '@babylonjs/core'
+import { registerMaterialPlugin } from './material-plugins.js'
 
 /** Where a blob's shadow lands: slide from its altitude down the sun direction to the ground
  * plane. `sunDir` is the light's TRAVEL direction (y < 0 when shining down); a sun at/below
@@ -250,7 +251,7 @@ class CloudShadowPlugin extends BABYLON.MaterialPluginBase {
 // (reading 'CloudShadowPlugin')`). That aborted b3d-death's wreck-charring
 // mid-sequence, so the player kept input focus and never got a respawn panel:
 // a cosmetic clone took the whole death exit down with it (2026-08-11).
-BABYLON.RegisterMaterialPlugin(
+registerMaterialPlugin(
   'CloudShadowPlugin',
   (material) => new CloudShadowPlugin(material)
 )

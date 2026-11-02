@@ -25,6 +25,7 @@ shade.set({ fabric: 'wool', colour: '#7a2e2e', amount: 0.8 })
 /*{ "parent": "human-proxy", "order": 20 }*/
 
 import * as BABYLON from '@babylonjs/core'
+import { registerMaterialPlugin } from './material-plugins.js'
 import { parseColor } from './color.js'
 
 import { FABRICS } from './fabrics.js'
@@ -113,7 +114,7 @@ class ClothShadingPlugin extends BABYLON.MaterialPluginBase {
   }
 }
 
-BABYLON.RegisterMaterialPlugin(
+registerMaterialPlugin(
   'ClothShadingPlugin',
   (material) => new ClothShadingPlugin(material)
 )

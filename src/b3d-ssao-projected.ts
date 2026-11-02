@@ -26,6 +26,7 @@ unoccluded sliver beside a near object, never as a ghost.
 */
 
 import * as BABYLON from '@babylonjs/core'
+import { registerMaterialPlugin } from './material-plugins.js'
 import { realNow } from './clock.js'
 
 export interface ProjectedAoParams {
@@ -599,7 +600,7 @@ class ProjectedAoPlugin extends BABYLON.MaterialPluginBase {
 
 // In the registry, or Material.clone() throws on a material that carries it
 // (the same trap cloud-shadows documents).
-BABYLON.RegisterMaterialPlugin(
+registerMaterialPlugin(
   'ProjectedAoPlugin',
   (material) => new ProjectedAoPlugin(material)
 )

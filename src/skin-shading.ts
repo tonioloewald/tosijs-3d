@@ -23,6 +23,7 @@ first directional light each frame (or the `sun` you give it).
 /*{ "parent": "character-builder", "order": 45 }*/
 
 import * as BABYLON from '@babylonjs/core'
+import { registerMaterialPlugin } from './material-plugins.js'
 
 /**
  * How thin a body is at each vertex, 0 (thick) to 1 (thin): the distance
@@ -247,7 +248,7 @@ export class SkinShadingPlugin extends BABYLON.MaterialPluginBase {
 }
 
 // In the registry, or Material.clone() throws on a material that carries it.
-BABYLON.RegisterMaterialPlugin(
+registerMaterialPlugin(
   'SkinShadingPlugin',
   (material) => new SkinShadingPlugin(material)
 )
