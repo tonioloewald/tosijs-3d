@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Character builder:** `save…` asks for the name in a popup (filled in with the current one), refuses a blank name or the working figure's with a reason, and asks before replacing another saved character; `rename…` renames the picked one. They work in a headset too. `nameCharacter` (character-store) is the rule.
+- **`button3d({ popup })`**: a button that opens a small form (controls, flat and in a headset) in a popup anchored to it; the controls get a handle to close it or show the next step.
 - **`tosijs-3d/fit-extremes`** and **`bun run extremes`**: every MakeHuman garment and Quaternius hairstyle on 133 bodies at the sliders' corners, measured for penetration (raw, and visible past the skin's tuck) and bone sanity, with a markdown/JSON report and a headless contact sheet of the worst cases. Engine-free. Moved here from Dramatis.
 - **`tosijs-3d/hair-place`**: hair placed on a body's head with no engine (`headScalp`, `placeHair`, and the hair library read from its GLB with `readHairLibrary`). `human-hair` now uses it and re-exports what it exported before.
 - **`tosijs-3d/mesh-sdf`**: signed distance to a triangle mesh.

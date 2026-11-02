@@ -1157,6 +1157,7 @@ export type {
   Widget3d,
   WidgetHost,
   MenuAction,
+  PopupHandle,
   Tab3d,
   Dynamic,
   Spinner3d,
@@ -2000,8 +2001,9 @@ export {
   joinBlobs,
   CHARACTER_DB,
   WORKING_CHARACTER,
+  nameCharacter,
 } from './character-store.js'
-export type { CharacterStore } from './character-store.js'
+export type { CharacterStore, CharacterName } from './character-store.js'
 export type { Unwrapped, UnwrapOptions } from './uv-unwrap.js'
 export {
   rigidGroups,

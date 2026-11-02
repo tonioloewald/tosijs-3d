@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, characterStore, WORKING_CHARACTER } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 
@@ -22,15 +22,47 @@ const { walker } = tosi({ walker: structuredClone(START) })
 // cloth), the microphone (it would ask on load), or the save controls.
 const KEPT = Object.keys(START).filter((k) => !['editing', 'look', 'clothLook', 'mic', 'characterName', 'characterPick'].includes(k))
 // Saving and loading characters, wired when the page is up.
-const character = { save: () => {}, load: () => {}, forget: () => {}, exportJson: () => {}, importJson: () => {}, changed: () => {}, saved: [], note: '' }
+const character = { save: () => {}, rename: () => {}, load: () => {}, forget: () => {}, exportJson: () => {}, importJson: () => {}, changed: () => {}, saved: [], note: '' }
+// A name asked for in a popup (works in a headset too): refused with its
+// reason, and a confirm before it replaces ANOTHER saved character.
+const namePopup = (pop, { prompt, initial, current, verb, act }) => {
+  let typed = initial
+  const go = () => {
+    const d = nameCharacter(typed, character.saved, current)
+    if (!d.ok) return pop.show(form(d.message))
+    if (!d.replaces) {
+      pop.close()
+      return act(d.name)
+    }
+    pop.show([
+      text3d({ text: `${d.name} is already saved. Replace it?` }),
+      button3d({ label: 'replace', handleClick: () => { pop.close(); act(d.name) } }),
+      button3d({ label: 'cancel', handleClick: () => pop.close() }),
+    ])
+  }
+  const form = (message) => [
+    text3d({ text: message }),
+    ui.inputField({ value: typed, placeholder: 'name', handleChange: (v) => { typed = v }, handleEnter: (v) => { typed = v; go() } }),
+    button3d({ label: verb, handleClick: go }),
+    button3d({ label: 'cancel', handleClick: () => pop.close() }),
+  ]
+  return form(prompt)
+}
 const characterRows = () => [
   label3d({ text: 'Character', collapsible: true }),
-  ui.inputField({ value: walker.characterName.value, placeholder: 'name the character', handleChange: (v) => { walker.characterName.value = v } }),
-  button3d({ label: 'save', handleClick: () => character.save() }),
+  ...(walker.characterName.value ? [text3d({ text: walker.characterName.value })] : []),
+  button3d({
+    label: 'save…',
+    popup: (pop) => namePopup(pop, { prompt: 'save as', initial: walker.characterName.value, current: walker.characterName.value, verb: 'save', act: (name) => character.save(name) }),
+  }),
   ...(character.saved.length
     ? [
         select3d({ label: 'saved', value: walker.characterPick, options: character.saved }),
         button3d({ label: 'load', handleClick: () => character.load() }),
+        button3d({
+          label: 'rename…',
+          popup: (pop) => namePopup(pop, { prompt: `rename ${walker.characterPick.value} to`, initial: walker.characterPick.value, current: walker.characterPick.value, verb: 'rename', act: (name) => character.rename(walker.characterPick.value, name) }),
+        }),
         button3d({ label: 'forget', handleClick: () => character.forget() }),
       ]
     : []),
@@ -742,16 +774,31 @@ preview.append(
           }, 800)
         }
         for (const k of [...KEPT, 'look', 'clothLook']) walker[k].observe(() => character.changed())
-        character.save = async () => {
-          const name = walker.characterName.value.trim()
-          if (!name || name === WORKING) return tell('name the character first')
+        character.save = async (name) => {
           try {
             await store.put(name, snapshot(name))
           } catch (e) {
             return tell(`could not save: ${e?.message ?? e}`)
           }
+          walker.characterName.value = name
           walker.characterPick.value = name
           tell(`saved ${name}`)
+          listSaved()
+        }
+        // Put under the new name, then the old one goes.
+        character.rename = async (from, to) => {
+          if (to === from) return
+          try {
+            const doc = await store.get(from)
+            if (!doc) return tell(`no character called ${from}`)
+            await store.put(to, { ...doc, name: to })
+            await store.delete(from)
+          } catch (e) {
+            return tell(`could not rename: ${e?.message ?? e}`)
+          }
+          if (walker.characterName.value === from) walker.characterName.value = to
+          walker.characterPick.value = to
+          tell(`renamed ${from} to ${to}`)
           listSaved()
         }
         character.load = async () => {
@@ -827,8 +874,10 @@ saved with the character; **cancel** keeps the one it had. The first binding is 
 off the body's outline.
 
 **Character** keeps your work. The figure you are working on is kept in this
-browser as you change it and comes back when you open the page again. **Save**
-it under a name to keep several, **load** or **forget** one, or **export
+browser as you change it and comes back when you open the page again. **Save…**
+asks for a name (the one it has, to start with) to keep it under, and asks
+first before replacing another saved character. Pick a saved one to **load**,
+**rename…** or **forget** it. **Export
 JSON** to take it elsewhere and **import JSON…** to bring one in. A file
 carries everything the panel sets, and the garments of your own the character
 wears travel inside it ([character-file](/character-file/)).

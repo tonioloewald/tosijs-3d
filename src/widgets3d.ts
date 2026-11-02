@@ -1675,6 +1675,12 @@ export function textBlock3d(config: {
   }
 }
 
+/** What a popup button's controls get: close the popup, or show others in its place. */
+export interface PopupHandle {
+  close(): void
+  show(items: Widget3d[]): void
+}
+
 /** A pressable button. */
 export function button3d(config: {
   label: string
@@ -1688,6 +1694,14 @@ export function button3d(config: {
    * has no reliable meaning, and you find out which by pressing it.
    */
   menu?: MenuAction[]
+  /**
+   * Make this a POPUP button: pressing it opens these controls (a small form:
+   * a name and OK, a confirm) in a popup anchored to the button, flat and in
+   * a headset alike. It gets a handle to `close` the popup or `show` other
+   * controls in its place (a form's next step), so a press inside it can.
+   * Like `menu`, instead of `handleClick`.
+   */
+  popup?: (popup: PopupHandle) => Widget3d[]
 }): Widget3d {
   const bg = rect({
     x: 0,
@@ -1703,6 +1717,35 @@ export function button3d(config: {
   const el = css(g({ 'data-w3d': 'button' }, bg, lbl), 'cursor:pointer')
   let host: WidgetHost | null = null
   let btnWidth = 0
+  let open: { close: () => void } | null = null
+  // A press inside the popup may close it or replace its controls: done a
+  // tick later, so the popup is not torn down while it is handling the press.
+  const popup: PopupHandle = {
+    close: () =>
+      queueMicrotask(() => {
+        const was = open
+        open = null
+        was?.close()
+      }),
+    show: (items) => queueMicrotask(() => showPopup(items)),
+  }
+  const showPopup = (items: Widget3d[]) => {
+    const was = open
+    open = null
+    was?.close()
+    if (host == null) return
+    const handle = host.showPopup(
+      {
+        anchor: { x: 0, y: 0, width: btnWidth, height: TH.ROW },
+        width: Math.max(btnWidth, 260),
+        handleClose: () => {
+          if (open === handle) open = null
+        },
+      },
+      ...items
+    )
+    open = handle
+  }
   return {
     el,
     setHost(h) {
@@ -1735,7 +1778,9 @@ export function button3d(config: {
         bg.setAttribute('fill', TH.BTN_HOVER) // hover / move / up
         lbl.setAttribute('fill', TH.TEXT)
         if (kind === 'up') {
-          if (config.menu != null && host != null) {
+          if (config.popup != null) {
+            showPopup(config.popup(popup))
+          } else if (config.menu != null && host != null) {
             openMenu3d(
               host,
               { x: 0, y: 0, width: btnWidth, height: TH.ROW },

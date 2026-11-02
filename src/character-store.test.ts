@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { joinBlobs, splitBlobs } from './character-store.js'
+import {
+  joinBlobs,
+  nameCharacter,
+  splitBlobs,
+  WORKING_CHARACTER,
+} from './character-store.js'
 import { writeCharacter } from './character-file.js'
 
 describe('a character stored apart from its bytes', () => {
@@ -35,5 +40,27 @@ describe('a character stored apart from its bytes', () => {
     const back = joinBlobs(bare, { ...blobs, 'garments/cape': undefined })
     expect(back.garments).toEqual({})
     expect(back.bodies!['weasel.obj'].data).toBe(doc.bodies!['weasel.obj'].data)
+  })
+})
+
+describe('naming a saved character', () => {
+  const saved = ['Ada', 'Brin']
+
+  test('a new name is taken, trimmed, and replaces nothing', () => {
+    expect(nameCharacter('  Cato ', saved)).toEqual({ ok: true, name: 'Cato', replaces: false })
+  })
+
+  test('another saved character’s name replaces it; its own name does not', () => {
+    expect(nameCharacter('Brin', saved, 'Ada')).toEqual({ ok: true, name: 'Brin', replaces: true })
+    expect(nameCharacter('Ada', saved, 'Ada')).toEqual({ ok: true, name: 'Ada', replaces: false })
+  })
+
+  test('a blank name and the working figure’s key are refused, with a reason', () => {
+    const blank = nameCharacter('   ', saved)
+    expect(blank.ok).toBe(false)
+    expect(!blank.ok && blank.message).toMatch(/needs a name/)
+    const working = nameCharacter(WORKING_CHARACTER, saved)
+    expect(working.ok).toBe(false)
+    expect(!working.ok && working.message).toContain(WORKING_CHARACTER)
   })
 })
