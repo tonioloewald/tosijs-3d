@@ -5908,6 +5908,13 @@ export class B3d extends Component {
           fc.radius = s.radius
         }
         this._flatOrbitState = null
+        // The pointer that pressed Enter VR never left the flat bar, so it
+        // came back with that button still lit until the bar was hovered.
+        ;(
+          this._sceneBar?.svg as unknown as {
+            handlePointer?: (k: 'leave', x: number, y: number) => void
+          }
+        )?.handlePointer?.('leave', 0, 0)
         this._applyHardwareScaling(false)
         this._applyGroundDetail(false)
         this._xrViewportOff?.()

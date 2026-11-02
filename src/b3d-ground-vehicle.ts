@@ -689,8 +689,15 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     const state = this.state
     if (scene == null || spec == null || state == null) return
     const dt = sceneDelta(scene)
-    if (dt <= 0 || this._halted || simHalted(this.owner as SimGateOwner | null))
+    const chasing =
+      this.chaseCamera != null && scene.activeCamera === this.chaseCamera
+    if (dt <= 0 || this._halted || simHalted(this.owner as SimGateOwner | null)) {
+      // Stopped, but the camera is still posed: leaving VR pauses the scene,
+      // and Babylon has just put the headset's pose on this camera (it sat at
+      // head height at the origin, inside the ground, until Continue).
+      if (chasing) this.aimCamera(0)
       return
+    }
     const before = { ...state.position }
     this.groundCache.length = 0
     this.groundFound = false
@@ -711,8 +718,7 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     this.updateLights()
     this.updateEngine(state)
     this.updateLook(dt)
-    if (this.chaseCamera != null && scene.activeCamera === this.chaseCamera)
-      this.aimCamera(dt)
+    if (chasing) this.aimCamera(dt)
   }
 
   /*
