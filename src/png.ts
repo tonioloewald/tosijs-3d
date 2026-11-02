@@ -23,7 +23,7 @@ the platform itself will not read back is the one failure mode no spec check
 would have predicted; the bisect that found it is recorded in the commit.
 */
 
-import { zlibSync } from 'fflate'
+import { unzlibSync, zlibSync } from 'fflate'
 
 const CRC_TABLE = new Uint32Array(256)
 for (let n = 0; n < 256; n++) {
@@ -119,4 +119,86 @@ export function pngEncode(
   at += idat.length
   out.set(iend, at)
   return out
+}
+
+/** An image as RGBA8 bytes, row by row from the top. */
+export interface RgbaImage {
+  width: number
+  height: number
+  data: Uint8Array
+}
+
+/**
+ * Read a PNG: 8-bit RGB or RGBA, not interlaced (what browsers and image
+ * tools write for pictures). RGB comes back with alpha 255. Anything else
+ * throws, naming what it found.
+ */
+export function pngDecode(png: Uint8Array): RgbaImage {
+  for (let i = 0; i < 8; i++)
+    if (png[i] !== SIGNATURE[i]) throw new Error('pngDecode: not a PNG')
+  const view = new DataView(png.buffer, png.byteOffset, png.byteLength)
+  let width = 0
+  let height = 0
+  let colourType = 0
+  const idat: Uint8Array[] = []
+  for (let at = 8; at < png.length; ) {
+    const length = view.getUint32(at)
+    const type = String.fromCharCode(...png.subarray(at + 4, at + 8))
+    const body = png.subarray(at + 8, at + 8 + length)
+    if (type === 'IHDR') {
+      width = view.getUint32(at + 8)
+      height = view.getUint32(at + 12)
+      const depth = body[8]
+      colourType = body[9]
+      if (depth !== 8 || (colourType !== 2 && colourType !== 6) || body[12])
+        throw new Error(
+          `pngDecode: only 8-bit RGB or RGBA, not interlaced (depth ${depth}, colour type ${colourType}, interlace ${body[12]})`
+        )
+    } else if (type === 'IDAT') idat.push(body)
+    else if (type === 'IEND') break
+    at += 12 + length
+  }
+  const joined = new Uint8Array(idat.reduce((n, c) => n + c.length, 0))
+  let o = 0
+  for (const c of idat) {
+    joined.set(c, o)
+    o += c.length
+  }
+  const raw = unzlibSync(joined)
+  const bpp = colourType === 6 ? 4 : 3
+  const stride = width * bpp
+  const pixels = new Uint8Array(height * stride)
+  for (let y = 0; y < height; y++) {
+    const filter = raw[y * (stride + 1)]
+    const src = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1))
+    const row = pixels.subarray(y * stride, (y + 1) * stride)
+    const up = y > 0 ? pixels.subarray((y - 1) * stride, y * stride) : null
+    for (let x = 0; x < stride; x++) {
+      const a = x >= bpp ? row[x - bpp] : 0
+      const b = up ? up[x] : 0
+      const c = up && x >= bpp ? up[x - bpp] : 0
+      let v = src[x]
+      if (filter === 1) v += a
+      else if (filter === 2) v += b
+      else if (filter === 3) v += (a + b) >> 1
+      else if (filter === 4) {
+        const p = a + b - c
+        const pa = Math.abs(p - a)
+        const pb = Math.abs(p - b)
+        const pc = Math.abs(p - c)
+        v += pa <= pb && pa <= pc ? a : pb <= pc ? b : c
+      } else if (filter !== 0)
+        throw new Error(`pngDecode: unknown filter ${filter} on row ${y}`)
+      row[x] = v & 0xff
+    }
+  }
+  if (bpp === 4) return { width, height, data: pixels }
+  const data = new Uint8Array(width * height * 4)
+  for (let i = 0, j = 0; i < pixels.length; i += 3, j += 4) {
+    data[j] = pixels[i]
+    data[j + 1] = pixels[i + 1]
+    data[j + 2] = pixels[i + 2]
+    data[j + 3] = 255
+  }
+  return { width, height, data }
 }

@@ -988,7 +988,8 @@ export {
   type FaceUv,
   type SkyObject,
 } from './starfield-codec.js'
-export { pngEncode, crc32, adler32 } from './png.js'
+export { pngEncode, pngDecode, crc32, adler32 } from './png.js'
+export type { RgbaImage } from './png.js'
 export {
   bakeSkyboxCube,
   bakeSkyPair,
@@ -2107,7 +2108,20 @@ export {
   lashMaterial,
   HM08_EYE_UV,
 } from './human-face.js'
-export type { HumanFace, EyeTexture } from './human-face.js'
+export type { HumanFace, EyeTexture, EyeTextureStyle } from './human-face.js'
+export {
+  EYE_STYLES,
+  EYE_VERSION,
+  ONE_EYE_LAYOUT,
+  eyePngUrl,
+  eyeSvgUrl,
+  eyeStyle,
+  eyeAsset,
+  recolourIris,
+  recolourEyePng,
+  gltfEyeUvs,
+} from './eye-art.js'
+export type { EyeStyle, EyeLayout } from './eye-art.js'
 export type { Rgb as SkinRgb } from './skin-tone.js'
 export {
   humanRig,

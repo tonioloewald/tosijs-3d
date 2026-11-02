@@ -43,6 +43,8 @@ export const CHARACTER_CORE = [
   'asset-url',
   'skinned-glb',
   'glb-chunks',
+  'eye-art',
+  'png',
 ]
 
 /** Every import or re-export specifier in a source file, comments stripped (doc examples import the barrel). */

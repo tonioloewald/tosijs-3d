@@ -71,7 +71,8 @@ dresses it again, a colour repaints. The work is in `ready()`.
 
 `DEFAULT_CHARACTER` lists them with their defaults: MakeHuman's macro sliders
 (`DEFAULT_HUMAN_BODY`), `tone` and `redness` (the skin), `iris` and
-`irisColour`, `stubble`, the hair (`hair`, `beard`, `moustache`, `brows`,
+`irisColour`, `eyeStyle` (Tonio's eye art, `basic` or `anime`, or `drawn` in
+code), `stubble`, the hair (`hair`, `beard`, `moustache`, `brows`,
 `hairBase`, `hairHighlight`, and `hairUp`, `hairForward`, `hairSize` to
 nudge it), one setting per clothes slot (`CHARACTER_SLOTS`, a garment's name
 or `none`), the face (`smile`, `browsUp`, `frown`, and `blink`, `talk`),
@@ -96,7 +97,9 @@ import {
   eyeTexture,
   eyeMaterial,
   lashMaterial,
+  type EyeTextureStyle,
 } from './human-face.js'
+import { eyeStyle } from './eye-art.js'
 import {
   loadHairLibrary,
   headScalp,
@@ -152,6 +155,10 @@ import {
 } from './character-settings.js'
 
 export { CHARACTER_SLOTS, DEFAULT_CHARACTER } from './character-settings.js'
+
+/** A character's `eyeStyle` setting as an eye texture's style. */
+const eyeLook = (v: unknown): EyeTextureStyle =>
+  v === 'drawn' ? 'drawn' : eyeStyle(v)
 
 /** Where a mesh's body comes from: a URL or a file, and the node to take. */
 export interface CharacterSource {
@@ -569,7 +576,7 @@ export async function makeCharacter(
     pack.part('eyes'),
     pack.part('eyelashes'),
   ])
-  const eyes = eyeTexture(scene, { iris: s.iris })
+  const eyes = eyeTexture(scene, { iris: s.iris, style: eyeLook(s.eyeStyle) })
   eyes.setIrisColour(s.irisColour)
   const faceMaterials = {
     eye: eyeMaterial(scene, eyes),
@@ -1240,6 +1247,7 @@ export async function makeCharacter(
     if (['smile', 'browsUp', 'frown'].some(has)) feel()
     if (has('iris')) eyes.setIris(s.iris)
     if (has('irisColour')) eyes.setIrisColour(s.irisColour)
+    if (has('eyeStyle')) eyes.setStyle(eyeLook(s.eyeStyle))
     if (has('hairBase') || has('hairHighlight')) recolour()
     queue(async () => {
       if (changed.some((k) => BODY.has(k))) await rebuild()

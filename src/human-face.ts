@@ -14,7 +14,10 @@ body has eyes that fit it, with nothing to fit.
 skeleton's head: each eye on its own pivot at the eyeball's centre (MakeHuman's
 `eye` joint), so turning the pivot turns the eye. `eyeTexture` draws the eye
 in code (sclera, a striated iris of any colour from `irisColor`, the pupil)
-on MakeHuman's eye UV layout, so the iris is a dial and no image is shipped.
+on MakeHuman's eye UV layout, so the iris is a dial and no image is shipped;
+given a `style` (`basic`, `anime`) it paints Tonio's eye art instead
+([eye-art](/eye-art/)), its iris recoloured the same way, the picture an
+export bakes. The drawn eye shows while the art loads, or if it cannot.
 
 `eyeGaze(scene, face, target)` points both eyes at a world point every frame,
 after the clip has posed the head: they converge on it, stop at `maxDeg`
@@ -43,6 +46,13 @@ import { eyeCentre, eyeUvs, type BodyEye } from './rigged-body.js'
 import { irisColor } from './skin-tone.js'
 import { parseColor } from './color.js'
 import { sceneDelta } from './b3d-utils.js'
+import { pngDecode, type RgbaImage } from './png.js'
+import {
+  eyePngUrl,
+  ONE_EYE_LAYOUT,
+  recolourIris,
+  type EyeStyle,
+} from './eye-art.js'
 
 /** Where MakeHuman's eye UVs put each iris (u, v from the bottom) and its radius. */
 export const HM08_EYE_UV = Object.freeze({
@@ -56,12 +66,46 @@ export interface EyeTexture extends BABYLON.DynamicTexture {
   setIris(t: number): void
   /** Repaint the iris any colour (sRGB, anything `parseColor` reads). */
   setIrisColour(colour: string): void
+  /** Paint the eye art (`basic`, `anime`) or the eye drawn in code (`drawn`). */
+  setStyle(style: EyeTextureStyle): void
 }
 
-/** The eye drawn in code on MakeHuman's eye UV layout. */
+/** What an eye texture shows: Tonio's eye art in a style, or the eye drawn in code. */
+export type EyeTextureStyle = EyeStyle | 'drawn'
+
+/** The eye art, fetched and decoded once a page, by URL (a failed fetch is forgotten, so the next asks again). */
+const eyeArt = new Map<string, Promise<RgbaImage>>()
+function loadEyeArt(url: string): Promise<RgbaImage> {
+  let art = eyeArt.get(url)
+  if (art == null) {
+    art = fetch(url)
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`${r.status} ${r.statusText}`)
+        return pngDecode(new Uint8Array(await r.arrayBuffer()))
+      })
+      .catch((e) => {
+        eyeArt.delete(url)
+        console.warn(`eyeTexture: the eye art did not load (${url})`, e)
+        throw e
+      })
+    eyeArt.set(url, art)
+  }
+  return art
+}
+
+/**
+ * An eye texture on MakeHuman's eye UV layout (both eyes): Tonio's eye art in
+ * `style` with its iris recoloured, or the eye drawn in code (`drawn`, the
+ * default, and what shows while the art loads or if it cannot).
+ */
 export function eyeTexture(
   scene: BABYLON.Scene,
-  options: { iris?: number; size?: number; layout?: typeof HM08_EYE_UV } = {}
+  options: {
+    iris?: number
+    size?: number
+    layout?: typeof HM08_EYE_UV
+    style?: EyeTextureStyle
+  } = {}
 ): EyeTexture {
   const size = options.size ?? 512
   const layout = options.layout ?? HM08_EYE_UV
@@ -77,7 +121,58 @@ export function eyeTexture(
     const h = Math.sin(i * 12.9898) * 43758.5453
     return { a: (i / 140) * Math.PI * 2, k: h - Math.floor(h) }
   })
+  let colour = irisColor(options.iris ?? 0.2)
+  let style: EyeTextureStyle = options.style ?? 'drawn'
+  let ticket = 0
   const paint = (c: { r: number; g: number; b: number }) => {
+    colour = c
+    const t = ++ticket
+    if (style === 'drawn') return drawn(c)
+    const url = eyePngUrl(style)
+    const ready = artReady.get(url)
+    if (ready) return paintArt(ready, c)
+    drawn(c)
+    loadEyeArt(url).then(
+      (art) => {
+        artReady.set(url, art)
+        if (t === ticket && tex.getInternalTexture() != null)
+          paintArt(art, colour)
+      },
+      () => {}
+    )
+  }
+  const artReady = new Map<string, RgbaImage>()
+  // The art is one eye; it is drawn onto each of the layout's, scaled so its
+  // iris is the layout's, clipped to a disc round it (the rest is sclera).
+  const paintArt = (art: RgbaImage, c: { r: number; g: number; b: number }) => {
+    const { data, width, height } = recolourIris(art, [
+      Math.round(c.r * 255),
+      Math.round(c.g * 255),
+      Math.round(c.b * 255),
+    ])
+    const picture = document.createElement('canvas')
+    picture.width = width
+    picture.height = height
+    const pctx = picture.getContext('2d')!
+    const pixels = pctx.createImageData(width, height)
+    pixels.data.set(data)
+    pctx.putImageData(pixels, 0, 0)
+    const w = width * ((layout.iris * size) / (ONE_EYE_LAYOUT.iris * width))
+    ctx.fillStyle = '#d8cbc2'
+    ctx.fillRect(0, 0, size, size)
+    for (const e of [layout.l, layout.r]) {
+      const x = e.u * size
+      const y = (1 - e.v) * size
+      ctx.save()
+      ctx.beginPath()
+      ctx.arc(x, y, layout.iris * size * 2.5, 0, Math.PI * 2)
+      ctx.clip()
+      ctx.drawImage(picture, x - w / 2, y - w / 2, w, w)
+      ctx.restore()
+    }
+    tex.update()
+  }
+  const drawn = (c: { r: number; g: number; b: number }) => {
     const rgb = (k: number, a = 1) =>
       `rgba(${Math.round(Math.min(1, c.r * k) * 255)},${Math.round(
         Math.min(1, c.g * k) * 255
@@ -131,7 +226,11 @@ export function eyeTexture(
     const c = parseColor(colour)
     if (c) paint(c)
   }
-  tex.setIris(options.iris ?? 0.2)
+  tex.setStyle = (next) => {
+    style = next
+    paint(colour)
+  }
+  paint(colour)
   return tex
 }
 

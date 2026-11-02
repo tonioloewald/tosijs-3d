@@ -75,6 +75,8 @@ const PURE = [
   'asset-url',
   'skinned-glb',
   'glb-chunks',
+  'eye-art',
+  'png',
 ]
 
 try {

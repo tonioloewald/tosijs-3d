@@ -59,6 +59,8 @@ const PURE = [
   'asset-url',
   'skinned-glb',
   'glb-chunks',
+  'eye-art',
+  'png',
 ]
 
 describe('declared-pure modules import with no DOM', () => {

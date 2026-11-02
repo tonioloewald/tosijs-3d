@@ -26,13 +26,11 @@ against its buffer view.
 */
 /*{ "parent": "character-core", "order": 31 }*/
 
-
 /** glTF JSON, as parsed: readers look at the fields they need. */
-export type GltfJson = Record<string, any>  
+export type GltfJson = Record<string, any>
 
 /** A GLB split into its JSON and (optional) binary chunk. */
 export interface Glb {
-   
   json: any
   bin: Uint8Array | null
 }

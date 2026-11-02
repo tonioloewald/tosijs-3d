@@ -67,6 +67,7 @@ export const DEFAULT_CHARACTER: Record<string, any> = {
   redness: 0.5,
   iris: 0.2,
   irisColour: '#5a3519',
+  eyeStyle: 'basic',
   hair: 'short02',
   beard: 'none',
   moustache: 'none',

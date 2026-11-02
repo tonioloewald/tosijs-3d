@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { inflateSync } from 'node:zlib'
-import { adler32, crc32, pngEncode } from './png.js'
+import { deflateSync, inflateSync } from 'node:zlib'
+import { adler32, crc32, pngDecode, pngEncode } from './png.js'
 
 describe('crc32', () => {
   test('matches the standard check vector', () => {
@@ -101,5 +101,80 @@ describe('pngEncode', () => {
 
   test('rejects a size mismatch', async () => {
     expect(() => pngEncode(new Uint8Array(16), 3, 3)).toThrow()
+  })
+})
+
+describe('pngDecode', () => {
+  const W = 7
+  const H = 5
+  const rgb = new Uint8Array(W * H * 3).map((_, i) => (i * 37 + (i >> 3) * 11) & 255)
+
+  /** An RGB PNG with each row filtered a different way (0 to 4, round again). */
+  function filteredRgb(): Uint8Array {
+    const bpp = 3
+    const stride = W * bpp
+    const raw = new Uint8Array(H * (stride + 1))
+    for (let y = 0; y < H; y++) {
+      const f = y % 5
+      raw[y * (stride + 1)] = f
+      for (let x = 0; x < stride; x++) {
+        const a = x >= bpp ? rgb[y * stride + x - bpp] : 0
+        const b = y > 0 ? rgb[(y - 1) * stride + x] : 0
+        const c = y > 0 && x >= bpp ? rgb[(y - 1) * stride + x - bpp] : 0
+        const p = a + b - c
+        const paeth =
+          Math.abs(p - a) <= Math.abs(p - b) && Math.abs(p - a) <= Math.abs(p - c)
+            ? a
+            : Math.abs(p - b) <= Math.abs(p - c)
+              ? b
+              : c
+        const pred = [0, a, b, (a + b) >> 1, paeth][f]
+        raw[y * (stride + 1) + 1 + x] = (rgb[y * stride + x] - pred) & 255
+      }
+    }
+    const ihdr = new Uint8Array(13)
+    new DataView(ihdr.buffer).setUint32(0, W)
+    new DataView(ihdr.buffer).setUint32(4, H)
+    ihdr[8] = 8
+    ihdr[9] = 2
+    const chunk = (type: string, body: Uint8Array) => {
+      const out = new Uint8Array(12 + body.length)
+      const dv = new DataView(out.buffer)
+      dv.setUint32(0, body.length)
+      for (let i = 0; i < 4; i++) out[4 + i] = type.charCodeAt(i)
+      out.set(body, 8)
+      dv.setUint32(8 + body.length, crc32(out.subarray(4, 8 + body.length)))
+      return out
+    }
+    const parts = [
+      new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      chunk('IHDR', ihdr),
+      chunk('IDAT', new Uint8Array(deflateSync(raw))),
+      chunk('IEND', new Uint8Array(0)),
+    ]
+    return Uint8Array.from(parts.flatMap((p) => Array.from(p)))
+  }
+
+  test('reads back what pngEncode wrote, exactly', () => {
+    const rgba = new Uint8Array(W * H * 4).map((_, i) => (i * 53) & 255)
+    const img = pngDecode(pngEncode(rgba, W, H))
+    expect([img.width, img.height]).toEqual([W, H])
+    expect(Array.from(img.data)).toEqual(Array.from(rgba))
+  })
+
+  test('reads RGB rows under every filter, with alpha 255', () => {
+    const img = pngDecode(filteredRgb())
+    for (let i = 0; i < W * H; i++) {
+      expect(Array.from(img.data.subarray(i * 4, i * 4 + 4))).toEqual([
+        rgb[i * 3],
+        rgb[i * 3 + 1],
+        rgb[i * 3 + 2],
+        255,
+      ])
+    }
+  })
+
+  test('refuses what is not a PNG', () => {
+    expect(() => pngDecode(new Uint8Array(16))).toThrow('not a PNG')
   })
 })

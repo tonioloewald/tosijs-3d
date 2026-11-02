@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Eyes from a picture**: `eyeTexture({ style: 'basic' | 'anime' })` paints Tonio's CC0 eye art with its iris recoloured, and a character's new `eyeStyle` setting picks it (`basic` by default; `drawn` keeps the eye drawn in code, which also shows while the art loads). `tosijs-3d/eye-art` is the engine-free half: the art's URLs, `recolourEyePng`, and `gltfEyeUvs` for an export. `pngDecode` joins `pngEncode`. Both are in the engine-free character core.
+
 ## 0.12.1
 
 The latest release. A rigged, morphing body written out as a GLB with no engine (`tosijs-3d/skinned-glb`, with `tosijs-3d/glb-chunks`), moved here from Dramatis. See [0.12.1](/v0.12.1/).
