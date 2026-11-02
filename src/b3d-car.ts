@@ -53,10 +53,7 @@ handbrake and **X** gets in and out. One step from GTA: the **right bumper**
 brakes and reverses too, so on the on-screen pad the right thumb has both
 pedals. **Arrow keys** move the camera on a keyboard. The camera looks at a
 point a little above the car, so it looks over it at the road; its height
-stays where you leave it.
-
-The camera rides high behind the car and looks ahead of it, swinging round
-behind as you turn.
+stays where you leave it, and swings round behind as you turn.
 
 The cars are Tonio Loewald's (CC BY 4.0), at twice their size: they are made
 half life size.
@@ -85,6 +82,11 @@ between the wheels.
 | `grip` | `1` | Tyre grip, a friction coefficient: lower slides sooner |
 | `steerDeg` | `35` | Full lock, degrees; at speed, no more than the tyres can hold |
 | `drive` | `'rear'` | Driven wheels: `rear`, `front` or `all` |
+| `headlights` | `'auto'` | `'auto'` (on at night while driven), `'on'` or `'off'` |
+| `sound` | `'on'` | `'off'` silences its engine |
+
+`turnRate` and `friction` are gone (0.12): use `steerDeg` and `grip`; setting
+either warns once.
 
 `speed` is its speed along the nose (m/s), `state` the model's state (each
 wheel's load, compression and whether it slides).

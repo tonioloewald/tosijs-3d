@@ -56,7 +56,8 @@ this way.
 ## Attributes
 
 Those of [b3d-car](/b3d-car/) (`url`, `library`, `meshName`, `scale`,
-`enterable`, `mass`, `maxSpeed`, `acceleration`, `braking`, `grip`), with a
+`enterable`, `mass`, `maxSpeed`, `acceleration`, `braking`, `grip`,
+`headlights`, `sound`), with a
 tank's defaults: 20 t, 12 m/s, 3 m/s². And:
 
 | Attribute | Default | Description |

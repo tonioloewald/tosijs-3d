@@ -9,6 +9,30 @@ This file ships **inside the package**, because a migration table you can only
 read on GitHub does not exist for someone who has already installed the thing
 and is staring at an error.
 
+## 0.11.x → 0.12.0
+
+The peer ranges are unchanged. Four things change under you:
+
+1. **`<tosi-b3d-car>` is rebuilt on the vehicle model.** `turnRate` and
+   `friction` are gone (setting either now warns once and does nothing): use
+   `steerDeg` (degrees of full lock) and `grip` (a tyre friction coefficient).
+   `acceleration` and `braking` are now m/s². The default mapping is GTA V's:
+   the right trigger drives, the left brakes and reverses, the left stick
+   steers.
+2. **Models are no longer drawn mirrored.** Everything loaded through
+   `canonicalize` or a `<tosi-b3d-library>` (vehicles, aircraft, lamp
+   fixtures, library instances) now looks as authored, where 0.11 drew each as
+   its mirror image. An asymmetric model now faces the other way from before;
+   anything you measured or placed against the mirrored picture (a marker's
+   side, a kit's road turns) needs checking. Skinned models are unchanged.
+3. **`KENNEY_CITY`'s road turns changed** with that: `bend` is `turns: 0`
+   (it joins north and east) and `end` is `turns: 3` (it opens west). A kit
+   manifest of your own measured against 0.11's picture needs the same check.
+4. **`RiggedBody.surfaces[].material` is typed `SurfaceMaterial`** (a name),
+   not Babylon's `Material`, so the character core carries no engine in its
+   types. On the Babylon side, cast it back: `surface.material as
+   BABYLON.Material`.
+
 ## 0.10.x → 0.11.0
 
 Nothing was removed, and the peer ranges are unchanged. 0.11 collects the

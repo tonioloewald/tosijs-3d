@@ -88,3 +88,9 @@ describe('the character core is engine-free', () => {
     expect(problems.some((p) => /@babylonjs/.test(p))).toBe(true)
   })
 })
+
+test('the character-core page lists every module it promises', () => {
+  const page = readFileSync(join(import.meta.dir, 'character-core.ts'), 'utf8')
+  const missing = CHARACTER_CORE.filter((n) => !page.includes(`\`${n}\``))
+  expect(missing).toEqual([])
+})

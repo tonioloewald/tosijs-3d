@@ -63,6 +63,15 @@ const LIFTS = [0, 10, 20, 32, 45, 60].map((d) => d * (Math.PI / 180))
 /** Its boom, the whole range a second and a bit at full tilt. */
 const BOOM_RATE = 0.8
 
+const warnedRemoved = new Set<string>()
+function removedAttribute(name: string, instead: string): void {
+  if (warnedRemoved.has(name)) return
+  warnedRemoved.add(name)
+  console.warn(
+    `tosijs-3d: a vehicle's \`${name}\` was removed in 0.12 and does nothing; use ${instead}.`
+  )
+}
+
 export abstract class B3dGroundVehicle extends B3dControllable {
   static initAttributes = {
     ...B3dControllable.initAttributes,
@@ -102,6 +111,20 @@ export abstract class B3dGroundVehicle extends B3dControllable {
   declare grip: number
   declare headlights: 'auto' | 'on' | 'off'
   declare sound: 'on' | 'off'
+
+  /*
+  REMOVED IN 0.12 and not silent about it: the old car's `turnRate` and
+  `friction` would otherwise be set as plain properties nothing reads, and the
+  car would just drive differently.
+  */
+  /** @deprecated Removed: use `steerDeg` (b3d-car). Setting it warns once. */
+  set turnRate(_v: unknown) {
+    removedAttribute('turnRate', '`steerDeg` (degrees of full lock)')
+  }
+  /** @deprecated Removed: use `grip`. Setting it warns once. */
+  set friction(_v: unknown) {
+    removedAttribute('friction', '`grip` (a tyre friction coefficient)')
+  }
 
   /** The model's spec, once the vehicle has a body. */
   spec: VehicleSpec | null = null
@@ -231,6 +254,7 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     super.handleLoseFocus()
     this.focused = false
     this.controls = { ...IDLE }
+    this.viewPending = false
     this.lookWant = { x: 0, y: 0 }
   }
 
@@ -260,8 +284,15 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     this.camLift = 0
     this.resetView(this.camYaw)
     this.aimCamera(0)
-    owner.setActiveCamera(this.chaseCamera, { attach: false })
+    // Through the one camera switch that knows XR: in a session the headset
+    // owns the view (swapping it blanked the display), so the view is taken
+    // when the session ends instead.
+    this.viewPending = !owner.setGameplayCamera(this.chaseCamera, {
+      attach: false,
+    })
   }
+  /** Taken in a headset, where the camera could not be swapped: swap on leaving it. */
+  private viewPending = false
 
   private aimCamera(dt: number) {
     const cam = this.chaseCamera
@@ -689,6 +720,8 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     const spec = this.spec
     const state = this.state
     if (scene == null || spec == null || state == null) return
+    if (this.viewPending && this.focused && this.owner?.xrActive !== true)
+      this.setupFollowCamera()
     const dt = sceneDelta(scene)
     const chasing =
       this.chaseCamera != null && scene.activeCamera === this.chaseCamera

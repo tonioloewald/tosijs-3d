@@ -31,6 +31,7 @@ import { humanBodyMaker } from 'tosijs-3d/human-rig'
 | [`character-file`](/character-file/) | a character as one versioned JSON document |
 | [`character-settings`](/character-settings/) | every setting a character has, with its default; the slots; hair colours; the body pack's URL |
 | [`proxy-cover`](/proxy-cover/) | the skin under what is worn, tucked in and hidden |
+| [`asset-url`](/asset-url/) | where hosted assets (the body pack, the hair) are fetched from |
 
 What makes it a promise: `pure-core.test.ts` walks their import graph, type
 imports included, and fails if any of them reaches `@babylonjs` or a module

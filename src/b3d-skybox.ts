@@ -1160,7 +1160,6 @@ export class B3dSkybox extends AbstractMesh {
   private _duskScratch = new BABYLON.Color3()
   private _colorCache = new Map<string, BABYLON.Color3>()
 
-  /** Approximate horizon color based on current time of day / atmosphere. */
   /**
    * How much daylight there is, 0 (night) to 1 (full day), from the sun's
    * height: what street lights, headlights and windows read to know when to
@@ -1168,6 +1167,7 @@ export class B3dSkybox extends AbstractMesh {
    */
   daylight = 1
 
+  /** Approximate horizon color based on current time of day / atmosphere. */
   get horizonColor(): BABYLON.Color3 {
     return this._horizonColor
   }
