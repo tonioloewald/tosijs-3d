@@ -205,14 +205,15 @@ export const KENNEY_CITY: CityKit = {
     suburban: 'kenney/libraries/city-kit-suburban.glb',
     cars: 'kenney/libraries/car-kit.glb',
   },
-  // Measured from above: Kenney's straight runs east-west, the bend joins
-  // north and west, the T is closed to the south, the end opens east.
+  // Measured from above (drawn unmirrored): Kenney's straight runs east-west,
+  // the bend joins north and east, the T is closed to the south, the end
+  // opens west.
   roads: {
     straight: { library: 'roads', mesh: 'road-straight', turns: 1 },
-    bend: { library: 'roads', mesh: 'road-bend', turns: 3 },
+    bend: { library: 'roads', mesh: 'road-bend', turns: 0 },
     tee: { library: 'roads', mesh: 'road-intersection', turns: 3 },
     cross: { library: 'roads', mesh: 'road-crossroad', turns: 0 },
-    end: { library: 'roads', mesh: 'road-end', turns: 1 },
+    end: { library: 'roads', mesh: 'road-end', turns: 3 },
     single: { library: 'roads', mesh: 'road-square', turns: 0 },
   },
   buildings: { downtown: [...commercial, ...towers], suburbs: houses },

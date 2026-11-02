@@ -125,13 +125,14 @@ describe('canonicalize drops scenic dressing', () => {
     expect(kids.length).toBeGreaterThan(1) // a scene file, not a single model
     const posed = kids
       .filter((k) => k.position.length() > 0.01)
-      .map((k) => ({ k, p: k.position.clone() }))
+      .map((k) => ({ k, p: (k.computeWorldMatrix(true), k.getAbsolutePosition().clone()) }))
     expect(posed.length).toBeGreaterThan(0) // non-vacuous: something IS posed
 
     canonicalize(root, scene, 'ctl-multi')
 
     for (const { k, p } of posed) {
-      expect(k.position.subtract(p).length()).toBeLessThan(1e-6)
+      k.computeWorldMatrix(true)
+      expect(k.getAbsolutePosition().subtract(p).length()).toBeLessThan(1e-6)
     }
   })
 
@@ -180,5 +181,64 @@ describe('canonicalize drops scenic dressing', () => {
     // Lateral is the one that must be zero on a symmetric airframe: a pivot off
     // the centreline makes the aircraft swing sideways when it banks.
     expect(Math.abs(control.getPivotPoint().x)).toBeLessThan(1e-3)
+  })
+})
+
+/*
+NOT MIRRORED. The loader converts glTF's right-handed data with one mirror on
+`__root__`, and canonicalize / the library drop `__root__`, so the mirror has
+to move into the content first (`unmirrorContainer`). Checked against what the
+loader itself draws: every vertex in the same place in the world, every face
+still facing the same way, and no frame left with a negative determinant.
+*/
+describe('unmirrorContainer', () => {
+  test('draws the file as the loader meant, with proper frames', async () => {
+    const { unmirrorContainer } = await import('./model-transform.js')
+    const b64 = readFileSync('static/test-3.glb').toString('base64')
+    const fresh = await BABYLON.SceneLoader.LoadAssetContainerAsync(
+      '',
+      'data:;base64,' + b64,
+      scene,
+      undefined,
+      '.glb'
+    )
+    const meshes = fresh.meshes.filter(
+      (m): m is import('@babylonjs/core').Mesh =>
+        m instanceof BABYLON.Mesh && m.getTotalVertices() > 0
+    )
+    expect(meshes.length).toBeGreaterThan(0)
+    // World vertices of the first triangle, and which way it faces as drawn
+    // (Babylon reverses culling when the world matrix is mirrored).
+    const look = (m: import('@babylonjs/core').Mesh) => {
+      const w = m.computeWorldMatrix(true)
+      const p = m.getVerticesData(BABYLON.VertexBuffer.PositionKind)!
+      const ix = m.getIndices()!
+      const v = [0, 1, 2].map((k) =>
+        BABYLON.Vector3.TransformCoordinates(
+          BABYLON.Vector3.FromArray(p, ix[k] * 3),
+          w
+        )
+      )
+      const n = BABYLON.Vector3.Cross(v[1].subtract(v[0]), v[2].subtract(v[0]))
+      if (w.determinant() < 0) n.scaleInPlace(-1)
+      return { v: v.map((x) => x.asArray()), n: n.normalize().asArray(), det: w.determinant() }
+    }
+    const before = meshes.map(look)
+    expect(before.some((b) => b.det < 0)).toBe(true) // the loader's mirror, as found
+    expect(unmirrorContainer(fresh)).toBe(true)
+    const after = meshes.map(look)
+    after.forEach((a, i) => {
+      expect(a.det).toBeGreaterThan(0)
+      // The same corners; the winding reversed (v1 and v2 swap), which the
+      // positive determinant turns back into the same facing.
+      const b = before[i].v
+      for (const [k, j] of [[0, 0], [1, 2], [2, 1]])
+        for (let c = 0; c < 3; c++) expect(a.v[k][c]).toBeCloseTo(b[j][c], 4)
+      for (let c = 0; c < 3; c++) expect(a.n[c]).toBeCloseTo(before[i].n[c], 4)
+    })
+    // Once only: a second call must not mirror the geometry back.
+    expect(unmirrorContainer(fresh)).toBe(true)
+    expect(meshes.map(look)[0].v[0][0]).toBeCloseTo(before[0].v[0][0], 4)
+    fresh.dispose()
   })
 })

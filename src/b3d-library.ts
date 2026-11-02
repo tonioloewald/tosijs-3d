@@ -166,7 +166,7 @@ scene's ambient animations stay behind. Pass `animations: false` to skip;
 import { B3dChild, publicName, isIgnored } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'
-import { canonicalize } from './model-transform.js'
+import { canonicalize, unmirrorContainer } from './model-transform.js'
 import { manifestFromNodes, type LibraryManifest } from './glb-manifest.js'
 
 /**
@@ -325,6 +325,9 @@ export class B3dLibrary extends B3dChild {
       (container) => {
         release()
         if (gen !== this.loadGeneration) return // stale — discard
+        // Instances are cloned out from under `__root__`, so its mirror must
+        // be in the content or every one is drawn mirrored (model-transform).
+        unmirrorContainer(container)
         this.container = container
         this._readyResolve()
         this.dispatchEvent(new CustomEvent('library-ready'))

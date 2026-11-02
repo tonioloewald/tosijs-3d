@@ -389,7 +389,11 @@ levels down).
 
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'
-import { canonicalize, applyCenterOfGravity } from './model-transform.js'
+import {
+  canonicalize,
+  applyCenterOfGravity,
+  unmirrorContainer,
+} from './model-transform.js'
 import { B3dControllable } from './b3d-controllable.js'
 import type { ControlInput } from './control-input.js'
 import { aircraftMapping } from './virtual-gamepad.js'
@@ -2296,6 +2300,7 @@ export class B3dAircraft extends B3dControllable {
 
   private loadFromUrl(url: string, owner: B3d, scene: BABYLON.Scene) {
     this.loadAssetContainer(scene, url, (container) => {
+      unmirrorContainer(container)
       const entries = container.instantiateModelsToScene(undefined, false, {
         doNotInstantiate: true,
       })

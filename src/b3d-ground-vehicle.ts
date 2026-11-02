@@ -27,7 +27,7 @@ import {
   simHalted,
   type SimGateOwner,
 } from './b3d-utils.js'
-import { canonicalize } from './model-transform.js'
+import { canonicalize, unmirrorContainer } from './model-transform.js'
 import {
   lightPool,
   sceneDaylight,
@@ -334,6 +334,7 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     super.sceneReady(owner, scene)
     if (this.url !== '') {
       this.loadAssetContainer(scene, this.url, (container) => {
+        unmirrorContainer(container)
         const entries = container.instantiateModelsToScene(undefined, false, {
           doNotInstantiate: true,
         })

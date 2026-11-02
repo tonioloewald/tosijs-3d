@@ -363,7 +363,7 @@ import * as BABYLON from '@babylonjs/core'
 import { B3dChild, conventionName, isOff } from './b3d-utils.js'
 import type { B3d } from './tosi-b3d.js'
 import { SvgTexture } from './svg-texture.js'
-import { canonicalize } from './model-transform.js'
+import { canonicalize, unmirrorContainer } from './model-transform.js'
 import { resolveBudget } from './b3d-quality.js'
 import {
   isAnimated,
@@ -584,6 +584,7 @@ export abstract class B3dLamp extends B3dChild {
             container.dispose()
             return
           }
+          unmirrorContainer(container)
           container.addAllToScene()
           const node = this.node
           for (const root of container.rootNodes) {
