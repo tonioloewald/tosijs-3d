@@ -29,9 +29,29 @@ replaces the page's whole tool set, which would blank every other script's.
 | tool | what it does |
 | --- | --- |
 | `b3d_scenes` | the page's scenes: name, which has input focus, what each offers |
+| `b3d_<scene>_scene` | you (the controllable in focus), the camera, time of day, daylight, the weather here, and every named thing: kind, position, heading, distance, a proximity word, bearing |
+| `b3d_<scene>_places` | named places to go to, nearest first: named beacons and named things |
+| `b3d_<scene>_snapshot` | `{ width? }`: a PNG of what the camera sees |
+| `b3d_<scene>_control_go` | `{ place }` or `{ x, z }`, `speed?`, `wait?`: drive the vehicle in focus there with its own controls; it reports `arrived`, or `stuck` when it stops making progress |
+| `b3d_<scene>_control_hold` | `{ input, seconds }`: hold controls (`forward`, `turn`, `jump`…) for a time |
+| `b3d_<scene>_control_status` / `_control_stop` | what the command is doing (`wait` to wait for it), or end it |
 | `b3d_<scene>_panel` | the settings panel as a tree of named controls (role, name, path, value, options, range) and any name problems |
 | `b3d_<scene>_panel_set` | `{ control, value }`: set a control by its path (`Sky/time of day`) |
 | `b3d_<scene>_panel_activate` | `{ control }`: press a button, open a section, pick a list item |
+
+A NAMED thing is any scene element with an `id` (or a `name`, as a
+`<tosi-b3d-beacon name="harbour">` has) and a mesh. Positions are world metres,
+y up, with the floating origin's moves added back, so a place keeps its
+coordinates when the scene rebases. Headings are degrees, 0 facing +z and 90
+facing +x; a bearing is the turn from where you face (negative is left).
+Distances come with world-topology's proximity rung (`reach`, `obvious`,
+`noticeable`, `present`), the words the world-sim contract uses.
+
+The controls are driven the way a player drives: the
+[agent driver](/agent-driver/) turns a command into `ControlInput` each frame,
+in place of the player's, so the car keeps its grip, walls and traffic. The
+player's own deliberate input cancels the command at once. `go` drives a
+straight line (no route finding yet) and ground vehicles only, so far.
 
 A control is addressed by its path of names; see
 [widget semantics](/widget-semantics/). A path that names nothing, or more
@@ -54,6 +74,13 @@ A scene's own `agent` attribute wins over the page's setting.
 */
 /*{ "parent": "core", "order": 60 }*/
 
+import { proximityRung } from './world-topology.js'
+import {
+  AgentDriver,
+  bearingDeg,
+  headingDeg,
+  type DriverPose,
+} from './agent-driver.js'
 import {
   findControl,
   plainControls,
@@ -93,6 +120,406 @@ export interface PanelAgentHost {
   agentControls(fresh?: boolean): ControlNode[]
   /** Is the panel on screen? */
   agentPanelOpen(): boolean
+}
+
+// ---- the scene -------------------------------------------------------------
+
+/** What the scene tools read from a scene (a `<tosi-b3d>`), duck-typed. */
+export interface SceneAgentHost {
+  querySelector(selector: string): Element | null
+  querySelectorAll(selector: string): ArrayLike<Element>
+  readonly scene?: { activeCamera?: unknown } | null
+  /** How far the floating origin has moved (world = scene + offset). */
+  readonly originOffset?: { x: number; z: number }
+  weatherHere?(): unknown
+  snapshot?(opts?: { width?: number; height?: number }): Promise<string>
+  /** Make this the scene the shared controls drive. */
+  takeInputFocus?(): void
+}
+
+type Vec = { x: number; y: number; z: number }
+type Posed = {
+  getAbsolutePosition?: () => Vec
+  globalPosition?: Vec
+  position?: Vec
+  forward?: Vec
+  getForwardRay?: (length?: number) => { direction: Vec }
+}
+
+/** One named thing in a scene, as the scene tools report it. */
+export interface AgentEntity {
+  name: string
+  /** Its element's tag without `tosi-b3d-`: `car`, `biped`, `beacon`… */
+  kind: string
+  /** World metres, y up: the same place whatever the floating origin did. */
+  at: [number, number, number]
+  /** Degrees: 0 faces +z, 90 faces +x. */
+  heading?: number
+  focused?: boolean
+  /** Metres from you (the focused controllable, else the camera). */
+  distance?: number
+  /** The distance as a word (world-topology's proximity rungs). */
+  near?: string
+  /** Degrees from where you face to it: negative is left, positive right. */
+  bearing?: number
+}
+
+const r2 = (n: number) => Math.round(n * 100) / 100
+
+/** Round every number in a plain value to centimetres, for a short answer. */
+function rounded(v: unknown): unknown {
+  if (typeof v === 'number') return r2(v)
+  if (Array.isArray(v)) return v.map(rounded)
+  if (v != null && typeof v === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const [k, x] of Object.entries(v)) {
+      if (typeof x !== 'function') out[k] = rounded(x)
+    }
+    return out
+  }
+  return v
+}
+
+function positionOf(node: Posed | null | undefined): Vec | null {
+  if (node == null) return null
+  return (
+    node.getAbsolutePosition?.() ?? node.globalPosition ?? node.position ?? null
+  )
+}
+
+const nameOf = (el: Element): string => {
+  const e = el as Element & { name?: unknown }
+  return (
+    el.id ||
+    (typeof e.name === 'string' ? e.name : '') ||
+    el.getAttribute('name') ||
+    ''
+  )
+}
+
+/** The named things in a scene, nearest first. */
+export function sceneEntities(host: SceneAgentHost): {
+  you: AgentEntity | null
+  camera: { at: [number, number, number]; heading?: number } | null
+  entities: AgentEntity[]
+} {
+  const off = host.originOffset ?? { x: 0, z: 0 }
+  const world = (p: Vec): [number, number, number] => [
+    r2(p.x + off.x),
+    r2(p.y),
+    r2(p.z + off.z),
+  ]
+  const focusedEl = (
+    host.querySelector('tosi-b3d-input-focus') as { focused?: unknown } | null
+  )?.focused as Element | null | undefined
+  const cam = host.scene?.activeCamera as Posed | null | undefined
+  const camPos = positionOf(cam)
+  const camFwd = cam?.getForwardRay?.(1)?.direction ?? null
+  const camera = camPos
+    ? {
+        at: world(camPos),
+        ...(camFwd ? { heading: r2(headingDeg(camFwd)) } : {}),
+      }
+    : null
+
+  const read = (el: Element): AgentEntity | null => {
+    const mesh = (el as { mesh?: Posed }).mesh
+    const p = positionOf(mesh)
+    if (p == null) return null
+    const fwd = mesh?.forward
+    return {
+      name: nameOf(el),
+      kind: el.tagName.toLowerCase().replace(/^tosi-b3d-/, ''),
+      at: world(p),
+      ...(fwd ? { heading: r2(headingDeg(fwd)) } : {}),
+      ...(el === focusedEl ? { focused: true } : {}),
+    }
+  }
+  const you = focusedEl ? read(focusedEl) : null
+  const origin = you
+    ? { x: you.at[0], y: you.at[1], z: you.at[2], heading: you.heading }
+    : camera
+    ? {
+        x: camera.at[0],
+        y: camera.at[1],
+        z: camera.at[2],
+        heading: camera.heading,
+      }
+    : null
+  const entities: AgentEntity[] = []
+  for (const el of Array.from(host.querySelectorAll('*'))) {
+    if (!el.tagName.toLowerCase().startsWith('tosi-b3d-')) continue
+    if (nameOf(el) === '') continue
+    const e = read(el)
+    if (e == null) continue
+    if (origin != null) {
+      const at = { x: e.at[0], y: e.at[1], z: e.at[2] }
+      const d = Math.hypot(at.x - origin.x, at.y - origin.y, at.z - origin.z)
+      e.distance = r2(d)
+      e.near = proximityRung(d)
+      if (origin.heading !== undefined && el !== focusedEl)
+        e.bearing = r2(bearingDeg(origin, origin.heading, at))
+    }
+    entities.push(e)
+    if (entities.length >= 200) break
+  }
+  entities.sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0))
+  return { you, camera, entities }
+}
+
+/** The scene's own tools: what is in it, its picture, its named places. */
+export function sceneTools(host: SceneAgentHost): B3dAgentTool[] {
+  return [
+    {
+      name: 'scene',
+      description:
+        'What is in the scene: you (the controllable in focus) and the camera, the time of day and daylight, the weather where the camera is, and every named thing with its kind, position (world metres, y up), heading (degrees, 0 faces +z, 90 faces +x), distance from you and bearing (degrees to turn: negative left).',
+      inputSchema: { type: 'object', properties: {} },
+      execute: () => {
+        const { you, camera, entities } = sceneEntities(host)
+        const sky = host.querySelector('tosi-b3d-skybox') as {
+          timeOfDay?: number
+          daylight?: number
+        } | null
+        return rounded({
+          you,
+          camera,
+          ...(sky
+            ? { time: { timeOfDay: sky.timeOfDay, daylight: sky.daylight } }
+            : {}),
+          ...(host.weatherHere ? { weather: host.weatherHere() } : {}),
+          entities,
+        })
+      },
+    },
+    {
+      name: 'places',
+      description:
+        'Named places to go to, nearest first: named beacons and named things (not you), with distance, a proximity word and bearing (degrees to turn: negative left).',
+      inputSchema: { type: 'object', properties: {} },
+      execute: () =>
+        sceneEntities(host)
+          .entities.filter((e) => !e.focused)
+          .map(({ name, kind, distance, near, bearing, at }) => ({
+            name,
+            kind,
+            distance,
+            near,
+            bearing,
+            at,
+          })),
+    },
+    {
+      name: 'snapshot',
+      description:
+        'A picture of what the camera sees now, as a PNG data URL (the system bar and any panel open in the scene included).',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          width: { type: 'number', description: 'Pixels across (default 512)' },
+        },
+      },
+      execute: async (input) => {
+        if (host.snapshot == null)
+          return { error: 'this scene cannot snapshot' }
+        const width =
+          typeof input.width === 'number' && input.width > 16
+            ? Math.min(2048, Math.round(input.width))
+            : 512
+        const canvas = (
+          host as {
+            engine?: { getRenderingCanvas?: () => HTMLCanvasElement | null }
+          }
+        ).engine?.getRenderingCanvas?.()
+        const aspect =
+          canvas && canvas.width > 0 ? canvas.height / canvas.width : 9 / 16
+        const height = Math.round(width * aspect)
+        return { image: await host.snapshot({ width, height }), width, height }
+      },
+    },
+  ]
+}
+
+// ---- the controller ---------------------------------------------------------
+
+/** What the control tools drive: the controllable in focus. */
+interface Drivable extends Element {
+  agentDriver: AgentDriver | null
+  agentPose(): DriverPose | null
+  speed?: number
+}
+
+function drivable(host: SceneAgentHost): Drivable | { error: string } {
+  const f = (
+    host.querySelector('tosi-b3d-input-focus') as { focused?: unknown } | null
+  )?.focused as Partial<Drivable> | null | undefined
+  if (f == null || typeof f.agentPose !== 'function')
+    return { error: 'nothing in this scene is under control (no input focus)' }
+  return f as Drivable
+}
+
+const waitFor = async (d: AgentDriver, seconds: number): Promise<void> => {
+  // Real time: an agent waits as a person would, paused world or not.
+  let left = Math.min(120, Math.max(0, seconds)) * 1000
+  while (d.running && left > 0) {
+    await new Promise((r) => setTimeout(r, 100))
+    left -= 100
+  }
+}
+
+const waitInput = {
+  wait: {
+    type: 'number',
+    description:
+      'Seconds to wait for it to finish before answering (default 0: answer at once; at most 120)',
+  },
+}
+
+/** Drive the controllable in focus with its own controls: hold, go, status, stop. */
+export function controlTools(host: SceneAgentHost): B3dAgentTool[] {
+  const start = (
+    run: (d: AgentDriver, who: Drivable) => { error: string } | void
+  ) => {
+    const who = drivable(host)
+    if ('error' in who) return who
+    const d = (who.agentDriver ??= new AgentDriver())
+    const refused = run(d, who)
+    if (refused) return refused
+    host.takeInputFocus?.()
+    return { who: who.id || who.tagName.toLowerCase(), d }
+  }
+  const answer = async (
+    r: ReturnType<typeof start>,
+    wait: unknown
+  ): Promise<unknown> => {
+    if ('error' in r) return r
+    if (typeof wait === 'number' && wait > 0) await waitFor(r.d, wait)
+    return { driving: r.who, ...r.d.status }
+  }
+  return [
+    {
+      name: 'control_hold',
+      description:
+        "Hold controls on the thing in focus for a time, as a player would: forward (-1..1: on a vehicle, throttle; negative brakes then reverses), turn (-1..1, + right), jump (a vehicle's handbrake), lookX, lookY, sprint, shoot… The player's own input cancels it.",
+      write: true,
+      inputSchema: {
+        type: 'object',
+        properties: {
+          input: {
+            type: 'object',
+            description:
+              'Control names and values, e.g. { "forward": 1, "turn": -0.3 }',
+          },
+          seconds: { type: 'number', description: 'How long (world time)' },
+          ...waitInput,
+        },
+        required: ['input', 'seconds'],
+      },
+      execute: (input) => {
+        const raw = input.input as Record<string, unknown> | undefined
+        const held: Record<string, number> = {}
+        for (const [k, v] of Object.entries(raw ?? {}))
+          if (typeof v === 'number' && Number.isFinite(v))
+            held[k] = Math.max(-1, Math.min(1, v))
+        const seconds = Number(input.seconds)
+        return answer(
+          start((d) => {
+            if (!(seconds > 0)) return { error: 'seconds: a time above 0' }
+            d.holdInput(held, seconds)
+          }),
+          input.wait
+        )
+      },
+    },
+    {
+      name: 'control_go',
+      description:
+        "Drive the vehicle in focus to a named place (see places) or a point (x, z in world metres): it steers with its own controls in a straight line and stops there, reporting arrived, or stuck if something is in the way. The player's own input cancels it. Ground vehicles only, so far.",
+      write: true,
+      inputSchema: {
+        type: 'object',
+        properties: {
+          place: { type: 'string', description: 'A name from places' },
+          x: { type: 'number' },
+          z: { type: 'number' },
+          speed: { type: 'number', description: 'Top speed, m/s (default 10)' },
+          arrive: {
+            type: 'number',
+            description: 'Close enough, metres (default 4)',
+          },
+          ...waitInput,
+        },
+      },
+      execute: (input) => {
+        let target: { x: number; z: number } | null = null
+        let place: string | undefined
+        if (typeof input.place === 'string' && input.place !== '') {
+          const want = input.place.toLowerCase()
+          const all = sceneEntities(host).entities.filter((e) => !e.focused)
+          const hits = all.filter((e) => e.name.toLowerCase() === want)
+          if (hits.length !== 1)
+            return {
+              error:
+                hits.length > 1
+                  ? `"${input.place}" names ${hits.length} places`
+                  : `no place "${input.place}". Places: ${
+                      all.map((e) => e.name).join(', ') || 'none'
+                    }`,
+            }
+          target = { x: hits[0].at[0], z: hits[0].at[2] }
+          place = hits[0].name
+        } else if (typeof input.x === 'number' && typeof input.z === 'number')
+          target = { x: input.x, z: input.z }
+        if (target == null) return { error: 'go: a place, or x and z' }
+        const to = target
+        return answer(
+          start((d, who) => {
+            if (typeof who.speed !== 'number')
+              return {
+                error: `go drives ground vehicles so far; ${who.tagName.toLowerCase()} can take control_hold`,
+              }
+            d.go(to, {
+              place,
+              ...(typeof input.speed === 'number'
+                ? { speed: input.speed }
+                : {}),
+              ...(typeof input.arrive === 'number'
+                ? { arrive: input.arrive }
+                : {}),
+            })
+          }),
+          input.wait
+        )
+      },
+    },
+    {
+      name: 'control_status',
+      description:
+        "What the agent's command is doing: running, arrived, done, stuck or cancelled (with why), distance left and time taken. With wait, waits for it to finish first.",
+      inputSchema: { type: 'object', properties: { ...waitInput } },
+      execute: async (input) => {
+        const who = drivable(host)
+        if ('error' in who) return who
+        const d = who.agentDriver
+        if (d == null) return { state: 'idle' }
+        if (typeof input.wait === 'number') await waitFor(d, input.wait)
+        return { driving: who.id || who.tagName.toLowerCase(), ...d.status }
+      },
+    },
+    {
+      name: 'control_stop',
+      description:
+        "Stop the agent's command; the controls go back to the player.",
+      write: true,
+      inputSchema: { type: 'object', properties: {} },
+      execute: () => {
+        const who = drivable(host)
+        if ('error' in who) return who
+        who.agentDriver?.stop('stopped by the agent')
+        return who.agentDriver?.status ?? { state: 'idle' }
+      },
+    },
+  ]
 }
 
 const controlInput = {

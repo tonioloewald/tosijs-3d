@@ -342,8 +342,11 @@ import {
 } from './widgets3d.js'
 import { handlerOf } from './handler-of.js'
 import {
+  controlTools,
   panelTools,
+  sceneTools,
   registerAgentScene,
+  type SceneAgentHost,
   type AgentExposure,
   type B3dAgentTool,
 } from './b3d-agent.js'
@@ -2398,6 +2401,14 @@ export class B3d extends Component {
   //    entity must NOT also registerWorldRoot (that would shift its node twice).
   private _worldRoots = new Set<BABYLON.TransformNode>()
   private _originShiftListeners: Array<(dx: number, dz: number) => void> = []
+  private _originOffset = { x: 0, z: 0 }
+  /**
+   * How far the floating origin has moved in all: a scene point plus this is
+   * where it is in the world, which a rebase does not change.
+   */
+  get originOffset(): { x: number; z: number } {
+    return { ...this._originOffset }
+  }
 
   // Everything detectable on radar this scene (targets, the player's own missiles,
   // waypoints). A radar platform — the aircraft HUD — enumerates these each frame.
@@ -2492,6 +2503,8 @@ export class B3d extends Component {
    */
   shiftOrigin(dx: number, dz: number): void {
     if (dx === 0 && dz === 0) return
+    this._originOffset.x += dx
+    this._originOffset.z += dz
     const shifted = new Set<any>()
     const move = (node: any) => {
       if (node == null || shifted.has(node)) return
@@ -7621,7 +7634,8 @@ export class B3d extends Component {
     return this.agent ?? ''
   }
   agentTools(): B3dAgentTool[] {
-    return panelTools(this)
+    const host = this as unknown as SceneAgentHost
+    return [...sceneTools(host), ...controlTools(host), ...panelTools(this)]
   }
   agentPanelOpen(): boolean {
     return this._livePanel() != null
@@ -8340,6 +8354,7 @@ export class B3d extends Component {
     this._disposeAgentRows()
     this._agentOff?.()
     this._agentOff = null
+    this._originOffset = { x: 0, z: 0 }
     this._errorCaptureOff?.()
     this._errorCaptureOff = null
     window.removeEventListener('pointerup', this._freeTouchSlot, true)

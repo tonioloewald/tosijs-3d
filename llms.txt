@@ -153,6 +153,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   takes the depth and the distance to land from the terrain and draws surf that
 - https://3d.tosijs.net/acknowledgements/ — Acknowledgements
   tosijs-3d stands on other people's work: models, maps, measurements, icons,
+- https://3d.tosijs.net/agent-driver/ — agent driver
+  `AgentDriver` turns a command into `ControlInput` each frame, which the
 - https://3d.tosijs.net/b3d-agent/ — agents
   prefix, `b3d_<scene>_…`: its settings panel as named controls an agent reads,
 - https://3d.tosijs.net/aim/ — aim

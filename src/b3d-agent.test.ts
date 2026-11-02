@@ -7,6 +7,7 @@ import {
   panelTools,
   registerAgentScene,
   sceneAgentTools,
+  sceneTools,
   syncAgents,
   toolSafe,
   type AgentExposure,
@@ -207,5 +208,62 @@ describe('WebMCP', () => {
     } finally {
       delete (globalThis as any).document.modelContext
     }
+  })
+})
+
+describe('the scene tools', () => {
+  const posed = (x: number, z: number, fx = 0, fz = 1) => ({
+    getAbsolutePosition: () => ({ x, y: 0, z }),
+    forward: { x: fx, y: 0, z: fz },
+  })
+  function sceneHost() {
+    const root = document.createElement('div')
+    const add = (
+      tag: string,
+      attrs: Record<string, string>,
+      mesh?: unknown
+    ) => {
+      const el = document.createElement(tag) as any
+      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v)
+      if (mesh) el.mesh = mesh
+      root.appendChild(el)
+      return el
+    }
+    const car = add('tosi-b3d-car', { id: 'car' }, posed(0, 0))
+    add('tosi-b3d-beacon', { name: 'harbour' }, posed(10, 10))
+    add('tosi-b3d-beacon', { name: 'gate' }, posed(-3, 0))
+    add('tosi-b3d-biped', {}, posed(1, 1)) // unnamed: not listed
+    add('tosi-b3d-skybox', { id: 'sky' }) // no mesh: not listed
+    const focus = add('tosi-b3d-input-focus', {})
+    Object.defineProperty(focus, 'focused', { value: car })
+    const host = {
+      querySelector: (s: string) => root.querySelector(s),
+      querySelectorAll: (s: string) => root.querySelectorAll(s),
+      originOffset: { x: 100, z: 0 },
+      scene: { activeCamera: null },
+    }
+    return host
+  }
+
+  test('named things, nearest first, in world metres, with bearing', () => {
+    const tools = sceneTools(sceneHost())
+    const places = tools.find((t) => t.name === 'places')!.execute({}) as any[]
+    expect(places.map((p) => p.name)).toEqual(['gate', 'harbour'])
+    expect(places[0]).toMatchObject({
+      kind: 'beacon',
+      at: [97, 0, 0],
+      distance: 3,
+      near: 'obvious',
+      bearing: -90,
+    })
+    expect(places[1].bearing).toBe(45)
+    expect(places[1].near).toBe('noticeable')
+    const scene = tools.find((t) => t.name === 'scene')!.execute({}) as any
+    expect(scene.you).toMatchObject({ name: 'car', kind: 'car', focused: true })
+    expect(scene.entities.map((e: any) => e.name)).toEqual([
+      'car',
+      'gate',
+      'harbour',
+    ])
   })
 })

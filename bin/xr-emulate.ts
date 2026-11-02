@@ -11,7 +11,9 @@ two controllers can be posed and their triggers pulled from script.
 
   <path>     page on the dev server, e.g. /b3d-ssao/  (or a full URL)
   --pre      JS evaluated BEFORE entering VR (set attributes, open things)
-  --script   JS evaluated AFTER entering VR; its value is printed as JSON
+  --script   JS evaluated AFTER entering VR (with --flat, after the page
+             loads); its value is printed as JSON, and if it throws the
+             run exits non-zero
   --flat     do not enter VR at all (a flat capture with the same plumbing)
   --cpu N    slow the page's CPU N times while the scripts run (a headset is
              several times slower than a laptop: timing bugs show here)
@@ -77,6 +79,9 @@ const read = async (f?: string): Promise<string | undefined> =>
   f == null ? undefined : await Bun.file(f).text()
 const pre = await read(flag('pre'))
 const script = await read(flag('script'))
+/** Did the last evaluation throw, and did the --script? */
+let lastThrew = false
+let scriptFailed = false
 mkdirSync(outDir, { recursive: true })
 
 const iwer = await Bun.file(
@@ -268,11 +273,9 @@ try {
       returnByValue: true,
       awaitPromise: true,
     })
-    return (
-      r.result?.result?.value ??
-      r.result?.exceptionDetails?.exception?.description ??
-      null
-    )
+    const thrown = r.result?.exceptionDetails?.exception?.description
+    lastThrew = thrown != null
+    return thrown ?? r.result?.result?.value ?? null
   }
   // What the page is holding, after a collection: a leak that is not JS heap
   // (an SVG image is a whole document) shows up here and nowhere in the page.
@@ -319,6 +322,13 @@ try {
   await Bun.sleep(1500)
   await shot('flat')
 
+  if (has('flat') && script != null) {
+    console.log('script:', JSON.stringify(await evaluate(script), null, 1))
+    scriptFailed = lastThrew
+    await Bun.sleep(500)
+    await shot('after')
+  }
+
   if (!has('flat')) {
     const f0 = await evaluate('__xrTest.frames()')
     console.log('entered:', await evaluate('__xrTest.enter()'))
@@ -330,8 +340,10 @@ try {
       `frames: ${f0} → ${f1} → ${f2}${f2 === f1 ? '  ⚠️ NOT ADVANCING' : ''}`
     )
     const before = has('counters') ? await counters() : null
-    if (script != null)
+    if (script != null) {
       console.log('script:', JSON.stringify(await evaluate(script)))
+      scriptFailed = lastThrew
+    }
     if (before != null) {
       console.log('counters before:', JSON.stringify(before))
       console.log('counters after: ', JSON.stringify(await counters()))
@@ -349,6 +361,7 @@ try {
   }
 
   console.log('exceptions:', exceptions.length, exceptions.slice(0, 4))
+  if (scriptFailed) process.exitCode = 1
   if (warnings.size) console.log('warnings:', [...warnings].slice(0, 8))
 } finally {
   clearTimeout(watchdog)

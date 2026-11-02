@@ -1,6 +1,7 @@
 # WEBMCP-DESIGN — scenes, panels and the controller as agent tools
 
-> Status: **accepted, being built** (#3699). Written 2026-11-02 after a survey
+> Status: **accepted, being built** (#3699). Steps 1 to 6 are done (bipeds'
+> go-to is not); the ARIA mirror and the doc page remain. Written 2026-11-02 after a survey
 > of tosijs 1.10.10's agent layer and of what tosijs-3d has; Tonio's answers
 > are under Decisions at the end.
 
@@ -156,8 +157,8 @@ the 3D tools with no extra step; one who has not, gets nothing.
 4. **Scene tools** and named places (beacons, entities).
 5. **The controller**: hold, then go-to for ground vehicles, then bipeds.
 6. **Done-when**: a headless test opens City Drive and, with only the tools,
-   reads the scene, flips the panel's night toggle and drives to a named
-   place (a beacon the demo puts down).
+   reads the scene, sets the panel's time of day to night and drives to a
+   named place (a beacon the demo puts down). `bun run agent-check`.
 7. **The ARIA mirror** for flat panels, with a screen-reader pass.
 8. A doc page ("Agents and accessibility") and the attribute on `<tosi-b3d>`.
 

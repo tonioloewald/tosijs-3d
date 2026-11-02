@@ -46,6 +46,12 @@ import { emptyInput } from './control-input.js'
 import type { ControlInput, InputProvider } from './control-input.js'
 import type { InputMapping } from './virtual-gamepad.js'
 import { realNow } from './clock.js'
+import {
+  headingDeg,
+  isDeliberate,
+  type AgentDriver,
+  type DriverPose,
+} from './agent-driver.js'
 
 type FocusManager = {
   adoptIfVacant?: (e: B3dControllable) => void
@@ -58,6 +64,28 @@ export class B3dControllable extends AbstractMesh {
   inputMapping?: InputMapping
   /** Last polled input — read by the XR rig for camera zoom/peek intent. */
   lastInput: ControlInput | null = null
+  /**
+   * An agent's command (see [agents](/b3d-agent/)): while it runs, its input
+   * replaces the player's, and the player's own deliberate input cancels it.
+   * Made on the first command, so a scene no agent touches carries none.
+   */
+  agentDriver: AgentDriver | null = null
+
+  /** Where this is for the agent driver: world metres (floating origin added back), heading in degrees, speed along the nose. */
+  agentPose(): DriverPose | null {
+    const m = this.mesh
+    if (m == null) return null
+    const p = m.getAbsolutePosition()
+    const f = m.forward
+    const off = (
+      this.owner as { originOffset?: { x: number; z: number } } | null
+    )?.originOffset ?? { x: 0, z: 0 }
+    const own = (this as { speed?: unknown }).speed
+    const v = this.getWorldVelocity()
+    const speed =
+      typeof own === 'number' ? own : v != null ? v.x * f.x + v.z * f.z : 0
+    return { x: p.x + off.x, z: p.z + off.z, heading: headingDeg(f), speed }
+  }
   protected lastUpdate = 0
 
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
@@ -209,7 +237,7 @@ export class B3dControllable extends AbstractMesh {
       return
     }
 
-    if (this.inputProvider == null) return
+    if (this.inputProvider == null && !this.agentDriver?.running) return
     // Scene input focus: when a page hosts multiple demos, only the active (last
     // hovered/clicked) scene consumes the shared keyboard/gamepad — an unfocused
     // scene sees neutral input so it idles instead of being driven in the background.
@@ -221,8 +249,19 @@ export class B3dControllable extends AbstractMesh {
     */
     const live = controlsLive(this.owner as SimGateOwner | null)
     // Read either way, so nothing builds up while the controls are not live.
-    const reading = this.inputProvider.poll(dt)
-    const input = live ? reading : emptyInput()
+    const reading = this.inputProvider?.poll(dt) ?? emptyInput()
+    let input = live ? reading : emptyInput()
+    const agent = this.agentDriver
+    if (agent?.running) {
+      // The player's own hands win.
+      if (live && isDeliberate(reading))
+        agent.stop('the player took the controls')
+      else {
+        const pose = this.agentPose()
+        const want = pose != null ? agent.step(dt, pose) : null
+        if (want != null) input = { ...emptyInput(), ...want }
+      }
+    }
     this.lastInput = input
     this.applyInput(input, dt)
   }

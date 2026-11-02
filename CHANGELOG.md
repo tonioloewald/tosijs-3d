@@ -12,7 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-- **Scenes as agent tools** (`b3d-agent`): each `<tosi-b3d>` offers its settings panel as tools, `b3d_<scene>_panel` (the controls, named), `_panel_set` and `_panel_activate`, on WebMCP (`registerTool` only) and on `window.b3dAgent`. Closed by default: `enableSceneAgents({ expose: 'all' | 'read' })` opens the page, and a scene's new `agent` attribute (`read`, `on`, `off`) overrides it (#3699).
+- **Scenes as agent tools** (`b3d-agent`): each `<tosi-b3d>` offers tools on WebMCP (`registerTool` only) and on `window.b3dAgent`: `b3d_<scene>_scene` and `_places` (named things and beacons, in world metres, with distance and bearing), `_snapshot`, `_control_go` (drives the vehicle in focus to a named place with its own controls; the player's input cancels it), `_control_hold`, `_control_status`, `_control_stop`, and the settings panel (`_panel`, `_panel_set`, `_panel_activate`). Closed by default: `enableSceneAgents({ expose: 'all' | 'read' })` opens the page, and a scene's new `agent` attribute (`read`, `on`, `off`) overrides it. `b3d.originOffset` is how far the floating origin has moved (#3699).
+- **`bun run xr --flat --script`** now runs the script (it was ignored without VR), and a script that throws fails the run.
 - **`semantics()` on every panel widget** (`tosijs-3d/widget-semantics`): a control says what it is (role, name, value) and can be set or pressed through its own path, as a hand would. `panel.controls()` reads a panel as a tree of named controls, including an open popup's form; `findControl` and `nameProblems` (unnamed or duplicate controls) work on it. `inputField` and `vector3d` take a `name`; `tabs3d` a `name`. This is the base the WebMCP tools and the screen-reader mirror are built on (#3699).
 
 ## 0.12.2
