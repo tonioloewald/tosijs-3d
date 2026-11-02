@@ -259,6 +259,7 @@ b3d-city
   lampAngle  = 80  — A street light's cone, degrees; it reaches twice its height
   flicker  = 0.08  — The share of street lights that are failing and flicker
   parked  = 0.2  — The chance of a parked car on a stretch of road
+  chunk  = 0  — Cells a side of a chunk. Each chunk draws its own copies, so the ones out of view are skipped; smaller chunks cull more and cost more draws. `0` draws the whole city as one, the default: measured in City Drive, 16-cell chunks doubled the draws and saved 3% of the triangles (a building is cheap; the trees are not)
   traffic  = 24  — The car budget: this many cars drive round near you (they stop for yours, and are knocked about by it; lamps at night). Cars far away or out of view go, and come back out of view, driving toward you
   sound  = 'on'  — Positional sound: the nearest traffic's engines and horns (a driver you block honks), the hum of the nearest street lights, a sputter from the failing ones. `'off'` for silence
   x
@@ -390,6 +391,7 @@ b3d-decorator
   shadowBudget  = 600  — How many of the nearest copies cast, at most
   clump  = -1  — How strongly things gather: 0 = even spread, 1 = clumps only. `-1` leaves it to each rule (0.95 by default). Live
   clumpSize  = 0  — Metres across a clump and the gap beside it. `0` = auto, about two and a half times the average spacing, so tightening `radius` keeps the clumps. Live
+  variants  = 0  — Shapes kept per family (a tree species' variants, a rock kind's), each a draw of its own. `0` is auto, from the device tier: all on a desktop, 3 on the medium tier, 2 on the low tier (a Quest)
 
 ## b3d-destroyable — <tosi-b3d-destroyable>
 b3d-destroyable
@@ -981,6 +983,7 @@ b3d-skybox
   starfieldSharpness  = 3  — How sharp a decoded point is — higher is tighter. 3 tucks the gaussian tail in so a star reads as a point
   starfieldGain  = 0.9  — How bright the decoded stars are — the intensity cap on the whole point sky
   starfieldFloor  = 0.4  — The faint mass's brightness — most stars sit on it; `starfieldGain` only moves the bright few above it
+  lightPollution  = 0  — How lit the night sky is everywhere, 0…1 (0.3 a suburb). Lit places such as `<tosi-b3d-city>` add their own glow near them ([light pollution](/light-pollution/)): the faint stars wash out and a warm glow lies along the horizon
   starfieldTwinkle  = 0.35  — Scintillation strength. Scaled by the gas (none in vacuum), strongest at the horizon
   starfieldSizeScale  = 3  — How much bigger a full-size object (a distant galaxy) is than a star
   starfieldTilt  = '0,0,0'  — Degrees `rx,ry,rz` rotating the sampling direction — both cubes — where a galactic tilt belongs
@@ -1309,6 +1312,12 @@ b3d-weather-cell
   lifetime  = 0  — Seconds; grows, holds and dies over it (`0` = permanent). An ended cell does nothing and fires `ended`
   grow  = 0  — Seconds to GATHER from nothing to full (`0` = at once). Independent of `lifetime`, so a permanent storm can still build; with both, it gathers and then ends on its lifetime
 
+## character-core
+character core
+
+  rig-fit  = a skeleton fitted to any mesh from eight markers
+  rig-recipe  = a rig recipe as data
+
 ## city-layout
 city-layout
 
@@ -1340,8 +1349,8 @@ control-input
 
   forward  = -1..1  — Forward/backward movement
   strafe  = -1..1  — Left/right strafe
-  lookX  = -1..1  — Camera look. In a vehicle it swings the view and springs back on release; on foot it turns the body (X) and holds its pitch (Y)
-  lookY  = -1..1  — Camera look. In a vehicle it swings the view and springs back on release; on foot it turns the body (X) and holds its pitch (Y)
+  lookX  = -1..1  — Camera look. A ground vehicle's chase camera orbits (X, springing back) and moves along an arc to almost above (Y, held); an aircraft's swings the view and springs back on release; a tank aims its turret and gun with it; on foot it turns the body (X) and holds its pitch (Y)
+  lookY  = -1..1  — Camera look. A ground vehicle's chase camera orbits (X, springing back) and moves along an arc to almost above (Y, held); an aircraft's swings the view and springs back on release; a tank aims its turret and gun with it; on foot it turns the body (X) and holds its pitch (Y)
   turn  = -1..1  — Turning
   pitch  = -1..1  — Pitch (aircraft)
   throttle  = 0..1  — Continuous throttle
@@ -1352,6 +1361,7 @@ control-input
   aim  = 0..1  — Aim down sights
   weapon  = 0..1  — Raise/lower the weapon — edge-detected by consumers, so it TOGGLES
   cameraZoom  = -1..1  — Camera zoom
+  lookMode  = 0..1  — Toggle (edge-detected) what the look stick's up and down do: a tank's gun, or its camera
   sneak  = 0\  — 1
 
 ## game-controller — <tosi-game-controller>
@@ -1536,6 +1546,7 @@ b3d
   ssaoRate  = 30  — Projected only: redraws per second (`0` = every frame)
   xrRenderScale  = 0  — In a headset: the fraction of each eye's width and height drawn. `0` is auto (from the device tier: 0.67 on the low tier). Engine hardware scaling does not reach a headset; this does. Read on entering a session
   xrFoveation  = -1  — In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session
+  xrMultiview  = 'off'  — ⚠️ Experimental, not working: `'on'` asks for both eyes in one pass (WebXR layers). On a Quest 3 it gave a blank view, and water and sky do not handle multiview
   groundDetail  = 'auto'  — The ground shader's form: `full`, `lite` (three noise samples a pixel for eight, for a GPU that cannot afford the full one), or `auto` (from the device tier: lite on the low tier, and in a headset on the medium one)
   pixelRatio  = 0  — Device pixels per CSS pixel, flat. `0` is auto: the display's own ratio, capped by the device tier (high 2, medium 1.5, low 1). A positive value is an explicit cap and wins: `1` renders at CSS resolution, `2` full Retina, `0.75` below CSS for speed. Ignored in a headset
   stats  = false  — Add a Perf Stats section to the settings panel, flat and in a headset. `#perf` or `#debug` (or `?perf`, `?debug`) in the page URL, or calling `showB3dStats()`, shows it on every scene

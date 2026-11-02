@@ -176,7 +176,9 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/b3d-black-hole/ — b3d-black-hole
   Procedural black hole with accretion disk, gravitational lensing effect,
 - https://3d.tosijs.net/b3d-car/ — b3d-car
-  Vehicle controller with acceleration, braking, friction, and speed-dependent steering.
+  springs, leans in a turn, squats as it pulls away, holds on a hill, and slides
+- https://3d.tosijs.net/b3d-city/ — b3d-city
+  street lights, parked cars, [traffic](/city-traffic/) and
 - https://3d.tosijs.net/b3d-cloud-deck/ — b3d-cloud-deck
   bright fringes, driven by a field you can dial from clear to overcast and slide
 - https://3d.tosijs.net/b3d-clouds/ — b3d-clouds
@@ -257,6 +259,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Renders an individual star system with a procedural star and its planets.
 - https://3d.tosijs.net/b3d-svg-plane/ — b3d-svg-plane
   A plane mesh textured with SVG content. Supports static SVG from a URL or
+- https://3d.tosijs.net/b3d-tank/ — b3d-tank
+  at its own speed, so it steers by running one faster than the other and turns
 - https://3d.tosijs.net/b3d-terrain/ — b3d-terrain
   Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface.
 - https://3d.tosijs.net/b3d-trail/ — b3d-trail
@@ -297,12 +301,22 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   a character's SETTINGS (a body, a skin, hair, clothes, a face, a rig), and
 - https://3d.tosijs.net/character-builder/ — character builder
   creator (CHARACTER-DESIGN.md): MakeHuman's CC0 body
+- https://3d.tosijs.net/character-core/ — character core
+  make a character without Babylon or a DOM: they read MakeHuman's body, shape
+- https://3d.tosijs.net/character-settings/ — character settings
+  default (`DEFAULT_CHARACTER`), the slots it can wear (`CHARACTER_SLOTS`), the
 - https://3d.tosijs.net/character-file/ — character-file
   shape, skin, eyes, face, hair, clothes and their materials, the clip, the
 - https://3d.tosijs.net/character-store/ — character-store
   saves here (the figure you are working on, and named ones), and any page on
 - https://3d.tosijs.net/characters-and-vehicles/ — Characters and vehicles
   climbs; an [aircraft](/b3d-aircraft/) that hovers like a drone and flies like a
+- https://3d.tosijs.net/city-drive/ — City Drive
+  A city in a landscape. A seeded city of Kenney's kits stands on ground
+- https://3d.tosijs.net/city-layout/ — city-layout
+  between them, and the lots in each block that a building stands on. It knows
+- https://3d.tosijs.net/city-traffic/ — city-traffic
+  the `dt` you step it by), so the same seed drives the same way in a test, a
 - https://3d.tosijs.net/clock/ — clock
   the simulation: `sceneDelta(scene)` for a frame's step and `sceneSeconds(scene)`
 - https://3d.tosijs.net/cloth-shading/ — cloth-shading
@@ -329,6 +343,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   one element everything else lives inside. After that: a
 - https://3d.tosijs.net/cost-sweep/ — Cost sweep
   Where a frame goes, **measured on the device it runs on**. The sweep switches
+- https://3d.tosijs.net/cross-country/ — Cross Country
+  A small tank in open country: rolling hills, woods, lakes and the whole sky.
 - https://3d.tosijs.net/curve-field/ — Curve editor
   works as a flat DOM overlay, on an in-scene panel, and in a headset without
 - https://3d.tosijs.net/debug-sink/ — debug-sink
@@ -381,6 +397,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   chunk holds attribution (`asset.extras`) and, for libraries built by
 - https://3d.tosijs.net/gradient-filter/ — gradient-filter
   0..1 through a list of control points, with straight lines between them.
+- https://3d.tosijs.net/ground-vehicle/ — ground-vehicle
+  grip until they slide, tracks that steer by running one side faster than the
 - https://3d.tosijs.net/guidance/ — guidance
   round, one leads a gun, and both are used by [[b3d-launcher]] and
 - https://3d.tosijs.net/hair-fit/ — hair-fit
@@ -431,6 +449,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   the noise (levels curves), a landform *forces* a shape through it: a volcano
 - https://3d.tosijs.net/landform-schemas/ — landform schemas
   The options of each authored landform (`volcano`, `impactCrater`, `pad`,
+- https://3d.tosijs.net/light-pollution/ — light pollution
+  A lit town washes the stars out of its own sky. In the middle of a city at
 - https://3d.tosijs.net/curve-program/ — Light program editor
   several curves that share one pair of split markers.** One `Widget3d`, one
 - https://3d.tosijs.net/light-modulation/ — Light programs
@@ -477,6 +497,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   positions, normals and indices of one rock. The same seed always gives the same
 - https://3d.tosijs.net/province-climate/ — Province climate
   a curve over normalised distance from the province's centre. Pure: no DOM, no
+- https://3d.tosijs.net/proxy-cover/ — proxy-cover
+  exporter (or another engine) hides the skin exactly as the builder does.
 - https://3d.tosijs.net/proxy-fit/ — proxy-fit
   Clothes, hair and anything else made for a base body, fitted to every shape
 - https://3d.tosijs.net/proxy-rigid/ — proxy-rigid
@@ -588,6 +610,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   A small collection of **SVG-native** UI widgets with element-creator ergonomics
 - https://3d.tosijs.net/wind/ — wind
   Babylon — so the composition rule can be tested without a sky.
+- https://3d.tosijs.net/window-lights/ — window-lights
+  glass by its colour and lights some of the rooms behind it: warm lamplight
 - https://3d.tosijs.net/world-sim/ — World Sim
   resolves what physically happens; an outside driver (a story engine, a script,
 - https://3d.tosijs.net/world-contract/ — world-contract

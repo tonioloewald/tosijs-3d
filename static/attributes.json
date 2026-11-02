@@ -1057,6 +1057,11 @@
         "description": "The chance of a parked car on a stretch of road"
       },
       {
+        "name": "chunk",
+        "default": "0",
+        "description": "Cells a side of a chunk. Each chunk draws its own copies, so the ones out of view are skipped; smaller chunks cull more and cost more draws. `0` draws the whole city as one, the default: measured in City Drive, 16-cell chunks doubled the draws and saved 3% of the triangles (a building is cheap; the trees are not)"
+      },
+      {
         "name": "traffic",
         "default": "24",
         "description": "The car budget: this many cars drive round near you (they stop for yours, and are knocked about by it; lamps at night). Cars far away or out of view go, and come back out of view, driving toward you"
@@ -1596,6 +1601,11 @@
         "name": "clumpSize",
         "default": "0",
         "description": "Metres across a clump and the gap beside it. `0` = auto, about two and a half times the average spacing, so tightening `radius` keeps the clumps. Live"
+      },
+      {
+        "name": "variants",
+        "default": "0",
+        "description": "Shapes kept per family (a tree species' variants, a rock kind's), each a draw of its own. `0` is auto, from the device tier: all on a desktop, 3 on the medium tier, 2 on the low tier (a Quest)"
       }
     ]
   },
@@ -3992,6 +4002,11 @@
         "description": "The faint mass's brightness — most stars sit on it; `starfieldGain` only moves the bright few above it"
       },
       {
+        "name": "lightPollution",
+        "default": "0",
+        "description": "How lit the night sky is everywhere, 0…1 (0.3 a suburb). Lit places such as `<tosi-b3d-city>` add their own glow near them ([light pollution](/light-pollution/)): the faint stars wash out and a warm glow lies along the horizon"
+      },
+      {
         "name": "starfieldTwinkle",
         "default": "0.35",
         "description": "Scintillation strength. Scaled by the gas (none in vacuum), strongest at the horizon"
@@ -5356,6 +5371,20 @@
     ]
   },
   {
+    "module": "character-core",
+    "summary": "character core",
+    "attributes": [
+      {
+        "name": "rig-fit",
+        "default": "a skeleton fitted to any mesh from eight markers"
+      },
+      {
+        "name": "rig-recipe",
+        "default": "a rig recipe as data"
+      }
+    ]
+  },
+  {
     "module": "city-layout",
     "summary": "city-layout",
     "attributes": [
@@ -5467,12 +5496,12 @@
       {
         "name": "lookX",
         "default": "-1..1",
-        "description": "Camera look. In a vehicle it swings the view and springs back on release; on foot it turns the body (X) and holds its pitch (Y)"
+        "description": "Camera look. A ground vehicle's chase camera orbits (X, springing back) and moves along an arc to almost above (Y, held); an aircraft's swings the view and springs back on release; a tank aims its turret and gun with it; on foot it turns the body (X) and holds its pitch (Y)"
       },
       {
         "name": "lookY",
         "default": "-1..1",
-        "description": "Camera look. In a vehicle it swings the view and springs back on release; on foot it turns the body (X) and holds its pitch (Y)"
+        "description": "Camera look. A ground vehicle's chase camera orbits (X, springing back) and moves along an arc to almost above (Y, held); an aircraft's swings the view and springs back on release; a tank aims its turret and gun with it; on foot it turns the body (X) and holds its pitch (Y)"
       },
       {
         "name": "turn",
@@ -5523,6 +5552,11 @@
         "name": "cameraZoom",
         "default": "-1..1",
         "description": "Camera zoom"
+      },
+      {
+        "name": "lookMode",
+        "default": "0..1",
+        "description": "Toggle (edge-detected) what the look stick's up and down do: a tank's gun, or its camera"
       },
       {
         "name": "sneak",
@@ -6140,6 +6174,11 @@
         "name": "xrFoveation",
         "default": "-1",
         "description": "In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session"
+      },
+      {
+        "name": "xrMultiview",
+        "default": "'off'",
+        "description": "⚠️ Experimental, not working: `'on'` asks for both eyes in one pass (WebXR layers). On a Quest 3 it gave a blank view, and water and sky do not handle multiview"
       },
       {
         "name": "groundDetail",
