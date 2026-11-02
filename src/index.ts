@@ -1180,6 +1180,20 @@ export type {
   ControlNode,
   SemanticSource,
 } from './widget-semantics.js'
+// Scenes as agent tools (WebMCP and window.b3dAgent), closed by default.
+export {
+  enableSceneAgents,
+  callSceneTool,
+  sceneAgentTools,
+  panelTools,
+} from './b3d-agent.js'
+export type {
+  AgentExposure,
+  B3dAgentTool,
+  B3dAgentGlobal,
+  AgentSceneHost,
+  PanelAgentHost,
+} from './b3d-agent.js'
 export {
   panelFitWidth,
   panelFit,

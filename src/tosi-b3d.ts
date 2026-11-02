@@ -287,6 +287,7 @@ document.body.append(
 | `flatUi` | `'scene'` | Where the flat view's own controls are drawn. `'scene'`: in the scene (the system bar, settings panel and pause), the same UI a headset gets. `'dom'`: HTML corner buttons, settings panel and pause (where `::part(...)` styling of them shows). Any other value warns once and means `'scene'` |
 | `scenePanelOpen` | `false` | Start with the settings panel open instead of closed behind the owl |
 | `panelTitle` | `''` | The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row) |
+| `agent` | `''` | What an agent may do with this scene through its tools (`b3d_<scene>_…` on WebMCP and `window.b3dAgent`; see [agents](/b3d-agent/)). `''` follows the page (`enableSceneAgents`; closed by default), `'read'` offers the read tools, `'on'` everything, `'off'` nothing |
 | `panelSections` | `'fold'` | How collapsible sections in the settings panel present: `'fold'` (headers you open and close, one open at a time: opening one closes the others), `'folds'` (several may be open) or `'tabs'` (file tabs, one section at a time) |
 | `stats` | `false` | Add a Perf Stats section to the settings panel, flat and in a headset. `#perf` or `#debug` (or `?perf`, `?debug`) in the page URL, or calling `showB3dStats()`, shows it on every scene |
 | `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = the default layout (everything but the d-pad); a value like `"a,b,left_stick"` selects controls, and naming `view` or `menu` also puts them on the headset's system bar. A plain property, read once at setup |
@@ -340,6 +341,13 @@ import {
   type Widget3d,
 } from './widgets3d.js'
 import { handlerOf } from './handler-of.js'
+import {
+  panelTools,
+  registerAgentScene,
+  type AgentExposure,
+  type B3dAgentTool,
+} from './b3d-agent.js'
+import { controlTree, type ControlNode } from './widget-semantics.js'
 import { panelFitWidth } from './widgets3d-layout.js'
 import { w3dTheme } from './w3d-theme.js'
 import type { Medium } from './medium.js'
@@ -830,6 +838,10 @@ export class B3d extends Component {
     /** How collapsible sections present: 'fold' (headers you open and close,
      * one open at a time), 'folds' (several open) or 'tabs' (file tabs). */
     panelSections: 'fold' as 'fold' | 'folds' | 'tabs',
+    /** What an agent may do with this scene (see [agents](/b3d-agent/)):
+     * '' follows the page (`enableSceneAgents`, closed by default), 'read'
+     * offers the read tools, 'on' everything, 'off' nothing. */
+    agent: '' as '' | 'off' | 'read' | 'on',
     // Scale factor for the glass gamepad clusters. Touch-target pixel sizes vary
     // wildly across devices, so this is exposed for tuning per scene/device.
     gamepadScale: 1,
@@ -5333,6 +5345,8 @@ export class B3d extends Component {
       return
     }
     // Reconnected after teardown already ran, or connected for the first time.
+    // Joins the page's agent registry: a Set add, nothing runs until a call.
+    this._agentOff = registerAgentScene(this)
     // Input focus follows the pointer: hovering or pressing anywhere in this scene
     // (canvas OR the glass-gamepad / panel overlays, which are siblings of the canvas)
     // makes it the one shared keyboard/gamepad input drives — see hasInputFocus. Listen
@@ -7580,6 +7594,57 @@ export class B3d extends Component {
     }
   }
 
+  /*
+  AGENTS (#3699). The settings panel as named controls, for the tools in
+  `b3d-agent`. Open, it is the panel on screen (folded sections, open
+  popups); closed, its rows are built unfolded and kept until the next read,
+  so a set reaches the same widget that is then read back.
+  */
+  declare agent: '' | 'off' | 'read' | 'on'
+  private _agentOff: (() => void) | null = null
+  private _agentRows: Widget3d[] = []
+  private _disposeAgentRows(): void {
+    for (const w of this._agentRows) {
+      try {
+        w.dispose?.()
+      } catch {
+        // A consumer's dispose must not take the read with it.
+      }
+    }
+    this._agentRows = []
+  }
+  /** The name in this scene's tool names: its id, else its panel title. */
+  agentName(): string {
+    return this.id || (this as any).panelTitle || ''
+  }
+  agentExposure(): AgentExposure | '' {
+    return this.agent ?? ''
+  }
+  agentTools(): B3dAgentTool[] {
+    return panelTools(this)
+  }
+  agentPanelOpen(): boolean {
+    return this._livePanel() != null
+  }
+  agentControls(fresh = true): ControlNode[] {
+    const live = this._livePanel() as {
+      controls?: () => ControlNode[]
+    } | null
+    if (live?.controls != null) {
+      this._disposeAgentRows()
+      return live.controls()
+    }
+    if (fresh || this._agentRows.length === 0) {
+      this._disposeAgentRows()
+      const items = this._barItems()
+      this._agentRows = [
+        ...(items.length > 0 ? [iconBar3d({ items })] : []),
+        ...this.scenePanel(this),
+      ]
+    }
+    return controlTree(this._agentRows)
+  }
+
   /** Rebuild the flat scene panel from the current rows, if it's open.
    * Call after async state the panel reflects has changed (e.g. a library loaded,
    * or XR availability / session state) so an already-open panel updates. */
@@ -8272,6 +8337,9 @@ export class B3d extends Component {
     // rows outlive the session that built them otherwise.
     this._disposeWidgets('flat')
     this._disposeWidgets('xr')
+    this._disposeAgentRows()
+    this._agentOff?.()
+    this._agentOff = null
     this._errorCaptureOff?.()
     this._errorCaptureOff = null
     window.removeEventListener('pointerup', this._freeTouchSlot, true)

@@ -647,6 +647,8 @@ export const SCENE_OMITTED: Record<string, string[]> = {
     'panelSections',
     // The settings panel's name: the app's chrome, not the scene.
     'panelTitle',
+    // What an agent may do: the page's policy, not the scene.
+    'agent',
     'gamepadScale',
     'gamepadFade',
     'quality',
