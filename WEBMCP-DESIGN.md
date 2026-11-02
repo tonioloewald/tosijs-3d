@@ -1,7 +1,8 @@
 # WEBMCP-DESIGN — scenes, panels and the controller as agent tools
 
-> Status: **plan, for review** (#3699). Written 2026-11-02 after a survey of
-> tosijs 1.10.10's agent layer and of what tosijs-3d has. Nothing is built.
+> Status: **accepted, being built** (#3699). Written 2026-11-02 after a survey
+> of tosijs 1.10.10's agent layer and of what tosijs-3d has; Tonio's answers
+> are under Decisions at the end.
 
 **The goal.** An agent with only the page's WebMCP tools can read a demo's
 scene, change its settings panel, and drive the car in City Drive to a named
@@ -105,9 +106,8 @@ hand set, and the one-UI-two-presentations rule holds.
   reported in the scene's frame and say so).
 - `…_snapshot`: the image (`snapshot()`, a PNG), which a model can look at.
 - `…_places`: NAMED PLACES, for "go to". A place is anything named with a
-  position: a `<tosi-b3d-beacon name>`, a landmark a component names (the city
-  names its junctions and streets from its layout, e.g. "Harbour Road and 3rd"),
-  or a named entity.
+  position: a `<tosi-b3d-beacon name>` or a named entity. (A component could
+  later name its own places, a city its junctions; not in this card.)
 
 **Overlap with the world-sim contract.** `MinSimApi` is already the
 coordinate-free vocabulary for this (places, portals, proximity rungs,
@@ -153,24 +153,22 @@ the 3D tools with no extra step; one who has not, gets nothing.
    every demo's panel. Fix what it finds (likely: icon buttons without names).
 3. **The registry**, `window.b3dAgent`, and the panel tools. Check: a headless
    page sets a slider and presses a button on a demo's panel through them.
-4. **Scene tools** and named places (beacons, entities; the city names its
-   junctions).
+4. **Scene tools** and named places (beacons, entities).
 5. **The controller**: hold, then go-to for ground vehicles, then bipeds.
 6. **Done-when**: a headless test opens City Drive and, with only the tools,
    reads the scene, flips the panel's night toggle and drives to a named
-   junction.
+   place (a beacon the demo puts down).
 7. **The ARIA mirror** for flat panels, with a screen-reader pass.
 8. A doc page ("Agents and accessibility") and the attribute on `<tosi-b3d>`.
 
-## Open questions (Tonio)
+## Decisions (Tonio, 2026-11-02)
 
-1. **Posture**: follow tosijs's (above), or on by default for read tools?
-2. **Wait for tosijs's registry**, or ship with `registerTool`-only now and
-   move over when it lands?
-3. **The ARIA mirror**: in this card, or its own?
-4. **Place names in the city**: generated street names, or numbered
-   junctions?
-5. **Dramatis**: its creator is a DOM page on tosijs-ui; it gets tosijs's own
-   tools for its bound state, and ours for its 3D preview's panels. Is there
-   anything else it wants from this (an agent building a character by its
-   settings goes through tosijs, not us)?
+1. **Posture: follow tosijs's.** Safe by default (`closed`: no tools), and
+   easy to expose everything. Tonio: "I think this is the right posture."
+2. **Ship now with `registerTool` only**, and move to tosijs's registry when
+   it lands. The shared-registry ask is filed on tosijs.
+3. **The ARIA mirror is in this card** (step 7).
+4. **No city-specific place names in this card.** The question was what a
+   driver says "go to" with in City Drive; the answer is the general one, a
+   named beacon or entity. A city naming its own streets can come later.
+5. **Dramatis**: asked on the board what it wants; it can be added later.
