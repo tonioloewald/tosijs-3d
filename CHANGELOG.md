@@ -12,15 +12,14 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-- **`tosijs-3d/skinned-glb`**: a rigged, morphing body out as a GLB, engine-free (`writeSkinnedGlb`: one skeleton, skinned meshes, named morph targets, PBR materials with embedded images; clean under the Khronos validator). With `tosijs-3d/glb-chunks`, a GLB's chunks read and written and its accessors read back. Both are in the engine-free character core. Moved here from Dramatis.
+## 0.12.1
 
-## 0.12.0
-
-The latest release. Vehicles you drive (a car and a tank on one pure model, with a chase camera that works flat and in a headset), a procedural city to drive them in, City Drive and Cross Country, models no longer drawn mirrored, and the character core promised engine-free. ⚠️ Breaking: see [0.12.0](/v0.12.0/) and [Migration](/Migration/).
+The latest release. A rigged, morphing body written out as a GLB with no engine (`tosijs-3d/skinned-glb`, with `tosijs-3d/glb-chunks`), moved here from Dramatis. See [0.12.1](/v0.12.1/).
 
 ## Every version
 
 <!-- toc -->
+- [0.12.1](/v0.12.1/)
 - [0.12.0](/v0.12.0/)
 - [0.11.6](/v0.11.6/)
 - [0.11.5](/v0.11.5/)

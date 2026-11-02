@@ -1,4 +1,4 @@
-# tosijs-3d v0.12.0
+# tosijs-3d v0.12.1
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -81,6 +81,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   The character leaves the builder. Any body (MakeHuman's, Blender's, Quaternius', or a mesh of your own) is rigged, dr...
 - https://3d.tosijs.net/v0.12.0/ — 0.12.0
   tracked vehicles (no physics engine), `<tosi-b3d-car>` rebuilt on it and a new
+- https://3d.tosijs.net/v0.12.1/ — 0.12.1
+  A rigged, morphing body written out as a GLB, with no engine: the skinned GLB writer, moved here from Dramatis so oth...
 - https://3d.tosijs.net/v0.5.0/ — 0.5.0
   `@babylonjs/loaders`, `@babylonjs/materials` moved `^8` → `^9`. **Consumers must
 - https://3d.tosijs.net/v0.5.1/ — 0.5.1
@@ -395,6 +397,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Babylon (`^9`) and `tosijs` (`^1.9.2`) are peer dependencies: you install them,
 - https://3d.tosijs.net/glass-gamepad/ — glass-gamepad (b3dGamepad)
   A **split** on-screen ("glass") gamepad for touch contexts, as a Component (so
+- https://3d.tosijs.net/glb-chunks/ — glb-chunks
+  GLB container module new readers and writers use (`skinned-glb`, and
 - https://3d.tosijs.net/glb-manifest/ — glb-manifest
   chunk holds attribution (`asset.extras`) and, for libraries built by
 - https://3d.tosijs.net/gradient-filter/ — gradient-filter
@@ -533,6 +537,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Skin that reads as skin without a subsurface pipeline: three cheap terms a
 - https://3d.tosijs.net/skin-tone/ — skin-tone
   A skin's colour from one dial, very fair (0) through to very dark (1), plus
+- https://3d.tosijs.net/skinned-glb/ — skinned-glb
+  skeleton, any number of meshes skinned to it (four influences a vertex), each
 - https://3d.tosijs.net/sky-and-light/ — Sky and light
   fills the shadows; [lamps](/b3d-lamp/) are lights you can see, with a fixture.
 - https://3d.tosijs.net/skybox-baker/ — Skybox Baker

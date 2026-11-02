@@ -16,24 +16,24 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="../doc-system.css?v=787031765adb" data-tosi-doc-system />
   <title>character core — tosijs-3d</title>
-  <meta name="description" content="The character creator&#39;s working parts, for any engine. Twenty modules make a character without Babylon or a DOM: they read MakeHuman&#39;s body, shape it, fit and…" />
+  <meta name="description" content="The character creator&#39;s working parts, for any engine. Twenty-two modules make a character without Babylon or a DOM: they read MakeHuman&#39;s body, shape it, fit…" />
   <link rel="canonical" href="https://3d.tosijs.net/character-core/" />
   <link rel="alternate" type="text/markdown" href="index.md" title="character core — tosijs-3d (markdown)" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
   <meta property="og:title" content="character core — tosijs-3d" />
-  <meta property="og:description" content="The character creator&#39;s working parts, for any engine. Twenty modules make a character without Babylon or a DOM: they read MakeHuman&#39;s body, shape it, fit and…" />
+  <meta property="og:description" content="The character creator&#39;s working parts, for any engine. Twenty-two modules make a character without Babylon or a DOM: they read MakeHuman&#39;s body, shape it, fit…" />
   <meta property="og:url" content="https://3d.tosijs.net/character-core/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"character core","description":"The character creator's working parts, for any engine. Twenty modules make a character without Babylon or a DOM: they read MakeHuman's body, shape it, fit and…","url":"https://3d.tosijs.net/character-core/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"character core","description":"The character creator's working parts, for any engine. Twenty-two modules make a character without Babylon or a DOM: they read MakeHuman's body, shape it, fit…","url":"https://3d.tosijs.net/character-core/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=fe743ba2186b" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=eab9c1a595b0" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="character-core.ts">
 <h1 id="character-core">character core</h1>
-<p><strong>The character creator&#39;s working parts, for any engine.</strong> Twenty modules
+<p><strong>The character creator&#39;s working parts, for any engine.</strong> Twenty-two modules
 make a character without Babylon or a DOM: they read MakeHuman&#39;s body, shape
 it, fit and bind a skeleton, retarget clips, fit hair and clothes, and save
 the result. Each is its own subpath, so a three.js app (or a server, or a
@@ -112,6 +112,10 @@ test) imports only what it uses and never pulls in Babylon:</p>
 <tr>
 <td><a href="/proxy-cover/"><code>proxy-cover</code></a></td>
 <td>the skin under what is worn, tucked in and hidden</td>
+</tr>
+<tr>
+<td><a href="/skinned-glb/"><code>skinned-glb</code></a>, <a href="/glb-chunks/"><code>glb-chunks</code></a></td>
+<td>a rigged, morphing body out as a GLB (validator-clean); GLB chunks read and written</td>
 </tr>
 <tr>
 <td><a href="/asset-url/"><code>asset-url</code></a></td>
@@ -275,6 +279,8 @@ it is a handle, never data.</p>
         <ul>
           <li><a class="doc-link" href="../character-settings/">character settings</a></li>
           <li><a class="doc-link" href="../proxy-cover/">proxy-cover</a></li>
+          <li><a class="doc-link" href="../skinned-glb/">skinned-glb</a></li>
+          <li><a class="doc-link" href="../glb-chunks/">glb-chunks</a></li>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../retarget/">retarget</a></li>
@@ -557,6 +563,7 @@ it is a handle, never data.</p>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details><summary><a class="doc-link" href="../CHANGELOG/">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.12.1/">0.12.1</a></li>
         <li><a class="doc-link" href="../v0.12.0/">0.12.0</a></li>
         <li><a class="doc-link" href="../v0.11.6/">0.11.6</a></li>
         <li><a class="doc-link" href="../v0.11.5/">0.11.5</a></li>

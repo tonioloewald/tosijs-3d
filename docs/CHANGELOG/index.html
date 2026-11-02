@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=fe743ba2186b" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=eab9c1a595b0" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="CHANGELOG.md">
 <h1 id="changelog">Changelog</h1>
 <!--{ "parent": "upgrading", "order": 20 }-->
@@ -43,11 +43,12 @@ versions may carry breaking peer-dependency changes. Each is called out in a
 <strong>⚠️ Breaking</strong> block on its version&#39;s page, with what a consumer must do.
 Upgrading across a minor? Start with <a href="/Migration/">Migration</a>.</p>
 <h2 id="unreleased">Unreleased</h2>
-<h2 id="0120">0.12.0</h2>
-<p>The latest release. Vehicles you drive (a car and a tank on one pure model, with a chase camera that works flat and in a headset), a procedural city to drive them in, City Drive and Cross Country, models no longer drawn mirrored, and the character core promised engine-free. ⚠️ Breaking: see <a href="/v0.12.0/">0.12.0</a> and <a href="/Migration/">Migration</a>.</p>
+<h2 id="0121">0.12.1</h2>
+<p>The latest release. A rigged, morphing body written out as a GLB with no engine (<code>tosijs-3d/skinned-glb</code>, with <code>tosijs-3d/glb-chunks</code>), moved here from Dramatis. See <a href="/v0.12.1/">0.12.1</a>.</p>
 <h2 id="every-version">Every version</h2>
 <!-- toc -->
 <ul>
+<li><a href="/v0.12.1/">0.12.1</a></li>
 <li><a href="/v0.12.0/">0.12.0</a></li>
 <li><a href="/v0.11.6/">0.11.6</a></li>
 <li><a href="/v0.11.5/">0.11.5</a></li>
@@ -261,6 +262,8 @@ Upgrading across a minor? Start with <a href="/Migration/">Migration</a>.</p>
         <ul>
           <li><a class="doc-link" href="../character-settings/">character settings</a></li>
           <li><a class="doc-link" href="../proxy-cover/">proxy-cover</a></li>
+          <li><a class="doc-link" href="../skinned-glb/">skinned-glb</a></li>
+          <li><a class="doc-link" href="../glb-chunks/">glb-chunks</a></li>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../retarget/">retarget</a></li>
@@ -543,6 +546,7 @@ Upgrading across a minor? Start with <a href="/Migration/">Migration</a>.</p>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li><details open><summary><a class="doc-link current" href="../CHANGELOG/" aria-current="page">Changelog</a></summary>
       <ul>
+        <li><a class="doc-link" href="../v0.12.1/">0.12.1</a></li>
         <li><a class="doc-link" href="../v0.12.0/">0.12.0</a></li>
         <li><a class="doc-link" href="../v0.11.6/">0.11.6</a></li>
         <li><a class="doc-link" href="../v0.11.5/">0.11.5</a></li>
