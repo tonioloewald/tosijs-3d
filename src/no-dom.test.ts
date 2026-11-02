@@ -64,6 +64,8 @@ const PURE = [
   'hair-place',
   'mesh-sdf',
   'fit-extremes',
+  'skin-paint',
+  'cloth-bake',
 ]
 
 describe('declared-pure modules import with no DOM', () => {

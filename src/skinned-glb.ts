@@ -57,6 +57,12 @@ export interface GlbPrimitive {
   normals: Float32Array
   /** glTF's convention (v down from the top of the image), or omitted. */
   uvs?: Float32Array | null
+  /**
+   * Vertex colours (linear, RGB or RGBA per vertex) written as `COLOR_0`,
+   * which glTF multiplies into the base colour: how a skin's lips and stubble
+   * travel with no texture (see skin-paint). Or omitted.
+   */
+  colors?: Float32Array | null
   /** Four joint indices (into `joints`) per vertex. */
   joints: ArrayLike<number>
   /** Four weights per vertex. */
@@ -299,6 +305,22 @@ export function writeSkinnedGlb(g: SkinnedGlb): Uint8Array {
           componentType: FLOAT,
           count,
           type: 'VEC2',
+        })
+      }
+      if (p.colors != null) {
+        const size = p.colors.length / count
+        if (size !== 3 && size !== 4)
+          throw new Error(
+            `skinned-glb: ${mesh.name}: colors are not RGB or RGBA per vertex`
+          )
+        attributes.COLOR_0 = accessor({
+          bufferView: bin.add(
+            asBytes(Float32Array.from(p.colors)),
+            ARRAY_BUFFER
+          ),
+          componentType: FLOAT,
+          count,
+          type: size === 3 ? 'VEC3' : 'VEC4',
         })
       }
       const inf = normaliseInfluences(p.joints, p.weights)

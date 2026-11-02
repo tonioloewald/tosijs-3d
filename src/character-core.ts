@@ -1,7 +1,7 @@
 /*#
 # character core
 
-**The character creator's working parts, for any engine.** Twenty-seven modules
+**The character creator's working parts, for any engine.** Twenty-nine modules
 make a character without Babylon or a DOM: they read MakeHuman's body, shape
 it, fit and bind a skeleton, retarget clips, fit hair and clothes, and save
 the result. Each is its own subpath, so a three.js app (or a server, or a
@@ -28,6 +28,8 @@ import { humanBodyMaker } from 'tosijs-3d/human-rig'
 | [`hair-fit`](/hair-fit/) | a hairstyle warped onto a head |
 | [`garment-cut`](/garment-cut/), [`uv-unwrap`](/uv-unwrap/), [`garment-file`](/garment-file/) | the tailor: garments cut from a body, unwrapped, saved as GLB or OBJ |
 | [`skin-tone`](/skin-tone/) | skin colour from one dial |
+| [`skin-paint`](/skin-paint/) | the lips and stubble over the skin, as vertex colours (glTF's `COLOR_0`) |
+| [`cloth-bake`](/cloth-bake/) | a recoloured garment's texture, baked to a picture |
 | [`eye-art`](/eye-art/) | Tonio's eye art with its iris recoloured, and UVs that map both eyes onto it |
 | `png` | PNG read and written, byte for byte, with no canvas |
 | [`character-file`](/character-file/) | a character as one versioned JSON document |

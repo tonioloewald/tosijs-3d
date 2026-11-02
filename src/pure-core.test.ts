@@ -48,9 +48,11 @@ export const CHARACTER_CORE = [
   'hair-place',
   'mesh-sdf',
   'fit-extremes',
+  'skin-paint',
+  'cloth-bake',
 ]
 
-/** The engine-free modules behind `fit-extremes`, promised with it but not listed on the page. */
+/** Engine-free modules the core reaches that are not character modules (the sweep's parts, the clock, colours): promised with it, not listed on the page. */
 const EXTREMES_PARTS = [
   'extremes-corners',
   'extremes-penetration',
@@ -59,6 +61,7 @@ const EXTREMES_PARTS = [
   'extremes-report',
   'extremes-sheet',
   'clock',
+  'color',
 ]
 
 /** Every import or re-export specifier in a source file, comments stripped (doc examples import the barrel). */

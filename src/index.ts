@@ -2051,12 +2051,9 @@ export {
   ancestryCorners,
 } from './human-morph.js'
 export type { MacroBody } from './human-morph.js'
-export {
-  humanBody,
-  skinMaterial,
-  lipTint,
-  stubbleTint,
-} from './character-builder.js'
+export { humanBody, skinMaterial } from './character-builder.js'
+export { lipTint, stubbleTint, stubbleMask } from './skin-paint.js'
+export { recolourCloth, clothSheenColour, textureMean } from './cloth-bake.js'
 export { skinShading, skinThinness, SkinShadingPlugin } from './skin-shading.js'
 export type { SkinShadingOptions } from './skin-shading.js'
 export {

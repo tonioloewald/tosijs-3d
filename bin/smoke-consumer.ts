@@ -80,6 +80,8 @@ const PURE = [
   'hair-place',
   'mesh-sdf',
   'fit-extremes',
+  'skin-paint',
+  'cloth-bake',
 ]
 
 try {

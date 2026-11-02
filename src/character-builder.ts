@@ -941,9 +941,8 @@ body's triangles.
 
 import * as BABYLON from '@babylonjs/core'
 import type { HumanPack } from './human-pack.js'
-import { lipAlbedo, skinAlbedo } from './skin-tone.js'
+import { skinAlbedo } from './skin-tone.js'
 import { skinShading, type SkinShadingPlugin } from './skin-shading.js'
-import type { HumanSkin } from './human-rig.js'
 
 export interface HumanBody {
   /** Move, turn and scale the body by this. */
@@ -1058,75 +1057,4 @@ export function skinMaterial(
   return m
 }
 
-/**
- * Per-vertex colours (RGBA, the skin's vertices) that turn a skin material's
- * colour into the lips' where `lips` (a pack region, every vertex) says so.
- * They multiply the material's albedo, so they are the ratio lip / skin.
- * Their alpha carries `thin` (per skin vertex, from `skinThinness`), which
- * skin-shading's back-light reads; without it, alpha is 0 (nothing glows).
- */
-export function lipTint(
-  skin: HumanSkin,
-  lips: Float32Array,
-  tone: number,
-  redness = 0.5,
-  into?: Float32Array,
-  thin?: ArrayLike<number>
-): Float32Array {
-  const s = skinAlbedo(tone, redness)
-  const l = lipAlbedo(tone, redness)
-  const ratio = [l.r / s.r, l.g / s.g, l.b / s.b]
-  const out = into ?? new Float32Array(skin.vertices.length * 4)
-  skin.vertices.forEach((v, i) => {
-    // The mask is how far the lip targets move a vertex, so the lips' own
-    // edges are faint in it: anything past half is all lip.
-    const m = Math.min(1, Math.max(0, (lips[v] - 0.05) / 0.45))
-    const t = m * m * (3 - 2 * m)
-    out[i * 4] = 1 + (ratio[0] - 1) * t
-    out[i * 4 + 1] = 1 + (ratio[1] - 1) * t
-    out[i * 4 + 2] = 1 + (ratio[2] - 1) * t
-    out[i * 4 + 3] = thin ? thin[i] : 0
-  })
-  return out
-}
-
-/**
- * Stubble: multiply `colours` (RGBA per skin vertex, from `lipTint`) toward
- * a hair colour where `mask` (0..1 per skin vertex) says the beard grows,
- * by `amount` (0 clean-shaven, 1 a few days' growth). `skinRgb` and `hairRgb`
- * are linear; the result stays a ratio over the skin's own colour.
- */
-export function stubbleTint(
-  colours: Float32Array,
-  mask: ArrayLike<number>,
-  amount: number,
-  skinRgb: { r: number; g: number; b: number },
-  hairRgb: { r: number; g: number; b: number }
-): Float32Array {
-  if (amount <= 0) return colours
-  /*
-  Short hairs over skin read as a SHADOW: the hair seen through the skin is
-  darker than the hair itself, and a little cool (a five o'clock shadow is
-  blue-grey on fair skin). So the skin goes most of the way to a darkened
-  hair colour with a touch of blue. Mixing toward the hair colour itself was
-  too faint to see at full, worst on light-brown hair.
-  */
-  const dark = {
-    r: hairRgb.r * 0.45,
-    g: hairRgb.g * 0.5,
-    b: hairRgb.b * 0.6 + 0.01,
-  }
-  const ratio = [
-    (dark.r * 0.6 + skinRgb.r * 0.4) / Math.max(1e-4, skinRgb.r),
-    (dark.g * 0.6 + skinRgb.g * 0.4) / Math.max(1e-4, skinRgb.g),
-    (dark.b * 0.6 + skinRgb.b * 0.4) / Math.max(1e-4, skinRgb.b),
-  ]
-  for (let i = 0; i < mask.length; i++) {
-    const k = mask[i] * Math.min(1, amount)
-    if (k <= 0) continue
-    for (let c = 0; c < 3; c++) {
-      colours[i * 4 + c] *= 1 + (Math.min(1, ratio[c]) - 1) * k
-    }
-  }
-  return colours
-}
+export { lipTint, stubbleTint } from './skin-paint.js'
