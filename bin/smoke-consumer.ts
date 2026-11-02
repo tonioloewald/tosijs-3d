@@ -77,6 +77,9 @@ const PURE = [
   'glb-chunks',
   'eye-art',
   'png',
+  'hair-place',
+  'mesh-sdf',
+  'fit-extremes',
 ]
 
 try {

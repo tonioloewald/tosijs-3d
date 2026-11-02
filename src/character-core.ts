@@ -1,7 +1,7 @@
 /*#
 # character core
 
-**The character creator's working parts, for any engine.** Twenty-four modules
+**The character creator's working parts, for any engine.** Twenty-seven modules
 make a character without Babylon or a DOM: they read MakeHuman's body, shape
 it, fit and bind a skeleton, retarget clips, fit hair and clothes, and save
 the result. Each is its own subpath, so a three.js app (or a server, or a
@@ -34,6 +34,9 @@ import { humanBodyMaker } from 'tosijs-3d/human-rig'
 | [`character-settings`](/character-settings/) | every setting a character has, with its default; the slots; hair colours; the body pack's URL |
 | [`proxy-cover`](/proxy-cover/) | the skin under what is worn, tucked in and hidden |
 | [`skinned-glb`](/skinned-glb/), [`glb-chunks`](/glb-chunks/) | a rigged, morphing body out as a GLB (validator-clean); GLB chunks read and written |
+| [`hair-place`](/hair-place/) | Quaternius' hairstyles placed on a body's head, and the library read from its GLB |
+| [`mesh-sdf`](/mesh-sdf/) | signed distance to a triangle mesh: inside, and how deep |
+| [`fit-extremes`](/fit-extremes/) | every garment and hairstyle on the bodies at the sliders' corners, checked for penetration and bone sanity |
 | [`asset-url`](/asset-url/) | where hosted assets (the body pack, the hair) are fetched from |
 
 What makes it a promise: `pure-core.test.ts` walks their import graph, type

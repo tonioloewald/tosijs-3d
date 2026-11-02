@@ -81,6 +81,7 @@
     "typecheck": "bunx tsc -p tsconfig.json --noEmit",
     "stop": "bun bin/site.ts --stop",
     "sizes": "bun bin/sizes.ts",
+    "extremes": "bun bin/extremes.ts",
     "keep": "bun bin/keep.ts",
     "test-consumer": "bun bin/smoke-consumer.ts"
   },

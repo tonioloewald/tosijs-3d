@@ -12,6 +12,10 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **`tosijs-3d/fit-extremes`** and **`bun run extremes`**: every MakeHuman garment and Quaternius hairstyle on 133 bodies at the sliders' corners, measured for penetration (raw, and visible past the skin's tuck) and bone sanity, with a markdown/JSON report and a headless contact sheet of the worst cases. Engine-free. Moved here from Dramatis.
+- **`tosijs-3d/hair-place`**: hair placed on a body's head with no engine (`headScalp`, `placeHair`, and the hair library read from its GLB with `readHairLibrary`). `human-hair` now uses it and re-exports what it exported before.
+- **`tosijs-3d/mesh-sdf`**: signed distance to a triangle mesh.
+- **`coverDepths`** (proxy-cover): how deep each skin vertex goes under what is worn, the rule `coverSkin` applies before its fade.
 - **Eyes from a picture**: `eyeTexture({ style: 'basic' | 'anime' })` paints Tonio's CC0 eye art with its iris recoloured, and a character's new `eyeStyle` setting picks it (`basic` by default; `drawn` keeps the eye drawn in code, which also shows while the art loads). `tosijs-3d/eye-art` is the engine-free half: the art's URLs, `recolourEyePng`, and `gltfEyeUvs` for an export. `pngDecode` joins `pngEncode`. Both are in the engine-free character core.
 
 ## 0.12.1

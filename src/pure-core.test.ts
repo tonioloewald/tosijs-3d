@@ -45,6 +45,20 @@ export const CHARACTER_CORE = [
   'glb-chunks',
   'eye-art',
   'png',
+  'hair-place',
+  'mesh-sdf',
+  'fit-extremes',
+]
+
+/** The engine-free modules behind `fit-extremes`, promised with it but not listed on the page. */
+const EXTREMES_PARTS = [
+  'extremes-corners',
+  'extremes-penetration',
+  'extremes-bones',
+  'extremes-sweep',
+  'extremes-report',
+  'extremes-sheet',
+  'clock',
 ]
 
 /** Every import or re-export specifier in a source file, comments stripped (doc examples import the barrel). */
@@ -84,7 +98,8 @@ function closure(roots: string[], allowed: Set<string>) {
 
 describe('the character core is engine-free', () => {
   test('no Babylon anywhere in its import graph, types included', () => {
-    const { problems } = closure(CHARACTER_CORE, new Set(CHARACTER_CORE))
+    const all = [...CHARACTER_CORE, ...EXTREMES_PARTS]
+    const { problems } = closure(all, new Set(all))
     expect(problems).toEqual([])
   })
 

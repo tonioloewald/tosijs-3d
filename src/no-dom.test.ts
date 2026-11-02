@@ -61,6 +61,9 @@ const PURE = [
   'glb-chunks',
   'eye-art',
   'png',
+  'hair-place',
+  'mesh-sdf',
+  'fit-extremes',
 ]
 
 describe('declared-pure modules import with no DOM', () => {
