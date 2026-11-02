@@ -46,7 +46,7 @@ describe('one GLB container module', () => {
     // Every new reader and writer comes through here; a second copy of the
     // container code is how Dramatis's gate came to check exports with a
     // reader the exporter did not use. garment-file and glb-manifest predate
-    // this module and still carry their own (to fold in: board #3733); the
+    // this module and still carry their own (to fold in: board #3736); the
     // list may shrink, never grow. (Built, so this file does not match itself.)
     const magic = new RegExp(['0x', '46546c67'].join(''), 'i')
     const root = join(import.meta.dir, '..')
