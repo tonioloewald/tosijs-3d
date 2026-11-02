@@ -175,13 +175,25 @@ export const turnMask = (mask: number, turns: number): number => {
 }
 
 /** The road piece and its turns for a cell whose road neighbours are `mask`. */
-export function roadPiece(mask: number): { piece: RoadPiece; turns: 0 | 1 | 2 | 3 } {
+export function roadPiece(mask: number): {
+  piece: RoadPiece
+  turns: 0 | 1 | 2 | 3
+} {
   const count = [1, 2, 4, 8].filter((b) => mask & b).length
   if (count === 0) return { piece: 'single', turns: 0 }
   const piece: RoadPiece =
-    count === 1 ? 'end' : count === 3 ? 'tee' : count === 4 ? 'cross' : mask === 5 || mask === 10 ? 'straight' : 'bend'
+    count === 1
+      ? 'end'
+      : count === 3
+      ? 'tee'
+      : count === 4
+      ? 'cross'
+      : mask === 5 || mask === 10
+      ? 'straight'
+      : 'bend'
   for (let t = 0; t < 4; t++) {
-    if (turnMask(CANONICAL[piece as Exclude<RoadPiece, 'single'>], t) === mask) return { piece, turns: t as 0 | 1 | 2 | 3 }
+    if (turnMask(CANONICAL[piece as Exclude<RoadPiece, 'single'>], t) === mask)
+      return { piece, turns: t as 0 | 1 | 2 | 3 }
   }
   return { piece, turns: 0 }
 }
@@ -195,7 +207,8 @@ export function cityLayout(options: CityLayoutOptions): CityLayout {
   const [lotLo, lotHi] = options.lotWidth ?? [1, 2]
   const lotDepth = Math.max(1, options.lotDepth ?? 2)
   const road = new Array<boolean>(width * depth).fill(false)
-  const at = (x: number, z: number) => x >= 0 && z >= 0 && x < width && z < depth && road[z * width + x]
+  const at = (x: number, z: number) =>
+    x >= 0 && z >= 0 && x < width && z < depth && road[z * width + x]
   const pave = (x: number, z: number) => {
     if (x >= 0 && z >= 0 && x < width && z < depth) road[z * width + x] = true
   }
@@ -226,7 +239,9 @@ export function cityLayout(options: CityLayoutOptions): CityLayout {
       blocks.push(r)
       return
     }
-    const alongX = canX && (!canZ || r.width > r.depth || (r.width === r.depth && rng.value() < 0.5))
+    const alongX =
+      canX &&
+      (!canZ || r.width > r.depth || (r.width === r.depth && rng.value() < 0.5))
     if (alongX) {
       // A road running north-south at column c.
       const c = r.x + rng.range(blockMin, r.width - blockMin - 1)
@@ -247,7 +262,10 @@ export function cityLayout(options: CityLayoutOptions): CityLayout {
     for (let x = 0; x < width; x++) {
       if (!at(x, z)) continue
       const mask =
-        (at(x, z + 1) ? 1 : 0) | (at(x + 1, z) ? 2 : 0) | (at(x, z - 1) ? 4 : 0) | (at(x - 1, z) ? 8 : 0)
+        (at(x, z + 1) ? 1 : 0) |
+        (at(x + 1, z) ? 2 : 0) |
+        (at(x, z - 1) ? 4 : 0) |
+        (at(x - 1, z) ? 8 : 0)
       roads.push({ x, z, mask, ...roadPiece(mask) })
     }
   }
@@ -269,14 +287,32 @@ export function cityLayout(options: CityLayoutOptions): CityLayout {
         const w = Math.min(n - i, rng.range(lotLo, lotHi))
         add(
           long
-            ? { x: b.x + i, z: b.z, width: w, depth: b.depth, front: 's', corner: false }
-            : { x: b.x, z: b.z + i, width: b.width, depth: w, front: 'w', corner: false }
+            ? {
+                x: b.x + i,
+                z: b.z,
+                width: w,
+                depth: b.depth,
+                front: 's',
+                corner: false,
+              }
+            : {
+                x: b.x,
+                z: b.z + i,
+                width: b.width,
+                depth: w,
+                front: 'w',
+                corner: false,
+              }
         )
         i += w
       }
       return
     }
-    const run = (from: number, to: number, place: (i: number, w: number) => Omit<Lot, 'block'>) => {
+    const run = (
+      from: number,
+      to: number,
+      place: (i: number, w: number) => Omit<Lot, 'block'>
+    ) => {
       for (let i = from; i < to; ) {
         const w = Math.min(to - i, rng.range(lotLo, lotHi))
         add(place(i, w))
@@ -288,17 +324,83 @@ export function cityLayout(options: CityLayoutOptions): CityLayout {
     const z0 = b.z
     const z1 = b.z + b.depth
     // Corners: two streets each.
-    add({ x: x0, z: z0, width: dx, depth: dz, front: 's', side: 'w', corner: true })
-    add({ x: x1 - dx, z: z0, width: dx, depth: dz, front: 's', side: 'e', corner: true })
-    add({ x: x0, z: z1 - dz, width: dx, depth: dz, front: 'n', side: 'w', corner: true })
-    add({ x: x1 - dx, z: z1 - dz, width: dx, depth: dz, front: 'n', side: 'e', corner: true })
+    add({
+      x: x0,
+      z: z0,
+      width: dx,
+      depth: dz,
+      front: 's',
+      side: 'w',
+      corner: true,
+    })
+    add({
+      x: x1 - dx,
+      z: z0,
+      width: dx,
+      depth: dz,
+      front: 's',
+      side: 'e',
+      corner: true,
+    })
+    add({
+      x: x0,
+      z: z1 - dz,
+      width: dx,
+      depth: dz,
+      front: 'n',
+      side: 'w',
+      corner: true,
+    })
+    add({
+      x: x1 - dx,
+      z: z1 - dz,
+      width: dx,
+      depth: dz,
+      front: 'n',
+      side: 'e',
+      corner: true,
+    })
     // Along the south and north streets, between the corners.
-    run(x0 + dx, x1 - dx, (i, w) => ({ x: i, z: z0, width: w, depth: dz, front: 's', corner: false }))
-    run(x0 + dx, x1 - dx, (i, w) => ({ x: i, z: z1 - dz, width: w, depth: dz, front: 'n', corner: false }))
+    run(x0 + dx, x1 - dx, (i, w) => ({
+      x: i,
+      z: z0,
+      width: w,
+      depth: dz,
+      front: 's',
+      corner: false,
+    }))
+    run(x0 + dx, x1 - dx, (i, w) => ({
+      x: i,
+      z: z1 - dz,
+      width: w,
+      depth: dz,
+      front: 'n',
+      corner: false,
+    }))
     // Along the west and east streets.
-    run(z0 + dz, z1 - dz, (i, w) => ({ x: x0, z: i, width: dx, depth: w, front: 'w', corner: false }))
-    run(z0 + dz, z1 - dz, (i, w) => ({ x: x1 - dx, z: i, width: dx, depth: w, front: 'e', corner: false }))
-    const yard = { x: x0 + dx, z: z0 + dz, width: b.width - 2 * dx, depth: b.depth - 2 * dz, block }
+    run(z0 + dz, z1 - dz, (i, w) => ({
+      x: x0,
+      z: i,
+      width: dx,
+      depth: w,
+      front: 'w',
+      corner: false,
+    }))
+    run(z0 + dz, z1 - dz, (i, w) => ({
+      x: x1 - dx,
+      z: i,
+      width: dx,
+      depth: w,
+      front: 'e',
+      corner: false,
+    }))
+    const yard = {
+      x: x0 + dx,
+      z: z0 + dz,
+      width: b.width - 2 * dx,
+      depth: b.depth - 2 * dz,
+      block,
+    }
     if (yard.width > 0 && yard.depth > 0) yards.push(yard)
   })
 

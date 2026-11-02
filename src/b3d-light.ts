@@ -116,7 +116,8 @@ export class B3dLight extends B3dChild {
   }
 
   sceneDispose() {
-    if (this.follow) this.owner?.scene?.onBeforeRenderObservable.remove(this.follow)
+    if (this.follow)
+      this.owner?.scene?.onBeforeRenderObservable.remove(this.follow)
     this.follow = null
     if (this.light != null) {
       this.light.dispose()

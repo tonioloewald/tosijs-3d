@@ -26,7 +26,8 @@ describe('room habits', () => {
   })
 
   test('a room keeps its habit: an always-dark room never lights, a night owl is lit at midnight', () => {
-    for (let h = 0; h < 24; h += 0.25) expect(roomLit(0.1, 0.5, h, 0)).toBe(false)
+    for (let h = 0; h < 24; h += 0.25)
+      expect(roomLit(0.1, 0.5, h, 0)).toBe(false)
     expect(roomLit(0.3, 0.5, 0, 0.5)).toBe(true)
     expect(roomLit(0.3, 0.5, 12, 0.5)).toBe(false)
   })

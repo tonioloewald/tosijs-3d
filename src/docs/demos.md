@@ -18,4 +18,5 @@ the code does.
 - [Skybox Baker](/skybox-baker/)
 - [Land and Sky](/land-and-sky/)
 - [City Drive](/city-drive/)
+- [Cross Country](/cross-country/)
 <!-- /toc -->

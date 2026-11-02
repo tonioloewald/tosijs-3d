@@ -7,8 +7,14 @@ import {
   type VirtualGamepad,
 } from './virtual-gamepad.js'
 
-const pad = (over: Partial<VirtualGamepad> = {}): VirtualGamepad => ({ ...emptyGamepad(), ...over })
-const source = (kind: string, over: Partial<VirtualGamepad>): GamepadSource => ({
+const pad = (over: Partial<VirtualGamepad> = {}): VirtualGamepad => ({
+  ...emptyGamepad(),
+  ...over,
+})
+const source = (
+  kind: string,
+  over: Partial<VirtualGamepad>
+): GamepadSource => ({
   kind,
   poll: () => pad(over),
 })
@@ -38,12 +44,21 @@ describe('the car mapping (GTA V)', () => {
   })
 
   test('on a keyboard W and S still drive', () => {
-    const w = new MappedInputProvider(carMapping, source('keyboard', { leftStickY: 1 }))
+    const w = new MappedInputProvider(
+      carMapping,
+      source('keyboard', { leftStickY: 1 })
+    )
     expect(w.poll(0).forward).toBe(1)
-    const s = new MappedInputProvider(carMapping, source('keyboard', { leftStickY: -1 }))
+    const s = new MappedInputProvider(
+      carMapping,
+      source('keyboard', { leftStickY: -1 })
+    )
     expect(s.poll(0).forward).toBe(-1)
     // Only the keyboard: a hardware pad's stick is left alone.
-    const p = new MappedInputProvider(carMapping, source('hardware', { leftStickY: 1 }))
+    const p = new MappedInputProvider(
+      carMapping,
+      source('hardware', { leftStickY: 1 })
+    )
     expect(p.poll(0).forward).toBe(0)
   })
 })

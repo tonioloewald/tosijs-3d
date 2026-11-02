@@ -173,7 +173,9 @@ export interface Traffic {
   cars: TrafficCar[]
   /** The recycler's allowance (see `recycleTraffic`). */
   recycle?: number
-  options: Required<Omit<TrafficOptions, 'clear' | 'vehicle'>> & { vehicle?: VehicleSpec }
+  options: Required<Omit<TrafficOptions, 'clear' | 'vehicle'>> & {
+    vehicle?: VehicleSpec
+  }
   rng: PRNG
 }
 
@@ -206,17 +208,30 @@ const FLAT: GroundRay = (from, dir, length) => {
 }
 
 function isRoad(layout: CityLayout, x: number, z: number): boolean {
-  return x >= 0 && z >= 0 && x < layout.width && z < layout.depth && layout.road[z * layout.width + x]
+  return (
+    x >= 0 &&
+    z >= 0 &&
+    x < layout.width &&
+    z < layout.depth &&
+    layout.road[z * layout.width + x]
+  )
 }
 
 function maskAt(layout: CityLayout, x: number, z: number): number {
   let m = 0
-  for (let i = 0; i < 4; i++) if (isRoad(layout, x + DIR[i][0], z + DIR[i][1])) m |= BIT[i]
+  for (let i = 0; i < 4; i++)
+    if (isRoad(layout, x + DIR[i][0], z + DIR[i][1])) m |= BIT[i]
   return m
 }
 
 /** The way out of a cell for a car that came in heading `dirIn`. */
-function chooseExit(layout: CityLayout, x: number, z: number, dirIn: number, rng: PRNG): number {
+function chooseExit(
+  layout: CityLayout,
+  x: number,
+  z: number,
+  dirIn: number,
+  rng: PRNG
+): number {
   const mask = maskAt(layout, x, z)
   const back = (dirIn + 2) % 4
   const ways: { dir: number; weight: number }[] = []
@@ -302,7 +317,10 @@ function placeCar(car: TrafficCar) {
 }
 
 function newBody(spec: VehicleSpec, car: TrafficCar): VehicleState {
-  return createVehicle(spec, { position: { x: car.px, y: 0, z: car.pz }, headingDeg: (car.pyaw * 180) / Math.PI })
+  return createVehicle(spec, {
+    position: { x: car.px, y: 0, z: car.pz },
+    headingDeg: (car.pyaw * 180) / Math.PI,
+  })
 }
 
 export function createTraffic(options: TrafficOptions): Traffic {
@@ -320,7 +338,11 @@ export function createTraffic(options: TrafficOptions): Traffic {
     ...options,
   }
   const { clear, ...rest } = opts
-  const t: Traffic = { cars: [], options: rest, rng: new PRNG(opts.seed * 104729 + 7) }
+  const t: Traffic = {
+    cars: [],
+    options: rest,
+    rng: new PRNG(opts.seed * 104729 + 7),
+  }
   const { layout } = opts
   // One car to a cell at most, never by the clear spot.
   const cells = layout.roads.filter((r) => {
@@ -336,7 +358,9 @@ export function createTraffic(options: TrafficOptions): Traffic {
   for (const r of cells.slice(0, Math.max(0, opts.count))) {
     // Come in from any road side, heading away from it.
     const from = [0, 1, 2, 3].filter((d) => r.mask & BIT[(d + 2) % 4])
-    const dirIn = from.length ? from[Math.floor(t.rng.value() * from.length)] : 0
+    const dirIn = from.length
+      ? from[Math.floor(t.rng.value() * from.length)]
+      : 0
     const car: TrafficCar = {
       model: Math.floor(t.rng.value() * opts.models),
       cx: r.x,
@@ -411,7 +435,12 @@ is far away, or out of view and not close, goes, and comes back out of view a
 block or so away, driving toward the player. Stuck cars nobody is watching go
 the same way, so a jam out of sight clears itself.
 */
-export function recycleTraffic(t: Traffic, viewer: TrafficViewer, dt: number, options: RecycleOptions = {}): number {
+export function recycleTraffic(
+  t: Traffic,
+  viewer: TrafficViewer,
+  dt: number,
+  options: RecycleOptions = {}
+): number {
   const far = options.far ?? 160
   const hidden = options.hidden ?? 60
   const spawnMin = options.spawnMin ?? 50
@@ -440,13 +469,20 @@ export function recycleTraffic(t: Traffic, viewer: TrafficViewer, dt: number, op
       const z = (r.z + 0.5 - layout.depth / 2) * cell
       const dr = Math.hypot(x - viewer.x, z - viewer.z)
       if (dr < spawnMin || dr > spawnMax || seen(x, z)) continue
-      if (t.cars.some((c) => c !== car && Math.hypot(c.x - x, c.z - z) < cell)) continue
+      if (t.cars.some((c) => c !== car && Math.hypot(c.x - x, c.z - z) < cell))
+        continue
       // Heading toward the viewer, if the road allows.
       const ways = [0, 1, 2, 3].filter((dir) => r.mask & BIT[(dir + 2) % 4])
       if (ways.length === 0) continue
-      const toward = ways.filter((dir) => DIR[dir][0] * (viewer.x - x) + DIR[dir][1] * (viewer.z - z) > 0)
+      const toward = ways.filter(
+        (dir) => DIR[dir][0] * (viewer.x - x) + DIR[dir][1] * (viewer.z - z) > 0
+      )
       const pickFrom = toward.length ? toward : ways
-      spot = { x: r.x, z: r.z, dirIn: pickFrom[Math.floor(t.rng.value() * pickFrom.length)] }
+      spot = {
+        x: r.x,
+        z: r.z,
+        dirIn: pickFrom[Math.floor(t.rng.value() * pickFrom.length)],
+      }
     }
     if (spot == null) continue
     car.cx = spot.x
@@ -458,10 +494,22 @@ export function recycleTraffic(t: Traffic, viewer: TrafficViewer, dt: number, op
     placePlan(car)
     // Already driving: it was always there, you just had not seen it.
     car.speed = o.maxSpeed * 0.7
-    Object.assign(car, { waited: 0, lost: 0, backing: 0, stuck: 0, goFirst: 0, through: null, waitingFor: null })
+    Object.assign(car, {
+      waited: 0,
+      lost: 0,
+      backing: 0,
+      stuck: 0,
+      goFirst: 0,
+      through: null,
+      waitingFor: null,
+    })
     if (o.vehicle) {
       car.body = newBody(o.vehicle, car)
-      car.body.velocity = { x: Math.sin(car.pyaw) * car.speed, y: 0, z: Math.cos(car.pyaw) * car.speed }
+      car.body.velocity = {
+        x: Math.sin(car.pyaw) * car.speed,
+        y: 0,
+        z: Math.cos(car.pyaw) * car.speed,
+      }
     }
     placeCar(car)
     car.anchor = [car.x, car.z]
@@ -472,7 +520,11 @@ export function recycleTraffic(t: Traffic, viewer: TrafficViewer, dt: number, op
 }
 
 /** Advance every car by `dt` seconds. `obstacles` are things in the road to stop for (and bounce off). */
-export function stepTraffic(t: Traffic, dt: number, obstacles: TrafficObstacle[] = []): void {
+export function stepTraffic(
+  t: Traffic,
+  dt: number,
+  obstacles: TrafficObstacle[] = []
+): void {
   if (dt <= 0) return
   const o = t.options
   const cars = t.cars
@@ -527,9 +579,23 @@ export function stepTraffic(t: Traffic, dt: number, obstacles: TrafficObstacle[]
       const facing = Math.sin(other.yaw) * hx + Math.cos(other.yaw) * hz
       // Oncoming traffic keeps to its own lane.
       if (facing < -0.7) continue
-      consider(other.x, other.z, o.length / 2, facing < 0.5 && other.waited > 1, other)
+      consider(
+        other.x,
+        other.z,
+        o.length / 2,
+        facing < 0.5 && other.waited > 1,
+        other
+      )
     }
-    for (const ob of obstacles) consider(ob.x, ob.z, ob.length ? ob.length / 2 : (ob.radius ?? 2), false, null, true)
+    for (const ob of obstacles)
+      consider(
+        ob.x,
+        ob.z,
+        ob.length ? ob.length / 2 : ob.radius ?? 2,
+        false,
+        null,
+        true
+      )
     car.waited = blocked || speed < 0.3 ? car.waited + dt : 0
     car.waitingFor = blocker
     /*
@@ -542,10 +608,14 @@ export function stepTraffic(t: Traffic, dt: number, obstacles: TrafficObstacle[]
     // Held up: stopped, with something close ahead.
     const held = speed < 1 && closest < 3
     car.patience = held ? car.patience + dt : 0
-    const fedUp = closestIsObstacle ? car.patience > 1.2 : car.patience > 8 && car.stuck > 5
+    const fedUp = closestIsObstacle
+      ? car.patience > 1.2
+      : car.patience > 8 && car.stuck > 5
     if (held && fedUp && car.hornIn <= 0) {
       car.honk = true
-      car.hornIn = closestIsObstacle ? 2.5 + t.rng.value() * 3 : 8 + t.rng.value() * 10
+      car.hornIn = closestIsObstacle
+        ? 2.5 + t.rng.value() * 3
+        : 8 + t.rng.value() * 10
     }
     // JAMMED: two cars nose to nose or nose to side, both getting nowhere
     // (each creeping into the other; a bump is not progress). The later one
@@ -562,7 +632,11 @@ export function stepTraffic(t: Traffic, dt: number, obstacles: TrafficObstacle[]
         const rx = other.x - car.x
         const rz = other.z - car.z
         const d = Math.hypot(rx, rz)
-        if (d < best && rx * hx + rz * hz > 0 && Math.abs(rx * hz - rz * hx) < 3.5) {
+        if (
+          d < best &&
+          rx * hx + rz * hz > 0 &&
+          Math.abs(rx * hz - rz * hx) < 3.5
+        ) {
           best = d
           partner = other
         }
@@ -595,7 +669,10 @@ export function stepTraffic(t: Traffic, dt: number, obstacles: TrafficObstacle[]
     let want = wants[i]
     if (car.body && Math.hypot(car.px - car.x, car.pz - car.z) > LEAD) want = 0
     const dv = want - car.speed
-    car.speed = Math.max(0, car.speed + Math.max(-o.brake * dt, Math.min(o.accel * dt, dv)))
+    car.speed = Math.max(
+      0,
+      car.speed + Math.max(-o.brake * dt, Math.min(o.accel * dt, dv))
+    )
     car.s += car.speed * dt
     while (car.s >= car.length) {
       car.s -= car.length
@@ -630,7 +707,11 @@ export function stepTraffic(t: Traffic, dt: number, obstacles: TrafficObstacle[]
       let err = Math.atan2(dx, dz) - heading
       err = Math.atan2(Math.sin(err), Math.cos(err))
       const fwd = forwardSpeed(body)
-      const want = Math.min(wants[i], car.speed + 2, Math.max(0, (dist - 2) * 1.2))
+      const want = Math.min(
+        wants[i],
+        car.speed + 2,
+        Math.max(0, (dist - 2) * 1.2)
+      )
       let throttle = Math.max(-1, Math.min(1, (want - fwd) * 0.6))
       // Never back up to reach a plan: brake, then hold.
       if (fwd < 0.5) throttle = Math.max(0, throttle)
@@ -654,7 +735,9 @@ export function stepTraffic(t: Traffic, dt: number, obstacles: TrafficObstacle[]
       kerb(t, body)
       // Lost: far from its plan, or not on its wheels. Put it back.
       const up = rotate(body.orientation, { x: 0, y: 1, z: 0 }).y
-      const far = Math.hypot(car.px - body.position.x, car.pz - body.position.z) > LEAD * 2.5
+      const far =
+        Math.hypot(car.px - body.position.x, car.pz - body.position.z) >
+        LEAD * 2.5
       car.lost = far || up < 0.5 ? car.lost + dt : 0
       if (car.lost > 3 || !Number.isFinite(body.position.x)) {
         car.body = newBody(spec, car)
@@ -682,7 +765,13 @@ interface Capsule {
   r: number
 }
 
-function capsule(x: number, z: number, yaw: number, length: number, width: number): Capsule {
+function capsule(
+  x: number,
+  z: number,
+  yaw: number,
+  length: number,
+  width: number
+): Capsule {
   const half = Math.max(0, length / 2 - width / 2)
   const fx = Math.sin(yaw) * half
   const fz = Math.cos(yaw) * half
@@ -732,7 +821,9 @@ function collide(t: Traffic, obstacles: TrafficObstacle[]) {
   const m = spec.mass
   const inertia = (m * (o.length * o.length + o.width * o.width)) / 12
   const bodies = t.cars.map((c) => c.body!)
-  const caps = bodies.map((b) => capsule(b.position.x, b.position.z, headingOf(b), o.length, o.width))
+  const caps = bodies.map((b) =>
+    capsule(b.position.x, b.position.z, headingOf(b), o.length, o.width)
+  )
   const obs = obstacles.map((ob) =>
     ob.length != null
       ? capsule(ob.x, ob.z, ob.yaw ?? 0, ob.length, ob.width ?? o.width)
@@ -742,7 +833,13 @@ function collide(t: Traffic, obstacles: TrafficObstacle[]) {
   const hit = (
     i: number,
     q: Capsule,
-    other: { body: VehicleState; x: number; z: number; mass: number; inertia: number } | null,
+    other: {
+      body: VehicleState
+      x: number
+      z: number
+      mass: number
+      inertia: number
+    } | null,
     ovx: number,
     ovz: number
   ) => {
@@ -763,11 +860,19 @@ function collide(t: Traffic, obstacles: TrafficObstacle[]) {
     // Apart, by mass: the lighter moves more; all of it against an immovable obstacle.
     const mb = other ? other.mass : Infinity
     const share = other ? (depth * mb) / (m + mb) : depth
-    a.position = { ...a.position, x: a.position.x + nx * share, z: a.position.z + nz * share }
+    a.position = {
+      ...a.position,
+      x: a.position.x + nx * share,
+      z: a.position.z + nz * share,
+    }
     if (other) {
       const back = depth - share
       const ob = other.body
-      ob.position = { ...ob.position, x: ob.position.x - nx * back, z: ob.position.z - nz * back }
+      ob.position = {
+        ...ob.position,
+        x: ob.position.x - nx * back,
+        z: ob.position.z - nz * back,
+      }
     }
     // The impulse, through the contact point.
     const cx = (px + qx) / 2
@@ -794,14 +899,31 @@ function collide(t: Traffic, obstacles: TrafficObstacle[]) {
     if (vn >= 0) return
     const ca = raz * nx - rax * nz
     const cb = rbz * nx - rbx * nz
-    const k = 1 / m + (ca * ca) / inertia + (other ? 1 / other.mass + (cb * cb) / other.inertia : 0)
+    const k =
+      1 / m +
+      (ca * ca) / inertia +
+      (other ? 1 / other.mass + (cb * cb) / other.inertia : 0)
     const j = (-(1 + 0.3) * vn) / k
-    a.velocity = { ...a.velocity, x: a.velocity.x + (j * nx) / m, z: a.velocity.z + (j * nz) / m }
-    a.angularVelocity = { ...a.angularVelocity, y: a.angularVelocity.y + (ca * j) / inertia }
+    a.velocity = {
+      ...a.velocity,
+      x: a.velocity.x + (j * nx) / m,
+      z: a.velocity.z + (j * nz) / m,
+    }
+    a.angularVelocity = {
+      ...a.angularVelocity,
+      y: a.angularVelocity.y + (ca * j) / inertia,
+    }
     if (other) {
       const ob = other.body
-      ob.velocity = { ...ob.velocity, x: ob.velocity.x - (j * nx) / other.mass, z: ob.velocity.z - (j * nz) / other.mass }
-      ob.angularVelocity = { ...ob.angularVelocity, y: ob.angularVelocity.y - (cb * j) / other.inertia }
+      ob.velocity = {
+        ...ob.velocity,
+        x: ob.velocity.x - (j * nx) / other.mass,
+        z: ob.velocity.z - (j * nz) / other.mass,
+      }
+      ob.angularVelocity = {
+        ...ob.angularVelocity,
+        y: ob.angularVelocity.y - (cb * j) / other.inertia,
+      }
     }
   }
   for (let i = 0; i < bodies.length; i++) {
@@ -810,14 +932,32 @@ function collide(t: Traffic, obstacles: TrafficObstacle[]) {
       const dz = caps[i].az - caps[k].az
       if (dx * dx + dz * dz > (o.length + o.width) ** 2) continue
       const b = bodies[k]
-      hit(i, caps[k], { body: b, x: b.position.x, z: b.position.z, mass: m, inertia }, 0, 0)
+      hit(
+        i,
+        caps[k],
+        { body: b, x: b.position.x, z: b.position.z, mass: m, inertia },
+        0,
+        0
+      )
     }
     obstacles.forEach((ob, k) => {
       if (ob.body) {
         const mass = ob.mass ?? m
         const len = ob.length ?? o.length
         const wid = ob.width ?? o.width
-        hit(i, obs[k], { body: ob.body, x: ob.x, z: ob.z, mass, inertia: (mass * (len * len + wid * wid)) / 12 }, 0, 0)
+        hit(
+          i,
+          obs[k],
+          {
+            body: ob.body,
+            x: ob.x,
+            z: ob.z,
+            mass,
+            inertia: (mass * (len * len + wid * wid)) / 12,
+          },
+          0,
+          0
+        )
       } else hit(i, obs[k], null, ob.vx ?? 0, ob.vz ?? 0)
     })
   }
@@ -862,5 +1002,10 @@ function kerb(t: Traffic, body: VehicleState) {
   body.position = { ...p, x: best[0], z: best[1] }
   // The speed into the kerb is gone (a little bounce).
   const vn = body.velocity.x * nx + body.velocity.z * nz
-  if (vn < 0) body.velocity = { ...body.velocity, x: body.velocity.x - 1.2 * vn * nx, z: body.velocity.z - 1.2 * vn * nz }
+  if (vn < 0)
+    body.velocity = {
+      ...body.velocity,
+      x: body.velocity.x - 1.2 * vn * nx,
+      z: body.velocity.z - 1.2 * vn * nz,
+    }
 }

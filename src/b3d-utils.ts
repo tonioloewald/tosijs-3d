@@ -460,10 +460,21 @@ export function pickWorld(
   scene: BABYLON.Scene,
   ray: BABYLON.Ray,
   predicate: (m: BABYLON.AbstractMesh) => boolean
-): { distance: number; normal: BABYLON.Vector3; mesh: BABYLON.AbstractMesh | null } | null {
+): {
+  distance: number
+  normal: BABYLON.Vector3
+  mesh: BABYLON.AbstractMesh | null
+} | null {
   const proxies = RAY_PROXIES.get(scene)
-  const hit = scene.pickWithRay(ray, proxies?.size ? (m) => predicate(m) && !proxied(m) : predicate)
-  let best: { distance: number; normal: BABYLON.Vector3; mesh: BABYLON.AbstractMesh | null } | null = null
+  const hit = scene.pickWithRay(
+    ray,
+    proxies?.size ? (m) => predicate(m) && !proxied(m) : predicate
+  )
+  let best: {
+    distance: number
+    normal: BABYLON.Vector3
+    mesh: BABYLON.AbstractMesh | null
+  } | null = null
   if (hit?.hit && hit.pickedMesh) {
     let n = hit.getNormal(true, true) ?? ray.direction.negate()
     if (BABYLON.Vector3.Dot(n, ray.direction) > 0) n = n.negate()
@@ -471,8 +482,13 @@ export function pickWorld(
   }
   if (proxies)
     for (const p of proxies) {
-      const h = p.cast(ray.origin, ray.direction, best ? best.distance : ray.length)
-      if (h && (best == null || h.distance < best.distance)) best = { ...h, mesh: null }
+      const h = p.cast(
+        ray.origin,
+        ray.direction,
+        best ? best.distance : ray.length
+      )
+      if (h && (best == null || h.distance < best.distance))
+        best = { ...h, mesh: null }
     }
   return best
 }

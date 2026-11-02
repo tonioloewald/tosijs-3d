@@ -55,7 +55,12 @@ export interface VirtualLight {
  * lamps ahead count more than lamps behind (`ahead`, the cosine between the
  * view and the lamp).
  */
-export function poolScore(l: { intensity: number; range: number; distance: number; ahead: number }): number {
+export function poolScore(l: {
+  intensity: number
+  range: number
+  distance: number
+  ahead: number
+}): number {
   if (l.intensity <= 0 || l.range <= 0) return 0
   const r = l.distance / (l.range * 1.5)
   return (l.intensity * (0.35 + 0.65 * Math.max(0, l.ahead))) / (1 + r * r)
@@ -96,7 +101,10 @@ export class LightPool {
   private raise: ((m: BABYLON.Material) => void) | null = null
   private raised = new WeakSet<BABYLON.Material>()
   private sweep = 0
-  private clustered = new Map<VirtualLight, BABYLON.PointLight | BABYLON.SpotLight>()
+  private clustered = new Map<
+    VirtualLight,
+    BABYLON.PointLight | BABYLON.SpotLight
+  >()
 
   constructor(private scene: BABYLON.Scene) {
     scene.onDisposeObservable.addOnce(() => this.dispose())
@@ -106,7 +114,10 @@ export class LightPool {
     this.lights.add(light)
     this.start()
     if (this.cluster) {
-      const real = this.makeLight(`lamp-cluster-${this.clustered.size}`, light.direction != null)
+      const real = this.makeLight(
+        `lamp-cluster-${this.clustered.size}`,
+        light.direction != null
+      )
       real.falloffType = BABYLON.Light.FALLOFF_DEFAULT
       this.clustered.set(light, real)
       this.cluster.addLight(real)
@@ -126,24 +137,43 @@ export class LightPool {
   get stats(): { lamps: number; lit: number; clustered: boolean } {
     const lit = this.cluster
       ? [...this.clustered.values()].filter((l) => l.intensity > 0).length
-      : [...this.points, ...this.spots].filter((s) => s.owner && s.fade > 0.01).length
+      : [...this.points, ...this.spots].filter((s) => s.owner && s.fade > 0.01)
+          .length
     return { lamps: this.lights.size, lit, clustered: this.cluster != null }
   }
 
-  private makeLight(name: string, spot: boolean): BABYLON.PointLight | BABYLON.SpotLight {
+  private makeLight(
+    name: string,
+    spot: boolean
+  ): BABYLON.PointLight | BABYLON.SpotLight {
     return spot
-      ? new BABYLON.SpotLight(name, BABYLON.Vector3.Zero(), BABYLON.Vector3.Down(), 1, 1, this.scene)
+      ? new BABYLON.SpotLight(
+          name,
+          BABYLON.Vector3.Zero(),
+          BABYLON.Vector3.Down(),
+          1,
+          1,
+          this.scene
+        )
       : new BABYLON.PointLight(name, BABYLON.Vector3.Zero(), this.scene)
   }
 
   /** Clustered lighting, if this device has it (and is not on the lowest budget). */
   private tryCluster() {
     if (qualityBudgets().lampLights < 4) return
-    const probe = new BABYLON.PointLight('lamp-cluster-probe', BABYLON.Vector3.Zero(), this.scene)
+    const probe = new BABYLON.PointLight(
+      'lamp-cluster-probe',
+      BABYLON.Vector3.Zero(),
+      this.scene
+    )
     const ok = BABYLON.ClusteredLightContainer.IsLightSupported(probe)
     probe.dispose()
     if (!ok) return
-    this.cluster = new BABYLON.ClusteredLightContainer('lamp-cluster', [], this.scene)
+    this.cluster = new BABYLON.ClusteredLightContainer(
+      'lamp-cluster',
+      [],
+      this.scene
+    )
   }
 
   private start() {
@@ -152,7 +182,10 @@ export class LightPool {
     const want = qualityBudgets().lampLights + 3
     const raise = (m: BABYLON.Material) => {
       const lit = m as BABYLON.Material & { maxSimultaneousLights?: number }
-      if (typeof lit.maxSimultaneousLights === 'number' && lit.maxSimultaneousLights < want) {
+      if (
+        typeof lit.maxSimultaneousLights === 'number' &&
+        lit.maxSimultaneousLights < want
+      ) {
         lit.maxSimultaneousLights = want
       }
       // Clustered lights take the material's falloff (they must keep the
@@ -241,7 +274,11 @@ export class LightPool {
     const dt = Math.min(0.1, sceneDelta(scene))
     const budget = qualityBudgets().lampLights
     const to = new BABYLON.Vector3()
-    const holding = new Set([...this.points, ...this.spots].filter((s) => s.fade > 0.5).map((s) => s.owner))
+    const holding = new Set(
+      [...this.points, ...this.spots]
+        .filter((s) => s.fade > 0.5)
+        .map((s) => s.owner)
+    )
     const ranked = [...this.lights]
       .map((l) => {
         l.position.subtractToRef(eye, to)
@@ -251,7 +288,11 @@ export class LightPool {
           s: poolScore({
             // A lamp that has a light keeps it unless another is clearly better,
             // or two near-equal lamps trade it back and forth.
-            intensity: l.intensity * l.level * (l.weight ?? 1) * (holding.has(l) ? 1.5 : 1),
+            intensity:
+              l.intensity *
+              l.level *
+              (l.weight ?? 1) *
+              (holding.has(l) ? 1.5 : 1),
             range: l.range,
             distance,
             ahead: distance > 0 ? BABYLON.Vector3.Dot(to, view) / distance : 1,
@@ -266,7 +307,8 @@ export class LightPool {
 
     // Losers fade out; their slots are freed when dark.
     for (const s of [...this.points, ...this.spots]) {
-      if (s.owner != null && !winners.has(s.owner)) s.owner = s.fade > 0.01 ? s.owner : null
+      if (s.owner != null && !winners.has(s.owner))
+        s.owner = s.fade > 0.01 ? s.owner : null
     }
     // Winners keep their slot, or take a free one.
     const held = new Set([...this.points, ...this.spots].map((s) => s.owner))
@@ -279,7 +321,8 @@ export class LightPool {
     for (const s of [...this.points, ...this.spots]) {
       const l = s.owner
       const target = l != null && winners.has(l) ? 1 : 0
-      s.fade += Math.sign(target - s.fade) * Math.min(Math.abs(target - s.fade), dt * 6)
+      s.fade +=
+        Math.sign(target - s.fade) * Math.min(Math.abs(target - s.fade), dt * 6)
       if (l == null || s.fade <= 0.01) {
         s.light.setEnabled(false)
         if (target === 0) s.owner = null
@@ -301,7 +344,8 @@ export class LightPool {
 
   dispose() {
     if (this.observer) this.scene.onBeforeRenderObservable.remove(this.observer)
-    if (this.materialObserver) this.scene.onNewMaterialAddedObservable.remove(this.materialObserver)
+    if (this.materialObserver)
+      this.scene.onNewMaterialAddedObservable.remove(this.materialObserver)
     for (const s of [...this.points, ...this.spots]) s.light.dispose()
     for (const real of this.clustered.values()) real.dispose()
     this.clustered.clear()
@@ -319,7 +363,9 @@ export class LightPool {
  * when it has no sky.
  */
 export function sceneDaylight(owner: Element | null | undefined): number {
-  const sky = owner?.querySelector('tosi-b3d-skybox') as { daylight?: number } | null
+  const sky = owner?.querySelector('tosi-b3d-skybox') as {
+    daylight?: number
+  } | null
   return typeof sky?.daylight === 'number' ? sky.daylight : 1
 }
 

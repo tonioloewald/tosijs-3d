@@ -1,10 +1,24 @@
 import { describe, expect, test } from 'bun:test'
-import { cityLayout, roadPiece, turnMask, type CityLayout, type Side } from './city-layout.js'
+import {
+  cityLayout,
+  roadPiece,
+  turnMask,
+  type CityLayout,
+  type Side,
+} from './city-layout.js'
 
-const STEP: Record<Side, [number, number]> = { n: [0, 1], e: [1, 0], s: [0, -1], w: [-1, 0] }
+const STEP: Record<Side, [number, number]> = {
+  n: [0, 1],
+  e: [1, 0],
+  s: [0, -1],
+  w: [-1, 0],
+}
 
 /** The cells just outside a rectangle on one side. */
-function beyond(r: { x: number; z: number; width: number; depth: number }, side: Side): [number, number][] {
+function beyond(
+  r: { x: number; z: number; width: number; depth: number },
+  side: Side
+): [number, number][] {
   const out: [number, number][] = []
   if (side === 'n' || side === 's') {
     const z = side === 'n' ? r.z + r.depth : r.z - 1
@@ -22,7 +36,15 @@ const isRoad = (c: CityLayout, x: number, z: number) =>
 const cities = [
   { width: 24, depth: 24, seed: 1 },
   { width: 40, depth: 17, seed: 9 },
-  { width: 31, depth: 52, seed: 123, blockMin: 2, blockMax: 5, lotWidth: [1, 3] as [number, number], lotDepth: 3 },
+  {
+    width: 31,
+    depth: 52,
+    seed: 123,
+    blockMin: 2,
+    blockMax: 5,
+    lotWidth: [1, 3] as [number, number],
+    lotDepth: 3,
+  },
   { width: 12, depth: 12, seed: 4, blockMin: 4, blockMax: 10 },
 ]
 
@@ -73,7 +95,9 @@ describe('a city layout', () => {
       expect(city.lots.length).toBeGreaterThan(0)
       for (const lot of city.lots) {
         for (const side of lot.corner ? [lot.front, lot.side!] : [lot.front]) {
-          expect(beyond(lot, side).every(([x, z]) => isRoad(city, x, z))).toBe(true)
+          expect(beyond(lot, side).every(([x, z]) => isRoad(city, x, z))).toBe(
+            true
+          )
         }
       }
     })
@@ -82,7 +106,8 @@ describe('a city layout', () => {
       const count = new Array(city.width * city.depth).fill(0)
       city.road.forEach((r, i) => r && count[i]++)
       for (const r of [...city.lots, ...city.yards]) {
-        for (let z = r.z; z < r.z + r.depth; z++) for (let x = r.x; x < r.x + r.width; x++) count[z * city.width + x]++
+        for (let z = r.z; z < r.z + r.depth; z++)
+          for (let x = r.x; x < r.x + r.width; x++) count[z * city.width + x]++
       }
       expect(count.every((n) => n === 1)).toBe(true)
     })
@@ -111,12 +136,15 @@ describe('a city layout', () => {
   test('the same seed gives the same city, another seed another', () => {
     const a = cityLayout({ width: 30, depth: 30, seed: 5 })
     expect(cityLayout({ width: 30, depth: 30, seed: 5 })).toEqual(a)
-    expect(cityLayout({ width: 30, depth: 30, seed: 6 }).road).not.toEqual(a.road)
+    expect(cityLayout({ width: 30, depth: 30, seed: 6 }).road).not.toEqual(
+      a.road
+    )
   })
 
   test('a city has every kind of junction', () => {
     const city = cityLayout({ width: 40, depth: 40, seed: 2 })
     const pieces = new Set(city.roads.map((r) => r.piece))
-    for (const p of ['straight', 'bend', 'tee', 'cross']) expect(pieces.has(p as never)).toBe(true)
+    for (const p of ['straight', 'bend', 'tee', 'cross'])
+      expect(pieces.has(p as never)).toBe(true)
   })
 })

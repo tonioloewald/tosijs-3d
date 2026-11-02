@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { combinePollution, lightPollutionAt, lightPollutionSource, pollutionFrom } from './light-pollution.js'
+import {
+  combinePollution,
+  lightPollutionAt,
+  lightPollutionSource,
+  pollutionFrom,
+} from './light-pollution.js'
 
 describe('light pollution', () => {
   test('full inside the radius, fading with distance outside', () => {
@@ -18,7 +23,11 @@ describe('light pollution', () => {
   test('a scene sums its sources at a point, from a base', () => {
     const scene = {}
     let on = 1
-    const release = lightPollutionSource(scene, { centre: () => ({ x: 1000, z: 0 }), radius: 200, strength: () => on })
+    const release = lightPollutionSource(scene, {
+      centre: () => ({ x: 1000, z: 0 }),
+      radius: 200,
+      strength: () => on,
+    })
     expect(lightPollutionAt(scene, 1000, 0)).toBeCloseTo(1)
     expect(lightPollutionAt(scene, 0, 0)).toBeLessThan(0.1)
     expect(lightPollutionAt(scene, 0, 0, 0.3)).toBeGreaterThan(0.3)

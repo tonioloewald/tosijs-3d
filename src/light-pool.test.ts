@@ -28,7 +28,10 @@ function world() {
   return scene
 }
 
-const lamp = (x: number, level = 1): import('./light-pool.js').VirtualLight => ({
+const lamp = (
+  x: number,
+  level = 1
+): import('./light-pool.js').VirtualLight => ({
   position: new BABYLON.Vector3(x, 5, 0),
   direction: new BABYLON.Vector3(0, -1, 0),
   angle: 2,
@@ -44,7 +47,9 @@ function settle(scene: import('@babylonjs/core').Scene) {
 }
 
 const lit = (scene: import('@babylonjs/core').Scene) =>
-  scene.lights.filter((l) => /lamp-pool/.test(l.name) && l.isEnabled()) as import('@babylonjs/core').SpotLight[]
+  scene.lights.filter(
+    (l) => /lamp-pool/.test(l.name) && l.isEnabled()
+  ) as import('@babylonjs/core').SpotLight[]
 
 describe('the lamp pool', () => {
   test('many lamps, a budget of real lights, the nearest win', () => {
@@ -57,8 +62,11 @@ describe('the lamp pool', () => {
     const on = lit(scene)
     expect(on.length).toBe(budget)
     // Each real light sits on one of the nearest lamps.
-    const nearest = [...lamps].sort((a, b) => Math.abs(a.position.x) - Math.abs(b.position.x)).slice(0, budget)
-    for (const l of on) expect(nearest.some((n) => n.position.equals(l.position))).toBe(true)
+    const nearest = [...lamps]
+      .sort((a, b) => Math.abs(a.position.x) - Math.abs(b.position.x))
+      .slice(0, budget)
+    for (const l of on)
+      expect(nearest.some((n) => n.position.equals(l.position))).toBe(true)
     scene.dispose()
   })
 
@@ -114,18 +122,29 @@ describe('ranking and flicker', () => {
   test('nearer lamps and lamps ahead count for more, with no cutoff', () => {
     const near = P.poolScore({ intensity: 1, range: 10, distance: 5, ahead: 1 })
     const far = P.poolScore({ intensity: 1, range: 10, distance: 60, ahead: 1 })
-    const behind = P.poolScore({ intensity: 1, range: 10, distance: 5, ahead: -1 })
+    const behind = P.poolScore({
+      intensity: 1,
+      range: 10,
+      distance: 5,
+      ahead: -1,
+    })
     expect(near).toBeGreaterThan(far)
     expect(far).toBeGreaterThan(0)
     expect(near).toBeGreaterThan(behind)
-    expect(P.poolScore({ intensity: 0, range: 10, distance: 5, ahead: 1 })).toBe(0)
+    expect(
+      P.poolScore({ intensity: 0, range: 10, distance: 5, ahead: 1 })
+    ).toBe(0)
   })
 
   test('a failing lamp is mostly steady, then stutters, the same way every time', () => {
-    const samples = Array.from({ length: 2000 }, (_, i) => P.lampFlicker(i * 0.01, 7))
+    const samples = Array.from({ length: 2000 }, (_, i) =>
+      P.lampFlicker(i * 0.01, 7)
+    )
     const dark = samples.filter((v) => v < 1).length
     expect(dark).toBeGreaterThan(0)
     expect(dark).toBeLessThan(samples.length / 2)
-    expect(samples).toEqual(Array.from({ length: 2000 }, (_, i) => P.lampFlicker(i * 0.01, 7)))
+    expect(samples).toEqual(
+      Array.from({ length: 2000 }, (_, i) => P.lampFlicker(i * 0.01, 7))
+    )
   })
 })

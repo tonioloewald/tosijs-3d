@@ -1,16 +1,26 @@
 import { describe, expect, test } from 'bun:test'
 import { cityLayout } from './city-layout.js'
-import { createTraffic, recycleTraffic, stepTraffic, TRAFFIC_CAR, type Traffic } from './city-traffic.js'
+import {
+  createTraffic,
+  recycleTraffic,
+  stepTraffic,
+  TRAFFIC_CAR,
+  type Traffic,
+} from './city-traffic.js'
 
 const layout = cityLayout({ width: 24, depth: 24, seed: 3 })
-const make = (count = 24, seed = 1) => createTraffic({ layout, cell: 12, lane: 1.4, count, seed, models: 8 })
+const make = (count = 24, seed = 1) =>
+  createTraffic({ layout, cell: 12, lane: 1.4, count, seed, models: 8 })
 
 function run(t: Traffic, seconds: number, obstacles = []) {
   for (let i = 0; i < seconds * 30; i++) stepTraffic(t, 1 / 30, obstacles)
 }
 
 /** The cell a point is in. */
-const cellOf = (x: number, z: number) => [Math.floor(x / 12 + 12), Math.floor(z / 12 + 12)]
+const cellOf = (x: number, z: number) => [
+  Math.floor(x / 12 + 12),
+  Math.floor(z / 12 + 12),
+]
 
 describe('city traffic', () => {
   test('cars start on roads, one to a cell, and stay on roads', () => {
@@ -31,7 +41,9 @@ describe('city traffic', () => {
     const t = make()
     const from = t.cars.map((c) => [c.x, c.z])
     run(t, 30)
-    const moved = t.cars.filter((c, i) => Math.hypot(c.x - from[i][0], c.z - from[i][1]) > 30).length
+    const moved = t.cars.filter(
+      (c, i) => Math.hypot(c.x - from[i][0], c.z - from[i][1]) > 30
+    ).length
     expect(moved).toBeGreaterThan(t.cars.length * 0.6)
   })
 
@@ -70,14 +82,24 @@ describe('city traffic', () => {
     const t = make(1)
     const car = t.cars[0]
     run(t, 3)
-    const ahead = { x: car.x + Math.sin(car.yaw) * 12, z: car.z + Math.cos(car.yaw) * 12, radius: 1.5 }
+    const ahead = {
+      x: car.x + Math.sin(car.yaw) * 12,
+      z: car.z + Math.cos(car.yaw) * 12,
+      radius: 1.5,
+    }
     run(t, 6, [ahead] as never)
     expect(car.speed).toBeLessThan(0.5)
     expect(Math.hypot(car.x - ahead.x, car.z - ahead.z)).toBeGreaterThan(3)
   })
 
   test('nothing starts near the clear spot', () => {
-    const t = createTraffic({ layout, cell: 12, lane: 1.4, count: 200, clear: { x: 0, z: 0, radius: 20 } })
+    const t = createTraffic({
+      layout,
+      cell: 12,
+      lane: 1.4,
+      count: 200,
+      clear: { x: 0, z: 0, radius: 20 },
+    })
     for (const c of t.cars) expect(Math.hypot(c.x, c.z)).toBeGreaterThan(20)
   })
 
@@ -92,7 +114,15 @@ describe('city traffic', () => {
 
 describe('city traffic as bodies', () => {
   const physical = (count = 24, seed = 1) =>
-    createTraffic({ layout, cell: 12, lane: 1.4, count, seed, models: 8, vehicle: TRAFFIC_CAR })
+    createTraffic({
+      layout,
+      cell: 12,
+      lane: 1.4,
+      count,
+      seed,
+      models: 8,
+      vehicle: TRAFFIC_CAR,
+    })
 
   test('they drive their plans, on the road, upright', () => {
     const t = physical()
@@ -108,7 +138,9 @@ describe('city traffic as bodies', () => {
         expect(Math.hypot(c.x - c.px, c.z - c.pz)).toBeLessThan(25)
       }
     }
-    const moved = t.cars.filter((c, i) => Math.hypot(c.x - from[i][0], c.z - from[i][1]) > 40).length
+    const moved = t.cars.filter(
+      (c, i) => Math.hypot(c.x - from[i][0], c.z - from[i][1]) > 40
+    ).length
     expect(moved).toBeGreaterThan(t.cars.length * 0.5)
   })
 
@@ -121,12 +153,25 @@ describe('city traffic as bodies', () => {
     // Something fast from the car's right, at its back end.
     const rx = Math.cos(car.yaw)
     const rz = -Math.sin(car.yaw)
-    const back = { x: car.x - Math.sin(car.yaw) * 1.8, z: car.z - Math.cos(car.yaw) * 1.8 }
-    stepTraffic(t, 1 / 30, [{ x: back.x + rx * 2.2, z: back.z + rz * 2.2, radius: 1.2, vx: -rx * 12, vz: -rz * 12 }])
+    const back = {
+      x: car.x - Math.sin(car.yaw) * 1.8,
+      z: car.z - Math.cos(car.yaw) * 1.8,
+    }
+    stepTraffic(t, 1 / 30, [
+      {
+        x: back.x + rx * 2.2,
+        z: back.z + rz * 2.2,
+        radius: 1.2,
+        vx: -rx * 12,
+        vz: -rz * 12,
+      },
+    ])
     for (let k = 0; k < 10; k++) stepTraffic(t, 1 / 30)
     const pushed = (car.x - before.x) * -rx + (car.z - before.z) * -rz
     expect(pushed).toBeGreaterThan(0.3)
-    expect(Math.abs(Math.atan2(Math.sin(car.yaw - yaw), Math.cos(car.yaw - yaw)))).toBeGreaterThan(0.05)
+    expect(
+      Math.abs(Math.atan2(Math.sin(car.yaw - yaw), Math.cos(car.yaw - yaw)))
+    ).toBeGreaterThan(0.05)
   })
 
   test('the kerb keeps a knocked car out of the buildings', () => {
@@ -156,7 +201,14 @@ describe('city traffic as bodies', () => {
 
 describe('ramming traffic', () => {
   test('a car rammed by a body: both are knocked, the rammer loses speed', () => {
-    const t = createTraffic({ layout, cell: 12, lane: 1.4, count: 1, seed: 2, vehicle: TRAFFIC_CAR })
+    const t = createTraffic({
+      layout,
+      cell: 12,
+      lane: 1.4,
+      count: 1,
+      seed: 2,
+      vehicle: TRAFFIC_CAR,
+    })
     const car = t.cars[0]
     for (let k = 0; k < 30; k++) stepTraffic(t, 1 / 30)
     const rx = Math.cos(car.yaw)
@@ -185,20 +237,38 @@ describe('ramming traffic', () => {
     stepTraffic(t, 1 / 60, [ob()])
     const into = -(rammer.velocity.x * rx + rammer.velocity.z * rz)
     expect(into).toBeLessThan(10)
-    const pushed = -(car.body!.velocity.x - vy0.x) * rx - (car.body!.velocity.z - vy0.z) * rz
+    const pushed =
+      -(car.body!.velocity.x - vy0.x) * rx - (car.body!.velocity.z - vy0.z) * rz
     expect(pushed).toBeGreaterThan(3)
   })
 
   test('two cars jammed nose to nose: one backs off and both get going', () => {
-    const t = createTraffic({ layout, cell: 12, lane: 1.4, count: 2, seed: 5, vehicle: TRAFFIC_CAR })
+    const t = createTraffic({
+      layout,
+      cell: 12,
+      lane: 1.4,
+      count: 2,
+      seed: 5,
+      vehicle: TRAFFIC_CAR,
+    })
     const [a, b] = t.cars
     // b put nose to nose with a, facing it, both believing they must wait.
     const hx = Math.sin(a.yaw)
     const hz = Math.cos(a.yaw)
-    Object.assign(b, { cx: a.cx, cz: a.cz, dirIn: (a.dirIn + 2) % 4, dirOut: (a.dirOut + 2) % 4 })
+    Object.assign(b, {
+      cx: a.cx,
+      cz: a.cz,
+      dirIn: (a.dirIn + 2) % 4,
+      dirOut: (a.dirOut + 2) % 4,
+    })
     b.body!.position = { x: a.x + hx * 4.8, y: 0, z: a.z + hz * 4.8 }
     const yaw = a.yaw + Math.PI
-    b.body!.orientation = { x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) }
+    b.body!.orientation = {
+      x: 0,
+      y: Math.sin(yaw / 2),
+      z: 0,
+      w: Math.cos(yaw / 2),
+    }
     const start = [a.x, a.z, b.body!.position.x, b.body!.position.z]
     for (let k = 0; k < 30 * 30; k++) stepTraffic(t, 1 / 30)
     expect(Math.hypot(a.x - start[0], a.z - start[1])).toBeGreaterThan(15)
@@ -208,7 +278,14 @@ describe('ramming traffic', () => {
 
 describe('the car budget', () => {
   test('cars out of view go, and come back out of view, near, driving toward you', () => {
-    const t = createTraffic({ layout, cell: 12, lane: 1.4, count: 16, seed: 7, vehicle: TRAFFIC_CAR })
+    const t = createTraffic({
+      layout,
+      cell: 12,
+      lane: 1.4,
+      count: 16,
+      seed: 7,
+      vehicle: TRAFFIC_CAR,
+    })
     const viewer = { x: 0, z: 0, fx: 0, fz: 1 }
     for (let k = 0; k < 20 * 30; k++) {
       recycleTraffic(t, viewer, 1 / 30)
@@ -222,7 +299,14 @@ describe('the car budget', () => {
   })
 
   test('a recycled car appears out of view, heading toward the viewer', () => {
-    const t = createTraffic({ layout, cell: 12, lane: 1.4, count: 4, seed: 8, vehicle: TRAFFIC_CAR })
+    const t = createTraffic({
+      layout,
+      cell: 12,
+      lane: 1.4,
+      count: 4,
+      seed: 8,
+      vehicle: TRAFFIC_CAR,
+    })
     const viewer = { x: 0, z: 0, fx: 0, fz: 1 }
     // Send them all far away.
     for (const c of t.cars) Object.assign(c, { x: 1000, z: 1000 })
@@ -232,7 +316,9 @@ describe('the car budget', () => {
       expect(d).toBeGreaterThan(45)
       expect(d).toBeLessThan(115)
       expect(c.z / d).toBeLessThan(0.35)
-      expect(Math.sin(c.yaw) * -c.x + Math.cos(c.yaw) * -c.z).toBeGreaterThan(-1)
+      expect(Math.sin(c.yaw) * -c.x + Math.cos(c.yaw) * -c.z).toBeGreaterThan(
+        -1
+      )
     }
   })
 
@@ -254,7 +340,11 @@ describe('the horn', () => {
     const t = createTraffic({ layout, cell: 12, lane: 1.4, count: 1, seed: 4 })
     const car = t.cars[0]
     for (let k = 0; k < 30; k++) stepTraffic(t, 1 / 30)
-    const block = { x: car.x + Math.sin(car.yaw) * 7, z: car.z + Math.cos(car.yaw) * 7, radius: 1.5 }
+    const block = {
+      x: car.x + Math.sin(car.yaw) * 7,
+      z: car.z + Math.cos(car.yaw) * 7,
+      radius: 1.5,
+    }
     const honks: number[] = []
     for (let k = 0; k < 15 * 30; k++) {
       stepTraffic(t, 1 / 30, [block])
@@ -266,10 +356,21 @@ describe('the horn', () => {
   })
 
   test('a real car (a body) you block honks too', () => {
-    const t = createTraffic({ layout, cell: 12, lane: 1.4, count: 1, seed: 4, vehicle: TRAFFIC_CAR })
+    const t = createTraffic({
+      layout,
+      cell: 12,
+      lane: 1.4,
+      count: 1,
+      seed: 4,
+      vehicle: TRAFFIC_CAR,
+    })
     const car = t.cars[0]
     for (let k = 0; k < 60; k++) stepTraffic(t, 1 / 30)
-    const block = { x: car.x + Math.sin(car.yaw) * 12, z: car.z + Math.cos(car.yaw) * 12, radius: 1.5 }
+    const block = {
+      x: car.x + Math.sin(car.yaw) * 12,
+      z: car.z + Math.cos(car.yaw) * 12,
+      radius: 1.5,
+    }
     let honks = 0
     for (let k = 0; k < 10 * 30; k++) {
       stepTraffic(t, 1 / 30, [block])

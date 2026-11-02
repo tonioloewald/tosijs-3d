@@ -42,7 +42,12 @@ import * as BABYLON from '@babylonjs/core'
  * hash), `roll` a fresh 0 to 1 per few minutes of the clock (the bathroom).
  * The shader mirrors this; it is here so the habits can be tested.
  */
-export function roomLit(habit: number, shift: number, hour: number, roll: number): boolean {
+export function roomLit(
+  habit: number,
+  shift: number,
+  hour: number,
+  roll: number
+): boolean {
   const h = (((hour - (shift - 0.5) * 2) % 24) + 24) % 24
   if (habit < 0.15) return false
   if (habit < 0.45) return h >= 19 || h < 2
@@ -87,7 +92,10 @@ export class WindowLightsPlugin extends BABYLON.MaterialPluginBase {
     return 'WindowLightsPlugin'
   }
 
-  getUniforms(): { ubo: { name: string; size: number; type: string }[]; fragment: string } {
+  getUniforms(): {
+    ubo: { name: string; size: number; type: string }[]
+    fragment: string
+  } {
     return {
       ubo: [
         { name: 'winRoom', size: 4, type: 'vec4' },
@@ -160,10 +168,16 @@ export class WindowLightsPlugin extends BABYLON.MaterialPluginBase {
 /** Light the windows of a building material (the plugin, enabled). */
 export function windowLights(
   material: BABYLON.Material,
-  options: { origin?: BABYLON.TransformNode; room?: BABYLON.Vector3; seed?: number } = {}
+  options: {
+    origin?: BABYLON.TransformNode
+    room?: BABYLON.Vector3
+    seed?: number
+  } = {}
 ): WindowLightsPlugin {
   const plugin =
-    (material.pluginManager?.getPlugin('WindowLights') as WindowLightsPlugin | null) ?? new WindowLightsPlugin(material)
+    (material.pluginManager?.getPlugin(
+      'WindowLights'
+    ) as WindowLightsPlugin | null) ?? new WindowLightsPlugin(material)
   if (options.origin) plugin.origin = options.origin
   if (options.room) plugin.room.copyFrom(options.room)
   if (options.seed != null) plugin.seed = options.seed

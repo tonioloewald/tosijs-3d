@@ -45,7 +45,11 @@ export interface LightPollutionSource {
 }
 
 /** How much one source pollutes the sky at a distance from its centre. */
-export function pollutionFrom(strength: number, radius: number, distance: number): number {
+export function pollutionFrom(
+  strength: number,
+  radius: number,
+  distance: number
+): number {
   if (strength <= 0 || radius <= 0) return 0
   const out = Math.max(0, distance - radius) / radius
   return Math.min(1, strength) / (1 + out * out)
@@ -61,7 +65,10 @@ export function combinePollution(values: Iterable<number>): number {
 const registries = new WeakMap<object, Set<LightPollutionSource>>()
 
 /** Register a source with a scene. Returns its release. */
-export function lightPollutionSource(scene: object, source: LightPollutionSource): () => void {
+export function lightPollutionSource(
+  scene: object,
+  source: LightPollutionSource
+): () => void {
   let set = registries.get(scene)
   if (set == null) registries.set(scene, (set = new Set()))
   set.add(source)
@@ -69,11 +76,18 @@ export function lightPollutionSource(scene: object, source: LightPollutionSource
 }
 
 /** The sky's pollution at a point in a scene, from `base` (0…1) and every source. */
-export function lightPollutionAt(scene: object, x: number, z: number, base = 0): number {
+export function lightPollutionAt(
+  scene: object,
+  x: number,
+  z: number,
+  base = 0
+): number {
   const values = [base]
   for (const s of registries.get(scene) ?? []) {
     const c = s.centre()
-    values.push(pollutionFrom(s.strength(), s.radius, Math.hypot(x - c.x, z - c.z)))
+    values.push(
+      pollutionFrom(s.strength(), s.radius, Math.hypot(x - c.x, z - c.z))
+    )
   }
   return combinePollution(values)
 }

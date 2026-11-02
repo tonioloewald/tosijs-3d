@@ -26,7 +26,13 @@ export interface SoundingLamp extends VirtualLight {
 }
 
 /** The nearest `n` of `items` to `p` (by `at`), within `reach`. */
-function nearest<T>(items: Iterable<T>, at: (t: T) => BABYLON.Vector3, p: BABYLON.Vector3, n: number, reach: number): T[] {
+function nearest<T>(
+  items: Iterable<T>,
+  at: (t: T) => BABYLON.Vector3,
+  p: BABYLON.Vector3,
+  n: number,
+  reach: number
+): T[] {
   const out: { t: T; d: number }[] = []
   for (const t of items) {
     const d = BABYLON.Vector3.DistanceSquared(at(t), p)
@@ -44,7 +50,13 @@ export class CitySound {
   private clock = 0
 
   /** Call every frame. `origin` is the city root's position (traffic is in the city's frame). */
-  update(scene: BABYLON.Scene, dt: number, traffic: Traffic | null, lamps: SoundingLamp[], origin: BABYLON.Vector3) {
+  update(
+    scene: BABYLON.Scene,
+    dt: number,
+    traffic: Traffic | null,
+    lamps: SoundingLamp[],
+    origin: BABYLON.Vector3
+  ) {
     this.clock += dt
     const camera = scene.activeCamera
     if (camera == null) return
@@ -57,7 +69,12 @@ export class CitySound {
 
     // ENGINES: the nearest cars, their note rising with speed, louder on the throttle.
     if (traffic) {
-      const at = (c: TrafficCar) => new BABYLON.Vector3(c.x + origin.x, c.y + origin.y + 0.6, c.z + origin.z)
+      const at = (c: TrafficCar) =>
+        new BABYLON.Vector3(
+          c.x + origin.x,
+          c.y + origin.y + 0.6,
+          c.z + origin.z
+        )
       const near = new Set(nearest(traffic.cars, at, ear, engineCount, 70))
       for (const [car, voice] of this.engines) {
         if (!near.has(car)) {
@@ -77,7 +94,12 @@ export class CitySound {
         const speed = b ? Math.hypot(b.velocity.x, b.velocity.z) : car.speed
         const pull = Math.max(0, car.throttle)
         voice.place(at(car))
-        voice.set(0.18 + 0.3 * pull, 0.8 + speed / 9 + pull * 0.25, 0.25 + 0.6 * pull, 16000)
+        voice.set(
+          0.18 + 0.3 * pull,
+          0.8 + speed / 9 + pull * 0.25,
+          0.25 + 0.6 * pull,
+          16000
+        )
       }
       // HORNS: a beep, or two.
       for (const car of traffic.cars) {
@@ -87,7 +109,8 @@ export class CitySound {
         voice.place(at(car))
         voice.set(0.55, 1, 0.6, 16000)
         // Some drivers give a second beep.
-        const long = (car.cx * 7 + car.cz * 13 + Math.floor(this.clock)) % 3 === 0
+        const long =
+          (car.cx * 7 + car.cz * 13 + Math.floor(this.clock)) % 3 === 0
         this.horns.push({ voice, until: this.clock + (long ? 0.75 : 0.32) })
       }
     }
@@ -118,7 +141,12 @@ export class CitySound {
       if (lamp.seed) {
         // The arc catches and drops with the light: loudest as it fails.
         const f = lamp.flicker ?? 1
-        voice.set(lamp.level * (0.12 + 0.5 * (1 - f)), 1, 0.3 + 0.5 * (1 - f), 16000)
+        voice.set(
+          lamp.level * (0.12 + 0.5 * (1 - f)),
+          1,
+          0.3 + 0.5 * (1 - f),
+          16000
+        )
       } else voice.set(lamp.level * 0.08, 1, 0.4, 16000)
     }
   }
