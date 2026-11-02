@@ -33,10 +33,7 @@ import {
   type SavedResult,
   type SweepResult,
 } from '../src/extremes-sweep.js'
-import {
-  readHairLibrary,
-  referenceHeads,
-} from '../src/hair-place.js'
+import { readHairLibrary, referenceHeads } from '../src/hair-place.js'
 import { summarise, renderMarkdown } from '../src/extremes-report.js'
 import { contactSheet, sheetCases } from '../src/extremes-sheet.js'
 

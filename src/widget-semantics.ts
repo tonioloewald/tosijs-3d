@@ -213,7 +213,8 @@ export function controlTree(
     }
     const node = add(w, level, levelPath, '')
     if (node != null && NAMING.has(node.role)) {
-      previousText = node.role === 'label' ? node.name : String(node.value ?? '')
+      previousText =
+        node.role === 'label' ? node.name : String(node.value ?? '')
     } else if (node != null) previousText = ''
   }
   return top
@@ -302,7 +303,11 @@ export function plainControls(
   depth = Infinity
 ): Array<Record<string, unknown>> {
   return tree.map((n) => {
-    const o: Record<string, unknown> = { role: n.role, name: n.name, path: n.path }
+    const o: Record<string, unknown> = {
+      role: n.role,
+      name: n.name,
+      path: n.path,
+    }
     for (const k of [
       'value',
       'options',

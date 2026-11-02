@@ -153,6 +153,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   takes the depth and the distance to land from the terrain and draws surf that
 - https://3d.tosijs.net/acknowledgements/ — Acknowledgements
   tosijs-3d stands on other people's work: models, maps, measurements, icons,
+- https://3d.tosijs.net/b3d-agent/ — agents
+  prefix, `b3d_<scene>_…`: its settings panel as named controls an agent reads,
 - https://3d.tosijs.net/aim/ — aim
   degrees and plain `{x, y, z}`, no Babylon — so the whole of walk-and-aim can be
 - https://3d.tosijs.net/b3d-light/ — Ambient light (b3d-light)
@@ -626,6 +628,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   now?** `weatherAt(base, cells, x, z)` answers it from the scene's base weather
 - https://3d.tosijs.net/weather-and-clouds/ — Weather and clouds
   through all of it: weather is something every component asks about *where it
+- https://3d.tosijs.net/widget-semantics/ — widget semantics
+  say what it is through `semantics()`: a role (button, toggle, slider,
 - https://3d.tosijs.net/widget-box/ — widget-box
   The seam between the two SVG UI systems, so they **compose instead of competing**.
 - https://3d.tosijs.net/widgets3d/ — widgets3d

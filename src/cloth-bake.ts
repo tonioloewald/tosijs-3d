@@ -78,7 +78,9 @@ export function recolourCloth(
 }
 
 /** The sheen colour cloth-shading gives a recoloured fabric: a lighter version of it. */
-export function clothSheenColour(colour: string): [number, number, number] | null {
+export function clothSheenColour(
+  colour: string
+): [number, number, number] | null {
   const c = parseColor(colour)
   if (c == null) return null
   return [0.6 + 0.4 * c.r, 0.6 + 0.4 * c.g, 0.6 + 0.4 * c.b]

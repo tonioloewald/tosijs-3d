@@ -79,7 +79,8 @@ export const QUATERNIUS_HEADS: Readonly<Record<string, HeadLandmarks>> =
   })
 
 /** Pieces that grow on the face, not the scalp. */
-export const FACIAL_HAIR = /Beard|Moustache|Mustache|MuttonChops|Goatee|Stubble/i
+export const FACIAL_HAIR =
+  /Beard|Moustache|Mustache|MuttonChops|Goatee|Stubble/i
 
 /** Which warp a piece goes through: `face` for brows and beards, else `scalp`. */
 export function hairFitFor(name: string, category: string): 'scalp' | 'face' {
@@ -320,7 +321,9 @@ export function referenceHeads(
   }
   if (heads.length === 0)
     throw new Error('referenceHeads: the library has no reference head')
-  const m = pieces.find((p) => p.name === (options.moustache ?? 'Hair_Moustache'))
+  const m = pieces.find(
+    (p) => p.name === (options.moustache ?? 'Hair_Moustache')
+  )
   const lip = m && moustacheLip(m.parts[0])
   if (m && lip) closestHead(m.parts, heads).lip = lip
   return heads

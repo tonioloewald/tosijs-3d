@@ -100,13 +100,18 @@ describe('writeSkinnedGlb', () => {
 
   test('vertex colours go out as COLOR_0, clean, and Babylon reads them', async () => {
     const g = scene()
-    const colors = Float32Array.from([1, 1, 1, 0.8, 0.5, 0.5, 1, 1, 1, 0.7, 0.6, 0.6])
+    const colors = Float32Array.from([
+      1, 1, 1, 0.8, 0.5, 0.5, 1, 1, 1, 0.7, 0.6, 0.6,
+    ])
     g.meshes[0]!.primitives[0]!.colors = colors
     const bytes = writeSkinnedGlb(g)
     const report = await validateBytes(bytes, { maxIssues: 100 })
-    expect(report.issues.messages.map((m) => `${m.code}: ${m.message}`)).toEqual([])
+    expect(
+      report.issues.messages.map((m) => `${m.code}: ${m.message}`)
+    ).toEqual([])
     const { json } = readGlb(bytes)
-    const color = json.accessors[json.meshes[0].primitives[0].attributes.COLOR_0]
+    const color =
+      json.accessors[json.meshes[0].primitives[0].attributes.COLOR_0]
     expect([color.type, color.count]).toEqual(['VEC3', 4])
     const BABYLON = await import('@babylonjs/core')
     await import('@babylonjs/loaders')

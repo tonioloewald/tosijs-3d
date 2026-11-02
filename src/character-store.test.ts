@@ -47,12 +47,24 @@ describe('naming a saved character', () => {
   const saved = ['Ada', 'Brin']
 
   test('a new name is taken, trimmed, and replaces nothing', () => {
-    expect(nameCharacter('  Cato ', saved)).toEqual({ ok: true, name: 'Cato', replaces: false })
+    expect(nameCharacter('  Cato ', saved)).toEqual({
+      ok: true,
+      name: 'Cato',
+      replaces: false,
+    })
   })
 
   test('another saved character’s name replaces it; its own name does not', () => {
-    expect(nameCharacter('Brin', saved, 'Ada')).toEqual({ ok: true, name: 'Brin', replaces: true })
-    expect(nameCharacter('Ada', saved, 'Ada')).toEqual({ ok: true, name: 'Ada', replaces: false })
+    expect(nameCharacter('Brin', saved, 'Ada')).toEqual({
+      ok: true,
+      name: 'Brin',
+      replaces: true,
+    })
+    expect(nameCharacter('Ada', saved, 'Ada')).toEqual({
+      ok: true,
+      name: 'Ada',
+      replaces: false,
+    })
   })
 
   test('a blank name and the working figure’s key are refused, with a reason', () => {

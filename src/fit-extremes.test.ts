@@ -4,7 +4,11 @@ import { join } from 'path'
 import type { FittedRig } from './rig-fit.js'
 import { meshSdf } from './mesh-sdf.js'
 import { sweepCorners, cornerId } from './extremes-corners.js'
-import { penetration, triangleTuck, visibleMask } from './extremes-penetration.js'
+import {
+  penetration,
+  triangleTuck,
+  visibleMask,
+} from './extremes-penetration.js'
 import { boneReference, checkBones } from './extremes-bones.js'
 import { summarise, fails, describeCorner } from './extremes-report.js'
 import { readHairLibrary } from './hair-place.js'

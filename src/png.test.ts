@@ -107,7 +107,9 @@ describe('pngEncode', () => {
 describe('pngDecode', () => {
   const W = 7
   const H = 5
-  const rgb = new Uint8Array(W * H * 3).map((_, i) => (i * 37 + (i >> 3) * 11) & 255)
+  const rgb = new Uint8Array(W * H * 3).map(
+    (_, i) => (i * 37 + (i >> 3) * 11) & 255
+  )
 
   /** An RGB PNG with each row filtered a different way (0 to 4, round again). */
   function filteredRgb(): Uint8Array {
@@ -123,11 +125,12 @@ describe('pngDecode', () => {
         const c = y > 0 && x >= bpp ? rgb[(y - 1) * stride + x - bpp] : 0
         const p = a + b - c
         const paeth =
-          Math.abs(p - a) <= Math.abs(p - b) && Math.abs(p - a) <= Math.abs(p - c)
+          Math.abs(p - a) <= Math.abs(p - b) &&
+          Math.abs(p - a) <= Math.abs(p - c)
             ? a
             : Math.abs(p - b) <= Math.abs(p - c)
-              ? b
-              : c
+            ? b
+            : c
         const pred = [0, a, b, (a + b) >> 1, paeth][f]
         raw[y * (stride + 1) + 1 + x] = (rgb[y * stride + x] - pred) & 255
       }

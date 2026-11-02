@@ -1059,7 +1059,9 @@ export function tabs3d(config: {
       options: config.tabs.map(tabName),
       set: (v) => {
         const i =
-          typeof v === 'number' ? v : config.tabs.map(tabName).indexOf(String(v))
+          typeof v === 'number'
+            ? v
+            : config.tabs.map(tabName).indexOf(String(v))
         pick(i)
       },
     }),
@@ -1072,8 +1074,7 @@ export function tabs3d(config: {
   }
 }
 
-const tabName = (t: Tab3d) =>
-  typeof t === 'string' ? t : t.title ?? t.icon
+const tabName = (t: Tab3d) => (typeof t === 'string' ? t : t.title ?? t.icon)
 
 /**
  * **Fold or tab a panel's sections** (board #2805, tosijs-3d#99). A
@@ -3131,7 +3132,11 @@ export function spinner3d(
     hitTest() {
       return false
     },
-    semantics: () => ({ role: 'progress', name: config.label ?? '', value: 'busy' }),
+    semantics: () => ({
+      role: 'progress',
+      name: config.label ?? '',
+      value: 'busy',
+    }),
     dispose() {
       spinners.delete(entry)
     },
@@ -5233,14 +5238,13 @@ export function panel3d(
   otherwise keeps the whole panel alive through tosijs's listener list.
   */
   ;(root as unknown as { controls: () => ControlNode[] }).controls = () => {
-    const tree = [
-      ...controlTree(headerWidgets),
-      ...controlTree(widgets),
-    ]
+    const tree = [...controlTree(headerWidgets), ...controlTree(widgets)]
     for (const p of popups) {
       const opener = (p.inHeader ? headerWidgets : widgets)[p.index]
       const name = String(opener?.semantics?.()?.name ?? '') || 'popup'
-      const sheet = p.sheet as (Panel3d & { controls?: () => ControlNode[] }) | null
+      const sheet = p.sheet as
+        | (Panel3d & { controls?: () => ControlNode[] })
+        | null
       const inner = sheet?.controls?.() ?? controlTree(p.items, name)
       tree.push({
         role: 'popup',

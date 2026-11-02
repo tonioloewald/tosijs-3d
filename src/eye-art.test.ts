@@ -103,9 +103,7 @@ describe('recolouring the iris', () => {
     expect(eyeStyle('cartoon')).toBe('basic')
     expect(eyeStyle(undefined)).toBe('basic')
     expect(eyeAsset('anime')).toBe('tonio:eye/anime')
-    expect(eyePngUrl('basic')).toMatch(
-      /tonio\/eyes\/basic-eye\.png\?v=\d+$/
-    )
+    expect(eyePngUrl('basic')).toMatch(/tonio\/eyes\/basic-eye\.png\?v=\d+$/)
   })
 })
 

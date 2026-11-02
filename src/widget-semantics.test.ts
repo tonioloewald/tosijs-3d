@@ -38,7 +38,11 @@ describe('the control tree', () => {
     let night = false
     const tree = controlTree([
       W.label3d({ text: 'Sky', collapsible: true, open: true }),
-      W.toggle3d({ label: 'night', value: false, handleChange: (v) => (night = v) }),
+      W.toggle3d({
+        label: 'night',
+        value: false,
+        handleChange: (v) => (night = v),
+      }),
       W.row3d({}, W.label3d({ text: 'title' }), K.inputField({ value: 'x' })),
       W.label3d({ text: 'Scene', collapsible: true }),
       W.button3d({ label: 'reset' }),
@@ -128,7 +132,14 @@ describe('widgets set and press through their own path', () => {
     })
     s.layout(300)
     const sem = s.semantics!()
-    expect(sem).toMatchObject({ role: 'slider', name: 'speed', value: 1, min: 0, max: 10, step: 0.5 })
+    expect(sem).toMatchObject({
+      role: 'slider',
+      name: 'speed',
+      value: 1,
+      min: 0,
+      max: 10,
+      step: 0.5,
+    })
     sem.set!(3.3)
     sem.set!(99)
     expect(seen).toEqual([3.5, 10])
@@ -155,14 +166,19 @@ describe('widgets set and press through their own path', () => {
 
   test('toggle, button, menu button, tabs, list', () => {
     let on = false
-    const t = W.toggle3d({ label: 'lights', value: false, handleChange: (v) => (on = v) })
+    const t = W.toggle3d({
+      label: 'lights',
+      value: false,
+      handleChange: (v) => (on = v),
+    })
     t.semantics!().set!('on')
     expect(on).toBe(true)
     t.semantics!().set!(true) // already on: no flip
     expect(t.semantics!().value).toBe(true)
 
     let clicks = 0
-    W.button3d({ label: 'go', handleClick: () => clicks++ }).semantics!().activate!()
+    W.button3d({ label: 'go', handleClick: () => clicks++ }).semantics!()
+      .activate!()
     expect(clicks).toBe(1)
 
     let picked = ''
@@ -170,7 +186,11 @@ describe('widgets set and press through their own path', () => {
       label: 'file',
       menu: [
         { label: 'save', handleSelect: () => (picked = 'save') },
-        { label: 'revert', disabled: true, handleSelect: () => (picked = 'revert') },
+        {
+          label: 'revert',
+          disabled: true,
+          handleSelect: () => (picked = 'revert'),
+        },
       ],
     })
     expect(m.semantics!().options).toEqual(['save', 'revert'])
@@ -180,7 +200,10 @@ describe('widgets set and press through their own path', () => {
     expect(picked).toBe('save')
 
     let tab = -1
-    const tabs = W.tabs3d({ tabs: ['a', { icon: 'sun', title: 'sky' }], handleSelect: (i) => (tab = i) })
+    const tabs = W.tabs3d({
+      tabs: ['a', { icon: 'sun', title: 'sky' }],
+      handleSelect: (i) => (tab = i),
+    })
     tabs.layout(300)
     expect(tabs.semantics!().options).toEqual(['a', 'sky'])
     tabs.semantics!().set!('sky')
@@ -204,7 +227,11 @@ describe('widgets set and press through their own path', () => {
 
   test('input field: set as typed, settled as Enter settles it', () => {
     const seen: string[] = []
-    const f = K.inputField({ type: 'number', value: '1', handleChange: (v) => seen.push(v) })
+    const f = K.inputField({
+      type: 'number',
+      value: '1',
+      handleChange: (v) => seen.push(v),
+    })
     f.semantics!().set!('2.')
     expect(f.value).toBe('2')
     expect(seen).toContain('2')
@@ -239,8 +266,17 @@ describe('a panel lists its controls, and the popup open from one', () => {
         label: 'save…',
         popup: (pop) => [
           W.text3d({ text: 'save as' }),
-          K.inputField({ placeholder: 'name', handleChange: (v) => (typed = v) }),
-          W.button3d({ label: 'save', handleClick: () => { saved = typed; pop.close() } }),
+          K.inputField({
+            placeholder: 'name',
+            handleChange: (v) => (typed = v),
+          }),
+          W.button3d({
+            label: 'save',
+            handleClick: () => {
+              saved = typed
+              pop.close()
+            },
+          }),
         ],
       })
     )

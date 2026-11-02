@@ -25,12 +25,7 @@ import type { HumanPack, HumanProxy } from './human-pack.js'
 import { humanHeight, macroWeights, morphHuman } from './human-morph.js'
 import { humanRig } from './human-rig.js'
 import type { FittedRig } from './rig-fit.js'
-import {
-  drawnPositions,
-  fitProxy,
-  inflate,
-  smoothUnder,
-} from './proxy-fit.js'
+import { drawnPositions, fitProxy, inflate, smoothUnder } from './proxy-fit.js'
 import { vertexNormals } from './hair-fit.js'
 import type { Corner } from './extremes-corners.js'
 import { meshSdf, type MeshSdf } from './mesh-sdf.js'
@@ -150,7 +145,9 @@ export async function makeBody(
       : full,
     sdf: meshSdf(full, pack.triangles),
     height: humanHeight(full, pack.triangles),
-    head: headScalp(pack.manifest, full, pack.triangles, { lips: regions.lips }),
+    head: headScalp(pack.manifest, full, pack.triangles, {
+      lips: regions.lips,
+    }),
     rig: humanRig(pack.manifest, full, undefined, {
       triangles: pack.triangles,
     }),

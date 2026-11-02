@@ -65,6 +65,16 @@
     ]
   },
   {
+    "module": "b3d-agent",
+    "summary": "agents",
+    "attributes": [
+      {
+        "name": "b3d_scenes",
+        "default": "the page's scenes: name, which has input focus, what each offers"
+      }
+    ]
+  },
+  {
     "module": "b3d-aircraft",
     "tag": "tosi-b3d-aircraft",
     "summary": "b3d-aircraft",
@@ -6132,6 +6142,11 @@
         "name": "panelSections",
         "default": "'fold'",
         "description": "How collapsible sections in the settings panel present: `'fold'` (headers you open and close, one open at a time: opening one closes the others), `'folds'` (several may be open) or `'tabs'` (file tabs, one section at a time)"
+      },
+      {
+        "name": "agent",
+        "default": "''",
+        "description": "What an agent may do with this scene through its tools (`b3d_<scene>_…` on WebMCP and `window.b3dAgent`; see [agents](/b3d-agent/)). `''` follows the page (`enableSceneAgents`; closed by default), `'read'` offers the read tools, `'on'` everything, `'off'` nothing"
       },
       {
         "name": "gamepadScale",

@@ -14,19 +14,27 @@ function folds(): RgbaImage {
   return { width, height: width, data }
 }
 const px = (img: RgbaImage, x: number, y: number) =>
-  Array.from(img.data.subarray((y * img.width + x) * 4, (y * img.width + x) * 4 + 4))
+  Array.from(
+    img.data.subarray((y * img.width + x) * 4, (y * img.width + x) * 4 + 4)
+  )
 
 describe('recolourCloth', () => {
   test('amount 0 keeps the texture as it is', () => {
     const img = folds()
-    expect(Array.from(recolourCloth(img, '#7a2e2e', 0).data)).toEqual(Array.from(img.data))
+    expect(Array.from(recolourCloth(img, '#7a2e2e', 0).data)).toEqual(
+      Array.from(img.data)
+    )
   })
 
   test('amount 1 is the colour wholly, its folds kept, its value kept on average', () => {
     const img = folds()
     const red = recolourCloth(img, '#7a2e2e', 1)
     // Every pixel is red now: red channel over green and blue.
-    for (const [x, y] of [[3, 3], [20, 40], [50, 10]]) {
+    for (const [x, y] of [
+      [3, 3],
+      [20, 40],
+      [50, 10],
+    ]) {
       const [r, g, b, a] = px(red, x, y)
       expect(r).toBeGreaterThan(g)
       expect(r).toBeGreaterThan(b)
@@ -38,7 +46,11 @@ describe('recolourCloth', () => {
     expect(light).toBeGreaterThan(dark + 30)
     // Divided by the mean, the colour keeps its value: the average comes out
     // at the colour's own luminance.
-    const target = textureMean({ width: 1, height: 1, data: Uint8Array.from([0x7a, 0x2e, 0x2e, 255]) })
+    const target = textureMean({
+      width: 1,
+      height: 1,
+      data: Uint8Array.from([0x7a, 0x2e, 0x2e, 255]),
+    })
     expect(textureMean(red)).toBeCloseTo(target, 2)
   })
 
@@ -46,7 +58,9 @@ describe('recolourCloth', () => {
     const img = folds()
     img.data[3] = 7
     expect(recolourCloth(img, '#3b5b8a', 1).data[3]).toBe(7)
-    expect(Array.from(recolourCloth(img, 'not a colour', 1).data)).toEqual(Array.from(img.data))
+    expect(Array.from(recolourCloth(img, 'not a colour', 1).data)).toEqual(
+      Array.from(img.data)
+    )
   })
 
   test("the sheen is the runtime's lighter version of the colour", () => {
