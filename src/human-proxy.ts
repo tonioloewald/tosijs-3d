@@ -17,8 +17,8 @@ and brows beside Quaternius'.
 import * as BABYLON from '@babylonjs/core'
 import type { HumanProxy } from './human-pack.js'
 import type { BuiltRig } from './rig-build.js'
+import { coverSkin } from './proxy-cover.js'
 import {
-  coveredBy,
   coveredTriangles,
   drawnPositions,
   fitProxy,
@@ -184,62 +184,14 @@ export function coverBody(
       mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind)!
     )
   }
-  const deleted = new Set<number>()
-  for (const p of wearing) {
-    // Glasses list skin they do not cover (the lids under the lenses).
-    if (p?.delete && p.slot !== 'glasses')
-      for (const v of p.delete) deleted.add(v)
-  }
-  const positions = Float32Array.from(meta.untucked)
-  const tuck = options.tuck ?? 0.006
-  const n = meta.normals!
-  // How deep each compact vertex goes: listed ones by `tuck`; ones a body
-  // garment covers by geometry just far enough to sit under it.
-  const depth = new Float32Array(vertices.length)
-  for (let i = 0; i < vertices.length; i++)
-    if (deleted.has(vertices[i])) depth[i] = tuck
-  for (const p of wearing) {
-    if (p == null || p.category !== 'clothes') continue
-    // Only what wraps the body: a hat, a mask or glasses sit near the face
-    // without covering it, and tucking under them pulled the eyelids in.
-    if (
-      ![
-        'outfit',
-        'bodysuit',
-        'armour',
-        'top',
-        'bottom',
-        'shoes',
-        'gloves',
-      ].includes(p.slot ?? 'outfit')
-    )
-      continue
-    const g = options.drawn?.get(p.name)
-    if (g == null) continue
-    const gap = coveredBy(meta.untucked, n, g)
-    for (let i = 0; i < gap.length; i++) {
-      if (gap[i] === Infinity) continue
-      // Under the garment by 4 mm, or a little more where it is loose (a
-      // bending knee), never more than 10 mm (a wrist is thin).
-      depth[i] = Math.max(depth[i], Math.min(0.01, 0.004 + gap[i] * 0.3))
-    }
-  }
-  // FADE IN from the edge of what is covered, along the skin, so a cuff or a
-  // neckline shows no dip where the tucked skin meets the rest.
-  const fade = edgeDistance(
-    triangles,
+  const { positions, deleted } = coverSkin(
     meta.untucked,
-    depth,
-    options.fade ?? 0.03
+    meta.normals!,
+    triangles,
+    vertices,
+    wearing,
+    options
   )
-  for (let i = 0; i < vertices.length; i++) {
-    if (depth[i] === 0) continue
-    const t = Math.min(1, fade[i] / (options.fade ?? 0.03))
-    const d = depth[i] * t * t * (3 - 2 * t)
-    positions[i * 3] -= n[i * 3] * d
-    positions[i * 3 + 1] -= n[i * 3 + 1] * d
-    positions[i * 3 + 2] -= n[i * 3 + 2] * d
-  }
   // set, not update: an update to a buffer made without `updatable` is a
   // silent no-op in Babylon.
   mesh.setVerticesData(BABYLON.VertexBuffer.PositionKind, positions, true)
@@ -256,53 +208,3 @@ export function coverBody(
   )
 }
 
-/**
- * For each vertex with `depth > 0`, how far it is along the mesh's edges from
- * the nearest vertex with none (Dijkstra, cut off at `limit`).
- */
-function edgeDistance(
-  triangles: ArrayLike<number>,
-  positions: ArrayLike<number>,
-  depth: Float32Array,
-  limit: number
-): Float32Array {
-  const n = depth.length
-  const dist = new Float32Array(n).fill(Infinity)
-  const adj: number[][] = Array.from({ length: n }, () => [])
-  for (let t = 0; t < triangles.length; t += 3) {
-    const a = triangles[t]
-    const b = triangles[t + 1]
-    const c = triangles[t + 2]
-    adj[a].push(b, c)
-    adj[b].push(a, c)
-    adj[c].push(a, b)
-  }
-  const len = (a: number, b: number) =>
-    Math.hypot(
-      positions[a * 3] - positions[b * 3],
-      positions[a * 3 + 1] - positions[b * 3 + 1],
-      positions[a * 3 + 2] - positions[b * 3 + 2]
-    )
-  // A plain priority list is enough: the frontier stays small (a 3 cm band).
-  let frontier: number[] = []
-  for (let v = 0; v < n; v++) {
-    if (depth[v] === 0) {
-      dist[v] = 0
-      frontier.push(v)
-    }
-  }
-  while (frontier.length) {
-    const next: number[] = []
-    for (const v of frontier) {
-      for (const u of adj[v]) {
-        const d = dist[v] + len(v, u)
-        if (d < dist[u] && d <= limit) {
-          dist[u] = d
-          next.push(u)
-        }
-      }
-    }
-    frontier = next
-  }
-  return dist
-}

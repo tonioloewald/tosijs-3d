@@ -36,6 +36,27 @@ const PURE = [
   'curve',
   'light-modulation',
   'fly-by-wire',
+  // The engine-free character core (pure-core.test.ts keeps Babylon out).
+  'human-pack',
+  'human-morph',
+  'human-rig',
+  'rig-fit',
+  'rig-recipe',
+  'retarget',
+  'bone-heat',
+  'spatial-transform',
+  'proxy-fit',
+  'proxy-rigid',
+  'hair-fit',
+  'garment-cut',
+  'garment-file',
+  'uv-unwrap',
+  'skin-tone',
+  'character-file',
+  'rigged-body',
+  'character-settings',
+  'proxy-cover',
+  'asset-url',
 ]
 
 describe('declared-pure modules import with no DOM', () => {

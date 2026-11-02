@@ -118,7 +118,7 @@ import {
 } from './proxy-fit.js'
 import { skinAlbedo } from './skin-tone.js'
 import { humanProxy, proxyMaterial, coverBody } from './human-proxy.js'
-import { hairShading, HAIR_COLOURS } from './hair-shading.js'
+import { hairShading } from './hair-shading.js'
 import { clothShading, clothRecipe } from './cloth-shading.js'
 import {
   faceDeltas,
@@ -145,59 +145,13 @@ import { applyRigRecipe } from './rig-recipe-babylon.js'
 import type { RigRecipe } from './rig-recipe.js'
 import { assetUrl } from './asset-url.js'
 import type { SlotLook } from './character-file.js'
+import {
+  CHARACTER_SLOTS,
+  DEFAULT_CHARACTER,
+  hm08PackUrl,
+} from './character-settings.js'
 
-/** What can be worn, one of each at a time. */
-export const CHARACTER_SLOTS = [
-  'outfit',
-  'bodysuit',
-  'armour',
-  'top',
-  'bottom',
-  'shoes',
-  'gloves',
-  'hat',
-  'mask',
-  'glasses',
-] as const
-
-/** Every setting a character has, with its default. */
-export const DEFAULT_CHARACTER: Record<string, any> = {
-  ...DEFAULT_HUMAN_BODY,
-  gender: 1,
-  tone: 0.3,
-  redness: 0.5,
-  iris: 0.2,
-  irisColour: '#5a3519',
-  hair: 'short02',
-  beard: 'none',
-  moustache: 'none',
-  brows: 'eyebrow001',
-  hairBase: HAIR_COLOURS.brown.base,
-  hairHighlight: HAIR_COLOURS.brown.highlight,
-  hairUp: 0,
-  hairForward: 0,
-  hairSize: 1,
-  outfit: 'male_casualsuit02',
-  bodysuit: 'none',
-  armour: 'none',
-  top: 'none',
-  bottom: 'none',
-  shoes: 'shoes01',
-  hat: 'none',
-  glasses: 'none',
-  gloves: 'none',
-  mask: 'none',
-  stubble: 0,
-  blink: true,
-  talk: false,
-  smile: 0,
-  browsUp: 0,
-  frown: 0,
-  hideClothes: false,
-  rigs: {},
-  surfaces: {},
-  source: 'MakeHuman',
-}
+export { CHARACTER_SLOTS, DEFAULT_CHARACTER } from './character-settings.js'
 
 /** Where a mesh's body comes from: a URL or a file, and the node to take. */
 export interface CharacterSource {
@@ -245,7 +199,7 @@ export async function loadCharacterAssets(
   options: { pack?: string; hair?: string } = {}
 ): Promise<CharacterAssets> {
   const [pack, hair] = await Promise.all([
-    loadHumanPack(options.pack ?? assetUrl('makehuman/hm08/hm08.json', 17)),
+    loadHumanPack(options.pack ?? hm08PackUrl()),
     loadHairLibrary(
       scene,
       options.hair ?? assetUrl('quaternius/libraries/hairstyles.glb', 2)
@@ -1115,7 +1069,7 @@ export async function makeCharacter(
     r.multi?.dispose(false, false, false)
     const m = surfaceMaterial(scene, r.mesh.name, r.body, (surface) =>
       surface?.material && surfaceChoice(r, surface) === 'as made'
-        ? surface.material
+        ? (surface.material as BABYLON.Material)
         : mat
     )
     r.multi = m instanceof BABYLON.MultiMaterial ? m : null

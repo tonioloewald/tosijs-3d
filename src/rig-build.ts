@@ -94,6 +94,10 @@ import {
 } from './rigged-body.js'
 import { materialConventions } from './b3d-utils.js'
 
+/** A surface's material is a Babylon one here; the pure core types it by name only. */
+const babylonMaterial = (m: { name: string } | null | undefined) =>
+  (m ?? null) as BABYLON.Material | null
+
 export interface BuiltRig {
   /** The container: move, turn and scale the character by this. */
   root: BABYLON.TransformNode
@@ -343,7 +347,7 @@ export function gatherTriangles(
     }
     for (const i of ix) indices.push(base + i)
   }
-  for (const s of surfaces) s.name = nameOf(s.material ?? null)
+  for (const s of surfaces) s.name = nameOf(babylonMaterial(s.material))
   return {
     positions,
     indices,
@@ -377,7 +381,9 @@ function keepMaterials(
   surfaces: BodySurface[] | undefined
 ): void {
   const kept = new Set(
-    surfaces?.map((s) => s.material).filter((m) => m != null)
+    surfaces
+      ?.map((s) => babylonMaterial(s.material))
+      .filter((m): m is BABYLON.Material => m != null)
   )
   for (const mat of kept) {
     const i = container.materials.indexOf(mat!)

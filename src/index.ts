@@ -2148,6 +2148,14 @@ export {
   CHARACTER_SLOTS,
   CHARACTER_SOURCES,
 } from './character.js'
+export {
+  hm08PackUrl,
+  HM08_PACK_PATH,
+  HM08_PACK_VERSION,
+} from './character-settings.js'
+export { coverSkin, BODY_WRAPPING_SLOTS } from './proxy-cover.js'
+export type { SkinCoverOptions } from './proxy-cover.js'
+export type { SurfaceMaterial } from './rigged-body.js'
 export type {
   SceneCharacter,
   CharacterAssets,
