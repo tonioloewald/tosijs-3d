@@ -56,6 +56,9 @@ export const VISUALLY_HIDDEN: Partial<CSSStyleDeclaration> = {
   whiteSpace: 'nowrap',
 }
 
+/** A number without float noise: 0.6000000238418579 is 0.6. */
+const tidy = (x: number) => String(Number(x.toPrecision(6)))
+
 const numeric = (v: unknown): v is Record<string, number> =>
   v != null &&
   typeof v === 'object' &&
@@ -211,15 +214,40 @@ export function ariaMirror(
       }
       case 'slider': {
         const r = keyed(el('input', { type: 'range', 'aria-label': name }))
-        if (n.min !== undefined) r.min = String(n.min)
-        if (n.max !== undefined) r.max = String(n.max)
-        r.step = n.step !== undefined && n.step > 0 ? String(n.step) : 'any'
-        r.value = String(n.value ?? '')
+        // A log track is mirrored as positions along it (0..1000), so an
+        // arrow moves the handle as far as a hand would; the text says the value.
+        const track = n.setFraction != null
+        const position = (m: ControlNode) =>
+          track
+            ? String(Math.round((m.fraction ?? 0) * 1000))
+            : String(m.value ?? '')
+        if (track) {
+          r.min = '0'
+          r.max = '1000'
+          r.step = '10'
+        } else {
+          if (n.min !== undefined) r.min = tidy(n.min)
+          if (n.max !== undefined) r.max = tidy(n.max)
+          r.step = n.step !== undefined && n.step > 0 ? tidy(n.step) : 'any'
+        }
+        r.value = position(n)
+        const text = (m: ControlNode) => {
+          if (m.valueText) r.setAttribute('aria-valuetext', m.valueText)
+          else r.removeAttribute('aria-valuetext')
+        }
+        text(n)
         disabled(r)
-        r.addEventListener('input', () => node(key)?.set?.(Number(r.value)))
+        r.addEventListener('input', () => {
+          const cur = node(key)
+          if (track) cur?.setFraction?.(Number(r.value) / 1000)
+          else cur?.set?.(Number(r.value))
+          // What the widget now shows (its formatted value), read back.
+          queueMicrotask(update)
+        })
         into.appendChild(r)
         patches.set(key, (m) => {
-          if (focused() !== r) r.value = String(m.value ?? '')
+          if (focused() !== r) r.value = position(m)
+          text(m)
         })
         return
       }
@@ -310,10 +338,9 @@ export function ariaMirror(
             : n.role === 'toolbar'
             ? 'toolbar'
             : 'group'
-        const g = el('div', {
-          role,
-          ...(n.name ? { 'aria-label': n.name } : {}),
-        })
+        // A toolbar with no name of its own is the panel's tools.
+        const label = n.name || (n.role === 'toolbar' ? 'tools' : '')
+        const g = el('div', { role, ...(label ? { 'aria-label': label } : {}) })
         renderAll(n.children ?? [], g)
         into.appendChild(g)
         return
@@ -398,22 +425,25 @@ export function ariaMirror(
     if (s === lastShape) return patchAll(tree)
     // Rebuild, and put focus back on the control that had it.
     const had = focused()
-    const hadKey =
-      had != null && root.contains(had)
-        ? (had as HTMLElement).dataset.key
-        : null
+    const inside = had != null && root.contains(had)
+    const hadKey = inside ? (had as HTMLElement).dataset.key : null
+    const before = [...root.querySelectorAll<HTMLElement>('[data-key]')]
+    const hadIndex = inside ? before.indexOf(had as HTMLElement) : -1
     root.replaceChildren()
     nodes = new Map()
     patches = new Map()
     renderAll(tree, root)
     lastShape = s
-    if (hadKey != null) {
-      for (const e of root.querySelectorAll<HTMLElement>('[data-key]'))
-        if (e.dataset.key === hadKey) {
-          e.focus()
-          break
-        }
-    }
+    if (!inside) return
+    /*
+    Focus goes back to the same control, or, when that control is gone (Pause
+    became Resume), to the one now in its place: a reader dropped to the top
+    of the page has to find their way back from nothing.
+    */
+    const after = [...root.querySelectorAll<HTMLElement>('[data-key]')]
+    const same = after.find((e) => e.dataset.key === hadKey)
+    const near = after[Math.min(Math.max(0, hadIndex), after.length - 1)]
+    ;(same ?? near)?.focus()
   }
 
   return {

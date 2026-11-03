@@ -75,6 +75,7 @@
     "dial-art": "bun bin/dial-art.ts",
     "tunnel": "tosijs-tunnel",
     "xr": "bun bin/xr-emulate.ts",
+    "screen-reader": "bun bin/screen-reader.ts",
     "agent-check": "bun bin/xr-emulate.ts /city-drive/ --flat --script bin/agent-check.js",
     "deploy": "tosijs-deploy",
     "check": "bun --bun eslint --cache --cache-location node_modules/.cache/eslint src bin && bunx tsc -p tsconfig.json --noEmit && bun test",

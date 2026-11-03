@@ -174,3 +174,59 @@ describe('editors in the mirror', () => {
     m.dispose()
   })
 })
+
+describe('focus across a rebuild', () => {
+  test('a renamed control keeps focus by its place', () => {
+    let paused = false
+    const rows = () => [
+      W.button3d({
+        label: paused ? 'Resume' : 'Pause',
+        handleClick: () => (paused = !paused),
+      }),
+      W.button3d({ label: 'reset', handleClick: () => {} }),
+    ]
+    let current = rows()
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const m = ariaMirror(host, () => controlTree(current))
+    m.update()
+    const pause = m.root.querySelector('button')!
+    pause.focus()
+    pause.click()
+    current = rows()
+    m.update()
+    const first = m.root.querySelector('button')!
+    expect(first.textContent).toBe('Resume')
+    expect(document.activeElement).toBe(first)
+    m.dispose()
+  })
+})
+
+describe('sliders in the mirror', () => {
+  test('a log slider steps along its track and says its formatted value', () => {
+    let radius = 50
+    const s = W.slider3d({
+      label: 'planet radius',
+      value: radius,
+      min: 2,
+      max: 6400,
+      scale: 'log',
+      format: (v: number) => Math.round(v) + ' km',
+      handleChange: (v: number) => (radius = v),
+    } as any)
+    s.layout?.(300)
+    const host = document.createElement('div')
+    const m = ariaMirror(host, () => controlTree([s]))
+    m.update()
+    const r = m.root.querySelector('input[type=range]') as HTMLInputElement
+    expect(r.max).toBe('1000')
+    expect(r.getAttribute('aria-valuetext')).toBe('50 km')
+    const before = Number(r.value)
+    r.value = String(before + 10)
+    fire(r, 'input')
+    // One step is 1% of the track: about 8% more on a 2..6400 log scale.
+    expect(radius).toBeGreaterThan(50)
+    expect(radius).toBeLessThan(60)
+    m.dispose()
+  })
+})

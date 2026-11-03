@@ -1280,6 +1280,7 @@ export class B3d extends Component {
           part: 'scenePanelGear',
           type: 'button',
           title: 'Scene settings',
+          'aria-expanded': 'false',
           hidden: true,
           // Disabled until the scene finishes loading (reveal() enables it).
           disabled: true,
@@ -7603,6 +7604,12 @@ export class B3d extends Component {
   private _ariaMirror: AriaMirror | null = null
   private _ariaTimer: ReturnType<typeof setInterval> | null = null
   private _syncAriaMirror(): void {
+    // The owl says whether its panel is open. Written only on a change: the
+    // system bar watches its buttons' attributes and rebuilds on each write.
+    const gear = this.parts?.scenePanelGear as HTMLElement | undefined
+    const expanded = String(this._scenePanelOpen())
+    if (gear != null && gear.getAttribute('aria-expanded') !== expanded)
+      gear.setAttribute('aria-expanded', expanded)
     const host = this.parts?.ariaMirrorHost as HTMLElement | undefined
     const live = this._livePanel() as { controls?: () => ControlNode[] } | null
     if (host == null || live?.controls == null || this.xrActive) {

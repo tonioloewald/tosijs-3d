@@ -1144,7 +1144,7 @@
       {
         "name": "wind",
         "default": "8",
-        "description": "Metres per second the deck drifts. Nothing rebakes"
+        "description": "Metres per second the deck drifts, on the sky's clock: a skybox sped up (`realtimeScale` 60) drifts it 60 times as fast. Nothing rebakes"
       },
       {
         "name": "windHeadingDeg",

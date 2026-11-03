@@ -162,3 +162,16 @@ describe('ranking and flicker', () => {
     )
   })
 })
+
+describe('skyRate', () => {
+  test("weather runs on a sped-up sky's clock, and never slower than real time", () => {
+    const owner = document.createElement('div')
+    expect(P.skyRate(owner)).toBe(1)
+    const sky = document.createElement('tosi-b3d-skybox') as any
+    owner.appendChild(sky)
+    sky.realtimeScale = 0
+    expect(P.skyRate(owner)).toBe(1)
+    sky.realtimeScale = 60
+    expect(P.skyRate(owner)).toBe(60)
+  })
+})

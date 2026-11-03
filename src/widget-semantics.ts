@@ -24,8 +24,8 @@ the control that opened it.
 
 **Names.** A control's own label first. A control with none (an input field)
 takes the label beside it in the same row, then its placeholder, then the
-label or text just above it. An interactive control with no name, or two with
-the same path, is what `nameProblems` reports: icons first, but never
+label or text just above it. An interactive control with no name, one named
+only by a glyph (`⋯`), or two with the same path, is what `nameProblems` reports: icons first, but never
 nameless.
 
 Pure: no DOM, no Babylon. The widgets implement `semantics()`; this module
@@ -61,6 +61,15 @@ export interface WidgetSemantics {
   name: string
   /** What it shows now. */
   value?: unknown
+  /** The value as the widget writes it (`17:30`, `45%`), when that differs from the number. */
+  valueText?: string
+  /**
+   * A slider whose track is not linear in its value (a log scale): where the
+   * handle is, 0..1, and how to put it somewhere. Steps along the track are
+   * what a hand makes; equal steps of the VALUE are not.
+   */
+  fraction?: number
+  setFraction?(fraction: number): void
   /** A select's or a tab strip's choices, by label. */
   options?: string[]
   min?: number
@@ -93,6 +102,9 @@ export interface ControlNode {
   /** Names from the top, joined by `/`. */
   path: string
   value?: unknown
+  valueText?: string
+  fraction?: number
+  setFraction?(fraction: number): void
   options?: string[]
   min?: number
   max?: number
@@ -171,6 +183,9 @@ export function controlTree(
       interactive: s.set != null || s.activate != null,
     }
     if (s.value !== undefined) node.value = s.value
+    if (s.valueText !== undefined) node.valueText = s.valueText
+    if (s.fraction !== undefined) node.fraction = s.fraction
+    if (s.setFraction) node.setFraction = s.setFraction
     if (s.options) node.options = s.options
     if (s.min !== undefined) node.min = s.min
     if (s.max !== undefined) node.max = s.max
@@ -282,6 +297,13 @@ export function nameProblems(tree: ControlNode[]): string[] {
       problems.push(`a ${n.role} under "${parentOf(n.path)}" has no name`)
       continue
     }
+    // A glyph is a picture, not a name: "⋯" read aloud says nothing.
+    if (!/[\p{L}\p{N}]/u.test(n.name))
+      problems.push(
+        `a ${n.role} under "${parentOf(n.path)}" is named only "${
+          n.name
+        }" (give it a title)`
+      )
     seen.set(n.path, (seen.get(n.path) ?? 0) + 1)
   }
   for (const [path, count] of seen)
@@ -310,6 +332,7 @@ export function plainControls(
     }
     for (const k of [
       'value',
+      'valueText',
       'options',
       'min',
       'max',

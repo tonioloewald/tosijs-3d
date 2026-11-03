@@ -384,6 +384,20 @@ export function sceneDaylight(owner: Element | null | undefined): number {
   return typeof sky?.daylight === 'number' ? sky.daylight : 1
 }
 
+/**
+ * How fast the scene's sky runs against real time: its skybox's
+ * `realtimeScale`, never less than 1. Weather drifts and evolves at this rate,
+ * so a sky sped up to a time-lapse carries its clouds with it; a stopped sky
+ * (`realtimeScale` 0, the default) leaves the weather in real time.
+ */
+export function skyRate(owner: Element | null | undefined): number {
+  const sky = owner?.querySelector('tosi-b3d-skybox') as {
+    realtimeScale?: number
+  } | null
+  const r = Number(sky?.realtimeScale)
+  return Number.isFinite(r) && r > 1 ? r : 1
+}
+
 /** A lamp's level for the daylight: off by day, up through dusk, full at night. */
 export function lampLevel(daylight: number): number {
   return Math.max(0, Math.min(1, (0.5 - daylight) / 0.35))

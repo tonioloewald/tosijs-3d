@@ -1724,6 +1724,11 @@ export interface PopupHandle {
 /** A pressable button. */
 export function button3d(config: {
   label: string
+  /**
+   * Its name, when the label is a glyph (`⋯`, `+`): the tooltip, and what a
+   * screen reader and an agent call it. Default: the label.
+   */
+  title?: string
   /** Fired on release, on the thing pressed. */
   handleClick?: () => void
   /**
@@ -1754,7 +1759,15 @@ export function button3d(config: {
   const lbl = baseText(config.label)
   lbl.setAttribute('text-anchor', 'middle')
   lbl.setAttribute('y', String(TH.ROW / 2))
-  const el = css(g({ 'data-w3d': 'button' }, bg, lbl), 'cursor:pointer')
+  const el = css(
+    g(
+      { 'data-w3d': 'button' },
+      ...(config.title ? [svgElements.title(config.title)] : []),
+      bg,
+      lbl
+    ),
+    'cursor:pointer'
+  )
   let host: WidgetHost | null = null
   let btnWidth = 0
   let open: { close: () => void } | null = null
@@ -1822,7 +1835,7 @@ export function button3d(config: {
     },
     semantics: () => ({
       role: 'button',
-      name: config.label,
+      name: config.title ?? config.label,
       ...(config.menu
         ? {
             options: config.menu.map((m) => m.label),
@@ -2656,6 +2669,33 @@ export function slider3d(config: {
       role: 'slider',
       name: labelText,
       value: Number(bound.get()),
+      valueText: format(Number(bound.get())),
+      ...(scale === 'linear'
+        ? {}
+        : {
+            fraction: valueToFraction(
+              Number(bound.get()),
+              min,
+              max,
+              scale,
+              zeroStop
+            ),
+            setFraction: (f: number) => {
+              bound.set(
+                fractionToValue(
+                  Math.min(1, Math.max(0, f)),
+                  min,
+                  max,
+                  step,
+                  scale,
+                  snap,
+                  zeroStop,
+                  precision
+                )
+              )
+              reflect()
+            },
+          }),
       min,
       max,
       ...(step > 0 && scale === 'linear' ? { step } : {}),
