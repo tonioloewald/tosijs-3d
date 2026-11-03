@@ -1,7 +1,8 @@
 # WEBMCP-DESIGN — scenes, panels and the controller as agent tools
 
-> Status: **accepted, being built** (#3699). Steps 1 to 6 are done (bipeds'
-> go-to is not); the ARIA mirror and the doc page remain. Written 2026-11-02 after a survey
+> Status: **accepted, being built** (#3699). Steps 1 to 7 are done (bipeds'
+> go-to is not; the mirror still wants a pass with a real screen reader); the
+> doc page remains. Written 2026-11-02 after a survey
 > of tosijs 1.10.10's agent layer and of what tosijs-3d has; Tonio's answers
 > are under Decisions at the end.
 

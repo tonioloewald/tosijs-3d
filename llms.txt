@@ -169,6 +169,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   rings, because the quantity is a circle and a slider track is not. The pure
 - https://3d.tosijs.net/animation-layers/ — animation-layers
   walk-and-aim: legs keep the locomotion, arms and head take the aim, and the
+- https://3d.tosijs.net/aria-mirror/ — aria mirror
+  in the scene, and a screen reader sees none of it. The mirror is the same
 - https://3d.tosijs.net/asset-url/ — asset-url
   A tiny indirection for referencing hosted blobs (models, textures, audio, …) by a
 - https://3d.tosijs.net/rig-build/ — auto-rig

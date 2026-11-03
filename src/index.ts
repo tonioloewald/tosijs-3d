@@ -1180,6 +1180,9 @@ export type {
   ControlNode,
   SemanticSource,
 } from './widget-semantics.js'
+// A panel as real HTML controls, for a screen reader.
+export { ariaMirror } from './aria-mirror.js'
+export type { AriaMirror, AriaMirrorOptions } from './aria-mirror.js'
 // Scenes as agent tools (WebMCP and window.b3dAgent), closed by default.
 export {
   enableSceneAgents,

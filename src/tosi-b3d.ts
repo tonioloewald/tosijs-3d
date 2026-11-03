@@ -351,6 +351,7 @@ import {
   type B3dAgentTool,
 } from './b3d-agent.js'
 import { controlTree, type ControlNode } from './widget-semantics.js'
+import { ariaMirror, type AriaMirror } from './aria-mirror.js'
 import { panelFitWidth } from './widgets3d-layout.js'
 import { w3dTheme } from './w3d-theme.js'
 import type { Medium } from './medium.js'
@@ -1129,6 +1130,10 @@ export class B3d extends Component {
     ':host .lozenge-button:hover': {
       background: 'rgba(255,255,255,0.15)',
     },
+    ':host .scene-lozenge[data-mirror]:not(:focus-within)': {
+      clipPath: 'inset(50%)',
+      pointerEvents: 'none',
+    },
     ':host .lozenge-button[hidden]': {
       display: 'none',
     },
@@ -1312,6 +1317,9 @@ export class B3d extends Component {
         svgIcons.maximize()
       )
     ),
+    // The settings panel as real HTML controls for a screen reader (`aria-mirror`),
+    // after the system bar's buttons so Tab goes from the owl into it.
+    div({ part: 'ariaMirrorHost' }),
     div({ class: 'scene-panel-overlay', part: 'scenePanelHost', hidden: true }),
     /*
     THE PAUSE PANEL, ON A FLAT SCREEN, IS DOM.
@@ -3154,7 +3162,7 @@ export class B3d extends Component {
       after = b
     }
     if (this._flatDom() || lozenge == null) {
-      if (lozenge) lozenge.style.visibility = ''
+      if (lozenge) delete lozenge.dataset.mirror
       return null
     }
     const part = (p: string) => this.parts[p] as HTMLButtonElement | undefined
@@ -3176,7 +3184,12 @@ export class B3d extends Component {
     }
     const bar = this._sceneBar!
     if (bar.count === 0) return null
-    lozenge.style.visibility = 'hidden'
+    /*
+    MIRRORED, NOT HIDDEN. The SVG bar draws these buttons; the HTML ones stay
+    in the accessibility tree (a screen reader and Tab reach them) and show
+    while one has keyboard focus. `visibility: hidden` took them out of both.
+    */
+    lozenge.dataset.mirror = ''
     return {
       frame: 'face',
       anchor: { position: [0, 0, 1] },
@@ -7501,7 +7514,8 @@ export class B3d extends Component {
   private _openScenePanel(): void {
     // One at a time: an exclusive system panel (the inventory) goes.
     this._closeSystemPanels(true)
-    if (!this._flatDom() && !this.xrActive && this._openFlatScenePanel()) return
+    if (!this._flatDom() && !this.xrActive && this._openFlatScenePanel())
+      return this._syncAriaMirror()
     const host = this.parts.scenePanelHost as HTMLElement
     const mk = (
       title: string,
@@ -7577,6 +7591,41 @@ export class B3d extends Component {
     )
     host.removeAttribute('hidden')
     this._panelHeightKey = this.clientHeight
+    this._syncAriaMirror()
+  }
+
+  /*
+  THE SCREEN READER'S PANEL (#3699, `aria-mirror`). Rebuilt with the panel;
+  values re-read once a second while it is open (live rows rewrite their
+  text in place, without a rebuild). Flat only: a headset has no DOM.
+  */
+  private _ariaMirror: AriaMirror | null = null
+  private _ariaTimer: ReturnType<typeof setInterval> | null = null
+  private _syncAriaMirror(): void {
+    const host = this.parts?.ariaMirrorHost as HTMLElement | undefined
+    const live = this._livePanel() as { controls?: () => ControlNode[] } | null
+    if (host == null || live?.controls == null || this.xrActive) {
+      this._ariaMirror?.clear()
+      if (this._ariaTimer != null) clearInterval(this._ariaTimer)
+      this._ariaTimer = null
+      return
+    }
+    this._ariaMirror ??= ariaMirror(
+      host,
+      () =>
+        (
+          this._livePanel() as { controls?: () => ControlNode[] } | null
+        )?.controls?.() ?? null,
+      { label: () => `${(this as any).panelTitle || 'Scene'} settings` }
+    )
+    this._ariaMirror.update()
+    this._ariaTimer ??= setInterval(() => this._ariaMirror?.update(), 1000)
+  }
+  private _disposeAriaMirror(): void {
+    if (this._ariaTimer != null) clearInterval(this._ariaTimer)
+    this._ariaTimer = null
+    this._ariaMirror?.dispose()
+    this._ariaMirror = null
   }
 
   /*
@@ -7598,6 +7647,7 @@ export class B3d extends Component {
   private _closeScenePanel(): void {
     this._disposeFlatScenePanel()
     ;(this.parts.scenePanelHost as HTMLElement).setAttribute('hidden', '')
+    this._syncAriaMirror()
     // Debug tools collapse again on next open — kept out of the way by default.
     this._debugOpen.clear()
     // …and their popups go with the panel that opened them, live rows included.
@@ -7679,7 +7729,9 @@ export class B3d extends Component {
   private _livePanel(): Element | null {
     if (this._flatScenePanel != null) return this._flatScenePanel.el
     const host = this.parts?.scenePanelHost as HTMLElement | undefined
-    return host?.querySelector(':scope > svg[data-w3d="panel"]') ?? null
+    // A closed DOM panel is hidden, not emptied.
+    if (host == null || host.hasAttribute('hidden')) return null
+    return host.querySelector(':scope > svg[data-w3d="panel"]') ?? null
   }
   /*
   NOT MID-PRESS. A rebuild that lands while a slider is being dragged (a
@@ -8352,6 +8404,7 @@ export class B3d extends Component {
     this._disposeWidgets('flat')
     this._disposeWidgets('xr')
     this._disposeAgentRows()
+    this._disposeAriaMirror()
     this._agentOff?.()
     this._agentOff = null
     this._originOffset = { x: 0, z: 0 }
