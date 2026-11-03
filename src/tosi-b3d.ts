@@ -1154,6 +1154,16 @@ export class B3d extends Component {
     ':host .aria-mirror-host input[type=range]::-moz-range-thumb': {
       opacity: '0',
     },
+    // Everything inside a placed copy is unpainted too (a heading's fold
+    // button drew as a white box over the drawn section title).
+    ':host .aria-mirror-host [data-placed] *': {
+      background: 'transparent',
+      color: 'transparent',
+      borderColor: 'transparent',
+      boxShadow: 'none',
+      appearance: 'none',
+      webkitAppearance: 'none',
+    },
     // A keyboard user sees which drawn control has focus.
     ':host .aria-mirror-host [data-key]:focus-visible': {
       outline: `2px solid ${w3dTheme.accent}`,
@@ -5579,6 +5589,10 @@ export class B3d extends Component {
     // Described on demand only (see the canvas in `content`).
     this.shadowRoot?.addEventListener('focusin', this._wakeOnFocus)
     this.addEventListener('pointerdown', this._notePointer, true)
+    this.addEventListener('wheel', this._holdSideways, {
+      capture: true,
+      passive: false,
+    })
     this.shadowRoot?.addEventListener('click', this._wakeOnClick, true)
     if (debugSink.url !== '') this._traceInput()
     ;(this.parts.describeButton as HTMLElement).addEventListener(
@@ -7854,6 +7868,17 @@ export class B3d extends Component {
   iPhone), and a press on the hidden bar buttons still wakes it through
   `_wakeOnClick`.
   */
+  /*
+  A SIDEWAYS TRACKPAD DRAG OVER THE SCENE IS THE SCENE'S. Uncancelled, a
+  horizontal two-finger drag is the browser's back/forward swipe, and the
+  camera only cancels a wheel once it has classed it as a pan, so a drag
+  that started sideways left the page. The default (scrolling, history) is
+  cancelled; the event still reaches the camera and the panels.
+  */
+  private _holdSideways = (e: WheelEvent) => {
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && e.cancelable)
+      e.preventDefault()
+  }
   private _pressedAt = -Infinity
   private _notePointer = () => {
     this._pressedAt = realNow()

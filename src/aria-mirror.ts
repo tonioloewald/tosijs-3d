@@ -170,6 +170,9 @@ export function ariaMirror(
   root.setAttribute('role', options.role ?? 'region')
   if (options.role === 'dialog') root.setAttribute('aria-modal', 'true')
   root.dataset.ariaMirror = ''
+  // Placed copies are unpainted; a host styles what an inline style cannot
+  // reach (a heading's fold button, a range thumb) by this.
+  if (options.place) root.dataset.placed = ''
   // Placing: an overlay of the host that only its placed copies make
   // touchable (see UNPAINTED). Else hidden.
   Object.assign(

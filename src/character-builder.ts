@@ -22,7 +22,7 @@ const { walker } = tosi({ walker: structuredClone(START) })
 // cloth), the microphone (it would ask on load), or the save controls.
 const KEPT = Object.keys(START).filter((k) => !['editing', 'look', 'clothLook', 'mic', 'characterName', 'characterPick'].includes(k))
 // Saving and loading characters, wired when the page is up.
-const character = { save: () => {}, rename: () => {}, load: () => {}, forget: () => {}, exportJson: () => {}, importJson: () => {}, changed: () => {}, saved: [], note: '' }
+const character = { save: () => {}, rename: () => {}, load: () => {}, forget: () => {}, exportJson: () => {}, play: () => {}, importJson: () => {}, changed: () => {}, saved: [], note: '' }
 // A name asked for in a popup (works in a headset too): refused with its
 // reason, and a confirm before it replaces ANOTHER saved character.
 const namePopup = (pop, { prompt, initial, current, verb, act }) => {
@@ -66,6 +66,7 @@ const characterRows = () => [
         button3d({ label: 'forget', handleClick: () => character.forget() }),
       ]
     : []),
+  button3d({ label: 'play in Biped Playground', handleClick: () => character.play() }),
   button3d({ label: 'export JSON', handleClick: () => character.exportJson() }),
   button3d({ label: 'import JSON…', handleClick: () => character.importJson() }),
   ...(character.note ? [text3d({ text: character.note })] : []),
@@ -830,6 +831,17 @@ preview.append(
             }
           })
         }
+        // Straight into the playground as this figure: kept now (not after
+        // the autosave's pause), then the playground loads it by name.
+        character.play = async () => {
+          clearTimeout(pending)
+          try {
+            await store.put(WORKING, snapshot(WORKING))
+          } catch (e) {
+            return tell(`could not keep it: ${e?.message ?? e}`)
+          }
+          location.href = `/playground/?character=${encodeURIComponent(WORKING)}`
+        }
         el.builder.character = { snapshot, apply, store }
         // The figure you were working on, as you left it.
         const working = await store.get(WORKING).catch(() => null)
@@ -937,7 +949,7 @@ feet at the container's origin. Move the body by moving `root`. The mesh keeps
 every vertex the targets move (helpers and joint cubes too), but draws only the
 body's triangles.
 */
-/*{ "parent": "b3d-biped", "order": 80 }*/
+/*{ "parent": "demos", "order": 38 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import type { HumanPack } from './human-pack.js'
