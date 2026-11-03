@@ -2003,10 +2003,41 @@ export class B3d extends Component {
     if (m.close == null) return null
     this._modals.add(m)
     this._syncGamepadCover()
+    const unmirror = this._mirrorModal(svg)
     return () => {
       if (!this._modals.delete(m)) return
       m.close?.()
+      unmirror()
       this._syncGamepadCover()
+    }
+  }
+
+  /*
+  A MODAL FOR A SCREEN READER: its controls as a hidden dialog that takes
+  focus (the first control, Continue on a pause), and gives it back on close.
+  A modal drawn in the scene is otherwise unreachable without a pointer, and
+  a pause you cannot dismiss holds the whole page.
+  */
+  private _mirrorModal(svg: SVGSVGElement): () => void {
+    const host = this.parts?.ariaMirrorHost as HTMLElement | undefined
+    const read = (svg as unknown as { controls?: () => ControlNode[] }).controls
+    if (host == null || read == null || this.xrActive) return () => {}
+    const root = this.getRootNode() as Document | ShadowRoot
+    const before = (this.shadowRoot?.activeElement ??
+      root.activeElement) as HTMLElement | null
+    const mirror = ariaMirror(host, () => read.call(svg), {
+      role: 'dialog',
+    })
+    mirror.update()
+    // Named after its first line when that is a label ("Paused", "You died").
+    const first = mirror.root.querySelector('p')?.textContent
+    if (first) mirror.root.setAttribute('aria-label', first)
+    mirror.root.querySelector<HTMLElement>('button, input, select')?.focus()
+    return () => {
+      mirror.dispose()
+      // Back where it was, or to the scene when that is gone (a panel closed).
+      if (before?.isConnected) before.focus()
+      else (this.parts?.canvas as HTMLElement | undefined)?.focus()
     }
   }
 

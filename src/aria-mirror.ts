@@ -34,6 +34,8 @@ import type { ControlNode } from './widget-semantics.js'
 export interface AriaMirrorOptions {
   /** The region's accessible name (the panel's title). */
   label?: string | (() => string)
+  /** `dialog` for a modal (a pause, a respawn): marked modal. Default `region`. */
+  role?: 'region' | 'dialog'
 }
 
 export interface AriaMirror {
@@ -120,7 +122,8 @@ export function ariaMirror(
 ): AriaMirror {
   const doc = host.ownerDocument
   const root = doc.createElement('div')
-  root.setAttribute('role', 'region')
+  root.setAttribute('role', options.role ?? 'region')
+  if (options.role === 'dialog') root.setAttribute('aria-modal', 'true')
   root.dataset.ariaMirror = ''
   Object.assign(root.style, VISUALLY_HIDDEN)
   host.appendChild(root)
