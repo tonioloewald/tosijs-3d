@@ -2918,7 +2918,14 @@ export function select3d(config: {
 
 /** A vertical list of selectable rows (dialogue options, inventory, …). */
 export function list3d<
-  T extends { label: string; icon?: string; disabled?: Dynamic<boolean> }
+  T extends {
+    label: string
+    /** Its accessible name, when the label alone is not unique (a mesh
+     * named `Hull` in two places): `scout › Hull`. Not `/`, which separates a control path. Default: the label. */
+    title?: string
+    icon?: string
+    disabled?: Dynamic<boolean>
+  }
 >(config: {
   items: T[]
   /** Fired when a row is chosen. */
@@ -2998,7 +3005,8 @@ export function list3d<
       children: config.items.map((item, i) => ({
         semantics: (): WidgetSemantics => ({
           role: 'option',
-          name: item.label,
+          // Trimmed: a list indents a tree with spaces in its labels.
+          name: item.title ?? item.label.trim(),
           ...(enabled(i) ? {} : { disabled: true }),
           activate: () => choose(i),
         }),

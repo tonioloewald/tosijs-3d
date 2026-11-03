@@ -68,6 +68,15 @@ const numeric = (v: unknown): v is Record<string, number> =>
 function spoken(v: unknown): string {
   if (v == null) return ''
   if (typeof v === 'number') return String(Math.round(v * 1000) / 1000)
+  if (Array.isArray(v)) {
+    // A curve's points: the first few, then how many more.
+    const head = v
+      .slice(0, 8)
+      .map(spoken)
+      .filter((s) => s !== '')
+    const more = v.length > 8 ? `; and ${v.length - 8} more` : ''
+    return `${v.length} points: ${head.join('; ')}${more}`
+  }
   if (typeof v === 'object') {
     if (numeric(v))
       return Object.entries(v)
@@ -275,6 +284,18 @@ export function ariaMirror(
             key,
             (m) => (p.textContent = `${name}: ${spoken(m.value)}`)
           )
+          // An editor with presets: the one edit a list of options can make.
+          if (n.options && n.set) {
+            const s = keyed(el('select', { 'aria-label': `${name} preset` }))
+            s.dataset.key = `${key}#preset`
+            s.appendChild(el('option', { value: '' }, 'choose a preset'))
+            for (const o of n.options) s.appendChild(el('option', {}, o))
+            disabled(s)
+            s.addEventListener('change', () => {
+              if (s.value !== '') node(key)?.set?.(s.value)
+            })
+            g.appendChild(s)
+          }
         }
         into.appendChild(g)
         return

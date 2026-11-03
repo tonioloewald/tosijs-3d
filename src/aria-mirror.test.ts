@@ -141,3 +141,36 @@ describe('aria mirror', () => {
     expect(m.root.children.length).toBe(0)
   })
 })
+
+describe('editors in the mirror', () => {
+  test('a curve reads out its points and takes a preset', async () => {
+    const { curve3d } = await import('./curve-field.js')
+    const { presetsFor } = await import('./curve.js')
+    let changed = 0
+    const c = curve3d({
+      label: 'shape',
+      value: 'no change',
+      handleChange: () => changed++,
+    })
+    c.layout?.(200)
+    const host = document.createElement('div')
+    const m = ariaMirror(host, () => controlTree([c]))
+    m.update()
+    const group = m.root.querySelector('[role=group]')!
+    expect(group.getAttribute('aria-label')).toBe('shape')
+    expect(group.querySelector('p')!.textContent).toMatch(
+      /^shape: 2 points: x 0, y 0/
+    )
+    const sel = group.querySelector('select')!
+    expect(sel.getAttribute('aria-label')).toBe('shape preset')
+    const preset = presetsFor('profile').find((p) => p.name !== 'no change')!
+    sel.value = preset.name
+    fire(sel, 'change')
+    expect(changed).toBe(1)
+    m.update()
+    expect(group.querySelector('p')!.textContent).not.toMatch(
+      /^shape: 2 points: x 0, y 0; x 1, y 1$/
+    )
+    m.dispose()
+  })
+})

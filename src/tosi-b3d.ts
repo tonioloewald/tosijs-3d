@@ -346,6 +346,7 @@ import {
   panelTools,
   sceneTools,
   registerAgentScene,
+  syncAgents,
   type SceneAgentHost,
   type AgentExposure,
   type B3dAgentTool,
@@ -7665,6 +7666,7 @@ export class B3d extends Component {
   */
   declare agent: '' | 'off' | 'read' | 'on'
   private _agentOff: (() => void) | null = null
+  private _agentKey = ''
   private _agentRows: Widget3d[] = []
   private _disposeAgentRows(): void {
     for (const w of this._agentRows) {
@@ -8570,6 +8572,14 @@ export class B3d extends Component {
 
   render(): void {
     super.render()
+    // The agent registry reads `agent` and the name when it syncs: one that
+    // changes after the scene connected (or arrived after it) re-syncs it.
+    const agentKey = `${this.agent ?? ''}|${this.agentName()}`
+    if (agentKey !== this._agentKey) {
+      const first = this._agentKey === ''
+      this._agentKey = agentKey
+      if (!first || this.agent) syncAgents()
+    }
     // A render can be queued on rAF and land AFTER teardown disposed the engine.
     // Building a GlowLayer on a disposed scene is how that would surface — as a
     // GL error from a component that looks fine, which is the failure mode this

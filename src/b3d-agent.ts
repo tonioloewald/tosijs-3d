@@ -7,6 +7,81 @@ sets and presses through each control's own path, exactly as a hand would.
 Nothing runs until a tool is called, and nothing is offered until the page
 says so: closed by default, as tosijs's agent surface is.
 
+## Demo
+
+```js
+import { b3d, b3dSkybox, b3dSun, b3dGround, b3dBox, b3dBeacon, slider3d } from 'tosijs-3d'
+import { orbitCam } from 'tosijs-3d/demo-utils'
+import { elements } from 'tosijs'
+
+const { div, button, pre } = elements
+const sky = b3dSkybox({ timeOfDay: 10, realtimeScale: 0 })
+const sceneEl = b3d(
+  {
+    id: 'harbour-demo',
+    agent: 'on',
+    panelTitle: 'Harbour',
+    style: 'width:100%;height:100%',
+    scenePanel: () => [
+      slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24,
+        handleChange: (v) => (sky.timeOfDay = v) }),
+    ],
+    sceneCreated(el) {
+      orbitCam(el, { alphaDeg: -70, betaDeg: 60, radius: 30, target: [0, 0, 0] })
+    },
+  },
+  sky,
+  b3dSun(),
+  b3dGround({ size: 60, color: '#4a5a46' }),
+  b3dBox({ id: 'crate', x: 4, y: 0.5, z: 2, color: '#b07840' }),
+  b3dBeacon({ name: 'harbour', follow: 'off', x: 18, y: 1, z: 12 }),
+  b3dBeacon({ name: 'gate', follow: 'off', x: -10, y: 1, z: -4 })
+)
+
+const out = pre({ class: 'readout' }, 'press a tool')
+const tool = (label, name, input) =>
+  button({
+    onClick: async () => {
+      const answer = await window.b3dAgent.call(`b3d_harbour_demo_${name}`, input)
+      out.textContent = `${name} ${input ? JSON.stringify(input) : ''}\n` +
+        JSON.stringify(answer, null, 1).slice(0, 1200)
+    },
+  }, label)
+
+preview.append(
+  sceneEl,
+  div({ class: 'tools' },
+    tool('places', 'places'),
+    tool('panel', 'panel'),
+    tool('make it night', 'panel_set', { control: 'time of day', value: 22 }),
+    tool('make it day', 'panel_set', { control: 'time of day', value: 10 })),
+  out
+)
+```
+```css
+.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
+.tools { display: flex; gap: 6px; padding: 6px 0; flex-wrap: wrap; }
+.readout {
+  margin: 0;
+  max-height: 30%;
+  overflow: auto;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: #fff;
+  background: #0009;
+}
+```
+
+The buttons are what an agent does: each calls one of the scene's tools on
+`window.b3dAgent` and shows the answer. `places` lists the two beacons and the
+crate with where they are from the camera; `make it night` sets the panel's
+slider through its own path, so the sky follows and the open panel shows it.
+The scene opted itself in with `agent: 'on'`; nothing else on the page is
+offered.
+
+## Using it
+
 ```javascript
 import { enableSceneAgents } from 'tosijs-3d'
 enableSceneAgents({ expose: 'all' })   // every scene: read, set and press
@@ -71,6 +146,17 @@ panel's rows unfolded, so nothing has to be opened first.
 | `agent="off"` | none for that scene, whatever the page says |
 
 A scene's own `agent` attribute wins over the page's setting.
+
+## The same names serve a screen reader
+
+An agent and a screen reader need the same thing from a panel: every control
+named, with a role and a value, and a way to set it that is not a pointer
+coordinate. So they share it. The panel tree the tools read is also drawn as
+real, visually hidden HTML controls for a screen reader (the
+[aria mirror](/aria-mirror/)), on by default for every flat settings panel and
+not affected by `agent`. And `nameProblems` (the name test) reports a control
+with no name, or two with one path, which breaks both at once: icons first,
+but never nameless.
 */
 /*{ "parent": "core", "order": 60 }*/
 

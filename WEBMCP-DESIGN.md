@@ -1,8 +1,8 @@
 # WEBMCP-DESIGN — scenes, panels and the controller as agent tools
 
-> Status: **accepted, being built** (#3699). Steps 1 to 7 are done (bipeds'
-> go-to is not; the mirror still wants a pass with a real screen reader); the
-> doc page remains. Written 2026-11-02 after a survey
+> Status: **accepted, built** (#3699). Steps 1 to 8 are done, and every demo's
+> panel passes the name test. Open: bipeds' go-to, a pass with a real screen
+> reader, and moving to tosijs's tool registry when it lands (#3743). Written 2026-11-02 after a survey
 > of tosijs 1.10.10's agent layer and of what tosijs-3d has; Tonio's answers
 > are under Decisions at the end.
 

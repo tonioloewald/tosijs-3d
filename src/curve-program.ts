@@ -387,6 +387,8 @@ export function curveProgram3d(
 
   const api: CurveProgramField = {
     el,
+    // Its curves, each a named editor in the panel's tree.
+    semantics: () => ({ role: 'group', name: '', children: fields }),
 
     setHost(host: WidgetHost) {
       // Same offset hop as the light editor: a child anchors in its own

@@ -268,6 +268,8 @@ export function terrainEditor3d(
 
   const api: TerrainEditorField = {
     el,
+    // Its rows, each a schema-driven control named by its label.
+    semantics: () => ({ role: 'group', name: '', children: rows }),
     get value() {
       return { ...s }
     },
