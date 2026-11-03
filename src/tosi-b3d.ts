@@ -5577,7 +5577,8 @@ export class B3d extends Component {
     // Joins the page's agent registry: a Set add, nothing runs until a call.
     this._agentOff = registerAgentScene(this)
     // Described on demand only (see the canvas in `content`).
-    this.shadowRoot?.addEventListener('focusin', this._goAssistive)
+    this.shadowRoot?.addEventListener('focusin', this._wakeOnFocus)
+    this.addEventListener('pointerdown', this._notePointer, true)
     this.shadowRoot?.addEventListener('click', this._wakeOnClick, true)
     if (debugSink.url !== '') this._traceInput()
     ;(this.parts.describeButton as HTMLElement).addEventListener(
@@ -7844,6 +7845,24 @@ export class B3d extends Component {
       } | null
     )?.labelPad?.()
   }
+  /*
+  FOCUS FROM A PRESS IS NOT A SCREEN READER. The canvas is focusable, so a
+  mouse press on the scene focuses it, and that woke everything for every
+  mouse user: the copies then lay over the panel and took its clicks. Focus
+  within a second of a press in this scene is the press's, and is ignored.
+  VoiceOver selecting a control sends no press before its focus (read off an
+  iPhone), and a press on the hidden bar buttons still wakes it through
+  `_wakeOnClick`.
+  */
+  private _pressedAt = -Infinity
+  private _notePointer = () => {
+    this._pressedAt = realNow()
+  }
+  private _wakeOnFocus = (e: Event) => {
+    if (realNow() - this._pressedAt < 1000) return
+    this._goAssistive(e)
+  }
+
   /*
   WHAT A PRESS ACTUALLY IS, FROM A DEVICE (dev only: the debug sink is set).
   Each discrete input event the scene gets (no moves) goes to the sink with

@@ -5,7 +5,7 @@ step it prints what a screen reader would announce for the focused control
 (role, name, value, state), so a transcript reads like a VoiceOver session.
 
   bun bin/screen-reader.ts <path> --steps "find:button:Settings, Space, Tab, read"
-                           [--steps-file f.txt] [--wait ms] [--out dir]
+                           [--steps-file f.txt] [--wait ms] [--out dir] [--touch]
 
 Steps (comma separated, or one a line in a steps file):
 
@@ -17,6 +17,7 @@ Steps (comma separated, or one a line in a steps file):
   tap:<role>:<name>  iOS VoiceOver by touch: a finger at the control's
                      centre, then a double-tap there; says so when a hit test
                      there finds something else (VoiceOver would select that)
+  mouse:<x>,<y>      a sighted click at a point (steps file only: a comma)
   read[:<name>]      read out a region (default: the first region whose name
                      ends in "settings"), one line per control
   type:<text>        type into the focused field
@@ -155,6 +156,12 @@ try {
   await send('Runtime.enable')
   await send('DOM.enable')
   await send('Accessibility.enable')
+  // --touch: a phone (pointer: coarse), so placed copies take touches.
+  if (args.includes('--touch'))
+    await send('Emulation.setTouchEmulationEnabled', {
+      enabled: true,
+      maxTouchPoints: 5,
+    })
   // A headless page has no window focus, and an unfocused page fires no
   // focus events: a person's page has it.
   await send('Emulation.setFocusEmulationEnabled', { enabled: true })
@@ -264,6 +271,14 @@ try {
       await Bun.sleep(300)
       const n = await focusedNode()
       say(n ? announce(n) : announce(hits[0]) + ' (could not take focus)')
+    } else if (cmd === 'mouse') {
+      // A sighted person's click at a point (page CSS pixels).
+      const [x, y] = arg.split(',').map(Number)
+      const at = { x, y, button: 'left', clickCount: 1 }
+      await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...at })
+      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...at })
+      await Bun.sleep(500)
+      say(`clicked ${x},${y}`)
     } else if (cmd === 'tap') {
       // iOS VoiceOver by touch: a finger on the control finds whatever a hit
       // test finds THERE (read off a phone: transparent, untouchable copies

@@ -254,7 +254,8 @@ describe('placed over the drawn controls', () => {
     expect(m.root.style.opacity).toBe('')
     expect(m.root.style.pointerEvents).toBe('none')
     const b = m.root.querySelector('button')!
-    expect(b.style.pointerEvents).toBe('auto')
+    // A finger-first device only; with a mouse, presses reach the panel.
+    expect(b.style.pointerEvents).toBe('none')
     expect(b.style.color).toBe('transparent')
     expect(b.style.opacity).toBe('')
     expect([b.style.left, b.style.top, b.style.width, b.style.height]).toEqual([

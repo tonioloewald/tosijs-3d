@@ -12,7 +12,8 @@ hand on it would, so there is one definition of what each control does.
 
 **Placed over what it mirrors.** With `place`, each copy is a real target
 laid exactly over its drawn control: unpainted (no background, no text
-colour) but fully opaque and taking touches, because iOS VoiceOver finds what
+colour) but fully opaque and, where the main pointer is a finger, taking
+touches (with a mouse every press goes through to the drawn panel), because iOS VoiceOver finds what
 a finger is on by hit-testing, and skipped transparent, untouchable copies
 for the canvas under them. So a person exploring by touch finds "Continue"
 where Continue is drawn, and a double-tap presses the copy. A copy with
@@ -47,8 +48,9 @@ export interface AriaMirrorOptions {
   label?: string | (() => string)
   /**
    * Where a control's box (panel units) is on the host, in CSS pixels: the
-   * copy then sits over the drawn control, unpainted but taking touches, so
-   * a finger exploring the screen with a screen reader finds it there. Null, or
+   * copy then sits over the drawn control, unpainted and (on a touch-first
+   * device) taking touches, so a finger exploring the screen with a screen
+   * reader finds it there. Null, or
    * no `place`, keeps it hidden in the corner.
    */
   place?: (box: ControlBox) => ControlBox | null
@@ -84,7 +86,6 @@ input's thumb is a pseudo-element, which an inline style cannot reach: the
 host's stylesheet hides it (`<tosi-b3d>` does).
 */
 export const UNPAINTED: Partial<CSSStyleDeclaration> = {
-  pointerEvents: 'auto',
   background: 'transparent',
   color: 'transparent',
   caretColor: 'transparent',
@@ -93,6 +94,14 @@ export const UNPAINTED: Partial<CSSStyleDeclaration> = {
   webkitAppearance: 'none',
   font: 'inherit',
 }
+
+/**
+Whether the main pointer is a finger. Only touch exploration needs a copy to
+take touches (it hit-tests); with a mouse the copies let every press through
+to the drawn panel, and a desktop screen reader moves by keyboard.
+*/
+const fingerFirst = (): boolean =>
+  typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
 
 /** A number without float noise: 0.6000000238418579 is 0.6. */
 const tidy = (x: number) => String(Number(x.toPrecision(6)))
@@ -223,6 +232,7 @@ export function ariaMirror(
       return
     }
     Object.assign(e.style, UNPAINTED, {
+      pointerEvents: fingerFirst() ? 'auto' : 'none',
       position: 'absolute',
       left: `${at.x}px`,
       top: `${at.y}px`,
