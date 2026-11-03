@@ -543,6 +543,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Io, Titan, an ice moon and an Earth, each a sea, an air, clouds, relief, craters and a climate.
 - https://3d.tosijs.net/scatter/ — scatter
   climate.** The function is `scatterPlacements` (a bare `scatter` would leak a
+- https://3d.tosijs.net/scene-description/ — scene description
+  face, the time of day, and the named things nearby with how far and which way.
 - https://3d.tosijs.net/scene-schemas/ — Scene schemas
   attributes.** No DOM, no Babylon — importable from a headless runner.
 - https://3d.tosijs.net/seam-material/ — seam-material

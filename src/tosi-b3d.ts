@@ -346,6 +346,7 @@ import {
   panelTools,
   sceneTools,
   registerAgentScene,
+  sceneEntities,
   syncAgents,
   type SceneAgentHost,
   type AgentExposure,
@@ -353,6 +354,7 @@ import {
 } from './b3d-agent.js'
 import { controlTree, type ControlNode } from './widget-semantics.js'
 import { ariaMirror, type AriaMirror } from './aria-mirror.js'
+import { describeScene } from './scene-description.js'
 import { panelFitWidth } from './widgets3d-layout.js'
 import { w3dTheme } from './w3d-theme.js'
 import type { Medium } from './medium.js'
@@ -1131,6 +1133,26 @@ export class B3d extends Component {
     ':host .lozenge-button:hover': {
       background: 'rgba(255,255,255,0.15)',
     },
+    ':host .sr-only, :host .describe-button:not(:focus)': {
+      position: 'absolute',
+      width: '1px',
+      height: '1px',
+      overflow: 'hidden',
+      clipPath: 'inset(50%)',
+      whiteSpace: 'nowrap',
+    },
+    // Shown while it has keyboard focus, so a sighted keyboard user sees it.
+    ':host .describe-button:focus': {
+      position: 'absolute',
+      left: '12px',
+      bottom: '12px',
+      zIndex: '20',
+      padding: '8px 12px',
+      color: '#fff',
+      background: 'rgba(0,0,0,0.7)',
+      border: '1px solid rgba(255,255,255,0.4)',
+      borderRadius: '8px',
+    },
     ':host .scene-lozenge[data-mirror]:not(:focus-within)': {
       clipPath: 'inset(50%)',
       pointerEvents: 'none',
@@ -1265,7 +1287,34 @@ export class B3d extends Component {
   content = [
     div({ class: 'spinner', part: 'spinner' }),
     div({ class: 'loading-caption hidden', part: 'loadingCaption' }),
-    canvas({ part: 'canvas' }),
+    /*
+    THE SCENE FOR A SCREEN READER (scene-description). The canvas is an image
+    named after the scene; its description is built only when asked for (the
+    canvas taking focus, or the describe button), never on a timer: reading
+    every named thing is not free, and nobody may be listening.
+    */
+    canvas({
+      part: 'canvas',
+      role: 'img',
+      tabindex: '0',
+      'aria-label': '3D scene',
+      'aria-describedby': 'b3d-scene-description',
+    }),
+    div({
+      part: 'sceneDescription',
+      id: 'b3d-scene-description',
+      class: 'sr-only',
+    }),
+    div({
+      part: 'sceneAnnouncer',
+      class: 'sr-only',
+      role: 'status',
+      'aria-live': 'polite',
+    }),
+    button(
+      { part: 'describeButton', type: 'button', class: 'describe-button' },
+      'Describe the scene'
+    ),
     // Top-left lozenge holding two icon buttons side by side: scene settings
     // (opens the panel) and Enter VR (the purpose-built xrColor mark) — so VR
     // availability is obvious and Enter VR is never a panel row that could
@@ -5375,6 +5424,15 @@ export class B3d extends Component {
     // Reconnected after teardown already ran, or connected for the first time.
     // Joins the page's agent registry: a Set add, nothing runs until a call.
     this._agentOff = registerAgentScene(this)
+    // Described on demand only (see the canvas in `content`).
+    ;(this.parts.canvas as HTMLElement).addEventListener(
+      'focus',
+      this._describeQuietly
+    )
+    ;(this.parts.describeButton as HTMLElement).addEventListener(
+      'click',
+      this._describeAloud
+    )
     // Input focus follows the pointer: hovering or pressing anywhere in this scene
     // (canvas OR the glass-gamepad / panel overlays, which are siblings of the canvas)
     // makes it the one shared keyboard/gamepad input drives — see hasInputFocus. Listen
@@ -5526,6 +5584,7 @@ export class B3d extends Component {
       // Mount the glass gamepad (if requested) before releasing descendants, so
       // b3dInputFocus sees its source when it wires up input.
       this._setupGamepad()
+      this._holdGamepadForLoading()
 
       // Scene is ready. Release any B3dChild components that connected and asked
       // (whenReady) before the scene was up — they insert themselves now. Anything
@@ -5630,6 +5689,10 @@ export class B3d extends Component {
             ],
           })
         cnv.classList.add('ready')
+        this._suppressGamepad('loading', false)
+        // Once, so the canvas has a description before anyone asks (the
+        // canvas may already hold focus, and a second focus fires nothing).
+        this._describe(false)
         // Not a spinner a page is holding up for its own loading.
         if (!this._loadingHeld) spinner.classList.add('hidden')
         // Enable the toolbar only now the scene is up — the gear + Enter VR
@@ -7673,6 +7736,32 @@ export class B3d extends Component {
   */
   declare agent: '' | 'off' | 'read' | 'on'
   private _agentOff: (() => void) | null = null
+  /** The scene in words, into the canvas's description; `aloud` also speaks it. */
+  private _describe(aloud: boolean): void {
+    const desc = this.parts?.sceneDescription as HTMLElement | undefined
+    if (desc == null || this.scene == null) return
+    const sky = this.querySelector('tosi-b3d-skybox') as {
+      timeOfDay?: number
+      daylight?: number
+    } | null
+    const text = describeScene({
+      title: this._sceneTitle(),
+      ...sceneEntities(this as unknown as SceneAgentHost),
+      timeOfDay: sky?.timeOfDay,
+      daylight: sky?.daylight,
+    })
+    desc.textContent = text
+    if (!aloud) return
+    // Emptied first, so asking twice is announced twice.
+    const say = this.parts.sceneAnnouncer as HTMLElement
+    say.textContent = ''
+    setTimeout(() => (say.textContent = text), 50)
+  }
+  private _describeQuietly = () => this._describe(false)
+  private _describeAloud = () => this._describe(true)
+  private _sceneTitle(): string {
+    return (this as any).panelTitle || this.id || 'Scene'
+  }
   private _agentKey = ''
   private _agentRows: Widget3d[] = []
   private _disposeAgentRows(): void {
@@ -7786,6 +7875,12 @@ export class B3d extends Component {
     )
     // A scene that starts paused got there before the pad existed.
     if (this._paused) this._suppressGamepad('pause', true)
+  }
+  /** No pad over the spinner: hidden until the scene is revealed. */
+  private _holdGamepadForLoading(): void {
+    const cnv = this.parts?.canvas as HTMLElement | undefined
+    if (cnv != null && !cnv.classList.contains('ready'))
+      this._suppressGamepad('loading', true)
   }
 
   // In-scene surface: render the panel onto a plane positioned each frame in
@@ -8581,6 +8676,11 @@ export class B3d extends Component {
     super.render()
     // The agent registry reads `agent` and the name when it syncs: one that
     // changes after the scene connected (or arrived after it) re-syncs it.
+    // The canvas's name follows the scene's title.
+    const cv = this.parts?.canvas as HTMLElement | undefined
+    const label = `${this._sceneTitle()}, 3D scene`
+    if (cv != null && cv.getAttribute('aria-label') !== label)
+      cv.setAttribute('aria-label', label)
     const agentKey = `${this.agent ?? ''}|${this.agentName()}`
     if (agentKey !== this._agentKey) {
       const first = this._agentKey === ''

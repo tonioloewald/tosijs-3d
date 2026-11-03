@@ -355,7 +355,11 @@ import type { GameController } from './game-controller.js'
 import { B3dControllable } from './b3d-controllable.js'
 import type { ControlInput } from './control-input.js'
 import { CompositeInputProvider } from './control-input.js'
-import { bipedMapping, type VirtualGamepad } from './virtual-gamepad.js'
+import {
+  bipedMapping,
+  bipedMappingDescriptor,
+  type VirtualGamepad,
+} from './virtual-gamepad.js'
 import { layerOnUpperBody, type LayeredAnimation } from './animation-layers.js'
 import { predictPath, type BallisticParams, type Vec3 } from './ballistics.js'
 import { XRInputProvider } from './xr-input-provider.js'
@@ -1046,6 +1050,7 @@ export class B3dBiped extends B3dControllable {
    */
   inputMapping = (pad: VirtualGamepad, dt: number): ControlInput =>
     bipedMapping(pad, dt, this.gunplay)
+  inputLabels = bipedMappingDescriptor.labels
 
   /**
    * Aiming right now.

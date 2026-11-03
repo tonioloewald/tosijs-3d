@@ -44,7 +44,7 @@ import {
 import type { B3d } from './tosi-b3d.js'
 import { emptyInput } from './control-input.js'
 import type { ControlInput, InputProvider } from './control-input.js'
-import type { InputMapping } from './virtual-gamepad.js'
+import type { InputMapping, MappingLabels } from './virtual-gamepad.js'
 import { realNow } from './clock.js'
 import {
   headingDeg,
@@ -62,6 +62,11 @@ type FocusManager = {
 export class B3dControllable extends AbstractMesh {
   inputProvider: InputProvider | null = null
   inputMapping?: InputMapping
+  /**
+   * What each control does for this entity (`{ buttonA: 'handbrake', … }`):
+   * the glass gamepad names its controls with it for a screen reader.
+   */
+  inputLabels?: MappingLabels
   /** Last polled input — read by the XR rig for camera zoom/peek intent. */
   lastInput: ControlInput | null = null
   /**

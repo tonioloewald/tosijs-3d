@@ -1180,6 +1180,9 @@ export type {
   ControlNode,
   SemanticSource,
 } from './widget-semantics.js'
+// The 3D view in words, for a screen reader (built on demand).
+export { describeScene } from './scene-description.js'
+export type { SceneReading } from './scene-description.js'
 // A panel as real HTML controls, for a screen reader.
 export { ariaMirror } from './aria-mirror.js'
 export type { AriaMirror, AriaMirrorOptions } from './aria-mirror.js'

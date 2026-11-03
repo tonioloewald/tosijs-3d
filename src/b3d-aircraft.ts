@@ -396,7 +396,10 @@ import {
 } from './model-transform.js'
 import { B3dControllable } from './b3d-controllable.js'
 import type { ControlInput } from './control-input.js'
-import { aircraftMapping } from './virtual-gamepad.js'
+import {
+  aircraftMapping,
+  aircraftMappingDescriptor,
+} from './virtual-gamepad.js'
 import {
   equilibriumSpeed,
   flyByWireStep,
@@ -501,6 +504,7 @@ export class B3dAircraft extends B3dControllable {
   static preferredTagName = 'tosi-b3d-aircraft'
 
   inputMapping = aircraftMapping()
+  inputLabels = aircraftMappingDescriptor().labels
 
   static initAttributes = {
     ...B3dControllable.initAttributes,

@@ -68,7 +68,7 @@ tank's defaults: 20 t, 12 m/s, 3 m/s². And:
 
 import * as BABYLON from '@babylonjs/core'
 import { B3dGroundVehicle } from './b3d-ground-vehicle.js'
-import { carMapping } from './virtual-gamepad.js'
+import { carMapping, carMappingDescriptor } from './virtual-gamepad.js'
 import type { ControlInput } from './control-input.js'
 import {
   headingOf,
@@ -173,6 +173,7 @@ export class B3dTank extends B3dGroundVehicle {
   static preferredTagName = 'tosi-b3d-tank'
 
   inputMapping = carMapping
+  inputLabels = carMappingDescriptor.labels
   static initAttributes = {
     ...B3dGroundVehicle.initAttributes,
     mass: 20000,
