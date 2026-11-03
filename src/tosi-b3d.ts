@@ -2043,7 +2043,9 @@ export class B3d extends Component {
     if (m.close == null) return null
     this._modals.add(m)
     this._syncGamepadCover()
-    if (this._assistive) m.unmirror = this._mirrorModal(svg)
+    // Always, not only once assistive: a modal blocks the scene, so one a
+    // screen reader cannot reach holds the page. It costs only while open.
+    m.unmirror = this._mirrorModal(svg)
     return () => {
       if (!this._modals.delete(m)) return
       m.close?.()
@@ -2065,20 +2067,47 @@ export class B3d extends Component {
     const root = this.getRootNode() as Document | ShadowRoot
     const before = (this.shadowRoot?.activeElement ??
       root.activeElement) as HTMLElement | null
+    // Named after its first line when that is a label ("Paused", "You died").
+    let first = ''
     const mirror = ariaMirror(host, () => read.call(svg), {
       role: 'dialog',
+      label: () => first,
       place: (box) => this._panelToHost(svg, box),
     })
     mirror.update()
-    // Named after its first line when that is a label ("Paused", "You died").
-    const first = mirror.root.querySelector('p')?.textContent
-    if (first) mirror.root.setAttribute('aria-label', first)
-    mirror.root.querySelector<HTMLElement>('button, input, select')?.focus()
+    first = mirror.root.querySelector('p')?.textContent ?? ''
+    if (first) {
+      mirror.update()
+      // Said aloud too: moving focus is not always announced (iOS).
+      const say = this.parts?.sceneAnnouncer as HTMLElement | undefined
+      if (say != null) {
+        say.textContent = ''
+        setTimeout(() => (say.textContent = first), 50)
+      }
+    }
+    // Our own focus moves are not someone using a screen reader: they must
+    // not wake the scene (every sighted pause would).
+    this._quietFocus(
+      mirror.root.querySelector<HTMLElement>('button, input, select')
+    )
     return () => {
       mirror.dispose()
       // Back where it was, or to the scene when that is gone (a panel closed).
-      if (before?.isConnected) before.focus()
-      else (this.parts?.canvas as HTMLElement | undefined)?.focus()
+      this._quietFocus(
+        before?.isConnected
+          ? before
+          : (this.parts?.canvas as HTMLElement | undefined)
+      )
+    }
+  }
+  private _focusQuiet = false
+  private _quietFocus(el: HTMLElement | null | undefined): void {
+    if (el == null) return
+    this._focusQuiet = true
+    try {
+      el.focus()
+    } finally {
+      this._focusQuiet = false
     }
   }
 
@@ -5498,6 +5527,7 @@ export class B3d extends Component {
     this._agentOff = registerAgentScene(this)
     // Described on demand only (see the canvas in `content`).
     this.shadowRoot?.addEventListener('focusin', this._goAssistive)
+    this.shadowRoot?.addEventListener('click', this._wakeOnClick, true)
     ;(this.parts.describeButton as HTMLElement).addEventListener(
       'click',
       this._describeAloud
@@ -7473,6 +7503,10 @@ export class B3d extends Component {
         */
         const path = e.composedPath()
         if (path.includes(host) || path.includes(gear)) return
+        // Nor a screen reader's copies of its controls, laid over it: VoiceOver
+        // presses them with a real tap, and closing here took the copy away
+        // before its click.
+        if (path.includes(this.parts.ariaMirrorHost as Element)) return
         this._closeScenePanel()
       })
     }
@@ -7743,6 +7777,7 @@ export class B3d extends Component {
     return this._assistive
   }
   private _goAssistive = (e: Event) => {
+    if (this._focusQuiet) return
     if ((e.target as Element | null) === this.parts?.canvas)
       this._describe(false)
     if (this._assistive) return
@@ -7755,6 +7790,22 @@ export class B3d extends Component {
         labelPad?: () => void
       } | null
     )?.labelPad?.()
+  }
+  /*
+  iOS VoiceOver presses a button WITHOUT focusing it, so focus alone never
+  woke the scene there. A real (trusted) click on one of the hidden HTML
+  buttons wakes it too: in `data-mirror` mode they take no pointer events, so
+  a sighted tap lands on the drawn bar and the bar presses them with
+  `click()`, which is untrusted.
+  */
+  private _wakeOnClick = (e: Event) => {
+    if (this._assistive || !e.isTrusted) return
+    const t = e.target as Element | null
+    if (
+      t?.closest?.('.scene-lozenge[data-mirror]') != null ||
+      t === this.parts?.describeButton
+    )
+      this._goAssistive(e)
   }
 
   /*

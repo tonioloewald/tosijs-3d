@@ -14,6 +14,9 @@ Steps (comma separated, or one a line in a steps file):
                      the way it does for a person, not by script
   find:<role>:<name> jump to a control by role and name, as a screen reader's
                      rotor does (`find:switch:night`, `find:heading:Sky`)
+  tap:<role>:<name>  iOS VoiceOver's double-tap: a real click at the
+                     control's centre, focus NOT moved (VoiceOver on a phone
+                     presses without focusing)
   read[:<name>]      read out a region (default: the first region whose name
                      ends in "settings"), one line per control
   type:<text>        type into the focused field
@@ -261,6 +264,53 @@ try {
       await Bun.sleep(300)
       const n = await focusedNode()
       say(n ? announce(n) : announce(hits[0]) + ' (could not take focus)')
+    } else if (cmd === 'tap') {
+      // iOS VoiceOver's double-tap: a real click at the control's centre,
+      // focus not moved. The control is let take the pointer for the click
+      // (VoiceOver reaches it whatever its pointer-events say).
+      const [role, ...nameParts] = arg.split(':')
+      const name = nameParts.join(':')
+      const tree = await fullTree()
+      const hit = [...tree.values()].find(
+        (n) =>
+          !n.ignored &&
+          n.role?.value === role &&
+          (name === '' || n.name?.value === name)
+      )
+      if (hit == null) {
+        say(`no ${role} named ${JSON.stringify(name)}`)
+        failed = true
+        continue
+      }
+      const objectId = (
+        await send('DOM.resolveNode', { backendNodeId: hit.backendDOMNodeId })
+      ).result?.object?.objectId
+      const fn = async (body: string) =>
+        (
+          await send('Runtime.callFunctionOn', {
+            objectId,
+            functionDeclaration: body,
+            returnByValue: true,
+          })
+        ).result?.result ?? {}
+      const c = (
+        await fn(`function () {
+          this.dataset.tapWas = this.style.pointerEvents
+          this.style.pointerEvents = 'auto'
+          const r = this.getBoundingClientRect()
+          return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+        }`)
+      ).value
+      const at = { x: c.x, y: c.y, button: 'left', clickCount: 1 }
+      await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...at })
+      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...at })
+      await fn(`function () {
+        if (!this.isConnected) return
+        this.style.pointerEvents = this.dataset.tapWas
+        delete this.dataset.tapWas
+      }`)
+      await Bun.sleep(500)
+      say(`tapped ${announce(hit)}`)
     } else if (cmd === 'read') {
       const tree = await fullTree()
       const region = [...tree.values()].find(
