@@ -249,9 +249,14 @@ describe('placed over the drawn controls', () => {
       place: (b) => ({ x: b.x * 2, y: b.y * 2, w: b.w * 2, h: b.h * 2 }),
     })
     m.update()
-    expect(m.root.style.opacity).toBe('0')
+    // The overlay takes no touches; each placed copy does, unpainted and
+    // opaque (VoiceOver hit-tests, and skipped transparent copies).
+    expect(m.root.style.opacity).toBe('')
     expect(m.root.style.pointerEvents).toBe('none')
     const b = m.root.querySelector('button')!
+    expect(b.style.pointerEvents).toBe('auto')
+    expect(b.style.color).toBe('transparent')
+    expect(b.style.opacity).toBe('')
     expect([b.style.left, b.style.top, b.style.width, b.style.height]).toEqual([
       '20px',
       '40px',

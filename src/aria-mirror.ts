@@ -10,12 +10,14 @@ expand button, popups are dialogs. Using a mirrored control sets or presses
 the panel's own widget through its own path, exactly as an agent's tool or a
 hand on it would, so there is one definition of what each control does.
 
-**Placed over what it mirrors.** With `place`, each copy sits exactly over
-its drawn control, transparent and untouchable (`opacity: 0`,
-`pointer-events: none`): a person exploring the screen by touch with
-VoiceOver finds "Continue" where Continue is drawn, and a double-tap there
-lands on it. Without `place` the copies are hidden in a corner and reached by
-swiping or Tab.
+**Placed over what it mirrors.** With `place`, each copy is a real target
+laid exactly over its drawn control: unpainted (no background, no text
+colour) but fully opaque and taking touches, because iOS VoiceOver finds what
+a finger is on by hit-testing, and skipped transparent, untouchable copies
+for the canvas under them. So a person exploring by touch finds "Continue"
+where Continue is drawn, and a double-tap presses the copy. A copy with
+keyboard focus shows a ring over the drawn control. Without `place` the
+copies are hidden in a corner and reached by swiping or Tab.
 
 **Built only when someone uses it.** `<tosi-b3d>` builds nothing for a
 screen reader until focus first lands in the scene (Tab, or VoiceOver moving
@@ -45,8 +47,8 @@ export interface AriaMirrorOptions {
   label?: string | (() => string)
   /**
    * Where a control's box (panel units) is on the host, in CSS pixels: the
-   * copy then sits over the drawn control, transparent and untouchable, so a
-   * finger exploring the screen with a screen reader finds it there. Null, or
+   * copy then sits over the drawn control, unpainted but taking touches, so
+   * a finger exploring the screen with a screen reader finds it there. Null, or
    * no `place`, keeps it hidden in the corner.
    */
   place?: (box: ControlBox) => ControlBox | null
@@ -72,6 +74,24 @@ export const VISUALLY_HIDDEN: Partial<CSSStyleDeclaration> = {
   overflow: 'hidden',
   clipPath: 'inset(50%)',
   whiteSpace: 'nowrap',
+}
+
+/**
+A placed copy: a real, opaque, touchable box with nothing painted. Not
+`opacity: 0` and not `pointer-events: none`: iOS VoiceOver finds what is under
+a finger by hit-testing, and passed over such copies for the canvas. A range
+input's thumb is a pseudo-element, which an inline style cannot reach: the
+host's stylesheet hides it (`<tosi-b3d>` does).
+*/
+export const UNPAINTED: Partial<CSSStyleDeclaration> = {
+  pointerEvents: 'auto',
+  background: 'transparent',
+  color: 'transparent',
+  caretColor: 'transparent',
+  border: '0',
+  appearance: 'none',
+  webkitAppearance: 'none',
+  font: 'inherit',
 }
 
 /** A number without float noise: 0.6000000238418579 is 0.6. */
@@ -141,15 +161,14 @@ export function ariaMirror(
   root.setAttribute('role', options.role ?? 'region')
   if (options.role === 'dialog') root.setAttribute('aria-modal', 'true')
   root.dataset.ariaMirror = ''
-  // Placing: a transparent overlay of the host (opacity keeps it in the
-  // accessibility tree; no pointer event ever lands on it). Else hidden.
+  // Placing: an overlay of the host that only its placed copies make
+  // touchable (see UNPAINTED). Else hidden.
   Object.assign(
     root.style,
     options.place
       ? {
           position: 'absolute',
           inset: '0',
-          opacity: '0',
           pointerEvents: 'none',
           overflow: 'hidden',
         }
@@ -158,17 +177,7 @@ export function ariaMirror(
   host.appendChild(root)
   // Values are read again when a control takes focus: when someone is about
   // to hear them. Nothing runs between.
-  root.addEventListener('focusin', (e) => {
-    update()
-    // The control a reader has selected takes the pointer: iOS VoiceOver
-    // presses it with a touch at its centre, which would otherwise fall
-    // through to whatever is drawn under it (the canvas, which ignores it).
-    if (options.place && e.target instanceof HTMLElement && e.target !== root)
-      e.target.style.pointerEvents = 'auto'
-  })
-  root.addEventListener('focusout', (e) => {
-    if (e.target instanceof HTMLElement) e.target.style.pointerEvents = ''
-  })
+  root.addEventListener('focusin', () => update())
 
   /** The current node behind each control, by key: handlers look it up when they fire. */
   let nodes = new Map<string, ControlNode>()
@@ -206,10 +215,14 @@ export function ariaMirror(
     if (options.place == null) return
     const at = n.box ? options.place(n.box) : null
     if (at == null) {
-      Object.assign(e.style, VISUALLY_HIDDEN, { left: '', top: '' })
+      Object.assign(e.style, VISUALLY_HIDDEN, {
+        left: '',
+        top: '',
+        pointerEvents: '',
+      })
       return
     }
-    Object.assign(e.style, {
+    Object.assign(e.style, UNPAINTED, {
       position: 'absolute',
       left: `${at.x}px`,
       top: `${at.y}px`,

@@ -14,9 +14,9 @@ Steps (comma separated, or one a line in a steps file):
                      the way it does for a person, not by script
   find:<role>:<name> jump to a control by role and name, as a screen reader's
                      rotor does (`find:switch:night`, `find:heading:Sky`)
-  tap:<role>:<name>  iOS VoiceOver's double-tap: the control is selected
-                     (focused), then touched at its centre; says so when the
-                     touch lands on something else (pointer-events: none)
+  tap:<role>:<name>  iOS VoiceOver by touch: a finger at the control's
+                     centre, then a double-tap there; says so when a hit test
+                     there finds something else (VoiceOver would select that)
   read[:<name>]      read out a region (default: the first region whose name
                      ends in "settings"), one line per control
   type:<text>        type into the focused field
@@ -265,9 +265,10 @@ try {
       const n = await focusedNode()
       say(n ? announce(n) : announce(hits[0]) + ' (could not take focus)')
     } else if (cmd === 'tap') {
-      // iOS VoiceOver's double-tap: the control is selected (it takes focus),
-      // then a touch lands at its centre and goes to whatever is THERE. A
-      // control that takes no pointer events there is never pressed.
+      // iOS VoiceOver by touch: a finger on the control finds whatever a hit
+      // test finds THERE (read off a phone: transparent, untouchable copies
+      // were passed over for the canvas), and a double-tap is a touch at that
+      // thing's centre.
       const [role, ...nameParts] = arg.split(':')
       const name = nameParts.join(':')
       const tree = await fullTree()
@@ -282,8 +283,6 @@ try {
         failed = true
         continue
       }
-      await send('DOM.focus', { backendNodeId: hit.backendDOMNodeId })
-      await Bun.sleep(200)
       const objectId = (
         await send('DOM.resolveNode', { backendNodeId: hit.backendDOMNodeId })
       ).result?.object?.objectId
@@ -291,13 +290,7 @@ try {
         await send('Runtime.callFunctionOn', {
           objectId,
           functionDeclaration: `function () {
-            // Selecting can rebuild a mirror, which focuses the control's
-            // replacement: touch that one.
-            let me = this
-            if (!me.isConnected) {
-              me = document.activeElement
-              while (me?.shadowRoot?.activeElement) me = me.shadowRoot.activeElement
-            }
+            const me = this
             me.scrollIntoView({ block: 'center', inline: 'center' })
             const r = me.getBoundingClientRect()
             const x = r.left + r.width / 2
@@ -314,14 +307,25 @@ try {
           returnByValue: true,
         })
       ).result?.result?.value
-      const at = { x: c.x, y: c.y, button: 'left', clickCount: 1 }
-      await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...at })
-      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...at })
+      if (role === 'slider') {
+        // A slider is selected, not pressed: VoiceOver adjusts it by swiping
+        // (ArrowUp/Down here), and an iOS range input ignores a tap on its
+        // track, where a desktop one would jump to it.
+        if (c.self)
+          await send('DOM.focus', { backendNodeId: hit.backendDOMNodeId })
+      } else {
+        const at = { x: c.x, y: c.y, button: 'left', clickCount: 1 }
+        await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...at })
+        await send('Input.dispatchMouseEvent', {
+          type: 'mouseReleased',
+          ...at,
+        })
+      }
       await Bun.sleep(500)
       say(
         c.self
           ? `tapped ${announce(hit)}`
-          : `tapped ${announce(hit)}, but the touch went to ${c.at}`
+          : `a finger on ${announce(hit)} finds ${c.at} instead`
       )
     } else if (cmd === 'read') {
       const tree = await fullTree()

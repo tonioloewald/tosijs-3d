@@ -1144,6 +1144,22 @@ export class B3d extends Component {
       pointerEvents: 'none',
       zIndex: '25',
     },
+    // The copies are unpainted (aria-mirror's UNPAINTED); a range input's
+    // thumb is a pseudo-element an inline style cannot reach.
+    ':host .aria-mirror-host input[type=range]::-webkit-slider-thumb': {
+      appearance: 'none',
+      webkitAppearance: 'none',
+      opacity: '0',
+    },
+    ':host .aria-mirror-host input[type=range]::-moz-range-thumb': {
+      opacity: '0',
+    },
+    // A keyboard user sees which drawn control has focus.
+    ':host .aria-mirror-host [data-key]:focus-visible': {
+      outline: `2px solid ${w3dTheme.accent}`,
+      outlineOffset: '1px',
+      borderRadius: '6px',
+    },
     ':host .sr-only, :host .describe-button:not(:focus)': {
       position: 'absolute',
       width: '1px',
@@ -1188,6 +1204,22 @@ export class B3d extends Component {
       height: `${BAR_BUTTON}px`,
       padding: '0',
       borderLeft: '0',
+    },
+    /*
+    In use by a screen reader (\`assistive\`), the bar's real buttons are touch
+    targets over the drawn ones, unpainted: VoiceOver finds what a finger is
+    on by hit-testing, and skipped them while they were transparent.
+    */
+    ':host([data-assistive]) .scene-lozenge[data-mirror]': {
+      opacity: '1',
+      pointerEvents: 'auto',
+    },
+    ':host([data-assistive]) .scene-lozenge[data-mirror] .lozenge-button': {
+      background: 'transparent',
+      color: 'transparent',
+    },
+    ':host([data-assistive]) .scene-lozenge[data-mirror] .lozenge-button > *': {
+      opacity: '0',
     },
     ':host .lozenge-button[hidden]': {
       display: 'none',
@@ -7802,6 +7834,7 @@ export class B3d extends Component {
       this._describe(false)
     if (this._assistive) return
     this._assistive = true
+    this.toggleAttribute('data-assistive', true)
     this._syncAriaMirror()
     this._describe(false)
     for (const m of this._modals) m.unmirror ??= this._mirrorModal(m.svg)
