@@ -119,10 +119,21 @@ try {
     pending.get(m.id)?.(m)
     pending.delete(m.id)
   }
+  // Every call answers within 20 s, or the run says which call hung.
   const send = (method: string, params = {}) =>
     new Promise<any>((r) => {
-      pending.set(++id, r)
-      ws.send(JSON.stringify({ id, method, params }))
+      const my = ++id
+      const timer = setTimeout(() => {
+        pending.delete(my)
+        console.log(`  ⏱  ${method} did not answer`)
+        failed = true
+        r({})
+      }, 20000)
+      pending.set(my, (m) => {
+        clearTimeout(timer)
+        r(m)
+      })
+      ws.send(JSON.stringify({ id: my, method, params }))
     })
   const evaluate = async (expression: string, byValue = true) => {
     const r = await send('Runtime.evaluate', {
@@ -141,6 +152,9 @@ try {
   await send('Runtime.enable')
   await send('DOM.enable')
   await send('Accessibility.enable')
+  // A headless page has no window focus, and an unfocused page fires no
+  // focus events: a person's page has it.
+  await send('Emulation.setFocusEmulationEnabled', { enabled: true })
   await send('Page.navigate', { url })
 
   // Until a scene is up (a live example mounts some time after load).

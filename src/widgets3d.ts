@@ -529,7 +529,9 @@ import { chromeLayout } from './popup-chrome.js'
 import { panelRim } from './panel-rim.js'
 import {
   controlTree,
+  type ControlBox,
   type ControlNode,
+  type SemanticSource,
   type WidgetSemantics,
 } from './widget-semantics.js'
 
@@ -2161,6 +2163,7 @@ export function iconBar3d(config: {
         semantics: (): WidgetSemantics => ({
           role: 'button',
           name: c.item.title ?? '',
+          box: { x: c.x, y: c.y, w: BS, h: BS },
           ...(c.item.active ? { value: true } : {}),
           activate: () =>
             handlerOf<() => void>(
@@ -5285,8 +5288,27 @@ export function panel3d(
   panel and drops it on a rebuild calls this; a row bound to a tosijs box
   otherwise keeps the whole panel alive through tosijs's listener list.
   */
+  /*
+  WHERE EACH ROW IS DRAWN, in the panel's units, scroll included: so a
+  screen reader's copy of a control can sit over the drawn one (a finger
+  exploring the screen finds it there). A row scrolled out of sight has none.
+  */
+  const rowBox = (w: SemanticSource): ControlBox | null => {
+    const head = headerRows.find((r) => r.w === w)
+    if (head != null)
+      return { x: padding, y: paddingTop + head.top, w: innerW, h: head.height }
+    const row = rows.find((r) => r.w === w)
+    if (row == null) return null
+    const top = paddingTop + headerH
+    const y0 = Math.max(top, top + row.top - scroll)
+    const y1 = Math.min(top + viewport, top + row.top - scroll + row.height)
+    return y1 - y0 < 4 ? null : { x: padding, y: y0, w: innerW, h: y1 - y0 }
+  }
   ;(root as unknown as { controls: () => ControlNode[] }).controls = () => {
-    const tree = [...controlTree(headerWidgets), ...controlTree(widgets)]
+    const tree = [
+      ...controlTree(headerWidgets, '', rowBox),
+      ...controlTree(widgets, '', rowBox),
+    ]
     for (const p of popups) {
       const opener = (p.inHeader ? headerWidgets : widgets)[p.index]
       const name = String(opener?.semantics?.()?.name ?? '') || 'popup'

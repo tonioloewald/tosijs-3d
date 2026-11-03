@@ -11,8 +11,10 @@ It is the same reading the agents' `scene` tool gives (see
 > to the right.
 
 `<tosi-b3d>` names its canvas (an image called "<title>, 3D scene") and keeps
-this description beside it, visually hidden, refreshed every two seconds, so
-VoiceOver reads it when it reaches the scene. Things are listed when they have
+this description beside it, visually hidden. It is built only when asked
+for: once someone is using the scene's assistive surface (see
+[aria mirror](/aria-mirror/)), when the canvas takes focus, and by the
+"Describe the scene" button, which also speaks it. Never on a timer. Things are listed when they have
 a name (an `id`, or a beacon's `name`): a scene says as much as its author
 named.
 

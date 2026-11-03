@@ -174,7 +174,7 @@ export class B3dInputFocus extends B3dChild {
     ) as unknown as GamepadSource | null
     if (gamepad != null && this.inputMappedProvider) {
       this.inputMappedProvider.addSource(gamepad)
-      this._labelPad()
+      this.labelPad()
     }
 
     // Register update loop for interact proximity check
@@ -203,7 +203,7 @@ export class B3dInputFocus extends B3dChild {
       )
     }
     entity.handleGainFocus()
-    this._labelPad()
+    this.labelPad()
 
     // Switch camera to follow the new entity
     this.setupCameraForEntity(entity)
@@ -224,11 +224,15 @@ export class B3dInputFocus extends B3dChild {
     entity.handleLoseFocus()
     entity.inputProvider = null
     this.focusedEntity = null
-    this._labelPad()
+    this.labelPad()
   }
 
-  /** Tell the glass gamepad what its controls now do (for a screen reader). */
-  private _labelPad(): void {
+  /**
+   * Tell the glass gamepad what its controls now do, for a screen reader:
+   * only once the scene's assistive surface is in use (`b3d.assistive`).
+   */
+  labelPad(): void {
+    if (!(this.owner as { assistive?: boolean } | null)?.assistive) return
     const pad = this.owner?.querySelector('tosi-b3d-gamepad') as {
       setControlLabels?: (labels: Record<string, string>) => void
     } | null

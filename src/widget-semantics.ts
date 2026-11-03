@@ -54,6 +54,14 @@ export type WidgetRole =
   | 'progress'
   | 'editor'
 
+/** A rectangle: x, y from the top left, in the panel's units (a CSS pixel flat). */
+export interface ControlBox {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
 /** What a widget says about itself (`Widget3d.semantics()`). */
 export interface WidgetSemantics {
   role: WidgetRole
@@ -86,6 +94,13 @@ export interface WidgetSemantics {
   activate?(): void
   /** Controls inside it (a row, a toolbar, a list). */
   children?: SemanticSource[]
+  /**
+   * Where it is inside the widget that holds it (a toolbar's button). Without
+   * one, a child gets an even share of its parent's box.
+   */
+  box?: ControlBox
+  /** Its children's boxes, in order, relative to it (an editor's stacked rows). */
+  childBoxes?: Array<ControlBox | null>
 }
 
 /** Anything that may describe itself: every `Widget3d`. */
@@ -113,6 +128,8 @@ export interface ControlNode {
   open?: boolean
   /** Can it be set or pressed? */
   interactive: boolean
+  /** Where it is drawn, in the panel's units, when the panel knows. */
+  box?: ControlBox
   set?(value: unknown): void
   activate?(): void
   children?: ControlNode[]
@@ -138,7 +155,9 @@ function describe(w: SemanticSource): WidgetSemantics | null {
  */
 export function controlTree(
   widgets: SemanticSource[],
-  prefix = ''
+  prefix = '',
+  /** Where each top-level widget is drawn (a panel's row), when known. */
+  boxOf?: (w: SemanticSource) => ControlBox | null
 ): ControlNode[] {
   const top: ControlNode[] = []
   let level = top
@@ -147,11 +166,47 @@ export function controlTree(
   const pathOf = (base: string, name: string) =>
     base === '' ? name : `${base}/${name}`
 
+  /** The children's boxes: their own, else an even share (a list stacks). */
+  const childBoxes = (
+    children: SemanticSource[],
+    parent: ControlBox | null | undefined,
+    vertical: boolean,
+    given?: Array<ControlBox | null>
+  ): Array<ControlBox | null> => {
+    if (parent == null) return children.map(() => null)
+    const n = children.length || 1
+    return children.map((c, i) => {
+      const own = given?.[i] ?? describe(c)?.box
+      if (own != null)
+        return {
+          x: parent.x + own.x,
+          y: parent.y + own.y,
+          // A full-width row says so with Infinity: the parent's width.
+          w: Math.min(own.w, parent.w - own.x),
+          h: own.h,
+        }
+      return vertical
+        ? {
+            x: parent.x,
+            y: parent.y + (parent.h * i) / n,
+            w: parent.w,
+            h: parent.h / n,
+          }
+        : {
+            x: parent.x + (parent.w * i) / n,
+            y: parent.y,
+            w: parent.w / n,
+            h: parent.h,
+          }
+    })
+  }
+
   const add = (
     w: SemanticSource,
     into: ControlNode[],
     base: string,
-    rowLabel: string
+    rowLabel: string,
+    box?: ControlBox | null
   ): ControlNode | null => {
     const s = describe(w)
     if (s == null) {
@@ -167,10 +222,11 @@ export function controlTree(
     if (s.role === 'group' && s.children) {
       // A row: flattened, and its label names an unnamed control beside it.
       let label = ''
-      for (const c of s.children) {
-        const n = add(c, into, base, label)
+      const boxes = childBoxes(s.children, box, false, s.childBoxes)
+      s.children.forEach((c, i) => {
+        const n = add(c, into, base, label, boxes[i])
         if (n != null && NAMING.has(n.role) && n.name !== '') label = n.name
-      }
+      })
       return null
     }
     let name = s.name
@@ -194,13 +250,15 @@ export function controlTree(
     if (s.open !== undefined) node.open = s.open
     if (s.set) node.set = s.set
     if (s.activate) node.activate = s.activate
+    if (box != null) node.box = box
     if (CONTAINERS.has(s.role) && s.children) {
+      const boxes = childBoxes(s.children, box, s.role === 'list', s.childBoxes)
       node.children =
         s.role === 'popup'
           ? controlTree(s.children, node.path)
-          : s.children.flatMap((c) => {
+          : s.children.flatMap((c, i) => {
               const out: ControlNode[] = []
-              add(c, out, node.path, '')
+              add(c, out, node.path, '', boxes[i])
               return out
             })
     }
@@ -220,13 +278,15 @@ export function controlTree(
         children: [],
       }
       if (s.activate) node.activate = s.activate
+      const b = boxOf?.(w)
+      if (b != null) node.box = b
       top.push(node)
       level = node.children!
       levelPath = node.path
       previousText = ''
       continue
     }
-    const node = add(w, level, levelPath, '')
+    const node = add(w, level, levelPath, '', boxOf?.(w))
     if (node != null && NAMING.has(node.role)) {
       previousText =
         node.role === 'label' ? node.name : String(node.value ?? '')

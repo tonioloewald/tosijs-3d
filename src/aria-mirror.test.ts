@@ -230,3 +230,35 @@ describe('sliders in the mirror', () => {
     m.dispose()
   })
 })
+
+describe('placed over the drawn controls', () => {
+  test('a control with a box sits there; one without stays hidden', () => {
+    const tree = controlTree(
+      [
+        W.button3d({ label: 'Continue', handleClick: () => {} }),
+        W.label3d({ text: 'Paused' }),
+      ],
+      '',
+      (w) =>
+        (w as any).semantics?.().role === 'button'
+          ? { x: 10, y: 20, w: 100, h: 40 }
+          : null
+    )
+    const host = document.createElement('div')
+    const m = ariaMirror(host, () => tree, {
+      place: (b) => ({ x: b.x * 2, y: b.y * 2, w: b.w * 2, h: b.h * 2 }),
+    })
+    m.update()
+    expect(m.root.style.opacity).toBe('0')
+    expect(m.root.style.pointerEvents).toBe('none')
+    const b = m.root.querySelector('button')!
+    expect([b.style.left, b.style.top, b.style.width, b.style.height]).toEqual([
+      '20px',
+      '40px',
+      '200px',
+      '80px',
+    ])
+    expect(m.root.querySelector('p')!.style.clipPath).toBe('inset(50%)')
+    m.dispose()
+  })
+})

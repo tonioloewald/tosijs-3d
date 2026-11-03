@@ -10,11 +10,20 @@ expand button, popups are dialogs. Using a mirrored control sets or presses
 the panel's own widget through its own path, exactly as an agent's tool or a
 hand on it would, so there is one definition of what each control does.
 
-`<tosi-b3d>` keeps a mirror of its settings panel, flat: it is rebuilt when
-the panel is, and its values are re-read once a second while the panel is
-open. Its system bar's buttons are real HTML buttons already, kept in the
-accessibility tree and shown when one has keyboard focus. So with a keyboard
-and a screen reader: Tab to the owl, press it, Tab on into the settings.
+**Placed over what it mirrors.** With `place`, each copy sits exactly over
+its drawn control, transparent and untouchable (`opacity: 0`,
+`pointer-events: none`): a person exploring the screen by touch with
+VoiceOver finds "Continue" where Continue is drawn, and a double-tap there
+lands on it. Without `place` the copies are hidden in a corner and reached by
+swiping or Tab.
+
+**Built only when someone uses it.** `<tosi-b3d>` builds nothing for a
+screen reader until focus first lands in the scene (Tab, or VoiceOver moving
+onto the owl or the scene); from then it mirrors its settings panel and any
+modal (a pause: focus moves to Continue), describes the scene and names the
+glass gamepad's controls. Values are read again when a copy takes focus;
+nothing runs on a timer. Its system bar's buttons are real HTML buttons
+already, laid exactly over the drawn bar.
 
 ```javascript
 import { ariaMirror } from 'tosijs-3d/aria-mirror'
@@ -29,11 +38,18 @@ In a headset there is no DOM to mirror into.
 */
 /*{ "parent": "widget-semantics", "order": 10 }*/
 
-import type { ControlNode } from './widget-semantics.js'
+import type { ControlBox, ControlNode } from './widget-semantics.js'
 
 export interface AriaMirrorOptions {
   /** The region's accessible name (the panel's title). */
   label?: string | (() => string)
+  /**
+   * Where a control's box (panel units) is on the host, in CSS pixels: the
+   * copy then sits over the drawn control, transparent and untouchable, so a
+   * finger exploring the screen with a screen reader finds it there. Null, or
+   * no `place`, keeps it hidden in the corner.
+   */
+  place?: (box: ControlBox) => ControlBox | null
   /** `dialog` for a modal (a pause, a respawn): marked modal. Default `region`. */
   role?: 'region' | 'dialog'
 }
@@ -125,8 +141,24 @@ export function ariaMirror(
   root.setAttribute('role', options.role ?? 'region')
   if (options.role === 'dialog') root.setAttribute('aria-modal', 'true')
   root.dataset.ariaMirror = ''
-  Object.assign(root.style, VISUALLY_HIDDEN)
+  // Placing: a transparent overlay of the host (opacity keeps it in the
+  // accessibility tree; no pointer event ever lands on it). Else hidden.
+  Object.assign(
+    root.style,
+    options.place
+      ? {
+          position: 'absolute',
+          inset: '0',
+          opacity: '0',
+          pointerEvents: 'none',
+          overflow: 'hidden',
+        }
+      : VISUALLY_HIDDEN
+  )
   host.appendChild(root)
+  // Values are read again when a control takes focus: when someone is about
+  // to hear them. Nothing runs between.
+  root.addEventListener('focusin', () => update())
 
   /** The current node behind each control, by key: handlers look it up when they fire. */
   let nodes = new Map<string, ControlNode>()
@@ -148,13 +180,47 @@ export function ariaMirror(
     return e
   }
   const node = (key: string) => nodes.get(key)
+  /** Text that reads in order but is nowhere on screen: in the corner. */
+  const quiet = <E extends HTMLElement>(e: E): E => {
+    if (options.place) Object.assign(e.style, VISUALLY_HIDDEN)
+    return e
+  }
   const focused = (): Element | null => {
     const r = root.getRootNode() as Document | ShadowRoot
     return r.activeElement ?? null
   }
 
+  /** Each placed control's element, by key, so an update can move it. */
+  let placed = new Map<string, HTMLElement>()
+  function position(e: HTMLElement, n: ControlNode): void {
+    if (options.place == null) return
+    const at = n.box ? options.place(n.box) : null
+    if (at == null) {
+      Object.assign(e.style, VISUALLY_HIDDEN, { left: '', top: '' })
+      return
+    }
+    Object.assign(e.style, {
+      position: 'absolute',
+      left: `${at.x}px`,
+      top: `${at.y}px`,
+      width: `${at.w}px`,
+      height: `${at.h}px`,
+      margin: '0',
+      padding: '0',
+      boxSizing: 'border-box',
+      overflow: 'hidden',
+      clipPath: '',
+      whiteSpace: '',
+    })
+  }
+
   function render(n: ControlNode, key: string, into: HTMLElement): void {
     nodes.set(key, n)
+    const put = (e: HTMLElement) => {
+      into.appendChild(e)
+      placed.set(key, e)
+      position(e, n)
+    }
     const name = n.name || n.role
     const disabled = (e: HTMLElement) => {
       if (n.disabled) e.setAttribute('disabled', '')
@@ -175,7 +241,7 @@ export function ariaMirror(
         )
         b.addEventListener('click', () => node(key)?.activate?.())
         h.appendChild(b)
-        into.appendChild(h)
+        put(h)
         if (n.open && n.children) {
           const g = el('div', { role: 'group', 'aria-label': name })
           renderAll(n.children, g)
@@ -188,7 +254,7 @@ export function ariaMirror(
         if (n.value === true) b.setAttribute('aria-pressed', 'true')
         disabled(b)
         b.addEventListener('click', () => node(key)?.activate?.())
-        into.appendChild(b)
+        put(b)
         patches.set(key, (m) => {
           if (m.value === true) b.setAttribute('aria-pressed', 'true')
           else b.removeAttribute('aria-pressed')
@@ -211,7 +277,7 @@ export function ariaMirror(
         disabled(c)
         c.addEventListener('change', () => node(key)?.set?.(c.checked))
         lab.append(c, ` ${name}`)
-        into.appendChild(lab)
+        put(lab)
         patches.set(key, (m) => (c.checked = !!m.value))
         return
       }
@@ -247,7 +313,7 @@ export function ariaMirror(
           // What the widget now shows (its formatted value), read back.
           queueMicrotask(update)
         })
-        into.appendChild(r)
+        put(r)
         patches.set(key, (m) => {
           if (focused() !== r) r.value = position(m)
           text(m)
@@ -261,7 +327,7 @@ export function ariaMirror(
         s.value = String(n.value ?? '')
         disabled(s)
         s.addEventListener('change', () => node(key)?.set?.(s.value))
-        into.appendChild(s)
+        put(s)
         patches.set(key, (m) => (s.value = String(m.value ?? '')))
         return
       }
@@ -272,7 +338,7 @@ export function ariaMirror(
         disabled(t)
         if (!n.set) t.readOnly = true
         t.addEventListener('change', () => node(key)?.set?.(t.value))
-        into.appendChild(t)
+        put(t)
         patches.set(key, (m) => {
           if (focused() !== t) t.value = String(m.value ?? '')
         })
@@ -328,7 +394,7 @@ export function ariaMirror(
             g.appendChild(s)
           }
         }
-        into.appendChild(g)
+        put(g)
         return
       }
       case 'list':
@@ -352,7 +418,7 @@ export function ariaMirror(
         const b = keyed(el('button', { type: 'button' }, name))
         disabled(b)
         b.addEventListener('click', () => node(key)?.activate?.())
-        into.appendChild(b)
+        put(b)
         return
       }
       case 'progress': {
@@ -362,16 +428,16 @@ export function ariaMirror(
             ? p.setAttribute('aria-valuenow', String(v))
             : p.removeAttribute('aria-valuenow')
         set(n.value)
-        into.appendChild(p)
+        put(p)
         patches.set(key, (m) => set(m.value))
         return
       }
       case 'label': {
-        if (n.name) into.appendChild(el('p', {}, n.name))
+        if (n.name) into.appendChild(quiet(el('p', {}, n.name)))
         return
       }
       case 'text': {
-        const p = el('p', {}, spoken(n.value))
+        const p = quiet(el('p', {}, spoken(n.value)))
         into.appendChild(p)
         patches.set(key, (m) => (p.textContent = spoken(m.value)))
         return
@@ -402,6 +468,8 @@ export function ariaMirror(
       const key = count > 1 ? `${k}#${count}` : k
       nodes.set(key, n)
       patches.get(key)?.(n)
+      const e = placed.get(key)
+      if (e != null) position(e, n)
       if (n.children) patchAll(n.children)
     }
   }
@@ -410,6 +478,7 @@ export function ariaMirror(
     root.replaceChildren()
     nodes = new Map()
     patches = new Map()
+    placed = new Map()
     lastShape = ''
   }
 
@@ -435,6 +504,7 @@ export function ariaMirror(
     root.replaceChildren()
     nodes = new Map()
     patches = new Map()
+    placed = new Map()
     renderAll(tree, root)
     lastShape = s
     if (!inside) return

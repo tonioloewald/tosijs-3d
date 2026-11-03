@@ -230,7 +230,17 @@ export function lightEditor3d(
   return {
     el,
     // Its rows (power, type, colour, …, the program's curves), each named.
-    semantics: () => ({ role: 'group', name: '', children: rows }),
+    semantics: () => ({
+      role: 'group',
+      name: '',
+      children: rows,
+      childBoxes: rows.map((_, i) => ({
+        x: 0,
+        y: offsets[i] ?? 0,
+        w: Infinity,
+        h: heights[i] ?? 0,
+      })),
+    }),
 
     setHost(host: WidgetHost) {
       // Each child gets the host translated by ITS row offset, so a popup

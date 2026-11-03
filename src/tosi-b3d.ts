@@ -401,6 +401,9 @@ import { svgIcons } from './svg-icons.js'
 import {
   systemBar,
   BAR_HEIGHT,
+  BAR_BUTTON,
+  BAR_GAP,
+  BAR_PAD,
   ATTENTION_FILL,
   type SystemBar,
 } from './system-bar.js'
@@ -1133,6 +1136,14 @@ export class B3d extends Component {
     ':host .lozenge-button:hover': {
       background: 'rgba(255,255,255,0.15)',
     },
+    // Over the scene, never under a finger: screen readers' copies of the
+    // panels sit here, each over the control it stands for.
+    ':host .aria-mirror-host': {
+      position: 'absolute',
+      inset: '0',
+      pointerEvents: 'none',
+      zIndex: '25',
+    },
     ':host .sr-only, :host .describe-button:not(:focus)': {
       position: 'absolute',
       width: '1px',
@@ -1153,9 +1164,30 @@ export class B3d extends Component {
       border: '1px solid rgba(255,255,255,0.4)',
       borderRadius: '8px',
     },
+    /*
+    MIRRORING THE DRAWN BAR: the real buttons sit exactly over the drawn ones
+    (the bar's own measurements, at its spot), transparent and untouchable, so
+    a screen reader's finger finds each where it is drawn. Shown while one has
+    keyboard focus.
+    */
+    ':host .scene-lozenge[data-mirror]': {
+      top: '8px',
+      left: '8px',
+      padding: `${BAR_PAD}px`,
+      gap: `${BAR_GAP}px`,
+      border: '0',
+      background: 'transparent',
+    },
     ':host .scene-lozenge[data-mirror]:not(:focus-within)': {
-      clipPath: 'inset(50%)',
+      opacity: '0',
       pointerEvents: 'none',
+    },
+    ':host .scene-lozenge[data-mirror] .lozenge-button:not([hidden])': {
+      width: `${BAR_BUTTON}px`,
+      minWidth: `${BAR_BUTTON}px`,
+      height: `${BAR_BUTTON}px`,
+      padding: '0',
+      borderLeft: '0',
     },
     ':host .lozenge-button[hidden]': {
       display: 'none',
@@ -1370,7 +1402,7 @@ export class B3d extends Component {
     ),
     // The settings panel as real HTML controls for a screen reader (`aria-mirror`),
     // after the system bar's buttons so Tab goes from the owl into it.
-    div({ part: 'ariaMirrorHost' }),
+    div({ part: 'ariaMirrorHost', class: 'aria-mirror-host' }),
     div({ class: 'scene-panel-overlay', part: 'scenePanelHost', hidden: true }),
     /*
     THE PAUSE PANEL, ON A FLAT SCREEN, IS DOM.
@@ -1609,6 +1641,8 @@ export class B3d extends Component {
     height: number
     fallback?: () => (() => void) | null
     close: (() => void) | null
+    /** Its screen reader's copy, once anyone is using one. */
+    unmirror?: (() => void) | null
   }>()
   private _pauseWatch: (() => void) | null = null
   private _cameraWasAttached = false
@@ -1997,17 +2031,23 @@ export class B3d extends Component {
     height: number,
     fallback?: () => (() => void) | null
   ): (() => void) | null {
-    const m = { svg, height, fallback, close: null as (() => void) | null }
+    const m = {
+      svg,
+      height,
+      fallback,
+      close: null as (() => void) | null,
+      unmirror: null as (() => void) | null,
+    }
     m.close =
       this._presentModal(svg, height, this._modals.size) ?? fallback?.() ?? null
     if (m.close == null) return null
     this._modals.add(m)
     this._syncGamepadCover()
-    const unmirror = this._mirrorModal(svg)
+    if (this._assistive) m.unmirror = this._mirrorModal(svg)
     return () => {
       if (!this._modals.delete(m)) return
       m.close?.()
-      unmirror()
+      m.unmirror?.()
       this._syncGamepadCover()
     }
   }
@@ -2027,6 +2067,7 @@ export class B3d extends Component {
       root.activeElement) as HTMLElement | null
     const mirror = ariaMirror(host, () => read.call(svg), {
       role: 'dialog',
+      place: (box) => this._panelToHost(svg, box),
     })
     mirror.update()
     // Named after its first line when that is a label ("Paused", "You died").
@@ -5456,10 +5497,7 @@ export class B3d extends Component {
     // Joins the page's agent registry: a Set add, nothing runs until a call.
     this._agentOff = registerAgentScene(this)
     // Described on demand only (see the canvas in `content`).
-    ;(this.parts.canvas as HTMLElement).addEventListener(
-      'focus',
-      this._describeQuietly
-    )
+    this.shadowRoot?.addEventListener('focusin', this._goAssistive)
     ;(this.parts.describeButton as HTMLElement).addEventListener(
       'click',
       this._describeAloud
@@ -5721,9 +5759,9 @@ export class B3d extends Component {
           })
         cnv.classList.add('ready')
         this._suppressGamepad('loading', false)
-        // Once, so the canvas has a description before anyone asks (the
-        // canvas may already hold focus, and a second focus fires nothing).
-        this._describe(false)
+        // Once, if someone is listening: the canvas may already hold focus,
+        // and a second focus fires nothing.
+        if (this._assistive) this._describe(false)
         // Not a spinner a page is holding up for its own loading.
         if (!this._loadingHeld) spinner.classList.add('hidden')
         // Enable the toolbar only now the scene is up — the gear + Enter VR
@@ -7691,12 +7729,40 @@ export class B3d extends Component {
   }
 
   /*
-  THE SCREEN READER'S PANEL (#3699, `aria-mirror`). Rebuilt with the panel;
-  values re-read once a second while it is open (live rows rewrite their
-  text in place, without a rebuild). Flat only: a headset has no DOM.
+  ASSISTIVE, ON DEMAND (#3699). Nothing for a screen reader is built until
+  someone is using one: the first time focus lands anywhere in the scene
+  (Tab, or VoiceOver moving onto the owl or the scene). Until then the scene
+  carries only what is static: the system bar's real buttons, the canvas's
+  name, the describe button. After it, the panels and modals are mirrored
+  (placed over what they mirror), the scene is described and the pad's
+  controls named. Nothing runs on a timer even then.
+  */
+  private _assistive = false
+  /** Has anyone used the scene's assistive surface (so it is being kept up)? */
+  get assistive(): boolean {
+    return this._assistive
+  }
+  private _goAssistive = (e: Event) => {
+    if ((e.target as Element | null) === this.parts?.canvas)
+      this._describe(false)
+    if (this._assistive) return
+    this._assistive = true
+    this._syncAriaMirror()
+    this._describe(false)
+    for (const m of this._modals) m.unmirror ??= this._mirrorModal(m.svg)
+    ;(
+      this.querySelector('tosi-b3d-input-focus') as {
+        labelPad?: () => void
+      } | null
+    )?.labelPad?.()
+  }
+
+  /*
+  THE SCREEN READER'S PANEL (`aria-mirror`): rebuilt with the panel, values
+  re-read when one of its controls takes focus. Flat only: a headset has no
+  DOM.
   */
   private _ariaMirror: AriaMirror | null = null
-  private _ariaTimer: ReturnType<typeof setInterval> | null = null
   private _syncAriaMirror(): void {
     // The owl says whether its panel is open. Written only on a change: the
     // system bar watches its buttons' attributes and rebuilds on each write.
@@ -7704,12 +7770,11 @@ export class B3d extends Component {
     const expanded = String(this._scenePanelOpen())
     if (gear != null && gear.getAttribute('aria-expanded') !== expanded)
       gear.setAttribute('aria-expanded', expanded)
+    if (!this._assistive) return
     const host = this.parts?.ariaMirrorHost as HTMLElement | undefined
     const live = this._livePanel() as { controls?: () => ControlNode[] } | null
     if (host == null || live?.controls == null || this.xrActive) {
       this._ariaMirror?.clear()
-      if (this._ariaTimer != null) clearInterval(this._ariaTimer)
-      this._ariaTimer = null
       return
     }
     this._ariaMirror ??= ariaMirror(
@@ -7718,14 +7783,60 @@ export class B3d extends Component {
         (
           this._livePanel() as { controls?: () => ControlNode[] } | null
         )?.controls?.() ?? null,
-      { label: () => `${(this as any).panelTitle || 'Scene'} settings` }
+      {
+        label: () => `${(this as any).panelTitle || 'Scene'} settings`,
+        place: (box) => this._panelToHost(this._livePanel(), box),
+      }
     )
     this._ariaMirror.update()
-    this._ariaTimer ??= setInterval(() => this._ariaMirror?.update(), 1000)
+  }
+  /*
+  A PANEL BOX ON THE SCREEN: where a box in a panel's units is over the
+  scene element, in CSS pixels. The flat settings panel draws a viewBox unit
+  per CSS pixel at its spot; a modal is centred, scaled to fit 80% of the
+  height; a panel in the DOM is wherever the page laid it out.
+  */
+  private _panelToHost(
+    panel: Element | null,
+    box: { x: number; y: number; w: number; h: number }
+  ): { x: number; y: number; w: number; h: number } | null {
+    if (panel == null) return null
+    const svg = panel as SVGSVGElement
+    const vb = svg.viewBox?.baseVal
+    if (vb == null || !(vb.width > 0) || !(vb.height > 0)) return null
+    let left: number
+    let top: number
+    let scale: number
+    if (svg.isConnected) {
+      const r = svg.getBoundingClientRect()
+      const me = this.getBoundingClientRect()
+      if (!(r.width > 0)) return null
+      scale = r.width / vb.width
+      left = r.left - me.left
+      top = r.top - me.top
+    } else if (this._flatScenePanel?.el === panel) {
+      const spot = this._flatPanelSpot
+      left = Number(spot?.left) || 0
+      top = Number(spot?.top) || 0
+      scale = 1
+    } else {
+      const cnv = this.parts?.canvas as HTMLElement | undefined
+      const W = cnv?.clientWidth ?? 0
+      const H = cnv?.clientHeight ?? 0
+      if (!(W > 0) || !(H > 0)) return null
+      const tall = Math.min(vb.height, H * 0.8)
+      scale = tall / vb.height
+      left = (W - vb.width * scale) / 2
+      top = (H - tall) / 2
+    }
+    return {
+      x: left + (box.x - vb.x) * scale,
+      y: top + (box.y - vb.y) * scale,
+      w: box.w * scale,
+      h: box.h * scale,
+    }
   }
   private _disposeAriaMirror(): void {
-    if (this._ariaTimer != null) clearInterval(this._ariaTimer)
-    this._ariaTimer = null
     this._ariaMirror?.dispose()
     this._ariaMirror = null
   }
@@ -7788,7 +7899,6 @@ export class B3d extends Component {
     say.textContent = ''
     setTimeout(() => (say.textContent = text), 50)
   }
-  private _describeQuietly = () => this._describe(false)
   private _describeAloud = () => this._describe(true)
   private _sceneTitle(): string {
     return (this as any).panelTitle || this.id || 'Scene'
