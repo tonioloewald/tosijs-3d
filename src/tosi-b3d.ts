@@ -5547,6 +5547,7 @@ export class B3d extends Component {
     // Described on demand only (see the canvas in `content`).
     this.shadowRoot?.addEventListener('focusin', this._goAssistive)
     this.shadowRoot?.addEventListener('click', this._wakeOnClick, true)
+    if (debugSink.url !== '') this._traceInput()
     ;(this.parts.describeButton as HTMLElement).addEventListener(
       'click',
       this._describeAloud
@@ -7810,6 +7811,62 @@ export class B3d extends Component {
       } | null
     )?.labelPad?.()
   }
+  /*
+  WHAT A PRESS ACTUALLY IS, FROM A DEVICE (dev only: the debug sink is set).
+  Each discrete input event the scene gets (no moves) goes to the sink with
+  its real target, where it landed and whether it was genuine, so a
+  screen reader on a phone can be read from the sink instead of guessed at.
+  */
+  private _traceBuffer: Record<string, unknown>[] = []
+  private _traceInput(): void {
+    const name = (n: EventTarget | undefined): string => {
+      const e = n as Element | undefined
+      if (e?.tagName == null) return String(n)
+      const bits = [e.tagName.toLowerCase()]
+      for (const a of ['part', 'data-part', 'data-key', 'role', 'aria-label'])
+        if (e.getAttribute(a)) bits.push(`${a}=${e.getAttribute(a)}`)
+      const style = (e as HTMLElement).style?.pointerEvents
+      if (style) bits.push(`pe=${style}`)
+      const named = e.parentElement?.closest(
+        '[part], [data-part], [data-key], button, svg'
+      )
+      if (bits.length === 1 && named != null) bits.push(`in ${name(named)}`)
+      return bits.join(' ')
+    }
+    const record = (ev: Event) => {
+      const t = ev as TouchEvent & PointerEvent
+      const p = t.touches?.[0] ?? t.changedTouches?.[0] ?? t
+      this._traceBuffer.push({
+        type: ev.type,
+        trusted: ev.isTrusted,
+        x: Math.round(p.clientX ?? -1),
+        y: Math.round(p.clientY ?? -1),
+        pointer: t.pointerType,
+        target: name(ev.composedPath()[0]),
+        focus: name(this.shadowRoot?.activeElement ?? undefined),
+        assistive: this._assistive,
+      })
+      if (this._traceBuffer.length === 1)
+        setTimeout(() => {
+          sendDebug('input', {
+            ua: navigator.userAgent,
+            events: this._traceBuffer,
+          })
+          this._traceBuffer = []
+        }, 400)
+    }
+    for (const type of [
+      'touchstart',
+      'touchend',
+      'pointerdown',
+      'pointerup',
+      'mousedown',
+      'click',
+      'focusin',
+    ])
+      this.addEventListener(type, record, { capture: true, passive: true })
+  }
+
   /*
   iOS VoiceOver presses a button WITHOUT focusing it, so focus alone never
   woke the scene there. A real (trusted) click on one of the hidden HTML
