@@ -158,7 +158,17 @@ export function ariaMirror(
   host.appendChild(root)
   // Values are read again when a control takes focus: when someone is about
   // to hear them. Nothing runs between.
-  root.addEventListener('focusin', () => update())
+  root.addEventListener('focusin', (e) => {
+    update()
+    // The control a reader has selected takes the pointer: iOS VoiceOver
+    // presses it with a touch at its centre, which would otherwise fall
+    // through to whatever is drawn under it (the canvas, which ignores it).
+    if (options.place && e.target instanceof HTMLElement && e.target !== root)
+      e.target.style.pointerEvents = 'auto'
+  })
+  root.addEventListener('focusout', (e) => {
+    if (e.target instanceof HTMLElement) e.target.style.pointerEvents = ''
+  })
 
   /** The current node behind each control, by key: handlers look it up when they fire. */
   let nodes = new Map<string, ControlNode>()

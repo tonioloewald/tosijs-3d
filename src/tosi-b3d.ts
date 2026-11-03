@@ -2043,6 +2043,7 @@ export class B3d extends Component {
     if (m.close == null) return null
     this._modals.add(m)
     this._syncGamepadCover()
+    this._syncModalInert()
     // Always, not only once assistive: a modal blocks the scene, so one a
     // screen reader cannot reach holds the page. It costs only while open.
     m.unmirror = this._mirrorModal(svg)
@@ -2051,6 +2052,7 @@ export class B3d extends Component {
       m.close?.()
       m.unmirror?.()
       this._syncGamepadCover()
+      this._syncModalInert()
     }
   }
 
@@ -2109,6 +2111,23 @@ export class B3d extends Component {
     } finally {
       this._focusQuiet = false
     }
+  }
+
+  /*
+  WHILE A MODAL IS UP, NOTHING ELSE IN THE SCENE'S HTML IS REACHABLE: the
+  system bar's real buttons, the settings panel's copies and the describe
+  button are inert (not the canvas: a pointer presses the drawn modal there). The drawn scene is covered by the modal;
+  without this a screen reader could still open the settings panel from
+  behind a pause.
+  */
+  private _syncModalInert(): void {
+    const on = this._modals.size > 0
+    for (const e of [
+      this.parts?.sceneToolbar,
+      this.parts?.describeButton,
+      this._ariaMirror?.root,
+    ] as Array<HTMLElement | undefined>)
+      if (e != null && e.inert !== on) e.inert = on
   }
 
   /** Put each open modal in the presentation now running (flat or headset). */
@@ -7840,6 +7859,7 @@ export class B3d extends Component {
       }
     )
     this._ariaMirror.update()
+    this._syncModalInert()
   }
   /*
   A PANEL BOX ON THE SCREEN: where a box in a panel's units is over the

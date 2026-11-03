@@ -14,9 +14,9 @@ Steps (comma separated, or one a line in a steps file):
                      the way it does for a person, not by script
   find:<role>:<name> jump to a control by role and name, as a screen reader's
                      rotor does (`find:switch:night`, `find:heading:Sky`)
-  tap:<role>:<name>  iOS VoiceOver's double-tap: a real click at the
-                     control's centre, focus NOT moved (VoiceOver on a phone
-                     presses without focusing)
+  tap:<role>:<name>  iOS VoiceOver's double-tap: the control is selected
+                     (focused), then touched at its centre; says so when the
+                     touch lands on something else (pointer-events: none)
   read[:<name>]      read out a region (default: the first region whose name
                      ends in "settings"), one line per control
   type:<text>        type into the focused field
@@ -265,9 +265,9 @@ try {
       const n = await focusedNode()
       say(n ? announce(n) : announce(hits[0]) + ' (could not take focus)')
     } else if (cmd === 'tap') {
-      // iOS VoiceOver's double-tap: a real click at the control's centre,
-      // focus not moved. The control is let take the pointer for the click
-      // (VoiceOver reaches it whatever its pointer-events say).
+      // iOS VoiceOver's double-tap: the control is selected (it takes focus),
+      // then a touch lands at its centre and goes to whatever is THERE. A
+      // control that takes no pointer events there is never pressed.
       const [role, ...nameParts] = arg.split(':')
       const name = nameParts.join(':')
       const tree = await fullTree()
@@ -282,35 +282,47 @@ try {
         failed = true
         continue
       }
+      await send('DOM.focus', { backendNodeId: hit.backendDOMNodeId })
+      await Bun.sleep(200)
       const objectId = (
         await send('DOM.resolveNode', { backendNodeId: hit.backendDOMNodeId })
       ).result?.object?.objectId
-      const fn = async (body: string) =>
-        (
-          await send('Runtime.callFunctionOn', {
-            objectId,
-            functionDeclaration: body,
-            returnByValue: true,
-          })
-        ).result?.result ?? {}
       const c = (
-        await fn(`function () {
-          this.dataset.tapWas = this.style.pointerEvents
-          this.style.pointerEvents = 'auto'
-          const r = this.getBoundingClientRect()
-          return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
-        }`)
-      ).value
+        await send('Runtime.callFunctionOn', {
+          objectId,
+          functionDeclaration: `function () {
+            // Selecting can rebuild a mirror, which focuses the control's
+            // replacement: touch that one.
+            let me = this
+            if (!me.isConnected) {
+              me = document.activeElement
+              while (me?.shadowRoot?.activeElement) me = me.shadowRoot.activeElement
+            }
+            me.scrollIntoView({ block: 'center', inline: 'center' })
+            const r = me.getBoundingClientRect()
+            const x = r.left + r.width / 2
+            const y = r.top + r.height / 2
+            let at = document.elementFromPoint(x, y)
+            while (at?.shadowRoot) {
+              const deeper = at.shadowRoot.elementFromPoint(x, y)
+              if (deeper == null || deeper === at) break
+              at = deeper
+            }
+            return { x, y, self: at === me || me.contains(at),
+              at: at ? at.tagName.toLowerCase() + (at.getAttribute('part') ? '[' + at.getAttribute('part') + ']' : '') : 'nothing' }
+          }`,
+          returnByValue: true,
+        })
+      ).result?.result?.value
       const at = { x: c.x, y: c.y, button: 'left', clickCount: 1 }
       await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...at })
       await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...at })
-      await fn(`function () {
-        if (!this.isConnected) return
-        this.style.pointerEvents = this.dataset.tapWas
-        delete this.dataset.tapWas
-      }`)
       await Bun.sleep(500)
-      say(`tapped ${announce(hit)}`)
+      say(
+        c.self
+          ? `tapped ${announce(hit)}`
+          : `tapped ${announce(hit)}, but the touch went to ${c.at}`
+      )
     } else if (cmd === 'read') {
       const tree = await fullTree()
       const region = [...tree.values()].find(
