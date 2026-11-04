@@ -71,7 +71,7 @@
     "start": "bun format && bun bin/site.ts",
     "build": "bun bin/site.ts --build",
     "tls": "tosijs-dev-certs",
-    "icons": "tosijs-make-icons --input ./icons --output ./src/icon-data.ts",
+    "icons": "tosijs-make-icons --input ./icons --output ./src/icon-data.ts && bun bin/icon-open-paths.ts",
     "dial-art": "bun bin/dial-art.ts",
     "tunnel": "tosijs-tunnel",
     "xr": "bun bin/xr-emulate.ts",
