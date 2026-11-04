@@ -796,6 +796,22 @@ export function mountRigTool(
       if (markerJoints.has(n)) return n
     return null
   }
+  /** Does joint `n` hang from joint `j` (strictly below it)? */
+  const hangsFrom = (n: string, j: string): boolean => {
+    for (let p = parents.get(n); p != null; p = parents.get(p))
+      if (p === j) return true
+    return false
+  }
+  /**
+   * Where a marker sits on its joint: the marker stores the joint less this
+   * (the pelvis is above the crotch).
+   */
+  const markerOffset = (b: RigBinding & Triangles, k: string) => {
+    const fit = fittedJoints(b, false)
+    const j = fit?.get(MARKER_JOINT[k] ?? '')
+    const m = (b.markers as Record<string, { x: number; y: number }>)[k]
+    return j != null && m != null ? { x: j.x - m.x, y: j.y - m.y } : { x: 0, y: 0 }
+  }
   /*
   MOVED, NOT YET BOUND. Binding takes a second or two and shows nothing in
   the rest pose, so moving a marker only moves it (Tonio); the mesh is bound
@@ -1912,8 +1928,11 @@ export function mountRigTool(
         const mid = ui.compare ? (right * gap) / 2 : 0
         cam.target.set(0, height * 0.5, mid - right * height * 0.6)
       } else {
-        ualStand.position.set(-gap, 0, 0)
-        cam.target.set(middle + height * 0.6, height * 0.5, 0)
+        // From behind, the screen's right is +X: mirrored, so the mannequin
+        // stays on the screen's right in every view.
+        const flip = inspect.face === 'back' ? -1 : 1
+        ualStand.position.set(-gap * flip, 0, 0)
+        cam.target.set((middle + height * 0.6) * flip, height * 0.5, 0)
       }
       cam.radius = height * (ui.pose === 'rest' ? 3.1 : 2.6)
       if (inspect.face === 'free') cam.minZ = height * 0.01
@@ -2500,6 +2519,13 @@ export function mountRigTool(
     from it about the joint, in the view's plane: a hand or foot angled in
     the mesh is turned to match at once, not joint by joint.
     */
+    /** The joint a dot stands for: a joint dot's own, a marker's its joint. */
+    function jointOfDot(d: BABYLON.Mesh): string | undefined {
+      const j = d.metadata?.joint as string | undefined
+      if (j != null) return j
+      const m = d.metadata?.marker as string | undefined
+      return m != null ? MARKER_JOINT[m] : undefined
+    }
     function dragJoint(handle: BABYLON.Mesh, name: string) {
       if (applied == null) return
       const nodes = applied.read.nodes
@@ -2508,7 +2534,9 @@ export function mountRigTool(
       const below = (node?.getDescendants(false) ?? [])
         .map((d) => nameOf.get(d as BABYLON.TransformNode))
         .filter((n): n is string => n != null)
-      const dotOf = (n: string) => dots.find((d) => d.metadata?.joint === n)
+      // A marker below comes too (the elbow under a shoulder): it is drawn
+      // as a marker, not a joint dot, so it is found by its joint.
+      const dotOf = (n: string) => dots.find((d) => jointOfDot(d) === n)
       const group = [name, ...below]
         .map((n) => ({ n, d: dotOf(n) }))
         .filter((g): g is { n: string; d: BABYLON.Mesh } => g.d != null)
@@ -2562,8 +2590,38 @@ export function mountRigTool(
         window.removeEventListener('pointerup', up, true)
         cam.attachControl(canvas, true)
         if (from == null) return
+        /*
+        Markers carried (an elbow and wrist under a shoulder) are the
+        markers' to keep: they move first, taking what hangs from them;
+        the joints above them (the shoulder itself) are kept by hand.
+        */
+        const b = bound
+        const markerMoves = b
+          ? group.filter((g) => g.d.metadata?.marker != null && !/^tail/.test(g.d.metadata.marker))
+          : []
+        const carriedJoints = new Set(markerMoves.map((g) => g.n))
+        if (b && markerMoves.length) {
+          const markers: Markers = JSON.parse(JSON.stringify(b.markers))
+          const keys: string[] = []
+          for (const g of markerMoves) {
+            const k = g.d.metadata!.marker as string
+            const f = toFile(g.d.position)
+            const o = markerOffset(b, k)
+            ;(markers as any)[k] = { x: f.x - o.x, y: f.y - o.y }
+            keys.push(k)
+            const twin = mirrorKey(k)
+            if (symmetry && twin != null) {
+              ;(markers as any)[twin] = { x: -(f.x - o.x), y: f.y - o.y }
+              keys.push(twin)
+            }
+          }
+          setMarkers(markers, b.tail ?? null, b.tail != null ? b.tailBase ?? null : null, keys)
+        }
         const moved: Record<string, Vec3> = {}
         for (const g of group) {
+          if (carriedJoints.has(g.n)) continue
+          const m = markerAbove(g.n)
+          if (m != null && carriedJoints.has(m)) continue
           const f = toFile(g.d.position)
           moved[g.n] = { x: f.x, y: f.y, z: f.z }
           // Its mirror follows, as the markers' do (the left is on +X).
@@ -2572,7 +2630,7 @@ export function mountRigTool(
               g.n.replace(/_([lr])$/, (_, s) => (s === 'l' ? '_r' : '_l'))
             ] = { x: -f.x, y: f.y, z: f.z }
         }
-        setJoints(name, moved)
+        if (Object.keys(moved).length) setJoints(name, moved)
       }
       window.addEventListener('pointermove', move, true)
       window.addEventListener('pointerup', up, true)
@@ -2591,26 +2649,20 @@ export function mountRigTool(
           : undefined
       // The marker is its joint: what the marker stores is the joint less
       // the joint's offset from it (the pelvis above the crotch).
-      const fit = fittedJoints(b, false)
-      const offset = (k: string) => {
-        const j = fit?.get(MARKER_JOINT[k] ?? '')
-        const m = (b.markers as Record<string, { x: number; y: number }>)[k]
-        return j != null && m != null
-          ? { x: j.x - m.x, y: j.y - m.y }
-          : { x: 0, y: 0 }
-      }
+      const offset = (k: string) => markerOffset(b, k)
       const off = tailKey ? { x: 0, y: 0 } : offset(key)
       /*
-      With the joints showing, a wrist or knee carries what hangs below it
-      (Tonio: moving a hand joint by joint is fraught), its twin mirrored.
+      With the joints showing, a marker carries everything that hangs from
+      it, markers too (an elbow takes the wrist and the hand: Tonio), its
+      twin mirrored. Not the groin: the whole body hangs from the pelvis.
       */
-      const carries = ui.joints && /^(wrist|knee)[LR]$/.test(key)
+      const carries = ui.joints && !tailKey && key !== 'groin'
       const below = (k: string | null) => {
         const j = k != null ? MARKER_JOINT[k] : undefined
         if (j == null) return []
         return dots.filter((d) => {
-          const n = d.metadata?.joint as string | undefined
-          return n != null && n !== j && markerAbove(n) === j
+          const n = jointOfDot(d)
+          return n != null && n !== j && hangsFrom(n, j)
         })
       }
       const followers = carries ? below(key) : []
@@ -2650,13 +2702,18 @@ export function mountRigTool(
           else x = Math.min(0, x)
         }
         const k = key as keyof Markers
-        const fileZ = toFile(handle.position).z
         markers[k] = { x: x - off.x, y: f.y - off.y }
-        handle.position.copyFrom(toScene(x, f.y, fileZ))
-        if (symmetry && other != null && twin != null) {
+        if (symmetry && other != null)
           markers[other as keyof Markers] = { x: -(x - off.x), y: f.y - off.y }
-          twin.position.copyFrom(toScene(-x, f.y, toFile(twin.position).z))
-        }
+        // Its depth is the fit's (the middle of the body there), shown as it
+        // goes: seen from the side it follows the body instead of holding a
+        // depth and jumping there on release.
+        const now = fittedJoints({ ...b, markers }, false)
+        const depth = (k2: string | null, d: BABYLON.Mesh) =>
+          now?.get(MARKER_JOINT[k2 ?? ''] ?? '')?.z ?? toFile(d.position).z
+        handle.position.copyFrom(toScene(x, f.y, depth(key, handle)))
+        if (symmetry && other != null && twin != null)
+          twin.position.copyFrom(toScene(-x, f.y, depth(other, twin)))
         if (carries) {
           // In the file's frame, so the twin's move is the mirror (x flips).
           const d0 = toFile(from0)
@@ -2676,11 +2733,23 @@ export function mountRigTool(
         window.removeEventListener('pointermove', move, true)
         window.removeEventListener('pointerup', up, true)
         cam.attachControl(canvas, true)
+        // Markers carried along (the wrist under an elbow) land where they were taken.
+        const carried: string[] = []
+        for (const d of [...followers, ...twinFollowers]) {
+          const mk = d.metadata?.marker as string | undefined
+          if (mk == null || /^tail/.test(mk)) continue
+          const at = toFile(d.position)
+          const o = offset(mk)
+          ;(markers as any)[mk] = { x: at.x - o.x, y: at.y - o.y }
+          carried.push(mk)
+        }
         setMarkers(
           markers,
           tail,
           tail != null ? tailBase : null,
-          carries ? [key, ...(symmetry && other != null ? [other] : [])] : []
+          carries
+            ? [key, ...(symmetry && other != null ? [other] : []), ...carried]
+            : []
         )
       }
       window.addEventListener('pointermove', move, true)
