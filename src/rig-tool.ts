@@ -538,6 +538,9 @@ eight front-view markers (and a tail tip, for a tail), bone heat for the
 weights, and a Babylon skeleton built on it. Its tail, if any, is `tail_01`
 … `tail_leaf`: a bone chain for the springs.
 */
+/** Bodies handed to a host on done: their file materials are the host's now. */
+const handedOver = new WeakSet<RiggedBody>()
+
 function bindMesh(
   scene: BABYLON.Scene,
   name: string,
@@ -585,7 +588,8 @@ function bindMesh(
     body,
     dispose() {
       if (worn instanceof BABYLON.MultiMaterial) worn.dispose(false, false, false)
-      for (const m of new Set(own)) m.dispose(false, true)
+      // Handed over on done, the host's body wears them: leave them be.
+      if (!handedOver.has(body)) for (const m of new Set(own)) m.dispose(false, true)
       mat.dispose()
       built.dispose()
     },
@@ -2865,7 +2869,10 @@ export function mountRigTool(
       return
     }
     const rig: RigDone = { recipe: copy() }
-    if (body != null) rig.body = body
+    if (body != null) {
+      rig.body = body
+      if (done) handedOver.add(body)
+    }
     if (loadedModel != null) rig.model = loadedModel
     handle.unmount()
     if (done) options.handleDone?.(rig)

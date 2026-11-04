@@ -1346,7 +1346,15 @@ export async function makeCharacter(
       queue(dressShown)
     },
     groundFor(clip) {
-      clipLow = clip && shownNow ? measureClip(clip) : null
+      /*
+      Only a height that was measured. A body swapped mid-change (a rig
+      handed back by the rig tool) can be measured after its mesh was
+      disposed: no vertices, an infinite lowest point, and the body sent to
+      -Infinity, after which every skeleton read under it was NaN and the
+      character vanished.
+      */
+      const low = clip && shownNow ? measureClip(clip) : null
+      clipLow = low != null && Number.isFinite(low) ? low : null
       placeRoot()
       return body.position.y
     },
@@ -1371,9 +1379,10 @@ export async function makeCharacter(
   }
 
   // How far below the body's root its soles reach while `group` plays.
-  function measureClip(group: BABYLON.AnimationGroup) {
+  function measureClip(group: BABYLON.AnimationGroup): number | null {
     const r = shownNow
     const mesh = r.mesh
+    if (mesh == null || mesh.isDisposed()) return null
     const nodes = r.root.getChildTransformNodes(false)
     // The soles only: a tail on a spring hangs anywhere while sampled.
     r.soles ??= soleVertices(r === built ? human! : r.body)
