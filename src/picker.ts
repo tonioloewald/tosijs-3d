@@ -383,6 +383,7 @@ export function picker3d(config: Picker3dOptions): Picker {
         inputField({
           value: '',
           placeholder: 'filter…',
+          autofocus: true,
           handleChange: (v) => {
             query = v
             apply()

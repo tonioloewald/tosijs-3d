@@ -406,6 +406,7 @@ import {
   backspace as editBackspace,
   moveCaret as editMoveCaret,
   moveTo,
+  selectAll as editSelectAll,
   type EditState,
 } from './text-edit.js'
 import { measureTextWidth, type FontSpec } from './widgets3d-layout.js'
@@ -554,6 +555,12 @@ export interface InputFieldOptions {
    * — the host's hook for exclusivity (dim the others) and for summoning the
    * keyboard overlay. */
   handleFocus?: () => void
+  /**
+   * Take the keyboard as soon as it is shown, its text selected so typing
+   * replaces it: a dialog's field (a name to save under), so you can type
+   * without clicking it first.
+   */
+  autofocus?: boolean
   /**
    * Drag across a numeric field to change its value ("scrub"), in units per
    * pixel. `0` (default) disables it.
@@ -965,6 +972,7 @@ export function inputField(config: InputFieldOptions = {}): InputField {
   const SWATCH = fieldType === 'color' ? 24 : 0
   const TEXT_X = PAD + SWATCH
   let state: EditState = edit(config.value ?? '')
+  let autofocused = false
   /*
   The last value that could stand as an answer.
   
@@ -1369,6 +1377,15 @@ export function inputField(config: InputFieldOptions = {}): InputField {
     el,
     setHost(h) {
       host = h
+      if (config.autofocus && !autofocused) {
+        autofocused = true
+        // Once it is mounted, so the host it reports focus to is there.
+        queueMicrotask(() => {
+          state = editSelectAll(state)
+          api.setActive(true)
+          paint()
+        })
+      }
     },
     get value() {
       return state.text

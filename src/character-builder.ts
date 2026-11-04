@@ -42,7 +42,7 @@ const namePopup = (pop, { prompt, initial, current, verb, act }) => {
   }
   const form = (message) => [
     text3d({ text: message }),
-    ui.inputField({ value: typed, placeholder: 'name', handleChange: (v) => { typed = v }, handleEnter: (v) => { typed = v; go() } }),
+    ui.inputField({ value: typed, placeholder: 'name', autofocus: true, handleChange: (v) => { typed = v }, handleEnter: (v) => { typed = v; go() } }),
     button3d({ label: verb, handleClick: go }),
     button3d({ label: 'cancel', handleClick: () => pop.close() }),
   ]
@@ -216,7 +216,7 @@ const tailorRows = () => [
         button3d({ label: 'import a garment…', handleClick: () => importGarment() }),
         ...(importError ? [text3d({ text: importError })] : []),
       ]
-    : [label3d({ text: 'loading the body…' })]),
+    : [text3d({ text: rigging ? 'The rig tool has the body: done or cancel in the Rig panel (on the bar), then tailor it.' : 'loading the body…' })]),
 ]
 
 const slider = (label, key) =>
@@ -684,6 +684,8 @@ preview.append(
             ch.hide(false)
             rigPanel.svg = idleRig()
             rigPanel.hide?.()
+            // The Body and Tailor sections wait on it.
+            el.refreshScenePanel?.()
           }
           rigging = mountRigTool(el, {
             models: [{ label: opened, url: from.url ?? '', file: from.file, pick: from.pick }],
