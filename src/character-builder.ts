@@ -102,7 +102,10 @@ let packProxies = {}
 // What can be worn, one of each at a time; the pack says which slot each garment fills.
 // A bodysuit is a base layer and armour goes over anything; an outfit replaces a top and bottom.
 const SLOTS = CHARACTER_SLOTS
-const clips = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Dance_Loop', 'Crouch_Fwd_Loop']
+// The everyday clips first; the rest of the library (shoot, sword, interact…)
+// follows once it has loaded.
+const EVERYDAY = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Dance_Loop', 'Crouch_Fwd_Loop']
+let clips = [...EVERYDAY]
 // Where the body comes from: MakeHuman's, which the sliders shape, or a mesh
 // of anyone's (CHARACTER_SOURCES, and files opened here).
 const SOURCES = { ...CHARACTER_SOURCES }
@@ -346,6 +349,7 @@ preview.append(
         el.setLoading('loading the body…')
         ual.addAllToScene()
         for (const g of ual.animationGroups) g.stop()
+        clips = [...EVERYDAY, ...ual.animationGroups.map((g) => g.name).filter((n) => !EVERYDAY.includes(n)).sort()]
         const ualRoot = ual.meshes.find((m) => m.name === '__root__')
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
