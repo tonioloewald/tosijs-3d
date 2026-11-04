@@ -33,6 +33,7 @@ export const CHARACTER_CORE = [
   'proxy-rigid',
   'hair-fit',
   'garment-cut',
+  'remesh',
   'garment-file',
   'uv-unwrap',
   'skin-tone',

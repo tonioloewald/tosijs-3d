@@ -45,6 +45,7 @@ Pure: positions and triangles in, a binding out.
 /*{ "parent": "human-proxy", "order": 20 }*/
 
 import type { ProxyBinding } from './proxy-fit.js'
+import { surfaceProjector, type Remeshed } from './remesh.js'
 
 /** A point in a view: `[x, y]` for the front view, `[z, y]` for the side. */
 export type ViewPoint = [number, number]
@@ -819,6 +820,59 @@ export interface SkirtOptions {
 }
 
 /** A convex hull of 2D points (Andrew's monotone chain), counter-clockwise. */
+/**
+ * A cut made on a REMESHED surface (the tailor's dummy, see
+ * [remesh](/remesh/)) bound to the body itself: each row's point on the
+ * surface is projected onto the body's triangles, its offset kept, so it
+ * draws exactly where it did. What it covers is the body vertices whose
+ * nearest point on the surface is wholly covered there.
+ */
+export function rebindCut(
+  cut: GarmentCut,
+  surface: Remeshed,
+  body: ArrayLike<number>
+): GarmentCut {
+  const S = surface.positions
+  const ref = new Uint32Array(cut.rows * 3)
+  const weight = new Float32Array(cut.rows * 3)
+  const offset = new Float32Array(cut.rows * 3)
+  for (let r = 0; r < cut.rows; r++) {
+    let x = 0,
+      y = 0,
+      z = 0
+    for (let k = 0; k < 3; k++) {
+      const v = cut.ref[r * 3 + k]
+      const w = cut.weight[r * 3 + k]
+      x += w * S[v * 3]
+      y += w * S[v * 3 + 1]
+      z += w * S[v * 3 + 2]
+    }
+    const p = surface.project(x, y, z)
+    let sx = 0,
+      sy = 0,
+      sz = 0
+    for (let k = 0; k < 3; k++) {
+      ref[r * 3 + k] = p.ref[k]
+      weight[r * 3 + k] = p.weight[k]
+      sx += p.weight[k] * body[p.ref[k] * 3]
+      sy += p.weight[k] * body[p.ref[k] * 3 + 1]
+      sz += p.weight[k] * body[p.ref[k] * 3 + 2]
+    }
+    offset[r * 3] = cut.offset[r * 3] + x - sx
+    offset[r * 3 + 1] = cut.offset[r * 3 + 1] + y - sy
+    offset[r * 3 + 2] = cut.offset[r * 3 + 2] + z - sz
+  }
+  const covered = new Uint8Array(S.length / 3)
+  for (const v of cut.delete) covered[v] = 1
+  const onSurface = surfaceProjector(S, surface.triangles)
+  const del: number[] = []
+  for (let v = 0; v < body.length / 3; v++) {
+    const p = onSurface(body[v * 3], body[v * 3 + 1], body[v * 3 + 2])
+    if (p.ref.every((i, k) => covered[i] || p.weight[k] < 0.01)) del.push(v)
+  }
+  return { ...cut, ref, weight, offset, scale: {}, delete: Uint32Array.from(del) }
+}
+
 /**
  * Each vertex's representative: the first vertex at its position (to a
  * tenth of a millimetre), so seams split for UVs or normals join again.

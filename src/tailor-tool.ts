@@ -27,6 +27,10 @@ const tailor = mountTailorTool(scene, {
 - **the outline**: you draw the character's left, on your right, and the
   other side is its mirror. Click out points, click the first to close a
   shape, drag a point to move it, press an edge to add one;
+- **cloth mesh**: the cloth is cut from an even surface laid over the body
+  ([remesh](/remesh/)), **coarse**, **medium** (the default) or **fine**
+  (edges about 3, 2 or 1.2 cm), whatever the body's own triangles are; **as
+  the body** cuts the body's triangles themselves;
 - **thickness** (thicker cloth bridges more of the chest, where the body
   says where its nipples are) and **skirt** (rings round the outline at each
   height: skirts, kilts, robes; never the arms, which it cannot follow
@@ -52,12 +56,14 @@ import type { BuiltRig } from './rig-build.js'
 import {
   cutGarment,
   skirtGarment,
+  rebindCut,
   mirrorOutline,
   type GarmentCut,
   type ViewPoint,
 } from './garment-cut.js'
 import { outlineField3d, type OutlineField } from './outline-field.js'
 import { smoothUnder, fitProxy, drawnPositions } from './proxy-fit.js'
+import { remesh, type Remeshed } from './remesh.js'
 import { humanProxy, proxyMaterial } from './human-proxy.js'
 import type { HumanProxy } from './human-pack.js'
 import { clothShading, clothRecipe } from './cloth-shading.js'
@@ -84,6 +90,17 @@ export interface TailorCut {
   /** Metres. */
   thickness: number
   skirt: boolean
+  /** What the cloth is cut from: an even surface at this density, or the body's own triangles. Default `medium`. */
+  mesh?: TailorMesh
+}
+
+/** The cloth mesh's density, or `body` for the body's own triangles. */
+export type TailorMesh = 'coarse' | 'medium' | 'fine' | 'body'
+/** The edge length each density aims for, metres. */
+export const TAILOR_MESH_EDGE: Record<Exclude<TailorMesh, 'body'>, number> = {
+  coarse: 0.03,
+  medium: 0.02,
+  fine: 0.012,
 }
 
 /** The work in progress, as `handleChange` hears it. */
@@ -152,6 +169,7 @@ export function mountTailorTool(
     shapes: options.cut?.shapes ?? [],
     thickness: options.cut?.thickness ?? 0.005,
     skirt: options.cut?.skirt ?? false,
+    mesh: options.cut?.mesh ?? 'medium',
   }
   let look: MaterialRecipe =
     options.look ??
@@ -230,6 +248,20 @@ export function mountTailorTool(
   readBody()
 
   /*
+  THE DUMMY: an even surface over the body to cut cloth from, made once per
+  density (half a second or so) and again when the body changes.
+  */
+  let dummies = new Map<string, Remeshed>()
+  const dummy = (mesh: Exclude<TailorMesh, 'body'>): Remeshed => {
+    let d = dummies.get(mesh)
+    if (!d) {
+      d = remesh(fitOn, cutFrom, { edge: TAILOR_MESH_EDGE[mesh] })
+      dummies.set(mesh, d)
+    }
+    return d
+  }
+
+  /*
   THE PREVIEW: the cut bound to the body like any garment and drawn on the
   body shown, in its material.
   */
@@ -259,18 +291,33 @@ export function mountTailorTool(
               bridge: cut.thickness / 0.02,
             })
           : fitOn
-        made = cut.skirt
-          ? skirtGarment(fitOn, cutFrom, {
-              front: outline,
-              thickness: cut.thickness,
-              anchor: notArm,
-            })
-          : cutGarment(cutOn, cutFrom, {
+        const density = cut.mesh ?? 'medium'
+        if (cut.skirt) {
+          made = skirtGarment(fitOn, cutFrom, {
+            front: outline,
+            thickness: cut.thickness,
+            anchor: notArm,
+          })
+        } else if (density === 'body') {
+          made = cutGarment(cutOn, cutFrom, {
+            front: outline,
+            thickness: cut.thickness,
+            ease: EASE,
+            fitOn,
+          })
+        } else {
+          // Cut from the even surface, then bound to the body itself.
+          const d = dummy(density)
+          made = rebindCut(
+            cutGarment(d.positions, d.triangles, {
               front: outline,
               thickness: cut.thickness,
               ease: EASE,
-              fitOn,
-            })
+            }),
+            d,
+            fitOn
+          )
+        }
         const proxy = shell(made)
         if (material == null) {
           material = proxyMaterial(scene, proxy)
@@ -336,6 +383,16 @@ export function mountTailorTool(
       step: 0.001,
       handleChange: (v: number) => {
         cut.thickness = v
+        recut()
+        changed()
+      },
+    }),
+    select3d({
+      label: 'cloth mesh',
+      value: cut.mesh ?? 'medium',
+      options: ['coarse', 'medium', 'fine', { label: 'as the body', value: 'body' }],
+      handleChange: (v) => {
+        cut.mesh = v as TailorMesh
         recut()
         changed()
       },
@@ -445,6 +502,7 @@ export function mountTailorTool(
       body = b
       built = k
       readBody()
+      dummies = new Map()
       recut()
       // The outline is drawn over this body now.
       refresh()
