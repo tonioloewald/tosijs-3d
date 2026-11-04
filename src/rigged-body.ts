@@ -61,7 +61,7 @@ import {
   type Markers,
 } from './rig-fit.js'
 import { boneHeat, type SkinWeights } from './bone-heat.js'
-import { armsOffTorso } from './human-rig.js'
+import { armsOffTorso, clavicleOffChest } from './human-rig.js'
 
 /** How a rigged body was made: enough to make it again. */
 export type RiggedBodyOrigin =
@@ -189,7 +189,10 @@ export function bodyFromMarkers(
       })()
     : fitted
   const weights = boneHeat(positions, indices, skinSegments(rig))
-  if (armsHeldOut(rig)) armsOffTorso(weights, positions, rig)
+  if (armsHeldOut(rig)) {
+    armsOffTorso(weights, positions, rig)
+    clavicleOffChest(weights, positions, rig)
+  }
   return {
     positions,
     indices,

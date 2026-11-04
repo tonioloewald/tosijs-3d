@@ -482,6 +482,65 @@ export function armsOffTorso(
 }
 
 /**
+ * Keep the collarbones off the chest in `weights` (in place): skin nearer
+ * the middle than `inner` of the way out to a shoulder loses its collarbone
+ * weight to the chest (`spine_03`), fading back in by `outer`. A collarbone
+ * runs from beside the neck to the shoulder, so bone heat binds the whole
+ * upper chest to it, and every shrug a clip makes pulled the pectorals
+ * about. `positions` are the skin's (xyz), `rig` the fitted rig.
+ */
+export function clavicleOffChest(
+  weights: { indices: Float32Array; weights: Float32Array },
+  positions: ArrayLike<number>,
+  rig: FittedRig,
+  options: { inner?: number; outer?: number } = {}
+): void {
+  const index = new Map(rig.joints.map((j, i) => [j.name, i]))
+  const chest = index.get('spine_03')
+  const l = rig.at('upperarm_l')
+  const r = rig.at('upperarm_r')
+  const pelvis = rig.at('pelvis')
+  const cl = index.get('clavicle_l')
+  const cr = index.get('clavicle_r')
+  if (chest == null || l == null || r == null || cl == null || cr == null)
+    return
+  const cx = pelvis?.x ?? 0
+  const inner = options.inner ?? 0.45
+  const outer = options.outer ?? 0.75
+  const smooth = (x: number, a: number, b: number) => {
+    const t = Math.min(1, Math.max(0, (x - a) / (b - a)))
+    return t * t * (3 - 2 * t)
+  }
+  const n = positions.length / 3
+  for (let v = 0; v < n; v++) {
+    const x = positions[v * 3] - cx
+    const reach = Math.abs((x > 0 ? l.x : r.x) - cx) || 1
+    const k = 1 - smooth(Math.abs(x) / reach, inner, outer)
+    if (k === 0) continue
+    let moved = 0
+    for (let i = 0; i < 4; i++) {
+      const b = weights.indices[v * 4 + i]
+      if (b !== cl && b !== cr) continue
+      const w = weights.weights[v * 4 + i] * k
+      weights.weights[v * 4 + i] -= w
+      moved += w
+    }
+    if (moved === 0) continue
+    let slot = -1
+    for (let i = 0; i < 4; i++) if (weights.indices[v * 4 + i] === chest) slot = i
+    if (slot < 0) {
+      slot = 0
+      for (let i = 1; i < 4; i++)
+        if (weights.weights[v * 4 + i] < weights.weights[v * 4 + slot]) slot = i
+      moved += weights.weights[v * 4 + slot]
+      weights.weights[v * 4 + slot] = 0
+      weights.indices[v * 4 + slot] = chest
+    }
+    weights.weights[v * 4 + slot] += moved
+  }
+}
+
+/**
  * MakeHuman's body as a rigged body (see rigged-body), with what its own
  * extras need beside it: every pack vertex's position (`full`: helpers and
  * joint cubes too, which clothes, eyes and hair are fitted to) and the skin's

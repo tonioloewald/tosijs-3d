@@ -401,6 +401,45 @@ export function fitSkeleton(
     if (inside(chin.x, y)) top = y
   put('Head', 'neck_01', headBase, { x: chin.x, y: top, z: headBase.z })
 
+  /*
+  AN ARM HELD OUT HANGS CLEAR OF THE BODY. Lowered, an arm hangs straight
+  down from its shoulder joint, so the joint must be at least the arm's own
+  half-thickness outside the torso's side, or the lowered arm sinks into the
+  chest and the torso looks crushed. A forearm's length in from the elbow
+  (below) put a thick-sleeved weasel's shoulder at 0.15 m over a torso
+  0.18 m wide. So where an arm is nearer level than hanging, find its
+  underside at the elbow, the torso's side just under that, and keep the
+  shoulder out to that side plus the arm's half-thickness. Measured on both
+  sides and the NEARER used for both: a gun or a pauldron under one arm reads
+  as torso and would drag that shoulder out alone.
+  */
+  const clearance = (S: 'L' | 'R'): number | null => {
+    const sign = S === 'L' ? 1 : -1
+    const wrist2 = markers[`wrist${S}`]
+    const elbow2 = markers[`elbow${S}`]
+    const fore = { x: elbow2.x - wrist2.x, y: elbow2.y - wrist2.y }
+    if (!(Math.abs(fore.y) < Math.abs(fore.x))) return null
+    const st = torso / 300
+    let under = elbow2.y
+    while (inside(elbow2.x, under - st) && under - st > groin.y) under -= st
+    const half = elbow2.y - under
+    const y = under - 2 * st
+    let edge = cx
+    while (
+      inside(edge + sign * st, y) &&
+      sign * (edge + sign * st - elbow2.x) < 0
+    )
+      edge += sign * st
+    const out = Math.abs(edge - cx) + half
+    // Never at or past the elbow: then this reading is not an armpit.
+    return out < Math.abs(elbow2.x - cx) ? out : null
+  }
+  const clears = [clearance('L'), clearance('R')]
+  const clear =
+    clears[0] != null && clears[1] != null
+      ? Math.min(clears[0], clears[1])
+      : null
+
   const fingersFound: Record<'l' | 'r', string[]> = { l: [], r: [] }
   for (const side of ['l', 'r'] as const) {
     const S = side === 'l' ? 'L' : 'R'
@@ -418,6 +457,14 @@ export function fitSkeleton(
       // Slide back along the same line to the limit.
       const t = (cx + minOut - elbow2.x) / (fore.x || 1e-9)
       sh = { x: elbow2.x + fore.x * t, y: elbow2.y + fore.y * t }
+    }
+    // Out to clear the body (see `clearance`), on both sides alike.
+    if (clear != null && Math.abs(fore.x) > 1e-9) {
+      const sx = cx + sign * clear
+      if (sign * (sx - sh.x) > 0 && sign * (elbow2.x - sx) > 0) {
+        const t = (sx - elbow2.x) / fore.x
+        sh = { x: sx, y: elbow2.y + fore.y * t }
+      }
     }
     const shoulder = at(sh, chest.z)
     const clav = {
