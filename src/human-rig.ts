@@ -30,11 +30,7 @@ The pack is right-handed and a character faces +Z with its left on +X, as
 /*{ "parent": "character-builder", "order": 30 }*/
 
 import { skinSegments, type FittedJoint, type FittedRig } from './rig-fit.js'
-import type {
-  HumanPack,
-  HumanPackManifest,
-  HumanProxy,
-} from './human-pack.js'
+import type { HumanPack, HumanPackManifest, HumanProxy } from './human-pack.js'
 import { fitProxy } from './proxy-fit.js'
 import {
   humanJoint,

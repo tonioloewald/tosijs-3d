@@ -116,3 +116,44 @@ describe('foldSections', () => {
     )
   })
 })
+
+describe('a panel folds its own sections', () => {
+  /*
+  A panel3d no host folded (a tool's own system panel): its headers still
+  work. A tap rebuilds the panel from the same rows and hands the new one to
+  whatever shows it.
+  */
+  const text = (svg: Element) => svg.textContent ?? ''
+  test('closed sections are left out, and a tap hands over the rebuilt panel', () => {
+    const list = [
+      w.label3d({ text: 'Alpha', collapsible: true }),
+      w.label3d({ text: 'alpha row' }),
+      w.label3d({ text: 'Beta', collapsible: true }),
+      w.label3d({ text: 'beta row' }),
+    ]
+    const panel = w.panel3d({ width: 300 }, ...list)
+    expect(text(panel)).toContain('alpha row')
+    expect(text(panel)).not.toContain('beta row')
+    let next: any = null
+    panel.handleReplace = (n) => (next = n)
+    ;(list[2] as any).section.toggle()
+    expect(next).not.toBeNull()
+    expect(next).not.toBe(panel)
+    expect(text(next)).toContain('beta row')
+    expect(text(next)).not.toContain('alpha row')
+  })
+  test('a panel in the page replaces itself there when no host takes it', () => {
+    const list = [
+      w.label3d({ text: 'Gamma', collapsible: true }),
+      w.label3d({ text: 'gamma row' }),
+      w.label3d({ text: 'Delta', collapsible: true }),
+      w.label3d({ text: 'delta row' }),
+    ]
+    const host = document.createElement('div')
+    const panel = w.panel3d({ width: 300 }, ...list)
+    host.appendChild(panel)
+    ;(list[2] as any).section.toggle()
+    expect(host.firstChild).not.toBe(panel)
+    expect(text(host.firstChild as Element)).toContain('delta row')
+  })
+})

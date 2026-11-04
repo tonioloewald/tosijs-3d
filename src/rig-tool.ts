@@ -170,6 +170,7 @@ import { touchOrbit } from './touch-orbit.js'
 import {
   inspectView,
   inspectStage,
+  INSPECT_FACES,
   seamOverlay,
   type InspectFace,
 } from './inspect-view.js'
@@ -193,6 +194,8 @@ import {
 import {
   buildBody,
   gatherTriangles as gather,
+  keepMaterials,
+  surfaceMaterial,
   soleVertices,
   lowestOf,
 } from './rig-build.js'
@@ -497,6 +500,8 @@ async function openGlb(
         (top == null || n === top || n.isDescendantOf(top))
     )
     const tris = gather(root, shown)
+    // Its own materials outlive the file: the bound mesh wears them.
+    keepMaterials(container, scene, tris.surfaces)
     container.dispose()
     // Whether it had a skeleton of its own (then it can go back to it).
     return tris.indices.length > 0
@@ -552,7 +557,19 @@ function bindMesh(
   const built = buildBody(scene, name, body)
   const mat = new BABYLON.StandardMaterial(`${name}-skin`, scene)
   mat.diffuseColor = BABYLON.Color3.FromHexString(options.color ?? '#8a8f99')
-  built.mesh.material = mat
+  // It wears the file's own materials where it has them, else the grey.
+  const own = (body.surfaces ?? [])
+    .map((x) => x.material as BABYLON.Material | null)
+    .filter((x): x is BABYLON.Material => x != null)
+  const worn = own.length
+    ? surfaceMaterial(
+        scene,
+        name,
+        body,
+        (x) => (x?.material as BABYLON.Material | null) ?? mat
+      )
+    : mat
+  built.mesh.material = worn
   return {
     root: built.root,
     skeleton: built.skeleton,
@@ -567,6 +584,8 @@ function bindMesh(
     },
     body,
     dispose() {
+      if (worn instanceof BABYLON.MultiMaterial) worn.dispose(false, false, false)
+      for (const m of new Set(own)) m.dispose(false, true)
       mat.dispose()
       built.dispose()
     },
@@ -1154,9 +1173,22 @@ export function mountRigTool(
           void chooseFile('.glb,.gltf').then((f) => f && tool?.loadClips(f)),
       }),
 
-      // VIEW: what is shown beside it (where it is seen from is the
-      // toolbar on the bar: the camera).
+      // VIEW: where it is seen from (also the camera on the bar) and what is
+      // shown beside it.
       label3d({ text: 'View', collapsible: true }),
+      select3d({
+        label: 'seen from',
+        value: ui.view,
+        options: [...INSPECT_FACES, 'free'].map((v) => ({
+          label: v === 'free' ? 'perspective' : v,
+          value: v,
+        })),
+        handleChange: (v: unknown) => {
+          ui.view = v as RigView
+          tool?.view(ui.view)
+          refresh()
+        },
+      } as any),
       toggle3d({
         label: 'mannequin',
         value: ui.compare,

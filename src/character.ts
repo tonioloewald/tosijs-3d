@@ -1221,8 +1221,7 @@ export async function makeCharacter(
     if (has('eyeStyle')) eyes.setStyle(eyeLook(s.eyeStyle))
     if (has('hairBase') || has('hairHighlight')) recolour()
     queue(async () => {
-      if (changed.some((k) => BODY.has(k)) || has('bodyDetail'))
-        await rebuild()
+      if (changed.some((k) => BODY.has(k)) || has('bodyDetail')) await rebuild()
       if (has('rigs')) await rebind()
       if (has('surfaces')) for (const r of rigged.values()) dressSurfaces(r)
       if (has('source')) await choose()

@@ -3749,9 +3749,57 @@ export type Panel3d = SVGSVGElement & {
    * [widget semantics](/widget-semantics/).
    */
   controls: () => ControlNode[]
+  /**
+   * Set by whatever shows the panel (`<tosi-b3d-panel>`, a frame panel): the
+   * panel calls it with a rebuilt panel to show in its place (a section
+   * folded or opened). Unset, a panel in the page replaces itself there.
+   */
+  handleReplace?: (next: Panel3d) => void
 }
 
+/*
+SECTIONS JUST WORK. A collapsible `label3d` heads a section, and folding one
+means laying the panel out again. A host that builds its panel through
+`foldSections` (the scene's settings panel) wires the headers itself; any
+other panel with headers no one wired folds them here: a tap rebuilds the
+panel from the same rows (one section open at a time, remembered per set of
+section titles) and hands it to `handleReplace`, which every host of a panel
+sets. Before this a hosted tool's headers drew chevrons that did nothing.
+*/
 export function panel3d(
+  config: PanelConfig,
+  ...widgets: Widget3d[]
+): Panel3d {
+  const sections = widgets
+    .map((w) => (w as any).section as { title: string; toggle?: () => void })
+    .filter((x) => x != null)
+  // Wired by a host's own `foldSections` (not by an earlier panel of ours).
+  const hostFolds = sections.some(
+    (x) => x.toggle != null && !selfFolded.has(x)
+  )
+  if (sections.length === 0 || hostFolds)
+    return buildPanel3d(config, ...widgets)
+  for (const x of sections) selfFolded.add(x)
+  const key = `w3d:sections:${sections.map((x) => x.title).join('|')}`
+  let current: Panel3d
+  const build = () =>
+    buildPanel3d(config, ...foldSections(widgets, { key, repaint }))
+  function repaint() {
+    const was = current
+    const next = build()
+    next.scrollTop = was.scrollTop
+    current = next
+    if (was.handleReplace != null) was.handleReplace(next)
+    else if (was.parentNode != null) was.replaceWith(next)
+  }
+  current = build()
+  return current
+}
+
+type PanelConfig = Parameters<typeof buildPanel3d>[0]
+const selfFolded = new WeakSet<object>()
+
+function buildPanel3d(
   config: {
     width?: number
     /**
