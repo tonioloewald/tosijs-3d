@@ -16,13 +16,13 @@ import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 
 // Everything the panel sets, as it starts: what a saved character is read against.
-const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, source: 'MakeHuman', bodyDetail: 'medium', characterName: '', characterPick: '' }
+const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, source: 'MakeHuman', bodyDetail: 'medium', characterName: '' }
 const { walker } = tosi({ walker: structuredClone(START) })
 // What a character file keeps: not the editor's view of one slot (that is in
 // cloth), the microphone (it would ask on load), or the save controls.
-const KEPT = Object.keys(START).filter((k) => !['editing', 'look', 'clothLook', 'mic', 'characterName', 'characterPick'].includes(k))
+const KEPT = Object.keys(START).filter((k) => !['editing', 'look', 'clothLook', 'mic', 'characterName'].includes(k))
 // Saving and loading characters, wired when the page is up.
-const character = { save: () => {}, rename: () => {}, load: () => {}, forget: () => {}, exportJson: () => {}, play: () => {}, importJson: () => {}, changed: () => {}, saved: [], note: '' }
+const character = { save: () => {}, rename: () => {}, load: () => {}, remove: () => {}, exportJson: () => {}, play: () => {}, importJson: () => {}, changed: () => {}, saved: [], note: '' }
 // A name asked for in a popup (works in a headset too): refused with its
 // reason, and a confirm before it replaces ANOTHER saved character.
 const namePopup = (pop, { prompt, initial, current, verb, act }) => {
@@ -48,29 +48,44 @@ const namePopup = (pop, { prompt, initial, current, verb, act }) => {
   ]
   return form(prompt)
 }
-const characterRows = () => [
-  label3d({ text: 'Character', collapsible: true }),
-  ...(walker.characterName.value ? [text3d({ text: walker.characterName.value })] : []),
-  button3d({
-    label: 'save…',
-    popup: (pop) => namePopup(pop, { prompt: 'save as', initial: walker.characterName.value, current: walker.characterName.value, verb: 'save', act: (name) => character.save(name) }),
-  }),
-  ...(character.saved.length
-    ? [
-        select3d({ label: 'saved', value: walker.characterPick, options: character.saved }),
-        button3d({ label: 'load', handleClick: () => character.load() }),
-        button3d({
-          label: 'rename…',
-          popup: (pop) => namePopup(pop, { prompt: `rename ${walker.characterPick.value} to`, initial: walker.characterPick.value, current: walker.characterPick.value, verb: 'rename', act: (name) => character.rename(walker.characterPick.value, name) }),
-        }),
-        button3d({ label: 'forget', handleClick: () => character.forget() }),
-      ]
-    : []),
-  button3d({ label: 'play in Biped Playground', handleClick: () => character.play() }),
-  button3d({ label: 'export JSON', handleClick: () => character.exportJson() }),
-  button3d({ label: 'import JSON…', handleClick: () => character.importJson() }),
-  ...(character.note ? [text3d({ text: character.note })] : []),
-]
+const characterRows = () => {
+  // The character on screen: picking a saved one loads it.
+  const current = walker.characterName.value
+  const unsaved = () => !walker.characterName.value
+  return [
+    label3d({ text: 'Character', collapsible: true }),
+    select3d({
+      label: 'character',
+      value: current,
+      options: [...(current ? [] : [{ label: '(not saved)', value: '' }]), ...character.saved],
+      handleChange: (v) => {
+        if (v && v !== walker.characterName.value) character.load(v)
+      },
+    }),
+    button3d({
+      label: 'save…',
+      popup: (pop) => namePopup(pop, { prompt: 'save as', initial: current, current, verb: 'save', act: (name) => character.save(name) }),
+    }),
+    button3d({
+      label: 'rename…',
+      disabled: unsaved,
+      popup: (pop) => namePopup(pop, { prompt: `rename ${current} to`, initial: current, current, verb: 'rename', act: (name) => character.rename(current, name) }),
+    }),
+    button3d({
+      label: 'delete…',
+      disabled: unsaved,
+      popup: (pop) => [
+        text3d({ text: `Delete ${current}? The figure stays on screen, not saved.` }),
+        button3d({ label: 'delete', handleClick: () => { pop.close(); character.remove(current) } }),
+        button3d({ label: 'cancel', handleClick: () => pop.close() }),
+      ],
+    }),
+    button3d({ label: 'play in Biped Playground', handleClick: () => character.play() }),
+    button3d({ label: 'export JSON', handleClick: () => character.exportJson() }),
+    button3d({ label: 'import JSON…', handleClick: () => character.importJson() }),
+    ...(character.note ? [text3d({ text: character.note })] : []),
+  ]
+}
 // The character (character.ts): what the panel sets, made in the scene.
 let ch = null
 // The pack's proxies, once it has loaded (the panel lists an outfit's looks).
@@ -764,7 +779,8 @@ preview.append(
         }
         const listSaved = async () => {
           character.saved = await store.list().catch(() => [])
-          if (!character.saved.includes(walker.characterPick.value)) walker.characterPick.value = character.saved[0] ?? ''
+          // Deleted (here or in another tab): the figure is no longer saved.
+          if (!character.saved.includes(walker.characterName.value)) walker.characterName.value = ''
           el.refreshScenePanel?.()
         }
         // Kept a moment after the last change, so a slider drag is one write.
@@ -784,7 +800,6 @@ preview.append(
             return tell(`could not save: ${e?.message ?? e}`)
           }
           walker.characterName.value = name
-          walker.characterPick.value = name
           tell(`saved ${name}`)
           listSaved()
         }
@@ -800,22 +815,25 @@ preview.append(
             return tell(`could not rename: ${e?.message ?? e}`)
           }
           if (walker.characterName.value === from) walker.characterName.value = to
-          walker.characterPick.value = to
           tell(`renamed ${from} to ${to}`)
           listSaved()
         }
-        character.load = async () => {
-          const name = walker.characterPick.value
+        character.load = async (name) => {
           const doc = name && (await store.get(name).catch(() => null))
           if (!doc) return tell(`no character called ${name}`)
           await apply(doc).catch((e) => tell(`could not load: ${e?.message ?? e}`))
           character.changed()
         }
-        character.forget = async () => {
-          const name = walker.characterPick.value
+        // The saved copy goes; the figure stays, unsaved, as the working one.
+        character.remove = async (name) => {
           if (!name) return
-          await store.delete(name).catch(() => {})
-          tell(`forgot ${name}`)
+          try {
+            await store.delete(name)
+          } catch (e) {
+            return tell(`could not delete: ${e?.message ?? e}`)
+          }
+          if (walker.characterName.value === name) walker.characterName.value = ''
+          tell(`deleted ${name}`)
           listSaved()
         }
         character.exportJson = () => {
@@ -890,8 +908,10 @@ off the body's outline.
 **Character** keeps your work. The figure you are working on is kept in this
 browser as you change it and comes back when you open the page again. **Save…**
 asks for a name (the one it has, to start with) to keep it under, and asks
-first before replacing another saved character. Pick a saved one to **load**,
-**rename…** or **forget** it. **Export
+first before replacing another saved character. **Character** shows the one
+on screen (or *not saved*); pick a saved one and it loads. **Rename…** and
+**delete…** act on the one on screen, once it is saved; deleting keeps the
+figure, unsaved. **Export
 JSON** to take it elsewhere and **import JSON…** to bring one in. A file
 carries everything the panel sets, and the garments of your own the character
 wears travel inside it ([character-file](/character-file/)).

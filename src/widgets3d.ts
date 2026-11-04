@@ -1749,7 +1749,13 @@ export function button3d(config: {
    * Like `menu`, instead of `handleClick`.
    */
   popup?: (popup: PopupHandle) => Widget3d[]
+  /**
+   * Present, greyed and inert: it neither lights nor presses. A predicate is
+   * asked every time (see `menu`), so it cannot go stale.
+   */
+  disabled?: Dynamic<boolean>
 }): Widget3d {
+  const off = () => resolveDynamic(config.disabled, false) === true
   const bg = rect({
     x: 0,
     y: 4,
@@ -1817,9 +1823,16 @@ export function button3d(config: {
         width - TH.PAD_X * 2,
         TH.TEXT_FONT
       )
+      lbl.setAttribute('fill', off() ? TH.MUTED : TH.TEXT)
+      el.style.cursor = off() ? 'default' : 'pointer'
       return TH.ROW
     },
     handle(kind) {
+      if (off()) {
+        bg.setAttribute('fill', TH.BTN_BG)
+        lbl.setAttribute('fill', TH.MUTED)
+        return
+      }
       // The LABEL follows too — on a strongly-coloured active background the
       // ordinary text colour may not read, which is the whole reason
       // `buttonActiveText` is a separate token.
@@ -1838,6 +1851,7 @@ export function button3d(config: {
     semantics: () => ({
       role: 'button',
       name: config.title ?? config.label,
+      ...(off() ? { disabled: true } : {}),
       ...(config.menu
         ? {
             options: config.menu.map((m) => m.label),
@@ -1853,6 +1867,7 @@ export function button3d(config: {
     }),
   }
   function press() {
+    if (off()) return
     if (config.popup != null) {
       showPopup(config.popup(popup))
     } else if (config.menu != null && host != null) {
