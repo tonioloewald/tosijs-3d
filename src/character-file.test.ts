@@ -121,6 +121,17 @@ describe('character-file', () => {
     expect(readCharacter(doc, defaults).character.cloth.top).toEqual(slots.top)
   })
 
+  test('read with no slots given, every look the file has comes back', () => {
+    // A page that only wears the character (a biped) passes no slots; its
+    // tailored clothes came out white when the looks were dropped.
+    const doc = writeCharacter({
+      ...ada,
+      cloth: { ...ada.cloth, gloves: { look: 3 as any, material: null } } as any,
+    })
+    const { cloth } = readCharacter(doc, { settings }).character
+    expect(cloth).toEqual({ top: ada.cloth.top })
+  })
+
   test('not a character, or newer than this reader: refused', () => {
     expect(() => readCharacter({ format: 'something' }, defaults)).toThrow(
       /not a character/
