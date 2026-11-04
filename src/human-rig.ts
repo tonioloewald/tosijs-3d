@@ -482,6 +482,63 @@ export function armsOffTorso(
 }
 
 /**
+ * Keep the thighs out of the belly in `weights` (in place): skin above the
+ * hip joints loses its thigh weight to the pelvis, faded in over `blend`
+ * metres so the hip still bends. Bone heat gives a thick waist's sides to
+ * the thigh bones (they are nearer than the pelvis up the middle), and every
+ * stride then pulled the belly down with the leg: the torso squashed as it
+ * walked. Below the hips the thighs keep it all. `positions` are the skin's
+ * (xyz), `rig` the fitted rig.
+ */
+export function legsOffBelly(
+  weights: { indices: Float32Array; weights: Float32Array },
+  positions: ArrayLike<number>,
+  rig: FittedRig,
+  options: { blend?: number } = {}
+): void {
+  const index = new Map(rig.joints.map((j, i) => [j.name, i]))
+  const pelvis = index.get('pelvis')
+  const l = rig.at('thigh_l')
+  const r = rig.at('thigh_r')
+  const tl = index.get('thigh_l')
+  const tr = index.get('thigh_r')
+  if (pelvis == null || l == null || r == null || tl == null || tr == null)
+    return
+  const hip = Math.max(l.y, r.y)
+  const blend = options.blend ?? 0.06
+  const smooth = (x: number, a: number, b: number) => {
+    const t = Math.min(1, Math.max(0, (x - a) / (b - a)))
+    return t * t * (3 - 2 * t)
+  }
+  const n = positions.length / 3
+  for (let v = 0; v < n; v++) {
+    const k = smooth(positions[v * 3 + 1] - hip, 0, blend)
+    if (k === 0) continue
+    let moved = 0
+    for (let i = 0; i < 4; i++) {
+      const b = weights.indices[v * 4 + i]
+      if (b !== tl && b !== tr) continue
+      const w = weights.weights[v * 4 + i] * k
+      weights.weights[v * 4 + i] -= w
+      moved += w
+    }
+    if (moved === 0) continue
+    let slot = -1
+    for (let i = 0; i < 4; i++)
+      if (weights.indices[v * 4 + i] === pelvis) slot = i
+    if (slot < 0) {
+      slot = 0
+      for (let i = 1; i < 4; i++)
+        if (weights.weights[v * 4 + i] < weights.weights[v * 4 + slot]) slot = i
+      moved += weights.weights[v * 4 + slot]
+      weights.weights[v * 4 + slot] = 0
+      weights.indices[v * 4 + slot] = pelvis
+    }
+    weights.weights[v * 4 + slot] += moved
+  }
+}
+
+/**
  * Keep the collarbones off the chest in `weights` (in place): skin nearer
  * the middle than `inner` of the way out to a shoulder loses its collarbone
  * weight to the chest (`spine_03`), fading back in by `outer`. A collarbone
