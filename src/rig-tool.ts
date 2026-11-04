@@ -1094,7 +1094,7 @@ export function mountRigTool(
                 },
               }),
               label3d({
-                text: 'blue dots: fingers and thumbs from the top view, feet from the side',
+                text: "joints wear their marker's colour: fingers from the top view, feet from the side",
                 muted: true,
                 compact: true,
               }),
@@ -2177,6 +2177,32 @@ export function mountRigTool(
       tail: '#ff9f0a',
     }
     const kindOf = (key: string) => key.replace(/(L|R|Base)$/, '')
+    /*
+    WHICH MARKER A JOINT BELONGS TO, for its colour (Tonio): the marker it
+    hangs below (fingers the wrist's, toes the knee's, a tail's bones the
+    tail's), else the next marker down its chain (the upper arm and
+    collarbone the elbow's, the thigh the knee's, the spine and neck the
+    chin's). The groin's pelvis is above nearly everything, so it does not
+    claim what hangs below it.
+    */
+    const keyOfJoint = new Map(
+      Object.entries(MARKER_JOINT).map(([k, j]) => [j, k])
+    )
+    const markerOfJoint = (name: string): string | null => {
+      const above = markerAbove(name)
+      if (above != null && above !== 'pelvis') return keyOfJoint.get(above)!
+      const kids = new Map<string, string[]>()
+      for (const [n, p] of parents)
+        if (p != null) kids.set(p, [...(kids.get(p) ?? []), n])
+      // Breadth first: the nearest marker below.
+      let level = kids.get(name) ?? []
+      while (level.length) {
+        const hit = level.find((n) => keyOfJoint.has(n))
+        if (hit != null) return keyOfJoint.get(hit)!
+        level = level.flatMap((n) => kids.get(n) ?? [])
+      }
+      return null
+    }
     const markerMats = new Map<string, BABYLON.StandardMaterial>()
     const matFor = (key: string) => {
       const kind = kindOf(key)
@@ -2298,9 +2324,11 @@ export function mountRigTool(
             const node = source.nodes.get(MARKER_JOINT[key] ?? '')
             if (node == null) continue
             node.computeWorldMatrix(true)
+            // Hung on the joint, so it goes wherever the view puts the
+            // mannequin (beside the body, or behind it from the side).
             dot(node.getAbsolutePosition(), r * 1.6, matFor(key), {
               reference: key,
-            })
+            }).setParent(node)
           }
         // Every joint, to move by hand: where it was moved to, else the fit's.
         if (ui.joints)
@@ -2311,7 +2339,8 @@ export function mountRigTool(
             const at =
               m != null ? toScene(m.x, m.y, m.z) : node.getAbsolutePosition()
             const small = /^(thumb|index|middle|ring|pinky)_|ball/.test(name)
-            dot(at, r * (small ? 0.5 : 0.8), jointMat, {
+            const kin = markerOfJoint(name)
+            dot(at, r * (small ? 0.5 : 0.8), kin ? matFor(kin) : jointMat, {
               joint: name,
               handle: -2,
             })
