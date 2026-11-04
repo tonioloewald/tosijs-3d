@@ -237,6 +237,12 @@ export interface CharacterOptions {
   sources?: Record<string, CharacterSource>
   /** Garment files (GLB bytes) it may wear, by name. */
   garments?: Iterable<Uint8Array>
+  /**
+   * Built out of sight: `root` starts disabled, so nothing is seen while the
+   * body is made, rigged and dressed at the origin. Enable `root` when it is
+   * where it belongs.
+   */
+  hidden?: boolean
   /** Where the eyes look (none: ahead). */
   gaze?: () => BABYLON.Vector3 | null
   /** What it is doing, for a loading message (false: done). */
@@ -874,6 +880,7 @@ export async function makeCharacter(
   }
 
   const root = new BABYLON.TransformNode('character', scene)
+  if (options.hidden) root.setEnabled(false)
   // Raised so the soles are on y = 0 (a clip may carry them lower: groundFor).
   const body = new BABYLON.TransformNode('character-body', scene)
   body.parent = root

@@ -3744,6 +3744,22 @@ export class B3dBiped extends B3dControllable {
   clips, so everything after is the same.
   */
   private async _loadCharacter(owner: B3d, scene: BABYLON.Scene) {
+    // The first showing of the scene waits for the character (it is what the
+    // page is about); later loads just keep it out of sight until it is ready.
+    const release = owner.holdLoading?.('character') ?? (() => {})
+    try {
+      await this._makeCharacter(owner, scene, release)
+    } catch (e) {
+      release()
+      throw e
+    }
+  }
+
+  private async _makeCharacter(
+    owner: B3d,
+    scene: BABYLON.Scene,
+    release: () => void
+  ) {
     const attrs = this as any
     const [
       {
@@ -3801,10 +3817,14 @@ export class B3dBiped extends B3dControllable {
       cloth: c.cloth as any,
       garments: Object.values(c.garments),
       handleMeshes: (meshes) => owner.register({ meshes }),
+      // Made at the origin, so out of sight: shown once it stands where the
+      // biped is, in its first pose (below).
+      hidden: true,
     })
     await ch.ready()
     if (this.owner == null) {
       ch.dispose()
+      release()
       return
     }
     // The clips the states name, from the library, retargeted and named as they were.
@@ -3850,6 +3870,15 @@ export class B3dBiped extends B3dControllable {
       },
     } as unknown as BABYLON.InstantiatedEntries
     this._modelReady(owner, scene)
+    // Two frames: the first places it and plays its first clip, the second
+    // draws that; then it appears, standing where it belongs.
+    let frames = 0
+    const reveal = scene.onAfterRenderObservable.add(() => {
+      if (++frames < 2) return
+      scene.onAfterRenderObservable.remove(reveal)
+      if (this.figure === ch) ch.root.setEnabled(true)
+      release()
+    })
   }
 
   private _modelReady(owner: B3d, scene: BABYLON.Scene) {
