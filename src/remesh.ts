@@ -17,6 +17,15 @@ dummy.weight      // ...and where on it (barycentric)
 dummy.project(x, y, z)  // any point onto the body, as the same pair
 ```
 
+THE SIZE FOLLOWS THE SHAPE. One edge length cannot do a body: 2 cm is right
+for a torso and wider than a finger, so a glove came out as mittens. Where
+the body is thin, each point's target is `perRadius` times its radius there
+(the largest ball inside the skin under it): about 6 mm on a finger or a
+toe, the full `edge` on an arm or a chest, never below `minEdge`. It grows no
+faster than half a metre per metre across the surface, so the triangles
+grade from hand to arm instead of jumping. Thickness, not curvature: a scan's
+bumps curve tightly everywhere and asked for tiny triangles all over.
+
 It is Botsch and Kobbelt's isotropic remeshing (2004), each pass:
 
 - **split** every edge longer than 4/3 of the target at its middle;
@@ -41,9 +50,16 @@ the result has the same winding.
 import { meshSdf, type MeshSdf } from './mesh-sdf.js'
 
 export interface RemeshOptions {
-  /** The edge length to aim for, metres. */
+  /** The edge length to aim for where the surface is flat enough, metres. */
   edge: number
-  /** Passes of split, collapse, flip, relax and project. Default 5. */
+  /**
+   * Where the body is thin, the edge length per metre of its radius there:
+   * 0.8 puts about eight edges round a finger. 0 makes every edge `edge`.
+   */
+  perRadius?: number
+  /** The shortest edge a thin part may ask for. Default `edge / 5`. */
+  minEdge?: number
+  /** Passes of split, collapse, flip, relax and project. Default 6. */
   iterations?: number
 }
 
@@ -148,9 +164,9 @@ export function remesh(
   options: RemeshOptions
 ): Remeshed {
   const L = options.edge
-  const hi = (4 / 3) * L
-  const lo = (4 / 5) * L
-  const iterations = options.iterations ?? 5
+  const perRadius = options.perRadius ?? 0.8
+  const minEdge = options.minEdge ?? L / 5
+  const iterations = options.iterations ?? 6
 
   // Weld: one vertex per position, so seams are not boundaries.
   const n0 = positions.length / 3
@@ -176,7 +192,87 @@ export function remesh(
     if (a !== b && b !== c && c !== a) T.push(a, b, c)
   }
   // Projection is onto the ORIGINAL mesh, by its own indices.
-  const project = surfaceProjector(positions, triangles)
+  const sdf = meshSdf(positions, triangles)
+  const project = surfaceProjector(positions, triangles, sdf)
+
+  // THE SIZE at each welded vertex, from how thick the body is there: the
+  // radius of the largest ball inside the skin under it (along the inward
+  // normal), which a bumpy surface does not fool as curvature did.
+  const nw = P.length / 3
+  const want = new Float64Array(nw).fill(L)
+  const pairs: number[] = []
+  for (let i = 0; i < T.length; i += 3)
+    for (let k = 0; k < 3; k++) {
+      const a = T[i + k],
+        b = T[i + ((k + 1) % 3)]
+      if (a < b) pairs.push(a, b)
+    }
+  const dist = (a: number, b: number) =>
+    Math.hypot(P[a * 3] - P[b * 3], P[a * 3 + 1] - P[b * 3 + 1], P[a * 3 + 2] - P[b * 3 + 2])
+  if (perRadius > 0) {
+    const N = new Float64Array(nw * 3)
+    for (let i = 0; i < T.length; i += 3) {
+      const a = T[i] * 3,
+        b = T[i + 1] * 3,
+        c = T[i + 2] * 3
+      const ux = P[b] - P[a],
+        uy = P[b + 1] - P[a + 1],
+        uz = P[b + 2] - P[a + 2]
+      const vx = P[c] - P[a],
+        vy = P[c + 1] - P[a + 1],
+        vz = P[c + 2] - P[a + 2]
+      const nx = uy * vz - uz * vy,
+        ny = uz * vx - ux * vz,
+        nz = ux * vy - uy * vx
+      for (const v of [a, b, c]) {
+        N[v] += nx
+        N[v + 1] += ny
+        N[v + 2] += nz
+      }
+    }
+    // Only radii that would ask for less than `edge` matter.
+    const far = L / perRadius
+    for (let v = 0; v < nw; v++) {
+      const l = Math.hypot(N[v * 3], N[v * 3 + 1], N[v * 3 + 2])
+      if (!l) continue
+      const nx = N[v * 3] / l,
+        ny = N[v * 3 + 1] / l,
+        nz = N[v * 3 + 2] / l
+      let r = 0
+      for (let t = minEdge / perRadius / 2; t <= far * 1.5; t *= 1.4) {
+        const inside = -sdf.distance(
+          P[v * 3] - nx * t,
+          P[v * 3 + 1] - ny * t,
+          P[v * 3 + 2] - nz * t,
+          t * 1.2
+        )
+        if (inside > r) r = inside
+        // Past the middle of the limb: the ball only shrinks from here.
+        if (inside < t * 0.5) break
+      }
+      if (r > 0) want[v] = Math.max(minEdge, Math.min(L, perRadius * r))
+    }
+    // Graded: no faster than half a metre per metre across the surface.
+    for (let pass = 0; pass < 8; pass++) {
+      let changed = false
+      for (let i = 0; i < pairs.length; i += 2) {
+        const a = pairs[i],
+          b = pairs[i + 1]
+        const g = 0.5 * dist(a, b)
+        if (want[a] > want[b] + g) {
+          want[a] = want[b] + g
+          changed = true
+        } else if (want[b] > want[a] + g) {
+          want[b] = want[a] + g
+          changed = true
+        }
+      }
+      if (!changed) break
+    }
+  }
+  // Each current vertex's target (welded vertices first, then new ones).
+  const size: number[] = Array.from(want)
+  const target = (a: number, b: number) => (size[a] + size[b]) / 2
 
   const len2 = (a: number, b: number) => {
     const x = P[a * 3] - P[b * 3],
@@ -243,7 +339,8 @@ export function remesh(
         const a = Math.floor(key / KEY),
           b = key % KEY
         const d = len2(a, b)
-        if (d > hi * hi) long.push([key, d])
+        const t = (4 / 3) * target(a, b)
+        if (d > t * t) long.push([key, d / (t * t)])
       }
       if (!long.length) return
       long.sort((x, y) => y[1] - x[1])
@@ -255,6 +352,7 @@ export function remesh(
         const a = Math.floor(key / KEY),
           b = key % KEY
         const m = P.length / 3
+        size.push((size[a] + size[b]) / 2)
         P.push(
           (P[a * 3] + P[b * 3]) / 2,
           (P[a * 3 + 1] + P[b * 3 + 1]) / 2,
@@ -286,6 +384,7 @@ export function remesh(
       if (gone[a] || gone[b] || boundary[a] || boundary[b]) continue
       const l = (edgeTris.get(key) ?? []).filter((t) => !dead[t])
       if (l.length !== 2) continue
+      const lo = (4 / 5) * target(a, b)
       if (len2(a, b) >= lo * lo) continue
       // Link condition: a and b share exactly the two opposite vertices.
       const ringOf = (v: number) => {
@@ -305,11 +404,13 @@ export function remesh(
         my = (P[a * 3 + 1] + P[b * 3 + 1]) / 2,
         mz = (P[a * 3 + 2] + P[b * 3 + 2]) / 2
       let ok = true
+      const sm = (size[a] + size[b]) / 2
       for (const v of new Set([...ra, ...rb])) {
         if (v === a || v === b) continue
         const x = P[v * 3] - mx,
           y = P[v * 3 + 1] - my,
           z = P[v * 3 + 2] - mz
+        const hi = (4 / 3) * ((sm + size[v]) / 2)
         if (x * x + y * y + z * z > hi * hi) {
           ok = false
           break
@@ -338,6 +439,7 @@ export function remesh(
         P[a * 3 + 2] = save[2]
         continue
       }
+      size[a] = sm
       for (const t of l) dead[t] = 1
       for (const t of vertTris[b]) {
         if (dead[t]) continue
@@ -486,6 +588,10 @@ export function remesh(
       P[v * 3] = x
       P[v * 3 + 1] = y
       P[v * 3 + 2] = z
+      size[v] =
+        s.weight[0] * want[weld[s.ref[0]]] +
+        s.weight[1] * want[weld[s.ref[1]]] +
+        s.weight[2] * want[weld[s.ref[2]]]
     }
     return { ref, weight }
   }
