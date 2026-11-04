@@ -302,6 +302,24 @@ describe('retargetPose', () => {
     expect(d.z).toBeCloseTo(0, 6)
   })
 
+  test('arm space leaves a raised arm alone (an aimed pistol)', () => {
+    // At rest it hangs; the clip raises it straight forward, level.
+    const sk = arm({ x: 0, y: -1, z: 0 })
+    const forward = quatFromAxisAngle({ x: 1, y: 0, z: 0 }, -Math.PI / 2)
+    const posed = new Map([
+      ['upperarm_l', multiply(forward, sk.bones[1].rotation)],
+    ])
+    const plain = elbowDir(sk, retargeter(sk, sk).pose(posed).rotations)
+    const spread = elbowDir(
+      sk,
+      retargeter(sk, sk, { armSpaceDeg: 60 }).pose(posed).rotations
+    )
+    expect(plain.z).toBeCloseTo(1, 6)
+    expect(spread.x).toBeCloseTo(plain.x, 6)
+    expect(spread.y).toBeCloseTo(plain.y, 6)
+    expect(spread.z).toBeCloseTo(plain.z, 6)
+  })
+
   test('hips move in proportion to hip height', () => {
     const tall = arm({ x: 1, y: 0, z: 0 })
     const short = arm({ x: 1, y: 0, z: 0 })

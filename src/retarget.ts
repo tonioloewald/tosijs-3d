@@ -704,6 +704,11 @@ export interface RetargetOptions {
    * floor or its own sides when they hang where the clip's do. The forearm
    * and hand follow the upper arm, so the clip's elbow and wrist are kept.
    * Negative brings them in. Default 0.
+   *
+   * It is applied by how far the clip has the arm HANGING: all of it with
+   * the upper arm straight down, none with it level or raised. A stocky
+   * body needs its arms well out to walk without them sinking into its
+   * sides, and the same turn pushed an aimed pistol out to the side.
    */
   armSpaceDeg?: number
 }
@@ -720,18 +725,16 @@ export function retargeter(
 ): Retargeter {
   // Rotations about +Z (forward): positive swings a hanging left arm (+X) out.
   const spread = ((options.armSpaceDeg ?? 0) * Math.PI) / 180
-  const armOut = new Map<Role, Quat>()
-  if (spread !== 0) {
+  const sRest = toWorld(source.bones)
+  const tRest = toWorld(target.bones)
+  // Each upper arm's side (+1 left) and its rest direction in the target.
+  const armOut = new Map<Role, { sign: number; rest: Vec3 | null }>()
+  if (spread !== 0)
     for (const [role, sign] of [
       ['l-upperArm', 1],
       ['r-upperArm', -1],
-    ] as Array<[Role, number]>) {
-      const h = (sign * spread) / 2
-      armOut.set(role, { x: 0, y: 0, z: Math.sin(h), w: Math.cos(h) })
-    }
-  }
-  const sRest = toWorld(source.bones)
-  const tRest = toWorld(target.bones)
+    ] as Array<[Role, number]>)
+      armOut.set(role, { sign, rest: restDirection(role, target, tRest) })
   const roles = ROLES.filter(
     (r) => source.roles[r] != null && target.roles[r] != null
   )
@@ -879,7 +882,17 @@ export function retargeter(
           )
         }
         const out2 = r != null ? armOut.get(r) : undefined
-        if (out2 != null) world = quatMul(out2, world)
+        if (out2 != null) {
+          // How far down the clip has it: 1 hanging, 0 level or above.
+          let droop = 1
+          if (out2.rest != null) {
+            const turn = quatMul(world, quatConjugate(tRest.rotation.get(b.name)!))
+            droop = Math.min(1, Math.max(0, -rotateVector(turn, out2.rest).y))
+          }
+          const h = (out2.sign * spread * droop) / 2
+          if (h !== 0)
+            world = quatMul({ x: 0, y: 0, z: Math.sin(h), w: Math.cos(h) }, world)
+        }
         tWorld.set(b.name, world)
         out.set(
           b.name,
