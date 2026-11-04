@@ -469,6 +469,14 @@ export function cutGarment(
   if (options.side?.length) views.push({ polys: options.side, u: 2 })
   const P = positions
   const n = P.length / 3
+  // ONE SURFACE: a file splits its vertices along every UV seam, so its skin
+  // is islands. Cut as they come, thickness pushed each island out along its
+  // own normals and ease could not cross a seam: the cloth came out as
+  // plates. The triangles are welded onto one vertex per position (still a
+  // body vertex, so the binding is unchanged), and what the cloth covers is
+  // spread back to every copy.
+  const rep = weldVertices(P)
+  triangles = Uint32Array.from(triangles, (v) => rep[v])
 
   // Which side of each view every vertex is on.
   const inside = new Uint8Array(n)
@@ -771,7 +779,7 @@ export function cutGarment(
 
   const total = ref.length / 3
   const del: number[] = []
-  for (let v = 0; v < n; v++) if (inside[v]) del.push(v)
+  for (let v = 0; v < n; v++) if (inside[rep[v]] && used[rep[v]]) del.push(v)
   return {
     rows: total,
     ref: Uint32Array.from(ref),
@@ -811,6 +819,26 @@ export interface SkirtOptions {
 }
 
 /** A convex hull of 2D points (Andrew's monotone chain), counter-clockwise. */
+/**
+ * Each vertex's representative: the first vertex at its position (to a
+ * tenth of a millimetre), so seams split for UVs or normals join again.
+ */
+export function weldVertices(positions: ArrayLike<number>): Uint32Array {
+  const n = positions.length / 3
+  const rep = new Uint32Array(n)
+  const seen = new Map<string, number>()
+  const q = (x: number) => Math.round(x * 1e4)
+  for (let v = 0; v < n; v++) {
+    const key = `${q(positions[v * 3])},${q(positions[v * 3 + 1])},${q(positions[v * 3 + 2])}`
+    const r = seen.get(key)
+    if (r === undefined) {
+      seen.set(key, v)
+      rep[v] = v
+    } else rep[v] = r
+  }
+  return rep
+}
+
 function hull2d(pts: ViewPoint[]): ViewPoint[] {
   const p = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1])
   if (p.length < 3) return p

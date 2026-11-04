@@ -38,6 +38,25 @@ describe('garment-cut', () => {
     expect([...g.delete].sort()).toEqual([0, 1, 4])
   })
 
+  test('a skin split along its seams is cut as one surface', () => {
+    // A roof: two faces folded along x = 0. Split, the ridge has two copies of
+    // each vertex (as a file's UV seam does), and each island pushed its cloth
+    // out along its own normals, so the cloth parted along the ridge.
+    const roof = [-1, -1, 0, 0, -1, 0.5, 0, 1, 0.5, -1, 1, 0, 1, -1, 0, 1, 1, 0]
+    const joined = [0, 1, 2, 0, 2, 3, 1, 4, 5, 1, 5, 2]
+    const split = [...roof, 0, -1, 0.5, 0, 1, 0.5] // 6, 7 copy 1, 2
+    const seamed = [0, 1, 2, 0, 2, 3, 6, 4, 5, 6, 5, 7]
+    const opts = { front: [[[-2, -2], [2, -2], [2, 2], [-2, 2]]] as [number, number][][], thickness: 0.05, ease: 0, hem: false }
+    const a = cutGarment(roof, joined, opts)
+    const b = cutGarment(split, seamed, opts)
+    expect(b.rows).toBe(a.rows)
+    const fa = fitProxy(a, roof)
+    const fb = fitProxy(b, split)
+    for (let i = 0; i < fa.length; i++) expect(fb[i]).toBeCloseTo(fa[i], 6)
+    // The copies are covered too.
+    expect([...b.delete].sort((x, y) => x - y)).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
+  })
+
   test('easing never slides the cloth across the skin (a coarse body)', () => {
     // A pyramid on the sheet, its apex off-centre and 0.5 up: faces a unit
     // across, and its neighbours' middle far from it.
