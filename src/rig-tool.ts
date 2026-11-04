@@ -2363,6 +2363,19 @@ export function mountRigTool(
               joint: name,
               handle: -2,
             })
+            // Its reference on the mannequin's same joint, as the markers
+            // have (to look at, not to drag).
+            const ref =
+              ui.compare && ualStand?.isEnabled() ? source.nodes.get(name) : null
+            if (ref != null) {
+              ref.computeWorldMatrix(true)
+              dot(
+                ref.getAbsolutePosition(),
+                r * (small ? 0.5 : 0.8),
+                kin ? matFor(kin) : jointMat,
+                { reference: name }
+              ).setParent(ref)
+            }
           }
       }
       for (const role of (markerBound()
