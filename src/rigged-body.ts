@@ -61,6 +61,7 @@ import {
   type Markers,
 } from './rig-fit.js'
 import { boneHeat, type SkinWeights } from './bone-heat.js'
+import { armsOffTorso } from './human-rig.js'
 
 /** How a rigged body was made: enough to make it again. */
 export type RiggedBodyOrigin =
@@ -187,11 +188,13 @@ export function bodyFromMarkers(
         return { ...fitted, joints, at: (name: string) => byName.get(name) }
       })()
     : fitted
+  const weights = boneHeat(positions, indices, skinSegments(rig))
+  if (armsHeldOut(rig)) armsOffTorso(weights, positions, rig)
   return {
     positions,
     indices,
     rig,
-    weights: boneHeat(positions, indices, skinSegments(rig)),
+    weights,
     regions: {},
     ...surfaceOf(tris),
     made: {
@@ -205,6 +208,25 @@ export function bodyFromMarkers(
       ...(Object.keys(moved).length ? { joints: { ...moved } } : {}),
     },
   }
+}
+
+/*
+ARMS HELD OUT keep their bones off the ribcage. Bone heat lets an upper arm
+claim the torso's sides below the armpit, and every clip that lowers the
+arms then pulls the midriff in with them (MakeHuman's body had the same, and
+`armsOffTorso` is its fix). Only where both upper arms are more than 30°
+from hanging: an arm held at the side lies along the torso, and taking its
+weight off the skin under it would leave the arm's inside behind.
+*/
+function armsHeldOut(rig: FittedRig): boolean {
+  return (['l', 'r'] as const).every((s) => {
+    const a = rig.at(`upperarm_${s}`)
+    const b = rig.at(`lowerarm_${s}`)
+    if (a == null || b == null) return false
+    const out = Math.abs(b.x - a.x)
+    const down = Math.max(0, a.y - b.y)
+    return Math.atan2(out, down) > Math.PI / 6
+  })
 }
 
 /** A file's uvs, colours and surfaces, carried onto the body made from it. */
