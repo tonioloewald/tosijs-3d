@@ -587,9 +587,11 @@ function bindMesh(
     },
     body,
     dispose() {
-      if (worn instanceof BABYLON.MultiMaterial) worn.dispose(false, false, false)
+      if (worn instanceof BABYLON.MultiMaterial)
+        worn.dispose(false, false, false)
       // Handed over on done, the host's body wears them: leave them be.
-      if (!handedOver.has(body)) for (const m of new Set(own)) m.dispose(false, true)
+      if (!handedOver.has(body))
+        for (const m of new Set(own)) m.dispose(false, true)
       mat.dispose()
       built.dispose()
     },
@@ -805,7 +807,9 @@ export function mountRigTool(
   function setMarkers(
     markers: Markers,
     tail: Vec3 | null,
-    tailBase: Vec3 | null = tail != null ? bound?.tailBase ?? null : null
+    tailBase: Vec3 | null = tail != null ? bound?.tailBase ?? null : null,
+    /** Markers dragged carrying their joints: every joint below them comes. */
+    carry: string[] = []
   ) {
     /*
     What hangs from a marker comes with it: a joint moved by hand below one
@@ -813,10 +817,32 @@ export function mountRigTool(
     marker's own joint is the marker's, so no hand-moved copy of it stays.
     */
     const before = fittedJoints(bound, false)
+    const shown = fittedJoints(bound, true)
     const next = bound != null ? { ...bound, markers, tail, tailBase } : null
     const after = fittedJoints(next, false)
     const joints: Record<string, Vec3> = {}
+    /*
+    CARRIED: a wrist or knee dragged with its joints showing takes the
+    whole hand or foot as it stands (the fit's fingers too, not only the
+    ones moved by hand), so a placed hand is not undone by moving its wrist.
+    */
+    const carried = new Set(carry.map((k) => MARKER_JOINT[k]))
+    if (carried.size && shown != null)
+      for (const [n, p] of shown) {
+        if (markerJoints.has(n)) continue
+        const m = markerAbove(n)
+        if (m == null || !carried.has(m)) continue
+        const a = before?.get(m)
+        const b = after?.get(m)
+        if (a && b)
+          joints[n] = {
+            x: p.x + b.x - a.x,
+            y: p.y + b.y - a.y,
+            z: p.z + b.z - a.z,
+          }
+      }
     for (const [n, p] of Object.entries(recipe.binding?.joints ?? {})) {
+      if (n in joints) continue
       if (markerJoints.has(n)) continue
       const m = markerAbove(n)
       const a = m != null ? before?.get(m) : undefined
@@ -982,7 +1008,7 @@ export function mountRigTool(
       w.push(
         label3d({ text: 'Markers', collapsible: true, open: true }),
         label3d({
-          text: 'drag the red markers onto the joints',
+          text: 'drag each marker onto its joint: the mannequin shows where',
           muted: true,
           compact: true,
         }),
@@ -2137,6 +2163,34 @@ export function mountRigTool(
     const markerMat = dotMat('rig-marker', '#ff375f')
     const jointMat = dotMat('rig-joint', '#64d2ff')
     cleanups.push(() => jointMat.dispose())
+    /*
+    A COLOUR PER KIND OF MARKER, the same on the body and on the mannequin
+    beside it, where each sits on the joint it stands for: a reference
+    figure to place them by (Tonio, from Meshy's rigging).
+    */
+    const MARKER_COLOURS: Record<string, string> = {
+      chin: '#ffd60a',
+      groin: '#ff375f',
+      elbow: '#bf5af2',
+      wrist: '#5e5ce6',
+      knee: '#30d158',
+      tail: '#ff9f0a',
+    }
+    const kindOf = (key: string) => key.replace(/(L|R|Base)$/, '')
+    const markerMats = new Map<string, BABYLON.StandardMaterial>()
+    const matFor = (key: string) => {
+      const kind = kindOf(key)
+      let m = markerMats.get(kind)
+      if (m == null) {
+        m = dotMat(`rig-marker-${kind}`, MARKER_COLOURS[kind] ?? '#ff375f')
+        markerMats.set(kind, m)
+      }
+      return m
+    }
+    cleanups.push(() => {
+      for (const m of markerMats.values()) m.dispose()
+      markerMats.clear()
+    })
     let dots: BABYLON.Mesh[] = []
     cleanups.push(() => {
       for (const d of dots) d.dispose()
@@ -2221,23 +2275,37 @@ export function mountRigTool(
             : toScene(m.x, m.y, m.z ?? z0)
         }
         for (const [key, m] of Object.entries(b.markers))
-          dot(onJoint(key, m), r * 1.6, markerMat, { marker: key, handle: -1 })
+          dot(onJoint(key, m), r * 1.6, matFor(key), {
+            marker: key,
+            handle: -1,
+          })
         if (b.tail) {
-          dot(onJoint('tail', b.tail), r * 1.6, markerMat, {
+          dot(onJoint('tail', b.tail), r * 1.6, matFor('tail'), {
             marker: 'tail',
             handle: -1,
           })
           const base = fit?.get('tail_01')
           if (base)
-            dot(toScene(base.x, base.y, base.z), r * 1.6, markerMat, {
+            dot(toScene(base.x, base.y, base.z), r * 1.6, matFor('tailBase'), {
               marker: 'tailBase',
               handle: -1,
             })
         }
+        // The reference: each marker on the mannequin's joint it stands for
+        // (no handle: it is there to look at, not to drag).
+        if (ui.compare && ualStand?.isEnabled())
+          for (const key of Object.keys(b.markers)) {
+            const node = source.nodes.get(MARKER_JOINT[key] ?? '')
+            if (node == null) continue
+            node.computeWorldMatrix(true)
+            dot(node.getAbsolutePosition(), r * 1.6, matFor(key), {
+              reference: key,
+            })
+          }
         // Every joint, to move by hand: where it was moved to, else the fit's.
         if (ui.joints)
           for (const [name, node] of applied.read.nodes) {
-            // A marker's joint is its marker (red), not a second dot.
+            // A marker's joint is its marker (coloured), not a second dot.
             if (name === 'root' || markerJoints.has(name)) continue
             const m = fit?.get(name)
             const at =
@@ -2503,6 +2571,25 @@ export function mountRigTool(
           : { x: 0, y: 0 }
       }
       const off = tailKey ? { x: 0, y: 0 } : offset(key)
+      /*
+      With the joints showing, a wrist or knee carries what hangs below it
+      (Tonio: moving a hand joint by joint is fraught), its twin mirrored.
+      */
+      const carries = ui.joints && /^(wrist|knee)[LR]$/.test(key)
+      const below = (k: string | null) => {
+        const j = k != null ? MARKER_JOINT[k] : undefined
+        if (j == null) return []
+        return dots.filter((d) => {
+          const n = d.metadata?.joint as string | undefined
+          return n != null && n !== j && markerAbove(n) === j
+        })
+      }
+      const followers = carries ? below(key) : []
+      const twinFollowers = carries && symmetry ? below(other) : []
+      const from0 = handle.position.clone()
+      const starts = new Map(
+        [...followers, ...twinFollowers].map((d) => [d, d.position.clone()])
+      )
       cam.detachControl()
       const plane = BABYLON.Plane.FromPositionAndNormal(
         handle.position,
@@ -2541,12 +2628,31 @@ export function mountRigTool(
           markers[other as keyof Markers] = { x: -(x - off.x), y: f.y - off.y }
           twin.position.copyFrom(toScene(-x, f.y, toFile(twin.position).z))
         }
+        if (carries) {
+          // In the file's frame, so the twin's move is the mirror (x flips).
+          const d0 = toFile(from0)
+          const d1 = toFile(handle.position)
+          const dx = d1.x - d0.x,
+            dy = d1.y - d0.y,
+            dz = d1.z - d0.z
+          const shift = (d: BABYLON.Mesh, mx: number) => {
+            const s0 = toFile(starts.get(d)!)
+            d.position.copyFrom(toScene(s0.x + dx * mx, s0.y + dy, s0.z + dz))
+          }
+          for (const d of followers) shift(d, 1)
+          for (const d of twinFollowers) shift(d, -1)
+        }
       }
       const up = () => {
         window.removeEventListener('pointermove', move, true)
         window.removeEventListener('pointerup', up, true)
         cam.attachControl(canvas, true)
-        setMarkers(markers, tail, tail != null ? tailBase : null)
+        setMarkers(
+          markers,
+          tail,
+          tail != null ? tailBase : null,
+          carries ? [key, ...(symmetry && other != null ? [other] : [])] : []
+        )
       }
       window.addEventListener('pointermove', move, true)
       window.addEventListener('pointerup', up, true)
