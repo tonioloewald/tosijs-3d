@@ -188,7 +188,11 @@ export function bodyFromMarkers(
         return { ...fitted, joints, at: (name: string) => byName.get(name) }
       })()
     : fitted
-  const weights = boneHeat(positions, indices, skinSegments(rig))
+  // Each bone heats only what it can see (an arm against the side, legs or
+  // a tail that touch): see bone-heat.
+  const weights = boneHeat(positions, indices, skinSegments(rig), {
+    visible: true,
+  })
   legsOffBelly(weights, positions, rig)
   if (armsHeldOut(rig)) {
     armsOffTorso(weights, positions, rig)

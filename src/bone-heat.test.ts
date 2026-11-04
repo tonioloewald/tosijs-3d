@@ -77,3 +77,53 @@ describe('boneHeat', () => {
       expect(weightOf(r * 13, 7)).toBeCloseTo(weightOf(r * 13 + 12, 7), 6)
   })
 })
+
+describe('visibility', () => {
+  /*
+  A torso and an arm lying against its side: two closed boxes, 1 cm apart.
+  The torso's side is nearer the arm's bone than its own, so by distance
+  alone the arm takes it; a bone heats only what it can see, and the arm's
+  bone is behind the arm's own skin.
+  */
+  function box(x0: number, x1: number, pos: number[], idx: number[]) {
+    const b = pos.length / 3
+    for (const z of [-0.1, 0.1])
+      for (const y of [0, 1])
+        for (const x of [x0, x1]) pos.push(x, y, z)
+    // Corners: index = b + (z>0)*4 + (y>0)*2 + (x>x0). Faces wound outward.
+    const q = (a: number, c: number, d: number, e: number) =>
+      idx.push(b + a, b + c, b + d, b + a, b + d, b + e)
+    q(0, 2, 3, 1) // back (z-)
+    q(4, 5, 7, 6) // front (z+)
+    q(0, 4, 6, 2) // x0 side
+    q(1, 3, 7, 5) // x1 side
+    q(0, 1, 5, 4) // bottom
+    q(2, 6, 7, 3) // top
+  }
+  const pos: number[] = []
+  const idx: number[] = []
+  box(-0.2, 0.2, pos, idx)
+  box(0.21, 0.31, pos, idx)
+  const bones = [
+    { index: 0, a: { x: 0, y: 0, z: 0 }, b: { x: 0, y: 1, z: 0 } },
+    { index: 1, a: { x: 0.26, y: 0, z: 0 }, b: { x: 0.26, y: 1, z: 0 } },
+  ]
+  // The torso's corners on the arm's side: x = 0.2.
+  const side = [1, 3, 5, 7]
+  const owner = (w: { indices: Float32Array; weights: Float32Array }, v: number) => {
+    let best = 0
+    for (let k = 1; k < 4; k++)
+      if (w.weights[v * 4 + k] > w.weights[v * 4 + best]) best = k
+    return w.indices[v * 4 + best]
+  }
+  test('by distance alone the arm takes the torso side', () => {
+    const w = boneHeat(pos, idx, bones)
+    for (const v of side) expect(owner(w, v)).toBe(1)
+  })
+  test('seen through the skin, the torso keeps its side', () => {
+    const w = boneHeat(pos, idx, bones, { visible: true })
+    for (const v of side) expect(owner(w, v)).toBe(0)
+    // The arm still has its own skin.
+    for (let v = 8; v < 16; v++) expect(owner(w, v)).toBe(1)
+  })
+})
