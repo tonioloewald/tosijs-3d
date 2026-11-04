@@ -1778,6 +1778,9 @@ export function mountRigTool(
     }
     cleanups.push(() => stand.dispose())
     let height = 1.8
+    // How far the stand lifts the model so its lowest point at rest is on
+    // the floor: a file's origin may be its middle (Meshy's are), not its feet.
+    let floor = 0
     const UAL_HEIGHT = 1.83
     /*
         HELD VIEWS (Tonio: snap to overhead, front and side; then: an
@@ -1905,7 +1908,7 @@ export function mountRigTool(
     }
     const ground = (group: BABYLON.AnimationGroup) => {
       if (model == null) return
-      stand.position.y = 0
+      stand.position.y = floor
       stand.computeWorldMatrix(true)
       model.skeleton.returnToRest()
       const rest = lowest()
@@ -1916,11 +1919,11 @@ export function mountRigTool(
       }
       group.goToFrame(group.from)
       if (Number.isFinite(rest) && Number.isFinite(low))
-        stand.position.y = rest - low
+        stand.position.y = floor + rest - low
     }
     const play = () => {
       stop()
-      stand.position.y = 0
+      stand.position.y = floor
       // Standing still: a held face (the one last used); moving: orbit.
       inspect.face = ui.pose === 'rest' ? restFace : 'free'
       frame()
@@ -2724,6 +2727,7 @@ export function mountRigTool(
         ui.spring = 0
         // Its height, from the meshes shown (a library holds others),
         // with the stand's scale in the world matrices first.
+        stand.position.y = 0
         stand.computeWorldMatrix(true)
         for (const n of root.getDescendants(false))
           (n as BABYLON.TransformNode).computeWorldMatrix?.(true)
@@ -2732,6 +2736,8 @@ export function mountRigTool(
           (n) => n.isEnabled() && n.skeleton != null
         )
         height = Math.max(0.2, box.max.y - box.min.y)
+        floor = -box.min.y
+        stand.position.y = floor
         // The scene's sun shadows it (standalone; a host's lighting is its own).
         for (const mesh of root.getChildMeshes(false))
           if (mesh.getTotalVertices() > 0) castShadows(mesh)
