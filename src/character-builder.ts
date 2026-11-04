@@ -67,6 +67,15 @@ const characterRows = () => {
       popup: (pop) => namePopup(pop, { prompt: 'save as', initial: current, current, verb: 'save', act: (name) => character.save(name) }),
     }),
     button3d({
+      label: 'revert…',
+      disabled: unsaved,
+      popup: (pop) => [
+        text3d({ text: `Go back to ${current} as last saved? Changes since are lost.` }),
+        button3d({ label: 'revert', handleClick: () => { pop.close(); character.load(current) } }),
+        button3d({ label: 'cancel', handleClick: () => pop.close() }),
+      ],
+    }),
+    button3d({
       label: 'rename…',
       disabled: unsaved,
       popup: (pop) => namePopup(pop, { prompt: `rename ${current} to`, initial: current, current, verb: 'rename', act: (name) => character.rename(current, name) }),
@@ -909,9 +918,9 @@ off the body's outline.
 browser as you change it and comes back when you open the page again. **Save…**
 asks for a name (the one it has, to start with) to keep it under, and asks
 first before replacing another saved character. **Character** shows the one
-on screen (or *not saved*); pick a saved one and it loads. **Rename…** and
-**delete…** act on the one on screen, once it is saved; deleting keeps the
-figure, unsaved. **Export
+on screen (or *not saved*); pick a saved one and it loads. **Revert…**,
+**rename…** and **delete…** act on the one on screen, once it is saved:
+revert goes back to it as last saved, and deleting keeps the figure, unsaved. **Export
 JSON** to take it elsewhere and **import JSON…** to bring one in. A file
 carries everything the panel sets, and the garments of your own the character
 wears travel inside it ([character-file](/character-file/)).
