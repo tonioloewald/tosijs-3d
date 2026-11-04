@@ -238,10 +238,10 @@ export function barMenu(config: BarMenuConfig): BarMenu {
 
 /**
  * Each view's icon: Tonio's biped seen from that side (the right is the left
- * mirrored), and an orbit for the perspective.
+ * mirrored), and for the perspective the biped walking in a turning arc.
  */
 const FACE_ICONS: Record<InspectFace | 'free', string> = {
-  free: 'rotateCw',
+  free: 'bipedPreview',
   front: 'bipedFront',
   back: 'bipedBack',
   left: 'bipedSide',
