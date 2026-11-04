@@ -806,7 +806,9 @@ preview.append(
           if (restoring) return
           clearTimeout(pending)
           pending = setTimeout(() => {
-            store.put(WORKING, snapshot(WORKING)).catch((e) => console.warn('character builder: could not keep the working figure', e))
+            // Under the name it is being edited as, so a reload knows which
+            // saved character this is (the key, not the name, marks it working).
+            store.put(WORKING, snapshot(walker.characterName.value || WORKING)).catch((e) => console.warn('character builder: could not keep the working figure', e))
           }, 800)
         }
         for (const k of [...KEPT, 'look', 'clothLook']) walker[k].observe(() => character.changed())
@@ -819,6 +821,7 @@ preview.append(
           walker.characterName.value = name
           tell(`saved ${name}`)
           listSaved()
+          character.changed()
         }
         // Put under the new name, then the old one goes.
         character.rename = async (from, to) => {
@@ -834,6 +837,7 @@ preview.append(
           if (walker.characterName.value === from) walker.characterName.value = to
           tell(`renamed ${from} to ${to}`)
           listSaved()
+          character.changed()
         }
         character.load = async (name) => {
           const doc = name && (await store.get(name).catch(() => null))
@@ -851,6 +855,7 @@ preview.append(
           }
           if (walker.characterName.value === name) walker.characterName.value = ''
           tell(`deleted ${name}`)
+          character.changed()
           listSaved()
         }
         character.exportJson = () => {
@@ -873,7 +878,7 @@ preview.append(
         character.play = async () => {
           clearTimeout(pending)
           try {
-            await store.put(WORKING, snapshot(WORKING))
+            await store.put(WORKING, snapshot(walker.characterName.value || WORKING))
           } catch (e) {
             return tell(`could not keep it: ${e?.message ?? e}`)
           }
