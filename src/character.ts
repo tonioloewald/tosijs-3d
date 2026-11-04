@@ -88,7 +88,7 @@ garment's colourway and a material recipe over it.
 import * as BABYLON from '@babylonjs/core'
 import { loadHumanPack, type HumanPack } from './human-pack.js'
 import { macroWeights, morphHuman, DEFAULT_HUMAN_BODY } from './human-morph.js'
-import { humanSkin, humanBodyMaker } from './human-rig.js'
+import { humanBodyMaker, bodyDetailProxy } from './human-rig.js'
 import { skinMaterial } from './character-builder.js'
 import {
   lipTint,
@@ -573,7 +573,6 @@ export async function makeCharacter(
   status('binding the skin…')
   // Let a message paint before the binding takes the thread.
   await new Promise((r) => setTimeout(r, 50))
-  const skin = humanSkin(pack)
   const [lips, nipples, eyePart, lashPart] = await Promise.all([
     pack.region('lips'),
     pack.region('nipples'),
@@ -590,25 +589,43 @@ export async function makeCharacter(
     Object.fromEntries(
       Object.keys(DEFAULT_HUMAN_BODY).map((k) => [k, Number(s[k])])
     )
-  const maker = await humanBodyMaker(pack, sliders())
-  const first = maker.first.full
-  // How thin the body is at each vertex (ears, nose, fingers), for the
-  // skin's back-light: once, like the weights.
-  const firstSkin = skin.positions(first)
-  const thin = skinThinness(firstSkin, vertexNormals(firstSkin, skin.triangles))
-  // Weights for every pack vertex, so clothes bound to helper vertices (the
-  // tights and skirt shells, which carry no skin) bend too.
-  const known = new Int32Array(pack.manifest.vertexCount).fill(-1)
-  skin.vertices.forEach((v: number, i: number) => {
-    known[v] = i
-  })
-  const allWeights = nearestWeights(first, known, maker.weights)
-  let current: Float32Array = first
+  /*
+  BODY DETAIL: the skin drawn is MakeHuman's base mesh or a lighter proxy
+  over it (human-rig's `bodyDetailProxy`, picked by the detail and which way
+  the gender leans). A new skin is bound again; the rest follows from it.
+  */
+  let maker: any = null
+  let skin: any = null
+  let thin: Float32Array = new Float32Array(0)
+  let allWeights: any = null
+  let detailOf: string | null | undefined
+  const detailed = async () => {
+    const want = bodyDetailProxy(s.bodyDetail ?? 'full', Number(s.gender))
+    if (maker != null && want === detailOf) return
+    const proxy = want != null ? await pack.proxy(want) : null
+    maker = await humanBodyMaker(pack, sliders(), { proxy })
+    detailOf = want
+    skin = maker.skin
+    const first = maker.first.full
+    // How thin the body is at each vertex (ears, nose, fingers), for the
+    // skin's back-light: once per skin, like the weights.
+    const firstSkin = skin.positions(first)
+    thin = skinThinness(firstSkin, vertexNormals(firstSkin, skin.triangles))
+    // Weights for every pack vertex, so clothes bound to helper vertices (the
+    // tights and skirt shells, which carry no skin) bend too.
+    const known = new Int32Array(pack.manifest.vertexCount).fill(-1)
+    skin.vertices.forEach((v: number, i: number) => {
+      known[v] = i
+    })
+    allWeights = nearestWeights(first, known, maker.weights)
+  }
+  await detailed()
+  let current: Float32Array = maker.first.full
   // What clothes are fitted over: the body with its nipples smoothed,
   // because cloth bridges them (the skin keeps them).
   const smoothed = (p: Float32Array) =>
     nipples ? smoothUnder(p, pack.triangles, nipples) : p
-  let clothBody = smoothed(first)
+  let clothBody = smoothed(current)
   let human: RiggedBody | null = null
   let built: any = null
   let face: any = null
@@ -830,7 +847,7 @@ export async function makeCharacter(
     )
     coverBody(built, skin.triangles, skin.vertices, wearing, { drawn })
     // Everything that moves with the face, after the tuck (its rest).
-    expressions.attach(built.mesh, (d: Float32Array) => skin.positions(d))
+    expressions.attach(built.mesh, (d: Float32Array) => skin.deltas(d))
     for (const m of face?.meshes ?? []) {
       const pv = m.metadata?.packVertices
       // The eyeballs turn; they never deform.
@@ -869,6 +886,7 @@ export async function makeCharacter(
   }
 
   const rebuild = async () => {
+    await detailed()
     const made = await maker.body(sliders())
     if (disposed) return
     const full = made.full
@@ -1203,7 +1221,8 @@ export async function makeCharacter(
     if (has('eyeStyle')) eyes.setStyle(eyeLook(s.eyeStyle))
     if (has('hairBase') || has('hairHighlight')) recolour()
     queue(async () => {
-      if (changed.some((k) => BODY.has(k))) await rebuild()
+      if (changed.some((k) => BODY.has(k)) || has('bodyDetail'))
+        await rebuild()
       if (has('rigs')) await rebind()
       if (has('surfaces')) for (const r of rigged.values()) dressSurfaces(r)
       if (has('source')) await choose()

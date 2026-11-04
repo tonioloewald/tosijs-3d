@@ -16,7 +16,7 @@ import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 
 // Everything the panel sets, as it starts: what a saved character is read against.
-const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, source: 'MakeHuman', characterName: '', characterPick: '' }
+const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, source: 'MakeHuman', bodyDetail: 'medium', characterName: '', characterPick: '' }
 const { walker } = tosi({ walker: structuredClone(START) })
 // What a character file keeps: not the editor's view of one slot (that is in
 // cloth), the microphone (it would ask on load), or the save controls.
@@ -208,6 +208,8 @@ preview.append(
         label3d({ text: 'Body', collapsible: true, open: true }),
         select3d({ label: 'source', value: walker.source, options: sourceNames(), stayOpen: true }),
         button3d({ label: 'open a mesh…', handleClick: () => openBody() }),
+        // How much of the body is drawn: MakeHuman's lighter skins, or its base mesh.
+        select3d({ label: 'detail', value: walker.bodyDetail, options: ['low', 'medium', 'high', 'full'] }),
         slider('gender', 'gender'),
         slider('age', 'age'),
         slider('muscle', 'muscle'),

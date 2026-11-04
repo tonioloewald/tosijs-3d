@@ -30,7 +30,12 @@ The pack is right-handed and a character faces +Z with its left on +X, as
 /*{ "parent": "character-builder", "order": 30 }*/
 
 import { skinSegments, type FittedJoint, type FittedRig } from './rig-fit.js'
-import type { HumanPack, HumanPackManifest } from './human-pack.js'
+import type {
+  HumanPack,
+  HumanPackManifest,
+  HumanProxy,
+} from './human-pack.js'
+import { fitProxy } from './proxy-fit.js'
 import {
   humanJoint,
   macroWeights,
@@ -229,9 +234,25 @@ export interface HumanSkin {
   triangles: Uint32Array
   /** The compact positions from a full set (all of the pack's vertices). */
   positions(full: ArrayLike<number>, into?: Float32Array): Float32Array
+  /** The compact moves from moves of every pack vertex (a face's morph). */
+  deltas(full: ArrayLike<number>): Float32Array
+  /** The body proxy drawn in place of the base mesh, if one is. */
+  proxy?: string
 }
 
-export function humanSkin(pack: HumanPack): HumanSkin {
+/*
+BODY DETAIL: MakeHuman ships lighter skins over hm08 as body proxies
+(`proxy741`, `female1605`, `male1591`, `female_generic`, …), bound to it the
+way clothes are. A skin made from one draws the proxy instead: the base is
+still morphed (clothes, eyes and joints are fitted to it), and each proxy
+vertex is placed by its binding. `vertices[i]` is the pack vertex its binding
+leans on most, which is what regions and covering read.
+*/
+export function humanSkin(
+  pack: HumanPack,
+  proxy: HumanProxy | null = null
+): HumanSkin {
+  if (proxy != null) return proxySkin(proxy)
   const remap = new Int32Array(pack.manifest.vertexCount).fill(-1)
   const vertices: number[] = []
   const triangles = new Uint32Array(pack.triangles.length)
@@ -256,8 +277,78 @@ export function humanSkin(pack: HumanPack): HumanSkin {
       }
       return out
     },
+    deltas(full) {
+      return this.positions(full)
+    },
   }
 }
+
+function proxySkin(proxy: HumanProxy): HumanSkin {
+  const rows = proxy.rows
+  const vertices = new Uint32Array(rows)
+  for (let r = 0; r < rows; r++) {
+    let best = 0
+    for (let c = 1; c < 3; c++)
+      if (proxy.weight[r * 3 + c] > proxy.weight[r * 3 + best]) best = c
+    vertices[r] = proxy.ref[r * 3 + best]
+  }
+  // Its triangles over the binding's rows: one vertex per corner of the
+  // surface, not one per UV corner, so the skin is welded at UV seams.
+  const tris: number[] = []
+  for (let t = 0; t + 2 < proxy.triangles.length; t += 3) {
+    const a = proxy.source[proxy.triangles[t]]
+    const b = proxy.source[proxy.triangles[t + 1]]
+    const c = proxy.source[proxy.triangles[t + 2]]
+    if (a !== b && b !== c && a !== c) tris.push(a, b, c)
+  }
+  return {
+    vertices,
+    triangles: Uint32Array.from(tris),
+    proxy: proxy.name,
+    positions: (full, into) => fitProxy(proxy, full, into),
+    deltas(full) {
+      const out = new Float32Array(rows * 3)
+      for (let r = 0; r < rows; r++)
+        for (let k = 0; k < 3; k++) {
+          let d = 0
+          for (let c = 0; c < 3; c++)
+            d += proxy.weight[r * 3 + c] * full[proxy.ref[r * 3 + c] * 3 + k]
+          out[r * 3 + k] = d
+        }
+      return out
+    },
+  }
+}
+
+/**
+ * Which body proxy a body detail draws, for a body of this gender (0 female,
+ * 1 male): null is the base mesh itself.
+ */
+export function bodyDetailProxy(
+  detail: BodyDetail,
+  gender: number
+): string | null {
+  const male = gender >= 0.5
+  switch (detail) {
+    case 'low':
+      return 'proxy741'
+    case 'medium':
+      return male ? 'male1591' : 'female1605'
+    case 'high':
+      return male ? 'male_generic' : 'female_generic'
+    default:
+      return null
+  }
+}
+
+/** How much of the body is drawn: MakeHuman's base mesh, or a lighter proxy. */
+export type BodyDetail = 'full' | 'high' | 'medium' | 'low'
+export const BODY_DETAILS: readonly BodyDetail[] = [
+  'low',
+  'medium',
+  'high',
+  'full',
+]
 
 /**
  * Make the head rigid in `weights` (in place): skin above the head joint,
@@ -421,12 +512,16 @@ export interface HumanBodyMaker {
  * the head made rigid (`stiffenHead`) and the ribcage kept off the arms
  * (`armsOffTorso`); every later body reuses them. Each body is the pack
  * morphed to its sliders with UAL's joints placed from its joint cubes.
+ * With a body `proxy` (see `bodyDetailProxy`) the skin drawn and bound is
+ * that lighter mesh over the morphed base: binding 1,600 vertices takes a
+ * tenth of a second where the base's 13,000 take one.
  */
 export async function humanBodyMaker(
   pack: HumanPack,
-  values: Partial<MacroBody> = {}
+  values: Partial<MacroBody> = {},
+  options: { proxy?: HumanProxy | null } = {}
 ): Promise<HumanBodyMaker> {
-  const skin = humanSkin(pack)
+  const skin = humanSkin(pack, options.proxy ?? null)
   const [lips, nipples] = await Promise.all([
     pack.region('lips'),
     pack.region('nipples'),

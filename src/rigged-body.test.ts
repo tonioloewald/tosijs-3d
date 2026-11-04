@@ -10,7 +10,8 @@ import {
   splitEyes,
   type RiggedBody,
 } from './rigged-body.js'
-import { humanBodyMaker } from './human-rig.js'
+import { bodyDetailProxy, humanBodyMaker } from './human-rig.js'
+import { fitProxy } from './proxy-fit.js'
 import { loadHumanPack } from './human-pack.js'
 import { objTriangles } from './rig-fit.js'
 
@@ -151,6 +152,28 @@ describe('rigged body', () => {
       // A different shape: the same vertices, somewhere else.
       expect(heavy.positions.length).toBe(maker.first.positions.length)
       expect(heavy.positions).not.toEqual(maker.first.positions)
+    }
+  )
+  test.skipIf(!existsSync(PACK))(
+    'from MakeHuman at a lower body detail: a proxy skin over the same body',
+    async () => {
+      const pack = await loadHumanPack(PACK, fromDisk)
+      expect(bodyDetailProxy('full', 0)).toBeNull()
+      expect(bodyDetailProxy('medium', 0)).toBe('female1605')
+      expect(bodyDetailProxy('medium', 1)).toBe('male1591')
+      const name = bodyDetailProxy('low', 0)!
+      const proxy = (await pack.proxy(name))!
+      expect(proxy).not.toBeNull()
+      const maker = await humanBodyMaker(pack, {}, { proxy })
+      keepsTheContract(maker.first)
+      expect(maker.skin.proxy).toBe(name)
+      expect(maker.first.positions.length / 3).toBe(proxy.rows)
+      // Each proxy vertex sits where its binding puts it on the morphed base.
+      const heavy = await maker.body({ weight: 1 })
+      expect(heavy.positions).toEqual(fitProxy(proxy, heavy.full))
+      // A face's moves reach it through the binding's weights.
+      const d = new Float32Array(pack.manifest.vertexCount * 3).fill(0.01)
+      for (const v of maker.skin.deltas(d)) expect(v).toBeCloseTo(0.01, 5)
     }
   )
 })

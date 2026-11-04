@@ -2163,9 +2163,12 @@ export {
   stiffenHead,
   armsOffTorso,
   humanBodyMaker,
+  bodyDetailProxy,
+  BODY_DETAILS,
   HM08_UAL,
 } from './human-rig.js'
 export type {
+  BodyDetail,
   HumanRigRow,
   HumanSkin,
   HumanRiggedBody,
