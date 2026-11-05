@@ -1,6 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
 import { type Widget3d } from './widgets3d.js';
-import { type InspectFace } from './inspect-view.js';
+import { type InspectFace, type InspectView } from './inspect-view.js';
 import { type Role } from './retarget.js';
 import { type Markers } from './rig-fit.js';
 import { type RiggedBody } from './rigged-body.js';
@@ -85,6 +85,12 @@ export interface RigToolOptions {
      * unmount. Without one the tool brings its own and makes it active.
      */
     camera?: BABYLON.ArcRotateCamera;
+    /**
+     * The host's held views on that camera, its menu already on the system
+     * bar: the tool follows it and adds no menu of its own (one view menu in
+     * the character builder, not two). Left in perspective on unmount.
+     */
+    inspect?: InspectView;
     /**
      * Hosted: the panel is a system panel (a button on the system bar,
      * stacking with the host's), not the scene's settings panel. Default true;

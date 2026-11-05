@@ -94,11 +94,12 @@ wheel's load, compression and whether it slides).
 /*{ "parent": "characters-and-vehicles", "order": 30 }*/
 import * as BABYLON from '@babylonjs/core';
 import { B3dGroundVehicle } from './b3d-ground-vehicle.js';
-import { carMapping } from './virtual-gamepad.js';
+import { carMapping, carMappingDescriptor } from './virtual-gamepad.js';
 const isWheel = (n) => /wheel/i.test(n.name);
 export class B3dCar extends B3dGroundVehicle {
     static preferredTagName = 'tosi-b3d-car';
     inputMapping = carMapping;
+    inputLabels = carMappingDescriptor.labels;
     static initAttributes = {
         ...B3dGroundVehicle.initAttributes,
         steerDeg: 35,

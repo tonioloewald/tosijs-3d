@@ -126,7 +126,10 @@ describe('character-file', () => {
     // tailored clothes came out white when the looks were dropped.
     const doc = writeCharacter({
       ...ada,
-      cloth: { ...ada.cloth, gloves: { look: 3 as any, material: null } } as any,
+      cloth: {
+        ...ada.cloth,
+        gloves: { look: 3 as any, material: null },
+      } as any,
     })
     const { cloth } = readCharacter(doc, { settings }).character
     expect(cloth).toEqual({ top: ada.cloth.top })

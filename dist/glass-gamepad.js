@@ -247,6 +247,44 @@ const DEFAULTS = {
     right: { url: SHEET_URL, anchor: 'bottom-right' },
     center: { url: SHEET_URL, anchor: 'bottom-center' },
 };
+/** Where a cluster sits, in words. */
+const ANCHOR_WORDS = {
+    'bottom-left': 'bottom left',
+    'bottom-right': 'bottom right',
+    'bottom-center': 'bottom centre',
+    'top-left': 'top left',
+    'top-right': 'top right',
+    'top-center': 'top centre',
+};
+/** Each part's spoken name and the `VirtualGamepad` fields it drives. */
+const PART_ARIA = {
+    A: { name: 'A button', fields: ['buttonA'] },
+    B: { name: 'B button', fields: ['buttonB'] },
+    X: { name: 'X button', fields: ['buttonX'] },
+    Y: { name: 'Y button', fields: ['buttonY'] },
+    left_bumper: { name: 'left bumper', fields: ['leftBumper'] },
+    right_bumper: { name: 'right bumper', fields: ['rightBumper'] },
+    left_trigger: { name: 'left trigger', fields: ['leftTrigger'] },
+    right_trigger: { name: 'right trigger', fields: ['rightTrigger'] },
+    dpad_up: { name: 'd-pad up', fields: ['dpadUp'] },
+    dpad_down: { name: 'd-pad down', fields: ['dpadDown'] },
+    dpad_left: { name: 'd-pad left', fields: ['dpadLeft'] },
+    dpad_right: { name: 'd-pad right', fields: ['dpadRight'] },
+    menu: { name: 'menu', fields: ['menu'] },
+    view: { name: 'view', fields: ['view'] },
+    left_stick: {
+        name: 'left stick',
+        fields: ['leftStickY', 'leftStickX'],
+        stick: true,
+    },
+    right_stick: {
+        name: 'right stick',
+        fields: ['rightStickY', 'rightStickX'],
+        stick: true,
+    },
+    left_stick_click: { name: 'left stick click', fields: ['leftStickPress'] },
+    right_stick_click: { name: 'right stick click', fields: ['rightStickPress'] },
+};
 // Which controls each cluster owns — used to cut the sheet, to skip empty
 // clusters and to hide controls that weren't requested. Sticks list both knob
 // and travel. Laid out like a pair of VR controllers: X/Y with the left stick,
@@ -663,12 +701,48 @@ export class B3dGamepad extends Component {
                     ? (width * scale * vb.height) / vb.width
                     : 0,
                 anchored: c?.anchor != null,
+                anchor: cfg.anchor ?? DEFAULTS[key].anchor,
             };
             this.sources.push(new TouchGamepadSource(svg, opts));
         }
         this._layout();
+        this._applyAria();
         this._resize ??= new ResizeObserver(() => this._layout());
         this._resize.observe(this);
+    }
+    /*
+    NAMED FOR A SCREEN READER: each control says what it is, where it is and
+    what it does now (`A button, bottom right: handbrake`). What it does comes
+    from the entity being driven (`inputLabels`), handed over by the input
+    focus when that changes; nothing is read per frame.
+    */
+    _labels = {};
+    /** What each control does now, by `VirtualGamepad` field (`buttonA`: 'jump'). */
+    setControlLabels(labels) {
+        this._labels = { ...labels };
+        this._applyAria();
+    }
+    _applyAria() {
+        for (const [key, placed] of Object.entries(this._placed)) {
+            if (placed == null)
+                continue;
+            const anchor = ANCHOR_WORDS[placed.anchor] ?? '';
+            placed.svg.setAttribute('role', 'group');
+            placed.svg.setAttribute('aria-label', `on-screen ${key === 'center' ? 'centre' : key} controls, ${anchor}`);
+            for (const el of Array.from(placed.svg.querySelectorAll('[data-part]'))) {
+                const part = el.getAttribute('data-part');
+                const info = PART_ARIA[part];
+                if (info == null || el.getAttribute('display') === 'none') {
+                    el.setAttribute('aria-hidden', 'true');
+                    continue;
+                }
+                const does = [
+                    ...new Set(info.fields.map((f) => this._labels[f]).filter((s) => !!s)),
+                ].join(', ');
+                el.setAttribute('role', info.stick ? 'img' : 'button');
+                el.setAttribute('aria-label', `${info.name}, ${anchor}: ${does || 'not used here'}`);
+            }
+        }
     }
     _placed = {};
     _resize;

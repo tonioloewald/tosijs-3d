@@ -288,6 +288,18 @@ export function angle3d(config = {}) {
             change?.(value);
     };
     const api = {
+        semantics: () => ({
+            role: 'slider',
+            name: config.label ?? '',
+            value,
+            set: (v) => {
+                const n = Number(v);
+                if (!Number.isFinite(n))
+                    return;
+                set(n, true);
+                config.handleCommit?.(value);
+            },
+        }),
         el: base.el,
         get value() {
             return value;
@@ -377,6 +389,18 @@ export function arc3d(config = {}) {
             change?.(value);
     };
     const api = {
+        semantics: () => ({
+            role: 'editor',
+            name: config.label ?? '',
+            value: { ...value },
+            // { centre, width }, in degrees.
+            set: (v) => {
+                if (v == null || typeof v !== 'object')
+                    return;
+                set({ ...value, ...v }, true);
+                config.handleCommit?.({ ...value });
+            },
+        }),
         el: base.el,
         get value() {
             return { ...value };

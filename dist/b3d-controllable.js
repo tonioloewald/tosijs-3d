@@ -35,11 +35,36 @@ class Spinner extends B3dControllable {
 import { AbstractMesh, simHalted, controlsLive, sceneDelta, } from './b3d-utils.js';
 import { emptyInput } from './control-input.js';
 import { realNow } from './clock.js';
+import { headingDeg, isDeliberate, } from './agent-driver.js';
 export class B3dControllable extends AbstractMesh {
     inputProvider = null;
     inputMapping;
+    /**
+     * What each control does for this entity (`{ buttonA: 'handbrake', … }`):
+     * the glass gamepad names its controls with it for a screen reader.
+     */
+    inputLabels;
     /** Last polled input — read by the XR rig for camera zoom/peek intent. */
     lastInput = null;
+    /**
+     * An agent's command (see [agents](/b3d-agent/)): while it runs, its input
+     * replaces the player's, and the player's own deliberate input cancels it.
+     * Made on the first command, so a scene no agent touches carries none.
+     */
+    agentDriver = null;
+    /** Where this is for the agent driver: world metres (floating origin added back), heading in degrees, speed along the nose. */
+    agentPose() {
+        const m = this.mesh;
+        if (m == null)
+            return null;
+        const p = m.getAbsolutePosition();
+        const f = m.forward;
+        const off = this.owner?.originOffset ?? { x: 0, z: 0 };
+        const own = this.speed;
+        const v = this.getWorldVelocity();
+        const speed = typeof own === 'number' ? own : v != null ? v.x * f.x + v.z * f.z : 0;
+        return { x: p.x + off.x, z: p.z + off.z, heading: headingDeg(f), speed };
+    }
     lastUpdate = 0;
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
@@ -176,7 +201,7 @@ export class B3dControllable extends AbstractMesh {
             this.inputProvider?.poll(0);
             return;
         }
-        if (this.inputProvider == null)
+        if (this.inputProvider == null && !this.agentDriver?.running)
             return;
         // Scene input focus: when a page hosts multiple demos, only the active (last
         // hovered/clicked) scene consumes the shared keyboard/gamepad — an unfocused
@@ -189,8 +214,20 @@ export class B3dControllable extends AbstractMesh {
         */
         const live = controlsLive(this.owner);
         // Read either way, so nothing builds up while the controls are not live.
-        const reading = this.inputProvider.poll(dt);
-        const input = live ? reading : emptyInput();
+        const reading = this.inputProvider?.poll(dt) ?? emptyInput();
+        let input = live ? reading : emptyInput();
+        const agent = this.agentDriver;
+        if (agent?.running) {
+            // The player's own hands win.
+            if (live && isDeliberate(reading))
+                agent.stop('the player took the controls');
+            else {
+                const pose = this.agentPose();
+                const want = pose != null ? agent.step(dt, pose) : null;
+                if (want != null)
+                    input = { ...emptyInput(), ...want };
+            }
+        }
         this.lastInput = input;
         this.applyInput(input, dt);
     };

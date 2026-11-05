@@ -3,6 +3,8 @@ import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
 import '@babylonjs/loaders';
 import { type Widget3d } from './widgets3d.js';
+import { type AgentExposure, type B3dAgentTool } from './b3d-agent.js';
+import { type ControlNode } from './widget-semantics.js';
 import type { Medium } from './medium.js';
 import { type Makers } from './make-mesh.js';
 import { type PopupSurface, type PopupSurfaceOptions } from './popup-surface.js';
@@ -123,6 +125,10 @@ export declare class B3d extends Component {
         /** How collapsible sections present: 'fold' (headers you open and close,
          * one open at a time), 'folds' (several open) or 'tabs' (file tabs). */
         panelSections: "fold" | "folds" | "tabs";
+        /** What an agent may do with this scene (see [agents](/b3d-agent/)):
+         * '' follows the page (`enableSceneAgents`, closed by default), 'read'
+         * offers the read tools, 'on' everything, 'off' nothing. */
+        agent: "" | "off" | "read" | "on";
         gamepadScale: number;
         /** `'off'` stops the glass gamepad fading when a mouse/keyboard/pad is
          * used (see b3d-gamepad's `fade`). */
@@ -311,6 +317,82 @@ export declare class B3d extends Component {
         ':host .lozenge-button:hover': {
             background: string;
         };
+        ':host .aria-mirror-host': {
+            position: string;
+            inset: string;
+            pointerEvents: string;
+            zIndex: string;
+        };
+        ':host .aria-mirror-host input[type=range]::-webkit-slider-thumb': {
+            appearance: string;
+            webkitAppearance: string;
+            opacity: string;
+        };
+        ':host .aria-mirror-host input[type=range]::-moz-range-thumb': {
+            opacity: string;
+        };
+        ':host .aria-mirror-host [data-placed] *': {
+            background: string;
+            color: string;
+            borderColor: string;
+            boxShadow: string;
+            appearance: string;
+            webkitAppearance: string;
+        };
+        ':host .aria-mirror-host [data-key]:focus-visible': {
+            outline: string;
+            outlineOffset: string;
+            borderRadius: string;
+        };
+        ':host .sr-only, :host .describe-button:not(:focus)': {
+            position: string;
+            width: string;
+            height: string;
+            overflow: string;
+            clipPath: string;
+            whiteSpace: string;
+        };
+        ':host .describe-button:focus': {
+            position: string;
+            left: string;
+            bottom: string;
+            zIndex: string;
+            padding: string;
+            color: string;
+            background: string;
+            border: string;
+            borderRadius: string;
+        };
+        ':host .scene-lozenge[data-mirror]': {
+            top: string;
+            left: string;
+            padding: string;
+            gap: string;
+            border: string;
+            background: string;
+        };
+        ':host .scene-lozenge[data-mirror]:not(:focus-within)': {
+            opacity: string;
+            pointerEvents: string;
+        };
+        ':host .scene-lozenge[data-mirror] .lozenge-button:not([hidden])': {
+            width: string;
+            minWidth: string;
+            height: string;
+            padding: string;
+            borderLeft: string;
+        };
+        ':host([data-assistive]) .scene-lozenge[data-mirror]': {
+            opacity: string;
+            pointerEvents: string;
+        };
+        ':host([data-assistive]) .scene-lozenge[data-mirror] .lozenge-button': {
+            background: string;
+            color: string;
+        };
+        ':host([data-assistive]) .scene-lozenge[data-mirror] .lozenge-button > *': {
+            opacity: string;
+        };
         ':host .lozenge-button[hidden]': {
             display: string;
         };
@@ -406,7 +488,7 @@ export declare class B3d extends Component {
             color: string;
         };
     };
-    content: (HTMLCanvasElement | HTMLDivElement | HTMLSlotElement)[];
+    content: (HTMLCanvasElement | HTMLDivElement | HTMLButtonElement | HTMLSlotElement)[];
     engine: BABYLON.Engine;
     scene: BABYLON.Scene;
     camera?: BABYLON.Camera;
@@ -634,6 +716,10 @@ export declare class B3d extends Component {
      * headset moves across with you.
      */
     showModal(svg: SVGSVGElement, height: number, fallback?: () => (() => void) | null): (() => void) | null;
+    private _mirrorModal;
+    private _focusQuiet;
+    private _quietFocus;
+    private _syncModalInert;
     /** Put each open modal in the presentation now running (flat or headset). */
     private _representModals;
     /** One modal, in the presentation now running; returns its dispose. */
@@ -768,6 +854,15 @@ export declare class B3d extends Component {
     register(additions: SceneAdditions): void;
     private _worldRoots;
     private _originShiftListeners;
+    private _originOffset;
+    /**
+     * How far the floating origin has moved in all: a scene point plus this is
+     * where it is in the world, which a rebase does not change.
+     */
+    get originOffset(): {
+        x: number;
+        z: number;
+    };
     private _radarBlips;
     readonly combat: CombatWorld;
     private _scenePanelWired;
@@ -1321,10 +1416,40 @@ export declare class B3d extends Component {
     /** The flat settings panel's popups go on their own surface in front of it. */
     private _attachFlatLayer;
     private _openScenePanel;
+    private _assistive;
+    /** Has anyone used the scene's assistive surface (so it is being kept up)? */
+    get assistive(): boolean;
+    private _goAssistive;
+    private _holdSideways;
+    private _pressedAt;
+    private _notePointer;
+    private _wakeOnFocus;
+    private _traceBuffer;
+    private _traceInput;
+    private _wakeOnClick;
+    private _ariaMirror;
+    private _syncAriaMirror;
+    private _panelToHost;
+    private _disposeAriaMirror;
     private _panelHeightKey;
     private _panelResizeTimer;
     private _flatPanelMax;
     private _closeScenePanel;
+    agent: '' | 'off' | 'read' | 'on';
+    private _agentOff;
+    /** The scene in words, into the canvas's description; `aloud` also speaks it. */
+    private _describe;
+    private _describeAloud;
+    private _sceneTitle;
+    private _agentKey;
+    private _agentRows;
+    private _disposeAgentRows;
+    /** The name in this scene's tool names: its id, else its panel title. */
+    agentName(): string;
+    agentExposure(): AgentExposure | '';
+    agentTools(): B3dAgentTool[];
+    agentPanelOpen(): boolean;
+    agentControls(fresh?: boolean): ControlNode[];
     /** Rebuild the flat scene panel from the current rows, if it's open.
      * Call after async state the panel reflects has changed (e.g. a library loaded,
      * or XR availability / session state) so an already-open panel updates. */
@@ -1334,6 +1459,8 @@ export declare class B3d extends Component {
     private _held;
     private _whenReleased;
     private _setupGamepad;
+    /** No pad over the spinner: hidden until the scene is revealed. */
+    private _holdGamepadForLoading;
     private _xrToolbar;
     /** The VR toolbar's SVG while a session has one (for tests and tools). */
     private _xrBarSvg;

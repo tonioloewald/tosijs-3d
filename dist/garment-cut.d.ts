@@ -1,4 +1,5 @@
 import type { ProxyBinding } from './proxy-fit.js';
+import { type Remeshed } from './remesh.js';
 /** A point in a view: `[x, y]` for the front view, `[z, y]` for the side. */
 export type ViewPoint = [number, number];
 export interface GarmentCutOptions {
@@ -69,6 +70,20 @@ export interface SkirtOptions {
      */
     anchor?: ArrayLike<number>;
 }
+/** A convex hull of 2D points (Andrew's monotone chain), counter-clockwise. */
+/**
+ * A cut made on a REMESHED surface (the tailor's dummy, see
+ * [remesh](/remesh/)) bound to the body itself: each row's point on the
+ * surface is projected onto the body's triangles, its offset kept, so it
+ * draws exactly where it did. What it covers is the body vertices whose
+ * nearest point on the surface is wholly covered there.
+ */
+export declare function rebindCut(cut: GarmentCut, surface: Remeshed, body: ArrayLike<number>): GarmentCut;
+/**
+ * Each vertex's representative: the first vertex at its position (to a
+ * tenth of a millimetre), so seams split for UVs or normals join again.
+ */
+export declare function weldVertices(positions: ArrayLike<number>): Uint32Array;
 /**
  * A skirt (or kilt, robe) from outlines: rings round the convex
  * outline of the body at each height, as an open tube bound to the body.

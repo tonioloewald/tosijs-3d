@@ -74,6 +74,11 @@ export interface InputField extends Widget3d {
 export interface InputFieldOptions {
     value?: string;
     placeholder?: string;
+    /**
+     * Its accessible name, for agents and screen readers. Without one it takes
+     * the label beside it in a row, then its placeholder, then the label above.
+     */
+    name?: string;
     fontSize?: number;
     height?: number;
     handleChange?: (value: string) => void;
@@ -82,6 +87,12 @@ export interface InputFieldOptions {
      * — the host's hook for exclusivity (dim the others) and for summoning the
      * keyboard overlay. */
     handleFocus?: () => void;
+    /**
+     * Take the keyboard as soon as it is shown, its text selected so typing
+     * replaces it: a dialog's field (a name to save under), so you can type
+     * without clicking it first.
+     */
+    autofocus?: boolean;
     /**
      * Drag across a numeric field to change its value ("scrub"), in units per
      * pixel. `0` (default) disables it.

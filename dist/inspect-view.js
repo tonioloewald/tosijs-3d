@@ -15,6 +15,8 @@ import { inspectView, seamOverlay } from 'tosijs-3d'
 const inspect = inspectView(camera, { face: 'front' })
 inspect.face = 'left' // from the subject's left
 inspect.face = 'free' // back to orbiting, a perspective camera again
+inspect.follow = () => handBone.getAbsolutePosition() // keep a hand in view
+inspect.follow = null
 const seams = seamOverlay(mesh) // drawn as its polygons (see seam-material)
 seams.dispose()
 ```
@@ -72,7 +74,14 @@ export function inspectView(camera, options = {}) {
         camera.orthoLeft = -half * aspect;
         camera.orthoRight = half * aspect;
     };
-    const obs = scene.onBeforeRenderObservable.add(fit);
+    let follow = options.follow ?? null;
+    const watchers = new Set();
+    const obs = scene.onBeforeRenderObservable.add(() => {
+        const p = follow?.();
+        if (p != null)
+            camera.target.set(p.x, p.y, p.z);
+        fit();
+    });
     const set = (next) => {
         if (next === face)
             return;
@@ -114,6 +123,8 @@ export function inspectView(camera, options = {}) {
         face = next;
         fit();
         options.handleChange?.(face);
+        for (const w of [...watchers])
+            w(face);
     };
     set(options.face ?? 'free');
     return {
@@ -123,6 +134,16 @@ export function inspectView(camera, options = {}) {
         },
         set face(v) {
             set(v);
+        },
+        get follow() {
+            return follow;
+        },
+        set follow(f) {
+            follow = f;
+        },
+        watch(listener) {
+            watchers.add(listener);
+            return () => void watchers.delete(listener);
         },
         dispose() {
             set('free');

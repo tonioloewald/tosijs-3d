@@ -379,6 +379,7 @@ export declare class B3dBiped extends B3dControllable {
      * the getter was for.
      */
     inputMapping: (pad: VirtualGamepad, dt: number) => ControlInput;
+    inputLabels: Partial<Record<keyof VirtualGamepad, string>>;
     /**
      * Aiming right now.
      *
@@ -711,6 +712,7 @@ export declare class B3dBiped extends B3dControllable {
     figure: any;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     private _loadCharacter;
+    private _makeCharacter;
     private _modelReady;
     sceneDispose(): void;
     render(): void;

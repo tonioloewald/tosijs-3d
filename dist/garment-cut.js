@@ -43,6 +43,7 @@ robe drawn over the arms is a skirt over the body and its sleeves a cut.
 Pure: positions and triangles in, a binding out.
 */
 /*{ "parent": "human-proxy", "order": 20 }*/
+import { surfaceProjector } from './remesh.js';
 /**
  * Half outlines (drawn on the +X side, the character's left) made whole. A
  * half with an edge on the centre line (two neighbouring points at x = 0) is
@@ -370,6 +371,14 @@ export function cutGarment(positions, triangles, options) {
         views.push({ polys: options.side, u: 2 });
     const P = positions;
     const n = P.length / 3;
+    // ONE SURFACE: a file splits its vertices along every UV seam, so its skin
+    // is islands. Cut as they come, thickness pushed each island out along its
+    // own normals and ease could not cross a seam: the cloth came out as
+    // plates. The triangles are welded onto one vertex per position (still a
+    // body vertex, so the binding is unchanged), and what the cloth covers is
+    // spread back to every copy.
+    const rep = weldVertices(P);
+    triangles = Uint32Array.from(triangles, (v) => rep[v]);
     // Which side of each view every vertex is on.
     const inside = new Uint8Array(n);
     const used = new Uint8Array(n);
@@ -674,7 +683,7 @@ export function cutGarment(positions, triangles, options) {
     const total = ref.length / 3;
     const del = [];
     for (let v = 0; v < n; v++)
-        if (inside[v])
+        if (inside[rep[v]] && used[rep[v]])
             del.push(v);
     return {
         rows: total,
@@ -690,6 +699,80 @@ export function cutGarment(positions, triangles, options) {
     };
 }
 /** A convex hull of 2D points (Andrew's monotone chain), counter-clockwise. */
+/**
+ * A cut made on a REMESHED surface (the tailor's dummy, see
+ * [remesh](/remesh/)) bound to the body itself: each row's point on the
+ * surface is projected onto the body's triangles, its offset kept, so it
+ * draws exactly where it did. What it covers is the body vertices whose
+ * nearest point on the surface is wholly covered there.
+ */
+export function rebindCut(cut, surface, body) {
+    const S = surface.positions;
+    const ref = new Uint32Array(cut.rows * 3);
+    const weight = new Float32Array(cut.rows * 3);
+    const offset = new Float32Array(cut.rows * 3);
+    for (let r = 0; r < cut.rows; r++) {
+        let x = 0, y = 0, z = 0;
+        for (let k = 0; k < 3; k++) {
+            const v = cut.ref[r * 3 + k];
+            const w = cut.weight[r * 3 + k];
+            x += w * S[v * 3];
+            y += w * S[v * 3 + 1];
+            z += w * S[v * 3 + 2];
+        }
+        const p = surface.project(x, y, z);
+        let sx = 0, sy = 0, sz = 0;
+        for (let k = 0; k < 3; k++) {
+            ref[r * 3 + k] = p.ref[k];
+            weight[r * 3 + k] = p.weight[k];
+            sx += p.weight[k] * body[p.ref[k] * 3];
+            sy += p.weight[k] * body[p.ref[k] * 3 + 1];
+            sz += p.weight[k] * body[p.ref[k] * 3 + 2];
+        }
+        offset[r * 3] = cut.offset[r * 3] + x - sx;
+        offset[r * 3 + 1] = cut.offset[r * 3 + 1] + y - sy;
+        offset[r * 3 + 2] = cut.offset[r * 3 + 2] + z - sz;
+    }
+    const covered = new Uint8Array(S.length / 3);
+    for (const v of cut.delete)
+        covered[v] = 1;
+    const onSurface = surfaceProjector(S, surface.triangles);
+    const del = [];
+    for (let v = 0; v < body.length / 3; v++) {
+        const p = onSurface(body[v * 3], body[v * 3 + 1], body[v * 3 + 2]);
+        if (p.ref.every((i, k) => covered[i] || p.weight[k] < 0.01))
+            del.push(v);
+    }
+    return {
+        ...cut,
+        ref,
+        weight,
+        offset,
+        scale: {},
+        delete: Uint32Array.from(del),
+    };
+}
+/**
+ * Each vertex's representative: the first vertex at its position (to a
+ * tenth of a millimetre), so seams split for UVs or normals join again.
+ */
+export function weldVertices(positions) {
+    const n = positions.length / 3;
+    const rep = new Uint32Array(n);
+    const seen = new Map();
+    const q = (x) => Math.round(x * 1e4);
+    for (let v = 0; v < n; v++) {
+        const key = `${q(positions[v * 3])},${q(positions[v * 3 + 1])},${q(positions[v * 3 + 2])}`;
+        const r = seen.get(key);
+        if (r === undefined) {
+            seen.set(key, v);
+            rep[v] = v;
+        }
+        else
+            rep[v] = r;
+    }
+    return rep;
+}
 function hull2d(pts) {
     const p = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
     if (p.length < 3)

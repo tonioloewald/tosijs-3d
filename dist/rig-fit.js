@@ -252,8 +252,14 @@ export function fitSkeleton(markers, mesh, options = {}) {
             return front - half;
         return best.front - Math.min((best.front - best.back) / 2, half);
     };
-    // The body: pelvis a little above the crotch, neck under the chin.
-    const pelvisY = groin.y + 0.08 * torso;
+    /*
+    The body: pelvis above the crotch, neck under the chin. The hip joints
+    are well above the crotch (the legs' sockets sit inside the pelvis):
+    Tonio placed a stocky weasel's at 0.16 of the torso above it, a fifth of
+    the way in from its knees. At 0.04 the thighs bent from the crotch and
+    took the belly with them.
+    */
+    const pelvisY = groin.y + 0.18 * torso;
     const pelvis = { x: cx, y: pelvisY, z: torsoDepth(cx, pelvisY) };
     put('root', null, { x: cx, y: floor, z: pelvis.z });
     put('pelvis', 'root', pelvis);
@@ -283,6 +289,43 @@ export function fitSkeleton(markers, mesh, options = {}) {
         if (inside(chin.x, y))
             top = y;
     put('Head', 'neck_01', headBase, { x: chin.x, y: top, z: headBase.z });
+    /*
+    AN ARM HELD OUT IS JOINTED OVER ITS ARMPIT. A forearm's length in from
+    the elbow (below) assumes an upper arm as long as the forearm, and put a
+    thick-sleeved weasel's shoulder at 0.15 m, inside a torso 0.18 m wide.
+    So where an arm is nearer level than hanging, find its underside at the
+    elbow, then the torso's side just under that, and keep the shoulder out
+    to that side, on the line through wrist and elbow. (Tonio placed the
+    weasel's by hand at 0.184 m, on that line; an arm's radius further out,
+    0.29 m, was too far.) Measured on both sides and the NEARER used for both:
+    a gun or a pauldron under one arm reads as torso and would drag that
+    shoulder out alone.
+    */
+    const clearance = (S) => {
+        const sign = S === 'L' ? 1 : -1;
+        const wrist2 = markers[`wrist${S}`];
+        const elbow2 = markers[`elbow${S}`];
+        const fore = { x: elbow2.x - wrist2.x, y: elbow2.y - wrist2.y };
+        if (!(Math.abs(fore.y) < Math.abs(fore.x)))
+            return null;
+        const st = torso / 300;
+        let under = elbow2.y;
+        while (inside(elbow2.x, under - st) && under - st > groin.y)
+            under -= st;
+        const half = elbow2.y - under;
+        const y = under - 2 * st;
+        let edge = cx;
+        while (inside(edge + sign * st, y) &&
+            sign * (edge + sign * st - elbow2.x) < 0)
+            edge += sign * st;
+        const out = Math.abs(edge - cx);
+        // Never at or past the elbow: then this reading is not an armpit.
+        return out < Math.abs(elbow2.x - cx) - half ? out : null;
+    };
+    const clears = [clearance('L'), clearance('R')];
+    const clear = clears[0] != null && clears[1] != null
+        ? Math.min(clears[0], clears[1])
+        : null;
     const fingersFound = { l: [], r: [] };
     for (const side of ['l', 'r']) {
         const S = side === 'l' ? 'L' : 'R';
@@ -299,6 +342,14 @@ export function fitSkeleton(markers, mesh, options = {}) {
             // Slide back along the same line to the limit.
             const t = (cx + minOut - elbow2.x) / (fore.x || 1e-9);
             sh = { x: elbow2.x + fore.x * t, y: elbow2.y + fore.y * t };
+        }
+        // Out over the armpit (see `clearance`), on both sides alike.
+        if (clear != null && Math.abs(fore.x) > 1e-9) {
+            const sx = cx + sign * clear;
+            if (sign * (sx - sh.x) > 0 && sign * (elbow2.x - sx) > 0) {
+                const t = (sx - elbow2.x) / fore.x;
+                sh = { x: sx, y: elbow2.y + fore.y * t };
+            }
         }
         const shoulder = at(sh, chest.z);
         const clav = {
@@ -449,11 +500,11 @@ export function fitSkeleton(markers, mesh, options = {}) {
             chain('thumb', [base, along(base, end, 0.4), along(base, end, 0.7), end]);
         }
         fingersFound[side] = real;
-        // The leg: the hip above the knee at pelvis height (a little in, as
-        // legs splay), the ankle under the knee, the toes forward of it.
+        // The leg: the hip above the knee just under the pelvis (a fifth of the
+        // way in, as legs splay), the ankle under the knee, the toes forward of it.
         const knee2 = markers[`knee${S}`];
-        const hipX = lerp(knee2.x, cx, 0.1);
-        const hipY = pelvisY - 0.04 * torso;
+        const hipX = lerp(knee2.x, cx, 0.2);
+        const hipY = pelvisY - 0.02 * torso;
         const hip = { x: hipX, y: hipY, z: torsoDepth(hipX, hipY, pelvis.z) };
         put(`thigh_${side}`, 'pelvis', hip);
         const knee = put(`calf_${side}`, `thigh_${side}`, at(knee2, hip.z));
@@ -1179,9 +1230,12 @@ export function guessMarkers(s) {
     */
     const covers = (k, x) => (rows.get(k) ?? []).some((r) => r.u0 <= x && r.u1 >= x);
     const armMiddle = (x) => {
-        // The nearest row the arm fills there, above or below the widest.
+        // The nearest row the arm fills there, above or below the widest. Far
+        // enough for arms held steeply down (an A-pose): the widest row is then
+        // the fingertips, and the elbow's part of the arm is a quarter of the
+        // height above them.
         let k0 = -1;
-        for (let d = 0; d <= nRows * 0.06 && k0 < 0; d++) {
+        for (let d = 0; d <= nRows * 0.25 && k0 < 0; d++) {
             if (covers(armK - d, x))
                 k0 = armK - d;
             else if (covers(armK + d, x))

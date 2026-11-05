@@ -51,6 +51,7 @@ A rigged body is plain data, Babylon-free:
 /*{ "parent": "b3d-biped", "order": 70 }*/
 import { fitSkeleton, guessMarkers, meshQuery, rigSilhouette, skinSegments, } from './rig-fit.js';
 import { boneHeat } from './bone-heat.js';
+import { armsOffTorso, clavicleOffChest, legsOffBelly } from './human-rig.js';
 /**
  * A mesh rigged from markers (the rig tool's way): UAL's skeleton fitted to
  * them, the skin bound by bone heat. Markers are guessed from the front
@@ -73,11 +74,21 @@ export function bodyFromMarkers(tris, options = {}) {
             return { ...fitted, joints, at: (name) => byName.get(name) };
         })()
         : fitted;
+    // Each bone heats only what it can see (an arm against the side, legs or
+    // a tail that touch): see bone-heat.
+    const weights = boneHeat(positions, indices, skinSegments(rig), {
+        visible: true,
+    });
+    legsOffBelly(weights, positions, rig);
+    if (armsHeldOut(rig)) {
+        armsOffTorso(weights, positions, rig);
+        clavicleOffChest(weights, positions, rig);
+    }
     return {
         positions,
         indices,
         rig,
-        weights: boneHeat(positions, indices, skinSegments(rig)),
+        weights,
         regions: {},
         ...surfaceOf(tris),
         made: {
@@ -91,6 +102,25 @@ export function bodyFromMarkers(tris, options = {}) {
             ...(Object.keys(moved).length ? { joints: { ...moved } } : {}),
         },
     };
+}
+/*
+ARMS HELD OUT keep their bones off the ribcage. Bone heat lets an upper arm
+claim the torso's sides below the armpit, and every clip that lowers the
+arms then pulls the midriff in with them (MakeHuman's body had the same, and
+`armsOffTorso` is its fix). Only where both upper arms are more than 30°
+from hanging: an arm held at the side lies along the torso, and taking its
+weight off the skin under it would leave the arm's inside behind.
+*/
+function armsHeldOut(rig) {
+    return ['l', 'r'].every((s) => {
+        const a = rig.at(`upperarm_${s}`);
+        const b = rig.at(`lowerarm_${s}`);
+        if (a == null || b == null)
+            return false;
+        const out = Math.abs(b.x - a.x);
+        const down = Math.max(0, a.y - b.y);
+        return Math.atan2(out, down) > Math.PI / 6;
+    });
 }
 /** A file's uvs, colours and surfaces, carried onto the body made from it. */
 export function surfaceOf(tris) {

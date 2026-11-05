@@ -58,6 +58,9 @@ export interface GlbMaterial {
     occlusionTexture?: GlbTexture & {
         strength: number;
     };
+    /** Linear RGB light the surface gives off (glTF's default is none). */
+    emissiveFactor?: readonly [number, number, number];
+    emissiveTexture?: GlbTexture;
     alphaMode: 'OPAQUE' | 'MASK' | 'BLEND';
     alphaCutoff?: number;
     doubleSided: boolean;
@@ -88,6 +91,11 @@ export interface SkinnedGlb {
     meshes: GlbMesh[];
     materials: GlbMaterial[];
     images: GlbImage[];
+    /**
+     * Root-level extensions, written as given and listed in `extensionsUsed`
+     * (never required). Node indices in them are the joints' (`0..n-1`).
+     */
+    extensions?: Record<string, unknown>;
 }
 /** Unit normals, float32; a zero or non-finite one becomes +Y. */
 export declare function unitNormals(normals: ArrayLike<number>): Float32Array;

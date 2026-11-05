@@ -4,6 +4,7 @@ import type { VehicleSpec, VehicleState } from './ground-vehicle.js';
 export declare class B3dCar extends B3dGroundVehicle {
     static preferredTagName: string;
     inputMapping: import("./virtual-gamepad.js").InputMapping;
+    inputLabels: Partial<Record<keyof import("./virtual-gamepad.js").VirtualGamepad, string>>;
     static initAttributes: {
         steerDeg: number;
         drive: "rear" | "front" | "all";

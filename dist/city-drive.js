@@ -11,8 +11,8 @@ the stars. Drive out of town and keep going.
 ```js
 import {
   b3d, b3dSun, b3dSkybox, b3dLight, b3dFog, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater,
-  b3dCity, b3dCar, b3dLibrary, inputFocus, cityGround, cityStart, slider3d, assetUrl,
-  effectiveTier, headsetDevice,
+  b3dCity, b3dCar, b3dLibrary, b3dBeacon, inputFocus, cityGround, cityStart, cityLayout,
+  slider3d, assetUrl, effectiveTier, headsetDevice,
 } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
@@ -29,6 +29,20 @@ const plan = light ? { width: 24, depth: 24, seed: 3 } : { width: 48, depth: 48,
 const level = 12
 const ground = cityGround({ ...plan, level })
 const start = cityStart(plan)
+
+// A NAMED PLACE: where the street you start on ends, straight ahead. Anything
+// named (a beacon, or a car with an id) is a place an agent can go to.
+const layout = cityLayout(plan)
+const along = start.ry === 0 ? [0, 1] : [1, 0]
+let cx = Math.floor(start.x / 12 + plan.width / 2)
+let cz = Math.floor(start.z / 12 + plan.depth / 2)
+for (let i = 0; i < 8; i++) {
+  const nx = cx + along[0], nz = cz + along[1]
+  if (!layout.road[nz * plan.width + nx]) break
+  cx = nx
+  cz = nz
+}
+const streetEnd = { x: (cx + 0.5 - plan.width / 2) * 12, z: (cz + 0.5 - plan.depth / 2) * 12 }
 
 const terrain = b3dTerrain({
   seed: 7,
@@ -86,8 +100,10 @@ preview.append(
     b3dWater({ y: 0, waterSize: 8000, follow: true, twoSided: true }),
     b3dLibrary({ url: assetUrl('kenney/libraries/car-kit.glb'), type: 'cars' }),
     b3dCity({ ...plan, y: level, traffic: light ? 12 : 32 }),
+    // Above the car's wall rays: a beacon's hull is pickable.
+    b3dBeacon({ name: 'end of the street', x: streetEnd.x, y: level + 4, z: streetEnd.z }),
     inputFocus(
-      b3dCar({ library: 'cars', meshName: 'sedan-sports', scale: 1.7, player: true, ...start, y: level + 0.5 })
+      b3dCar({ id: 'car', library: 'cars', meshName: 'sedan-sports', scale: 1.7, player: true, ...start, y: level + 0.5 })
     )
   )
 )
@@ -106,6 +122,9 @@ the car (it springs back behind) and up an arc toward overhead (it stays
 there). Time runs
 at 60×, so the sun goes down soon after you arrive. The owl's panel sets the
 hour, the speed and the cloud.
+
+The beacon at the end of your street is named, so it is a place: with the
+scene's [agent tools](/b3d-agent/) open, an agent can drive the car there.
 
 ## How it is put together
 

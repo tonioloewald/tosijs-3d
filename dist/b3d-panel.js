@@ -351,6 +351,12 @@ export class B3dPanel extends Component {
         if (next === this._svg)
             return;
         this._svg = next;
+        // A panel that rebuilds itself (a section folded) shows here in its place.
+        if (next != null)
+            next.handleReplace = (n) => {
+                if (this._svg === next)
+                    this.svg = n;
+            };
         this.dispatchEvent(new CustomEvent('panelcontent', { bubbles: true }));
     }
     _svg = null;

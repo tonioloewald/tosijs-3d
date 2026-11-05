@@ -11,7 +11,11 @@ function uvSphere(rings: number, cols: number) {
     const th = (Math.PI * r) / rings
     for (let c = 0; c <= cols; c++) {
       const ph = (2 * Math.PI * c) / cols
-      P.push(Math.sin(th) * Math.cos(ph), Math.cos(th), Math.sin(th) * Math.sin(ph))
+      P.push(
+        Math.sin(th) * Math.cos(ph),
+        Math.cos(th),
+        Math.sin(th) * Math.sin(ph)
+      )
     }
   }
   const at = (r: number, c: number) => r * (cols + 1) + c
@@ -39,7 +43,9 @@ describe('flatPiece', () => {
       const [a, b, c] = [0, 1, 2].map((k) => p.triangles[i + k] * 3)
       const P = p.positions
       // Counter-clockwise seen from +Z.
-      const z = (P[b] - P[a]) * (P[c + 1] - P[a + 1]) - (P[b + 1] - P[a + 1]) * (P[c] - P[a])
+      const z =
+        (P[b] - P[a]) * (P[c + 1] - P[a + 1]) -
+        (P[b + 1] - P[a + 1]) * (P[c] - P[a])
       expect(z).toBeGreaterThan(0)
       area += z / 2
     }
@@ -79,7 +85,8 @@ describe('drapeGarment', () => {
     // Below the ball, front and back meet (no gap of a ball's width).
     let widest = 0
     for (let v = 0; v < g.rows; v++)
-      if (drawn[v * 3 + 1] < -1.2) widest = Math.max(widest, Math.abs(drawn[v * 3 + 2]))
+      if (drawn[v * 3 + 1] < -1.2)
+        widest = Math.max(widest, Math.abs(drawn[v * 3 + 2]))
     expect(widest).toBeLessThan(0.5)
   })
 

@@ -87,7 +87,7 @@ garment's colourway and a material recipe over it.
 import * as BABYLON from '@babylonjs/core';
 import { loadHumanPack } from './human-pack.js';
 import { macroWeights, morphHuman, DEFAULT_HUMAN_BODY } from './human-morph.js';
-import { humanSkin, humanBodyMaker } from './human-rig.js';
+import { humanBodyMaker, bodyDetailProxy } from './human-rig.js';
 import { skinMaterial } from './character-builder.js';
 import { lipTint, stubbleMask as stubbleMask_, stubbleTint, } from './skin-paint.js';
 import { humanFace, bodyEyes, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, } from './human-face.js';
@@ -120,8 +120,19 @@ const hosted = (path, pick) => ({
     },
     ...(pick != null ? { pick } : {}),
 });
+/**
+ * Tonio's AI-generated characters (CC0, `tonio/ai` on the asset CDN): one
+ * mesh each, unrigged, rigged from markers guessed off their outline.
+ */
+export const AI_CHARACTER_SOURCES = {
+    'african-american-female': hosted('tonio/ai/african-american-female-10k.glb'),
+    'african-american-female-spacesuit': hosted('tonio/ai/african-american-female-spacesuit-10k.glb'),
+    'eurasian-male': hosted('tonio/ai/eurasian-male-10k.glb'),
+    'eurasian-male-spacesuit': hosted('tonio/ai/eurasian-male-spacesuit-10k.glb'),
+};
 /** The bodies a character can have besides MakeHuman's. */
 export const CHARACTER_SOURCES = {
+    ...AI_CHARACTER_SOURCES,
     'Blender: female, realistic': hosted('blender/human-base-meshes/body-female-realistic.glb'),
     'Blender: male, realistic': hosted('blender/human-base-meshes/body-male-realistic.glb'),
     'Quaternius: superhero, male': hosted('quaternius/libraries/characters-superhero-male.glb', 'Superhero_Male_FullBody'),
@@ -296,7 +307,7 @@ export async function makeCharacter(scene, assets, options = {}) {
             slot,
             material: {
                 ...fileLook(material),
-                ...(meta?.cut?.skirt ? { twoSided: true } : {}),
+                ...(meta?.cut?.skirt || meta?.cut?.drape ? { twoSided: true } : {}),
             },
         };
     };
@@ -351,7 +362,6 @@ export async function makeCharacter(scene, assets, options = {}) {
     status('binding the skin…');
     // Let a message paint before the binding takes the thread.
     await new Promise((r) => setTimeout(r, 50));
-    const skin = humanSkin(pack);
     const [lips, nipples, eyePart, lashPart] = await Promise.all([
         pack.region('lips'),
         pack.region('nipples'),
@@ -365,24 +375,43 @@ export async function makeCharacter(scene, assets, options = {}) {
         lashes: lashMaterial(scene),
     };
     const sliders = () => Object.fromEntries(Object.keys(DEFAULT_HUMAN_BODY).map((k) => [k, Number(s[k])]));
-    const maker = await humanBodyMaker(pack, sliders());
-    const first = maker.first.full;
-    // How thin the body is at each vertex (ears, nose, fingers), for the
-    // skin's back-light: once, like the weights.
-    const firstSkin = skin.positions(first);
-    const thin = skinThinness(firstSkin, vertexNormals(firstSkin, skin.triangles));
-    // Weights for every pack vertex, so clothes bound to helper vertices (the
-    // tights and skirt shells, which carry no skin) bend too.
-    const known = new Int32Array(pack.manifest.vertexCount).fill(-1);
-    skin.vertices.forEach((v, i) => {
-        known[v] = i;
-    });
-    const allWeights = nearestWeights(first, known, maker.weights);
-    let current = first;
+    /*
+    BODY DETAIL: the skin drawn is MakeHuman's base mesh or a lighter proxy
+    over it (human-rig's `bodyDetailProxy`, picked by the detail and which way
+    the gender leans). A new skin is bound again; the rest follows from it.
+    */
+    let maker = null;
+    let skin = null;
+    let thin = new Float32Array(0);
+    let allWeights = null;
+    let detailOf;
+    const detailed = async () => {
+        const want = bodyDetailProxy(s.bodyDetail ?? 'full', Number(s.gender));
+        if (maker != null && want === detailOf)
+            return;
+        const proxy = want != null ? await pack.proxy(want) : null;
+        maker = await humanBodyMaker(pack, sliders(), { proxy });
+        detailOf = want;
+        skin = maker.skin;
+        const first = maker.first.full;
+        // How thin the body is at each vertex (ears, nose, fingers), for the
+        // skin's back-light: once per skin, like the weights.
+        const firstSkin = skin.positions(first);
+        thin = skinThinness(firstSkin, vertexNormals(firstSkin, skin.triangles));
+        // Weights for every pack vertex, so clothes bound to helper vertices (the
+        // tights and skirt shells, which carry no skin) bend too.
+        const known = new Int32Array(pack.manifest.vertexCount).fill(-1);
+        skin.vertices.forEach((v, i) => {
+            known[v] = i;
+        });
+        allWeights = nearestWeights(first, known, maker.weights);
+    };
+    await detailed();
+    let current = maker.first.full;
     // What clothes are fitted over: the body with its nipples smoothed,
     // because cloth bridges them (the skin keeps them).
     const smoothed = (p) => nipples ? smoothUnder(p, pack.triangles, nipples) : p;
-    let clothBody = smoothed(first);
+    let clothBody = smoothed(current);
     let human = null;
     let built = null;
     let face = null;
@@ -576,7 +605,7 @@ export async function makeCharacter(scene, assets, options = {}) {
             .map((p) => [p.name, drawnPositions(p, fitProxy(p, clothBody))]));
         coverBody(built, skin.triangles, skin.vertices, wearing, { drawn });
         // Everything that moves with the face, after the tuck (its rest).
-        expressions.attach(built.mesh, (d) => skin.positions(d));
+        expressions.attach(built.mesh, (d) => skin.deltas(d));
         for (const m of face?.meshes ?? []) {
             const pv = m.metadata?.packVertices;
             // The eyeballs turn; they never deform.
@@ -601,6 +630,8 @@ export async function makeCharacter(scene, assets, options = {}) {
         placeRoot();
     };
     const root = new BABYLON.TransformNode('character', scene);
+    if (options.hidden)
+        root.setEnabled(false);
     // Raised so the soles are on y = 0 (a clip may carry them lower: groundFor).
     const body = new BABYLON.TransformNode('character-body', scene);
     body.parent = root;
@@ -613,6 +644,7 @@ export async function makeCharacter(scene, assets, options = {}) {
             -(clipLow ?? shownNow.rig.at('root').y) + (shownNow === built ? sole : 0);
     };
     const rebuild = async () => {
+        await detailed();
         const made = await maker.body(sliders());
         if (disposed)
             return;
@@ -935,7 +967,7 @@ export async function makeCharacter(scene, assets, options = {}) {
         if (has('hairBase') || has('hairHighlight'))
             recolour();
         queue(async () => {
-            if (changed.some((k) => BODY.has(k)))
+            if (changed.some((k) => BODY.has(k)) || has('bodyDetail'))
                 await rebuild();
             if (has('rigs'))
                 await rebind();
@@ -1071,7 +1103,15 @@ export async function makeCharacter(scene, assets, options = {}) {
             queue(dressShown);
         },
         groundFor(clip) {
-            clipLow = clip && shownNow ? measureClip(clip) : null;
+            /*
+            Only a height that was measured. A body swapped mid-change (a rig
+            handed back by the rig tool) can be measured after its mesh was
+            disposed: no vertices, an infinite lowest point, and the body sent to
+            -Infinity, after which every skeleton read under it was NaN and the
+            character vanished.
+            */
+            const low = clip && shownNow ? measureClip(clip) : null;
+            clipLow = low != null && Number.isFinite(low) ? low : null;
             placeRoot();
             return body.position.y;
         },
@@ -1100,6 +1140,8 @@ export async function makeCharacter(scene, assets, options = {}) {
     function measureClip(group) {
         const r = shownNow;
         const mesh = r.mesh;
+        if (mesh == null || mesh.isDisposed())
+            return null;
         const nodes = r.root.getChildTransformNodes(false);
         // The soles only: a tail on a spring hangs anywhere while sampled.
         r.soles ??= soleVertices(r === built ? human : r.body);

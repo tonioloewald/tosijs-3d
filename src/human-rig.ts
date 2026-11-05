@@ -584,7 +584,8 @@ export function clavicleOffChest(
     }
     if (moved === 0) continue
     let slot = -1
-    for (let i = 0; i < 4; i++) if (weights.indices[v * 4 + i] === chest) slot = i
+    for (let i = 0; i < 4; i++)
+      if (weights.indices[v * 4 + i] === chest) slot = i
     if (slot < 0) {
       slot = 0
       for (let i = 1; i < 4; i++)

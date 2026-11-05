@@ -411,6 +411,19 @@ export function iconGrid3d(config) {
     };
     return {
         el,
+        semantics: () => ({
+            role: 'toolbar',
+            name: '',
+            children: items.map((item, i) => ({
+                semantics: () => ({
+                    role: mode === 'buttons' || item.menu ? 'button' : 'toggle',
+                    name: item.label ?? item.title ?? '',
+                    ...(mode !== 'buttons' && !item.menu ? { value: isOn(i) } : {}),
+                    ...(resolveDynamic(item.disabled, false) ? { disabled: true } : {}),
+                    activate: () => activate(i),
+                }),
+            })),
+        }),
         setHost(h) {
             host = h;
         },

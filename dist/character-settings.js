@@ -14,7 +14,7 @@ import { assetUrl } from './asset-url.js';
 /** MakeHuman's hm08 body pack, under the asset base. */
 export const HM08_PACK_PATH = 'makehuman/hm08/hm08.json';
 /** Its version: bumped whenever the pack is rebaked, so caches let go. */
-export const HM08_PACK_VERSION = 17;
+export const HM08_PACK_VERSION = 18;
 /** The pack's URL, resolved against the asset base when asked (set it first). */
 export function hm08PackUrl() {
     return assetUrl(HM08_PACK_PATH, HM08_PACK_VERSION);
@@ -88,6 +88,21 @@ export const DEFAULT_CHARACTER = {
     hideClothes: false,
     rigs: {},
     surfaces: {},
+    /** The item in the right hand (a weapon library's name), or `none`. */
+    held: 'none',
+    /**
+     * Each item's grip, by name: where its grip point goes, `{ x, y, z }`
+     * metres from the hand's socket, turned `{ rx, ry, rz }` degrees, and
+     * `scale`. A launcher with `socket: 'right-hand'` (its grip `auto`) takes
+     * the same numbers.
+     */
+    grips: {},
     source: 'MakeHuman',
+    /**
+     * How much of MakeHuman's body is drawn: a lighter skin bound over it
+     * (`low` 741 vertices, `medium` about 1,600, `high` about 13,800) or the
+     * base mesh itself (`full`). See human-rig's `bodyDetailProxy`.
+     */
+    bodyDetail: 'medium',
 };
 //# sourceMappingURL=character-settings.js.map

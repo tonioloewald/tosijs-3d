@@ -106,8 +106,7 @@ function earClip(poly: ViewPoint[]): number[] {
     }
     if (!clipped) break
   }
-  if (idx.length === 3)
-    out.push(...(ccw ? idx : [idx[2], idx[1], idx[0]]))
+  if (idx.length === 3) out.push(...(ccw ? idx : [idx[2], idx[1], idx[0]]))
   return out
 }
 
@@ -124,7 +123,10 @@ function resample(poly: ViewPoint[], edge: number): ViewPoint[] {
   for (let i = 0; i < p.length; i++) {
     const a = p[i]
     const b = p[(i + 1) % p.length]
-    const k = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / edge))
+    const k = Math.max(
+      1,
+      Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / edge)
+    )
     for (let j = 0; j < k; j++)
       out.push([a[0] + ((b[0] - a[0]) * j) / k, a[1] + ((b[1] - a[1]) * j) / k])
   }
@@ -491,7 +493,8 @@ export function drapeGarment(
       X[v * 3 + 1] = X[t * 3 + 1] + dy * k
       X[v * 3 + 2] = X[t * 3 + 2] + dz * k
     }
-    if (step % 2 === 1) for (let v = 0; v < nv; v++) if (!pinned[v]) pushOut(X, v)
+    if (step % 2 === 1)
+      for (let v = 0; v < nv; v++) if (!pinned[v]) pushOut(X, v)
   }
 
   // FINISH: lengths only, no gravity, so what hangs is not also stretched.
@@ -515,7 +518,8 @@ export function drapeGarment(
       X[b * 3 + 1] -= wb * s * dy
       X[b * 3 + 2] -= wb * s * dz
     }
-    if (it % 10 === 9) for (let v = 0; v < nv; v++) if (!pinned[v]) pushOut(X, v)
+    if (it % 10 === 9)
+      for (let v = 0; v < nv; v++) if (!pinned[v]) pushOut(X, v)
   }
 
   let stretch = 1

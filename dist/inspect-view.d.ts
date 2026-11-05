@@ -7,6 +7,21 @@ export interface InspectView {
     /** The view held, or `free` to orbit with a perspective camera. */
     face: InspectFace | 'free';
     readonly camera: BABYLON.ArcRotateCamera;
+    /**
+     * A point the camera keeps its target on, read every frame (a hand bone,
+     * to watch a grip through a clip), or null to leave the target alone.
+     */
+    follow: (() => {
+        x: number;
+        y: number;
+        z: number;
+    } | null) | null;
+    /**
+     * Hear every change of face as well as `handleChange` (a tool mounted on a
+     * host's view: the rig tool in the character builder). Returns the
+     * function that stops it.
+     */
+    watch(listener: (face: InspectFace | 'free') => void): () => void;
     /** Back to a free perspective camera, and stop. */
     dispose(): void;
 }
@@ -15,6 +30,12 @@ export interface InspectViewOptions {
     face?: InspectFace | 'free';
     /** Called whenever the face changes (so a menu can follow). */
     handleChange?: (face: InspectFace | 'free') => void;
+    /** A point to keep the camera's target on (see `InspectView.follow`). */
+    follow?: (() => {
+        x: number;
+        y: number;
+        z: number;
+    } | null) | null;
 }
 export declare function inspectView(camera: BABYLON.ArcRotateCamera, options?: InspectViewOptions): InspectView;
 /**

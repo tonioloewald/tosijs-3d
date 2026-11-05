@@ -155,6 +155,26 @@ export function footprint3d(config = {}) {
         });
     };
     const api = {
+        // Its corners (`x` the angle 0..1 round, `y` the extent), or a preset by name.
+        semantics: () => ({
+            role: 'editor',
+            name: config.label ?? '',
+            value: api.vertices,
+            options: presetsFor('radial').map((p) => p.name),
+            set: (v) => {
+                if (typeof v === 'string')
+                    return api.applyPreset(v);
+                if (!Array.isArray(v))
+                    return;
+                const next = v.filter((p) => p != null && Number.isFinite(p.x) && Number.isFinite(p.y));
+                if (next.length < 3)
+                    return;
+                verts = polygonVertices(next);
+                selected = -1;
+                draw();
+                emit();
+            },
+        }),
         el,
         handleChange: config.handleChange,
         layout(width) {

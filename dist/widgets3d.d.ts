@@ -1,6 +1,7 @@
 import { type PopupSide } from './flow-layout.js';
 import { type PanelFit, type SliderScale } from './widgets3d-layout.js';
 import { handlerOf, resetHandlerWarnings } from './handler-of.js';
+import { type ControlNode, type WidgetSemantics } from './widget-semantics.js';
 /**
  * A pointer phase, routed by the panel in the widget's local SVG coords.
  * `hover`/`leave` give feedback without a press (e.g. a VR controller ray
@@ -103,6 +104,12 @@ export interface Widget3d {
      * it leaks whatever it was handed.
      */
     dispose?(): void;
+    /**
+     * What this control IS: its role, name, value, and how to set or press it
+     * through its own path (see [widget semantics](/widget-semantics/)). Read
+     * by agent tools, the screen-reader mirror and the panel name test.
+     */
+    semantics?(): WidgetSemantics;
 }
 /**
  * Mounts an unbounded layer over a panel. Installed by whatever owns the panel's
@@ -174,6 +181,8 @@ export declare function tabs3d(config: {
     /** Index of the active tab. */
     active?: number;
     handleSelect?: (index: number) => void;
+    /** The strip's name, for agents and screen readers. Default `tabs`. */
+    name?: string;
 }): Widget3d;
 /**
  * **Fold or tab a panel's sections** (board #2805, tosijs-3d#99). A
@@ -456,6 +465,11 @@ export interface PopupHandle {
 /** A pressable button. */
 export declare function button3d(config: {
     label: string;
+    /**
+     * Its name, when the label is a glyph (`⋯`, `+`): the tooltip, and what a
+     * screen reader and an agent call it. Default: the label.
+     */
+    title?: string;
     /** Fired on release, on the thing pressed. */
     handleClick?: () => void;
     /**
@@ -474,6 +488,11 @@ export declare function button3d(config: {
      * Like `menu`, instead of `handleClick`.
      */
     popup?: (popup: PopupHandle) => Widget3d[];
+    /**
+     * Present, greyed and inert: it neither lights nor presses. A predicate is
+     * asked every time (see `menu`), so it cannot go stale.
+     */
+    disabled?: Dynamic<boolean>;
 }): Widget3d;
 /**
  * A horizontal strip of icon toggle-buttons — a compact toolbar for a panel
@@ -648,6 +667,9 @@ export declare function select3d(config: {
 /** A vertical list of selectable rows (dialogue options, inventory, …). */
 export declare function list3d<T extends {
     label: string;
+    /** Its accessible name, when the label alone is not unique (a mesh
+     * named `Hull` in two places): `scout › Hull`. Not `/`, which separates a control path. Default: the label. */
+    title?: string;
     icon?: string;
     disabled?: Dynamic<boolean>;
 }>(config: {
@@ -866,8 +888,22 @@ export type Panel3d = SVGSVGElement & {
     useDomLayer: (container?: HTMLElement) => () => void;
     /** Dispose its rows: unsubscribes bound widgets (#100). */
     dispose: () => void;
+    /**
+     * Its controls as a tree of named controls: pinned rows, body rows, and
+     * any popup open from them, as a level named after its opener. See
+     * [widget semantics](/widget-semantics/).
+     */
+    controls: () => ControlNode[];
+    /**
+     * Set by whatever shows the panel (`<tosi-b3d-panel>`, a frame panel): the
+     * panel calls it with a rebuilt panel to show in its place (a section
+     * folded or opened). Unset, a panel in the page replaces itself there.
+     */
+    handleReplace?: (next: Panel3d) => void;
 };
-export declare function panel3d(config: {
+export declare function panel3d(config: PanelConfig, ...widgets: Widget3d[]): Panel3d;
+type PanelConfig = Parameters<typeof buildPanel3d>[0];
+declare function buildPanel3d(config: {
     width?: number;
     /**
      * Fixed height, or `'fit'` to size to the content (the default).

@@ -88,8 +88,7 @@ describe('visibility', () => {
   function box(x0: number, x1: number, pos: number[], idx: number[]) {
     const b = pos.length / 3
     for (const z of [-0.1, 0.1])
-      for (const y of [0, 1])
-        for (const x of [x0, x1]) pos.push(x, y, z)
+      for (const y of [0, 1]) for (const x of [x0, x1]) pos.push(x, y, z)
     // Corners: index = b + (z>0)*4 + (y>0)*2 + (x>x0). Faces wound outward.
     const q = (a: number, c: number, d: number, e: number) =>
       idx.push(b + a, b + c, b + d, b + a, b + d, b + e)
@@ -110,7 +109,10 @@ describe('visibility', () => {
   ]
   // The torso's corners on the arm's side: x = 0.2.
   const side = [1, 3, 5, 7]
-  const owner = (w: { indices: Float32Array; weights: Float32Array }, v: number) => {
+  const owner = (
+    w: { indices: Float32Array; weights: Float32Array },
+    v: number
+  ) => {
     let best = 0
     for (let k = 1; k < 4; k++)
       if (w.weights[v * 4 + k] > w.weights[v * 4 + best]) best = k

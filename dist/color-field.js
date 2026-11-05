@@ -236,6 +236,17 @@ export function color3d(config = {}) {
         }
     };
     const api = {
+        semantics: () => ({
+            role: 'colour',
+            name: config.label ?? '',
+            value: api.value,
+            set: (v) => {
+                if (parseColor(String(v)) == null)
+                    return;
+                api.setValue(String(v));
+                emit(true);
+            },
+        }),
         el,
         get value() {
             return formatColor(hsvToRgb(hsv));

@@ -41,6 +41,8 @@ Prints what each tool answered and throws if the car did not arrive.
   if (go.state !== 'arrived')
     throw new Error(`agent-check: ${JSON.stringify(result, null, 1)}`)
   if (!(after.time?.timeOfDay >= 21.9))
-    throw new Error(`agent-check: not night: ${JSON.stringify(result, null, 1)}`)
+    throw new Error(
+      `agent-check: not night: ${JSON.stringify(result, null, 1)}`
+    )
   return result
 })()

@@ -870,7 +870,14 @@ export function rebindCut(
     const p = onSurface(body[v * 3], body[v * 3 + 1], body[v * 3 + 2])
     if (p.ref.every((i, k) => covered[i] || p.weight[k] < 0.01)) del.push(v)
   }
-  return { ...cut, ref, weight, offset, scale: {}, delete: Uint32Array.from(del) }
+  return {
+    ...cut,
+    ref,
+    weight,
+    offset,
+    scale: {},
+    delete: Uint32Array.from(del),
+  }
 }
 
 /**
@@ -883,7 +890,9 @@ export function weldVertices(positions: ArrayLike<number>): Uint32Array {
   const seen = new Map<string, number>()
   const q = (x: number) => Math.round(x * 1e4)
   for (let v = 0; v < n; v++) {
-    const key = `${q(positions[v * 3])},${q(positions[v * 3 + 1])},${q(positions[v * 3 + 2])}`
+    const key = `${q(positions[v * 3])},${q(positions[v * 3 + 1])},${q(
+      positions[v * 3 + 2]
+    )}`
     const r = seen.get(key)
     if (r === undefined) {
       seen.set(key, v)

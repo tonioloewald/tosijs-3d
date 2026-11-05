@@ -389,7 +389,7 @@ levels down).
 import * as BABYLON from '@babylonjs/core';
 import { canonicalize, applyCenterOfGravity, unmirrorContainer, } from './model-transform.js';
 import { B3dControllable } from './b3d-controllable.js';
-import { aircraftMapping } from './virtual-gamepad.js';
+import { aircraftMapping, aircraftMappingDescriptor, } from './virtual-gamepad.js';
 import { equilibriumSpeed, flyByWireStep, targetVelocity, turbulence, chaseVelocity, } from './fly-by-wire.js';
 import { createShadowDecal } from './shadow-decal.js';
 import { placeOnSurface, boundingBottomOffset, hierarchyExtents, isOff, collidable, freshWorldMatrix, } from './b3d-utils.js';
@@ -439,6 +439,7 @@ let nextTurbulenceSeed = 1;
 export class B3dAircraft extends B3dControllable {
     static preferredTagName = 'tosi-b3d-aircraft';
     inputMapping = aircraftMapping();
+    inputLabels = aircraftMappingDescriptor().labels;
     static initAttributes = {
         ...B3dControllable.initAttributes,
         url: '',

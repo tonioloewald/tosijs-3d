@@ -41,6 +41,11 @@ export interface RigTriangles {
  */
 export declare function gatherTriangles(root: BABYLON.TransformNode, meshes: BABYLON.AbstractMesh[]): RigTriangles;
 /**
+ * Keep a file's materials (and their textures) in the scene when its
+ * container is disposed: the ones its surfaces use.
+ */
+export declare function keepMaterials(container: BABYLON.AssetContainer, scene: BABYLON.Scene, surfaces: BodySurface[] | undefined): void;
+/**
  * A material for a built body, chosen per surface: `pick` is given each of
  * the body's surfaces (or null when it has none) and returns its material.
  * Several surfaces make a MultiMaterial (dispose it without its children).

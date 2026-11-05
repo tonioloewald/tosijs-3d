@@ -1886,20 +1886,20 @@ export function mountRigTool(
     // shared rather than a second one made on the same camera.
     const hostView = options.inspect ?? null
     const onFace = (f: InspectFace | 'free') => {
-        // Unmounting lets go of the view: nothing more to play.
-        if (disposed) return
-        ui.view = f
-        if (f !== 'free') restFace = f
-        const pose = f === 'free' ? 'animate' : 'rest'
-        if (pose !== ui.pose) {
-          ui.pose = pose
-          // Moved markers or joints are bound before it moves.
-          if (pose === 'animate' && stale) void bindIfMoved().then(() => play())
-          else play()
-        } else frame()
-        menu?.update()
-        seams()
-        refresh()
+      // Unmounting lets go of the view: nothing more to play.
+      if (disposed) return
+      ui.view = f
+      if (f !== 'free') restFace = f
+      const pose = f === 'free' ? 'animate' : 'rest'
+      if (pose !== ui.pose) {
+        ui.pose = pose
+        // Moved markers or joints are bound before it moves.
+        if (pose === 'animate' && stale) void bindIfMoved().then(() => play())
+        else play()
+      } else frame()
+      menu?.update()
+      seams()
+      refresh()
     }
     const inspect = hostView ?? inspectView(cam, { handleChange: onFace })
     if (hostView) {

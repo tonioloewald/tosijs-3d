@@ -84,6 +84,13 @@ export declare class LightPool {
  * when it has no sky.
  */
 export declare function sceneDaylight(owner: Element | null | undefined): number;
+/**
+ * How fast the scene's sky runs against real time: its skybox's
+ * `realtimeScale`, never less than 1. Weather drifts and evolves at this rate,
+ * so a sky sped up to a time-lapse carries its clouds with it; a stopped sky
+ * (`realtimeScale` 0, the default) leaves the weather in real time.
+ */
+export declare function skyRate(owner: Element | null | undefined): number;
 /** A lamp's level for the daylight: off by day, up through dusk, full at night. */
 export declare function lampLevel(daylight: number): number;
 /**

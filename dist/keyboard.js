@@ -385,7 +385,7 @@ caret" are the same code path.
 import { svgElements } from 'tosijs';
 import { isTextEntry } from './text-entry.js';
 import { keyLayout, keyRects, keyAt, accentsFor, keyboardHeight, keyIntent, modeForType, isValidForType, commitValueForType, } from './key-layout.js';
-import { edit, insert as editInsert, backspace as editBackspace, moveCaret as editMoveCaret, moveTo, } from './text-edit.js';
+import { edit, insert as editInsert, backspace as editBackspace, moveCaret as editMoveCaret, moveTo, selectAll as editSelectAll, } from './text-edit.js';
 import { measureTextWidth } from './widgets3d-layout.js';
 import { nearestInDirection } from './flow-layout.js';
 import { iconGlyph } from './svg-icons.js';
@@ -753,6 +753,7 @@ export function inputField(config = {}) {
     const SWATCH = fieldType === 'color' ? 24 : 0;
     const TEXT_X = PAD + SWATCH;
     let state = edit(config.value ?? '');
+    let autofocused = false;
     /*
     The last value that could stand as an answer.
     
@@ -1148,6 +1149,15 @@ export function inputField(config = {}) {
         el,
         setHost(h) {
             host = h;
+            if (config.autofocus && !autofocused) {
+                autofocused = true;
+                // Once it is mounted, so the host it reports focus to is there.
+                queueMicrotask(() => {
+                    state = editSelectAll(state);
+                    api.setActive(true);
+                    paint();
+                });
+            }
         },
         get value() {
             return state.text;
@@ -1278,6 +1288,20 @@ export function inputField(config = {}) {
         isValid() {
             return isValidForType(state.text, fieldType);
         },
+        // Set as typing would: the new text, reported, then settled as Enter
+        // settles it (so a number field never keeps `1.`).
+        semantics: () => ({
+            role: fieldType === 'color' ? 'colour' : 'textbox',
+            name: config.name ?? '',
+            value: state.text,
+            ...(config.placeholder ? { placeholder: config.placeholder } : {}),
+            ...(config.min !== undefined ? { min: config.min } : {}),
+            ...(config.max !== undefined ? { max: config.max } : {}),
+            set: (v) => {
+                change(edit(String(v ?? '')));
+                commitField();
+            },
+        }),
         commit: commitField,
         setValue(v) {
             change(edit(v));
@@ -1669,6 +1693,8 @@ export function keyboard(config = {}) {
         }
     };
     const api = {
+        // Its keys type into a field; an agent sets the field instead.
+        semantics: () => ({ role: 'group', name: 'keyboard' }),
         el,
         get mode() {
             return mode;

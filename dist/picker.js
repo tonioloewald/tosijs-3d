@@ -320,6 +320,7 @@ export function picker3d(config) {
             items.push(inputField({
                 value: '',
                 placeholder: 'filter…',
+                autofocus: true,
                 handleChange: (v) => {
                     query = v;
                     apply();
@@ -346,6 +347,19 @@ export function picker3d(config) {
         change?.(value);
     };
     const api = {
+        semantics: () => ({
+            role: 'select',
+            name: config.label ?? '',
+            value: options.find((o) => o.value === value)?.label ?? value,
+            options: options.map((o) => o.label ?? o.value),
+            // By label or by value.
+            set: (v) => {
+                const o = options.find((o) => (o.label ?? o.value) === String(v)) ??
+                    options.find((o) => o.value === String(v));
+                if (o != null)
+                    pick(o.value);
+            },
+        }),
         el,
         get value() {
             return value;

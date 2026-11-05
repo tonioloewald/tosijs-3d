@@ -316,7 +316,7 @@ import { DEFAULT_AIM_LIMITS, aimDirection as aimToDirection, aimPoseWeights, bod
 import { xrControllers } from './gamepad.js';
 import { B3dControllable } from './b3d-controllable.js';
 import { CompositeInputProvider } from './control-input.js';
-import { bipedMapping } from './virtual-gamepad.js';
+import { bipedMapping, bipedMappingDescriptor, } from './virtual-gamepad.js';
 import { layerOnUpperBody } from './animation-layers.js';
 import { predictPath } from './ballistics.js';
 import { XRInputProvider } from './xr-input-provider.js';
@@ -939,6 +939,7 @@ export class B3dBiped extends B3dControllable {
      * the getter was for.
      */
     inputMapping = (pad, dt) => bipedMapping(pad, dt, this.gunplay);
+    inputLabels = bipedMappingDescriptor.labels;
     /**
      * Aiming right now.
      *
@@ -3343,6 +3344,18 @@ export class B3dBiped extends B3dControllable {
     clips, so everything after is the same.
     */
     async _loadCharacter(owner, scene) {
+        // The first showing of the scene waits for the character (it is what the
+        // page is about); later loads just keep it out of sight until it is ready.
+        const release = owner.holdLoading?.('character') ?? (() => { });
+        try {
+            await this._makeCharacter(owner, scene, release);
+        }
+        catch (e) {
+            release();
+            throw e;
+        }
+    }
+    async _makeCharacter(owner, scene, release) {
         const attrs = this;
         const [{ makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SOURCES, }, { readCharacter }, { readSkeleton, retargetClip }, { assetUrl },] = await Promise.all([
             import('./character.js'),
@@ -3386,10 +3399,14 @@ export class B3dBiped extends B3dControllable {
             cloth: c.cloth,
             garments: Object.values(c.garments),
             handleMeshes: (meshes) => owner.register({ meshes }),
+            // Made at the origin, so out of sight: shown once it stands where the
+            // biped is, in its first pose (below).
+            hidden: true,
         });
         await ch.ready();
         if (this.owner == null) {
             ch.dispose();
+            release();
             return;
         }
         // The clips the states name, from the library, retargeted and named as they were.
@@ -3430,6 +3447,17 @@ export class B3dBiped extends B3dControllable {
             },
         };
         this._modelReady(owner, scene);
+        // Two frames: the first places it and plays its first clip, the second
+        // draws that; then it appears, standing where it belongs.
+        let frames = 0;
+        const reveal = scene.onAfterRenderObservable.add(() => {
+            if (++frames < 2)
+                return;
+            scene.onAfterRenderObservable.remove(reveal);
+            if (this.figure === ch)
+                ch.root.setEnabled(true);
+            release();
+        });
     }
     _modelReady(owner, scene) {
         const attrs = this;

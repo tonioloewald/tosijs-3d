@@ -189,7 +189,9 @@ export function readCharacter(
   if (defaults.slots) {
     for (const [slot, fallback] of Object.entries(defaults.slots)) {
       const v = looks[slot]
-      cloth[slot] = wellFormed(v) ? { look: v.look, material: v.material } : fallback
+      cloth[slot] = wellFormed(v)
+        ? { look: v.look, material: v.material }
+        : fallback
     }
   } else {
     // No slots given (a page that only wears the character): every look the

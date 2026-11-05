@@ -605,18 +605,16 @@ function hipHeight(sk, world) {
 export function retargeter(source, target, options = {}) {
     // Rotations about +Z (forward): positive swings a hanging left arm (+X) out.
     const spread = ((options.armSpaceDeg ?? 0) * Math.PI) / 180;
+    const sRest = toWorld(source.bones);
+    const tRest = toWorld(target.bones);
+    // Each upper arm's side (+1 left) and its rest direction in the target.
     const armOut = new Map();
-    if (spread !== 0) {
+    if (spread !== 0)
         for (const [role, sign] of [
             ['l-upperArm', 1],
             ['r-upperArm', -1],
-        ]) {
-            const h = (sign * spread) / 2;
-            armOut.set(role, { x: 0, y: 0, z: Math.sin(h), w: Math.cos(h) });
-        }
-    }
-    const sRest = toWorld(source.bones);
-    const tRest = toWorld(target.bones);
+        ])
+            armOut.set(role, { sign, rest: restDirection(role, target, tRest) });
     const roles = ROLES.filter((r) => source.roles[r] != null && target.roles[r] != null);
     /*
     ALIGNMENT, per role: the rotation that turns the target's rest direction
@@ -743,8 +741,17 @@ export function retargeter(source, target, options = {}) {
                     world = quatMul(delta, quatMul(align.get(r), tRest.rotation.get(b.name)));
                 }
                 const out2 = r != null ? armOut.get(r) : undefined;
-                if (out2 != null)
-                    world = quatMul(out2, world);
+                if (out2 != null) {
+                    // How far down the clip has it: 1 hanging, 0 level or above.
+                    let droop = 1;
+                    if (out2.rest != null) {
+                        const turn = quatMul(world, quatConjugate(tRest.rotation.get(b.name)));
+                        droop = Math.min(1, Math.max(0, -rotateVector(turn, out2.rest).y));
+                    }
+                    const h = (out2.sign * spread * droop) / 2;
+                    if (h !== 0)
+                        world = quatMul({ x: 0, y: 0, z: Math.sin(h), w: Math.cos(h) }, world);
+                }
                 tWorld.set(b.name, world);
                 out.set(b.name, parentWorld != null
                     ? quatMul(quatConjugate(parentWorld), world)

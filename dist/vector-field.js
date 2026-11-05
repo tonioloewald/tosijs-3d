@@ -200,6 +200,21 @@ function coordinateRow(config, settle) {
         return null;
     };
     const api = {
+        // Each axis set as typed, so the change is reported as typing reports it.
+        semantics: () => ({
+            role: 'vector',
+            name: config.name ?? '',
+            value: { ...current },
+            set: (v) => {
+                if (v == null || typeof v !== 'object')
+                    return;
+                keys.forEach((key, i) => {
+                    const n = Number(v[key]);
+                    if (Number.isFinite(n))
+                        fields[i].setValue(String(n));
+                });
+            },
+        }),
         el,
         layout(width) {
             const letterW = Math.round(fontSize * 0.7);

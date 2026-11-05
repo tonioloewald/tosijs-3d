@@ -290,7 +290,11 @@ so the materials its surfaces use (and their textures) are taken out of it
 and into the scene first, with the loader's translucency rules applied
 (near-opaque snapped to opaque; translucent sorted with a depth pre-pass).
 */
-function keepMaterials(container, scene, surfaces) {
+/**
+ * Keep a file's materials (and their textures) in the scene when its
+ * container is disposed: the ones its surfaces use.
+ */
+export function keepMaterials(container, scene, surfaces) {
     const kept = new Set(surfaces
         ?.map((s) => babylonMaterial(s.material))
         .filter((m) => m != null));

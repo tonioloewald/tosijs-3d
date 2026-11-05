@@ -27,15 +27,23 @@ const tailor = mountTailorTool(scene, {
 - **the outline**: you draw the character's left, on your right, and the
   other side is its mirror. Click out points, click the first to close a
   shape, drag a point to move it, press an edge to add one;
+- **cloth mesh**: the cloth is cut from an even surface laid over the body
+  ([remesh](/remesh/)), **coarse**, **medium** (the default) or **fine**
+  (edges about 3, 2 or 1.2 cm), whatever the body's own triangles are; **as
+  the body** cuts the body's triangles themselves;
 - **thickness** (thicker cloth bridges more of the chest, where the body
-  says where its nipples are) and **skirt** (rings round the outline at each
-  height: skirts, kilts, robes; never the arms, which it cannot follow
-  without cloth simulation);
+  says where its nipples are);
+- **made by**: **cutting the skin** (the cloth follows the body),
+  **draping cloth** (a front and a back piece laid over the body, sewn where
+  the outline runs up and down past its edge and settled under gravity, so
+  it bridges hollows and hangs: dresses, tunics, robes; see
+  [cloth drape](/cloth-drape/)), or **rings** (round the outline at each
+  height: skirts, kilts);
 - **material**, **name** and **slot**.
 
 WHAT DONE HANDS BACK is the garment as a mesh at rest, on the body it was
 cut from (`garment`: positions, triangles, UVs unwrapped like a sewing
-pattern), with what it was cut from (`cut`: the outlines, thickness, skirt)
+pattern), with what it was cut from (`cut`: the outlines, thickness, how it was made)
 so it can be opened again, and the name, slot and material recipe. Binding it
 to a body to wear (`bindGarment`) is the host's: a garment file carries the
 same mesh.
@@ -45,9 +53,11 @@ moves the cut onto a body reshaped while the tool is open; `unmount` (or
 done, or cancel) removes everything it added.
 */
 /*{ "parent": "character-builder", "order": 30 }*/
-import { cutGarment, skirtGarment, mirrorOutline, } from './garment-cut.js';
+import { cutGarment, skirtGarment, rebindCut, mirrorOutline, } from './garment-cut.js';
 import { outlineField3d } from './outline-field.js';
 import { smoothUnder, fitProxy, drawnPositions } from './proxy-fit.js';
+import { remesh } from './remesh.js';
+import { drapeGarment } from './cloth-drape.js';
 import { humanProxy, proxyMaterial } from './human-proxy.js';
 import { clothShading, clothRecipe } from './cloth-shading.js';
 import { unwrapGarment } from './garment-file.js';
@@ -55,6 +65,12 @@ import { materialPicker3d } from './material-picker.js';
 import { inputField } from './keyboard.js';
 import { b3dPanel } from './b3d-panel.js';
 import { button3d, label3d, panel3d, row3d, select3d, slider3d, toggle3d, } from './widgets3d.js';
+/** The edge length each density aims for, metres. */
+export const TAILOR_MESH_EDGE = {
+    coarse: 0.03,
+    medium: 0.02,
+    fine: 0.012,
+};
 /** Cloth over the body: the cut is fitted a little out from the skin. */
 const EASE = 6;
 /**
@@ -69,6 +85,8 @@ export function mountTailorTool(owner, options) {
         shapes: options.cut?.shapes ?? [],
         thickness: options.cut?.thickness ?? 0.005,
         skirt: options.cut?.skirt ?? false,
+        drape: options.cut?.drape ?? false,
+        mesh: options.cut?.mesh ?? 'medium',
     };
     let look = options.look ??
         clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 });
@@ -138,6 +156,19 @@ export function mountTailorTool(owner, options) {
     };
     readBody();
     /*
+    THE DUMMY: an even surface over the body to cut cloth from, made once per
+    density (half a second or so) and again when the body changes.
+    */
+    let dummies = new Map();
+    const dummy = (mesh) => {
+        let d = dummies.get(mesh);
+        if (!d) {
+            d = remesh(fitOn, cutFrom, { edge: TAILOR_MESH_EDGE[mesh] });
+            dummies.set(mesh, d);
+        }
+        return d;
+    };
+    /*
     THE PREVIEW: the cut bound to the body like any garment and drawn on the
     body shown, in its material.
     */
@@ -148,7 +179,7 @@ export function mountTailorTool(owner, options) {
         name: 'tailored',
         category: 'clothes',
         slot,
-        material: { alpha: false, twoSided: cut.skirt },
+        material: { alpha: false, twoSided: cut.skirt || cut.drape === true },
     });
     let material = null;
     let shading = null;
@@ -168,26 +199,50 @@ export function mountTailorTool(owner, options) {
                         bridge: cut.thickness / 0.02,
                     })
                     : fitOn;
-                made = cut.skirt
-                    ? skirtGarment(fitOn, cutFrom, {
+                const density = cut.mesh ?? 'medium';
+                if (cut.skirt) {
+                    made = skirtGarment(fitOn, cutFrom, {
                         front: outline,
                         thickness: cut.thickness,
                         anchor: notArm,
-                    })
-                    : cutGarment(cutOn, cutFrom, {
+                    });
+                }
+                else if (cut.drape) {
+                    // Draped over the even surface (as the body: medium).
+                    const d = dummy(density === 'body' ? 'medium' : density);
+                    made = drapeGarment(d, fitOn, {
+                        front: outline,
+                        thickness: cut.thickness,
+                        edge: TAILOR_MESH_EDGE[density === 'body' ? 'medium' : density],
+                    });
+                }
+                else if (density === 'body') {
+                    made = cutGarment(cutOn, cutFrom, {
                         front: outline,
                         thickness: cut.thickness,
                         ease: EASE,
                         fitOn,
                     });
+                }
+                else {
+                    // Cut from the even surface, then bound to the body itself.
+                    const d = dummy(density);
+                    made = rebindCut(cutGarment(d.positions, d.triangles, {
+                        front: outline,
+                        thickness: cut.thickness,
+                        ease: EASE,
+                    }), d, fitOn);
+                }
                 const proxy = shell(made);
                 if (material == null) {
                     material = proxyMaterial(scene, proxy);
                     shading = clothShading(material);
                     shading.set({ recipe: look });
                 }
-                material.backFaceCulling = !cut.skirt;
-                material.twoSidedLighting = cut.skirt;
+                // Skirts and draped cloth are open: their inside shows.
+                const open = cut.skirt || cut.drape === true;
+                material.backFaceCulling = !open;
+                material.twoSidedLighting = open;
                 mesh = humanProxy(scene, built, proxy, fitOn, body.weights, material);
                 owner.register?.({ meshes: [mesh] });
                 status = '';
@@ -240,11 +295,32 @@ export function mountTailorTool(owner, options) {
                 changed();
             },
         }),
-        toggle3d({
-            label: 'skirt',
-            value: cut.skirt,
+        select3d({
+            label: 'cloth mesh',
+            value: cut.mesh ?? 'medium',
+            options: [
+                'coarse',
+                'medium',
+                'fine',
+                { label: 'as the body', value: 'body' },
+            ],
             handleChange: (v) => {
-                cut.skirt = v;
+                cut.mesh = v;
+                recut();
+                changed();
+            },
+        }),
+        select3d({
+            label: 'made by',
+            value: cut.skirt ? 'skirt' : cut.drape ? 'drape' : 'cut',
+            options: [
+                { label: 'cutting the skin', value: 'cut' },
+                { label: 'draping cloth', value: 'drape' },
+                { label: 'rings (skirt)', value: 'skirt' },
+            ],
+            handleChange: (v) => {
+                cut.skirt = v === 'skirt';
+                cut.drape = v === 'drape';
                 recut();
                 changed();
             },
@@ -345,6 +421,7 @@ export function mountTailorTool(owner, options) {
             body = b;
             built = k;
             readBody();
+            dummies = new Map();
             recut();
             // The outline is drawn over this body now.
             refresh();

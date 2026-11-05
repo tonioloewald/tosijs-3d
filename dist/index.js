@@ -253,6 +253,15 @@ export { footprint3d } from './footprint-field.js';
 // A coordinate on ONE row — the density win for inspector panels. Its own
 // module so it tree-shakes, and top-level like the other `*3d` widgets.
 export { vector3d, euler3d, wrapDegrees } from './vector-field.js';
+// What a control IS (role, name, value, set): read by agent tools, the
+// screen-reader mirror and the panel name test.
+export { controlTree, findControl, nameProblems, plainControls, walkControls, } from './widget-semantics.js';
+// The 3D view in words, for a screen reader (built on demand).
+export { describeScene } from './scene-description.js';
+// A panel as real HTML controls, for a screen reader.
+export { ariaMirror } from './aria-mirror.js';
+// Scenes as agent tools (WebMCP and window.b3dAgent), closed by default.
+export { enableSceneAgents, callSceneTool, sceneAgentTools, panelTools, } from './b3d-agent.js';
 export { panelFitWidth, panelFit, panelHeight, rowColumns, alignOffset, stackLayout, clampScroll, wrapText, wrapByMeasure, cssFont, textMeasurer, measureTextWrap, measureTextWidth, valueToFraction, fractionToValue, } from './widgets3d-layout.js';
 // SVG material system
 export { SvgTexture, svgTextureCost } from './svg-texture.js';
@@ -440,7 +449,7 @@ export { B3dProp, b3dProp } from './b3d-prop.js';
 export { loadLibraryMesh } from './library-mesh.js';
 export { DestroyableBehavior } from './destroyable-behavior.js';
 export { B3dWarhead, b3dWarhead, detonateWarhead, explosionFx, } from './b3d-warhead.js';
-export { B3dLauncher, b3dLauncher, spawnProjectile, spawnMissile, } from './b3d-launcher.js';
+export { B3dLauncher, b3dLauncher, spawnProjectile, spawnMissile, handSocket, deriveGrip, heldGrip, } from './b3d-launcher.js';
 export { createMakers } from './make-mesh.js';
 export { roundedRectGeometry, signedArea } from './rounded-rect.js';
 export { openPopup } from './popup-surface.js';
@@ -483,7 +492,9 @@ export { loadSkinnedBody, soleVertices, lowestOf, surfaceMaterial, } from './rig
 export { loadHumanPack, decodeHumanTarget } from './human-pack.js';
 export { fitProxy, drawnPositions, proxyWeights, nearestWeights, coveredTriangles, underCover, inflate, proxyDelta, coveredBy, smoothUnder, } from './proxy-fit.js';
 export { humanProxy, proxyMaterial, coverBody } from './human-proxy.js';
-export { cutGarment, mirrorOutline, skirtGarment } from './garment-cut.js';
+export { cutGarment, mirrorOutline, skirtGarment, rebindCut, weldVertices, } from './garment-cut.js';
+export { remesh, surfaceProjector, closestBarycentric } from './remesh.js';
+export { drapeGarment, flatPiece } from './cloth-drape.js';
 export { outlineField3d } from './outline-field.js';
 export { bindGarment, closestOnTriangle } from './garment-bind.js';
 export { writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, referenceName, metaFromName, unwrapGarment, } from './garment-file.js';
@@ -505,11 +516,11 @@ export { hairShading, HairShadingPlugin, HAIR_COLOURS } from './hair-shading.js'
 export { fitToScalp, applyFit, conformOutside, vertexNormals, headRegion, shellWarp, applyWarp, skinGaps, keepHeight, headRegionIndices, } from './hair-fit.js';
 export { humanFace, bodyEyes, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, HM08_EYE_UV, } from './human-face.js';
 export { EYE_STYLES, EYE_VERSION, ONE_EYE_LAYOUT, eyePngUrl, eyeSvgUrl, eyeStyle, eyeAsset, recolourIris, recolourEyePng, gltfEyeUvs, } from './eye-art.js';
-export { humanRig, humanSkin, stiffenHead, armsOffTorso, humanBodyMaker, HM08_UAL, } from './human-rig.js';
+export { humanRig, humanSkin, stiffenHead, armsOffTorso, humanBodyMaker, bodyDetailProxy, BODY_DETAILS, HM08_UAL, } from './human-rig.js';
 export { springChain, stepSpringChain, resetSpringChain, shiftSpringChain, SPRING_DEFAULTS, } from './spring-chain.js';
 export { springBones, springNodes } from './spring-chain-babylon.js';
 export { realNow, wallMs, wallDate } from './clock.js';
-export { makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, } from './character.js';
+export { makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, } from './character.js';
 export { hm08PackUrl, HM08_PACK_PATH, HM08_PACK_VERSION, } from './character-settings.js';
 export { coverSkin, BODY_WRAPPING_SLOTS } from './proxy-cover.js';
 //# sourceMappingURL=index.js.map

@@ -1,4 +1,21 @@
 import * as BABYLON from '@babylonjs/core';
+/**
+ * Where a held model's GRIP is, in its own frame: the middle of its lowest
+ * third (a pistol's handle hangs below its slide). What a launcher with
+ * `grip: 'auto'` puts on its socket instead of the model's origin, and what
+ * the character builder's held items use, so one set of numbers means the
+ * same in both. A `_grip` node in the model, when it has one, wins (see
+ * `heldGrip`).
+ */
+export declare function deriveGrip(root: BABYLON.TransformNode): BABYLON.Vector3 | null;
+/** A held model's grip: its `_grip` node's place if it has one, else `deriveGrip`. */
+export declare function heldGrip(root: BABYLON.TransformNode): BABYLON.Vector3 | null;
+/**
+ * A hand's SOCKET: a node under the hand bone in a frame normalised to the
+ * hand's anatomy (UAL's calibration), so one grip fits any rig's hand. Made
+ * once per hand and reused. Null when the rig's hand cannot be read.
+ */
+export declare function handSocket(skeleton: BABYLON.Skeleton, hand: string, side: 'r' | 'l', handNode: BABYLON.TransformNode): BABYLON.TransformNode | null;
 import { AbstractMesh } from './b3d-utils.js';
 import type { B3d, RadarFaction } from './tosi-b3d.js';
 import { type BallisticParams, type Vec3 } from './ballistics.js';
@@ -388,6 +405,11 @@ export declare class B3dLauncher extends AbstractMesh {
      * rather than a failure.
      */
     private _socketNode;
+    /**
+     * The current hand's socket frame relative to the hand's anatomy (the
+     * calibration `HAND_IN_ANATOMY` holds for UAL's rig), for re-measuring it.
+     */
+    get socketCalibration(): number[] | null;
     /**
      * Riding a BONE rather than the holder's root.
      *

@@ -11,18 +11,18 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 
 // Everything the panel sets, as it starts: what a saved character is read against.
-const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, source: 'MakeHuman', characterName: '', characterPick: '' }
+const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorDrape: false, tailorMesh: 'medium', tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, held: 'none', grips: {}, source: 'MakeHuman', bodyDetail: 'medium', characterName: '' }
 const { walker } = tosi({ walker: structuredClone(START) })
 // What a character file keeps: not the editor's view of one slot (that is in
 // cloth), the microphone (it would ask on load), or the save controls.
-const KEPT = Object.keys(START).filter((k) => !['editing', 'look', 'clothLook', 'mic', 'characterName', 'characterPick'].includes(k))
+const KEPT = Object.keys(START).filter((k) => !['editing', 'look', 'clothLook', 'mic', 'characterName'].includes(k))
 // Saving and loading characters, wired when the page is up.
-const character = { save: () => {}, rename: () => {}, load: () => {}, forget: () => {}, exportJson: () => {}, importJson: () => {}, changed: () => {}, saved: [], note: '' }
+const character = { save: () => {}, rename: () => {}, load: () => {}, remove: () => {}, exportJson: () => {}, play: () => {}, importJson: () => {}, changed: () => {}, saved: [], note: '' }
 // A name asked for in a popup (works in a headset too): refused with its
 // reason, and a confirm before it replaces ANOTHER saved character.
 const namePopup = (pop, { prompt, initial, current, verb, act }) => {
@@ -42,34 +42,59 @@ const namePopup = (pop, { prompt, initial, current, verb, act }) => {
   }
   const form = (message) => [
     text3d({ text: message }),
-    ui.inputField({ value: typed, placeholder: 'name', handleChange: (v) => { typed = v }, handleEnter: (v) => { typed = v; go() } }),
+    ui.inputField({ value: typed, placeholder: 'name', autofocus: true, handleChange: (v) => { typed = v }, handleEnter: (v) => { typed = v; go() } }),
     button3d({ label: verb, handleClick: go }),
     button3d({ label: 'cancel', handleClick: () => pop.close() }),
   ]
   return form(prompt)
 }
-const characterRows = () => [
-  label3d({ text: 'Character', collapsible: true }),
-  ...(walker.characterName.value ? [text3d({ text: walker.characterName.value })] : []),
-  button3d({
-    label: 'save…',
-    popup: (pop) => namePopup(pop, { prompt: 'save as', initial: walker.characterName.value, current: walker.characterName.value, verb: 'save', act: (name) => character.save(name) }),
-  }),
-  ...(character.saved.length
-    ? [
-        select3d({ label: 'saved', value: walker.characterPick, options: character.saved }),
-        button3d({ label: 'load', handleClick: () => character.load() }),
-        button3d({
-          label: 'rename…',
-          popup: (pop) => namePopup(pop, { prompt: `rename ${walker.characterPick.value} to`, initial: walker.characterPick.value, current: walker.characterPick.value, verb: 'rename', act: (name) => character.rename(walker.characterPick.value, name) }),
-        }),
-        button3d({ label: 'forget', handleClick: () => character.forget() }),
-      ]
-    : []),
-  button3d({ label: 'export JSON', handleClick: () => character.exportJson() }),
-  button3d({ label: 'import JSON…', handleClick: () => character.importJson() }),
-  ...(character.note ? [text3d({ text: character.note })] : []),
-]
+const characterRows = () => {
+  // The character on screen: picking a saved one loads it.
+  const current = walker.characterName.value
+  const unsaved = () => !walker.characterName.value
+  return [
+    label3d({ text: 'Character', collapsible: true }),
+    select3d({
+      label: 'character',
+      value: current,
+      options: [...(current ? [] : [{ label: '(not saved)', value: '' }]), ...character.saved],
+      handleChange: (v) => {
+        if (v && v !== walker.characterName.value) character.load(v)
+      },
+    }),
+    button3d({
+      label: 'save…',
+      popup: (pop) => namePopup(pop, { prompt: 'save as', initial: current, current, verb: 'save', act: (name) => character.save(name) }),
+    }),
+    button3d({
+      label: 'revert…',
+      disabled: unsaved,
+      popup: (pop) => [
+        text3d({ text: `Go back to ${current} as last saved? Changes since are lost.` }),
+        button3d({ label: 'revert', handleClick: () => { pop.close(); character.load(current) } }),
+        button3d({ label: 'cancel', handleClick: () => pop.close() }),
+      ],
+    }),
+    button3d({
+      label: 'rename…',
+      disabled: unsaved,
+      popup: (pop) => namePopup(pop, { prompt: `rename ${current} to`, initial: current, current, verb: 'rename', act: (name) => character.rename(current, name) }),
+    }),
+    button3d({
+      label: 'delete…',
+      disabled: unsaved,
+      popup: (pop) => [
+        text3d({ text: `Delete ${current}? The figure stays on screen, not saved.` }),
+        button3d({ label: 'delete', handleClick: () => { pop.close(); character.remove(current) } }),
+        button3d({ label: 'cancel', handleClick: () => pop.close() }),
+      ],
+    }),
+    button3d({ label: 'play in Biped Playground', handleClick: () => character.play() }),
+    button3d({ label: 'export JSON', handleClick: () => character.exportJson() }),
+    button3d({ label: 'import JSON…', handleClick: () => character.importJson() }),
+    ...(character.note ? [text3d({ text: character.note })] : []),
+  ]
+}
 // The character (character.ts): what the panel sets, made in the scene.
 let ch = null
 // The pack's proxies, once it has loaded (the panel lists an outfit's looks).
@@ -77,7 +102,14 @@ let packProxies = {}
 // What can be worn, one of each at a time; the pack says which slot each garment fills.
 // A bodysuit is a base layer and armour goes over anything; an outfit replaces a top and bottom.
 const SLOTS = CHARACTER_SLOTS
-const clips = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Dance_Loop', 'Crouch_Fwd_Loop']
+// The everyday clips first; the rest of the library (shoot, sword, interact…)
+// follows once it has loaded.
+const EVERYDAY = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Dance_Loop', 'Crouch_Fwd_Loop']
+let clips = [...EVERYDAY]
+// Clips from a file (a Mixamo or Meshy character's): name → the clip and the
+// skeleton it was made on, retargeted like UAL's when played.
+const fileClips = new Map()
+let openClips = () => {}
 // Where the body comes from: MakeHuman's, which the sliders shape, or a mesh
 // of anyone's (CHARACTER_SOURCES, and files opened here).
 const SOURCES = { ...CHARACTER_SOURCES }
@@ -165,6 +197,46 @@ const clothesRows = () => [
     : []),
   clothPicker('material', walker.clothLook),
 ]
+// SOMETHING IN THE HAND: an item from the weapon library on the right hand's
+// socket (its frame is the hand's anatomy, so one grip fits any rig's hand),
+// placed by its grip and kept with the character, one grip per item.
+let heldNames = ['none']
+let applyGrip = () => {}
+const GRIP = { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, scale: 1 }
+// Weapon Fit's pistol (its grip, the middle of its handle, on the socket).
+const GRIPS = { pistol: { x: -0.04, y: 0.051, z: -0.059, rx: -105, ry: -15, rz: -165, scale: 0.86 } }
+const gripOf = (name) => ({ ...GRIP, ...GRIPS[name], ...(JSON.parse(JSON.stringify(walker.grips.value))[name] ?? {}) })
+const setGrip = (patch) => {
+  const name = walker.held.value
+  walker.grips.value = { ...JSON.parse(JSON.stringify(walker.grips.value)), [name]: { ...gripOf(name), ...patch } }
+  applyGrip()
+}
+const holdRows = () => {
+  const name = walker.held.value
+  const g = gripOf(name)
+  return [
+    label3d({ text: 'Hold', collapsible: true }),
+    select3d({ label: 'right hand', value: walker.held, options: heldNames, stayOpen: true }),
+    ...(name === 'none'
+      ? []
+      : [
+          label3d({ text: 'grip: from the hand (metres)', muted: true }),
+          vector3d({ value: { x: g.x, y: g.y, z: g.z }, step: 0.01, scrub: 0.002, handleChange: (v) => setGrip({ x: v.x, y: v.y, z: v.z }) }),
+          label3d({ text: 'turned (degrees)', muted: true }),
+          euler3d({ value: { x: g.rx, y: g.ry, z: g.rz }, step: 5, scrub: 0.5, handleChange: (v) => setGrip({ rx: v.x, ry: v.y, rz: v.z }) }),
+          slider3d({ label: 'scale', value: g.scale, min: 0.4, max: 1.6, step: 0.01, handleChange: (v) => setGrip({ scale: v }) }),
+          button3d({
+            label: 'reset grip',
+            handleClick: () => {
+              const all = JSON.parse(JSON.stringify(walker.grips.value))
+              delete all[name]
+              walker.grips.value = all
+              applyGrip()
+            },
+          }),
+        ]),
+  ]
+}
 const tailorRows = () => [
   label3d({ text: 'Tailor', collapsible: true }),
   ...(tailorTarget()
@@ -191,7 +263,7 @@ const tailorRows = () => [
         button3d({ label: 'import a garment…', handleClick: () => importGarment() }),
         ...(importError ? [text3d({ text: importError })] : []),
       ]
-    : [label3d({ text: 'loading the body…' })]),
+    : [text3d({ text: rigging ? 'The rig tool has the body: done or cancel in the Rig panel (on the bar), then tailor it.' : 'loading the body…' })]),
 ]
 
 const slider = (label, key) =>
@@ -207,6 +279,8 @@ preview.append(
         label3d({ text: 'Body', collapsible: true, open: true }),
         select3d({ label: 'source', value: walker.source, options: sourceNames(), stayOpen: true }),
         button3d({ label: 'open a mesh…', handleClick: () => openBody() }),
+        // How much of the body is drawn: MakeHuman's lighter skins, or its base mesh.
+        select3d({ label: 'detail', value: walker.bodyDetail, options: ['low', 'medium', 'high', 'full'] }),
         slider('gender', 'gender'),
         slider('age', 'age'),
         slider('muscle', 'muscle'),
@@ -220,6 +294,7 @@ preview.append(
         label3d({ text: 'Motion', collapsible: true }),
         select3d({ label: 'clip', value: walker.clip, options: clips, stayOpen: true }),
         toggle3d({ label: 'pause', value: walker.paused }),
+        button3d({ label: 'clips from a file…', handleClick: () => openClips() }),
         label3d({ text: 'Skin', collapsible: true }),
         slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: 'redness', value: walker.redness, min: 0, max: 1, step: 0.01 }),
@@ -249,6 +324,7 @@ preview.append(
         slider3d({ label: 'size', value: walker.hairSize, min: 0.9, max: 1.1, step: 0.005 }),
         ...clothesRows(),
         ...tailorRows(),
+        ...holdRows(),
         label3d({ text: 'Ancestry', collapsible: true }),
         slider('african', 'african'),
         slider('asian', 'asian'),
@@ -271,9 +347,11 @@ preview.append(
         label3d({ text: 'Motion', collapsible: true, open: true }),
         select3d({ label: 'clip', value: walker.clip, options: clips, stayOpen: true }),
         toggle3d({ label: 'pause', value: walker.paused }),
+        button3d({ label: 'clips from a file…', handleClick: () => openClips() }),
         ...surfaceRows(),
         ...clothesRows(),
         ...tailorRows(),
+        ...holdRows(),
         label3d({ text: 'Skin', collapsible: true }),
         slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: 'redness', value: walker.redness, min: 0, max: 1, step: 0.01 }),
@@ -290,6 +368,58 @@ preview.append(
         cam.upperRadiusLimit = 10
         cam.attachControl(el.querySelector('canvas'), true)
         el.setActiveCamera(cam)
+        // THE VIEWS: the body square on from each side, and the right hand
+        // close up, followed through the clip (is the item held right?). The
+        // hand view orbits like the perspective one, round the hand.
+        let views = null
+        const inspect = inspectView(cam, { handleChange: () => views?.update() })
+        const home = { target: cam.target.clone(), radius: cam.radius }
+        let handNode = null
+        let knuckleNode = null
+        let handOf = null
+        const rightHand = () => {
+          const shown = ch?.shown
+          if (shown !== handOf) {
+            handOf = shown
+            // The shown body's own hand: the node its skeleton's bone is
+            // linked to (other skeletons, the clips' source, have one too).
+            const bones = shown?.built?.skeleton?.bones ?? []
+            const node = (name) => bones.find((b) => b.name === name)?.getTransformNode() ?? null
+            handNode = node('hand_r')
+            knuckleNode = node('middle_01_r')
+          }
+          // The palm, where a grip is: between the wrist and the middle
+          // finger's knuckle (the wrist alone when there are no fingers).
+          const a = handNode?.getAbsolutePosition()
+          if (a == null) return null
+          const b = knuckleNode?.getAbsolutePosition()
+          return b == null ? a : a.add(b).scaleInPlace(0.5)
+        }
+        let onHand = false
+        views = viewMenu(inspect, el, {
+          always: true,
+          extras: [{
+            value: 'hand',
+            label: 'right hand',
+            icon: 'bipedHandgun',
+            active: () => onHand,
+            select: () => {
+              onHand = true
+              inspect.face = 'free'
+              inspect.follow = rightHand
+              // From the outside of the hand (the character's right is +X).
+              cam.alpha = 0
+              cam.beta = 1.3
+              cam.radius = 0.6
+            },
+            leave: () => {
+              onHand = false
+              inspect.follow = null
+              cam.target.copyFrom(home.target)
+              cam.radius = home.radius
+            },
+          }],
+        })
         // A floor with a metre grid (and faint quarters), which takes the sun's shadow.
         const floor = BABYLON.MeshBuilder.CreateGround('floor_nocast', { width: 12, height: 12 }, scene)
         const tile = new BABYLON.DynamicTexture('floor-grid', { width: 256, height: 256 }, scene, true)
@@ -319,9 +449,80 @@ preview.append(
         el.setLoading('loading the body…')
         ual.addAllToScene()
         for (const g of ual.animationGroups) g.stop()
+        // The everyday clips, then a file's, then the rest of UAL's.
+        const listClips = () => {
+          const mine = [...fileClips.keys()]
+          clips = [...EVERYDAY, ...mine, ...ual.animationGroups.map((g) => g.name).filter((n) => !EVERYDAY.includes(n) && !fileClips.has(n)).sort()]
+        }
+        listClips()
         const ualRoot = ual.meshes.find((m) => m.name === '__root__')
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
+        // THE HELD ITEM: an instance of the library's model on the shown
+        // body's right-hand socket, made again when the item or body changes.
+        const weapons = el.querySelector('tosi-b3d-library')
+        let held = null
+        applyGrip = () => {
+          const name = walker.held.value
+          const shown = ch?.shown
+          if (held && (held.name !== name || held.shown !== shown || rigging)) {
+            held.node.dispose()
+            held = null
+          }
+          if (name === 'none' || !shown || rigging) return
+          if (!held) {
+            const skeleton = shown.built?.skeleton
+            const hand = skeleton?.bones.find((b) => b.name === 'hand_r')?.getTransformNode()
+            const node = hand && weapons?.instantiate?.(name, { canonical: true })
+            if (!node) return
+            node.parent = handSocket(skeleton, 'hand_r', 'r', hand) ?? hand
+            // Its grip (a pistol's handle), measured once: that point, not
+            // its origin, goes where the numbers say, as on a launcher.
+            held = { node, name, shown, grip: heldGrip(node) ?? BABYLON.Vector3.Zero() }
+          }
+          const g = gripOf(name)
+          const d = Math.PI / 180
+          const turn = BABYLON.Quaternion.FromEulerAngles(g.rx * d, g.ry * d, g.rz * d)
+          const spun = held.grip.applyRotationQuaternion(turn)
+          held.node.position.set(g.x - spun.x, g.y - spun.y, g.z - spun.z)
+          held.node.rotationQuaternion = turn
+          held.node.scaling.setAll(g.scale)
+        }
+        weapons?.ready.then(() => {
+          heldNames = ['none', ...weapons.getNames().filter((n) => !n.startsWith('ammo')).sort()]
+          applyGrip()
+          el.refreshScenePanel?.()
+        })
+        walker.held.observe(() => {
+          applyGrip()
+          el.refreshScenePanel?.()
+        })
+
+        // CLIPS FROM A FILE: any skinned GLB with animations (Mixamo's,
+        // Meshy's): its skeleton read like UAL's, its clips listed and
+        // retargeted onto the body shown. Kept for this visit only.
+        const addClips = async (file) => {
+          try {
+            const c = await BABYLON.LoadAssetContainerAsync(file, scene)
+            const skeleton = c.skeletons[0]
+            if (!skeleton || c.animationGroups.length === 0) {
+              console.warn(`character builder: ${file.name} has no skeleton or no animations`)
+              c.dispose()
+              return
+            }
+            const from = readSkeleton(skeleton, c.rootNodes[0])
+            for (const g of c.animationGroups) {
+              g.stop()
+              fileClips.set(g.name, { group: g, from })
+            }
+            listClips()
+            walker.clip.value = c.animationGroups[0].name
+            el.refreshScenePanel?.()
+          } catch (e) {
+            console.warn('character builder: could not read the clips', e)
+          }
+        }
+        openClips = () => chooseFile('.glb,.gltf').then((file) => file && addClips(file))
 
         // MakeHuman's pack and Quaternius' hairstyles, shared by any character.
         const assets = await loadCharacterAssets(scene).catch((e) => {
@@ -345,8 +546,10 @@ preview.append(
           playing?.dispose()
           playing = null
           if (!ch?.skeleton || rigging) return
-          const clip = ual.animationGroups.find((g) => g.name === walker.clip.value)
-          playing = clip ? retargetClip(clip, source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg }) : null
+          // A file's clip (gone after a reload: the walk instead), or UAL's.
+          const own = fileClips.get(walker.clip.value)
+          const clip = own?.group ?? ual.animationGroups.find((g) => g.name === walker.clip.value) ?? ual.animationGroups.find((g) => g.name === 'Walk_Loop')
+          playing = clip ? retargetClip(clip, own?.from ?? source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg }) : null
           playing?.start(true)
           ch.groundFor(playing)
           if (walker.paused.value) playing?.pause()
@@ -374,6 +577,12 @@ preview.append(
 
         // THE CHARACTER: everything the panel sets that is about it (not the
         // clip, the tailor's work or the save controls).
+        // A first visit (nothing kept) starts on one of the AI bodies, at
+        // random; after that the working figure says which.
+        if (!(await characterStore().get(WORKING_CHARACTER).catch(() => null))) {
+          const first = Object.keys(AI_CHARACTER_SOURCES)
+          walker.source.value = first[Math.floor(Math.random() * first.length)]
+        }
         const OWN = Object.keys(DEFAULT_CHARACTER).filter((k) => k in START)
         const settings = () => ({ ...Object.fromEntries(OWN.map((k) => [k, plain(walker[k].value)])), hideClothes: walker.tailorAlone.value })
         ch = await makeCharacter(scene, assets, {
@@ -386,6 +595,7 @@ preview.append(
           handleShown: (shown) => {
             // A garment being cut is cut from the body as it is now.
             if (shown && tailoringOn === shown.source) tailoring?.setBody(shown.body, shown.built)
+            applyGrip()
             el.refreshScenePanel?.()
             play()
           },
@@ -532,7 +742,7 @@ preview.append(
           tailoring = mountTailorTool(el, {
             body: target.body,
             built: target.built,
-            cut: { shapes: tailorShapes, thickness: walker.tailorThickness.value, skirt: walker.tailorSkirt.value },
+            cut: { shapes: tailorShapes, thickness: walker.tailorThickness.value, skirt: walker.tailorSkirt.value, drape: walker.tailorDrape.value, mesh: walker.tailorMesh.value },
             look: plain(walker.tailorLook.value),
             name: walker.tailorName.value,
             slot: walker.tailorSlot.value,
@@ -543,6 +753,8 @@ preview.append(
               tailorShapes = cut.shapes
               walker.tailorThickness.value = cut.thickness
               walker.tailorSkirt.value = cut.skirt
+              walker.tailorDrape.value = cut.drape === true
+              walker.tailorMesh.value = cut.mesh ?? 'medium'
               walker.tailorLook.value = look
               walker.tailorName.value = name
               walker.tailorSlot.value = slot
@@ -579,6 +791,8 @@ preview.append(
           tailorShapes = saved.cut.shapes
           walker.tailorThickness.value = saved.cut.thickness
           walker.tailorSkirt.value = saved.cut.skirt === true
+          walker.tailorDrape.value = saved.cut.drape === true
+          walker.tailorMesh.value = saved.cut.mesh ?? 'medium'
           walker.tailorName.value = name
           if (saved.look) walker.tailorLook.value = saved.look.material ?? clothRecipe(saved.look)
           openTailor({ slot, name })
@@ -652,11 +866,16 @@ preview.append(
           const from = file ? { file } : SOURCES[opened]
           ch.hide(true)
           playing?.stop()
+          // The hand view follows the builder's character, which is hidden.
+          if (onHand) { onHand = false; inspect.follow = null; cam.target.copyFrom(home.target); cam.radius = home.radius; views.update() }
           const done = () => {
             rigging = null
             ch.hide(false)
+            applyGrip()
             rigPanel.svg = idleRig()
             rigPanel.hide?.()
+            // The Body and Tailor sections wait on it.
+            el.refreshScenePanel?.()
           }
           rigging = mountRigTool(el, {
             models: [{ label: opened, url: from.url ?? '', file: from.file, pick: from.pick }],
@@ -666,6 +885,8 @@ preview.append(
             files: false,
             stage: false,
             camera: cam,
+            // One view menu: the builder's, which the rig tool follows.
+            inspect,
             panel: rigPanel,
             // The rig it hands back is worn as it is: the body the tool bound,
             // its recipe kept with the character.
@@ -690,9 +911,12 @@ preview.append(
               play()
             },
           })
+          // The item goes while the rig tool has the body.
+          applyGrip()
           el.refreshScenePanel?.()
         }
         el.builder.rigTool = () => rigging
+        el.builder.addClips = (file) => addClips(file)
         el.builder.openRig = (file) => openRig(file)
 
         // CHARACTERS (character-file): the figure you are working on is kept
@@ -761,7 +985,8 @@ preview.append(
         }
         const listSaved = async () => {
           character.saved = await store.list().catch(() => [])
-          if (!character.saved.includes(walker.characterPick.value)) walker.characterPick.value = character.saved[0] ?? ''
+          // Deleted (here or in another tab): the figure is no longer saved.
+          if (!character.saved.includes(walker.characterName.value)) walker.characterName.value = ''
           el.refreshScenePanel?.()
         }
         // Kept a moment after the last change, so a slider drag is one write.
@@ -770,7 +995,9 @@ preview.append(
           if (restoring) return
           clearTimeout(pending)
           pending = setTimeout(() => {
-            store.put(WORKING, snapshot(WORKING)).catch((e) => console.warn('character builder: could not keep the working figure', e))
+            // Under the name it is being edited as, so a reload knows which
+            // saved character this is (the key, not the name, marks it working).
+            store.put(WORKING, snapshot(walker.characterName.value || WORKING)).catch((e) => console.warn('character builder: could not keep the working figure', e))
           }, 800)
         }
         for (const k of [...KEPT, 'look', 'clothLook']) walker[k].observe(() => character.changed())
@@ -781,9 +1008,9 @@ preview.append(
             return tell(`could not save: ${e?.message ?? e}`)
           }
           walker.characterName.value = name
-          walker.characterPick.value = name
           tell(`saved ${name}`)
           listSaved()
+          character.changed()
         }
         // Put under the new name, then the old one goes.
         character.rename = async (from, to) => {
@@ -797,22 +1024,27 @@ preview.append(
             return tell(`could not rename: ${e?.message ?? e}`)
           }
           if (walker.characterName.value === from) walker.characterName.value = to
-          walker.characterPick.value = to
           tell(`renamed ${from} to ${to}`)
           listSaved()
+          character.changed()
         }
-        character.load = async () => {
-          const name = walker.characterPick.value
+        character.load = async (name) => {
           const doc = name && (await store.get(name).catch(() => null))
           if (!doc) return tell(`no character called ${name}`)
           await apply(doc).catch((e) => tell(`could not load: ${e?.message ?? e}`))
           character.changed()
         }
-        character.forget = async () => {
-          const name = walker.characterPick.value
+        // The saved copy goes; the figure stays, unsaved, as the working one.
+        character.remove = async (name) => {
           if (!name) return
-          await store.delete(name).catch(() => {})
-          tell(`forgot ${name}`)
+          try {
+            await store.delete(name)
+          } catch (e) {
+            return tell(`could not delete: ${e?.message ?? e}`)
+          }
+          if (walker.characterName.value === name) walker.characterName.value = ''
+          tell(`deleted ${name}`)
+          character.changed()
           listSaved()
         }
         character.exportJson = () => {
@@ -830,6 +1062,17 @@ preview.append(
             }
           })
         }
+        // Straight into the playground as this figure: kept now (not after
+        // the autosave's pause), then the playground loads it by name.
+        character.play = async () => {
+          clearTimeout(pending)
+          try {
+            await store.put(WORKING, snapshot(walker.characterName.value || WORKING))
+          } catch (e) {
+            return tell(`could not keep it: ${e?.message ?? e}`)
+          }
+          location.href = `/playground/?character=${encodeURIComponent(WORKING)}`
+        }
         el.builder.character = { snapshot, apply, store }
         // The figure you were working on, as you left it.
         const working = await store.get(WORKING).catch(() => null)
@@ -842,6 +1085,8 @@ preview.append(
         walker.paused.observe(() => (walker.paused.value ? playing?.pause() : playing?.play(true)))
       },
     },
+    // Things to hold (Kenney's weapon pack).
+    b3dLibrary({ url: assetUrl('kenney/libraries/weapon-pack.glb'), type: 'weapons' }),
     b3dSun({ timeOfDay: 16.5, shadowTextureSize: 2048, shadowMaxZ: 20, shadowNormalBias: 0.008 }),
     b3dLight({ intensity: 0.5 })
   )
@@ -851,9 +1096,12 @@ preview.append(
 tosi-b3d { width: 100%; height: 100%; }
 ```
 
-**Source** picks the body. MakeHuman's is the one the sliders shape and
-the clothes, hair and face are made for. The others are meshes from
-elsewhere (Blender Studio's Human Base Meshes, Quaternius' superheroes), or
+**Source** picks the body. A first visit starts on one of four AI-made
+characters at random (a woman and a man, each in underwear and in a
+spacesuit; CC0, rigged when they load); after that the builder keeps the one
+you chose. MakeHuman's is the one the sliders shape and the clothes, hair and
+face are made for. The others are meshes from elsewhere (Blender Studio's
+Human Base Meshes, Quaternius' superheroes), or
 your own with **open a mesh…** (GLB or glTF). A file skinned to UAL's
 skeleton already, as Quaternius' characters are, is taken as it is: its own
 joints and weights ([rigged-body](/rigged-body/)). Bind your own mesh to that
@@ -873,11 +1121,31 @@ Rig panel) brings the body back bound from that recipe, and the recipe is
 saved with the character; **cancel** keeps the one it had. The first binding is a guess read
 off the body's outline.
 
+**Motion** plays a clip on whatever body is shown: UAL's library (the
+everyday clips first), retargeted. **Clips from a file…** adds the clips of
+any skinned GLB (a Mixamo or Meshy character's, say), retargeted the same way
+and listed after the everyday ones, for this visit.
+
+**View** (the camera on the bar) holds the body square on from any side, or
+follows the **right hand** close up through the clip, to see how an item sits
+in it. The rig tool uses the same menu.
+
+**Hold** puts an item from the weapon library in the right hand, on the
+hand's socket (a frame normalised to the hand's anatomy, so one grip fits any
+body's hand). Its **grip** says where the item's grip point goes (a pistol's
+handle: a `_grip` node in the model, or the middle of its lowest third),
+turned and scaled; each item's grip is kept with the character. Play a clip
+made for it (`Pistol_Idle_Loop`, the shoot loops) and check it in the hand
+view. The numbers are a launcher's: `b3dLauncher({ socket: 'right-hand', x,
+y, z, rx, ry, rz, modelScale })` holds it the same way on a biped.
+
 **Character** keeps your work. The figure you are working on is kept in this
 browser as you change it and comes back when you open the page again. **Save…**
 asks for a name (the one it has, to start with) to keep it under, and asks
-first before replacing another saved character. Pick a saved one to **load**,
-**rename…** or **forget** it. **Export
+first before replacing another saved character. **Character** shows the one
+on screen (or *not saved*); pick a saved one and it loads. **Revert…**,
+**rename…** and **delete…** act on the one on screen, once it is saved:
+revert goes back to it as last saved, and deleting keeps the figure, unsaved. **Export
 JSON** to take it elsewhere and **import JSON…** to bring one in. A file
 carries everything the panel sets, and the garments of your own the character
 wears travel inside it ([character-file](/character-file/)).
@@ -937,7 +1205,7 @@ feet at the container's origin. Move the body by moving `root`. The mesh keeps
 every vertex the targets move (helpers and joint cubes too), but draws only the
 body's triangles.
 */
-/*{ "parent": "b3d-biped", "order": 80 }*/
+/*{ "parent": "demos", "order": 38 }*/
 import * as BABYLON from '@babylonjs/core';
 import { skinAlbedo } from './skin-tone.js';
 import { skinShading } from './skin-shading.js';

@@ -158,6 +158,7 @@ export class B3dInputFocus extends B3dChild {
         const gamepad = this.owner?.querySelector('tosi-b3d-gamepad');
         if (gamepad != null && this.inputMappedProvider) {
             this.inputMappedProvider.addSource(gamepad);
+            this.labelPad();
         }
         // Register update loop for interact proximity check
         if (this.owner) {
@@ -180,6 +181,7 @@ export class B3dInputFocus extends B3dChild {
             entity.inputProvider = new CompositeInputProvider(this.inputMappedProvider);
         }
         entity.handleGainFocus();
+        this.labelPad();
         // Switch camera to follow the new entity
         this.setupCameraForEntity(entity);
     }
@@ -199,6 +201,17 @@ export class B3dInputFocus extends B3dChild {
         entity.handleLoseFocus();
         entity.inputProvider = null;
         this.focusedEntity = null;
+        this.labelPad();
+    }
+    /**
+     * Tell the glass gamepad what its controls now do, for a screen reader:
+     * only once the scene's assistive surface is in use (`b3d.assistive`).
+     */
+    labelPad() {
+        if (!this.owner?.assistive)
+            return;
+        const pad = this.owner?.querySelector('tosi-b3d-gamepad');
+        pad?.setControlLabels?.((this.focusedEntity?.inputLabels ?? {}));
     }
     setupCameraForEntity(entity) {
         // For bipeds, let them handle their own camera via cameraType attribute

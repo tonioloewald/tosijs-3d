@@ -1,7 +1,7 @@
 /** MakeHuman's hm08 body pack, under the asset base. */
 export declare const HM08_PACK_PATH = "makehuman/hm08/hm08.json";
 /** Its version: bumped whenever the pack is rebaked, so caches let go. */
-export declare const HM08_PACK_VERSION = 17;
+export declare const HM08_PACK_VERSION = 18;
 /** The pack's URL, resolved against the asset base when asked (set it first). */
 export declare function hm08PackUrl(): string;
 /** Hair colour presets: a base and its usual highlight, sRGB hex. */

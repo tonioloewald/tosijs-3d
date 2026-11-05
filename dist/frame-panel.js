@@ -423,6 +423,17 @@ export function attachFramePanel(scene, cam, frame, spec) {
     };
     // `let`: `setSvg` swaps the content into the same plane and texture.
     let el = spec.svg ?? (spec.url ? null : placeholderPanelSvg(spec.title ?? ''));
+    // A panel that rebuilds itself (a section folded) is swapped in here, unless
+    // whoever gave it to us (a `<tosi-b3d-panel>`) takes the replacement.
+    const adopt = (svg) => {
+        const p = svg;
+        if (p != null && p.handleReplace == null)
+            p.handleReplace = (n) => {
+                if (el === svg)
+                    swapSvg(n);
+            };
+    };
+    adopt(el);
     const aspect = el
         ? el.viewBox.baseVal.height / el.viewBox.baseVal.width || 1
         : spec.aspect ?? 1;
@@ -1069,6 +1080,19 @@ export function attachFramePanel(scene, cam, frame, spec) {
         const sl = toSubject.length() || 1;
         debug.cosine = BABYLON.Vector3.Dot(fwd, toSubject) / (fl * sl);
     };
+    function swapSvg(next) {
+        if (el == null || next === el)
+            return;
+        endGesture();
+        el.removeEventListener('panelfocus', onFocus);
+        el = next;
+        adopt(next);
+        target = next;
+        if (focusable)
+            el.addEventListener('panelfocus', onFocus);
+        // The texture keeps the old picture until the new one is drawn.
+        tex.setElement(next);
+    }
     return {
         debug,
         mesh: plane,
@@ -1078,18 +1102,7 @@ export function attachFramePanel(scene, cam, frame, spec) {
         get el() {
             return el;
         },
-        setSvg(next) {
-            if (el == null || next === el)
-                return;
-            endGesture();
-            el.removeEventListener('panelfocus', onFocus);
-            el = next;
-            target = next;
-            if (focusable)
-                el.addEventListener('panelfocus', onFocus);
-            // The texture keeps the old picture until the new one is drawn.
-            tex.setElement(next);
-        },
+        setSvg: swapSvg,
         // `ctx.firstPerson` is the active camera view (fpv/cockpit vs chase), so a
         // panel can be limited to one. Defaults to visible if no context is given.
         update(ctx) {

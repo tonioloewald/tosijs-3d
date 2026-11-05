@@ -224,7 +224,8 @@ export function writeSkinnedGlb(g) {
                 (m.baseColorTexture ||
                     m.metallicRoughnessTexture ||
                     m.normalTexture ||
-                    m.occlusionTexture))
+                    m.occlusionTexture ||
+                    m.emissiveTexture))
                 throw new Error(`skinned-glb: ${mesh.name}: its material is textured but has no uvs`);
             const wide = count >= 65535;
             const idx = wide
@@ -313,6 +314,10 @@ export function writeSkinnedGlb(g) {
                 index: texture(m.occlusionTexture),
                 strength: m.occlusionTexture.strength,
             };
+        if (m.emissiveFactor)
+            out.emissiveFactor = [...m.emissiveFactor];
+        if (m.emissiveTexture)
+            out.emissiveTexture = { index: texture(m.emissiveTexture) };
         if (m.sheen) {
             sheen = true;
             out.extensions = {
@@ -332,7 +337,15 @@ export function writeSkinnedGlb(g) {
             ...(g.asset.copyright ? { copyright: g.asset.copyright } : {}),
             ...(g.asset.extras ? { extras: g.asset.extras } : {}),
         },
-        ...(sheen ? { extensionsUsed: ['KHR_materials_sheen'] } : {}),
+        ...(sheen || g.extensions
+            ? {
+                extensionsUsed: [
+                    ...(sheen ? ['KHR_materials_sheen'] : []),
+                    ...Object.keys(g.extensions ?? {}),
+                ],
+            }
+            : {}),
+        ...(g.extensions ? { extensions: g.extensions } : {}),
         scene: 0,
         scenes: [{ nodes: [...topJoints, ...meshNodes] }],
         nodes,

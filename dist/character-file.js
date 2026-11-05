@@ -105,12 +105,21 @@ export function readCharacter(input, defaults) {
             warnings.push(`${key}: not a setting here; skipped`);
     const cloth = {};
     const looks = isObject(doc.cloth) ? doc.cloth : {};
-    for (const [slot, fallback] of Object.entries(defaults.slots ?? {})) {
-        const v = looks[slot];
-        cloth[slot] =
-            isObject(v) && typeof v.look === 'string' && isObject(v.material)
+    const wellFormed = (v) => isObject(v) && typeof v.look === 'string' && isObject(v.material);
+    if (defaults.slots) {
+        for (const [slot, fallback] of Object.entries(defaults.slots)) {
+            const v = looks[slot];
+            cloth[slot] = wellFormed(v)
                 ? { look: v.look, material: v.material }
                 : fallback;
+        }
+    }
+    else {
+        // No slots given (a page that only wears the character): every look the
+        // file has. Reading none left a biped's tailored clothes white.
+        for (const [slot, v] of Object.entries(looks))
+            if (wellFormed(v))
+                cloth[slot] = { look: v.look, material: v.material };
     }
     const tailor = Array.isArray(doc.tailor)
         ? doc.tailor

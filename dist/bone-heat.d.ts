@@ -18,5 +18,6 @@ export interface SkinWeights {
  */
 export declare function boneHeat(positions: ArrayLike<number>, indices: ArrayLike<number>, bones: readonly HeatBone[], options?: {
     iterations?: number;
+    visible?: boolean;
 }): SkinWeights;
 //# sourceMappingURL=bone-heat.d.ts.map

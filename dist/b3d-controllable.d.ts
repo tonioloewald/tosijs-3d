@@ -2,12 +2,26 @@ import * as BABYLON from '@babylonjs/core';
 import { AbstractMesh } from './b3d-utils.js';
 import type { B3d } from './tosi-b3d.js';
 import type { ControlInput, InputProvider } from './control-input.js';
-import type { InputMapping } from './virtual-gamepad.js';
+import type { InputMapping, MappingLabels } from './virtual-gamepad.js';
+import { type AgentDriver, type DriverPose } from './agent-driver.js';
 export declare class B3dControllable extends AbstractMesh {
     inputProvider: InputProvider | null;
     inputMapping?: InputMapping;
+    /**
+     * What each control does for this entity (`{ buttonA: 'handbrake', … }`):
+     * the glass gamepad names its controls with it for a screen reader.
+     */
+    inputLabels?: MappingLabels;
     /** Last polled input — read by the XR rig for camera zoom/peek intent. */
     lastInput: ControlInput | null;
+    /**
+     * An agent's command (see [agents](/b3d-agent/)): while it runs, its input
+     * replaces the player's, and the player's own deliberate input cancels it.
+     * Made on the first command, so a scene no agent touches carries none.
+     */
+    agentDriver: AgentDriver | null;
+    /** Where this is for the agent driver: world metres (floating origin added back), heading in degrees, speed along the nose. */
+    agentPose(): DriverPose | null;
     protected lastUpdate: number;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     /** The focus manager we announced ourselves to (kept: once we are removed,

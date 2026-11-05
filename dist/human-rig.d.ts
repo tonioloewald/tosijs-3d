@@ -1,5 +1,5 @@
 import { type FittedRig } from './rig-fit.js';
-import type { HumanPack, HumanPackManifest } from './human-pack.js';
+import type { HumanPack, HumanPackManifest, HumanProxy } from './human-pack.js';
 import { type MacroBody } from './human-morph.js';
 import { type SkinWeights } from './bone-heat.js';
 import type { RiggedBody } from './rigged-body.js';
@@ -42,8 +42,20 @@ export interface HumanSkin {
     triangles: Uint32Array;
     /** The compact positions from a full set (all of the pack's vertices). */
     positions(full: ArrayLike<number>, into?: Float32Array): Float32Array;
+    /** The compact moves from moves of every pack vertex (a face's morph). */
+    deltas(full: ArrayLike<number>): Float32Array;
+    /** The body proxy drawn in place of the base mesh, if one is. */
+    proxy?: string;
 }
-export declare function humanSkin(pack: HumanPack): HumanSkin;
+export declare function humanSkin(pack: HumanPack, proxy?: HumanProxy | null): HumanSkin;
+/**
+ * Which body proxy a body detail draws, for a body of this gender (0 female,
+ * 1 male): null is the base mesh itself.
+ */
+export declare function bodyDetailProxy(detail: BodyDetail, gender: number): string | null;
+/** How much of the body is drawn: MakeHuman's base mesh, or a lighter proxy. */
+export type BodyDetail = 'full' | 'high' | 'medium' | 'low';
+export declare const BODY_DETAILS: readonly BodyDetail[];
 /**
  * Make the head rigid in `weights` (in place): skin above the head joint,
  * and the face in front of it down to under the chin, moves wholly with the
@@ -74,6 +86,36 @@ export declare function armsOffTorso(weights: {
     blend?: number;
 }): void;
 /**
+ * Keep the thighs out of the belly in `weights` (in place): skin above the
+ * hip joints loses its thigh weight to the pelvis, faded in over `blend`
+ * metres so the hip still bends. Bone heat gives a thick waist's sides to
+ * the thigh bones (they are nearer than the pelvis up the middle), and every
+ * stride then pulled the belly down with the leg: the torso squashed as it
+ * walked. Below the hips the thighs keep it all. `positions` are the skin's
+ * (xyz), `rig` the fitted rig.
+ */
+export declare function legsOffBelly(weights: {
+    indices: Float32Array;
+    weights: Float32Array;
+}, positions: ArrayLike<number>, rig: FittedRig, options?: {
+    blend?: number;
+}): void;
+/**
+ * Keep the collarbones off the chest in `weights` (in place): skin nearer
+ * the middle than `inner` of the way out to a shoulder loses its collarbone
+ * weight to the chest (`spine_03`), fading back in by `outer`. A collarbone
+ * runs from beside the neck to the shoulder, so bone heat binds the whole
+ * upper chest to it, and every shrug a clip makes pulled the pectorals
+ * about. `positions` are the skin's (xyz), `rig` the fitted rig.
+ */
+export declare function clavicleOffChest(weights: {
+    indices: Float32Array;
+    weights: Float32Array;
+}, positions: ArrayLike<number>, rig: FittedRig, options?: {
+    inner?: number;
+    outer?: number;
+}): void;
+/**
  * MakeHuman's body as a rigged body (see rigged-body), with what its own
  * extras need beside it: every pack vertex's position (`full`: helpers and
  * joint cubes too, which clothes, eyes and hair are fitted to) and the skin's
@@ -98,6 +140,11 @@ export interface HumanBodyMaker {
  * the head made rigid (`stiffenHead`) and the ribcage kept off the arms
  * (`armsOffTorso`); every later body reuses them. Each body is the pack
  * morphed to its sliders with UAL's joints placed from its joint cubes.
+ * With a body `proxy` (see `bodyDetailProxy`) the skin drawn and bound is
+ * that lighter mesh over the morphed base: binding 1,600 vertices takes a
+ * tenth of a second where the base's 13,000 take one.
  */
-export declare function humanBodyMaker(pack: HumanPack, values?: Partial<MacroBody>): Promise<HumanBodyMaker>;
+export declare function humanBodyMaker(pack: HumanPack, values?: Partial<MacroBody>, options?: {
+    proxy?: HumanProxy | null;
+}): Promise<HumanBodyMaker>;
 //# sourceMappingURL=human-rig.d.ts.map

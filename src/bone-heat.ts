@@ -55,8 +55,12 @@ sampling along the segment at half a cell, each triangle tested once per
 query (Möller–Trumbore), hits strictly between the ends.
 */
 function occluder(pts: Vec3[], tris: Int32Array) {
-  let minX = Infinity, minY = Infinity, minZ = Infinity
-  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity
+  let minX = Infinity,
+    minY = Infinity,
+    minZ = Infinity
+  let maxX = -Infinity,
+    maxY = -Infinity,
+    maxZ = -Infinity
   for (const p of pts) {
     if (p.x < minX) minX = p.x
     if (p.y < minY) minY = p.y
@@ -78,7 +82,9 @@ function occluder(pts: Vec3[], tris: Int32Array) {
   const ci = (v: number, m: number, n: number) =>
     Math.max(0, Math.min(n - 1, Math.floor((v - m) / cell)))
   for (let t = 0; t < nt; t++) {
-    const a = pts[tris[t * 3]], b = pts[tris[t * 3 + 1]], c = pts[tris[t * 3 + 2]]
+    const a = pts[tris[t * 3]],
+      b = pts[tris[t * 3 + 1]],
+      c = pts[tris[t * 3 + 2]]
     const i0 = ci(Math.min(a.x, b.x, c.x), minX, nx)
     const i1 = ci(Math.max(a.x, b.x, c.x), minX, nx)
     const j0 = ci(Math.min(a.y, b.y, c.y), minY, ny)
@@ -99,7 +105,9 @@ function occluder(pts: Vec3[], tris: Int32Array) {
   /** Does the segment p→q cross a triangle (other than `skip`'s)? */
   return (p: Vec3, q: Vec3, skip: number): boolean => {
     query++
-    const dx = q.x - p.x, dy = q.y - p.y, dz = q.z - p.z
+    const dx = q.x - p.x,
+      dy = q.y - p.y,
+      dz = q.z - p.z
     const len = Math.hypot(dx, dy, dz)
     const steps = Math.max(1, Math.ceil(len / (cell * 0.5)))
     let lastKey = -1
@@ -117,18 +125,28 @@ function occluder(pts: Vec3[], tris: Int32Array) {
       for (const t of list) {
         if (seen[t] === query) continue
         seen[t] = query
-        const ia = tris[t * 3], ib = tris[t * 3 + 1], ic = tris[t * 3 + 2]
+        const ia = tris[t * 3],
+          ib = tris[t * 3 + 1],
+          ic = tris[t * 3 + 2]
         if (ia === skip || ib === skip || ic === skip) continue
-        const a = pts[ia], b = pts[ib], c = pts[ic]
-        const e1x = b.x - a.x, e1y = b.y - a.y, e1z = b.z - a.z
-        const e2x = c.x - a.x, e2y = c.y - a.y, e2z = c.z - a.z
+        const a = pts[ia],
+          b = pts[ib],
+          c = pts[ic]
+        const e1x = b.x - a.x,
+          e1y = b.y - a.y,
+          e1z = b.z - a.z
+        const e2x = c.x - a.x,
+          e2y = c.y - a.y,
+          e2z = c.z - a.z
         const hx = dy * e2z - dz * e2y
         const hy = dz * e2x - dx * e2z
         const hz = dx * e2y - dy * e2x
         const det = e1x * hx + e1y * hy + e1z * hz
         if (Math.abs(det) < 1e-14) continue
         const inv = 1 / det
-        const sx = p.x - a.x, sy = p.y - a.y, sz = p.z - a.z
+        const sx = p.x - a.x,
+          sy = p.y - a.y,
+          sz = p.z - a.z
         const u = (sx * hx + sy * hy + sz * hz) * inv
         if (u < 0 || u > 1) continue
         const qx = sy * e1z - sz * e1y
@@ -299,10 +317,18 @@ export function boneHeat(
     // Vertex normals (area-weighted), for the start a hair inside.
     const nrm = new Float64Array(n * 3)
     for (let t = 0; t < tri.length; t += 3) {
-      const A = pts[tri[t]], B = pts[tri[t + 1]], C = pts[tri[t + 2]]
-      const ux = B.x - A.x, uy = B.y - A.y, uz = B.z - A.z
-      const vx = C.x - A.x, vy = C.y - A.y, vz = C.z - A.z
-      const cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx
+      const A = pts[tri[t]],
+        B = pts[tri[t + 1]],
+        C = pts[tri[t + 2]]
+      const ux = B.x - A.x,
+        uy = B.y - A.y,
+        uz = B.z - A.z
+      const vx = C.x - A.x,
+        vy = C.y - A.y,
+        vz = C.z - A.z
+      const cx = uy * vz - uz * vy,
+        cy = uz * vx - ux * vz,
+        cz = ux * vy - uy * vx
       for (const k of [tri[t], tri[t + 1], tri[t + 2]]) {
         nrm[k * 3] += cx
         nrm[k * 3 + 1] += cy
@@ -327,8 +353,14 @@ export function boneHeat(
         if (plain[k] > bestSeen * 4) break
         const b = bones[k]
         const near = closestOnSegment(p, b.a, b.b)
-        const cand = [near, ...SAMPLES.map((t) => closestOnSegment(p, b.a, b.b, t))]
-          .map((q) => ({ q, d: (q.x - p.x) ** 2 + (q.y - p.y) ** 2 + (q.z - p.z) ** 2 }))
+        const cand = [
+          near,
+          ...SAMPLES.map((t) => closestOnSegment(p, b.a, b.b, t)),
+        ]
+          .map((q) => ({
+            q,
+            d: (q.x - p.x) ** 2 + (q.y - p.y) ** 2 + (q.z - p.z) ** 2,
+          }))
           .sort((a, b) => a.d - b.d)
         for (const { q, d } of cand) {
           if (d >= bestSeen * 4) break

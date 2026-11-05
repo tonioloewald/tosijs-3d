@@ -287,6 +287,7 @@ document.body.append(
 | `flatUi` | `'scene'` | Where the flat view's own controls are drawn. `'scene'`: in the scene (the system bar, settings panel and pause), the same UI a headset gets. `'dom'`: HTML corner buttons, settings panel and pause (where `::part(...)` styling of them shows). Any other value warns once and means `'scene'` |
 | `scenePanelOpen` | `false` | Start with the settings panel open instead of closed behind the owl |
 | `panelTitle` | `''` | The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row) |
+| `agent` | `''` | What an agent may do with this scene through its tools (`b3d_<scene>_…` on WebMCP and `window.b3dAgent`; see [agents](/b3d-agent/)). `''` follows the page (`enableSceneAgents`; closed by default), `'read'` offers the read tools, `'on'` everything, `'off'` nothing |
 | `panelSections` | `'fold'` | How collapsible sections in the settings panel present: `'fold'` (headers you open and close, one open at a time: opening one closes the others), `'folds'` (several may be open) or `'tabs'` (file tabs, one section at a time) |
 | `stats` | `false` | Add a Perf Stats section to the settings panel, flat and in a headset. `#perf` or `#debug` (or `?perf`, `?debug`) in the page URL, or calling `showB3dStats()`, shows it on every scene |
 | `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = the default layout (everything but the d-pad); a value like `"a,b,left_stick"` selects controls, and naming `view` or `menu` also puts them on the headset's system bar. A plain property, read once at setup |
@@ -329,6 +330,10 @@ import { touchOrbit } from './touch-orbit.js';
 import { xrControllers } from './gamepad.js';
 import { fitPanel, panel3d, titled3d, button3d, iconBar3d, label3d, textBlock3d, foldSections, } from './widgets3d.js';
 import { handlerOf } from './handler-of.js';
+import { controlTools, panelTools, sceneTools, registerAgentScene, sceneEntities, syncAgents, } from './b3d-agent.js';
+import { controlTree } from './widget-semantics.js';
+import { ariaMirror } from './aria-mirror.js';
+import { describeScene } from './scene-description.js';
 import { panelFitWidth } from './widgets3d-layout.js';
 import { w3dTheme } from './w3d-theme.js';
 import { SvgTexture, svgTextureCost } from './svg-texture.js';
@@ -344,7 +349,7 @@ import { faceViewer } from './dialog-placement.js';
 import { attachSceneLayer } from './panel-layer.js';
 import { angularHeight, bandOrbit, clampOrbit, orbitCentre, orbitFromAim, orbitPosition, } from './panel-orbit.js';
 import { svgIcons } from './svg-icons.js';
-import { systemBar, BAR_HEIGHT, ATTENTION_FILL, } from './system-bar.js';
+import { systemBar, BAR_HEIGHT, BAR_BUTTON, BAR_GAP, BAR_PAD, ATTENTION_FILL, } from './system-bar.js';
 import { CombatWorld } from './destroyable.js';
 import { b3dGamepad } from './glass-gamepad.js';
 import { XrGamepadSource } from './xr-gamepad.js';
@@ -604,6 +609,10 @@ export class B3d extends Component {
         /** How collapsible sections present: 'fold' (headers you open and close,
          * one open at a time), 'folds' (several open) or 'tabs' (file tabs). */
         panelSections: 'fold',
+        /** What an agent may do with this scene (see [agents](/b3d-agent/)):
+         * '' follows the page (`enableSceneAgents`, closed by default), 'read'
+         * offers the read tools, 'on' everything, 'off' nothing. */
+        agent: '',
         // Scale factor for the glass gamepad clusters. Touch-target pixel sizes vary
         // wildly across devices, so this is exposed for tuning per scene/device.
         gamepadScale: 1,
@@ -886,6 +895,101 @@ export class B3d extends Component {
         ':host .lozenge-button:hover': {
             background: 'rgba(255,255,255,0.15)',
         },
+        // Over the scene, never under a finger: screen readers' copies of the
+        // panels sit here, each over the control it stands for.
+        ':host .aria-mirror-host': {
+            position: 'absolute',
+            inset: '0',
+            pointerEvents: 'none',
+            zIndex: '25',
+        },
+        // The copies are unpainted (aria-mirror's UNPAINTED); a range input's
+        // thumb is a pseudo-element an inline style cannot reach.
+        ':host .aria-mirror-host input[type=range]::-webkit-slider-thumb': {
+            appearance: 'none',
+            webkitAppearance: 'none',
+            opacity: '0',
+        },
+        ':host .aria-mirror-host input[type=range]::-moz-range-thumb': {
+            opacity: '0',
+        },
+        // Everything inside a placed copy is unpainted too (a heading's fold
+        // button drew as a white box over the drawn section title).
+        ':host .aria-mirror-host [data-placed] *': {
+            background: 'transparent',
+            color: 'transparent',
+            borderColor: 'transparent',
+            boxShadow: 'none',
+            appearance: 'none',
+            webkitAppearance: 'none',
+        },
+        // A keyboard user sees which drawn control has focus.
+        ':host .aria-mirror-host [data-key]:focus-visible': {
+            outline: `2px solid ${w3dTheme.accent}`,
+            outlineOffset: '1px',
+            borderRadius: '6px',
+        },
+        ':host .sr-only, :host .describe-button:not(:focus)': {
+            position: 'absolute',
+            width: '1px',
+            height: '1px',
+            overflow: 'hidden',
+            clipPath: 'inset(50%)',
+            whiteSpace: 'nowrap',
+        },
+        // Shown while it has keyboard focus, so a sighted keyboard user sees it.
+        ':host .describe-button:focus': {
+            position: 'absolute',
+            left: '12px',
+            bottom: '12px',
+            zIndex: '20',
+            padding: '8px 12px',
+            color: '#fff',
+            background: 'rgba(0,0,0,0.7)',
+            border: '1px solid rgba(255,255,255,0.4)',
+            borderRadius: '8px',
+        },
+        /*
+        MIRRORING THE DRAWN BAR: the real buttons sit exactly over the drawn ones
+        (the bar's own measurements, at its spot), transparent and untouchable, so
+        a screen reader's finger finds each where it is drawn. Shown while one has
+        keyboard focus.
+        */
+        ':host .scene-lozenge[data-mirror]': {
+            top: '8px',
+            left: '8px',
+            padding: `${BAR_PAD}px`,
+            gap: `${BAR_GAP}px`,
+            border: '0',
+            background: 'transparent',
+        },
+        ':host .scene-lozenge[data-mirror]:not(:focus-within)': {
+            opacity: '0',
+            pointerEvents: 'none',
+        },
+        ':host .scene-lozenge[data-mirror] .lozenge-button:not([hidden])': {
+            width: `${BAR_BUTTON}px`,
+            minWidth: `${BAR_BUTTON}px`,
+            height: `${BAR_BUTTON}px`,
+            padding: '0',
+            borderLeft: '0',
+        },
+        /*
+        In use by a screen reader (\`assistive\`), the bar's real buttons are touch
+        targets over the drawn ones, unpainted: VoiceOver finds what a finger is
+        on by hit-testing, and skipped them while they were transparent.
+        */
+        ':host([data-assistive]) .scene-lozenge[data-mirror]': {
+            opacity: '1',
+            pointerEvents: 'auto',
+        },
+        ':host([data-assistive]) .scene-lozenge[data-mirror] .lozenge-button': {
+            background: 'transparent',
+            color: 'transparent',
+        },
+        ':host([data-assistive]) .scene-lozenge[data-mirror] .lozenge-button > *': {
+            opacity: '0',
+        },
         ':host .lozenge-button[hidden]': {
             display: 'none',
         },
@@ -1015,7 +1119,31 @@ export class B3d extends Component {
     content = [
         div({ class: 'spinner', part: 'spinner' }),
         div({ class: 'loading-caption hidden', part: 'loadingCaption' }),
-        canvas({ part: 'canvas' }),
+        /*
+        THE SCENE FOR A SCREEN READER (scene-description). The canvas is an image
+        named after the scene; its description is built only when asked for (the
+        canvas taking focus, or the describe button), never on a timer: reading
+        every named thing is not free, and nobody may be listening.
+        */
+        canvas({
+            part: 'canvas',
+            role: 'img',
+            tabindex: '0',
+            'aria-label': '3D scene',
+            'aria-describedby': 'b3d-scene-description',
+        }),
+        div({
+            part: 'sceneDescription',
+            id: 'b3d-scene-description',
+            class: 'sr-only',
+        }),
+        div({
+            part: 'sceneAnnouncer',
+            class: 'sr-only',
+            role: 'status',
+            'aria-live': 'polite',
+        }),
+        button({ part: 'describeButton', type: 'button', class: 'describe-button' }, 'Describe the scene'),
         // Top-left lozenge holding two icon buttons side by side: scene settings
         // (opens the panel) and Enter VR (the purpose-built xrColor mark) — so VR
         // availability is obvious and Enter VR is never a panel row that could
@@ -1027,6 +1155,7 @@ export class B3d extends Component {
             part: 'scenePanelGear',
             type: 'button',
             title: 'Scene settings',
+            'aria-expanded': 'false',
             hidden: true,
             // Disabled until the scene finishes loading (reveal() enables it).
             disabled: true,
@@ -1056,6 +1185,9 @@ export class B3d extends Component {
             hidden: true,
             title: 'Full screen',
         }, svgIcons.maximize())),
+        // The settings panel as real HTML controls for a screen reader (`aria-mirror`),
+        // after the system bar's buttons so Tab goes from the owl into it.
+        div({ part: 'ariaMirrorHost', class: 'aria-mirror-host' }),
         div({ class: 'scene-panel-overlay', part: 'scenePanelHost', hidden: true }),
         /*
         THE PAUSE PANEL, ON A FLAT SCREEN, IS DOM.
@@ -1618,19 +1750,103 @@ export class B3d extends Component {
      * headset moves across with you.
      */
     showModal(svg, height, fallback) {
-        const m = { svg, height, fallback, close: null };
+        const m = {
+            svg,
+            height,
+            fallback,
+            close: null,
+            unmirror: null,
+        };
         m.close =
             this._presentModal(svg, height, this._modals.size) ?? fallback?.() ?? null;
         if (m.close == null)
             return null;
         this._modals.add(m);
         this._syncGamepadCover();
+        this._syncModalInert();
+        // Always, not only once assistive: a modal blocks the scene, so one a
+        // screen reader cannot reach holds the page. It costs only while open.
+        m.unmirror = this._mirrorModal(svg);
         return () => {
             if (!this._modals.delete(m))
                 return;
             m.close?.();
+            m.unmirror?.();
             this._syncGamepadCover();
+            this._syncModalInert();
         };
+    }
+    /*
+    A MODAL FOR A SCREEN READER: its controls as a hidden dialog that takes
+    focus (the first control, Continue on a pause), and gives it back on close.
+    A modal drawn in the scene is otherwise unreachable without a pointer, and
+    a pause you cannot dismiss holds the whole page.
+    */
+    _mirrorModal(svg) {
+        const host = this.parts?.ariaMirrorHost;
+        const read = svg.controls;
+        if (host == null || read == null || this.xrActive)
+            return () => { };
+        const root = this.getRootNode();
+        const before = (this.shadowRoot?.activeElement ??
+            root.activeElement);
+        // Named after its first line when that is a label ("Paused", "You died").
+        let first = '';
+        const mirror = ariaMirror(host, () => read.call(svg), {
+            role: 'dialog',
+            label: () => first,
+            place: (box) => this._panelToHost(svg, box),
+        });
+        mirror.update();
+        first = mirror.root.querySelector('p')?.textContent ?? '';
+        if (first) {
+            mirror.update();
+            // Said aloud too: moving focus is not always announced (iOS).
+            const say = this.parts?.sceneAnnouncer;
+            if (say != null) {
+                say.textContent = '';
+                setTimeout(() => (say.textContent = first), 50);
+            }
+        }
+        // Our own focus moves are not someone using a screen reader: they must
+        // not wake the scene (every sighted pause would).
+        this._quietFocus(mirror.root.querySelector('button, input, select'));
+        return () => {
+            mirror.dispose();
+            // Back where it was, or to the scene when that is gone (a panel closed).
+            this._quietFocus(before?.isConnected
+                ? before
+                : this.parts?.canvas);
+        };
+    }
+    _focusQuiet = false;
+    _quietFocus(el) {
+        if (el == null)
+            return;
+        this._focusQuiet = true;
+        try {
+            el.focus();
+        }
+        finally {
+            this._focusQuiet = false;
+        }
+    }
+    /*
+    WHILE A MODAL IS UP, NOTHING ELSE IN THE SCENE'S HTML IS REACHABLE: the
+    system bar's real buttons, the settings panel's copies and the describe
+    button are inert (not the canvas: a pointer presses the drawn modal there). The drawn scene is covered by the modal;
+    without this a screen reader could still open the settings panel from
+    behind a pause.
+    */
+    _syncModalInert() {
+        const on = this._modals.size > 0;
+        for (const e of [
+            this.parts?.sceneToolbar,
+            this.parts?.describeButton,
+            this._ariaMirror?.root,
+        ])
+            if (e != null && e.inert !== on)
+                e.inert = on;
     }
     /** Put each open modal in the presentation now running (flat or headset). */
     _representModals() {
@@ -2046,6 +2262,14 @@ export class B3d extends Component {
     //    entity must NOT also registerWorldRoot (that would shift its node twice).
     _worldRoots = new Set();
     _originShiftListeners = [];
+    _originOffset = { x: 0, z: 0 };
+    /**
+     * How far the floating origin has moved in all: a scene point plus this is
+     * where it is in the world, which a rebase does not change.
+     */
+    get originOffset() {
+        return { ...this._originOffset };
+    }
     // Everything detectable on radar this scene (targets, the player's own missiles,
     // waypoints). A radar platform — the aircraft HUD — enumerates these each frame.
     // Blips self-register (b3d-radar-blip on connect; spawnProjectile for a missile)
@@ -2128,6 +2352,8 @@ export class B3d extends Component {
     shiftOrigin(dx, dz) {
         if (dx === 0 && dz === 0)
             return;
+        this._originOffset.x += dx;
+        this._originOffset.z += dz;
         const shifted = new Set();
         const move = (node) => {
             if (node == null || shifted.has(node))
@@ -2720,7 +2946,7 @@ export class B3d extends Component {
         }
         if (this._flatDom() || lozenge == null) {
             if (lozenge)
-                lozenge.style.visibility = '';
+                delete lozenge.dataset.mirror;
             return null;
         }
         const part = (p) => this.parts[p];
@@ -2742,7 +2968,12 @@ export class B3d extends Component {
         const bar = this._sceneBar;
         if (bar.count === 0)
             return null;
-        lozenge.style.visibility = 'hidden';
+        /*
+        MIRRORED, NOT HIDDEN. The SVG bar draws these buttons; the HTML ones stay
+        in the accessibility tree (a screen reader and Tab reach them) and show
+        while one has keyboard focus. `visibility: hidden` took them out of both.
+        */
+        lozenge.dataset.mirror = '';
         return {
             frame: 'face',
             anchor: { position: [0, 0, 1] },
@@ -4781,6 +5012,19 @@ export class B3d extends Component {
             return;
         }
         // Reconnected after teardown already ran, or connected for the first time.
+        // Joins the page's agent registry: a Set add, nothing runs until a call.
+        this._agentOff = registerAgentScene(this);
+        // Described on demand only (see the canvas in `content`).
+        this.shadowRoot?.addEventListener('focusin', this._wakeOnFocus);
+        this.addEventListener('pointerdown', this._notePointer, true);
+        this.addEventListener('wheel', this._holdSideways, {
+            capture: true,
+            passive: false,
+        });
+        this.shadowRoot?.addEventListener('click', this._wakeOnClick, true);
+        if (debugSink.url !== '')
+            this._traceInput();
+        this.parts.describeButton.addEventListener('click', this._describeAloud);
         // Input focus follows the pointer: hovering or pressing anywhere in this scene
         // (canvas OR the glass-gamepad / panel overlays, which are siblings of the canvas)
         // makes it the one shared keyboard/gamepad input drives — see hasInputFocus. Listen
@@ -4921,6 +5165,7 @@ export class B3d extends Component {
             // Mount the glass gamepad (if requested) before releasing descendants, so
             // b3dInputFocus sees its source when it wires up input.
             this._setupGamepad();
+            this._holdGamepadForLoading();
             // Scene is ready. Release any B3dChild components that connected and asked
             // (whenReady) before the scene was up — they insert themselves now. Anything
             // connecting later self-registers and runs immediately.
@@ -5025,6 +5270,11 @@ export class B3d extends Component {
                         ],
                     });
                 cnv.classList.add('ready');
+                this._suppressGamepad('loading', false);
+                // Once, if someone is listening: the canvas may already hold focus,
+                // and a second focus fires nothing.
+                if (this._assistive)
+                    this._describe(false);
                 // Not a spinner a page is holding up for its own loading.
                 if (!this._loadingHeld)
                     spinner.classList.add('hidden');
@@ -6616,6 +6866,11 @@ export class B3d extends Component {
                 const path = e.composedPath();
                 if (path.includes(host) || path.includes(gear))
                     return;
+                // Nor a screen reader's copies of its controls, laid over it: VoiceOver
+                // presses them with a real tap, and closing here took the copy away
+                // before its click.
+                if (path.includes(this.parts.ariaMirrorHost))
+                    return;
                 this._closeScenePanel();
             });
         }
@@ -6767,7 +7022,7 @@ export class B3d extends Component {
         // One at a time: an exclusive system panel (the inventory) goes.
         this._closeSystemPanels(true);
         if (!this._flatDom() && !this.xrActive && this._openFlatScenePanel())
-            return;
+            return this._syncAriaMirror();
         const host = this.parts.scenePanelHost;
         const mk = (title, icon, onClick, active = false, dim = false) => {
             const b = button({
@@ -6808,6 +7063,218 @@ export class B3d extends Component {
         replaceKeepingLayers(host, div({ class: 'scene-panel-head' }, span({ class: 'scene-panel-title' }, this.panelTitle ?? ''), ...buttons), fresh);
         host.removeAttribute('hidden');
         this._panelHeightKey = this.clientHeight;
+        this._syncAriaMirror();
+    }
+    /*
+    ASSISTIVE, ON DEMAND (#3699). Nothing for a screen reader is built until
+    someone is using one: the first time focus lands anywhere in the scene
+    (Tab, or VoiceOver moving onto the owl or the scene). Until then the scene
+    carries only what is static: the system bar's real buttons, the canvas's
+    name, the describe button. After it, the panels and modals are mirrored
+    (placed over what they mirror), the scene is described and the pad's
+    controls named. Nothing runs on a timer even then.
+    */
+    _assistive = false;
+    /** Has anyone used the scene's assistive surface (so it is being kept up)? */
+    get assistive() {
+        return this._assistive;
+    }
+    _goAssistive = (e) => {
+        if (this._focusQuiet)
+            return;
+        if (e.target === this.parts?.canvas)
+            this._describe(false);
+        if (this._assistive)
+            return;
+        this._assistive = true;
+        this.toggleAttribute('data-assistive', true);
+        this._syncAriaMirror();
+        this._describe(false);
+        for (const m of this._modals)
+            m.unmirror ??= this._mirrorModal(m.svg);
+        this.querySelector('tosi-b3d-input-focus')?.labelPad?.();
+    };
+    /*
+    FOCUS FROM A PRESS IS NOT A SCREEN READER. The canvas is focusable, so a
+    mouse press on the scene focuses it, and that woke everything for every
+    mouse user: the copies then lay over the panel and took its clicks. Focus
+    within a second of a press in this scene is the press's, and is ignored.
+    VoiceOver selecting a control sends no press before its focus (read off an
+    iPhone), and a press on the hidden bar buttons still wakes it through
+    `_wakeOnClick`.
+    */
+    /*
+    A SIDEWAYS TRACKPAD DRAG OVER THE SCENE IS THE SCENE'S. Uncancelled, a
+    horizontal two-finger drag is the browser's back/forward swipe, and the
+    camera only cancels a wheel once it has classed it as a pan, so a drag
+    that started sideways left the page. The default (scrolling, history) is
+    cancelled; the event still reaches the camera and the panels.
+    */
+    _holdSideways = (e) => {
+        if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && e.cancelable)
+            e.preventDefault();
+    };
+    _pressedAt = -Infinity;
+    _notePointer = () => {
+        this._pressedAt = realNow();
+    };
+    _wakeOnFocus = (e) => {
+        if (realNow() - this._pressedAt < 1000)
+            return;
+        this._goAssistive(e);
+    };
+    /*
+    WHAT A PRESS ACTUALLY IS, FROM A DEVICE (dev only: the debug sink is set).
+    Each discrete input event the scene gets (no moves) goes to the sink with
+    its real target, where it landed and whether it was genuine, so a
+    screen reader on a phone can be read from the sink instead of guessed at.
+    */
+    _traceBuffer = [];
+    _traceInput() {
+        const name = (n) => {
+            const e = n;
+            if (e?.tagName == null)
+                return String(n);
+            const bits = [e.tagName.toLowerCase()];
+            for (const a of ['part', 'data-part', 'data-key', 'role', 'aria-label'])
+                if (e.getAttribute(a))
+                    bits.push(`${a}=${e.getAttribute(a)}`);
+            const style = e.style?.pointerEvents;
+            if (style)
+                bits.push(`pe=${style}`);
+            const named = e.parentElement?.closest('[part], [data-part], [data-key], button, svg');
+            if (bits.length === 1 && named != null)
+                bits.push(`in ${name(named)}`);
+            return bits.join(' ');
+        };
+        const record = (ev) => {
+            const t = ev;
+            const p = t.touches?.[0] ?? t.changedTouches?.[0] ?? t;
+            this._traceBuffer.push({
+                type: ev.type,
+                trusted: ev.isTrusted,
+                x: Math.round(p.clientX ?? -1),
+                y: Math.round(p.clientY ?? -1),
+                pointer: t.pointerType,
+                target: name(ev.composedPath()[0]),
+                focus: name(this.shadowRoot?.activeElement ?? undefined),
+                assistive: this._assistive,
+            });
+            if (this._traceBuffer.length === 1)
+                setTimeout(() => {
+                    sendDebug('input', {
+                        ua: navigator.userAgent,
+                        events: this._traceBuffer,
+                    });
+                    this._traceBuffer = [];
+                }, 400);
+        };
+        for (const type of [
+            'touchstart',
+            'touchend',
+            'pointerdown',
+            'pointerup',
+            'mousedown',
+            'click',
+            'focusin',
+        ])
+            this.addEventListener(type, record, { capture: true, passive: true });
+    }
+    /*
+    iOS VoiceOver presses a button WITHOUT focusing it, so focus alone never
+    woke the scene there. A real (trusted) click on one of the hidden HTML
+    buttons wakes it too: in `data-mirror` mode they take no pointer events, so
+    a sighted tap lands on the drawn bar and the bar presses them with
+    `click()`, which is untrusted.
+    */
+    _wakeOnClick = (e) => {
+        if (this._assistive || !e.isTrusted)
+            return;
+        const t = e.target;
+        if (t?.closest?.('.scene-lozenge[data-mirror]') != null ||
+            t === this.parts?.describeButton)
+            this._goAssistive(e);
+    };
+    /*
+    THE SCREEN READER'S PANEL (`aria-mirror`): rebuilt with the panel, values
+    re-read when one of its controls takes focus. Flat only: a headset has no
+    DOM.
+    */
+    _ariaMirror = null;
+    _syncAriaMirror() {
+        // The owl says whether its panel is open. Written only on a change: the
+        // system bar watches its buttons' attributes and rebuilds on each write.
+        const gear = this.parts?.scenePanelGear;
+        const expanded = String(this._scenePanelOpen());
+        if (gear != null && gear.getAttribute('aria-expanded') !== expanded)
+            gear.setAttribute('aria-expanded', expanded);
+        if (!this._assistive)
+            return;
+        const host = this.parts?.ariaMirrorHost;
+        const live = this._livePanel();
+        if (host == null || live?.controls == null || this.xrActive) {
+            this._ariaMirror?.clear();
+            return;
+        }
+        this._ariaMirror ??= ariaMirror(host, () => this._livePanel()?.controls?.() ?? null, {
+            label: () => `${this.panelTitle || 'Scene'} settings`,
+            place: (box) => this._panelToHost(this._livePanel(), box),
+        });
+        this._ariaMirror.update();
+        this._syncModalInert();
+    }
+    /*
+    A PANEL BOX ON THE SCREEN: where a box in a panel's units is over the
+    scene element, in CSS pixels. The flat settings panel draws a viewBox unit
+    per CSS pixel at its spot; a modal is centred, scaled to fit 80% of the
+    height; a panel in the DOM is wherever the page laid it out.
+    */
+    _panelToHost(panel, box) {
+        if (panel == null)
+            return null;
+        const svg = panel;
+        const vb = svg.viewBox?.baseVal;
+        if (vb == null || !(vb.width > 0) || !(vb.height > 0))
+            return null;
+        let left;
+        let top;
+        let scale;
+        if (svg.isConnected) {
+            const r = svg.getBoundingClientRect();
+            const me = this.getBoundingClientRect();
+            if (!(r.width > 0))
+                return null;
+            scale = r.width / vb.width;
+            left = r.left - me.left;
+            top = r.top - me.top;
+        }
+        else if (this._flatScenePanel?.el === panel) {
+            const spot = this._flatPanelSpot;
+            left = Number(spot?.left) || 0;
+            top = Number(spot?.top) || 0;
+            scale = 1;
+        }
+        else {
+            const cnv = this.parts?.canvas;
+            const W = cnv?.clientWidth ?? 0;
+            const H = cnv?.clientHeight ?? 0;
+            if (!(W > 0) || !(H > 0))
+                return null;
+            const tall = Math.min(vb.height, H * 0.8);
+            scale = tall / vb.height;
+            left = (W - vb.width * scale) / 2;
+            top = (H - tall) / 2;
+        }
+        return {
+            x: left + (box.x - vb.x) * scale,
+            y: top + (box.y - vb.y) * scale,
+            w: box.w * scale,
+            h: box.h * scale,
+        };
+    }
+    _disposeAriaMirror() {
+        this._ariaMirror?.dispose();
+        this._ariaMirror = null;
     }
     /*
     THE FLAT PANEL FITS THE SPACE IT HAS (board #2466). It draws one viewBox
@@ -6828,6 +7295,7 @@ export class B3d extends Component {
     _closeScenePanel() {
         this._disposeFlatScenePanel();
         this.parts.scenePanelHost.setAttribute('hidden', '');
+        this._syncAriaMirror();
         // Debug tools collapse again on next open — kept out of the way by default.
         this._debugOpen.clear();
         // …and their popups go with the panel that opened them, live rows included.
@@ -6835,6 +7303,74 @@ export class B3d extends Component {
             h.close();
             this._retirePopup(id);
         }
+    }
+    _agentOff = null;
+    /** The scene in words, into the canvas's description; `aloud` also speaks it. */
+    _describe(aloud) {
+        const desc = this.parts?.sceneDescription;
+        if (desc == null || this.scene == null)
+            return;
+        const sky = this.querySelector('tosi-b3d-skybox');
+        const text = describeScene({
+            title: this._sceneTitle(),
+            ...sceneEntities(this),
+            timeOfDay: sky?.timeOfDay,
+            daylight: sky?.daylight,
+        });
+        desc.textContent = text;
+        if (!aloud)
+            return;
+        // Emptied first, so asking twice is announced twice.
+        const say = this.parts.sceneAnnouncer;
+        say.textContent = '';
+        setTimeout(() => (say.textContent = text), 50);
+    }
+    _describeAloud = () => this._describe(true);
+    _sceneTitle() {
+        return this.panelTitle || this.id || 'Scene';
+    }
+    _agentKey = '';
+    _agentRows = [];
+    _disposeAgentRows() {
+        for (const w of this._agentRows) {
+            try {
+                w.dispose?.();
+            }
+            catch {
+                // A consumer's dispose must not take the read with it.
+            }
+        }
+        this._agentRows = [];
+    }
+    /** The name in this scene's tool names: its id, else its panel title. */
+    agentName() {
+        return this.id || this.panelTitle || '';
+    }
+    agentExposure() {
+        return this.agent ?? '';
+    }
+    agentTools() {
+        const host = this;
+        return [...sceneTools(host), ...controlTools(host), ...panelTools(this)];
+    }
+    agentPanelOpen() {
+        return this._livePanel() != null;
+    }
+    agentControls(fresh = true) {
+        const live = this._livePanel();
+        if (live?.controls != null) {
+            this._disposeAgentRows();
+            return live.controls();
+        }
+        if (fresh || this._agentRows.length === 0) {
+            this._disposeAgentRows();
+            const items = this._barItems();
+            this._agentRows = [
+                ...(items.length > 0 ? [iconBar3d({ items })] : []),
+                ...this.scenePanel(this),
+            ];
+        }
+        return controlTree(this._agentRows);
     }
     /** Rebuild the flat scene panel from the current rows, if it's open.
      * Call after async state the panel reflects has changed (e.g. a library loaded,
@@ -6859,7 +7395,10 @@ export class B3d extends Component {
         if (this._flatScenePanel != null)
             return this._flatScenePanel.el;
         const host = this.parts?.scenePanelHost;
-        return host?.querySelector(':scope > svg[data-w3d="panel"]') ?? null;
+        // A closed DOM panel is hidden, not emptied.
+        if (host == null || host.hasAttribute('hidden'))
+            return null;
+        return host.querySelector(':scope > svg[data-w3d="panel"]') ?? null;
     }
     /*
     NOT MID-PRESS. A rebuild that lands while a slider is being dragged (a
@@ -6907,6 +7446,12 @@ export class B3d extends Component {
         // A scene that starts paused got there before the pad existed.
         if (this._paused)
             this._suppressGamepad('pause', true);
+    }
+    /** No pad over the spinner: hidden until the scene is revealed. */
+    _holdGamepadForLoading() {
+        const cnv = this.parts?.canvas;
+        if (cnv != null && !cnv.classList.contains('ready'))
+            this._suppressGamepad('loading', true);
     }
     // In-scene surface: render the panel onto a plane positioned each frame in
     // WORLD space relative to the HEAD (not the rig / flat camera), floating
@@ -7460,6 +8005,11 @@ export class B3d extends Component {
         // rows outlive the session that built them otherwise.
         this._disposeWidgets('flat');
         this._disposeWidgets('xr');
+        this._disposeAgentRows();
+        this._disposeAriaMirror();
+        this._agentOff?.();
+        this._agentOff = null;
+        this._originOffset = { x: 0, z: 0 };
         this._errorCaptureOff?.();
         this._errorCaptureOff = null;
         window.removeEventListener('pointerup', this._freeTouchSlot, true);
@@ -7623,6 +8173,20 @@ export class B3d extends Component {
     }
     render() {
         super.render();
+        // The agent registry reads `agent` and the name when it syncs: one that
+        // changes after the scene connected (or arrived after it) re-syncs it.
+        // The canvas's name follows the scene's title.
+        const cv = this.parts?.canvas;
+        const label = `${this._sceneTitle()}, 3D scene`;
+        if (cv != null && cv.getAttribute('aria-label') !== label)
+            cv.setAttribute('aria-label', label);
+        const agentKey = `${this.agent ?? ''}|${this.agentName()}`;
+        if (agentKey !== this._agentKey) {
+            const first = this._agentKey === '';
+            this._agentKey = agentKey;
+            if (!first || this.agent)
+                syncAgents();
+        }
         // A render can be queued on rAF and land AFTER teardown disposed the engine.
         // Building a GlowLayer on a disposed scene is how that would surface — as a
         // GL error from a component that looks fine, which is the failure mode this

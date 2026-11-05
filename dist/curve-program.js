@@ -336,6 +336,18 @@ export function curveProgram3d(config = {}) {
     let captured = -1;
     const api = {
         el,
+        // Its curves, each a named editor in the panel's tree.
+        semantics: () => ({
+            role: 'group',
+            name: '',
+            children: fields,
+            childBoxes: fields.map((_, i) => ({
+                x: 0,
+                y: offsets[i] ?? 0,
+                w: Infinity,
+                h: heights[i] ?? 0,
+            })),
+        }),
         setHost(host) {
             // Same offset hop as the light editor: a child anchors in its own
             // coordinates and the container owes it the translation.

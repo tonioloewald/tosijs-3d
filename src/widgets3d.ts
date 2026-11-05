@@ -3781,17 +3781,12 @@ panel from the same rows (one section open at a time, remembered per set of
 section titles) and hands it to `handleReplace`, which every host of a panel
 sets. Before this a hosted tool's headers drew chevrons that did nothing.
 */
-export function panel3d(
-  config: PanelConfig,
-  ...widgets: Widget3d[]
-): Panel3d {
+export function panel3d(config: PanelConfig, ...widgets: Widget3d[]): Panel3d {
   const sections = widgets
     .map((w) => (w as any).section as { title: string; toggle?: () => void })
     .filter((x) => x != null)
   // Wired by a host's own `foldSections` (not by an earlier panel of ours).
-  const hostFolds = sections.some(
-    (x) => x.toggle != null && !selfFolded.has(x)
-  )
+  const hostFolds = sections.some((x) => x.toggle != null && !selfFolded.has(x))
   if (sections.length === 0 || hostFolds)
     return buildPanel3d(config, ...widgets)
   for (const x of sections) selfFolded.add(x)

@@ -157,13 +157,13 @@ import { button3d, label3d, panel3d, row3d, select3d, slider3d, toggle3d, } from
 import { vector3d } from './vector-field.js';
 import { pointerClaimedByPanel } from './frame-panel.js';
 import { touchOrbit } from './touch-orbit.js';
-import { inspectView, inspectStage, seamOverlay, } from './inspect-view.js';
+import { inspectView, inspectStage, INSPECT_FACES, seamOverlay, } from './inspect-view.js';
 import { viewMenu } from './bar-menu.js';
 import { b3dPanel } from './b3d-panel.js';
 import { readSkeleton, retargetClip, } from './retarget-babylon.js';
 import { ROLES } from './retarget.js';
 import { fitSkeleton, guessMarkers, meshQuery, objTriangles, rigSilhouette, } from './rig-fit.js';
-import { buildBody, gatherTriangles as gather, soleVertices, lowestOf, } from './rig-build.js';
+import { buildBody, gatherTriangles as gather, keepMaterials, surfaceMaterial, soleVertices, lowestOf, } from './rig-build.js';
 import { bodyFromMarkers } from './rigged-body.js';
 import { applyRigRecipe } from './rig-recipe-babylon.js';
 import { RIG_RECIPE_VERSION, STRAND_DEFAULTS, validateRigRecipe, strandPath, setStrandPath, pathLength, } from './rig-recipe.js';
@@ -334,6 +334,8 @@ bindOwn = false) {
             n.isEnabled() &&
             (top == null || n === top || n.isDescendantOf(top)));
         const tris = gather(root, shown);
+        // Its own materials outlive the file: the bound mesh wears them.
+        keepMaterials(container, scene, tris.surfaces);
         container.dispose();
         // Whether it had a skeleton of its own (then it can go back to it).
         return tris.indices.length > 0
@@ -362,6 +364,8 @@ eight front-view markers (and a tail tip, for a tail), bone heat for the
 weights, and a Babylon skeleton built on it. Its tail, if any, is `tail_01`
 … `tail_leaf`: a bone chain for the springs.
 */
+/** Bodies handed to a host on done: their file materials are the host's now. */
+const handedOver = new WeakSet();
 function bindMesh(scene, name, tris, binding, options = {}) {
     const { positions, indices } = tris;
     // A rigged body (rigged-body), as MakeHuman's are: one shape for both.
@@ -375,7 +379,14 @@ function bindMesh(scene, name, tris, binding, options = {}) {
     const built = buildBody(scene, name, body);
     const mat = new BABYLON.StandardMaterial(`${name}-skin`, scene);
     mat.diffuseColor = BABYLON.Color3.FromHexString(options.color ?? '#8a8f99');
-    built.mesh.material = mat;
+    // It wears the file's own materials where it has them, else the grey.
+    const own = (body.surfaces ?? [])
+        .map((x) => x.material)
+        .filter((x) => x != null);
+    const worn = own.length
+        ? surfaceMaterial(scene, name, body, (x) => x?.material ?? mat)
+        : mat;
+    built.mesh.material = worn;
     return {
         root: built.root,
         skeleton: built.skeleton,
@@ -390,6 +401,12 @@ function bindMesh(scene, name, tris, binding, options = {}) {
         },
         body,
         dispose() {
+            if (worn instanceof BABYLON.MultiMaterial)
+                worn.dispose(false, false, false);
+            // Handed over on done, the host's body wears them: leave them be.
+            if (!handedOver.has(body))
+                for (const m of new Set(own))
+                    m.dispose(false, true);
             mat.dispose();
             built.dispose();
         },
@@ -514,6 +531,25 @@ export function mountRigTool(owner, options = {}) {
                 return n;
         return null;
     };
+    /** Does joint `n` hang from joint `j` (strictly below it)? */
+    const hangsFrom = (n, j) => {
+        for (let p = parents.get(n); p != null; p = parents.get(p))
+            if (p === j)
+                return true;
+        return false;
+    };
+    /**
+     * Where a marker sits on its joint: the marker stores the joint less this
+     * (the pelvis is above the crotch).
+     */
+    const markerOffset = (b, k) => {
+        const fit = fittedJoints(b, false);
+        const j = fit?.get(MARKER_JOINT[k] ?? '');
+        const m = b.markers[k];
+        return j != null && m != null
+            ? { x: j.x - m.x, y: j.y - m.y }
+            : { x: 0, y: 0 };
+    };
     /*
     MOVED, NOT YET BOUND. Binding takes a second or two and shows nothing in
     the rest pose, so moving a marker only moves it (Tonio); the mesh is bound
@@ -522,17 +558,44 @@ export function mountRigTool(owner, options = {}) {
     let stale = false;
     /** The model loaded now (what `done` hands back). */
     let loadedModel = null;
-    function setMarkers(markers, tail, tailBase = tail != null ? bound?.tailBase ?? null : null) {
+    function setMarkers(markers, tail, tailBase = tail != null ? bound?.tailBase ?? null : null, 
+    /** Markers dragged carrying their joints: every joint below them comes. */
+    carry = []) {
         /*
         What hangs from a marker comes with it: a joint moved by hand below one
         (a finger under the wrist) moves as far as the marker's joint did, and a
         marker's own joint is the marker's, so no hand-moved copy of it stays.
         */
         const before = fittedJoints(bound, false);
+        const shown = fittedJoints(bound, true);
         const next = bound != null ? { ...bound, markers, tail, tailBase } : null;
         const after = fittedJoints(next, false);
         const joints = {};
+        /*
+        CARRIED: a wrist or knee dragged with its joints showing takes the
+        whole hand or foot as it stands (the fit's fingers too, not only the
+        ones moved by hand), so a placed hand is not undone by moving its wrist.
+        */
+        const carried = new Set(carry.map((k) => MARKER_JOINT[k]));
+        if (carried.size && shown != null)
+            for (const [n, p] of shown) {
+                if (markerJoints.has(n))
+                    continue;
+                const m = markerAbove(n);
+                if (m == null || !carried.has(m))
+                    continue;
+                const a = before?.get(m);
+                const b = after?.get(m);
+                if (a && b)
+                    joints[n] = {
+                        x: p.x + b.x - a.x,
+                        y: p.y + b.y - a.y,
+                        z: p.z + b.z - a.z,
+                    };
+            }
         for (const [n, p] of Object.entries(recipe.binding?.joints ?? {})) {
+            if (n in joints)
+                continue;
             if (markerJoints.has(n))
                 continue;
             const m = markerAbove(n);
@@ -680,7 +743,7 @@ export function mountRigTool(owner, options = {}) {
             */
             const b = bound;
             w.push(label3d({ text: 'Markers', collapsible: true, open: true }), label3d({
-                text: 'drag the red markers onto the joints',
+                text: 'drag each marker onto its joint: the mannequin shows where',
                 muted: true,
                 compact: true,
             }), toggle3d({
@@ -756,7 +819,7 @@ export function mountRigTool(owner, options = {}) {
                         },
                     }),
                     label3d({
-                        text: 'blue dots: fingers and thumbs from the top view, feet from the side',
+                        text: "joints wear their marker's colour: fingers from the top view, feet from the side",
                         muted: true,
                         compact: true,
                     }),
@@ -852,9 +915,21 @@ export function mountRigTool(owner, options = {}) {
             label: 'load animations…',
             handleClick: () => void chooseFile('.glb,.gltf').then((f) => f && tool?.loadClips(f)),
         }), 
-        // VIEW: what is shown beside it (where it is seen from is the
-        // toolbar on the bar: the camera).
-        label3d({ text: 'View', collapsible: true }), toggle3d({
+        // VIEW: where it is seen from (also the camera on the bar) and what is
+        // shown beside it.
+        label3d({ text: 'View', collapsible: true }), select3d({
+            label: 'seen from',
+            value: ui.view,
+            options: [...INSPECT_FACES, 'free'].map((v) => ({
+                label: v === 'free' ? 'perspective' : v,
+                value: v,
+            })),
+            handleChange: (v) => {
+                ui.view = v;
+                tool?.view(ui.view);
+                refresh();
+            },
+        }), toggle3d({
             label: 'mannequin',
             value: ui.compare,
             handleChange: (v) => tool?.compare((ui.compare = v)),
@@ -1426,6 +1501,9 @@ export function mountRigTool(owner, options = {}) {
         };
         cleanups.push(() => stand.dispose());
         let height = 1.8;
+        // How far the stand lifts the model so its lowest point at rest is on
+        // the floor: a file's origin may be its middle (Meshy's are), not its feet.
+        let floor = 0;
         const UAL_HEIGHT = 1.83;
         /*
             HELD VIEWS (Tonio: snap to overhead, front and side; then: an
@@ -1440,35 +1518,46 @@ export function mountRigTool(owner, options = {}) {
             in the orthographic views"): a face stands it at rest, perspective
             plays the clip, and the animate toggle moves the view the other way.
             */
-        const inspect = inspectView(cam, {
-            handleChange: (f) => {
-                // Unmounting lets go of the view: nothing more to play.
-                if (disposed)
-                    return;
-                ui.view = f;
-                if (f !== 'free')
-                    restFace = f;
-                const pose = f === 'free' ? 'animate' : 'rest';
-                if (pose !== ui.pose) {
-                    ui.pose = pose;
-                    // Moved markers or joints are bound before it moves.
-                    if (pose === 'animate' && stale)
-                        void bindIfMoved().then(() => play());
-                    else
-                        play();
-                }
+        // A host's view (the character builder's, with its menu on the bar) is
+        // shared rather than a second one made on the same camera.
+        const hostView = options.inspect ?? null;
+        const onFace = (f) => {
+            // Unmounting lets go of the view: nothing more to play.
+            if (disposed)
+                return;
+            ui.view = f;
+            if (f !== 'free')
+                restFace = f;
+            const pose = f === 'free' ? 'animate' : 'rest';
+            if (pose !== ui.pose) {
+                ui.pose = pose;
+                // Moved markers or joints are bound before it moves.
+                if (pose === 'animate' && stale)
+                    void bindIfMoved().then(() => play());
                 else
-                    frame();
-                menu?.update();
-                seams();
-                refresh();
-            },
-        });
-        cleanups.push(() => inspect.dispose());
-        const menu = viewMenu(inspect, owner, {
-            always: true,
-        });
-        cleanups.push(() => menu.dispose());
+                    play();
+            }
+            else
+                frame();
+            menu?.update();
+            seams();
+            refresh();
+        };
+        const inspect = hostView ?? inspectView(cam, { handleChange: onFace });
+        if (hostView) {
+            const unwatch = hostView.watch(onFace);
+            cleanups.push(() => {
+                unwatch();
+                hostView.face = 'free';
+            });
+        }
+        else
+            cleanups.push(() => inspect.dispose());
+        const menu = hostView
+            ? null
+            : viewMenu(inspect, owner, { always: true });
+        if (menu)
+            cleanups.push(() => menu.dispose());
         let seamed = [];
         /** The model's polygons drawn over a flat fill, while a face is held. */
         function seams() {
@@ -1504,8 +1593,11 @@ export function mountRigTool(owner, options = {}) {
                 cam.target.set(0, height * 0.5, mid - right * height * 0.6);
             }
             else {
-                ualStand.position.set(-gap, 0, 0);
-                cam.target.set(middle + height * 0.6, height * 0.5, 0);
+                // From behind, the screen's right is +X: mirrored, so the mannequin
+                // stays on the screen's right in every view.
+                const flip = inspect.face === 'back' ? -1 : 1;
+                ualStand.position.set(-gap * flip, 0, 0);
+                cam.target.set((middle + height * 0.6) * flip, height * 0.5, 0);
             }
             cam.radius = height * (ui.pose === 'rest' ? 3.1 : 2.6);
             if (inspect.face === 'free')
@@ -1559,7 +1651,7 @@ export function mountRigTool(owner, options = {}) {
         const ground = (group) => {
             if (model == null)
                 return;
-            stand.position.y = 0;
+            stand.position.y = floor;
             stand.computeWorldMatrix(true);
             model.skeleton.returnToRest();
             const rest = lowest();
@@ -1570,11 +1662,11 @@ export function mountRigTool(owner, options = {}) {
             }
             group.goToFrame(group.from);
             if (Number.isFinite(rest) && Number.isFinite(low))
-                stand.position.y = rest - low;
+                stand.position.y = floor + rest - low;
         };
         const play = () => {
             stop();
-            stand.position.y = 0;
+            stand.position.y = floor;
             // Standing still: a held face (the one last used); moving: orbit.
             inspect.face = ui.pose === 'rest' ? restFace : 'free';
             frame();
@@ -1748,6 +1840,62 @@ export function mountRigTool(owner, options = {}) {
         const markerMat = dotMat('rig-marker', '#ff375f');
         const jointMat = dotMat('rig-joint', '#64d2ff');
         cleanups.push(() => jointMat.dispose());
+        /*
+        A COLOUR PER KIND OF MARKER, the same on the body and on the mannequin
+        beside it, where each sits on the joint it stands for: a reference
+        figure to place them by (Tonio, from Meshy's rigging).
+        */
+        const MARKER_COLOURS = {
+            chin: '#ffd60a',
+            groin: '#ff375f',
+            elbow: '#bf5af2',
+            wrist: '#5e5ce6',
+            knee: '#30d158',
+            tail: '#ff9f0a',
+        };
+        const kindOf = (key) => key.replace(/(L|R|Base)$/, '');
+        /*
+        WHICH MARKER A JOINT BELONGS TO, for its colour (Tonio): the marker it
+        hangs below (fingers the wrist's, toes the knee's, a tail's bones the
+        tail's), else the next marker down its chain (the upper arm and
+        collarbone the elbow's, the thigh the knee's, the spine and neck the
+        chin's). The groin's pelvis is above nearly everything, so it does not
+        claim what hangs below it.
+        */
+        const keyOfJoint = new Map(Object.entries(MARKER_JOINT).map(([k, j]) => [j, k]));
+        const markerOfJoint = (name) => {
+            const above = markerAbove(name);
+            if (above != null && above !== 'pelvis')
+                return keyOfJoint.get(above);
+            const kids = new Map();
+            for (const [n, p] of parents)
+                if (p != null)
+                    kids.set(p, [...(kids.get(p) ?? []), n]);
+            // Breadth first: the nearest marker below.
+            let level = kids.get(name) ?? [];
+            while (level.length) {
+                const hit = level.find((n) => keyOfJoint.has(n));
+                if (hit != null)
+                    return keyOfJoint.get(hit);
+                level = level.flatMap((n) => kids.get(n) ?? []);
+            }
+            return null;
+        };
+        const markerMats = new Map();
+        const matFor = (key) => {
+            const kind = kindOf(key);
+            let m = markerMats.get(kind);
+            if (m == null) {
+                m = dotMat(`rig-marker-${kind}`, MARKER_COLOURS[kind] ?? '#ff375f');
+                markerMats.set(kind, m);
+            }
+            return m;
+        };
+        cleanups.push(() => {
+            for (const m of markerMats.values())
+                m.dispose();
+            markerMats.clear();
+        });
         let dots = [];
         cleanups.push(() => {
             for (const d of dots)
@@ -1815,32 +1963,59 @@ export function mountRigTool(owner, options = {}) {
                         : toScene(m.x, m.y, m.z ?? z0);
                 };
                 for (const [key, m] of Object.entries(b.markers))
-                    dot(onJoint(key, m), r * 1.6, markerMat, { marker: key, handle: -1 });
+                    dot(onJoint(key, m), r * 1.6, matFor(key), {
+                        marker: key,
+                        handle: -1,
+                    });
                 if (b.tail) {
-                    dot(onJoint('tail', b.tail), r * 1.6, markerMat, {
+                    dot(onJoint('tail', b.tail), r * 1.6, matFor('tail'), {
                         marker: 'tail',
                         handle: -1,
                     });
                     const base = fit?.get('tail_01');
                     if (base)
-                        dot(toScene(base.x, base.y, base.z), r * 1.6, markerMat, {
+                        dot(toScene(base.x, base.y, base.z), r * 1.6, matFor('tailBase'), {
                             marker: 'tailBase',
                             handle: -1,
                         });
                 }
+                // The reference: each marker on the mannequin's joint it stands for
+                // (no handle: it is there to look at, not to drag).
+                if (ui.compare && ualStand?.isEnabled())
+                    for (const key of Object.keys(b.markers)) {
+                        const node = source.nodes.get(MARKER_JOINT[key] ?? '');
+                        if (node == null)
+                            continue;
+                        node.computeWorldMatrix(true);
+                        // Hung on the joint, so it goes wherever the view puts the
+                        // mannequin (beside the body, or behind it from the side).
+                        dot(node.getAbsolutePosition(), r * 1.6, matFor(key), {
+                            reference: key,
+                        }).setParent(node);
+                    }
                 // Every joint, to move by hand: where it was moved to, else the fit's.
                 if (ui.joints)
                     for (const [name, node] of applied.read.nodes) {
-                        // A marker's joint is its marker (red), not a second dot.
+                        // A marker's joint is its marker (coloured), not a second dot.
                         if (name === 'root' || markerJoints.has(name))
                             continue;
                         const m = fit?.get(name);
                         const at = m != null ? toScene(m.x, m.y, m.z) : node.getAbsolutePosition();
                         const small = /^(thumb|index|middle|ring|pinky)_|ball/.test(name);
-                        dot(at, r * (small ? 0.5 : 0.8), jointMat, {
+                        const kin = markerOfJoint(name);
+                        dot(at, r * (small ? 0.5 : 0.8), kin ? matFor(kin) : jointMat, {
                             joint: name,
                             handle: -2,
                         });
+                        // Its reference on the mannequin's same joint, as the markers
+                        // have (to look at, not to drag).
+                        const ref = ui.compare && ualStand?.isEnabled()
+                            ? source.nodes.get(name)
+                            : null;
+                        if (ref != null) {
+                            ref.computeWorldMatrix(true);
+                            dot(ref.getAbsolutePosition(), r * (small ? 0.5 : 0.8), kin ? matFor(kin) : jointMat, { reference: name }).setParent(ref);
+                        }
                     }
             }
             for (const role of (markerBound()
@@ -1980,6 +2155,14 @@ export function mountRigTool(owner, options = {}) {
         from it about the joint, in the view's plane: a hand or foot angled in
         the mesh is turned to match at once, not joint by joint.
         */
+        /** The joint a dot stands for: a joint dot's own, a marker's its joint. */
+        function jointOfDot(d) {
+            const j = d.metadata?.joint;
+            if (j != null)
+                return j;
+            const m = d.metadata?.marker;
+            return m != null ? MARKER_JOINT[m] : undefined;
+        }
         function dragJoint(handle, name) {
             if (applied == null)
                 return;
@@ -1989,7 +2172,9 @@ export function mountRigTool(owner, options = {}) {
             const below = (node?.getDescendants(false) ?? [])
                 .map((d) => nameOf.get(d))
                 .filter((n) => n != null);
-            const dotOf = (n) => dots.find((d) => d.metadata?.joint === n);
+            // A marker below comes too (the elbow under a shoulder): it is drawn
+            // as a marker, not a joint dot, so it is found by its joint.
+            const dotOf = (n) => dots.find((d) => jointOfDot(d) === n);
             const group = [name, ...below]
                 .map((n) => ({ n, d: dotOf(n) }))
                 .filter((g) => g.d != null);
@@ -2039,15 +2224,50 @@ export function mountRigTool(owner, options = {}) {
                 cam.attachControl(canvas, true);
                 if (from == null)
                     return;
+                /*
+                Markers carried (an elbow and wrist under a shoulder) are the
+                markers' to keep: they move first, taking what hangs from them;
+                the joints above them (the shoulder itself) are kept by hand.
+                */
+                const b = bound;
+                const markerMoves = b
+                    ? group.filter((g) => g.d.metadata?.marker != null &&
+                        !/^tail/.test(g.d.metadata.marker))
+                    : [];
+                const carriedJoints = new Set(markerMoves.map((g) => g.n));
+                if (b && markerMoves.length) {
+                    const markers = JSON.parse(JSON.stringify(b.markers));
+                    const keys = [];
+                    for (const g of markerMoves) {
+                        const k = g.d.metadata.marker;
+                        const f = toFile(g.d.position);
+                        const o = markerOffset(b, k);
+                        markers[k] = { x: f.x - o.x, y: f.y - o.y };
+                        keys.push(k);
+                        const twin = mirrorKey(k);
+                        if (symmetry && twin != null) {
+                            ;
+                            markers[twin] = { x: -(f.x - o.x), y: f.y - o.y };
+                            keys.push(twin);
+                        }
+                    }
+                    setMarkers(markers, b.tail ?? null, b.tail != null ? b.tailBase ?? null : null, keys);
+                }
                 const moved = {};
                 for (const g of group) {
+                    if (carriedJoints.has(g.n))
+                        continue;
+                    const m = markerAbove(g.n);
+                    if (m != null && carriedJoints.has(m))
+                        continue;
                     const f = toFile(g.d.position);
                     moved[g.n] = { x: f.x, y: f.y, z: f.z };
                     // Its mirror follows, as the markers' do (the left is on +X).
                     if (symmetry && /_[lr]$/.test(g.n))
                         moved[g.n.replace(/_([lr])$/, (_, s) => (s === 'l' ? '_r' : '_l'))] = { x: -f.x, y: f.y, z: f.z };
                 }
-                setJoints(name, moved);
+                if (Object.keys(moved).length)
+                    setJoints(name, moved);
             };
             window.addEventListener('pointermove', move, true);
             window.addEventListener('pointerup', up, true);
@@ -2065,15 +2285,27 @@ export function mountRigTool(owner, options = {}) {
                 : undefined;
             // The marker is its joint: what the marker stores is the joint less
             // the joint's offset from it (the pelvis above the crotch).
-            const fit = fittedJoints(b, false);
-            const offset = (k) => {
-                const j = fit?.get(MARKER_JOINT[k] ?? '');
-                const m = b.markers[k];
-                return j != null && m != null
-                    ? { x: j.x - m.x, y: j.y - m.y }
-                    : { x: 0, y: 0 };
-            };
+            const offset = (k) => markerOffset(b, k);
             const off = tailKey ? { x: 0, y: 0 } : offset(key);
+            /*
+            With the joints showing, a marker carries everything that hangs from
+            it, markers too (an elbow takes the wrist and the hand: Tonio), its
+            twin mirrored. Not the groin: the whole body hangs from the pelvis.
+            */
+            const carries = ui.joints && !tailKey && key !== 'groin';
+            const below = (k) => {
+                const j = k != null ? MARKER_JOINT[k] : undefined;
+                if (j == null)
+                    return [];
+                return dots.filter((d) => {
+                    const n = jointOfDot(d);
+                    return n != null && n !== j && hangsFrom(n, j);
+                });
+            };
+            const followers = carries ? below(key) : [];
+            const twinFollowers = carries && symmetry ? below(other) : [];
+            const from0 = handle.position.clone();
+            const starts = new Map([...followers, ...twinFollowers].map((d) => [d, d.position.clone()]));
             cam.detachControl();
             const plane = BABYLON.Plane.FromPositionAndNormal(handle.position, cam.getForwardRay().direction);
             const move = (ev) => {
@@ -2103,19 +2335,50 @@ export function mountRigTool(owner, options = {}) {
                         x = Math.min(0, x);
                 }
                 const k = key;
-                const fileZ = toFile(handle.position).z;
                 markers[k] = { x: x - off.x, y: f.y - off.y };
-                handle.position.copyFrom(toScene(x, f.y, fileZ));
-                if (symmetry && other != null && twin != null) {
+                if (symmetry && other != null)
                     markers[other] = { x: -(x - off.x), y: f.y - off.y };
-                    twin.position.copyFrom(toScene(-x, f.y, toFile(twin.position).z));
+                // Its depth is the fit's (the middle of the body there), shown as it
+                // goes: seen from the side it follows the body instead of holding a
+                // depth and jumping there on release.
+                const now = fittedJoints({ ...b, markers }, false);
+                const depth = (k2, d) => now?.get(MARKER_JOINT[k2 ?? ''] ?? '')?.z ?? toFile(d.position).z;
+                handle.position.copyFrom(toScene(x, f.y, depth(key, handle)));
+                if (symmetry && other != null && twin != null)
+                    twin.position.copyFrom(toScene(-x, f.y, depth(other, twin)));
+                if (carries) {
+                    // In the file's frame, so the twin's move is the mirror (x flips).
+                    const d0 = toFile(from0);
+                    const d1 = toFile(handle.position);
+                    const dx = d1.x - d0.x, dy = d1.y - d0.y, dz = d1.z - d0.z;
+                    const shift = (d, mx) => {
+                        const s0 = toFile(starts.get(d));
+                        d.position.copyFrom(toScene(s0.x + dx * mx, s0.y + dy, s0.z + dz));
+                    };
+                    for (const d of followers)
+                        shift(d, 1);
+                    for (const d of twinFollowers)
+                        shift(d, -1);
                 }
             };
             const up = () => {
                 window.removeEventListener('pointermove', move, true);
                 window.removeEventListener('pointerup', up, true);
                 cam.attachControl(canvas, true);
-                setMarkers(markers, tail, tail != null ? tailBase : null);
+                // Markers carried along (the wrist under an elbow) land where they were taken.
+                const carried = [];
+                for (const d of [...followers, ...twinFollowers]) {
+                    const mk = d.metadata?.marker;
+                    if (mk == null || /^tail/.test(mk))
+                        continue;
+                    const at = toFile(d.position);
+                    const o = offset(mk);
+                    markers[mk] = { x: at.x - o.x, y: at.y - o.y };
+                    carried.push(mk);
+                }
+                setMarkers(markers, tail, tail != null ? tailBase : null, carries
+                    ? [key, ...(symmetry && other != null ? [other] : []), ...carried]
+                    : []);
             };
             window.addEventListener('pointermove', move, true);
             window.addEventListener('pointerup', up, true);
@@ -2316,11 +2579,14 @@ export function mountRigTool(owner, options = {}) {
                 ui.spring = 0;
                 // Its height, from the meshes shown (a library holds others),
                 // with the stand's scale in the world matrices first.
+                stand.position.y = 0;
                 stand.computeWorldMatrix(true);
                 for (const n of root.getDescendants(false))
                     n.computeWorldMatrix?.(true);
                 const box = root.getHierarchyBoundingVectors(true, (n) => n.isEnabled() && n.skeleton != null);
                 height = Math.max(0.2, box.max.y - box.min.y);
+                floor = -box.min.y;
+                stand.position.y = floor;
                 // The scene's sun shadows it (standalone; a host's lighting is its own).
                 for (const mesh of root.getChildMeshes(false))
                     if (mesh.getTotalVertices() > 0)
@@ -2417,8 +2683,11 @@ export function mountRigTool(owner, options = {}) {
             return;
         }
         const rig = { recipe: copy() };
-        if (body != null)
+        if (body != null) {
             rig.body = body;
+            if (done)
+                handedOver.add(body);
+        }
         if (loadedModel != null)
             rig.model = loadedModel;
         handle.unmount();

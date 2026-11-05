@@ -150,7 +150,10 @@ export function surfaceProjector(
     const a = triangles[t * 3],
       b = triangles[t * 3 + 1],
       c = triangles[t * 3 + 2]
-    return { ref: [a, b, c], weight: closestBarycentric(x, y, z, positions, a, b, c) }
+    return {
+      ref: [a, b, c],
+      weight: closestBarycentric(x, y, z, positions, a, b, c),
+    }
   }
 }
 
@@ -175,7 +178,9 @@ export function remesh(
   const P: number[] = []
   const q = (x: number) => Math.round(x * 1e5)
   for (let v = 0; v < n0; v++) {
-    const k = `${q(positions[v * 3])},${q(positions[v * 3 + 1])},${q(positions[v * 3 + 2])}`
+    const k = `${q(positions[v * 3])},${q(positions[v * 3 + 1])},${q(
+      positions[v * 3 + 2]
+    )}`
     let w = seen.get(k)
     if (w === undefined) {
       w = P.length / 3
@@ -208,7 +213,11 @@ export function remesh(
       if (a < b) pairs.push(a, b)
     }
   const dist = (a: number, b: number) =>
-    Math.hypot(P[a * 3] - P[b * 3], P[a * 3 + 1] - P[b * 3 + 1], P[a * 3 + 2] - P[b * 3 + 2])
+    Math.hypot(
+      P[a * 3] - P[b * 3],
+      P[a * 3 + 1] - P[b * 3 + 1],
+      P[a * 3 + 2] - P[b * 3 + 2]
+    )
   if (perRadius > 0) {
     const N = new Float64Array(nw * 3)
     for (let i = 0; i < T.length; i += 3) {
@@ -280,7 +289,11 @@ export function remesh(
       z = P[a * 3 + 2] - P[b * 3 + 2]
     return x * x + y * y + z * z
   }
-  const normal = (a: number, b: number, c: number): [number, number, number] => {
+  const normal = (
+    a: number,
+    b: number,
+    c: number
+  ): [number, number, number] => {
     const ux = P[b * 3] - P[a * 3],
       uy = P[b * 3 + 1] - P[a * 3 + 1],
       uz = P[b * 3 + 2] - P[a * 3 + 2]
@@ -422,7 +435,9 @@ export function remesh(
         (t) => !dead[t] && !l.includes(t)
       )
       const save = [P[a * 3], P[a * 3 + 1], P[a * 3 + 2]]
-      const before = live.map((t) => normal(T[t * 3], T[t * 3 + 1], T[t * 3 + 2]))
+      const before = live.map((t) =>
+        normal(T[t * 3], T[t * 3 + 1], T[t * 3 + 2])
+      )
       const sub = (v: number) => (v === b ? a : v)
       P[a * 3] = mx
       P[a * 3 + 1] = my
@@ -486,7 +501,8 @@ export function remesh(
       const c = third(s, a, b),
         d = third(u, a, b)
       if (c < 0 || d < 0 || c === d || edgeTris.has(ek(c, d))) continue
-      const dev = (x: number, dv: number) => Math.abs(valence[x] + dv - target(x))
+      const dev = (x: number, dv: number) =>
+        Math.abs(valence[x] + dv - target(x))
       const now = dev(a, 0) + dev(b, 0) + dev(c, 0) + dev(d, 0)
       const then = dev(a, -1) + dev(b, -1) + dev(c, 1) + dev(d, 1)
       if (then >= now) continue

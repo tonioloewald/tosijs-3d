@@ -12,7 +12,11 @@ function uvSphere(rings: number, cols: number) {
     const th = (Math.PI * r) / rings
     for (let c = 0; c <= cols; c++) {
       const ph = (2 * Math.PI * c) / cols
-      P.push(Math.sin(th) * Math.cos(ph), Math.cos(th), Math.sin(th) * Math.sin(ph))
+      P.push(
+        Math.sin(th) * Math.cos(ph),
+        Math.cos(th),
+        Math.sin(th) * Math.sin(ph)
+      )
     }
   }
   const at = (r: number, c: number) => r * (cols + 1) + c
@@ -46,14 +50,22 @@ describe('remesh', () => {
     for (let i = 0; i < r.triangles.length; i += 3) {
       const t = [0, 1, 2].map((k) => r.triangles[i + k])
       const L = (a: number, b: number) =>
-        Math.hypot(...[0, 1, 2].map((c) => r.positions[a * 3 + c] - r.positions[b * 3 + c]))
+        Math.hypot(
+          ...[0, 1, 2].map(
+            (c) => r.positions[a * 3 + c] - r.positions[b * 3 + c]
+          )
+        )
       const e = [L(t[0], t[1]), L(t[1], t[2]), L(t[2], t[0])]
       worst = Math.max(worst, Math.max(...e) / Math.min(...e))
     }
     // The UV sphere's pole triangles are 7:1; remeshed, none is near that.
     expect(worst).toBeLessThan(3)
     for (let v = 0; v < r.positions.length / 3; v++) {
-      const d = Math.hypot(r.positions[v * 3], r.positions[v * 3 + 1], r.positions[v * 3 + 2])
+      const d = Math.hypot(
+        r.positions[v * 3],
+        r.positions[v * 3 + 1],
+        r.positions[v * 3 + 2]
+      )
       // On the faceted original: within its sag of the unit sphere.
       expect(d).toBeGreaterThan(0.97)
       expect(d).toBeLessThanOrEqual(1.0001)
@@ -67,7 +79,8 @@ describe('remesh', () => {
     for (let v = 0; v < r.positions.length / 3; v++) {
       for (let c = 0; c < 3; c++) {
         let x = 0
-        for (let k = 0; k < 3; k++) x += r.weight[v * 3 + k] * P[r.ref[v * 3 + k] * 3 + c]
+        for (let k = 0; k < 3; k++)
+          x += r.weight[v * 3 + k] * P[r.ref[v * 3 + k] * 3 + c]
         expect(x).toBeCloseTo(r.positions[v * 3 + c], 5)
       }
     }
@@ -83,11 +96,16 @@ describe('remesh', () => {
         [-2, 0.4],
       ],
     ] as [number, number][][]
-    const onDummy = cutGarment(r.positions, r.triangles, { front, thickness: 0.02, ease: 0 })
+    const onDummy = cutGarment(r.positions, r.triangles, {
+      front,
+      thickness: 0.02,
+      ease: 0,
+    })
     const there = drawnPositions(onDummy, fitProxy(onDummy, r.positions))
     const bound = rebindCut(onDummy, r, P)
     const here = drawnPositions(bound, fitProxy(bound, P))
-    for (let i = 0; i < there.length; i++) expect(here[i]).toBeCloseTo(there[i], 4)
+    for (let i = 0; i < there.length; i++)
+      expect(here[i]).toBeCloseTo(there[i], 4)
     // It covers the band of the original and nothing far outside it.
     expect(bound.delete.length).toBeGreaterThan(0)
     for (const v of bound.delete) {

@@ -14,6 +14,11 @@ export interface CharacterSource {
     file?: File;
     pick?: string;
 }
+/**
+ * Tonio's AI-generated characters (CC0, `tonio/ai` on the asset CDN): one
+ * mesh each, unrigged, rigged from markers guessed off their outline.
+ */
+export declare const AI_CHARACTER_SOURCES: Record<string, CharacterSource>;
 /** The bodies a character can have besides MakeHuman's. */
 export declare const CHARACTER_SOURCES: Record<string, CharacterSource>;
 /** What every character in a scene shares: MakeHuman's pack, the hair. */
@@ -43,6 +48,12 @@ export interface CharacterOptions {
     sources?: Record<string, CharacterSource>;
     /** Garment files (GLB bytes) it may wear, by name. */
     garments?: Iterable<Uint8Array>;
+    /**
+     * Built out of sight: `root` starts disabled, so nothing is seen while the
+     * body is made, rigged and dressed at the origin. Enable `root` when it is
+     * where it belongs.
+     */
+    hidden?: boolean;
     /** Where the eyes look (none: ahead). */
     gaze?: () => BABYLON.Vector3 | null;
     /** What it is doing, for a loading message (false: done). */

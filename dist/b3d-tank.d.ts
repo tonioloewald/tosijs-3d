@@ -7,6 +7,7 @@ export declare class B3dTank extends B3dGroundVehicle {
     protected engineNote: number;
     static preferredTagName: string;
     inputMapping: import("./virtual-gamepad.js").InputMapping;
+    inputLabels: Partial<Record<keyof import("./virtual-gamepad.js").VirtualGamepad, string>>;
     static initAttributes: {
         mass: number;
         maxSpeed: number;

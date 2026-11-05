@@ -20,9 +20,135 @@ splits a vertex wherever its normal or UV does, which would cut the surface
 into islands that heat cannot cross). Separate pieces (a head modelled apart
 from the body) each take the heat of the bones near them.
 
-Visibility (Baran only lets a bone heat a vertex it can SEE) is left out
-for now: in a T-pose the nearest bone is almost always visible.
+VISIBILITY (`visible: true`): a bone heats a vertex only along lines that
+stay inside the mesh, as Baran's does, but with the whole bone as the
+heater (it radiates along its length): a vertex takes the nearest point of
+each bone it can see, sampled along the bone nearest first. Where an arm
+lies against the side, or the legs or a tail touch, the near bone is behind
+skin and the vertex goes to the one it can reach. A vertex that sees no bone
+(a separate shell: a backpack, a stray piece) takes its nearest bone, as
+before. Joints INSIDE the torso (the hip, the shoulder) are visible from the
+belly and the chest through the body itself: that is what `legsOffBelly`
+and `armsOffTorso` in human-rig are for.
 */
+/*
+SEGMENT AGAINST THE MESH: a uniform grid of triangle boxes, walked by
+sampling along the segment at half a cell, each triangle tested once per
+query (Möller–Trumbore), hits strictly between the ends.
+*/
+function occluder(pts, tris) {
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    for (const p of pts) {
+        if (p.x < minX)
+            minX = p.x;
+        if (p.y < minY)
+            minY = p.y;
+        if (p.z < minZ)
+            minZ = p.z;
+        if (p.x > maxX)
+            maxX = p.x;
+        if (p.y > maxY)
+            maxY = p.y;
+        if (p.z > maxZ)
+            maxZ = p.z;
+    }
+    const nt = tris.length / 3;
+    const span = Math.max(maxX - minX, maxY - minY, maxZ - minZ) || 1;
+    // About as many cells as triangles, at most 96 a side.
+    const side = Math.max(4, Math.min(96, Math.round(Math.cbrt(nt) * 1.5)));
+    const cell = span / side;
+    const nx = Math.ceil((maxX - minX) / cell) + 1;
+    const ny = Math.ceil((maxY - minY) / cell) + 1;
+    const nz = Math.ceil((maxZ - minZ) / cell) + 1;
+    const key = (i, j, k) => (k * ny + j) * nx + i;
+    const cells = new Map();
+    const ci = (v, m, n) => Math.max(0, Math.min(n - 1, Math.floor((v - m) / cell)));
+    for (let t = 0; t < nt; t++) {
+        const a = pts[tris[t * 3]], b = pts[tris[t * 3 + 1]], c = pts[tris[t * 3 + 2]];
+        const i0 = ci(Math.min(a.x, b.x, c.x), minX, nx);
+        const i1 = ci(Math.max(a.x, b.x, c.x), minX, nx);
+        const j0 = ci(Math.min(a.y, b.y, c.y), minY, ny);
+        const j1 = ci(Math.max(a.y, b.y, c.y), minY, ny);
+        const k0 = ci(Math.min(a.z, b.z, c.z), minZ, nz);
+        const k1 = ci(Math.max(a.z, b.z, c.z), minZ, nz);
+        for (let k = k0; k <= k1; k++)
+            for (let j = j0; j <= j1; j++)
+                for (let i = i0; i <= i1; i++) {
+                    const kk = key(i, j, k);
+                    let list = cells.get(kk);
+                    if (list == null)
+                        cells.set(kk, (list = []));
+                    list.push(t);
+                }
+    }
+    const seen = new Int32Array(nt).fill(-1);
+    let query = 0;
+    /** Does the segment p→q cross a triangle (other than `skip`'s)? */
+    return (p, q, skip) => {
+        query++;
+        const dx = q.x - p.x, dy = q.y - p.y, dz = q.z - p.z;
+        const len = Math.hypot(dx, dy, dz);
+        const steps = Math.max(1, Math.ceil(len / (cell * 0.5)));
+        let lastKey = -1;
+        for (let s = 0; s <= steps; s++) {
+            const f = s / steps;
+            const kk = key(ci(p.x + dx * f, minX, nx), ci(p.y + dy * f, minY, ny), ci(p.z + dz * f, minZ, nz));
+            if (kk === lastKey)
+                continue;
+            lastKey = kk;
+            const list = cells.get(kk);
+            if (list == null)
+                continue;
+            for (const t of list) {
+                if (seen[t] === query)
+                    continue;
+                seen[t] = query;
+                const ia = tris[t * 3], ib = tris[t * 3 + 1], ic = tris[t * 3 + 2];
+                if (ia === skip || ib === skip || ic === skip)
+                    continue;
+                const a = pts[ia], b = pts[ib], c = pts[ic];
+                const e1x = b.x - a.x, e1y = b.y - a.y, e1z = b.z - a.z;
+                const e2x = c.x - a.x, e2y = c.y - a.y, e2z = c.z - a.z;
+                const hx = dy * e2z - dz * e2y;
+                const hy = dz * e2x - dx * e2z;
+                const hz = dx * e2y - dy * e2x;
+                const det = e1x * hx + e1y * hy + e1z * hz;
+                if (Math.abs(det) < 1e-14)
+                    continue;
+                const inv = 1 / det;
+                const sx = p.x - a.x, sy = p.y - a.y, sz = p.z - a.z;
+                const u = (sx * hx + sy * hy + sz * hz) * inv;
+                if (u < 0 || u > 1)
+                    continue;
+                const qx = sy * e1z - sz * e1y;
+                const qy = sz * e1x - sx * e1z;
+                const qz = sx * e1y - sy * e1x;
+                const v = (dx * qx + dy * qy + dz * qz) * inv;
+                if (v < 0 || u + v > 1)
+                    continue;
+                const t2 = (e2x * qx + e2y * qy + e2z * qz) * inv;
+                if (t2 > 1e-4 && t2 < 1 - 1e-4)
+                    return true;
+            }
+        }
+        return false;
+    };
+}
+function closestOnSegment(p, a, b, t) {
+    const abx = b.x - a.x;
+    const aby = b.y - a.y;
+    const abz = b.z - a.z;
+    if (t == null) {
+        const l2 = abx * abx + aby * aby + abz * abz;
+        t =
+            l2 > 0
+                ? ((p.x - a.x) * abx + (p.y - a.y) * aby + (p.z - a.z) * abz) / l2
+                : 0;
+        t = Math.max(0, Math.min(1, t));
+    }
+    return { x: a.x + abx * t, y: a.y + aby * t, z: a.z + abz * t };
+}
 function segmentDistance2(p, a, b) {
     const abx = b.x - a.x;
     const aby = b.y - a.y;
@@ -119,9 +245,12 @@ export function boneHeat(positions, indices, bones, options = {}) {
     const nb = bones.length;
     const nearest = [];
     const heat = new Float64Array(n);
+    const sees = options.visible ? visibility() : null;
     for (let i = 0; i < n; i++) {
         let best = Infinity;
-        const d2 = bones.map((b) => segmentDistance2(pts[i], b.a, b.b));
+        const d2 = sees
+            ? sees(i)
+            : bones.map((b) => segmentDistance2(pts[i], b.a, b.b));
         for (const v of d2)
             best = Math.min(best, v);
         const near = [];
@@ -130,6 +259,79 @@ export function boneHeat(positions, indices, bones, options = {}) {
                 near.push(k);
         nearest.push(near);
         heat[i] = area[i] / Math.max(best, 1e-12);
+    }
+    /*
+    Each bone's distance to vertex i through the inside of the mesh: the
+    nearest point of the bone (sampled along it, nearest first) whose line to
+    the vertex crosses no surface, Infinity where none can be seen. The line
+    starts a hair inside the skin, along the vertex's inward normal. Bones are
+    tried nearest first and only while they could still win (within twice
+    the nearest seen); if none is seen, plain distance (a separate shell).
+    */
+    function visibility() {
+        const tris = [];
+        for (let t = 0; t < Math.floor(indices.length / 3); t++) {
+            const a = weld[indices[t * 3]];
+            const b = weld[indices[t * 3 + 1]];
+            const c = weld[indices[t * 3 + 2]];
+            if (a !== b && b !== c && a !== c)
+                tris.push(a, b, c);
+        }
+        const tri = Int32Array.from(tris);
+        const blocked = occluder(pts, tri);
+        // Vertex normals (area-weighted), for the start a hair inside.
+        const nrm = new Float64Array(n * 3);
+        for (let t = 0; t < tri.length; t += 3) {
+            const A = pts[tri[t]], B = pts[tri[t + 1]], C = pts[tri[t + 2]];
+            const ux = B.x - A.x, uy = B.y - A.y, uz = B.z - A.z;
+            const vx = C.x - A.x, vy = C.y - A.y, vz = C.z - A.z;
+            const cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx;
+            for (const k of [tri[t], tri[t + 1], tri[t + 2]]) {
+                nrm[k * 3] += cx;
+                nrm[k * 3 + 1] += cy;
+                nrm[k * 3 + 2] += cz;
+            }
+        }
+        const eps = (span || 1) * 0.002;
+        const SAMPLES = [0, 0.25, 0.5, 0.75, 1];
+        return (i) => {
+            const p = pts[i];
+            const L = Math.hypot(nrm[i * 3], nrm[i * 3 + 1], nrm[i * 3 + 2]) || 1;
+            const start = {
+                x: p.x - (nrm[i * 3] / L) * eps,
+                y: p.y - (nrm[i * 3 + 1] / L) * eps,
+                z: p.z - (nrm[i * 3 + 2] / L) * eps,
+            };
+            const plain = bones.map((b) => segmentDistance2(p, b.a, b.b));
+            const order = plain.map((_, k) => k).sort((a, b) => plain[a] - plain[b]);
+            const out = new Array(nb).fill(Infinity);
+            let bestSeen = Infinity;
+            for (const k of order) {
+                if (plain[k] > bestSeen * 4)
+                    break;
+                const b = bones[k];
+                const near = closestOnSegment(p, b.a, b.b);
+                const cand = [
+                    near,
+                    ...SAMPLES.map((t) => closestOnSegment(p, b.a, b.b, t)),
+                ]
+                    .map((q) => ({
+                    q,
+                    d: (q.x - p.x) ** 2 + (q.y - p.y) ** 2 + (q.z - p.z) ** 2,
+                }))
+                    .sort((a, b) => a.d - b.d);
+                for (const { q, d } of cand) {
+                    if (d >= bestSeen * 4)
+                        break;
+                    if (!blocked(start, q, i)) {
+                        out[k] = d;
+                        bestSeen = Math.min(bestSeen, d);
+                        break;
+                    }
+                }
+            }
+            return bestSeen === Infinity ? plain : out;
+        };
     }
     // A = L + M·H as rows; solve A w = M·H·p for each bone.
     const rowCols = [];

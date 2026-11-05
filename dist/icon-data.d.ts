@@ -69,6 +69,8 @@ declare const _default: {
     bipedBack: string;
     bipedBottom: string;
     bipedFront: string;
+    bipedHandgun: string;
+    bipedPreview: string;
     bipedSide: string;
     bipedTop: string;
     loadout: string;

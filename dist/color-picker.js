@@ -359,6 +359,12 @@ export function colorPicker3d(config = {}) {
         }, ...items);
     };
     const api = {
+        semantics: () => ({
+            role: 'colour',
+            name: config.label ?? '',
+            value,
+            set: (v) => set(String(v), true),
+        }),
         el,
         get value() {
             return value;

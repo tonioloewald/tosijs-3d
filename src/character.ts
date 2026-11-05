@@ -190,9 +190,7 @@ export const AI_CHARACTER_SOURCES: Record<string, CharacterSource> = {
     'tonio/ai/african-american-female-spacesuit-10k.glb'
   ),
   'eurasian-male': hosted('tonio/ai/eurasian-male-10k.glb'),
-  'eurasian-male-spacesuit': hosted(
-    'tonio/ai/eurasian-male-spacesuit-10k.glb'
-  ),
+  'eurasian-male-spacesuit': hosted('tonio/ai/eurasian-male-spacesuit-10k.glb'),
 }
 
 /** The bodies a character can have besides MakeHuman's. */

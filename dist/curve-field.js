@@ -172,20 +172,21 @@ const buildRows = (primary) => {
 
   // A preset menu per curve. Presets are the fastest way to learn what a curve
   // DOES — you pick "desert terraces", see terraces, then drag from there.
-  const menu = (widget, kind, value) =>
+  const menu = (widget, kind, value, label) =>
     select3d({
+      label,
       value,
       options: presetsFor(kind).map((x) => x.name),
       handleChange: (name) => { widget.applyPreset(name); changed() },
     })
-  const del = (widget) =>
-    button3d({ label: 'delete selected point', handleClick: () => { widget.deleteSelected(); changed() } })
+  const del = (widget, what) =>
+    button3d({ label: `delete selected ${what} point`, handleClick: () => { widget.deleteSelected(); changed() } })
 
   return [
     label3d({ text: 'province editor', bold: true }),
-    s, menu(s, 'profile', 'no change'), del(s),
-    f, menu(f, 'falloff', 'linear'), del(f),
-    p, menu(p, 'radial', 'hexagon'),
+    s, menu(s, 'profile', 'no change', 'shape preset'), del(s, 'shape'),
+    f, menu(f, 'falloff', 'linear', 'falloff preset'), del(f, 'falloff'),
+    p, menu(p, 'radial', 'hexagon', 'footprint preset'),
     slider3d({ label: 'block height', min: 1, max: 16, value: state.height, handleChange: (v) => { state.height = v; rebuild() } }),
     slider3d({ label: 'extent', min: 0.2, max: 1, value: state.extent, handleChange: (v) => { state.extent = v; rebuild() } }),
     slider3d({ label: 'noise scale', min: 0.2, max: 4, value: state.noise, handleChange: (v) => { state.noise = v; rebuild() } }),
@@ -616,6 +617,27 @@ export function curve3d(config = {}) {
     };
     const api = {
         el,
+        // Its points, or a preset by name: set as one complete edit (one undo step).
+        semantics: () => ({
+            role: 'editor',
+            name: config.label ?? config.name ?? '',
+            value: api.points,
+            options: presetsFor(kind).map((p) => p.name),
+            set: (v) => {
+                if (typeof v === 'string')
+                    return api.applyPreset(v);
+                if (!Array.isArray(v))
+                    return;
+                const next = v.filter((p) => p != null && Number.isFinite(p.x) && Number.isFinite(p.y));
+                if (next.length < 2)
+                    return;
+                points = normalizeCurve(next, kind);
+                selected = -1;
+                draw();
+                emit();
+                commit(curveName ? `edit ${curveName} curve` : 'edit curve');
+            },
+        }),
         handleChange: config.handleChange,
         handleCommit: config.handleCommit,
         layout(width) {

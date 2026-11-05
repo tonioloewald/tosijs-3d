@@ -2,6 +2,8 @@ import { type InputField } from './keyboard.js';
 import type { Widget3d } from './widgets3d.js';
 import type { Vec3 } from './surface-sampler.js';
 export interface Vector3dOptions {
+    /** Its accessible name. Without one, it takes the label above it. */
+    name?: string;
     value?: Vec3;
     /** Fired on every committed edit — typing, scrubbing, or a step. */
     handleChange?: (value: Vec3) => void;

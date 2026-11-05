@@ -149,6 +149,10 @@ export declare class B3dGamepad extends Component implements GamepadSource {
     private _idleTimer;
     private _faded;
     private _build;
+    private _labels;
+    /** What each control does now, by `VirtualGamepad` field (`buttonA`: 'jump'). */
+    setControlLabels(labels: Record<string, string>): void;
+    private _applyAria;
     private _placed;
     private _resize?;
     private _layout;

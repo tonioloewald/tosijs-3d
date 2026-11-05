@@ -413,7 +413,9 @@ function handRest(
  * same in both. A `_grip` node in the model, when it has one, wins (see
  * `heldGrip`).
  */
-export function deriveGrip(root: BABYLON.TransformNode): BABYLON.Vector3 | null {
+export function deriveGrip(
+  root: BABYLON.TransformNode
+): BABYLON.Vector3 | null {
   const toLocal = BABYLON.Matrix.Invert(root.getWorldMatrix())
   const pts: BABYLON.Vector3[] = []
   let lo = Infinity

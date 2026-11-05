@@ -513,6 +513,7 @@ const scene = b3d(
         select3d({ label: 'preset', value: sky.preset, options: presetNames() }),
         button3d({
           label: '⋯',
+          title: 'preset actions',
           menu: [
             {
               label: 'Save as new preset',

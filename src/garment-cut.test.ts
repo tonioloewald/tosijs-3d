@@ -46,7 +46,19 @@ describe('garment-cut', () => {
     const joined = [0, 1, 2, 0, 2, 3, 1, 4, 5, 1, 5, 2]
     const split = [...roof, 0, -1, 0.5, 0, 1, 0.5] // 6, 7 copy 1, 2
     const seamed = [0, 1, 2, 0, 2, 3, 6, 4, 5, 6, 5, 7]
-    const opts = { front: [[[-2, -2], [2, -2], [2, 2], [-2, 2]]] as [number, number][][], thickness: 0.05, ease: 0, hem: false }
+    const opts = {
+      front: [
+        [
+          [-2, -2],
+          [2, -2],
+          [2, 2],
+          [-2, 2],
+        ],
+      ] as [number, number][][],
+      thickness: 0.05,
+      ease: 0,
+      hem: false,
+    }
     const a = cutGarment(roof, joined, opts)
     const b = cutGarment(split, seamed, opts)
     expect(b.rows).toBe(a.rows)
@@ -54,7 +66,9 @@ describe('garment-cut', () => {
     const fb = fitProxy(b, split)
     for (let i = 0; i < fa.length; i++) expect(fb[i]).toBeCloseTo(fa[i], 6)
     // The copies are covered too.
-    expect([...b.delete].sort((x, y) => x - y)).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
+    expect([...b.delete].sort((x, y) => x - y)).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7,
+    ])
   })
 
   test('easing never slides the cloth across the skin (a coarse body)', () => {

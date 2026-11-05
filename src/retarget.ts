@@ -886,12 +886,18 @@ export function retargeter(
           // How far down the clip has it: 1 hanging, 0 level or above.
           let droop = 1
           if (out2.rest != null) {
-            const turn = quatMul(world, quatConjugate(tRest.rotation.get(b.name)!))
+            const turn = quatMul(
+              world,
+              quatConjugate(tRest.rotation.get(b.name)!)
+            )
             droop = Math.min(1, Math.max(0, -rotateVector(turn, out2.rest).y))
           }
           const h = (out2.sign * spread * droop) / 2
           if (h !== 0)
-            world = quatMul({ x: 0, y: 0, z: Math.sin(h), w: Math.cos(h) }, world)
+            world = quatMul(
+              { x: 0, y: 0, z: Math.sin(h), w: Math.cos(h) },
+              world
+            )
         }
         tWorld.set(b.name, world)
         out.set(

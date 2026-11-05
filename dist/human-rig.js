@@ -29,6 +29,7 @@ The pack is right-handed and a character faces +Z with its left on +X, as
 */
 /*{ "parent": "character-builder", "order": 30 }*/
 import { skinSegments } from './rig-fit.js';
+import { fitProxy } from './proxy-fit.js';
 import { humanJoint, macroWeights, morphHuman, DEFAULT_HUMAN_BODY, } from './human-morph.js';
 import { boneHeat } from './bone-heat.js';
 const FINGERS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
@@ -162,7 +163,17 @@ export function humanRig(manifest, positions, table = HM08_UAL, options = {}) {
         at: (name) => byName.get(name),
     };
 }
-export function humanSkin(pack) {
+/*
+BODY DETAIL: MakeHuman ships lighter skins over hm08 as body proxies
+(`proxy741`, `female1605`, `male1591`, `female_generic`, …), bound to it the
+way clothes are. A skin made from one draws the proxy instead: the base is
+still morphed (clothes, eyes and joints are fitted to it), and each proxy
+vertex is placed by its binding. `vertices[i]` is the pack vertex its binding
+leans on most, which is what regions and covering read.
+*/
+export function humanSkin(pack, proxy = null) {
+    if (proxy != null)
+        return proxySkin(proxy);
     const remap = new Int32Array(pack.manifest.vertexCount).fill(-1);
     const vertices = [];
     const triangles = new Uint32Array(pack.triangles.length);
@@ -187,8 +198,72 @@ export function humanSkin(pack) {
             }
             return out;
         },
+        deltas(full) {
+            return this.positions(full);
+        },
     };
 }
+function proxySkin(proxy) {
+    const rows = proxy.rows;
+    const vertices = new Uint32Array(rows);
+    for (let r = 0; r < rows; r++) {
+        let best = 0;
+        for (let c = 1; c < 3; c++)
+            if (proxy.weight[r * 3 + c] > proxy.weight[r * 3 + best])
+                best = c;
+        vertices[r] = proxy.ref[r * 3 + best];
+    }
+    // Its triangles over the binding's rows: one vertex per corner of the
+    // surface, not one per UV corner, so the skin is welded at UV seams.
+    const tris = [];
+    for (let t = 0; t + 2 < proxy.triangles.length; t += 3) {
+        const a = proxy.source[proxy.triangles[t]];
+        const b = proxy.source[proxy.triangles[t + 1]];
+        const c = proxy.source[proxy.triangles[t + 2]];
+        if (a !== b && b !== c && a !== c)
+            tris.push(a, b, c);
+    }
+    return {
+        vertices,
+        triangles: Uint32Array.from(tris),
+        proxy: proxy.name,
+        positions: (full, into) => fitProxy(proxy, full, into),
+        deltas(full) {
+            const out = new Float32Array(rows * 3);
+            for (let r = 0; r < rows; r++)
+                for (let k = 0; k < 3; k++) {
+                    let d = 0;
+                    for (let c = 0; c < 3; c++)
+                        d += proxy.weight[r * 3 + c] * full[proxy.ref[r * 3 + c] * 3 + k];
+                    out[r * 3 + k] = d;
+                }
+            return out;
+        },
+    };
+}
+/**
+ * Which body proxy a body detail draws, for a body of this gender (0 female,
+ * 1 male): null is the base mesh itself.
+ */
+export function bodyDetailProxy(detail, gender) {
+    const male = gender >= 0.5;
+    switch (detail) {
+        case 'low':
+            return 'proxy741';
+        case 'medium':
+            return male ? 'male1591' : 'female1605';
+        case 'high':
+            return male ? 'male_generic' : 'female_generic';
+        default:
+            return null;
+    }
+}
+export const BODY_DETAILS = [
+    'low',
+    'medium',
+    'high',
+    'full',
+];
 /**
  * Make the head rigid in `weights` (in place): skin above the head joint,
  * and the face in front of it down to under the chin, moves wholly with the
@@ -314,14 +389,132 @@ export function armsOffTorso(weights, positions, rig, options = {}) {
     }
 }
 /**
+ * Keep the thighs out of the belly in `weights` (in place): skin above the
+ * hip joints loses its thigh weight to the pelvis, faded in over `blend`
+ * metres so the hip still bends. Bone heat gives a thick waist's sides to
+ * the thigh bones (they are nearer than the pelvis up the middle), and every
+ * stride then pulled the belly down with the leg: the torso squashed as it
+ * walked. Below the hips the thighs keep it all. `positions` are the skin's
+ * (xyz), `rig` the fitted rig.
+ */
+export function legsOffBelly(weights, positions, rig, options = {}) {
+    const index = new Map(rig.joints.map((j, i) => [j.name, i]));
+    const pelvis = index.get('pelvis');
+    const l = rig.at('thigh_l');
+    const r = rig.at('thigh_r');
+    const tl = index.get('thigh_l');
+    const tr = index.get('thigh_r');
+    if (pelvis == null || l == null || r == null || tl == null || tr == null)
+        return;
+    const hip = Math.max(l.y, r.y);
+    const blend = options.blend ?? 0.06;
+    const smooth = (x, a, b) => {
+        const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+        return t * t * (3 - 2 * t);
+    };
+    const n = positions.length / 3;
+    for (let v = 0; v < n; v++) {
+        const k = smooth(positions[v * 3 + 1] - hip, 0, blend);
+        if (k === 0)
+            continue;
+        let moved = 0;
+        for (let i = 0; i < 4; i++) {
+            const b = weights.indices[v * 4 + i];
+            if (b !== tl && b !== tr)
+                continue;
+            const w = weights.weights[v * 4 + i] * k;
+            weights.weights[v * 4 + i] -= w;
+            moved += w;
+        }
+        if (moved === 0)
+            continue;
+        let slot = -1;
+        for (let i = 0; i < 4; i++)
+            if (weights.indices[v * 4 + i] === pelvis)
+                slot = i;
+        if (slot < 0) {
+            slot = 0;
+            for (let i = 1; i < 4; i++)
+                if (weights.weights[v * 4 + i] < weights.weights[v * 4 + slot])
+                    slot = i;
+            moved += weights.weights[v * 4 + slot];
+            weights.weights[v * 4 + slot] = 0;
+            weights.indices[v * 4 + slot] = pelvis;
+        }
+        weights.weights[v * 4 + slot] += moved;
+    }
+}
+/**
+ * Keep the collarbones off the chest in `weights` (in place): skin nearer
+ * the middle than `inner` of the way out to a shoulder loses its collarbone
+ * weight to the chest (`spine_03`), fading back in by `outer`. A collarbone
+ * runs from beside the neck to the shoulder, so bone heat binds the whole
+ * upper chest to it, and every shrug a clip makes pulled the pectorals
+ * about. `positions` are the skin's (xyz), `rig` the fitted rig.
+ */
+export function clavicleOffChest(weights, positions, rig, options = {}) {
+    const index = new Map(rig.joints.map((j, i) => [j.name, i]));
+    const chest = index.get('spine_03');
+    const l = rig.at('upperarm_l');
+    const r = rig.at('upperarm_r');
+    const pelvis = rig.at('pelvis');
+    const cl = index.get('clavicle_l');
+    const cr = index.get('clavicle_r');
+    if (chest == null || l == null || r == null || cl == null || cr == null)
+        return;
+    const cx = pelvis?.x ?? 0;
+    const inner = options.inner ?? 0.45;
+    const outer = options.outer ?? 0.75;
+    const smooth = (x, a, b) => {
+        const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+        return t * t * (3 - 2 * t);
+    };
+    const n = positions.length / 3;
+    for (let v = 0; v < n; v++) {
+        const x = positions[v * 3] - cx;
+        const reach = Math.abs((x > 0 ? l.x : r.x) - cx) || 1;
+        const k = 1 - smooth(Math.abs(x) / reach, inner, outer);
+        if (k === 0)
+            continue;
+        let moved = 0;
+        for (let i = 0; i < 4; i++) {
+            const b = weights.indices[v * 4 + i];
+            if (b !== cl && b !== cr)
+                continue;
+            const w = weights.weights[v * 4 + i] * k;
+            weights.weights[v * 4 + i] -= w;
+            moved += w;
+        }
+        if (moved === 0)
+            continue;
+        let slot = -1;
+        for (let i = 0; i < 4; i++)
+            if (weights.indices[v * 4 + i] === chest)
+                slot = i;
+        if (slot < 0) {
+            slot = 0;
+            for (let i = 1; i < 4; i++)
+                if (weights.weights[v * 4 + i] < weights.weights[v * 4 + slot])
+                    slot = i;
+            moved += weights.weights[v * 4 + slot];
+            weights.weights[v * 4 + slot] = 0;
+            weights.indices[v * 4 + slot] = chest;
+        }
+        weights.weights[v * 4 + slot] += moved;
+    }
+}
+/**
  * MAKEHUMAN AS A PRODUCER of rigged bodies. The skin weights depend only on
  * the topology, so they are bound once, on the first body, by bone heat, then
  * the head made rigid (`stiffenHead`) and the ribcage kept off the arms
  * (`armsOffTorso`); every later body reuses them. Each body is the pack
  * morphed to its sliders with UAL's joints placed from its joint cubes.
+ * With a body `proxy` (see `bodyDetailProxy`) the skin drawn and bound is
+ * that lighter mesh over the morphed base: binding 1,600 vertices takes a
+ * tenth of a second where the base's 13,000 take one.
  */
-export async function humanBodyMaker(pack, values = {}) {
-    const skin = humanSkin(pack);
+export async function humanBodyMaker(pack, values = {}, options = {}) {
+    const skin = humanSkin(pack, options.proxy ?? null);
     const [lips, nipples] = await Promise.all([
         pack.region('lips'),
         pack.region('nipples'),

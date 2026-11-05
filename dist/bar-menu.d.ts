@@ -34,6 +34,21 @@ export interface ViewMenuOptions {
     always?: boolean;
     icon?: string;
     title?: string;
+    /**
+     * Views of the page's own beside the faces (the character builder's hand
+     * view): `select` enters one, `leave` is called when another view is
+     * picked, `active` says whether it is the view shown now.
+     */
+    extras?: ViewMenuExtra[];
+}
+/** A view of the page's own in a `viewMenu`. */
+export interface ViewMenuExtra {
+    value: string;
+    label: string;
+    icon: string;
+    select(): void;
+    leave(): void;
+    active(): boolean;
 }
 /**
  * A camera on the system bar that picks an `inspectView`'s face, or

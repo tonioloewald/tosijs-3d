@@ -66,6 +66,11 @@ export interface RetargetOptions {
      * floor or its own sides when they hang where the clip's do. The forearm
      * and hand follow the upper arm, so the clip's elbow and wrist are kept.
      * Negative brings them in. Default 0.
+     *
+     * It is applied by how far the clip has the arm HANGING: all of it with
+     * the upper arm straight down, none with it level or raised. A stocky
+     * body needs its arms well out to walk without them sinking into its
+     * sides, and the same turn pushed an aimed pistol out to the side.
      */
     armSpaceDeg?: number;
 }

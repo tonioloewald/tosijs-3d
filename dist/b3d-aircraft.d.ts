@@ -7,6 +7,7 @@ import type { B3dRadar } from './b3d-radar.js';
 export declare class B3dAircraft extends B3dControllable {
     static preferredTagName: string;
     inputMapping: import("./virtual-gamepad.js").InputMapping;
+    inputLabels: Partial<Record<keyof import("./virtual-gamepad.js").VirtualGamepad, string>>;
     static initAttributes: {
         url: string;
         library: string;

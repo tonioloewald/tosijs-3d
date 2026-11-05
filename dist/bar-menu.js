@@ -182,10 +182,10 @@ export function barMenu(config) {
 }
 /**
  * Each view's icon: Tonio's biped seen from that side (the right is the left
- * mirrored), and an orbit for the perspective.
+ * mirrored), and for the perspective the biped walking in a turning arc.
  */
 const FACE_ICONS = {
-    free: 'rotateCw',
+    free: 'bipedPreview',
     front: 'bipedFront',
     back: 'bipedBack',
     left: 'bipedSide',
@@ -209,24 +209,36 @@ const FACE_LABELS = {
  */
 export function viewMenu(inspect, host, options = {}) {
     const labels = { ...FACE_LABELS, ...options.labels };
+    const extras = options.extras ?? [];
     const menu = barMenu({
         icon: options.icon ?? 'camera',
         title: options.title ?? 'View',
         // A toolbar: each view its icon, named by its tooltip.
-        options: (options.faces ?? [...INSPECT_FACES, 'free']).map((v) => ({
-            value: v,
-            label: labels[v],
-            icon: FACE_ICONS[v],
-        })),
+        options: [
+            ...(options.faces ?? [...INSPECT_FACES, 'free']).map((v) => ({
+                value: v,
+                label: labels[v],
+                icon: FACE_ICONS[v],
+            })),
+            ...extras.map(({ value, label, icon }) => ({ value, label, icon })),
+        ],
         value: inspect.face,
         handleChange: (v) => {
-            inspect.face = v;
+            const extra = extras.find((x) => x.value === v);
+            for (const x of extras)
+                if (x !== extra && x.active())
+                    x.leave();
+            if (extra)
+                extra.select();
+            else
+                inspect.face = v;
             update();
         },
     });
     const update = () => {
-        menu.value = inspect.face;
-        if (inspect.face === 'free' && !options.always)
+        const extra = extras.find((x) => x.active());
+        menu.value = extra?.value ?? inspect.face;
+        if (inspect.face === 'free' && !extra && !options.always)
             menu.remove();
         else if (menu.parentElement == null)
             host.append(menu);

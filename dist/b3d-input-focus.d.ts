@@ -53,6 +53,11 @@ export declare class B3dInputFocus extends B3dChild {
      * take it over, and yanking it back to a default here would fight them.
      */
     releaseFocus(): void;
+    /**
+     * Tell the glass gamepad what its controls now do, for a screen reader:
+     * only once the scene's assistive surface is in use (`b3d.assistive`).
+     */
+    labelPad(): void;
     private setupCameraForEntity;
     private _checkInteract;
     private enterVehicle;
