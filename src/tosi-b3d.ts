@@ -1546,6 +1546,12 @@ export class B3d extends Component {
   get hasInputFocus(): boolean {
     return B3d._active === null || B3d._active === this
   }
+  /** True only once the pointer has entered or pressed this scene (and no
+   * other since). Keys it uses are kept from the page only then: before that,
+   * an arrow key still scrolls the page past a demo. */
+  get isActiveScene(): boolean {
+    return B3d._active === this
+  }
   /** Make this the input-focused scene (also happens on pointerenter/pointerdown). */
   takeInputFocus(): void {
     B3d._active = this

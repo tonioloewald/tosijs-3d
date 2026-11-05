@@ -63,6 +63,7 @@ import {
 } from './virtual-gamepad.js'
 import { HardwareGamepadSource } from './hardware-gamepad.js'
 import { realNow } from './clock.js'
+import { isTextEntry } from './text-entry.js'
 
 function keycode(evt: KeyboardEvent): string {
   return evt.code.replace(/Key|Digit/, '')
@@ -293,7 +294,29 @@ export class GameController extends Component implements GamepadSource {
     return this.provider
   }
 
+  /** The scene this sits in is the one the pointer last entered or pressed. */
+  private _sceneInUse(): boolean {
+    for (let n = this.parentElement; n != null; n = n.parentElement)
+      if ('isActiveScene' in n) return (n as any).isActiveScene === true
+    return false
+  }
+
+  private _isMappedKey(code: string): boolean {
+    return (
+      this.axes.some(
+        (a) => a.positiveKeys.includes(code) || a.negativeKeys.includes(code)
+      ) || this.buttons.some((b) => b.keys.includes(code))
+    )
+  }
+
   private _handleKeyDown = (event: KeyboardEvent) => {
+    // Typing in a field is not steering (see keyboard-gamepad).
+    if (isTextEntry(event)) return
+    // A key the scene uses must not also scroll the page (arrows, Space), but
+    // only while that scene is the one in use: a page of docs still scrolls
+    // past a demo nobody has touched.
+    if (this._isMappedKey(keycode(event)) && this._sceneInUse())
+      event.preventDefault()
     this.pressedKeys.add(keycode(event))
     for (const btn of this.buttons) {
       if (btn.type !== 'toggle') continue
