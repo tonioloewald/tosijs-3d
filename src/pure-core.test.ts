@@ -34,6 +34,7 @@ export const CHARACTER_CORE = [
   'hair-fit',
   'garment-cut',
   'remesh',
+  'cloth-drape',
   'garment-file',
   'uv-unwrap',
   'skin-tone',

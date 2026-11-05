@@ -32,14 +32,18 @@ const tailor = mountTailorTool(scene, {
   (edges about 3, 2 or 1.2 cm), whatever the body's own triangles are; **as
   the body** cuts the body's triangles themselves;
 - **thickness** (thicker cloth bridges more of the chest, where the body
-  says where its nipples are) and **skirt** (rings round the outline at each
-  height: skirts, kilts, robes; never the arms, which it cannot follow
-  without cloth simulation);
+  says where its nipples are);
+- **made by**: **cutting the skin** (the cloth follows the body),
+  **draping cloth** (a front and a back piece laid over the body, sewn where
+  the outline runs up and down past its edge and settled under gravity, so
+  it bridges hollows and hangs: dresses, tunics, robes; see
+  [cloth drape](/cloth-drape/)), or **rings** (round the outline at each
+  height: skirts, kilts);
 - **material**, **name** and **slot**.
 
 WHAT DONE HANDS BACK is the garment as a mesh at rest, on the body it was
 cut from (`garment`: positions, triangles, UVs unwrapped like a sewing
-pattern), with what it was cut from (`cut`: the outlines, thickness, skirt)
+pattern), with what it was cut from (`cut`: the outlines, thickness, how it was made)
 so it can be opened again, and the name, slot and material recipe. Binding it
 to a body to wear (`bindGarment`) is the host's: a garment file carries the
 same mesh.
@@ -64,6 +68,7 @@ import {
 import { outlineField3d, type OutlineField } from './outline-field.js'
 import { smoothUnder, fitProxy, drawnPositions } from './proxy-fit.js'
 import { remesh, type Remeshed } from './remesh.js'
+import { drapeGarment } from './cloth-drape.js'
 import { humanProxy, proxyMaterial } from './human-proxy.js'
 import type { HumanProxy } from './human-pack.js'
 import { clothShading, clothRecipe } from './cloth-shading.js'
@@ -90,6 +95,8 @@ export interface TailorCut {
   /** Metres. */
   thickness: number
   skirt: boolean
+  /** Draped cloth ([cloth-drape](/cloth-drape/)) in place of a cut from the skin. Ignored with `skirt`. */
+  drape?: boolean
   /** What the cloth is cut from: an even surface at this density, or the body's own triangles. Default `medium`. */
   mesh?: TailorMesh
 }
@@ -169,6 +176,7 @@ export function mountTailorTool(
     shapes: options.cut?.shapes ?? [],
     thickness: options.cut?.thickness ?? 0.005,
     skirt: options.cut?.skirt ?? false,
+    drape: options.cut?.drape ?? false,
     mesh: options.cut?.mesh ?? 'medium',
   }
   let look: MaterialRecipe =
@@ -272,7 +280,7 @@ export function mountTailorTool(
     name: 'tailored',
     category: 'clothes',
     slot,
-    material: { alpha: false, twoSided: cut.skirt },
+    material: { alpha: false, twoSided: cut.skirt || cut.drape === true },
   })
   let material: BABYLON.PBRMaterial | null = null
   let shading: { set(l: { recipe: MaterialRecipe }): void } | null = null
@@ -297,6 +305,14 @@ export function mountTailorTool(
             front: outline,
             thickness: cut.thickness,
             anchor: notArm,
+          })
+        } else if (cut.drape) {
+          // Draped over the even surface (as the body: medium).
+          const d = dummy(density === 'body' ? 'medium' : density)
+          made = drapeGarment(d, fitOn, {
+            front: outline,
+            thickness: cut.thickness,
+            edge: TAILOR_MESH_EDGE[density === 'body' ? 'medium' : density],
           })
         } else if (density === 'body') {
           made = cutGarment(cutOn, cutFrom, {
@@ -324,8 +340,10 @@ export function mountTailorTool(
           shading = clothShading(material)
           shading.set({ recipe: look })
         }
-        material.backFaceCulling = !cut.skirt
-        material.twoSidedLighting = cut.skirt
+        // Skirts and draped cloth are open: their inside shows.
+        const open = cut.skirt || cut.drape === true
+        material.backFaceCulling = !open
+        material.twoSidedLighting = open
         mesh = humanProxy(scene, built, proxy, fitOn, body.weights, material)
         owner.register?.({ meshes: [mesh] })
         status = ''
@@ -390,18 +408,29 @@ export function mountTailorTool(
     select3d({
       label: 'cloth mesh',
       value: cut.mesh ?? 'medium',
-      options: ['coarse', 'medium', 'fine', { label: 'as the body', value: 'body' }],
+      options: [
+        'coarse',
+        'medium',
+        'fine',
+        { label: 'as the body', value: 'body' },
+      ],
       handleChange: (v) => {
         cut.mesh = v as TailorMesh
         recut()
         changed()
       },
     }),
-    toggle3d({
-      label: 'skirt',
-      value: cut.skirt,
-      handleChange: (v: boolean) => {
-        cut.skirt = v
+    select3d({
+      label: 'made by',
+      value: cut.skirt ? 'skirt' : cut.drape ? 'drape' : 'cut',
+      options: [
+        { label: 'cutting the skin', value: 'cut' },
+        { label: 'draping cloth', value: 'drape' },
+        { label: 'rings (skirt)', value: 'skirt' },
+      ],
+      handleChange: (v) => {
+        cut.skirt = v === 'skirt'
+        cut.drape = v === 'drape'
         recut()
         changed()
       },

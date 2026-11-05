@@ -2004,9 +2004,17 @@ export {
 } from './proxy-fit.js'
 export type { ProxyBinding, VertexWeights } from './proxy-fit.js'
 export { humanProxy, proxyMaterial, coverBody } from './human-proxy.js'
-export { cutGarment, mirrorOutline, skirtGarment, rebindCut, weldVertices } from './garment-cut.js'
+export {
+  cutGarment,
+  mirrorOutline,
+  skirtGarment,
+  rebindCut,
+  weldVertices,
+} from './garment-cut.js'
 export { remesh, surfaceProjector, closestBarycentric } from './remesh.js'
 export type { Remeshed, RemeshOptions, SurfacePoint } from './remesh.js'
+export { drapeGarment, flatPiece } from './cloth-drape.js'
+export type { DrapeOptions, DrapedGarment } from './cloth-drape.js'
 export { outlineField3d } from './outline-field.js'
 export { bindGarment, closestOnTriangle } from './garment-bind.js'
 export {

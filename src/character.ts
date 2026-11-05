@@ -496,7 +496,7 @@ export async function makeCharacter(
       slot,
       material: {
         ...fileLook(material),
-        ...(meta?.cut?.skirt ? { twoSided: true } : {}),
+        ...(meta?.cut?.skirt || meta?.cut?.drape ? { twoSided: true } : {}),
       },
     }
   }
