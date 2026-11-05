@@ -217,13 +217,17 @@ describe('the scene tools', () => {
     forward: { x: fx, y: 0, z: fz },
   })
   function sceneHost() {
-    const root = document.createElement('div')
+    // A document of its own: where an earlier test file has defined the
+    // real elements, `tosi-b3d-car` here would be a live component, not a
+    // stand-in carrying the mesh it is given.
+    const doc = (new Window() as any).document as Document
+    const root = doc.createElement('div')
     const add = (
       tag: string,
       attrs: Record<string, string>,
       mesh?: unknown
     ) => {
-      const el = document.createElement(tag) as any
+      const el = doc.createElement(tag) as any
       for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v)
       if (mesh) el.mesh = mesh
       root.appendChild(el)
