@@ -45,6 +45,7 @@ export const CHARACTER_CORE = [
   'asset-url',
   'skinned-glb',
   'glb-chunks',
+  'glb-rig',
   'eye-art',
   'png',
   'hair-place',

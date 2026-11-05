@@ -36,6 +36,7 @@ import { humanBodyMaker } from 'tosijs-3d/human-rig'
 | [`character-settings`](/character-settings/) | every setting a character has, with its default; the slots; hair colours; the body pack's URL |
 | [`proxy-cover`](/proxy-cover/) | the skin under what is worn, tucked in and hidden |
 | [`skinned-glb`](/skinned-glb/), [`glb-chunks`](/glb-chunks/) | a rigged, morphing body out as a GLB (validator-clean); GLB chunks read and written |
+| [`glb-rig`](/glb-rig/) | a mesh file's triangles for rigging from its bytes (frame, skin at rest, surfaces with their materials and pictures, eyes): `bodyFromMarkers` with no scene |
 | [`hair-place`](/hair-place/) | Quaternius' hairstyles placed on a body's head, and the library read from its GLB |
 | [`mesh-sdf`](/mesh-sdf/) | signed distance to a triangle mesh: inside, and how deep |
 | [`remesh`](/remesh/) | an even surface laid over a mesh with bad triangles (the tailor's dummy) |
