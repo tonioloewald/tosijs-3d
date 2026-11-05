@@ -45,7 +45,7 @@ read: it throws, naming the extension.
 The rig from it is DETERMINISTIC: the same bytes and the same markers give
 the same weights, so a saved character exports the same every time.
 */
-/*{ "parent": "character-core", "order": 32 }*/
+/*{ "parent": "glb-chunks", "order": 1 }*/
 
 import {
   readGlb,

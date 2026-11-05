@@ -152,7 +152,10 @@ describe('rigged body', () => {
       // A different shape: the same vertices, somewhere else.
       expect(heavy.positions.length).toBe(maker.first.positions.length)
       expect(heavy.positions).not.toEqual(maker.first.positions)
-    }
+    },
+    // Bone heat on a whole MakeHuman body: about a second alone, but over
+    // five in the full run after the export tests' Khronos validator.
+    30000
   )
   test.skipIf(!existsSync(PACK))(
     'from MakeHuman at a lower body detail: a proxy skin over the same body',

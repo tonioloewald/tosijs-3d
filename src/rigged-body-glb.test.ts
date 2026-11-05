@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { afterAll, describe, expect, test } from 'bun:test'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { validateBytes } from 'gltf-validator'
@@ -7,6 +7,7 @@ import { glbRigTriangles } from './glb-rig.js'
 import { bodyFromMarkers, type RiggedBody } from './rigged-body.js'
 import { riggedBodyGlb, MIXAMO_JOINT_NAMES } from './rigged-body-glb.js'
 import { UAL_REST } from './ual-rest.js'
+import { objTriangles } from './rig-fit.js'
 
 const AI = join(
   import.meta.dir,
@@ -51,8 +52,13 @@ const trs = (n: any): M => {
 }
 
 describe.skipIf(!existsSync(AI))('rigged-body-glb on an AI-made body', () => {
-  let body: RiggedBody
-  let bytes: Uint8Array
+  let body: RiggedBody | undefined
+  let bytes: Uint8Array | undefined
+  // Let go of the body and the file: the next test file needs the memory.
+  afterAll(() => {
+    body = undefined
+    bytes = undefined
+  })
   const get = () => {
     if (!bytes) {
       body = bodyFromMarkers(glbRigTriangles(new Uint8Array(readFileSync(AI))))
@@ -66,7 +72,7 @@ describe.skipIf(!existsSync(AI))('rigged-body-glb on an AI-made body', () => {
 
   test('the Khronos validator reports no errors', async () => {
     get()
-    const report = await validateBytes(bytes, { maxIssues: 50 })
+    const report = await validateBytes(bytes!, { maxIssues: 50 })
     // The one warning allowed: a normal map with no tangents, which the
     // source file has too. glTF has the loader generate MikkTSpace tangents
     // then, which is more portable than any we could write.
@@ -179,7 +185,7 @@ describe.skipIf(!existsSync(AI))('rigged-body-glb on an AI-made body', () => {
 
   test("Mixamo's names, the same skeleton", () => {
     get()
-    const { json } = readGlb(riggedBodyGlb(body, { naming: 'mixamo' }))
+    const { json } = readGlb(riggedBodyGlb(body!, { naming: 'mixamo' }))
     const names = json.skins[0].joints.map((j: number) => json.nodes[j].name)
     expect(names[0]).toBe('root')
     expect(names[1]).toBe('mixamorig:Hips')
@@ -188,7 +194,7 @@ describe.skipIf(!existsSync(AI))('rigged-body-glb on an AI-made body', () => {
 
   test('the source pose keeps the body as rigged, still on the floor', async () => {
     get()
-    const out = riggedBodyGlb(body, { restPose: 'source' })
+    const out = riggedBodyGlb(body!, { restPose: 'source' })
     const report = await validateBytes(out, { maxIssues: 20 })
     expect(report.issues.numErrors).toBe(0)
     const { json } = readGlb(out)
@@ -200,8 +206,116 @@ describe.skipIf(!existsSync(AI))('rigged-body-glb on an AI-made body', () => {
 
   test('refuses an unknown option value by name', () => {
     get()
-    expect(() => riggedBodyGlb(body, { naming: 'bvh' as any })).toThrow(
+    expect(() => riggedBodyGlb(body!, { naming: 'bvh' as any })).toThrow(
       "naming must be 'ue' or 'mixamo'"
     )
   })
+})
+
+const WEASEL = join(
+  import.meta.dir,
+  '..',
+  '..',
+  'static-assets',
+  'assets',
+  'tonio',
+  'rigging',
+  'weasel.obj'
+)
+
+describe.skipIf(!existsSync(WEASEL))('springs: the weasel’s tail', () => {
+  let bytes: Uint8Array | undefined
+  afterAll(() => {
+    bytes = undefined
+  })
+  const get = () => {
+    if (!bytes) {
+      const tris = objTriangles(readFileSync(WEASEL, 'utf8'), ['Weasel'])
+      const mark = (x: number, y: number) => ({ x, y })
+      const body = bodyFromMarkers(tris, {
+        // The weasel's markers and tail tip, as rig-fit's test places them.
+        markers: {
+          chin: mark(0, 0.967),
+          groin: mark(0, 0.358),
+          wristL: mark(0.51, 0.763),
+          wristR: mark(-0.51, 0.763),
+          elbowL: mark(0.397, 0.763),
+          elbowR: mark(-0.397, 0.763),
+          kneeL: mark(0.142, 0.174),
+          kneeR: mark(-0.142, 0.174),
+        },
+        tail: { x: 0, y: 0.5, z: -0.95 },
+      })
+      bytes = riggedBodyGlb(body, {
+        recipe: {
+          version: 1,
+          springs: [
+            { kind: 'bones', root: 'tail_01', name: 'tail' },
+            {
+              kind: 'strand',
+              anchor: 'Head',
+              name: 'antenna',
+              offset: { x: 0.05, y: 0.2, z: 0 },
+              yawDeg: 0,
+              pitchDeg: 60,
+              length: 0.3,
+              segments: 4,
+              radius: 0.01,
+              colliders: 'none',
+            },
+          ],
+        },
+      })
+    }
+    return readGlb(bytes)
+  }
+
+  test('the tail goes out as a VRMC_springBone spring, with colliders', () => {
+    const { json } = get()
+    const vrm = json.extensions.VRMC_springBone
+    expect(vrm.specVersion).toBe('1.0')
+    const tail = vrm.springs.find((s: any) => s.name === 'tail')
+    const names = tail.joints.map((j: any) => json.nodes[j.node].name)
+    expect(names[0]).toBe('tail_01')
+    expect(names[names.length - 1]).toBe('tail_leaf')
+    for (const j of tail.joints) {
+      expect(j.stiffness).toBeGreaterThan(0)
+      expect(j.dragForce).toBeGreaterThan(0)
+      expect(j.dragForce).toBeLessThan(1)
+      expect(j.gravityPower).toBeCloseTo(9.8 / 60, 4)
+    }
+    // Auto colliders: the head, the chest and the clavicles.
+    const group = vrm.colliderGroups[tail.colliderGroups[0]]
+    const bones = group.colliders.map(
+      (c: number) => json.nodes[vrm.colliders[c].node].name
+    )
+    expect(bones.sort()).toEqual(
+      ['Head', 'clavicle_l', 'clavicle_r', 'spine_03'].sort()
+    )
+    expect(json.extensionsUsed).toContain('VRMC_springBone')
+    expect(json.extensionsRequired).toBeUndefined()
+  })
+
+  test('a strand is baked: joints under its anchor, a tube skinned to them', () => {
+    const { json } = get()
+    const head = json.nodes.findIndex((n: any) => n.name === 'Head')
+    const first = json.nodes.findIndex((n: any) => n.name === 'antenna_2_01')
+    expect(json.nodes[head].children).toContain(first)
+    const ours = json.extensions.TOSIJS_spring_chains
+    const antenna = ours.springs.find((s: any) => s.kind === 'strand')
+    expect(antenna.joints).toHaveLength(5)
+    expect(antenna.strand.anchor).toBe(head)
+    expect(json.meshes.map((m: any) => m.name)).toContain('antenna_2')
+  })
+
+  test('valid glTF (the VRM and our extensions are only unknown to the validator)', async () => {
+    get()
+    const report = await validateBytes(bytes!, { maxIssues: 50 })
+    expect(report.issues.numErrors).toBe(0)
+    const other = report.issues.messages.filter(
+      (m: { code: string; severity: number }) =>
+        m.severity <= 1 && m.code !== 'MESH_PRIMITIVE_GENERATED_TANGENT_SPACE'
+    )
+    expect(other).toEqual([])
+  }, 120000)
 })

@@ -131,6 +131,11 @@ export interface SkinnedGlb {
   meshes: GlbMesh[]
   materials: GlbMaterial[]
   images: GlbImage[]
+  /**
+   * Root-level extensions, written as given and listed in `extensionsUsed`
+   * (never required). Node indices in them are the joints' (`0..n-1`).
+   */
+  extensions?: Record<string, unknown>
 }
 
 const FLOAT = 5126
@@ -483,7 +488,15 @@ export function writeSkinnedGlb(g: SkinnedGlb): Uint8Array {
       ...(g.asset.copyright ? { copyright: g.asset.copyright } : {}),
       ...(g.asset.extras ? { extras: g.asset.extras } : {}),
     },
-    ...(sheen ? { extensionsUsed: ['KHR_materials_sheen'] } : {}),
+    ...(sheen || g.extensions
+      ? {
+          extensionsUsed: [
+            ...(sheen ? ['KHR_materials_sheen'] : []),
+            ...Object.keys(g.extensions ?? {}),
+          ],
+        }
+      : {}),
+    ...(g.extensions ? { extensions: g.extensions } : {}),
     scene: 0,
     scenes: [{ nodes: [...topJoints, ...meshNodes] }],
     nodes,

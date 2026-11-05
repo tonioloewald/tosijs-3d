@@ -40,12 +40,19 @@ What the file is (Dramatis's `export-format`, version 1):
   under a joint). The file's own materials go out as glTF PBR with their
   pictures embedded, when the body's surfaces carry them as data (a body
   read by `glb-rig`); otherwise a plain grey.
+- **Springs**, when given the rig `recipe`: a bone spring (a tail) swings
+  from its root down, a strand is baked into joints under its anchor and a
+  tube skinned to them, colliders (`auto`: head, chest, clavicles, sized to
+  the body) go on their bones. They are written as `VRMC_springBone`, which
+  three-vrm, UniVRM and Godot's VRM importer read with no setup, and as
+  `TOSIJS_spring_chains`, our own settings exactly (see
+  [spring-vrm](/spring-vrm/) for how the two models differ).
 - **`asset.extras`** is passed through as given (Dramatis's licence block
   goes there), with `generator` and `copyright`.
 
 Weights are the body's own, four per vertex, renormalised.
 */
-/*{ "parent": "character-core", "order": 33 }*/
+/*{ "parent": "skinned-glb", "order": 1 }*/
 
 import {
   writeSkinnedGlb,
@@ -57,6 +64,19 @@ import {
 import { UAL_REST } from './ual-rest.js'
 import type { RiggedBody } from './rigged-body.js'
 import type { GltfSurfaceMaterial, GltfTextureRef } from './glb-rig.js'
+import {
+  STRAND_DEFAULTS,
+  strandPoints,
+  type RigRecipe,
+  type SpringRecipe,
+  type StrandSpringRecipe,
+} from './rig-recipe.js'
+import { SPRING_DEFAULTS } from './spring-chain.js'
+import {
+  springExtensions,
+  type SpringChainOut,
+  type SpringColliderOut,
+} from './spring-vrm.js'
 
 type V3 = [number, number, number]
 type Q = [number, number, number, number]
@@ -77,6 +97,12 @@ export interface RiggedBodyGlbOptions {
   copyright?: string
   /** `asset.extras`, as given. */
   extras?: Record<string, unknown>
+  /**
+   * The rig recipe, for its springs: bone chains swing, strands are baked
+   * into joints and a tube mesh, colliders go on their bones; written as
+   * `VRMC_springBone` and `TOSIJS_spring_chains` (see spring-vrm).
+   */
+  recipe?: RigRecipe
 }
 
 // --- quaternions, [x, y, z, w] ---
@@ -539,6 +565,7 @@ export function riggedBodyGlb(
       )}`
     )
   const sk = profileSkeleton(body)
+  const strands = addStrands(sk, options.recipe)
   const nVerts = body.positions.length / 3
 
   // Influences onto the profile's joints.
@@ -560,6 +587,14 @@ export function riggedBodyGlb(
       sk.rest,
       pose
     )
+  })
+
+  const tubes = strands.map((st) => {
+    const t = strandTube(st, sk.rest)
+    return {
+      ...t,
+      posed: skinTo(t.positions, t.joints, t.weights, sk.rest, pose),
+    }
   })
 
   // Scaled to height, the soles on the floor, the pelvis over the origin.
@@ -711,6 +746,42 @@ export function riggedBodyGlb(
     })
   }
 
+  tubes.forEach((t, k) => {
+    const pos = placeAll(t.posed)
+    materials.push({
+      name: t.name,
+      baseColorFactor: [...hexColour(t.color), 1],
+      metallicFactor: 0,
+      roughnessFactor: 0.7,
+      alphaMode: 'OPAQUE',
+      doubleSided: true,
+    })
+    meshes.push({
+      name: t.name,
+      primitives: [
+        {
+          positions: Float32Array.from(pos),
+          normals: smoothNormals(pos, t.indices),
+          uvs: null,
+          colors: null,
+          joints: t.joints,
+          weights: t.weights,
+          indices: t.indices,
+          material: materials.length - 1,
+        },
+      ],
+    })
+    void k
+  })
+
+  const chains = springChains(sk, strands, options.recipe, {
+    at,
+    frames,
+    scale,
+    height: (hi - lo) * scale,
+  })
+  const extensions = chains.length ? springExtensions(chains, at) : undefined
+
   return writeSkinnedGlb({
     asset: {
       generator: options.generator ?? 'tosijs-3d',
@@ -724,5 +795,255 @@ export function riggedBodyGlb(
     meshes,
     materials,
     images,
+    ...(extensions ? { extensions } : {}),
   })
+}
+
+/** A strand baked into the skeleton: its joints, hung from its anchor. */
+interface Strand {
+  name: string
+  recipe: StrandSpringRecipe
+  anchor: number
+  /** Its joints' indices in the skeleton, root first. */
+  joints: number[]
+}
+
+const strandName = (s: StrandSpringRecipe, i: number) =>
+  `${(s.name ?? 'strand').replace(/[^A-Za-z0-9_]/g, '_') || 'strand'}_${i + 1}`
+
+/**
+ * Each strand of the recipe as joints in the skeleton, at rest. Its points
+ * are in the character's frame (left on -X) from its anchor; the file's
+ * frame has the left on +X.
+ */
+function addStrands(sk: Skeleton, recipe?: RigRecipe): Strand[] {
+  const out: Strand[] = []
+  ;(recipe?.springs ?? []).forEach((spring, i) => {
+    if (spring.kind !== 'strand') return
+    const s = { ...STRAND_DEFAULTS, ...spring }
+    const anchor = sk.names.indexOf(s.anchor)
+    if (anchor < 0)
+      throw new Error(
+        `riggedBodyGlb: strand anchor ${s.anchor} is not in the skeleton`
+      )
+    const name = strandName(s, i)
+    const base = sk.rest[anchor]
+    const joints: number[] = []
+    strandPoints(s).forEach((p, k) => {
+      sk.names.push(`${name}_${String(k + 1).padStart(2, '0')}`)
+      sk.parents.push(k === 0 ? anchor : sk.names.length - 2)
+      sk.rest.push([base[0] - p.x, base[1] + p.y, base[2] + p.z])
+      joints.push(sk.names.length - 1)
+    })
+    out.push({ name, recipe: s, anchor, joints })
+  })
+  return out
+}
+
+/** A strand's tube at rest: rings round its joints, each ring on the joint before it. */
+function strandTube(
+  st: Strand,
+  rest: V3[]
+): {
+  name: string
+  color: string
+  positions: Float64Array
+  indices: Uint32Array
+  joints: Uint16Array
+  weights: Float32Array
+} {
+  const SIDES = 8
+  const pts = st.joints.map((j) => rest[j])
+  const r0 = st.recipe.radius
+  const r1 = st.recipe.tipRadius ?? r0
+  const pos: number[] = []
+  const jts: number[] = []
+  const wts: number[] = []
+  const ix: number[] = []
+  pts.forEach((p, k) => {
+    const along = sub(
+      pts[Math.min(k + 1, pts.length - 1)],
+      pts[Math.max(k - 1, 0)]
+    )
+    const l = Math.hypot(...along) || 1
+    const d: V3 = [along[0] / l, along[1] / l, along[2] / l]
+    // Two directions square to the strand.
+    const ref: V3 = Math.abs(d[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]
+    const u = cross(d, ref)
+    const ul = Math.hypot(...u) || 1
+    const a: V3 = [u[0] / ul, u[1] / ul, u[2] / ul]
+    const b = cross(d, a)
+    const radius = r0 + (r1 - r0) * (k / Math.max(1, pts.length - 1))
+    const joint = st.joints[Math.max(0, k - 1)]
+    for (let s = 0; s < SIDES; s++) {
+      const t = (s / SIDES) * Math.PI * 2
+      const c = Math.cos(t) * radius
+      const n = Math.sin(t) * radius
+      pos.push(
+        p[0] + a[0] * c + b[0] * n,
+        p[1] + a[1] * c + b[1] * n,
+        p[2] + a[2] * c + b[2] * n
+      )
+      jts.push(joint, 0, 0, 0)
+      wts.push(1, 0, 0, 0)
+    }
+  })
+  for (let k = 0; k + 1 < pts.length; k++)
+    for (let s = 0; s < SIDES; s++) {
+      const a = k * SIDES + s
+      const b = k * SIDES + ((s + 1) % SIDES)
+      const c = a + SIDES
+      const d = b + SIDES
+      ix.push(a, c, b, b, c, d)
+    }
+  // A cap at the tip.
+  const tip = pos.length / 3
+  const last = pts[pts.length - 1]
+  pos.push(last[0], last[1], last[2])
+  jts.push(st.joints[st.joints.length - 2] ?? st.joints[0], 0, 0, 0)
+  wts.push(1, 0, 0, 0)
+  const ring = (pts.length - 1) * SIDES
+  for (let s = 0; s < SIDES; s++)
+    ix.push(ring + s, tip, ring + ((s + 1) % SIDES))
+  return {
+    name: st.name,
+    color: st.recipe.color ?? '#73401a',
+    positions: Float64Array.from(pos),
+    indices: Uint32Array.from(ix),
+    joints: Uint16Array.from(jts),
+    weights: Float32Array.from(wts),
+  }
+}
+
+const cross = (a: V3, b: V3): V3 => [
+  a[1] * b[2] - a[2] * b[1],
+  a[2] * b[0] - a[0] * b[2],
+  a[0] * b[1] - a[1] * b[0],
+]
+
+/** `#rrggbb` as linear RGB. */
+function hexColour(hex: string): V3 {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
+  const n = m ? parseInt(m[1], 16) : 0x73401a
+  const lin = (c: number) => {
+    const x = c / 255
+    return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4)
+  }
+  return [lin((n >> 16) & 255), lin((n >> 8) & 255), lin(n & 255)]
+}
+
+/**
+ * The recipe's springs as chains of the written skeleton: a bone spring
+ * from its root down each first child, a strand its baked joints; their
+ * colliders on their bones (`auto`: the head, chest and clavicles, sized to
+ * the body), offsets in each joint's own frame.
+ */
+function springChains(
+  sk: Skeleton,
+  strands: Strand[],
+  recipe: RigRecipe | undefined,
+  placed: { at: V3[]; frames: Q[]; scale: number; height: number }
+): SpringChainOut[] {
+  const { at, frames, scale } = placed
+  const k = Math.max(0.1, placed.height) / 1.8
+  const index = (name: string) => sk.names.indexOf(name)
+  const local = (joint: number, v: V3): [number, number, number] => {
+    const l = qrot(qconj(frames[joint]), v)
+    return [l[0], l[1], l[2]]
+  }
+  const auto = (): SpringColliderOut[] => {
+    const out: SpringColliderOut[] = []
+    const head = index('Head')
+    if (head >= 0)
+      out.push({
+        node: head,
+        radius: 0.12 * k,
+        offset: local(head, [0, 0.09 * k, 0]),
+      })
+    const chest = index('spine_03')
+    if (chest >= 0)
+      out.push({ node: chest, radius: 0.17 * k, offset: [0, 0, 0] })
+    for (const c of ['clavicle_l', 'clavicle_r']) {
+      const i = index(c)
+      if (i >= 0) out.push({ node: i, radius: 0.09 * k, offset: [0, 0, 0] })
+    }
+    return out
+  }
+  const collidersOf = (s: SpringRecipe): SpringColliderOut[] => {
+    const c = s.colliders ?? 'auto'
+    if (c === 'none') return []
+    if (c === 'auto') return auto()
+    return c.map((r) => {
+      const i = index(r.bone)
+      if (i < 0)
+        throw new Error(
+          `riggedBodyGlb: collider bone ${r.bone} is not in the skeleton`
+        )
+      const o = r.offset ?? { x: 0, y: 0, z: 0 }
+      return {
+        node: i,
+        radius: r.radius * scale,
+        offset: local(i, [-o.x * scale, o.y * scale, o.z * scale]),
+      }
+    })
+  }
+  const settingsOf = (s: SpringRecipe, radius: number) => {
+    const d = s.kind === 'strand' ? STRAND_DEFAULTS.params! : {}
+    return {
+      stiffness:
+        s.params?.stiffness ?? d.stiffness ?? SPRING_DEFAULTS.stiffness,
+      damping: s.params?.damping ?? d.damping ?? SPRING_DEFAULTS.damping,
+      gravity: s.params?.gravity ?? d.gravity ?? -SPRING_DEFAULTS.gravity.y,
+      radius,
+    }
+  }
+  const out: SpringChainOut[] = []
+  ;(recipe?.springs ?? []).forEach((s, i) => {
+    if (s.kind === 'bones') {
+      const root = index(s.root)
+      if (root < 0)
+        throw new Error(
+          `riggedBodyGlb: spring bone ${s.root} is not in the skeleton`
+        )
+      const joints = [root]
+      for (let at = root; joints.length < 64; ) {
+        const next = sk.parents.indexOf(at)
+        if (next < 0) break
+        joints.push(next)
+        at = next
+      }
+      if (joints.length < 2)
+        throw new Error(
+          `riggedBodyGlb: spring bone ${s.root} has no bones below it`
+        )
+      out.push({
+        name: s.name ?? s.root,
+        kind: 'bones',
+        joints,
+        settings: settingsOf(s, SPRING_DEFAULTS.radius * scale),
+        colliders: collidersOf(s),
+      })
+      return
+    }
+    const st = strands.find((t) => t.name === strandName(s, i))!
+    const anchorAt = at[st.anchor]
+    out.push({
+      name: st.name,
+      kind: 'strand',
+      joints: st.joints,
+      settings: settingsOf(s, st.recipe.radius * scale),
+      colliders: collidersOf(s),
+      strand: {
+        anchor: st.anchor,
+        path: st.joints.map((j) => {
+          const p = sub(at[j], anchorAt)
+          return [p[0], p[1], p[2]] as [number, number, number]
+        }),
+        radius: st.recipe.radius * scale,
+        tipRadius: (st.recipe.tipRadius ?? st.recipe.radius) * scale,
+        color: st.recipe.color ?? '#73401a',
+      },
+    })
+  })
+  return out
 }
