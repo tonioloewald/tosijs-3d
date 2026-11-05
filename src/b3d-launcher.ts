@@ -405,8 +405,62 @@ function handRest(
   return { hand: h, anatomy }
 }
 
-/** A node under the hand bone where a held thing goes (null: use the bone). */
-function handSocket(
+/**
+ * Where a held model's GRIP is, in its own frame: the middle of its lowest
+ * third (a pistol's handle hangs below its slide). What a launcher with
+ * `grip: 'auto'` puts on its socket instead of the model's origin, and what
+ * the character builder's held items use, so one set of numbers means the
+ * same in both. A `_grip` node in the model, when it has one, wins (see
+ * `heldGrip`).
+ */
+export function deriveGrip(root: BABYLON.TransformNode): BABYLON.Vector3 | null {
+  const toLocal = BABYLON.Matrix.Invert(root.getWorldMatrix())
+  const pts: BABYLON.Vector3[] = []
+  let lo = Infinity
+  let hi = -Infinity
+  for (const m of root.getChildMeshes()) {
+    const data = m.getVerticesData(BABYLON.VertexBuffer.PositionKind)
+    if (data == null) continue
+    const toRoot = m.computeWorldMatrix(true).multiply(toLocal)
+    for (let i = 0; i < data.length; i += 3) {
+      const v = BABYLON.Vector3.TransformCoordinates(
+        new BABYLON.Vector3(data[i], data[i + 1], data[i + 2]),
+        toRoot
+      )
+      pts.push(v)
+      if (v.y < lo) lo = v.y
+      if (v.y > hi) hi = v.y
+    }
+  }
+  if (pts.length === 0 || !(hi > lo)) return null
+  const cut = lo + (hi - lo) / 3
+  let n = 0
+  const acc = BABYLON.Vector3.Zero()
+  for (const v of pts) {
+    if (v.y > cut) continue
+    acc.addInPlace(v)
+    n++
+  }
+  return n > 0 ? acc.scaleInPlace(1 / n) : null
+}
+
+/** A held model's grip: its `_grip` node's place if it has one, else `deriveGrip`. */
+export function heldGrip(root: BABYLON.TransformNode): BABYLON.Vector3 | null {
+  const node = findSuffixed(root, ['_grip'])
+  if (node != null)
+    return BABYLON.Vector3.TransformCoordinates(
+      node.getAbsolutePosition(),
+      BABYLON.Matrix.Invert(root.getWorldMatrix())
+    )
+  return deriveGrip(root)
+}
+
+/**
+ * A hand's SOCKET: a node under the hand bone in a frame normalised to the
+ * hand's anatomy (UAL's calibration), so one grip fits any rig's hand. Made
+ * once per hand and reused. Null when the rig's hand cannot be read.
+ */
+export function handSocket(
   skeleton: BABYLON.Skeleton,
   hand: string,
   side: 'r' | 'l',
@@ -1382,36 +1436,7 @@ export class B3dLauncher extends AbstractMesh {
    * are about to write.
    */
   private _deriveGrip(): BABYLON.Vector3 | null {
-    const root = this.mesh
-    if (root == null) return null
-    const toLocal = BABYLON.Matrix.Invert(root.getWorldMatrix())
-    const pts: BABYLON.Vector3[] = []
-    let lo = Infinity
-    let hi = -Infinity
-    for (const m of root.getChildMeshes()) {
-      const data = m.getVerticesData(BABYLON.VertexBuffer.PositionKind)
-      if (data == null) continue
-      const toRoot = m.computeWorldMatrix(true).multiply(toLocal)
-      for (let i = 0; i < data.length; i += 3) {
-        const v = BABYLON.Vector3.TransformCoordinates(
-          new BABYLON.Vector3(data[i], data[i + 1], data[i + 2]),
-          toRoot
-        )
-        pts.push(v)
-        if (v.y < lo) lo = v.y
-        if (v.y > hi) hi = v.y
-      }
-    }
-    if (pts.length === 0 || !(hi > lo)) return null
-    const cut = lo + (hi - lo) / 3
-    let n = 0
-    const acc = BABYLON.Vector3.Zero()
-    for (const v of pts) {
-      if (v.y > cut) continue
-      acc.addInPlace(v)
-      n++
-    }
-    return n > 0 ? acc.scaleInPlace(1 / n) : null
+    return this.mesh == null ? null : deriveGrip(this.mesh)
   }
 
   /**

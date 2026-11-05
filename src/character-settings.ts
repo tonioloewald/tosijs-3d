@@ -96,6 +96,15 @@ export const DEFAULT_CHARACTER: Record<string, any> = {
   hideClothes: false,
   rigs: {},
   surfaces: {},
+  /** The item in the right hand (a weapon library's name), or `none`. */
+  held: 'none',
+  /**
+   * Each item's grip, by name: where its grip point goes, `{ x, y, z }`
+   * metres from the hand's socket, turned `{ rx, ry, rz }` degrees, and
+   * `scale`. A launcher with `socket: 'right-hand'` (its grip `auto`) takes
+   * the same numbers.
+   */
+  grips: {},
   source: 'MakeHuman',
   /**
    * How much of MakeHuman's body is drawn: a lighter skin bound over it

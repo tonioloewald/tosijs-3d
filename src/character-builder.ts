@@ -11,12 +11,12 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 
 // Everything the panel sets, as it starts: what a saved character is read against.
-const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorDrape: false, tailorMesh: 'medium', tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, source: 'MakeHuman', bodyDetail: 'medium', characterName: '' }
+const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorDrape: false, tailorMesh: 'medium', tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, held: 'none', grips: {}, source: 'MakeHuman', bodyDetail: 'medium', characterName: '' }
 const { walker } = tosi({ walker: structuredClone(START) })
 // What a character file keeps: not the editor's view of one slot (that is in
 // cloth), the microphone (it would ask on load), or the save controls.
@@ -197,6 +197,46 @@ const clothesRows = () => [
     : []),
   clothPicker('material', walker.clothLook),
 ]
+// SOMETHING IN THE HAND: an item from the weapon library on the right hand's
+// socket (its frame is the hand's anatomy, so one grip fits any rig's hand),
+// placed by its grip and kept with the character, one grip per item.
+let heldNames = ['none']
+let applyGrip = () => {}
+const GRIP = { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, scale: 1 }
+// Weapon Fit's pistol (its grip, the middle of its handle, on the socket).
+const GRIPS = { pistol: { x: -0.04, y: 0.051, z: -0.059, rx: -105, ry: -15, rz: -165, scale: 0.86 } }
+const gripOf = (name) => ({ ...GRIP, ...GRIPS[name], ...(JSON.parse(JSON.stringify(walker.grips.value))[name] ?? {}) })
+const setGrip = (patch) => {
+  const name = walker.held.value
+  walker.grips.value = { ...JSON.parse(JSON.stringify(walker.grips.value)), [name]: { ...gripOf(name), ...patch } }
+  applyGrip()
+}
+const holdRows = () => {
+  const name = walker.held.value
+  const g = gripOf(name)
+  return [
+    label3d({ text: 'Hold', collapsible: true }),
+    select3d({ label: 'right hand', value: walker.held, options: heldNames, stayOpen: true }),
+    ...(name === 'none'
+      ? []
+      : [
+          label3d({ text: 'grip: from the hand (metres)', muted: true }),
+          vector3d({ value: { x: g.x, y: g.y, z: g.z }, step: 0.01, scrub: 0.002, handleChange: (v) => setGrip({ x: v.x, y: v.y, z: v.z }) }),
+          label3d({ text: 'turned (degrees)', muted: true }),
+          euler3d({ value: { x: g.rx, y: g.ry, z: g.rz }, step: 5, scrub: 0.5, handleChange: (v) => setGrip({ rx: v.x, ry: v.y, rz: v.z }) }),
+          slider3d({ label: 'scale', value: g.scale, min: 0.4, max: 1.6, step: 0.01, handleChange: (v) => setGrip({ scale: v }) }),
+          button3d({
+            label: 'reset grip',
+            handleClick: () => {
+              const all = JSON.parse(JSON.stringify(walker.grips.value))
+              delete all[name]
+              walker.grips.value = all
+              applyGrip()
+            },
+          }),
+        ]),
+  ]
+}
 const tailorRows = () => [
   label3d({ text: 'Tailor', collapsible: true }),
   ...(tailorTarget()
@@ -284,6 +324,7 @@ preview.append(
         slider3d({ label: 'size', value: walker.hairSize, min: 0.9, max: 1.1, step: 0.005 }),
         ...clothesRows(),
         ...tailorRows(),
+        ...holdRows(),
         label3d({ text: 'Ancestry', collapsible: true }),
         slider('african', 'african'),
         slider('asian', 'asian'),
@@ -310,6 +351,7 @@ preview.append(
         ...surfaceRows(),
         ...clothesRows(),
         ...tailorRows(),
+        ...holdRows(),
         label3d({ text: 'Skin', collapsible: true }),
         slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: 'redness', value: walker.redness, min: 0, max: 1, step: 0.01 }),
@@ -416,6 +458,46 @@ preview.append(
         const ualRoot = ual.meshes.find((m) => m.name === '__root__')
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
+        // THE HELD ITEM: an instance of the library's model on the shown
+        // body's right-hand socket, made again when the item or body changes.
+        const weapons = el.querySelector('tosi-b3d-library')
+        let held = null
+        applyGrip = () => {
+          const name = walker.held.value
+          const shown = ch?.shown
+          if (held && (held.name !== name || held.shown !== shown || rigging)) {
+            held.node.dispose()
+            held = null
+          }
+          if (name === 'none' || !shown || rigging) return
+          if (!held) {
+            const skeleton = shown.built?.skeleton
+            const hand = skeleton?.bones.find((b) => b.name === 'hand_r')?.getTransformNode()
+            const node = hand && weapons?.instantiate?.(name, { canonical: true })
+            if (!node) return
+            node.parent = handSocket(skeleton, 'hand_r', 'r', hand) ?? hand
+            // Its grip (a pistol's handle), measured once: that point, not
+            // its origin, goes where the numbers say, as on a launcher.
+            held = { node, name, shown, grip: heldGrip(node) ?? BABYLON.Vector3.Zero() }
+          }
+          const g = gripOf(name)
+          const d = Math.PI / 180
+          const turn = BABYLON.Quaternion.FromEulerAngles(g.rx * d, g.ry * d, g.rz * d)
+          const spun = held.grip.applyRotationQuaternion(turn)
+          held.node.position.set(g.x - spun.x, g.y - spun.y, g.z - spun.z)
+          held.node.rotationQuaternion = turn
+          held.node.scaling.setAll(g.scale)
+        }
+        weapons?.ready.then(() => {
+          heldNames = ['none', ...weapons.getNames().filter((n) => !n.startsWith('ammo')).sort()]
+          applyGrip()
+          el.refreshScenePanel?.()
+        })
+        walker.held.observe(() => {
+          applyGrip()
+          el.refreshScenePanel?.()
+        })
+
         // CLIPS FROM A FILE: any skinned GLB with animations (Mixamo's,
         // Meshy's): its skeleton read like UAL's, its clips listed and
         // retargeted onto the body shown. Kept for this visit only.
@@ -513,6 +595,7 @@ preview.append(
           handleShown: (shown) => {
             // A garment being cut is cut from the body as it is now.
             if (shown && tailoringOn === shown.source) tailoring?.setBody(shown.body, shown.built)
+            applyGrip()
             el.refreshScenePanel?.()
             play()
           },
@@ -788,6 +871,7 @@ preview.append(
           const done = () => {
             rigging = null
             ch.hide(false)
+            applyGrip()
             rigPanel.svg = idleRig()
             rigPanel.hide?.()
             // The Body and Tailor sections wait on it.
@@ -827,6 +911,8 @@ preview.append(
               play()
             },
           })
+          // The item goes while the rig tool has the body.
+          applyGrip()
           el.refreshScenePanel?.()
         }
         el.builder.rigTool = () => rigging
@@ -999,6 +1085,8 @@ preview.append(
         walker.paused.observe(() => (walker.paused.value ? playing?.pause() : playing?.play(true)))
       },
     },
+    // Things to hold (Kenney's weapon pack).
+    b3dLibrary({ url: assetUrl('kenney/libraries/weapon-pack.glb'), type: 'weapons' }),
     b3dSun({ timeOfDay: 16.5, shadowTextureSize: 2048, shadowMaxZ: 20, shadowNormalBias: 0.008 }),
     b3dLight({ intensity: 0.5 })
   )
@@ -1041,6 +1129,15 @@ and listed after the everyday ones, for this visit.
 **View** (the camera on the bar) holds the body square on from any side, or
 follows the **right hand** close up through the clip, to see how an item sits
 in it. The rig tool uses the same menu.
+
+**Hold** puts an item from the weapon library in the right hand, on the
+hand's socket (a frame normalised to the hand's anatomy, so one grip fits any
+body's hand). Its **grip** says where the item's grip point goes (a pistol's
+handle: a `_grip` node in the model, or the middle of its lowest third),
+turned and scaled; each item's grip is kept with the character. Play a clip
+made for it (`Pistol_Idle_Loop`, the shoot loops) and check it in the hand
+view. The numbers are a launcher's: `b3dLauncher({ socket: 'right-hand', x,
+y, z, rx, ry, rz, modelScale })` holds it the same way on a biped.
 
 **Character** keeps your work. The figure you are working on is kept in this
 browser as you change it and comes back when you open the page again. **Save…**

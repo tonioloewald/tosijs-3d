@@ -1755,6 +1755,9 @@ export {
   b3dLauncher,
   spawnProjectile,
   spawnMissile,
+  handSocket,
+  deriveGrip,
+  heldGrip,
 } from './b3d-launcher.js'
 export type { ProjectileOpts, MissileOpts, Impact } from './b3d-launcher.js'
 export { createMakers } from './make-mesh.js'
