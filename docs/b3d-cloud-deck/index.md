@@ -143,7 +143,7 @@ preview.append(
 | `coverage` | `0.5` | Clear `0` → solid `1` → thickening to `2`. LIVE, and shared with the shadow |
 | `thickenDepth` | `900` | MAX thickening — how far the cloud TOP rises above `altitude` at `coverage: 2` |
 | `cirrus` | `0` | Rounded heaps `0` → long wispy streaks at `±1`: positive streaks ALONG the wind heading, negative ACROSS it. Rebakes the field |
-| `wind` | `8` | Metres per second the deck drifts. Nothing rebakes |
+| `wind` | `8` | Metres per second the deck drifts, on the sky's clock: a skybox sped up (`realtimeScale` 60) drifts it 60 times as fast. Nothing rebakes |
 | `windHeadingDeg` | `0` | Which way it drifts — and the direction cirrus streaks run. Used only when the scene has no wind of its own (`<tosi-b3d wind-speed>`): with one, the deck drifts with it, as smoke and storms do |
 | `evolve` | `0.5` | How fast shapes change, `0` rigid → `1` restless |
 | `follow` | `'on'` | Keep the deck centred under the camera. A deck is finite; the world is not |

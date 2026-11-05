@@ -14,6 +14,8 @@ import { inspectView, seamOverlay } from 'tosijs-3d'
 const inspect = inspectView(camera, { face: 'front' })
 inspect.face = 'left' // from the subject's left
 inspect.face = 'free' // back to orbiting, a perspective camera again
+inspect.follow = () => handBone.getAbsolutePosition() // keep a hand in view
+inspect.follow = null
 const seams = seamOverlay(mesh) // drawn as its polygons (see seam-material)
 seams.dispose()
 ```

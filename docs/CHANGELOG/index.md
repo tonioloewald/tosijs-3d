@@ -12,13 +12,14 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-## 0.12.2
+## 0.12.3
 
-The latest release. More of the character, engine-free (eyes from Tonio's art, hair placement, lips and stubble as vertex colours, cloth recoloured into its texture, the extremes sweep), and the builder's save and rename ask in a popup. See [0.12.2](/v0.12.2/).
+The latest release. Characters out to other engines (a GLB read with no engine, any rigged body as a skinned GLB that plays UAL's clips by name, springs as `VRMC_springBone`), the rig tool's fixes for AI-made meshes, draped cloth, and scenes as agent tools and for a screen reader. See [0.12.3](/v0.12.3/).
 
 ## Every version
 
 <!-- toc -->
+- [0.12.3](/v0.12.3/)
 - [0.12.2](/v0.12.2/)
 - [0.12.1](/v0.12.1/)
 - [0.12.0](/v0.12.0/)

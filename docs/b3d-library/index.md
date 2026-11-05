@@ -23,14 +23,16 @@ function isInsertable(node) {
 // Flatten the GLB hierarchy into one scrollable pick list: every insertable node
 // (a mesh, or a group that contains meshes), children indented under their parent.
 // Instantiating a group clones it whole; instantiating a leaf clones just that.
-function flattenInsertable(nodes, depth = 0, out = []) {
+function flattenInsertable(nodes, depth = 0, out = [], parents = []) {
   for (const node of nodes) {
+    const path = [...parents, node.label]
     if (isInsertable(node)) {
       // `label`, not `name` — the raw node is `building_collideCylinder_primitive0`
       // and nobody should have to read a collider annotation to pick a building.
-      out.push({ label: '   '.repeat(depth) + node.label, name: node.name })
+      // The title is its whole path: two parts can share a label (`Hull`).
+      out.push({ label: '   '.repeat(depth) + node.label, title: path.join(' › '), name: node.name })
     }
-    if (node.children.length) flattenInsertable(node.children, depth + 1, out)
+    if (node.children.length) flattenInsertable(node.children, depth + 1, out, path)
   }
   return out
 }

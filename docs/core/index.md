@@ -14,6 +14,7 @@ when you want many copies of the parts in one.
 - [Primitives: box, sphere, ground](/b3d-primitives/)
 - [make-mesh](/make-mesh/)
 - [b3d-library](/b3d-library/)
+- [agents](/b3d-agent/)
 - [b3d-prop](/b3d-prop/)
 - [Material Conventions](/b3d-utils/)
 - [Scene schemas](/scene-schemas/)

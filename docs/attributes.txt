@@ -27,6 +27,11 @@ angle-field
   handleChange  — live, every frame the pointer moves
   handleCommit  — once per gesture — your undo step
 
+## b3d-agent
+agents
+
+  b3d_scenes  = the page's scenes: name, which has input focus, what each offers
+
 ## b3d-aircraft — <tosi-b3d-aircraft>
 b3d-aircraft
 
@@ -277,7 +282,7 @@ b3d-cloud-deck
   seed  = 1337  — Same seed, same weather
   frequency  = 3  — Field repeats across its own width. Higher = smaller puffs
   cirrus  = 0  — Rounded heaps `0` → long wispy streaks at `±1`: positive streaks ALONG the wind heading, negative ACROSS it. Rebakes the field
-  wind  = 8  — Metres per second the deck drifts. Nothing rebakes
+  wind  = 8  — Metres per second the deck drifts, on the sky's clock: a skybox sped up (`realtimeScale` 60) drifts it 60 times as fast. Nothing rebakes
   windHeadingDeg  = 0  — Which way it drifts — and the direction cirrus streaks run. Used only when the scene has no wind of its own (`<tosi-b3d wind-speed>`): with one, the deck drifts with it, as smoke and storms do
   evolve  = 0.5  — How fast shapes change, `0` rigid → `1` restless
   follow  = 'on'  — Keep the deck centred under the camera. A deck is finite; the world is not
@@ -1537,6 +1542,7 @@ b3d
   scenePanelOpen  = false  — Start with the settings panel open instead of closed behind the owl
   panelTitle  = ''  — The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row)
   panelSections  = 'fold'  — How collapsible sections in the settings panel present: `'fold'` (headers you open and close, one open at a time: opening one closes the others), `'folds'` (several may be open) or `'tabs'` (file tabs, one section at a time)
+  agent  = ''  — What an agent may do with this scene through its tools (`b3d_<scene>_…` on WebMCP and `window.b3dAgent`; see [agents](/b3d-agent/)). `''` follows the page (`enableSceneAgents`; closed by default), `'read'` offers the read tools, `'on'` everything, `'off'` nothing
   gamepadScale  = 1  — Scale factor for the glass gamepad clusters
   gamepadFade  = 'on'  — `'off'` keeps the glass gamepad visible instead of fading it once a key is pressed or a hardware pad is used (the pointer never fades it)
   quality  = 'auto'  — Device tier. `'auto'` follows the measured or cached device profile (and probes in the background on a first visit); `'low'`, `'medium'` or `'high'` force one. Drives the `auto` defaults of shadows, reflections, terrain and render scaling. See [[b3d-quality]]

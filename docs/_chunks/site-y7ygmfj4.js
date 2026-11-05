@@ -1,0 +1,5 @@
+import{H}from"./site-qpqtr54r.js";import{K,Z}from"./site-nxqqjz2z.js";import{u}from"./site-9mf4pzsy.js";var i="KHR_materials_unlit";class tT{constructor(e){this.name=i,this.order=210,this._loader=e,this.enabled=this._loader.isExtensionUsed(i)}dispose(){this._loader=null}loadMaterialPropertiesAsync(e,r,s){return H.LoadExtensionAsync(e,r,this.name,async()=>await this._loadUnlitPropertiesAsync(e,r,s))}_loadUnlitPropertiesAsync(e,r,s){let o=this._loader._getOrCreateMaterialAdapter(s),a=[],t=r.pbrMetallicRoughness;if(t){if(t.baseColorFactor)o.baseColor=u.FromArray(t.baseColorFactor),o.geometryOpacity=t.baseColorFactor[3];if(t.baseColorTexture)a.push(this._loader.loadTextureInfoAsync(`${e}/baseColorTexture`,t.baseColorTexture,(l)=>{l.name=`${s.name} (Base Color)`,o.baseColorTexture=l}))}if(o.isUnlit=!0,r.doubleSided)o.backFaceCulling=!1,o.twoSidedLighting=!0;return this._loader.loadMaterialAlphaProperties(e,r,s),Promise.all(a).then(()=>{})}}var n=!1;function iT(){if(n)return;n=!0,Z(i),K(i,!0,(e)=>new tT(e))}iT();
+export{tT,iT};
+
+//# debugId=A8F700DF8F9086F064756E2164756E21
+//# sourceMappingURL=site-y7ygmfj4.js.map

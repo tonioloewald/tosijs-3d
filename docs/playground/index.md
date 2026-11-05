@@ -5,7 +5,7 @@ arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, characterStore, inputFocus, playground, select3d, ualAnimationStates } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, button3d, characterStore, inputFocus, playground, select3d, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
@@ -96,20 +96,25 @@ const wire = (h) => {
 wire(hero)
 loadout.inv.subscribe(() => hero.setGunplay(inHand()))
 
-// The characters saved in this browser, and swapping the hero for one.
+// The characters saved in this browser, and swapping the hero for one. The
+// figure open in the character builder is one of them, under its own label.
 const store = characterStore()
+const BUILDER = 'from the character builder'
+const stored = (name) => (name === BUILDER ? WORKING_CHARACTER : name)
 const { playChar } = tosi({ playChar: { pick: MANNEQUIN } })
 let saved = []
 const listSaved = (host) =>
-  store.list().then((names) => {
-    if (names.join() === saved.join()) return
-    saved = names
+  Promise.all([store.list(), store.get(WORKING_CHARACTER).catch(() => null)]).then(([names, working]) => {
+    const all = working ? [BUILDER, ...names] : names
+    if (all.join() === saved.join()) return
+    saved = all
     host?.refreshScenePanel?.()
   }).catch(() => {})
 listSaved()
 const useCharacter = async (name) => {
-  const doc = name === MANNEQUIN ? null : await store.get(name).catch(() => null)
-  if (name !== MANNEQUIN && !doc) return
+  const doc = name === MANNEQUIN ? null : await store.get(stored(name)).catch(() => null)
+  // Gone (forgotten, or another browser's): the menu says who you are.
+  if (name !== MANNEQUIN && !doc) { playChar.pick.value = MANNEQUIN; return }
   // Where the hero is now and which way he faces, so the new one takes over there.
   const was = hero.entries?.rootNodes[0]
   const p = was?.position
@@ -119,7 +124,17 @@ const useCharacter = async (name) => {
   hero.replaceWith(next)
   hero = next
   next.setGunplay(inHand())
+  playChar.pick.value = name
+  try { localStorage.setItem('playground-character', name) } catch {}
 }
+// Who you play: the builder's "play in Biped Playground" (`?character=…`),
+// else the one you picked last time, else the mannequin.
+const asked = new URLSearchParams(location.search).get('character')
+let last = null
+try { last = localStorage.getItem('playground-character') } catch {}
+const start = asked ? (asked === WORKING_CHARACTER ? BUILDER : asked) : last
+if (start && start !== MANNEQUIN) useCharacter(start)
+else playChar.pick.value = MANNEQUIN
 
 preview.append(
   b3d(
@@ -141,6 +156,10 @@ preview.append(
             value: playChar.pick,
             options: [MANNEQUIN, ...saved],
             handleChange: (name) => useCharacter(String(name)),
+          }),
+          button3d({
+            label: 'make your own character…',
+            handleClick: () => { location.href = '/character-builder/' },
           }),
         ]
       },
@@ -169,11 +188,12 @@ the trigger is free to do both jobs.
 **E** interacts, **Y** switches between third and first person. On a pad,
 clicking the left stick sneaks.
 
-**Play as a character you built**: save one in the
-[character builder](/character-builder/), then pick it from **character** in
-this page's settings panel (the goggles on the bar). It takes the hero's
-place where he stands, pistol and all. Saves belong to the browser that made
-them.
+**Play as a character of your own.** Make one in the
+[character builder](/character-builder/) (or press **make your own
+character…** in this page's settings panel, the goggles on the bar) and press
+**play in Biped Playground** there, or save it and pick it from **character**
+here. It takes the hero's place where he stands, pistol and all. Characters
+belong to the browser that made them.
 
 Things to try: put the pistol in the bag and try to raise it (nothing to raise), drag it back into your hand (it comes up); swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
 and watch the ring disappear behind it until you stand; walk the cover line and

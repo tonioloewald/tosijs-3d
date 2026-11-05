@@ -26,15 +26,23 @@ const tailor = mountTailorTool(scene, {
 - **the outline**: you draw the character's left, on your right, and the
   other side is its mirror. Click out points, click the first to close a
   shape, drag a point to move it, press an edge to add one;
+- **cloth mesh**: the cloth is cut from an even surface laid over the body
+  ([remesh](/remesh/)), **coarse**, **medium** (the default) or **fine**
+  (edges about 3, 2 or 1.2 cm), whatever the body's own triangles are; **as
+  the body** cuts the body's triangles themselves;
 - **thickness** (thicker cloth bridges more of the chest, where the body
-  says where its nipples are) and **skirt** (rings round the outline at each
-  height: skirts, kilts, robes; never the arms, which it cannot follow
-  without cloth simulation);
+  says where its nipples are);
+- **made by**: **cutting the skin** (the cloth follows the body),
+  **draping cloth** (a front and a back piece laid over the body, sewn where
+  the outline runs up and down past its edge and settled under gravity, so
+  it bridges hollows and hangs: dresses, tunics, robes; see
+  [cloth drape](/cloth-drape/)), or **rings** (round the outline at each
+  height: skirts, kilts);
 - **material**, **name** and **slot**.
 
 WHAT DONE HANDS BACK is the garment as a mesh at rest, on the body it was
 cut from (`garment`: positions, triangles, UVs unwrapped like a sewing
-pattern), with what it was cut from (`cut`: the outlines, thickness, skirt)
+pattern), with what it was cut from (`cut`: the outlines, thickness, how it was made)
 so it can be opened again, and the name, slot and material recipe. Binding it
 to a body to wear (`bindGarment`) is the host's: a garment file carries the
 same mesh.
