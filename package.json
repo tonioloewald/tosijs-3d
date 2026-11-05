@@ -63,7 +63,7 @@
     "prettier": "^2.8.8",
     "tjs-lang": "^0.13.6",
     "tosijs": "^1.10.7",
-    "tosijs-ui": "^1.16.38",
+    "tosijs-ui": "^1.17.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.62.1"
   },
@@ -71,7 +71,7 @@
     "start": "bun format && bun bin/site.ts",
     "build": "bun bin/site.ts --build",
     "tls": "tosijs-dev-certs",
-    "icons": "tosijs-make-icons --input ./icons --output ./src/icon-data.ts && bun bin/icon-open-paths.ts",
+    "icons": "tosijs-make-icons --input ./icons --output ./src/icon-data.ts",
     "dial-art": "bun bin/dial-art.ts",
     "tunnel": "tosijs-tunnel",
     "xr": "bun bin/xr-emulate.ts",
