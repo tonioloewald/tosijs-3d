@@ -37,6 +37,7 @@ import { humanBodyMaker } from 'tosijs-3d/human-rig'
 | [`proxy-cover`](/proxy-cover/) | the skin under what is worn, tucked in and hidden |
 | [`skinned-glb`](/skinned-glb/), [`glb-chunks`](/glb-chunks/) | a rigged, morphing body out as a GLB (validator-clean); GLB chunks read and written |
 | [`glb-rig`](/glb-rig/) | a mesh file's triangles for rigging from its bytes (frame, skin at rest, surfaces with their materials and pictures, eyes): `bodyFromMarkers` with no scene |
+| [`rigged-body-glb`](/rigged-body-glb/), `ual-rest` | any rigged body out as a skinned GLB in Dramatis's export profile (UAL's 65 joints and frames, T-pose, root at the feet, its own materials), so UAL's clips play on it by name; Mixamo names as an option |
 | [`hair-place`](/hair-place/) | Quaternius' hairstyles placed on a body's head, and the library read from its GLB |
 | [`mesh-sdf`](/mesh-sdf/) | signed distance to a triangle mesh: inside, and how deep |
 | [`remesh`](/remesh/) | an even surface laid over a mesh with bad triangles (the tailor's dummy) |

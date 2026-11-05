@@ -96,6 +96,9 @@ export interface GlbMaterial {
   metallicRoughnessTexture?: GlbTexture
   normalTexture?: GlbTexture & { scale: number }
   occlusionTexture?: GlbTexture & { strength: number }
+  /** Linear RGB light the surface gives off (glTF's default is none). */
+  emissiveFactor?: readonly [number, number, number]
+  emissiveTexture?: GlbTexture
   alphaMode: 'OPAQUE' | 'MASK' | 'BLEND'
   alphaCutoff?: number
   doubleSided: boolean
@@ -353,7 +356,8 @@ export function writeSkinnedGlb(g: SkinnedGlb): Uint8Array {
         (m.baseColorTexture ||
           m.metallicRoughnessTexture ||
           m.normalTexture ||
-          m.occlusionTexture)
+          m.occlusionTexture ||
+          m.emissiveTexture)
       )
         throw new Error(
           `skinned-glb: ${mesh.name}: its material is textured but has no uvs`
@@ -456,6 +460,9 @@ export function writeSkinnedGlb(g: SkinnedGlb): Uint8Array {
         index: texture(m.occlusionTexture),
         strength: m.occlusionTexture.strength,
       }
+    if (m.emissiveFactor) out.emissiveFactor = [...m.emissiveFactor]
+    if (m.emissiveTexture)
+      out.emissiveTexture = { index: texture(m.emissiveTexture) }
     if (m.sheen) {
       sheen = true
       out.extensions = {

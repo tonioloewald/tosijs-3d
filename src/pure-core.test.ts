@@ -46,6 +46,8 @@ export const CHARACTER_CORE = [
   'skinned-glb',
   'glb-chunks',
   'glb-rig',
+  'rigged-body-glb',
+  'ual-rest',
   'eye-art',
   'png',
   'hair-place',
