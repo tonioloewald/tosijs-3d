@@ -204,9 +204,11 @@ const clothesRows = () => [
 // placed by its grip and kept with the character, one grip per item.
 let heldNames = ['none']
 let applyGrip = () => {}
-const GRIP = { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, scale: 1 }
-// Weapon Fit's pistol (its grip, the middle of its handle, on the socket).
-const GRIPS = { pistol: { x: -0.04, y: 0.051, z: -0.059, rx: -105, ry: -15, rz: -165, scale: 0.86 } }
+// Every item in Tonio's library is made the same way (origin at the grip, +Y
+// up the grip, +Z forward, real size), so one grip holds them all: the turn
+// that put Weapon Fit's pistol in the hand, its handle in the palm.
+const GRIP = { x: -0.04, y: 0.051, z: -0.059, rx: -105, ry: -15, rz: -165, scale: 1 }
+const GRIPS = {}
 const gripOf = (name) => ({ ...GRIP, ...GRIPS[name], ...(JSON.parse(JSON.stringify(walker.grips.value))[name] ?? {}) })
 const setGrip = (patch) => {
   const name = walker.held.value
@@ -1111,8 +1113,8 @@ preview.append(
         walker.paused.observe(() => (walker.paused.value ? playing?.pause() : playing?.play(true)))
       },
     },
-    // Things to hold (Kenney's weapon pack).
-    b3dLibrary({ url: assetUrl('kenney/libraries/weapon-pack.glb'), type: 'weapons' }),
+    // Things to hold: Tonio's weapons (CC BY 4.0), each with its grip at its origin.
+    b3dLibrary({ url: assetUrl('tonio/weapons/weapons.glb'), type: 'weapons' }),
     b3dSun({ timeOfDay: 16.5, shadowTextureSize: 2048, shadowMaxZ: 20, shadowNormalBias: 0.008 }),
     b3dLight({ intensity: 0.5 })
   )
@@ -1156,11 +1158,13 @@ and listed after the everyday ones, for this visit.
 follows the **right hand** close up through the clip, to see how an item sits
 in it. The rig tool uses the same menu.
 
-**Hold** puts an item from the weapon library in the right hand, on the
-hand's socket (a frame normalised to the hand's anatomy, so one grip fits any
-body's hand). Its **grip** says where the item's grip point goes (a pistol's
-handle: a `_grip` node in the model, or the middle of its lowest third),
-turned and scaled; each item's grip is kept with the character. Play a clip
+**Hold** puts an item from Tonio's weapons (`tonio/weapons/weapons.glb`, CC
+BY 4.0: guns, blades, a spear, a buckler) in the right hand, on the hand's
+socket (a frame normalised to the hand's anatomy, so one grip fits any
+body's hand). Every item is made the same way, its origin at its grip (a
+`_grip` node), +Y up the grip and +Z forward, at its real size, so one grip
+holds them all. Its **grip** says where the item's grip point goes, turned
+and scaled; each item's grip is kept with the character. Play a clip
 made for it (`Pistol_Idle_Loop`, the shoot loops) and check it in the hand
 view. The numbers are a launcher's: `b3dLauncher({ socket: 'right-hand', x,
 y, z, rx, ry, rz, modelScale })` holds it the same way on a biped.
