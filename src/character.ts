@@ -180,8 +180,24 @@ const hosted = (path: string, pick?: string): CharacterSource => ({
   ...(pick != null ? { pick } : {}),
 })
 
+/**
+ * Tonio's AI-generated characters (CC0, `tonio/ai` on the asset CDN): one
+ * mesh each, unrigged, rigged from markers guessed off their outline.
+ */
+export const AI_CHARACTER_SOURCES: Record<string, CharacterSource> = {
+  'african-american-female': hosted('tonio/ai/african-american-female-10k.glb'),
+  'african-american-female-spacesuit': hosted(
+    'tonio/ai/african-american-female-spacesuit-10k.glb'
+  ),
+  'eurasian-male': hosted('tonio/ai/eurasian-male-10k.glb'),
+  'eurasian-male-spacesuit': hosted(
+    'tonio/ai/eurasian-male-spacesuit-10k.glb'
+  ),
+}
+
 /** The bodies a character can have besides MakeHuman's. */
 export const CHARACTER_SOURCES: Record<string, CharacterSource> = {
+  ...AI_CHARACTER_SOURCES,
   'Blender: female, realistic': hosted(
     'blender/human-base-meshes/body-female-realistic.glb'
   ),

@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 
@@ -405,6 +405,12 @@ preview.append(
 
         // THE CHARACTER: everything the panel sets that is about it (not the
         // clip, the tailor's work or the save controls).
+        // A first visit (nothing kept) starts on one of the AI bodies, at
+        // random; after that the working figure says which.
+        if (!(await characterStore().get(WORKING_CHARACTER).catch(() => null))) {
+          const first = Object.keys(AI_CHARACTER_SOURCES)
+          walker.source.value = first[Math.floor(Math.random() * first.length)]
+        }
         const OWN = Object.keys(DEFAULT_CHARACTER).filter((k) => k in START)
         const settings = () => ({ ...Object.fromEntries(OWN.map((k) => [k, plain(walker[k].value)])), hideClothes: walker.tailorAlone.value })
         ch = await makeCharacter(scene, assets, {
@@ -907,9 +913,12 @@ preview.append(
 tosi-b3d { width: 100%; height: 100%; }
 ```
 
-**Source** picks the body. MakeHuman's is the one the sliders shape and
-the clothes, hair and face are made for. The others are meshes from
-elsewhere (Blender Studio's Human Base Meshes, Quaternius' superheroes), or
+**Source** picks the body. A first visit starts on one of four AI-made
+characters at random (a woman and a man, each in underwear and in a
+spacesuit; CC0, rigged when they load); after that the builder keeps the one
+you chose. MakeHuman's is the one the sliders shape and the clothes, hair and
+face are made for. The others are meshes from elsewhere (Blender Studio's
+Human Base Meshes, Quaternius' superheroes), or
 your own with **open a mesh…** (GLB or glTF). A file skinned to UAL's
 skeleton already, as Quaternius' characters are, is taken as it is: its own
 joints and weights ([rigged-body](/rigged-body/)). Bind your own mesh to that

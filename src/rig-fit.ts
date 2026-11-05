@@ -1439,9 +1439,12 @@ export function guessMarkers(s: Silhouette): Markers {
   const covers = (k: number, x: number) =>
     (rows.get(k) ?? []).some((r) => r.u0 <= x && r.u1 >= x)
   const armMiddle = (x: number) => {
-    // The nearest row the arm fills there, above or below the widest.
+    // The nearest row the arm fills there, above or below the widest. Far
+    // enough for arms held steeply down (an A-pose): the widest row is then
+    // the fingertips, and the elbow's part of the arm is a quarter of the
+    // height above them.
     let k0 = -1
-    for (let d = 0; d <= nRows * 0.06 && k0 < 0; d++) {
+    for (let d = 0; d <= nRows * 0.25 && k0 < 0; d++) {
       if (covers(armK - d, x)) k0 = armK - d
       else if (covers(armK + d, x)) k0 = armK + d
     }

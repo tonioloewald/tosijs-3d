@@ -2208,6 +2208,7 @@ export {
   DEFAULT_CHARACTER,
   CHARACTER_SLOTS,
   CHARACTER_SOURCES,
+  AI_CHARACTER_SOURCES,
 } from './character.js'
 export {
   hm08PackUrl,
