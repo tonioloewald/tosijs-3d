@@ -201,6 +201,7 @@ import {
   lowestOf,
 } from './rig-build.js'
 import { bodyFromMarkers, type RiggedBody } from './rigged-body.js'
+import { exportBodyRows } from './body-export.js'
 import type { Vec3 } from './spatial-transform.js'
 import { applyRigRecipe, type AppliedRig } from './rig-recipe-babylon.js'
 import {
@@ -1534,6 +1535,34 @@ export function mountRigTool(
         },
       })
     )
+    // Export: the body as a GLB that plays UAL's clips by name. Hosted, the
+    // host has its own.
+    if (files)
+      w.push(
+        ...exportBodyRows(
+          async () => {
+            await bindIfMoved()
+            if (body == null)
+              return 'export needs a body bound from markers (turn off use its own skeleton)'
+            const m = loadedModel
+            return {
+              body,
+              recipe: copy(),
+              source:
+                m instanceof File
+                  ? { file: m }
+                  : m != null
+                  ? { url: m.url, pick: m.pick }
+                  : null,
+              name: ui.model.replace(/\.[^.]*$/, '').replace(/\W+/g, '-'),
+            }
+          },
+          (message) => {
+            ui.status = message
+            refresh()
+          }
+        )
+      )
     return w
   }
 

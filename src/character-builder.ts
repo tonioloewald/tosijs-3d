@@ -14,6 +14,7 @@ plays UAL's clips at any shape.
 import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
+import { exportBodyRows } from 'tosijs-3d/body-export'
 
 // Everything the panel sets, as it starts: what a saved character is read against.
 const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorDrape: false, tailorMesh: 'medium', tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, held: 'none', grips: {}, source: 'MakeHuman', bodyDetail: 'medium', characterName: '' }
@@ -170,6 +171,7 @@ const tailorTarget = () => (!rigging && ch?.shown?.source === walker.source.valu
 let tailoringOn = null
 // Why the last import or save failed, shown under the buttons.
 let importError = ''
+let refreshPanel = () => {}
 let exportGarment = () => {}
 let importGarment = () => {}
 let forgetGarment = () => {}
@@ -211,6 +213,27 @@ const setGrip = (patch) => {
   walker.grips.value = { ...JSON.parse(JSON.stringify(walker.grips.value)), [name]: { ...gripOf(name), ...patch } }
   applyGrip()
 }
+// Export: the body on show as a GLB that plays UAL's clips by name (its
+// springs too). Clothes, hair and the face stay here for now.
+const exportRows = () =>
+  exportBodyRows(
+    () => {
+      const shown = ch?.shown
+      if (shown == null) return 'nothing to export yet'
+      const name = walker.characterName.value || shown.source
+      return {
+        body: shown.body,
+        recipe: shown.recipe,
+        source: shown.source === 'MakeHuman' ? null : ch.sources[shown.source] ?? null,
+        name: String(name).replace(/\W+/g, '-').replace(/^-|-$/g, '') || 'character',
+      }
+    },
+    (message) => {
+      importError = message
+      refreshPanel()
+    }
+  )
+
 const holdRows = () => {
   const name = walker.held.value
   const g = gripOf(name)
@@ -325,6 +348,7 @@ preview.append(
         ...clothesRows(),
         ...tailorRows(),
         ...holdRows(),
+        ...exportRows(),
         label3d({ text: 'Ancestry', collapsible: true }),
         slider('african', 'african'),
         slider('asian', 'asian'),
@@ -352,12 +376,14 @@ preview.append(
         ...clothesRows(),
         ...tailorRows(),
         ...holdRows(),
+        ...exportRows(),
         label3d({ text: 'Skin', collapsible: true }),
         slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: 'redness', value: walker.redness, min: 0, max: 1, step: 0.01 }),
       ],
       async sceneCreated(el, BABYLON) {
         const scene = el.scene
+        refreshPanel = () => el.refreshScenePanel?.()
         el.setLoading('loading the animations…')
         // Something for gloss and metal to reflect.
         studioEnvironment(scene)
