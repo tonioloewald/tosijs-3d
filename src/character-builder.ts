@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 
@@ -320,6 +320,58 @@ preview.append(
         cam.upperRadiusLimit = 10
         cam.attachControl(el.querySelector('canvas'), true)
         el.setActiveCamera(cam)
+        // THE VIEWS: the body square on from each side, and the right hand
+        // close up, followed through the clip (is the item held right?). The
+        // hand view orbits like the perspective one, round the hand.
+        let views = null
+        const inspect = inspectView(cam, { handleChange: () => views?.update() })
+        const home = { target: cam.target.clone(), radius: cam.radius }
+        let handNode = null
+        let knuckleNode = null
+        let handOf = null
+        const rightHand = () => {
+          const shown = ch?.shown
+          if (shown !== handOf) {
+            handOf = shown
+            // The shown body's own hand: the node its skeleton's bone is
+            // linked to (other skeletons, the clips' source, have one too).
+            const bones = shown?.built?.skeleton?.bones ?? []
+            const node = (name) => bones.find((b) => b.name === name)?.getTransformNode() ?? null
+            handNode = node('hand_r')
+            knuckleNode = node('middle_01_r')
+          }
+          // The palm, where a grip is: between the wrist and the middle
+          // finger's knuckle (the wrist alone when there are no fingers).
+          const a = handNode?.getAbsolutePosition()
+          if (a == null) return null
+          const b = knuckleNode?.getAbsolutePosition()
+          return b == null ? a : a.add(b).scaleInPlace(0.5)
+        }
+        let onHand = false
+        views = viewMenu(inspect, el, {
+          always: true,
+          extras: [{
+            value: 'hand',
+            label: 'right hand',
+            icon: 'bipedHandgun',
+            active: () => onHand,
+            select: () => {
+              onHand = true
+              inspect.face = 'free'
+              inspect.follow = rightHand
+              // From the outside of the hand (the character's right is +X).
+              cam.alpha = 0
+              cam.beta = 1.3
+              cam.radius = 0.6
+            },
+            leave: () => {
+              onHand = false
+              inspect.follow = null
+              cam.target.copyFrom(home.target)
+              cam.radius = home.radius
+            },
+          }],
+        })
         // A floor with a metre grid (and faint quarters), which takes the sun's shadow.
         const floor = BABYLON.MeshBuilder.CreateGround('floor_nocast', { width: 12, height: 12 }, scene)
         const tile = new BABYLON.DynamicTexture('floor-grid', { width: 256, height: 256 }, scene, true)
@@ -693,6 +745,8 @@ preview.append(
           const from = file ? { file } : SOURCES[opened]
           ch.hide(true)
           playing?.stop()
+          // The hand view follows the builder's character, which is hidden.
+          if (onHand) { onHand = false; inspect.follow = null; cam.target.copyFrom(home.target); cam.radius = home.radius; views.update() }
           const done = () => {
             rigging = null
             ch.hide(false)
@@ -709,6 +763,8 @@ preview.append(
             files: false,
             stage: false,
             camera: cam,
+            // One view menu: the builder's, which the rig tool follows.
+            inspect,
             panel: rigPanel,
             // The rig it hands back is worn as it is: the body the tool bound,
             // its recipe kept with the character.

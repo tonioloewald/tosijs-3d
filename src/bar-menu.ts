@@ -272,6 +272,22 @@ export interface ViewMenuOptions {
   always?: boolean
   icon?: string
   title?: string
+  /**
+   * Views of the page's own beside the faces (the character builder's hand
+   * view): `select` enters one, `leave` is called when another view is
+   * picked, `active` says whether it is the view shown now.
+   */
+  extras?: ViewMenuExtra[]
+}
+
+/** A view of the page's own in a `viewMenu`. */
+export interface ViewMenuExtra {
+  value: string
+  label: string
+  icon: string
+  select(): void
+  leave(): void
+  active(): boolean
 }
 
 /**
@@ -285,24 +301,32 @@ export function viewMenu(
   options: ViewMenuOptions = {}
 ): { update(): void; dispose(): void } {
   const labels = { ...FACE_LABELS, ...options.labels }
+  const extras = options.extras ?? []
   const menu = barMenu({
     icon: options.icon ?? 'camera',
     title: options.title ?? 'View',
     // A toolbar: each view its icon, named by its tooltip.
-    options: (options.faces ?? [...INSPECT_FACES, 'free']).map((v) => ({
-      value: v,
-      label: labels[v],
-      icon: FACE_ICONS[v],
-    })),
+    options: [
+      ...(options.faces ?? [...INSPECT_FACES, 'free']).map((v) => ({
+        value: v as string,
+        label: labels[v],
+        icon: FACE_ICONS[v],
+      })),
+      ...extras.map(({ value, label, icon }) => ({ value, label, icon })),
+    ],
     value: inspect.face,
     handleChange: (v) => {
-      inspect.face = v as InspectFace | 'free'
+      const extra = extras.find((x) => x.value === v)
+      for (const x of extras) if (x !== extra && x.active()) x.leave()
+      if (extra) extra.select()
+      else inspect.face = v as InspectFace | 'free'
       update()
     },
   })
   const update = () => {
-    menu.value = inspect.face
-    if (inspect.face === 'free' && !options.always) menu.remove()
+    const extra = extras.find((x) => x.active())
+    menu.value = extra?.value ?? inspect.face
+    if (inspect.face === 'free' && !extra && !options.always) menu.remove()
     else if (menu.parentElement == null) host.append(menu)
   }
   update()

@@ -173,6 +173,7 @@ import {
   INSPECT_FACES,
   seamOverlay,
   type InspectFace,
+  type InspectView,
 } from './inspect-view.js'
 import { viewMenu } from './bar-menu.js'
 import { b3dPanel } from './b3d-panel.js'
@@ -644,6 +645,12 @@ export interface RigToolOptions {
    */
   camera?: BABYLON.ArcRotateCamera
   /**
+   * The host's held views on that camera, its menu already on the system
+   * bar: the tool follows it and adds no menu of its own (one view menu in
+   * the character builder, not two). Left in perspective on unmount.
+   */
+  inspect?: InspectView
+  /**
    * Hosted: the panel is a system panel (a button on the system bar,
    * stacking with the host's), not the scene's settings panel. Default true;
    * the standalone `rigTool()` passes false.
@@ -810,7 +817,9 @@ export function mountRigTool(
     const fit = fittedJoints(b, false)
     const j = fit?.get(MARKER_JOINT[k] ?? '')
     const m = (b.markers as Record<string, { x: number; y: number }>)[k]
-    return j != null && m != null ? { x: j.x - m.x, y: j.y - m.y } : { x: 0, y: 0 }
+    return j != null && m != null
+      ? { x: j.x - m.x, y: j.y - m.y }
+      : { x: 0, y: 0 }
   }
   /*
   MOVED, NOT YET BOUND. Binding takes a second or two and shows nothing in
@@ -1873,8 +1882,10 @@ export function mountRigTool(
         in the orthographic views"): a face stands it at rest, perspective
         plays the clip, and the animate toggle moves the view the other way.
         */
-    const inspect = inspectView(cam, {
-      handleChange: (f) => {
+    // A host's view (the character builder's, with its menu on the bar) is
+    // shared rather than a second one made on the same camera.
+    const hostView = options.inspect ?? null
+    const onFace = (f: InspectFace | 'free') => {
         // Unmounting lets go of the view: nothing more to play.
         if (disposed) return
         ui.view = f
@@ -1889,13 +1900,19 @@ export function mountRigTool(
         menu?.update()
         seams()
         refresh()
-      },
-    })
-    cleanups.push(() => inspect.dispose())
-    const menu: ReturnType<typeof viewMenu> | null = viewMenu(inspect, owner, {
-      always: true,
-    })
-    cleanups.push(() => menu.dispose())
+    }
+    const inspect = hostView ?? inspectView(cam, { handleChange: onFace })
+    if (hostView) {
+      const unwatch = hostView.watch(onFace)
+      cleanups.push(() => {
+        unwatch()
+        hostView.face = 'free'
+      })
+    } else cleanups.push(() => inspect.dispose())
+    const menu: ReturnType<typeof viewMenu> | null = hostView
+      ? null
+      : viewMenu(inspect, owner, { always: true })
+    if (menu) cleanups.push(() => menu.dispose())
     let seamed: Array<{ dispose(): void }> = []
     /** The model's polygons drawn over a flat fill, while a face is held. */
     function seams() {
@@ -2366,7 +2383,9 @@ export function mountRigTool(
             // Its reference on the mannequin's same joint, as the markers
             // have (to look at, not to drag).
             const ref =
-              ui.compare && ualStand?.isEnabled() ? source.nodes.get(name) : null
+              ui.compare && ualStand?.isEnabled()
+                ? source.nodes.get(name)
+                : null
             if (ref != null) {
               ref.computeWorldMatrix(true)
               dot(
@@ -2610,7 +2629,11 @@ export function mountRigTool(
         */
         const b = bound
         const markerMoves = b
-          ? group.filter((g) => g.d.metadata?.marker != null && !/^tail/.test(g.d.metadata.marker))
+          ? group.filter(
+              (g) =>
+                g.d.metadata?.marker != null &&
+                !/^tail/.test(g.d.metadata.marker)
+            )
           : []
         const carriedJoints = new Set(markerMoves.map((g) => g.n))
         if (b && markerMoves.length) {
@@ -2628,7 +2651,12 @@ export function mountRigTool(
               keys.push(twin)
             }
           }
-          setMarkers(markers, b.tail ?? null, b.tail != null ? b.tailBase ?? null : null, keys)
+          setMarkers(
+            markers,
+            b.tail ?? null,
+            b.tail != null ? b.tailBase ?? null : null,
+            keys
+          )
         }
         const moved: Record<string, Vec3> = {}
         for (const g of group) {

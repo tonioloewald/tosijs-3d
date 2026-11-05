@@ -15,6 +15,8 @@ import { inspectView, seamOverlay } from 'tosijs-3d'
 const inspect = inspectView(camera, { face: 'front' })
 inspect.face = 'left' // from the subject's left
 inspect.face = 'free' // back to orbiting, a perspective camera again
+inspect.follow = () => handBone.getAbsolutePosition() // keep a hand in view
+inspect.follow = null
 const seams = seamOverlay(mesh) // drawn as its polygons (see seam-material)
 seams.dispose()
 ```
@@ -67,6 +69,17 @@ export interface InspectView {
   /** The view held, or `free` to orbit with a perspective camera. */
   face: InspectFace | 'free'
   readonly camera: BABYLON.ArcRotateCamera
+  /**
+   * A point the camera keeps its target on, read every frame (a hand bone,
+   * to watch a grip through a clip), or null to leave the target alone.
+   */
+  follow: (() => { x: number; y: number; z: number } | null) | null
+  /**
+   * Hear every change of face as well as `handleChange` (a tool mounted on a
+   * host's view: the rig tool in the character builder). Returns the
+   * function that stops it.
+   */
+  watch(listener: (face: InspectFace | 'free') => void): () => void
   /** Back to a free perspective camera, and stop. */
   dispose(): void
 }
@@ -76,6 +89,8 @@ export interface InspectViewOptions {
   face?: InspectFace | 'free'
   /** Called whenever the face changes (so a menu can follow). */
   handleChange?: (face: InspectFace | 'free') => void
+  /** A point to keep the camera's target on (see `InspectView.follow`). */
+  follow?: (() => { x: number; y: number; z: number } | null) | null
 }
 
 export function inspectView(
@@ -101,7 +116,13 @@ export function inspectView(
     camera.orthoLeft = -half * aspect
     camera.orthoRight = half * aspect
   }
-  const obs = scene.onBeforeRenderObservable.add(fit)
+  let follow = options.follow ?? null
+  const watchers = new Set<(face: InspectFace | 'free') => void>()
+  const obs = scene.onBeforeRenderObservable.add(() => {
+    const p = follow?.()
+    if (p != null) camera.target.set(p.x, p.y, p.z)
+    fit()
+  })
 
   const set = (next: InspectFace | 'free') => {
     if (next === face) return
@@ -141,6 +162,7 @@ export function inspectView(
     face = next
     fit()
     options.handleChange?.(face)
+    for (const w of [...watchers]) w(face)
   }
   set(options.face ?? 'free')
 
@@ -151,6 +173,16 @@ export function inspectView(
     },
     set face(v: InspectFace | 'free') {
       set(v)
+    },
+    get follow() {
+      return follow
+    },
+    set follow(f) {
+      follow = f
+    },
+    watch(listener) {
+      watchers.add(listener)
+      return () => void watchers.delete(listener)
     },
     dispose() {
       set('free')

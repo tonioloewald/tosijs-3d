@@ -435,6 +435,7 @@ export {
   type BarMenuConfig,
   type BarMenuOption,
   type ViewMenuOptions,
+  type ViewMenuExtra,
 } from './bar-menu.js'
 export { B3dMoon, b3dMoon } from './b3d-moon.js'
 export {
