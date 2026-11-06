@@ -275,7 +275,44 @@ export const AI_CHARACTER_SOURCES: Record<string, CharacterSource> = {
       }
     )
   ),
-  'eurasian-male-spacesuit': hosted('tonio/ai/eurasian-male-spacesuit-10k.glb'),
+  'eurasian-male-spacesuit': hosted(
+    'tonio/ai/eurasian-male-spacesuit-10k.glb',
+    undefined,
+    {
+      armSpaceDeg: -1,
+      ...bindFrom(
+        [
+          [0, 0.5937],
+          [0, -0.2082],
+          [0.4971, 0.0854],
+          [0.3628, 0.2618],
+          [0.1484, -0.5198],
+        ],
+        {
+          thumb_01: [0.4974, 0.0666, 0.1361],
+          thumb_02: [0.4914, 0.0479, 0.157],
+          thumb_03: [0.4871, 0.028, 0.1682],
+          thumb_04_leaf: [0.4866, 0.0039, 0.1737],
+          index_01: [0.5494, 0.0332, 0.1374],
+          index_02: [0.5525, 0.0072, 0.1458],
+          index_03: [0.5491, -0.0218, 0.1557],
+          index_04_leaf: [0.5494, -0.0484, 0.161],
+          middle_01: [0.5637, 0.003, 0.1117],
+          middle_02: [0.5643, -0.027, 0.1196],
+          middle_03: [0.5626, -0.0469, 0.1244],
+          middle_04_leaf: [0.562, -0.0661, 0.1306],
+          ring_01: [0.559, 0.0004, 0.0804],
+          ring_02: [0.559, -0.0271, 0.084],
+          ring_03: [0.5587, -0.0452, 0.0869],
+          ring_04_leaf: [0.5545, -0.0619, 0.0928],
+          pinky_01: [0.5486, 0.0045, 0.0565],
+          pinky_02: [0.5481, -0.011, 0.0566],
+          pinky_03: [0.5587, -0.0288, 0.0601],
+          pinky_04_leaf: [0.5545, -0.0449, 0.0619],
+        }
+      ),
+    }
+  ),
 }
 
 /** The bodies a character can have besides MakeHuman's. */
