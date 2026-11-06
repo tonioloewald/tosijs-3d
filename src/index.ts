@@ -1152,6 +1152,12 @@ export { vector3d, euler3d, wrapDegrees } from './vector-field.js'
 export { playback3d } from './playback-field.js'
 export { undoHistory } from './undo-history.js'
 export {
+  FABRIC_TEXTURES,
+  fabricTextureRecipe,
+  fabricTexturePresets,
+} from './fabric-textures.js'
+export type { FabricTexture } from './fabric-textures.js'
+export {
   addPicture,
   isPictureKey,
   pictureData,

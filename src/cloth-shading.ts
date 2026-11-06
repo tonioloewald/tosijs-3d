@@ -28,7 +28,11 @@ import * as BABYLON from '@babylonjs/core'
 import { registerMaterialPlugin } from './material-plugins.js'
 import { parseColor } from './color.js'
 
-import { pictureTexture } from './material-apply.js'
+import {
+  normalMapConvention,
+  pictureTexture,
+  roughnessMap,
+} from './material-apply.js'
 import { FABRICS } from './fabrics.js'
 import {
   materialAsType,
@@ -212,14 +216,23 @@ export function clothShading(
     let l = look
     if (look.recipe) {
       const r = resolveMaterial(materialAsType(look.recipe, 'cloth'))
-      const picture = r.albedo.image as string | null
-      showTexture(
-        picture != null
-          ? pictureTexture(material.getScene(), picture) ?? own
-          : own
-      )
+      const scene = material.getScene()
+      // A recipe's pictures repeat every `tile` metres (the garment's own
+      // texture keeps its own UVs).
+      const tile = (r.tile?.value as number | undefined) ?? 1
+      const pic = (ref: string | null, level = 1) =>
+        ref == null ? null : pictureTexture(scene, ref, { tile, level })
+      showTexture(pic(r.albedo.image) ?? own)
+      // The weave's relief, and how shiny each thread is.
+      material.bumpTexture = pic(r.normal?.image ?? null, r.normal?.intensity)
+      if (material.bumpTexture) normalMapConvention(material)
       const n = (k: string) => r[k].value as number | null
-      if (n('roughness') != null) material.roughness = n('roughness')!
+      const rough = pic(r.roughness.image)
+      if (rough) roughnessMap(material, rough, 1)
+      else {
+        material.metallicTexture = null
+        if (n('roughness') != null) material.roughness = n('roughness')!
+      }
       if (n('metallic') != null) material.metallic = n('metallic')!
       if (n('sheen') != null) {
         material.sheen.isEnabled = n('sheen')! > 0
@@ -241,6 +254,7 @@ export function clothShading(
       material.sheen.intensity = fabric.sheen
       material.sheen.roughness = fabric.sheenRoughness
     }
+    if (l.amount != null) plugin.amount = Math.min(1, Math.max(0, l.amount))
     if (l.colour != null) {
       const c = parseColor(l.colour)
       if (c)
@@ -249,8 +263,13 @@ export function clothShading(
           toLinear(c.g),
           toLinear(c.b)
         )
-      // The sheen takes a lighter version of the cloth's colour.
-      if (material.sheen.isEnabled && c) {
+      // The sheen takes a lighter version of the cloth's colour; a picture
+      // shown as it is (no recolour) gives a neutral one, not the unused
+      // colour's (a print's edges glowed the default red).
+      const asPicture = shown != null && shown !== own && plugin.amount === 0
+      if (material.sheen.isEnabled && asPicture)
+        material.sheen.color = new BABYLON.Color3(0.9, 0.9, 0.9)
+      else if (material.sheen.isEnabled && c) {
         material.sheen.color = new BABYLON.Color3(
           0.6 + 0.4 * c.r,
           0.6 + 0.4 * c.g,
@@ -258,7 +277,6 @@ export function clothShading(
         )
       }
     }
-    if (l.amount != null) plugin.amount = Math.min(1, Math.max(0, l.amount))
     // An untextured garment (one cut from the body) has nothing to recolour:
     // the colour is its albedo, mixed from white by the amount.
     if (!material.albedoTexture) {

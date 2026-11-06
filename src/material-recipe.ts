@@ -63,6 +63,7 @@ keeps your colour and gold brings its own.
 import { formatColor, parseColor } from './color.js'
 import type { CurveIssue } from './curve.js'
 import { FABRICS } from './fabrics.js'
+import { fabricTexturePresets } from './fabric-textures.js'
 
 export type MaterialInputKind = 'grey' | 'rgb' | 'rgba' | 'image'
 
@@ -129,7 +130,7 @@ export const PBR_MATERIAL: MaterialTypeDecl = {
       image: true,
     },
     { name: 'alpha', kind: 'grey', default: 1, image: true },
-    { name: 'roughness', kind: 'grey', default: 0.5 },
+    { name: 'roughness', kind: 'grey', default: 0.5, image: true },
     { name: 'metallic', kind: 'grey', default: 0 },
     { name: 'reflections', kind: 'grey', default: 1, max: 2 },
     { name: 'sheen', kind: 'grey', default: 0 },
@@ -154,6 +155,9 @@ export const PBR_MATERIAL: MaterialTypeDecl = {
       default: '',
       intensity: { default: 1, min: 0, max: 2 },
     },
+    // How much surface one repeat of its pictures covers, metres (a tailored
+    // garment's UVs are metres; on other UVs, 1 / tile repeats).
+    { name: 'tile', label: 'tile (m)', kind: 'grey', default: 1, min: 0.02, max: 4 },
   ],
 }
 
@@ -175,7 +179,13 @@ export const CLOTH_MATERIAL: MaterialTypeDecl = {
     },
     // 0 keeps the texture's colours, 1 is the colour wholly.
     { name: 'recolour', kind: 'grey', default: 0 },
-    { name: 'roughness', kind: 'grey', default: 0.85, optional: true },
+    {
+      name: 'roughness',
+      kind: 'grey',
+      default: 0.85,
+      optional: true,
+      image: true,
+    },
     { name: 'metallic', kind: 'grey', default: 0, optional: true },
     { name: 'sheen', kind: 'grey', default: 0.25, optional: true },
     {
@@ -185,6 +195,17 @@ export const CLOTH_MATERIAL: MaterialTypeDecl = {
       default: 0.6,
       optional: true,
     },
+    // The weave's relief (a normal map), over the garment's own surface.
+    {
+      name: 'normal',
+      label: 'bumps',
+      kind: 'image',
+      default: '',
+      intensity: { default: 1, min: 0, max: 2 },
+    },
+    // How much surface one repeat of its pictures covers, metres (a tailored
+    // garment's UVs are metres; on other UVs, 1 / tile repeats).
+    { name: 'tile', label: 'tile (m)', kind: 'grey', default: 1, min: 0.02, max: 4 },
   ],
 }
 
@@ -248,6 +269,22 @@ export const MATERIAL_COLLECTIONS: Record<string, MaterialCollection> = {
       name,
       recipe: fabricRecipe(f),
     })),
+  },
+  // Photographed cloth (fabric-textures): small maps, and the full ones.
+  // Made when read, not at import: their URLs come from the asset base,
+  // which a page sets after importing this (made early, they were relative
+  // and loaded nothing).
+  textiles: {
+    name: 'textiles',
+    get presets() {
+      return fabricTexturePresets('lite')
+    },
+  },
+  'textiles-full': {
+    name: 'textiles, full quality',
+    get presets() {
+      return fabricTexturePresets('full')
+    },
   },
 }
 

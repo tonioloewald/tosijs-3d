@@ -184,7 +184,7 @@ let editGarment = () => {}
 // One picker per garment: the fabrics as presets, plus 'as made', which
 // leaves a garment's own surface (a file's roughness map) alone. A preset
 // keeps the colour and recolour unless it brings its own (gold, copper).
-const clothPicker = (label, value) => materialPicker3d({ label, value, types: ['cloth'], collections: ['fabrics'], presets: [{ name: 'as made', recipe: { type: 'cloth', inputs: {} } }], keep: ['albedo', 'recolour'] })
+const clothPicker = (label, value) => materialPicker3d({ label, value, types: ['cloth'], collections: ['fabrics', 'textiles'], presets: [{ name: 'as made', recipe: { type: 'cloth', inputs: {} } }], keep: ['albedo', 'recolour'] })
 
 // A garment of your own worn in a slot, if it was made on the body shown.
 const ownIn = (slot) => {

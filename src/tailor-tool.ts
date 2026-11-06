@@ -518,7 +518,7 @@ export function mountTailorTool(
       label: 'material',
       value: look,
       types: ['cloth'],
-      collections: ['fabrics'],
+      collections: ['fabrics', 'textiles'],
       keep: ['albedo', 'recolour'],
       handleChange: (r) => {
         look = r

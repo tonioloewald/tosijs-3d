@@ -39,6 +39,9 @@ headers, so a file found on its own still says where it came from.
 - **[Blender Studio and community contributors](https://www.blender.org/download/demo-files/#assets)**
   (Blender Foundation): the Human Base Meshes, a woman's and a man's body,
   for rigging any mesh. CC0.
+- **[Poly Haven](https://polyhaven.com/textures/fabric)** (Rico Cilliers
+  and colormass, Rob Tuytel): the fabric scans the cloth materials are made
+  from ([fabric textures](/fabric-textures/)). CC0.
 - **Tonio Loewald**: omnidude, the weasels, the space marine and the other
   meshes under `cdn.tosijs.net/tonio/`.
   [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).

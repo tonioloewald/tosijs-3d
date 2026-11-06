@@ -13,7 +13,7 @@ in a headset renders each once.
 
 import * as BABYLON from '@babylonjs/core'
 import { applyMaterial } from './material-apply.js'
-import { clothShading } from './cloth-shading.js'
+import { clothShading, type ClothShading } from './cloth-shading.js'
 import { studioEnvironment } from './environment.js'
 import { canonicalMaterial, type MaterialRecipe } from './material-recipe.js'
 
@@ -25,6 +25,11 @@ interface Stage {
   canvas: HTMLCanvasElement
   pbr: BABYLON.PBRMaterial
   cloth: BABYLON.PBRMaterial
+  /**
+   * The cloth material's shading, made ONCE: a new one per preview took the
+   * last preview's picture for the garment's own texture.
+   */
+  clothLook: ClothShading | null
   /** What the material goes on. */
   shapes: BABYLON.AbstractMesh[]
 }
@@ -71,7 +76,7 @@ function makeStage(): Stage | null {
   const cube = BABYLON.MeshBuilder.CreateBox('cube', { size: 1.25 }, scene)
   const pbr = new BABYLON.PBRMaterial('preview-pbr', scene)
   const cloth = new BABYLON.PBRMaterial('preview-cloth', scene)
-  return { engine, scene, canvas, pbr, cloth, shapes: [cube] }
+  return { engine, scene, canvas, pbr, cloth, clothLook: null, shapes: [cube] }
 }
 
 async function draw(recipe: MaterialRecipe): Promise<string | null> {
@@ -89,7 +94,8 @@ async function draw(recipe: MaterialRecipe): Promise<string | null> {
     stage.cloth.roughness = 0.85
     stage.cloth.metallic = 0
     stage.cloth.sheen.isEnabled = false
-    clothShading(stage.cloth).set({ recipe })
+    stage.clothLook ??= clothShading(stage.cloth)
+    stage.clothLook.set({ recipe })
     wear(stage.cloth)
   } else return null
   await scene.whenReadyAsync()
