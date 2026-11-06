@@ -489,7 +489,11 @@ export function mountTailorTool(
   }) as unknown as HTMLElement & { svg: SVGSVGElement | null }
   const panelSvg = () =>
     panel3d(
-      { width: 340, height: 'fit', maxHeight: 720 },
+      {
+        width: 340,
+        height: 'fit',
+        maxHeight: Math.min(720, owner.panelRoom?.(panelEl) ?? 720),
+      },
       ...widgets()
     ) as unknown as SVGSVGElement
   function refresh() {
@@ -497,12 +501,15 @@ export function mountTailorTool(
   }
   panelEl.svg = panelSvg()
   owner.append(panelEl)
+  // Redrawn to the view's height once a resize settles.
+  owner.addEventListener?.('resizeend', refresh)
   recut()
   if (status) refresh()
 
   function unmount() {
     if (disposed) return
     disposed = true
+    owner.removeEventListener?.('resizeend', refresh)
     if (hideOthers) options.handleHideOthers?.(false)
     mesh?.dispose()
     material?.dispose()

@@ -1010,7 +1010,16 @@ export function mountRigTool(
   let panelEl: (HTMLElement & { svg: SVGSVGElement | null }) | null = null
   const panelSvg = (): SVGSVGElement => {
     const svg = panel3d(
-      { width: 300, height: 'fit', maxHeight: 640 },
+      {
+        width: 300,
+        height: 'fit',
+        // Hosted, it fits the room under its top (standalone it is the
+        // settings panel, which fits itself).
+        maxHeight:
+          hosted && owner.panelRoom != null
+            ? Math.min(640, owner.panelRoom(panelEl ?? undefined))
+            : 640,
+      },
       ...panel()
     ) as unknown as SVGSVGElement & {
       handlePointer?: (k: string, x: number, y: number) => unknown
@@ -1851,6 +1860,11 @@ export function mountRigTool(
       owner._closeSystemPanel?.(panelEl)
       panelEl?.remove()
     })
+  }
+  // Redrawn to the view's height once a resize settles.
+  if (hosted) {
+    owner.addEventListener?.('resizeend', refresh)
+    cleanups.push(() => owner.removeEventListener?.('resizeend', refresh))
   }
 
   const ready = (async () => {

@@ -308,6 +308,18 @@ Set these in the `b3d()` config.
 | `pausePanel(el, resume)` | returns the pause panel's rows in place of the default title and Continue button; `resume` lets the player back in |
 | `setupXr(el)` | replaces the built-in WebXR setup and Enter-VR button with your own |
 
+## Resizing
+
+Panels are drawn at a size that fits the view. When the scene changes size, the
+open settings panel is rebuilt once the resize settles, and the element
+dispatches `resizeend`. A system panel whose height follows the view rebuilds on
+it, capped by `el.panelRoom(panelEl)` (the height left under its top):
+
+```javascript
+const svg = () => panel3d({ width: 300, height: 'fit', maxHeight: Math.min(640, scene.panelRoom(panelEl)) }, ...rows)
+scene.addEventListener('resizeend', () => { panelEl.svg = svg() })
+```
+
 ## Loading
 
 The spinner shows until the scene is built: its files loaded, its shaders
@@ -3695,19 +3707,22 @@ export class B3d extends Component {
   // LISTENER), so a component callback named that way collides with it. tosijs warns
   // and points here — the same footgun as tosijs#22, now with a migration path.
   handleResize() {
-    // An open flat panel re-fits to the new height, once the resize settles.
-    const host = this.parts?.scenePanelHost as HTMLElement | undefined
-    if (
-      host != null &&
-      !host.hasAttribute('hidden') &&
-      this.clientHeight !== this._panelHeightKey
-    ) {
-      if (this._panelResizeTimer != null) clearTimeout(this._panelResizeTimer)
-      this._panelResizeTimer = setTimeout(() => {
-        this._panelResizeTimer = null
-        this.refreshScenePanel()
-      }, 150)
-    }
+    /*
+    PANELS ARE REDRAWN ONCE THE RESIZE SETTLES. A panel is drawn to fit the
+    view it opened in; meanwhile a screen panel is only scaled to fit, which
+    squashes its text. Once the size has held for a moment the settings panel
+    (either presentation) rebuilds at the new height, and `resizeend` tells
+    anyone drawing system panels to do the same.
+    */
+    if (this._panelResizeTimer != null) clearTimeout(this._panelResizeTimer)
+    this._panelResizeTimer = setTimeout(() => {
+      this._panelResizeTimer = null
+      const size = `${this.clientWidth}x${this.clientHeight}`
+      if (size === this._settledSize) return
+      this._settledSize = size
+      if (this.clientHeight !== this._panelHeightKey) this.refreshScenePanel()
+      this.dispatchEvent(new CustomEvent('resizeend'))
+    }, 200)
     if (this.engine && !this._resizing) {
       this._resizing = true
       this.engine.resize()
@@ -7675,6 +7690,8 @@ export class B3d extends Component {
       () => this._closeScenePanel()
     )
     const vb = el.viewBox.baseVal
+    // The height it was built for (handleResize rebuilds it on a change).
+    this._panelHeightKey = this.clientHeight
     /*
     REBUILT IN PLACE. Every icon press and refresh rebuilds this panel, and a
     new plane is blank until its texture is drawn: on a headset-speed CPU
@@ -8061,7 +8078,23 @@ export class B3d extends Component {
   panel keeps 620: in a headset there is no window to fit.
   */
   private _panelHeightKey = 0
+  private _settledSize = ''
   private _panelResizeTimer: ReturnType<typeof setTimeout> | null = null
+
+  /**
+   * The height in CSS pixels a flat system panel's CONTENT has: from its top
+   * (under the system bar, or where `panelEl`, its `<tosi-b3d-panel>`, was
+   * dragged to) to the bottom of the view, less its title bar. Cap a panel's
+   * `maxHeight` with it and rebuild on `resizeend`.
+   */
+  panelRoom(panelEl?: Element): number {
+    const spot = panelEl == null ? undefined : this._systemSpots.get(panelEl)
+    const top = typeof spot?.top === 'number' ? spot.top : UNDER_BAR
+    const h = (this.parts?.canvas as HTMLElement | undefined)?.clientHeight
+    // titled3d's title bar (widgets3d's popup chrome band).
+    const titleBar = 30
+    return Math.max(120, (h || 600) - top - 8 - titleBar)
+  }
   private _flatPanelMax(): number {
     const h = this.clientHeight
     if (!(h > 0)) return 620
