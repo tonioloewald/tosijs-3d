@@ -65,4 +65,34 @@ describe('outlineField3d', () => {
     expect(Math.min(...xs)).toBeLessThan(-0.23)
     expect(Math.max(...xs)).toBeGreaterThan(0.23)
   })
+
+  test('a field rebuilt mid-edit keeps the selection, so delete point still works', () => {
+    const value: [number, number][][] = [
+      [
+        [-0.1, 1.5],
+        [0.1, 1.5],
+        [0.15, 0.8],
+        [-0.15, 0.8],
+      ],
+    ]
+    const first = of.outlineField3d({ ...box(), symmetry: false, value })
+    first.layout!(300)
+    // Select the second point by pressing it (its place on screen, read from
+    // the drawn handle).
+    const dots = [...first.el.querySelectorAll('circle')]
+    const cx = Number(dots[1].getAttribute('cx'))
+    const cy = Number(dots[1].getAttribute('cy'))
+    first.handle!('down', cx, cy)
+    first.handle!('up', cx, cy)
+    // The panel rebuilds (a drape started): a new field, carrying on.
+    const next = of.outlineField3d({
+      ...box(),
+      symmetry: false,
+      value,
+      editing: first.editing,
+    })
+    next.layout!(300)
+    next.removeSelected()
+    expect(next.value[0]).toEqual([value[0][0], value[0][2], value[0][3]])
+  })
 })

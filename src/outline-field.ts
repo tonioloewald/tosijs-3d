@@ -62,6 +62,18 @@ export interface OutlineField3dOptions {
   handleChange?: (value: ViewPoint[][]) => void
   /** When a point is placed, let go or deleted: recut here. */
   handleCommit?: (value: ViewPoint[][]) => void
+  /**
+   * Carry on from another field's `editing` (a panel rebuilt mid-edit): its
+   * outlines, the one being clicked out and the selected point. Wins over `value`.
+   */
+  editing?: OutlineEditing
+}
+
+/** Where an edit stands: what a rebuilt field needs to carry on. */
+export interface OutlineEditing {
+  shapes: ViewPoint[][]
+  open: number | null
+  selected: { s: number; p: number } | null
 }
 
 export interface OutlineField extends Widget3d {
@@ -75,6 +87,8 @@ export interface OutlineField extends Widget3d {
   removeSelected: () => void
   /** Remove every outline. */
   clear: () => void
+  /** Where the edit stands, for a field built in its place. */
+  readonly editing: OutlineEditing
   handleChange?: (value: ViewPoint[][]) => void
   handleCommit?: (value: ViewPoint[][]) => void
 }
@@ -113,11 +127,12 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
     (rows.get(Math.floor((y - v0) / front.cell)) ?? []).some(
       ([a, b]) => x >= a && x <= b
     )
-  let shapes = copy(config.value ?? [])
+  let shapes = copy(config.editing?.shapes ?? config.value ?? [])
   // The shape being clicked out, not yet closed (index into shapes), if any.
-  let open: number | null = null
+  let open: number | null = config.editing?.open ?? null
   let dragging: { s: number; p: number } | null = null
-  let selected: { s: number; p: number } | null = null
+  let selected: { s: number; p: number } | null =
+    config.editing?.selected ?? null
   let hovered: { s: number; p: number } | null = null
 
   const el = g()
@@ -426,6 +441,13 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
 
     get value() {
       return copy(shapes)
+    },
+    get editing() {
+      return {
+        shapes: copy(shapes),
+        open,
+        selected: selected && { ...selected },
+      }
     },
     get polygons() {
       const closed = shapes.filter((s, i) => i !== open && s.length >= 3)

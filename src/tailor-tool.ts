@@ -449,6 +449,9 @@ export function mountTailorTool(
       positions: body.positions,
       indices: body.indices,
       value: cut.shapes,
+      // The panel is rebuilt as the status changes (a drape starting and
+      // settling): the outline carries on with its selection and open shape.
+      editing: field?.editing,
       maxHeight: 400,
       // A drape pins its cloth where the outline is over the body.
       anchors: cut.drape === true && !cut.skirt,
