@@ -638,6 +638,21 @@ describe('spreadHand', () => {
     expect(hand.thumb_04_leaf_l.z).toBeGreaterThan(hand.index_04_leaf_l.z)
   })
 
+  test('the thumb starts in front of the index and tilts down off the palm', () => {
+    expect(hand.thumb_01_l.z).toBeGreaterThan(hand.index_01_l.z + 0.01)
+    // Seen from the front (x, y) the fingers are one line; the thumb leaves it.
+    const off = (p: { x: number; y: number }) => {
+      const r = hand.middle_01_l
+      const d = { x: hand.middle_04_leaf_l.x - r.x, y: hand.middle_04_leaf_l.y - r.y }
+      const l = Math.hypot(d.x, d.y)
+      return ((p.x - r.x) * d.y - (p.y - r.y) * d.x) / l
+    }
+    expect(Math.abs(off(hand.thumb_04_leaf_l))).toBeGreaterThan(0.03)
+    // Level arm: the thumb tip hangs below the wrist.
+    const level = spreadHand({ x: 0.7, y: 1.4, z: 0 }, { x: 0.45, y: 1.4, z: 0 }, 'l')
+    expect(level.thumb_04_leaf_l.y).toBeLessThan(1.4 - 0.03)
+  })
+
   test('as long as asked, three quarters of the forearm by default', () => {
     const reach = (h: Record<string, { x: number; y: number; z: number }>) =>
       Math.hypot(

@@ -905,14 +905,30 @@ export function spreadHand(
       f,
       [0, 0.45, 0.75, 1].map((t) => at(base + t * len * hand, across * gap))
     )
-  // The thumb: from beside the wrist, out from the front edge at 45°.
-  const t0 = { s: 0.1 * hand, t: 1.2 * gap }
+  /*
+  The thumb: from beside the wrist, in front of the index finger, out at 45°
+  and tilted down off the palm (Tonio). The fingers all lie in one plane, so
+  from the front they are one line; a thumb in that plane would be too.
+  */
+  let n = {
+    x: a.y * c.z - a.z * c.y,
+    y: a.z * c.x - a.x * c.z,
+    z: a.x * c.y - a.y * c.x,
+  }
+  if (n.y > 0) n = { x: -n.x, y: -n.y, z: -n.z }
+  const t0 = { s: 0.1 * hand, t: 2.2 * gap }
   const tl = 0.42 * hand
+  const [ds, dt, dn] = [0.55, 0.55, 0.63]
   chain(
     'thumb',
-    [0, 0.4, 0.72, 1].map((k) =>
-      at(t0.s + k * tl * Math.SQRT1_2, t0.t + k * tl * Math.SQRT1_2)
-    )
+    [0, 0.4, 0.72, 1].map((k) => {
+      const p = at(t0.s + k * tl * ds, t0.t + k * tl * dt)
+      return {
+        x: p.x + n.x * k * tl * dn,
+        y: p.y + n.y * k * tl * dn,
+        z: p.z + n.z * k * tl * dn,
+      }
+    })
   )
   return out
 }
