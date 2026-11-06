@@ -413,9 +413,29 @@ function handRest(
  * same in both. A `_grip` node in the model, when it has one, wins (see
  * `heldGrip`).
  */
+/*
+FRESH MATRICES, TOP DOWN. A model just instantiated (and parented) still
+holds the world matrices of where it was made: a library's layout puts each
+model somewhere in its file, and a grip read from those was metres off (the
+character builder's pistol circled the hand at 5.8 m). Each node is
+recomputed after its parent, root first.
+*/
+function refreshUnder(root: BABYLON.TransformNode, node: BABYLON.Node): void {
+  const chain: BABYLON.Node[] = []
+  for (let n: BABYLON.Node | null = node; n != null; n = n.parent) {
+    chain.push(n)
+    if (n === root) break
+  }
+  for (let n: BABYLON.Node | null = root.parent; n != null; n = n.parent)
+    chain.push(n)
+  for (const n of chain.reverse())
+    if (n instanceof BABYLON.TransformNode) n.computeWorldMatrix(true)
+}
+
 export function deriveGrip(
   root: BABYLON.TransformNode
 ): BABYLON.Vector3 | null {
+  refreshUnder(root, root)
   const toLocal = BABYLON.Matrix.Invert(root.getWorldMatrix())
   const pts: BABYLON.Vector3[] = []
   let lo = Infinity
@@ -423,7 +443,8 @@ export function deriveGrip(
   for (const m of root.getChildMeshes()) {
     const data = m.getVerticesData(BABYLON.VertexBuffer.PositionKind)
     if (data == null) continue
-    const toRoot = m.computeWorldMatrix(true).multiply(toLocal)
+    refreshUnder(root, m)
+    const toRoot = m.getWorldMatrix().multiply(toLocal)
     for (let i = 0; i < data.length; i += 3) {
       const v = BABYLON.Vector3.TransformCoordinates(
         new BABYLON.Vector3(data[i], data[i + 1], data[i + 2]),
@@ -449,6 +470,7 @@ export function deriveGrip(
 /** A held model's grip: its `_grip` node's place if it has one, else `deriveGrip`. */
 export function heldGrip(root: BABYLON.TransformNode): BABYLON.Vector3 | null {
   const node = findSuffixed(root, ['_grip'])
+  if (node != null) refreshUnder(root, node)
   if (node != null)
     return BABYLON.Vector3.TransformCoordinates(
       node.getAbsolutePosition(),
