@@ -635,6 +635,88 @@ export function cutGarment(
       out.push(poly[0], poly[k], poly[k + 1])
   }
 
+  /*
+  TEETH OFF THE EDGE. Where the outline crosses the body nearly edge on (over
+  a shoulder, round a side), clipping leaves single triangles hanging off the
+  cut edge by one side: spikes along a neckline. A triangle with two of its
+  three edges on the edge is one; take it off, and again for what that
+  exposes, a few times over.
+  */
+  for (let pass = 0; pass < 3; pass++) {
+    const uses = new Map<string, number>()
+    const key = (a: number, b: number) => (a < b ? `${a}:${b}` : `${b}:${a}`)
+    for (let t = 0; t < out.length; t += 3)
+      for (let k = 0; k < 3; k++) {
+        const e = key(out[t + k], out[t + ((k + 1) % 3)])
+        uses.set(e, (uses.get(e) ?? 0) + 1)
+      }
+    const kept: number[] = []
+    for (let t = 0; t < out.length; t += 3) {
+      let open = 0
+      for (let k = 0; k < 3; k++)
+        if (uses.get(key(out[t + k], out[t + ((k + 1) % 3)])) === 1) open++
+      if (open < 2) kept.push(out[t], out[t + 1], out[t + 2])
+    }
+    if (kept.length === out.length) break
+    out.length = 0
+    out.push(...kept)
+  }
+  /*
+  AND NOTCHES IN IT: where the edge turns sharply back on itself at a point
+  (a triangle missing from the edge), the triangle closing the dent goes in,
+  wound as its neighbours are.
+  */
+  const restOf = (r: number) => {
+    const p = [0, 0, 0]
+    for (let c = 0; c < 3; c++)
+      for (let k = 0; k < 3; k++)
+        p[k] += P[ref[r * 3 + c] * 3 + k] * weight[r * 3 + c]
+    return p
+  }
+  for (let pass = 0; pass < 2; pass++) {
+    const uses = new Map<string, number>()
+    const key = (a: number, b: number) => (a < b ? `${a}:${b}` : `${b}:${a}`)
+    for (let t = 0; t < out.length; t += 3)
+      for (let k = 0; k < 3; k++) {
+        const e = key(out[t + k], out[t + ((k + 1) % 3)])
+        uses.set(e, (uses.get(e) ?? 0) + 1)
+      }
+    // Each edge point's open edges, as its triangles run: x -> v and v -> y.
+    const into = new Map<number, number>()
+    const outof = new Map<number, number>()
+    for (let t = 0; t < out.length; t += 3)
+      for (let k = 0; k < 3; k++) {
+        const a = out[t + k]
+        const b = out[t + ((k + 1) % 3)]
+        if (uses.get(key(a, b)) !== 1) continue
+        outof.set(a, b)
+        into.set(b, a)
+      }
+    let filled = 0
+    const done = new Set<number>()
+    for (const [v, y] of outof) {
+      const x = into.get(v)
+      if (x == null || x === y || done.has(v) || done.has(x) || done.has(y))
+        continue
+      if (uses.has(key(x, y))) continue
+      const a = restOf(x)
+      const b = restOf(v)
+      const c = restOf(y)
+      const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]]
+      const w = [c[0] - b[0], c[1] - b[1], c[2] - b[2]]
+      const cos =
+        (u[0] * w[0] + u[1] * w[1] + u[2] * w[2]) /
+        (Math.hypot(u[0], u[1], u[2]) * Math.hypot(w[0], w[1], w[2]) || 1)
+      if (cos >= 0) continue
+      out.push(v, x, y)
+      done.add(v)
+      done.add(x)
+      done.add(y)
+      filled++
+    }
+    if (!filled) break
+  }
+
   const rows = ref.length / 3
   // Rest positions and normals of each row.
   const base = new Float32Array(rows * 3)

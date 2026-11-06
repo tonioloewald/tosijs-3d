@@ -216,6 +216,54 @@ describe.skipIf(!existsSync(PACK))('hm08 trousers', () => {
     expect(g.delete.length).toBeGreaterThan(1000)
   })
 
+  test('a strapped top has tidy edges: no spikes or notches, no edge shared by three triangles', async () => {
+    const pack = await loadHumanPack(PACK, fromDisk)
+    // A V neckline, straps over the shoulders (where the outline crosses the
+    // body nearly edge on), a level hem.
+    const half: [number, number][] = [
+      [0, 0.44],
+      [0.06, 0.56],
+      [0.12, 0.56],
+      [0.15, 0.4],
+      [0.17, 0.24],
+      [0, 0.24],
+    ]
+    const g = cutGarment(pack.positions, pack.triangles, {
+      front: mirrorOutline([half]),
+    })
+    const at = (r: number) => {
+      const p = [0, 0, 0]
+      for (let c = 0; c < 3; c++)
+        for (let k = 0; k < 3; k++)
+          p[k] += pack.positions[g.ref[r * 3 + c] * 3 + k] * g.weight[r * 3 + c]
+      return p
+    }
+    for (const loop of g.hems.filter((h) => h.length > 8)) {
+      let back = 0
+      for (let i = 0; i < loop.length; i++) {
+        const a = at(loop[(i + loop.length - 1) % loop.length])
+        const b = at(loop[i])
+        const c = at(loop[(i + 1) % loop.length])
+        const dot =
+          (b[0] - a[0]) * (c[0] - b[0]) +
+          (b[1] - a[1]) * (c[1] - b[1]) +
+          (b[2] - a[2]) * (c[2] - b[2])
+        if (dot < 0) back++
+      }
+      expect(back).toBe(0)
+    }
+    const uses = new Map<string, number>()
+    const T = g.triangles
+    for (let t = 0; t < T.length; t += 3)
+      for (let k = 0; k < 3; k++) {
+        const a = T[t + k]
+        const b = T[t + ((k + 1) % 3)]
+        const e = a < b ? `${a}:${b}` : `${b}:${a}`
+        uses.set(e, (uses.get(e) ?? 0) + 1)
+      }
+    expect([...uses.values()].every((n) => n <= 2)).toBe(true)
+  })
+
   test('a sleeve cut across a forearm is square to it, not along the line', async () => {
     const pack = await loadHumanPack(PACK, fromDisk)
     // hm08's forearms reach forward: a level line at y 0.25 crosses one at
