@@ -1149,6 +1149,7 @@ export type { Curve3dOptions, CurveField, CurveMarkers } from './curve-field.js'
 // A coordinate on ONE row — the density win for inspector panels. Its own
 // module so it tree-shakes, and top-level like the other `*3d` widgets.
 export { vector3d, euler3d, wrapDegrees } from './vector-field.js'
+export { playback3d } from './playback-field.js'
 /*
 `WidgetHost` is exported deliberately, not incidentally: it is the type a
 custom widget must name to implement `setHost`, and without it a consumer
@@ -1766,6 +1767,7 @@ export type { RoundedRectOptions, RoundedRectGeometry } from './rounded-rect.js'
 export { openPopup } from './popup-surface.js'
 export type { PopupSurface, PopupSurfaceOptions } from './popup-surface.js'
 export type { Vector3dOptions, VectorField } from './vector-field.js'
+export type { Playback3dOptions, PlaybackField, PlaybackState } from './playback-field.js'
 export type { Makers, MakeOptions, MakeOwner } from './make-mesh.js'
 export { B3dTurret, b3dTurret } from './b3d-turret.js'
 export { B3dRadarBlip, b3dRadarBlip } from './b3d-radar-blip.js'

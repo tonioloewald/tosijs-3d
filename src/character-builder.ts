@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 import { exportBodyRows } from 'tosijs-3d/body-export'
@@ -204,6 +204,20 @@ const clothesRows = () => [
 // placed by its grip and kept with the character, one grip per item.
 let heldNames = ['none']
 let applyGrip = () => {}
+// THE CLIP'S TRANSPORT: play or pause, scrub, speed. The scene sets how to
+// read and move the clip once it has one.
+let clipSpeed = 1
+let clipState = () => null
+let seekClip = (t) => {}
+let speedClip = (s) => {}
+const playbackRow = () =>
+  playback3d({
+    name: 'clip playback',
+    read: () => clipState(),
+    handlePlay: (on) => { walker.paused.value = !on },
+    handleSeek: (t) => seekClip(t),
+    handleSpeed: (s) => { clipSpeed = s; speedClip(s) },
+  })
 // A manipulator on the held item's grip, to drag rather than type. Off until
 // asked for; turning it on pauses the clip, so the hand holds still.
 let gripHandles = false
@@ -330,7 +344,7 @@ preview.append(
         slider('firmness', 'bustFirmness'),
         label3d({ text: 'Motion', collapsible: true }),
         select3d({ label: 'clip', value: walker.clip, options: clips, stayOpen: true }),
-        toggle3d({ label: 'pause', value: walker.paused }),
+        playbackRow(),
         button3d({ label: 'clips from a file…', handleClick: () => openClips() }),
         label3d({ text: 'Skin', collapsible: true }),
         slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01 }),
@@ -384,7 +398,7 @@ preview.append(
           : [button3d({ label: 'rig…', handleClick: () => openRig() })]),
         label3d({ text: 'Motion', collapsible: true, open: true }),
         select3d({ label: 'clip', value: walker.clip, options: clips, stayOpen: true }),
-        toggle3d({ label: 'pause', value: walker.paused }),
+        playbackRow(),
         button3d({ label: 'clips from a file…', handleClick: () => openClips() }),
         ...surfaceRows(),
         ...clothesRows(),
@@ -628,10 +642,20 @@ preview.append(
           const own = fileClips.get(walker.clip.value)
           const clip = own?.group ?? ual.animationGroups.find((g) => g.name === walker.clip.value) ?? ual.animationGroups.find((g) => g.name === 'Walk_Loop')
           playing = clip ? retargetClip(clip, own?.from ?? source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg }) : null
-          playing?.start(true)
+          playing?.start(true, clipSpeed)
           ch.groundFor(playing)
           if (walker.paused.value) playing?.pause()
         }
+        // The transport reads and moves the clip playing now.
+        const clipFps = () => playing?.targetedAnimations[0]?.animation.framePerSecond || 30
+        clipState = () => {
+          if (!playing) return null
+          const fps = clipFps()
+          const frame = playing.animatables[0]?.masterFrame ?? playing.from
+          return { time: (frame - playing.from) / fps, duration: (playing.to - playing.from) / fps, playing: !walker.paused.value, speed: clipSpeed }
+        }
+        seekClip = (t) => playing?.goToFrame(playing.from + t * clipFps())
+        speedClip = (s) => { if (playing) playing.speedRatio = s }
 
         // The saved garments, in IndexedDB: per browser, nothing shared yet.
         const garmentStore = async (mode, fn) => {
