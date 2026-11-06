@@ -558,6 +558,22 @@ export function fitSkeleton(
     */
     const above = hm.fromAbove?.()
     let found = above != null ? findFingers(above, hw, sign, reach) : null
+    /*
+    BUMPS ON A GLOVE ARE NOT FINGERS. A spacesuit's glove showed four
+    "fingers" 2.5 to 4.6 cm long on a hand 24 cm long, bunched at its end,
+    and the chains on them could not be told apart. A real hand's longest
+    finger is about a third of it (the same man, bare: 0.33), so under a
+    quarter the hand is read as having no separate fingers.
+    */
+    if (found != null && found.fingers.length > 0) {
+      const len = (c: Vec3[]) =>
+        Math.hypot(c[3].x - c[0].x, c[3].y - c[0].y, c[3].z - c[0].z)
+      const hand = Math.max(
+        ...found.fingers.map((c) => Math.hypot(c[3].x - hw.x, c[3].y - hw.y))
+      )
+      if (Math.max(...found.fingers.map(len)) < 0.25 * hand)
+        found = { fingers: [], thumb: found.thumb }
+    }
     // No separate fingers: one mitten or claw, and a thumb without a gap.
     if (above != null && (found == null || found.fingers.length === 0)) {
       const m = findMitten(hm, above, hw, sign, reach)
