@@ -141,7 +141,7 @@ export function exportBodyRows(
   say: (message: string) => void
 ): Widget3d[] {
   return [
-    label3d({ text: 'Export', collapsible: true }),
+    label3d({ text: 'Export', icon: 'download', collapsible: true }),
     select3d({
       label: 'joint names',
       value: settings.naming === 'ue' ? 'UE (UAL)' : 'Mixamo',

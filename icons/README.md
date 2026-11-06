@@ -34,3 +34,5 @@ it marks the inventory's **unequip** target (2026-10, may be replaced).
 `stroked/biped.svg` is Tonio's biped (2026-10), drawn on a 48 grid in Amadine and kept on it (its leg gap is narrower than a 2-unit stroke on a 24 grid), so its line is lighter than Feather's; its baked black is left out so it follows the theme.
 
 `stroked/filled/biped-preview.svg` is Tonio's (2026-11), the character builder's preview: the walking biped inside a turning arc. In `stroked/filled` a path drawn with no fill is OPEN (the arc, the arrowheads); tosijs-ui's generator strips every fill there, so `bin/icon-open-paths.ts` (run by `bun run icons`) puts `fill="none"` back on those paths.
+
+`stroked/filled/{ancestry,body,eyes,face,hair,motion,skin}.svg` and `stroked/spring.svg` are Tonio's (2026-11), the character builder's and the rig tool's section tabs.

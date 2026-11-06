@@ -59,7 +59,7 @@ const characterRows = () => {
       { icon: 'rotateCcw', title: 'undo (⌘Z)', dim: !character.canUndo(), handleClick: () => character.undo() },
       { icon: 'rotateCw', title: 'redo (⇧⌘Z)', dim: !character.canRedo(), handleClick: () => character.redo() },
     ] }),
-    label3d({ text: 'Character', collapsible: true }),
+    label3d({ text: 'Character', icon: 'personStanding', collapsible: true }),
     select3d({
       label: 'character',
       value: current,
@@ -149,7 +149,7 @@ const surfaceRows = () => {
   if (!surfaces.length) return []
   const source = walker.source.value
   return [
-    label3d({ text: 'Surfaces', collapsible: true, open: true }),
+    label3d({ text: 'Surfaces', icon: 'mesh', collapsible: true, open: true }),
     ...surfaces.map(({ name, choice }) =>
       select3d({
         label: name,
@@ -192,7 +192,7 @@ const ownIn = (slot) => {
   return g && g.source === walker.source.value ? g : null
 }
 const clothesRows = () => [
-  label3d({ text: 'Clothes', collapsible: true }),
+  label3d({ text: 'Clothes', icon: 'loadout', collapsible: true }),
   ...SLOTS.map((slot) => select3d({ label: slot, value: walker[slot], options: choices(slot), stayOpen: true })),
   // One editor for whichever worn thing is chosen: its colourway, and its
   // material (a fabric, a colour, and a recolour over its texture: 0
@@ -266,7 +266,7 @@ const holdRows = () => {
   const name = walker.held.value
   const g = gripOf(name)
   return [
-    label3d({ text: 'Hold', collapsible: true }),
+    label3d({ text: 'Hold', icon: 'bipedHandgun', collapsible: true }),
     select3d({ label: 'right hand', value: walker.held, options: heldNames, stayOpen: true }),
     ...(name === 'none'
       ? []
@@ -297,7 +297,7 @@ const holdRows = () => {
   ]
 }
 const tailorRows = () => [
-  label3d({ text: 'Tailor', collapsible: true }),
+  label3d({ text: 'Tailor', icon: 'scissors', collapsible: true }),
   ...(tailorTarget()
     ? [
         // The tailor is a tool of its own (scissors, on the bar): it
@@ -333,9 +333,11 @@ preview.append(
     {
       clearColor: '#2a3340',
       panelTitle: 'Character Builder',
+      // A tab per section, each its icon.
+      panelSections: 'tabs',
       scenePanel: () => madeHuman() ? [
         ...characterRows(),
-        label3d({ text: 'Body', collapsible: true, open: true }),
+        label3d({ text: 'Body', icon: 'body', collapsible: true, open: true }),
         select3d({ label: 'source', value: walker.source, options: sourceNames(), stayOpen: true }),
         button3d({ label: 'open a mesh…', handleClick: () => openBody() }),
         // How much of the body is drawn: MakeHuman's lighter skins, or its base mesh.
@@ -350,24 +352,24 @@ preview.append(
         slider('pecs', 'pecs'),
         slider('bust', 'bustSize'),
         slider('firmness', 'bustFirmness'),
-        label3d({ text: 'Motion', collapsible: true }),
+        label3d({ text: 'Motion', icon: 'motion', collapsible: true }),
         select3d({ label: 'clip', value: walker.clip, options: clips, stayOpen: true }),
         playbackRow(),
         button3d({ label: 'clips from a file…', handleClick: () => openClips() }),
-        label3d({ text: 'Skin', collapsible: true }),
+        label3d({ text: 'Skin', icon: 'skin', collapsible: true }),
         slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: 'redness', value: walker.redness, min: 0, max: 1, step: 0.01 }),
-        label3d({ text: 'Eyes', collapsible: true }),
+        label3d({ text: 'Eyes', icon: 'eyes', collapsible: true }),
         select3d({ label: 'eye style', value: walker.eyeStyle, options: ['basic', 'anime', 'drawn'] }),
         colorPicker3d({ label: 'eye colour', value: walker.irisColour, alpha: false, defaultPresets: 'off', presets: [['dark brown', 0], ['brown', 0.15], ['amber', 0.3], ['hazel', 0.45], ['green', 0.6], ['blue-green', 0.72], ['blue', 0.85], ['grey', 1]].map(([name, t]) => { const c = irisColor(t); const h = (x) => Math.round(x * 255).toString(16).padStart(2, '0'); return { name, value: '#' + h(c.r) + h(c.g) + h(c.b) } }) }),
-        label3d({ text: 'Face', collapsible: true }),
+        label3d({ text: 'Face', icon: 'face', collapsible: true }),
         toggle3d({ label: 'blink', value: walker.blink }),
         toggle3d({ label: 'talk', value: walker.talk }),
         toggle3d({ label: 'mic (lip sync)', value: walker.mic }),
         slider3d({ label: 'smile', value: walker.smile, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: 'brows up', value: walker.browsUp, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: 'frown', value: walker.frown, min: 0, max: 1, step: 0.01 }),
-        label3d({ text: 'Hair', collapsible: true }),
+        label3d({ text: 'Hair', icon: 'hair', collapsible: true }),
         select3d({ label: 'hair', value: walker.hair, options: choices('hair'), stayOpen: true }),
         select3d({ label: 'beard', value: walker.beard, options: choices('beard'), stayOpen: true }),
         select3d({ label: 'moustache', value: walker.moustache, options: choices('moustache'), stayOpen: true }),
@@ -385,7 +387,7 @@ preview.append(
         ...tailorRows(),
         ...holdRows(),
         ...exportRows(),
-        label3d({ text: 'Ancestry', collapsible: true }),
+        label3d({ text: 'Ancestry', icon: 'ancestry', collapsible: true }),
         slider('african', 'african'),
         slider('asian', 'asian'),
         slider('caucasian', 'caucasian'),
@@ -393,7 +395,7 @@ preview.append(
         // A body of anyone's: what MakeHuman's carries (shape, face, hair,
         // clothes) is not there; the clips and the skin are.
         ...characterRows(),
-        label3d({ text: 'Body', collapsible: true, open: true }),
+        label3d({ text: 'Body', icon: 'body', collapsible: true, open: true }),
         select3d({ label: 'source', value: walker.source, options: sourceNames(), stayOpen: true }),
         button3d({ label: 'open a mesh…', handleClick: () => openBody() }),
         ...(ch?.problem ? [text3d({ text: ch.problem })] : []),
@@ -404,7 +406,7 @@ preview.append(
               text3d({ text: 'Rigging: in the Rig panel (on the bar). Done there brings the body back.' }),
             ]
           : [button3d({ label: 'rig…', handleClick: () => openRig() })]),
-        label3d({ text: 'Motion', collapsible: true, open: true }),
+        label3d({ text: 'Motion', icon: 'motion', collapsible: true, open: true }),
         select3d({ label: 'clip', value: walker.clip, options: clips, stayOpen: true }),
         playbackRow(),
         button3d({ label: 'clips from a file…', handleClick: () => openClips() }),
@@ -413,7 +415,7 @@ preview.append(
         ...tailorRows(),
         ...holdRows(),
         ...exportRows(),
-        label3d({ text: 'Skin', collapsible: true }),
+        label3d({ text: 'Skin', icon: 'skin', collapsible: true }),
         slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: 'redness', value: walker.redness, min: 0, max: 1, step: 0.01 }),
       ],

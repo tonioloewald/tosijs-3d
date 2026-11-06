@@ -164,6 +164,7 @@ import { b3dSun } from './b3d-shadows.js'
 import { assetUrl } from './asset-url.js'
 import {
   button3d,
+  foldSections,
   iconBar3d,
   label3d,
   panel3d,
@@ -1025,7 +1026,10 @@ export function mountRigTool(
             ? Math.min(640, owner.panelRoom(panelEl ?? undefined))
             : 640,
       },
-      ...panel()
+      // Hosted it is a panel of its own: tabs as the scene panel has them.
+      ...(hosted
+        ? foldSections(panel(), { key: 'rig-tool', mode: 'tabs', repaint: refresh })
+        : panel())
     ) as unknown as SVGSVGElement & {
       handlePointer?: (k: string, x: number, y: number) => unknown
     }
@@ -1120,6 +1124,13 @@ export function mountRigTool(
     tool?.targets()
     refresh()
   }
+  function startOver() {
+    const m = models.find((m) => m.label === ui.model)
+    recipe = fresh({ ...m?.recipe, model: recipe.model })
+    ui.spring = 0
+    changed(true)
+    refresh()
+  }
   function undo() {
     // An edit still settling is a step of its own.
     commitNow()
@@ -1201,6 +1212,12 @@ export function mountRigTool(
             dim: !history.canRedo,
             handleClick: redo,
           },
+          // Back to the model's own rig (an undo step like any other).
+          {
+            icon: 'refreshCcw',
+            title: 'start over',
+            handleClick: startOver,
+          },
         ],
       }),
       label3d({ text: ui.status, muted: true, compact: true }),
@@ -1214,7 +1231,7 @@ export function mountRigTool(
       */
       const b = bound
       w.push(
-        label3d({ text: 'Markers', collapsible: true, open: true }),
+        label3d({ text: 'Markers', icon: 'rig', collapsible: true, open: true }),
         label3d({
           text: 'drag each marker onto its joint: the mannequin shows where',
           muted: true,
@@ -1355,7 +1372,7 @@ export function mountRigTool(
       const guessed = applied?.read.roles ?? {}
       const set = recipe.roles?.[ui.role]
       w.push(
-        label3d({ text: 'Roles', collapsible: true, open: true }),
+        label3d({ text: 'Roles', icon: 'biped', collapsible: true, open: true }),
         select3d({
           label: 'clicking sets',
           value: ui.clickSets,
@@ -1415,7 +1432,7 @@ export function mountRigTool(
 
     // MOTION: the clips it plays, how they sit on it, and more of them.
     w.push(
-      label3d({ text: 'Motion', collapsible: true, open: true }),
+      label3d({ text: 'Motion', icon: 'motion', collapsible: true, open: true }),
       toggle3d({
         label: 'animate',
         value: ui.pose === 'animate',
@@ -1454,7 +1471,7 @@ export function mountRigTool(
 
       // VIEW: where it is seen from (also the camera on the bar) and what is
       // shown beside it.
-      label3d({ text: 'View', collapsible: true }),
+      label3d({ text: 'View', icon: 'camera', collapsible: true }),
       select3d({
         label: 'seen from',
         value: ui.view,
@@ -1480,7 +1497,7 @@ export function mountRigTool(
       }),
 
       // MODEL: which one, and how it is rigged.
-      label3d({ text: 'Model', collapsible: true }),
+      label3d({ text: 'Model', icon: 'mesh', collapsible: true }),
       // A choice only when there is one (a host's one model has none).
       ...(models.length > 1 || models[0]?.label !== ui.model
         ? [
@@ -1534,7 +1551,7 @@ export function mountRigTool(
     // Springs.
     const springs = recipe.springs ?? []
     w.push(
-      label3d({ text: 'Springs', collapsible: true, open: true }),
+      label3d({ text: 'Springs', icon: 'spring', collapsible: true, open: true }),
       button3d({
         label: '+ strand',
         handleClick: () => {
@@ -1695,10 +1712,11 @@ export function mountRigTool(
       )
     }
 
-    // Recipe. Hosted with `files: false`, the host keeps it: only start over.
-    w.push(label3d({ text: 'Recipe', collapsible: true }))
+    // Recipe: saved, loaded and copied (hosted with `files: false` the host
+    // keeps it, and start over is beside undo).
     if (files)
       w.push(
+        label3d({ text: 'Recipe', icon: 'book', collapsible: true }),
         button3d({
           label: 'save',
           handleClick: () =>
@@ -1746,18 +1764,6 @@ export function mountRigTool(
               }),
         })
       )
-    w.push(
-      button3d({
-        label: 'start over',
-        handleClick: () => {
-          const m = models.find((m) => m.label === ui.model)
-          recipe = fresh({ ...m?.recipe, model: recipe.model })
-          ui.spring = 0
-          changed(true)
-          refresh()
-        },
-      })
-    )
     // Export: the body as a GLB that plays UAL's clips by name. Hosted, the
     // host has its own.
     if (files)
@@ -3451,7 +3457,8 @@ export function rigTool(
       clearColor: '#2a3340',
       panelTitle: 'Rig',
       // A workbench: its sections are used side by side, so several stay open.
-      panelSections: 'folds',
+      // A tab per section, each its icon.
+      panelSections: 'tabs',
       scenePanelOpen: true,
       scenePanel: () => handle?.widgets() ?? [],
       sceneCreated(owner: any) {
