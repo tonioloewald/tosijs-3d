@@ -188,7 +188,6 @@ export function playback3d(config: Playback3dOptions): PlaybackField {
   const segBg = [0, 1, 2].map(() =>
     rect({ rx: 6, ry: 6, fill: w3dTheme.rowBg })
   )
-  const bg = segBg[0]
   const glyph = path({ fill: w3dTheme.text })
   button.append(glyph)
   const scrubWrap = g()
