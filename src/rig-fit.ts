@@ -848,6 +848,75 @@ function cropped(
   return out
 }
 
+/*
+A HAND SPREAD OUT, to place by hand. Where a hand was guessed into a knot (a
+glove), its joints are laid out afresh from the wrist: the four fingers run
+straight on along the forearm, side by side across the palm (front to back,
+the thumb side in front, as both a T-pose's palm-down hand and an A-pose's
+palm-in one are), spread wider than a hand so each chain stands apart; the
+thumb leaves the front edge at 45°. Nothing is read from the mesh.
+*/
+/**
+ * The thumb's and fingers' joints for one hand, laid out from its wrist and
+ * elbow (`side` names them). `length` is the hand's, wrist to fingertip
+ * (default three quarters of the forearm, as on a person).
+ */
+export function spreadHand(
+  wrist: Vec3,
+  elbow: Vec3,
+  side: 'l' | 'r',
+  length?: number
+): Record<string, Vec3> {
+  const ax = {
+    x: wrist.x - elbow.x,
+    y: wrist.y - elbow.y,
+    z: wrist.z - elbow.z,
+  }
+  const fore = Math.hypot(ax.x, ax.y, ax.z) || 1
+  const a = { x: ax.x / fore, y: ax.y / fore, z: ax.z / fore }
+  // Across the palm: forward (+z), less any part along the forearm.
+  const az = a.z
+  let c = { x: -az * a.x, y: -az * a.y, z: 1 - az * a.z }
+  const cl = Math.hypot(c.x, c.y, c.z) || 1
+  c = { x: c.x / cl, y: c.y / cl, z: c.z / cl }
+  const hand = length ?? 0.75 * fore
+  const at = (s: number, t: number): Vec3 => ({
+    x: wrist.x + a.x * s + c.x * t,
+    y: wrist.y + a.y * s + c.y * t,
+    z: wrist.z + a.z * s + c.z * t,
+  })
+  const out: Record<string, Vec3> = {}
+  const chain = (f: string, pts: Vec3[]) => {
+    ;['01', '02', '03', '04_leaf'].forEach(
+      (k, i) => (out[`${f}_${k}_${side}`] = pts[i])
+    )
+  }
+  // Each finger: where it leaves the palm, how long, how far across.
+  const gap = 0.16 * hand
+  const fingers: Array<[string, number, number]> = [
+    ['index', 0.42, 1.5],
+    ['middle', 0.47, 0.5],
+    ['ring', 0.44, -0.5],
+    ['pinky', 0.36, -1.5],
+  ]
+  const base = 0.45 * hand
+  for (const [f, len, across] of fingers)
+    chain(
+      f,
+      [0, 0.45, 0.75, 1].map((t) => at(base + t * len * hand, across * gap))
+    )
+  // The thumb: from beside the wrist, out from the front edge at 45°.
+  const t0 = { s: 0.1 * hand, t: 1.2 * gap }
+  const tl = 0.42 * hand
+  chain(
+    'thumb',
+    [0, 0.4, 0.72, 1].map((k) =>
+      at(t0.s + k * tl * Math.SQRT1_2, t0.t + k * tl * Math.SQRT1_2)
+    )
+  )
+  return out
+}
+
 /** Which UAL fingers a hand of n fingers uses, front (thumb side) first. */
 const FINGER_NAMES: Record<number, string[]> = {
   1: ['index'],

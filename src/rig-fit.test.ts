@@ -10,6 +10,7 @@ import {
   guessMarkers,
   MARKER_NAMES,
   skinSegments,
+  spreadHand,
   type Markers,
   type MeshQuery,
 } from './rig-fit.js'
@@ -601,3 +602,51 @@ describe.skipIf(!existsSync(HBM))(
     }
   }
 )
+
+describe('spreadHand', () => {
+  // A left arm hanging down and out (an A-pose).
+  const elbow = { x: 0.3, y: 1.1, z: 0 }
+  const wrist = { x: 0.45, y: 0.85, z: 0 }
+  const hand = spreadHand(wrist, elbow, 'l')
+  const fore = Math.hypot(0.15, 0.25)
+
+  test('every finger and the thumb, four joints each, named for the side', () => {
+    expect(Object.keys(hand).length).toBe(20)
+    expect(hand.thumb_04_leaf_l).toBeDefined()
+    expect(
+      Object.keys(spreadHand(wrist, elbow, 'r')).every((k) => k.endsWith('_r'))
+    ).toBe(true)
+  })
+
+  test('fingers run on along the forearm, apart, the thumb side in front', () => {
+    const ax = { x: 0.15 / fore, y: -0.25 / fore }
+    const tips = ['index', 'middle', 'ring', 'pinky'].map(
+      (f) => hand[`${f}_04_leaf_l`]
+    )
+    for (const f of ['index', 'middle', 'ring', 'pinky']) {
+      const a = hand[`${f}_01_l`]
+      const b = hand[`${f}_04_leaf_l`]
+      const l = Math.hypot(b.x - a.x, b.y - a.y)
+      expect((b.x - a.x) / l).toBeCloseTo(ax.x, 5)
+      expect((b.y - a.y) / l).toBeCloseTo(ax.y, 5)
+    }
+    // Front to back, each at least a couple of centimetres from the next.
+    for (let i = 1; i < 4; i++) {
+      expect(tips[i].z).toBeLessThan(tips[i - 1].z)
+      expect(tips[i - 1].z - tips[i].z).toBeGreaterThan(0.02)
+    }
+    expect(hand.thumb_04_leaf_l.z).toBeGreaterThan(hand.index_04_leaf_l.z)
+  })
+
+  test('as long as asked, three quarters of the forearm by default', () => {
+    const reach = (h: Record<string, { x: number; y: number; z: number }>) =>
+      Math.hypot(
+        h.middle_04_leaf_l.x - wrist.x,
+        h.middle_04_leaf_l.y - wrist.y,
+        h.middle_04_leaf_l.z - wrist.z
+      )
+    expect(reach(hand)).toBeGreaterThan(0.7 * 0.75 * fore)
+    expect(reach(hand)).toBeLessThan(1.0 * 0.75 * fore)
+    expect(reach(spreadHand(wrist, elbow, 'l', 0.1))).toBeLessThan(0.1)
+  })
+})

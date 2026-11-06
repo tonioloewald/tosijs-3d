@@ -38,7 +38,9 @@ The panel has these sections, its job first.
 - **Markers**, for a mesh bound from them. `symmetry` moves both sides
   together; `tail` adds a tail (place its tip from the side view; it is a
   bone chain, `tail_01` on, for a spring); `guess markers` starts again from
-  the outline. The joints follow the markers. `move joints` shows every
+  the outline; `spread fingers` lays both hands out afresh from the wrists
+  (a glove guessed into a knot), each finger apart, and shows the joints to
+  drag into place. The joints follow the markers. `move joints` shows every
   joint (blue) to drag by hand from the view that suits: shoulders from the
   front, fingers and thumbs from the top, feet from the side. What hangs from
   a joint comes with it; set `dragging` to turn what hangs from it instead
@@ -189,6 +191,7 @@ import {
   meshQuery,
   objTriangles,
   rigSilhouette,
+  spreadHand,
   type MeshQuery,
   type Markers,
 } from './rig-fit.js'
@@ -1095,6 +1098,35 @@ export function mountRigTool(
               guessMarkers(rigSilhouette(b.positions, b.indices, 'front')),
               b.tail ?? null
             ),
+        }),
+        button3d({
+          label: 'spread fingers',
+          handleClick: () => {
+            /*
+            A KNOTTED HAND, untied: both hands' thumbs and fingers laid out
+            from the wrist (spreadHand), to drag into place with the joints
+            showing. The hand is as long as the fit made it, kept between
+            half and all of the forearm.
+            */
+            const shown = fittedJoints(b, true)
+            if (shown == null) return
+            const moved: Record<string, Vec3> = {}
+            for (const s of ['l', 'r'] as const) {
+              const w = shown.get(`hand_${s}`)
+              const e = shown.get(`lowerarm_${s}`)
+              if (w == null || e == null) continue
+              const fore = Math.hypot(w.x - e.x, w.y - e.y, w.z - e.z)
+              const tip = shown.get(`middle_04_leaf_${s}`)
+              const reach =
+                tip != null
+                  ? Math.hypot(tip.x - w.x, tip.y - w.y, tip.z - w.z)
+                  : 0.75 * fore
+              const length = Math.min(fore, Math.max(0.5 * fore, reach))
+              Object.assign(moved, spreadHand(w, e, s, length))
+            }
+            ui.joints = true
+            setJoints('fingers spread', moved)
+          },
         }),
         toggle3d({
           label: 'move joints',
