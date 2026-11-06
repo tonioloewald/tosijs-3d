@@ -209,9 +209,9 @@ let applyGrip = () => {}
 let gripHandles = false
 let showGripHandles = (on) => { gripHandles = on }
 // Every item in Tonio's library is made the same way (origin at the grip, +Y
-// up the grip, +Z forward, real size), so one grip holds them all: the turn
-// that put Weapon Fit's pistol in the hand, its handle in the palm.
-const GRIP = { x: -0.04, y: 0.051, z: -0.059, rx: -105, ry: -15, rz: -165, scale: 1 }
+// up the grip, +Z forward, real size), so one grip holds them all: Tonio's,
+// placed on the pistol with the manipulator.
+const GRIP = { x: -0.034, y: 0.066, z: 0.015, rx: -57.4, ry: 128.3, rz: 54.6, scale: 1 }
 const GRIPS = {}
 const gripOf = (name) => ({ ...GRIP, ...GRIPS[name], ...(JSON.parse(JSON.stringify(walker.grips.value))[name] ?? {}) })
 const setGrip = (patch) => {
