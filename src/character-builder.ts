@@ -1168,7 +1168,7 @@ preview.append(
       },
     },
     // Things to hold: Tonio's weapons (CC BY 4.0), each with its grip at its origin.
-    b3dLibrary({ url: assetUrl('tonio/weapons/weapons.glb'), type: 'weapons' }),
+    b3dLibrary({ url: assetUrl('tonio/weapons-classic/weapons.glb'), type: 'weapons' }),
     b3dSun({ timeOfDay: 16.5, shadowTextureSize: 2048, shadowMaxZ: 20, shadowNormalBias: 0.008 }),
     b3dLight({ intensity: 0.5 })
   )
@@ -1212,8 +1212,9 @@ and listed after the everyday ones, for this visit.
 follows the **right hand** close up through the clip, to see how an item sits
 in it. The rig tool uses the same menu.
 
-**Hold** puts an item from Tonio's weapons (`tonio/weapons/weapons.glb`, CC
-BY 4.0: guns, blades, a spear, a buckler) in the right hand, on the hand's
+**Hold** puts an item from Tonio's textured weapons
+(`tonio/weapons-classic/weapons.glb`, CC BY 4.0: guns, blades, a plasma
+blade, a spear, a buckler) in the right hand, on the hand's
 socket (a frame normalised to the hand's anatomy, so one grip fits any
 body's hand). Every item is made the same way, its origin at its grip (a
 `_grip` node), +Y up the grip and +Z forward, at its real size, so one grip
