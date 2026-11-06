@@ -61,6 +61,8 @@ export interface GarmentCutOptions {
   ease?: number
   /** Add a hem joining the cut edge back to the skin. Default true. */
   hem?: boolean
+  /** Smooth the cut edge along the skin (corners kept). Default true. */
+  smoothEdges?: boolean
   /** UV scale: texture repeats per metre in the front view. Default 1. */
   uvScale?: number
   /**
@@ -717,6 +719,15 @@ export function cutGarment(
     if (!filled) break
   }
 
+  /*
+  A SMOOTH EDGE. Clipped triangle by triangle, the cut edge zigzags across
+  the faces wherever the outline crosses the body at a slant. Each edge loop
+  is relaxed along itself, its corners (the outline's own, where it turns
+  sharply over a few points) held, and every point put back on the body at
+  its nearest place, so the hem runs smoothly over the skin.
+  */
+  if (options.smoothEdges !== false) smoothCutEdges(out, ref, weight, P, triangles)
+
   const rows = ref.length / 3
   // Rest positions and normals of each row.
   const base = new Float32Array(rows * 3)
@@ -1218,3 +1229,93 @@ export function skirtGarment(
     hems: [firstRing, lastRing],
   }
 }
+
+/**
+ * Relax a cut's open edges along themselves and put each point back on the
+ * body (see "A SMOOTH EDGE" in cutGarment). Rows are rewritten in place.
+ */
+function smoothCutEdges(
+  out: number[],
+  ref: number[],
+  weight: number[],
+  P: ArrayLike<number>,
+  triangles: ArrayLike<number>
+): void {
+  const key = (a: number, b: number) => (a < b ? `${a}:${b}` : `${b}:${a}`)
+  const uses = new Map<string, number>()
+  for (let t = 0; t < out.length; t += 3)
+    for (let k = 0; k < 3; k++) {
+      const e = key(out[t + k], out[t + ((k + 1) % 3)])
+      uses.set(e, (uses.get(e) ?? 0) + 1)
+    }
+  const next = new Map<number, number[]>()
+  for (let t = 0; t < out.length; t += 3)
+    for (let k = 0; k < 3; k++) {
+      const a = out[t + k]
+      const b = out[t + ((k + 1) % 3)]
+      if (uses.get(key(a, b)) !== 1) continue
+      next.set(a, [...(next.get(a) ?? []), b])
+      next.set(b, [...(next.get(b) ?? []), a])
+    }
+  // Loops, each point with exactly two edge neighbours (others left alone).
+  const seen = new Set<number>()
+  const loops: number[][] = []
+  for (const start of next.keys()) {
+    if (seen.has(start) || next.get(start)!.length !== 2) continue
+    const loop = [start]
+    seen.add(start)
+    let cur = start
+    for (;;) {
+      const step = next.get(cur)!.find((m) => !seen.has(m))
+      if (step == null || next.get(step)!.length !== 2) break
+      seen.add(step)
+      loop.push(step)
+      cur = step
+    }
+    if (loop.length >= 6) loops.push(loop)
+  }
+  if (!loops.length) return
+  const at = (r: number) => {
+    const p = [0, 0, 0]
+    for (let c = 0; c < 3; c++)
+      for (let k = 0; k < 3; k++)
+        p[k] += P[ref[r * 3 + c] * 3 + k] * weight[r * 3 + c]
+    return p
+  }
+  const project = surfaceProjector(P, triangles)
+  for (const loop of loops) {
+    const n = loop.length
+    let pts = loop.map(at)
+    // A corner: the direction over two points either side turns by more than
+    // 70 degrees (the outline's own corners, not the zigzag; tuned on a
+    // strapped top on hm08: 24 sharp turns along its neckline to 5, its corners).
+    const corner = pts.map((_, i) => {
+      const a = pts[(i - 2 + n) % n]
+      const b = pts[i]
+      const c = pts[(i + 2) % n]
+      const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]]
+      const w = [c[0] - b[0], c[1] - b[1], c[2] - b[2]]
+      const cos =
+        (u[0] * w[0] + u[1] * w[1] + u[2] * w[2]) /
+        (Math.hypot(u[0], u[1], u[2]) * Math.hypot(w[0], w[1], w[2]) || 1)
+      return cos < Math.cos((70 * Math.PI) / 180)
+    })
+    for (let pass = 0; pass < 8; pass++) {
+      pts = pts.map((p, i) => {
+        if (corner[i]) return p
+        const a = pts[(i - 1 + n) % n]
+        const c = pts[(i + 1) % n]
+        return [0, 1, 2].map((k) => (a[k] + 2 * p[k] + c[k]) / 4)
+      })
+    }
+    loop.forEach((r, i) => {
+      if (corner[i]) return
+      const q = project(pts[i][0], pts[i][1], pts[i][2])
+      for (let c = 0; c < 3; c++) {
+        ref[r * 3 + c] = q.ref[c]
+        weight[r * 3 + c] = q.weight[c]
+      }
+    })
+  }
+}
+

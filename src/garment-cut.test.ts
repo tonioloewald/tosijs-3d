@@ -251,6 +251,21 @@ describe.skipIf(!existsSync(PACK))('hm08 trousers', () => {
         if (dot < 0) back++
       }
       expect(back).toBe(0)
+      // Smooth along the skin: few sharp turns (the outline has about five
+      // corners on its neckline loop), where clipping alone left two dozen.
+      let sharp = 0
+      for (let i = 0; i < loop.length; i++) {
+        const a = at(loop[(i + loop.length - 1) % loop.length])
+        const b = at(loop[i])
+        const c = at(loop[(i + 1) % loop.length])
+        const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]]
+        const w = [c[0] - b[0], c[1] - b[1], c[2] - b[2]]
+        const cos =
+          (u[0] * w[0] + u[1] * w[1] + u[2] * w[2]) /
+          (Math.hypot(u[0], u[1], u[2]) * Math.hypot(w[0], w[1], w[2]) || 1)
+        if (cos < Math.cos(Math.PI / 6)) sharp++
+      }
+      expect(sharp).toBeLessThanOrEqual(8)
     }
     const uses = new Map<string, number>()
     const T = g.triangles
@@ -309,7 +324,8 @@ describe.skipIf(!existsSync(PACK))('hm08 trousers', () => {
       .flatMap((h) => h.map(pt))
       .filter((q) => q[0] > 0.01 && q[0] < 0.04 && q[1] > 0.5)
     expect(neck.length).toBeGreaterThan(2)
-    for (const q of neck) expect(Math.abs(q[1] - 0.6)).toBeLessThan(0.002)
+    // On the line, within the few millimetres smoothing the edge moves it.
+    for (const q of neck) expect(Math.abs(q[1] - 0.6)).toBeLessThan(0.005)
     for (const q of front) expect(Math.abs(q[1] - 0.25)).toBeLessThan(0.002)
   })
 
