@@ -132,9 +132,8 @@ clever picking can tell which you meant.
 is the only reason rings and arrows cannot collide, so closing it up to make the
 arrow "whole" reintroduces the bug at every orientation but the identity.
 
-It is also frame-AGNOSTIC, which is the property worth keeping: arrows are
-world-aligned and rings ride the object, and a radial band that no arrow occupies
-clears them whatever their relative orientation.
+It is also frame-AGNOSTIC, which is the property worth keeping: a radial band
+that no arrow occupies clears the rings whatever the arrows' orientation.
 
 The shaft is deliberately HAIRLINE. It is a line showing which way the axis runs,
 not the thing you reach for — the arrowhead is. Its pick target stays generous,
@@ -212,7 +211,7 @@ export interface HandlesView {
    * where it acts. Measured before it was fixed: an object turned 90° about Y
    * grew along world Z when its X cube was dragged.
    *
-   * Translate stays world-aligned, because a move is a world move.
+   * Arrows and pads ride it too: one frame for every handle.
    */
   setOrientation(rotation: Euler | null): void
   setVisible(visible: boolean): void
@@ -597,16 +596,15 @@ export function createHandles(scene: BABYLON.Scene, scale = 1): HandlesView {
   to tell the two apart.
   */
   const place = (): void => {
-    for (const { grip, mesh, offset, spin } of handles) {
+    for (const { mesh, offset, spin } of handles) {
       mesh.scaling.set(scale, scale, scale)
       mesh.rotation.set(spin.x, spin.y, spin.z)
       /*
-      Scale cubes and rotation rings ride the OBJECT's frame — those are the
-      axes they actually act on. Translate shafts and pads stay world-aligned,
-      because a move is a world move.
+      Every handle rides the OBJECT's frame (Tonio: the widgets should be
+      consistent): an arrow, its pad, its ring and its cube share an axis and
+      a colour. Moving along a held pistol's barrel is one drag.
       */
-      const local =
-        orientation != null && (grip.kind === 'scale' || grip.kind === 'rotate')
+      const local = orientation != null
       const at = local ? rotated(offset, orientation!) : offset
       if (local) {
         // A quaternion, not euler: composing the object's turn with the grip's

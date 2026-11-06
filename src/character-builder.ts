@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 import { exportBodyRows } from 'tosijs-3d/body-export'
@@ -204,6 +204,10 @@ const clothesRows = () => [
 // placed by its grip and kept with the character, one grip per item.
 let heldNames = ['none']
 let applyGrip = () => {}
+// A manipulator on the held item's grip, to drag rather than type. Off until
+// asked for; turning it on pauses the clip, so the hand holds still.
+let gripHandles = false
+let showGripHandles = (on) => { gripHandles = on }
 // Every item in Tonio's library is made the same way (origin at the grip, +Y
 // up the grip, +Z forward, real size), so one grip holds them all: the turn
 // that put Weapon Fit's pistol in the hand, its handle in the palm.
@@ -245,6 +249,14 @@ const holdRows = () => {
     ...(name === 'none'
       ? []
       : [
+          toggle3d({
+            label: 'manipulator',
+            value: gripHandles,
+            handleChange: (v) => {
+              if (v && !walker.paused.value) walker.paused.value = true
+              showGripHandles(v)
+            },
+          }),
           label3d({ text: 'grip: from the hand (metres)', muted: true }),
           vector3d({ value: { x: g.x, y: g.y, z: g.z }, step: 0.01, scrub: 0.002, handleChange: (v) => setGrip({ x: v.x, y: v.y, z: v.z }) }),
           label3d({ text: 'turned (degrees)', muted: true }),
@@ -496,6 +508,7 @@ preview.append(
           if (held && (held.name !== name || held.shown !== shown || rigging)) {
             held.node.dispose()
             held = null
+            gizmo.node = null
           }
           if (name === 'none' || !shown || rigging) return
           if (!held) {
@@ -508,13 +521,48 @@ preview.append(
             // its origin, goes where the numbers say, as on a launcher.
             held = { node, name, shown, grip: heldGrip(node) ?? BABYLON.Vector3.Zero() }
           }
-          const g = gripOf(name)
+          placeHeld(gripOf(name))
+        }
+        // The item at a grip: that point and turn in the hand's socket frame.
+        const placeHeld = (g, handle = true) => {
           const d = Math.PI / 180
           const turn = BABYLON.Quaternion.FromEulerAngles(g.rx * d, g.ry * d, g.rz * d)
           const spun = held.grip.applyRotationQuaternion(turn)
           held.node.position.set(g.x - spun.x, g.y - spun.y, g.z - spun.z)
           held.node.rotationQuaternion = turn
           held.node.scaling.setAll(g.scale)
+          // THE GRIP'S HANDLES: a node at the grip, in the same frame, for
+          // the manipulator to drag; the item follows it.
+          gripNode.parent = held.node.parent
+          if (handle) {
+            gripNode.position.set(g.x, g.y, g.z)
+            gripNode.rotationQuaternion = turn.clone()
+          }
+          gizmo.node = gripHandles ? gripNode : null
+        }
+        const gripNode = new BABYLON.TransformNode('grip-handle', el.scene)
+        const fromHandle = () => {
+          const p = gripNode.position
+          const e = gripNode.rotationQuaternion.toEulerAngles()
+          const mm = (v) => Math.round(v * 1000) / 1000
+          const deg = (v) => Math.round((v * 1800) / Math.PI) / 10
+          return { x: mm(p.x), y: mm(p.y), z: mm(p.z), rx: deg(e.x), ry: deg(e.y), rz: deg(e.z) }
+        }
+        const gizmo = b3dManipulator({
+          move: 'on',
+          turn: 'on',
+          size: 0.09,
+          // Live: the item follows; kept (and the numbers shown) on release.
+          whenChange: () => held && placeHeld({ ...gripOf(held.name), ...fromHandle() }, false),
+          whenCommit: () => {
+            setGrip(fromHandle())
+            el.refreshScenePanel?.()
+          },
+        })
+        el.append(gizmo)
+        showGripHandles = (on) => {
+          gripHandles = on
+          gizmo.node = on && held ? gripNode : null
         }
         weapons?.ready.then(() => {
           heldNames = ['none', ...weapons.getNames().filter((n) => !n.startsWith('ammo')).sort()]

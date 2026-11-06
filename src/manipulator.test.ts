@@ -394,6 +394,55 @@ describe('a translate drag', () => {
   })
 })
 
+describe('a turned object', () => {
+  // Turned 90° about Y: its own x axis points along the world's -z.
+  const TURNED = {
+    x: v(0, 0, -1),
+    y: v(0, 1, 0),
+    z: v(1, 0, 0),
+  }
+
+  test('moves along its OWN axis, as its rings and cubes do', () => {
+    const drag = beginDrag(
+      { kind: 'translate', axis: 'x' },
+      v(0, 0, 0),
+      REST,
+      ray([10, 0, 0], [-1, 0, 0]),
+      TURNED
+    )!
+    updateDrag(drag, ray([10, 0, -2], [-1, 0, 0]), composeAdd)
+    expect(drag.current.position.z).toBeCloseTo(-2, 6)
+    expect(drag.current.position.x).toBeCloseTo(0, 6)
+  })
+
+  test('snaps the step along that axis, and commit keeps it', () => {
+    const drag = beginDrag(
+      { kind: 'translate', axis: 'x' },
+      v(0, 0, 0),
+      { ...REST, position: v(0.3, 0, 0) },
+      ray([10, 0, 0], [-1, 0, 0]),
+      TURNED
+    )!
+    updateDrag(drag, ray([10, 0, -1.2], [-1, 0, 0]), composeAdd, { gridSnap: 1 })
+    expect(drag.current.position.z).toBeCloseTo(-1, 6)
+    expect(commitTransform(drag, { gridSnap: 1 }).position.x).toBeCloseTo(0.3, 6)
+  })
+
+  test('a pad moves in its own plane', () => {
+    const drag = beginDrag(
+      { kind: 'planar', axis: 'x' },
+      v(0, 0, 0),
+      REST,
+      ray([0, 0, -9], [0, 0, 1]),
+      TURNED
+    )!
+    updateDrag(drag, ray([2, 3, -9], [0, 0, 1]), composeAdd)
+    expect(drag.current.position.x).toBeCloseTo(2, 6)
+    expect(drag.current.position.y).toBeCloseTo(3, 6)
+    expect(drag.current.position.z).toBeCloseTo(0, 6)
+  })
+})
+
 describe('a planar drag', () => {
   test('moves both in-plane axes and leaves the normal alone', () => {
     const drag = beginDrag(
