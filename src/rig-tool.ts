@@ -2535,12 +2535,25 @@ export function mountRigTool(
         const size = r * (picked ? 1.5 : 1.1)
         const nodes = sp.bones.nodes
         if (sp.recipe.kind === 'bones') {
-          // The whole chain, so it reads as a tail and not one stub.
-          nodes.forEach((n, k) =>
-            dot(n.getAbsolutePosition(), k === 0 ? size : size * 0.55, mat, {
-              rigSpring: i,
-            })
-          )
+          /*
+          The whole chain, so it reads as a tail and not one stub, where its
+          joints are NOW: a body bound from markers is bound again only when
+          you animate or press done, so its bones still stand where the last
+          binding put them, and drawn there they were a second tail beside
+          the joints you had just moved. With every joint showing, the
+          joints are the chain, and it is not drawn twice.
+          */
+          if (markerBound() && ui.joints) return
+          const fit = markerBound() ? fittedJoints() : null
+          nodes.forEach((n, k) => {
+            const m = fit?.get(n.name)
+            dot(
+              m != null ? toScene(m.x, m.y, m.z) : n.getAbsolutePosition(),
+              k === 0 ? size : size * 0.55,
+              mat,
+              { rigSpring: i }
+            )
+          })
           return
         }
         // A handle on every point of its path, and a small mark where
