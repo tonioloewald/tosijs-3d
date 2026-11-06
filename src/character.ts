@@ -226,7 +226,33 @@ function bindFrom(
  * given here, else guessed off their outline.
  */
 export const AI_CHARACTER_SOURCES: Record<string, CharacterSource> = {
-  'african-american-female': hosted('tonio/ai/african-american-female-10k.glb'),
+  'african-american-female': hosted(
+    'tonio/ai/african-american-female-10k.glb',
+    undefined,
+    bindFrom(
+      [
+        [0, 0.6107],
+        [0, -0.1016],
+        [0.4565, 0.0243],
+        [0.3338, 0.206],
+        [0.1177, -0.4581],
+      ],
+      {
+        thumb_01: [0.4798, 0.0089, 0.071],
+        thumb_02: [0.4555, -0.0154, 0.0883],
+        thumb_03: [0.4558, -0.039, 0.0986],
+        thumb_04_leaf: [0.4571, -0.0542, 0.1083],
+        index_01: [0.5017, -0.0296, 0.0698],
+        index_02: [0.512, -0.0638, 0.0728],
+        index_03: [0.5174, -0.0871, 0.0746],
+        index_04_leaf: [0.5246, -0.1041, 0.0767],
+        middle_03: [0.5227, -0.0987, 0.054],
+        middle_04_leaf: [0.5309, -0.1203, 0.0561],
+        ring_03: [0.5211, -0.0936, 0.0299],
+        ring_04_leaf: [0.5271, -0.1136, 0.0316],
+      }
+    )
+  ),
   'african-american-female-spacesuit': hosted(
     'tonio/ai/african-american-female-spacesuit-10k.glb'
   ),
