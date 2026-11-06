@@ -580,6 +580,25 @@ export function fitSkeleton(
       if (m != null)
         found = { fingers: [m.mitten], thumb: found?.thumb ?? m.thumb }
     }
+    /*
+    A THUMB IS THREE BONES OF A SIZE. On a spacesuit's glove the thumb found
+    ran 9.6 cm to its first knuckle and 1 cm to each of the others, folded
+    into a knot no one could take apart by hand. A bare thumb's shortest
+    bone is at least a third of its longest; under a fifth, it is placed by
+    proportion instead.
+    */
+    if (found?.thumb != null) {
+      const t = found.thumb
+      const seg = [0, 1, 2].map((i) =>
+        Math.hypot(
+          t[i + 1].x - t[i].x,
+          t[i + 1].y - t[i].y,
+          t[i + 1].z - t[i].z
+        )
+      )
+      if (Math.min(...seg) < 0.2 * Math.max(...seg))
+        found = { ...found, thumb: null }
+    }
     const real: string[] = []
     const chain = (f: string, pts: Vec3[]) => {
       putHand(`${f}_01_${side}`, `hand_${side}`, pts[0])
