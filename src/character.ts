@@ -169,27 +169,86 @@ export interface CharacterSource {
   url?: string
   file?: File
   pick?: string
+  /** Its rig, when none is saved for it: hand-placed markers, say. */
+  recipe?: Partial<RigRecipe>
 }
 
 // A hosted body: its URL is read when it is used, after the page has set
 // the asset base (computed at import, it came out relative to the page).
-const hosted = (path: string, pick?: string): CharacterSource => ({
+const hosted = (
+  path: string,
+  pick?: string,
+  recipe?: Partial<RigRecipe>
+): CharacterSource => ({
   get url() {
     return assetUrl(path)
   },
   ...(pick != null ? { pick } : {}),
+  ...(recipe != null ? { recipe } : {}),
 })
 
 /**
+ * A rig placed by hand in the rig tool, as a body's default: the five front
+ * markers on the left (chin, groin, wrist, elbow, knee; mirrored to the
+ * right) and any joints moved by hand, also on the left and mirrored.
+ */
+function bindFrom(
+  [chin, groin, wrist, elbow, knee]: Array<[number, number]>,
+  joints: Record<string, [number, number, number]> = {}
+): Partial<RigRecipe> {
+  const at = ([x, y]: [number, number], s = 1) => ({ x: x * s, y })
+  const moved: Record<string, { x: number; y: number; z: number }> = {}
+  for (const [name, [x, y, z]] of Object.entries(joints)) {
+    moved[`${name}_l`] = { x, y, z }
+    moved[`${name}_r`] = { x: -x, y, z }
+  }
+  return {
+    binding: {
+      markers: {
+        chin: at(chin),
+        groin: at(groin),
+        wristL: at(wrist),
+        wristR: at(wrist, -1),
+        elbowL: at(elbow),
+        elbowR: at(elbow, -1),
+        kneeL: at(knee),
+        kneeR: at(knee, -1),
+      },
+      tail: null,
+      joints: moved,
+    },
+  } as Partial<RigRecipe>
+}
+
+/**
  * Tonio's AI-generated characters (CC0, `tonio/ai` on the asset CDN): one
- * mesh each, unrigged, rigged from markers guessed off their outline.
+ * mesh each, unrigged, rigged from markers placed by hand where a recipe is
+ * given here, else guessed off their outline.
  */
 export const AI_CHARACTER_SOURCES: Record<string, CharacterSource> = {
   'african-american-female': hosted('tonio/ai/african-american-female-10k.glb'),
   'african-american-female-spacesuit': hosted(
     'tonio/ai/african-american-female-spacesuit-10k.glb'
   ),
-  'eurasian-male': hosted('tonio/ai/eurasian-male-10k.glb'),
+  'eurasian-male': hosted(
+    'tonio/ai/eurasian-male-10k.glb',
+    undefined,
+    bindFrom(
+      [
+        [0, 0.6324],
+        [0, -0.1614],
+        [0.5217, 0.105],
+        [0.3631, 0.2801],
+        [0.1217, -0.4923],
+      ],
+      {
+        thumb_01: [0.5421, 0.0598, 0.0834],
+        thumb_02: [0.5399, 0.0357, 0.0961],
+        thumb_03: [0.5407, 0.0149, 0.105],
+        thumb_04_leaf: [0.5397, 0.0033, 0.1169],
+      }
+    )
+  ),
   'eurasian-male-spacesuit': hosted('tonio/ai/eurasian-male-spacesuit-10k.glb'),
 }
 
@@ -949,7 +1008,8 @@ export async function makeCharacter(
   const rigged = new Map<string, any>()
   let other: any = null
   let problem = ''
-  const recipeOf = (name: string) => plain(s.rigs ?? {})[name] ?? null
+  const recipeOf = (name: string) =>
+    plain(s.rigs ?? {})[name] ?? sources[name]?.recipe ?? null
   const rig = async (name: string) => {
     const from = sources[name]
     if (!from) throw new Error('no such body')
