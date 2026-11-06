@@ -150,6 +150,7 @@ import {
 import { bodyFromMarkers, lidBlink, type RiggedBody } from './rigged-body.js'
 import { applyRigRecipe } from './rig-recipe-babylon.js'
 import type { RigRecipe } from './rig-recipe.js'
+import type { HandMode } from './rig-fit.js'
 import { assetUrl } from './asset-url.js'
 import type { SlotLook } from './character-file.js'
 import {
@@ -191,12 +192,14 @@ const hosted = (
  * A rig placed by hand in the rig tool, as a body's default: the five front
  * markers on the left (chin, groin, wrist, elbow, knee; mirrored to the
  * right) and any joints moved by hand, also on the left and mirrored, and
- * any on the centre line (a neck) as they are.
+ * any on the centre line (a neck) as they are; `hands` how much hand is
+ * rigged (a glove is a mitten: its thumb and middle finger are enough).
  */
 function bindFrom(
   [chin, groin, wrist, elbow, knee]: Array<[number, number]>,
   joints: Record<string, [number, number, number]> = {},
-  centre: Record<string, [number, number, number]> = {}
+  centre: Record<string, [number, number, number]> = {},
+  hands?: HandMode
 ): Partial<RigRecipe> {
   const at = ([x, y]: [number, number], s = 1) => ({ x: x * s, y })
   const moved: Record<string, { x: number; y: number; z: number }> = {}
@@ -220,6 +223,7 @@ function bindFrom(
       },
       tail: null,
       joints: moved,
+      ...(hands != null ? { hands } : {}),
     },
   } as Partial<RigRecipe>
 }
@@ -275,24 +279,13 @@ export const AI_CHARACTER_SOURCES: Record<string, CharacterSource> = {
         thumb_02: [0.476, 0.0518, 0.1852],
         thumb_03: [0.4773, 0.0269, 0.2042],
         thumb_04_leaf: [0.4775, 0.0037, 0.2148],
-        index_01: [0.512, 0.0255, 0.1786],
-        index_02: [0.5305, -0.0033, 0.1912],
-        index_03: [0.5409, -0.026, 0.2],
-        index_04_leaf: [0.5461, -0.0498, 0.208],
-        middle_01: [0.5201, 0.012, 0.1515],
-        middle_02: [0.5473, -0.0156, 0.1592],
-        middle_03: [0.5566, -0.0408, 0.17],
-        middle_04_leaf: [0.5643, -0.0682, 0.1793],
-        ring_01: [0.5295, 0.0015, 0.1242],
-        ring_02: [0.5509, -0.0259, 0.1329],
-        ring_03: [0.5652, -0.051, 0.142],
-        ring_04_leaf: [0.5771, -0.0711, 0.1524],
-        pinky_01: [0.5421, -0.0109, 0.099],
-        pinky_02: [0.5577, -0.0301, 0.1043],
-        pinky_03: [0.5612, -0.0436, 0.1099],
-        pinky_04_leaf: [0.5639, -0.0517, 0.1163],
+        middle_01: [0.5366, 0.0429, 0.1344],
+        middle_02: [0.549, 0.005, 0.1591],
+        middle_03: [0.551, -0.0291, 0.17],
+        middle_04_leaf: [0.5501, -0.059, 0.1792],
       },
-      { neck_01: [0.0011, 0.4738, 0.0212] }
+      { neck_01: [0.0011, 0.4738, 0.0212] },
+      'mitten'
     )
   ),
   'eurasian-male': hosted(
@@ -332,23 +325,13 @@ export const AI_CHARACTER_SOURCES: Record<string, CharacterSource> = {
           thumb_02: [0.4914, 0.0479, 0.157],
           thumb_03: [0.4871, 0.028, 0.1682],
           thumb_04_leaf: [0.4866, 0.0039, 0.1737],
-          index_01: [0.5494, 0.0332, 0.1374],
-          index_02: [0.5525, 0.0072, 0.1458],
-          index_03: [0.5491, -0.0218, 0.1557],
-          index_04_leaf: [0.5494, -0.0484, 0.161],
-          middle_01: [0.5637, 0.003, 0.1117],
-          middle_02: [0.5643, -0.027, 0.1196],
-          middle_03: [0.5626, -0.0469, 0.1244],
-          middle_04_leaf: [0.562, -0.0661, 0.1306],
-          ring_01: [0.559, 0.0004, 0.0804],
-          ring_02: [0.559, -0.0271, 0.084],
-          ring_03: [0.5587, -0.0452, 0.0869],
-          ring_04_leaf: [0.5545, -0.0619, 0.0928],
-          pinky_01: [0.5486, 0.0045, 0.0565],
-          pinky_02: [0.5481, -0.011, 0.0566],
-          pinky_03: [0.5587, -0.0288, 0.0601],
-          pinky_04_leaf: [0.5545, -0.0449, 0.0619],
-        }
+          middle_01: [0.5402, 0.0395, 0.0991],
+          middle_02: [0.55, 0.0002, 0.1135],
+          middle_03: [0.5571, -0.0295, 0.1183],
+          middle_04_leaf: [0.5586, -0.0559, 0.1235],
+        },
+        {},
+        'mitten'
       ),
     }
   ),
