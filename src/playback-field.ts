@@ -180,19 +180,29 @@ export function playback3d(config: Playback3dOptions): PlaybackField {
   // button3d's fixed label cannot.
   const el = g()
   const button = g()
-  const bg = rect({ rx: 6, ry: 6, fill: w3dTheme.buttonBg })
+  /*
+  ONE ROW, ONE LOOK: each segment's background is drawn here, the same height
+  and in the panel's row colour, lit where the pointer is. The slider's and
+  the menu's own (different heights, lit only on hover) are hidden.
+  */
+  const segBg = [0, 1, 2].map(() =>
+    rect({ rx: 6, ry: 6, fill: w3dTheme.rowBg })
+  )
+  const bg = segBg[0]
   const glyph = path({ fill: w3dTheme.text })
-  button.append(bg, glyph)
+  button.append(glyph)
   const scrubWrap = g()
   scrubWrap.appendChild(scrub.el)
   const pickWrap = g()
   pickWrap.appendChild(pick.el)
-  el.append(button, scrubWrap, pickWrap)
+  el.append(...segBg, button, scrubWrap, pickWrap)
 
   let rowH = 0
-  let cols: Array<{ x: number; width: number; w: Widget3d | null }> = []
-  let hovered = false
+  type Col = { x: number; dy: number; width: number; w: Widget3d | null }
+  let cols: Col[] = []
   let pressed = false
+  /** The segment under the pointer, lit. */
+  let lit = -1
 
   const drawButton = () => {
     const s = rowH
@@ -207,13 +217,13 @@ export function playback3d(config: Playback3dOptions): PlaybackField {
         : // Play: a triangle, nudged right to look centred.
           `M${c - r * 0.7} ${c - r}L${c + r * 1.1} ${c}L${c - r * 0.7} ${c + r}z`
     )
-    bg.setAttribute(
-      'fill',
-      pressed
-        ? w3dTheme.buttonActive
-        : hovered
-        ? w3dTheme.buttonHover
-        : w3dTheme.buttonBg
+    segBg.forEach((r, i) =>
+      r.setAttribute(
+        'fill',
+        i === lit || (i === 0 && pressed)
+          ? w3dTheme.rowHover
+          : w3dTheme.rowBg
+      )
     )
   }
 
@@ -227,7 +237,7 @@ export function playback3d(config: Playback3dOptions): PlaybackField {
     for (const c of cols) if (x >= c.x && x <= c.x + c.width) return c
     return null
   }
-  let held: { x: number; width: number; w: Widget3d | null } | null = null
+  let held: Col | null = null
 
   // Follows the clip while shown; `dispose` (the panel's) stops it.
   const timer = setInterval(() => api.refresh(), 1000 / (config.rate ?? 12))
@@ -246,26 +256,40 @@ export function playback3d(config: Playback3dOptions): PlaybackField {
       speed.push(s.speed)
     },
     layout(width: number) {
-      const pickW = Math.max(64, Math.round(w3dTheme.fontSize * 4.2))
+      // Wide enough for "×0.25" beside its chevron.
+      const pickW = Math.max(96, Math.round(w3dTheme.fontSize * 6.4))
       const gap = 6
-      rowH = Math.max(scrub.layout(10), 28)
-      const buttonW = rowH
+      const scrubH = scrub.layout(40)
+      const buttonW = Math.max(scrubH, 28)
       const scrubW = Math.max(40, width - buttonW - pickW - gap * 2)
       scrub.layout(scrubW)
       const pickH = pick.layout(pickW)
-      rowH = Math.max(rowH, pickH)
-      bg.setAttribute('width', String(buttonW))
-      bg.setAttribute('height', String(rowH))
-      scrubWrap.setAttribute('transform', `translate(${buttonW + gap}, 0)`)
-      pickWrap.setAttribute(
-        'transform',
-        `translate(${buttonW + gap + scrubW + gap}, 0)`
+      rowH = Math.max(scrubH, pickH, 28)
+      // Their own backgrounds go; ours stand in for them.
+      for (const w of [scrub, pick])
+        w.el.querySelector('rect')?.setAttribute('visibility', 'hidden')
+      // Centred on the row: the slider by its track (it keeps a line above
+      // for its readout), the menu by its text.
+      const track = [...scrub.el.querySelectorAll('rect')].find(
+        (r) => r.getAttribute('height') === '6'
       )
+      const trackMid = track ? Number(track.getAttribute('y')) + 3 : rowH / 2
+      const label = pick.el.querySelector('text')
+      const textMid = label ? Number(label.getAttribute('y')) : rowH / 2
+      const xs = [0, buttonW + gap, buttonW + gap + scrubW + gap]
+      const ws = [buttonW, scrubW, pickW]
       cols = [
-        { x: 0, width: buttonW, w: null },
-        { x: buttonW + gap, width: scrubW, w: scrub },
-        { x: buttonW + gap + scrubW + gap, width: pickW, w: pick },
+        { x: xs[0], dy: 0, width: ws[0], w: null },
+        { x: xs[1], dy: rowH / 2 - trackMid, width: ws[1], w: scrub },
+        { x: xs[2], dy: rowH / 2 - textMid, width: ws[2], w: pick },
       ]
+      segBg.forEach((r, i) => {
+        r.setAttribute('x', String(xs[i]))
+        r.setAttribute('width', String(ws[i]))
+        r.setAttribute('height', String(rowH))
+      })
+      scrubWrap.setAttribute('transform', `translate(${xs[1]}, ${cols[1].dy})`)
+      pickWrap.setAttribute('transform', `translate(${xs[2]}, ${cols[2].dy})`)
       drawButton()
       return rowH
     },
@@ -273,6 +297,9 @@ export function playback3d(config: Playback3dOptions): PlaybackField {
       // A drag stays with what it started on, as a slider's does.
       const c = kind === 'down' || held == null ? at(x) : held
       if (kind === 'down') held = c
+      const was = lit
+      lit = kind === 'leave' ? -1 : c == null ? -1 : cols.indexOf(c)
+      if (lit !== was) drawButton()
       if (c == null) return
       if (c.w == null) {
         if (kind === 'down') {
@@ -282,7 +309,7 @@ export function playback3d(config: Playback3dOptions): PlaybackField {
           pressed = false
           toggle()
         }
-      } else c.w.handle?.(kind, x - c.x, y)
+      } else c.w.handle?.(kind, x - c.x, y - c.dy)
       if (kind === 'up') {
         held = null
         pressed = false
@@ -293,14 +320,15 @@ export function playback3d(config: Playback3dOptions): PlaybackField {
       const c = at(x)
       if (c == null) return false
       if (c.w == null) return true
-      return c.w.hitTest ? c.w.hitTest(x - c.x, y) : true
+      return c.w.hitTest ? c.w.hitTest(x - c.x, y - c.dy) : true
     },
     setHost(h) {
       scrub.setHost?.(h)
       pick.setHost?.(h)
     },
     setState(state) {
-      hovered = state.hovered
+      // The pointer left the row: nothing under it is lit.
+      if (!state.hovered && !state.pressed) lit = -1
       drawButton()
     },
     dispose() {

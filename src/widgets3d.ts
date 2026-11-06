@@ -2918,7 +2918,9 @@ export function select3d(config: {
     },
     layout(width) {
       rowBg.setAttribute('width', String(width))
-      clusterW = Math.min(width * 0.55, 180)
+      // With no caption the value has the whole row (it ellipsized "×0.25"
+      // in a narrow select at 55% of nothing else).
+      clusterW = lbl ? Math.min(width * 0.55, 180) : width - TH.PAD_X * 2
       clusterX = width - TH.PAD_X - clusterW
       // Value right-aligned against the chevron, chevron hard against the
       // padding — so the caret sits at a predictable x whatever the value says.
