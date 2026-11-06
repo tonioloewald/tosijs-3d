@@ -34,7 +34,7 @@ THE STEPS:
    whose ray misses the body are filled in from their neighbours, and the
    edge outside the body is shared by both pieces: the seam. So is an edge
    running along the body's RIM (the top of an arm or a shoulder, the side of
-   a hip or a thigh; within 5 cm, just outside or just inside it): one vertex
+   a hip or a thigh; within 2.5 cm, just outside or just inside it): one vertex
    on the rim, pinned, so the cloth goes over the limb rather than hanging off
    its front and back.
 3. **Bridge**: a few passes pull each free vertex toward its neighbours and
@@ -78,7 +78,7 @@ export interface DrapeOptions {
 }
 
 /** How far an outline's edge may run from the body's rim (an arm's top, a hip's side) and still be sewn over it, metres. */
-export const OVER_REACH = 0.05
+export const OVER_REACH = 0.025
 
 const RIM_DIRS = Array.from({ length: 16 }, (_, i) => [
   Math.cos((i * Math.PI) / 8),
