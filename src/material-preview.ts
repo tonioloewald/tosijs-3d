@@ -107,8 +107,8 @@ function makeStage(): Stage | null {
       for (const m of container.materials) m.dispose(true, true)
       cube.dispose()
       s.shapes = meshes
-      // From its own camera's side, close enough that the ball fills the
-      // swatch (the file's camera framed more than the ball).
+      // From its own camera's side (level), close enough that the ball fills
+      // the swatch (the file's camera framed more than the ball).
       let lo = new BABYLON.Vector3(Infinity, Infinity, Infinity)
       let hi = lo.scale(-1)
       for (const m of meshes) {
@@ -126,8 +126,10 @@ function makeStage(): Stage | null {
         view.computeWorldMatrix()
         const d = view.globalPosition.subtract(centre)
         camera.alpha = Math.atan2(d.z, d.x)
-        camera.beta = Math.acos(d.y / (d.length() || 1))
       }
+      // Level with its equator: it is a UV sphere, pinched at the poles, and
+      // seen from level they sit on its outline, edge on.
+      camera.beta = Math.PI / 2
       for (const c of container.cameras) c.dispose()
       camera.setTarget(centre)
       // The ball's outline a little inside the swatch's edge.
