@@ -916,18 +916,17 @@ export function spreadHand(
     z: a.x * c.y - a.y * c.x,
   }
   if (n.y > 0) n = { x: -n.x, y: -n.y, z: -n.z }
-  const t0 = { s: 0.1 * hand, t: 2.2 * gap }
+  // Its root is down off the palm too, so from the front it stands clear of
+  // the hand's root (the wrist) rather than on top of it.
+  const t0 = { s: 0.15 * hand, t: 2.2 * gap, n: 0.25 * hand }
   const tl = 0.42 * hand
   const [ds, dt, dn] = [0.55, 0.55, 0.63]
   chain(
     'thumb',
     [0, 0.4, 0.72, 1].map((k) => {
       const p = at(t0.s + k * tl * ds, t0.t + k * tl * dt)
-      return {
-        x: p.x + n.x * k * tl * dn,
-        y: p.y + n.y * k * tl * dn,
-        z: p.z + n.z * k * tl * dn,
-      }
+      const down = t0.n + k * tl * dn
+      return { x: p.x + n.x * down, y: p.y + n.y * down, z: p.z + n.z * down }
     })
   )
   return out

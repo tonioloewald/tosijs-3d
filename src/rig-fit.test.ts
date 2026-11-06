@@ -648,6 +648,11 @@ describe('spreadHand', () => {
       return ((p.x - r.x) * d.y - (p.y - r.y) * d.x) / l
     }
     expect(Math.abs(off(hand.thumb_04_leaf_l))).toBeGreaterThan(0.03)
+    // Its root too: clear of the wrist from the front, not on top of it.
+    expect(Math.abs(off(hand.thumb_01_l))).toBeGreaterThan(0.03)
+    expect(
+      Math.hypot(hand.thumb_01_l.x - wrist.x, hand.thumb_01_l.y - wrist.y)
+    ).toBeGreaterThan(0.04)
     // Level arm: the thumb tip hangs below the wrist.
     const level = spreadHand({ x: 0.7, y: 1.4, z: 0 }, { x: 0.45, y: 1.4, z: 0 }, 'l')
     expect(level.thumb_04_leaf_l.y).toBeLessThan(1.4 - 0.03)
