@@ -1,9 +1,9 @@
 /*
-A material's swatch, rendered: one small picture of a recipe on a cube seen
-from above a corner (three faces: flat areas show a texture, edges catch the
-light), on grey, in a fixed studio, cached by the recipe, so a picker shows
-what a material LOOKS like rather than its base colour. Grey, not black, so a
-dark material reads against it.
+A material's swatch, rendered: one small picture of a recipe on Tonio's
+material test object (its `Ball`, framed by its own camera; `tonio/material-test/` on the CDN; a cube until it loads, or
+if it cannot), on grey, in a fixed studio, cached by the recipe, so a picker
+shows what a material LOOKS like rather than its base colour. Grey, not
+black, so a dark material reads against it.
 
 One hidden engine renders every preview on the page, made the first time one
 is asked for (one more WebGL context, once). Renders are queued and drawn one
@@ -12,6 +12,9 @@ in a headset renders each once.
 */
 
 import * as BABYLON from '@babylonjs/core'
+// The test object is a glb: register the loader even when this is imported alone.
+import '@babylonjs/loaders'
+import { assetUrl } from './asset-url.js'
 import { applyMaterial } from './material-apply.js'
 import { clothShading, type ClothShading } from './cloth-shading.js'
 import { studioEnvironment } from './environment.js'
@@ -30,9 +33,14 @@ interface Stage {
    * last preview's picture for the garment's own texture.
    */
   clothLook: ClothShading | null
-  /** What the material goes on. */
+  /** What the material goes on: the cube, or the test object once loaded. */
   shapes: BABYLON.AbstractMesh[]
+  /** Loading the test object; previews wait for it. */
+  ready: Promise<void>
 }
+
+/** What previews are drawn on: the ball in it (anything else in the file is dropped). */
+export const PREVIEW_MODEL = 'tonio/material-test/material-test.glb'
 
 let stage: Stage | null = null
 const cache = new Map<string, Promise<string | null>>()
@@ -76,12 +84,64 @@ function makeStage(): Stage | null {
   const cube = BABYLON.MeshBuilder.CreateBox('cube', { size: 1.25 }, scene)
   const pbr = new BABYLON.PBRMaterial('preview-pbr', scene)
   const cloth = new BABYLON.PBRMaterial('preview-cloth', scene)
-  return { engine, scene, canvas, pbr, cloth, clothLook: null, shapes: [cube] }
+  const s: Stage = {
+    engine,
+    scene,
+    canvas,
+    pbr,
+    cloth,
+    clothLook: null,
+    shapes: [cube],
+    ready: Promise.resolve(),
+  }
+  s.ready = BABYLON.LoadAssetContainerAsync(assetUrl(PREVIEW_MODEL), scene)
+    .then((container) => {
+      const drawn = container.meshes.filter((m) => m.getTotalVertices() > 0)
+      // The ball; the file's other meshes (a stand) are not drawn.
+      const ball = drawn.filter((m) => /^ball/i.test(m.name))
+      const meshes = ball.length ? ball : drawn
+      if (meshes.length === 0) return
+      container.addAllToScene()
+      for (const m of drawn) if (!meshes.includes(m)) m.dispose()
+      // Its own material (a UV test picture) is replaced by each preview.
+      for (const m of container.materials) m.dispose(true, true)
+      cube.dispose()
+      s.shapes = meshes
+      // From its own camera's side, close enough that the ball fills the
+      // swatch (the file's camera framed more than the ball).
+      let lo = new BABYLON.Vector3(Infinity, Infinity, Infinity)
+      let hi = lo.scale(-1)
+      for (const m of meshes) {
+        m.computeWorldMatrix(true)
+        const b = m.getBoundingInfo().boundingBox
+        lo = BABYLON.Vector3.Minimize(lo, b.minimumWorld)
+        hi = BABYLON.Vector3.Maximize(hi, b.maximumWorld)
+      }
+      const centre = lo.add(hi).scale(0.5)
+      // A ball's radius is its half width (the box's diagonal overstates it).
+      const size = hi.subtract(lo)
+      const radius = Math.max(size.x, size.y, size.z) / 2
+      const view = container.cameras[0]
+      if (view) {
+        view.computeWorldMatrix()
+        const d = view.globalPosition.subtract(centre)
+        camera.alpha = Math.atan2(d.z, d.x)
+        camera.beta = Math.acos(d.y / (d.length() || 1))
+      }
+      for (const c of container.cameras) c.dispose()
+      camera.setTarget(centre)
+      // The ball's outline a little inside the swatch's edge.
+      camera.radius = radius / Math.sin(camera.fov / 2) / 1.05
+      camera.minZ = 0.01
+    })
+    .catch(() => {})
+  return s
 }
 
 async function draw(recipe: MaterialRecipe): Promise<string | null> {
   stage ??= makeStage()
   if (stage == null) return null
+  await stage.ready
   const { scene, canvas } = stage
   const wear = (m: BABYLON.Material) => {
     for (const shape of stage!.shapes) shape.material = m
