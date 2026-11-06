@@ -104,6 +104,43 @@ describe('rigged body', () => {
   )
 
   test.skipIf(!existsSync(RIGGING))(
+    'hands: a mitten skins a thumb and one finger, none skins no finger',
+    () => {
+      const tris = objTriangles(
+        readFileSync(join(RIGGING, 'weasel-skinny.obj'), 'utf8'),
+        ['Body', 'Head', 'Tail']
+      )
+      // The finger chains that take any skin at all.
+      const skinned = (body: RiggedBody) => {
+        const used = new Set<string>()
+        body.weights.indices.forEach((j, k) => {
+          const m = /^(thumb|index|middle|ring|pinky)_/.exec(
+            body.rig.joints[j].name
+          )
+          if (m && body.weights.weights[k] > 0.01) used.add(m[1])
+        })
+        return [...used].sort()
+      }
+      const middle = bodyFromMarkers(tris).rig.at('middle_02_l')!
+      const moved = { ...middle, z: middle.z + 0.01 }
+      const mitten = bodyFromMarkers(tris, {
+        hands: 'mitten',
+        joints: { middle_02_l: moved },
+      })
+      keepsTheContract(mitten)
+      expect(skinned(mitten)).toEqual(['middle', 'thumb'])
+      // The other three lie on the middle finger, as it was moved.
+      expect(mitten.rig.at('index_02_l')).toEqual(moved)
+      expect(mitten.rig.at('pinky_02_l')).toEqual(moved)
+      expect(mitten.made).toMatchObject({ hands: 'mitten' })
+      const none = bodyFromMarkers(tris, { hands: 'none' })
+      keepsTheContract(none)
+      expect(skinned(none)).toEqual([])
+      expect(none.rig.joints.length).toBe(mitten.rig.joints.length)
+    }
+  )
+
+  test.skipIf(!existsSync(RIGGING))(
     "a file's uvs, colours and surfaces are carried onto the body",
     () => {
       const tris = objTriangles(

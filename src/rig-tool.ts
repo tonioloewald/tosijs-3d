@@ -40,7 +40,10 @@ The panel has these sections, its job first.
   bone chain, `tail_01` on, for a spring); `guess markers` starts again from
   the outline; `spread fingers` lays both hands out afresh from the wrists
   (a glove guessed into a knot), each finger apart, and shows the joints to
-  drag into place. The joints follow the markers. `move joints` shows every
+  drag into place. `hands` says how much hand is rigged: thumb and four
+  fingers, a mitten (a thumb and one finger, for a glove: the other fingers
+  lie on it and take no skin) or none (the hand alone); `as found` leaves it
+  to the fit. The joints follow the markers. `move joints` shows every
   joint (blue) to drag by hand from the view that suits: shoulders from the
   front, fingers and thumbs from the top, feet from the side. What hangs from
   a joint comes with it; set `dragging` to turn what hangs from it instead
@@ -192,6 +195,8 @@ import {
   objTriangles,
   rigSilhouette,
   spreadHand,
+  applyHandMode,
+  type HandMode,
   type MeshQuery,
   type Markers,
 } from './rig-fit.js'
@@ -283,6 +288,16 @@ const TAIL: SpringRecipe = {
   root: 'tail_01',
   params: { stiffness: 0.3, damping: 0.85, gravity: 9.8 },
   colliders: 'none',
+}
+
+/**
+ * Is a hand joint shown to move in this mode? A mitten shows its thumb and
+ * the one finger the others lie on; none shows no finger at all.
+ */
+function handJointShown(name: string, mode?: HandMode): boolean {
+  if (mode === 'mitten') return !/^(index|ring|pinky)_/.test(name)
+  if (mode === 'none') return !/^(thumb|index|middle|ring|pinky)_/.test(name)
+  return true
 }
 
 export function rigToolModels(): RigModel[] {
@@ -560,6 +575,7 @@ function bindMesh(
     tail: binding.tail,
     tailBase: binding.tailBase,
     joints: binding.joints,
+    hands: binding.hands,
     tailBones: options.tailBones,
   })
   const built = buildBody(scene, name, body)
@@ -589,6 +605,7 @@ function bindMesh(
       tail: binding.tail,
       tailBase: binding.tailBase,
       joints: binding.joints,
+      hands: binding.hands,
     },
     body,
     dispose() {
@@ -790,10 +807,15 @@ export function mountRigTool(
         tailStart: from.tail != null ? from.tailBase ?? undefined : undefined,
       })
       parents = new Map(rig.joints.map((j) => [j.name, j.parent]))
-      const out = new Map(rig.joints.map((j) => [j.name, j.position]))
-      if (withMoved)
-        for (const [n, p] of Object.entries(from.joints ?? {})) out.set(n, p)
-      return out
+      const moved = withMoved ? from.joints ?? {} : {}
+      const joints = rig.joints.map((j) =>
+        moved[j.name] != null ? { ...j, position: moved[j.name] } : j
+      )
+      const handed = applyHandMode(
+        { ...rig, joints, at: () => undefined },
+        from.hands
+      )
+      return new Map(handed.joints.map((j) => [j.name, j.position]))
     } catch {
       return null
     }
@@ -887,6 +909,7 @@ export function mountRigTool(
       tail,
       ...(tailBase ? { tailBase } : {}),
       ...moved,
+      ...(bound?.hands ? { hands: bound.hands } : {}),
     }
     if (next != null)
       bound = {
@@ -912,6 +935,26 @@ export function mountRigTool(
     bound = { ...bound, joints: binding.joints }
     stale = true
     ui.status = `${name} moved: bound again when you animate or press done`
+    edited()
+    commitNow()
+    refresh()
+    tool?.targets()
+  }
+  // How much hand is rigged (rig-fit's applyHandMode): kept in the binding.
+  function setHands(mode: HandMode | undefined) {
+    if (bound == null) return
+    const binding: RigBinding = recipe.binding ?? {
+      markers: bound.markers,
+      tail: bound.tail ?? null,
+    }
+    if (mode == null) delete binding.hands
+    else binding.hands = mode
+    recipe.binding = binding
+    bound = { ...bound, hands: mode }
+    stale = true
+    ui.status = `hands: ${
+      mode ?? 'as found'
+    }; bound again when you animate or press done`
     edited()
     commitNow()
     refresh()
@@ -1127,6 +1170,18 @@ export function mountRigTool(
             ui.joints = true
             setJoints('fingers spread', moved)
           },
+        }),
+        select3d({
+          label: 'hands',
+          value: b.hands ?? 'as found',
+          options: [
+            { label: 'as found', value: 'as found' },
+            { label: 'thumb and four fingers', value: 'full' },
+            { label: 'mitten: thumb and one finger', value: 'mitten' },
+            { label: 'none: the hand alone', value: 'none' },
+          ],
+          handleChange: (v) =>
+            setHands(v === 'as found' ? undefined : (v as HandMode)),
         }),
         toggle3d({
           label: 'move joints',
@@ -2432,6 +2487,7 @@ export function mountRigTool(
           for (const [name, node] of applied.read.nodes) {
             // A marker's joint is its marker (coloured), not a second dot.
             if (name === 'root' || markerJoints.has(name)) continue
+            if (!handJointShown(name, b.hands)) continue
             const m = fit?.get(name)
             const at =
               m != null ? toScene(m.x, m.y, m.z) : node.getAbsolutePosition()

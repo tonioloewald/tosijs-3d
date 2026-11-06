@@ -52,12 +52,14 @@ A rigged body is plain data, Babylon-free:
 
 import type { Vec3 } from './spatial-transform.js'
 import {
+  applyHandMode,
   fitSkeleton,
   guessMarkers,
   meshQuery,
   rigSilhouette,
   skinSegments,
   type FittedRig,
+  type HandMode,
   type Markers,
 } from './rig-fit.js'
 import { boneHeat, type SkinWeights } from './bone-heat.js'
@@ -74,6 +76,8 @@ export type RiggedBodyOrigin =
       tailBase?: Vec3 | null
       /** Joints moved by hand after the fit, by name. */
       joints?: Record<string, Vec3>
+      /** How much hand was rigged, if chosen. */
+      hands?: HandMode
     }
   | {
       /**
@@ -167,6 +171,8 @@ export function bodyFromMarkers(
      * → where it is. They win over where the fit put them.
      */
     joints?: Record<string, Vec3>
+    /** How much hand to rig (rig-fit's `HandMode`); left out, as found. */
+    hands?: HandMode
   } = {}
 ): RiggedBody {
   const positions = Float32Array.from(tris.positions)
@@ -179,7 +185,7 @@ export function bodyFromMarkers(
     tailBones: options.tailBones,
   })
   const moved = options.joints ?? {}
-  const rig: FittedRig = Object.keys(moved).length
+  const placed: FittedRig = Object.keys(moved).length
     ? (() => {
         const joints = fitted.joints.map((j) =>
           moved[j.name] != null ? { ...j, position: { ...moved[j.name] } } : j
@@ -188,6 +194,8 @@ export function bodyFromMarkers(
         return { ...fitted, joints, at: (name: string) => byName.get(name) }
       })()
     : fitted
+  // After the moved joints, so a mitten's fingers lie on its moved middle one.
+  const rig = applyHandMode(placed, options.hands)
   // Each bone heats only what it can see (an arm against the side, legs or
   // a tail that touch): see bone-heat.
   const weights = boneHeat(positions, indices, skinSegments(rig), {
@@ -214,6 +222,7 @@ export function bodyFromMarkers(
         ? { tailBase: options.tailBase }
         : {}),
       ...(Object.keys(moved).length ? { joints: { ...moved } } : {}),
+      ...(options.hands != null ? { hands: options.hands } : {}),
     },
   }
 }

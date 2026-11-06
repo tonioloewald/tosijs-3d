@@ -1142,6 +1142,7 @@ export async function makeCharacter(
         tail: b?.tail,
         tailBase: b?.tailBase,
         joints: b?.joints,
+        hands: b?.hands,
         source: name,
       }),
       kept,
@@ -1170,6 +1171,7 @@ export async function makeCharacter(
               tail: m.tail ?? null,
               ...(m.tailBase ? { tailBase: m.tailBase } : {}),
               ...(m.joints ? { joints: m.joints } : {}),
+              ...(m.hands ? { hands: m.hands } : {}),
             },
           }
         : {}),

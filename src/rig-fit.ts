@@ -917,6 +917,51 @@ export function spreadHand(
   return out
 }
 
+/*
+HOW MUCH HAND TO RIG. Twenty finger joints are worth placing only on a mesh
+that shows fingers; on a glove they are work that buys nothing and a guess
+that knots. So a binding says how much hand there is, as Mixamo's skeleton
+detail levels do:
+
+- `full`: thumb and four fingers, each taking its own skin;
+- `mitten`: a thumb and one finger (the middle: a retarget aims a hand by
+  it), for a glove, a claw or a cartoon hand. The other three fingers lie
+  on it and take no skin, so in a clip the mitten curls with the middle
+  finger, which a fist curls with the rest;
+- `none`: the hand takes the whole hand; the fingers take no skin.
+
+Left out, the hand is as the fit found it. Whatever the mode, every one of
+UAL's 65 joints is there (an export needs them all).
+*/
+export type HandMode = 'full' | 'mitten' | 'none'
+export const HAND_MODES: HandMode[] = ['full', 'mitten', 'none']
+const FOUR = ['index', 'middle', 'ring', 'pinky']
+
+/** A fitted rig with its hands as `mode` says (unchanged if none is given). */
+export function applyHandMode(rig: FittedRig, mode?: HandMode): FittedRig {
+  if (mode == null) return rig
+  const at = new Map(rig.joints.map((j) => [j.name, j.position]))
+  const joints = rig.joints.map((j) => {
+    const m = /^(index|ring|pinky)_(01|02|03|04_leaf)_([lr])$/.exec(j.name)
+    if (mode !== 'mitten' || m == null) return j
+    const on = at.get(`middle_${m[2]}_${m[3]}`)
+    return on != null ? { ...j, position: { ...on } } : j
+  })
+  const byName = new Map(joints.map((j) => [j.name, j.position]))
+  const real =
+    mode === 'full'
+      ? ['thumb', ...FOUR]
+      : mode === 'mitten'
+      ? ['middle', 'thumb']
+      : []
+  return {
+    ...rig,
+    joints,
+    fingers: { l: [...real], r: [...real] },
+    at: (name: string) => byName.get(name),
+  }
+}
+
 /** Which UAL fingers a hand of n fingers uses, front (thumb side) first. */
 const FINGER_NAMES: Record<number, string[]> = {
   1: ['index'],
