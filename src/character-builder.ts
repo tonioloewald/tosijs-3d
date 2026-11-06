@@ -484,8 +484,10 @@ preview.append(
         floor.material = floorMat
         el.register({ meshes: [floor] })
 
-        // UAL's mannequin is only the clips' source: it stays hidden.
-        const ual = await BABYLON.LoadAssetContainerAsync(assetUrl('quaternius/UAL1_core.glb', 2), scene)
+        // UAL's mannequin is only the clips' source: it stays hidden. The
+        // builder's own pack: the loops that test a rig (locomotion, crouch,
+        // the pistol, sword, shield and bow), not the bipeds' set.
+        const ual = await BABYLON.LoadAssetContainerAsync(assetUrl('quaternius/UAL_builder.glb'), scene)
         el.setLoading('loading the body…')
         ual.addAllToScene()
         for (const g of ual.animationGroups) g.stop()

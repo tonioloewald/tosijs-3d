@@ -1943,9 +1943,10 @@ export function mountRigTool(
       cleanups.push(() => stage.dispose())
     }
 
-    // The clips' source, beside the character when comparing.
+    // The clips' source, beside the character when comparing: the rig
+    // testing pack (the character builder's, so hosted it is cached).
     const ual = await BABYLON.LoadAssetContainerAsync(
-      assetUrl('quaternius/UAL1_core.glb', 2),
+      assetUrl('quaternius/UAL_builder.glb'),
       scene
     )
     if (disposed) {
