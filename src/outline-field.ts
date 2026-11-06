@@ -53,6 +53,11 @@ export interface OutlineField3dOptions {
   symmetry?: boolean
   /** Tallest the view may be, in px (default 260). */
   maxHeight?: number
+  /**
+   * Show where the outline is over the body (a drape pins the cloth to the
+   * skin there): those points and stretches of edge are drawn yellow.
+   */
+  anchors?: boolean
   /** As a point moves. */
   handleChange?: (value: ViewPoint[][]) => void
   /** When a point is placed, let go or deleted: recut here. */
@@ -92,6 +97,22 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
     max: { u: front.max.u + MARGIN, v: front.max.v + MARGIN },
   }
   const symmetry = config.symmetry ?? true
+  /*
+  OVER THE BODY, in the front view: where a drape pins its cloth (a ray from
+  the front hits the skin). Read off the silhouette's rows.
+  */
+  const rows = new Map<number, Array<[number, number]>>()
+  const v0 = Math.min(...front.runs.map((r) => r.v))
+  for (const r of front.runs) {
+    const k = Math.round((r.v - v0) / front.cell)
+    let row = rows.get(k)
+    if (!row) rows.set(k, (row = []))
+    row.push([r.u0, r.u1])
+  }
+  const overBody = (x: number, y: number): boolean =>
+    (rows.get(Math.floor((y - v0) / front.cell)) ?? []).some(
+      ([a, b]) => x >= a && x <= b
+    )
   let shapes = copy(config.value ?? [])
   // The shape being clicked out, not yet closed (index into shapes), if any.
   let open: number | null = null
@@ -105,13 +126,14 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
   const centre = path({ fill: 'none' })
   const ghosts = path({ fill: 'none' })
   const lines = g()
+  const anchored = path({ fill: 'none' })
   const dots = g()
   const caption = text({
     'font-family': w3dTheme.fontFamily,
     'font-size': String(Math.round(w3dTheme.fontSize * 0.85)),
     fill: w3dTheme.muted,
   })
-  for (const n of [bg, body, centre, ghosts, lines, dots, caption])
+  for (const n of [bg, body, centre, ghosts, lines, anchored, dots, caption])
     el.appendChild(n)
 
   const HANDLE = 4
@@ -186,6 +208,42 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
     ghosts.setAttribute('stroke-opacity', '0.35')
     ghosts.setAttribute('fill', w3dTheme.accent)
     ghosts.setAttribute('fill-opacity', '0.12')
+    // The stretches of outline over the body, sampled along each edge.
+    const pinned: string[] = []
+    if (config.anchors)
+      shapes.forEach((s, si) => {
+        const n = s.length
+        const edges = si === open ? n - 1 : n
+        for (let i = 0; i < edges; i++) {
+          const a = s[i]
+          const b = s[(i + 1) % n]
+          // The centre seam of a mirrored half is not an edge of the garment.
+          if (symmetry && a[0] === 0 && b[0] === 0) continue
+          const len = Math.hypot(b[0] - a[0], b[1] - a[1])
+          const k = Math.max(1, Math.ceil(len / (front.cell / 2)))
+          let run: ViewPoint | null = null
+          for (let j = 0; j <= k; j++) {
+            const p: ViewPoint = [
+              a[0] + ((b[0] - a[0]) * j) / k,
+              a[1] + ((b[1] - a[1]) * j) / k,
+            ]
+            const on = overBody(p[0], p[1])
+            if (on && run == null) run = p
+            if ((!on || j === k) && run != null) {
+              pinned.push(
+                `M${fx(run[0]).toFixed(1)} ${py(run[1]).toFixed(1)}L${fx(
+                  p[0]
+                ).toFixed(1)} ${py(p[1]).toFixed(1)}`
+              )
+              run = null
+            }
+          }
+        }
+      })
+    anchored.setAttribute('d', pinned.join(''))
+    anchored.setAttribute('stroke', w3dTheme.anchored)
+    anchored.setAttribute('stroke-width', '2.5')
+    anchored.setAttribute('stroke-linecap', 'round')
     while (lines.firstChild) lines.removeChild(lines.firstChild)
     while (dots.firstChild) dots.removeChild(dots.firstChild)
     shapes.forEach((s, si) => {
@@ -207,7 +265,12 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
             cx: fx(x),
             cy: py(y),
             r: on ? HANDLE + 1.5 : HANDLE,
-            fill: si === open && pi === 0 ? w3dTheme.text : w3dTheme.accent,
+            fill:
+              si === open && pi === 0
+                ? w3dTheme.text
+                : config.anchors && overBody(x, y)
+                ? w3dTheme.anchored
+                : w3dTheme.accent,
             stroke: on ? w3dTheme.text : w3dTheme.panelBg,
             'stroke-width': String(on ? 2 : 1),
           })

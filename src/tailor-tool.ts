@@ -450,6 +450,8 @@ export function mountTailorTool(
       indices: body.indices,
       value: cut.shapes,
       maxHeight: 400,
+      // A drape pins its cloth where the outline is over the body.
+      anchors: cut.drape === true && !cut.skirt,
       handleCommit: (v) => {
         cut.shapes = v
         recut()
@@ -505,6 +507,8 @@ export function mountTailorTool(
         cut.drape = v === 'drape'
         recut()
         changed()
+        // The outline shows what a drape anchors, and only in drape mode.
+        refresh()
       },
     }),
     materialPicker3d({

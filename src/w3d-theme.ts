@@ -238,6 +238,12 @@ export const w3dTheme = {
   error: cssVar('--w3d-error', '#6b2323'),
 
   /*
+  ANCHORED — a point or edge held in place: where the tailor's drape pins its
+  cloth to the skin. A mark, not a surface, so it is bright: yellow for now.
+  */
+  anchored: cssVar('--w3d-anchored', '#ffd23f'),
+
+  /*
   INTERACTION STATES — hover, focus, selected, disabled.
 
   Four states that must stay TELLABLE APART, which is the whole reason they are
