@@ -38,6 +38,7 @@ import { svgElements } from 'tosijs'
 import { rigSilhouette, type Silhouette } from './rig-fit.js'
 import type { ViewPoint } from './garment-cut.js'
 import { mirrorOutline } from './garment-cut.js'
+import { insidePolygon, rimSeam } from './cloth-drape.js'
 import { w3dTheme } from './w3d-theme.js'
 import type { PointerKind, Widget3d } from './widgets3d.js'
 
@@ -127,6 +128,21 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
     (rows.get(Math.floor((y - v0) / front.cell)) ?? []).some(
       ([a, b]) => x >= a && x <= b
     )
+  // Anchored: over the body, or on its rim within reach (a seam the drape
+  // sews over a limb), decided as the drape decides it, on the whole outline.
+  const anchoredAt = (shape: ViewPoint[], x: number, y: number): boolean => {
+    if (overBody(x, y)) return true
+    const whole = symmetry ? mirrorOutline([shape]) : [shape]
+    return (
+      rimSeam(
+        overBody,
+        (px, py) => whole.some((p) => insidePolygon(p, px, py)),
+        x,
+        y,
+        front.cell
+      ) != null
+    )
+  }
   let shapes = copy(config.editing?.shapes ?? config.value ?? [])
   // The shape being clicked out, not yet closed (index into shapes), if any.
   let open: number | null = config.editing?.open ?? null
@@ -242,7 +258,7 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
               a[0] + ((b[0] - a[0]) * j) / k,
               a[1] + ((b[1] - a[1]) * j) / k,
             ]
-            const on = overBody(p[0], p[1])
+            const on = anchoredAt(s, p[0], p[1])
             if (on && run == null) run = p
             if ((!on || j === k) && run != null) {
               pinned.push(
@@ -283,7 +299,7 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
             fill:
               si === open && pi === 0
                 ? w3dTheme.text
-                : config.anchors && overBody(x, y)
+                : config.anchors && si !== open && anchoredAt(s, x, y)
                 ? w3dTheme.anchored
                 : w3dTheme.accent,
             stroke: on ? w3dTheme.text : w3dTheme.panelBg,

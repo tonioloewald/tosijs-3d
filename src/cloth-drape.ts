@@ -32,7 +32,11 @@ THE STEPS:
 2. **Lift**: each vertex goes onto the front of the body (front piece) or the
    back (back piece) along the view direction, `thickness` out. Vertices
    whose ray misses the body are filled in from their neighbours, and the
-   edge outside the body is shared by both pieces: the seam.
+   edge outside the body is shared by both pieces: the seam. So is an edge
+   running along the body's RIM (the top of an arm or a shoulder, the side of
+   a hip or a thigh; within 5 cm, just outside or just inside it): one vertex
+   on the rim, pinned, so the cloth goes over the limb rather than hanging off
+   its front and back.
 3. **Bridge**: a few passes pull each free vertex toward its neighbours and
    back out of the body, as cloth under a little tension does. Its lengths
    then are the cloth's.
@@ -71,6 +75,70 @@ export interface DrapeOptions {
   steps?: number
   /** UV scale: texture repeats per metre in the front view. Default 1. */
   uvScale?: number
+}
+
+/** How far an outline's edge may run from the body's rim (an arm's top, a hip's side) and still be sewn over it, metres. */
+export const OVER_REACH = 0.05
+
+const RIM_DIRS = Array.from({ length: 16 }, (_, i) => [
+  Math.cos((i * Math.PI) / 8),
+  Math.sin((i * Math.PI) / 8),
+])
+
+/**
+ * Where a point on an outline's edge runs along the body's RIM in the front
+ * view (the top of an arm or a shoulder, the side of a hip or a thigh),
+ * within `reach` straight out from the piece: that rim point, else null. A
+ * drape SEWS its front and back there and pins the seam over the body;
+ * otherwise the pieces are hung on the front and the back of the limb and
+ * nothing crosses it. An edge that crosses the body (a neckline across the
+ * chest, a waist, a hem across the thighs) finds no rim ahead of it and stays
+ * open. `covered` is the body's front view, `inside` the piece's outline.
+ */
+export function rimSeam(
+  covered: (x: number, y: number) => boolean,
+  inside: (x: number, y: number) => boolean,
+  x: number,
+  y: number,
+  step: number,
+  reach = OVER_REACH
+): { x: number; y: number; out: [number, number] } | null {
+  // Straight out of the piece: the mean of the directions that leave it.
+  let ox = 0
+  let oy = 0
+  for (const [dx, dy] of RIM_DIRS)
+    if (!inside(x + dx * step, y + dy * step)) {
+      ox += dx
+      oy += dy
+    }
+  const ol = Math.hypot(ox, oy)
+  if (ol < 1e-9) return null
+  ox /= ol
+  oy /= ol
+  // The rim nearest the point along that line: covered on the near side, not beyond.
+  const h = step / 2
+  let best: number | null = null
+  for (let t = -reach; t <= reach; t += h)
+    if (
+      covered(x + ox * t, y + oy * t) &&
+      !covered(x + ox * (t + h), y + oy * (t + h))
+    )
+      if (best == null || Math.abs(t) < Math.abs(best)) best = t
+  return best == null
+    ? null
+    : { x: x + ox * best, y: y + oy * best, out: [ox, oy] }
+}
+
+/** Inside a polygon (even-odd). */
+export function insidePolygon(poly: ViewPoint[], x: number, y: number): boolean {
+  let inside = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i]
+    const [xj, yj] = poly[j]
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)
+      inside = !inside
+  }
+  return inside
 }
 
 /** Ear clipping: triangles of a simple polygon (indices into it), either winding. */
@@ -323,6 +391,17 @@ export function* drapeSteps(
       const y = piece.positions[v * 3 + 1]
       const spans = query.spans(x, y)
       const covered = spans.length > 0
+      // Along the body's rim (an arm's top, a hip's side): one vertex over it
+      // for both pieces, on the body and pinned (a seam over the limb).
+      const rim = piece.boundary[v]
+        ? rimSeam(
+            (px, py) => query.spans(px, py).length > 0,
+            (px, py) => insidePolygon(poly, px, py),
+            x,
+            y,
+            edge / 2
+          )
+        : null
       const add = (z: number, isKnown: boolean, pin: boolean) => {
         const i = X.length / 3
         X.push(x, y, z)
@@ -331,7 +410,21 @@ export function* drapeSteps(
         uv.push(x * uvScale, y * uvScale)
         return i
       }
-      if (covered) {
+      if (rim != null) {
+        // Half a step in from the rim, the body's depth there: the seam goes
+        // at its middle, `thickness` out past the rim.
+        const [ox, oy] = rim.out
+        const under = query.spans(rim.x - (ox * edge) / 4, rim.y - (oy * edge) / 4)
+        const z = under.length
+          ? (under[0].front + under[under.length - 1].back) / 2
+          : 0
+        const i = X.length / 3
+        X.push(rim.x + ox * thickness, rim.y + oy * thickness, z)
+        known.push(1)
+        pinned.push(1)
+        uv.push(x * uvScale, y * uvScale)
+        front[v] = back[v] = i
+      } else if (covered) {
         const pin = piece.boundary[v] === 1
         front[v] = add(spans[0].front + thickness, true, pin)
         back[v] = add(spans[spans.length - 1].back - thickness, true, pin)
@@ -659,16 +752,7 @@ export function* drapeSteps(
 
   // What it hides: body vertices behind the cloth in the front view.
   const del: number[] = []
-  const inPoly = (poly: ViewPoint[], x: number, y: number) => {
-    let inside = false
-    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-      const [xi, yi] = poly[i]
-      const [xj, yj] = poly[j]
-      if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)
-        inside = !inside
-    }
-    return inside
-  }
+  const inPoly = insidePolygon
   for (let v = 0; v < body.length / 3; v++)
     if (options.front.some((p) => inPoly(p, body[v * 3], body[v * 3 + 1])))
       del.push(v)
