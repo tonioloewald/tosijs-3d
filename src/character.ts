@@ -190,14 +190,18 @@ const hosted = (
 /**
  * A rig placed by hand in the rig tool, as a body's default: the five front
  * markers on the left (chin, groin, wrist, elbow, knee; mirrored to the
- * right) and any joints moved by hand, also on the left and mirrored.
+ * right) and any joints moved by hand, also on the left and mirrored, and
+ * any on the centre line (a neck) as they are.
  */
 function bindFrom(
   [chin, groin, wrist, elbow, knee]: Array<[number, number]>,
-  joints: Record<string, [number, number, number]> = {}
+  joints: Record<string, [number, number, number]> = {},
+  centre: Record<string, [number, number, number]> = {}
 ): Partial<RigRecipe> {
   const at = ([x, y]: [number, number], s = 1) => ({ x: x * s, y })
   const moved: Record<string, { x: number; y: number; z: number }> = {}
+  for (const [name, [x, y, z]] of Object.entries(centre))
+    moved[name] = { x, y, z }
   for (const [name, [x, y, z]] of Object.entries(joints)) {
     moved[`${name}_l`] = { x, y, z }
     moved[`${name}_r`] = { x: -x, y, z }
@@ -254,7 +258,42 @@ export const AI_CHARACTER_SOURCES: Record<string, CharacterSource> = {
     )
   ),
   'african-american-female-spacesuit': hosted(
-    'tonio/ai/african-american-female-spacesuit-10k.glb'
+    'tonio/ai/african-american-female-spacesuit-10k.glb',
+    undefined,
+    bindFrom(
+      [
+        [0, 0.5879],
+        [0, -0.22],
+        [0.4761, 0.0743],
+        [0.3273, 0.2678],
+        [0.1397, -0.5268],
+      ],
+      {
+        clavicle: [0.0297, 0.4345, 0.0038],
+        upperarm: [0.1958, 0.4719, -0.0164],
+        thumb_01: [0.4756, 0.0702, 0.1598],
+        thumb_02: [0.476, 0.0518, 0.1852],
+        thumb_03: [0.4773, 0.0269, 0.2042],
+        thumb_04_leaf: [0.4775, 0.0037, 0.2148],
+        index_01: [0.512, 0.0255, 0.1786],
+        index_02: [0.5305, -0.0033, 0.1912],
+        index_03: [0.5409, -0.026, 0.2],
+        index_04_leaf: [0.5461, -0.0498, 0.208],
+        middle_01: [0.5201, 0.012, 0.1515],
+        middle_02: [0.5473, -0.0156, 0.1592],
+        middle_03: [0.5566, -0.0408, 0.17],
+        middle_04_leaf: [0.5643, -0.0682, 0.1793],
+        ring_01: [0.5295, 0.0015, 0.1242],
+        ring_02: [0.5509, -0.0259, 0.1329],
+        ring_03: [0.5652, -0.051, 0.142],
+        ring_04_leaf: [0.5771, -0.0711, 0.1524],
+        pinky_01: [0.5421, -0.0109, 0.099],
+        pinky_02: [0.5577, -0.0301, 0.1043],
+        pinky_03: [0.5612, -0.0436, 0.1099],
+        pinky_04_leaf: [0.5639, -0.0517, 0.1163],
+      },
+      { neck_01: [0.0011, 0.4738, 0.0212] }
+    )
   ),
   'eurasian-male': hosted(
     'tonio/ai/eurasian-male-10k.glb',
