@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, iconBar3d, undoHistory, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 import { exportBodyRows } from 'tosijs-3d/body-export'
@@ -23,7 +23,7 @@ const { walker } = tosi({ walker: structuredClone(START) })
 // cloth), the microphone (it would ask on load), or the save controls.
 const KEPT = Object.keys(START).filter((k) => !['editing', 'look', 'clothLook', 'mic', 'characterName'].includes(k))
 // Saving and loading characters, wired when the page is up.
-const character = { save: () => {}, rename: () => {}, load: () => {}, remove: () => {}, exportJson: () => {}, play: () => {}, importJson: () => {}, changed: () => {}, saved: [], note: '' }
+const character = { save: () => {}, rename: () => {}, load: () => {}, remove: () => {}, exportJson: () => {}, play: () => {}, importJson: () => {}, changed: () => {}, undo: () => {}, redo: () => {}, canUndo: () => false, canRedo: () => false, saved: [], note: '' }
 // A name asked for in a popup (works in a headset too): refused with its
 // reason, and a confirm before it replaces ANOTHER saved character.
 const namePopup = (pop, { prompt, initial, current, verb, act }) => {
@@ -54,6 +54,11 @@ const characterRows = () => {
   const current = walker.characterName.value
   const unsaved = () => !walker.characterName.value
   return [
+    // Undo and redo: every change to the character, as it settles.
+    iconBar3d({ items: [
+      { icon: 'rotateCcw', title: 'undo (⌘Z)', dim: !character.canUndo(), handleClick: () => character.undo() },
+      { icon: 'rotateCw', title: 'redo (⇧⌘Z)', dim: !character.canRedo(), handleClick: () => character.redo() },
+    ] }),
     label3d({ text: 'Character', collapsible: true }),
     select3d({
       label: 'character',
@@ -1100,8 +1105,7 @@ preview.append(
         }
         // Kept a moment after the last change, so a slider drag is one write.
         let pending = null
-        character.changed = () => {
-          if (restoring) return
+        const keepWorking = () => {
           clearTimeout(pending)
           pending = setTimeout(() => {
             // Under the name it is being edited as, so a reload knows which
@@ -1109,6 +1113,78 @@ preview.append(
             store.put(WORKING, snapshot(walker.characterName.value || WORKING)).catch((e) => console.warn('character builder: could not keep the working figure', e))
           }, 800)
         }
+        character.changed = () => {
+          if (restoring) return
+          keepWorking()
+          awaitStep()
+        }
+
+        // UNDO (#3878): the character recorded as each change settles, a
+        // slider drag or a placed grip being one step. A step is the snapshot
+        // without its files' bytes (garments and bodies stay loaded, so a step
+        // only names them), and undo applies it as loading a character does.
+        // Not the clip or playback: watching is not editing.
+        const TRANSIENT = ['paused', 'clip', 'talk', 'blink', 'exportBody', 'tailorAlone']
+        const undoable = () => ({
+          settings: Object.fromEntries(KEPT.filter((k) => !TRANSIENT.includes(k)).map((k) => [k, plain(walker[k].value)])),
+          cloth: Object.fromEntries(SLOTS.map((slot) => [slot, plain(ch.cloth(slot))])),
+          tailor: plain(tailorShapes),
+        })
+        const history = undoHistory({ limit: 100 })
+        let stepTimer = null
+        const buttons = () => `${character.canUndo()}${character.canRedo()}`
+        const record = () => {
+          const was = buttons()
+          clearTimeout(stepTimer)
+          stepTimer = null
+          history.record(undoable())
+          if (buttons() !== was) el.refreshScenePanel?.()
+        }
+        const awaitStep = () => {
+          const was = buttons()
+          clearTimeout(stepTimer)
+          stepTimer = setTimeout(record, 400)
+          if (buttons() !== was) el.refreshScenePanel?.()
+        }
+        let stepping = false
+        const restore = async (step) => {
+          if (!step) return
+          stepping = true
+          const name = walker.characterName.value
+          const settings = { ...Object.fromEntries(KEPT.map((k) => [k, plain(walker[k].value)])), ...step.settings }
+          try {
+            await apply(writeCharacter({ name: name || WORKING, settings, cloth: step.cloth, tailor: step.tailor, garments: {}, bodies: {} }))
+          } catch (e) {
+            tell(`could not undo: ${e?.message ?? e}`)
+          } finally {
+            stepping = false
+          }
+          walker.characterName.value = name
+          // Kept, but not a new step (redo stays).
+          keepWorking()
+          el.refreshScenePanel?.()
+        }
+        // Not while a tool has the body: the rig tool undoes its own edits.
+        const idle = () => !stepping && !rigging && !tailoring
+        character.canUndo = () => idle() && (history.canUndo || stepTimer != null)
+        character.canRedo = () => idle() && stepTimer == null && history.canRedo
+        character.undo = () => {
+          if (!character.canUndo()) return
+          // A change still settling is a step of its own.
+          if (stepTimer != null) record()
+          return restore(history.undo())
+        }
+        character.redo = () => character.canRedo() && restore(history.redo())
+        const onKey = (e) => {
+          if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return
+          if (e.target?.closest?.('input, textarea, [contenteditable]')) return
+          if (!idle()) return
+          e.preventDefault()
+          if (e.shiftKey) character.redo()
+          else character.undo()
+        }
+        window.addEventListener('keydown', onKey)
+        el.whenDisposed?.(() => window.removeEventListener('keydown', onKey))
         for (const k of [...KEPT, 'look', 'clothLook']) walker[k].observe(() => character.changed())
         character.save = async (name) => {
           try {
@@ -1186,6 +1262,8 @@ preview.append(
         // The figure you were working on, as you left it.
         const working = await store.get(WORKING).catch(() => null)
         if (working) await apply(working).catch((e) => console.warn('character builder: the working figure would not load', e))
+        // Undo starts from the figure as it opened.
+        history.clear(undoable())
         await listSaved()
         el.setLoading(false)
         play()
@@ -1204,6 +1282,11 @@ preview.append(
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+**Undo and redo** are the arrows at the top of the panel (⌘Z and ⇧⌘Z):
+every change to the character as it settles, so a slider drag or a placed
+grip is one step ([undo-history](/undo-history/)). The clip and its playback
+are not steps. While the rig tool has the body, they undo the rig tool's edits.
 
 **Source** picks the body. A first visit starts on one of four AI-made
 characters at random (a woman and a man, each in underwear and in a

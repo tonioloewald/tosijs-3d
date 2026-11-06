@@ -126,6 +126,9 @@ tool.unmount() // everything it added goes; safe to call twice
 - **`change`** fires on every edit, **`commit`** once per finished gesture
   (a release on its panel or in the scene, a role assigned), each with a copy
   of the recipe.
+- **Undo and redo** (the arrows at the top of its panel, ⌘Z and ⇧⌘Z) step
+  through those commits, markers and binding included; the body is bound
+  again when you animate or press done. Each model has its own history.
 - **Its panel is a system panel** (a button on the system bar, beside the
   host's), with the view's camera menu beside it.
 - **`unmount()`** removes every mesh, material, texture, observer and panel it
@@ -161,6 +164,7 @@ import { b3dSun } from './b3d-shadows.js'
 import { assetUrl } from './asset-url.js'
 import {
   button3d,
+  iconBar3d,
   label3d,
   panel3d,
   row3d,
@@ -170,6 +174,7 @@ import {
   type Widget3d,
 } from './widgets3d.js'
 import { vector3d } from './vector-field.js'
+import { undoHistory } from './undo-history.js'
 import { pointerClaimedByPanel } from './frame-panel.js'
 import { touchOrbit } from './touch-orbit.js'
 import {
@@ -1054,7 +1059,86 @@ export function mountRigTool(
     if (!dirty || disposed) return
     dirty = false
     emit('commit')
+    step()
   }
+
+  /*
+  UNDO (#3878). A step is the recipe and the binding as they stand after a
+  commit (one gesture: a marker dropped, a slider released). Undo puts both
+  back; the body is bound again when you animate or press done, as after any
+  marker drag. The binding is read off the fit, not the recipe, because a
+  model's first markers are guessed and the recipe has none until one moves.
+  One history per model: loading another starts again.
+  */
+  type Step = { recipe: RigRecipe; binding: RigBinding | null }
+  const history = undoHistory<Step>({ limit: 100 })
+  const stepNow = (): Step => ({
+    recipe: copy(),
+    binding:
+      bound == null
+        ? null
+        : JSON.parse(
+            JSON.stringify({
+              markers: bound.markers,
+              tail: bound.tail ?? null,
+              ...(bound.tailBase ? { tailBase: bound.tailBase } : {}),
+              ...(bound.joints ? { joints: bound.joints } : {}),
+              ...(bound.hands ? { hands: bound.hands } : {}),
+            })
+          ),
+  })
+  function step() {
+    const could = `${history.canUndo}${history.canRedo}`
+    history.record(stepNow())
+    if (`${history.canUndo}${history.canRedo}` !== could) refresh()
+  }
+  function restore(to: Step | undefined) {
+    if (to == null || disposed) return
+    const moved =
+      JSON.stringify(to.binding) !== JSON.stringify(stepNow().binding)
+    recipe = fresh({ ...to.recipe, model: recipe.model })
+    if (moved && bound != null && to.binding != null) {
+      const b = to.binding
+      bound = {
+        ...bound,
+        markers: b.markers,
+        tail: b.tail,
+        tailBase: b.tailBase ?? null,
+        joints: b.joints,
+        hands: b.hands,
+      }
+      stale = true
+      ui.status = 'bound again when you animate or press done'
+    }
+    ui.spring = Math.max(
+      0,
+      Math.min(ui.spring, (recipe.springs?.length ?? 1) - 1)
+    )
+    if (files) remember(ui.model, recipe)
+    emit('change')
+    tool?.rebuild(true)
+    tool?.targets()
+    refresh()
+  }
+  function undo() {
+    // An edit still settling is a step of its own.
+    commitNow()
+    restore(history.undo())
+  }
+  function redo() {
+    commitNow()
+    restore(history.redo())
+  }
+  const onKey = (e: KeyboardEvent) => {
+    if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return
+    const t = e.target as Element | null
+    if (t?.closest?.('input, textarea, [contenteditable]')) return
+    e.preventDefault()
+    if (e.shiftKey) redo()
+    else undo()
+  }
+  window.addEventListener('keydown', onKey)
+  cleanups.push(() => window.removeEventListener('keydown', onKey))
   /** An edit: kept (standalone), announced, and committed when it settles. */
   function edited() {
     if (files) remember(ui.model, recipe)
@@ -1103,6 +1187,22 @@ export function mountRigTool(
             ),
           ]
         : []),
+      iconBar3d({
+        items: [
+          {
+            icon: 'rotateCcw',
+            title: 'undo (⌘Z)',
+            dim: !(history.canUndo || dirty),
+            handleClick: undo,
+          },
+          {
+            icon: 'rotateCw',
+            title: 'redo (⇧⌘Z)',
+            dim: !history.canRedo,
+            handleClick: redo,
+          },
+        ],
+      }),
       label3d({ text: ui.status, muted: true, compact: true }),
     ]
 
@@ -3186,6 +3286,8 @@ export function mountRigTool(
         )
         ui.model = label
         lastModel = m
+        // Another model starts its own history (a rebind is the same one).
+        const another = loadedModel !== m
         loadedModel = m
         const url = m instanceof File ? undefined : m.url
         recipe = next
@@ -3211,6 +3313,7 @@ export function mountRigTool(
         rebuild(true)
         inspect.face = ui.view
         seams()
+        if (another) history.clear(stepNow())
       } catch (e) {
         ui.status = `could not load ${label}: ${(e as Error).message}`
       }
