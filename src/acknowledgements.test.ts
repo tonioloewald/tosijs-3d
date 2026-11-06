@@ -29,7 +29,7 @@ const page = readFileSync(join(SRC, 'docs/acknowledgements.md'), 'utf8')
 function packsUsed(): Set<string> {
   const packs = new Set<string>()
   // A call, a full URL, or a path held in a constant first
-  // (`PREVIEW_MESH = 'thebasemesh/kitchen/teapot.glb'`).
+  // (`const MESH = 'pack/thing.glb'`).
   const pattern =
     /(?:assetUrl\(\s*['`]|cdn\.tosijs\.net\/|['`](?=[a-z0-9_-]+\/[^'`\s]*\.(?:glb|gltf|png|jpg|json|m4a|mp3)['`]))([a-z0-9_-]+)\//g
   for (const name of readdirSync(SRC)) {
