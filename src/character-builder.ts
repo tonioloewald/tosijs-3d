@@ -226,7 +226,10 @@ let showGripHandles = (on) => { gripHandles = on }
 // up the grip, +Z forward, real size), so one grip holds them all: Tonio's,
 // placed on the pistol with the manipulator.
 const GRIP = { x: -0.034, y: 0.066, z: 0.015, rx: -57.4, ry: 128.3, rz: 54.6, scale: 1 }
-const GRIPS = {}
+// Blades (their grip half a hand below the guard, every one alike) by
+// Tonio's, placed on the plasma blade.
+const BLADE = { x: -0.039, y: 0.077, z: 0.041, rx: -75, ry: 165, rz: 15, scale: 1 }
+const GRIPS = Object.fromEntries(['Dagger', 'Short Sword', 'Long Sword', 'Hand and a Half', 'Plasma Blade'].map((n) => [n, BLADE]))
 const gripOf = (name) => ({ ...GRIP, ...GRIPS[name], ...(JSON.parse(JSON.stringify(walker.grips.value))[name] ?? {}) })
 const setGrip = (patch) => {
   const name = walker.held.value
@@ -1192,7 +1195,7 @@ preview.append(
       },
     },
     // Things to hold: Tonio's weapons (CC BY 4.0), each with its grip at its origin.
-    b3dLibrary({ url: assetUrl('tonio/weapons-classic/weapons.glb'), type: 'weapons' }),
+    b3dLibrary({ url: assetUrl('tonio/weapons-classic/weapons.glb', 2), type: 'weapons' }),
     b3dSun({ timeOfDay: 16.5, shadowTextureSize: 2048, shadowMaxZ: 20, shadowNormalBias: 0.008 }),
     b3dLight({ intensity: 0.5 })
   )
