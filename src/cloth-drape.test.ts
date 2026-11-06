@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { drapeGarment, flatPiece } from './cloth-drape.js'
+import {
+  drapeGarment,
+  drapeGarmentAsync,
+  drapeSteps,
+  flatPiece,
+} from './cloth-drape.js'
 import { remesh } from './remesh.js'
 import { meshSdf } from './mesh-sdf.js'
 import { drawnPositions, fitProxy } from './proxy-fit.js'
@@ -111,5 +116,40 @@ describe('drapeGarment', () => {
         use.set(key, (use.get(key) ?? 0) + 1)
       }
     for (const n of use.values()) expect(n).toBeLessThanOrEqual(2)
+  })
+})
+
+describe('drapeGarmentAsync', () => {
+  const { P, T } = uvSphere(16, 32)
+  const dummy = remesh(P, T, { edge: 0.12 })
+  const front = [
+    [
+      [-0.8, 0.2],
+      [0.8, 0.2],
+      [1.2, -1.6],
+      [-1.2, -1.6],
+    ],
+  ] as [number, number][][]
+  const options = { front, edge: 0.1, thickness: 0.02 }
+
+  test('the same cloth as the drape run straight through', async () => {
+    const now = drapeGarment(dummy, P, options)
+    const later = await drapeGarmentAsync(dummy, P, options, { sliceMs: 1 })
+    expect(Array.from(later.offset)).toEqual(Array.from(now.offset))
+    expect(Array.from(later.triangles)).toEqual(Array.from(now.triangles))
+  })
+
+  test('it yields often (no step is a whole drape), and a signal stops it', async () => {
+    let steps = 0
+    const it = drapeSteps(dummy, P, options)
+    while (!it.next().done) steps++
+    expect(steps).toBeGreaterThan(50)
+    const stop = new AbortController()
+    const run = drapeGarmentAsync(dummy, P, options, {
+      signal: stop.signal,
+      sliceMs: 0,
+    })
+    stop.abort()
+    await expect(run).rejects.toThrow('stopped')
   })
 })

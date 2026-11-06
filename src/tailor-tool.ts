@@ -67,8 +67,8 @@ import {
 } from './garment-cut.js'
 import { outlineField3d, type OutlineField } from './outline-field.js'
 import { smoothUnder, fitProxy, drawnPositions } from './proxy-fit.js'
-import { remesh, type Remeshed } from './remesh.js'
-import { drapeGarment } from './cloth-drape.js'
+import { remesh, remeshSteps, type Remeshed } from './remesh.js'
+import { drapeGarmentAsync, runSliced } from './cloth-drape.js'
 import { humanProxy, proxyMaterial } from './human-proxy.js'
 import type { HumanProxy } from './human-pack.js'
 import { clothShading, clothRecipe } from './cloth-shading.js'
@@ -284,73 +284,145 @@ export function mountTailorTool(
   })
   let material: BABYLON.PBRMaterial | null = null
   let shading: { set(l: { recipe: MaterialRecipe }): void } | null = null
-  const recut = () => {
-    if (disposed) return
+  /** The cut on show: drawn on the body, in its material (null clears it). */
+  const show = (next: GarmentCut | null) => {
     mesh?.dispose()
     mesh = null
-    made = null
+    made = next
+    if (next == null) return
+    const proxy = shell(next)
+    if (material == null) {
+      material = proxyMaterial(scene, proxy)
+      shading = clothShading(material)
+      shading.set({ recipe: look })
+    }
+    // Skirts and draped cloth are open: their inside shows.
+    const open = cut.skirt || cut.drape === true
+    material.backFaceCulling = !open
+    material.twoSidedLighting = open
+    mesh = humanProxy(scene, built, proxy, fitOn, body.weights, material)
+    owner.register?.({ meshes: [mesh] })
+  }
+
+  /*
+  A DRAPE IS SETTLED IN THE BACKGROUND. It is a simulation (a second or more
+  on a fine mesh), so it runs in time slices after the edits pause, the cloth
+  as it was stays on show meanwhile, and the next edit stops it: moving a point
+  never waits for a drape it has already made stale.
+  */
+  let draping: AbortController | null = null
+  let drapeSoon: ReturnType<typeof setTimeout> | null = null
+  /** Done (or cancel) pressed while a drape was settling: finished after it. */
+  let finishAfter: boolean | null = null
+  const stopDrape = () => {
+    draping?.abort()
+    draping = null
+    if (drapeSoon != null) clearTimeout(drapeSoon)
+    drapeSoon = null
+  }
+  const drapeLater = (outline: ViewPoint[][]) => {
+    const density = cut.mesh === 'body' ? 'medium' : cut.mesh ?? 'medium'
+    const say = (next: string) => {
+      if (next === status) return
+      status = next
+      refresh()
+    }
+    say('draping…')
+    drapeSoon = setTimeout(() => {
+      drapeSoon = null
+      const run = (draping = new AbortController())
+      // Draped over the even surface (as the body: medium), made in slices
+      // too the first time (half a second or more at once).
+      const made = dummies.get(density)
+      const surface = made
+        ? Promise.resolve(made)
+        : runSliced(
+            remeshSteps(fitOn, cutFrom, { edge: TAILOR_MESH_EDGE[density] }),
+            { signal: run.signal }
+          ).then((d) => {
+            // Not if the body changed meanwhile (that stops this run).
+            if (run === draping) dummies.set(density, d)
+            return d
+          })
+      surface
+        .then((d) =>
+          drapeGarmentAsync(
+            d,
+            fitOn,
+            {
+              front: outline,
+              thickness: cut.thickness,
+              edge: TAILOR_MESH_EDGE[density],
+            },
+            { signal: run.signal }
+          )
+        )
+        .then(
+        (g) => {
+          if (run !== draping || disposed) return
+          draping = null
+          show(g)
+          say('')
+          if (finishAfter != null) finish(finishAfter)
+        },
+        (e: Error) => {
+          if (run !== draping || disposed || e.name === 'AbortError') return
+          draping = null
+          show(null)
+          say(`could not cut: ${e.message}`)
+          finishAfter = null
+        }
+      )
+    }, 200)
+  }
+
+  const recut = () => {
+    if (disposed) return
+    stopDrape()
     const outline = mirrorOutline(cut.shapes.filter((s) => s.length >= 3))
-    if (outline.length) {
-      try {
-        const nipples = body.regions.nipples
-        // Thicker cloth bridges more of the chest.
-        const cutOn = nipples
-          ? smoothUnder(body.positions, body.indices, nipples, {
-              bridge: cut.thickness / 0.02,
-            })
-          : fitOn
-        const density = cut.mesh ?? 'medium'
-        if (cut.skirt) {
-          made = skirtGarment(fitOn, cutFrom, {
-            front: outline,
-            thickness: cut.thickness,
-            anchor: notArm,
+    if (!outline.length) return show(null)
+    if (cut.drape && !cut.skirt) return drapeLater(outline)
+    try {
+      const nipples = body.regions.nipples
+      // Thicker cloth bridges more of the chest.
+      const cutOn = nipples
+        ? smoothUnder(body.positions, body.indices, nipples, {
+            bridge: cut.thickness / 0.02,
           })
-        } else if (cut.drape) {
-          // Draped over the even surface (as the body: medium).
-          const d = dummy(density === 'body' ? 'medium' : density)
-          made = drapeGarment(d, fitOn, {
-            front: outline,
-            thickness: cut.thickness,
-            edge: TAILOR_MESH_EDGE[density === 'body' ? 'medium' : density],
-          })
-        } else if (density === 'body') {
-          made = cutGarment(cutOn, cutFrom, {
+        : fitOn
+      const density = cut.mesh ?? 'medium'
+      let next: GarmentCut
+      if (cut.skirt) {
+        next = skirtGarment(fitOn, cutFrom, {
+          front: outline,
+          thickness: cut.thickness,
+          anchor: notArm,
+        })
+      } else if (density === 'body') {
+        next = cutGarment(cutOn, cutFrom, {
+          front: outline,
+          thickness: cut.thickness,
+          ease: EASE,
+          fitOn,
+        })
+      } else {
+        // Cut from the even surface, then bound to the body itself.
+        const d = dummy(density)
+        next = rebindCut(
+          cutGarment(d.positions, d.triangles, {
             front: outline,
             thickness: cut.thickness,
             ease: EASE,
-            fitOn,
-          })
-        } else {
-          // Cut from the even surface, then bound to the body itself.
-          const d = dummy(density)
-          made = rebindCut(
-            cutGarment(d.positions, d.triangles, {
-              front: outline,
-              thickness: cut.thickness,
-              ease: EASE,
-            }),
-            d,
-            fitOn
-          )
-        }
-        const proxy = shell(made)
-        if (material == null) {
-          material = proxyMaterial(scene, proxy)
-          shading = clothShading(material)
-          shading.set({ recipe: look })
-        }
-        // Skirts and draped cloth are open: their inside shows.
-        const open = cut.skirt || cut.drape === true
-        material.backFaceCulling = !open
-        material.twoSidedLighting = open
-        mesh = humanProxy(scene, built, proxy, fitOn, body.weights, material)
-        owner.register?.({ meshes: [mesh] })
-        status = ''
-      } catch (e) {
-        status = `could not cut: ${(e as Error).message}`
-        made = null
+          }),
+          d,
+          fitOn
+        )
       }
+      show(next)
+      status = ''
+    } catch (e) {
+      status = `could not cut: ${(e as Error).message}`
+      show(null)
     }
   }
 
@@ -508,6 +580,7 @@ export function mountTailorTool(
 
   function unmount() {
     if (disposed) return
+    stopDrape()
     disposed = true
     owner.removeEventListener?.('resizeend', refresh)
     if (hideOthers) options.handleHideOthers?.(false)
@@ -517,6 +590,12 @@ export function mountTailorTool(
     panelEl.remove()
   }
   function finish(done: boolean) {
+    // Done waits for the drape settling now (it is the garment); cancel does not.
+    if (done && (draping != null || drapeSoon != null)) {
+      finishAfter = true
+      return
+    }
+    finishAfter = null
     const g = done ? garment() : null
     if (done && g == null) {
       status = 'close an outline first'

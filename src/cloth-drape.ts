@@ -40,13 +40,23 @@ THE STEPS:
    pushed out of, the open edges pinned, until it stops.
 
 Pure: the dummy and the body's positions in, a `GarmentCut` out.
+
+`drapeGarmentAsync` is the same drape in time slices (about 8 ms of work
+between tasks), stopped by an `AbortSignal`: an editor starts one per edit and
+stops the one before, so moving a point never waits for a stale drape.
+`drapeSteps` is the generator both run.
 */
 /*{ "parent": "garment-cut", "order": 20 }*/
 
 import type { GarmentCut, ViewPoint } from './garment-cut.js'
 import { meshQuery } from './rig-fit.js'
 import { meshSdf } from './mesh-sdf.js'
-import { closestBarycentric, remesh, type Remeshed } from './remesh.js'
+import {
+  closestBarycentric,
+  remeshSteps,
+  type Remeshed,
+} from './remesh.js'
+import { realNow } from './clock.js'
 
 export interface DrapeOptions {
   /** Closed polygons in the front view, `[x, y]` in the body's frame (left is +X). */
@@ -133,23 +143,40 @@ function resample(poly: ViewPoint[], edge: number): ViewPoint[] {
   return out
 }
 
-/** A flat piece: even triangles over a polygon, z = 0, counter-clockwise seen from +Z. */
-export function flatPiece(
-  poly: ViewPoint[],
-  edge: number
-): {
+/** A flat pattern piece (see `flatPiece`). */
+export interface FlatPiece {
   positions: Float32Array
   triangles: Uint32Array
   /** 1 on the piece's edge. */
   boundary: Uint8Array
   /** 1 on the edge where it runs more up and down than across. */
   steep: Uint8Array
-} {
+}
+
+/** A flat piece: even triangles over a polygon, z = 0, counter-clockwise seen from +Z. */
+export function flatPiece(poly: ViewPoint[], edge: number): FlatPiece {
+  const steps = flatPieceSteps(poly, edge)
+  for (;;) {
+    const r = steps.next()
+    if (r.done) return r.value
+  }
+}
+
+function* flatPieceSteps(
+  poly: ViewPoint[],
+  edge: number
+): Generator<void, FlatPiece, void> {
   const ring = resample(poly, edge)
   const P: number[] = []
   for (const [x, y] of ring) P.push(x, y, 0)
   const T = earClip(ring)
-  const r = remesh(P, T, { edge, perRadius: 0, iterations: 5 })
+  yield
+  const r = yield* remeshSteps(P, T, {
+    edge,
+    perRadius: 0,
+    iterations: 5,
+    project: false,
+  })
   // Its boundary: vertices on an edge with one triangle.
   const use = new Map<string, number>()
   const t = r.triangles
@@ -196,6 +223,76 @@ export function drapeGarment(
   body: ArrayLike<number>,
   options: DrapeOptions
 ): DrapedGarment {
+  const steps = drapeSteps(surface, body, options)
+  for (;;) {
+    const r = steps.next()
+    if (r.done) return r.value
+  }
+}
+
+/**
+ * The same drape, in time slices so a page stays responsive: about `sliceMs`
+ * of work, then the rest after the next task. `signal` stops it (the promise
+ * rejects with an `AbortError`), which is how an editor drops a drape the
+ * next edit has made stale.
+ */
+export function drapeGarmentAsync(
+  surface: Remeshed,
+  body: ArrayLike<number>,
+  options: DrapeOptions,
+  run: SlicedRun = {}
+): Promise<DrapedGarment> {
+  return runSliced(drapeSteps(surface, body, options), run)
+}
+
+/** How a stepped job is run in slices: stopped by `signal`, about `sliceMs` of work at a time. */
+export interface SlicedRun {
+  signal?: AbortSignal
+  sliceMs?: number
+}
+
+/**
+ * Any stepped job (a generator that yields between pieces of work, such as
+ * `drapeSteps` or remesh's `remeshSteps`) run in time slices: about `sliceMs`
+ * of it, then the rest after the next task. `signal` stops it (the promise
+ * rejects with an `AbortError`).
+ */
+export function runSliced<T>(
+  steps: Generator<void, T, void>,
+  run: SlicedRun = {}
+): Promise<T> {
+  const slice = run.sliceMs ?? 8
+  return new Promise<T>((resolve, reject) => {
+    const stopped = () =>
+      reject(new DOMException('the drape was stopped', 'AbortError'))
+    const work = () => {
+      if (run.signal?.aborted) return stopped()
+      const until = realNow() + slice
+      try {
+        for (;;) {
+          const r = steps.next()
+          if (r.done) return resolve(r.value)
+          if (realNow() >= until) break
+        }
+      } catch (e) {
+        return reject(e)
+      }
+      setTimeout(work, 0)
+    }
+    work()
+  })
+}
+
+/**
+ * The drape as steps: it yields between passes (a fraction of a millisecond
+ * to a few each), so a caller can stop or spread it. `drapeGarment` runs it
+ * through; `drapeGarmentAsync` runs it in slices.
+ */
+export function* drapeSteps(
+  surface: Remeshed,
+  body: ArrayLike<number>,
+  options: DrapeOptions
+): Generator<void, DrapedGarment, void> {
   const thickness = options.thickness ?? 0.005
   const edge = options.edge ?? 0.02
   const uvScale = options.uvScale ?? 1
@@ -207,6 +304,7 @@ export function drapeGarment(
     lookups.set(surface, lookup)
   }
   const { query, sdf } = lookup
+  yield
 
   // THE PIECES, front and back, as one mesh: sewn boundary vertices shared.
   const X: number[] = []
@@ -216,7 +314,7 @@ export function drapeGarment(
   const uv: number[] = []
   for (const poly of options.front) {
     if (poly.length < 3) continue
-    const piece = flatPiece(poly, edge)
+    const piece = yield* flatPieceSteps(poly, edge)
     const n = piece.positions.length / 3
     const front = new Int32Array(n)
     const back = new Int32Array(n)
@@ -284,6 +382,7 @@ export function drapeGarment(
   }
   const smoothWith = (v: number) => (rim[v].length ? rim[v] : nbr[v])
 
+  yield
   // The pattern as cut: every vertex where it is in the flat piece.
   const flat = X.slice()
 
@@ -299,6 +398,7 @@ export function drapeGarment(
       X[v * 3 + 2] = z
     }
     if (moved < 1e-5) break
+    if (it % 20 === 19) yield
   }
 
   // Out of the body: onto its surface plus `thickness`, along the face normal.
@@ -370,6 +470,7 @@ export function drapeGarment(
       for (let k = 0; k < 3; k++) X[v * 3 + k] += 0.5 * along * n[k]
     }
     for (let v = 0; v < nv; v++) if (!pinned[v]) pushOut(X, v)
+    yield
   }
 
   // SETTLE: gravity with the lengths held (position-based dynamics). Cloth
@@ -444,6 +545,7 @@ export function drapeGarment(
         }
     }
   }
+  yield
   const prev = X.slice()
   const dt = 1 / 60
   const fall = 9.8 * dt * dt
@@ -459,6 +561,7 @@ export function drapeGarment(
     }
     // Enough passes that a long panel does not stretch under its own weight.
     for (let it = 0; it < 24; it++) {
+      if (it % 8 === 7) yield
       for (let e = 0; e < rest.length; e++) {
         const a = edges[e * 2]
         const b = edges[e * 2 + 1]
@@ -495,6 +598,7 @@ export function drapeGarment(
     }
     if (step % 2 === 1)
       for (let v = 0; v < nv; v++) if (!pinned[v]) pushOut(X, v)
+    yield
   }
 
   // FINISH: lengths only, no gravity, so what hangs is not also stretched.
@@ -518,8 +622,10 @@ export function drapeGarment(
       X[b * 3 + 1] -= wb * s * dy
       X[b * 3 + 2] -= wb * s * dz
     }
-    if (it % 10 === 9)
+    if (it % 10 === 9) {
       for (let v = 0; v < nv; v++) if (!pinned[v]) pushOut(X, v)
+      yield
+    }
   }
 
   let stretch = 1
@@ -535,6 +641,7 @@ export function drapeGarment(
   const weight = new Float32Array(nv * 3)
   const offset = new Float32Array(nv * 3)
   for (let v = 0; v < nv; v++) {
+    if (v % 100 === 99) yield
     const x = X[v * 3]
     const y = X[v * 3 + 1]
     const z = X[v * 3 + 2]

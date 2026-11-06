@@ -61,6 +61,13 @@ export interface RemeshOptions {
   minEdge?: number
   /** Passes of split, collapse, flip, relax and project. Default 6. */
   iterations?: number
+  /**
+   * `false` skips projecting back onto the input each pass, for a FLAT input
+   * (a pattern piece): relaxing is tangential and the boundary is held, so a
+   * plane stays a plane, and projecting onto an ear-clipped polygon's slivers
+   * was most of the time. `ref` and `weight` then come back zero.
+   */
+  project?: boolean
 }
 
 /** Where a point is on the original surface: a triangle's three vertices and weights. */
@@ -166,6 +173,19 @@ export function remesh(
   triangles: ArrayLike<number>,
   options: RemeshOptions
 ): Remeshed {
+  const steps = remeshSteps(positions, triangles, options)
+  for (;;) {
+    const r = steps.next()
+    if (r.done) return r.value
+  }
+}
+
+/** `remesh` as steps: it yields between its passes, so a caller can spread it over frames. */
+export function* remeshSteps(
+  positions: ArrayLike<number>,
+  triangles: ArrayLike<number>,
+  options: RemeshOptions
+): Generator<void, Remeshed, void> {
   const L = options.edge
   const perRadius = options.perRadius ?? 0.8
   const minEdge = options.minEdge ?? L / 5
@@ -615,10 +635,14 @@ export function remesh(
   let bound = { ref: new Uint32Array(0), weight: new Float32Array(0) }
   for (let i = 0; i < iterations; i++) {
     split()
+    yield
     collapse()
+    yield
     flip()
     relax()
-    bound = onto()
+    yield
+    if (options.project !== false) bound = onto()
+    yield
   }
 
   // Drop vertices no triangle uses (collapsed away), renumbering.
@@ -633,8 +657,8 @@ export function remesh(
     if (u < 0) continue
     for (let k = 0; k < 3; k++) {
       outP[u * 3 + k] = P[v * 3 + k]
-      outRef[u * 3 + k] = bound.ref[v * 3 + k]
-      outW[u * 3 + k] = bound.weight[v * 3 + k]
+      outRef[u * 3 + k] = bound.ref[v * 3 + k] ?? 0
+      outW[u * 3 + k] = bound.weight[v * 3 + k] ?? 0
     }
   }
   return {
