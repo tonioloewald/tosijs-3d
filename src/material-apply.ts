@@ -10,8 +10,21 @@ import {
   resolveMaterial,
   type MaterialRecipe,
 } from './material-recipe.js'
+import { pictureUrl } from './material-pictures.js'
 
 const textures = new WeakMap<BABYLON.Scene, Map<string, BABYLON.Texture>>()
+
+/**
+ * A recipe's picture as a texture, loaded once per scene: a URL, or a picture
+ * chosen from disk (`material-pictures`). Null for one this page does not have.
+ */
+export function pictureTexture(
+  scene: BABYLON.Scene,
+  ref: string
+): BABYLON.Texture | null {
+  const url = pictureUrl(ref)
+  return url == null ? null : texture(scene, url)
+}
 
 function texture(scene: BABYLON.Scene, url: string): BABYLON.Texture {
   let cache = textures.get(scene)
@@ -37,7 +50,8 @@ export function applyMaterial(
 ): void {
   const scene = material.getScene()
   const r = resolveMaterial(materialAsType(recipe, 'pbr'))
-  const img = (url: string | null) => (url == null ? null : texture(scene, url))
+  const img = (url: string | null) =>
+    url == null ? null : pictureTexture(scene, url)
 
   material.albedoTexture = img(r.albedo.image)
   const albedo =

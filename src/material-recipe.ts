@@ -165,7 +165,14 @@ export const CLOTH_MATERIAL: MaterialTypeDecl = {
   name: 'cloth',
   label: 'cloth',
   inputs: [
-    { name: 'albedo', label: 'colour', kind: 'rgb', default: '#7a2e2e' },
+    // A picture (a print, a weave) in place of the garment's own texture.
+    {
+      name: 'albedo',
+      label: 'colour',
+      kind: 'rgb',
+      default: '#7a2e2e',
+      image: true,
+    },
     // 0 keeps the texture's colours, 1 is the colour wholly.
     { name: 'recolour', kind: 'grey', default: 0 },
     { name: 'roughness', kind: 'grey', default: 0.85, optional: true },

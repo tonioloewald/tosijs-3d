@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, iconBar3d, undoHistory, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, iconBar3d, undoHistory, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 import { exportBodyRows } from 'tosijs-3d/body-export'
@@ -1052,7 +1052,9 @@ preview.append(
           // And its body, when it is a mesh: where it comes from, or the file.
           const body = bodyOf(kept.source)
           const bodies = body ? { [kept.source]: body } : {}
-          return writeCharacter({ name, settings: kept, cloth, tailor: plain(tailorShapes), garments, bodies }, { saved: new Date().toISOString() })
+          // The pictures its materials use (chosen from disk), by key.
+          const pictures = Object.fromEntries(picturesIn({ kept, cloth }).map((k) => [k, pictureData(k)]).filter(([, b]) => b))
+          return writeCharacter({ name, settings: kept, cloth, tailor: plain(tailorShapes), garments, bodies, pictures }, { saved: new Date().toISOString() })
         }
         const tell = (message) => { character.note = message; el.refreshScenePanel?.() }
         let restoring = false
@@ -1061,6 +1063,8 @@ preview.append(
           const { character: c, warnings } = readCharacter(doc, { settings: Object.fromEntries(KEPT.map((k) => [k, START[k]])), slots: slotLooks })
           restoring = true
           try {
+            // Its pictures first, so its materials find them.
+            for (const [key, b64] of Object.entries(c.pictures ?? {})) registerPicture(key, b64)
             // Its own garments first, so the slots can wear them.
             for (const [name, bytes] of Object.entries(c.garments)) {
               if (ch.garments.has(name)) continue

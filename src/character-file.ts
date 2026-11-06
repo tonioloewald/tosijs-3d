@@ -32,6 +32,10 @@ GARMENTS TRAVEL INSIDE IT. A garment saved from the tailor lives in the
 browser that saved it; the document carries each one the character wears as
 its GLB (base64), so the figure is whole wherever it is opened.
 
+SO DO ITS PICTURES: a print or texture chosen from disk for a material is
+named in its recipe by a key ([material-pictures](/material-pictures/)), and
+`pictures` carries each one the character's materials use (key → base64).
+
 SO DOES ITS BODY, when it is a mesh. `bodies` says where the body on show
 comes from: a URL (and the object picked in it) when it has one, or the file
 itself (base64, with its name) when it was opened from disk. A page that
@@ -62,6 +66,8 @@ export interface Character {
   garments: Record<string, Uint8Array>
   /** Where its mesh body (by source name) comes from: a URL, or the file's bytes. */
   bodies?: Record<string, CharacterBody>
+  /** Pictures its materials use, chosen from disk: key (`picture:…`) → base64. */
+  pictures?: Record<string, string>
 }
 
 /** Where a mesh body comes from: `url` (and `pick`), or the file itself. */
@@ -89,6 +95,8 @@ export interface CharacterDoc {
     string,
     { url?: string; pick?: string; file?: string; data?: string }
   >
+  /** key (`picture:…`) → base64. */
+  pictures?: Record<string, string>
 }
 
 /** A character as a document, ready for `JSON.stringify`. */
@@ -129,6 +137,9 @@ export function writeCharacter(
             ])
           ),
         }
+      : {}),
+    ...(c.pictures && Object.keys(c.pictures).length
+      ? { pictures: { ...c.pictures } }
       : {}),
   }
 }
@@ -249,6 +260,15 @@ export function readCharacter(
     }
   }
 
+  const pictures: Record<string, string> = {}
+  for (const [key, b64] of Object.entries(
+    isObject(doc.pictures) ? doc.pictures : {}
+  )) {
+    if (key.startsWith('picture:') && typeof b64 === 'string' && b64 !== '')
+      pictures[key] = b64
+    else warnings.push(`picture ${key}: unreadable; skipped`)
+  }
+
   return {
     character: {
       name: typeof doc.name === 'string' ? doc.name : '',
@@ -257,6 +277,7 @@ export function readCharacter(
       tailor,
       garments,
       ...(Object.keys(bodies).length ? { bodies } : {}),
+      ...(Object.keys(pictures).length ? { pictures } : {}),
     },
     warnings,
   }

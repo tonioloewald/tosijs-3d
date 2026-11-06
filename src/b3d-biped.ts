@@ -3862,6 +3862,10 @@ export class B3dBiped extends B3dControllable {
         changes
       )
     const settings: Record<string, any> = c.settings
+    // The pictures its materials use (a print chosen from disk), by key.
+    const { registerPicture } = await import('./material-pictures.js')
+    for (const [key, b64] of Object.entries(c.pictures ?? {}))
+      registerPicture(key, b64)
     // A mesh body comes from the page's sources, or from where the file says
     // (a URL, or the mesh itself inside the file).
     const sources = { ...CHARACTER_SOURCES }

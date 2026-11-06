@@ -20,6 +20,7 @@ describe('a character stored apart from its bytes', () => {
       },
       'Blender: male': { url: 'https://example.com/male.glb' },
     },
+    pictures: { 'picture:abcdef012345/print.png': 'iVBORw0K' },
   })
 
   test('the bytes come out, and go back the same', () => {
@@ -27,7 +28,9 @@ describe('a character stored apart from its bytes', () => {
     expect(Object.keys(blobs).sort()).toEqual([
       'bodies/weasel.obj',
       'garments/cape',
+      'pictures/picture:abcdef012345/print.png',
     ])
+    expect(JSON.stringify(bare)).not.toContain('iVBORw0K')
     expect(JSON.stringify(bare)).not.toContain(doc.bodies!['weasel.obj'].data!)
     expect(bare.bodies!['Blender: male'].url).toBe(
       'https://example.com/male.glb'

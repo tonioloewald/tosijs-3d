@@ -8,7 +8,9 @@ collection, such as the fabrics) as a grid of renders, then a control per input
 of the material's type, drawn from the type's own declaration: a slider for
 a grey value, a colour picker for a colour, a strength beside it where the
 input has one. A picture in place of a flat value shows as a row you can
-clear. Where the caller allows more than one type, the popup starts with a
+clear, and **choose a picture…** puts one from your files there
+([material-pictures](/material-pictures/): the recipe keeps a key, and a
+character file carries the picture). Where the caller allows more than one type, the popup starts with a
 choice of type.
 
 The value is a [[material-recipe|recipe]], `{ type, inputs }`, always in
@@ -89,6 +91,8 @@ import {
   type WidgetHost,
 } from './widgets3d.js'
 import { materialPreview } from './material-preview.js'
+import { addPicture } from './material-pictures.js'
+import { chooseFile } from './choose-file.js'
 import {
   applyMaterialPreset,
   canonicalMaterial,
@@ -419,6 +423,20 @@ export function materialPicker3d(
         })
       )
     }
+    // A picture from disk, for an input that takes one: kept by
+    // material-pictures, the recipe holding only its key.
+    if (d.kind === 'image' || d.image)
+      rows.push(
+        button3d({
+          label: now.image != null ? 'another picture…' : 'choose a picture…',
+          handleClick: () =>
+            void chooseFile('image/*').then(async (file) => {
+              if (file == null) return
+              const bytes = new Uint8Array(await file.arrayBuffer())
+              put({ image: await addPicture(bytes, file.name, file.type) }, true)
+            }),
+        })
+      )
     // An image-only input with no picture has nothing to edit here.
     if (d.intensity && (d.kind !== 'image' || now.image != null))
       rows.push(

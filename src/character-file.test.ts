@@ -52,6 +52,16 @@ describe('character-file', () => {
     expect(Array.from(character.garments.cape)).toEqual([0, 1, 2, 250, 255])
   })
 
+  test('the pictures its materials use travel with it; a bad one is skipped and said', () => {
+    const key = 'picture:abcdef012345/print.png'
+    const doc = writeCharacter({ ...ada, pictures: { [key]: 'iVBORw0K' } })
+    const raw = JSON.parse(JSON.stringify(doc))
+    raw.pictures['not-a-key'] = 'x'
+    const { character, warnings } = readCharacter(raw, defaults)
+    expect(character.pictures).toEqual({ [key]: 'iVBORw0K' })
+    expect(warnings).toEqual(['picture not-a-key: unreadable; skipped'])
+  })
+
   test('a mesh body travels with it: a URL as a URL, a file as its bytes', () => {
     const bodies = {
       weasel: {

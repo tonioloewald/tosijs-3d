@@ -28,6 +28,7 @@ import * as BABYLON from '@babylonjs/core'
 import { registerMaterialPlugin } from './material-plugins.js'
 import { parseColor } from './color.js'
 
+import { pictureTexture } from './material-apply.js'
 import { FABRICS } from './fabrics.js'
 import {
   materialAsType,
@@ -191,15 +192,32 @@ export function clothShading(
   ) as ClothShadingPlugin | null
   if (plugin == null) throw new Error('cloth-shading: plugin not registered')
   plugin.isEnabled = true
-  if (material.albedoTexture) {
-    measureMean(material.albedoTexture, (mean) => {
-      plugin.mean = mean
-    })
+  // The garment's own texture, and the picture a recipe puts in its place.
+  const own = material.albedoTexture
+  let shown: BABYLON.BaseTexture | null = null
+  const showTexture = (t: BABYLON.BaseTexture | null) => {
+    if (t === shown) return
+    shown = t
+    material.albedoTexture = t
+    if (t) {
+      // Its colours come from the picture: no tint left from a flat colour.
+      material.albedoColor = BABYLON.Color3.White()
+      measureMean(t, (mean) => {
+        if (shown === t) plugin.mean = mean
+      })
+    }
   }
+  showTexture(own)
   const set = (look: ClothLook) => {
     let l = look
     if (look.recipe) {
       const r = resolveMaterial(materialAsType(look.recipe, 'cloth'))
+      const picture = r.albedo.image as string | null
+      showTexture(
+        picture != null
+          ? pictureTexture(material.getScene(), picture) ?? own
+          : own
+      )
       const n = (k: string) => r[k].value as number | null
       if (n('roughness') != null) material.roughness = n('roughness')!
       if (n('metallic') != null) material.metallic = n('metallic')!

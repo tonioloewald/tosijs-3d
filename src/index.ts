@@ -1151,6 +1151,15 @@ export type { Curve3dOptions, CurveField, CurveMarkers } from './curve-field.js'
 export { vector3d, euler3d, wrapDegrees } from './vector-field.js'
 export { playback3d } from './playback-field.js'
 export { undoHistory } from './undo-history.js'
+export {
+  addPicture,
+  isPictureKey,
+  pictureData,
+  picturesIn,
+  pictureUrl,
+  registerPicture,
+} from './material-pictures.js'
+export { pictureTexture } from './material-apply.js'
 /*
 `WidgetHost` is exported deliberately, not incidentally: it is the type a
 custom widget must name to implement `setHost`, and without it a consumer
