@@ -82,7 +82,7 @@ const gun = b3dLauncher({
 // on a figure half the intended size.
 const hero = b3dBiped(
   {
-    url: assetUrl('quaternius/UAL1_core.glb', 2),
+    url: assetUrl('quaternius/UAL1_core.glb', 3),
     animationStates: ualAnimationStates(),
     player: true, cameraType: 'follow', aiming: 'on', aimFreeYaw: 45,
   },
@@ -410,7 +410,7 @@ export class AnimState {
  *
  * ```js
  * b3dBiped({
- *   url: assetUrl('quaternius/UAL1_core.glb', 2),
+ *   url: assetUrl('quaternius/UAL1_core.glb', 3),
  *   animationStates: ualAnimationStates(),
  * })
  * ```
@@ -3900,7 +3900,7 @@ export class B3dBiped extends B3dControllable {
     }
     // The clips the states name, from the library, retargeted and named as they were.
     const library = await BABYLON.LoadAssetContainerAsync(
-      attrs.animations || assetUrl('quaternius/UAL1_core.glb', 2),
+      attrs.animations || assetUrl('quaternius/UAL1_core.glb', 3),
       scene
     )
     library.addAllToScene()

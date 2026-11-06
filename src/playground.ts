@@ -68,7 +68,7 @@ const gun = b3dLauncher({
 const MANNEQUIN = 'UAL mannequin'
 const makeHero = (doc, at) => b3dBiped(
   {
-    ...(doc ? { characterDoc: doc } : { url: assetUrl('quaternius/UAL1_core.glb', 2) }),
+    ...(doc ? { characterDoc: doc } : { url: assetUrl('quaternius/UAL1_core.glb', 3) }),
     animationStates: ualAnimationStates(),
     // WHERE THE ARENA IS IN FRONT OF YOU. Spawning at the origin put `pillar-b`
     // (0, -12.3) literally touching your muzzle line, so every shot from the

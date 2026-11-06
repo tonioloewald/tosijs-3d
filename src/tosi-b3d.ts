@@ -30,7 +30,7 @@ const scene = '/test-3.glb'
 // A Quaternius UAL rig — 1.83 m, feet at the origin, 27 curated clips off the
 // CDN (the full library is 120 clips and 20 MB). A person is 1.8 m here, and
 // the movement constants are tuned for one.
-const person = assetUrl('quaternius/UAL1_core.glb', 2)
+const person = assetUrl('quaternius/UAL1_core.glb', 3)
 
 // Your loadout: a button on the system bar opens it under the bar, with your
 // bag beside it (see inventory-box).
