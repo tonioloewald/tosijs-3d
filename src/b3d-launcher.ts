@@ -1394,6 +1394,9 @@ export class B3dLauncher extends AbstractMesh {
     let g: BABYLON.Vector3 | null = this._gripOffset
     const node = g != null ? null : findSuffixed(this.mesh, ['_grip'])
     if (node != null) {
+      // World matrices first: just loaded or reparented to a hand, they are
+      // stale, and the grip came out metres off (Tonio's weapons carry one).
+      refreshUnder(this.mesh, node)
       g = BABYLON.Vector3.TransformCoordinates(
         node.getAbsolutePosition(),
         BABYLON.Matrix.Invert(this.mesh.getWorldMatrix())

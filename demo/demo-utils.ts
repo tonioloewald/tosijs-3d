@@ -426,6 +426,13 @@ export function demoLoadout(
   opts: {
     /** Slots filled at the start, `{ right_side: 'pistol' }` (out of the bag). */
     equip?: Record<string, string>
+    /**
+     * What there is to carry, in place of the default helm-to-shield set:
+     * each item's slot tags (`side`, `hand`, `back`, `two-handed`, …), its
+     * mass, and `art`, its picture: an entry in `/item-icons.json` (its own id
+     * if absent).
+     */
+    catalogue?: Record<string, { tags: string[]; mass: number; art?: string }>
   } = {}
 ): {
   panels: () => B3dPanel[]
@@ -439,20 +446,25 @@ export function demoLoadout(
     tags,
     mass,
   })
-  const kinds = {
-    helm: kind('helm', ['helmet'], 2),
-    goggles: kind('goggles', ['face'], 0.5),
-    cuirass: kind('cuirass', ['chest'], 8),
-    pack: kind('pack', ['back'], 1),
-    belt: kind('belt', ['waist'], 0.5),
-    knife: kind('knife', ['side', 'hand'], 1),
-    pistol: kind('pistol', ['side', 'hand'], 1),
-    greaves: kind('greaves', ['legs'], 3),
-    boots: kind('boots', ['feet'], 2),
-    sword: kind('sword', ['hand'], 3),
-    rifle: kind('rifle', ['hand', 'two-handed'], 4),
-    shield: kind('shield', ['hand'], 5),
-  }
+  const given = opts.catalogue
+  const kinds: Record<string, ReturnType<typeof kind>> = given
+    ? Object.fromEntries(
+        Object.entries(given).map(([id, k]) => [id, kind(id, k.tags, k.mass)])
+      )
+    : {
+        helm: kind('helm', ['helmet'], 2),
+        goggles: kind('goggles', ['face'], 0.5),
+        cuirass: kind('cuirass', ['chest'], 8),
+        pack: kind('pack', ['back'], 1),
+        belt: kind('belt', ['waist'], 0.5),
+        knife: kind('knife', ['side', 'hand'], 1),
+        pistol: kind('pistol', ['side', 'hand'], 1),
+        greaves: kind('greaves', ['legs'], 3),
+        boots: kind('boots', ['feet'], 2),
+        sword: kind('sword', ['hand'], 3),
+        rifle: kind('rifle', ['hand', 'two-handed'], 4),
+        shield: kind('shield', ['hand'], 5),
+      }
   const slot = (...accepts: string[]) => ({ accepts, holds: null })
   const body = {
     type: 'slots' as const,
@@ -518,7 +530,8 @@ export function demoLoadout(
     fetch('/item-icons.json').then((r) => r.json()),
   ]).then(([art, icons]) => {
     for (const k of Object.keys(kinds))
-      (kinds as Record<string, { icon?: string }>)[k].icon = icons[k]
+      (kinds as Record<string, { icon?: string }>)[k].icon =
+        icons[given?.[k]?.art ?? k]
     dock = inventoryDock({
       inv,
       carry: createCarry(),

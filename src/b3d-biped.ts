@@ -935,6 +935,19 @@ export class B3dBiped extends B3dControllable {
    * Unset, the button toggles `gunplay` as before.
    */
   whenWeapon: ((up: boolean) => void) | null = null
+  /**
+   * A weapon is in hand but not one you raise to fire (a sword, a shield): it
+   * stays visible with gunplay off. Lowered weapons are otherwise hidden (see
+   * `_showWeapons`). JS only; the game sets it when what is in hand changes.
+   */
+  get holdingWeapon(): boolean {
+    return this._holdingWeapon
+  }
+  set holdingWeapon(on: boolean) {
+    this._holdingWeapon = on
+    this._showWeapons(this.gunplay)
+  }
+  private _holdingWeapon = false
 
   /**
    * Put the weapon up or down.
@@ -971,7 +984,8 @@ export class B3dBiped extends B3dControllable {
    * walk — and that is already on the list.
    */
   private _showWeapons(visible: boolean): void {
-    for (const w of this._weapons()) w.mesh?.setEnabled(visible)
+    const shown = visible || this._holdingWeapon
+    for (const w of this._weapons()) w.mesh?.setEnabled(shown)
   }
 
   /**
