@@ -1997,8 +1997,9 @@ export function mountRigTool(
     */
 
     const castShadows = (mesh: BABYLON.AbstractMesh) => {
-      if (hosted) return
-
+      // Hosted too: the body the tool shows stands in for the host's, which
+      // casts in the host's sun (the character builder's did; the rig
+      // tool's had none).
       const sun = owner.querySelector?.('tosi-b3d-sun') as {
         shadowGenerator?: BABYLON.ShadowGenerator
       } | null
