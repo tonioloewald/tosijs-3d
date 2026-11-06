@@ -67,7 +67,7 @@ the clip is driven, and a pause in the scene shows in the button.
 Scrubbing pauses the clip, since a moment you drag to is one you want to see
 held. Press play to carry on from there.
 
-`speeds` sets the menu (default 0.25, 0.5, 0.75, 1, 1.5 and 2).
+`speeds` sets the menu (default 0.1, 0.25, 0.5, 0.75, 1, 1.5 and 2).
 */
 /*{ "parent": "widgets3d", "order": 30 }*/
 
@@ -134,7 +134,7 @@ function box<T>(initial: T) {
   }
 }
 
-const SPEEDS = [0.25, 0.5, 0.75, 1, 1.5, 2]
+const SPEEDS = [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2]
 
 /**
  * A clip's transport: play/pause, a scrub bar and a speed menu, on one row.
