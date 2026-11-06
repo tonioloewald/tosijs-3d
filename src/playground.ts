@@ -24,8 +24,8 @@ const GRIP = { x: -0.034, y: 0.066, z: 0.015, rx: -57.4, ry: 128.3, rz: 54.6 }
 const BLADE = { x: -0.039, y: 0.077, z: 0.041, rx: -75, ry: 165, rz: 15 }
 // What each one is in the inventory (slot tags, mass, its picture), and for the
 // guns how it fires. Only guns are raised: UAL's ranged clips are Pistol_*,
-// so the rifles are fired from a one-handed stance, and the blades are
-// carried, not swung.
+// so the rifles are fired from a one-handed stance. Anything else is a melee
+// weapon (`holdingWeapon`): on guard, and the trigger swings it.
 const WEAPONS = {
   Pistol: { tags: ['side', 'hand'], mass: 1, art: 'pistol', fire: { fireRate: 6, muzzleSpeed: 45, damage: 25, projRadius: 0.08, gravity: -2 } },
   SMG: { tags: ['side', 'hand'], mass: 2.5, art: 'pistol', fire: { fireRate: 14, muzzleSpeed: 50, damage: 12, projRadius: 0.06, gravity: -2 } },
@@ -211,9 +211,9 @@ the round will actually land, sinking as the range grows because it is the
 real ballistic arc rather than a dot in the middle of the screen. You cannot
 sprint with the gun up, which is why the trigger is free to do both jobs.
 Each gun fires its own way (the SMG fast, the rocket launcher slow and heavy).
-A blade, the spear or the buckler is held with the weapon down; there are no
-melee attacks yet. Press it again to put away what is in your hand. Only the
-right hand is drawn.
+A blade, the spear or the buckler takes a guard (UAL's `Sword_Idle`) and **R**
+swings it (`Sword_Attack`, played through; held, it swings again). Press the
+bumper again to put away what is in your hand. Only the right hand is drawn.
 
 **WASD** moves, **arrow keys** look, **space** jumps, **left shift** sneaks,
 **E** interacts, **Y** switches between third and first person. On a pad,

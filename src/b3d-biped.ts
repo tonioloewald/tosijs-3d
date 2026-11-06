@@ -422,6 +422,21 @@ export class AnimState {
  * Pass `extra` to add or override entries; a later entry with the same `name`
  * wins, so a project can retarget one state without restating the rest.
  */
+/** The states a melee swing may take over: on the ground, not in the air or water. */
+const MELEE_GROUND = new Set([
+  'idle',
+  'walk',
+  'run',
+  'sprint',
+  'walkBackwards',
+  'strafeLeft',
+  'strafeRight',
+  'sneak',
+  'sneakIdle',
+  'sneakLeft',
+  'sneakRight',
+])
+
 export function ualAnimationStates(extra: AnimStateSpec[] = []): AnimState[] {
   const base: AnimStateSpec[] = [
     { name: 'idle', animation: 'Idle_Loop', loop: true },
@@ -490,6 +505,10 @@ export function ualAnimationStates(extra: AnimStateSpec[] = []): AnimState[] {
     { name: 'aimDown', animation: 'Pistol_Aim_Down', loop: true },
     { name: 'shoot', animation: 'Pistol_Shoot', loop: false },
     { name: 'reload', animation: 'Pistol_Reload', loop: false },
+    // MELEE, with a weapon held but not raised (see `holdingWeapon`): standing
+    // still on guard, and one swing per pull of the trigger.
+    { name: 'meleeIdle', animation: 'Sword_Idle', loop: true },
+    { name: 'meleeAttack', animation: 'Sword_Attack', loop: false },
   ]
   const byName = new Map<string, AnimStateSpec>()
   for (const spec of [...base, ...extra]) {
@@ -936,9 +955,11 @@ export class B3dBiped extends B3dControllable {
    */
   whenWeapon: ((up: boolean) => void) | null = null
   /**
-   * A weapon is in hand but not one you raise to fire (a sword, a shield): it
-   * stays visible with gunplay off. Lowered weapons are otherwise hidden (see
-   * `_showWeapons`). JS only; the game sets it when what is in hand changes.
+   * A MELEE weapon is in hand (a sword): it stays visible with gunplay off
+   * (lowered weapons are otherwise hidden, see `_showWeapons`), standing still
+   * is `meleeIdle` (UAL's `Sword_Idle`), and the right trigger swings
+   * (`meleeAttack`, `Sword_Attack`, played through) instead of sprinting.
+   * JS only; the game sets it when what is in hand changes.
    */
   get holdingWeapon(): boolean {
     return this._holdingWeapon
@@ -1063,7 +1084,8 @@ export class B3dBiped extends B3dControllable {
    * the getter was for.
    */
   inputMapping = (pad: VirtualGamepad, dt: number): ControlInput =>
-    bipedMapping(pad, dt, this.gunplay)
+    // A melee weapon takes the trigger too: it swings rather than sprints.
+    bipedMapping(pad, dt, this.gunplay || this._holdingWeapon)
   inputLabels = bipedMappingDescriptor.labels
 
   /**
@@ -1883,6 +1905,7 @@ export class B3dBiped extends B3dControllable {
    * layer instead, because a walk cycle is still a walk cycle.
    */
   private _gunplayState(name: string): string {
+    if (!this.gunplay && this._holdingWeapon) return this._meleeState(name)
     if (!this.gunplay) return name
     if (name !== 'idle') return name
     if (this._hasClip('Pistol_Idle_Loop')) return 'aimIdle'
@@ -2021,8 +2044,33 @@ export class B3dBiped extends B3dControllable {
     for (const group of this._eased) group.blendingSpeed = step
   }
 
+  /**
+   * The melee version of a state: a swing in progress takes the whole body
+   * while on the ground (not mid-jump, swimming or climbing), and standing
+   * still is on guard. A rig without the clips keeps its own states.
+   */
+  private _meleeState(name: string): string {
+    if (this._attackFor > 0 && MELEE_GROUND.has(name)) return 'meleeAttack'
+    if (name === 'idle' && this._hasClip('Sword_Idle')) return 'meleeIdle'
+    return name
+  }
+  /** Seconds left of the swing playing now. */
+  private _attackFor = 0
+  private _swing(): void {
+    if (!this._hasClip('Sword_Attack')) {
+      this._warnOnce(
+        `b3d-biped: melee attack, but ${this.url || 'this rig'} has no ` +
+          `Sword_Attack clip. If it should, the asset is probably cached.`
+      )
+      return
+    }
+    this._attackFor = this._clipSeconds('Sword_Attack') || 1
+  }
+
   setAnimationState(name: string, speed = 1) {
     name = this._gunplayState(name)
+    // A swing and the guard play at their own speed, not the gait's.
+    if (name === 'meleeAttack' || name === 'meleeIdle') speed = 1
     if (name == null) {
       throw new Error('setAnimationState failed, no animation name specified.')
     }
@@ -2668,6 +2716,15 @@ export class B3dBiped extends B3dControllable {
       // is down, but an XR controller or an AI feeds this directly and a
       // holstered character who fires anyway is worse than one who cannot.
       if (this.gunplay && (input.shoot ?? 0) > 0.5) this._fireWeapons()
+      // A melee weapon swings, once per swing: held, it swings again after.
+      this._attackFor = Math.max(0, this._attackFor - dt)
+      if (
+        !this.gunplay &&
+        this._holdingWeapon &&
+        this._attackFor === 0 &&
+        (input.shoot ?? 0) > 0.5
+      )
+        this._swing()
       // After the shot, so the ring sits where THIS frame's aim points rather
       // than lagging it by one.
       if (this.owner != null) this._updateReticle(this.owner.scene)
