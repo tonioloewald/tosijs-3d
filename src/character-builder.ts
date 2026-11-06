@@ -910,6 +910,8 @@ preview.append(
             // A file starts from nothing: bound from markers, or on its own
             // skeleton when it has one.
             recipe: file ? undefined : plain(ch.recipe),
+            // The body it already wears: shown as it is, not bound again.
+            body: file ? undefined : ch.shown?.body,
             files: false,
             stage: false,
             camera: cam,

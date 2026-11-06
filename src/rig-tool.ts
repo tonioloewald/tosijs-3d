@@ -558,6 +558,21 @@ eight front-view markers (and a tail tip, for a tail), bone heat for the
 weights, and a Babylon skeleton built on it. Its tail, if any, is `tail_01`
 … `tail_leaf`: a bone chain for the springs.
 */
+/** A body was bound from exactly this binding (markers, tail, joints, hands). */
+function sameBinding(body: RiggedBody, binding?: RigBinding | null): boolean {
+  const m = body.made as any
+  if (binding == null || m.by !== 'markers') return false
+  const key = (b: any) =>
+    JSON.stringify([
+      b.markers,
+      b.tail ?? null,
+      b.tail != null ? b.tailBase ?? null : null,
+      b.joints ?? {},
+      b.hands ?? null,
+    ])
+  return key(m) === key(binding)
+}
+
 /** Bodies handed to a host on done: their file materials are the host's now. */
 const handedOver = new WeakSet<RiggedBody>()
 
@@ -566,18 +581,21 @@ function bindMesh(
   name: string,
   tris: Triangles,
   binding: RigBinding,
-  options: { tailBones?: number; color?: string } = {}
+  options: { tailBones?: number; color?: string; body?: RiggedBody } = {}
 ): Opened {
   const { positions, indices } = tris
   // A rigged body (rigged-body), as MakeHuman's are: one shape for both.
-  const body = bodyFromMarkers(tris, {
-    markers: binding.markers,
-    tail: binding.tail,
-    tailBase: binding.tailBase,
-    joints: binding.joints,
-    hands: binding.hands,
-    tailBones: options.tailBones,
-  })
+  // A host's, already bound from this binding, is shown as it is.
+  const body =
+    options.body ??
+    bodyFromMarkers(tris, {
+      markers: binding.markers,
+      tail: binding.tail,
+      tailBase: binding.tailBase,
+      joints: binding.joints,
+      hands: binding.hands,
+      tailBones: options.tailBones,
+    })
   const built = buildBody(scene, name, body)
   const mat = new BABYLON.StandardMaterial(`${name}-skin`, scene)
   mat.diffuseColor = BABYLON.Color3.FromHexString(options.color ?? '#8a8f99')
@@ -649,6 +667,13 @@ export interface RigToolOptions {
   models?: RigModel[]
   /** A recipe to start from, in place of the model's own (a host's document). */
   recipe?: RigRecipe
+  /**
+   * The body the host already bound from `recipe`'s binding (the character
+   * builder's): the first model is shown on it rather than bound again, so
+   * opening the tool to tune a spring costs no bone heat. Ignored when its
+   * markers or joints are not the recipe's. Its materials stay the host's.
+   */
+  body?: RiggedBody
   /**
    * `false`: no save, load or copy buttons and no working copy kept in this
    * browser. The host supplies the recipe and stores what `change` and
@@ -745,6 +770,8 @@ export function mountRigTool(
   const cleanups: Array<() => void> = []
   /** A recipe the host handed over before the model was loaded. */
   let given: RigRecipe | null = options.recipe ?? null
+  /** The host's body bound from that recipe, until the first load takes it. */
+  let hostBody: RiggedBody | null = options.body ?? null
   const ui = {
     model: models[0].label,
     clip: 'Walk_Loop',
@@ -3077,8 +3104,19 @@ export function mountRigTool(
         const bindOwn = bindNext || next.binding != null
         bindNext = false
         const auto = m instanceof File ? undefined : m.autorig
+        // The host's body, if it is this binding's: once, on the first load.
+        const hosts = hostBody
+        hostBody = null
+        const reuse =
+          hosts != null && sameBinding(hosts, next.binding) ? hosts : null
+        if (reuse != null) handedOver.add(reuse)
         const found =
-          auto != null
+          reuse != null
+            ? ({
+                positions: reuse.positions,
+                indices: reuse.indices,
+              } as unknown as Triangles)
+            : auto != null
             ? await demoTriangles(scene, (m as RigModel).url, auto)
             : m instanceof File && m.name.toLowerCase().endsWith('.obj')
             ? objTriangles(await m.text())
@@ -3104,6 +3142,7 @@ export function mountRigTool(
           opened = bindMesh(scene, label, found, binding, {
             tailBones: auto?.tailBones,
             color: auto?.color,
+            body: reuse ?? undefined,
           })
         } else opened = found
         if (disposed) {
