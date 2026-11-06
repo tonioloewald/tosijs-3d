@@ -926,7 +926,9 @@ preview.append(
               // What it rigged: the model it opened on, or a file loaded in it.
               const loaded = model instanceof File ? model : model?.file ?? null
               const name = model instanceof File ? model.name : model?.label ?? opened
-              if (loaded) {
+              // A file new to the builder only: re-adding the one it already
+              // has would dispose the materials the body handed back wears.
+              if (loaded && SOURCES[name]?.file !== loaded) {
                 SOURCES[name] = { file: loaded }
                 ch.addSource(name, { file: loaded })
                 keepBytes(loaded).then(() => character.changed?.())
