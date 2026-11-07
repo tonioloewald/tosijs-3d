@@ -137,7 +137,7 @@ describe('drapeGarmentAsync', () => {
     const later = await drapeGarmentAsync(dummy, P, options, { sliceMs: 1 })
     expect(Array.from(later.offset)).toEqual(Array.from(now.offset))
     expect(Array.from(later.triangles)).toEqual(Array.from(now.triangles))
-  })
+  }, 30_000) // two whole drapes: ~2 s here, nearly 6 on a CI runner
 
   test('it yields often (no step is a whole drape), and a signal stops it', async () => {
     let steps = 0
