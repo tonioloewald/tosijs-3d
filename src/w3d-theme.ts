@@ -244,6 +244,13 @@ export const w3dTheme = {
   anchored: cssVar('--w3d-anchored', '#ffd23f'),
 
   /*
+  ICON FILL — the filled parts of a `stroked filled` icon (the hair on a head,
+  the near arm of a figure). A mid tone apart from both the ink and the
+  button behind it, so icons that differ only in what is filled tell apart.
+  */
+  iconFill: cssVar('--w3d-icon-fill', '#4a7fb0'),
+
+  /*
   INTERACTION STATES — hover, focus, selected, disabled.
 
   Four states that must stay TELLABLE APART, which is the whole reason they are

@@ -74,7 +74,6 @@ const PAD = 6
 /** A toolbar's cell, and its icon. */
 const CELL = 44
 const GLYPH = 32
-// Opaque, so a `stroked filled` icon's knockout matches what is behind it.
 const CELL_BG = '#161a22'
 const CELL_ON = '#24364d'
 const CELL_HOT = '#2f5786'
@@ -133,7 +132,6 @@ export function barMenu(config: BarMenuConfig): BarMenu {
             }),
             iconGlyph(o.icon!, {
               color: on ? '#ffffff' : '#c8d2e0',
-              knockout: bg,
               size: GLYPH,
               x: x + (CELL - GLYPH) / 2,
               y: PAD + (CELL - GLYPH) / 2,
