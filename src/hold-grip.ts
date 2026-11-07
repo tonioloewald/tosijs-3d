@@ -26,7 +26,7 @@ holdGrip('Long Sword', { melee1h: { ry: 170 } }) // with your adjustment
 
 A grip is the item's grip point and turn in the hand's socket frame (metres
 and degrees; see [[character-builder]]'s Hold). An item not in the table is
-held as a `pistol`; `holdClasses` lets a library name its own. Only the
+held as a `pistol`; pass your own table as `classes` to name a library's. Only the
 `pistol` and `melee1h` defaults were placed by hand; the others start from the
 nearest of those two until someone places them.
 
