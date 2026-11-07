@@ -45,7 +45,7 @@ Two ship, and `registerMaterialType` adds another.
   grazing glow of cloth), `emissive` and `normal`. `applyMaterial` puts one on
   a Babylon material.
 - `cloth`: [[cloth-shading]] over a garment's own texture: `albedo` and
-  `recolour` (0 keeps the texture's colours, 1 is the colour wholly), and a
+  `recolour` (labelled **colorize**: 0 keeps the texture's colours, 1 is the colour wholly), and a
   surface (`roughness`, `metallic`, `sheen`, `sheenRoughness`) whose inputs
   are OPTIONAL: one left out is the garment's own, as made. `clothShading`'s
   `set({ recipe })` applies one.
@@ -178,7 +178,7 @@ export const PBR_MATERIAL: MaterialTypeDecl = {
     },
     {
       name: 'normal',
-      label: 'bumps',
+      label: 'normal map',
       kind: 'image',
       default: '',
       intensity: { default: 1, min: 0, max: 2 },
@@ -206,7 +206,7 @@ export const CLOTH_MATERIAL: MaterialTypeDecl = {
       image: true,
     },
     // 0 keeps the texture's colours, 1 is the colour wholly.
-    { name: 'recolour', kind: 'grey', default: 0 },
+    { name: 'recolour', label: 'colorize', kind: 'grey', default: 0 },
     {
       name: 'roughness',
       kind: 'grey',
@@ -226,7 +226,7 @@ export const CLOTH_MATERIAL: MaterialTypeDecl = {
     // The weave's relief (a normal map), over the garment's own surface.
     {
       name: 'normal',
-      label: 'bumps',
+      label: 'normal map',
       kind: 'image',
       default: '',
       intensity: { default: 1, min: 0, max: 2 },

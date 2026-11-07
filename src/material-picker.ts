@@ -8,7 +8,7 @@ collection, such as the fabrics) as a grid of renders, then a control per input
 of the material's type, drawn from the type's own declaration: a slider for
 a grey value, a colour picker for a colour, a strength beside it where the
 input has one. An input that may take a picture (the diffuse colour, a
-roughness, the bumps) is a heading and a row: **choose a picture** (from your
+roughness, the normal map) is a heading and a row: **choose a picture** (from your
 files: [material-pictures](/material-pictures/), the recipe keeps a key and a
 character file carries the picture), **clear** it, a **flat** colour or grey
 in its place, and a swatch showing what it is now. **Scale textures** runs
@@ -208,8 +208,7 @@ function pictureInputRow(opts: {
     'stroke-width': 1,
   })
   const picture = image({ y: 4, width: SW, height: H - 8, preserveAspectRatio: 'xMidYMid slice' })
-  const empty = iconGlyph('clothTexture', { size: H - 12 })
-  el.append(bg, ...cells, valueText, swatch, picture, empty)
+  el.append(bg, ...cells, valueText, swatch, picture)
 
   const paint = (): void => {
     const n = opts.now()
@@ -219,10 +218,6 @@ function pictureInputRow(opts: {
     const x = Math.max(0, width - PAD - SW)
     swatch.setAttribute('x', String(x))
     picture.setAttribute('x', String(x))
-    empty.setAttribute(
-      'transform',
-      `translate(${x + (SW - (H - 12)) / 2}, 6)`
-    )
     valueText.setAttribute('x', String(Math.max(0, x - PAD)))
     const url = n.image != null ? pictureUrl(n.image) : null
     if (url != null) picture.setAttribute('href', url)
@@ -235,18 +230,13 @@ function pictureInputRow(opts: {
         ? greyHex(n.value)
         : n.value
     swatch.setAttribute('fill', fill)
-    // An image-only input with none: the picture placeholder.
-    empty.setAttribute(
-      'display',
-      n.image == null && n.value == null && !d.optional ? 'inline' : 'none'
-    )
     valueText.textContent =
       n.image != null
         ? n.image.split(/[/\\]/).pop() ?? ''
         : n.value == null
         ? d.optional
           ? 'as made'
-          : ''
+          : 'none'
         : typeof n.value === 'number'
         ? String(Number(n.value.toFixed(2)))
         : ''

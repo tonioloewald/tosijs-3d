@@ -35,7 +35,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 - **Stroked-and-filled icons fill with `--w3d-icon-fill`** (a mid blue) instead of the button colour behind them. Pass `knockout` to `iconGlyph`, or set `--tosi-icon-knockout`, for the old look.
 - The rig tool's hosted "start over" is an icon beside undo and redo.
-- A material's albedo input is labelled **diffuse**. Its `tile` input's range is now 1/32 to 4 (was 0.02 to 4), so a smaller saved value is clamped.
+- Material inputs are labelled **diffuse** (albedo), **normal map** (was bumps) and **colorize** (a cloth's recolour); the recipe keys are unchanged.
+- A material's `tile` input's range is now 1/32 to 4 (was 0.02 to 4), so a smaller saved value is clamped.
 - Cloth material previews show a colour the recipe names wholly (the preview has no texture for a recolour to keep).
 - The tailor's "export glTF" button reads "export GLB".
 
