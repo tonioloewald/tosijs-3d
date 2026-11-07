@@ -52,6 +52,11 @@ so it can be opened again, and the name, slot and material recipe. Binding it
 to a body to wear (`bindGarment`) is the host's: a garment file carries the
 same mesh.
 
+A host that keeps the garment itself passes `persistent` (no cancel or
+done), its own system panel as `panel`, and rows of its own above and below
+(`rows: { top, bottom }`); the character builder does, so its tailor is
+always on the bar.
+
 `handleChange` hears every edit (a work in progress to keep); `setBody`
 moves the cut onto a body reshaped while the tool is open; `unmount` (or
 done, or cancel) removes everything it added.
@@ -151,6 +156,20 @@ export interface TailorToolOptions {
   handleDone?: (garment: TailoredGarment) => void
   /** Cancelled: the tool unmounts and this is called. */
   handleCancel?: () => void
+  /**
+   * A system panel of the host's (a `<tosi-b3d-panel>` with an icon) to draw
+   * in, instead of one of its own. The host keeps it: unmounting leaves it
+   * in place for the host to fill, and leaves hiding other clothes to the
+   * host too.
+   */
+  panel?: HTMLElement & { svg: SVGSVGElement | null }
+  /**
+   * No cancel or done: the host keeps the garment as it goes (when the
+   * person switches garment or closes the panel). Undo and redo stay.
+   */
+  persistent?: boolean
+  /** The host's own rows: above the outline, and at the end. */
+  rows?: { top?: () => Widget3d[]; bottom?: () => Widget3d[] }
 }
 
 export interface TailorTool {
@@ -162,6 +181,8 @@ export interface TailorTool {
   done(): void
   cancel(): void
   unmount(): void
+  /** Draw the panel again (the host's rows changed). */
+  refresh(): void
   /** Step back through the edits made since it opened. */
   undo(): void
   redo(): void
@@ -503,13 +524,18 @@ export function mountTailorTool(
       items: [
         { icon: 'rotateCcw', title: 'undo (⌘Z)', dim: !canUndo(), handleClick: undo },
         { icon: 'rotateCw', title: 'redo (⇧⌘Z)', dim: !canRedo(), handleClick: redo },
-        { spacer: true },
-        { icon: 'close', title: 'cancel', handleClick: () => finish(false) },
-        { icon: 'check', title: 'done: keep the garment', handleClick: () => finish(true) },
+        ...(options.persistent
+          ? []
+          : [
+              { spacer: true as const },
+              { icon: 'close', title: 'cancel', handleClick: () => finish(false) },
+              { icon: 'check', title: 'done: keep the garment', handleClick: () => finish(true) },
+            ]),
       ],
     }),
   ]
   const widgets = (): Widget3d[] => [
+    ...(options.rows?.top?.() ?? []),
     ...(status ? [label3d({ text: status, muted: true, compact: true })] : []),
     (field = outlineField3d({
       positions: body.positions,
@@ -625,13 +651,17 @@ export function mountTailorTool(
           }),
         ]
       : []),
+    ...(options.rows?.bottom?.() ?? []),
   ]
-  const panelEl = b3dPanel({
-    icon: 'scissors',
-    title: 'Tailor',
-    exclusive: 'off',
-    open: true,
-  }) as unknown as HTMLElement & { svg: SVGSVGElement | null }
+  const ownPanel = options.panel == null
+  const panelEl =
+    options.panel ??
+    (b3dPanel({
+      icon: 'scissors',
+      title: 'Tailor',
+      exclusive: 'off',
+      open: true,
+    }) as unknown as HTMLElement & { svg: SVGSVGElement | null })
   const panelSvg = () =>
     panel3d(
       {
@@ -646,7 +676,7 @@ export function mountTailorTool(
     if (!disposed) panelEl.svg = panelSvg()
   }
   panelEl.svg = panelSvg()
-  owner.append(panelEl)
+  if (ownPanel) owner.append(panelEl)
   // Redrawn to the view's height once a resize settles.
   owner.addEventListener?.('resizeend', refresh)
   recut()
@@ -658,9 +688,10 @@ export function mountTailorTool(
     stopDrape()
     disposed = true
     owner.removeEventListener?.('resizeend', refresh)
-    if (hideOthers) options.handleHideOthers?.(false)
     mesh?.dispose()
     material?.dispose()
+    if (!ownPanel) return
+    if (hideOthers) options.handleHideOthers?.(false)
     owner._closeSystemPanel?.(panelEl)
     panelEl.remove()
   }
@@ -700,6 +731,7 @@ export function mountTailorTool(
     done: () => finish(true),
     cancel: () => finish(false),
     unmount,
+    refresh,
     undo,
     redo,
     get canUndo() {

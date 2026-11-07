@@ -78,7 +78,9 @@ nudge it), one setting per clothes slot (`CHARACTER_SLOTS`, a garment's name
 or `none`), the face (`smile`, `browsUp`, `frown`, and `blink`, `talk`),
 `source` (`MakeHuman` or a mesh's name), `rigs` (each mesh's rig recipe) and
 `surfaces` (each mesh's materials, `as made` or `skin`). `hideClothes` takes
-everything worn off for a moment (the tailor's "hide other clothes").
+everything worn off for a moment (the tailor's "hide other clothes"), and
+`hideSlot` one slot's garment (the one being tailored, which the tailor
+draws itself).
 
 Each slot's material is separate (`setCloth(slot, { look, material })`): a
 garment's colourway and a material recipe over it.
@@ -906,7 +908,7 @@ export async function makeCharacter(
     if (!built || !scalp) return
     const token = ++dressing
     const names = [
-      ...[...SLOTS, 'hair', 'brows', 'beard', 'moustache'].map((k) => s[k]),
+      ...[...SLOTS.filter((k) => k !== s.hideSlot), 'hair', 'brows', 'beard', 'moustache'].map((k) => s[k]),
       'teeth_base',
       'tongue01',
     ].filter((n) => proxies[n] || garments.get(n)?.proxy)
@@ -1230,7 +1232,7 @@ export async function makeCharacter(
     for (const k of Object.keys(slotMaterial)) delete slotMaterial[k]
     const worn = s.hideClothes
       ? []
-      : SLOTS.filter((slot) => ownIn(slot)?.slot === slot)
+      : SLOTS.filter((slot) => slot !== s.hideSlot && ownIn(slot)?.slot === slot)
     const wearing = worn.map((slot) => proxyOn(ownIn(slot), r))
     worn.forEach((slot, i) => {
       const mesh = humanProxy(
@@ -1393,7 +1395,7 @@ export async function makeCharacter(
       if (has('rigs')) await rebind()
       if (has('surfaces')) for (const r of rigged.values()) dressSurfaces(r)
       if (has('source')) await choose()
-      else if (has('hideClothes') || SLOTS.some(has)) await dressShown()
+      else if (has('hideClothes') || has('hideSlot') || SLOTS.some(has)) await dressShown()
       else if (changed.some((k) => HAIR.has(k))) await dress()
       if (has('stubble') && stubbleMask == null && s.stubble > 0)
         await measureStubble()

@@ -94,6 +94,8 @@ export const DEFAULT_CHARACTER: Record<string, any> = {
   browsUp: 0,
   frown: 0,
   hideClothes: false,
+  /** A slot whose garment is left off for a moment (the one being tailored), or `''`. */
+  hideSlot: '',
   rigs: {},
   surfaces: {},
   /** The item in the right hand (a weapon library's name), or `none`. */
