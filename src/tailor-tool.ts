@@ -21,8 +21,8 @@ const tailor = mountTailorTool(scene, {
 })
 ```
 
-**Its panel is a system panel** (scissors, on the bar), with **cancel** and
-**done** at its top, then:
+**Its panel is a system panel** (scissors, on the bar). A bar pinned to its
+top carries **undo**, **redo**, **cancel** and **done**; below it:
 
 - **the outline**: you draw the character's left, on your right, and the
   other side is its mirror. Click out points, click the first to close a
@@ -41,9 +41,9 @@ const tailor = mountTailorTool(scene, {
   height: skirts, kilts);
 - **material**, **name** and **slot**.
 
-**Undo and redo** are on the icon row under cancel and done (and ⌘Z / ⇧⌘Z
-through `undo()` / `redo()`, which a host's keys call while the tool is
-open): each settled edit, a point dropped or a slider let go, is a step.
+**Undo and redo** (and ⌘Z / ⇧⌘Z through `undo()` / `redo()`, which a host's
+keys call while the tool is open): each settled edit, a point dropped or a
+slider let go, is a step.
 
 WHAT DONE HANDS BACK is the garment as a mesh at rest, on the body it was
 cut from (`garment`: positions, triangles, UVs unwrapped like a sewing
@@ -497,19 +497,19 @@ export function mountTailorTool(
   THE PANEL: a system panel of its own, done and cancel first.
   */
   let field: OutlineField | null = null
-  const widgets = (): Widget3d[] => [
-    row3d(
-      {},
-      button3d({ label: 'cancel', handleClick: () => finish(false) }),
-      button3d({ label: 'done', handleClick: () => finish(true) })
-    ),
+  // Pinned above the scrolling rows: they must not scroll out of reach.
+  const header = (): Widget3d[] => [
     iconBar3d({
       items: [
-        { spacer: true },
         { icon: 'rotateCcw', title: 'undo (⌘Z)', dim: !canUndo(), handleClick: undo },
         { icon: 'rotateCw', title: 'redo (⇧⌘Z)', dim: !canRedo(), handleClick: redo },
+        { spacer: true },
+        { icon: 'close', title: 'cancel', handleClick: () => finish(false) },
+        { icon: 'check', title: 'done: keep the garment', handleClick: () => finish(true) },
       ],
     }),
+  ]
+  const widgets = (): Widget3d[] => [
     ...(status ? [label3d({ text: status, muted: true, compact: true })] : []),
     (field = outlineField3d({
       positions: body.positions,
@@ -638,6 +638,7 @@ export function mountTailorTool(
         width: 340,
         height: 'fit',
         maxHeight: Math.min(720, owner.panelRoom?.(panelEl) ?? 720),
+        header: header(),
       },
       ...widgets()
     ) as unknown as SVGSVGElement
