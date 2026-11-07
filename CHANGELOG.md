@@ -12,6 +12,36 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+### Added
+
+- **Tabbed settings panels with icons**: `panelSections: 'tabs'` with an `icon` on each collapsible `label3d`. The character builder and the rig tool use it.
+- **`panelActions(el)`** on `<tosi-b3d>`: a page's own buttons on the settings panel's icon bar, at its right end. Icon bars take `{ spacer: true }` (an elastic gap); `tabs3d` takes `tools`, and in a tabbed panel `iconBar3d({ inTabs: true })` goes on the tab strip.
+- **Undo and redo** in the character builder and the rig tool (⌘Z / ⇧⌘Z). `undoHistory` is the pure history behind them.
+- **Panels rebuild once a resize settles.** The scene dispatches `resizeend`; `panelRoom(panelEl)` gives a system panel its room.
+- **Pictures in materials**: a material picker's colour, opacity, glow and bumps (and a cloth's colour, roughness and normal) can take a picture, kept by `material-pictures` and saved in a character file (`pictures`). Cloth and PBR take `tile` (metres per repeat).
+- **Photographed fabrics**: eleven of Poly Haven's CC0 fabric scans as cloth presets (`textiles`, `textiles-full`; `fabricTexturePresets`).
+- **Material previews** are drawn on Tonio's material test ball, on grey (a cube until it loads).
+- **Export a rigged body as a GLB** from the rig tool and the character builder (joint names, rest pose, height; the model's materials and springs).
+- **Character builder**: Hold uses Tonio's textured weapons with a manipulator on the grip; clips come from a smaller builder pack (`UAL_builder.glb`); `playback3d` (play, scrub, speed) in Motion; all four AI characters open on hand-placed rigs.
+- **Rig tool**: spread fingers, and hand modes (full, mitten, none); opened from the builder it shows the body it already wears.
+- **Biped melee**: `holdingWeapon` stands on guard in Sword_Idle and the right trigger swings (Sword_Attack). The biped playground carries Tonio's weapons.
+- **Tailor drape**: edits no longer lock the page (debounced, sliced, interruptible: `drapeGarmentAsync`, `runSliced`, `drapeSteps`, `remeshSteps`); cloth goes over arms, shoulders and hips; anchored points are drawn in the new `--w3d-anchored` colour.
+
+### Changed
+
+- **Stroked-and-filled icons fill with `--w3d-icon-fill`** (a mid blue) instead of the button colour behind them. Pass `knockout` to `iconGlyph`, or set `--tosi-icon-knockout`, for the old look.
+- The rig tool's hosted "start over" is an icon beside undo and redo.
+
+### Fixed
+
+- Arrow keys and Space no longer scroll the page while you play a demo.
+- Tailor, cut from the skin: tidy, smoothed cut edges (no spikes or notches along a neckline).
+- Drape: edges well clear of the body are no longer pinned to it (rigid hems).
+- A held item's grip is measured on fresh world matrices (the pistol no longer circles the hand metres away); the launcher reads its `_grip` the same way.
+- Auto-rig: glove bumps are not read as fingers, and a knotted thumb is placed by proportion.
+- The rig tool casts shadows when hosted, and done on a body from a file no longer leaves it invisible.
+- A stroked-and-filled icon's part drawn with `stroke:none` stays unstroked (tosijs-ui#251 worked round by `bin/icon-no-stroke.ts`).
+
 ## 0.12.3
 
 The latest release. Characters out to other engines (a GLB read with no engine, any rigged body as a skinned GLB that plays UAL's clips by name, springs as `VRMC_springBone`), the rig tool's fixes for AI-made meshes, draped cloth, and scenes as agent tools and for a screen reader. See [0.12.3](/v0.12.3/).
