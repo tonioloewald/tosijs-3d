@@ -35,6 +35,6 @@ it marks the inventory's **unequip** target (2026-10, may be replaced).
 
 `stroked/filled/biped-preview.svg` is Tonio's (2026-11), the character builder's preview: the walking biped inside a turning arc. In `stroked/filled` a path drawn with no fill is OPEN (the arc, the arrowheads); tosijs-ui's generator strips every fill there, so `bin/icon-open-paths.ts` (run by `bun run icons`) puts `fill="none"` back on those paths.
 
-`stroked/filled/{ancestry,body,eyes,face,hair,motion,skin}.svg` and `stroked/spring.svg` are Tonio's (2026-11), the character builder's and the rig tool's section tabs.
+`stroked/filled/{ancestry,body,character,clothing,eyes,face,hair,motion,skin}.svg` and `stroked/spring.svg` are Tonio's (2026-11), the character builder's and the rig tool's section tabs.
 
 In `stroked/filled` a path drawn with `stroke:none` is a fill with no outline (the skin icon's neck and shoulders). tosijs-ui's generator strips it (tosijs-ui#251), so `bin/icon-no-stroke.ts` (run by `bun run icons`) puts `stroke="none"` back. `stroked/filled/motion.svg` was drawn on a 48 grid and is rescaled to 24 (2026-11).

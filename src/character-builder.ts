@@ -59,7 +59,7 @@ const characterRows = () => {
       { icon: 'rotateCcw', title: 'undo (⌘Z)', dim: !character.canUndo(), handleClick: () => character.undo() },
       { icon: 'rotateCw', title: 'redo (⇧⌘Z)', dim: !character.canRedo(), handleClick: () => character.redo() },
     ] }),
-    label3d({ text: 'Character', icon: 'personStanding', collapsible: true }),
+    label3d({ text: 'Character', icon: 'character', collapsible: true }),
     select3d({
       label: 'character',
       value: current,
@@ -192,7 +192,7 @@ const ownIn = (slot) => {
   return g && g.source === walker.source.value ? g : null
 }
 const clothesRows = () => [
-  label3d({ text: 'Clothes', icon: 'loadout', collapsible: true }),
+  label3d({ text: 'Clothes', icon: 'clothing', collapsible: true }),
   ...SLOTS.map((slot) => select3d({ label: slot, value: walker[slot], options: choices(slot), stayOpen: true })),
   // One editor for whichever worn thing is chosen: its colourway, and its
   // material (a fabric, a colour, and a recolour over its texture: 0
@@ -352,6 +352,11 @@ preview.append(
         slider('pecs', 'pecs'),
         slider('bust', 'bustSize'),
         slider('firmness', 'bustFirmness'),
+        // Beside the body: MakeHuman's own, so only here.
+        label3d({ text: 'Ancestry', icon: 'ancestry', collapsible: true }),
+        slider('african', 'african'),
+        slider('asian', 'asian'),
+        slider('caucasian', 'caucasian'),
         label3d({ text: 'Motion', icon: 'motion', collapsible: true }),
         select3d({ label: 'clip', value: walker.clip, options: clips, stayOpen: true }),
         playbackRow(),
@@ -387,10 +392,6 @@ preview.append(
         ...tailorRows(),
         ...holdRows(),
         ...exportRows(),
-        label3d({ text: 'Ancestry', icon: 'ancestry', collapsible: true }),
-        slider('african', 'african'),
-        slider('asian', 'asian'),
-        slider('caucasian', 'caucasian'),
       ] : [
         // A body of anyone's: what MakeHuman's carries (shape, face, hair,
         // clothes) is not there; the clips and the skin are.
