@@ -38,3 +38,5 @@ it marks the inventory's **unequip** target (2026-10, may be replaced).
 `stroked/filled/{ancestry,body,character,clothing,eyes,face,hair,motion,skin}.svg` and `stroked/spring.svg` are Tonio's (2026-11), the character builder's and the rig tool's section tabs.
 
 In `stroked/filled` a path drawn with `stroke:none` is a fill with no outline (the skin icon's neck and shoulders). tosijs-ui's generator strips it (tosijs-ui#251), so `bin/icon-no-stroke.ts` (run by `bun run icons`) puts `stroke="none"` back. `stroked/filled/motion.svg` was drawn on a 48 grid and is rescaled to 24 (2026-11).
+
+`stroked/feather/upload.svg` is Feather's upload (MIT, 2026-11), for a material input's "choose a picture". `color/color-picker.svg` and `color/cloth-texture.svg` are Tonio's (2026-11): a material input's flat colour, and a picture.

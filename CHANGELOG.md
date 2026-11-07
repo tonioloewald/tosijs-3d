@@ -25,12 +25,19 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 - **Character builder**: Hold uses Tonio's textured weapons with a manipulator on the grip; clips come from a smaller builder pack (`UAL_builder.glb`); `playback3d` (play, scrub, speed) in Motion; all four AI characters open on hand-placed rigs.
 - **Rig tool**: spread fingers, and hand modes (full, mitten, none); opened from the builder it shows the body it already wears.
 - **Biped melee**: `holdingWeapon` stands on guard in Sword_Idle and the right trigger swings (Sword_Attack). The biped playground carries Tonio's weapons.
+- **Material inputs that take a picture** are a heading and a row: choose a picture, clear it, a flat colour or grey instead (`colorPicker` icon), and a swatch of what it is now. `colorPicker3d` and `color3d` take `grey: true` (a black-to-white ramp and a ladder of greys).
+- **`slider3d` `notches`**: a press beside the handle steps to the next notch that way; dragging stays continuous. A material's `tile` is now **scale textures**, 1/32 to 4 on a log scale, notched at 1/n and whole numbers (`textureScaleNotches`), where pictures repeat whole.
+- **The tailor has undo and redo** (icons under cancel and done; ⌘Z / ⇧⌘Z in the builder while it is open).
+- **Character builder clothes**: each slot is one row, the garment and its material swatch beside it; the "edit" picker is gone. `materialPicker3d` takes `name` (a title with no caption).
 - **Tailor drape**: edits no longer lock the page (debounced, sliced, interruptible: `drapeGarmentAsync`, `runSliced`, `drapeSteps`, `remeshSteps`); cloth goes over arms, shoulders and hips; anchored points are drawn in the new `--w3d-anchored` colour.
 
 ### Changed
 
 - **Stroked-and-filled icons fill with `--w3d-icon-fill`** (a mid blue) instead of the button colour behind them. Pass `knockout` to `iconGlyph`, or set `--tosi-icon-knockout`, for the old look.
 - The rig tool's hosted "start over" is an icon beside undo and redo.
+- A material's albedo input is labelled **diffuse**. Its `tile` input's range is now 1/32 to 4 (was 0.02 to 4), so a smaller saved value is clamped.
+- Cloth material previews show a colour the recipe names wholly (the preview has no texture for a recolour to keep).
+- The tailor's "export glTF" button reads "export GLB".
 
 ### Fixed
 
@@ -40,6 +47,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 - A held item's grip is measured on fresh world matrices (the pistol no longer circles the hand metres away); the launcher reads its `_grip` the same way.
 - Auto-rig: glove bumps are not read as fingers, and a knotted thumb is placed by proportion.
 - The rig tool casts shadows when hosted, and done on a body from a file no longer leaves it invisible.
+- Undoing a placed grip in the character builder moves the held item back (the numbers were restored, the item was not).
 - A stroked-and-filled icon's part drawn with `stroke:none` stays unstroked (tosijs-ui#251 worked round by `bin/icon-no-stroke.ts`).
 
 ## 0.12.3

@@ -87,6 +87,34 @@ export interface MaterialInputDecl {
    * it resolves to `null`, and `default` is only where a control starts.
    */
   optional?: boolean
+  /** How a grey value's slider runs: `log2` for a scale. Default `linear`. */
+  scale?: 'linear' | 'log2'
+  /** Values a press beside the slider's handle steps to (`textureScaleNotches`). */
+  notches?: number[]
+}
+
+/**
+ * 1/32 … 1/2, 1, 2, 3, 4: the scales at which a picture repeats a whole
+ * number of times across a unit of UV (or fills a whole number of units),
+ * so its tiles meet.
+ */
+export function textureScaleNotches(min = 1 / 32, max = 4): number[] {
+  const out: number[] = []
+  for (let n = Math.floor(1 / min); n >= 2; n--) out.push(1 / n)
+  for (let n = 1; n <= max; n++) out.push(n)
+  return out.filter((v) => v >= min - 1e-12 && v <= max)
+}
+
+/** The `tile` input both shipped types take: how big the pictures are. */
+const TEXTURE_SCALE: MaterialInputDecl = {
+  name: 'tile',
+  label: 'scale textures',
+  kind: 'grey',
+  default: 1,
+  min: 1 / 32,
+  max: 4,
+  scale: 'log2',
+  notches: textureScaleNotches(),
 }
 
 /** A shader type: its name and the inputs it takes. */
@@ -124,7 +152,7 @@ export const PBR_MATERIAL: MaterialTypeDecl = {
   inputs: [
     {
       name: 'albedo',
-      label: 'colour',
+      label: 'diffuse',
       kind: 'rgb',
       default: '#cccccc',
       image: true,
@@ -157,7 +185,7 @@ export const PBR_MATERIAL: MaterialTypeDecl = {
     },
     // How much surface one repeat of its pictures covers, metres (a tailored
     // garment's UVs are metres; on other UVs, 1 / tile repeats).
-    { name: 'tile', label: 'tile (m)', kind: 'grey', default: 1, min: 0.02, max: 4 },
+    TEXTURE_SCALE,
   ],
 }
 
@@ -172,7 +200,7 @@ export const CLOTH_MATERIAL: MaterialTypeDecl = {
     // A picture (a print, a weave) in place of the garment's own texture.
     {
       name: 'albedo',
-      label: 'colour',
+      label: 'diffuse',
       kind: 'rgb',
       default: '#7a2e2e',
       image: true,
@@ -205,7 +233,7 @@ export const CLOTH_MATERIAL: MaterialTypeDecl = {
     },
     // How much surface one repeat of its pictures covers, metres (a tailored
     // garment's UVs are metres; on other UVs, 1 / tile repeats).
-    { name: 'tile', label: 'tile (m)', kind: 'grey', default: 1, min: 0.02, max: 4 },
+    TEXTURE_SCALE,
   ],
 }
 

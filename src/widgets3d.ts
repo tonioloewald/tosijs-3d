@@ -271,6 +271,7 @@ drag *and* the reported value, so a slider can be discrete without becoming a
 | | **`snap`** | `0` | quantise the VALUE (e.g. `1` for whole grid sizes) |
 | | **`zeroStop`** | `false` | an explicit `0` at the bottom of a log track; `min` becomes the log floor |
 | | **`step`** | `0` | **quantises the drag and the value**; `0` is continuous |
+| | **`notches`** | | values a press BESIDE the handle steps to, the next one that way (`textureScaleNotches`: 1/3 → 1/2 → 1 → 2); dragging the handle stays continuous |
 | | `showValue` | `'peek'` | `peek` (on touch/drag) / `always` / `never` |
 | | `format` | step-derived | `(v) => string` — units, precision |
 | `toggle3d` | `label` / `value` | | |
@@ -2455,6 +2456,13 @@ export function slider3d(config: {
    * The handle still reaches everything between them.
    */
   stops?: Array<{ value: number; label?: string }>
+  /**
+   * Values a press BESIDE the handle steps to: the next one in that
+   * direction, one per press. Dragging the handle stays continuous. For
+   * values where only some are clean (a texture repeats a whole number of
+   * times: `textureScaleNotches`).
+   */
+  notches?: number[]
 }): Widget3d {
   const min = config.min ?? 0
   const max = config.max ?? 1
@@ -2680,6 +2688,25 @@ export function slider3d(config: {
     )
     reflect()
   }
+  const notches = [...(config.notches ?? [])]
+    .filter((n) => Number.isFinite(n) && n >= min && n <= max)
+    .sort((a, b) => a - b)
+  // This press stepped to a notch: it does not drag.
+  let stepping = false
+  const knobX = () =>
+    trackX +
+    valueToFraction(Number(bound.get()), min, max, scale, zeroStop) * trackW
+  const stepToNotch = (x: number) => {
+    const v = Number(bound.get())
+    const eps = 1e-9 * Math.max(1, Math.abs(v))
+    const next =
+      x > knobX()
+        ? notches.find((n) => n > v + eps)
+        : [...notches].reverse().find((n) => n < v - eps)
+    if (next == null) return
+    bound.set(next)
+    reflect()
+  }
   const unbind = bound.subscribe(reflect)
   return {
     el,
@@ -2751,7 +2778,14 @@ export function slider3d(config: {
       } else {
         rowBg.setAttribute('fill', TH.ROW_HOVER)
         peek(true) // pointing at it (hover/press) → show the exact value
-        if (kind === 'down' || kind === 'move') setFromX(x) // hover/up don't set
+        if (kind === 'down' && notches.length > 0) {
+          // Beside the handle: the next notch that way, and no drag.
+          stepping = Math.abs(x - knobX()) > 14
+          if (stepping) stepToNotch(x)
+          else setFromX(x)
+        } else if (kind === 'down' || (kind === 'move' && !stepping))
+          setFromX(x) // hover/up don't set
+        if (kind === 'up') stepping = false
       }
     },
     semantics: () => ({

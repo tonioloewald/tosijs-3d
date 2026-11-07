@@ -11,17 +11,17 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 import { exportBodyRows } from 'tosijs-3d/body-export'
 
 // Everything the panel sets, as it starts: what a saved character is read against.
-const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', editing: 'outfit', look: 'as made', clothLook: clothRecipe({ fabric: 'cotton', colour: '#7a2e2e', recolour: 0 }), paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorDrape: false, tailorMesh: 'medium', tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, held: 'none', grips: {}, source: 'MakeHuman', bodyDetail: 'medium', characterName: '' }
+const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorDrape: false, tailorMesh: 'medium', tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, held: 'none', grips: {}, source: 'MakeHuman', bodyDetail: 'medium', characterName: '' }
 const { walker } = tosi({ walker: structuredClone(START) })
 // What a character file keeps: not the editor's view of one slot (that is in
 // cloth), the microphone (it would ask on load), or the save controls.
-const KEPT = Object.keys(START).filter((k) => !['editing', 'look', 'clothLook', 'mic', 'characterName'].includes(k))
+const KEPT = Object.keys(START).filter((k) => !['mic', 'characterName'].includes(k))
 // Saving and loading characters, wired when the page is up.
 const character = { save: () => {}, rename: () => {}, load: () => {}, remove: () => {}, exportJson: () => {}, play: () => {}, importJson: () => {}, changed: () => {}, undo: () => {}, redo: () => {}, canUndo: () => false, canRedo: () => false, saved: [], note: '' }
 // A name asked for in a popup (works in a headset too): refused with its
@@ -176,28 +176,53 @@ let exportGarment = () => {}
 let importGarment = () => {}
 let forgetGarment = () => {}
 let editGarment = () => {}
-// One picker per garment: the fabrics as presets, plus 'as made', which
-// leaves a garment's own surface (a file's roughness map) alone. A preset
-// keeps the colour and recolour unless it brings its own (gold, copper).
-const clothPicker = (label, value) => materialPicker3d({ label, value, types: ['cloth'], collections: ['fabrics', 'textiles'], presets: [{ name: 'as made', recipe: { type: 'cloth', inputs: {} } }], keep: ['albedo', 'recolour'] })
 
 // A garment of your own worn in a slot, if it was made on the body shown.
 const ownIn = (slot) => {
   const g = ch?.garments.get(walker[slot].value)
   return g && g.source === walker.source.value ? g : null
 }
+// Each slot is one row: what is worn, and beside it what it is made of (a
+// swatch; tap it for fabrics, a colour, a picture). The fabrics are presets,
+// plus 'as made', which leaves a garment's own surface (a file's roughness
+// map) alone; a preset keeps the colour and recolour unless it brings its
+// own (gold, copper). A worn suit with colourways has them on a row below.
+const copy = (v) => JSON.parse(JSON.stringify(v))
+const slotMaterial = (slot) =>
+  materialPicker3d({
+    name: slot,
+    value: copy(ch.cloth(slot).material),
+    types: ['cloth'],
+    collections: ['fabrics', 'textiles'],
+    presets: [{ name: 'as made', recipe: { type: 'cloth', inputs: {} } }],
+    keep: ['albedo', 'recolour'],
+    handleChange: (r) => {
+      ch.setCloth(slot, { material: copy(r) })
+      character.changed?.()
+    },
+  })
+const looksOf = (slot) => Object.keys(packProxies[walker[slot].value]?.material?.looks ?? {})
 const clothesRows = () => [
   label3d({ text: 'Clothes', icon: 'clothing', collapsible: true }),
-  ...SLOTS.map((slot) => select3d({ label: slot, value: walker[slot], options: choices(slot), stayOpen: true })),
-  // One editor for whichever worn thing is chosen: its colourway, and its
-  // material (a fabric, a colour, and a recolour over its texture: 0
-  // keeps the texture's own colours).
-  select3d({ label: 'edit', value: walker.editing, options: SLOTS }),
-  // Its colourways, where it has any (only some of MakeHuman's suits do).
-  ...(Object.keys(packProxies[walker[walker.editing.value].value]?.material?.looks ?? {}).length
-    ? [select3d({ label: 'look', value: walker.look, options: ['as made', ...Object.keys(packProxies[walker[walker.editing.value].value].material.looks)] })]
-    : []),
-  clothPicker('material', walker.clothLook),
+  ...SLOTS.flatMap((slot) => {
+    const garment = select3d({ label: slot, value: walker[slot], options: choices(slot), stayOpen: true })
+    // Not worn (or not one this body can wear): no swatch.
+    if (ch == null || walker[slot].value === 'none' || !choices(slot).includes(walker[slot].value)) return [garment]
+    return [
+      row3d({ weights: [4, 1] }, garment, slotMaterial(slot)),
+      ...(looksOf(slot).length
+        ? [select3d({
+            label: `${slot} look`,
+            value: ch.cloth(slot).look,
+            options: ['as made', ...looksOf(slot)],
+            handleChange: (v) => {
+              ch.setCloth(slot, { look: v })
+              character.changed?.()
+            },
+          })]
+        : []),
+    ]
+  }),
 ]
 // SOMETHING IN THE HAND: an item from the weapon library on the right hand's
 // socket (its frame is the hand's anatomy, so one grip fits any rig's hand),
@@ -308,7 +333,7 @@ const tailorRows = () => [
               ...(ownIn(walker.tailorSlot.value).cut && !tailoring ? [button3d({ label: `edit ${walker[walker.tailorSlot.value].value}`, handleClick: () => editGarment() })] : []),
               button3d({ label: `forget ${walker[walker.tailorSlot.value].value}`, handleClick: () => forgetGarment() }),
               toggle3d({ label: 'include the body (a helper)', value: walker.exportBody }),
-              button3d({ label: 'export glTF', handleClick: () => exportGarment('glb') }),
+              button3d({ label: 'export GLB', handleClick: () => exportGarment('glb') }),
               button3d({ label: 'export OBJ', handleClick: () => exportGarment('obj') }),
             ]
           : []),
@@ -601,6 +626,8 @@ preview.append(
           applyGrip()
           el.refreshScenePanel?.()
         })
+        // An undo (or a loaded character) puts the grip back: the item moves.
+        walker.grips.observe(() => applyGrip())
 
         // CLIPS FROM A FILE: any skinned GLB with animations (Mixamo's,
         // Meshy's): its skeleton read like UAL's, its clips listed and
@@ -743,25 +770,9 @@ preview.append(
           const pair = Object.values(HAIR_COLOURS).find((c) => c.base === walker.hairBase.value)
           if (pair && walker.hairHighlight.value !== pair.highlight) walker.hairHighlight.value = pair.highlight
         })
-        // The editor shows the chosen slot's look and material and writes back to them.
-        let loading = false
-        const load = () => {
-          loading = true
-          const c = ch.cloth(walker.editing.value)
-          walker.look.value = c.look
-          walker.clothLook.value = plain(c.material)
-          loading = false
-          el.refreshScenePanel?.()
-        }
-        walker.editing.observe(load)
-        // Wearing something new: edit it (the character resets its look).
-        for (const slot of SLOTS) walker[slot].observe(() => {
-          if (walker[slot].value === 'none') return
-          if (walker.editing.value === slot) load()
-          else walker.editing.value = slot
-        })
-        walker.look.observe(() => { if (!loading) ch.setCloth(walker.editing.value, { look: walker.look.value }) })
-        walker.clothLook.observe(() => { if (!loading) ch.setCloth(walker.editing.value, { material: plain(walker.clothLook.value) }) })
+        // Wearing something else: its row gets its swatch (the character
+        // resets its look).
+        for (const slot of SLOTS) walker[slot].observe(() => el.refreshScenePanel?.())
         // The microphone drives the lips (it asks first, so it is never saved).
         let stopMic = null
         walker.mic.observe(async () => {
@@ -1186,6 +1197,13 @@ preview.append(
         const onKey = (e) => {
           if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return
           if (e.target?.closest?.('input, textarea, [contenteditable]')) return
+          // The tailor, while it is open, undoes its own edits.
+          if (tailoring && !stepping) {
+            e.preventDefault()
+            if (e.shiftKey) tailoring.redo()
+            else tailoring.undo()
+            return
+          }
           if (!idle()) return
           e.preventDefault()
           if (e.shiftKey) character.redo()
@@ -1193,7 +1211,7 @@ preview.append(
         }
         window.addEventListener('keydown', onKey)
         el.whenDisposed?.(() => window.removeEventListener('keydown', onKey))
-        for (const k of [...KEPT, 'look', 'clothLook']) walker[k].observe(() => character.changed())
+        for (const k of KEPT) walker[k].observe(() => character.changed())
         character.save = async (name) => {
           try {
             await store.put(name, snapshot(name))

@@ -41,6 +41,10 @@ const tailor = mountTailorTool(scene, {
   height: skirts, kilts);
 - **material**, **name** and **slot**.
 
+**Undo and redo** are on the icon row under cancel and done (and ⌘Z / ⇧⌘Z
+through `undo()` / `redo()`, which a host's keys call while the tool is
+open): each settled edit, a point dropped or a slider let go, is a step.
+
 WHAT DONE HANDS BACK is the garment as a mesh at rest, on the body it was
 cut from (`garment`: positions, triangles, UVs unwrapped like a sewing
 pattern), with what it was cut from (`cut`: the outlines, thickness, how it was made)
@@ -77,8 +81,10 @@ import { materialPicker3d } from './material-picker.js'
 import type { MaterialRecipe } from './material-recipe.js'
 import { inputField } from './keyboard.js'
 import { b3dPanel } from './b3d-panel.js'
+import { undoHistory } from './undo-history.js'
 import {
   button3d,
+  iconBar3d,
   label3d,
   panel3d,
   row3d,
@@ -156,6 +162,11 @@ export interface TailorTool {
   done(): void
   cancel(): void
   unmount(): void
+  /** Step back through the edits made since it opened. */
+  undo(): void
+  redo(): void
+  readonly canUndo: boolean
+  readonly canRedo: boolean
 }
 
 /** Cloth over the body: the cut is fitted a little out from the skin. */
@@ -194,7 +205,55 @@ export function mountTailorTool(
     name,
     slot,
   })
-  const changed = () => options.handleChange?.(state())
+  /*
+  UNDO: the state recorded as each edit settles (a slider drag is one step),
+  and restored as opening with it would.
+  */
+  const history = undoHistory<TailorState>({ limit: 100 })
+  history.record(state())
+  let stepTimer: ReturnType<typeof setTimeout> | null = null
+  let restoring = false
+  const buttons = () => `${canUndo()}${canRedo()}`
+  const record = () => {
+    const was = buttons()
+    if (stepTimer != null) clearTimeout(stepTimer)
+    stepTimer = null
+    history.record(state())
+    if (buttons() !== was) refresh()
+  }
+  const canUndo = () => history.canUndo || stepTimer != null
+  const canRedo = () => stepTimer == null && history.canRedo
+  const changed = () => {
+    options.handleChange?.(state())
+    if (restoring) return
+    // The buttons are redrawn when the step is recorded, not mid-drag.
+    if (stepTimer != null) clearTimeout(stepTimer)
+    stepTimer = setTimeout(record, 400)
+  }
+  const restore = (st: TailorState | undefined) => {
+    if (st == null) return
+    restoring = true
+    const c = JSON.parse(JSON.stringify(st.cut)) as TailorCut
+    Object.assign(cut, c)
+    look = JSON.parse(JSON.stringify(st.look))
+    name = st.name
+    slot = st.slot
+    shading?.set({ recipe: look })
+    // The outline starts afresh: its selection was in the shapes undone.
+    field = null
+    recut()
+    changed()
+    restoring = false
+    refresh()
+  }
+  const undo = () => {
+    if (!canUndo()) return
+    if (stepTimer != null) record()
+    restore(history.undo())
+  }
+  const redo = () => {
+    if (canRedo()) restore(history.redo())
+  }
 
   /*
   THE BODY, as the cut needs it: fitted over with its nipples smoothed (cloth
@@ -444,6 +503,13 @@ export function mountTailorTool(
       button3d({ label: 'cancel', handleClick: () => finish(false) }),
       button3d({ label: 'done', handleClick: () => finish(true) })
     ),
+    iconBar3d({
+      items: [
+        { spacer: true },
+        { icon: 'rotateCcw', title: 'undo (⌘Z)', dim: !canUndo(), handleClick: undo },
+        { icon: 'rotateCw', title: 'redo (⇧⌘Z)', dim: !canRedo(), handleClick: redo },
+      ],
+    }),
     ...(status ? [label3d({ text: status, muted: true, compact: true })] : []),
     (field = outlineField3d({
       positions: body.positions,
@@ -587,6 +653,7 @@ export function mountTailorTool(
 
   function unmount() {
     if (disposed) return
+    if (stepTimer != null) clearTimeout(stepTimer)
     stopDrape()
     disposed = true
     owner.removeEventListener?.('resizeend', refresh)
@@ -632,5 +699,13 @@ export function mountTailorTool(
     done: () => finish(true),
     cancel: () => finish(false),
     unmount,
+    undo,
+    redo,
+    get canUndo() {
+      return canUndo()
+    },
+    get canRedo() {
+      return canRedo()
+    },
   }
 }

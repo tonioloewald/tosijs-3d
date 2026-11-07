@@ -157,7 +157,18 @@ async function draw(recipe: MaterialRecipe): Promise<string | null> {
     stage.cloth.metallic = 0
     stage.cloth.sheen.isEnabled = false
     stage.clothLook ??= clothShading(stage.cloth)
-    stage.clothLook.set({ recipe })
+    // The ball has no texture of its own to recolour, so a colour the recipe
+    // names is shown wholly: cotton in your colour, not white whatever the
+    // recolour. A picture (a photographed weave) is shown as the recolour
+    // leaves it, and a recipe with no colour ('as made') stays neutral.
+    const a = recipe.inputs.albedo
+    const coloured =
+      typeof a === 'string' || (typeof a === 'object' && a != null && 'colour' in a)
+    stage.clothLook.set({
+      recipe: !coloured
+        ? recipe
+        : { ...recipe, inputs: { ...recipe.inputs, recolour: 1 } },
+    })
     wear(stage.cloth)
   } else return null
   await scene.whenReadyAsync()

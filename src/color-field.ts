@@ -129,6 +129,11 @@ export interface Color3dOptions {
   alpha?: boolean
   /** Square height as a fraction of the widget's width. Default 0.62. */
   aspect?: number
+  /**
+   * Greys only: one ramp from black to white in place of the square, hue and
+   * alpha. The value is still a hex colour (`#808080`).
+   */
+  grey?: boolean
   /** Live, including mid-drag. Canonical hex. */
   handleChange?: (hex: string) => void
   /** Once per gesture, with the settled value — one undo step. */
@@ -150,11 +155,14 @@ let seq = 0
  * emitted colour — see the note on losing hue at zero value.
  */
 export function color3d(config: Color3dOptions = {}): ColorField {
-  const showAlpha = config.alpha ?? true
+  const grey = config.grey ?? false
+  const showAlpha = !grey && (config.alpha ?? true)
   const aspect = config.aspect ?? 0.62
   const uid = `w3d-col-${seq++}`
 
-  let hsv: Hsva = rgbToHsv(
+  const toHsv = (rgb: { r: number; g: number; b: number; a: number }): Hsva =>
+    grey ? { h: 0, s: 0, v: (rgb.r + rgb.g + rgb.b) / 3, a: 1 } : rgbToHsv(rgb)
+  let hsv: Hsva = toHsv(
     parseColor(config.value ?? '#ffffff') ?? {
       r: 1,
       g: 1,
@@ -258,18 +266,22 @@ export function color3d(config: Color3dOptions = {}): ColorField {
     rect({ x: 0, y: 0, width: 4, height: 4, fill: '#c9ced6' }),
     rect({ x: 4, y: 4, width: 4, height: 4, fill: '#c9ced6' })
   )
+  // Grey mode: the ramp, black to white.
+  const greyGrad = linearGradient({ id: `${uid}-g`, x1: '0', x2: '1', y1: '0', y2: '0' })
+  greyGrad.append(
+    stop({ offset: '0%', 'stop-color': '#000000' }),
+    stop({ offset: '100%', 'stop-color': '#ffffff' })
+  )
+  const greyRamp = rect({ rx: 4, fill: `url(#${uid}-g)` })
   const sqHue = rect({ rx: 4, fill: `url(#${uid}-s)` })
   const sqShade = rect({ rx: 4, fill: `url(#${uid}-v)` })
 
   el.append(
-    defs({}, sqSat, sqVal, hueGrad, alphaGrad, checks),
+    defs({}, sqSat, sqVal, hueGrad, alphaGrad, checks, greyGrad),
     ...(cap ? [cap] : []),
-    sq,
-    sqHue,
-    sqShade,
+    ...(grey ? [greyRamp] : [sq, sqHue, sqShade]),
     sqDot,
-    hueStrip,
-    hueDot,
+    ...(grey ? [] : [hueStrip, hueDot]),
     ...(showAlpha ? [alphaBack, alphaStrip, alphaDot] : []),
     swatchBack,
     swatch,
@@ -305,8 +317,8 @@ export function color3d(config: Color3dOptions = {}): ColorField {
     readout.setAttribute('fill', w3dTheme.text)
     // Handles are outlined in whatever will show against what they sit on.
     sqDot.setAttribute('stroke', contrastInk(rgb))
-    sqDot.setAttribute('cx', String(box.x + hsv.s * box.w))
-    sqDot.setAttribute('cy', String(box.y + (1 - hsv.v) * box.h))
+    sqDot.setAttribute('cx', String(box.x + (grey ? hsv.v : hsv.s) * box.w))
+    sqDot.setAttribute('cy', String(box.y + (grey ? 0.5 : 1 - hsv.v) * box.h))
     hueDot.setAttribute('stroke', w3dTheme.text)
     hueDot.setAttribute('y', String(hueBox.y + (hsv.h / 360) * hueBox.h - 1.5))
     if (showAlpha) {
@@ -336,17 +348,17 @@ export function color3d(config: Color3dOptions = {}): ColorField {
     setValue(hex: string) {
       const rgb = parseColor(hex)
       if (rgb == null) return // null, not black — see `parseColor`
-      hsv = rgbToHsv(rgb)
+      hsv = toHsv(rgb)
       paint()
     },
     layout(width: number) {
       const capH = cap ? Math.round(w3dTheme.fontSize * 1.4) : 0
       if (cap) cap.setAttribute('y', '0')
-      const strips = showAlpha ? STRIP * 2 + GAP : STRIP
+      const strips = grey ? -GAP * 2 : showAlpha ? STRIP * 2 + GAP : STRIP
       const w = Math.max(40, width - strips - GAP * 2)
-      const h = Math.max(40, Math.round(width * aspect))
+      const h = grey ? 32 : Math.max(40, Math.round(width * aspect))
       box = { x: 0, y: capH, w, h }
-      for (const r of [sq, sqHue, sqShade]) {
+      for (const r of [sq, sqHue, sqShade, greyRamp]) {
         r.setAttribute('x', '0')
         r.setAttribute('y', String(capH))
         r.setAttribute('width', String(w))
@@ -388,6 +400,7 @@ export function color3d(config: Color3dOptions = {}): ColorField {
       const inSq =
         x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h
       const inHue =
+        !grey &&
         x >= hueBox.x - 3 &&
         x <= hueBox.x + hueBox.w + 3 &&
         y >= hueBox.y &&
@@ -421,7 +434,9 @@ export function color3d(config: Color3dOptions = {}): ColorField {
       if (grabbed == null) return
       const f = (v: number, lo: number, span: number) =>
         Math.max(0, Math.min(1, (v - lo) / (span || 1)))
-      if (grabbed === 'square') {
+      if (grabbed === 'square' && grey) {
+        hsv = { ...hsv, s: 0, v: f(x, box.x, box.w) }
+      } else if (grabbed === 'square') {
         hsv = { ...hsv, s: f(x, box.x, box.w), v: 1 - f(y, box.y, box.h) }
       } else if (grabbed === 'hue') {
         hsv = { ...hsv, h: f(y, hueBox.y, hueBox.h) * 360 }
