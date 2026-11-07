@@ -1198,11 +1198,8 @@ export function mountRigTool(
             ),
           ]
         : []),
-      // On the tab strip's right end; elsewhere, at the row's right (the spacer).
       iconBar3d({
-        inTabs: true,
         items: [
-          { spacer: true },
           {
             icon: 'rotateCcw',
             title: 'undo (⌘Z)',

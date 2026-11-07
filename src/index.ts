@@ -1177,6 +1177,7 @@ export type {
   MenuAction,
   PopupHandle,
   Tab3d,
+  IconBarItem,
   Dynamic,
   Spinner3d,
   Progress3d,

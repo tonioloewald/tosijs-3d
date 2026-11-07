@@ -305,6 +305,7 @@ Set these in the `b3d()` config.
 | `sceneCreated(el)` | once the engine and scene exist: set up a camera here |
 | `update(el)` | every frame the simulation runs (never while paused) |
 | `scenePanel(el)` | returns the settings panel's widgets, drawn flat and in a headset from the same list; rebuilt each time it opens, and `refreshScenePanel()` updates an open one |
+| `panelActions(el)` | returns buttons for the settings panel's icon bar (`iconBar3d` items: undo, redo…), at its right end after the diagnostics |
 | `pausePanel(el, resume)` | returns the pause panel's rows in place of the default title and Continue button; `resume` lets the player back in |
 | `setupXr(el)` | replaces the built-in WebXR setup and Enter-VR button with your own |
 
@@ -351,6 +352,7 @@ import {
   textBlock3d,
   foldSections,
   type Widget3d,
+  type IconBarItem,
 } from './widgets3d.js'
 import { handlerOf } from './handler-of.js'
 import {
@@ -2390,6 +2392,14 @@ export class B3d extends Component {
   // Defaults to a function (not undefined) so the element creator recognises
   // it as a settable callback prop, like sceneCreated/update.
   scenePanel: (host: B3d) => Widget3d[] = () => []
+
+  /**
+   * Buttons of your own on the settings panel's icon bar (undo, redo…), at its
+   * right end after the scene's diagnostics. Each is an `iconBar3d` item
+   * (`icon`, `title`, `dim`, `active`, `handleClick`); rebuilt with the panel,
+   * so `refreshScenePanel()` brings a changed `dim` up to date.
+   */
+  panelActions: (host: B3d) => IconBarItem[] = () => []
 
   /**
    * The centred in-scene panel shown while paused. Return your own rows to
@@ -5413,14 +5423,8 @@ export class B3d extends Component {
    * is a lot of panel for a thing you press once: "the graph button in the
    * standard panel is a waste of space" (Tonio).
    */
-  private _barItems(): Array<{
-    icon: string
-    title: string
-    active: boolean
-    /** Nothing to report — rendered dimmed in both presentations. */
-    dim?: boolean
-    handleClick: () => void
-  }> {
+  private _barItems(): IconBarItem[] {
+    const actions = this.panelActions(this)
     return [
       ...this._debugTools().map((t) => ({
         icon: t.icon,
@@ -5444,6 +5448,8 @@ export class B3d extends Component {
         active: g.active,
         handleClick: g.handleClick,
       })),
+      // The page's own (undo, redo…), at the right end.
+      ...(actions.length > 0 ? [{ spacer: true as const }, ...actions] : []),
     ]
   }
 
@@ -7800,15 +7806,18 @@ export class B3d extends Component {
       })
       return b
     }
-    const buttons = this._barItems().map((it) =>
-      mk(
-        it.title,
-        (svgIcons as Record<string, () => Element>)[it.icon]?.() ??
-          svgIcons.bug(),
-        it.handleClick,
-        it.active,
-        it.dim
-      )
+    // The title takes the slack here, so the spacer has nothing to do.
+    const buttons = this._barItems().flatMap((it) =>
+      it.spacer
+        ? []
+        : mk(
+            it.title ?? it.icon,
+            (svgIcons as Record<string, () => Element>)[it.icon]?.() ??
+              svgIcons.bug(),
+            () => it.handleClick?.(),
+            it.active,
+            it.dim
+          )
     )
     buttons.push(
       mk(

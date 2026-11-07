@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, iconBar3d, undoHistory, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 import { exportBodyRows } from 'tosijs-3d/body-export'
@@ -54,13 +54,6 @@ const characterRows = () => {
   const current = walker.characterName.value
   const unsaved = () => !walker.characterName.value
   return [
-    // Undo and redo: every change to the character, as it settles. On the
-    // tab strip's right end.
-    iconBar3d({ inTabs: true, items: [
-      { spacer: true },
-      { icon: 'rotateCcw', title: 'undo (⌘Z)', dim: !character.canUndo(), handleClick: () => character.undo() },
-      { icon: 'rotateCw', title: 'redo (⇧⌘Z)', dim: !character.canRedo(), handleClick: () => character.redo() },
-    ] }),
     label3d({ text: 'Character', icon: 'character', collapsible: true }),
     select3d({
       label: 'character',
@@ -337,6 +330,12 @@ preview.append(
       panelTitle: 'Character Builder',
       // A tab per section, each its icon.
       panelSections: 'tabs',
+      // Undo and redo, every change to the character as it settles: on the
+      // panel's icon bar, at its right end.
+      panelActions: () => [
+        { icon: 'rotateCcw', title: 'undo (⌘Z)', dim: !character.canUndo(), handleClick: () => character.undo() },
+        { icon: 'rotateCw', title: 'redo (⇧⌘Z)', dim: !character.canRedo(), handleClick: () => character.redo() },
+      ],
       scenePanel: () => madeHuman() ? [
         ...characterRows(),
         label3d({ text: 'Body', icon: 'body', collapsible: true, open: true }),
