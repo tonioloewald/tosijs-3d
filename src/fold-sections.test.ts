@@ -108,6 +108,40 @@ describe('foldSections', () => {
     expect(shown[1].el.getAttribute('data-w3d')).toBe('tabs')
   })
 
+  test('tabs: a leading inTabs icon bar goes on the strip, at its right end', () => {
+    let undone = 0
+    const bar = w.iconBar3d({
+      inTabs: true,
+      items: [
+        { spacer: true },
+        { icon: 'rotateCcw', title: 'undo', handleClick: () => undone++ },
+      ],
+    })
+    const shown = w.foldSections([bar, ...rows()], {
+      mode: 'tabs',
+      repaint: () => {},
+    }) as any[]
+    // no row of its own: intro, the strip, Sky's row
+    expect(shown.length).toBe(3)
+    const strip = shown[1]
+    expect(strip.el.contains(bar.el)).toBe(true)
+    strip.layout(300)
+    // a press at the strip's right end is the bar's
+    strip.handle('down', 300 - 10, 15)
+    strip.handle('up', 300 - 10, 15)
+    expect(undone).toBe(1)
+  })
+
+  test('an icon bar spacer puts what follows at the right end', () => {
+    const bar = w.iconBar3d({
+      items: [{ icon: 'rotateCw' }, { spacer: true }, { icon: 'rotateCcw' }],
+    }) as any
+    bar.layout(300)
+    const cells = [...bar.el.querySelectorAll('[data-w3d-icon]')]
+    expect(cells[0].getAttribute('transform')).toMatch(/^translate\(0 /)
+    expect(cells[1].getAttribute('transform')).toMatch(/^translate\(268 /)
+  })
+
   test('no sections: the rows come back untouched', () => {
     const plain = [w.label3d({ text: 'a' }), w.label3d({ text: 'b' })]
     expect(w.foldSections(plain, { repaint: () => {} })).toEqual(plain)

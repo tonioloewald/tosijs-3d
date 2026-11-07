@@ -54,8 +54,10 @@ const characterRows = () => {
   const current = walker.characterName.value
   const unsaved = () => !walker.characterName.value
   return [
-    // Undo and redo: every change to the character, as it settles.
-    iconBar3d({ items: [
+    // Undo and redo: every change to the character, as it settles. On the
+    // tab strip's right end.
+    iconBar3d({ inTabs: true, items: [
+      { spacer: true },
       { icon: 'rotateCcw', title: 'undo (⌘Z)', dim: !character.canUndo(), handleClick: () => character.undo() },
       { icon: 'rotateCw', title: 'redo (⇧⌘Z)', dim: !character.canRedo(), handleClick: () => character.redo() },
     ] }),

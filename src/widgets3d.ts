@@ -282,9 +282,9 @@ drag *and* the reported value, so a slider can be discrete without becoming a
 | `button3d` | `label` / `handleClick` | | |
 | | `menu` | — | makes it a MENU button — opens actions instead of firing `handleClick` |
 | `menu3d` | `items` / `handleSelect` | | rows of `MenuAction`; usually via `openMenu3d` |
-| `iconBar3d` | `items` | | `{icon, handleClick}` |
+| `iconBar3d` | `items` / `inTabs` | | `{icon, title, handleClick}`; `{ spacer: true }` is an elastic gap, so what follows sits at the right end. `inTabs`: in a tabbed panel, a bar before the first section goes on the tab strip's right end (undo, redo) |
 | `foldSections` | `key` / `mode` / `repaint` | `'fold'` | the rows to show for collapsible sections: folded one open at a time (`'fold'`, an accordion), folded with several open (`'folds'`), or as `tabs3d` (`'tabs'`); rebuild your panel on `repaint` |
-| `tabs3d` | `tabs` / `active` / `handleSelect` | `0` | file tabs; a tab is a caption or `{ icon, title }`; at most half the strip each, overlapping around the active one when they don't fit |
+| `tabs3d` | `tabs` / `active` / `handleSelect` | `0` | file tabs; a tab is a caption or `{ icon, title }`; at most half the strip each, overlapping around the active one when they don't fit; `tools` (an `iconBar3d`) sits at the strip's right end |
 | `spinner3d` | `label` / `size` | | INDETERMINATE busy — call `dispose()` when done |
 | `progress3d` | `label` / `value` / `showValue` | | determinate `0..1`; `setValue(f)` |
 
@@ -950,13 +950,23 @@ export function tabs3d(config: {
   handleSelect?: (index: number) => void
   /** The strip's name, for agents and screen readers. Default `tabs`. */
   name?: string
+  /**
+   * An `iconBar3d` at the strip's right end (undo, redo…); the tabs take the
+   * rest. A tabbed panel puts a leading `iconBar3d({ inTabs: true })` here.
+   */
+  tools?: Widget3d & { naturalWidth: number }
 }): Widget3d {
   const H = 30
   const R = 7
   const TAB_ICON = 18
   let active = Math.max(0, Math.min(config.tabs.length - 1, config.active ?? 0))
   let layoutW = 0
+  let stripW = 0
+  const tools = config.tools
+  const TOOL_GAP = 8
+  const toolsG = tools ? g({}, tools.el) : null
   const root = g({ 'data-w3d': 'tabs' })
+  const outer = toolsG ? g({ 'data-w3d': 'tabs' }, root, toolsG) : root
   const tabPath = (x: number, w: number) =>
     `M${x},${H} L${x},${R} Q${x},0 ${x + R},0 L${x + w - R},0 Q${x + w},0 ${
       x + w
@@ -980,7 +990,7 @@ export function tabs3d(config: {
         : measureTextWidth(t, TH.BOLD_FONT) + TH.PAD_X * 2
     const L = tabLayout(
       n,
-      layoutW,
+      stripW,
       0.5,
       natural,
       active,
@@ -989,7 +999,7 @@ export function tabs3d(config: {
     ;(root as any).__layout = L
     // The line the active tab joins: the strip's floor.
     root.appendChild(
-      rect({ x: 0, y: H - 1, width: layoutW, height: 1, fill: TH.BTN_BG })
+      rect({ x: 0, y: H - 1, width: stripW, height: 1, fill: TH.BTN_BG })
     )
     for (const i of tabOrder(n, active)) {
       const on = i === active
@@ -1043,20 +1053,48 @@ export function tabs3d(config: {
       root.appendChild(g({}, under, tab, label))
     }
   }
+  const toolsX = () => layoutW - (tools?.naturalWidth ?? 0)
+  const onTools = (x: number) => tools != null && x >= toolsX()
   return {
-    el: root,
+    el: outer,
     layout(width) {
       layoutW = width
+      stripW = tools
+        ? Math.max(0, width - tools.naturalWidth - TOOL_GAP)
+        : width
       draw()
-      return H + 4
+      if (!tools) return H + 4
+      const th = tools.layout(tools.naturalWidth)
+      // Level with the tabs' middle.
+      toolsG!.setAttribute(
+        'transform',
+        `translate(${toolsX()} ${Math.min(0, (H - th) / 2)})`
+      )
+      return Math.max(H + 4, th)
     },
-    handle(kind, x) {
-      if (kind !== 'up') return
+    setHost(h) {
+      // The bar's tips are placed in its own frame: shift them to ours.
+      tools?.setHost?.({
+        ...h,
+        showTip: h.showTip
+          ? (title, at) => h.showTip!(title, { ...at, x: at.x + toolsX() })
+          : undefined,
+      })
+    },
+    hitTest(x, y) {
+      return onTools(x) ? tools!.hitTest?.(x - toolsX(), y) ?? true : true
+    },
+    handle(kind, x, y) {
+      // Off the bar is `leave` to it, so no button stays lit.
+      if (tools)
+        tools.handle?.(onTools(x) ? kind : 'leave', x - toolsX(), y)
+      if (onTools(x) || kind !== 'up') return
       pick(tabAt(x, (root as any).__layout, active))
     },
     semantics: () => ({
       role: 'tabs',
       name: config.name ?? 'tabs',
+      ...(tools ? { children: [tools] } : {}),
       value: tabName(config.tabs[active]),
       options: config.tabs.map(tabName),
       set: (v) => {
@@ -1126,11 +1164,14 @@ export function foldSections(
   }
   if (opts.mode === 'tabs') {
     const head: Widget3d[] = []
+    let tools: (Widget3d & { naturalWidth: number }) | undefined
     const sections: { title: string; icon?: string; rows: Widget3d[] }[] = []
     for (const row of rows) {
       const sec = (row as any).section as Sec | undefined
       if (sec != null)
         sections.push({ title: sec.title, icon: sec.icon, rows: [] })
+      else if (sections.length === 0 && (row as any).inTabs && !tools)
+        tools = row as Widget3d & { naturalWidth: number }
       else if (sections.length === 0) head.push(row)
       else sections[sections.length - 1].rows.push(row)
     }
@@ -1143,6 +1184,7 @@ export function foldSections(
         x.icon ? { icon: x.icon, title: x.title } : x.title
       ),
       active,
+      tools,
       handleSelect: (i) => {
         state.tab = sections[i].title
         save()
@@ -1968,9 +2010,15 @@ function tipDrawer(): {
  * collapses Perf Stats / each debug source to an icon here, and expands the
  * matching content below the bar when its icon is on.
  */
-export function iconBar3d(config: {
-  items: Array<{
-    icon: string
+/**
+ * An icon bar's button, or `{ spacer: true }`: an ELASTIC gap, so what follows
+ * it sits at the bar's right end (while the bar fits on one row).
+ */
+export type IconBarItem =
+  | { spacer: true }
+  | {
+      spacer?: false
+      icon: string
     title?: string
     active?: boolean
     /**
@@ -1981,10 +2029,21 @@ export function iconBar3d(config: {
      * "confirm there are no errors" is a thing people do.
      */
     dim?: boolean
-    /** Fired on release, on the thing pressed. */
-    handleClick?: () => void
-  }>
-}): Widget3d {
+      /** Fired on release, on the thing pressed. */
+      handleClick?: () => void
+    }
+
+type IconBarButton = Exclude<IconBarItem, { spacer: true }>
+
+export function iconBar3d(config: {
+  items: IconBarItem[]
+  /**
+   * In a TABBED panel (`foldSections` mode `'tabs'`, `panelSections="tabs"`),
+   * a bar among the rows before the first section sits at the right end of
+   * the tab strip instead of on a row of its own.
+   */
+  inTabs?: boolean
+}): Widget3d & { inTabs: boolean; naturalWidth: number } {
   const BS = 32 // button size
   // Tighter than the panel gap on purpose — an icon bar reads as one control.
   const ICON_GAP = 6
@@ -2014,7 +2073,15 @@ export function iconBar3d(config: {
   const by = (BAR_ROW - BS) / 2
   // Per-item background + accent underline. The glyph itself bakes its colour at
   // creation (texture-safe), so state is shown by the background, not the icon.
-  const cells = config.items.map((item) => {
+  // Where the elastic gap goes: before the cell at this index (-1: none).
+  let spacerAt = -1
+  const buttons: IconBarButton[] = []
+  for (const item of config.items) {
+    if (item.spacer) {
+      if (spacerAt < 0) spacerAt = buttons.length
+    } else buttons.push(item)
+  }
+  const cells = buttons.map((item) => {
     const bg = rect({
       x: 0,
       y: 0,
@@ -2099,15 +2166,11 @@ export function iconBar3d(config: {
   */
   let perRow = cells.length
   const rowH = BAR_ROW
-  const indexAt = (x: number, y = 0): number => {
-    const col = Math.floor(x / step)
-    const row = Math.max(0, Math.floor(y / rowH))
-    if (col < 0 || col >= perRow) return -1
-    const i = row * perRow + col
-    if (i < 0 || i >= cells.length) return -1
-    // Reject the ICON_GAP dead-zone between buttons.
-    return x - col * step <= BS ? i : -1
-  }
+  // The cell under a point; the gaps between buttons (and the spacer) hit nothing.
+  const indexAt = (x: number, y = 0): number =>
+    cells.findIndex(
+      (c) => x >= c.x && x <= c.x + BS && y >= c.y - by && y < c.y - by + rowH
+    )
   let pressed = -1
   const paint = (hover: number) => {
     cells.forEach((c, i) => {
@@ -2133,6 +2196,9 @@ export function iconBar3d(config: {
   }
   return {
     el,
+    inTabs: config.inTabs === true,
+    // Its buttons in one row, without the spacer's slack.
+    naturalWidth: Math.max(0, cells.length * step - ICON_GAP),
     setHost(h: WidgetHost) {
       host = h
     },
@@ -2140,10 +2206,15 @@ export function iconBar3d(config: {
       barW = width
       // `+ ICON_GAP` because the last cell in a row needs no trailing gap.
       perRow = Math.max(1, Math.floor(((width || 0) + ICON_GAP || step) / step))
+      // The spacer takes the slack, on one row only (wrapped, it is ignored).
+      const slack =
+        spacerAt >= 0 && perRow >= cells.length
+          ? Math.max(0, width - (cells.length * step - ICON_GAP))
+          : 0
       cells.forEach((c, i) => {
         const col = i % perRow
         const row = Math.floor(i / perRow)
-        c.x = col * step
+        c.x = col * step + (spacerAt >= 0 && i >= spacerAt ? slack : 0)
         c.y = row * rowH + by
         c.cell.setAttribute('transform', `translate(${c.x} ${c.y})`)
       })
