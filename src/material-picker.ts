@@ -284,9 +284,6 @@ function pictureInputRow(opts: {
     const i = Math.floor((x - PAD) / CELL)
     return x >= PAD && i < tools.length ? i : -1
   }
-  const onSwatch = (x: number, y: number) =>
-    y >= 0 && y <= H && x >= width - PAD - SW && x <= width - PAD
-
   return {
     el,
     setHost(h: WidgetHost) {
@@ -298,7 +295,8 @@ function pictureInputRow(opts: {
       paint()
       return H + PAD
     },
-    hitTest: (x, y) => cellAt(x, y) >= 0 || onSwatch(x, y),
+    // The swatch is a readout: only the buttons take a press.
+    hitTest: (x, y) => cellAt(x, y) >= 0,
     handle(kind: PointerKind, x: number, y: number) {
       const i = cellAt(x, y)
       if (kind === 'leave' || i < 0) host?.hideTip?.()
@@ -308,10 +306,6 @@ function pictureInputRow(opts: {
       if (i >= 0) {
         if (tools[i].can()) tools[i].act()
         paint()
-      } else if (onSwatch(x, y)) {
-        // The swatch: a flat value where it takes one, else a picture.
-        if (flatOk) openFlat()
-        else opts.choose()
       }
     },
     semantics: () => ({
