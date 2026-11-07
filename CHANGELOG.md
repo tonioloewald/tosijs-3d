@@ -28,6 +28,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 - **Material inputs that take a picture** are a heading and a row: choose a picture, clear it, a flat colour or grey instead (`colorPicker` icon), and a swatch of what it is now. `colorPicker3d` and `color3d` take `grey: true` (a black-to-white ramp and a ladder of greys).
 - **`slider3d` `notches`**: a press beside the handle steps to the next notch that way; dragging stays continuous. A material's `tile` is now **scale textures**, 1/32 to 4 on a log scale, notched at 1/n and whole numbers (`textureScaleNotches`), where pictures repeat whole.
 - **The tailor has undo and redo**, with cancel and done, on a bar pinned to the top of its panel (⌘Z / ⇧⌘Z in the builder while it is open).
+- **Grips per class of item** (`hold-grip`: `holdGrip`, `holdClassOf`, `HOLD_CLASSES`): pistols, rifles, heavy weapons, one- and two-handed blades, bows, shields. The character builder keeps an adjusted grip per class (placing one sword places every one-handed blade; per-item grips saved before are read as their class's), and the biped playground holds by class.
 - **Character builder clothes**: each slot is one row, the garment and its material swatch beside it; the "edit" picker is gone. `materialPicker3d` takes `name` (a title with no caption).
 - **Tailor drape**: edits no longer lock the page (debounced, sliced, interruptible: `drapeGarmentAsync`, `runSliced`, `drapeSteps`, `remeshSteps`); cloth goes over arms, shoulders and hips; anchored points are drawn in the new `--w3d-anchored` colour.
 

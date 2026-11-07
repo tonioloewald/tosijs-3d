@@ -6,7 +6,7 @@ arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, button3d, characterStore, inputFocus, playground, select3d, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, button3d, characterStore, holdGrip, inputFocus, playground, select3d, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
@@ -20,8 +20,11 @@ const weapons = b3dLibrary({
 })
 // Where the hand holds each one: the character builder's defaults, placed
 // with its manipulator in the hand's socket frame (x/y/z is the grip).
-const GRIP = { x: -0.034, y: 0.066, z: 0.015, rx: -57.4, ry: 128.3, rz: 54.6 }
-const BLADE = { x: -0.039, y: 0.077, z: 0.041, rx: -75, ry: 165, rz: 15 }
+// One grip per class of item (hold-grip): every one-handed blade alike.
+const gripFor = (name) => {
+  const { scale, ...grip } = holdGrip(name)
+  return grip
+}
 // What each one is in the inventory (slot tags, mass, its picture), and for the
 // guns how it fires. Only guns are raised: UAL's ranged clips are Pistol_*,
 // so the rifles are fired from a one-handed stance. Anything else is a melee
@@ -31,11 +34,11 @@ const WEAPONS = {
   SMG: { tags: ['side', 'hand'], mass: 2.5, art: 'pistol', fire: { fireRate: 14, muzzleSpeed: 50, damage: 12, projRadius: 0.06, gravity: -2 } },
   'Assault Rifle': { tags: ['back', 'hand', 'two-handed'], mass: 3.5, art: 'rifle', fire: { fireRate: 9, muzzleSpeed: 80, damage: 20, projRadius: 0.06, gravity: -1 } },
   'Rocket Launcher': { tags: ['back', 'hand', 'two-handed'], mass: 7, art: 'rifle', fire: { fireRate: 0.8, muzzleSpeed: 25, damage: 120, projRadius: 0.16, gravity: -1 } },
-  Dagger: { tags: ['side', 'hand'], mass: 0.4, art: 'knife', grip: BLADE },
-  'Short Sword': { tags: ['side', 'hand'], mass: 1, art: 'sword', grip: BLADE },
-  'Long Sword': { tags: ['side', 'hand'], mass: 1.5, art: 'sword', grip: BLADE },
-  'Hand and a Half': { tags: ['back', 'hand', 'two-handed'], mass: 2, art: 'sword', grip: BLADE },
-  'Plasma Blade': { tags: ['side', 'hand'], mass: 1, art: 'sword', grip: BLADE },
+  Dagger: { tags: ['side', 'hand'], mass: 0.4, art: 'knife' },
+  'Short Sword': { tags: ['side', 'hand'], mass: 1, art: 'sword' },
+  'Long Sword': { tags: ['side', 'hand'], mass: 1.5, art: 'sword' },
+  'Hand and a Half': { tags: ['back', 'hand', 'two-handed'], mass: 2, art: 'sword' },
+  'Plasma Blade': { tags: ['side', 'hand'], mass: 1, art: 'sword' },
   Spear: { tags: ['back', 'hand', 'two-handed'], mass: 2, art: 'sword' },
   Buckler: { tags: ['back', 'hand'], mass: 2.5, art: 'shield' },
 }
@@ -46,7 +49,7 @@ const WEAPONS = {
 const gun = b3dLauncher({
   library: 'weapons', meshName: 'Pistol',
   socket: 'right-hand',
-  ...GRIP,
+  ...gripFor('Pistol'),
   ...WEAPONS.Pistol.fire,
   ammo: 999, reloadRate: 40, projColor: '#ffdd66',
 })
@@ -112,7 +115,7 @@ const hold = (h) => {
   const id = inRight()
   const w = id ? WEAPONS[id] : null
   if (w && gun.meshName !== id) {
-    Object.assign(gun, w.grip ?? GRIP, w.fire ?? {}, { meshName: id })
+    Object.assign(gun, gripFor(id), w.fire ?? {}, { meshName: id })
     gun.reloadModel()
   }
   h.holdingWeapon = w != null && w.fire == null

@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 import { exportBodyRows } from 'tosijs-3d/body-export'
@@ -226,7 +226,7 @@ const clothesRows = () => [
 ]
 // SOMETHING IN THE HAND: an item from the weapon library on the right hand's
 // socket (its frame is the hand's anatomy, so one grip fits any rig's hand),
-// placed by its grip and kept with the character, one grip per item.
+// placed by its grip and kept with the character, one grip per class of item.
 let heldNames = ['none']
 let applyGrip = () => {}
 // THE CLIP'S TRANSPORT: play or pause, scrub, speed. The scene sets how to
@@ -248,17 +248,21 @@ const playbackRow = () =>
 let gripHandles = false
 let showGripHandles = (on) => { gripHandles = on }
 // Every item in Tonio's library is made the same way (origin at the grip, +Y
-// up the grip, +Z forward, real size), so one grip holds them all: Tonio's,
-// placed on the pistol with the manipulator.
-const GRIP = { x: -0.034, y: 0.066, z: 0.015, rx: -57.4, ry: 128.3, rz: 54.6, scale: 1 }
-// Blades (their grip half a hand below the guard, every one alike) by
-// Tonio's, placed on the plasma blade.
-const BLADE = { x: -0.039, y: 0.077, z: 0.041, rx: -75, ry: 165, rz: 15, scale: 1 }
-const GRIPS = Object.fromEntries(['Dagger', 'Short Sword', 'Long Sword', 'Hand and a Half', 'Plasma Blade'].map((n) => [n, BLADE]))
-const gripOf = (name) => ({ ...GRIP, ...GRIPS[name], ...(JSON.parse(JSON.stringify(walker.grips.value))[name] ?? {}) })
+// up the grip, +Z forward, real size), so a grip is set per CLASS of item
+// (hold-grip: pistols, rifles, one- and two-handed blades…): placing it on
+// one sword places every one-handed blade.
+const gripsKept = () => JSON.parse(JSON.stringify(walker.grips.value))
+const gripOf = (name) => {
+  const kept = gripsKept()
+  // A character saved before grips were per class kept them per item.
+  const own = kept[holdClassOf(name)] ?? kept[name]
+  return holdGrip(name, own ? { [holdClassOf(name)]: own } : {})
+}
 const setGrip = (patch) => {
   const name = walker.held.value
-  walker.grips.value = { ...JSON.parse(JSON.stringify(walker.grips.value)), [name]: { ...gripOf(name), ...patch } }
+  const kept = gripsKept()
+  delete kept[name]
+  walker.grips.value = { ...kept, [holdClassOf(name)]: { ...gripOf(name), ...patch } }
   applyGrip()
 }
 // Export: the body on show as a GLB that plays UAL's clips by name (its
@@ -299,7 +303,7 @@ const holdRows = () => {
               showGripHandles(v)
             },
           }),
-          label3d({ text: 'grip: from the hand (metres)', muted: true }),
+          label3d({ text: `grip for all ${HOLD_CLASS_LABELS[holdClassOf(name)]}: from the hand (metres)`, muted: true }),
           vector3d({ value: { x: g.x, y: g.y, z: g.z }, step: 0.01, scrub: 0.002, handleChange: (v) => setGrip({ x: v.x, y: v.y, z: v.z }) }),
           label3d({ text: 'turned (degrees)', muted: true }),
           euler3d({ value: { x: g.rx, y: g.ry, z: g.rz }, step: 5, scrub: 0.5, handleChange: (v) => setGrip({ rx: v.x, ry: v.y, rz: v.z }) }),
@@ -307,8 +311,9 @@ const holdRows = () => {
           button3d({
             label: 'reset grip',
             handleClick: () => {
-              const all = JSON.parse(JSON.stringify(walker.grips.value))
+              const all = gripsKept()
               delete all[name]
+              delete all[holdClassOf(name)]
               walker.grips.value = all
               applyGrip()
             },
@@ -1355,7 +1360,10 @@ socket (a frame normalised to the hand's anatomy, so one grip fits any
 body's hand). Every item is made the same way, its origin at its grip (a
 `_grip` node), +Y up the grip and +Z forward, at its real size, so one grip
 holds them all. Its **grip** says where the item's grip point goes, turned
-and scaled; each item's grip is kept with the character. Play a clip
+and scaled, and is set per class of item ([[hold-grip|hold grips]]: pistols,
+rifles, heavy weapons, one- and two-handed blades, bows, shields), so
+placing it on one sword places every one-handed blade; the grips are kept
+with the character. Play a clip
 made for it (`Pistol_Idle_Loop`, the shoot loops) and check it in the hand
 view. The numbers are a launcher's: `b3dLauncher({ socket: 'right-hand', x,
 y, z, rx, ry, rz, modelScale })` holds it the same way on a biped.

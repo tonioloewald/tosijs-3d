@@ -1152,6 +1152,13 @@ export { vector3d, euler3d, wrapDegrees } from './vector-field.js'
 export { playback3d } from './playback-field.js'
 export { undoHistory } from './undo-history.js'
 export {
+  HOLD_CLASSES,
+  HOLD_CLASS_LABELS,
+  HOLD_GRIPS,
+  holdClassOf,
+  holdGrip,
+} from './hold-grip.js'
+export {
   FABRIC_TEXTURES,
   fabricTextureRecipe,
   fabricTexturePresets,
@@ -1786,6 +1793,7 @@ export type { PopupSurface, PopupSurfaceOptions } from './popup-surface.js'
 export type { Vector3dOptions, VectorField } from './vector-field.js'
 export type { Playback3dOptions, PlaybackField, PlaybackState } from './playback-field.js'
 export type { UndoHistory } from './undo-history.js'
+export type { HoldClass, HoldGrip } from './hold-grip.js'
 export type { Makers, MakeOptions, MakeOwner } from './make-mesh.js'
 export { B3dTurret, b3dTurret } from './b3d-turret.js'
 export { B3dRadarBlip, b3dRadarBlip } from './b3d-radar-blip.js'
