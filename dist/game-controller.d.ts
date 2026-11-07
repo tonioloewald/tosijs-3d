@@ -48,6 +48,9 @@ export declare class GameController extends Component implements GamepadSource {
     poll(): VirtualGamepad;
     /** Returns a MappedInputProvider that merges keyboard + hardware gamepad. */
     getInputProvider(mapping?: InputMapping): MappedInputProvider;
+    /** The scene this sits in is the one the pointer last entered or pressed. */
+    private _sceneInUse;
+    private _isMappedKey;
     private _handleKeyDown;
     private _handleKeyUp;
     private _handleWheel;

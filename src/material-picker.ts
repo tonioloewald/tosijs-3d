@@ -151,8 +151,18 @@ function pictureInputRow(opts: {
   const PAD = Math.max(6, Math.round(w3dTheme.spacing * 0.6))
   const SW = Math.round(H * 1.5)
   const flatOk = d.kind !== 'image'
-  const tools: Array<{ icon: string; tip: string; act: () => void; can: () => boolean }> = [
-    { icon: 'upload', tip: 'choose a picture', act: opts.choose, can: () => true },
+  const tools: Array<{
+    icon: string
+    tip: string
+    act: () => void
+    can: () => boolean
+  }> = [
+    {
+      icon: 'upload',
+      tip: 'choose a picture',
+      act: opts.choose,
+      can: () => true,
+    },
     {
       icon: 'trash',
       tip: d.optional ? 'clear (as made)' : 'clear the picture',
@@ -207,7 +217,12 @@ function pictureInputRow(opts: {
     stroke: w3dTheme.muted,
     'stroke-width': 1,
   })
-  const picture = image({ y: 4, width: SW, height: H - 8, preserveAspectRatio: 'xMidYMid slice' })
+  const picture = image({
+    y: 4,
+    width: SW,
+    height: H - 8,
+    preserveAspectRatio: 'xMidYMid slice',
+  })
   el.append(bg, ...cells, valueText, swatch, picture)
 
   const paint = (): void => {
@@ -301,7 +316,12 @@ function pictureInputRow(opts: {
       const i = cellAt(x, y)
       if (kind === 'leave' || i < 0) host?.hideTip?.()
       else if (kind === 'hover')
-        host?.showTip?.(tools[i].tip, { x: PAD + i * CELL, y: 0, width: CELL, height: H })
+        host?.showTip?.(tools[i].tip, {
+          x: PAD + i * CELL,
+          y: 0,
+          width: CELL,
+          height: H,
+        })
       if (kind !== 'up') return
       if (i >= 0) {
         if (tools[i].can()) tools[i].act()
@@ -556,7 +576,9 @@ export function materialPicker3d(
     nameText.textContent = !config.label
       ? ''
       : presetName() ||
-        (allowed.length > 1 ? materialType(value.type)?.label ?? value.type : '')
+        (allowed.length > 1
+          ? materialType(value.type)?.label ?? value.type
+          : '')
     if (!picture.getAttribute('href'))
       swatch.setAttribute('fill', materialSwatch(value))
     const x = Math.max(0, width - PAD - SW)
@@ -613,7 +635,10 @@ export function materialPicker3d(
             void chooseFile('image/*').then(async (file) => {
               if (file == null) return
               const bytes = new Uint8Array(await file.arrayBuffer())
-              put({ image: await addPicture(bytes, file.name, file.type) }, true)
+              put(
+                { image: await addPicture(bytes, file.name, file.type) },
+                true
+              )
             }),
           clear: () =>
             put(

@@ -68,6 +68,7 @@ The haze row keeps its alpha strip, the others turn it off.
 | `label` | `''` | The caption on the row |
 | `value` | `'#ffffff'` | A colour, or a reactive value holding one |
 | `alpha` | `true` | Offer the alpha strip. Off, the value is always `#rrggbb` |
+| `grey` | `false` | Greys only: a ramp from black to white and a ladder of greys; the value is always a grey |
 | `presets` | | Colours offered first in the popup: hex strings, or `{ name, value }` |
 | `defaultPresets` | `'on'` | `'off'` leaves out the general set, showing only yours |
 | `swatches` | shared | Where `+` saves to. Unset, one store for the page, kept in `localStorage` under `tosijs-3d:color-swatches`. Pass `createSwatchStore(yourStorage)` to keep them yourself, or `null` to keep nothing |

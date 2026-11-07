@@ -271,6 +271,7 @@ drag *and* the reported value, so a slider can be discrete without becoming a
 | | **`snap`** | `0` | quantise the VALUE (e.g. `1` for whole grid sizes) |
 | | **`zeroStop`** | `false` | an explicit `0` at the bottom of a log track; `min` becomes the log floor |
 | | **`step`** | `0` | **quantises the drag and the value**; `0` is continuous |
+| | **`notches`** | | values a press BESIDE the handle steps to, the next one that way (`textureScaleNotches`: 1/3 → 1/2 → 1 → 2); dragging the handle stays continuous |
 | | `showValue` | `'peek'` | `peek` (on touch/drag) / `always` / `never` |
 | | `format` | step-derived | `(v) => string` — units, precision |
 | `toggle3d` | `label` / `value` | | |
@@ -282,9 +283,9 @@ drag *and* the reported value, so a slider can be discrete without becoming a
 | `button3d` | `label` / `handleClick` | | |
 | | `menu` | — | makes it a MENU button — opens actions instead of firing `handleClick` |
 | `menu3d` | `items` / `handleSelect` | | rows of `MenuAction`; usually via `openMenu3d` |
-| `iconBar3d` | `items` | | `{icon, handleClick}` |
+| `iconBar3d` | `items` / `inTabs` | | `{icon, title, handleClick}`; `{ spacer: true }` is an elastic gap, so what follows sits at the right end. `inTabs`: in a tabbed panel, a bar before the first section goes on the tab strip's right end (undo, redo) |
 | `foldSections` | `key` / `mode` / `repaint` | `'fold'` | the rows to show for collapsible sections: folded one open at a time (`'fold'`, an accordion), folded with several open (`'folds'`), or as `tabs3d` (`'tabs'`); rebuild your panel on `repaint` |
-| `tabs3d` | `tabs` / `active` / `handleSelect` | `0` | file tabs; a tab is a caption or `{ icon, title }`; at most half the strip each, overlapping around the active one when they don't fit |
+| `tabs3d` | `tabs` / `active` / `handleSelect` | `0` | file tabs; a tab is a caption or `{ icon, title }`; at most half the strip each, overlapping around the active one when they don't fit; `tools` (an `iconBar3d`) sits at the strip's right end |
 | `spinner3d` | `label` / `size` | | INDETERMINATE busy — call `dispose()` when done |
 | `progress3d` | `label` / `value` / `showValue` | | determinate `0..1`; `setValue(f)` |
 
@@ -718,7 +719,12 @@ export function tabs3d(config) {
     const TAB_ICON = 18;
     let active = Math.max(0, Math.min(config.tabs.length - 1, config.active ?? 0));
     let layoutW = 0;
+    let stripW = 0;
+    const tools = config.tools;
+    const TOOL_GAP = 8;
+    const toolsG = tools ? g({}, tools.el) : null;
     const root = g({ 'data-w3d': 'tabs' });
+    const outer = toolsG ? g({ 'data-w3d': 'tabs' }, root, toolsG) : root;
     const tabPath = (x, w) => `M${x},${H} L${x},${R} Q${x},0 ${x + R},0 L${x + w - R},0 Q${x + w},0 ${x + w},${R} L${x + w},${H} Z`;
     const draw = () => {
         root.replaceChildren();
@@ -732,10 +738,10 @@ export function tabs3d(config) {
         const tabW = (t) => typeof t !== 'string'
             ? TAB_ICON + TH.PAD_X * 2
             : measureTextWidth(t, TH.BOLD_FONT) + TH.PAD_X * 2;
-        const L = tabLayout(n, layoutW, 0.5, natural, active, tabW(config.tabs[active]));
+        const L = tabLayout(n, stripW, 0.5, natural, active, tabW(config.tabs[active]));
         root.__layout = L;
         // The line the active tab joins: the strip's floor.
-        root.appendChild(rect({ x: 0, y: H - 1, width: layoutW, height: 1, fill: TH.BTN_BG }));
+        root.appendChild(rect({ x: 0, y: H - 1, width: stripW, height: 1, fill: TH.BTN_BG }));
         for (const i of tabOrder(n, active)) {
             const on = i === active;
             const x = L.x[i];
@@ -782,21 +788,47 @@ export function tabs3d(config) {
             root.appendChild(g({}, under, tab, label));
         }
     };
+    const toolsX = () => layoutW - (tools?.naturalWidth ?? 0);
+    const onTools = (x) => tools != null && x >= toolsX();
     return {
-        el: root,
+        el: outer,
         layout(width) {
             layoutW = width;
+            stripW = tools
+                ? Math.max(0, width - tools.naturalWidth - TOOL_GAP)
+                : width;
             draw();
-            return H + 4;
+            if (!tools)
+                return H + 4;
+            const th = tools.layout(tools.naturalWidth);
+            // Level with the tabs' middle.
+            toolsG.setAttribute('transform', `translate(${toolsX()} ${Math.min(0, (H - th) / 2)})`);
+            return Math.max(H + 4, th);
         },
-        handle(kind, x) {
-            if (kind !== 'up')
+        setHost(h) {
+            // The bar's tips are placed in its own frame: shift them to ours.
+            tools?.setHost?.({
+                ...h,
+                showTip: h.showTip
+                    ? (title, at) => h.showTip(title, { ...at, x: at.x + toolsX() })
+                    : undefined,
+            });
+        },
+        hitTest(x, y) {
+            return onTools(x) ? tools.hitTest?.(x - toolsX(), y) ?? true : true;
+        },
+        handle(kind, x, y) {
+            // Off the bar is `leave` to it, so no button stays lit.
+            if (tools)
+                tools.handle?.(onTools(x) ? kind : 'leave', x - toolsX(), y);
+            if (onTools(x) || kind !== 'up')
                 return;
             pick(tabAt(x, root.__layout, active));
         },
         semantics: () => ({
             role: 'tabs',
             name: config.name ?? 'tabs',
+            ...(tools ? { children: [tools] } : {}),
             value: tabName(config.tabs[active]),
             options: config.tabs.map(tabName),
             set: (v) => {
@@ -854,11 +886,14 @@ export function foldSections(rows, opts) {
     };
     if (opts.mode === 'tabs') {
         const head = [];
+        let tools;
         const sections = [];
         for (const row of rows) {
             const sec = row.section;
             if (sec != null)
                 sections.push({ title: sec.title, icon: sec.icon, rows: [] });
+            else if (sections.length === 0 && row.inTabs && !tools)
+                tools = row;
             else if (sections.length === 0)
                 head.push(row);
             else
@@ -873,6 +908,7 @@ export function foldSections(rows, opts) {
             name: 'sections',
             tabs: sections.map((x) => x.icon ? { icon: x.icon, title: x.title } : x.title),
             active,
+            tools,
             handleSelect: (i) => {
                 state.tab = sections[i].title;
                 save();
@@ -1403,18 +1439,6 @@ function tipDrawer() {
         },
     };
 }
-/**
- * A horizontal strip of icon toggle-buttons — a compact toolbar for a panel
- * header. Each item is an [[svg-icons|iconGlyph]] (explicit colours, so it
- * rasterizes onto the in-scene / XR texture the same as it draws flat), sized to
- * a square button; `active` items get a selected background and an accent
- * underline. Left-aligned, so the empty right end reads as scroll-drag surface
- * (via `hitTest`) — important in VR where a precise point is hard.
- *
- * Used to reduce a stack of debug sections to one icon apiece: the scene panel
- * collapses Perf Stats / each debug source to an icon here, and expands the
- * matching content below the bar when its icon is on.
- */
 export function iconBar3d(config) {
     const BS = 32; // button size
     // Tighter than the panel gap on purpose — an icon bar reads as one control.
@@ -1445,7 +1469,18 @@ export function iconBar3d(config) {
     const by = (BAR_ROW - BS) / 2;
     // Per-item background + accent underline. The glyph itself bakes its colour at
     // creation (texture-safe), so state is shown by the background, not the icon.
-    const cells = config.items.map((item) => {
+    // Where the elastic gap goes: before the cell at this index (-1: none).
+    let spacerAt = -1;
+    const buttons = [];
+    for (const item of config.items) {
+        if (item.spacer) {
+            if (spacerAt < 0)
+                spacerAt = buttons.length;
+        }
+        else
+            buttons.push(item);
+    }
+    const cells = buttons.map((item) => {
         const bg = rect({
             x: 0,
             y: 0,
@@ -1525,17 +1560,8 @@ export function iconBar3d(config) {
     */
     let perRow = cells.length;
     const rowH = BAR_ROW;
-    const indexAt = (x, y = 0) => {
-        const col = Math.floor(x / step);
-        const row = Math.max(0, Math.floor(y / rowH));
-        if (col < 0 || col >= perRow)
-            return -1;
-        const i = row * perRow + col;
-        if (i < 0 || i >= cells.length)
-            return -1;
-        // Reject the ICON_GAP dead-zone between buttons.
-        return x - col * step <= BS ? i : -1;
-    };
+    // The cell under a point; the gaps between buttons (and the spacer) hit nothing.
+    const indexAt = (x, y = 0) => cells.findIndex((c) => x >= c.x && x <= c.x + BS && y >= c.y - by && y < c.y - by + rowH);
     let pressed = -1;
     const paint = (hover) => {
         cells.forEach((c, i) => {
@@ -1562,6 +1588,9 @@ export function iconBar3d(config) {
     };
     return {
         el,
+        inTabs: config.inTabs === true,
+        // Its buttons in one row, without the spacer's slack.
+        naturalWidth: Math.max(0, cells.length * step - ICON_GAP),
         setHost(h) {
             host = h;
         },
@@ -1569,10 +1598,14 @@ export function iconBar3d(config) {
             barW = width;
             // `+ ICON_GAP` because the last cell in a row needs no trailing gap.
             perRow = Math.max(1, Math.floor(((width || 0) + ICON_GAP || step) / step));
+            // The spacer takes the slack, on one row only (wrapped, it is ignored).
+            const slack = spacerAt >= 0 && perRow >= cells.length
+                ? Math.max(0, width - (cells.length * step - ICON_GAP))
+                : 0;
             cells.forEach((c, i) => {
                 const col = i % perRow;
                 const row = Math.floor(i / perRow);
-                c.x = col * step;
+                c.x = col * step + (spacerAt >= 0 && i >= spacerAt ? slack : 0);
                 c.y = row * rowH + by;
                 c.cell.setAttribute('transform', `translate(${c.x} ${c.y})`);
             });
@@ -1878,6 +1911,24 @@ export function slider3d(config) {
             : fractionToValue(f, min, max, step, scale, snap, zeroStop, precision));
         reflect();
     };
+    const notches = [...(config.notches ?? [])]
+        .filter((n) => Number.isFinite(n) && n >= min && n <= max)
+        .sort((a, b) => a - b);
+    // This press stepped to a notch: it does not drag.
+    let stepping = false;
+    const knobX = () => trackX +
+        valueToFraction(Number(bound.get()), min, max, scale, zeroStop) * trackW;
+    const stepToNotch = (x) => {
+        const v = Number(bound.get());
+        const eps = 1e-9 * Math.max(1, Math.abs(v));
+        const next = x > knobX()
+            ? notches.find((n) => n > v + eps)
+            : [...notches].reverse().find((n) => n < v - eps);
+        if (next == null)
+            return;
+        bound.set(next);
+        reflect();
+    };
     const unbind = bound.subscribe(reflect);
     return {
         el,
@@ -1950,8 +2001,18 @@ export function slider3d(config) {
             else {
                 rowBg.setAttribute('fill', TH.ROW_HOVER);
                 peek(true); // pointing at it (hover/press) → show the exact value
-                if (kind === 'down' || kind === 'move')
+                if (kind === 'down' && notches.length > 0) {
+                    // Beside the handle: the next notch that way, and no drag.
+                    stepping = Math.abs(x - knobX()) > 14;
+                    if (stepping)
+                        stepToNotch(x);
+                    else
+                        setFromX(x);
+                }
+                else if (kind === 'down' || (kind === 'move' && !stepping))
                     setFromX(x); // hover/up don't set
+                if (kind === 'up')
+                    stepping = false;
             }
         },
         semantics: () => ({
@@ -2130,7 +2191,9 @@ export function select3d(config) {
         },
         layout(width) {
             rowBg.setAttribute('width', String(width));
-            clusterW = Math.min(width * 0.55, 180);
+            // With no caption the value has the whole row (it ellipsized "×0.25"
+            // in a narrow select at 55% of nothing else).
+            clusterW = lbl ? Math.min(width * 0.55, 180) : width - TH.PAD_X * 2;
             clusterX = width - TH.PAD_X - clusterW;
             // Value right-aligned against the chevron, chevron hard against the
             // padding — so the caret sits at a predictable x whatever the value says.

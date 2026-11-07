@@ -8,6 +8,11 @@ export interface Color3dOptions {
     alpha?: boolean;
     /** Square height as a fraction of the widget's width. Default 0.62. */
     aspect?: number;
+    /**
+     * Greys only: one ramp from black to white in place of the square, hue and
+     * alpha. The value is still a hex colour (`#808080`).
+     */
+    grey?: boolean;
     /** Live, including mid-drag. Canonical hex. */
     handleChange?: (hex: string) => void;
     /** Once per gesture, with the settled value — one undo step. */

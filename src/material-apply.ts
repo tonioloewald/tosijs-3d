@@ -112,11 +112,7 @@ export function applyMaterial(
       ? BABYLON.Material.MATERIAL_ALPHABLEND
       : BABYLON.Material.MATERIAL_OPAQUE
 
-  roughnessMap(
-    material,
-    img(r.roughness.image),
-    r.roughness.value as number
-  )
+  roughnessMap(material, img(r.roughness.image), r.roughness.value as number)
   material.metallic = r.metallic.value as number
   material.environmentIntensity = r.reflections.value as number
 

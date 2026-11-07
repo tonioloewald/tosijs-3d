@@ -135,13 +135,18 @@ value should this handle have?*
 | `scale` | the same projection as translate, read as a ratio |
 | `uniform` | the ray's distance from the widget centre, read as a ratio |
 
+## One frame: the object's own
+
+Every handle rides the object's own axes, carried into the world through
+whatever it hangs on: the red arrow, the red ring and the red cube are all its
+x. A pistol in a hand moves along its barrel and turns about it. An unturned
+object's axes are the world's, and there a move snaps to the world grid; a
+turned object snaps each step along its own axis.
+
 ## Scale is exclusive of move and turn
 
-`node.scaling` is local, so scale grips ride the object's own axes while move
-rides the world's. A widget showing both draws two frames at once and can only
-mislead. Turning `scale` on therefore turns `move` and `turn` off, and vice versa —
-the element does this to itself rather than letting you build the misleading
-combination.
+Turning `scale` on turns `move` and `turn` off, and vice versa: the cubes sit
+where the arrows would, so showing both crowds the widget into ambiguity.
 
 ## Snapping and the frozen frame
 
@@ -282,10 +287,9 @@ export class B3dManipulator extends B3dChild {
     /*
     SCALE IS EXCLUSIVE OF MOVE AND TURN.
   
-    Not a preference — `node.scaling` is local, so scale grips ride the object's
-    axes while move rides the world's, and a widget drawing both frames at once
-    can only mislead. Resolved here rather than trusted from the attributes, so
-    the misleading combination is not expressible.
+    The cubes sit where the arrows would, so a widget drawing both is
+    ambiguous. Resolved here rather than trusted from the attributes, so the
+    crowded combination is not expressible.
     */
     _transformSet() {
         const scale = !isOff(this.scale);
@@ -366,7 +370,7 @@ export class B3dManipulator extends B3dChild {
             this._dragFrom = null;
             p = node.getAbsolutePosition();
             this._anchor = p.clone();
-            view.setOrientation(this._rotationOf(node));
+            view.setOrientation(this._worldRotationOf(node));
         }
         view.moveTo({ x: p.x, y: p.y, z: p.z });
         const camera = scene.activeCamera;
@@ -386,6 +390,54 @@ export class B3dManipulator extends B3dChild {
             ? node.rotationQuaternion.toEulerAngles()
             : node.rotation;
         return { rx: e.x / DEG_TO_RAD, ry: e.y / DEG_TO_RAD, rz: e.z / DEG_TO_RAD };
+    }
+    /*
+    THE RINGS ARE THE OBJECT'S AXES IN THE WORLD. Its rotation is relative to
+    its parent, so on anything parented (a pistol in a hand) drawing the rings
+    from that rotation alone put each ring in the wrong place: the Z ring turned
+    the item about what looked like Y. The rotation a drag WRITES stays in the
+    parent's frame (`composeRotation` turns about the object's own axis, which is
+    the same axis either way); only what is drawn and measured needs the parent.
+    */
+    _worldRotationOf(node) {
+        const local = this._rotationOf(node);
+        if (node.parent == null)
+            return local;
+        // Drawn on its true y and z (a weapon's grip and barrel); under a mirror
+        // the x arrow then points the other way along the same axis, since a
+        // rotation cannot draw a mirror.
+        const f = this._worldFrameOf(node);
+        const y = new BABYLON.Vector3(f.y.x, f.y.y, f.y.z);
+        const z = new BABYLON.Vector3(f.z.x, f.z.y, f.z.z);
+        const x = BABYLON.Vector3.Cross(y, z).normalize();
+        const e = BABYLON.Quaternion.RotationQuaternionFromAxis(x, y, BABYLON.Vector3.Cross(x, y)).toEulerAngles();
+        return {
+            rx: e.x / DEG_TO_RAD,
+            ry: e.y / DEG_TO_RAD,
+            rz: e.z / DEG_TO_RAD,
+        };
+    }
+    /*
+    ...AND MEASURED ON ITS TRUE AXES. A glTF character's hierarchy carries a
+    mirror (its root scales one axis by -1), which no rotation can say: a ring
+    measured in a rotated frame then reads its angle backwards. Each of the
+    object's axes carried through the parent's whole matrix is the frame the
+    drag's angle really turns in.
+    */
+    _worldFrameOf(node) {
+        const local = this._rotationOf(node);
+        const parent = node.parent;
+        if (parent == null || typeof parent.getWorldMatrix !== 'function')
+            return axisFrameOf(local);
+        parent.computeWorldMatrix(true);
+        const m = parent.getWorldMatrix();
+        const own = axisFrameOf(local);
+        const out = {};
+        for (const k of ['x', 'y', 'z']) {
+            const v = BABYLON.Vector3.TransformNormal(new BABYLON.Vector3(own[k].x, own[k].y, own[k].z), m).normalize();
+            out[k] = { x: v.x, y: v.y, z: v.z };
+        }
+        return out;
     }
     /**
      * A world point from the node's PARENT frame — the inverse of
@@ -458,7 +510,10 @@ export class B3dManipulator extends B3dChild {
     }
     _begin(grip, node, ray, options) {
         const transform = this._currentTransform(node);
-        const drag = beginDrag(grip, transform.position, transform, ray, axisFrameOf(transform.rotation), { secondary: options.secondary === true });
+        const drag = beginDrag(grip, transform.position, transform, ray, 
+        // The rings measure in the world, so their axes are the object's own
+        // carried through its parent; the rotation written stays the parent's.
+        this._worldFrameOf(node), { secondary: options.secondary === true });
         if (drag == null)
             return false;
         this._drag = drag;

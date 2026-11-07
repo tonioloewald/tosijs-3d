@@ -233,6 +233,17 @@ export const w3dTheme = {
     warning: cssVar('--w3d-warning', '#6b4a17'),
     error: cssVar('--w3d-error', '#6b2323'),
     /*
+    ANCHORED — a point or edge held in place: where the tailor's drape pins its
+    cloth to the skin. A mark, not a surface, so it is bright: yellow for now.
+    */
+    anchored: cssVar('--w3d-anchored', '#ffd23f'),
+    /*
+    ICON FILL — the filled parts of a `stroked filled` icon (the hair on a head,
+    the near arm of a figure). A mid tone apart from both the ink and the
+    button behind it, so icons that differ only in what is filled tell apart.
+    */
+    iconFill: cssVar('--w3d-icon-fill', '#4a7fb0'),
+    /*
     INTERACTION STATES — hover, focus, selected, disabled.
   
     Four states that must stay TELLABLE APART, which is the whole reason they are

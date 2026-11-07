@@ -26,6 +26,7 @@ shade.set({ fabric: 'wool', colour: '#7a2e2e', amount: 0.8 })
 import * as BABYLON from '@babylonjs/core';
 import { registerMaterialPlugin } from './material-plugins.js';
 import { parseColor } from './color.js';
+import { normalMapConvention, pictureTexture, roughnessMap, } from './material-apply.js';
 import { FABRICS } from './fabrics.js';
 import { materialAsType, canonicalMaterial, MATERIAL_COLLECTIONS, resolveMaterial, } from './material-recipe.js';
 export { FABRICS } from './fabrics.js';
@@ -133,18 +134,47 @@ export function clothShading(material, look = {}) {
     if (plugin == null)
         throw new Error('cloth-shading: plugin not registered');
     plugin.isEnabled = true;
-    if (material.albedoTexture) {
-        measureMean(material.albedoTexture, (mean) => {
-            plugin.mean = mean;
-        });
-    }
+    // The garment's own texture, and the picture a recipe puts in its place.
+    const own = material.albedoTexture;
+    let shown = null;
+    const showTexture = (t) => {
+        if (t === shown)
+            return;
+        shown = t;
+        material.albedoTexture = t;
+        if (t) {
+            // Its colours come from the picture: no tint left from a flat colour.
+            material.albedoColor = BABYLON.Color3.White();
+            measureMean(t, (mean) => {
+                if (shown === t)
+                    plugin.mean = mean;
+            });
+        }
+    };
+    showTexture(own);
     const set = (look) => {
         let l = look;
         if (look.recipe) {
             const r = resolveMaterial(materialAsType(look.recipe, 'cloth'));
+            const scene = material.getScene();
+            // A recipe's pictures repeat every `tile` metres (the garment's own
+            // texture keeps its own UVs).
+            const tile = r.tile?.value ?? 1;
+            const pic = (ref, level = 1) => ref == null ? null : pictureTexture(scene, ref, { tile, level });
+            showTexture(pic(r.albedo.image) ?? own);
+            // The weave's relief, and how shiny each thread is.
+            material.bumpTexture = pic(r.normal?.image ?? null, r.normal?.intensity);
+            if (material.bumpTexture)
+                normalMapConvention(material);
             const n = (k) => r[k].value;
-            if (n('roughness') != null)
-                material.roughness = n('roughness');
+            const rough = pic(r.roughness.image);
+            if (rough)
+                roughnessMap(material, rough, 1);
+            else {
+                material.metallicTexture = null;
+                if (n('roughness') != null)
+                    material.roughness = n('roughness');
+            }
             if (n('metallic') != null)
                 material.metallic = n('metallic');
             if (n('sheen') != null) {
@@ -167,17 +197,22 @@ export function clothShading(material, look = {}) {
             material.sheen.intensity = fabric.sheen;
             material.sheen.roughness = fabric.sheenRoughness;
         }
+        if (l.amount != null)
+            plugin.amount = Math.min(1, Math.max(0, l.amount));
         if (l.colour != null) {
             const c = parseColor(l.colour);
             if (c)
                 plugin.tint = new BABYLON.Color3(toLinear(c.r), toLinear(c.g), toLinear(c.b));
-            // The sheen takes a lighter version of the cloth's colour.
-            if (material.sheen.isEnabled && c) {
+            // The sheen takes a lighter version of the cloth's colour; a picture
+            // shown as it is (no recolour) gives a neutral one, not the unused
+            // colour's (a print's edges glowed the default red).
+            const asPicture = shown != null && shown !== own && plugin.amount === 0;
+            if (material.sheen.isEnabled && asPicture)
+                material.sheen.color = new BABYLON.Color3(0.9, 0.9, 0.9);
+            else if (material.sheen.isEnabled && c) {
                 material.sheen.color = new BABYLON.Color3(0.6 + 0.4 * c.r, 0.6 + 0.4 * c.g, 0.6 + 0.4 * c.b);
             }
         }
-        if (l.amount != null)
-            plugin.amount = Math.min(1, Math.max(0, l.amount));
         // An untextured garment (one cut from the body) has nothing to recolour:
         // the colour is its albedo, mixed from white by the amount.
         if (!material.albedoTexture) {

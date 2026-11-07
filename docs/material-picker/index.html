@@ -22,7 +22,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=9acedf89658b" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=aeadb365ee59" data-tosi-doc-system />
   <title>materialPicker3d — tosijs-3d</title>
   <meta name="description" content="A material as one row: tap the swatch, edit in a popup. The colour picker&#39;s shape, for a whole material." />
   <link rel="canonical" href="https://3d.tosijs.net/material-picker/" />
@@ -33,13 +33,13 @@
   <meta property="og:description" content="A material as one row: tap the swatch, edit in a popup. The colour picker&#39;s shape, for a whole material." />
   <meta property="og:url" content="https://3d.tosijs.net/material-picker/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"materialPicker3d","description":"A material as one row: tap the swatch, edit in a popup. The colour picker's shape, for a whole material.","url":"https://3d.tosijs.net/material-picker/","inLanguage":"en","dateModified":"2026-11-02T20:18:41+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"materialPicker3d","description":"A material as one row: tap the swatch, edit in a popup. The colour picker's shape, for a whole material.","url":"https://3d.tosijs.net/material-picker/","inLanguage":"en","dateModified":"2026-11-07T21:23:22.457Z","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"UI","item":"https://3d.tosijs.net/ui/"},{"@type":"ListItem","position":2,"name":"Controls","item":"https://3d.tosijs.net/ui-controls/"},{"@type":"ListItem","position":3,"name":"materialPicker3d","item":"https://3d.tosijs.net/material-picker/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=8dbf70970b3a" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=1efe4da519d1" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="material-picker.ts">
 <h1 id="materialpicker3d">materialPicker3d</h1>
 <p><strong>A material as one row: tap the swatch, edit in a popup.</strong> The
@@ -48,8 +48,13 @@ small render of the material, and the popup has the presets first (a
 collection, such as the fabrics) as a grid of renders, then a control per input
 of the material&#39;s type, drawn from the type&#39;s own declaration: a slider for
 a grey value, a colour picker for a colour, a strength beside it where the
-input has one. A picture in place of a flat value shows as a row you can
-clear. Where the caller allows more than one type, the popup starts with a
+input has one. An input that may take a picture (the diffuse colour, a
+roughness, the normal map) is a heading and a row: <strong>choose a picture</strong> (from your
+files: <a href="/material-pictures/">material-pictures</a>, the recipe keeps a key and a
+character file carries the picture), <strong>clear</strong> it, a <strong>flat</strong> colour or grey
+in its place, and a swatch showing what it is now. <strong>Scale textures</strong> runs
+from 1/32 to 4; a press beside its handle steps to the next scale at which a
+picture repeats whole (1/3, 1/2, 1, 2, 3). Where the caller allows more than one type, the popup starts with a
 choice of type.</p>
 <p>The value is a <a href="/material-recipe/" class="wikilink">recipe</a>, <code>{ type, inputs }</code>, always in
 canonical form, so it can go straight into a saved document. Apply it to a
@@ -101,6 +106,11 @@ is why the scene has <code>studioEnvironment</code>.</p>
 <td>The caption on the row</td>
 </tr>
 <tr>
+<td><code>name</code></td>
+<td></td>
+<td>Its name without a caption (the popup&#39;s title, what a screen reader says): the row is then just the swatch, for beside another control</td>
+</tr>
+<tr>
 <td><code>value</code></td>
 <td>a grey <code>pbr</code></td>
 <td>A recipe, or a reactive value holding one</td>
@@ -132,12 +142,14 @@ is why the scene has <code>studioEnvironment</code>.</p>
 </tr>
 </tbody></table>
 <h2 id="previews">Previews</h2>
-<p>Each swatch and preset is the material rendered on a teapot (The Base
-Mesh&#39;s, CC0) in a fixed studio. One hidden engine draws every preview on the page, made the first
+<p>Each swatch and preset is the material rendered on a cube, on grey, in a
+fixed studio. One hidden engine draws every preview on the page, made the first
 time one is wanted (one more WebGL context, once), one at a time, and each
 recipe is drawn once and kept. While you drag a slider the row shows the
 last picture until you pause. Until a picture is ready, or where WebGL is not
-available, the swatch is the material&#39;s flat colour.</p>
+available, the swatch is the material&#39;s flat colour. A cloth material with a colour
+is previewed in that colour, whatever its recolour: the ball has no texture of
+its own for the recolour to keep.</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -148,7 +160,10 @@ available, the swatch is the material&#39;s flat colour.</p>
     <ul id="tosi-nav-demos">
       <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
       <li><a class="doc-link" href="../solar-system/">Solar System</a></li>
-      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-weapon-fit" aria-label="Weapon Fit"></button><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></div>
+      <ul id="tosi-nav-weapon-fit">
+        <li><a class="doc-link" href="../hold-grip/">hold grips</a></li>
+      </ul></li>
       <li><a class="doc-link" href="../rig-tool/">Rig tool</a></li>
       <li><a class="doc-link" href="../effect-tool/">Effect tool</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-builder" aria-label="character builder"></button><a class="doc-link" href="../character-builder/">character builder</a></div>
@@ -318,6 +333,7 @@ available, the swatch is the material&#39;s flat colour.</p>
             <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-rigged-body-glb" aria-label="rigged-body-glb"></button><a class="doc-link" href="../rigged-body-glb/">rigged-body-glb</a></div>
             <ul id="tosi-nav-rigged-body-glb">
               <li><a class="doc-link" href="../spring-vrm/">spring-vrm</a></li>
+              <li><a class="doc-link" href="../body-export/">body export</a></li>
             </ul></li>
           </ul></li>
           <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-chunks" aria-label="glb-chunks"></button><a class="doc-link" href="../glb-chunks/">glb-chunks</a></div>
@@ -431,6 +447,7 @@ available, the swatch is the material&#39;s flat colour.</p>
     <ul id="tosi-nav-ui">
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widgets3d" aria-label="widgets3d"></button><a class="doc-link" href="../widgets3d/">widgets3d</a></div>
       <ul id="tosi-nav-widgets3d">
+        <li><a class="doc-link" href="../playback-field/">Playback</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widget-semantics" aria-label="widget semantics"></button><a class="doc-link" href="../widget-semantics/">widget semantics</a></div>
         <ul id="tosi-nav-widget-semantics">
@@ -449,7 +466,11 @@ available, the swatch is the material&#39;s flat colour.</p>
         <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
         <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
         <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
-        <li><a class="doc-link current" href="../material-picker/" aria-current="page">materialPicker3d</a></li>
+        <li class="nav-branch -open"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="true" aria-controls="tosi-nav-material-picker" aria-label="materialPicker3d"></button><a class="doc-link current" href="../material-picker/" aria-current="page">materialPicker3d</a></div>
+        <ul id="tosi-nav-material-picker">
+          <li><a class="doc-link" href="../fabric-textures/">fabric textures</a></li>
+          <li><a class="doc-link" href="../material-pictures/">material pictures</a></li>
+        </ul></li>
         <li><a class="doc-link" href="../material-recipe/">material-recipe</a></li>
         <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-color-field" aria-label="color3d"></button><a class="doc-link" href="../color-field/">color3d</a></div>
@@ -527,12 +548,14 @@ available, the swatch is the material&#39;s flat colour.</p>
     <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-utilities" aria-label="utilities"></button><a class="doc-link" href="../utilities/">utilities</a></div>
     <ul id="tosi-nav-utilities">
       <li><a class="doc-link" href="../clock/">clock</a></li>
+      <li><a class="doc-link" href="../undo-history/">undo history</a></li>
     </ul></li>
     <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-upgrading" aria-label="Upgrading"></button><a class="doc-link" href="../upgrading/">Upgrading</a></div>
     <ul id="tosi-nav-upgrading">
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.12.4/">0.12.4</a></li>
         <li><a class="doc-link" href="../v0.12.3/">0.12.3</a></li>
         <li><a class="doc-link" href="../v0.12.2/">0.12.2</a></li>
         <li><a class="doc-link" href="../v0.12.1/">0.12.1</a></li>
@@ -616,6 +639,6 @@ available, the swatch is the material&#39;s flat colour.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-6cqawqfh.js"></script>
+  <script type="module" src="../hydrate-d5cbj3ft.js"></script>
 </body>
 </html>

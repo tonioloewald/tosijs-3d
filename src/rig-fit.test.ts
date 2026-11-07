@@ -643,7 +643,10 @@ describe('spreadHand', () => {
     // Seen from the front (x, y) the fingers are one line; the thumb leaves it.
     const off = (p: { x: number; y: number }) => {
       const r = hand.middle_01_l
-      const d = { x: hand.middle_04_leaf_l.x - r.x, y: hand.middle_04_leaf_l.y - r.y }
+      const d = {
+        x: hand.middle_04_leaf_l.x - r.x,
+        y: hand.middle_04_leaf_l.y - r.y,
+      }
       const l = Math.hypot(d.x, d.y)
       return ((p.x - r.x) * d.y - (p.y - r.y) * d.x) / l
     }
@@ -654,7 +657,11 @@ describe('spreadHand', () => {
       Math.hypot(hand.thumb_01_l.x - wrist.x, hand.thumb_01_l.y - wrist.y)
     ).toBeGreaterThan(0.04)
     // Level arm: the thumb tip hangs below the wrist.
-    const level = spreadHand({ x: 0.7, y: 1.4, z: 0 }, { x: 0.45, y: 1.4, z: 0 }, 'l')
+    const level = spreadHand(
+      { x: 0.7, y: 1.4, z: 0 },
+      { x: 0.45, y: 1.4, z: 0 },
+      'l'
+    )
     expect(level.thumb_04_leaf_l.y).toBeLessThan(1.4 - 0.03)
   })
 

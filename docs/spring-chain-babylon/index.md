@@ -33,7 +33,7 @@ preview.append(
         el.setActiveCamera(cam)
         BABYLON.MeshBuilder.CreateGround('g', { width: 12, height: 12 }, scene)
 
-        const ual = await BABYLON.LoadAssetContainerAsync(assetUrl('quaternius/UAL1_core.glb', 2), scene)
+        const ual = await BABYLON.LoadAssetContainerAsync(assetUrl('quaternius/UAL1_core.glb', 3), scene)
         ual.addAllToScene()
         for (const g of ual.animationGroups) g.stop()
         const root = ual.meshes.find((m) => m.name === '__root__')

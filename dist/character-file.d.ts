@@ -19,6 +19,8 @@ export interface Character {
     garments: Record<string, Uint8Array>;
     /** Where its mesh body (by source name) comes from: a URL, or the file's bytes. */
     bodies?: Record<string, CharacterBody>;
+    /** Pictures its materials use, chosen from disk: key (`picture:…`) → base64. */
+    pictures?: Record<string, string>;
 }
 /** Where a mesh body comes from: `url` (and `pick`), or the file itself. */
 export interface CharacterBody {
@@ -49,6 +51,8 @@ export interface CharacterDoc {
         file?: string;
         data?: string;
     }>;
+    /** key (`picture:…`) → base64. */
+    pictures?: Record<string, string>;
 }
 /** A character as a document, ready for `JSON.stringify`. */
 export declare function writeCharacter(c: Character, options?: {

@@ -2,7 +2,9 @@ export interface IconData {
     [key: string]: string;
 }
 declare const _default: {
+    clothTexture: string;
     clouds: string;
+    colorPicker: string;
     decor: string;
     earth: string;
     xrColor: string;
@@ -66,6 +68,8 @@ declare const _default: {
     thermometer: string;
     thumbsUp: string;
     uploadCloud: string;
+    upload: string;
+    ancestry: string;
     bipedBack: string;
     bipedBottom: string;
     bipedFront: string;
@@ -73,6 +77,14 @@ declare const _default: {
     bipedPreview: string;
     bipedSide: string;
     bipedTop: string;
+    body: string;
+    character: string;
+    clothing: string;
+    eyes: string;
+    face: string;
+    hair: string;
+    motion: string;
+    skin: string;
     loadout: string;
     lucideBackpack: string;
     personStanding: string;
@@ -87,6 +99,7 @@ declare const _default: {
     resize: string;
     rotateCcw: string;
     rotateCw: string;
+    spring: string;
     trash2: string;
     trash: string;
     tree: string;

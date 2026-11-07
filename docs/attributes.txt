@@ -1344,6 +1344,7 @@ colorPicker3d
   label  = ''  — The caption on the row
   value  = '#ffffff'  — A colour, or a reactive value holding one
   alpha  = true  — Offer the alpha strip. Off, the value is always `#rrggbb`
+  grey  = false  — Greys only: a ramp from black to white and a ladder of greys; the value is always a grey
   presets  — Colours offered first in the popup: hex strings, or `{ name, value }`
   defaultPresets  = 'on'  — `'off'` leaves out the general set, showing only yours
   swatches  = shared  — Where `+` saves to. Unset, one store for the page, kept in `localStorage` under `tosijs-3d:color-swatches`. Pass `createSwatchStore(yourStorage)` to keep them yourself, or `null` to keep nothing
@@ -1369,6 +1370,12 @@ control-input
   cameraZoom  = -1..1  — Camera zoom
   lookMode  = 0..1  — Toggle (edge-detected) what the look stick's up and down do: a tank's gun, or its camera
   sneak  = 0\  — 1
+
+## fabric-textures
+fabric textures
+
+  lite  = 512 px colour and normal  — 36–205 KB
+  full  = 1024 px colour and normal, 512 px roughness  — 290 KB–1.4 MB
 
 ## game-controller — <tosi-game-controller>
 game-controller
@@ -1400,6 +1407,17 @@ glass-gamepad (b3dGamepad)
 
   width
   height
+
+## hold-grip
+hold grips
+
+  pistol  = a handgun, one hand  — Pistol, SMG
+  rifle  = a long gun, two hands  — Assault Rifle
+  heavy  = on the shoulder  — Rocket Launcher
+  melee1h  = a blade, one hand  — Dagger, Short Sword, Long Sword, Plasma Blade
+  melee2h  = a long blade or a pole, two hands  — Hand and a Half, Spear
+  bow  = a bow
+  shield  = on the forearm  — Buckler
 
 ## inventory-box
 inventory-box
@@ -1441,6 +1459,7 @@ Light programs
 materialPicker3d
 
   label  = ''  — The caption on the row
+  name  — Its name without a caption (the popup's title, what a screen reader says): the row is then just the swatch, for beside another control
   value  = pbr  — A recipe, or a reactive value holding one
   types  = every registered type  — The types it may be. One type: no choice of type is shown
   collections  = []  — Names from `MATERIAL_COLLECTIONS`, or collections of your own, offered as presets
@@ -1626,7 +1645,7 @@ widgets3d
   list3d  = items` / `handleSelect
   button3d  = label` / `handleClick
   menu3d  = items` / `handleSelect
-  iconBar3d  = items
+  iconBar3d  = items` / `inTabs
   foldSections  = key` / `mode` / `repaint  — `'fold'`
   tabs3d  = tabs` / `active` / `handleSelect  — `0`
   spinner3d  = label` / `size

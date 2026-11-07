@@ -9,6 +9,12 @@ export interface ColorPicker3dOptions {
     };
     /** Offer alpha. Default `true`. */
     alpha?: boolean;
+    /**
+     * Greys only: the popup is a ramp from black to white and a ladder of
+     * greys, and the value is always a grey (`#808080`). For a grey input,
+     * a roughness or a mask.
+     */
+    grey?: boolean;
     /** Offered first in the popup. */
     presets?: Array<string | ColorPreset>;
     /** `'off'` shows only `presets`. */

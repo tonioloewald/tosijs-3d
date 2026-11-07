@@ -54,8 +54,24 @@ export interface HoldGrip {
 }
 
 // Tonio's, placed with the manipulator: on the pistol, and on the plasma blade.
-const GUN: HoldGrip = { x: -0.034, y: 0.066, z: 0.015, rx: -57.4, ry: 128.3, rz: 54.6, scale: 1 }
-const BLADE: HoldGrip = { x: -0.039, y: 0.077, z: 0.041, rx: -75, ry: 165, rz: 15, scale: 1 }
+const GUN: HoldGrip = {
+  x: -0.034,
+  y: 0.066,
+  z: 0.015,
+  rx: -57.4,
+  ry: 128.3,
+  rz: 54.6,
+  scale: 1,
+}
+const BLADE: HoldGrip = {
+  x: -0.039,
+  y: 0.077,
+  z: 0.041,
+  rx: -75,
+  ry: 165,
+  rz: 15,
+  scale: 1,
+}
 
 /** Each class's default grip. */
 export const HOLD_GRIPS: Record<HoldClass, HoldGrip> = {

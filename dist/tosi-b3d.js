@@ -30,7 +30,7 @@ const scene = '/test-3.glb'
 // A Quaternius UAL rig — 1.83 m, feet at the origin, 27 curated clips off the
 // CDN (the full library is 120 clips and 20 MB). A person is 1.8 m here, and
 // the movement constants are tuned for one.
-const person = assetUrl('quaternius/UAL1_core.glb', 2)
+const person = assetUrl('quaternius/UAL1_core.glb', 3)
 
 // Your loadout: a button on the system bar opens it under the bar, with your
 // bag beside it (see inventory-box).
@@ -305,8 +305,21 @@ Set these in the `b3d()` config.
 | `sceneCreated(el)` | once the engine and scene exist: set up a camera here |
 | `update(el)` | every frame the simulation runs (never while paused) |
 | `scenePanel(el)` | returns the settings panel's widgets, drawn flat and in a headset from the same list; rebuilt each time it opens, and `refreshScenePanel()` updates an open one |
+| `panelActions(el)` | returns buttons for the settings panel's icon bar (`iconBar3d` items: undo, redo…), at its right end after the diagnostics |
 | `pausePanel(el, resume)` | returns the pause panel's rows in place of the default title and Continue button; `resume` lets the player back in |
 | `setupXr(el)` | replaces the built-in WebXR setup and Enter-VR button with your own |
+
+## Resizing
+
+Panels are drawn at a size that fits the view. When the scene changes size, the
+open settings panel is rebuilt once the resize settles, and the element
+dispatches `resizeend`. A system panel whose height follows the view rebuilds on
+it, capped by `el.panelRoom(panelEl)` (the height left under its top):
+
+```javascript
+const svg = () => panel3d({ width: 300, height: 'fit', maxHeight: Math.min(640, scene.panelRoom(panelEl)) }, ...rows)
+scene.addEventListener('resizeend', () => { panelEl.svg = svg() })
+```
 
 ## Loading
 
@@ -1277,6 +1290,12 @@ export class B3d extends Component {
     get hasInputFocus() {
         return B3d._active === null || B3d._active === this;
     }
+    /** True only once the pointer has entered or pressed this scene (and no
+     * other since). Keys it uses are kept from the page only then: before that,
+     * an arrow key still scrolls the page past a demo. */
+    get isActiveScene() {
+        return B3d._active === this;
+    }
     /** Make this the input-focused scene (also happens on pointerenter/pointerdown). */
     takeInputFocus() {
         B3d._active = this;
@@ -2041,6 +2060,13 @@ export class B3d extends Component {
     // Defaults to a function (not undefined) so the element creator recognises
     // it as a settable callback prop, like sceneCreated/update.
     scenePanel = () => [];
+    /**
+     * Buttons of your own on the settings panel's icon bar (undo, redo…), at its
+     * right end after the scene's diagnostics. Each is an `iconBar3d` item
+     * (`icon`, `title`, `dim`, `active`, `handleClick`); rebuilt with the panel,
+     * so `refreshScenePanel()` brings a changed `dim` up to date.
+     */
+    panelActions = () => [];
     /**
      * The centred in-scene panel shown while paused. Return your own rows to
      * replace the default (a title and a Continue button) — a title screen, a
@@ -3248,18 +3274,25 @@ export class B3d extends Component {
     // LISTENER), so a component callback named that way collides with it. tosijs warns
     // and points here — the same footgun as tosijs#22, now with a migration path.
     handleResize() {
-        // An open flat panel re-fits to the new height, once the resize settles.
-        const host = this.parts?.scenePanelHost;
-        if (host != null &&
-            !host.hasAttribute('hidden') &&
-            this.clientHeight !== this._panelHeightKey) {
-            if (this._panelResizeTimer != null)
-                clearTimeout(this._panelResizeTimer);
-            this._panelResizeTimer = setTimeout(() => {
-                this._panelResizeTimer = null;
+        /*
+        PANELS ARE REDRAWN ONCE THE RESIZE SETTLES. A panel is drawn to fit the
+        view it opened in; meanwhile a screen panel is only scaled to fit, which
+        squashes its text. Once the size has held for a moment the settings panel
+        (either presentation) rebuilds at the new height, and `resizeend` tells
+        anyone drawing system panels to do the same.
+        */
+        if (this._panelResizeTimer != null)
+            clearTimeout(this._panelResizeTimer);
+        this._panelResizeTimer = setTimeout(() => {
+            this._panelResizeTimer = null;
+            const size = `${this.clientWidth}x${this.clientHeight}`;
+            if (size === this._settledSize)
+                return;
+            this._settledSize = size;
+            if (this.clientHeight !== this._panelHeightKey)
                 this.refreshScenePanel();
-            }, 150);
-        }
+            this.dispatchEvent(new CustomEvent('resizeend'));
+        }, 200);
         if (this.engine && !this._resizing) {
             this._resizing = true;
             this.engine.resize();
@@ -4829,6 +4862,7 @@ export class B3d extends Component {
      * standard panel is a waste of space" (Tonio).
      */
     _barItems() {
+        const actions = this.panelActions(this);
         return [
             ...this._debugTools().map((t) => ({
                 icon: t.icon,
@@ -4854,6 +4888,8 @@ export class B3d extends Component {
                 active: g.active,
                 handleClick: g.handleClick,
             })),
+            // The page's own (undo, redo…), at the right end.
+            ...(actions.length > 0 ? [{ spacer: true }, ...actions] : []),
         ];
     }
     /*
@@ -6950,6 +6986,8 @@ export class B3d extends Component {
         const items = this._barItems();
         const el = this._makePanel(this._panelWidgets(), items.length > 0 ? [iconBar3d({ items })] : [], true, this._flatPanelMax() - 64, () => this._closeScenePanel());
         const vb = el.viewBox.baseVal;
+        // The height it was built for (handleResize rebuilds it on a change).
+        this._panelHeightKey = this.clientHeight;
         /*
         REBUILT IN PLACE. Every icon press and refresh rebuilds this panel, and a
         new plane is blank until its texture is drawn: on a headset-speed CPU
@@ -7040,8 +7078,11 @@ export class B3d extends Component {
             });
             return b;
         };
-        const buttons = this._barItems().map((it) => mk(it.title, svgIcons[it.icon]?.() ??
-            svgIcons.bug(), it.handleClick, it.active, it.dim));
+        // The title takes the slack here, so the spacer has nothing to do.
+        const buttons = this._barItems().flatMap((it) => it.spacer
+            ? []
+            : mk(it.title ?? it.icon, svgIcons[it.icon]?.() ??
+                svgIcons.bug(), () => it.handleClick?.(), it.active, it.dim));
         buttons.push(mk('Close', 
         // In a session the flat overlay isn't visible anyway, but keep it
         // playful: a bug-eyed face for VR, the close icon on flat screens.
@@ -7285,7 +7326,22 @@ export class B3d extends Component {
     panel keeps 620: in a headset there is no window to fit.
     */
     _panelHeightKey = 0;
+    _settledSize = '';
     _panelResizeTimer = null;
+    /**
+     * The height in CSS pixels a flat system panel's CONTENT has: from its top
+     * (under the system bar, or where `panelEl`, its `<tosi-b3d-panel>`, was
+     * dragged to) to the bottom of the view, less its title bar. Cap a panel's
+     * `maxHeight` with it and rebuild on `resizeend`.
+     */
+    panelRoom(panelEl) {
+        const spot = panelEl == null ? undefined : this._systemSpots.get(panelEl);
+        const top = typeof spot?.top === 'number' ? spot.top : UNDER_BAR;
+        const h = this.parts?.canvas?.clientHeight;
+        // titled3d's title bar (widgets3d's popup chrome band).
+        const titleBar = 30;
+        return Math.max(120, (h || 600) - top - 8 - titleBar);
+    }
     _flatPanelMax() {
         const h = this.clientHeight;
         if (!(h > 0))

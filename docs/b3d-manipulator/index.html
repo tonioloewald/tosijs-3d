@@ -22,7 +22,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=9acedf89658b" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=aeadb365ee59" data-tosi-doc-system />
   <title>b3d-manipulator — tosijs-3d</title>
   <meta name="description" content="Translate, rotate and scale handles you can grab — with a mouse, a finger, or a hand in a headset. Drop it in a scene, point it at an element or a mesh" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-manipulator/" />
@@ -33,13 +33,13 @@
   <meta property="og:description" content="Translate, rotate and scale handles you can grab — with a mouse, a finger, or a hand in a headset. Drop it in a scene, point it at an element or a mesh" />
   <meta property="og:url" content="https://3d.tosijs.net/b3d-manipulator/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-manipulator","description":"Translate, rotate and scale handles you can grab — with a mouse, a finger, or a hand in a headset. Drop it in a scene, point it at an element or a mesh","url":"https://3d.tosijs.net/b3d-manipulator/","inLanguage":"en","dateModified":"2026-10-27T15:42:42+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-manipulator","description":"Translate, rotate and scale handles you can grab — with a mouse, a finger, or a hand in a headset. Drop it in a scene, point it at an element or a mesh","url":"https://3d.tosijs.net/b3d-manipulator/","inLanguage":"en","dateModified":"2026-11-06T13:19:53+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Interacting with the world","item":"https://3d.tosijs.net/interacting/"},{"@type":"ListItem","position":2,"name":"b3d-manipulator","item":"https://3d.tosijs.net/b3d-manipulator/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=8dbf70970b3a" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=1efe4da519d1" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="b3d-manipulator.ts">
 <h1 id="b3d-manipulator">b3d-manipulator</h1>
 <p><strong>Translate, rotate and scale handles you can grab — with a mouse, a finger, or
@@ -227,12 +227,15 @@ value should this handle have?</em></p>
 <td>the ray&#39;s distance from the widget centre, read as a ratio</td>
 </tr>
 </tbody></table>
+<h2 id="one-frame-the-objects-own">One frame: the object&#39;s own</h2>
+<p>Every handle rides the object&#39;s own axes, carried into the world through
+whatever it hangs on: the red arrow, the red ring and the red cube are all its
+x. A pistol in a hand moves along its barrel and turns about it. An unturned
+object&#39;s axes are the world&#39;s, and there a move snaps to the world grid; a
+turned object snaps each step along its own axis.</p>
 <h2 id="scale-is-exclusive-of-move-and-turn">Scale is exclusive of move and turn</h2>
-<p><code>node.scaling</code> is local, so scale grips ride the object&#39;s own axes while move
-rides the world&#39;s. A widget showing both draws two frames at once and can only
-mislead. Turning <code>scale</code> on therefore turns <code>move</code> and <code>turn</code> off, and vice versa —
-the element does this to itself rather than letting you build the misleading
-combination.</p>
+<p>Turning <code>scale</code> on turns <code>move</code> and <code>turn</code> off, and vice versa: the cubes sit
+where the arrows would, so showing both crowds the widget into ambiguity.</p>
 <h2 id="snapping-and-the-frozen-frame">Snapping and the frozen frame</h2>
 <p>Snapping quantises the resulting VALUE, not each step of the movement, so a
 snapped object is always exactly on the grid however long the drag. Rotation is
@@ -306,7 +309,10 @@ too, for a consumer building its own widget.</p>
     <ul id="tosi-nav-demos">
       <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
       <li><a class="doc-link" href="../solar-system/">Solar System</a></li>
-      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-weapon-fit" aria-label="Weapon Fit"></button><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></div>
+      <ul id="tosi-nav-weapon-fit">
+        <li><a class="doc-link" href="../hold-grip/">hold grips</a></li>
+      </ul></li>
       <li><a class="doc-link" href="../rig-tool/">Rig tool</a></li>
       <li><a class="doc-link" href="../effect-tool/">Effect tool</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-builder" aria-label="character builder"></button><a class="doc-link" href="../character-builder/">character builder</a></div>
@@ -476,6 +482,7 @@ too, for a consumer building its own widget.</p>
             <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-rigged-body-glb" aria-label="rigged-body-glb"></button><a class="doc-link" href="../rigged-body-glb/">rigged-body-glb</a></div>
             <ul id="tosi-nav-rigged-body-glb">
               <li><a class="doc-link" href="../spring-vrm/">spring-vrm</a></li>
+              <li><a class="doc-link" href="../body-export/">body export</a></li>
             </ul></li>
           </ul></li>
           <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-chunks" aria-label="glb-chunks"></button><a class="doc-link" href="../glb-chunks/">glb-chunks</a></div>
@@ -589,6 +596,7 @@ too, for a consumer building its own widget.</p>
     <ul id="tosi-nav-ui">
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widgets3d" aria-label="widgets3d"></button><a class="doc-link" href="../widgets3d/">widgets3d</a></div>
       <ul id="tosi-nav-widgets3d">
+        <li><a class="doc-link" href="../playback-field/">Playback</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widget-semantics" aria-label="widget semantics"></button><a class="doc-link" href="../widget-semantics/">widget semantics</a></div>
         <ul id="tosi-nav-widget-semantics">
@@ -607,7 +615,11 @@ too, for a consumer building its own widget.</p>
         <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
         <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
         <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
-        <li><a class="doc-link" href="../material-picker/">materialPicker3d</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-material-picker" aria-label="materialPicker3d"></button><a class="doc-link" href="../material-picker/">materialPicker3d</a></div>
+        <ul id="tosi-nav-material-picker">
+          <li><a class="doc-link" href="../fabric-textures/">fabric textures</a></li>
+          <li><a class="doc-link" href="../material-pictures/">material pictures</a></li>
+        </ul></li>
         <li><a class="doc-link" href="../material-recipe/">material-recipe</a></li>
         <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-color-field" aria-label="color3d"></button><a class="doc-link" href="../color-field/">color3d</a></div>
@@ -685,12 +697,14 @@ too, for a consumer building its own widget.</p>
     <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-utilities" aria-label="utilities"></button><a class="doc-link" href="../utilities/">utilities</a></div>
     <ul id="tosi-nav-utilities">
       <li><a class="doc-link" href="../clock/">clock</a></li>
+      <li><a class="doc-link" href="../undo-history/">undo history</a></li>
     </ul></li>
     <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-upgrading" aria-label="Upgrading"></button><a class="doc-link" href="../upgrading/">Upgrading</a></div>
     <ul id="tosi-nav-upgrading">
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.12.4/">0.12.4</a></li>
         <li><a class="doc-link" href="../v0.12.3/">0.12.3</a></li>
         <li><a class="doc-link" href="../v0.12.2/">0.12.2</a></li>
         <li><a class="doc-link" href="../v0.12.1/">0.12.1</a></li>
@@ -774,6 +788,6 @@ too, for a consumer building its own widget.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-6cqawqfh.js"></script>
+  <script type="module" src="../hydrate-d5cbj3ft.js"></script>
 </body>
 </html>

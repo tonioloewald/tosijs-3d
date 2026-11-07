@@ -423,9 +423,14 @@ describe('a turned object', () => {
       ray([10, 0, 0], [-1, 0, 0]),
       TURNED
     )!
-    updateDrag(drag, ray([10, 0, -1.2], [-1, 0, 0]), composeAdd, { gridSnap: 1 })
+    updateDrag(drag, ray([10, 0, -1.2], [-1, 0, 0]), composeAdd, {
+      gridSnap: 1,
+    })
     expect(drag.current.position.z).toBeCloseTo(-1, 6)
-    expect(commitTransform(drag, { gridSnap: 1 }).position.x).toBeCloseTo(0.3, 6)
+    expect(commitTransform(drag, { gridSnap: 1 }).position.x).toBeCloseTo(
+      0.3,
+      6
+    )
   })
 
   test('a pad moves in its own plane', () => {

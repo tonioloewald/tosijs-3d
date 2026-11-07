@@ -908,7 +908,13 @@ export async function makeCharacter(
     if (!built || !scalp) return
     const token = ++dressing
     const names = [
-      ...[...SLOTS.filter((k) => k !== s.hideSlot), 'hair', 'brows', 'beard', 'moustache'].map((k) => s[k]),
+      ...[
+        ...SLOTS.filter((k) => k !== s.hideSlot),
+        'hair',
+        'brows',
+        'beard',
+        'moustache',
+      ].map((k) => s[k]),
       'teeth_base',
       'tongue01',
     ].filter((n) => proxies[n] || garments.get(n)?.proxy)
@@ -1232,7 +1238,9 @@ export async function makeCharacter(
     for (const k of Object.keys(slotMaterial)) delete slotMaterial[k]
     const worn = s.hideClothes
       ? []
-      : SLOTS.filter((slot) => slot !== s.hideSlot && ownIn(slot)?.slot === slot)
+      : SLOTS.filter(
+          (slot) => slot !== s.hideSlot && ownIn(slot)?.slot === slot
+        )
     const wearing = worn.map((slot) => proxyOn(ownIn(slot), r))
     worn.forEach((slot, i) => {
       const mesh = humanProxy(
@@ -1395,7 +1403,8 @@ export async function makeCharacter(
       if (has('rigs')) await rebind()
       if (has('surfaces')) for (const r of rigged.values()) dressSurfaces(r)
       if (has('source')) await choose()
-      else if (has('hideClothes') || has('hideSlot') || SLOTS.some(has)) await dressShown()
+      else if (has('hideClothes') || has('hideSlot') || SLOTS.some(has))
+        await dressShown()
       else if (changed.some((k) => HAIR.has(k))) await dress()
       if (has('stubble') && stubbleMask == null && s.stubble > 0)
         await measureStubble()

@@ -2,6 +2,12 @@ import { type Widget3d, type WidgetHost } from './widgets3d.js';
 import { type MaterialCollection, type MaterialPreset, type MaterialRecipe } from './material-recipe.js';
 export interface MaterialPicker3dOptions {
     label?: string;
+    /**
+     * Its name with no caption: the popup's title and what a screen reader
+     * says. With neither label nor caption the row is just the swatch, for
+     * beside another control (a garment slot).
+     */
+    name?: string;
     value?: MaterialRecipe | {
         value: MaterialRecipe;
         observe(cb: () => void): unknown;

@@ -31,6 +31,10 @@ GARMENTS TRAVEL INSIDE IT. A garment saved from the tailor lives in the
 browser that saved it; the document carries each one the character wears as
 its GLB (base64), so the figure is whole wherever it is opened.
 
+SO DO ITS PICTURES: a print or texture chosen from disk for a material is
+named in its recipe by a key ([material-pictures](/material-pictures/)), and
+`pictures` carries each one the character's materials use (key → base64).
+
 SO DOES ITS BODY, when it is a mesh. `bodies` says where the body on show
 comes from: a URL (and the object picked in it) when it has one, or the file
 itself (base64, with its name) when it was opened from disk. A page that

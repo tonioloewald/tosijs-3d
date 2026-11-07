@@ -37,7 +37,12 @@ The panel has these sections, its job first.
 - **Markers**, for a mesh bound from them. `symmetry` moves both sides
   together; `tail` adds a tail (place its tip from the side view; it is a
   bone chain, `tail_01` on, for a spring); `guess markers` starts again from
-  the outline. The joints follow the markers. `move joints` shows every
+  the outline; `spread fingers` lays both hands out afresh from the wrists
+  (a glove guessed into a knot), each finger apart, and shows the joints to
+  drag into place. `hands` says how much hand is rigged: thumb and four
+  fingers, a mitten (a thumb and one finger, for a glove: the other fingers
+  lie on it and take no skin) or none (the hand alone); `as found` leaves it
+  to the fit. The joints follow the markers. `move joints` shows every
   joint (blue) to drag by hand from the view that suits: shoulders from the
   front, fingers and thumbs from the top, feet from the side. What hangs from
   a joint comes with it; set `dragging` to turn what hangs from it instead
@@ -120,6 +125,9 @@ tool.unmount() // everything it added goes; safe to call twice
 - **`change`** fires on every edit, **`commit`** once per finished gesture
   (a release on its panel or in the scene, a role assigned), each with a copy
   of the recipe.
+- **Undo and redo** (the arrows at the top of its panel, ⌘Z and ⇧⌘Z) step
+  through those commits, markers and binding included; the body is bound
+  again when you animate or press done. Each model has its own history.
 - **Its panel is a system panel** (a button on the system bar, beside the
   host's), with the view's camera menu beside it.
 - **`unmount()`** removes every mesh, material, texture, observer and panel it

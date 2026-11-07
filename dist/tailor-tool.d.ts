@@ -3,6 +3,7 @@ import type { BuiltRig } from './rig-build.js';
 import { type ViewPoint } from './garment-cut.js';
 import { type GarmentMesh } from './garment-file.js';
 import type { MaterialRecipe } from './material-recipe.js';
+import { type Widget3d } from './widgets3d.js';
 /** What the tailor is making: enough to open it again. */
 export interface TailorCut {
     /** Half outlines, [x, y] in metres on the character's left. */
@@ -52,6 +53,25 @@ export interface TailorToolOptions {
     handleDone?: (garment: TailoredGarment) => void;
     /** Cancelled: the tool unmounts and this is called. */
     handleCancel?: () => void;
+    /**
+     * A system panel of the host's (a `<tosi-b3d-panel>` with an icon) to draw
+     * in, instead of one of its own. The host keeps it: unmounting leaves it
+     * in place for the host to fill, and leaves hiding other clothes to the
+     * host too.
+     */
+    panel?: HTMLElement & {
+        svg: SVGSVGElement | null;
+    };
+    /**
+     * No cancel or done: the host keeps the garment as it goes (when the
+     * person switches garment or closes the panel). Undo and redo stay.
+     */
+    persistent?: boolean;
+    /** The host's own rows: above the outline, and at the end. */
+    rows?: {
+        top?: () => Widget3d[];
+        bottom?: () => Widget3d[];
+    };
 }
 export interface TailorTool {
     readonly state: TailorState;
@@ -62,6 +82,13 @@ export interface TailorTool {
     done(): void;
     cancel(): void;
     unmount(): void;
+    /** Draw the panel again (the host's rows changed). */
+    refresh(): void;
+    /** Step back through the edits made since it opened. */
+    undo(): void;
+    redo(): void;
+    readonly canUndo: boolean;
+    readonly canRedo: boolean;
 }
 /**
  * Open the tailor in a `<tosi-b3d>`: a system panel, a preview on `built`,

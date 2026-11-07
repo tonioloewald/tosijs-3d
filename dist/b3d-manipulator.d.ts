@@ -46,6 +46,8 @@ export declare class B3dManipulator extends B3dChild {
     /** Where the widget sits and how big it draws, once per frame. */
     private _track;
     private _rotationOf;
+    private _worldRotationOf;
+    private _worldFrameOf;
     /**
      * A world point from the node's PARENT frame — the inverse of
      * `_toParentSpace`.

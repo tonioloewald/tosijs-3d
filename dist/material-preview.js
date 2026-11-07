@@ -1,8 +1,9 @@
 /*
-A material's swatch, rendered: one small picture of a recipe on a teapot
-(The Base Mesh's, CC0, from the CDN; a sphere until it loads or if it cannot)
-in a fixed studio, cached by the recipe, so a picker shows what a material LOOKS
-like rather than its base colour.
+A material's swatch, rendered: one small picture of a recipe on Tonio's
+material test object (its `Ball`, framed by its own camera; `tonio/material-test/` on the CDN; a cube until it loads, or
+if it cannot), on grey, in a fixed studio, cached by the recipe, so a picker
+shows what a material LOOKS like rather than its base colour. Grey, not
+black, so a dark material reads against it.
 
 One hidden engine renders every preview on the page, made the first time one
 is asked for (one more WebGL context, once). Renders are queued and drawn one
@@ -10,16 +11,16 @@ at a time; a recipe already drawn costs nothing, so a panel full of fabrics
 in a headset renders each once.
 */
 import * as BABYLON from '@babylonjs/core';
-// The teapot is a glb: register the loader even when this is imported alone.
+// The test object is a glb: register the loader even when this is imported alone.
 import '@babylonjs/loaders';
+import { assetUrl } from './asset-url.js';
 import { applyMaterial } from './material-apply.js';
 import { clothShading } from './cloth-shading.js';
 import { studioEnvironment } from './environment.js';
 import { canonicalMaterial } from './material-recipe.js';
-import { assetUrl } from './asset-url.js';
-/** What previews are drawn on: curves, a spout and a handle, a lid's crease. */
-export const PREVIEW_MESH = 'thebasemesh/kitchen/teapot.glb';
 const SIZE = 128;
+/** What previews are drawn on: the ball in it (anything else in the file is dropped). */
+export const PREVIEW_MODEL = 'tonio/material-test/material-test.glb';
 let stage = null;
 const cache = new Map();
 let queue = Promise.resolve();
@@ -40,16 +41,16 @@ function makeStage() {
         return null;
     }
     const scene = new BABYLON.Scene(engine);
-    scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
+    // Grey behind it, so dark and black materials read.
+    scene.clearColor = new BABYLON.Color4(0.42, 0.42, 0.44, 1);
     studioEnvironment(scene, { intensity: 0.9 });
-    const camera = new BABYLON.ArcRotateCamera('preview', 
-    // From the side, a little ahead: the teapot's spout and handle lie
-    // along z, so spout, handle and lid all show.
-    0.45, 1.2, 3.1, BABYLON.Vector3.Zero(), scene);
+    // Above a corner: the top and two sides, each lit differently.
+    const camera = new BABYLON.ArcRotateCamera('preview', -Math.PI / 4, 0.95, 3.4, BABYLON.Vector3.Zero(), scene);
     camera.fov = 0.6;
     const key = new BABYLON.DirectionalLight('key', new BABYLON.Vector3(-0.6, -0.8, 0.5), scene);
     key.intensity = 2.2;
-    const ball = BABYLON.MeshBuilder.CreateSphere('ball', { diameter: 1.6, segments: 48 }, scene);
+    // Each face carries the whole texture (a box's own UVs).
+    const cube = BABYLON.MeshBuilder.CreateBox('cube', { size: 1.25 }, scene);
     const pbr = new BABYLON.PBRMaterial('preview-pbr', scene);
     const cloth = new BABYLON.PBRMaterial('preview-cloth', scene);
     const s = {
@@ -58,25 +59,56 @@ function makeStage() {
         canvas,
         pbr,
         cloth,
-        shapes: [ball],
+        clothLook: null,
+        shapes: [cube],
         ready: Promise.resolve(),
     };
-    s.ready = BABYLON.SceneLoader.LoadAssetContainerAsync(assetUrl(PREVIEW_MESH), '', scene)
+    s.ready = BABYLON.LoadAssetContainerAsync(assetUrl(PREVIEW_MODEL), scene)
         .then((container) => {
-        container.addAllToScene();
-        const meshes = container.meshes.filter((m) => m.getTotalVertices() > 0);
+        const drawn = container.meshes.filter((m) => m.getTotalVertices() > 0);
+        // The ball; the file's other meshes (a stand) are not drawn.
+        const ball = drawn.filter((m) => /^ball/i.test(m.name));
+        const meshes = ball.length ? ball : drawn;
         if (meshes.length === 0)
             return;
-        // Fit it to the sphere's place: centred, about as big.
-        const root = container.meshes[0];
-        const { min, max } = root.getHierarchyBoundingVectors();
-        const size = Math.max(max.x - min.x, max.y - min.y, max.z - min.z);
-        root.scaling.scaleInPlace(2.1 / size);
-        root.computeWorldMatrix(true);
-        const b = root.getHierarchyBoundingVectors();
-        root.position.subtractInPlace(b.min.add(b.max).scale(0.5));
-        ball.dispose();
+        container.addAllToScene();
+        for (const m of drawn)
+            if (!meshes.includes(m))
+                m.dispose();
+        // Its own material (a UV test picture) is replaced by each preview.
+        for (const m of container.materials)
+            m.dispose(true, true);
+        cube.dispose();
         s.shapes = meshes;
+        // From its own camera's side (level), close enough that the ball fills
+        // the swatch (the file's camera framed more than the ball).
+        let lo = new BABYLON.Vector3(Infinity, Infinity, Infinity);
+        let hi = lo.scale(-1);
+        for (const m of meshes) {
+            m.computeWorldMatrix(true);
+            const b = m.getBoundingInfo().boundingBox;
+            lo = BABYLON.Vector3.Minimize(lo, b.minimumWorld);
+            hi = BABYLON.Vector3.Maximize(hi, b.maximumWorld);
+        }
+        const centre = lo.add(hi).scale(0.5);
+        // A ball's radius is its half width (the box's diagonal overstates it).
+        const size = hi.subtract(lo);
+        const radius = Math.max(size.x, size.y, size.z) / 2;
+        const view = container.cameras[0];
+        if (view) {
+            view.computeWorldMatrix();
+            const d = view.globalPosition.subtract(centre);
+            camera.alpha = Math.atan2(d.z, d.x);
+        }
+        // Level with its equator: it is a UV sphere, pinched at the poles, and
+        // seen from level they sit on its outline, edge on.
+        camera.beta = Math.PI / 2;
+        for (const c of container.cameras)
+            c.dispose();
+        camera.setTarget(centre);
+        // The ball's outline a little inside the swatch's edge.
+        camera.radius = radius / Math.sin(camera.fov / 2) / 1.05;
+        camera.minZ = 0.01;
     })
         .catch(() => { });
     return s;
@@ -100,7 +132,19 @@ async function draw(recipe) {
         stage.cloth.roughness = 0.85;
         stage.cloth.metallic = 0;
         stage.cloth.sheen.isEnabled = false;
-        clothShading(stage.cloth).set({ recipe });
+        stage.clothLook ??= clothShading(stage.cloth);
+        // The ball has no texture of its own to recolour, so a colour the recipe
+        // names is shown wholly: cotton in your colour, not white whatever the
+        // recolour. A picture (a photographed weave) is shown as the recolour
+        // leaves it, and a recipe with no colour ('as made') stays neutral.
+        const a = recipe.inputs.albedo;
+        const coloured = typeof a === 'string' ||
+            (typeof a === 'object' && a != null && 'colour' in a);
+        stage.clothLook.set({
+            recipe: !coloured
+                ? recipe
+                : { ...recipe, inputs: { ...recipe.inputs, recolour: 1 } },
+        });
         wear(stage.cloth);
     }
     else

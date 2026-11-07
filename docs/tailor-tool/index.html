@@ -22,7 +22,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=9acedf89658b" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=aeadb365ee59" data-tosi-doc-system />
   <title>tailor tool — tosijs-3d</title>
   <meta name="description" content="Cut a garment out of a body, and hand it back. Draw an outline over the body&#39;s front view and the skin inside it, front and back, becomes cloth: a…" />
   <link rel="canonical" href="https://3d.tosijs.net/tailor-tool/" />
@@ -33,13 +33,13 @@
   <meta property="og:description" content="Cut a garment out of a body, and hand it back. Draw an outline over the body&#39;s front view and the skin inside it, front and back, becomes cloth: a…" />
   <meta property="og:url" content="https://3d.tosijs.net/tailor-tool/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"tailor tool","description":"Cut a garment out of a body, and hand it back. Draw an outline over the body's front view and the skin inside it, front and back, becomes cloth: a…","url":"https://3d.tosijs.net/tailor-tool/","inLanguage":"en","dateModified":"2026-11-05T09:27:51+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"tailor tool","description":"Cut a garment out of a body, and hand it back. Draw an outline over the body's front view and the skin inside it, front and back, becomes cloth: a…","url":"https://3d.tosijs.net/tailor-tool/","inLanguage":"en","dateModified":"2026-11-07T21:23:23.283Z","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Demos","item":"https://3d.tosijs.net/demos/"},{"@type":"ListItem","position":2,"name":"character builder","item":"https://3d.tosijs.net/character-builder/"},{"@type":"ListItem","position":3,"name":"tailor tool","item":"https://3d.tosijs.net/tailor-tool/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=8dbf70970b3a" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=1efe4da519d1" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="tailor-tool.ts">
 <h1 id="tailor-tool">tailor tool</h1>
 <p><strong>Cut a garment out of a body, and hand it back.</strong> Draw an outline over the
@@ -59,8 +59,8 @@ on <strong>done</strong> hands your callback the garment. The
   <span class="token function-variable function">handleCancel</span><span class="token operator">:</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span><span class="token punctuation">}</span><span class="token punctuation">,</span>
 <span class="token punctuation">}</span><span class="token punctuation">)</span>
 </code></pre>
-<p><strong>Its panel is a system panel</strong> (scissors, on the bar), with <strong>cancel</strong> and
-<strong>done</strong> at its top, then:</p>
+<p><strong>Its panel is a system panel</strong> (scissors, on the bar). A bar pinned to its
+top carries <strong>undo</strong>, <strong>redo</strong>, <strong>cancel</strong> and <strong>done</strong>; below it:</p>
 <ul>
 <li><strong>the outline</strong>: you draw the character&#39;s left, on your right, and the
 other side is its mirror. Click out points, click the first to close a
@@ -79,12 +79,19 @@ it bridges hollows and hangs: dresses, tunics, robes; see
 height: skirts, kilts);</li>
 <li><strong>material</strong>, <strong>name</strong> and <strong>slot</strong>.</li>
 </ul>
+<p><strong>Undo and redo</strong> (and ⌘Z / ⇧⌘Z through <code>undo()</code> / <code>redo()</code>, which a host&#39;s
+keys call while the tool is open): each settled edit, a point dropped or a
+slider let go, is a step.</p>
 <p>WHAT DONE HANDS BACK is the garment as a mesh at rest, on the body it was
 cut from (<code>garment</code>: positions, triangles, UVs unwrapped like a sewing
 pattern), with what it was cut from (<code>cut</code>: the outlines, thickness, how it was made)
 so it can be opened again, and the name, slot and material recipe. Binding it
 to a body to wear (<code>bindGarment</code>) is the host&#39;s: a garment file carries the
 same mesh.</p>
+<p>A host that keeps the garment itself passes <code>persistent</code> (no cancel or
+done), its own system panel as <code>panel</code>, and rows of its own above and below
+(<code>rows: { top, bottom }</code>); the character builder does, so its tailor is
+always on the bar.</p>
 <p><code>handleChange</code> hears every edit (a work in progress to keep); <code>setBody</code>
 moves the cut onto a body reshaped while the tool is open; <code>unmount</code> (or
 done, or cancel) removes everything it added.</p>
@@ -98,7 +105,10 @@ done, or cancel) removes everything it added.</p>
     <ul id="tosi-nav-demos">
       <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
       <li><a class="doc-link" href="../solar-system/">Solar System</a></li>
-      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-weapon-fit" aria-label="Weapon Fit"></button><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></div>
+      <ul id="tosi-nav-weapon-fit">
+        <li><a class="doc-link" href="../hold-grip/">hold grips</a></li>
+      </ul></li>
       <li><a class="doc-link" href="../rig-tool/">Rig tool</a></li>
       <li><a class="doc-link" href="../effect-tool/">Effect tool</a></li>
       <li class="nav-branch -open"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="true" aria-controls="tosi-nav-character-builder" aria-label="character builder"></button><a class="doc-link" href="../character-builder/">character builder</a></div>
@@ -268,6 +278,7 @@ done, or cancel) removes everything it added.</p>
             <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-rigged-body-glb" aria-label="rigged-body-glb"></button><a class="doc-link" href="../rigged-body-glb/">rigged-body-glb</a></div>
             <ul id="tosi-nav-rigged-body-glb">
               <li><a class="doc-link" href="../spring-vrm/">spring-vrm</a></li>
+              <li><a class="doc-link" href="../body-export/">body export</a></li>
             </ul></li>
           </ul></li>
           <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-chunks" aria-label="glb-chunks"></button><a class="doc-link" href="../glb-chunks/">glb-chunks</a></div>
@@ -381,6 +392,7 @@ done, or cancel) removes everything it added.</p>
     <ul id="tosi-nav-ui">
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widgets3d" aria-label="widgets3d"></button><a class="doc-link" href="../widgets3d/">widgets3d</a></div>
       <ul id="tosi-nav-widgets3d">
+        <li><a class="doc-link" href="../playback-field/">Playback</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widget-semantics" aria-label="widget semantics"></button><a class="doc-link" href="../widget-semantics/">widget semantics</a></div>
         <ul id="tosi-nav-widget-semantics">
@@ -399,7 +411,11 @@ done, or cancel) removes everything it added.</p>
         <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
         <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
         <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
-        <li><a class="doc-link" href="../material-picker/">materialPicker3d</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-material-picker" aria-label="materialPicker3d"></button><a class="doc-link" href="../material-picker/">materialPicker3d</a></div>
+        <ul id="tosi-nav-material-picker">
+          <li><a class="doc-link" href="../fabric-textures/">fabric textures</a></li>
+          <li><a class="doc-link" href="../material-pictures/">material pictures</a></li>
+        </ul></li>
         <li><a class="doc-link" href="../material-recipe/">material-recipe</a></li>
         <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-color-field" aria-label="color3d"></button><a class="doc-link" href="../color-field/">color3d</a></div>
@@ -477,12 +493,14 @@ done, or cancel) removes everything it added.</p>
     <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-utilities" aria-label="utilities"></button><a class="doc-link" href="../utilities/">utilities</a></div>
     <ul id="tosi-nav-utilities">
       <li><a class="doc-link" href="../clock/">clock</a></li>
+      <li><a class="doc-link" href="../undo-history/">undo history</a></li>
     </ul></li>
     <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-upgrading" aria-label="Upgrading"></button><a class="doc-link" href="../upgrading/">Upgrading</a></div>
     <ul id="tosi-nav-upgrading">
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.12.4/">0.12.4</a></li>
         <li><a class="doc-link" href="../v0.12.3/">0.12.3</a></li>
         <li><a class="doc-link" href="../v0.12.2/">0.12.2</a></li>
         <li><a class="doc-link" href="../v0.12.1/">0.12.1</a></li>
@@ -566,6 +584,6 @@ done, or cancel) removes everything it added.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-6cqawqfh.js"></script>
+  <script type="module" src="../hydrate-d5cbj3ft.js"></script>
 </body>
 </html>

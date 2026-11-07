@@ -253,6 +253,12 @@ export { footprint3d } from './footprint-field.js';
 // A coordinate on ONE row — the density win for inspector panels. Its own
 // module so it tree-shakes, and top-level like the other `*3d` widgets.
 export { vector3d, euler3d, wrapDegrees } from './vector-field.js';
+export { playback3d } from './playback-field.js';
+export { undoHistory } from './undo-history.js';
+export { HOLD_CLASSES, HOLD_CLASS_LABELS, HOLD_GRIPS, holdClassOf, holdGrip, } from './hold-grip.js';
+export { FABRIC_TEXTURES, fabricTextureRecipe, fabricTexturePresets, } from './fabric-textures.js';
+export { addPicture, isPictureKey, pictureData, picturesIn, pictureUrl, registerPicture, } from './material-pictures.js';
+export { pictureTexture } from './material-apply.js';
 // What a control IS (role, name, value, set): read by agent tools, the
 // screen-reader mirror and the panel name test.
 export { controlTree, findControl, nameProblems, plainControls, walkControls, } from './widget-semantics.js';
@@ -493,8 +499,8 @@ export { loadHumanPack, decodeHumanTarget } from './human-pack.js';
 export { fitProxy, drawnPositions, proxyWeights, nearestWeights, coveredTriangles, underCover, inflate, proxyDelta, coveredBy, smoothUnder, } from './proxy-fit.js';
 export { humanProxy, proxyMaterial, coverBody } from './human-proxy.js';
 export { cutGarment, mirrorOutline, skirtGarment, rebindCut, weldVertices, } from './garment-cut.js';
-export { remesh, surfaceProjector, closestBarycentric } from './remesh.js';
-export { drapeGarment, flatPiece } from './cloth-drape.js';
+export { remesh, remeshSteps, surfaceProjector, closestBarycentric, } from './remesh.js';
+export { drapeGarment, drapeGarmentAsync, drapeSteps, flatPiece, runSliced, } from './cloth-drape.js';
 export { outlineField3d } from './outline-field.js';
 export { bindGarment, closestOnTriangle } from './garment-bind.js';
 export { writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, referenceName, metaFromName, unwrapGarment, } from './garment-file.js';

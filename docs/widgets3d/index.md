@@ -270,6 +270,7 @@ drag *and* the reported value, so a slider can be discrete without becoming a
 | | **`snap`** | `0` | quantise the VALUE (e.g. `1` for whole grid sizes) |
 | | **`zeroStop`** | `false` | an explicit `0` at the bottom of a log track; `min` becomes the log floor |
 | | **`step`** | `0` | **quantises the drag and the value**; `0` is continuous |
+| | **`notches`** | | values a press BESIDE the handle steps to, the next one that way (`textureScaleNotches`: 1/3 → 1/2 → 1 → 2); dragging the handle stays continuous |
 | | `showValue` | `'peek'` | `peek` (on touch/drag) / `always` / `never` |
 | | `format` | step-derived | `(v) => string` — units, precision |
 | `toggle3d` | `label` / `value` | | |
@@ -281,9 +282,9 @@ drag *and* the reported value, so a slider can be discrete without becoming a
 | `button3d` | `label` / `handleClick` | | |
 | | `menu` | — | makes it a MENU button — opens actions instead of firing `handleClick` |
 | `menu3d` | `items` / `handleSelect` | | rows of `MenuAction`; usually via `openMenu3d` |
-| `iconBar3d` | `items` | | `{icon, handleClick}` |
+| `iconBar3d` | `items` / `inTabs` | | `{icon, title, handleClick}`; `{ spacer: true }` is an elastic gap, so what follows sits at the right end. `inTabs`: in a tabbed panel, a bar before the first section goes on the tab strip's right end (undo, redo) |
 | `foldSections` | `key` / `mode` / `repaint` | `'fold'` | the rows to show for collapsible sections: folded one open at a time (`'fold'`, an accordion), folded with several open (`'folds'`), or as `tabs3d` (`'tabs'`); rebuild your panel on `repaint` |
-| `tabs3d` | `tabs` / `active` / `handleSelect` | `0` | file tabs; a tab is a caption or `{ icon, title }`; at most half the strip each, overlapping around the active one when they don't fit |
+| `tabs3d` | `tabs` / `active` / `handleSelect` | `0` | file tabs; a tab is a caption or `{ icon, title }`; at most half the strip each, overlapping around the active one when they don't fit; `tools` (an `iconBar3d`) sits at the strip's right end |
 | `spinner3d` | `label` / `size` | | INDETERMINATE busy — call `dispose()` when done |
 | `progress3d` | `label` / `value` / `showValue` | | determinate `0..1`; `setValue(f)` |
 

@@ -1028,7 +1028,11 @@ export function mountRigTool(
       },
       // Hosted it is a panel of its own: tabs as the scene panel has them.
       ...(hosted
-        ? foldSections(panel(), { key: 'rig-tool', mode: 'tabs', repaint: refresh })
+        ? foldSections(panel(), {
+            key: 'rig-tool',
+            mode: 'tabs',
+            repaint: refresh,
+          })
         : panel())
     ) as unknown as SVGSVGElement & {
       handlePointer?: (k: string, x: number, y: number) => unknown
@@ -1231,7 +1235,12 @@ export function mountRigTool(
       */
       const b = bound
       w.push(
-        label3d({ text: 'Markers', icon: 'rig', collapsible: true, open: true }),
+        label3d({
+          text: 'Markers',
+          icon: 'rig',
+          collapsible: true,
+          open: true,
+        }),
         label3d({
           text: 'drag each marker onto its joint: the mannequin shows where',
           muted: true,
@@ -1372,7 +1381,12 @@ export function mountRigTool(
       const guessed = applied?.read.roles ?? {}
       const set = recipe.roles?.[ui.role]
       w.push(
-        label3d({ text: 'Roles', icon: 'biped', collapsible: true, open: true }),
+        label3d({
+          text: 'Roles',
+          icon: 'biped',
+          collapsible: true,
+          open: true,
+        }),
         select3d({
           label: 'clicking sets',
           value: ui.clickSets,
@@ -1432,7 +1446,12 @@ export function mountRigTool(
 
     // MOTION: the clips it plays, how they sit on it, and more of them.
     w.push(
-      label3d({ text: 'Motion', icon: 'motion', collapsible: true, open: true }),
+      label3d({
+        text: 'Motion',
+        icon: 'motion',
+        collapsible: true,
+        open: true,
+      }),
       toggle3d({
         label: 'animate',
         value: ui.pose === 'animate',
@@ -1551,7 +1570,12 @@ export function mountRigTool(
     // Springs.
     const springs = recipe.springs ?? []
     w.push(
-      label3d({ text: 'Springs', icon: 'spring', collapsible: true, open: true }),
+      label3d({
+        text: 'Springs',
+        icon: 'spring',
+        collapsible: true,
+        open: true,
+      }),
       button3d({
         label: '+ strand',
         handleClick: () => {

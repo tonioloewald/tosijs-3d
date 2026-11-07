@@ -13,6 +13,8 @@ export interface GarmentCutOptions {
     ease?: number;
     /** Add a hem joining the cut edge back to the skin. Default true. */
     hem?: boolean;
+    /** Smooth the cut edge along the skin (corners kept). Default true. */
+    smoothEdges?: boolean;
     /** UV scale: texture repeats per metre in the front view. Default 1. */
     uvScale?: number;
     /**

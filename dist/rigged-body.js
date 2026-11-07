@@ -49,7 +49,7 @@ A rigged body is plain data, Babylon-free:
 `buildBody` (in [auto-rig](/rig-build/)) makes it a Babylon skeleton.
 */
 /*{ "parent": "b3d-biped", "order": 70 }*/
-import { fitSkeleton, guessMarkers, meshQuery, rigSilhouette, skinSegments, } from './rig-fit.js';
+import { applyHandMode, fitSkeleton, guessMarkers, meshQuery, rigSilhouette, skinSegments, } from './rig-fit.js';
 import { boneHeat } from './bone-heat.js';
 import { armsOffTorso, clavicleOffChest, legsOffBelly } from './human-rig.js';
 /**
@@ -67,13 +67,15 @@ export function bodyFromMarkers(tris, options = {}) {
         tailBones: options.tailBones,
     });
     const moved = options.joints ?? {};
-    const rig = Object.keys(moved).length
+    const placed = Object.keys(moved).length
         ? (() => {
             const joints = fitted.joints.map((j) => moved[j.name] != null ? { ...j, position: { ...moved[j.name] } } : j);
             const byName = new Map(joints.map((j) => [j.name, j.position]));
             return { ...fitted, joints, at: (name) => byName.get(name) };
         })()
         : fitted;
+    // After the moved joints, so a mitten's fingers lie on its moved middle one.
+    const rig = applyHandMode(placed, options.hands);
     // Each bone heats only what it can see (an arm against the side, legs or
     // a tail that touch): see bone-heat.
     const weights = boneHeat(positions, indices, skinSegments(rig), {
@@ -100,6 +102,7 @@ export function bodyFromMarkers(tris, options = {}) {
                 ? { tailBase: options.tailBase }
                 : {}),
             ...(Object.keys(moved).length ? { joints: { ...moved } } : {}),
+            ...(options.hands != null ? { hands: options.hands } : {}),
         },
     };
 }

@@ -267,7 +267,13 @@ export function color3d(config: Color3dOptions = {}): ColorField {
     rect({ x: 4, y: 4, width: 4, height: 4, fill: '#c9ced6' })
   )
   // Grey mode: the ramp, black to white.
-  const greyGrad = linearGradient({ id: `${uid}-g`, x1: '0', x2: '1', y1: '0', y2: '0' })
+  const greyGrad = linearGradient({
+    id: `${uid}-g`,
+    x1: '0',
+    x2: '1',
+    y1: '0',
+    y2: '0',
+  })
   greyGrad.append(
     stop({ offset: '0%', 'stop-color': '#000000' }),
     stop({ offset: '100%', 'stop-color': '#ffffff' })

@@ -183,6 +183,13 @@ export declare function tabs3d(config: {
     handleSelect?: (index: number) => void;
     /** The strip's name, for agents and screen readers. Default `tabs`. */
     name?: string;
+    /**
+     * An `iconBar3d` at the strip's right end (undo, redo…); the tabs take the
+     * rest. A tabbed panel puts a leading `iconBar3d({ inTabs: true })` here.
+     */
+    tools?: Widget3d & {
+        naturalWidth: number;
+    };
 }): Widget3d;
 /**
  * **Fold or tab a panel's sections** (board #2805, tosijs-3d#99). A
@@ -506,23 +513,40 @@ export declare function button3d(config: {
  * collapses Perf Stats / each debug source to an icon here, and expands the
  * matching content below the bar when its icon is on.
  */
+/**
+ * An icon bar's button, or `{ spacer: true }`: an ELASTIC gap, so what follows
+ * it sits at the bar's right end (while the bar fits on one row).
+ */
+export type IconBarItem = {
+    spacer: true;
+} | {
+    spacer?: false;
+    icon: string;
+    title?: string;
+    active?: boolean;
+    /**
+     * Nothing to report — drawn faint.
+     *
+     * Distinct from `active` (which is a SELECTION) and from disabled (which
+     * this deliberately is not): a dimmed icon is still pressable, because
+     * "confirm there are no errors" is a thing people do.
+     */
+    dim?: boolean;
+    /** Fired on release, on the thing pressed. */
+    handleClick?: () => void;
+};
 export declare function iconBar3d(config: {
-    items: Array<{
-        icon: string;
-        title?: string;
-        active?: boolean;
-        /**
-         * Nothing to report — drawn faint.
-         *
-         * Distinct from `active` (which is a SELECTION) and from disabled (which
-         * this deliberately is not): a dimmed icon is still pressable, because
-         * "confirm there are no errors" is a thing people do.
-         */
-        dim?: boolean;
-        /** Fired on release, on the thing pressed. */
-        handleClick?: () => void;
-    }>;
-}): Widget3d;
+    items: IconBarItem[];
+    /**
+     * In a TABBED panel (`foldSections` mode `'tabs'`, `panelSections="tabs"`),
+     * a bar among the rows before the first section sits at the right end of
+     * the tab strip instead of on a row of its own.
+     */
+    inTabs?: boolean;
+}): Widget3d & {
+    inTabs: boolean;
+    naturalWidth: number;
+};
 /** A labelled on/off switch bound to a boolean. */
 export declare function toggle3d(config: {
     label: string;
@@ -633,6 +657,13 @@ export declare function slider3d(config: {
         value: number;
         label?: string;
     }>;
+    /**
+     * Values a press BESIDE the handle steps to: the next one in that
+     * direction, one per press. Dragging the handle stays continuous. For
+     * values where only some are clean (a texture repeats a whole number of
+     * times: `textureScaleNotches`).
+     */
+    notches?: number[];
 }): Widget3d;
 /**
  * A select: `label      value ⌄`. Tapping the value (the right-hand cluster) opens

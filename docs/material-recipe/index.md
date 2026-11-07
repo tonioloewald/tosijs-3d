@@ -44,7 +44,7 @@ Two ship, and `registerMaterialType` adds another.
   grazing glow of cloth), `emissive` and `normal`. `applyMaterial` puts one on
   a Babylon material.
 - `cloth`: [[cloth-shading]] over a garment's own texture: `albedo` and
-  `recolour` (0 keeps the texture's colours, 1 is the colour wholly), and a
+  `recolour` (labelled **colorize**: 0 keeps the texture's colours, 1 is the colour wholly), and a
   surface (`roughness`, `metallic`, `sheen`, `sheenRoughness`) whose inputs
   are OPTIONAL: one left out is the garment's own, as made. `clothShading`'s
   `set({ recipe })` applies one.

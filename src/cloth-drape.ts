@@ -55,11 +55,7 @@ stops the one before, so moving a point never waits for a stale drape.
 import type { GarmentCut, ViewPoint } from './garment-cut.js'
 import { meshQuery } from './rig-fit.js'
 import { meshSdf } from './mesh-sdf.js'
-import {
-  closestBarycentric,
-  remeshSteps,
-  type Remeshed,
-} from './remesh.js'
+import { closestBarycentric, remeshSteps, type Remeshed } from './remesh.js'
 import { realNow } from './clock.js'
 
 export interface DrapeOptions {
@@ -130,7 +126,11 @@ export function rimSeam(
 }
 
 /** Inside a polygon (even-odd). */
-export function insidePolygon(poly: ViewPoint[], x: number, y: number): boolean {
+export function insidePolygon(
+  poly: ViewPoint[],
+  x: number,
+  y: number
+): boolean {
   let inside = false
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
     const [xi, yi] = poly[i]
@@ -414,7 +414,10 @@ export function* drapeSteps(
         // Half a step in from the rim, the body's depth there: the seam goes
         // at its middle, `thickness` out past the rim.
         const [ox, oy] = rim.out
-        const under = query.spans(rim.x - (ox * edge) / 4, rim.y - (oy * edge) / 4)
+        const under = query.spans(
+          rim.x - (ox * edge) / 4,
+          rim.y - (oy * edge) / 4
+        )
         const z = under.length
           ? (under[0].front + under[under.length - 1].back) / 2
           : 0

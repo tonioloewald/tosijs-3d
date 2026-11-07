@@ -1,5 +1,5 @@
 import type { Vec3 } from './spatial-transform.js';
-import { type FittedRig, type Markers } from './rig-fit.js';
+import { type FittedRig, type HandMode, type Markers } from './rig-fit.js';
 import { type SkinWeights } from './bone-heat.js';
 /** How a rigged body was made: enough to make it again. */
 export type RiggedBodyOrigin = {
@@ -11,6 +11,8 @@ export type RiggedBodyOrigin = {
     tailBase?: Vec3 | null;
     /** Joints moved by hand after the fit, by name. */
     joints?: Record<string, Vec3>;
+    /** How much hand was rigged, if chosen. */
+    hands?: HandMode;
 } | {
     /**
      * Skinned to UAL's skeleton already (in a modeller, or as Quaternius'
@@ -94,6 +96,8 @@ export declare function bodyFromMarkers(tris: BodyTriangles, options?: {
      * → where it is. They win over where the fit put them.
      */
     joints?: Record<string, Vec3>;
+    /** How much hand to rig (rig-fit's `HandMode`); left out, as found. */
+    hands?: HandMode;
 }): RiggedBody;
 /** A file's uvs, colours and surfaces, carried onto the body made from it. */
 export declare function surfaceOf(tris: BodyTriangles): Pick<RiggedBody, 'uvs' | 'colors' | 'surfaces' | 'eyes'>;

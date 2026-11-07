@@ -46,9 +46,12 @@ const b64 = (bytes: Uint8Array): string => {
 
 const typeOf = (name: string, type?: string): string =>
   type ||
-  ({ png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp' }[
-    name.split('.').pop()?.toLowerCase() ?? ''
-  ] ??
+  ({
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    webp: 'image/webp',
+  }[name.split('.').pop()?.toLowerCase() ?? ''] ??
     'image/png')
 
 /** Keep a picture's bytes; the key to put in a recipe. */
@@ -63,14 +66,21 @@ export async function addPicture(
   const hash = Array.from(digest.subarray(0, 6), (b) =>
     b.toString(16).padStart(2, '0')
   ).join('')
-  const file = name.split(/[/\\]/).pop()!.replace(/[^\w.-]+/g, '_')
+  const file = name
+    .split(/[/\\]/)
+    .pop()!
+    .replace(/[^\w.-]+/g, '_')
   const key = `${PREFIX}${hash}/${file}`
   registerPicture(key, b64(bytes), typeOf(file, type))
   return key
 }
 
 /** Put back a picture a file carried (its key and base64 bytes). */
-export function registerPicture(key: string, base64: string, type?: string): void {
+export function registerPicture(
+  key: string,
+  base64: string,
+  type?: string
+): void {
   if (!isPictureKey(key) || pictures.has(key)) return
   pictures.set(key, { base64, type: typeOf(key, type), url: null })
 }

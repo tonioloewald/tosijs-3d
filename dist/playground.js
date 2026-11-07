@@ -6,41 +6,52 @@ arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, button3d, characterStore, inputFocus, playground, select3d, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, button3d, characterStore, holdGrip, inputFocus, playground, select3d, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
-// A REAL PISTOL, from Kenney's weapon pack — 37 of them are already on the CDN.
-// (Line comments in this demo: a block comment inside a fence would close the
-// enclosing doc comment.)
+// TONIO'S WEAPONS (CC BY 4.0), the character builder's: every one is made
+// the same way (origin at the grip, +Y up the grip, +Z forward, real size), so
+// one grip holds them all, and the blades another. (Line comments in this
+// demo: a block comment inside a fence would close the enclosing doc comment.)
 const weapons = b3dLibrary({
-  url: assetUrl('kenney/libraries/weapon-pack.glb'),
+  url: assetUrl('tonio/weapons-classic/weapons.glb', 2),
   type: 'weapons',
 })
+// Where the hand holds each one: the character builder's defaults, placed
+// with its manipulator in the hand's socket frame (x/y/z is the grip).
+// One grip per class of item (hold-grip): every one-handed blade alike.
+const gripFor = (name) => {
+  const { scale, ...grip } = holdGrip(name)
+  return grip
+}
+// What each one is in the inventory (slot tags, mass, its picture), and for the
+// guns how it fires. Only guns are raised: UAL's ranged clips are Pistol_*,
+// so the rifles are fired from a one-handed stance. Anything else is a melee
+// weapon (`holdingWeapon`): on guard, and the trigger swings it.
+const WEAPONS = {
+  Pistol: { tags: ['side', 'hand'], mass: 1, art: 'pistol', fire: { fireRate: 6, muzzleSpeed: 45, damage: 25, projRadius: 0.08, gravity: -2 } },
+  SMG: { tags: ['side', 'hand'], mass: 2.5, art: 'pistol', fire: { fireRate: 14, muzzleSpeed: 50, damage: 12, projRadius: 0.06, gravity: -2 } },
+  'Assault Rifle': { tags: ['back', 'hand', 'two-handed'], mass: 3.5, art: 'rifle', fire: { fireRate: 9, muzzleSpeed: 80, damage: 20, projRadius: 0.06, gravity: -1 } },
+  'Rocket Launcher': { tags: ['back', 'hand', 'two-handed'], mass: 7, art: 'rifle', fire: { fireRate: 0.8, muzzleSpeed: 25, damage: 120, projRadius: 0.16, gravity: -1 } },
+  Dagger: { tags: ['side', 'hand'], mass: 0.4, art: 'knife' },
+  'Short Sword': { tags: ['side', 'hand'], mass: 1, art: 'sword' },
+  'Long Sword': { tags: ['side', 'hand'], mass: 1.5, art: 'sword' },
+  'Hand and a Half': { tags: ['back', 'hand', 'two-handed'], mass: 2, art: 'sword' },
+  'Plasma Blade': { tags: ['side', 'hand'], mass: 1, art: 'sword' },
+  Spear: { tags: ['back', 'hand', 'two-handed'], mass: 2, art: 'sword' },
+  Buckler: { tags: ['back', 'hand'], mass: 2.5, art: 'shield' },
+}
 
-// x/y/z IS THE HAND, not the model's origin. `grip: 'auto'` (the default) finds
-// the handle and offsets the model so the grip lands here — Kenney authors these
-// as props with a bottom-centre origin, which is right for one lying on a table
-// and wrong for one in a fist.
-//
-// A PISTOL, and that is a constraint rather than a preference: the UAL set has
-// Pistol_* and Bow_* and nothing else ranged, so a shotgun or sniper would be
-// fired with one-handed animations. See `ualAnimationStates`.
+// ONE LAUNCHER, carrying whatever is in your right hand. `socket` parents it
+// to the hand BONE, so it follows the animation, and with a socket x/y/z/rx/
+// ry/rz are the grip in the hand's frame. Swapping the item swaps its model.
 const gun = b3dLauncher({
-  library: 'weapons', meshName: 'pistol',
-  // IN HIS HAND — `socket` parents the weapon to the hand BONE, so it follows
-  // the animation. No constant offset from the root can track a moving hand.
-  //
-  // With a socket, x/y/z are relative to the JOINT, and `grip: 'auto'` puts the
-  // weapon's handle there, so the numbers are small.
+  library: 'weapons', meshName: 'Pistol',
   socket: 'right-hand',
-  // DIALLED IN WITH THE GIZMO, not computed. The Weapon Fit demo explains why
-  // these are not multiples of 90.
-  x: -0.04, y: 0.051, z: -0.059,
-  rx: -105, ry: -15, rz: -165,
-  modelScale: 0.86,
-  muzzleSpeed: 45, fireRate: 6, gravity: -2, projRadius: 0.08,
-  ammo: 999, reloadRate: 40, damage: 25, projColor: '#ffdd66',
+  ...gripFor('Pistol'),
+  ...WEAPONS.Pistol.fire,
+  ammo: 999, reloadRate: 40, projColor: '#ffdd66',
 })
 
 // A QUATERNIUS UAL RIG, not omnidude, and the arena is the reason rather than
@@ -56,11 +67,11 @@ const gun = b3dLauncher({
 //
 // OR A CHARACTER YOU BUILT: the settings panel lists the characters the
 // character builder saved in this browser, and picking one swaps the hero for
-// a biped made from it (`characterDoc`), carrying the pistol across.
+// a biped made from it (`characterDoc`), carrying what you hold across.
 const MANNEQUIN = 'UAL mannequin'
 const makeHero = (doc, at) => b3dBiped(
   {
-    ...(doc ? { characterDoc: doc } : { url: assetUrl('quaternius/UAL1_core.glb', 2) }),
+    ...(doc ? { characterDoc: doc } : { url: assetUrl('quaternius/UAL1_core.glb', 3) }),
     animationStates: ualAnimationStates(),
     // WHERE THE ARENA IS IN FRONT OF YOU. Spawning at the origin put `pillar-b`
     // (0, -12.3) literally touching your muzzle line, so every shot from the
@@ -75,27 +86,43 @@ const makeHero = (doc, at) => b3dBiped(
 )
 let hero = makeHero(null, { x: -4, z: 10 })
 
-// THE PISTOL LIVES ON YOUR HIP. The loadout (a button on the system bar)
-// says where it is, and that decides the mode: in a hand, the gun is up; on
-// the hip, it is down; in the bag or dropped, there is nothing to raise. The
-// weapon button draws it from the hip or holsters it; dragging it into a hand
-// does the same.
-const loadout = demoLoadout({ equip: { right_side: 'pistol' } })
+// THE INVENTORY says what you hold: the loadout (a button on the system bar)
+// starts with the pistol on your hip and the rest in the bag. Whatever is in
+// your right hand is what the launcher carries; a gun in hand is up (aim and
+// fire), anything else is held with the weapon down. The weapon button draws
+// from the hip or back, or puts away what is in hand; dragging works too.
+const loadout = demoLoadout({ catalogue: WEAPONS, equip: { right_side: 'Pistol' } })
 const body = (slot) => ({ holder: 'hero', container: 'body', slot })
-const pistolAt = () => loadout.inv.where('pistol')?.slot
-const inHand = () => pistolAt() === 'hand_right' || pistolAt() === 'hand_left'
+const slotsNow = () => loadout.inv.doc.holders.hero.containers.body.slots
+const inRight = () => slotsNow().hand_right.holds
 const wire = (h) => {
-  h.whenWeapon = (up) => {
-    const at = pistolAt()
-    if (up && (at === 'right_side' || at === 'left_side'))
-      loadout.inv.move({ item: 'pistol', to: body('hand_right'), swap: true })
-    else if (!up && inHand())
-      loadout.inv.move({ item: 'pistol', to: body('right_side'), swap: true })
+  h.whenWeapon = () => {
+    const held = inRight()
+    // Put away: the first place it goes (a hip, then the back).
+    const away = ['right_side', 'left_side', 'back']
+    if (held) {
+      const to = away.find((s) => !slotsNow()[s].holds && !loadout.inv.check({ item: held, to: body(s) }).length)
+      if (to) loadout.inv.move({ item: held, to: body(to) })
+      return
+    }
+    // Draw: what is on the right hip, then the left, then the back.
+    const from = away.map((s) => slotsNow()[s].holds).find(Boolean)
+    if (from) loadout.inv.move({ item: from, to: body('hand_right'), swap: true })
   }
   return h
 }
+const hold = (h) => {
+  const id = inRight()
+  const w = id ? WEAPONS[id] : null
+  if (w && gun.meshName !== id) {
+    Object.assign(gun, gripFor(id), w.fire ?? {}, { meshName: id })
+    gun.reloadModel()
+  }
+  h.holdingWeapon = w != null && w.fire == null
+  h.setGunplay(w?.fire != null)
+}
 wire(hero)
-loadout.inv.subscribe(() => hero.setGunplay(inHand()))
+loadout.inv.subscribe(() => hold(hero))
 
 // The characters saved in this browser, and swapping the hero for one. The
 // figure open in the character builder is one of them, under its own label.
@@ -124,7 +151,7 @@ const useCharacter = async (name) => {
   const next = wire(makeHero(doc, at))
   hero.replaceWith(next)
   hero = next
-  next.setGunplay(inHand())
+  hold(next)
   playChar.pick.value = name
   try { localStorage.setItem('playground-character', name) } catch {}
 }
@@ -176,14 +203,20 @@ preview.append(
 .preview { height: 100%; }
 ```
 
-**Two modes, and the right bumper (or clicking the right stick) is the switch**, when there is a pistol to
-switch to: it starts on your hip (open the loadout from its button on the system bar
-to see it). With the weapon down you are walking:
-**R** sprints. Press **right bumper** and you draw it, and the gun comes up — now **R** fires, **Q**
-aims down the sights, and a ring shows where the round will actually land,
-sinking as the range grows because it is the real ballistic arc rather than a
-dot in the middle of the screen. You cannot sprint with the gun up, which is why
-the trigger is free to do both jobs.
+**Two modes, and the right bumper (or clicking the right stick) is the
+switch.** You start with a pistol on your hip and the rest of
+[Tonio's weapons](/character-builder/) in the bag: open the loadout from its
+button on the system bar and drag any of them onto a hip, your back or your
+right hand. With the weapon down you are walking: **R** sprints. Press **right
+bumper** and you draw what is on your hip (or back), and if it is a gun it
+comes up: now **R** fires, **Q** aims down the sights, and a ring shows where
+the round will actually land, sinking as the range grows because it is the
+real ballistic arc rather than a dot in the middle of the screen. You cannot
+sprint with the gun up, which is why the trigger is free to do both jobs.
+Each gun fires its own way (the SMG fast, the rocket launcher slow and heavy).
+A blade, the spear or the buckler takes a guard (UAL's `Sword_Idle`) and **R**
+swings it (`Sword_Attack`, played through; held, it swings again). Press the
+bumper again to put away what is in your hand. Only the right hand is drawn.
 
 **WASD** moves, **arrow keys** look, **space** jumps, **left shift** sneaks,
 **E** interacts, **Y** switches between third and first person. On a pad,
@@ -193,10 +226,10 @@ clicking the left stick sneaks.
 [character builder](/character-builder/) (or press **make your own
 character…** in this page's settings panel, the goggles on the bar) and press
 **play in Biped Playground** there, or save it and pick it from **character**
-here. It takes the hero's place where he stands, pistol and all. Characters
+here. It takes the hero's place where he stands, holding what you held. Characters
 belong to the browser that made them.
 
-Things to try: put the pistol in the bag and try to raise it (nothing to raise), drag it back into your hand (it comes up); swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
+Things to try: put the pistol in the bag and try to raise it (nothing to raise), drag the rifle into your hand (it comes up, and both hands are taken); carry a sword on your hip and draw it; swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
 and watch the ring disappear behind it until you stand; walk the cover line and
 compare the railing with the wall beside it.
 

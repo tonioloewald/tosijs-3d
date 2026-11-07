@@ -12,13 +12,14 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-## 0.12.3
+## 0.12.4
 
-The latest release. Characters out to other engines (a GLB read with no engine, any rigged body as a skinned GLB that plays UAL's clips by name, springs as `VRMC_springBone`), the rig tool's fixes for AI-made meshes, draped cloth, and scenes as agent tools and for a screen reader. See [0.12.3](/v0.12.3/).
+The latest release. Tabbed settings panels and undo across the character builder, rig tool and tailor; pictures in materials (Poly Haven's fabric scans as cloth presets, a picture or a flat colour or grey for any input); the tailor always on the bar; grips per class of held item; Tonio's textured weapons and melee in the biped. See [0.12.4](/v0.12.4/).
 
 ## Every version
 
 <!-- toc -->
+- [0.12.4](/v0.12.4/)
 - [0.12.3](/v0.12.3/)
 - [0.12.2](/v0.12.2/)
 - [0.12.1](/v0.12.1/)

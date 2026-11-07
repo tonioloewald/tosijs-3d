@@ -204,4 +204,3 @@ describe('a drape over an arm', () => {
     expect(over).toBeGreaterThan(4)
   })
 })
-

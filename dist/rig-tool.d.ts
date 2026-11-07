@@ -70,6 +70,13 @@ export interface RigToolOptions {
     /** A recipe to start from, in place of the model's own (a host's document). */
     recipe?: RigRecipe;
     /**
+     * The body the host already bound from `recipe`'s binding (the character
+     * builder's): the first model is shown on it rather than bound again, so
+     * opening the tool to tune a spring costs no bone heat. Ignored when its
+     * markers or joints are not the recipe's. Its materials stay the host's.
+     */
+    body?: RiggedBody;
+    /**
      * `false`: no save, load or copy buttons and no working copy kept in this
      * browser. The host supplies the recipe and stores what `change` and
      * `commit` carry.

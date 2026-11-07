@@ -143,8 +143,9 @@ export const RING_BASIS = {
  * crossing) or when the plane is behind the pointer, which is a drag reaching
  * round the back of the widget.
  */
-export function rayPlanePoint(origin, axis, ray) {
-    const normal = AXIS_VECTOR[axis];
+export function rayPlanePoint(origin, axis, ray, 
+/** The plane's normal in the world: the object's own axis (default the world's). */
+normal = AXIS_VECTOR[axis]) {
     const denominator = dot(normal, ray.direction);
     if (Math.abs(denominator) < 1e-9)
         return null;
@@ -284,7 +285,10 @@ export function commitTransform(drag, options = {}) {
     const angle = options.angleSnap ?? 0;
     const r = drag.current.rotation;
     return {
-        position: snapVec3(drag.current.position, grid),
+        // A turned object's moves were snapped as steps along its own axes.
+        position: worldAligned(drag.frame)
+            ? snapVec3(drag.current.position, grid)
+            : { ...drag.current.position },
         rotation: {
             rx: normaliseDegrees(snap(r.rx, angle)),
             ry: normaliseDegrees(snap(r.ry, angle)),
@@ -316,6 +320,10 @@ export function dragChanged(drag, committed) {
         near(committed.scale.z, s.scale.z, 1e-4);
     return !still;
 }
+/** The frame is the world's own (an unturned object): positions snap to the grid. */
+function worldAligned(frame) {
+    return ['x', 'y', 'z'].every((a) => dot(frame[a], AXIS_VECTOR[a]) > 1 - 1e-9);
+}
 /** Where the pointer is, in the units this grip drags in. */
 function measure(grip, origin, ray, frame) {
     if (grip.kind === 'uniform')
@@ -323,15 +331,14 @@ function measure(grip, origin, ray, frame) {
     if (!grip.axis)
         return null;
     if (grip.kind === 'planar')
-        return rayPlanePoint(origin, grip.axis, ray);
+        return rayPlanePoint(origin, grip.axis, ray, frame[grip.axis]);
     if (grip.kind === 'rotate') {
         // About the object's own axis, in the plane the ring is actually drawn in.
         const [u, v] = RING_BASIS[grip.axis];
         return angleAboutAxis(origin, frame[grip.axis], frame[u], frame[v], ray);
     }
-    // Scale measures along the OBJECT's axis too; translate is a world move.
-    const axis = grip.kind === 'scale' ? frame[grip.axis] : AXIS_VECTOR[grip.axis];
-    return axisClosestApproach(origin, axis, ray);
+    // Every grip rides the OBJECT's axes: move, turn and scale in one frame.
+    return axisClosestApproach(origin, frame[grip.axis], ray);
 }
 /**
  * Did the pointer move this grip, whatever the value did with it?
@@ -361,8 +368,21 @@ function apply(drag, now, composeRotation, options) {
         // Both in-plane axes move; the plane's normal is exactly what stays put,
         // which is the whole reason to offer a pad rather than two shaft drags.
         const position = { ...start.position };
-        for (const a of otherAxes(axis)) {
-            position[a] = snap(start.position[a] + (now[a] - drag.startValue[a]), gridStep);
+        if (worldAligned(drag.frame)) {
+            for (const a of otherAxes(axis)) {
+                position[a] = snap(start.position[a] + (now[a] - drag.startValue[a]), gridStep);
+            }
+        }
+        else {
+            // Along the object's own in-plane axes; the grid snaps each step.
+            const moved = sub(now, drag.startValue);
+            for (const a of otherAxes(axis)) {
+                const f = drag.frame[a];
+                const d = snap(dot(moved, f), gridStep);
+                position.x += f.x * d;
+                position.y += f.y * d;
+                position.z += f.z * d;
+            }
         }
         drag.current.position = position;
         return;
@@ -380,7 +400,17 @@ function apply(drag, now, composeRotation, options) {
           object sliding freely under the hand and jumping when you let go.
         */
         const position = { ...start.position };
-        position[axis] = snap(start.position[axis] + (now - drag.startValue), gridStep);
+        if (worldAligned(drag.frame)) {
+            position[axis] = snap(start.position[axis] + (now - drag.startValue), gridStep);
+        }
+        else {
+            // A turned object moves along its own axis; the grid snaps the step.
+            const f = drag.frame[axis];
+            const d = snap(now - drag.startValue, gridStep);
+            position.x += f.x * d;
+            position.y += f.y * d;
+            position.z += f.z * d;
+        }
         drag.current.position = position;
         return;
     }

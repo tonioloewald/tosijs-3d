@@ -13,10 +13,13 @@ export interface CharacterSource {
     url?: string;
     file?: File;
     pick?: string;
+    /** Its rig, when none is saved for it: hand-placed markers, say. */
+    recipe?: Partial<RigRecipe>;
 }
 /**
  * Tonio's AI-generated characters (CC0, `tonio/ai` on the asset CDN): one
- * mesh each, unrigged, rigged from markers guessed off their outline.
+ * mesh each, unrigged, rigged from markers placed by hand where a recipe is
+ * given here, else guessed off their outline.
  */
 export declare const AI_CHARACTER_SOURCES: Record<string, CharacterSource>;
 /** The bodies a character can have besides MakeHuman's. */

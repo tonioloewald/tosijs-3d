@@ -29,7 +29,7 @@ const scene = '/test-3.glb'
 // A Quaternius UAL rig — 1.83 m, feet at the origin, 27 curated clips off the
 // CDN (the full library is 120 clips and 20 MB). A person is 1.8 m here, and
 // the movement constants are tuned for one.
-const person = assetUrl('quaternius/UAL1_core.glb', 2)
+const person = assetUrl('quaternius/UAL1_core.glb', 3)
 
 // Your loadout: a button on the system bar opens it under the bar, with your
 // bag beside it (see inventory-box).
@@ -304,8 +304,21 @@ Set these in the `b3d()` config.
 | `sceneCreated(el)` | once the engine and scene exist: set up a camera here |
 | `update(el)` | every frame the simulation runs (never while paused) |
 | `scenePanel(el)` | returns the settings panel's widgets, drawn flat and in a headset from the same list; rebuilt each time it opens, and `refreshScenePanel()` updates an open one |
+| `panelActions(el)` | returns buttons for the settings panel's icon bar (`iconBar3d` items: undo, redo…), at its right end after the diagnostics |
 | `pausePanel(el, resume)` | returns the pause panel's rows in place of the default title and Continue button; `resume` lets the player back in |
 | `setupXr(el)` | replaces the built-in WebXR setup and Enter-VR button with your own |
+
+## Resizing
+
+Panels are drawn at a size that fits the view. When the scene changes size, the
+open settings panel is rebuilt once the resize settles, and the element
+dispatches `resizeend`. A system panel whose height follows the view rebuilds on
+it, capped by `el.panelRoom(panelEl)` (the height left under its top):
+
+```javascript
+const svg = () => panel3d({ width: 300, height: 'fit', maxHeight: Math.min(640, scene.panelRoom(panelEl)) }, ...rows)
+scene.addEventListener('resizeend', () => { panelEl.svg = svg() })
+```
 
 ## Loading
 

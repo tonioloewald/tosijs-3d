@@ -1,5 +1,0 @@
-import{K,Z}from"./site-nxqqjz2z.js";import{Fs}from"./site-942kxrar.js";var o="KHR_node_visibility";class my{constructor(i){this.name=o,this._loader=i,this.enabled=i.isExtensionUsed(o)}onReady(){if(!this._loader)return;let i=this._loader.gltf.nodes;if(i)for(let e of i){let s=e._babylonTransformNode;if(s){if(s.inheritVisibility=!0,e.extensions&&e.extensions.KHR_node_visibility&&e.extensions.KHR_node_visibility.visible===!1)s.isVisible=!1}}}dispose(){delete this._loader}}var t=!1;function gy(){if(t)return;t=!0,Fs("/nodes/{}/extensions/KHR_node_visibility/visible",{get:(i)=>{let e=i._babylonTransformNode;if(e&&e.isVisible!==void 0)return e.isVisible;return!0},set:(i,e)=>{if(e._primitiveBabylonMeshes?.forEach((s)=>{s.inheritVisibility=!0}),e._babylonTransformNode)e._babylonTransformNode.isVisible=i;e._primitiveBabylonMeshes?.forEach((s)=>{s.isVisible=i})},getTarget:(i)=>i._babylonTransformNode,getPropertyName:[()=>"isVisible"],type:"boolean"}),Z(o),K(o,!0,(i)=>new my(i))}gy();
-export{my,gy};
-
-//# debugId=55F06CF443B20D0764756E2164756E21
-//# sourceMappingURL=site-pyp4q5mz.js.map

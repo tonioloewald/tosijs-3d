@@ -69,6 +69,7 @@ The haze row keeps its alpha strip, the others turn it off.
 | `label` | `''` | The caption on the row |
 | `value` | `'#ffffff'` | A colour, or a reactive value holding one |
 | `alpha` | `true` | Offer the alpha strip. Off, the value is always `#rrggbb` |
+| `grey` | `false` | Greys only: a ramp from black to white and a ladder of greys; the value is always a grey |
 | `presets` | | Colours offered first in the popup: hex strings, or `{ name, value }` |
 | `defaultPresets` | `'on'` | `'off'` leaves out the general set, showing only yours |
 | `swatches` | shared | Where `+` saves to. Unset, one store for the page, kept in `localStorage` under `tosijs-3d:color-swatches`. Pass `createSwatchStore(yourStorage)` to keep them yourself, or `null` to keep nothing |
@@ -85,6 +86,38 @@ import { createSwatchStore, presetCells, presetList, sharedSwatches, } from './c
 import { iconGlyph } from './svg-icons.js';
 const { g, rect, text, pattern, defs } = svgElements;
 let seq = 0;
+const isGrey = (hex) => {
+    const c = parseColor(hex);
+    return c != null && c.r === c.g && c.g === c.b && c.a === 1;
+};
+/** Eleven steps, black to white. */
+const GREY_LADDER = Array.from({ length: 11 }, (_, i) => {
+    const hex = formatColor({ r: i / 10, g: i / 10, b: i / 10, a: 1 });
+    return { name: hex, value: hex };
+});
+/** A swatch store seen in greys: the ladder, then the greys it holds. */
+function greySwatches(store) {
+    return {
+        add: (hex) => store.add(hex),
+        remove: (hex, still) => store.remove(hex, still),
+        get added() {
+            return store.added;
+        },
+        get removed() {
+            return store.removed;
+        },
+        subscribe: (cb) => store.subscribe(cb),
+        list: (presets) => {
+            const seen = new Set(GREY_LADDER.map((p) => p.value));
+            return [
+                ...GREY_LADDER,
+                ...store
+                    .list(presets, false)
+                    .filter((p) => isGrey(p.value) && !seen.has(p.value)),
+            ];
+        },
+    };
+}
 /**
  * The grid of swatches inside the popup, with two more cells after them:
  * `+` saves the colour being edited, and the bin switches to taking swatches
@@ -189,7 +222,8 @@ function presetGrid(opts) {
     };
 }
 export function colorPicker3d(config = {}) {
-    const showAlpha = config.alpha ?? true;
+    const grey = config.grey ?? false;
+    const showAlpha = !grey && (config.alpha ?? true);
     const uid = `w3d-cpk-${seq++}`;
     const box = config.value != null &&
         typeof config.value === 'object' &&
@@ -198,6 +232,10 @@ export function colorPicker3d(config = {}) {
         : null;
     const canon = (v) => {
         const rgb = parseColor(String(v ?? '')) ?? { r: 1, g: 1, b: 1, a: 1 };
+        if (grey) {
+            const l = (rgb.r + rgb.g + rgb.b) / 3;
+            return formatColor({ r: l, g: l, b: l, a: 1 });
+        }
         return formatColor(showAlpha ? rgb : { ...rgb, a: 1 });
     };
     let value = canon(box ? box.value : config.value ?? '#ffffff');
@@ -301,12 +339,13 @@ export function colorPicker3d(config = {}) {
         field = color3d({
             value,
             alpha: showAlpha,
+            grey,
             // Squatter than the standalone picker: it shares a popup with presets.
             aspect: 0.42,
             handleChange: (hex) => set(hex, false, true),
             handleCommit: (hex) => set(hex, true, true),
         });
-        const store = swatches;
+        const store = grey ? greySwatches(swatches) : swatches;
         const items = [
             field,
             presetGrid({

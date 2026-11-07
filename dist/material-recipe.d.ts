@@ -24,7 +24,17 @@ export interface MaterialInputDecl {
      * it resolves to `null`, and `default` is only where a control starts.
      */
     optional?: boolean;
+    /** How a grey value's slider runs: `log2` for a scale. Default `linear`. */
+    scale?: 'linear' | 'log2';
+    /** Values a press beside the slider's handle steps to (`textureScaleNotches`). */
+    notches?: number[];
 }
+/**
+ * 1/32 … 1/2, 1, 2, 3, 4: the scales at which a picture repeats a whole
+ * number of times across a unit of UV (or fills a whole number of units),
+ * so its tiles meet.
+ */
+export declare function textureScaleNotches(min?: number, max?: number): number[];
 /** A shader type: its name and the inputs it takes. */
 export interface MaterialTypeDecl {
     name: string;

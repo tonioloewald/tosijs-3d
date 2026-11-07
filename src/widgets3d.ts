@@ -1087,8 +1087,7 @@ export function tabs3d(config: {
     },
     handle(kind, x, y) {
       // Off the bar is `leave` to it, so no button stays lit.
-      if (tools)
-        tools.handle?.(onTools(x) ? kind : 'leave', x - toolsX(), y)
+      if (tools) tools.handle?.(onTools(x) ? kind : 'leave', x - toolsX(), y)
       if (onTools(x) || kind !== 'up') return
       pick(tabAt(x, (root as any).__layout, active))
     },
@@ -2020,16 +2019,16 @@ export type IconBarItem =
   | {
       spacer?: false
       icon: string
-    title?: string
-    active?: boolean
-    /**
-     * Nothing to report — drawn faint.
-     *
-     * Distinct from `active` (which is a SELECTION) and from disabled (which
-     * this deliberately is not): a dimmed icon is still pressable, because
-     * "confirm there are no errors" is a thing people do.
-     */
-    dim?: boolean
+      title?: string
+      active?: boolean
+      /**
+       * Nothing to report — drawn faint.
+       *
+       * Distinct from `active` (which is a SELECTION) and from disabled (which
+       * this deliberately is not): a dimmed icon is still pressable, because
+       * "confirm there are no errors" is a thing people do.
+       */
+      dim?: boolean
       /** Fired on release, on the thing pressed. */
       handleClick?: () => void
     }

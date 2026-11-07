@@ -134,13 +134,18 @@ value should this handle have?*
 | `scale` | the same projection as translate, read as a ratio |
 | `uniform` | the ray's distance from the widget centre, read as a ratio |
 
+## One frame: the object's own
+
+Every handle rides the object's own axes, carried into the world through
+whatever it hangs on: the red arrow, the red ring and the red cube are all its
+x. A pistol in a hand moves along its barrel and turns about it. An unturned
+object's axes are the world's, and there a move snaps to the world grid; a
+turned object snaps each step along its own axis.
+
 ## Scale is exclusive of move and turn
 
-`node.scaling` is local, so scale grips ride the object's own axes while move
-rides the world's. A widget showing both draws two frames at once and can only
-mislead. Turning `scale` on therefore turns `move` and `turn` off, and vice versa —
-the element does this to itself rather than letting you build the misleading
-combination.
+Turning `scale` on turns `move` and `turn` off, and vice versa: the cubes sit
+where the arrows would, so showing both crowds the widget into ambiguity.
 
 ## Snapping and the frozen frame
 

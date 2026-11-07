@@ -726,7 +726,8 @@ export function cutGarment(
   sharply over a few points) held, and every point put back on the body at
   its nearest place, so the hem runs smoothly over the skin.
   */
-  if (options.smoothEdges !== false) smoothCutEdges(out, ref, weight, P, triangles)
+  if (options.smoothEdges !== false)
+    smoothCutEdges(out, ref, weight, P, triangles)
 
   const rows = ref.length / 3
   // Rest positions and normals of each row.
@@ -1318,4 +1319,3 @@ function smoothCutEdges(
     })
   }
 }
-

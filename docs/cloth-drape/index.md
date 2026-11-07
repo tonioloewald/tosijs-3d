@@ -31,7 +31,11 @@ THE STEPS:
 2. **Lift**: each vertex goes onto the front of the body (front piece) or the
    back (back piece) along the view direction, `thickness` out. Vertices
    whose ray misses the body are filled in from their neighbours, and the
-   edge outside the body is shared by both pieces: the seam.
+   edge outside the body is shared by both pieces: the seam. So is an edge
+   running along the body's RIM (the top of an arm or a shoulder, the side of
+   a hip or a thigh; within 2.5 cm, just outside or just inside it): one vertex
+   on the rim, pinned, so the cloth goes over the limb rather than hanging off
+   its front and back.
 3. **Bridge**: a few passes pull each free vertex toward its neighbours and
    back out of the body, as cloth under a little tension does. Its lengths
    then are the cloth's.
@@ -39,3 +43,8 @@ THE STEPS:
    pushed out of, the open edges pinned, until it stops.
 
 Pure: the dummy and the body's positions in, a `GarmentCut` out.
+
+`drapeGarmentAsync` is the same drape in time slices (about 8 ms of work
+between tasks), stopped by an `AbortSignal`: an editor starts one per edit and
+stops the one before, so moving a point never waits for a stale drape.
+`drapeSteps` is the generator both run.

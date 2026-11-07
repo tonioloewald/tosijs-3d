@@ -22,28 +22,6 @@ export declare class AnimState {
     constructor(spec: AnimStateSpec);
     static buildList(...specs: AnimStateSpec[]): AnimState[];
 }
-/**
- * **Animation states for a Quaternius UAL rig** (the Universal Animation
- * Library, on `cdn.tosijs.net/quaternius/`).
- *
- * The biped drives states by NAME — `walk`, `run`, `sneak` — and a rig supplies
- * whatever its animator called them. This is the translation for UAL, so
- * adopting that library is one line:
- *
- * ```js
- * b3dBiped({
- *   url: assetUrl('quaternius/UAL1_core.glb', 2),
- *   animationStates: ualAnimationStates(),
- * })
- * ```
- *
- * Two things it buys beyond names. `walkBackwards` becomes a real
- * `Jog_Bwd_Loop` rather than the walk cycle played in reverse, and `sneak` gets
- * a crouch that holds at rest — both were fakes against the stock rig.
- *
- * Pass `extra` to add or override entries; a later entry with the same `name`
- * wins, so a project can retarget one state without restating the rest.
- */
 export declare function ualAnimationStates(extra?: AnimStateSpec[]): AnimState[];
 export declare class B3dBiped extends B3dControllable {
     static preferredTagName: string;
@@ -321,6 +299,16 @@ export declare class B3dBiped extends B3dControllable {
      * Unset, the button toggles `gunplay` as before.
      */
     whenWeapon: ((up: boolean) => void) | null;
+    /**
+     * A MELEE weapon is in hand (a sword): it stays visible with gunplay off
+     * (lowered weapons are otherwise hidden, see `_showWeapons`), standing still
+     * is `meleeIdle` (UAL's `Sword_Idle`), and the right trigger swings
+     * (`meleeAttack`, `Sword_Attack`, played through) instead of sprinting.
+     * JS only; the game sets it when what is in hand changes.
+     */
+    get holdingWeapon(): boolean;
+    set holdingWeapon(on: boolean);
+    private _holdingWeapon;
     /**
      * Put the weapon up or down.
      *
@@ -673,6 +661,15 @@ export declare class B3dBiped extends B3dControllable {
     private _blendStep;
     private _ease;
     private _paceBlends;
+    /**
+     * The melee version of a state: a swing in progress takes the whole body
+     * while on the ground (not mid-jump, swimming or climbing), and standing
+     * still is on guard. A rig without the clips keeps its own states.
+     */
+    private _meleeState;
+    /** Seconds left of the swing playing now. */
+    private _attackFor;
+    private _swing;
     setAnimationState(name: string, speed?: number): void;
     getCameraTarget(): BABYLON.Node | null;
     applyInput(input: ControlInput, dt: number): void;

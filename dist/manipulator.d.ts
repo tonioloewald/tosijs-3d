@@ -78,7 +78,9 @@ export declare const RING_BASIS: Record<Axis, [Axis, Axis]>;
  * crossing) or when the plane is behind the pointer, which is a drag reaching
  * round the back of the widget.
  */
-export declare function rayPlanePoint(origin: Vec3, axis: Axis, ray: ManipulatorRay): Vec3 | null;
+export declare function rayPlanePoint(origin: Vec3, axis: Axis, ray: ManipulatorRay, 
+/** The plane's normal in the world: the object's own axis (default the world's). */
+normal?: Vec3): Vec3 | null;
 /**
  * Perpendicular distance from a point to a ray.
  *

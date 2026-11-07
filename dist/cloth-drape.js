@@ -32,7 +32,11 @@ THE STEPS:
 2. **Lift**: each vertex goes onto the front of the body (front piece) or the
    back (back piece) along the view direction, `thickness` out. Vertices
    whose ray misses the body are filled in from their neighbours, and the
-   edge outside the body is shared by both pieces: the seam.
+   edge outside the body is shared by both pieces: the seam. So is an edge
+   running along the body's RIM (the top of an arm or a shoulder, the side of
+   a hip or a thigh; within 2.5 cm, just outside or just inside it): one vertex
+   on the rim, pinned, so the cloth goes over the limb rather than hanging off
+   its front and back.
 3. **Bridge**: a few passes pull each free vertex toward its neighbours and
    back out of the body, as cloth under a little tension does. Its lengths
    then are the cloth's.
@@ -40,11 +44,70 @@ THE STEPS:
    pushed out of, the open edges pinned, until it stops.
 
 Pure: the dummy and the body's positions in, a `GarmentCut` out.
+
+`drapeGarmentAsync` is the same drape in time slices (about 8 ms of work
+between tasks), stopped by an `AbortSignal`: an editor starts one per edit and
+stops the one before, so moving a point never waits for a stale drape.
+`drapeSteps` is the generator both run.
 */
 /*{ "parent": "garment-cut", "order": 20 }*/
 import { meshQuery } from './rig-fit.js';
 import { meshSdf } from './mesh-sdf.js';
-import { closestBarycentric, remesh } from './remesh.js';
+import { closestBarycentric, remeshSteps } from './remesh.js';
+import { realNow } from './clock.js';
+/** How far an outline's edge may run from the body's rim (an arm's top, a hip's side) and still be sewn over it, metres. */
+export const OVER_REACH = 0.025;
+const RIM_DIRS = Array.from({ length: 16 }, (_, i) => [
+    Math.cos((i * Math.PI) / 8),
+    Math.sin((i * Math.PI) / 8),
+]);
+/**
+ * Where a point on an outline's edge runs along the body's RIM in the front
+ * view (the top of an arm or a shoulder, the side of a hip or a thigh),
+ * within `reach` straight out from the piece: that rim point, else null. A
+ * drape SEWS its front and back there and pins the seam over the body;
+ * otherwise the pieces are hung on the front and the back of the limb and
+ * nothing crosses it. An edge that crosses the body (a neckline across the
+ * chest, a waist, a hem across the thighs) finds no rim ahead of it and stays
+ * open. `covered` is the body's front view, `inside` the piece's outline.
+ */
+export function rimSeam(covered, inside, x, y, step, reach = OVER_REACH) {
+    // Straight out of the piece: the mean of the directions that leave it.
+    let ox = 0;
+    let oy = 0;
+    for (const [dx, dy] of RIM_DIRS)
+        if (!inside(x + dx * step, y + dy * step)) {
+            ox += dx;
+            oy += dy;
+        }
+    const ol = Math.hypot(ox, oy);
+    if (ol < 1e-9)
+        return null;
+    ox /= ol;
+    oy /= ol;
+    // The rim nearest the point along that line: covered on the near side, not beyond.
+    const h = step / 2;
+    let best = null;
+    for (let t = -reach; t <= reach; t += h)
+        if (covered(x + ox * t, y + oy * t) &&
+            !covered(x + ox * (t + h), y + oy * (t + h)))
+            if (best == null || Math.abs(t) < Math.abs(best))
+                best = t;
+    return best == null
+        ? null
+        : { x: x + ox * best, y: y + oy * best, out: [ox, oy] };
+}
+/** Inside a polygon (even-odd). */
+export function insidePolygon(poly, x, y) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const [xi, yi] = poly[i];
+        const [xj, yj] = poly[j];
+        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)
+            inside = !inside;
+    }
+    return inside;
+}
 /** Ear clipping: triangles of a simple polygon (indices into it), either winding. */
 function earClip(poly) {
     const n = poly.length;
@@ -115,12 +178,26 @@ function resample(poly, edge) {
 }
 /** A flat piece: even triangles over a polygon, z = 0, counter-clockwise seen from +Z. */
 export function flatPiece(poly, edge) {
+    const steps = flatPieceSteps(poly, edge);
+    for (;;) {
+        const r = steps.next();
+        if (r.done)
+            return r.value;
+    }
+}
+function* flatPieceSteps(poly, edge) {
     const ring = resample(poly, edge);
     const P = [];
     for (const [x, y] of ring)
         P.push(x, y, 0);
     const T = earClip(ring);
-    const r = remesh(P, T, { edge, perRadius: 0, iterations: 5 });
+    yield;
+    const r = yield* remeshSteps(P, T, {
+        edge,
+        perRadius: 0,
+        iterations: 5,
+        project: false,
+    });
     // Its boundary: vertices on an edge with one triangle.
     const use = new Map();
     const t = r.triangles;
@@ -157,6 +234,59 @@ export function flatPiece(poly, edge) {
 const lookups = new WeakMap();
 /** Drape cloth cut to the outlines over the body under `surface` (the tailor's dummy). */
 export function drapeGarment(surface, body, options) {
+    const steps = drapeSteps(surface, body, options);
+    for (;;) {
+        const r = steps.next();
+        if (r.done)
+            return r.value;
+    }
+}
+/**
+ * The same drape, in time slices so a page stays responsive: about `sliceMs`
+ * of work, then the rest after the next task. `signal` stops it (the promise
+ * rejects with an `AbortError`), which is how an editor drops a drape the
+ * next edit has made stale.
+ */
+export function drapeGarmentAsync(surface, body, options, run = {}) {
+    return runSliced(drapeSteps(surface, body, options), run);
+}
+/**
+ * Any stepped job (a generator that yields between pieces of work, such as
+ * `drapeSteps` or remesh's `remeshSteps`) run in time slices: about `sliceMs`
+ * of it, then the rest after the next task. `signal` stops it (the promise
+ * rejects with an `AbortError`).
+ */
+export function runSliced(steps, run = {}) {
+    const slice = run.sliceMs ?? 8;
+    return new Promise((resolve, reject) => {
+        const stopped = () => reject(new DOMException('the drape was stopped', 'AbortError'));
+        const work = () => {
+            if (run.signal?.aborted)
+                return stopped();
+            const until = realNow() + slice;
+            try {
+                for (;;) {
+                    const r = steps.next();
+                    if (r.done)
+                        return resolve(r.value);
+                    if (realNow() >= until)
+                        break;
+                }
+            }
+            catch (e) {
+                return reject(e);
+            }
+            setTimeout(work, 0);
+        };
+        work();
+    });
+}
+/**
+ * The drape as steps: it yields between passes (a fraction of a millisecond
+ * to a few each), so a caller can stop or spread it. `drapeGarment` runs it
+ * through; `drapeGarmentAsync` runs it in slices.
+ */
+export function* drapeSteps(surface, body, options) {
     const thickness = options.thickness ?? 0.005;
     const edge = options.edge ?? 0.02;
     const uvScale = options.uvScale ?? 1;
@@ -168,6 +298,7 @@ export function drapeGarment(surface, body, options) {
         lookups.set(surface, lookup);
     }
     const { query, sdf } = lookup;
+    yield;
     // THE PIECES, front and back, as one mesh: sewn boundary vertices shared.
     const X = [];
     const tris = [];
@@ -177,7 +308,7 @@ export function drapeGarment(surface, body, options) {
     for (const poly of options.front) {
         if (poly.length < 3)
             continue;
-        const piece = flatPiece(poly, edge);
+        const piece = yield* flatPieceSteps(poly, edge);
         const n = piece.positions.length / 3;
         const front = new Int32Array(n);
         const back = new Int32Array(n);
@@ -186,6 +317,11 @@ export function drapeGarment(surface, body, options) {
             const y = piece.positions[v * 3 + 1];
             const spans = query.spans(x, y);
             const covered = spans.length > 0;
+            // Along the body's rim (an arm's top, a hip's side): one vertex over it
+            // for both pieces, on the body and pinned (a seam over the limb).
+            const rim = piece.boundary[v]
+                ? rimSeam((px, py) => query.spans(px, py).length > 0, (px, py) => insidePolygon(poly, px, py), x, y, edge / 2)
+                : null;
             const add = (z, isKnown, pin) => {
                 const i = X.length / 3;
                 X.push(x, y, z);
@@ -194,7 +330,22 @@ export function drapeGarment(surface, body, options) {
                 uv.push(x * uvScale, y * uvScale);
                 return i;
             };
-            if (covered) {
+            if (rim != null) {
+                // Half a step in from the rim, the body's depth there: the seam goes
+                // at its middle, `thickness` out past the rim.
+                const [ox, oy] = rim.out;
+                const under = query.spans(rim.x - (ox * edge) / 4, rim.y - (oy * edge) / 4);
+                const z = under.length
+                    ? (under[0].front + under[under.length - 1].back) / 2
+                    : 0;
+                const i = X.length / 3;
+                X.push(rim.x + ox * thickness, rim.y + oy * thickness, z);
+                known.push(1);
+                pinned.push(1);
+                uv.push(x * uvScale, y * uvScale);
+                front[v] = back[v] = i;
+            }
+            else if (covered) {
                 const pin = piece.boundary[v] === 1;
                 front[v] = add(spans[0].front + thickness, true, pin);
                 back[v] = add(spans[spans.length - 1].back - thickness, true, pin);
@@ -247,6 +398,7 @@ export function drapeGarment(surface, body, options) {
         rim[b].push(a);
     }
     const smoothWith = (v) => (rim[v].length ? rim[v] : nbr[v]);
+    yield;
     // The pattern as cut: every vertex where it is in the flat piece.
     const flat = X.slice();
     // LIFT: depths off the body filled in from their neighbours (harmonic).
@@ -264,6 +416,8 @@ export function drapeGarment(surface, body, options) {
         }
         if (moved < 1e-5)
             break;
+        if (it % 20 === 19)
+            yield;
     }
     // Out of the body: onto its surface plus `thickness`, along the face normal.
     // A pass moves the cloth a little, so a short search finds the skin; the
@@ -339,6 +493,7 @@ export function drapeGarment(surface, body, options) {
         for (let v = 0; v < nv; v++)
             if (!pinned[v])
                 pushOut(X, v);
+        yield;
     }
     // SETTLE: gravity with the lengths held (position-based dynamics). Cloth
     // is never shorter than its pattern: bridging draws a free panel in, and
@@ -414,6 +569,7 @@ export function drapeGarment(surface, body, options) {
                 }
         }
     }
+    yield;
     const prev = X.slice();
     const dt = 1 / 60;
     const fall = 9.8 * dt * dt;
@@ -430,6 +586,8 @@ export function drapeGarment(surface, body, options) {
         }
         // Enough passes that a long panel does not stretch under its own weight.
         for (let it = 0; it < 24; it++) {
+            if (it % 8 === 7)
+                yield;
             for (let e = 0; e < rest.length; e++) {
                 const a = edges[e * 2];
                 const b = edges[e * 2 + 1];
@@ -472,6 +630,7 @@ export function drapeGarment(surface, body, options) {
             for (let v = 0; v < nv; v++)
                 if (!pinned[v])
                     pushOut(X, v);
+        yield;
     }
     // FINISH: lengths only, no gravity, so what hangs is not also stretched.
     for (let it = 0; it < 120; it++) {
@@ -496,10 +655,12 @@ export function drapeGarment(surface, body, options) {
             X[b * 3 + 1] -= wb * s * dy;
             X[b * 3 + 2] -= wb * s * dz;
         }
-        if (it % 10 === 9)
+        if (it % 10 === 9) {
             for (let v = 0; v < nv; v++)
                 if (!pinned[v])
                     pushOut(X, v);
+            yield;
+        }
     }
     let stretch = 1;
     for (let e = 0; e < rest.length; e++) {
@@ -514,6 +675,8 @@ export function drapeGarment(surface, body, options) {
     const weight = new Float32Array(nv * 3);
     const offset = new Float32Array(nv * 3);
     for (let v = 0; v < nv; v++) {
+        if (v % 100 === 99)
+            yield;
         const x = X[v * 3];
         const y = X[v * 3 + 1];
         const z = X[v * 3 + 2];
@@ -531,16 +694,7 @@ export function drapeGarment(surface, body, options) {
     }
     // What it hides: body vertices behind the cloth in the front view.
     const del = [];
-    const inPoly = (poly, x, y) => {
-        let inside = false;
-        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-            const [xi, yi] = poly[i];
-            const [xj, yj] = poly[j];
-            if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)
-                inside = !inside;
-        }
-        return inside;
-    };
+    const inPoly = insidePolygon;
     for (let v = 0; v < body.length / 3; v++)
         if (options.front.some((p) => inPoly(p, body[v * 3], body[v * 3 + 1])))
             del.push(v);

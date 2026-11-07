@@ -22,7 +22,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=9acedf89658b" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=aeadb365ee59" data-tosi-doc-system />
   <title>remesh — tosijs-3d</title>
   <meta name="description" content="A surface with even triangles, laid over a mesh that has bad ones: the tailor&#39;s DUMMY. A body from a file (a scan, an AI model) is long slivers and…" />
   <link rel="canonical" href="https://3d.tosijs.net/remesh/" />
@@ -33,13 +33,13 @@
   <meta property="og:description" content="A surface with even triangles, laid over a mesh that has bad ones: the tailor&#39;s DUMMY. A body from a file (a scan, an AI model) is long slivers and…" />
   <meta property="og:url" content="https://3d.tosijs.net/remesh/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"remesh","description":"A surface with even triangles, laid over a mesh that has bad ones: the tailor's DUMMY. A body from a file (a scan, an AI model) is long slivers and…","url":"https://3d.tosijs.net/remesh/","inLanguage":"en","dateModified":"2026-11-05T07:14:04.880Z","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"remesh","description":"A surface with even triangles, laid over a mesh that has bad ones: the tailor's DUMMY. A body from a file (a scan, an AI model) is long slivers and…","url":"https://3d.tosijs.net/remesh/","inLanguage":"en","dateModified":"2026-11-06T21:06:07+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Demos","item":"https://3d.tosijs.net/demos/"},{"@type":"ListItem","position":2,"name":"character builder","item":"https://3d.tosijs.net/character-builder/"},{"@type":"ListItem","position":3,"name":"human-proxy","item":"https://3d.tosijs.net/human-proxy/"},{"@type":"ListItem","position":4,"name":"garment-cut","item":"https://3d.tosijs.net/garment-cut/"},{"@type":"ListItem","position":5,"name":"remesh","item":"https://3d.tosijs.net/remesh/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=8dbf70970b3a" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=1efe4da519d1" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="remesh.ts">
 <h1 id="remesh">remesh</h1>
 <p>A surface with even triangles, laid over a mesh that has bad ones: the
@@ -90,7 +90,10 @@ the result has the same winding.</p>
     <ul id="tosi-nav-demos">
       <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
       <li><a class="doc-link" href="../solar-system/">Solar System</a></li>
-      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-weapon-fit" aria-label="Weapon Fit"></button><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></div>
+      <ul id="tosi-nav-weapon-fit">
+        <li><a class="doc-link" href="../hold-grip/">hold grips</a></li>
+      </ul></li>
       <li><a class="doc-link" href="../rig-tool/">Rig tool</a></li>
       <li><a class="doc-link" href="../effect-tool/">Effect tool</a></li>
       <li class="nav-branch -open"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="true" aria-controls="tosi-nav-character-builder" aria-label="character builder"></button><a class="doc-link" href="../character-builder/">character builder</a></div>
@@ -260,6 +263,7 @@ the result has the same winding.</p>
             <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-rigged-body-glb" aria-label="rigged-body-glb"></button><a class="doc-link" href="../rigged-body-glb/">rigged-body-glb</a></div>
             <ul id="tosi-nav-rigged-body-glb">
               <li><a class="doc-link" href="../spring-vrm/">spring-vrm</a></li>
+              <li><a class="doc-link" href="../body-export/">body export</a></li>
             </ul></li>
           </ul></li>
           <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-chunks" aria-label="glb-chunks"></button><a class="doc-link" href="../glb-chunks/">glb-chunks</a></div>
@@ -373,6 +377,7 @@ the result has the same winding.</p>
     <ul id="tosi-nav-ui">
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widgets3d" aria-label="widgets3d"></button><a class="doc-link" href="../widgets3d/">widgets3d</a></div>
       <ul id="tosi-nav-widgets3d">
+        <li><a class="doc-link" href="../playback-field/">Playback</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widget-semantics" aria-label="widget semantics"></button><a class="doc-link" href="../widget-semantics/">widget semantics</a></div>
         <ul id="tosi-nav-widget-semantics">
@@ -391,7 +396,11 @@ the result has the same winding.</p>
         <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
         <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
         <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
-        <li><a class="doc-link" href="../material-picker/">materialPicker3d</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-material-picker" aria-label="materialPicker3d"></button><a class="doc-link" href="../material-picker/">materialPicker3d</a></div>
+        <ul id="tosi-nav-material-picker">
+          <li><a class="doc-link" href="../fabric-textures/">fabric textures</a></li>
+          <li><a class="doc-link" href="../material-pictures/">material pictures</a></li>
+        </ul></li>
         <li><a class="doc-link" href="../material-recipe/">material-recipe</a></li>
         <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-color-field" aria-label="color3d"></button><a class="doc-link" href="../color-field/">color3d</a></div>
@@ -469,12 +478,14 @@ the result has the same winding.</p>
     <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-utilities" aria-label="utilities"></button><a class="doc-link" href="../utilities/">utilities</a></div>
     <ul id="tosi-nav-utilities">
       <li><a class="doc-link" href="../clock/">clock</a></li>
+      <li><a class="doc-link" href="../undo-history/">undo history</a></li>
     </ul></li>
     <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-upgrading" aria-label="Upgrading"></button><a class="doc-link" href="../upgrading/">Upgrading</a></div>
     <ul id="tosi-nav-upgrading">
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.12.4/">0.12.4</a></li>
         <li><a class="doc-link" href="../v0.12.3/">0.12.3</a></li>
         <li><a class="doc-link" href="../v0.12.2/">0.12.2</a></li>
         <li><a class="doc-link" href="../v0.12.1/">0.12.1</a></li>
@@ -558,6 +569,6 @@ the result has the same winding.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-6cqawqfh.js"></script>
+  <script type="module" src="../hydrate-d5cbj3ft.js"></script>
 </body>
 </html>

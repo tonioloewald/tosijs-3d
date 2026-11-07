@@ -214,14 +214,14 @@ export function playback3d(config: Playback3dOptions): PlaybackField {
           `M${c - r} ${c - r}h${r * 0.7}v${2 * r}h${-r * 0.7}z` +
             `M${c + r * 0.3} ${c - r}h${r * 0.7}v${2 * r}h${-r * 0.7}z`
         : // Play: a triangle, nudged right to look centred.
-          `M${c - r * 0.7} ${c - r}L${c + r * 1.1} ${c}L${c - r * 0.7} ${c + r}z`
+          `M${c - r * 0.7} ${c - r}L${c + r * 1.1} ${c}L${c - r * 0.7} ${
+            c + r
+          }z`
     )
     segBg.forEach((r, i) =>
       r.setAttribute(
         'fill',
-        i === lit || (i === 0 && pressed)
-          ? w3dTheme.rowHover
-          : w3dTheme.rowBg
+        i === lit || (i === 0 && pressed) ? w3dTheme.rowHover : w3dTheme.rowBg
       )
     )
   }

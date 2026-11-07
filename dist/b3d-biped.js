@@ -82,7 +82,7 @@ const gun = b3dLauncher({
 // on a figure half the intended size.
 const hero = b3dBiped(
   {
-    url: assetUrl('quaternius/UAL1_core.glb', 2),
+    url: assetUrl('quaternius/UAL1_core.glb', 3),
     animationStates: ualAnimationStates(),
     player: true, cameraType: 'follow', aiming: 'on', aimFreeYaw: 45,
   },
@@ -353,7 +353,7 @@ export class AnimState {
  *
  * ```js
  * b3dBiped({
- *   url: assetUrl('quaternius/UAL1_core.glb', 2),
+ *   url: assetUrl('quaternius/UAL1_core.glb', 3),
  *   animationStates: ualAnimationStates(),
  * })
  * ```
@@ -365,6 +365,20 @@ export class AnimState {
  * Pass `extra` to add or override entries; a later entry with the same `name`
  * wins, so a project can retarget one state without restating the rest.
  */
+/** The states a melee swing may take over: on the ground, not in the air or water. */
+const MELEE_GROUND = new Set([
+    'idle',
+    'walk',
+    'run',
+    'sprint',
+    'walkBackwards',
+    'strafeLeft',
+    'strafeRight',
+    'sneak',
+    'sneakIdle',
+    'sneakLeft',
+    'sneakRight',
+]);
 export function ualAnimationStates(extra = []) {
     const base = [
         { name: 'idle', animation: 'Idle_Loop', loop: true },
@@ -433,6 +447,10 @@ export function ualAnimationStates(extra = []) {
         { name: 'aimDown', animation: 'Pistol_Aim_Down', loop: true },
         { name: 'shoot', animation: 'Pistol_Shoot', loop: false },
         { name: 'reload', animation: 'Pistol_Reload', loop: false },
+        // MELEE, with a weapon held but not raised (see `holdingWeapon`): standing
+        // still on guard, and one swing per pull of the trigger.
+        { name: 'meleeIdle', animation: 'Sword_Idle', loop: true },
+        { name: 'meleeAttack', animation: 'Sword_Attack', loop: false },
     ];
     const byName = new Map();
     for (const spec of [...base, ...extra]) {
@@ -834,6 +852,21 @@ export class B3dBiped extends B3dControllable {
      */
     whenWeapon = null;
     /**
+     * A MELEE weapon is in hand (a sword): it stays visible with gunplay off
+     * (lowered weapons are otherwise hidden, see `_showWeapons`), standing still
+     * is `meleeIdle` (UAL's `Sword_Idle`), and the right trigger swings
+     * (`meleeAttack`, `Sword_Attack`, played through) instead of sprinting.
+     * JS only; the game sets it when what is in hand changes.
+     */
+    get holdingWeapon() {
+        return this._holdingWeapon;
+    }
+    set holdingWeapon(on) {
+        this._holdingWeapon = on;
+        this._showWeapons(this.gunplay);
+    }
+    _holdingWeapon = false;
+    /**
      * Put the weapon up or down.
      *
      * Public because an AI, a cutscene or a pickup all want to do it, and because
@@ -868,8 +901,9 @@ export class B3dBiped extends B3dControllable {
      * walk — and that is already on the list.
      */
     _showWeapons(visible) {
+        const shown = visible || this._holdingWeapon;
         for (const w of this._weapons())
-            w.mesh?.setEnabled(visible);
+            w.mesh?.setEnabled(shown);
     }
     /**
      * POINT THE WEAPON WHERE THE SHOT GOES.
@@ -938,7 +972,9 @@ export class B3dBiped extends B3dControllable {
      * (TS2611). An arrow field binds `this` and reads the mode live, which is all
      * the getter was for.
      */
-    inputMapping = (pad, dt) => bipedMapping(pad, dt, this.gunplay);
+    inputMapping = (pad, dt) => 
+    // A melee weapon takes the trigger too: it swings rather than sprints.
+    bipedMapping(pad, dt, this.gunplay || this._holdingWeapon);
     inputLabels = bipedMappingDescriptor.labels;
     /**
      * Aiming right now.
@@ -1630,6 +1666,8 @@ export class B3dBiped extends B3dControllable {
      * layer instead, because a walk cycle is still a walk cycle.
      */
     _gunplayState(name) {
+        if (!this.gunplay && this._holdingWeapon)
+            return this._meleeState(name);
         if (!this.gunplay)
             return name;
         if (name !== 'idle')
@@ -1765,8 +1803,33 @@ export class B3dBiped extends B3dControllable {
         for (const group of this._eased)
             group.blendingSpeed = step;
     }
+    /**
+     * The melee version of a state: a swing in progress takes the whole body
+     * while on the ground (not mid-jump, swimming or climbing), and standing
+     * still is on guard. A rig without the clips keeps its own states.
+     */
+    _meleeState(name) {
+        if (this._attackFor > 0 && MELEE_GROUND.has(name))
+            return 'meleeAttack';
+        if (name === 'idle' && this._hasClip('Sword_Idle'))
+            return 'meleeIdle';
+        return name;
+    }
+    /** Seconds left of the swing playing now. */
+    _attackFor = 0;
+    _swing() {
+        if (!this._hasClip('Sword_Attack')) {
+            this._warnOnce(`b3d-biped: melee attack, but ${this.url || 'this rig'} has no ` +
+                `Sword_Attack clip. If it should, the asset is probably cached.`);
+            return;
+        }
+        this._attackFor = this._clipSeconds('Sword_Attack') || 1;
+    }
     setAnimationState(name, speed = 1) {
         name = this._gunplayState(name);
+        // A swing and the guard play at their own speed, not the gait's.
+        if (name === 'meleeAttack' || name === 'meleeIdle')
+            speed = 1;
         if (name == null) {
             throw new Error('setAnimationState failed, no animation name specified.');
         }
@@ -2340,6 +2403,13 @@ export class B3dBiped extends B3dControllable {
             // holstered character who fires anyway is worse than one who cannot.
             if (this.gunplay && (input.shoot ?? 0) > 0.5)
                 this._fireWeapons();
+            // A melee weapon swings, once per swing: held, it swings again after.
+            this._attackFor = Math.max(0, this._attackFor - dt);
+            if (!this.gunplay &&
+                this._holdingWeapon &&
+                this._attackFor === 0 &&
+                (input.shoot ?? 0) > 0.5)
+                this._swing();
             // After the shot, so the ring sits where THIS frame's aim points rather
             // than lagging it by one.
             if (this.owner != null)
@@ -3373,6 +3443,10 @@ export class B3dBiped extends B3dControllable {
         if (changes.length)
             console.warn('<tosi-b3d-biped>: the character file, read with changes', changes);
         const settings = c.settings;
+        // The pictures its materials use (a print chosen from disk), by key.
+        const { registerPicture } = await import('./material-pictures.js');
+        for (const [key, b64] of Object.entries(c.pictures ?? {}))
+            registerPicture(key, b64);
         // A mesh body comes from the page's sources, or from where the file says
         // (a URL, or the mesh itself inside the file).
         const sources = { ...CHARACTER_SOURCES };
@@ -3410,7 +3484,7 @@ export class B3dBiped extends B3dControllable {
             return;
         }
         // The clips the states name, from the library, retargeted and named as they were.
-        const library = await BABYLON.LoadAssetContainerAsync(attrs.animations || assetUrl('quaternius/UAL1_core.glb', 2), scene);
+        const library = await BABYLON.LoadAssetContainerAsync(attrs.animations || assetUrl('quaternius/UAL1_core.glb', 3), scene);
         library.addAllToScene();
         for (const g of library.animationGroups)
             g.stop();

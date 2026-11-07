@@ -49,17 +49,77 @@ export interface FabricTexture {
 
 /** The pack, as fabrics.json lists it (tile from Poly Haven's dimensions). */
 export const FABRIC_TEXTURES: FabricTexture[] = [
-  { id: 'cotton_jersey', name: 'cotton jersey', tile: 0.264, roughness: 0.85, sheen: 0.3 },
-  { id: 'bi_stretch', name: 'bi-stretch', tile: 0.265, roughness: 0.75, sheen: 0.3 },
-  { id: 'crepe_satin', name: 'crepe satin', tile: 0.266, roughness: 0.4, sheen: 0.6 },
-  { id: 'crepe_georgette', name: 'georgette', tile: 0.264, roughness: 0.7, sheen: 0.4 },
-  { id: 'caban', name: 'caban (felt)', tile: 0.274, roughness: 0.95, sheen: 0.2 },
-  { id: 'curly_teddy_natural', name: 'teddy', tile: 0.334, roughness: 0.95, sheen: 0.5 },
-  { id: 'curly_teddy_checkered', name: 'teddy check', tile: 0.518, roughness: 0.95, sheen: 0.5 },
-  { id: 'brown_leather', name: 'brown leather', tile: 0.4, roughness: 0.55, sheen: 0 },
+  {
+    id: 'cotton_jersey',
+    name: 'cotton jersey',
+    tile: 0.264,
+    roughness: 0.85,
+    sheen: 0.3,
+  },
+  {
+    id: 'bi_stretch',
+    name: 'bi-stretch',
+    tile: 0.265,
+    roughness: 0.75,
+    sheen: 0.3,
+  },
+  {
+    id: 'crepe_satin',
+    name: 'crepe satin',
+    tile: 0.266,
+    roughness: 0.4,
+    sheen: 0.6,
+  },
+  {
+    id: 'crepe_georgette',
+    name: 'georgette',
+    tile: 0.264,
+    roughness: 0.7,
+    sheen: 0.4,
+  },
+  {
+    id: 'caban',
+    name: 'caban (felt)',
+    tile: 0.274,
+    roughness: 0.95,
+    sheen: 0.2,
+  },
+  {
+    id: 'curly_teddy_natural',
+    name: 'teddy',
+    tile: 0.334,
+    roughness: 0.95,
+    sheen: 0.5,
+  },
+  {
+    id: 'curly_teddy_checkered',
+    name: 'teddy check',
+    tile: 0.518,
+    roughness: 0.95,
+    sheen: 0.5,
+  },
+  {
+    id: 'brown_leather',
+    name: 'brown leather',
+    tile: 0.4,
+    roughness: 0.55,
+    sheen: 0,
+  },
   { id: 'denim_fabric', name: 'denim', tile: 0.1, roughness: 0.9, sheen: 0.2 },
-  { id: 'denim_fabric_03', name: 'denim, light', tile: 0.271, roughness: 0.9, sheen: 0.2 },
-  { id: 'denim_fabric_05', name: 'denim, dark', tile: 0.271, roughness: 0.9, sheen: 0.2 },
+  {
+    id: 'denim_fabric_03',
+    name: 'denim, light',
+    tile: 0.271,
+    roughness: 0.9,
+    sheen: 0.2,
+  },
+  {
+    id: 'denim_fabric_05',
+    name: 'denim, dark',
+    tile: 0.271,
+    roughness: 0.9,
+    sheen: 0.2,
+  },
 ]
 
 const file = (f: FabricTexture, quality: string, map: string) =>

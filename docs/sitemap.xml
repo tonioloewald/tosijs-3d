@@ -5,13 +5,14 @@
   <url><loc>https://3d.tosijs.net/glb-rig/</loc><lastmod>2026-11-05T17:59:13+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/rigged-body-glb/</loc><lastmod>2026-11-05T17:59:13+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/spring-vrm/</loc><lastmod>2026-11-05T17:59:13+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/body-export/</loc><lastmod>2026-11-07T01:16:28+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-effect/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/clock/</loc><lastmod>2026-10-24T21:36:46+03:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/demos/</loc><lastmod>2026-11-03T13:38:12.431Z</lastmod></url>
+  <url><loc>https://3d.tosijs.net/demos/</loc><lastmod>2026-11-05T18:04:16+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/agent-driver/</loc><lastmod>2026-11-02T23:36:39+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/aria-mirror/</loc><lastmod>2026-11-03T15:57:12+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/tosi-b3d/</loc><lastmod>2026-11-03T15:57:12+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/b3d-biped/</loc><lastmod>2026-11-04T21:58:12+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/tosi-b3d/</loc><lastmod>2026-11-07T11:14:08+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/b3d-biped/</loc><lastmod>2026-11-06T22:27:40+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-cloud-deck/</loc><lastmod>2026-11-03T12:07:54+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-controller/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-destroyable/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
@@ -26,14 +27,14 @@
   <url><loc>https://3d.tosijs.net/b3d-terrain/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-water/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/ballistics/</loc><lastmod>2026-10-09T16:58:51+03:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/bar-menu/</loc><lastmod>2026-11-05T11:37:09+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/bar-menu/</loc><lastmod>2026-11-07T10:36:18+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/biome-chart/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/playground/</loc><lastmod>2026-11-03T15:57:12+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/playground/</loc><lastmod>2026-11-07T22:10:37+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/box/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/carry-box/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/carve/</loc><lastmod>2026-10-09T16:58:51+03:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/character-settings/</loc><lastmod>2026-11-05T12:25:39+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/character-store/</loc><lastmod>2026-11-02T14:12:10+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/character-settings/</loc><lastmod>2026-11-07T22:20:29+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/character-store/</loc><lastmod>2026-11-06T22:27:40+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/color/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/control-input/</loc><lastmod>2026-11-02T00:40:31+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/vector-field/</loc><lastmod>2026-11-02T20:18:41+02:00</lastmod></url>
@@ -52,20 +53,20 @@
   <url><loc>https://3d.tosijs.net/curve-program/</loc><lastmod>2026-11-03T12:55:11+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/light-modulation/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/Migration/</loc><lastmod>2026-11-02T10:46:07+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/outline-field/</loc><lastmod>2026-10-27T09:02:08+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/outline-field/</loc><lastmod>2026-11-06T21:51:53+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/perf-probe/</loc><lastmod>2026-11-01T21:52:02+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/proxy-fit/</loc><lastmod>2026-10-27T20:16:31+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/mersenne-twister/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/remesh/</loc><lastmod>2026-11-05T07:14:04.880Z</lastmod></url>
+  <url><loc>https://3d.tosijs.net/remesh/</loc><lastmod>2026-11-06T21:06:07+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/rig-markers/</loc><lastmod>2026-10-24T23:06:14+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/scatter/</loc><lastmod>2026-11-01T21:52:02+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/seam-material/</loc><lastmod>2026-10-20T11:52:16+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/theme-editor/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/vertex-animation/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/voxel-galaxy/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/w3d-theme/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/w3d-theme/</loc><lastmod>2026-11-07T10:36:18+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/weather/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/widgets3d/</loc><lastmod>2026-11-05T07:14:05.770Z</lastmod></url>
+  <url><loc>https://3d.tosijs.net/widgets3d/</loc><lastmod>2026-11-07T21:23:23.642Z</lastmod></url>
   <url><loc>https://3d.tosijs.net/world-contract/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/anchor-layout/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/light-pollution/</loc><lastmod>2026-11-02T10:19:04+02:00</lastmod></url>
@@ -78,7 +79,7 @@
   <url><loc>https://3d.tosijs.net/b3d-decorator/</loc><lastmod>2026-11-02T10:50:21+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-hud/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-input-focus/</loc><lastmod>2026-11-03T12:55:11+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/b3d-launcher/</loc><lastmod>2026-11-05T16:01:47.816Z</lastmod></url>
+  <url><loc>https://3d.tosijs.net/b3d-launcher/</loc><lastmod>2026-11-06T20:25:47+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-loader/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-quality/</loc><lastmod>2026-10-09T16:58:51+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-sound/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
@@ -86,12 +87,12 @@
   <url><loc>https://3d.tosijs.net/b3d-svg-plane/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-trigger/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/biome-plugin/</loc><lastmod>2026-11-02T10:50:21+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/CHANGELOG/</loc><lastmod>2026-11-05T16:00:46.498Z</lastmod></url>
-  <url><loc>https://3d.tosijs.net/character-file/</loc><lastmod>2026-11-05T07:14:03.547Z</lastmod></url>
-  <url><loc>https://3d.tosijs.net/cloth-drape/</loc><lastmod>2026-11-05T16:01:48.379Z</lastmod></url>
-  <url><loc>https://3d.tosijs.net/cloth-shading/</loc><lastmod>2026-11-02T09:12:34+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/CHANGELOG/</loc><lastmod>2026-11-07T21:22:03.041Z</lastmod></url>
+  <url><loc>https://3d.tosijs.net/character-file/</loc><lastmod>2026-11-06T22:27:40+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/cloth-drape/</loc><lastmod>2026-11-07T21:23:21.519Z</lastmod></url>
+  <url><loc>https://3d.tosijs.net/cloth-shading/</loc><lastmod>2026-11-06T22:53:26+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/cloud-shadows/</loc><lastmod>2026-11-02T09:12:34+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/garment-cut/</loc><lastmod>2026-11-05T07:14:04.041Z</lastmod></url>
+  <url><loc>https://3d.tosijs.net/garment-cut/</loc><lastmod>2026-11-07T21:23:21.944Z</lastmod></url>
   <url><loc>https://3d.tosijs.net/glb-manifest/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/guidance/</loc><lastmod>2026-10-09T16:58:51+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/hair-fit/</loc><lastmod>2026-10-22T11:15:27+03:00</lastmod></url>
@@ -110,7 +111,7 @@
   <url><loc>https://3d.tosijs.net/starfield-codec/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-shadows/</loc><lastmod>2026-11-01T21:40:34+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/surface/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/svg-icons/</loc><lastmod>2026-10-31T19:23:08+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/svg-icons/</loc><lastmod>2026-11-07T10:36:18+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/uv-unwrap/</loc><lastmod>2026-10-27T14:12:45+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/wind/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/world-store/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
@@ -118,7 +119,7 @@
   <url><loc>https://3d.tosijs.net/noise-texture/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/ground-vehicle/</loc><lastmod>2026-11-02T10:50:21+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-light/</loc><lastmod>2026-11-02T10:19:04+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/b3d-car/</loc><lastmod>2026-11-03T12:21:27+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/b3d-car/</loc><lastmod>2026-11-06T20:53:43+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-collisions/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-star/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-trail/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
@@ -128,25 +129,26 @@
   <url><loc>https://3d.tosijs.net/curve-field/</loc><lastmod>2026-11-03T11:51:27+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/garment-bind/</loc><lastmod>2026-10-26T11:10:53+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/glass-gamepad/</loc><lastmod>2026-11-03T12:21:27+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/human-rig/</loc><lastmod>2026-11-05T07:14:04.251Z</lastmod></url>
+  <url><loc>https://3d.tosijs.net/human-rig/</loc><lastmod>2026-11-05T18:04:16+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/playback-field/</loc><lastmod>2026-11-07T21:23:22.653Z</lastmod></url>
   <url><loc>https://3d.tosijs.net/popup-surface/</loc><lastmod>2026-10-27T14:12:45+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-primitives/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/skinned-glb/</loc><lastmod>2026-11-05T17:59:13+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/slope-profile/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/svg-texture/</loc><lastmod>2026-10-24T21:36:46+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/system-bar/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/tailor-tool/</loc><lastmod>2026-11-05T09:27:51+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/tailor-tool/</loc><lastmod>2026-11-07T21:23:23.283Z</lastmod></url>
   <url><loc>https://3d.tosijs.net/virtual-gamepad/</loc><lastmod>2026-11-02T00:40:31+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/weapon-fit/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/weapon-fit/</loc><lastmod>2026-11-06T20:53:43+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/weather-and-clouds/</loc><lastmod>2026-10-09T16:58:51+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/widget-box/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/world-view/</loc><lastmod>2026-10-09T16:58:51+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-tank/</loc><lastmod>2026-11-03T12:21:27+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/glb-chunks/</loc><lastmod>2026-11-02T13:07:10+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/rig-tool/</loc><lastmod>2026-11-05T16:01:49.718Z</lastmod></url>
+  <url><loc>https://3d.tosijs.net/rig-tool/</loc><lastmod>2026-11-07T21:23:22.931Z</lastmod></url>
   <url><loc>https://3d.tosijs.net/skin-paint/</loc><lastmod>2026-11-02T14:17:16+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/effect-tool/</loc><lastmod>2026-10-29T15:21:14+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/character-builder/</loc><lastmod>2026-11-05T12:25:39+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/character-builder/</loc><lastmod>2026-11-07T22:20:29+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/cloth-bake/</loc><lastmod>2026-11-02T23:24:35+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/aim/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-elevator/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
@@ -171,10 +173,10 @@
   <url><loc>https://3d.tosijs.net/gas-giant/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/hair-place/</loc><lastmod>2026-11-02T23:24:35+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/skin-shading/</loc><lastmod>2026-11-02T09:12:34+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/color-picker/</loc><lastmod>2026-11-02T20:18:41+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/color-picker/</loc><lastmod>2026-11-07T21:00:29+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/rocky-world/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/material-picker/</loc><lastmod>2026-11-02T20:18:41+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/material-recipe/</loc><lastmod>2026-10-31T19:23:08+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/material-picker/</loc><lastmod>2026-11-07T21:23:22.457Z</lastmod></url>
+  <url><loc>https://3d.tosijs.net/material-recipe/</loc><lastmod>2026-11-07T21:41:06+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-ambient/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-beacon/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-black-hole/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
@@ -182,7 +184,7 @@
   <url><loc>https://3d.tosijs.net/b3d-library/</loc><lastmod>2026-11-03T11:51:27+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-light-shafts/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-radar/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/game-controller/</loc><lastmod>2026-10-31T22:31:42+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/game-controller/</loc><lastmod>2026-11-05T22:51:59+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/human-face/</loc><lastmod>2026-11-02T13:07:10+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/icon-grid/</loc><lastmod>2026-11-02T20:18:41+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/land-and-sky/</loc><lastmod>2026-11-03T12:07:54+02:00</lastmod></url>
@@ -196,12 +198,12 @@
   <url><loc>https://3d.tosijs.net/b3d-agent/</loc><lastmod>2026-11-03T11:51:27+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/animation-layers/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-fog/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/b3d-manipulator/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/b3d-manipulator/</loc><lastmod>2026-11-06T13:19:53+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-prop/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-spawner/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/carry/</loc><lastmod>2026-10-15T10:12:29+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/city-layout/</loc><lastmod>2026-11-02T10:19:04+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/color-field/</loc><lastmod>2026-11-02T20:18:41+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/color-field/</loc><lastmod>2026-11-07T21:23:21.554Z</lastmod></url>
   <url><loc>https://3d.tosijs.net/debug-sink/</loc><lastmod>2026-10-24T21:36:46+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/dials/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/effects/</loc><lastmod>2026-10-19T11:18:18+03:00</lastmod></url>
@@ -221,20 +223,20 @@
   <url><loc>https://3d.tosijs.net/b3d-utils/</loc><lastmod>2026-11-02T10:19:04+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/picker/</loc><lastmod>2026-11-04T21:24:15+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/portal-transform/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/retarget/</loc><lastmod>2026-11-05T07:14:04.914Z</lastmod></url>
-  <url><loc>https://3d.tosijs.net/rigged-body/</loc><lastmod>2026-11-04T17:04:20+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/retarget/</loc><lastmod>2026-11-06T20:53:43+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/rigged-body/</loc><lastmod>2026-11-06T10:38:13+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/space-backdrop/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/surroundings/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/touch-gamepad/</loc><lastmod>2026-10-21T14:53:58+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/rig-build/</loc><lastmod>2026-11-04T16:38:41+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/spring-chain-babylon/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/spring-chain-babylon/</loc><lastmod>2026-11-06T20:53:43+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-ssao/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/gradient-filter/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/input/</loc><lastmod>2026-10-20T10:29:06+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/keyboard/</loc><lastmod>2026-11-04T21:24:15+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/scene-schemas/</loc><lastmod>2026-11-02T23:23:46+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/spatial-transform/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/asset-url/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/asset-url/</loc><lastmod>2026-11-06T20:53:43+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/environment/</loc><lastmod>2026-10-22T10:23:27+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/interacting/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/shadow-decal/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
@@ -249,11 +251,16 @@
   <url><loc>https://3d.tosijs.net/ui-controls/</loc><lastmod>2026-10-27T23:41:46+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/ui-containers/</loc><lastmod>2026-10-09T16:58:51+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/ui-in-scene/</loc><lastmod>2026-10-09T16:58:51+03:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/character/</loc><lastmod>2026-11-05T16:01:48.300Z</lastmod></url>
+  <url><loc>https://3d.tosijs.net/character/</loc><lastmod>2026-11-07T21:23:21.453Z</lastmod></url>
+  <url><loc>https://3d.tosijs.net/fabric-textures/</loc><lastmod>2026-11-07T21:23:21.791Z</lastmod></url>
+  <url><loc>https://3d.tosijs.net/hold-grip/</loc><lastmod>2026-11-07T21:23:22.081Z</lastmod></url>
+  <url><loc>https://3d.tosijs.net/material-pictures/</loc><lastmod>2026-11-07T21:23:22.461Z</lastmod></url>
   <url><loc>https://3d.tosijs.net/ui-theme/</loc><lastmod>2026-10-09T16:58:51+03:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/undo-history/</loc><lastmod>2026-11-06T20:15:04+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/utilities/</loc><lastmod>2026-10-24T21:36:46+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/input-internals/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/v0.12.3/</loc></url>
+  <url><loc>https://3d.tosijs.net/v0.12.4/</loc></url>
+  <url><loc>https://3d.tosijs.net/v0.12.3/</loc><lastmod>2026-11-05T18:04:16+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/v0.12.2/</loc><lastmod>2026-11-02T20:07:21+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/v0.12.1/</loc><lastmod>2026-11-02T12:56:58+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/v0.12.0/</loc><lastmod>2026-11-02T10:50:21+02:00</lastmod></url>
@@ -321,5 +328,5 @@
   <url><loc>https://3d.tosijs.net/upgrading/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/reference/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/design-notes/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/acknowledgements/</loc><lastmod>2026-10-29T15:35:30+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/acknowledgements/</loc><lastmod>2026-11-06T22:53:26+02:00</lastmod></url>
 </urlset>

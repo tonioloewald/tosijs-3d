@@ -45,7 +45,7 @@ Two ship, and `registerMaterialType` adds another.
   grazing glow of cloth), `emissive` and `normal`. `applyMaterial` puts one on
   a Babylon material.
 - `cloth`: [[cloth-shading]] over a garment's own texture: `albedo` and
-  `recolour` (0 keeps the texture's colours, 1 is the colour wholly), and a
+  `recolour` (labelled **colorize**: 0 keeps the texture's colours, 1 is the colour wholly), and a
   surface (`roughness`, `metallic`, `sheen`, `sheenRoughness`) whose inputs
   are OPTIONAL: one left out is the garment's own, as made. `clothShading`'s
   `set({ recipe })` applies one.
@@ -61,19 +61,44 @@ keeps your colour and gold brings its own.
 /*{ "parent": "ui-controls", "order": 48 }*/
 import { formatColor, parseColor } from './color.js';
 import { FABRICS } from './fabrics.js';
+import { fabricTexturePresets } from './fabric-textures.js';
+/**
+ * 1/32 … 1/2, 1, 2, 3, 4: the scales at which a picture repeats a whole
+ * number of times across a unit of UV (or fills a whole number of units),
+ * so its tiles meet.
+ */
+export function textureScaleNotches(min = 1 / 32, max = 4) {
+    const out = [];
+    for (let n = Math.floor(1 / min); n >= 2; n--)
+        out.push(1 / n);
+    for (let n = 1; n <= max; n++)
+        out.push(n);
+    return out.filter((v) => v >= min - 1e-12 && v <= max);
+}
+/** The `tile` input both shipped types take: how big the pictures are. */
+const TEXTURE_SCALE = {
+    name: 'tile',
+    label: 'scale textures',
+    kind: 'grey',
+    default: 1,
+    min: 1 / 32,
+    max: 4,
+    scale: 'log2',
+    notches: textureScaleNotches(),
+};
 export const PBR_MATERIAL = {
     name: 'pbr',
     label: 'PBR',
     inputs: [
         {
             name: 'albedo',
-            label: 'colour',
+            label: 'diffuse',
             kind: 'rgb',
             default: '#cccccc',
             image: true,
         },
         { name: 'alpha', kind: 'grey', default: 1, image: true },
-        { name: 'roughness', kind: 'grey', default: 0.5 },
+        { name: 'roughness', kind: 'grey', default: 0.5, image: true },
         { name: 'metallic', kind: 'grey', default: 0 },
         { name: 'reflections', kind: 'grey', default: 1, max: 2 },
         { name: 'sheen', kind: 'grey', default: 0 },
@@ -93,11 +118,14 @@ export const PBR_MATERIAL = {
         },
         {
             name: 'normal',
-            label: 'bumps',
+            label: 'normal map',
             kind: 'image',
             default: '',
             intensity: { default: 1, min: 0, max: 2 },
         },
+        // How much surface one repeat of its pictures covers, metres (a tailored
+        // garment's UVs are metres; on other UVs, 1 / tile repeats).
+        TEXTURE_SCALE,
     ],
 };
 /**
@@ -108,10 +136,23 @@ export const CLOTH_MATERIAL = {
     name: 'cloth',
     label: 'cloth',
     inputs: [
-        { name: 'albedo', label: 'colour', kind: 'rgb', default: '#7a2e2e' },
+        // A picture (a print, a weave) in place of the garment's own texture.
+        {
+            name: 'albedo',
+            label: 'diffuse',
+            kind: 'rgb',
+            default: '#7a2e2e',
+            image: true,
+        },
         // 0 keeps the texture's colours, 1 is the colour wholly.
-        { name: 'recolour', kind: 'grey', default: 0 },
-        { name: 'roughness', kind: 'grey', default: 0.85, optional: true },
+        { name: 'recolour', label: 'colorize', kind: 'grey', default: 0 },
+        {
+            name: 'roughness',
+            kind: 'grey',
+            default: 0.85,
+            optional: true,
+            image: true,
+        },
         { name: 'metallic', kind: 'grey', default: 0, optional: true },
         { name: 'sheen', kind: 'grey', default: 0.25, optional: true },
         {
@@ -121,6 +162,17 @@ export const CLOTH_MATERIAL = {
             default: 0.6,
             optional: true,
         },
+        // The weave's relief (a normal map), over the garment's own surface.
+        {
+            name: 'normal',
+            label: 'normal map',
+            kind: 'image',
+            default: '',
+            intensity: { default: 1, min: 0, max: 2 },
+        },
+        // How much surface one repeat of its pictures covers, metres (a tailored
+        // garment's UVs are metres; on other UVs, 1 / tile repeats).
+        TEXTURE_SCALE,
     ],
 };
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -167,6 +219,22 @@ export const MATERIAL_COLLECTIONS = {
             name,
             recipe: fabricRecipe(f),
         })),
+    },
+    // Photographed cloth (fabric-textures): small maps, and the full ones.
+    // Made when read, not at import: their URLs come from the asset base,
+    // which a page sets after importing this (made early, they were relative
+    // and loaded nothing).
+    textiles: {
+        name: 'textiles',
+        get presets() {
+            return fabricTexturePresets('lite');
+        },
+    },
+    'textiles-full': {
+        name: 'textiles, full quality',
+        get presets() {
+            return fabricTexturePresets('full');
+        },
     },
 };
 /** One input of a type, from whatever the recipe says (or its default). */

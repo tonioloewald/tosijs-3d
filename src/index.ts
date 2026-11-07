@@ -1791,7 +1791,11 @@ export type { RoundedRectOptions, RoundedRectGeometry } from './rounded-rect.js'
 export { openPopup } from './popup-surface.js'
 export type { PopupSurface, PopupSurfaceOptions } from './popup-surface.js'
 export type { Vector3dOptions, VectorField } from './vector-field.js'
-export type { Playback3dOptions, PlaybackField, PlaybackState } from './playback-field.js'
+export type {
+  Playback3dOptions,
+  PlaybackField,
+  PlaybackState,
+} from './playback-field.js'
 export type { UndoHistory } from './undo-history.js'
 export type { HoldClass, HoldGrip } from './hold-grip.js'
 export type { Makers, MakeOptions, MakeOwner } from './make-mesh.js'
@@ -2043,10 +2047,26 @@ export {
   rebindCut,
   weldVertices,
 } from './garment-cut.js'
-export { remesh, remeshSteps, surfaceProjector, closestBarycentric } from './remesh.js'
+export {
+  remesh,
+  remeshSteps,
+  surfaceProjector,
+  closestBarycentric,
+} from './remesh.js'
 export type { Remeshed, RemeshOptions, SurfacePoint } from './remesh.js'
-export { drapeGarment, drapeGarmentAsync, drapeSteps, flatPiece, runSliced } from './cloth-drape.js'
-export type { DrapeOptions, DrapedGarment, FlatPiece, SlicedRun } from './cloth-drape.js'
+export {
+  drapeGarment,
+  drapeGarmentAsync,
+  drapeSteps,
+  flatPiece,
+  runSliced,
+} from './cloth-drape.js'
+export type {
+  DrapeOptions,
+  DrapedGarment,
+  FlatPiece,
+  SlicedRun,
+} from './cloth-drape.js'
 export { outlineField3d } from './outline-field.js'
 export { bindGarment, closestOnTriangle } from './garment-bind.js'
 export {

@@ -84,6 +84,16 @@ export interface FitOptions {
 }
 export declare function fitSkeleton(markers: Markers, mesh: MeshQuery, options?: FitOptions): FittedRig;
 /**
+ * The thumb's and fingers' joints for one hand, laid out from its wrist and
+ * elbow (`side` names them). `length` is the hand's, wrist to fingertip
+ * (default three quarters of the forearm, as on a person).
+ */
+export declare function spreadHand(wrist: Vec3, elbow: Vec3, side: 'l' | 'r', length?: number): Record<string, Vec3>;
+export type HandMode = 'full' | 'mitten' | 'none';
+export declare const HAND_MODES: HandMode[];
+/** A fitted rig with its hands as `mode` says (unchanged if none is given). */
+export declare function applyHandMode(rig: FittedRig, mode?: HandMode): FittedRig;
+/**
  * The bones that take the skin, as segments for `boneHeat`, each with its
  * index in `rig.joints` (the order the skeleton is built in).
  */

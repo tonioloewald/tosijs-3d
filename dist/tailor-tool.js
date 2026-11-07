@@ -21,8 +21,8 @@ const tailor = mountTailorTool(scene, {
 })
 ```
 
-**Its panel is a system panel** (scissors, on the bar), with **cancel** and
-**done** at its top, then:
+**Its panel is a system panel** (scissors, on the bar). A bar pinned to its
+top carries **undo**, **redo**, **cancel** and **done**; below it:
 
 - **the outline**: you draw the character's left, on your right, and the
   other side is its mirror. Click out points, click the first to close a
@@ -41,12 +41,21 @@ const tailor = mountTailorTool(scene, {
   height: skirts, kilts);
 - **material**, **name** and **slot**.
 
+**Undo and redo** (and ⌘Z / ⇧⌘Z through `undo()` / `redo()`, which a host's
+keys call while the tool is open): each settled edit, a point dropped or a
+slider let go, is a step.
+
 WHAT DONE HANDS BACK is the garment as a mesh at rest, on the body it was
 cut from (`garment`: positions, triangles, UVs unwrapped like a sewing
 pattern), with what it was cut from (`cut`: the outlines, thickness, how it was made)
 so it can be opened again, and the name, slot and material recipe. Binding it
 to a body to wear (`bindGarment`) is the host's: a garment file carries the
 same mesh.
+
+A host that keeps the garment itself passes `persistent` (no cancel or
+done), its own system panel as `panel`, and rows of its own above and below
+(`rows: { top, bottom }`); the character builder does, so its tailor is
+always on the bar.
 
 `handleChange` hears every edit (a work in progress to keep); `setBody`
 moves the cut onto a body reshaped while the tool is open; `unmount` (or
@@ -56,15 +65,16 @@ done, or cancel) removes everything it added.
 import { cutGarment, skirtGarment, rebindCut, mirrorOutline, } from './garment-cut.js';
 import { outlineField3d } from './outline-field.js';
 import { smoothUnder, fitProxy, drawnPositions } from './proxy-fit.js';
-import { remesh } from './remesh.js';
-import { drapeGarment } from './cloth-drape.js';
+import { remesh, remeshSteps } from './remesh.js';
+import { drapeGarmentAsync, runSliced } from './cloth-drape.js';
 import { humanProxy, proxyMaterial } from './human-proxy.js';
 import { clothShading, clothRecipe } from './cloth-shading.js';
 import { unwrapGarment } from './garment-file.js';
 import { materialPicker3d } from './material-picker.js';
 import { inputField } from './keyboard.js';
 import { b3dPanel } from './b3d-panel.js';
-import { button3d, label3d, panel3d, row3d, select3d, slider3d, toggle3d, } from './widgets3d.js';
+import { undoHistory } from './undo-history.js';
+import { button3d, iconBar3d, label3d, panel3d, row3d, select3d, slider3d, toggle3d, } from './widgets3d.js';
 /** The edge length each density aims for, metres. */
 export const TAILOR_MESH_EDGE = {
     coarse: 0.03,
@@ -101,7 +111,63 @@ export function mountTailorTool(owner, options) {
         name,
         slot,
     });
-    const changed = () => options.handleChange?.(state());
+    /*
+    UNDO: the state recorded as each edit settles (a slider drag is one step),
+    and restored as opening with it would.
+    */
+    const history = undoHistory({ limit: 100 });
+    history.record(state());
+    let stepTimer = null;
+    let restoring = false;
+    const buttons = () => `${canUndo()}${canRedo()}`;
+    const record = () => {
+        const was = buttons();
+        if (stepTimer != null)
+            clearTimeout(stepTimer);
+        stepTimer = null;
+        history.record(state());
+        if (buttons() !== was)
+            refresh();
+    };
+    const canUndo = () => history.canUndo || stepTimer != null;
+    const canRedo = () => stepTimer == null && history.canRedo;
+    const changed = () => {
+        options.handleChange?.(state());
+        if (restoring)
+            return;
+        // The buttons are redrawn when the step is recorded, not mid-drag.
+        if (stepTimer != null)
+            clearTimeout(stepTimer);
+        stepTimer = setTimeout(record, 400);
+    };
+    const restore = (st) => {
+        if (st == null)
+            return;
+        restoring = true;
+        const c = JSON.parse(JSON.stringify(st.cut));
+        Object.assign(cut, c);
+        look = JSON.parse(JSON.stringify(st.look));
+        name = st.name;
+        slot = st.slot;
+        shading?.set({ recipe: look });
+        // The outline starts afresh: its selection was in the shapes undone.
+        field = null;
+        recut();
+        changed();
+        restoring = false;
+        refresh();
+    };
+    const undo = () => {
+        if (!canUndo())
+            return;
+        if (stepTimer != null)
+            record();
+        restore(history.undo());
+    };
+    const redo = () => {
+        if (canRedo())
+            restore(history.redo());
+    };
     /*
     THE BODY, as the cut needs it: fitted over with its nipples smoothed (cloth
     bridges them), cut from a body smoothed more for thicker cloth, and the skin
@@ -183,74 +249,139 @@ export function mountTailorTool(owner, options) {
     });
     let material = null;
     let shading = null;
+    /** The cut on show: drawn on the body, in its material (null clears it). */
+    const show = (next) => {
+        mesh?.dispose();
+        mesh = null;
+        made = next;
+        if (next == null)
+            return;
+        const proxy = shell(next);
+        if (material == null) {
+            material = proxyMaterial(scene, proxy);
+            shading = clothShading(material);
+            shading.set({ recipe: look });
+        }
+        // Skirts and draped cloth are open: their inside shows.
+        const open = cut.skirt || cut.drape === true;
+        material.backFaceCulling = !open;
+        material.twoSidedLighting = open;
+        mesh = humanProxy(scene, built, proxy, fitOn, body.weights, material);
+        owner.register?.({ meshes: [mesh] });
+    };
+    /*
+    A DRAPE IS SETTLED IN THE BACKGROUND. It is a simulation (a second or more
+    on a fine mesh), so it runs in time slices after the edits pause, the cloth
+    as it was stays on show meanwhile, and the next edit stops it: moving a point
+    never waits for a drape it has already made stale.
+    */
+    let draping = null;
+    let drapeSoon = null;
+    /** Done (or cancel) pressed while a drape was settling: finished after it. */
+    let finishAfter = null;
+    const stopDrape = () => {
+        draping?.abort();
+        draping = null;
+        if (drapeSoon != null)
+            clearTimeout(drapeSoon);
+        drapeSoon = null;
+    };
+    const drapeLater = (outline) => {
+        const density = cut.mesh === 'body' ? 'medium' : cut.mesh ?? 'medium';
+        const say = (next) => {
+            if (next === status)
+                return;
+            status = next;
+            refresh();
+        };
+        say('draping…');
+        drapeSoon = setTimeout(() => {
+            drapeSoon = null;
+            const run = (draping = new AbortController());
+            // Draped over the even surface (as the body: medium), made in slices
+            // too the first time (half a second or more at once).
+            const made = dummies.get(density);
+            const surface = made
+                ? Promise.resolve(made)
+                : runSliced(remeshSteps(fitOn, cutFrom, { edge: TAILOR_MESH_EDGE[density] }), { signal: run.signal }).then((d) => {
+                    // Not if the body changed meanwhile (that stops this run).
+                    if (run === draping)
+                        dummies.set(density, d);
+                    return d;
+                });
+            surface
+                .then((d) => drapeGarmentAsync(d, fitOn, {
+                front: outline,
+                thickness: cut.thickness,
+                edge: TAILOR_MESH_EDGE[density],
+            }, { signal: run.signal }))
+                .then((g) => {
+                if (run !== draping || disposed)
+                    return;
+                draping = null;
+                show(g);
+                say('');
+                if (finishAfter != null)
+                    finish(finishAfter);
+            }, (e) => {
+                if (run !== draping || disposed || e.name === 'AbortError')
+                    return;
+                draping = null;
+                show(null);
+                say(`could not cut: ${e.message}`);
+                finishAfter = null;
+            });
+        }, 200);
+    };
     const recut = () => {
         if (disposed)
             return;
-        mesh?.dispose();
-        mesh = null;
-        made = null;
+        stopDrape();
         const outline = mirrorOutline(cut.shapes.filter((s) => s.length >= 3));
-        if (outline.length) {
-            try {
-                const nipples = body.regions.nipples;
-                // Thicker cloth bridges more of the chest.
-                const cutOn = nipples
-                    ? smoothUnder(body.positions, body.indices, nipples, {
-                        bridge: cut.thickness / 0.02,
-                    })
-                    : fitOn;
-                const density = cut.mesh ?? 'medium';
-                if (cut.skirt) {
-                    made = skirtGarment(fitOn, cutFrom, {
-                        front: outline,
-                        thickness: cut.thickness,
-                        anchor: notArm,
-                    });
-                }
-                else if (cut.drape) {
-                    // Draped over the even surface (as the body: medium).
-                    const d = dummy(density === 'body' ? 'medium' : density);
-                    made = drapeGarment(d, fitOn, {
-                        front: outline,
-                        thickness: cut.thickness,
-                        edge: TAILOR_MESH_EDGE[density === 'body' ? 'medium' : density],
-                    });
-                }
-                else if (density === 'body') {
-                    made = cutGarment(cutOn, cutFrom, {
-                        front: outline,
-                        thickness: cut.thickness,
-                        ease: EASE,
-                        fitOn,
-                    });
-                }
-                else {
-                    // Cut from the even surface, then bound to the body itself.
-                    const d = dummy(density);
-                    made = rebindCut(cutGarment(d.positions, d.triangles, {
-                        front: outline,
-                        thickness: cut.thickness,
-                        ease: EASE,
-                    }), d, fitOn);
-                }
-                const proxy = shell(made);
-                if (material == null) {
-                    material = proxyMaterial(scene, proxy);
-                    shading = clothShading(material);
-                    shading.set({ recipe: look });
-                }
-                // Skirts and draped cloth are open: their inside shows.
-                const open = cut.skirt || cut.drape === true;
-                material.backFaceCulling = !open;
-                material.twoSidedLighting = open;
-                mesh = humanProxy(scene, built, proxy, fitOn, body.weights, material);
-                owner.register?.({ meshes: [mesh] });
-                status = '';
+        if (!outline.length)
+            return show(null);
+        if (cut.drape && !cut.skirt)
+            return drapeLater(outline);
+        try {
+            const nipples = body.regions.nipples;
+            // Thicker cloth bridges more of the chest.
+            const cutOn = nipples
+                ? smoothUnder(body.positions, body.indices, nipples, {
+                    bridge: cut.thickness / 0.02,
+                })
+                : fitOn;
+            const density = cut.mesh ?? 'medium';
+            let next;
+            if (cut.skirt) {
+                next = skirtGarment(fitOn, cutFrom, {
+                    front: outline,
+                    thickness: cut.thickness,
+                    anchor: notArm,
+                });
             }
-            catch (e) {
-                status = `could not cut: ${e.message}`;
-                made = null;
+            else if (density === 'body') {
+                next = cutGarment(cutOn, cutFrom, {
+                    front: outline,
+                    thickness: cut.thickness,
+                    ease: EASE,
+                    fitOn,
+                });
             }
+            else {
+                // Cut from the even surface, then bound to the body itself.
+                const d = dummy(density);
+                next = rebindCut(cutGarment(d.positions, d.triangles, {
+                    front: outline,
+                    thickness: cut.thickness,
+                    ease: EASE,
+                }), d, fitOn);
+            }
+            show(next);
+            status = '';
+        }
+        catch (e) {
+            status = `could not cut: ${e.message}`;
+            show(null);
         }
     };
     const garment = () => made == null
@@ -263,14 +394,53 @@ export function mountTailorTool(owner, options) {
     THE PANEL: a system panel of its own, done and cancel first.
     */
     let field = null;
+    // Pinned above the scrolling rows: they must not scroll out of reach.
+    const header = () => [
+        iconBar3d({
+            items: [
+                {
+                    icon: 'rotateCcw',
+                    title: 'undo (⌘Z)',
+                    dim: !canUndo(),
+                    handleClick: undo,
+                },
+                {
+                    icon: 'rotateCw',
+                    title: 'redo (⇧⌘Z)',
+                    dim: !canRedo(),
+                    handleClick: redo,
+                },
+                ...(options.persistent
+                    ? []
+                    : [
+                        { spacer: true },
+                        {
+                            icon: 'close',
+                            title: 'cancel',
+                            handleClick: () => finish(false),
+                        },
+                        {
+                            icon: 'check',
+                            title: 'done: keep the garment',
+                            handleClick: () => finish(true),
+                        },
+                    ]),
+            ],
+        }),
+    ];
     const widgets = () => [
-        row3d({}, button3d({ label: 'cancel', handleClick: () => finish(false) }), button3d({ label: 'done', handleClick: () => finish(true) })),
+        ...(options.rows?.top?.() ?? []),
         ...(status ? [label3d({ text: status, muted: true, compact: true })] : []),
         (field = outlineField3d({
             positions: body.positions,
             indices: body.indices,
             value: cut.shapes,
+            // The panel is rebuilt as the status changes (a drape starting and
+            // settling): the outline carries on with its selection and open shape.
+            editing: field?.editing,
             maxHeight: 400,
+            // A drape pins its cloth where the outline is over the body.
+            anchors: cut.drape === true && !cut.skirt,
             handleCommit: (v) => {
                 cut.shapes = v;
                 recut();
@@ -323,13 +493,15 @@ export function mountTailorTool(owner, options) {
                 cut.drape = v === 'drape';
                 recut();
                 changed();
+                // The outline shows what a drape anchors, and only in drape mode.
+                refresh();
             },
         }),
         materialPicker3d({
             label: 'material',
             value: look,
             types: ['cloth'],
-            collections: ['fabrics'],
+            collections: ['fabrics', 'textiles'],
             keep: ['albedo', 'recolour'],
             handleChange: (r) => {
                 look = r;
@@ -370,35 +542,58 @@ export function mountTailorTool(owner, options) {
                 }),
             ]
             : []),
+        ...(options.rows?.bottom?.() ?? []),
     ];
-    const panelEl = b3dPanel({
-        icon: 'scissors',
-        title: 'Tailor',
-        exclusive: 'off',
-        open: true,
-    });
-    const panelSvg = () => panel3d({ width: 340, height: 'fit', maxHeight: 720 }, ...widgets());
+    const ownPanel = options.panel == null;
+    const panelEl = options.panel ??
+        b3dPanel({
+            icon: 'scissors',
+            title: 'Tailor',
+            exclusive: 'off',
+            open: true,
+        });
+    const panelSvg = () => panel3d({
+        width: 340,
+        height: 'fit',
+        maxHeight: Math.min(720, owner.panelRoom?.(panelEl) ?? 720),
+        header: header(),
+    }, ...widgets());
     function refresh() {
         if (!disposed)
             panelEl.svg = panelSvg();
     }
     panelEl.svg = panelSvg();
-    owner.append(panelEl);
+    if (ownPanel)
+        owner.append(panelEl);
+    // Redrawn to the view's height once a resize settles.
+    owner.addEventListener?.('resizeend', refresh);
     recut();
     if (status)
         refresh();
     function unmount() {
         if (disposed)
             return;
+        if (stepTimer != null)
+            clearTimeout(stepTimer);
+        stopDrape();
         disposed = true;
-        if (hideOthers)
-            options.handleHideOthers?.(false);
+        owner.removeEventListener?.('resizeend', refresh);
         mesh?.dispose();
         material?.dispose();
+        if (!ownPanel)
+            return;
+        if (hideOthers)
+            options.handleHideOthers?.(false);
         owner._closeSystemPanel?.(panelEl);
         panelEl.remove();
     }
     function finish(done) {
+        // Done waits for the drape settling now (it is the garment); cancel does not.
+        if (done && (draping != null || drapeSoon != null)) {
+            finishAfter = true;
+            return;
+        }
+        finishAfter = null;
         const g = done ? garment() : null;
         if (done && g == null) {
             status = 'close an outline first';
@@ -429,6 +624,15 @@ export function mountTailorTool(owner, options) {
         done: () => finish(true),
         cancel: () => finish(false),
         unmount,
+        refresh,
+        undo,
+        redo,
+        get canUndo() {
+            return canUndo();
+        },
+        get canRedo() {
+            return canRedo();
+        },
     };
 }
 //# sourceMappingURL=tailor-tool.js.map

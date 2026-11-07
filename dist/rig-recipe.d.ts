@@ -1,6 +1,6 @@
 import type { Role } from './retarget.js';
 import type { Vec3 } from './spatial-transform.js';
-import { type Markers } from './rig-fit.js';
+import { type HandMode, type Markers } from './rig-fit.js';
 export declare const RIG_RECIPE_VERSION = 1;
 /** A sphere a chain stays out of, on a bone. */
 export interface ColliderRecipe {
@@ -88,6 +88,12 @@ export interface RigBinding {
      * where it is, in the mesh's frame. They win over where the fit put them.
      */
     joints?: Record<string, Vec3>;
+    /**
+     * How much hand is rigged: `full` (thumb and four fingers), `mitten` (a
+     * thumb and one finger), `none` (the hand alone). Left out: as the fit
+     * found it. See rig-fit's `applyHandMode`.
+     */
+    hands?: HandMode;
 }
 export declare const STRAND_DEFAULTS: Omit<StrandSpringRecipe, 'anchor'>;
 /** A strand's direction as a unit vector, in the character's frame. */

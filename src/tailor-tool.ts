@@ -438,21 +438,21 @@ export function mountTailorTool(
           )
         )
         .then(
-        (g) => {
-          if (run !== draping || disposed) return
-          draping = null
-          show(g)
-          say('')
-          if (finishAfter != null) finish(finishAfter)
-        },
-        (e: Error) => {
-          if (run !== draping || disposed || e.name === 'AbortError') return
-          draping = null
-          show(null)
-          say(`could not cut: ${e.message}`)
-          finishAfter = null
-        }
-      )
+          (g) => {
+            if (run !== draping || disposed) return
+            draping = null
+            show(g)
+            say('')
+            if (finishAfter != null) finish(finishAfter)
+          },
+          (e: Error) => {
+            if (run !== draping || disposed || e.name === 'AbortError') return
+            draping = null
+            show(null)
+            say(`could not cut: ${e.message}`)
+            finishAfter = null
+          }
+        )
     }, 200)
   }
 
@@ -522,14 +522,32 @@ export function mountTailorTool(
   const header = (): Widget3d[] => [
     iconBar3d({
       items: [
-        { icon: 'rotateCcw', title: 'undo (⌘Z)', dim: !canUndo(), handleClick: undo },
-        { icon: 'rotateCw', title: 'redo (⇧⌘Z)', dim: !canRedo(), handleClick: redo },
+        {
+          icon: 'rotateCcw',
+          title: 'undo (⌘Z)',
+          dim: !canUndo(),
+          handleClick: undo,
+        },
+        {
+          icon: 'rotateCw',
+          title: 'redo (⇧⌘Z)',
+          dim: !canRedo(),
+          handleClick: redo,
+        },
         ...(options.persistent
           ? []
           : [
               { spacer: true as const },
-              { icon: 'close', title: 'cancel', handleClick: () => finish(false) },
-              { icon: 'check', title: 'done: keep the garment', handleClick: () => finish(true) },
+              {
+                icon: 'close',
+                title: 'cancel',
+                handleClick: () => finish(false),
+              },
+              {
+                icon: 'check',
+                title: 'done: keep the garment',
+                handleClick: () => finish(true),
+              },
             ]),
       ],
     }),

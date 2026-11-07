@@ -36,7 +36,7 @@ export interface HandlesView {
      * where it acts. Measured before it was fixed: an object turned 90° about Y
      * grew along world Z when its X cube was dragged.
      *
-     * Translate stays world-aligned, because a move is a world move.
+     * Arrows and pads ride it too: one frame for every handle.
      */
     setOrientation(rotation: Euler | null): void;
     setVisible(visible: boolean): void;

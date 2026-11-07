@@ -22,7 +22,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=9acedf89658b" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=aeadb365ee59" data-tosi-doc-system />
   <title>b3d — tosijs-3d</title>
   <meta name="description" content="The root 3D scene container. All other components (b3dSun, b3dSkybox, b3dLoader, etc.) must be children of a b3d element." />
   <link rel="canonical" href="https://3d.tosijs.net/tosi-b3d/" />
@@ -33,13 +33,13 @@
   <meta property="og:description" content="The root 3D scene container. All other components (b3dSun, b3dSkybox, b3dLoader, etc.) must be children of a b3d element." />
   <meta property="og:url" content="https://3d.tosijs.net/tosi-b3d/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d","description":"The root 3D scene container. All other components (b3dSun, b3dSkybox, b3dLoader, etc.) must be children of a b3d element.","url":"https://3d.tosijs.net/tosi-b3d/","inLanguage":"en","dateModified":"2026-11-03T15:57:12+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d","description":"The root 3D scene container. All other components (b3dSun, b3dSkybox, b3dLoader, etc.) must be children of a b3d element.","url":"https://3d.tosijs.net/tosi-b3d/","inLanguage":"en","dateModified":"2026-11-07T11:14:08+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Core","item":"https://3d.tosijs.net/core/"},{"@type":"ListItem","position":2,"name":"b3d","item":"https://3d.tosijs.net/tosi-b3d/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=8dbf70970b3a" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=1efe4da519d1" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="tosi-b3d.ts">
 <h1 id="b3d">b3d</h1>
 <p>The root 3D scene container. All other components (<code>b3dSun</code>, <code>b3dSkybox</code>, <code>b3dLoader</code>, etc.)
@@ -68,7 +68,7 @@ const scene = &#39;/test-3.glb&#39;
 // A Quaternius UAL rig — 1.83 m, feet at the origin, 27 curated clips off the
 // CDN (the full library is 120 clips and 20 MB). A person is 1.8 m here, and
 // the movement constants are tuned for one.
-const person = assetUrl(&#39;quaternius/UAL1_core.glb&#39;, 2)
+const person = assetUrl(&#39;quaternius/UAL1_core.glb&#39;, 3)
 
 // Your loadout: a button on the system bar opens it under the bar, with your
 // bag beside it (see inventory-box).
@@ -496,6 +496,10 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
 <td>returns the settings panel&#39;s widgets, drawn flat and in a headset from the same list; rebuilt each time it opens, and <code>refreshScenePanel()</code> updates an open one</td>
 </tr>
 <tr>
+<td><code>panelActions(el)</code></td>
+<td>returns buttons for the settings panel&#39;s icon bar (<code>iconBar3d</code> items: undo, redo…), at its right end after the diagnostics</td>
+</tr>
+<tr>
 <td><code>pausePanel(el, resume)</code></td>
 <td>returns the pause panel&#39;s rows in place of the default title and Continue button; <code>resume</code> lets the player back in</td>
 </tr>
@@ -504,6 +508,14 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
 <td>replaces the built-in WebXR setup and Enter-VR button with your own</td>
 </tr>
 </tbody></table>
+<h2 id="resizing">Resizing</h2>
+<p>Panels are drawn at a size that fits the view. When the scene changes size, the
+open settings panel is rebuilt once the resize settles, and the element
+dispatches <code>resizeend</code>. A system panel whose height follows the view rebuilds on
+it, capped by <code>el.panelRoom(panelEl)</code> (the height left under its top):</p>
+<pre><code class="language-javascript" data-highlighted><span class="token keyword">const</span> <span class="token function-variable function">svg</span> <span class="token operator">=</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token function">panel3d</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">width</span><span class="token operator">:</span> <span class="token number">300</span><span class="token punctuation">,</span> <span class="token literal-property property">height</span><span class="token operator">:</span> <span class="token string">'fit'</span><span class="token punctuation">,</span> <span class="token literal-property property">maxHeight</span><span class="token operator">:</span> Math<span class="token punctuation">.</span><span class="token function">min</span><span class="token punctuation">(</span><span class="token number">640</span><span class="token punctuation">,</span> scene<span class="token punctuation">.</span><span class="token function">panelRoom</span><span class="token punctuation">(</span>panelEl<span class="token punctuation">)</span><span class="token punctuation">)</span> <span class="token punctuation">}</span><span class="token punctuation">,</span> <span class="token operator">...</span>rows<span class="token punctuation">)</span>
+scene<span class="token punctuation">.</span><span class="token function">addEventListener</span><span class="token punctuation">(</span><span class="token string">'resizeend'</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span> panelEl<span class="token punctuation">.</span>svg <span class="token operator">=</span> <span class="token function">svg</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
+</code></pre>
 <h2 id="loading">Loading</h2>
 <p>The spinner shows until the scene is built: its files loaded, its shaders
 ready, its terrain streamed in, and every child that holds it up
@@ -524,7 +536,10 @@ that failed).</p>
     <ul id="tosi-nav-demos">
       <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
       <li><a class="doc-link" href="../solar-system/">Solar System</a></li>
-      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-weapon-fit" aria-label="Weapon Fit"></button><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></div>
+      <ul id="tosi-nav-weapon-fit">
+        <li><a class="doc-link" href="../hold-grip/">hold grips</a></li>
+      </ul></li>
       <li><a class="doc-link" href="../rig-tool/">Rig tool</a></li>
       <li><a class="doc-link" href="../effect-tool/">Effect tool</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-builder" aria-label="character builder"></button><a class="doc-link" href="../character-builder/">character builder</a></div>
@@ -694,6 +709,7 @@ that failed).</p>
             <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-rigged-body-glb" aria-label="rigged-body-glb"></button><a class="doc-link" href="../rigged-body-glb/">rigged-body-glb</a></div>
             <ul id="tosi-nav-rigged-body-glb">
               <li><a class="doc-link" href="../spring-vrm/">spring-vrm</a></li>
+              <li><a class="doc-link" href="../body-export/">body export</a></li>
             </ul></li>
           </ul></li>
           <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-chunks" aria-label="glb-chunks"></button><a class="doc-link" href="../glb-chunks/">glb-chunks</a></div>
@@ -807,6 +823,7 @@ that failed).</p>
     <ul id="tosi-nav-ui">
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widgets3d" aria-label="widgets3d"></button><a class="doc-link" href="../widgets3d/">widgets3d</a></div>
       <ul id="tosi-nav-widgets3d">
+        <li><a class="doc-link" href="../playback-field/">Playback</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widget-semantics" aria-label="widget semantics"></button><a class="doc-link" href="../widget-semantics/">widget semantics</a></div>
         <ul id="tosi-nav-widget-semantics">
@@ -825,7 +842,11 @@ that failed).</p>
         <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
         <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
         <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
-        <li><a class="doc-link" href="../material-picker/">materialPicker3d</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-material-picker" aria-label="materialPicker3d"></button><a class="doc-link" href="../material-picker/">materialPicker3d</a></div>
+        <ul id="tosi-nav-material-picker">
+          <li><a class="doc-link" href="../fabric-textures/">fabric textures</a></li>
+          <li><a class="doc-link" href="../material-pictures/">material pictures</a></li>
+        </ul></li>
         <li><a class="doc-link" href="../material-recipe/">material-recipe</a></li>
         <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-color-field" aria-label="color3d"></button><a class="doc-link" href="../color-field/">color3d</a></div>
@@ -903,12 +924,14 @@ that failed).</p>
     <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-utilities" aria-label="utilities"></button><a class="doc-link" href="../utilities/">utilities</a></div>
     <ul id="tosi-nav-utilities">
       <li><a class="doc-link" href="../clock/">clock</a></li>
+      <li><a class="doc-link" href="../undo-history/">undo history</a></li>
     </ul></li>
     <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-upgrading" aria-label="Upgrading"></button><a class="doc-link" href="../upgrading/">Upgrading</a></div>
     <ul id="tosi-nav-upgrading">
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.12.4/">0.12.4</a></li>
         <li><a class="doc-link" href="../v0.12.3/">0.12.3</a></li>
         <li><a class="doc-link" href="../v0.12.2/">0.12.2</a></li>
         <li><a class="doc-link" href="../v0.12.1/">0.12.1</a></li>
@@ -992,6 +1015,6 @@ that failed).</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-6cqawqfh.js"></script>
+  <script type="module" src="../hydrate-d5cbj3ft.js"></script>
 </body>
 </html>

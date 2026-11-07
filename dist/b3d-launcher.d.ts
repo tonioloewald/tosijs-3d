@@ -1,12 +1,4 @@
 import * as BABYLON from '@babylonjs/core';
-/**
- * Where a held model's GRIP is, in its own frame: the middle of its lowest
- * third (a pistol's handle hangs below its slide). What a launcher with
- * `grip: 'auto'` puts on its socket instead of the model's origin, and what
- * the character builder's held items use, so one set of numbers means the
- * same in both. A `_grip` node in the model, when it has one, wins (see
- * `heldGrip`).
- */
 export declare function deriveGrip(root: BABYLON.TransformNode): BABYLON.Vector3 | null;
 /** A held model's grip: its `_grip` node's place if it has one, else `deriveGrip`. */
 export declare function heldGrip(root: BABYLON.TransformNode): BABYLON.Vector3 | null;

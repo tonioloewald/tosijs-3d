@@ -38,7 +38,12 @@ The panel has these sections, its job first.
 - **Markers**, for a mesh bound from them. `symmetry` moves both sides
   together; `tail` adds a tail (place its tip from the side view; it is a
   bone chain, `tail_01` on, for a spring); `guess markers` starts again from
-  the outline. The joints follow the markers. `move joints` shows every
+  the outline; `spread fingers` lays both hands out afresh from the wrists
+  (a glove guessed into a knot), each finger apart, and shows the joints to
+  drag into place. `hands` says how much hand is rigged: thumb and four
+  fingers, a mitten (a thumb and one finger, for a glove: the other fingers
+  lie on it and take no skin) or none (the hand alone); `as found` leaves it
+  to the fit. The joints follow the markers. `move joints` shows every
   joint (blue) to drag by hand from the view that suits: shoulders from the
   front, fingers and thumbs from the top, feet from the side. What hangs from
   a joint comes with it; set `dragging` to turn what hangs from it instead
@@ -121,6 +126,9 @@ tool.unmount() // everything it added goes; safe to call twice
 - **`change`** fires on every edit, **`commit`** once per finished gesture
   (a release on its panel or in the scene, a role assigned), each with a copy
   of the recipe.
+- **Undo and redo** (the arrows at the top of its panel, ⌘Z and ⇧⌘Z) step
+  through those commits, markers and binding included; the body is bound
+  again when you animate or press done. Each model has its own history.
 - **Its panel is a system panel** (a button on the system bar, beside the
   host's), with the view's camera menu beside it.
 - **`unmount()`** removes every mesh, material, texture, observer and panel it
@@ -153,8 +161,9 @@ import { b3d } from './tosi-b3d.js';
 import { b3dLight } from './b3d-light.js';
 import { b3dSun } from './b3d-shadows.js';
 import { assetUrl } from './asset-url.js';
-import { button3d, label3d, panel3d, row3d, select3d, slider3d, toggle3d, } from './widgets3d.js';
+import { button3d, foldSections, iconBar3d, label3d, panel3d, row3d, select3d, slider3d, toggle3d, } from './widgets3d.js';
 import { vector3d } from './vector-field.js';
+import { undoHistory } from './undo-history.js';
 import { pointerClaimedByPanel } from './frame-panel.js';
 import { touchOrbit } from './touch-orbit.js';
 import { inspectView, inspectStage, INSPECT_FACES, seamOverlay, } from './inspect-view.js';
@@ -162,9 +171,10 @@ import { viewMenu } from './bar-menu.js';
 import { b3dPanel } from './b3d-panel.js';
 import { readSkeleton, retargetClip, } from './retarget-babylon.js';
 import { ROLES } from './retarget.js';
-import { fitSkeleton, guessMarkers, meshQuery, objTriangles, rigSilhouette, } from './rig-fit.js';
+import { fitSkeleton, guessMarkers, meshQuery, objTriangles, rigSilhouette, spreadHand, applyHandMode, } from './rig-fit.js';
 import { buildBody, gatherTriangles as gather, keepMaterials, surfaceMaterial, soleVertices, lowestOf, } from './rig-build.js';
 import { bodyFromMarkers } from './rigged-body.js';
+import { exportBodyRows } from './body-export.js';
 import { applyRigRecipe } from './rig-recipe-babylon.js';
 import { RIG_RECIPE_VERSION, STRAND_DEFAULTS, validateRigRecipe, strandPath, setStrandPath, pathLength, } from './rig-recipe.js';
 /** Mixamo's eight front-view markers, given for the left and mirrored. */
@@ -193,6 +203,17 @@ const TAIL = {
     params: { stiffness: 0.3, damping: 0.85, gravity: 9.8 },
     colliders: 'none',
 };
+/**
+ * Is a hand joint shown to move in this mode? A mitten shows its thumb and
+ * the one finger the others lie on; none shows no finger at all.
+ */
+function handJointShown(name, mode) {
+    if (mode === 'mitten')
+        return !/^(index|ring|pinky)_/.test(name);
+    if (mode === 'none')
+        return !/^(thumb|index|middle|ring|pinky)_/.test(name);
+    return true;
+}
 export function rigToolModels() {
     // Tonio's meshes (CC BY 4.0), bound from their markers.
     const tonio = (f) => assetUrl('tonio/rigging/' + f);
@@ -247,7 +268,7 @@ export function rigToolModels() {
             scale: 3,
             recipe: { armSpaceDeg: 55 },
         },
-        { label: 'UAL mannequin', url: assetUrl('quaternius/UAL1_core.glb', 2) },
+        { label: 'UAL mannequin', url: assetUrl('quaternius/UAL1_core.glb', 3) },
     ];
 }
 const COLORS = {
@@ -364,18 +385,35 @@ eight front-view markers (and a tail tip, for a tail), bone heat for the
 weights, and a Babylon skeleton built on it. Its tail, if any, is `tail_01`
 … `tail_leaf`: a bone chain for the springs.
 */
+/** A body was bound from exactly this binding (markers, tail, joints, hands). */
+function sameBinding(body, binding) {
+    const m = body.made;
+    if (binding == null || m.by !== 'markers')
+        return false;
+    const key = (b) => JSON.stringify([
+        b.markers,
+        b.tail ?? null,
+        b.tail != null ? b.tailBase ?? null : null,
+        b.joints ?? {},
+        b.hands ?? null,
+    ]);
+    return key(m) === key(binding);
+}
 /** Bodies handed to a host on done: their file materials are the host's now. */
 const handedOver = new WeakSet();
 function bindMesh(scene, name, tris, binding, options = {}) {
     const { positions, indices } = tris;
     // A rigged body (rigged-body), as MakeHuman's are: one shape for both.
-    const body = bodyFromMarkers(tris, {
-        markers: binding.markers,
-        tail: binding.tail,
-        tailBase: binding.tailBase,
-        joints: binding.joints,
-        tailBones: options.tailBones,
-    });
+    // A host's, already bound from this binding, is shown as it is.
+    const body = options.body ??
+        bodyFromMarkers(tris, {
+            markers: binding.markers,
+            tail: binding.tail,
+            tailBase: binding.tailBase,
+            joints: binding.joints,
+            hands: binding.hands,
+            tailBones: options.tailBones,
+        });
     const built = buildBody(scene, name, body);
     const mat = new BABYLON.StandardMaterial(`${name}-skin`, scene);
     mat.diffuseColor = BABYLON.Color3.FromHexString(options.color ?? '#8a8f99');
@@ -398,6 +436,7 @@ function bindMesh(scene, name, tris, binding, options = {}) {
             tail: binding.tail,
             tailBase: binding.tailBase,
             joints: binding.joints,
+            hands: binding.hands,
         },
         body,
         dispose() {
@@ -451,6 +490,8 @@ export function mountRigTool(owner, options = {}) {
     const cleanups = [];
     /** A recipe the host handed over before the model was loaded. */
     let given = options.recipe ?? null;
+    /** The host's body bound from that recipe, until the first load takes it. */
+    let hostBody = options.body ?? null;
     const ui = {
         model: models[0].label,
         clip: 'Walk_Loop',
@@ -511,11 +552,10 @@ export function mountRigTool(owner, options = {}) {
                 tailStart: from.tail != null ? from.tailBase ?? undefined : undefined,
             });
             parents = new Map(rig.joints.map((j) => [j.name, j.parent]));
-            const out = new Map(rig.joints.map((j) => [j.name, j.position]));
-            if (withMoved)
-                for (const [n, p] of Object.entries(from.joints ?? {}))
-                    out.set(n, p);
-            return out;
+            const moved = withMoved ? from.joints ?? {} : {};
+            const joints = rig.joints.map((j) => moved[j.name] != null ? { ...j, position: moved[j.name] } : j);
+            const handed = applyHandMode({ ...rig, joints, at: () => undefined }, from.hands);
+            return new Map(handed.joints.map((j) => [j.name, j.position]));
         }
         catch {
             return null;
@@ -612,6 +652,7 @@ export function mountRigTool(owner, options = {}) {
             tail,
             ...(tailBase ? { tailBase } : {}),
             ...moved,
+            ...(bound?.hands ? { hands: bound.hands } : {}),
         };
         if (next != null)
             bound = {
@@ -643,6 +684,27 @@ export function mountRigTool(owner, options = {}) {
         refresh();
         tool?.targets();
     }
+    // How much hand is rigged (rig-fit's applyHandMode): kept in the binding.
+    function setHands(mode) {
+        if (bound == null)
+            return;
+        const binding = recipe.binding ?? {
+            markers: bound.markers,
+            tail: bound.tail ?? null,
+        };
+        if (mode == null)
+            delete binding.hands;
+        else
+            binding.hands = mode;
+        recipe.binding = binding;
+        bound = { ...bound, hands: mode };
+        stale = true;
+        ui.status = `hands: ${mode ?? 'as found'}; bound again when you animate or press done`;
+        edited();
+        commitNow();
+        refresh();
+        tool?.targets();
+    }
     async function bindIfMoved() {
         if (!stale)
             return;
@@ -666,7 +728,23 @@ export function mountRigTool(owner, options = {}) {
     */
     let panelEl = null;
     const panelSvg = () => {
-        const svg = panel3d({ width: 300, height: 'fit', maxHeight: 640 }, ...panel());
+        const svg = panel3d({
+            width: 300,
+            height: 'fit',
+            // Hosted, it fits the room under its top (standalone it is the
+            // settings panel, which fits itself).
+            maxHeight: hosted && owner.panelRoom != null
+                ? Math.min(640, owner.panelRoom(panelEl ?? undefined))
+                : 640,
+        }, 
+        // Hosted it is a panel of its own: tabs as the scene panel has them.
+        ...(hosted
+            ? foldSections(panel(), {
+                key: 'rig-tool',
+                mode: 'tabs',
+                repaint: refresh,
+            })
+            : panel()));
         const inner = svg.handlePointer;
         if (inner != null)
             svg.handlePointer = (k, x, y) => {
@@ -701,7 +779,83 @@ export function mountRigTool(owner, options = {}) {
             return;
         dirty = false;
         emit('commit');
+        step();
     }
+    const history = undoHistory({ limit: 100 });
+    const stepNow = () => ({
+        recipe: copy(),
+        binding: bound == null
+            ? null
+            : JSON.parse(JSON.stringify({
+                markers: bound.markers,
+                tail: bound.tail ?? null,
+                ...(bound.tailBase ? { tailBase: bound.tailBase } : {}),
+                ...(bound.joints ? { joints: bound.joints } : {}),
+                ...(bound.hands ? { hands: bound.hands } : {}),
+            })),
+    });
+    function step() {
+        const could = `${history.canUndo}${history.canRedo}`;
+        history.record(stepNow());
+        if (`${history.canUndo}${history.canRedo}` !== could)
+            refresh();
+    }
+    function restore(to) {
+        if (to == null || disposed)
+            return;
+        const moved = JSON.stringify(to.binding) !== JSON.stringify(stepNow().binding);
+        recipe = fresh({ ...to.recipe, model: recipe.model });
+        if (moved && bound != null && to.binding != null) {
+            const b = to.binding;
+            bound = {
+                ...bound,
+                markers: b.markers,
+                tail: b.tail,
+                tailBase: b.tailBase ?? null,
+                joints: b.joints,
+                hands: b.hands,
+            };
+            stale = true;
+            ui.status = 'bound again when you animate or press done';
+        }
+        ui.spring = Math.max(0, Math.min(ui.spring, (recipe.springs?.length ?? 1) - 1));
+        if (files)
+            remember(ui.model, recipe);
+        emit('change');
+        tool?.rebuild(true);
+        tool?.targets();
+        refresh();
+    }
+    function startOver() {
+        const m = models.find((m) => m.label === ui.model);
+        recipe = fresh({ ...m?.recipe, model: recipe.model });
+        ui.spring = 0;
+        changed(true);
+        refresh();
+    }
+    function undo() {
+        // An edit still settling is a step of its own.
+        commitNow();
+        restore(history.undo());
+    }
+    function redo() {
+        commitNow();
+        restore(history.redo());
+    }
+    const onKey = (e) => {
+        if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z')
+            return;
+        const t = e.target;
+        if (t?.closest?.('input, textarea, [contenteditable]'))
+            return;
+        e.preventDefault();
+        if (e.shiftKey)
+            redo();
+        else
+            undo();
+    };
+    window.addEventListener('keydown', onKey);
+    cleanups.push(() => window.removeEventListener('keydown', onKey));
     /** An edit: kept (standalone), announced, and committed when it settles. */
     function edited() {
         if (files)
@@ -733,6 +887,28 @@ export function mountRigTool(owner, options = {}) {
                     row3d({}, button3d({ label: 'cancel', handleClick: () => finish(false) }), button3d({ label: 'done', handleClick: () => finish(true) })),
                 ]
                 : []),
+            iconBar3d({
+                items: [
+                    {
+                        icon: 'rotateCcw',
+                        title: 'undo (⌘Z)',
+                        dim: !(history.canUndo || dirty),
+                        handleClick: undo,
+                    },
+                    {
+                        icon: 'rotateCw',
+                        title: 'redo (⇧⌘Z)',
+                        dim: !history.canRedo,
+                        handleClick: redo,
+                    },
+                    // Back to the model's own rig (an undo step like any other).
+                    {
+                        icon: 'refreshCcw',
+                        title: 'start over',
+                        handleClick: startOver,
+                    },
+                ],
+            }),
             label3d({ text: ui.status, muted: true, compact: true }),
         ];
         if (bound != null) {
@@ -742,7 +918,12 @@ export function mountRigTool(owner, options = {}) {
             UAL's by name, so there are no roles to set.
             */
             const b = bound;
-            w.push(label3d({ text: 'Markers', collapsible: true, open: true }), label3d({
+            w.push(label3d({
+                text: 'Markers',
+                icon: 'rig',
+                collapsible: true,
+                open: true,
+            }), label3d({
                 text: 'drag each marker onto its joint: the mannequin shows where',
                 muted: true,
                 compact: true,
@@ -796,6 +977,45 @@ export function mountRigTool(owner, options = {}) {
             }), button3d({
                 label: 'guess markers',
                 handleClick: () => setMarkers(guessMarkers(rigSilhouette(b.positions, b.indices, 'front')), b.tail ?? null),
+            }), button3d({
+                label: 'spread fingers',
+                handleClick: () => {
+                    /*
+                    A KNOTTED HAND, untied: both hands' thumbs and fingers laid out
+                    from the wrist (spreadHand), to drag into place with the joints
+                    showing. The hand is as long as the fit made it, kept between
+                    half and all of the forearm.
+                    */
+                    const shown = fittedJoints(b, true);
+                    if (shown == null)
+                        return;
+                    const moved = {};
+                    for (const s of ['l', 'r']) {
+                        const w = shown.get(`hand_${s}`);
+                        const e = shown.get(`lowerarm_${s}`);
+                        if (w == null || e == null)
+                            continue;
+                        const fore = Math.hypot(w.x - e.x, w.y - e.y, w.z - e.z);
+                        const tip = shown.get(`middle_04_leaf_${s}`);
+                        const reach = tip != null
+                            ? Math.hypot(tip.x - w.x, tip.y - w.y, tip.z - w.z)
+                            : 0.75 * fore;
+                        const length = Math.min(fore, Math.max(0.5 * fore, reach));
+                        Object.assign(moved, spreadHand(w, e, s, length));
+                    }
+                    ui.joints = true;
+                    setJoints('fingers spread', moved);
+                },
+            }), select3d({
+                label: 'hands',
+                value: b.hands ?? 'as found',
+                options: [
+                    { label: 'as found', value: 'as found' },
+                    { label: 'thumb and four fingers', value: 'full' },
+                    { label: 'mitten: thumb and one finger', value: 'mitten' },
+                    { label: 'none: the hand alone', value: 'none' },
+                ],
+                handleChange: (v) => setHands(v === 'as found' ? undefined : v),
             }), toggle3d({
                 label: 'move joints',
                 value: ui.joints,
@@ -830,7 +1050,12 @@ export function mountRigTool(owner, options = {}) {
             // ROLES, for a model on its own skeleton: which bone plays which part.
             const guessed = applied?.read.roles ?? {};
             const set = recipe.roles?.[ui.role];
-            w.push(label3d({ text: 'Roles', collapsible: true, open: true }), select3d({
+            w.push(label3d({
+                text: 'Roles',
+                icon: 'biped',
+                collapsible: true,
+                open: true,
+            }), select3d({
                 label: 'clicking sets',
                 value: ui.clickSets,
                 options: [
@@ -884,7 +1109,12 @@ export function mountRigTool(owner, options = {}) {
             }));
         }
         // MOTION: the clips it plays, how they sit on it, and more of them.
-        w.push(label3d({ text: 'Motion', collapsible: true, open: true }), toggle3d({
+        w.push(label3d({
+            text: 'Motion',
+            icon: 'motion',
+            collapsible: true,
+            open: true,
+        }), toggle3d({
             label: 'animate',
             value: ui.pose === 'animate',
             handleChange: (v) => {
@@ -917,7 +1147,7 @@ export function mountRigTool(owner, options = {}) {
         }), 
         // VIEW: where it is seen from (also the camera on the bar) and what is
         // shown beside it.
-        label3d({ text: 'View', collapsible: true }), select3d({
+        label3d({ text: 'View', icon: 'camera', collapsible: true }), select3d({
             label: 'seen from',
             value: ui.view,
             options: [...INSPECT_FACES, 'free'].map((v) => ({
@@ -939,7 +1169,7 @@ export function mountRigTool(owner, options = {}) {
             handleChange: (v) => tool?.bones((ui.bones = v)),
         }), 
         // MODEL: which one, and how it is rigged.
-        label3d({ text: 'Model', collapsible: true }), 
+        label3d({ text: 'Model', icon: 'mesh', collapsible: true }), 
         // A choice only when there is one (a host's one model has none).
         ...(models.length > 1 || models[0]?.label !== ui.model
             ? [
@@ -989,7 +1219,12 @@ export function mountRigTool(owner, options = {}) {
         }));
         // Springs.
         const springs = recipe.springs ?? [];
-        w.push(label3d({ text: 'Springs', collapsible: true, open: true }), button3d({
+        w.push(label3d({
+            text: 'Springs',
+            icon: 'spring',
+            collapsible: true,
+            open: true,
+        }), button3d({
             label: '+ strand',
             handleClick: () => {
                 const anchor = applied?.read.roles.head ?? boneNames[0];
@@ -1140,10 +1375,10 @@ export function mountRigTool(owner, options = {}) {
                 },
             }));
         }
-        // Recipe. Hosted with `files: false`, the host keeps it: only start over.
-        w.push(label3d({ text: 'Recipe', collapsible: true }));
+        // Recipe: saved, loaded and copied (hosted with `files: false` the host
+        // keeps it, and start over is beside undo).
         if (files)
-            w.push(button3d({
+            w.push(label3d({ text: 'Recipe', icon: 'book', collapsible: true }), button3d({
                 label: 'save',
                 handleClick: () => download(`${ui.model
                     .replace(/\.[^.]*$/, '')
@@ -1184,16 +1419,28 @@ export function mountRigTool(owner, options = {}) {
                     refresh();
                 }),
             }));
-        w.push(button3d({
-            label: 'start over',
-            handleClick: () => {
-                const m = models.find((m) => m.label === ui.model);
-                recipe = fresh({ ...m?.recipe, model: recipe.model });
-                ui.spring = 0;
-                changed(true);
+        // Export: the body as a GLB that plays UAL's clips by name. Hosted, the
+        // host has its own.
+        if (files)
+            w.push(...exportBodyRows(async () => {
+                await bindIfMoved();
+                if (body == null)
+                    return 'export needs a body bound from markers (turn off use its own skeleton)';
+                const m = loadedModel;
+                return {
+                    body,
+                    recipe: copy(),
+                    source: m instanceof File
+                        ? { file: m }
+                        : m != null
+                            ? { url: m.url, pick: m.pick }
+                            : null,
+                    name: ui.model.replace(/\.[^.]*$/, '').replace(/\W+/g, '-'),
+                };
+            }, (message) => {
+                ui.status = message;
                 refresh();
-            },
-        }));
+            }));
         return w;
     };
     /** A strand's shape: where it starts, which way it hangs, how big. */
@@ -1359,6 +1606,11 @@ export function mountRigTool(owner, options = {}) {
             panelEl?.remove();
         });
     }
+    // Redrawn to the view's height once a resize settles.
+    if (hosted) {
+        owner.addEventListener?.('resizeend', refresh);
+        cleanups.push(() => owner.removeEventListener?.('resizeend', refresh));
+    }
     const ready = (async () => {
         const scene = owner.scene;
         /*
@@ -1444,8 +1696,9 @@ export function mountRigTool(owner, options = {}) {
             const stage = inspectStage(scene, { light: hosted });
             cleanups.push(() => stage.dispose());
         }
-        // The clips' source, beside the character when comparing.
-        const ual = await BABYLON.LoadAssetContainerAsync(assetUrl('quaternius/UAL1_core.glb', 2), scene);
+        // The clips' source, beside the character when comparing: the rig
+        // testing pack (the character builder's, so hosted it is cached).
+        const ual = await BABYLON.LoadAssetContainerAsync(assetUrl('quaternius/UAL_builder.glb'), scene);
         if (disposed) {
             // Unmounted while it loaded: what it made goes now.
             ual.dispose();
@@ -1493,8 +1746,9 @@ export function mountRigTool(owner, options = {}) {
     
         */
         const castShadows = (mesh) => {
-            if (hosted)
-                return;
+            // Hosted too: the body the tool shows stands in for the host's, which
+            // casts in the host's sun (the character builder's did; the rig
+            // tool's had none).
             const sun = owner.querySelector?.('tosi-b3d-sun');
             sun?.shadowGenerator?.addShadowCaster(mesh);
             mesh.receiveShadows = true;
@@ -1999,6 +2253,8 @@ export function mountRigTool(owner, options = {}) {
                         // A marker's joint is its marker (coloured), not a second dot.
                         if (name === 'root' || markerJoints.has(name))
                             continue;
+                        if (!handJointShown(name, b.hands))
+                            continue;
                         const m = fit?.get(name);
                         const at = m != null ? toScene(m.x, m.y, m.z) : node.getAbsolutePosition();
                         const small = /^(thumb|index|middle|ring|pinky)_|ball/.test(name);
@@ -2035,10 +2291,21 @@ export function mountRigTool(owner, options = {}) {
                 const size = r * (picked ? 1.5 : 1.1);
                 const nodes = sp.bones.nodes;
                 if (sp.recipe.kind === 'bones') {
-                    // The whole chain, so it reads as a tail and not one stub.
-                    nodes.forEach((n, k) => dot(n.getAbsolutePosition(), k === 0 ? size : size * 0.55, mat, {
-                        rigSpring: i,
-                    }));
+                    /*
+                    The whole chain, so it reads as a tail and not one stub, where its
+                    joints are NOW: a body bound from markers is bound again only when
+                    you animate or press done, so its bones still stand where the last
+                    binding put them, and drawn there they were a second tail beside
+                    the joints you had just moved. With every joint showing, the
+                    joints are the chain, and it is not drawn twice.
+                    */
+                    if (markerBound() && ui.joints)
+                        return;
+                    const fit = markerBound() ? fittedJoints() : null;
+                    nodes.forEach((n, k) => {
+                        const m = fit?.get(n.name);
+                        dot(m != null ? toScene(m.x, m.y, m.z) : n.getAbsolutePosition(), k === 0 ? size : size * 0.55, mat, { rigSpring: i });
+                    });
                     return;
                 }
                 // A handle on every point of its path, and a small mark where
@@ -2520,11 +2787,22 @@ export function mountRigTool(owner, options = {}) {
                 const bindOwn = bindNext || next.binding != null;
                 bindNext = false;
                 const auto = m instanceof File ? undefined : m.autorig;
-                const found = auto != null
-                    ? await demoTriangles(scene, m.url, auto)
-                    : m instanceof File && m.name.toLowerCase().endsWith('.obj')
-                        ? objTriangles(await m.text())
-                        : await openGlb(scene, m, bindOwn);
+                // The host's body, if it is this binding's: once, on the first load.
+                const hosts = hostBody;
+                hostBody = null;
+                const reuse = hosts != null && sameBinding(hosts, next.binding) ? hosts : null;
+                if (reuse != null)
+                    handedOver.add(reuse);
+                const found = reuse != null
+                    ? {
+                        positions: reuse.positions,
+                        indices: reuse.indices,
+                    }
+                    : auto != null
+                        ? await demoTriangles(scene, m.url, auto)
+                        : m instanceof File && m.name.toLowerCase().endsWith('.obj')
+                            ? objTriangles(await m.text())
+                            : await openGlb(scene, m, bindOwn);
                 /*
                 NO SKELETON: BIND IT. From the recipe's markers, else the demo
                 model's, else a first guess read off its outline; the Binding
@@ -2544,6 +2822,7 @@ export function mountRigTool(owner, options = {}) {
                     opened = bindMesh(scene, label, found, binding, {
                         tailBones: auto?.tailBones,
                         color: auto?.color,
+                        body: reuse ?? undefined,
                     });
                 }
                 else
@@ -2572,6 +2851,8 @@ export function mountRigTool(owner, options = {}) {
                 boneNames = skeleton.bones.map((b) => b.getTransformNode()?.name ?? b.name);
                 ui.model = label;
                 lastModel = m;
+                // Another model starts its own history (a rebind is the same one).
+                const another = loadedModel !== m;
                 loadedModel = m;
                 const url = m instanceof File ? undefined : m.url;
                 recipe = next;
@@ -2595,6 +2876,8 @@ export function mountRigTool(owner, options = {}) {
                 rebuild(true);
                 inspect.face = ui.view;
                 seams();
+                if (another)
+                    history.clear(stepNow());
             }
             catch (e) {
                 ui.status = `could not load ${label}: ${e.message}`;
@@ -2734,7 +3017,8 @@ export function rigTool(options = {}) {
         clearColor: '#2a3340',
         panelTitle: 'Rig',
         // A workbench: its sections are used side by side, so several stay open.
-        panelSections: 'folds',
+        // A tab per section, each its icon.
+        panelSections: 'tabs',
         scenePanelOpen: true,
         scenePanel: () => handle?.widgets() ?? [],
         sceneCreated(owner) {

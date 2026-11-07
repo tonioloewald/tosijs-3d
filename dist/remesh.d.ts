@@ -11,6 +11,13 @@ export interface RemeshOptions {
     minEdge?: number;
     /** Passes of split, collapse, flip, relax and project. Default 6. */
     iterations?: number;
+    /**
+     * `false` skips projecting back onto the input each pass, for a FLAT input
+     * (a pattern piece): relaxing is tangential and the boundary is held, so a
+     * plane stays a plane, and projecting onto an ear-clipped polygon's slivers
+     * was most of the time. `ref` and `weight` then come back zero.
+     */
+    project?: boolean;
 }
 /** Where a point is on the original surface: a triangle's three vertices and weights. */
 export interface SurfacePoint {
@@ -33,4 +40,6 @@ export declare function closestBarycentric(px: number, py: number, pz: number, P
 export declare function surfaceProjector(positions: ArrayLike<number>, triangles: ArrayLike<number>, sdf?: MeshSdf): (x: number, y: number, z: number) => SurfacePoint;
 /** Isotropic remeshing of a triangle mesh onto itself. */
 export declare function remesh(positions: ArrayLike<number>, triangles: ArrayLike<number>, options: RemeshOptions): Remeshed;
+/** `remesh` as steps: it yields between its passes, so a caller can spread it over frames. */
+export declare function remeshSteps(positions: ArrayLike<number>, triangles: ArrayLike<number>, options: RemeshOptions): Generator<void, Remeshed, void>;
 //# sourceMappingURL=remesh.d.ts.map

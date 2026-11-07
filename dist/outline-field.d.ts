@@ -10,10 +10,29 @@ export interface OutlineField3dOptions {
     symmetry?: boolean;
     /** Tallest the view may be, in px (default 260). */
     maxHeight?: number;
+    /**
+     * Show where the outline is over the body (a drape pins the cloth to the
+     * skin there): those points and stretches of edge are drawn yellow.
+     */
+    anchors?: boolean;
     /** As a point moves. */
     handleChange?: (value: ViewPoint[][]) => void;
     /** When a point is placed, let go or deleted: recut here. */
     handleCommit?: (value: ViewPoint[][]) => void;
+    /**
+     * Carry on from another field's `editing` (a panel rebuilt mid-edit): its
+     * outlines, the one being clicked out and the selected point. Wins over `value`.
+     */
+    editing?: OutlineEditing;
+}
+/** Where an edit stands: what a rebuilt field needs to carry on. */
+export interface OutlineEditing {
+    shapes: ViewPoint[][];
+    open: number | null;
+    selected: {
+        s: number;
+        p: number;
+    } | null;
 }
 export interface OutlineField extends Widget3d {
     /** The outlines as drawn (halves with symmetry on). */
@@ -26,6 +45,8 @@ export interface OutlineField extends Widget3d {
     removeSelected: () => void;
     /** Remove every outline. */
     clear: () => void;
+    /** Where the edit stands, for a field built in its place. */
+    readonly editing: OutlineEditing;
     handleChange?: (value: ViewPoint[][]) => void;
     handleCommit?: (value: ViewPoint[][]) => void;
 }

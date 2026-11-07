@@ -68,8 +68,20 @@ export function splitBlobs(doc) {
             return [name, rest];
         }))
         : undefined;
+    // Pictures (a print chosen for a material): kept once each, like garments.
+    const pictures = doc.pictures
+        ? Object.fromEntries(Object.keys(doc.pictures).map((key) => {
+            blobs[`pictures/${key}`] = doc.pictures[key];
+            return [key, ''];
+        }))
+        : undefined;
     return {
-        doc: { ...doc, garments, ...(bodies ? { bodies } : {}) },
+        doc: {
+            ...doc,
+            garments,
+            ...(bodies ? { bodies } : {}),
+            ...(pictures ? { pictures } : {}),
+        },
         blobs,
     };
 }
@@ -87,7 +99,18 @@ export function joinBlobs(doc, blobs) {
             return [name, data != null ? { ...b, data } : b];
         }))
         : undefined;
-    return { ...doc, garments, ...(bodies ? { bodies } : {}) };
+    const pictures = {};
+    for (const key of Object.keys(doc.pictures ?? {})) {
+        const b64 = blobs[`pictures/${key}`];
+        if (b64 != null)
+            pictures[key] = b64;
+    }
+    return {
+        ...doc,
+        garments,
+        ...(bodies ? { bodies } : {}),
+        ...(doc.pictures ? { pictures } : {}),
+    };
 }
 // The working figure is saved on every change, mostly with the same mesh:
 // a few recent hashes save hashing it again.

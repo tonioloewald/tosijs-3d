@@ -2,7 +2,7 @@ import { Component } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
 import '@babylonjs/loaders';
-import { type Widget3d } from './widgets3d.js';
+import { type Widget3d, type IconBarItem } from './widgets3d.js';
 import { type AgentExposure, type B3dAgentTool } from './b3d-agent.js';
 import { type ControlNode } from './widget-semantics.js';
 import type { Medium } from './medium.js';
@@ -534,6 +534,10 @@ export declare class B3d extends Component {
      * active (last hovered/clicked) scene, or none has been touched yet. Controllables
      * gate their input on this so one gamepad doesn't drive every demo on a page. */
     get hasInputFocus(): boolean;
+    /** True only once the pointer has entered or pressed this scene (and no
+     * other since). Keys it uses are kept from the page only then: before that,
+     * an arrow key still scrolls the page past a demo. */
+    get isActiveScene(): boolean;
     /** Make this the input-focused scene (also happens on pointerenter/pointerdown). */
     takeInputFocus(): void;
     private _freeTouchSlot;
@@ -753,6 +757,13 @@ export declare class B3d extends Component {
      * async state is current; `refreshScenePanel()` updates an open one.
      */
     scenePanel: (host: B3d) => Widget3d[];
+    /**
+     * Buttons of your own on the settings panel's icon bar (undo, redo…), at its
+     * right end after the scene's diagnostics. Each is an `iconBar3d` item
+     * (`icon`, `title`, `dim`, `active`, `handleClick`); rebuilt with the panel,
+     * so `refreshScenePanel()` brings a changed `dim` up to date.
+     */
+    panelActions: (host: B3d) => IconBarItem[];
     /**
      * The centred in-scene panel shown while paused. Return your own rows to
      * replace the default (a title and a Continue button) — a title screen, a
@@ -1432,7 +1443,15 @@ export declare class B3d extends Component {
     private _panelToHost;
     private _disposeAriaMirror;
     private _panelHeightKey;
+    private _settledSize;
     private _panelResizeTimer;
+    /**
+     * The height in CSS pixels a flat system panel's CONTENT has: from its top
+     * (under the system bar, or where `panelEl`, its `<tosi-b3d-panel>`, was
+     * dragged to) to the bottom of the view, less its title bar. Cap a panel's
+     * `maxHeight` with it and rebuild on `resizeend`.
+     */
+    panelRoom(panelEl?: Element): number;
     private _flatPanelMax;
     private _closeScenePanel;
     agent: '' | 'off' | 'read' | 'on';

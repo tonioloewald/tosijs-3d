@@ -22,7 +22,9 @@ describe('material pictures', () => {
   })
 
   test('a URL passes through; a key this page does not have is null', () => {
-    expect(pictureUrl('https://cdn.example/x.png')).toBe('https://cdn.example/x.png')
+    expect(pictureUrl('https://cdn.example/x.png')).toBe(
+      'https://cdn.example/x.png'
+    )
     expect(pictureUrl('picture:000000000000/missing.png')).toBeNull()
   })
 
@@ -30,7 +32,9 @@ describe('material pictures', () => {
     const key = 'picture:abcdef012345/cloth.jpg'
     const settings = {
       tailorLook: { type: 'cloth', inputs: { albedo: { image: key } } },
-      surfaces: { body: { skin: { type: 'pbr', inputs: { albedo: { image: key } } } } },
+      surfaces: {
+        body: { skin: { type: 'pbr', inputs: { albedo: { image: key } } } },
+      },
       other: 'picture-ish but not a key',
     }
     expect(picturesIn(settings)).toEqual([key])

@@ -7,8 +7,13 @@ small render of the material, and the popup has the presets first (a
 collection, such as the fabrics) as a grid of renders, then a control per input
 of the material's type, drawn from the type's own declaration: a slider for
 a grey value, a colour picker for a colour, a strength beside it where the
-input has one. A picture in place of a flat value shows as a row you can
-clear. Where the caller allows more than one type, the popup starts with a
+input has one. An input that may take a picture (the diffuse colour, a
+roughness, the normal map) is a heading and a row: **choose a picture** (from your
+files: [material-pictures](/material-pictures/), the recipe keeps a key and a
+character file carries the picture), **clear** it, a **flat** colour or grey
+in its place, and a swatch showing what it is now. **Scale textures** runs
+from 1/32 to 4; a press beside its handle steps to the next scale at which a
+picture repeats whole (1/3, 1/2, 1, 2, 3). Where the caller allows more than one type, the popup starts with a
 choice of type.
 
 The value is a [[material-recipe|recipe]], `{ type, inputs }`, always in
@@ -57,6 +62,7 @@ is why the scene has `studioEnvironment`.
 | Option | Default | |
 | --- | --- | --- |
 | `label` | `''` | The caption on the row |
+| `name` | | Its name without a caption (the popup's title, what a screen reader says): the row is then just the swatch, for beside another control |
 | `value` | a grey `pbr` | A recipe, or a reactive value holding one |
 | `types` | every registered type | The types it may be. One type: no choice of type is shown |
 | `collections` | `[]` | Names from `MATERIAL_COLLECTIONS`, or collections of your own, offered as presets |
@@ -66,22 +72,226 @@ is why the scene has `studioEnvironment`.
 
 ## Previews
 
-Each swatch and preset is the material rendered on a teapot (The Base
-Mesh's, CC0) in a fixed studio. One hidden engine draws every preview on the page, made the first
+Each swatch and preset is the material rendered on a cube, on grey, in a
+fixed studio. One hidden engine draws every preview on the page, made the first
 time one is wanted (one more WebGL context, once), one at a time, and each
 recipe is drawn once and kept. While you drag a slider the row shows the
 last picture until you pause. Until a picture is ready, or where WebGL is not
-available, the swatch is the material's flat colour.
+available, the swatch is the material's flat colour. A cloth material with a colour
+is previewed in that colour, whatever its recolour: the ball has no texture of
+its own for the recolour to keep.
 */
 /*{ "parent": "ui-controls", "order": 47 }*/
 import { svgElements } from 'tosijs';
 import { w3dTheme } from './w3d-theme.js';
 import { handlerOf } from './handler-of.js';
 import { colorPicker3d } from './color-picker.js';
-import { button3d, label3d, select3d, slider3d, } from './widgets3d.js';
+import { label3d, select3d, slider3d, } from './widgets3d.js';
 import { materialPreview } from './material-preview.js';
+import { addPicture, pictureUrl } from './material-pictures.js';
+import { iconGlyph } from './svg-icons.js';
+import { formatColor } from './color.js';
+import { chooseFile } from './choose-file.js';
 import { applyMaterialPreset, canonicalMaterial, isMaterialPreset, materialAsType, MATERIAL_COLLECTIONS, materialSwatch, materialType, materialTypes, resolveInput, withInput, writeInput, } from './material-recipe.js';
-const { g, rect, text, image } = svgElements;
+const { g, rect, text, image, title } = svgElements;
+/** A slider's readout for a scale: `1/3`, `2`, `0.264`. */
+const scaleFormat = (v) => {
+    if (v >= 1 && Math.abs(v - Math.round(v)) < 1e-6)
+        return String(Math.round(v));
+    const n = Math.round(1 / v);
+    if (v < 1 && Math.abs(1 / v - n) < 1e-4)
+        return `1/${n}`;
+    return String(Number(v.toPrecision(3)));
+};
+const greyHex = (v) => formatColor({ r: v, g: v, b: v, a: 1 });
+/**
+ * The row for an input that may take a picture: choose a picture, clear it,
+ * a flat colour (or grey) instead, and a swatch showing what it is now.
+ */
+function pictureInputRow(opts) {
+    const d = opts.decl;
+    const H = Math.round(w3dTheme.fontSize * 2.2);
+    const ICON = 20;
+    const CELL = H;
+    const PAD = Math.max(6, Math.round(w3dTheme.spacing * 0.6));
+    const SW = Math.round(H * 1.5);
+    const flatOk = d.kind !== 'image';
+    const tools = [
+        {
+            icon: 'upload',
+            tip: 'choose a picture',
+            act: opts.choose,
+            can: () => true,
+        },
+        {
+            icon: 'trash',
+            tip: d.optional ? 'clear (as made)' : 'clear the picture',
+            act: opts.clear,
+            can: () => {
+                const n = opts.now();
+                return n.image != null || (!!d.optional && n.value != null);
+            },
+        },
+        ...(flatOk
+            ? [
+                {
+                    icon: 'colorPicker',
+                    tip: d.kind === 'grey' ? 'a flat value' : 'a flat colour',
+                    act: () => openFlat(),
+                    can: () => true,
+                },
+            ]
+            : []),
+    ];
+    let host = null;
+    let width = 0;
+    const el = g({ 'data-w3d': 'material-input' });
+    const bg = rect({ x: 0, y: 0, height: H, rx: 6, fill: w3dTheme.rowBg });
+    const cells = tools.map((t, i) => {
+        const cell = g({ transform: `translate(${PAD + i * CELL}, 0)` });
+        cell.append(title({}, t.tip), rect({ width: CELL, height: H, fill: 'transparent' }), iconGlyph(t.icon, {
+            size: ICON,
+            x: (CELL - ICON) / 2,
+            y: (H - ICON) / 2,
+            color: w3dTheme.text,
+        }));
+        return cell;
+    });
+    const valueText = text({
+        y: H / 2,
+        'dominant-baseline': 'middle',
+        'text-anchor': 'end',
+        'font-family': w3dTheme.fontFamily,
+        'font-size': String(Math.round(w3dTheme.fontSize * 0.85)),
+        fill: w3dTheme.muted,
+    });
+    const swatch = rect({
+        y: 4,
+        width: SW,
+        height: H - 8,
+        rx: 5,
+        stroke: w3dTheme.muted,
+        'stroke-width': 1,
+    });
+    const picture = image({
+        y: 4,
+        width: SW,
+        height: H - 8,
+        preserveAspectRatio: 'xMidYMid slice',
+    });
+    el.append(bg, ...cells, valueText, swatch, picture);
+    const paint = () => {
+        const n = opts.now();
+        tools.forEach((t, i) => cells[i].setAttribute('opacity', t.can() ? '1' : '0.35'));
+        const x = Math.max(0, width - PAD - SW);
+        swatch.setAttribute('x', String(x));
+        picture.setAttribute('x', String(x));
+        valueText.setAttribute('x', String(Math.max(0, x - PAD)));
+        const url = n.image != null ? pictureUrl(n.image) : null;
+        if (url != null)
+            picture.setAttribute('href', url);
+        else
+            picture.removeAttribute('href');
+        picture.setAttribute('display', url != null ? 'inline' : 'none');
+        const fill = n.image != null || n.value == null
+            ? w3dTheme.rowBg
+            : typeof n.value === 'number'
+                ? greyHex(n.value)
+                : n.value;
+        swatch.setAttribute('fill', fill);
+        valueText.textContent =
+            n.image != null
+                ? n.image.split(/[/\\]/).pop() ?? ''
+                : n.value == null
+                    ? d.optional
+                        ? 'as made'
+                        : 'none'
+                    : typeof n.value === 'number'
+                        ? String(Number(n.value.toFixed(2)))
+                        : '';
+    };
+    // The colour popup is a colour picker's own, opened by the icon.
+    let flatPicker = null;
+    function openFlat() {
+        if (host == null)
+            return;
+        const n = opts.now();
+        const start = typeof n.value === 'number'
+            ? greyHex(n.value)
+            : typeof n.value === 'string'
+                ? n.value
+                : typeof d.default === 'number'
+                    ? greyHex(d.default)
+                    : String(d.default);
+        const toValue = (hex) => {
+            if (d.kind !== 'grey')
+                return hex;
+            return parseInt(hex.slice(1, 3), 16) / 255;
+        };
+        flatPicker = colorPicker3d({
+            label: opts.label,
+            value: start,
+            alpha: d.kind === 'rgba',
+            grey: d.kind === 'grey',
+            defaultPresets: d.kind === 'grey' ? 'off' : 'on',
+            handleChange: (hex) => {
+                opts.flat(toValue(hex), false);
+                paint();
+            },
+            handleCommit: (hex) => {
+                opts.flat(toValue(hex), true);
+                paint();
+            },
+        });
+        flatPicker.setHost?.(host);
+        flatPicker.layout(width);
+        flatPicker.open();
+    }
+    const cellAt = (x, y) => {
+        if (y < 0 || y > H)
+            return -1;
+        const i = Math.floor((x - PAD) / CELL);
+        return x >= PAD && i < tools.length ? i : -1;
+    };
+    return {
+        el,
+        setHost(h) {
+            host = h;
+        },
+        layout(w) {
+            width = w;
+            bg.setAttribute('width', String(w));
+            paint();
+            return H + PAD;
+        },
+        // The swatch is a readout: only the buttons take a press.
+        hitTest: (x, y) => cellAt(x, y) >= 0,
+        handle(kind, x, y) {
+            const i = cellAt(x, y);
+            if (kind === 'leave' || i < 0)
+                host?.hideTip?.();
+            else if (kind === 'hover')
+                host?.showTip?.(tools[i].tip, {
+                    x: PAD + i * CELL,
+                    y: 0,
+                    width: CELL,
+                    height: H,
+                });
+            if (kind !== 'up')
+                return;
+            if (i >= 0) {
+                if (tools[i].can())
+                    tools[i].act();
+                paint();
+            }
+        },
+        semantics: () => ({
+            role: 'group',
+            name: opts.label,
+            value: opts.now().image ?? opts.now().value,
+        }),
+    };
+}
 /** A grid of preset thumbnails, each its rendered preview with its name under it. */
 function presetTiles(opts) {
     const TILE = 56;
@@ -188,6 +398,7 @@ export function materialPicker3d(config = {}) {
         ...(config.collections ?? []).flatMap((c) => typeof c === 'string' ? MATERIAL_COLLECTIONS[c]?.presets ?? [] : c.presets),
     ];
     const keep = config.keep ?? [];
+    const name = config.label || config.name || '';
     const presetName = () => presets().find((p) => isMaterialPreset(value, p.recipe, keep))?.name ?? '';
     const H = Math.round(w3dTheme.fontSize * 2.2);
     const PAD = Math.max(6, Math.round(w3dTheme.spacing * 0.6));
@@ -248,9 +459,13 @@ export function materialPicker3d(config = {}) {
     };
     const paint = () => {
         caption.textContent = config.label ?? '';
-        nameText.textContent =
-            presetName() ||
-                (allowed.length > 1 ? materialType(value.type)?.label ?? value.type : '');
+        // Captionless, it is a swatch beside something else: no name either.
+        nameText.textContent = !config.label
+            ? ''
+            : presetName() ||
+                (allowed.length > 1
+                    ? materialType(value.type)?.label ?? value.type
+                    : '');
         if (!picture.getAttribute('href'))
             swatch.setAttribute('fill', materialSwatch(value));
         const x = Math.max(0, width - PAD - SW);
@@ -297,14 +512,29 @@ export function materialPicker3d(config = {}) {
                 reopen();
         };
         const rows = [];
-        if (now.image != null) {
-            const file = now.image.split(/[/\\]/).pop() ?? now.image;
-            rows.push(label3d({ text: `${label}: ${file}`, muted: true, compact: true }));
-            if (d.kind !== 'image')
-                rows.push(button3d({
-                    label: `use a flat ${d.kind === 'grey' ? 'value' : 'colour'}`,
-                    handleClick: () => put({ image: null, value: d.default }, true),
-                }));
+        if (d.kind === 'image' || d.image) {
+            // A heading, then choose / clear / flat value / what it is now.
+            rows.push(label3d({ text: label, muted: true, compact: true }));
+            rows.push(pictureInputRow({
+                decl: d,
+                label,
+                now: () => resolveInput(d, value.inputs[d.name]),
+                choose: () => void chooseFile('image/*').then(async (file) => {
+                    if (file == null)
+                        return;
+                    const bytes = new Uint8Array(await file.arrayBuffer());
+                    put({ image: await addPicture(bytes, file.name, file.type) }, true);
+                }),
+                clear: () => put({
+                    image: null,
+                    value: d.optional || d.kind === 'image' ? null : d.default,
+                }, true),
+                flat: (v, commit) => {
+                    put({ image: null, value: v });
+                    if (commit)
+                        set(value, true);
+                },
+            }));
         }
         else if (d.kind === 'grey') {
             rows.push(slider3d({
@@ -313,7 +543,10 @@ export function materialPicker3d(config = {}) {
                 value: (now.value ?? d.default),
                 min: d.min ?? 0,
                 max: d.max ?? 1,
-                step: 0.01,
+                step: d.scale === 'log2' ? 0 : 0.01,
+                scale: d.scale,
+                notches: d.notches,
+                ...(d.notches ? { format: scaleFormat } : {}),
                 handleChange: (v) => put({ value: v }),
             }));
         }
@@ -391,7 +624,7 @@ export function materialPicker3d(config = {}) {
         open = openIt.call(host, {
             anchor,
             maxHeight: host.hasLayer ? undefined : Math.max(160, below, above),
-            ...(host.hasLayer ? { chrome: true, title: config.label ?? '' } : {}),
+            ...(host.hasLayer ? { chrome: true, title: name } : {}),
             width: Math.max(240, Math.min(width, 320)),
             handleClose: () => {
                 // Closed from outside (its close glyph, a tap elsewhere): the
@@ -406,7 +639,7 @@ export function materialPicker3d(config = {}) {
     const api = {
         semantics: () => ({
             role: 'editor',
-            name: config.label ?? '',
+            name,
             value,
             // A whole recipe ({ type, inputs }), as the popup would make one.
             set: (v) => {

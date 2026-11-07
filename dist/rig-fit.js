@@ -432,11 +432,37 @@ export function fitSkeleton(markers, mesh, options = {}) {
         */
         const above = hm.fromAbove?.();
         let found = above != null ? findFingers(above, hw, sign, reach) : null;
+        /*
+        BUMPS ON A GLOVE ARE NOT FINGERS. A spacesuit's glove showed four
+        "fingers" 2.5 to 4.6 cm long on a hand 24 cm long, bunched at its end,
+        and the chains on them could not be told apart. A real hand's longest
+        finger is about a third of it (the same man, bare: 0.33), so under a
+        quarter the hand is read as having no separate fingers.
+        */
+        if (found != null && found.fingers.length > 0) {
+            const len = (c) => Math.hypot(c[3].x - c[0].x, c[3].y - c[0].y, c[3].z - c[0].z);
+            const hand = Math.max(...found.fingers.map((c) => Math.hypot(c[3].x - hw.x, c[3].y - hw.y)));
+            if (Math.max(...found.fingers.map(len)) < 0.25 * hand)
+                found = { fingers: [], thumb: found.thumb };
+        }
         // No separate fingers: one mitten or claw, and a thumb without a gap.
         if (above != null && (found == null || found.fingers.length === 0)) {
             const m = findMitten(hm, above, hw, sign, reach);
             if (m != null)
                 found = { fingers: [m.mitten], thumb: found?.thumb ?? m.thumb };
+        }
+        /*
+        A THUMB IS THREE BONES OF A SIZE. On a spacesuit's glove the thumb found
+        ran 9.6 cm to its first knuckle and 1 cm to each of the others, folded
+        into a knot no one could take apart by hand. A bare thumb's shortest
+        bone is at least a third of its longest; under a fifth, it is placed by
+        proportion instead.
+        */
+        if (found?.thumb != null) {
+            const t = found.thumb;
+            const seg = [0, 1, 2].map((i) => Math.hypot(t[i + 1].x - t[i].x, t[i + 1].y - t[i].y, t[i + 1].z - t[i].z));
+            if (Math.min(...seg) < 0.2 * Math.max(...seg))
+                found = { ...found, thumb: null };
         }
         const real = [];
         const chain = (f, pts) => {
@@ -658,6 +684,105 @@ function cropped(positions, indices, crop) {
             out.push(indices[t], indices[t + 1], indices[t + 2]);
     });
     return out;
+}
+/*
+A HAND SPREAD OUT, to place by hand. Where a hand was guessed into a knot (a
+glove), its joints are laid out afresh from the wrist: the four fingers run
+straight on along the forearm, side by side across the palm (front to back,
+the thumb side in front, as both a T-pose's palm-down hand and an A-pose's
+palm-in one are), spread wider than a hand so each chain stands apart; the
+thumb leaves the front edge at 45°. Nothing is read from the mesh.
+*/
+/**
+ * The thumb's and fingers' joints for one hand, laid out from its wrist and
+ * elbow (`side` names them). `length` is the hand's, wrist to fingertip
+ * (default three quarters of the forearm, as on a person).
+ */
+export function spreadHand(wrist, elbow, side, length) {
+    const ax = {
+        x: wrist.x - elbow.x,
+        y: wrist.y - elbow.y,
+        z: wrist.z - elbow.z,
+    };
+    const fore = Math.hypot(ax.x, ax.y, ax.z) || 1;
+    const a = { x: ax.x / fore, y: ax.y / fore, z: ax.z / fore };
+    // Across the palm: forward (+z), less any part along the forearm.
+    const az = a.z;
+    let c = { x: -az * a.x, y: -az * a.y, z: 1 - az * a.z };
+    const cl = Math.hypot(c.x, c.y, c.z) || 1;
+    c = { x: c.x / cl, y: c.y / cl, z: c.z / cl };
+    const hand = length ?? 0.75 * fore;
+    const at = (s, t) => ({
+        x: wrist.x + a.x * s + c.x * t,
+        y: wrist.y + a.y * s + c.y * t,
+        z: wrist.z + a.z * s + c.z * t,
+    });
+    const out = {};
+    const chain = (f, pts) => {
+        ;
+        ['01', '02', '03', '04_leaf'].forEach((k, i) => (out[`${f}_${k}_${side}`] = pts[i]));
+    };
+    // Each finger: where it leaves the palm, how long, how far across.
+    const gap = 0.16 * hand;
+    const fingers = [
+        ['index', 0.42, 1.5],
+        ['middle', 0.47, 0.5],
+        ['ring', 0.44, -0.5],
+        ['pinky', 0.36, -1.5],
+    ];
+    const base = 0.45 * hand;
+    for (const [f, len, across] of fingers)
+        chain(f, [0, 0.45, 0.75, 1].map((t) => at(base + t * len * hand, across * gap)));
+    /*
+    The thumb: from beside the wrist, in front of the index finger, out at 45°
+    and tilted down off the palm (Tonio). The fingers all lie in one plane, so
+    from the front they are one line; a thumb in that plane would be too.
+    */
+    let n = {
+        x: a.y * c.z - a.z * c.y,
+        y: a.z * c.x - a.x * c.z,
+        z: a.x * c.y - a.y * c.x,
+    };
+    if (n.y > 0)
+        n = { x: -n.x, y: -n.y, z: -n.z };
+    // Its root is down off the palm too, so from the front it stands clear of
+    // the hand's root (the wrist) rather than on top of it.
+    const t0 = { s: 0.15 * hand, t: 2.2 * gap, n: 0.25 * hand };
+    const tl = 0.42 * hand;
+    const [ds, dt, dn] = [0.55, 0.55, 0.63];
+    chain('thumb', [0, 0.4, 0.72, 1].map((k) => {
+        const p = at(t0.s + k * tl * ds, t0.t + k * tl * dt);
+        const down = t0.n + k * tl * dn;
+        return { x: p.x + n.x * down, y: p.y + n.y * down, z: p.z + n.z * down };
+    }));
+    return out;
+}
+export const HAND_MODES = ['full', 'mitten', 'none'];
+const FOUR = ['index', 'middle', 'ring', 'pinky'];
+/** A fitted rig with its hands as `mode` says (unchanged if none is given). */
+export function applyHandMode(rig, mode) {
+    if (mode == null)
+        return rig;
+    const at = new Map(rig.joints.map((j) => [j.name, j.position]));
+    const joints = rig.joints.map((j) => {
+        const m = /^(index|ring|pinky)_(01|02|03|04_leaf)_([lr])$/.exec(j.name);
+        if (mode !== 'mitten' || m == null)
+            return j;
+        const on = at.get(`middle_${m[2]}_${m[3]}`);
+        return on != null ? { ...j, position: { ...on } } : j;
+    });
+    const byName = new Map(joints.map((j) => [j.name, j.position]));
+    const real = mode === 'full'
+        ? ['thumb', ...FOUR]
+        : mode === 'mitten'
+            ? ['middle', 'thumb']
+            : [];
+    return {
+        ...rig,
+        joints,
+        fingers: { l: [...real], r: [...real] },
+        at: (name) => byName.get(name),
+    };
 }
 /** Which UAL fingers a hand of n fingers uses, front (thumb side) first. */
 const FINGER_NAMES = {

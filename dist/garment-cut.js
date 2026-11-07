@@ -534,6 +534,102 @@ export function cutGarment(positions, triangles, options) {
         for (let k = 1; k + 1 < poly.length; k++)
             out.push(poly[0], poly[k], poly[k + 1]);
     }
+    /*
+    TEETH OFF THE EDGE. Where the outline crosses the body nearly edge on (over
+    a shoulder, round a side), clipping leaves single triangles hanging off the
+    cut edge by one side: spikes along a neckline. A triangle with two of its
+    three edges on the edge is one; take it off, and again for what that
+    exposes, a few times over.
+    */
+    for (let pass = 0; pass < 3; pass++) {
+        const uses = new Map();
+        const key = (a, b) => (a < b ? `${a}:${b}` : `${b}:${a}`);
+        for (let t = 0; t < out.length; t += 3)
+            for (let k = 0; k < 3; k++) {
+                const e = key(out[t + k], out[t + ((k + 1) % 3)]);
+                uses.set(e, (uses.get(e) ?? 0) + 1);
+            }
+        const kept = [];
+        for (let t = 0; t < out.length; t += 3) {
+            let open = 0;
+            for (let k = 0; k < 3; k++)
+                if (uses.get(key(out[t + k], out[t + ((k + 1) % 3)])) === 1)
+                    open++;
+            if (open < 2)
+                kept.push(out[t], out[t + 1], out[t + 2]);
+        }
+        if (kept.length === out.length)
+            break;
+        out.length = 0;
+        out.push(...kept);
+    }
+    /*
+    AND NOTCHES IN IT: where the edge turns sharply back on itself at a point
+    (a triangle missing from the edge), the triangle closing the dent goes in,
+    wound as its neighbours are.
+    */
+    const restOf = (r) => {
+        const p = [0, 0, 0];
+        for (let c = 0; c < 3; c++)
+            for (let k = 0; k < 3; k++)
+                p[k] += P[ref[r * 3 + c] * 3 + k] * weight[r * 3 + c];
+        return p;
+    };
+    for (let pass = 0; pass < 2; pass++) {
+        const uses = new Map();
+        const key = (a, b) => (a < b ? `${a}:${b}` : `${b}:${a}`);
+        for (let t = 0; t < out.length; t += 3)
+            for (let k = 0; k < 3; k++) {
+                const e = key(out[t + k], out[t + ((k + 1) % 3)]);
+                uses.set(e, (uses.get(e) ?? 0) + 1);
+            }
+        // Each edge point's open edges, as its triangles run: x -> v and v -> y.
+        const into = new Map();
+        const outof = new Map();
+        for (let t = 0; t < out.length; t += 3)
+            for (let k = 0; k < 3; k++) {
+                const a = out[t + k];
+                const b = out[t + ((k + 1) % 3)];
+                if (uses.get(key(a, b)) !== 1)
+                    continue;
+                outof.set(a, b);
+                into.set(b, a);
+            }
+        let filled = 0;
+        const done = new Set();
+        for (const [v, y] of outof) {
+            const x = into.get(v);
+            if (x == null || x === y || done.has(v) || done.has(x) || done.has(y))
+                continue;
+            if (uses.has(key(x, y)))
+                continue;
+            const a = restOf(x);
+            const b = restOf(v);
+            const c = restOf(y);
+            const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+            const w = [c[0] - b[0], c[1] - b[1], c[2] - b[2]];
+            const cos = (u[0] * w[0] + u[1] * w[1] + u[2] * w[2]) /
+                (Math.hypot(u[0], u[1], u[2]) * Math.hypot(w[0], w[1], w[2]) || 1);
+            if (cos >= 0)
+                continue;
+            out.push(v, x, y);
+            done.add(v);
+            done.add(x);
+            done.add(y);
+            filled++;
+        }
+        if (!filled)
+            break;
+    }
+    /*
+    A SMOOTH EDGE. Clipped triangle by triangle, the cut edge zigzags across
+    the faces wherever the outline crosses the body at a slant. Each edge loop
+    is relaxed along itself, its corners (the outline's own, where it turns
+    sharply over a few points) held, and every point put back on the body at
+    its nearest place, so the hem runs smoothly over the skin.
+    */
+    if (options.smoothEdges !== false)
+        smoothCutEdges(out, ref, weight, P, triangles);
     const rows = ref.length / 3;
     // Rest positions and normals of each row.
     const base = new Float32Array(rows * 3);
@@ -987,5 +1083,93 @@ export function skirtGarment(positions, triangles, options) {
         delete: Uint32Array.from(inside),
         hems: [firstRing, lastRing],
     };
+}
+/**
+ * Relax a cut's open edges along themselves and put each point back on the
+ * body (see "A SMOOTH EDGE" in cutGarment). Rows are rewritten in place.
+ */
+function smoothCutEdges(out, ref, weight, P, triangles) {
+    const key = (a, b) => (a < b ? `${a}:${b}` : `${b}:${a}`);
+    const uses = new Map();
+    for (let t = 0; t < out.length; t += 3)
+        for (let k = 0; k < 3; k++) {
+            const e = key(out[t + k], out[t + ((k + 1) % 3)]);
+            uses.set(e, (uses.get(e) ?? 0) + 1);
+        }
+    const next = new Map();
+    for (let t = 0; t < out.length; t += 3)
+        for (let k = 0; k < 3; k++) {
+            const a = out[t + k];
+            const b = out[t + ((k + 1) % 3)];
+            if (uses.get(key(a, b)) !== 1)
+                continue;
+            next.set(a, [...(next.get(a) ?? []), b]);
+            next.set(b, [...(next.get(b) ?? []), a]);
+        }
+    // Loops, each point with exactly two edge neighbours (others left alone).
+    const seen = new Set();
+    const loops = [];
+    for (const start of next.keys()) {
+        if (seen.has(start) || next.get(start).length !== 2)
+            continue;
+        const loop = [start];
+        seen.add(start);
+        let cur = start;
+        for (;;) {
+            const step = next.get(cur).find((m) => !seen.has(m));
+            if (step == null || next.get(step).length !== 2)
+                break;
+            seen.add(step);
+            loop.push(step);
+            cur = step;
+        }
+        if (loop.length >= 6)
+            loops.push(loop);
+    }
+    if (!loops.length)
+        return;
+    const at = (r) => {
+        const p = [0, 0, 0];
+        for (let c = 0; c < 3; c++)
+            for (let k = 0; k < 3; k++)
+                p[k] += P[ref[r * 3 + c] * 3 + k] * weight[r * 3 + c];
+        return p;
+    };
+    const project = surfaceProjector(P, triangles);
+    for (const loop of loops) {
+        const n = loop.length;
+        let pts = loop.map(at);
+        // A corner: the direction over two points either side turns by more than
+        // 70 degrees (the outline's own corners, not the zigzag; tuned on a
+        // strapped top on hm08: 24 sharp turns along its neckline to 5, its corners).
+        const corner = pts.map((_, i) => {
+            const a = pts[(i - 2 + n) % n];
+            const b = pts[i];
+            const c = pts[(i + 2) % n];
+            const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+            const w = [c[0] - b[0], c[1] - b[1], c[2] - b[2]];
+            const cos = (u[0] * w[0] + u[1] * w[1] + u[2] * w[2]) /
+                (Math.hypot(u[0], u[1], u[2]) * Math.hypot(w[0], w[1], w[2]) || 1);
+            return cos < Math.cos((70 * Math.PI) / 180);
+        });
+        for (let pass = 0; pass < 8; pass++) {
+            pts = pts.map((p, i) => {
+                if (corner[i])
+                    return p;
+                const a = pts[(i - 1 + n) % n];
+                const c = pts[(i + 1) % n];
+                return [0, 1, 2].map((k) => (a[k] + 2 * p[k] + c[k]) / 4);
+            });
+        }
+        loop.forEach((r, i) => {
+            if (corner[i])
+                return;
+            const q = project(pts[i][0], pts[i][1], pts[i][2]);
+            for (let c = 0; c < 3; c++) {
+                ref[r * 3 + c] = q.ref[c];
+                weight[r * 3 + c] = q.weight[c];
+            }
+        });
+    }
 }
 //# sourceMappingURL=garment-cut.js.map

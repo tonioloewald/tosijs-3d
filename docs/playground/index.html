@@ -22,7 +22,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=9acedf89658b" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=aeadb365ee59" data-tosi-doc-system />
   <title>Biped Playground — tosijs-3d</title>
   <meta name="description" content="A place to run around and murder things in. One call returns a whole arena — ground, light, cover, crates, a catwalk and something to shoot — as ordinary…" />
   <link rel="canonical" href="https://3d.tosijs.net/playground/" />
@@ -33,53 +33,64 @@
   <meta property="og:description" content="A place to run around and murder things in. One call returns a whole arena — ground, light, cover, crates, a catwalk and something to shoot — as ordinary…" />
   <meta property="og:url" content="https://3d.tosijs.net/playground/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Biped Playground","description":"A place to run around and murder things in. One call returns a whole arena — ground, light, cover, crates, a catwalk and something to shoot — as ordinary…","url":"https://3d.tosijs.net/playground/","inLanguage":"en","dateModified":"2026-11-03T15:57:12+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Biped Playground","description":"A place to run around and murder things in. One call returns a whole arena — ground, light, cover, crates, a catwalk and something to shoot — as ordinary…","url":"https://3d.tosijs.net/playground/","inLanguage":"en","dateModified":"2026-11-07T22:10:37+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Demos","item":"https://3d.tosijs.net/demos/"},{"@type":"ListItem","position":2,"name":"Biped Playground","item":"https://3d.tosijs.net/playground/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=8dbf70970b3a" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=1efe4da519d1" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="playground.ts">
 <h1 id="biped-playground">Biped Playground</h1>
 <p><strong>A place to run around and murder things in.</strong> One call returns a whole
 arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.</p>
-<pre><code class="language-js">import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, button3d, characterStore, inputFocus, playground, select3d, ualAnimationStates, WORKING_CHARACTER } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, button3d, characterStore, holdGrip, inputFocus, playground, select3d, ualAnimationStates, WORKING_CHARACTER } from &#39;tosijs-3d&#39;
 import { tosi } from &#39;tosijs&#39;
 import { demoLoadout } from &#39;tosijs-3d/demo-utils&#39;
 
-// A REAL PISTOL, from Kenney&#39;s weapon pack — 37 of them are already on the CDN.
-// (Line comments in this demo: a block comment inside a fence would close the
-// enclosing doc comment.)
+// TONIO&#39;S WEAPONS (CC BY 4.0), the character builder&#39;s: every one is made
+// the same way (origin at the grip, +Y up the grip, +Z forward, real size), so
+// one grip holds them all, and the blades another. (Line comments in this
+// demo: a block comment inside a fence would close the enclosing doc comment.)
 const weapons = b3dLibrary({
-  url: assetUrl(&#39;kenney/libraries/weapon-pack.glb&#39;),
+  url: assetUrl(&#39;tonio/weapons-classic/weapons.glb&#39;, 2),
   type: &#39;weapons&#39;,
 })
+// Where the hand holds each one: the character builder&#39;s defaults, placed
+// with its manipulator in the hand&#39;s socket frame (x/y/z is the grip).
+// One grip per class of item (hold-grip): every one-handed blade alike.
+const gripFor = (name) =&gt; {
+  const { scale, ...grip } = holdGrip(name)
+  return grip
+}
+// What each one is in the inventory (slot tags, mass, its picture), and for the
+// guns how it fires. Only guns are raised: UAL&#39;s ranged clips are Pistol_*,
+// so the rifles are fired from a one-handed stance. Anything else is a melee
+// weapon (`holdingWeapon`): on guard, and the trigger swings it.
+const WEAPONS = {
+  Pistol: { tags: [&#39;side&#39;, &#39;hand&#39;], mass: 1, art: &#39;pistol&#39;, fire: { fireRate: 6, muzzleSpeed: 45, damage: 25, projRadius: 0.08, gravity: -2 } },
+  SMG: { tags: [&#39;side&#39;, &#39;hand&#39;], mass: 2.5, art: &#39;pistol&#39;, fire: { fireRate: 14, muzzleSpeed: 50, damage: 12, projRadius: 0.06, gravity: -2 } },
+  &#39;Assault Rifle&#39;: { tags: [&#39;back&#39;, &#39;hand&#39;, &#39;two-handed&#39;], mass: 3.5, art: &#39;rifle&#39;, fire: { fireRate: 9, muzzleSpeed: 80, damage: 20, projRadius: 0.06, gravity: -1 } },
+  &#39;Rocket Launcher&#39;: { tags: [&#39;back&#39;, &#39;hand&#39;, &#39;two-handed&#39;], mass: 7, art: &#39;rifle&#39;, fire: { fireRate: 0.8, muzzleSpeed: 25, damage: 120, projRadius: 0.16, gravity: -1 } },
+  Dagger: { tags: [&#39;side&#39;, &#39;hand&#39;], mass: 0.4, art: &#39;knife&#39; },
+  &#39;Short Sword&#39;: { tags: [&#39;side&#39;, &#39;hand&#39;], mass: 1, art: &#39;sword&#39; },
+  &#39;Long Sword&#39;: { tags: [&#39;side&#39;, &#39;hand&#39;], mass: 1.5, art: &#39;sword&#39; },
+  &#39;Hand and a Half&#39;: { tags: [&#39;back&#39;, &#39;hand&#39;, &#39;two-handed&#39;], mass: 2, art: &#39;sword&#39; },
+  &#39;Plasma Blade&#39;: { tags: [&#39;side&#39;, &#39;hand&#39;], mass: 1, art: &#39;sword&#39; },
+  Spear: { tags: [&#39;back&#39;, &#39;hand&#39;, &#39;two-handed&#39;], mass: 2, art: &#39;sword&#39; },
+  Buckler: { tags: [&#39;back&#39;, &#39;hand&#39;], mass: 2.5, art: &#39;shield&#39; },
+}
 
-// x/y/z IS THE HAND, not the model&#39;s origin. `grip: &#39;auto&#39;` (the default) finds
-// the handle and offsets the model so the grip lands here — Kenney authors these
-// as props with a bottom-centre origin, which is right for one lying on a table
-// and wrong for one in a fist.
-//
-// A PISTOL, and that is a constraint rather than a preference: the UAL set has
-// Pistol_* and Bow_* and nothing else ranged, so a shotgun or sniper would be
-// fired with one-handed animations. See `ualAnimationStates`.
+// ONE LAUNCHER, carrying whatever is in your right hand. `socket` parents it
+// to the hand BONE, so it follows the animation, and with a socket x/y/z/rx/
+// ry/rz are the grip in the hand&#39;s frame. Swapping the item swaps its model.
 const gun = b3dLauncher({
-  library: &#39;weapons&#39;, meshName: &#39;pistol&#39;,
-  // IN HIS HAND — `socket` parents the weapon to the hand BONE, so it follows
-  // the animation. No constant offset from the root can track a moving hand.
-  //
-  // With a socket, x/y/z are relative to the JOINT, and `grip: &#39;auto&#39;` puts the
-  // weapon&#39;s handle there, so the numbers are small.
+  library: &#39;weapons&#39;, meshName: &#39;Pistol&#39;,
   socket: &#39;right-hand&#39;,
-  // DIALLED IN WITH THE GIZMO, not computed. The Weapon Fit demo explains why
-  // these are not multiples of 90.
-  x: -0.04, y: 0.051, z: -0.059,
-  rx: -105, ry: -15, rz: -165,
-  modelScale: 0.86,
-  muzzleSpeed: 45, fireRate: 6, gravity: -2, projRadius: 0.08,
-  ammo: 999, reloadRate: 40, damage: 25, projColor: &#39;#ffdd66&#39;,
+  ...gripFor(&#39;Pistol&#39;),
+  ...WEAPONS.Pistol.fire,
+  ammo: 999, reloadRate: 40, projColor: &#39;#ffdd66&#39;,
 })
 
 // A QUATERNIUS UAL RIG, not omnidude, and the arena is the reason rather than
@@ -95,11 +106,11 @@ const gun = b3dLauncher({
 //
 // OR A CHARACTER YOU BUILT: the settings panel lists the characters the
 // character builder saved in this browser, and picking one swaps the hero for
-// a biped made from it (`characterDoc`), carrying the pistol across.
+// a biped made from it (`characterDoc`), carrying what you hold across.
 const MANNEQUIN = &#39;UAL mannequin&#39;
 const makeHero = (doc, at) =&gt; b3dBiped(
   {
-    ...(doc ? { characterDoc: doc } : { url: assetUrl(&#39;quaternius/UAL1_core.glb&#39;, 2) }),
+    ...(doc ? { characterDoc: doc } : { url: assetUrl(&#39;quaternius/UAL1_core.glb&#39;, 3) }),
     animationStates: ualAnimationStates(),
     // WHERE THE ARENA IS IN FRONT OF YOU. Spawning at the origin put `pillar-b`
     // (0, -12.3) literally touching your muzzle line, so every shot from the
@@ -114,27 +125,43 @@ const makeHero = (doc, at) =&gt; b3dBiped(
 )
 let hero = makeHero(null, { x: -4, z: 10 })
 
-// THE PISTOL LIVES ON YOUR HIP. The loadout (a button on the system bar)
-// says where it is, and that decides the mode: in a hand, the gun is up; on
-// the hip, it is down; in the bag or dropped, there is nothing to raise. The
-// weapon button draws it from the hip or holsters it; dragging it into a hand
-// does the same.
-const loadout = demoLoadout({ equip: { right_side: &#39;pistol&#39; } })
+// THE INVENTORY says what you hold: the loadout (a button on the system bar)
+// starts with the pistol on your hip and the rest in the bag. Whatever is in
+// your right hand is what the launcher carries; a gun in hand is up (aim and
+// fire), anything else is held with the weapon down. The weapon button draws
+// from the hip or back, or puts away what is in hand; dragging works too.
+const loadout = demoLoadout({ catalogue: WEAPONS, equip: { right_side: &#39;Pistol&#39; } })
 const body = (slot) =&gt; ({ holder: &#39;hero&#39;, container: &#39;body&#39;, slot })
-const pistolAt = () =&gt; loadout.inv.where(&#39;pistol&#39;)?.slot
-const inHand = () =&gt; pistolAt() === &#39;hand_right&#39; || pistolAt() === &#39;hand_left&#39;
+const slotsNow = () =&gt; loadout.inv.doc.holders.hero.containers.body.slots
+const inRight = () =&gt; slotsNow().hand_right.holds
 const wire = (h) =&gt; {
-  h.whenWeapon = (up) =&gt; {
-    const at = pistolAt()
-    if (up &amp;&amp; (at === &#39;right_side&#39; || at === &#39;left_side&#39;))
-      loadout.inv.move({ item: &#39;pistol&#39;, to: body(&#39;hand_right&#39;), swap: true })
-    else if (!up &amp;&amp; inHand())
-      loadout.inv.move({ item: &#39;pistol&#39;, to: body(&#39;right_side&#39;), swap: true })
+  h.whenWeapon = () =&gt; {
+    const held = inRight()
+    // Put away: the first place it goes (a hip, then the back).
+    const away = [&#39;right_side&#39;, &#39;left_side&#39;, &#39;back&#39;]
+    if (held) {
+      const to = away.find((s) =&gt; !slotsNow()[s].holds &amp;&amp; !loadout.inv.check({ item: held, to: body(s) }).length)
+      if (to) loadout.inv.move({ item: held, to: body(to) })
+      return
+    }
+    // Draw: what is on the right hip, then the left, then the back.
+    const from = away.map((s) =&gt; slotsNow()[s].holds).find(Boolean)
+    if (from) loadout.inv.move({ item: from, to: body(&#39;hand_right&#39;), swap: true })
   }
   return h
 }
+const hold = (h) =&gt; {
+  const id = inRight()
+  const w = id ? WEAPONS[id] : null
+  if (w &amp;&amp; gun.meshName !== id) {
+    Object.assign(gun, gripFor(id), w.fire ?? {}, { meshName: id })
+    gun.reloadModel()
+  }
+  h.holdingWeapon = w != null &amp;&amp; w.fire == null
+  h.setGunplay(w?.fire != null)
+}
 wire(hero)
-loadout.inv.subscribe(() =&gt; hero.setGunplay(inHand()))
+loadout.inv.subscribe(() =&gt; hold(hero))
 
 // The characters saved in this browser, and swapping the hero for one. The
 // figure open in the character builder is one of them, under its own label.
@@ -163,7 +190,7 @@ const useCharacter = async (name) =&gt; {
   const next = wire(makeHero(doc, at))
   hero.replaceWith(next)
   hero = next
-  next.setGunplay(inHand())
+  hold(next)
   playChar.pick.value = name
   try { localStorage.setItem(&#39;playground-character&#39;, name) } catch {}
 }
@@ -213,14 +240,20 @@ preview.append(
 </code></pre>
 <pre><code class="language-css">.preview { height: 100%; }
 </code></pre>
-<p><strong>Two modes, and the right bumper (or clicking the right stick) is the switch</strong>, when there is a pistol to
-switch to: it starts on your hip (open the loadout from its button on the system bar
-to see it). With the weapon down you are walking:
-<strong>R</strong> sprints. Press <strong>right bumper</strong> and you draw it, and the gun comes up — now <strong>R</strong> fires, <strong>Q</strong>
-aims down the sights, and a ring shows where the round will actually land,
-sinking as the range grows because it is the real ballistic arc rather than a
-dot in the middle of the screen. You cannot sprint with the gun up, which is why
-the trigger is free to do both jobs.</p>
+<p><strong>Two modes, and the right bumper (or clicking the right stick) is the
+switch.</strong> You start with a pistol on your hip and the rest of
+<a href="/character-builder/">Tonio&#39;s weapons</a> in the bag: open the loadout from its
+button on the system bar and drag any of them onto a hip, your back or your
+right hand. With the weapon down you are walking: <strong>R</strong> sprints. Press <strong>right
+bumper</strong> and you draw what is on your hip (or back), and if it is a gun it
+comes up: now <strong>R</strong> fires, <strong>Q</strong> aims down the sights, and a ring shows where
+the round will actually land, sinking as the range grows because it is the
+real ballistic arc rather than a dot in the middle of the screen. You cannot
+sprint with the gun up, which is why the trigger is free to do both jobs.
+Each gun fires its own way (the SMG fast, the rocket launcher slow and heavy).
+A blade, the spear or the buckler takes a guard (UAL&#39;s <code>Sword_Idle</code>) and <strong>R</strong>
+swings it (<code>Sword_Attack</code>, played through; held, it swings again). Press the
+bumper again to put away what is in your hand. Only the right hand is drawn.</p>
 <p><strong>WASD</strong> moves, <strong>arrow keys</strong> look, <strong>space</strong> jumps, <strong>left shift</strong> sneaks,
 <strong>E</strong> interacts, <strong>Y</strong> switches between third and first person. On a pad,
 clicking the left stick sneaks.</p>
@@ -228,9 +261,9 @@ clicking the left stick sneaks.</p>
 <a href="/character-builder/">character builder</a> (or press <strong>make your own
 character…</strong> in this page&#39;s settings panel, the goggles on the bar) and press
 <strong>play in Biped Playground</strong> there, or save it and pick it from <strong>character</strong>
-here. It takes the hero&#39;s place where he stands, pistol and all. Characters
+here. It takes the hero&#39;s place where he stands, holding what you held. Characters
 belong to the browser that made them.</p>
-<p>Things to try: put the pistol in the bag and try to raise it (nothing to raise), drag it back into your hand (it comes up); swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
+<p>Things to try: put the pistol in the bag and try to raise it (nothing to raise), drag the rifle into your hand (it comes up, and both hands are taken); carry a sword on your hip and draw it; swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
 and watch the ring disappear behind it until you stand; walk the cover line and
 compare the railing with the wall beside it.</p>
 <h2 id="using-it">Using it</h2>
@@ -300,7 +333,10 @@ showing you&quot;</em> can be one line of data.</p>
     <ul id="tosi-nav-demos">
       <li><a class="doc-link current" href="../playground/" aria-current="page">Biped Playground</a></li>
       <li><a class="doc-link" href="../solar-system/">Solar System</a></li>
-      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-weapon-fit" aria-label="Weapon Fit"></button><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></div>
+      <ul id="tosi-nav-weapon-fit">
+        <li><a class="doc-link" href="../hold-grip/">hold grips</a></li>
+      </ul></li>
       <li><a class="doc-link" href="../rig-tool/">Rig tool</a></li>
       <li><a class="doc-link" href="../effect-tool/">Effect tool</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-builder" aria-label="character builder"></button><a class="doc-link" href="../character-builder/">character builder</a></div>
@@ -470,6 +506,7 @@ showing you&quot;</em> can be one line of data.</p>
             <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-rigged-body-glb" aria-label="rigged-body-glb"></button><a class="doc-link" href="../rigged-body-glb/">rigged-body-glb</a></div>
             <ul id="tosi-nav-rigged-body-glb">
               <li><a class="doc-link" href="../spring-vrm/">spring-vrm</a></li>
+              <li><a class="doc-link" href="../body-export/">body export</a></li>
             </ul></li>
           </ul></li>
           <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-chunks" aria-label="glb-chunks"></button><a class="doc-link" href="../glb-chunks/">glb-chunks</a></div>
@@ -583,6 +620,7 @@ showing you&quot;</em> can be one line of data.</p>
     <ul id="tosi-nav-ui">
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widgets3d" aria-label="widgets3d"></button><a class="doc-link" href="../widgets3d/">widgets3d</a></div>
       <ul id="tosi-nav-widgets3d">
+        <li><a class="doc-link" href="../playback-field/">Playback</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widget-semantics" aria-label="widget semantics"></button><a class="doc-link" href="../widget-semantics/">widget semantics</a></div>
         <ul id="tosi-nav-widget-semantics">
@@ -601,7 +639,11 @@ showing you&quot;</em> can be one line of data.</p>
         <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
         <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
         <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
-        <li><a class="doc-link" href="../material-picker/">materialPicker3d</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-material-picker" aria-label="materialPicker3d"></button><a class="doc-link" href="../material-picker/">materialPicker3d</a></div>
+        <ul id="tosi-nav-material-picker">
+          <li><a class="doc-link" href="../fabric-textures/">fabric textures</a></li>
+          <li><a class="doc-link" href="../material-pictures/">material pictures</a></li>
+        </ul></li>
         <li><a class="doc-link" href="../material-recipe/">material-recipe</a></li>
         <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-color-field" aria-label="color3d"></button><a class="doc-link" href="../color-field/">color3d</a></div>
@@ -679,12 +721,14 @@ showing you&quot;</em> can be one line of data.</p>
     <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-utilities" aria-label="utilities"></button><a class="doc-link" href="../utilities/">utilities</a></div>
     <ul id="tosi-nav-utilities">
       <li><a class="doc-link" href="../clock/">clock</a></li>
+      <li><a class="doc-link" href="../undo-history/">undo history</a></li>
     </ul></li>
     <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-upgrading" aria-label="Upgrading"></button><a class="doc-link" href="../upgrading/">Upgrading</a></div>
     <ul id="tosi-nav-upgrading">
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.12.4/">0.12.4</a></li>
         <li><a class="doc-link" href="../v0.12.3/">0.12.3</a></li>
         <li><a class="doc-link" href="../v0.12.2/">0.12.2</a></li>
         <li><a class="doc-link" href="../v0.12.1/">0.12.1</a></li>
@@ -768,6 +812,6 @@ showing you&quot;</em> can be one line of data.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-6cqawqfh.js"></script>
+  <script type="module" src="../hydrate-d5cbj3ft.js"></script>
 </body>
 </html>

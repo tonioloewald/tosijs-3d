@@ -163,7 +163,8 @@ async function draw(recipe: MaterialRecipe): Promise<string | null> {
     // leaves it, and a recipe with no colour ('as made') stays neutral.
     const a = recipe.inputs.albedo
     const coloured =
-      typeof a === 'string' || (typeof a === 'object' && a != null && 'colour' in a)
+      typeof a === 'string' ||
+      (typeof a === 'object' && a != null && 'colour' in a)
     stage.clothLook.set({
       recipe: !coloured
         ? recipe

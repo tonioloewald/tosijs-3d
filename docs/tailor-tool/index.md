@@ -20,8 +20,8 @@ const tailor = mountTailorTool(scene, {
 })
 ```
 
-**Its panel is a system panel** (scissors, on the bar), with **cancel** and
-**done** at its top, then:
+**Its panel is a system panel** (scissors, on the bar). A bar pinned to its
+top carries **undo**, **redo**, **cancel** and **done**; below it:
 
 - **the outline**: you draw the character's left, on your right, and the
   other side is its mirror. Click out points, click the first to close a
@@ -40,12 +40,21 @@ const tailor = mountTailorTool(scene, {
   height: skirts, kilts);
 - **material**, **name** and **slot**.
 
+**Undo and redo** (and ⌘Z / ⇧⌘Z through `undo()` / `redo()`, which a host's
+keys call while the tool is open): each settled edit, a point dropped or a
+slider let go, is a step.
+
 WHAT DONE HANDS BACK is the garment as a mesh at rest, on the body it was
 cut from (`garment`: positions, triangles, UVs unwrapped like a sewing
 pattern), with what it was cut from (`cut`: the outlines, thickness, how it was made)
 so it can be opened again, and the name, slot and material recipe. Binding it
 to a body to wear (`bindGarment`) is the host's: a garment file carries the
 same mesh.
+
+A host that keeps the garment itself passes `persistent` (no cancel or
+done), its own system panel as `panel`, and rows of its own above and below
+(`rows: { top, bottom }`); the character builder does, so its tailor is
+always on the bar.
 
 `handleChange` hears every edit (a work in progress to keep); `setBody`
 moves the cut onto a body reshaped while the tool is open; `unmount` (or

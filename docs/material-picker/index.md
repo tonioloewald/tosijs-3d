@@ -6,8 +6,13 @@ small render of the material, and the popup has the presets first (a
 collection, such as the fabrics) as a grid of renders, then a control per input
 of the material's type, drawn from the type's own declaration: a slider for
 a grey value, a colour picker for a colour, a strength beside it where the
-input has one. A picture in place of a flat value shows as a row you can
-clear. Where the caller allows more than one type, the popup starts with a
+input has one. An input that may take a picture (the diffuse colour, a
+roughness, the normal map) is a heading and a row: **choose a picture** (from your
+files: [material-pictures](/material-pictures/), the recipe keeps a key and a
+character file carries the picture), **clear** it, a **flat** colour or grey
+in its place, and a swatch showing what it is now. **Scale textures** runs
+from 1/32 to 4; a press beside its handle steps to the next scale at which a
+picture repeats whole (1/3, 1/2, 1, 2, 3). Where the caller allows more than one type, the popup starts with a
 choice of type.
 
 The value is a [[material-recipe|recipe]], `{ type, inputs }`, always in
@@ -56,6 +61,7 @@ is why the scene has `studioEnvironment`.
 | Option | Default | |
 | --- | --- | --- |
 | `label` | `''` | The caption on the row |
+| `name` | | Its name without a caption (the popup's title, what a screen reader says): the row is then just the swatch, for beside another control |
 | `value` | a grey `pbr` | A recipe, or a reactive value holding one |
 | `types` | every registered type | The types it may be. One type: no choice of type is shown |
 | `collections` | `[]` | Names from `MATERIAL_COLLECTIONS`, or collections of your own, offered as presets |
@@ -65,9 +71,11 @@ is why the scene has `studioEnvironment`.
 
 ## Previews
 
-Each swatch and preset is the material rendered on a teapot (The Base
-Mesh's, CC0) in a fixed studio. One hidden engine draws every preview on the page, made the first
+Each swatch and preset is the material rendered on a cube, on grey, in a
+fixed studio. One hidden engine draws every preview on the page, made the first
 time one is wanted (one more WebGL context, once), one at a time, and each
 recipe is drawn once and kept. While you drag a slider the row shows the
 last picture until you pause. Until a picture is ready, or where WebGL is not
-available, the swatch is the material's flat colour.
+available, the swatch is the material's flat colour. A cloth material with a colour
+is previewed in that colour, whatever its recolour: the ball has no texture of
+its own for the recolour to keep.

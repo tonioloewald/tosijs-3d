@@ -16,7 +16,7 @@ Lengths are metres, angles degrees. A strand's `offset` and direction are in
 the CHARACTER's frame (its placement, not glTF's mirrored `__root__`), with
 the character in its rest pose: +Y up, +Z the way the model faces.
 */
-import { MARKER_NAMES } from './rig-fit.js';
+import { HAND_MODES, MARKER_NAMES, } from './rig-fit.js';
 export const RIG_RECIPE_VERSION = 1;
 export const STRAND_DEFAULTS = {
     kind: 'strand',
@@ -171,6 +171,8 @@ export function validateRigRecipe(doc) {
                     if (!isVec(v))
                         out.push(`binding.joints.${k} is not {x, y, z}`);
         }
+        if (b?.hands != null && !HAND_MODES.includes(b.hands))
+            out.push(`binding.hands is not one of ${HAND_MODES.join(', ')}`);
     }
     const springs = r.springs ?? [];
     if (!Array.isArray(springs))
@@ -334,6 +336,10 @@ export function rigRecipeSchema() {
                         type: 'object',
                         description: 'Joints moved by hand after the fit (a thumb, a toe, a shoulder), by name, in the mesh’s frame.',
                         additionalProperties: vec3('Where the joint is.'),
+                    },
+                    hands: {
+                        enum: [...HAND_MODES],
+                        description: 'How much hand is rigged: full (thumb and four fingers), mitten (a thumb and one finger), none (the hand alone). Left out: as the fit found it.',
                     },
                 },
                 required: ['markers'],

@@ -22,7 +22,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=9acedf89658b" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=aeadb365ee59" data-tosi-doc-system />
   <title>widgets3d — tosijs-3d</title>
   <meta name="description" content="A small collection of SVG-native UI widgets with element-creator ergonomics (built on tosijs&#39;s svgElements proxy, the same way gamepadSvg is). They" />
   <link rel="canonical" href="https://3d.tosijs.net/widgets3d/" />
@@ -33,13 +33,13 @@
   <meta property="og:description" content="A small collection of SVG-native UI widgets with element-creator ergonomics (built on tosijs&#39;s svgElements proxy, the same way gamepadSvg is). They" />
   <meta property="og:url" content="https://3d.tosijs.net/widgets3d/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"widgets3d","description":"A small collection of SVG-native UI widgets with element-creator ergonomics (built on tosijs's svgElements proxy, the same way gamepadSvg is). They","url":"https://3d.tosijs.net/widgets3d/","inLanguage":"en","dateModified":"2026-11-05T07:14:05.770Z","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"widgets3d","description":"A small collection of SVG-native UI widgets with element-creator ergonomics (built on tosijs's svgElements proxy, the same way gamepadSvg is). They","url":"https://3d.tosijs.net/widgets3d/","inLanguage":"en","dateModified":"2026-11-07T21:23:23.642Z","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"UI","item":"https://3d.tosijs.net/ui/"},{"@type":"ListItem","position":2,"name":"widgets3d","item":"https://3d.tosijs.net/widgets3d/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=8dbf70970b3a" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=1efe4da519d1" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="widgets3d.ts">
 <h1 id="widgets3d">widgets3d</h1>
 <p>A small collection of <strong>SVG-native</strong> UI widgets with element-creator ergonomics
@@ -376,6 +376,12 @@ drag <em>and</em> the reported value, so a slider can be discrete without becomi
 </tr>
 <tr>
 <td></td>
+<td><strong><code>notches</code></strong></td>
+<td></td>
+<td>values a press BESIDE the handle steps to, the next one that way (<code>textureScaleNotches</code>: 1/3 → 1/2 → 1 → 2); dragging the handle stays continuous</td>
+</tr>
+<tr>
+<td></td>
 <td><code>showValue</code></td>
 <td><code>&#39;peek&#39;</code></td>
 <td><code>peek</code> (on touch/drag) / <code>always</code> / <code>never</code></td>
@@ -442,9 +448,9 @@ drag <em>and</em> the reported value, so a slider can be discrete without becomi
 </tr>
 <tr>
 <td><code>iconBar3d</code></td>
-<td><code>items</code></td>
+<td><code>items</code> / <code>inTabs</code></td>
 <td></td>
-<td><code>{icon, handleClick}</code></td>
+<td><code>{icon, title, handleClick}</code>; <code>{ spacer: true }</code> is an elastic gap, so what follows sits at the right end. <code>inTabs</code>: in a tabbed panel, a bar before the first section goes on the tab strip&#39;s right end (undo, redo)</td>
 </tr>
 <tr>
 <td><code>foldSections</code></td>
@@ -456,7 +462,7 @@ drag <em>and</em> the reported value, so a slider can be discrete without becomi
 <td><code>tabs3d</code></td>
 <td><code>tabs</code> / <code>active</code> / <code>handleSelect</code></td>
 <td><code>0</code></td>
-<td>file tabs; a tab is a caption or <code>{ icon, title }</code>; at most half the strip each, overlapping around the active one when they don&#39;t fit</td>
+<td>file tabs; a tab is a caption or <code>{ icon, title }</code>; at most half the strip each, overlapping around the active one when they don&#39;t fit; <code>tools</code> (an <code>iconBar3d</code>) sits at the strip&#39;s right end</td>
 </tr>
 <tr>
 <td><code>spinner3d</code></td>
@@ -709,7 +715,10 @@ position and back, for the <code>linear</code>, <code>log</code> and <code>log2<
     <ul id="tosi-nav-demos">
       <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
       <li><a class="doc-link" href="../solar-system/">Solar System</a></li>
-      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-weapon-fit" aria-label="Weapon Fit"></button><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></div>
+      <ul id="tosi-nav-weapon-fit">
+        <li><a class="doc-link" href="../hold-grip/">hold grips</a></li>
+      </ul></li>
       <li><a class="doc-link" href="../rig-tool/">Rig tool</a></li>
       <li><a class="doc-link" href="../effect-tool/">Effect tool</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-builder" aria-label="character builder"></button><a class="doc-link" href="../character-builder/">character builder</a></div>
@@ -879,6 +888,7 @@ position and back, for the <code>linear</code>, <code>log</code> and <code>log2<
             <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-rigged-body-glb" aria-label="rigged-body-glb"></button><a class="doc-link" href="../rigged-body-glb/">rigged-body-glb</a></div>
             <ul id="tosi-nav-rigged-body-glb">
               <li><a class="doc-link" href="../spring-vrm/">spring-vrm</a></li>
+              <li><a class="doc-link" href="../body-export/">body export</a></li>
             </ul></li>
           </ul></li>
           <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-chunks" aria-label="glb-chunks"></button><a class="doc-link" href="../glb-chunks/">glb-chunks</a></div>
@@ -992,6 +1002,7 @@ position and back, for the <code>linear</code>, <code>log</code> and <code>log2<
     <ul id="tosi-nav-ui">
       <li class="nav-branch -open"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="true" aria-controls="tosi-nav-widgets3d" aria-label="widgets3d"></button><a class="doc-link current" href="../widgets3d/" aria-current="page">widgets3d</a></div>
       <ul id="tosi-nav-widgets3d">
+        <li><a class="doc-link" href="../playback-field/">Playback</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widget-semantics" aria-label="widget semantics"></button><a class="doc-link" href="../widget-semantics/">widget semantics</a></div>
         <ul id="tosi-nav-widget-semantics">
@@ -1010,7 +1021,11 @@ position and back, for the <code>linear</code>, <code>log</code> and <code>log2<
         <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
         <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
         <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
-        <li><a class="doc-link" href="../material-picker/">materialPicker3d</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-material-picker" aria-label="materialPicker3d"></button><a class="doc-link" href="../material-picker/">materialPicker3d</a></div>
+        <ul id="tosi-nav-material-picker">
+          <li><a class="doc-link" href="../fabric-textures/">fabric textures</a></li>
+          <li><a class="doc-link" href="../material-pictures/">material pictures</a></li>
+        </ul></li>
         <li><a class="doc-link" href="../material-recipe/">material-recipe</a></li>
         <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-color-field" aria-label="color3d"></button><a class="doc-link" href="../color-field/">color3d</a></div>
@@ -1088,12 +1103,14 @@ position and back, for the <code>linear</code>, <code>log</code> and <code>log2<
     <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-utilities" aria-label="utilities"></button><a class="doc-link" href="../utilities/">utilities</a></div>
     <ul id="tosi-nav-utilities">
       <li><a class="doc-link" href="../clock/">clock</a></li>
+      <li><a class="doc-link" href="../undo-history/">undo history</a></li>
     </ul></li>
     <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-upgrading" aria-label="Upgrading"></button><a class="doc-link" href="../upgrading/">Upgrading</a></div>
     <ul id="tosi-nav-upgrading">
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.12.4/">0.12.4</a></li>
         <li><a class="doc-link" href="../v0.12.3/">0.12.3</a></li>
         <li><a class="doc-link" href="../v0.12.2/">0.12.2</a></li>
         <li><a class="doc-link" href="../v0.12.1/">0.12.1</a></li>
@@ -1177,6 +1194,6 @@ position and back, for the <code>linear</code>, <code>log</code> and <code>log2<
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-6cqawqfh.js"></script>
+  <script type="module" src="../hydrate-d5cbj3ft.js"></script>
 </body>
 </html>

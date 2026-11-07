@@ -33,6 +33,8 @@ export declare const w3dTheme: {
     info: string;
     warning: string;
     error: string;
+    anchored: string;
+    iconFill: string;
     focus: string;
     selectedBg: string;
     disabledBg: string;

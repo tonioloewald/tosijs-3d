@@ -29,7 +29,7 @@ export declare function getAssetBase(): string;
  * he had. Three wrong diagnoses before someone looked at the actual bytes.
  *
  * So pass a version whenever you depend on content that has been republished:
- * `assetUrl('quaternius/UAL1_core.glb', 2)`. It changes the URL, which is the
+ * `assetUrl('quaternius/UAL1_core.glb', 3)`. It changes the URL, which is the
  * only thing an immutable cache respects.
  */
 export declare function assetUrl(path: string, version?: string | number): string;
