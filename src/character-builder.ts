@@ -352,8 +352,8 @@ preview.append(
         slider('pecs', 'pecs'),
         slider('bust', 'bustSize'),
         slider('firmness', 'bustFirmness'),
-        // Beside the body: MakeHuman's own, so only here.
-        label3d({ text: 'Ancestry', icon: 'ancestry', collapsible: true }),
+        // MakeHuman's own, so only here: a subheading in Body, not a tab.
+        label3d({ text: 'ancestry' }),
         slider('african', 'african'),
         slider('asian', 'asian'),
         slider('caucasian', 'caucasian'),
