@@ -871,25 +871,37 @@ function panelPopupSheet(
  * `section.isOpen` are wired by the host before layout.
  */
 function sectionLabel(
-  config: { text: string; open?: boolean; color?: string; icon?: string },
+  config: {
+    text: string
+    open?: boolean
+    color?: string
+    icon?: string
+    level?: 1 | 2
+  },
   fill: string
 ): Widget3d & {
   section: {
     title: string
     icon?: string
     open?: boolean
+    level: 1 | 2
     isOpen: boolean
     toggle?: () => void
   }
 } {
+  const level = config.level === 2 ? 2 : 1
   const section = {
     title: config.text,
     icon: config.icon,
     open: config.open,
+    level: level as 1 | 2,
     isOpen: config.open ?? false,
     toggle: undefined as undefined | (() => void),
   }
-  const t = baseText(config.text, fill, true)
+  // A sub-section sits one step in, in the regular weight, so it reads as
+  // part of the section above it.
+  const indent = level === 2 ? 14 : 0
+  const t = baseText(config.text, fill, level === 1)
   const chevron = baseText('', TH.MUTED, true)
   // COMPACT (Tonio: "the collapsed sections could be a little more compact"):
   // a caption line, not a control row, so a panel of folded sections reads as
@@ -903,20 +915,20 @@ function sectionLabel(
     height: h - 2,
     fill: 'transparent',
   })
-  t.setAttribute('x', String(TH.PAD_X + 16))
+  t.setAttribute('x', String(TH.PAD_X + indent + 16))
   t.setAttribute('y', String(h / 2))
-  chevron.setAttribute('x', String(TH.PAD_X))
+  chevron.setAttribute('x', String(TH.PAD_X + indent))
   chevron.setAttribute('y', String(h / 2))
   return {
-    el: g({ 'data-w3d': 'section' }, bg, chevron, t),
+    el: g({ 'data-w3d': level === 2 ? 'subsection' : 'section' }, bg, chevron, t),
     section,
     layout(width) {
       bg.setAttribute('width', String(width))
       chevron.textContent = section.isOpen ? '▾' : '▸'
       t.textContent = ellipsize(
         config.text,
-        width - TH.PAD_X * 2 - 16,
-        TH.BOLD_FONT
+        width - TH.PAD_X * 2 - 16 - indent,
+        level === 1 ? TH.BOLD_FONT : TH.TEXT_FONT
       )
       return h
     },
@@ -928,6 +940,7 @@ function sectionLabel(
       role: 'section',
       name: config.text,
       open: section.isOpen,
+      ...(level === 2 ? { level } : {}),
       activate: () => section.toggle?.(),
     }),
   }
@@ -1128,6 +1141,10 @@ const tabName = (t: Tab3d) => (typeof t === 'string' ? t : t.title ?? t.icon)
  * - `mode: 'tabs'`: rows before the first section, a `tabs3d` strip of the
  *   sections (a section's `icon` becomes its tab), and the active section's rows.
  *
+ * A `label3d({ collapsible: true, level: 2 })` heads a SUB-SECTION: it folds
+ * inside the section or tab it is in, by the same rule (one open at a time,
+ * except in `'folds'`), so a long tab is an accordion of its own.
+ *
  * A panel is laid out once when built, so folding means REBUILDING: a header's
  * tap or a tab's pick calls `repaint`, and you build the panel again from the
  * same row list. Pass `key` to remember the open set and the active tab across
@@ -1159,23 +1176,81 @@ export function foldSections(
     title: string
     icon?: string
     open?: boolean
+    level?: 1 | 2
     isOpen: boolean
     toggle?: () => void
+  }
+  const secOf = (row: Widget3d) => (row as any).section as Sec | undefined
+  const levelOf = (sec: Sec) => (sec.level === 2 ? 2 : 1)
+  /*
+  ONE OPEN AT A TIME ('fold'), as an accordion: opening a section closes the
+  rest, and all of them may be closed. A panel's sections are long, so two
+  open push the second's rows out of reach. 'folds' lets several stay open.
+  */
+  const single = opts.mode !== 'folds'
+  /*
+  Fold the headers of one LEVEL among `rows`; an open section's rows are
+  folded again one level down, so a sub-section folds inside its parent.
+  Open state is kept under the parent's path (`Body/shape`), so two tabs may
+  each have a sub-section of the same name.
+  */
+  const fold = (rows: Widget3d[], level: 1 | 2, prefix: string): Widget3d[] => {
+    const titles: string[] = []
+    const out: Widget3d[] = []
+    let pending: Widget3d[] = []
+    let showing = true
+    let first = true
+    let anyOpen = false
+    let current: Sec | null = null
+    const flush = () => {
+      if (showing)
+        out.push(
+          ...(level === 1 && current ? fold(pending, 2, `${current.title}/`) : pending)
+        )
+      pending = []
+    }
+    for (const row of rows) {
+      const sec = secOf(row)
+      if (sec == null || levelOf(sec) !== level) {
+        pending.push(row)
+        continue
+      }
+      flush()
+      const key = prefix + sec.title
+      titles.push(key)
+      let isOpen = state.open.get(key) ?? sec.open ?? first
+      // Saved or declared, only the first open section stays open.
+      if (single && anyOpen) isOpen = false
+      anyOpen ||= isOpen
+      first = false
+      sec.isOpen = isOpen
+      sec.toggle = () => {
+        if (single && !isOpen) for (const t of titles) state.open.set(t, false)
+        state.open.set(key, !isOpen)
+        save()
+        opts.repaint()
+      }
+      out.push(row)
+      showing = isOpen
+      current = sec
+    }
+    flush()
+    return out
   }
   if (opts.mode === 'tabs') {
     const head: Widget3d[] = []
     let tools: (Widget3d & { naturalWidth: number }) | undefined
     const sections: { title: string; icon?: string; rows: Widget3d[] }[] = []
     for (const row of rows) {
-      const sec = (row as any).section as Sec | undefined
-      if (sec != null)
+      const sec = secOf(row)
+      if (sec != null && levelOf(sec) === 1)
         sections.push({ title: sec.title, icon: sec.icon, rows: [] })
       else if (sections.length === 0 && (row as any).inTabs && !tools)
         tools = row as Widget3d & { naturalWidth: number }
       else if (sections.length === 0) head.push(row)
       else sections[sections.length - 1].rows.push(row)
     }
-    if (sections.length === 0) return rows
+    if (sections.length === 0) return fold(rows, 2, '')
     let active = sections.findIndex((x) => x.title === state.tab)
     if (active < 0) active = 0
     const strip = tabs3d({
@@ -1191,42 +1266,11 @@ export function foldSections(
         opts.repaint()
       },
     })
-    return [...head, strip, ...sections[active].rows]
+    // The tab's own sub-sections fold inside it.
+    const tab = sections[active]
+    return [...head, strip, ...fold(tab.rows, 2, `${tab.title}/`)]
   }
-  /*
-  ONE OPEN AT A TIME ('fold'), as an accordion: opening a section closes the
-  rest, and all of them may be closed. A panel's sections are long, so two
-  open push the second's rows out of reach. 'folds' lets several stay open.
-  */
-  const single = opts.mode !== 'folds'
-  const titles: string[] = []
-  const out: Widget3d[] = []
-  let showing = true
-  let first = true
-  let anyOpen = false
-  for (const row of rows) {
-    const sec = (row as any).section as Sec | undefined
-    if (sec == null) {
-      if (showing) out.push(row)
-      continue
-    }
-    titles.push(sec.title)
-    let isOpen = state.open.get(sec.title) ?? sec.open ?? first
-    // Saved or declared, only the first open section stays open.
-    if (single && anyOpen) isOpen = false
-    anyOpen ||= isOpen
-    first = false
-    sec.isOpen = isOpen
-    sec.toggle = () => {
-      if (single && !isOpen) for (const t of titles) state.open.set(t, false)
-      state.open.set(sec.title, !isOpen)
-      save()
-      opts.repaint()
-    }
-    out.push(row)
-    showing = isOpen
-  }
-  return out
+  return fold(rows, 1, '')
 }
 
 const sectionStates = new Map<
@@ -1658,11 +1702,17 @@ export function label3d(config: {
   /** An icon for the section: as TABS (`panelSections="tabs"`) it replaces
    * the caption, so the strip stays narrow and does not overlap. */
   icon?: string
+  /**
+   * `2` makes a SUB-SECTION: it folds inside the section (or tab) it is in,
+   * drawn indented, so a long tab becomes an accordion of its own. Default 1.
+   */
+  level?: 1 | 2
 }): Widget3d & {
   section?: {
     title: string
     icon?: string
     open?: boolean
+    level: 1 | 2
     isOpen: boolean
     toggle?: () => void
   }

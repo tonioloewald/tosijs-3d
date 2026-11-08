@@ -353,18 +353,21 @@ preview.append(
         button3d({ label: 'open a mesh…', handleClick: () => openBody() }),
         // How much of the body is drawn: MakeHuman's lighter skins, or its base mesh.
         select3d({ label: 'detail', value: walker.bodyDetail, options: ['low', 'medium', 'high', 'full'] }),
+        // Sub-sections fold inside the tab, one open at a time.
+        label3d({ text: 'shape', collapsible: true, level: 2 }),
         slider('gender', 'gender'),
         slider('age', 'age'),
         slider('muscle', 'muscle'),
         slider('weight', 'weight'),
-        slider('waist', 'waist'),
         slider('height', 'height'),
+        label3d({ text: 'figure', collapsible: true, level: 2 }),
+        slider('waist', 'waist'),
         slider('chest depth', 'chestDepth'),
         slider('pecs', 'pecs'),
         slider('bust', 'bustSize'),
         slider('firmness', 'bustFirmness'),
-        // MakeHuman's own, so only here: a subheading in Body, not a tab.
-        label3d({ text: 'ancestry' }),
+        // MakeHuman's own, so only here.
+        label3d({ text: 'ancestry', collapsible: true, level: 2 }),
         slider('african', 'african'),
         slider('asian', 'asian'),
         slider('caucasian', 'caucasian'),

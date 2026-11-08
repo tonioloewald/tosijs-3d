@@ -288,7 +288,7 @@ document.body.append(
 | `scenePanelOpen` | `false` | Start with the settings panel open instead of closed behind the owl |
 | `panelTitle` | `''` | The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row) |
 | `agent` | `''` | What an agent may do with this scene through its tools (`b3d_<scene>_…` on WebMCP and `window.b3dAgent`; see [agents](/b3d-agent/)). `''` follows the page (`enableSceneAgents`; closed by default), `'read'` offers the read tools, `'on'` everything, `'off'` nothing |
-| `panelSections` | `'fold'` | How collapsible sections in the settings panel present: `'fold'` (headers you open and close, one open at a time: opening one closes the others), `'folds'` (several may be open) or `'tabs'` (file tabs, one section at a time) |
+| `panelSections` | `'fold'` | How collapsible sections in the settings panel present: `'fold'` (headers you open and close, one open at a time: opening one closes the others), `'folds'` (several may be open) or `'tabs'` (file tabs, one section at a time). A `label3d({ collapsible: true, level: 2 })` is a sub-section that folds inside its section or tab |
 | `stats` | `false` | Add a Perf Stats section to the settings panel, flat and in a headset. `#perf` or `#debug` (or `?perf`, `?debug`) in the page URL, or calling `showB3dStats()`, shows it on every scene |
 | `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = the default layout (everything but the d-pad); a value like `"a,b,left_stick"` selects controls, and naming `view` or `menu` also puts them on the headset's system bar. A plain property, read once at setup |
 | `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |

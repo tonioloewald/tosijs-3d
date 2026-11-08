@@ -6202,7 +6202,7 @@
       {
         "name": "panelSections",
         "default": "'fold'",
-        "description": "How collapsible sections in the settings panel present: `'fold'` (headers you open and close, one open at a time: opening one closes the others), `'folds'` (several may be open) or `'tabs'` (file tabs, one section at a time)"
+        "description": "How collapsible sections in the settings panel present: `'fold'` (headers you open and close, one open at a time: opening one closes the others), `'folds'` (several may be open) or `'tabs'` (file tabs, one section at a time). A `label3d({ collapsible: true, level: 2 })` is a sub-section that folds inside its section or tab"
       },
       {
         "name": "agent",

@@ -86,6 +86,8 @@ export interface WidgetSemantics {
   disabled?: boolean
   /** A section: whether it is open. */
   open?: boolean
+  /** A section: 2 for a sub-section, which belongs to the section above it. */
+  level?: number
   /** A text box's hint, used for its name when nothing else names it. */
   placeholder?: string
   /** Set the value through the widget's own setter, as a hand would. */
@@ -266,13 +268,16 @@ export function controlTree(
     return node
   }
 
+  // The section a sub-section (level 2) belongs to.
+  let parent: ControlNode | null = null
   for (const w of widgets) {
     const s = describe(w)
     if (s?.role === 'section') {
+      const sub = s.level === 2 && parent != null
       const node: ControlNode = {
         role: 'section',
         name: s.name,
-        path: pathOf(prefix, s.name),
+        path: pathOf(sub ? parent!.path : prefix, s.name),
         interactive: s.activate != null,
         open: s.open,
         children: [],
@@ -280,7 +285,13 @@ export function controlTree(
       if (s.activate) node.activate = s.activate
       const b = boxOf?.(w)
       if (b != null) node.box = b
-      top.push(node)
+      if (sub) parent!.children!.push(node)
+      else {
+        top.push(node)
+        // Only a section proper owns sub-sections; one with nothing above it
+        // (a tab's) is a sibling of the next.
+        parent = s.level === 2 ? null : node
+      }
       level = node.children!
       levelPath = node.path
       previousText = ''
