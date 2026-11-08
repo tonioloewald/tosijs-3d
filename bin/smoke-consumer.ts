@@ -91,6 +91,7 @@ const PURE = [
   'garment-proxy',
   'garment-bind',
   'material-recipe',
+  'glb-clips',
 ]
 
 try {

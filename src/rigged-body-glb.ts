@@ -55,6 +55,10 @@ What the file is (Dramatis's `export-format`, version 1):
   it has a plain reading). The skin they cover is tucked under them, as the
   builder does, and skin a garment lists in its `delete` (as MakeHuman's
   clothes do) is dropped; `cover: false` leaves the skin alone.
+- **Clips**, with `clips`: animations read from any skinned GLB
+  ([[glb-clips]]: UAL's, Mixamo's, Meshy's) retargeted onto this skeleton
+  and written as glTF animations, 30 keys a second by default (rotations,
+  and the hips' travel), each with its own `extras` (its licence).
 - **A held item**, with `held`: a joint named `weapon_r` (or `held.name`)
   under the hand, where a grip (see [[hold-grip]]) puts the item's grip
   point, turned as the grip says, in the hand's socket frame
@@ -87,6 +91,9 @@ import type { HumanProxy } from './human-pack.js'
 import { drawnPositions, fitProxy, proxyWeights } from './proxy-fit.js'
 import { coverSkin } from './proxy-cover.js'
 import { vertexNormals } from './hair-fit.js'
+import { bakeClip, type GlbClip, type GlbClipSource } from './glb-clips.js'
+import { humanoidRoles } from './retarget.js'
+import type { GlbAnimation } from './skinned-glb.js'
 import {
   gripMatrix,
   gripPoint,
@@ -141,6 +148,23 @@ export interface RiggedBodyGlbOptions {
   garments?: GarmentProxy[]
   /** Tuck the skin the garments cover, drop what they list (default true). */
   cover?: boolean
+  /** Clips to write: see "Clips" above. */
+  clips?: ClipOut[]
+}
+
+/** A clip for `riggedBodyGlb`: one of a file's (`readGlbClips`), retargeted. */
+export interface ClipOut {
+  from: GlbClipSource
+  /** The clip's name in `from`, or the clip. */
+  clip: string | GlbClip
+  /** Its name in the file (default its own). */
+  name?: string
+  /** Keys a second (default 30). */
+  fps?: number
+  /** Spread the arms (see retarget's `armSpaceDeg`). */
+  armSpaceDeg?: number
+  /** The animation's `extras`: its licence. */
+  extras?: Record<string, unknown>
 }
 
 /** What a hand holds, for `riggedBodyGlb`'s `held`. */
@@ -1101,7 +1125,38 @@ export function riggedBodyGlb(
   })
   const extensions = chains.length ? springExtensions(chains, at) : undefined
 
+  // Clips, retargeted onto the skeleton as written.
+  const animations: GlbAnimation[] = []
+  if (options.clips?.length) {
+    const bones = glbJoints.map((j) => ({
+      name: j.name,
+      parent: j.parent < 0 ? null : glbJoints[j.parent].name,
+      rotation: { x: j.rotation[0], y: j.rotation[1], z: j.rotation[2], w: j.rotation[3] },
+      position: { x: j.translation[0], y: j.translation[1], z: j.translation[2] },
+    }))
+    const target = { bones, roles: humanoidRoles(bones) }
+    const index = new Map(glbJoints.map((j, i) => [j.name, i]))
+    for (const c of options.clips) {
+      const baked = bakeClip(c.from, c.clip, target, {
+        fps: c.fps,
+        armSpaceDeg: c.armSpaceDeg,
+        name: c.name,
+      })
+      const channels: GlbAnimation['channels'] = []
+      for (const [name, values] of baked.rotations) {
+        const joint = index.get(name)
+        if (joint != null)
+          channels.push({ joint, path: 'rotation', times: baked.times, values })
+      }
+      const hips = target.roles.hips != null ? index.get(target.roles.hips) : undefined
+      if (baked.hips && hips != null)
+        channels.push({ joint: hips, path: 'translation', times: baked.times, values: baked.hips })
+      animations.push({ name: baked.name, channels, ...(c.extras ? { extras: c.extras } : {}) })
+    }
+  }
+
   return writeSkinnedGlb({
+    ...(animations.length ? { animations } : {}),
     asset: {
       generator: options.generator ?? 'tosijs-3d',
       ...(options.copyright ? { copyright: options.copyright } : {}),

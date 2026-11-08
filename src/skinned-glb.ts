@@ -138,6 +138,25 @@ export interface SkinnedGlb {
    * (never required). Node indices in them are the joints' (`0..n-1`).
    */
   extensions?: Record<string, unknown>
+  /** Clips: keyframes on the joints, written as glTF animations. */
+  animations?: GlbAnimation[]
+}
+
+/** A clip: keyframed joint rotations (and translations), sampled linearly. */
+export interface GlbAnimation {
+  name: string
+  /** One per animated joint property; channels may share a `times` array. */
+  channels: Array<{
+    /** Index into `joints`. */
+    joint: number
+    path: 'rotation' | 'translation'
+    /** Seconds, increasing. */
+    times: Float32Array
+    /** Four numbers per key for a rotation (x, y, z, w), three for a translation. */
+    values: Float32Array
+  }>
+  /** The animation's `extras` (its licence, say). */
+  extras?: Record<string, unknown>
 }
 
 const FLOAT = 5126
@@ -484,6 +503,56 @@ export function writeSkinnedGlb(g: SkinnedGlb): Uint8Array {
     return out
   })
 
+  // Clips: one input accessor per distinct times array, shared by channels.
+  const timeAccessors = new Map<Float32Array, number>()
+  const animations = (g.animations ?? []).map((a) => {
+    const samplers: Json[] = []
+    const channels: Json[] = a.channels.map((c) => {
+      if (c.joint < 0 || c.joint >= n)
+        throw new Error(`skinned-glb: ${a.name}: no joint ${c.joint}`)
+      const size = c.path === 'rotation' ? 4 : 3
+      if (c.values.length !== c.times.length * size)
+        throw new Error(
+          `skinned-glb: ${a.name}: ${c.path} on joint ${c.joint} has ${c.values.length} values for ${c.times.length} keys`
+        )
+      let input = timeAccessors.get(c.times)
+      if (input == null) {
+        let lo = Infinity
+        let hi = -Infinity
+        for (const t of c.times) {
+          lo = Math.min(lo, t)
+          hi = Math.max(hi, t)
+        }
+        input = accessor({
+          bufferView: bin.add(asBytes(Float32Array.from(c.times))),
+          componentType: FLOAT,
+          count: c.times.length,
+          type: 'SCALAR',
+          min: [lo],
+          max: [hi],
+        })
+        timeAccessors.set(c.times, input)
+      }
+      const output = accessor({
+        bufferView: bin.add(asBytes(Float32Array.from(c.values))),
+        componentType: FLOAT,
+        count: c.times.length,
+        type: size === 4 ? 'VEC4' : 'VEC3',
+      })
+      samplers.push({ input, output, interpolation: 'LINEAR' })
+      return {
+        sampler: samplers.length - 1,
+        target: { node: c.joint, path: c.path },
+      }
+    })
+    return {
+      name: a.name,
+      channels,
+      samplers,
+      ...(a.extras ? { extras: a.extras } : {}),
+    }
+  })
+
   const bytes = bin.bytes()
   const json: Json = {
     asset: {
@@ -510,6 +579,7 @@ export function writeSkinnedGlb(g: SkinnedGlb): Uint8Array {
     bufferViews: bin.views,
     buffers: [{ byteLength: bytes.byteLength }],
   }
+  if (animations.length > 0) json.animations = animations
   if (materials.length > 0) json.materials = materials
   if (images.length > 0) {
     json.images = images
