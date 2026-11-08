@@ -57,14 +57,33 @@ describe('hand socket: the same arithmetic as Babylon', () => {
     for (let k = 0; k < 20; k++) {
       const hand = randomMatrix()
       const at = hand.getTranslation()
-      const fore = at.add(new BABYLON.Vector3(0.25 + rand() * 0.1, rand() * 0.1, rand() * 0.1))
-      const thumb = at.add(new BABYLON.Vector3(rand() * 0.05, 0.03 + rand() * 0.02, 0.04))
+      const fore = at.add(
+        new BABYLON.Vector3(0.25 + rand() * 0.1, rand() * 0.1, rand() * 0.1)
+      )
+      const thumb = at.add(
+        new BABYLON.Vector3(rand() * 0.05, 0.03 + rand() * 0.02, 0.04)
+      )
       // The formula as the launcher wrote it before it moved here.
       const x = at.subtract(fore).normalize()
       const z = BABYLON.Vector3.Cross(x, thumb.subtract(at)).normalize()
       const y = BABYLON.Vector3.Cross(z, x).normalize()
       const anatomy = BABYLON.Matrix.FromValues(
-        x.x, x.y, x.z, 0, y.x, y.y, y.z, 0, z.x, z.y, z.z, 0, at.x, at.y, at.z, 1
+        x.x,
+        x.y,
+        x.z,
+        0,
+        y.x,
+        y.y,
+        y.z,
+        0,
+        z.x,
+        z.y,
+        z.z,
+        0,
+        at.x,
+        at.y,
+        at.z,
+        1
       )
       const expected = BABYLON.Matrix.FromArray(HAND_IN_ANATOMY.r)
         .multiply(anatomy)
@@ -74,7 +93,15 @@ describe('hand socket: the same arithmetic as Babylon', () => {
   })
 
   test("an item's grip lands on the grip, as the builder places it", () => {
-    const g = { x: 0.03, y: -0.02, z: 0.05, rx: 20, ry: -75, rz: 140, scale: 1.5 }
+    const g = {
+      x: 0.03,
+      y: -0.02,
+      z: 0.05,
+      rx: 20,
+      ry: -75,
+      rz: 140,
+      scale: 1.5,
+    }
     const grip = { x: 0.01, y: 0.04, z: -0.1 }
     const m: Mat4 = heldMatrix(g, grip)
     const p = mat4Point(m, grip)

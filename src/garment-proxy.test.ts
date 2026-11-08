@@ -1,5 +1,9 @@
 import { describe, expect, test } from 'bun:test'
-import { readGarment, writeGarmentGlb, type GarmentMeta } from './garment-file.js'
+import {
+  readGarment,
+  writeGarmentGlb,
+  type GarmentMeta,
+} from './garment-file.js'
 import {
   garmentLook,
   garmentMadeOn,
@@ -18,7 +22,9 @@ const meta: GarmentMeta = {
   slot: 'outfit',
 }
 const garment = {
-  positions: Float32Array.from([0, 0, 0.02, 1, 0, 0.02, 0, 1, 0.02, 1, 1, 0.02]),
+  positions: Float32Array.from([
+    0, 0, 0.02, 1, 0, 0.02, 0, 1, 0.02, 1, 1, 0.02,
+  ]),
   triangles: Uint32Array.from([0, 1, 2, 2, 1, 3]),
   uvs: Float32Array.from([0, 0, 1, 0, 0, 1, 1, 1]),
 }
@@ -29,7 +35,10 @@ const body = {
 
 describe('garment proxy', () => {
   test('a file bound to its body is a proxy that follows the body', () => {
-    const p = garmentProxy(readGarment(writeGarmentGlb({ garment, meta })), body)
+    const p = garmentProxy(
+      readGarment(writeGarmentGlb({ garment, meta })),
+      body
+    )
     expect([p.name, p.slot, p.category]).toEqual(['smock', 'outfit', 'clothes'])
     expect(Array.from(p.triangles)).toEqual(Array.from(garment.triangles))
     expect(p.delete).toBeNull()
@@ -47,12 +56,19 @@ describe('garment proxy', () => {
       alphaMode: 'OPAQUE' as const,
       doubleSided: false,
     }
-    const skirt = { ...meta, cut: { shapes: [], thickness: 0.005, skirt: true } }
+    const skirt = {
+      ...meta,
+      cut: { shapes: [], thickness: 0.005, skirt: true },
+    }
     const p = garmentProxy(
-      readGarment(writeGarmentGlb({ garment, meta: skirt as GarmentMeta, material })),
+      readGarment(
+        writeGarmentGlb({ garment, meta: skirt as GarmentMeta, material })
+      ),
       body
     )
-    expect(Array.from(p.material.baseColorTexture!.bytes)).toEqual(Array.from(png))
+    expect(Array.from(p.material.baseColorTexture!.bytes)).toEqual(
+      Array.from(png)
+    )
     expect(p.material.twoSided).toBe(true)
     expect(p.material.roughness).toBeCloseTo(0.8, 5)
   })
@@ -66,7 +82,9 @@ describe('garment proxy', () => {
       material
     )
     // An older file's look is read as a cloth recipe.
-    expect(garmentLook({ ...meta, look: { colour: '#00ff00' } })!.type).toBe('cloth')
+    expect(garmentLook({ ...meta, look: { colour: '#00ff00' } })!.type).toBe(
+      'cloth'
+    )
     expect(garmentLook(meta)).toBeNull()
     const plain = lookGltf(material, false)
     expect(plain.baseColorFactor).toEqual([1, 0, 0, 1])

@@ -175,7 +175,8 @@ export function garmentProxy(
     slot: options.slot ?? meta?.slot ?? 'top',
     material: {
       ...rest,
-      twoSided: cut?.skirt === true || cut?.drape === true || doubleSided === true,
+      twoSided:
+        cut?.skirt === true || cut?.drape === true || doubleSided === true,
       look,
       gltf: look ? lookGltf(look, material?.baseColorTexture != null) : null,
     },

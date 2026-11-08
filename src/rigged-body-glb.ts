@@ -255,7 +255,8 @@ function heldSocket(
   const side = held.side ?? 'r'
   const ix = (n: string) => {
     const i = sk.names.indexOf(n)
-    if (i < 0) throw new Error(`riggedBodyGlb: held needs ${n}, not in the skeleton`)
+    if (i < 0)
+      throw new Error(`riggedBodyGlb: held needs ${n}, not in the skeleton`)
     return i
   }
   const hand = ix(`hand_${side}`)
@@ -267,7 +268,9 @@ function heldSocket(
     mirror(at[ix(`thumb_01_${side}`)])
   )
   if (socket == null)
-    throw new Error(`riggedBodyGlb: the ${side} hand cannot be read (thumb in line with the forearm)`)
+    throw new Error(
+      `riggedBodyGlb: the ${side} hand cannot be read (thumb in line with the forearm)`
+    )
   const w = mat4Multiply(gripMatrix(held.grip), socket)
   const r = [-1, 1, 1, 1]
   const f = w.map((v, k) => v * r[k % 4])
@@ -281,7 +284,17 @@ function heldSocket(
     name: held.name ?? `weapon_${side}`,
     hand,
     position: [f[12], f[13], f[14]],
-    rotation: matrixQuat([ax[0], ay[0], az[0], ax[1], ay[1], az[1], ax[2], ay[2], az[2]]),
+    rotation: matrixQuat([
+      ax[0],
+      ay[0],
+      az[0],
+      ax[1],
+      ay[1],
+      az[1],
+      ax[2],
+      ay[2],
+      az[2],
+    ]),
   }
 }
 const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
@@ -553,12 +566,20 @@ function garmentMaterial(
   name: string,
   images: GlbImage[]
 ): GlbMaterial {
-  const image = (t: { bytes: Uint8Array; mimeType: string } | null | undefined, as: string) => {
+  const image = (
+    t: { bytes: Uint8Array; mimeType: string } | null | undefined,
+    as: string
+  ) => {
     if (t?.bytes == null) return undefined
-    if (t.mimeType !== 'image/png' && t.mimeType !== 'image/jpeg') return undefined
+    if (t.mimeType !== 'image/png' && t.mimeType !== 'image/jpeg')
+      return undefined
     let i = images.findIndex((im) => im.bytes === t.bytes)
     if (i < 0) {
-      images.push({ name: `${name}_${as}`, mimeType: t.mimeType, bytes: t.bytes })
+      images.push({
+        name: `${name}_${as}`,
+        mimeType: t.mimeType,
+        bytes: t.bytes,
+      })
       i = images.length - 1
     }
     return { image: i }
@@ -767,7 +788,11 @@ export function riggedBodyGlb(
           const a = body.indices[t]
           const b = body.indices[t + 1]
           const c = body.indices[t + 2]
-          if (covered.deleted.has(a) || covered.deleted.has(b) || covered.deleted.has(c))
+          if (
+            covered.deleted.has(a) ||
+            covered.deleted.has(b) ||
+            covered.deleted.has(c)
+          )
             continue
           kept.push(a, b, c)
         }
@@ -899,24 +924,30 @@ export function riggedBodyGlb(
 
   // The body, one primitive per surface.
   const normals = smoothNormals(positions, indices)
-  const { materials, images } = materialsOf(body.surfaces, runs.length, body.uvs != null)
+  const { materials, images } = materialsOf(
+    body.surfaces,
+    runs.length,
+    body.uvs != null
+  )
   const meshes = [
     {
       name: 'body',
-      primitives: runs.map(([start, count], s) =>
-        primitive(
-          start,
-          count,
-          indices,
-          positions,
-          normals,
-          joints,
-          weights,
-          body.uvs,
-          body.colors,
-          s
+      primitives: runs
+        .map(([start, count], s) =>
+          primitive(
+            start,
+            count,
+            indices,
+            positions,
+            normals,
+            joints,
+            weights,
+            body.uvs,
+            body.colors,
+            s
+          )
         )
-      ).filter((p) => p.indices.length > 0), // a surface wholly covered goes
+        .filter((p) => p.indices.length > 0), // a surface wholly covered goes
     },
   ]
   if (eyePositions.length) {
@@ -988,7 +1019,9 @@ export function riggedBodyGlb(
     for (let i = 0; i < gj.length; i++)
       gj[i] = Math.max(0, sk.from[w.indices[i]] ?? 0)
     const pos = placeAll(skinTo(drawn, gj, w.weights, sk.rest, pose))
-    materials.push(garmentMaterial(g.material, `${g.slot ?? 'garment'}_${g.name}`, images))
+    materials.push(
+      garmentMaterial(g.material, `${g.slot ?? 'garment'}_${g.name}`, images)
+    )
     meshes.push({
       name: `${g.slot ?? 'garment'}: ${g.name}`,
       primitives: [

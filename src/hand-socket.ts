@@ -204,7 +204,24 @@ export function anatomyFrame(
   if (!(Math.hypot(zRaw.x, zRaw.y, zRaw.z) > 1e-9)) return null
   const z = unit(zRaw)
   const y = unit(cross(z, x))
-  return [x.x, x.y, x.z, 0, y.x, y.y, y.z, 0, z.x, z.y, z.z, 0, hand.x, hand.y, hand.z, 1]
+  return [
+    x.x,
+    x.y,
+    x.z,
+    0,
+    y.x,
+    y.y,
+    y.z,
+    0,
+    z.x,
+    z.y,
+    z.z,
+    0,
+    hand.x,
+    hand.y,
+    hand.z,
+    1,
+  ]
 }
 
 /**
@@ -245,11 +262,11 @@ export interface Grip {
 
 /** A grip's point and turn in the socket's frame (no scale). */
 export function gripMatrix(g: Grip): Mat4 {
-  return compose(
-    { x: 1, y: 1, z: 1 },
-    eulerQuaternion(g.rx, g.ry, g.rz),
-    { x: g.x, y: g.y, z: g.z }
-  )
+  return compose({ x: 1, y: 1, z: 1 }, eulerQuaternion(g.rx, g.ry, g.rz), {
+    x: g.x,
+    y: g.y,
+    z: g.z,
+  })
 }
 
 /**

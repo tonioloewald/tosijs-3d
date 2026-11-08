@@ -60,7 +60,9 @@ describe.skipIf(!existsSync(AI) || !existsSync(WEAPONS))(
       const { holdGrip } = await import('./hold-grip.js')
       const { glbNodePosition } = await import('./glb-rig.js')
       const { gripMatrix, mat4Multiply } = await import('./hand-socket.js')
-      const body = bodyFromMarkers(glbRigTriangles(new Uint8Array(readFileSync(AI))))
+      const body = bodyFromMarkers(
+        glbRigTriangles(new Uint8Array(readFileSync(AI)))
+      )
       const lib = new Uint8Array(readFileSync(WEAPONS))
       const pick = 'Long Sword.model'
       const item = glbRigTriangles(lib, { pick })
@@ -80,7 +82,8 @@ describe.skipIf(!existsSync(AI) || !existsSync(WEAPONS))(
       expect(
         report.issues.messages.filter(
           (m: { code: string; severity: number }) =>
-            m.severity === 0 && m.code !== 'MESH_PRIMITIVE_GENERATED_TANGENT_SPACE'
+            m.severity === 0 &&
+            m.code !== 'MESH_PRIMITIVE_GENERATED_TANGENT_SPACE'
         )
       ).toEqual([])
 
@@ -98,11 +101,16 @@ describe.skipIf(!existsSync(AI) || !existsSync(WEAPONS))(
       )
       c.addAllToScene()
       const skeleton = c.skeletons[0]
-      const handNode = skeleton.bones.find((b) => b.name === 'hand_r')!.getTransformNode()!
+      const handNode = skeleton.bones
+        .find((b) => b.name === 'hand_r')!
+        .getTransformNode()!
       for (const m of scene.transformNodes) m.computeWorldMatrix(true)
       const socket = handSocket(skeleton, 'hand_r', 'r', handNode)!
       socket.computeWorldMatrix(true)
-      const expected = mat4Multiply(gripMatrix(grip), Array.from(socket.getWorldMatrix().m))
+      const expected = mat4Multiply(
+        gripMatrix(grip),
+        Array.from(socket.getWorldMatrix().m)
+      )
       const weapon = scene.transformNodes.find((n) => n.name === 'weapon_r')!
       const got = Array.from(weapon.computeWorldMatrix(true).m)
       for (let k = 0; k < 16; k++) expect(got[k]).toBeCloseTo(expected[k], 4)
@@ -117,7 +125,10 @@ describe.skipIf(!existsSync(AI) || !existsSync(WEAPONS))(
       let loY = Infinity
       for (let i = 0; i < p.length; i += 3) {
         const v = BABYLON.Vector3.TransformCoordinates(
-          BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(p[i], p[i + 1], p[i + 2]), toScene),
+          BABYLON.Vector3.TransformCoordinates(
+            new BABYLON.Vector3(p[i], p[i + 1], p[i + 2]),
+            toScene
+          ),
           inv
         )
         hiY = Math.max(hiY, v.y)
@@ -135,10 +146,16 @@ describe.skipIf(!existsSync(AI) || !existsSync(WEAPONS))(
     }, 120000)
 
     test('the socket alone, with no item', () => {
-      const body = bodyFromMarkers(glbRigTriangles(new Uint8Array(readFileSync(AI))))
+      const body = bodyFromMarkers(
+        glbRigTriangles(new Uint8Array(readFileSync(AI)))
+      )
       const { json } = readGlb(
         riggedBodyGlb(body, {
-          held: { grip: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 }, side: 'l', name: 'socket_l' },
+          held: {
+            grip: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 },
+            side: 'l',
+            name: 'socket_l',
+          },
         })
       )
       const names = json.skins[0].joints.map((j: number) => json.nodes[j].name)

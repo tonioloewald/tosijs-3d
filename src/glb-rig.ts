@@ -238,7 +238,10 @@ export function glbNodePosition(
   if (at < 0) return null
   const worldOf = (i: number): Mat4 => {
     const p = parentOf.get(i)
-    return mul(p != null ? worldOf(p) : IDENTITY, localMatrix(nodes[i], i === top))
+    return mul(
+      p != null ? worldOf(p) : IDENTITY,
+      localMatrix(nodes[i], i === top)
+    )
   }
   const m = worldOf(at)
   return { x: m[12], y: m[13], z: m[14] }

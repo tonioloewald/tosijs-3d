@@ -320,89 +320,130 @@ describe.skipIf(!existsSync(WEASEL))('springs: the weasel’s tail', () => {
   }, 120000)
 })
 
-
-describe.skipIf(!existsSync(AI))('rigged-body-glb: garments on a file body', () => {
-  test('a garment bound to the body goes out skinned with it, the skin under it tucked', async () => {
-    const { vertexNormals } = await import('./hair-fit.js')
-    const { readGarment, writeGarmentGlb } = await import('./garment-file.js')
-    const { garmentProxy } = await import('./garment-proxy.js')
-    const body = bodyFromMarkers(glbRigTriangles(new Uint8Array(readFileSync(AI))))
-    // A shirt from the body's own torso: a band of its skin lifted 1 cm.
-    let lo = Infinity
-    let hi = -Infinity
-    for (let i = 1; i < body.positions.length; i += 3) {
-      lo = Math.min(lo, body.positions[i])
-      hi = Math.max(hi, body.positions[i])
-    }
-    const inBand = (v: number) => {
-      const y = (body.positions[v * 3 + 1] - lo) / (hi - lo)
-      return y > 0.55 && y < 0.72 && Math.abs(body.positions[v * 3]) < 0.15 * (hi - lo)
-    }
-    const n = vertexNormals(body.positions, body.indices)
-    const remap = new Map<number, number>()
-    const pos: number[] = []
-    const tri: number[] = []
-    for (let t = 0; t < body.indices.length; t += 3) {
-      const abc = [body.indices[t], body.indices[t + 1], body.indices[t + 2]]
-      if (!abc.every(inBand)) continue
-      for (const v of abc) {
-        if (!remap.has(v)) {
-          remap.set(v, pos.length / 3)
-          for (let k = 0; k < 3; k++) pos.push(body.positions[v * 3 + k] + n[v * 3 + k] * 0.01)
-        }
-        tri.push(remap.get(v)!)
-      }
-    }
-    expect(tri.length).toBeGreaterThan(300)
-    const file = writeGarmentGlb({
-      garment: { positions: Float32Array.from(pos), triangles: Uint32Array.from(tri) },
-      meta: { format: 'tosijs-garment', version: 1, source: 'test body', name: 'shirt', slot: 'top' },
-      material: { baseColor: [0.2, 0.3, 0.6, 1], roughness: 0.9, metallic: 0, alphaMode: 'OPAQUE', doubleSided: false },
-    })
-    const proxy = garmentProxy(readGarment(file), {
-      positions: body.positions,
-      triangles: body.indices,
-    })
-    const bareGlb = readGlb(riggedBodyGlb(body))
-    const bare = { glb: bareGlb, json: bareGlb.json }
-    const bytes = riggedBodyGlb(body, { garments: [proxy] })
-    const { json, glb } = (() => {
-      const g = readGlb(bytes)
-      return { json: g.json, glb: g }
-    })()
-    const shirt = json.meshes.find((m: any) => m.name === 'top: shirt')
-    expect(shirt).toBeDefined()
-    // Skinned on the one skeleton.
-    const node = json.nodes.find((x: any) => x.mesh === json.meshes.indexOf(shirt))
-    expect(node.skin).toBe(0)
-    // The skin under it is tucked in: the same vertices, some moved inward.
-    const flat = (g: any, j: any) =>
-      j.meshes[0].primitives.flatMap((p: any) => Array.from(readVec3(g, p.attributes.POSITION)))
-    const was = flat(bare.glb, bare.json)
-    const now = flat(glb, json)
-    expect(now.length).toBe(was.length)
-    let moved = 0
-    for (let i = 0; i < now.length; i += 3)
-      if (Math.hypot(now[i] - was[i], now[i + 1] - was[i + 1], now[i + 2] - was[i + 2]) > 0.002) moved++
-    expect(moved).toBeGreaterThan(100)
-    // Posed with the body: its vertices sit within 3 cm of the exported body.
-    const shirtPos = readVec3(glb, shirt.primitives[0].attributes.POSITION)
-    let worst = 0
-    for (let i = 0; i < shirtPos.length; i += 120) {
-      let best = Infinity
-      for (let k = 0; k < was.length; k += 3)
-        best = Math.min(best, (was[k] - shirtPos[i]) ** 2 + (was[k + 1] - shirtPos[i + 1]) ** 2 + (was[k + 2] - shirtPos[i + 2]) ** 2)
-      worst = Math.max(worst, Math.sqrt(best))
-    }
-    expect(worst).toBeLessThan(0.03)
-    const mat = json.materials[shirt.primitives[0].material]
-    expect(mat.pbrMetallicRoughness.roughnessFactor).toBeCloseTo(0.9, 4)
-    const report = await validateBytes(bytes, { maxIssues: 50 })
-    expect(
-      report.issues.messages.filter(
-        (m: { code: string; severity: number }) =>
-          m.severity === 0 && m.code !== 'MESH_PRIMITIVE_GENERATED_TANGENT_SPACE'
+describe.skipIf(!existsSync(AI))(
+  'rigged-body-glb: garments on a file body',
+  () => {
+    test('a garment bound to the body goes out skinned with it, the skin under it tucked', async () => {
+      const { vertexNormals } = await import('./hair-fit.js')
+      const { readGarment, writeGarmentGlb } = await import('./garment-file.js')
+      const { garmentProxy } = await import('./garment-proxy.js')
+      const body = bodyFromMarkers(
+        glbRigTriangles(new Uint8Array(readFileSync(AI)))
       )
-    ).toEqual([])
-  }, 120000)
-})
+      // A shirt from the body's own torso: a band of its skin lifted 1 cm.
+      let lo = Infinity
+      let hi = -Infinity
+      for (let i = 1; i < body.positions.length; i += 3) {
+        lo = Math.min(lo, body.positions[i])
+        hi = Math.max(hi, body.positions[i])
+      }
+      const inBand = (v: number) => {
+        const y = (body.positions[v * 3 + 1] - lo) / (hi - lo)
+        return (
+          y > 0.55 &&
+          y < 0.72 &&
+          Math.abs(body.positions[v * 3]) < 0.15 * (hi - lo)
+        )
+      }
+      const n = vertexNormals(body.positions, body.indices)
+      const remap = new Map<number, number>()
+      const pos: number[] = []
+      const tri: number[] = []
+      for (let t = 0; t < body.indices.length; t += 3) {
+        const abc = [body.indices[t], body.indices[t + 1], body.indices[t + 2]]
+        if (!abc.every(inBand)) continue
+        for (const v of abc) {
+          if (!remap.has(v)) {
+            remap.set(v, pos.length / 3)
+            for (let k = 0; k < 3; k++)
+              pos.push(body.positions[v * 3 + k] + n[v * 3 + k] * 0.01)
+          }
+          tri.push(remap.get(v)!)
+        }
+      }
+      expect(tri.length).toBeGreaterThan(300)
+      const file = writeGarmentGlb({
+        garment: {
+          positions: Float32Array.from(pos),
+          triangles: Uint32Array.from(tri),
+        },
+        meta: {
+          format: 'tosijs-garment',
+          version: 1,
+          source: 'test body',
+          name: 'shirt',
+          slot: 'top',
+        },
+        material: {
+          baseColor: [0.2, 0.3, 0.6, 1],
+          roughness: 0.9,
+          metallic: 0,
+          alphaMode: 'OPAQUE',
+          doubleSided: false,
+        },
+      })
+      const proxy = garmentProxy(readGarment(file), {
+        positions: body.positions,
+        triangles: body.indices,
+      })
+      const bareGlb = readGlb(riggedBodyGlb(body))
+      const bare = { glb: bareGlb, json: bareGlb.json }
+      const bytes = riggedBodyGlb(body, { garments: [proxy] })
+      const { json, glb } = (() => {
+        const g = readGlb(bytes)
+        return { json: g.json, glb: g }
+      })()
+      const shirt = json.meshes.find((m: any) => m.name === 'top: shirt')
+      expect(shirt).toBeDefined()
+      // Skinned on the one skeleton.
+      const node = json.nodes.find(
+        (x: any) => x.mesh === json.meshes.indexOf(shirt)
+      )
+      expect(node.skin).toBe(0)
+      // The skin under it is tucked in: the same vertices, some moved inward.
+      const flat = (g: any, j: any) =>
+        j.meshes[0].primitives.flatMap((p: any) =>
+          Array.from(readVec3(g, p.attributes.POSITION))
+        )
+      const was = flat(bare.glb, bare.json)
+      const now = flat(glb, json)
+      expect(now.length).toBe(was.length)
+      let moved = 0
+      for (let i = 0; i < now.length; i += 3)
+        if (
+          Math.hypot(
+            now[i] - was[i],
+            now[i + 1] - was[i + 1],
+            now[i + 2] - was[i + 2]
+          ) > 0.002
+        )
+          moved++
+      expect(moved).toBeGreaterThan(100)
+      // Posed with the body: its vertices sit within 3 cm of the exported body.
+      const shirtPos = readVec3(glb, shirt.primitives[0].attributes.POSITION)
+      let worst = 0
+      for (let i = 0; i < shirtPos.length; i += 120) {
+        let best = Infinity
+        for (let k = 0; k < was.length; k += 3)
+          best = Math.min(
+            best,
+            (was[k] - shirtPos[i]) ** 2 +
+              (was[k + 1] - shirtPos[i + 1]) ** 2 +
+              (was[k + 2] - shirtPos[i + 2]) ** 2
+          )
+        worst = Math.max(worst, Math.sqrt(best))
+      }
+      expect(worst).toBeLessThan(0.03)
+      const mat = json.materials[shirt.primitives[0].material]
+      expect(mat.pbrMetallicRoughness.roughnessFactor).toBeCloseTo(0.9, 4)
+      const report = await validateBytes(bytes, { maxIssues: 50 })
+      expect(
+        report.issues.messages.filter(
+          (m: { code: string; severity: number }) =>
+            m.severity === 0 &&
+            m.code !== 'MESH_PRIMITIVE_GENERATED_TANGENT_SPACE'
+        )
+      ).toEqual([])
+    }, 120000)
+  }
+)

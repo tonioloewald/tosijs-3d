@@ -120,7 +120,10 @@ export async function exportBody(
   else if (target.body.surfaces?.length) note = 'not from a GLB: plain grey'
   const held = target.held
     ? await heldItem(target.held).catch(() => {
-        note = [note, `the ${target.held!.model} could not be read: hand socket only`]
+        note = [
+          note,
+          `the ${target.held!.model} could not be read: hand socket only`,
+        ]
           .filter(Boolean)
           .join('; ')
         return { grip: target.held!.grip }
@@ -139,7 +142,9 @@ export async function exportBody(
 }
 
 /** A library model as riggedBodyGlb's `held`: its mesh and grip point, read from its file. */
-async function heldItem(h: NonNullable<BodyExportTarget['held']>): Promise<HeldItem> {
+async function heldItem(
+  h: NonNullable<BodyExportTarget['held']>
+): Promise<HeldItem> {
   const bytes = new Uint8Array(await (await fetch(h.url)).arrayBuffer())
   const pick = h.model
   return {

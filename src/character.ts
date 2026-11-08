@@ -168,10 +168,7 @@ import {
 } from './character-settings.js'
 
 export { CHARACTER_SLOTS, DEFAULT_CHARACTER } from './character-settings.js'
-import {
-  CHARACTER_SOURCES,
-  type CharacterSource,
-} from './character-sources.js'
+import { CHARACTER_SOURCES, type CharacterSource } from './character-sources.js'
 export {
   AI_CHARACTER_SOURCES,
   CHARACTER_SOURCES,
@@ -497,7 +494,10 @@ export async function makeCharacter(
     if (source === 'MakeHuman') {
       const madeOn = garmentMadeOn(meta)
       const on = madeOn
-        ? await morphHuman(pack, macroWeights(madeOn, (n) => pack.has(n)))
+        ? await morphHuman(
+            pack,
+            macroWeights(madeOn, (n) => pack.has(n))
+          )
         : current
       proxy = proxyFrom(on, pack.triangles, content, name, slot)
       if (!styles[slot].includes(name)) styles[slot].push(name)
