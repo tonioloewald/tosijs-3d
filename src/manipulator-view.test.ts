@@ -33,3 +33,15 @@ describe('picking a handle', () => {
     expect(grip).toEqual({ kind: 'translate', axis: 'y' })
   })
 })
+
+describe('a locked axis', () => {
+  test("locking x draws the y and z arrows and only the pad between them", () => {
+    const scene = new BABYLON.Scene(new BABYLON.NullEngine())
+    const view = createHandles(scene)
+    view.setTransforms({ translate: true, rotate: false, scale: false, lockMove: 'x' })
+    const drawn = new Set(
+      scene.meshes.filter((m) => !m.name.endsWith('-pick')).map((m) => m.name.replace(/^.*handle-/, '').replace(/-(shaft|head)$/, ''))
+    )
+    expect([...drawn].sort()).toEqual(['planar-x', 'translate-y', 'translate-z'])
+  })
+})

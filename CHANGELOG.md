@@ -14,6 +14,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ### Added
 
+- **`lockMove`** on `<tosi-b3d-manipulator>` (`'x'`, `'xz'`…): the object's axes a move may not go along. The widget shows only what is left (an arrow per free axis, a pad where both its axes are free) and a drag never moves along a locked axis. The character builder's hair handle locks x: up and forward, one pad.
 - **Menus of actions on the system bar**: `barMenu` options can be actions (`handleSelect`, `checked`), submenus (`items`), rules (`separator`) and `disabled`, `options` may be a function read on each opening, and `layout: 'list'` shows each option's icon beside its caption. `viewMenu` is a list now (each view named).
 - **`panelIcon`** on `<tosi-b3d>`: the settings button's icon in place of the owl, named by `panelTitle`, for a page whose panel is its main tool.
 - **Character builder**: the character (select, delete, save, save as, rename, export and load JSON, go to the playground) is a **Character** menu on the system bar instead of a tab; the panel's button is the body. A library hairstyle is placed with a move-only manipulator on the head (up and forward) and a **scale** slider, in place of the up, forward and size sliders (the settings are unchanged, so saved characters keep their hair). The Body tab carries the mesh icon, and a mesh body's surfaces are a sub-section under its source. `makeCharacter(...).hairAnchor()` is the Head node and the skull's middle the adjustment is measured from.

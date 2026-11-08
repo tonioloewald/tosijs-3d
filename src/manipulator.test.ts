@@ -463,6 +463,20 @@ describe('a planar drag', () => {
   })
 })
 
+describe('a locked axis', () => {
+  test('a drag never moves along it, even on a pad that slides along it', () => {
+    const drag = beginDrag(
+      { kind: 'planar', axis: 'y' },
+      v(0, 0, 0),
+      { ...REST, position: v(0, 5, 0) },
+      ray([0, 9, 0], [0, -1, 0])
+    )!
+    updateDrag(drag, ray([2, 9, -3], [0, -1, 0]), composeAdd, { lockMove: 'x' })
+    expect(drag.current.position.x).toBe(0)
+    expect(drag.current.position.z).toBeCloseTo(-3, 6)
+  })
+})
+
 describe('a rotate drag', () => {
   test('turns by the angle swept, composed from the START rotation', () => {
     const drag = beginDrag(

@@ -643,13 +643,14 @@ preview.append(
         }
         const hairGizmo = b3dManipulator({
           move: 'on',
+          // Up and forward: no sideways (it shows the y and z arrows and the
+          // pad between them).
+          lockMove: 'x',
           turn: 'off',
           size: 0.09,
           whenChange: () => {
             const anchor = ch?.hairAnchor?.()
             if (!anchor) return
-            // Up and forward only.
-            hairNode.position.x = anchor.centre.x
             hairDrag ??= { meshes: anchor.meshes, at: anchor.meshes.map((m) => m.position.clone()) }
             const d = hairNode.position.subtract(hairFrom ?? hairNode.position)
             hairDrag.meshes.forEach((m, i) => m.position.copyFrom(hairDrag.at[i].add(d)))

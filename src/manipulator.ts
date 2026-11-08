@@ -99,6 +99,12 @@ export interface TransformSet {
   translate: boolean
   rotate: boolean
   scale: boolean
+  /**
+   * The object's axes a move may NOT go along (`'x'`: no sideways). The
+   * widget draws what is left: an arrow per free axis, a plane pad where both
+   * of its axes are free.
+   */
+  lockMove?: string
 }
 
 export const NO_TRANSFORMS: TransformSet = {
@@ -353,6 +359,8 @@ export interface DragOptions {
    * happened to be holding it when you let go.
    */
   secondary?: boolean
+  /** The object's axes a move may not go along (`'x'`), as `TransformSet.lockMove`. */
+  lockMove?: string
 }
 
 /** A drag in progress. Opaque to callers apart from `grip` and `moved`. */
@@ -554,6 +562,7 @@ function apply(
   const gridStep = options.gridSnap ?? 0
   const angleStep = options.angleSnap ?? 0
   const start = drag.start
+  const locked = options.lockMove ?? ''
 
   if (kind === 'planar') {
     if (!axis || typeof now === 'number' || typeof drag.startValue === 'number')
@@ -563,6 +572,7 @@ function apply(
     const position = { ...start.position }
     if (worldAligned(drag.frame)) {
       for (const a of otherAxes(axis)) {
+        if (locked.includes(a)) continue
         position[a] = snap(
           start.position[a] + (now[a] - drag.startValue[a]),
           gridStep
@@ -572,6 +582,7 @@ function apply(
       // Along the object's own in-plane axes; the grid snaps each step.
       const moved = sub(now, drag.startValue)
       for (const a of otherAxes(axis)) {
+        if (locked.includes(a)) continue
         const f = drag.frame[a]
         const d = snap(dot(moved, f), gridStep)
         position.x += f.x * d
@@ -586,7 +597,7 @@ function apply(
   if (typeof now !== 'number' || typeof drag.startValue !== 'number') return
 
   if (kind === 'translate') {
-    if (!axis) return
+    if (!axis || locked.includes(axis)) return
     /*
       Snap the POSITION, live.
 

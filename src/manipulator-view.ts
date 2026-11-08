@@ -147,6 +147,8 @@ const SHAFT_DIAMETER = 0.0707
 const SHAFT_PICK_FATNESS = 11
 const SHAFT_OFFSET = 0.35
 const PAD_SIZE = 0.2
+/** The two axes a plane pad slides along, by its normal. */
+const PLANE_AXES: Record<Axis, Axis[]> = { x: ['y', 'z'], y: ['x', 'z'], z: ['x', 'y'] }
 const RING_INNER = 0.6
 const RING_OUTER = 0.8
 /**
@@ -351,6 +353,10 @@ export function createHandles(scene: BABYLON.Scene, scale = 1): HandlesView {
     const key = `${grip.kind}-${grip.axis ?? 'all'}${
       spec.part ? `-${spec.part}` : ''
     }`
+    // A locked axis has no arrow, and no pad slides along it.
+    const locked = transforms.lockMove ?? ''
+    if (grip.kind === 'translate' && locked.includes(grip.axis ?? '')) return
+    if (grip.kind === 'planar' && PLANE_AXES[grip.axis ?? 'x'].some((a) => locked.includes(a))) return
     const mesh = make(`${HANDLE_TAG}-${key}`, 1)
     mesh.material = material(key, colour, alpha)
     mesh.renderingGroupId = 1
@@ -659,7 +665,8 @@ export function createHandles(scene: BABYLON.Scene, scale = 1): HandlesView {
       if (
         next.translate === transforms.translate &&
         next.rotate === transforms.rotate &&
-        next.scale === transforms.scale
+        next.scale === transforms.scale &&
+        next.lockMove === transforms.lockMove
       ) {
         return
       }
