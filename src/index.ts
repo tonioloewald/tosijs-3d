@@ -2259,9 +2259,13 @@ export {
   loadCharacterAssets,
   DEFAULT_CHARACTER,
   CHARACTER_SLOTS,
+} from './character.js'
+export {
   CHARACTER_SOURCES,
   AI_CHARACTER_SOURCES,
-} from './character.js'
+  rigFromMarkers,
+} from './character-sources.js'
+export type { CharacterSource } from './character-sources.js'
 export {
   hm08PackUrl,
   HM08_PACK_PATH,
@@ -2274,7 +2278,6 @@ export type {
   SceneCharacter,
   CharacterAssets,
   CharacterOptions,
-  CharacterSource,
   CharacterGarment,
   ShownBody,
 } from './character.js'

@@ -21,6 +21,7 @@ each one with no DOM.
 */
 
 export const CHARACTER_CORE = [
+  'character-sources',
   'human-pack',
   'human-morph',
   'human-rig',

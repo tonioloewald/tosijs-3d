@@ -12,6 +12,10 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+### Added
+
+- **`tosijs-3d/character-sources`** (engine-free): `CHARACTER_SOURCES` and `AI_CHARACTER_SOURCES` with Tonio's hand-placed rigs for the AI cast, and `rigFromMarkers`, so an exporter rigs the cast as the builder does (`glbRigTriangles`, `bodyFromMarkers` with the source's `recipe.binding`, `riggedBodyGlb`). Still exported from `character` and the barrel. `riggedBodyGlb`'s `recipe` may be partial.
+
 ### Changed
 
 - **The `@babylonjs/*` peers are optional**, so a consumer of the engine-free subpaths (a three.js app taking the character core) installs no Babylon. A Babylon app that relied on npm installing the peers for it installs them itself: `npm i @babylonjs/core @babylonjs/gui @babylonjs/loaders @babylonjs/materials`.

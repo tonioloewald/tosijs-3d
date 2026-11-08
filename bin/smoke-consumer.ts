@@ -82,6 +82,11 @@ const PURE = [
   'fit-extremes',
   'skin-paint',
   'cloth-bake',
+  'character-sources',
+  'glb-rig',
+  'rigged-body-glb',
+  'ual-rest',
+  'spring-vrm',
 ]
 
 try {

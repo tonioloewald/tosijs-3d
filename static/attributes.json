@@ -5395,10 +5395,6 @@
       {
         "name": "rig-recipe",
         "default": "a rig recipe as data"
-      },
-      {
-        "name": "png",
-        "default": "PNG read and written, byte for byte, with no canvas"
       }
     ]
   },

@@ -102,7 +102,7 @@ export interface RiggedBodyGlbOptions {
    * into joints and a tube mesh, colliders go on their bones; written as
    * `VRMC_springBone` and `TOSIJS_spring_chains` (see spring-vrm).
    */
-  recipe?: RigRecipe
+  recipe?: Partial<RigRecipe>
 }
 
 // --- quaternions, [x, y, z, w] ---
@@ -816,7 +816,7 @@ const strandName = (s: StrandSpringRecipe, i: number) =>
  * are in the character's frame (left on -X) from its anchor; the file's
  * frame has the left on +X.
  */
-function addStrands(sk: Skeleton, recipe?: RigRecipe): Strand[] {
+function addStrands(sk: Skeleton, recipe?: Partial<RigRecipe>): Strand[] {
   const out: Strand[] = []
   ;(recipe?.springs ?? []).forEach((spring, i) => {
     if (spring.kind !== 'strand') return
@@ -941,7 +941,7 @@ function hexColour(hex: string): V3 {
 function springChains(
   sk: Skeleton,
   strands: Strand[],
-  recipe: RigRecipe | undefined,
+  recipe: Partial<RigRecipe> | undefined,
   placed: { at: V3[]; frames: Q[]; scale: number; height: number }
 ): SpringChainOut[] {
   const { at, frames, scale } = placed
