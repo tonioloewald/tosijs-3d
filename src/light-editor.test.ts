@@ -75,11 +75,13 @@ untouched, so the preset menu opened at the top of the editor.
 */
 describe('popup anchoring through a container', () => {
   const hostSpy = () => {
-    const opened: Array<{ x: number; y: number }> = []
+    const opened: Array<{ x: number; y: number; close: () => void }> = []
     const host: any = {
+      // Like the real hosts: closing tells the opener (handleClose).
       showPopup: (config: any) => {
-        opened.push({ x: config.anchor.x, y: config.anchor.y })
-        return { close: () => {} }
+        const close = () => config.handleClose?.()
+        opened.push({ x: config.anchor.x, y: config.anchor.y, close })
+        return { close }
       },
       closePopup: () => {},
       relayout: () => {},
@@ -130,6 +132,7 @@ describe('popup anchoring through a container', () => {
     w.layout!(320)
     openPresetMenu(w)
     const narrow = opened[0].y
+    opened[0].close() // dismissed, as a user would before opening it again
     w.layout!(200) // relayout: rows may move
     opened.length = 0
     const rowY = openPresetMenu(w)
