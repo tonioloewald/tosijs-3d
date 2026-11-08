@@ -528,15 +528,24 @@ Ruled out: OpenPose and SMPL-based models (non-commercial only), and
 FreeMoCap (AGPL: study, don't copy).
 
 **The steps:**
-1. **Solver and round-trip harness** (pure; medium). Done when the median
+1. **BVH import and the clip wardrobe** (small–medium). `readBvh` → a clip;
+   the wardrobe (a browser store, the character file's field, a panel) with
+   BVH and file clips (Mixamo's, Meshy's) as its first contents. Tested on
+   synthetic BVH written from UAL's clips (a round trip), plus real samples
+   with a licence that allows a fixture.
+2. **The playback controller's editing** (small–medium): trim, loop the
+   trimmed range, best loop point, loop blend; a pose is a frame kept from a
+   clip.
+3. **Solver and round-trip harness** (pure; medium). Done when the median
    error is under 10° on UAL's gesture and idle clips.
-2. **Filters, mask, the clip format, layering over a base clip** (small–medium).
-3. **Webcam and MediaPipe body capture in the builder, flat** (medium).
+4. **Filters, mask, layering over a base clip** (small–medium).
+5. **Webcam and MediaPipe body capture in the builder, flat** (medium).
    Watchable: wave at the camera, and the character waves while it walks.
-4. **Hands to fingers** (small–medium).
-5. **Face to expression units** (medium; the table is the work).
-6. **Saving and export** (small): captures saved and exported with their
-   licence, "the user's own capture". The export path exists already.
+6. **Hands to fingers** (small–medium).
+7. **Face to expression units** (medium; the table is the work).
+
+Steps 1 and 2 are useful on their own before any camera work: decades of
+mocap become clips a character can loop.
 
 **Captures are like garments of your own** (Tonio, 2026-11-08: "a capture
 (pose or animation) is basically much like a custom garment"). So they follow
@@ -552,7 +561,7 @@ the wardrobe's model:
   the builder loses them on reload; under this model they are kept with
   their licence, as a garment is.
 
-So step 6 (saving and export) becomes a clip wardrobe: a store, a character
+So saving and export become a clip wardrobe (step 1): a store, a character
 file field, and a panel. `tailorPanel` and `GarmentStore` are the pattern to
 copy.
 
@@ -562,6 +571,39 @@ a pose, capturing a clip is useful"). The recorder captures clips only. A
 pose is kept by scrubbing the capture in `playback3d` to the moment you want
 and keeping that frame, a one-frame clip. That is more precise than holding
 still for the camera, and there is one capture flow.
+
+**Many sources, one clip.** The webcam is one recorder. Tonio, 2026-11-08,
+on wearable trackers and BVH: "BVH import would likely be huge, there's a ton
+of data elsewhere". BVH is the common format of mocap:
+- CMU's library, and the datasets built on it;
+- what tracker suits export: SlimeVR, Sony's mocopi, Rokoko;
+- MakeHuman's own pose files.
+
+So `readBvh(text)` is a source like `readGlbClips`: a pure reader giving a
+`GlbClipSource`, the skeleton from its OFFSETs (rest rotations identity) and
+keys from each joint's channels in their own rotation order. Its units (cm,
+inches, metres) are read from the hip height, and its facing from the hip
+line, so the retargeter needs no special case. A BVH clip goes into the same
+clip wardrobe with its licence. Each dataset's licence is read before any is
+mirrored: CMU's is permissive; several popular sets, Bandai Namco's for one,
+are non-commercial only.
+
+Live streaming from a suit is a different matter. SlimeVR and mocopi send
+UDP (the VMC protocol, OSC) to native apps, which a page cannot receive, so
+it needs a local bridge. Not planned; BVH files cover the data.
+
+**The playback controller grows the editing a capture needs** (Tonio):
+- **Trim:** in and out handles on `playback3d`'s scrub bar.
+- **Loop the trimmed range,** to judge it as it will play.
+- **Match the loop ends:**
+  - find the in and out frames whose poses are closest (summed joint angle
+    plus hip velocity);
+  - blend the last few frames into the first (per-bone slerp, hips eased),
+    so an idle or a wave loops without a pop.
+
+All of it is pure on the clip format (`trimClip`, `bestLoop`, `loopBlend`), so
+it serves captures, BVH and file clips alike. The pose-from-a-clip scrub
+(above) is the same control with in = out.
 
 **A headset is a separate source, later.** You are unlikely to be in front of
 a webcam and in a headset at the same time (Tonio), so headset capture is not
