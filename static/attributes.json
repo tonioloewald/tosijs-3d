@@ -6200,6 +6200,11 @@
         "description": "The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row)"
       },
       {
+        "name": "panelIcon",
+        "default": "''",
+        "description": "The settings button's icon on the system bar (an `svgIcons` name), named by `panelTitle`; `''` is the owl. For a page whose panel is its main tool (the character builder's body)"
+      },
+      {
         "name": "panelSections",
         "default": "'fold'",
         "description": "How collapsible sections in the settings panel present: `'fold'` (headers you open and close, one open at a time: opening one closes the others), `'folds'` (several may be open) or `'tabs'` (file tabs, one section at a time). A `label3d({ collapsible: true, level: 2 })` is a sub-section that folds inside its section or tab"

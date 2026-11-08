@@ -286,6 +286,7 @@ document.body.append(
 | `xrReticle` | `'off'` | `'on'` shows the head-locked face crosshair (a pin target, e.g. for a tracking weapon) |
 | `flatUi` | `'scene'` | Where the flat view's own controls are drawn. `'scene'`: in the scene (the system bar, settings panel and pause), the same UI a headset gets. `'dom'`: HTML corner buttons, settings panel and pause (where `::part(...)` styling of them shows). Any other value warns once and means `'scene'` |
 | `scenePanelOpen` | `false` | Start with the settings panel open instead of closed behind the owl |
+| `panelIcon` | `''` | The settings button's icon on the system bar (an `svgIcons` name), named by `panelTitle`; `''` is the owl. For a page whose panel is its main tool (the character builder's body) |
 | `panelTitle` | `''` | The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row) |
 | `agent` | `''` | What an agent may do with this scene through its tools (`b3d_<scene>_…` on WebMCP and `window.b3dAgent`; see [agents](/b3d-agent/)). `''` follows the page (`enableSceneAgents`; closed by default), `'read'` offers the read tools, `'on'` everything, `'off'` nothing |
 | `panelSections` | `'fold'` | How collapsible sections in the settings panel present: `'fold'` (headers you open and close, one open at a time: opening one closes the others), `'folds'` (several may be open) or `'tabs'` (file tabs, one section at a time). A `label3d({ collapsible: true, level: 2 })` is a sub-section that folds inside its section or tab |
@@ -859,6 +860,8 @@ export class B3d extends Component {
     scenePanelOpen: false,
     // The settings panel's name, drawn in its title bar beside move and close.
     panelTitle: '',
+    // The settings button's icon (an svgIcons name): '' is the owl.
+    panelIcon: '',
     /** How collapsible sections present: 'fold' (headers you open and close,
      * one open at a time), 'folds' (several open) or 'tabs' (file tabs). */
     panelSections: 'fold' as 'fold' | 'folds' | 'tabs',
@@ -1670,6 +1673,7 @@ export class B3d extends Component {
   declare xrReticle: 'on' | 'off'
   declare scenePanelOpen: boolean
   declare panelTitle: string
+  declare panelIcon: string
   declare panelSections: 'fold' | 'folds' | 'tabs'
   /**
    * The on-screen "glass" gamepad. Absent/`false` = none; `true` or an empty
@@ -3174,6 +3178,9 @@ export class B3d extends Component {
       : null
     const svg = titled ?? content
     const vb = svg.viewBox.baseVal
+    // What is on the plane now: an untitled panel's content is swapped
+    // whole (a bar menu's submenu), so its size is the new SVG's.
+    let shown: SVGSVGElement = svg
     let panel: {
       update: () => void
       dispose: () => void
@@ -3236,7 +3243,7 @@ export class B3d extends Component {
         const room = (this.parts.canvas?.clientHeight ?? 600) - top - 8
         spot!.height = Math.max(
           80,
-          Math.min(svg.viewBox.baseVal.height || 400, room)
+          Math.min(shown.viewBox.baseVal.height || 400, room)
         )
       }
       fitHeight()
@@ -3299,7 +3306,10 @@ export class B3d extends Component {
           })
         )
         if (titled != null) titled.setContent(next)
-        else panel.setSvg(next)
+        else {
+          shown = next
+          panel.setSvg(next)
+        }
         next.addEventListener('panelfocus', onFocus)
         entry.content = next
       },
@@ -9070,6 +9080,26 @@ export class B3d extends Component {
     this._ssao.update({ ...params, active: screen })
   }
 
+  private _panelIconKey: string | null = null
+  /*
+  THE SETTINGS BUTTON'S ICON: the owl, unless the page names its own
+  (`panelIcon`), when its panel is the page's main tool rather than scene
+  settings. The bar mirrors this button, so swapping its SVG and title is all.
+  */
+  private _applyPanelIcon(): void {
+    const gear = this.parts?.scenePanelGear as HTMLElement | undefined
+    if (gear == null) return
+    const icon = this.panelIcon || ''
+    const name = icon && this.panelTitle ? this.panelTitle : 'Scene settings'
+    const key = `${icon}|${name}`
+    if (key === this._panelIconKey) return
+    this._panelIconKey = key
+    const make = (svgIcons as unknown as Record<string, () => SVGElement>)[icon]
+    const glyph = icon && typeof make === 'function' ? make() : svgIcons.tosiXr()
+    gear.querySelector('svg')?.replaceWith(glyph)
+    gear.title = name
+  }
+
   render(): void {
     super.render()
     // The agent registry reads `agent` and the name when it syncs: one that
@@ -9079,6 +9109,7 @@ export class B3d extends Component {
     const label = `${this._sceneTitle()}, 3D scene`
     if (cv != null && cv.getAttribute('aria-label') !== label)
       cv.setAttribute('aria-label', label)
+    this._applyPanelIcon()
     const agentKey = `${this.agent ?? ''}|${this.agentName()}`
     if (agentKey !== this._agentKey) {
       const first = this._agentKey === ''

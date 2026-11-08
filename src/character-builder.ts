@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, tailorPanel, garmentStore, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, tailorPanel, garmentStore, barMenu, fitPanel, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 import { exportBodyRows } from 'tosijs-3d/body-export'
@@ -48,53 +48,6 @@ const namePopup = (pop, { prompt, initial, current, verb, act }) => {
     button3d({ label: 'cancel', handleClick: () => pop.close() }),
   ]
   return form(prompt)
-}
-const characterRows = () => {
-  // The character on screen: picking a saved one loads it.
-  const current = walker.characterName.value
-  const unsaved = () => !walker.characterName.value
-  return [
-    label3d({ text: 'Character', icon: 'character', collapsible: true }),
-    select3d({
-      label: 'character',
-      value: current,
-      options: [...(current ? [] : [{ label: '(not saved)', value: '' }]), ...character.saved],
-      handleChange: (v) => {
-        if (v && v !== walker.characterName.value) character.load(v)
-      },
-    }),
-    button3d({
-      label: 'save…',
-      popup: (pop) => namePopup(pop, { prompt: 'save as', initial: current, current, verb: 'save', act: (name) => character.save(name) }),
-    }),
-    button3d({
-      label: 'revert…',
-      disabled: unsaved,
-      popup: (pop) => [
-        text3d({ text: `Go back to ${current} as last saved? Changes since are lost.` }),
-        button3d({ label: 'revert', handleClick: () => { pop.close(); character.load(current) } }),
-        button3d({ label: 'cancel', handleClick: () => pop.close() }),
-      ],
-    }),
-    button3d({
-      label: 'rename…',
-      disabled: unsaved,
-      popup: (pop) => namePopup(pop, { prompt: `rename ${current} to`, initial: current, current, verb: 'rename', act: (name) => character.rename(current, name) }),
-    }),
-    button3d({
-      label: 'delete…',
-      disabled: unsaved,
-      popup: (pop) => [
-        text3d({ text: `Delete ${current}? The figure stays on screen, not saved.` }),
-        button3d({ label: 'delete', handleClick: () => { pop.close(); character.remove(current) } }),
-        button3d({ label: 'cancel', handleClick: () => pop.close() }),
-      ],
-    }),
-    button3d({ label: 'play in Biped Playground', handleClick: () => character.play() }),
-    button3d({ label: 'export JSON', handleClick: () => character.exportJson() }),
-    button3d({ label: 'import JSON…', handleClick: () => character.importJson() }),
-    ...(character.note ? [text3d({ text: character.note })] : []),
-  ]
 }
 // The character (character.ts): what the panel sets, made in the scene.
 let ch = null
@@ -338,6 +291,8 @@ preview.append(
     {
       clearColor: '#2a3340',
       panelTitle: 'Character Builder',
+      // The panel is the builder: its button is the body, not the owl.
+      panelIcon: 'body',
       // A tab per section, each its icon.
       panelSections: 'tabs',
       // Undo and redo, every change to the character as it settles: on the
@@ -347,7 +302,6 @@ preview.append(
         { icon: 'rotateCw', title: 'redo (⇧⌘Z)', dim: !character.canRedo(), handleClick: () => character.redo() },
       ],
       scenePanel: () => madeHuman() ? [
-        ...characterRows(),
         label3d({ text: 'Body', icon: 'body', collapsible: true, open: true }),
         select3d({ label: 'source', value: walker.source, options: sourceNames(), stayOpen: true }),
         button3d({ label: 'open a mesh…', handleClick: () => openBody() }),
@@ -408,7 +362,6 @@ preview.append(
       ] : [
         // A body of anyone's: what MakeHuman's carries (shape, face, hair,
         // clothes) is not there; the clips and the skin are.
-        ...characterRows(),
         label3d({ text: 'Body', icon: 'body', collapsible: true, open: true }),
         select3d({ label: 'source', value: walker.source, options: sourceNames(), stayOpen: true }),
         button3d({ label: 'open a mesh…', handleClick: () => openBody() }),
@@ -472,6 +425,61 @@ preview.append(
           const b = knuckleNode?.getAbsolutePosition()
           return b == null ? a : a.add(b).scaleInPlace(0.5)
         }
+        // THE CHARACTER is the document, not a tab: a menu on the system bar,
+        // beside the panel's button (save, select, rename… like a File menu).
+        // Its name prompts are the scene's modal.
+        const modal = (build) => {
+          let close = null
+          const pop = {
+            show(ws) {
+              close?.()
+              const { svg, height } = fitPanel(ws, { width: 320 })
+              close = el.showModal(svg, height)
+            },
+            close() {
+              close?.()
+              close = null
+            },
+          }
+          pop.show(build(pop))
+        }
+        const saveAs = (initial, current) => modal((pop) => namePopup(pop, { prompt: 'save as', initial, current, verb: 'save', act: (name) => character.save(name) }))
+        el.append(barMenu({
+          icon: 'character',
+          title: 'Character',
+          layout: 'list',
+          options: () => {
+            const current = walker.characterName.value
+            const saved = character.saved
+            return [
+              {
+                label: 'Select',
+                items: () => saved.length
+                  ? saved.map((n) => ({ label: n, checked: n === current, handleSelect: () => { if (n !== current) character.load(n) } }))
+                  : [{ label: 'nothing saved yet', disabled: true }],
+              },
+              {
+                label: 'Delete',
+                disabled: saved.length === 0,
+                // A name, then a second step to confirm: it cannot be undone.
+                items: () => saved.map((n) => ({ label: n, items: [{ label: `delete ${n}`, handleSelect: () => character.remove(n) }] })),
+              },
+              { label: current ? `Save ${current}` : 'Save…', handleSelect: () => (current ? character.save(current) : saveAs('', '')) },
+              { label: 'Save as…', handleSelect: () => saveAs(current, current) },
+              {
+                label: 'Rename…',
+                disabled: !current,
+                handleSelect: () => modal((pop) => namePopup(pop, { prompt: `rename ${current} to`, initial: current, current, verb: 'rename', act: (name) => character.rename(current, name) })),
+              },
+              { separator: true },
+              { label: 'Export JSON', handleSelect: () => character.exportJson() },
+              { label: 'Load JSON…', handleSelect: () => character.importJson() },
+              { separator: true },
+              { label: 'Go to Playground', handleSelect: () => character.play() },
+              ...(character.note ? [{ separator: true }, { label: character.note, disabled: true }] : []),
+            ]
+          },
+        }))
         let onHand = false
         views = viewMenu(inspect, el, {
           always: true,
@@ -978,7 +986,6 @@ preview.append(
             ch.set(Object.fromEntries(OWN.map((k) => [k, plain(c.settings[k])])))
             for (const slot of SLOTS) ch.setCloth(slot, c.cloth[slot])
             await ch.ready()
-            load()
             tailorShapes = c.tailor
             walker.characterName.value = c.name === WORKING ? '' : c.name
           } finally {
@@ -1235,18 +1242,19 @@ made for it (`Pistol_Idle_Loop`, the shoot loops) and check it in the hand
 view. The numbers are a launcher's: `b3dLauncher({ socket: 'right-hand', x,
 y, z, rx, ry, rz, modelScale })` holds it the same way on a biped.
 
-**Character** keeps your work. The figure you are working on is kept in this
-browser as you change it and comes back when you open the page again. **Save…**
-asks for a name (the one it has, to start with) to keep it under, and asks
-first before replacing another saved character. **Character** shows the one
-on screen (or *not saved*); pick a saved one and it loads. **Revert…**,
-**rename…** and **delete…** act on the one on screen, once it is saved:
-revert goes back to it as last saved, and deleting keeps the figure, unsaved. **Export
-JSON** to take it elsewhere and **import JSON…** to bring one in. A file
-carries everything the panel sets, and the garments of your own the character
-wears travel inside it ([character-file](/character-file/)).
+**Character** (on the system bar, beside the body button) keeps your work,
+as a File menu does. The figure you are working on is kept in this browser as
+you change it and comes back when you open the page again. **Save** keeps it
+under its name, asking for one the first time; **Save as…** under another
+(asking first before replacing a saved character); **Rename…** renames it.
+**Select ▸** lists the saved characters (the one on screen ticked): pick one
+and it loads. **Delete ▸** picks one, then asks again. **Export JSON** takes
+it elsewhere and **Load JSON…** brings one in: a file carries everything the
+panel sets, and the garments of your own the character wears travel inside
+it ([character-file](/character-file/)). **Go to Playground** plays it in the
+biped playground.
 
-Open the settings (the owl): the body sliders reshape it
+Open the panel (the body button): the body sliders reshape it
 while it walks, since every body carries its own joints. The skin weights are
 bone heat's, worked out from the mesh once when the page loads. The eyes
 ([human-face](/human-face/)) follow the camera, and the hair

@@ -14,6 +14,9 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ### Added
 
+- **Menus of actions on the system bar**: `barMenu` options can be actions (`handleSelect`, `checked`), submenus (`items`), rules (`separator`) and `disabled`, `options` may be a function read on each opening, and `layout: 'list'` shows each option's icon beside its caption. `viewMenu` is a list now (each view named).
+- **`panelIcon`** on `<tosi-b3d>`: the settings button's icon in place of the owl, named by `panelTitle`, for a page whose panel is its main tool.
+- **Character builder**: the character (select, delete, save, save as, rename, export and load JSON, go to the playground) is a **Character** menu on the system bar instead of a tab; the panel's button is the body.
 - **Sub-sections**: `label3d({ collapsible: true, level: 2 })` folds inside the section or tab it is in (one open at a time, except with `panelSections: 'folds'`), drawn indented, and is a level under its section in the control tree (`Body/shape/gender`). The character builder's Body tab folds into shape, figure and ancestry.
 - **`tailorPanel(el, options)`**: the character builder's always-on tailor as a piece any page with a character mounts (slot and garment pickers, keep on switch or close, forget, export, import), with the host's draft, slots and garment store passed in; `garmentStore()` is the browser's IndexedDB store the builder uses. The builder now runs on it.
 - **Clips in an exported body**: `tosijs-3d/glb-clips` (engine-free) reads any skinned GLB's animations and the skeleton they were made on (`readGlbClips`) and bakes one onto another skeleton through the retargeter (`bakeClip`); `riggedBodyGlb(body, { clips: [{ from, clip, extras }] })` writes them as glTF animations, each with its licence in its `extras`. `writeSkinnedGlb` takes `animations`.
@@ -28,6 +31,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ### Fixed
 
+- Character builder: loading a saved character (or the autosaved one on opening the page) stopped before restoring its name and its tailor outline (a call left behind when the clothes "edit" picker went, in 0.12.4).
+- A system panel with no title bar (a bar menu) keeps its size in step with its content when the content is swapped (a submenu was drawn at the full menu's height).
 - A select's list is one at a time: tapping the select again closes it, and a panel rebuilt while the list was open (an in-place refresh) closes it with the old content. Before, the list stayed in the scene at its old offset (off screen once the panel's height changed) and the next tap opened a second.
 - The character builder keeps a held item's grip point on the grip when the grip's scale is not 1 (the item slid off it).
 
