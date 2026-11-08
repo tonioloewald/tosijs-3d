@@ -284,6 +284,18 @@ const exportRows = () =>
         recipe: shown.recipe,
         source: shown.source === 'MakeHuman' ? null : ch.sources[shown.source] ?? null,
         name: String(name).replace(/\W+/g, '-').replace(/^-|-$/g, '') || 'character',
+        // What the right hand holds goes out with it, where it is held.
+        held:
+          walker.held.value === 'none'
+            ? null
+            : {
+                grip: gripOf(walker.held.value),
+                url: assetUrl('tonio/weapons-classic/weapons.glb', 2),
+                model: `${walker.held.value}.model`,
+                gripNode: `${walker.held.value}_grip`,
+                // As static-assets' metadata for the library says it.
+                extras: { credit: 'Tonio Loewald', license: 'CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)', source: 'tonio/weapons-classic/weapons.glb' },
+              },
       }
     },
     (message) => {

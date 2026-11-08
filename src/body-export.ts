@@ -21,9 +21,11 @@ panel.push(...exportBodyRows(() => ({ body, recipe, source: { url } }), say))
 /*{ "parent": "rigged-body-glb", "order": 2 }*/
 
 import { button3d, label3d, select3d, type Widget3d } from './widgets3d.js'
-import { glbRigTriangles } from './glb-rig.js'
+import { glbNodePosition, glbRigTriangles } from './glb-rig.js'
+import type { Grip } from './hand-socket.js'
 import {
   riggedBodyGlb,
+  type HeldItem,
   type RigNaming,
   type RigRestPose,
 } from './rigged-body-glb.js'
@@ -38,6 +40,18 @@ export interface BodyExportTarget {
   source?: { url?: string; file?: File; pick?: string } | null
   /** The file's name, without `.glb`. */
   name: string
+  /**
+   * What the right hand holds: a library model (`url`, its `model` node and
+   * its `gripNode`, `_grip`), placed by `grip`; `extras` (its licence) go on
+   * its mesh. See riggedBodyGlb's `held`.
+   */
+  held?: {
+    grip: Grip
+    url: string
+    model: string
+    gripNode?: string
+    extras?: Record<string, unknown>
+  } | null
 }
 
 /** How the file is written (the panel's choices). */
@@ -101,7 +115,16 @@ export async function exportBody(
   else if (tris != null)
     note = 'its materials did not match the mesh: plain grey'
   else if (target.body.surfaces?.length) note = 'not from a GLB: plain grey'
+  const held = target.held
+    ? await heldItem(target.held).catch(() => {
+        note = [note, `the ${target.held!.model} could not be read: hand socket only`]
+          .filter(Boolean)
+          .join('; ')
+        return { grip: target.held!.grip }
+      })
+    : undefined
   const out = riggedBodyGlb(body, {
+    ...(held ? { held } : {}),
     naming: settings.naming,
     restPose: settings.restPose,
     ...(settings.height > 0 ? { height: settings.height } : {}),
@@ -109,6 +132,19 @@ export async function exportBody(
     generator: 'tosijs-3d',
   })
   return { bytes: out, note }
+}
+
+/** A library model as riggedBodyGlb's `held`: its mesh and grip point, read from its file. */
+async function heldItem(h: NonNullable<BodyExportTarget['held']>): Promise<HeldItem> {
+  const bytes = new Uint8Array(await (await fetch(h.url)).arrayBuffer())
+  const pick = h.model
+  return {
+    grip: h.grip,
+    item: glbRigTriangles(bytes, { pick }),
+    gripPoint:
+      (h.gripNode && glbNodePosition(bytes, h.gripNode, { pick })) || undefined,
+    ...(h.extras ? { extras: h.extras } : {}),
+  }
 }
 
 /** Save bytes as a file. */
