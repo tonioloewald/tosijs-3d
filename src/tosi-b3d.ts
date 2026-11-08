@@ -3282,6 +3282,10 @@ export class B3d extends Component {
         // The same open/close a reopen would send, around the swap.
         const was = entry.content
         was.removeEventListener('panelfocus', onFocus)
+        // Its open select list goes with it (see frame-panel's swapSvg).
+        const menu = was as unknown as { __anchored?: { close: () => void } }
+        menu.__anchored?.close()
+        menu.__anchored = undefined
         was.dispatchEvent(
           new CustomEvent('panelopen', {
             detail: { open: false },

@@ -1453,6 +1453,17 @@ export function attachFramePanel(
   function swapSvg(next: SVGSVGElement) {
     if (el == null || next === el) return
     endGesture()
+    /*
+    THE OLD CONTENT'S MENU GOES WITH IT. A select's list is kept on its
+    panel's root (`__anchored`, widgets3d's `showPopup`), which is how a panel
+    allows one at a time. Swapped out with it still open, the list stayed in
+    the scene at its old offset from the plane (off screen once the new
+    content changed the panel's height, out of reach of its own close) and
+    the new root knew nothing of it, so the select opened a second.
+    */
+    const old = el as unknown as { __anchored?: { close: () => void } }
+    old.__anchored?.close()
+    old.__anchored = undefined
     el.removeEventListener('panelfocus', onFocus)
     el = next
     adopt(next)

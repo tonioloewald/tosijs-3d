@@ -354,3 +354,56 @@ describe('an icon-grid palette can be a constant too', () => {
     expect(() => press(0)).not.toThrow()
   })
 })
+
+describe('a select has one menu at a time', () => {
+  /** A host that tells the menu when it goes, as the real ones do. */
+  function closingHost() {
+    const open: Array<{ handleClose?: () => void; closed: boolean }> = []
+    const host: any = {
+      showPopup(config: any) {
+        const entry = { handleClose: config.handleClose, closed: false }
+        open.push(entry)
+        return {
+          close: () => {
+            if (entry.closed) return
+            entry.closed = true
+            entry.handleClose?.()
+          },
+        }
+      },
+      closePopup() {},
+      relayout() {},
+      bounds: () => ({ x: 0, y: 0, width: 300, height: 300 }),
+      top: () => null,
+      hasLayer: () => false,
+      showLayer: () => ({ close: () => {} }),
+    }
+    return { host, open, live: () => open.filter((e) => !e.closed).length }
+  }
+
+  test('a second tap closes it instead of opening another', () => {
+    const h = closingHost()
+    const s = widgets.select3d({ label: 'hold', value: 'none', options: ['none', 'sword'] })
+    s.setHost?.(h.host)
+    s.layout(300)
+    s.handle?.('up', 280, 10)
+    expect(h.live()).toBe(1)
+    s.handle?.('up', 280, 10)
+    expect(h.live()).toBe(0)
+    expect(h.open.length).toBe(1)
+  })
+
+  test('closed from outside, the next tap opens it again', () => {
+    const h = closingHost()
+    const s = widgets.select3d({ label: 'hold', value: 'none', options: ['none', 'sword'] })
+    s.setHost?.(h.host)
+    s.layout(300)
+    s.handle?.('up', 280, 10)
+    // Dismissed some other way (its own ×, the panel closing).
+    h.open[0].closed = true
+    h.open[0].handleClose?.()
+    s.handle?.('up', 280, 10)
+    expect(h.live()).toBe(1)
+    expect(h.open.length).toBe(2)
+  })
+})

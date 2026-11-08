@@ -27,6 +27,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ### Fixed
 
+- A select's list is one at a time: tapping the select again closes it, and a panel rebuilt while the list was open (an in-place refresh) closes it with the old content. Before, the list stayed in the scene at its old offset (off screen once the panel's height changed) and the next tap opened a second.
 - The character builder keeps a held item's grip point on the grip when the grip's scale is not 1 (the item slid off it).
 
 ## 0.12.4

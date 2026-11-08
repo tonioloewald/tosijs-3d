@@ -2982,8 +2982,22 @@ export function select3d(config: {
 
   const openMenu = (): void => {
     if (host == null || opts.length === 0) return
-    openHandle = host.showPopup(
+    /*
+    ONE MENU PER SELECT. A second tap while it is open closes it: opening
+    another stacked a second copy and orphaned the first (its handle was
+    overwritten, so nothing could close it), and a menu pushed off screen
+    could then be neither reached nor dismissed. `handleClose` clears the
+    handle when the menu goes some other way, so the next tap opens again.
+    */
+    if (openHandle != null) {
+      closeMenu()
+      return
+    }
+    const handle: { close: () => void } = host.showPopup(
       {
+        handleClose: () => {
+          if (openHandle === handle) openHandle = null
+        },
         // Anchored to the VALUE, not to the whole row: a menu that drops from
         // the far left of a wide row looks unrelated to what it changes.
         anchor: { x: clusterX, y: 0, width: clusterW, height: TH.ROW },
@@ -3012,6 +3026,7 @@ export function select3d(config: {
         },
       })
     )
+    openHandle = handle
   }
 
   return {
