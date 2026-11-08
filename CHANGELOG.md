@@ -31,6 +31,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ### Fixed
 
+- **Manipulator plane pads** can be grabbed again: the hairline arrow shafts, drawn in front of them from most angles, took the press first.
 - Character builder: loading a saved character (or the autosaved one on opening the page) stopped before restoring its name and its tailor outline (a call left behind when the clothes "edit" picker went, in 0.12.4).
 - A system panel with no title bar (a bar menu) keeps its size in step with its content when the content is swapped (a submenu was drawn at the full menu's height).
 - A select's list is one at a time: tapping the select again closes it, and a panel rebuilt while the list was open (an in-place refresh) closes it with the old content. Before, the list stayed in the scene at its old offset (off screen once the panel's height changed) and the next tap opened a second.

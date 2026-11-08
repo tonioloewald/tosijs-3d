@@ -363,7 +363,13 @@ export function createHandles(scene: BABYLON.Scene, scale = 1): HandlesView {
     could see and aimed at.
     */
     mesh.isPickable = true
-    mesh.metadata = { [HANDLE_TAG]: grip, [DRAWN_TAG]: true }
+    /*
+    ...EXCEPT THE SHAFT. It is a hairline showing which way the axis runs, and
+    from most views it crosses in front of the plane pads: picked first, it
+    took the press from a pad drawn right under the pointer, so the pads seemed
+    not to work. Its fat target still answers in the second pass.
+    */
+    mesh.metadata = { [HANDLE_TAG]: grip, [DRAWN_TAG]: spec.part !== 'shaft' }
     handles.push({ grip, mesh, offset, spin })
 
     const target = make(`${HANDLE_TAG}-${key}-pick`, PICK_FATNESS)
