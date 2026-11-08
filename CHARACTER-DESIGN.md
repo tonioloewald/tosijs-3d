@@ -539,11 +539,25 @@ FreeMoCap (AGPL: study, don't copy).
 6. **Saving and export** (small): captures saved and exported with their
    licence, "the user's own capture". The export path exists already.
 
+**Captures are like garments of your own** (Tonio, 2026-11-08: "a capture
+(pose or animation) is basically much like a custom garment"). So they follow
+the wardrobe's model:
+- **Kept in the browser** by name (a store beside `tosijs-garments`), so any
+  character on the site can use them.
+- **Worn by a character:** a character file carries the ones it uses, as it
+  carries its own garments' GLBs, so a save or a share is complete.
+- **Made, imported, exported, forgotten** as garments are, from a panel shaped
+  like the tailor's. Export is a GLB of the clip on UAL's skeleton, which
+  Blender and other engines open.
+- **Clips read from a file** (Mixamo's, Meshy's) are own clips too. Today
+  the builder loses them on reload; under this model they are kept with
+  their licence, as a garment is.
+
+So step 6 (saving and export) becomes a clip wardrobe: a store, a character
+file field, and a panel. `tailorPanel` and `GarmentStore` are the pattern to
+copy.
+
 **Open questions for Tonio:**
-- **Where captures are kept.** In the character file, or in a clip library
-  in the browser's store, shared by every character? A capture is on UAL's
-  skeleton, so it fits any body. Leaning towards the library, with a
-  character file carrying the clips it uses.
 - **Pose and clip both in the first cut,** or the pose alone first? It is
   simpler and covers portraits and held stances.
 - **A headset's own tracking** (head, controllers or hand tracking) as a
