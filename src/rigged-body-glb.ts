@@ -47,6 +47,14 @@ What the file is (Dramatis's `export-format`, version 1):
   three-vrm, UniVRM and Godot's VRM importer read with no setup, and as
   `TOSIJS_spring_chains`, our own settings exactly (see
   [spring-vrm](/spring-vrm/) for how the two models differ).
+- **Garments**, with `garments`: proxies bound to this body (`garmentProxy`
+  from a garment file: the tailor's cuts and draped cloth, or a garment
+  from Blender), each a mesh named for its slot, skinned with weights from
+  the body's own, as the builder draws them (armour lifted 5 mm), with its
+  material as data (its pictures, and its saved look's glTF factors where
+  it has a plain reading). The skin they cover is tucked under them, as the
+  builder does, and skin a garment lists in its `delete` (as MakeHuman's
+  clothes do) is dropped; `cover: false` leaves the skin alone.
 - **A held item**, with `held`: a joint named `weapon_r` (or `held.name`)
   under the hand, where a grip (see [[hold-grip]]) puts the item's grip
   point, turned as the grip says, in the hand's socket frame
@@ -74,6 +82,11 @@ import {
 } from './skinned-glb.js'
 import { UAL_REST } from './ual-rest.js'
 import type { BodyTriangles, RiggedBody } from './rigged-body.js'
+import type { GarmentProxy, GarmentProxyMaterial } from './garment-proxy.js'
+import type { HumanProxy } from './human-pack.js'
+import { drawnPositions, fitProxy, proxyWeights } from './proxy-fit.js'
+import { coverSkin } from './proxy-cover.js'
+import { vertexNormals } from './hair-fit.js'
 import {
   gripMatrix,
   gripPoint,
@@ -124,6 +137,10 @@ export interface RiggedBodyGlbOptions {
   recipe?: Partial<RigRecipe>
   /** A held item, or only its socket: see "A held item" above. */
   held?: HeldItem
+  /** Garments bound to this body (`garmentProxy`): see "Garments" above. */
+  garments?: GarmentProxy[]
+  /** Tuck the skin the garments cover, drop what they list (default true). */
+  cover?: boolean
 }
 
 /** What a hand holds, for `riggedBodyGlb`'s `held`. */
@@ -530,6 +547,46 @@ const isGltfMaterial = (m: unknown): m is GltfSurfaceMaterial =>
   m != null && Array.isArray((m as GltfSurfaceMaterial).baseColorFactor)
 
 /** The body's materials as glTF, their pictures collected once each. */
+/** A garment's material (garment-proxy's data) as glTF's. */
+function garmentMaterial(
+  m: GarmentProxyMaterial,
+  name: string,
+  images: GlbImage[]
+): GlbMaterial {
+  const image = (t: { bytes: Uint8Array; mimeType: string } | null | undefined, as: string) => {
+    if (t?.bytes == null) return undefined
+    if (t.mimeType !== 'image/png' && t.mimeType !== 'image/jpeg') return undefined
+    let i = images.findIndex((im) => im.bytes === t.bytes)
+    if (i < 0) {
+      images.push({ name: `${name}_${as}`, mimeType: t.mimeType, bytes: t.bytes })
+      i = images.length - 1
+    }
+    return { image: i }
+  }
+  const gltf = m.gltf ?? {}
+  const out: GlbMaterial = {
+    name,
+    baseColorFactor: gltf.baseColorFactor ?? m.baseColor ?? [0.8, 0.8, 0.8, 1],
+    metallicFactor: gltf.metallicFactor ?? m.metallic ?? 0,
+    roughnessFactor: gltf.roughnessFactor ?? m.roughness ?? 0.8,
+    alphaMode: m.alphaMode ?? 'OPAQUE',
+    ...(m.alphaMode === 'MASK' ? { alphaCutoff: m.alphaCutoff ?? 0.5 } : {}),
+    doubleSided: m.twoSided,
+  }
+  const base = image(m.baseColorTexture, 'baseColor')
+  if (base) out.baseColorTexture = base
+  const mr = image(m.metallicRoughnessTexture, 'metallicRoughness')
+  if (mr) out.metallicRoughnessTexture = mr
+  const normal = image(m.normalTexture, 'normal')
+  if (normal) out.normalTexture = { ...normal, scale: m.normalScale ?? 1 }
+  if (gltf.sheenColorFactor)
+    out.sheen = {
+      colorFactor: gltf.sheenColorFactor,
+      roughnessFactor: gltf.sheenRoughnessFactor ?? 0.5,
+    }
+  return out
+}
+
 function materialsOf(
   surfaces: BodyTriangles['surfaces'],
   surfaceCount: number,
@@ -678,9 +735,51 @@ export function riggedBodyGlb(
     joints[i] = Math.max(0, sk.from[body.weights.indices[i]] ?? 0)
   const weights = body.weights.weights
 
+  // Garments fitted on the body at rest, and the skin they cover tucked.
+  const worn = (options.garments ?? []).map((g) => {
+    const drawn = drawnPositions(g, fitProxy(g, body.positions))
+    if (g.slot === 'armour') {
+      const n = vertexNormals(drawn, g.triangles)
+      for (let i = 0; i < drawn.length; i++) drawn[i] += n[i] * 0.005
+    }
+    return { g, drawn, w: proxyWeights(g, body.weights) }
+  })
+  let rest: ArrayLike<number> = body.positions
+  let indices: ArrayLike<number> = body.indices
+  let runs: number[][] = body.surfaces?.length
+    ? body.surfaces.map((s) => [s.start, s.count])
+    : [[0, body.indices.length]]
+  if (worn.length > 0 && options.cover !== false) {
+    const covered = coverSkin(
+      body.positions,
+      vertexNormals(body.positions, body.indices), // unit: coverSkin measures along them
+      body.indices,
+      Uint32Array.from({ length: nVerts }, (_, i) => i),
+      worn.map((x) => x.g as unknown as HumanProxy),
+      { drawn: new Map(worn.map((x) => [x.g.name, x.drawn])) }
+    )
+    rest = covered.positions
+    if (covered.deleted.size > 0) {
+      const kept: number[] = []
+      runs = runs.map(([start, count]) => {
+        const from = kept.length
+        for (let t = start; t < start + count; t += 3) {
+          const a = body.indices[t]
+          const b = body.indices[t + 1]
+          const c = body.indices[t + 2]
+          if (covered.deleted.has(a) || covered.deleted.has(b) || covered.deleted.has(c))
+            continue
+          kept.push(a, b, c)
+        }
+        return [from, kept.length - from]
+      })
+      indices = Uint32Array.from(kept)
+    }
+  }
+
   // Into the rest pose.
   const pose = restPose === 't-pose' ? tPose(sk) : sourcePose(sk)
-  const posed = skinTo(body.positions, joints, weights, sk.rest, pose)
+  const posed = skinTo(rest, joints, weights, sk.rest, pose)
   const head = sk.names.indexOf('Head')
   const eyes = (body.eyes ?? []).map((e) => {
     const n = e.positions.length / 3
@@ -799,11 +898,7 @@ export function riggedBodyGlb(
   })
 
   // The body, one primitive per surface.
-  const indices = body.indices
   const normals = smoothNormals(positions, indices)
-  const runs = body.surfaces?.length
-    ? body.surfaces.map((s) => [s.start, s.count])
-    : [[0, indices.length]]
   const { materials, images } = materialsOf(body.surfaces, runs.length, body.uvs != null)
   const meshes = [
     {
@@ -821,7 +916,7 @@ export function riggedBodyGlb(
           body.colors,
           s
         )
-      ),
+      ).filter((p) => p.indices.length > 0), // a surface wholly covered goes
     },
   ]
   if (eyePositions.length) {
@@ -886,6 +981,29 @@ export function riggedBodyGlb(
       ],
     })
     void k
+  })
+
+  worn.forEach(({ g, drawn, w }) => {
+    const gj = new Uint16Array(w.indices.length)
+    for (let i = 0; i < gj.length; i++)
+      gj[i] = Math.max(0, sk.from[w.indices[i]] ?? 0)
+    const pos = placeAll(skinTo(drawn, gj, w.weights, sk.rest, pose))
+    materials.push(garmentMaterial(g.material, `${g.slot ?? 'garment'}_${g.name}`, images))
+    meshes.push({
+      name: `${g.slot ?? 'garment'}: ${g.name}`,
+      primitives: [
+        {
+          positions: Float32Array.from(pos),
+          normals: smoothNormals(pos, g.triangles),
+          uvs: g.uvs.length === (pos.length / 3) * 2 ? g.uvs : null,
+          colors: null,
+          joints: gj,
+          weights: w.weights,
+          indices: Uint32Array.from(g.triangles),
+          material: materials.length - 1,
+        },
+      ],
+    })
   })
 
   if (held && options.held!.item) {

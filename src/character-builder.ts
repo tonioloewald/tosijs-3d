@@ -284,6 +284,8 @@ const exportRows = () =>
         recipe: shown.recipe,
         source: shown.source === 'MakeHuman' ? null : ch.sources[shown.source] ?? null,
         name: String(name).replace(/\W+/g, '-').replace(/^-|-$/g, '') || 'character',
+        // What it wears of your own (on a body from a file).
+        garments: ch.wornGarments?.() ?? [],
         // What the right hand holds goes out with it, where it is held.
         held:
           walker.held.value === 'none'

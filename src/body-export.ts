@@ -23,6 +23,7 @@ panel.push(...exportBodyRows(() => ({ body, recipe, source: { url } }), say))
 import { button3d, label3d, select3d, type Widget3d } from './widgets3d.js'
 import { glbNodePosition, glbRigTriangles } from './glb-rig.js'
 import type { Grip } from './hand-socket.js'
+import type { GarmentProxy } from './garment-proxy.js'
 import {
   riggedBodyGlb,
   type HeldItem,
@@ -45,6 +46,8 @@ export interface BodyExportTarget {
    * its `gripNode`, `_grip`), placed by `grip`; `extras` (its licence) go on
    * its mesh. See riggedBodyGlb's `held`.
    */
+  /** Garments bound to `body` (a character's `wornGarments()`). */
+  garments?: GarmentProxy[]
   held?: {
     grip: Grip
     url: string
@@ -125,6 +128,7 @@ export async function exportBody(
     : undefined
   const out = riggedBodyGlb(body, {
     ...(held ? { held } : {}),
+    ...(target.garments?.length ? { garments: target.garments } : {}),
     naming: settings.naming,
     restPose: settings.restPose,
     ...(settings.height > 0 ? { height: settings.height } : {}),

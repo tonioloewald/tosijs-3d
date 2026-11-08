@@ -142,6 +142,8 @@ import { readGarment } from './garment-file.js'
 import {
   garmentMadeOn,
   garmentProxy,
+  lookGltf,
+  type GarmentProxy,
   type GarmentProxyMaterial,
 } from './garment-proxy.js'
 import {
@@ -158,6 +160,7 @@ import { applyRigRecipe } from './rig-recipe-babylon.js'
 import type { RigRecipe } from './rig-recipe.js'
 import { assetUrl } from './asset-url.js'
 import type { SlotLook } from './character-file.js'
+import type { MaterialRecipe } from './material-recipe.js'
 import {
   CHARACTER_SLOTS,
   DEFAULT_CHARACTER,
@@ -263,6 +266,12 @@ export interface SceneCharacter {
   choices(key: string): string[]
   /** The body on show (null while one is being rigged, or when it failed). */
   readonly shown: ShownBody | null
+  /**
+   * The garments of your own worn on the body shown, bound to it as data
+   * (garment-proxy), each with its slot's material as its look: what
+   * `riggedBodyGlb`'s `garments` writes. Empty on MakeHuman's body.
+   */
+  wornGarments(): GarmentProxy[]
   /** Its skeleton, read for `retargetClip`. */
   readonly skeleton: ReadSkeleton | null
   /** Its rig recipe, when it has one. */
@@ -1233,6 +1242,24 @@ export async function makeCharacter(
         : styles[key] ?? [],
     get shown() {
       return shown()
+    },
+    wornGarments() {
+      const r = shownNow
+      if (!r || r === built) return []
+      return SLOTS.filter((slot) => ownIn(slot)?.slot === slot).map((slot) => {
+        const g = ownIn(slot)!
+        const p = garmentProxy(
+          g.content,
+          { positions: r.body.positions, triangles: r.body.indices },
+          { name: g.name, slot }
+        )
+        const look = cloth[slot]?.material as MaterialRecipe | null | undefined
+        if (look?.type) {
+          p.material.look = look
+          p.material.gltf = lookGltf(look, p.material.baseColorTexture != null)
+        }
+        return p
+      })
     },
     get skeleton() {
       return read
