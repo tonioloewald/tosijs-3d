@@ -28,8 +28,9 @@ import { registerMaterialPlugin } from './material-plugins.js';
 import { parseColor } from './color.js';
 import { normalMapConvention, pictureTexture, roughnessMap, } from './material-apply.js';
 import { FABRICS } from './fabrics.js';
-import { materialAsType, canonicalMaterial, MATERIAL_COLLECTIONS, resolveMaterial, } from './material-recipe.js';
+import { materialAsType, resolveMaterial, } from './material-recipe.js';
 export { FABRICS } from './fabrics.js';
+export { clothRecipe } from './material-recipe.js';
 const toLinear = (c) => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 class ClothShadingPlugin extends BABYLON.MaterialPluginBase {
     tint = new BABYLON.Color3(1, 1, 1);
@@ -89,19 +90,6 @@ class ClothShadingPlugin extends BABYLON.MaterialPluginBase {
     }
 }
 registerMaterialPlugin('ClothShadingPlugin', (material) => new ClothShadingPlugin(material));
-/**
- * The old `{ fabric, colour, recolour }` look as a `cloth` recipe, for looks
- * saved before recipes. `'as made'` (or no fabric) sets no surface.
- */
-export function clothRecipe(look) {
-    const preset = MATERIAL_COLLECTIONS.fabrics.presets.find((p) => p.name === look.fabric);
-    const inputs = { ...preset?.recipe.inputs };
-    if (look.colour != null)
-        inputs.albedo = look.colour;
-    if (look.recolour != null)
-        inputs.recolour = look.recolour;
-    return canonicalMaterial({ type: 'cloth', inputs });
-}
 /** Measure a texture's mean brightness (linear) once it has loaded. */
 function measureMean(texture, done) {
     const read = () => {

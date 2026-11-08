@@ -450,6 +450,8 @@ export { bodyFromMarkers } from './rigged-body.js';
 export type { RiggedBody, RiggedBodyOrigin, BodyTriangles, BodySurface, BodyEye, } from './rigged-body.js';
 export { isEyeName, splitEyes, eyeCentre, eyeUvs, lidBlink, } from './rigged-body.js';
 export { mountTailorTool } from './tailor-tool.js';
+export { tailorPanel, garmentStore, NEW_GARMENT } from './tailor-panel.js';
+export type { TailorPanelOptions, TailorPanelHandle, TailorDraft, GarmentStore, Kept, } from './tailor-panel.js';
 export { chooseFile } from './choose-file.js';
 export { loadSkinnedBody, soleVertices, lowestOf, surfaceMaterial, } from './rig-build.js';
 export type { TailorTool, TailorToolOptions, TailorCut, TailorState, TailoredGarment, } from './tailor-tool.js';
@@ -511,10 +513,12 @@ export type { SpringChain, SpringCollider, SpringParams, Orientation as SpringOr
 export { springBones, springNodes } from './spring-chain-babylon.js';
 export type { SpringBones, SpringBoneCollider } from './spring-chain-babylon.js';
 export { realNow, wallMs, wallDate } from './clock.js';
-export { makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, } from './character.js';
+export { makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, } from './character.js';
+export { CHARACTER_SOURCES, AI_CHARACTER_SOURCES, rigFromMarkers, } from './character-sources.js';
+export type { CharacterSource } from './character-sources.js';
 export { hm08PackUrl, HM08_PACK_PATH, HM08_PACK_VERSION, } from './character-settings.js';
 export { coverSkin, BODY_WRAPPING_SLOTS } from './proxy-cover.js';
 export type { SkinCoverOptions } from './proxy-cover.js';
 export type { SurfaceMaterial } from './rigged-body.js';
-export type { SceneCharacter, CharacterAssets, CharacterOptions, CharacterSource, CharacterGarment, ShownBody, } from './character.js';
+export type { SceneCharacter, CharacterAssets, CharacterOptions, CharacterGarment, ShownBody, } from './character.js';
 //# sourceMappingURL=index.d.ts.map

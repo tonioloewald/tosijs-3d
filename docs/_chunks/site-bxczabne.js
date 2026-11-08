@@ -1,5 +1,0 @@
-import{O,mt}from"./site-rfjvxq2b.js";import{fr}from"./site-wmjr04ng.js";import{o,e}from"./site-hcyxrnqg.js";class om extends fr{constructor(t){super(mt,t);this.body=this.registerDataInput("body",O)}_doOperation(t){let i=this.body.getValue(t);if(!i)return;let r=t._getExecutionVariable(this,"_cachedVelocity",null);if(!r)r=new e,t._setExecutionVariable(this,"_cachedVelocity",r);return i.getLinearVelocityToRef(r),r}getClassName(){return"FlowGraphGetLinearVelocityBlock"}}var l=!1;function am(){if(l)return;l=!0,o("FlowGraphGetLinearVelocityBlock",om)}am();
-export{om,am};
-
-//# debugId=1CA6BB7C5712606764756E2164756E21
-//# sourceMappingURL=site-bxczabne.js.map

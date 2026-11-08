@@ -493,6 +493,7 @@ export { buildRig, buildBody, gatherTriangles, loadRigTriangles, autoRig, } from
 export { bodyFromMarkers } from './rigged-body.js';
 export { isEyeName, splitEyes, eyeCentre, eyeUvs, lidBlink, } from './rigged-body.js';
 export { mountTailorTool } from './tailor-tool.js';
+export { tailorPanel, garmentStore, NEW_GARMENT } from './tailor-panel.js';
 export { chooseFile } from './choose-file.js';
 export { loadSkinnedBody, soleVertices, lowestOf, surfaceMaterial, } from './rig-build.js';
 export { loadHumanPack, decodeHumanTarget } from './human-pack.js';
@@ -526,7 +527,8 @@ export { humanRig, humanSkin, stiffenHead, armsOffTorso, humanBodyMaker, bodyDet
 export { springChain, stepSpringChain, resetSpringChain, shiftSpringChain, SPRING_DEFAULTS, } from './spring-chain.js';
 export { springBones, springNodes } from './spring-chain-babylon.js';
 export { realNow, wallMs, wallDate } from './clock.js';
-export { makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, } from './character.js';
+export { makeCharacter, loadCharacterAssets, DEFAULT_CHARACTER, CHARACTER_SLOTS, } from './character.js';
+export { CHARACTER_SOURCES, AI_CHARACTER_SOURCES, rigFromMarkers, } from './character-sources.js';
 export { hm08PackUrl, HM08_PACK_PATH, HM08_PACK_VERSION, } from './character-settings.js';
 export { coverSkin, BODY_WRAPPING_SLOTS } from './proxy-cover.js';
 //# sourceMappingURL=index.js.map

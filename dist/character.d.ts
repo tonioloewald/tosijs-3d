@@ -3,27 +3,14 @@ import { type HumanPack } from './human-pack.js';
 import { type HairLibrary } from './human-hair.js';
 import { type HumanExpressions } from './human-expression.js';
 import { type ReadSkeleton } from './retarget-babylon.js';
+import { type GarmentProxy } from './garment-proxy.js';
 import { type BuiltBody } from './rig-build.js';
 import { type RiggedBody } from './rigged-body.js';
 import type { RigRecipe } from './rig-recipe.js';
 import type { SlotLook } from './character-file.js';
 export { CHARACTER_SLOTS, DEFAULT_CHARACTER } from './character-settings.js';
-/** Where a mesh's body comes from: a URL or a file, and the node to take. */
-export interface CharacterSource {
-    url?: string;
-    file?: File;
-    pick?: string;
-    /** Its rig, when none is saved for it: hand-placed markers, say. */
-    recipe?: Partial<RigRecipe>;
-}
-/**
- * Tonio's AI-generated characters (CC0, `tonio/ai` on the asset CDN): one
- * mesh each, unrigged, rigged from markers placed by hand where a recipe is
- * given here, else guessed off their outline.
- */
-export declare const AI_CHARACTER_SOURCES: Record<string, CharacterSource>;
-/** The bodies a character can have besides MakeHuman's. */
-export declare const CHARACTER_SOURCES: Record<string, CharacterSource>;
+import { type CharacterSource } from './character-sources.js';
+export { AI_CHARACTER_SOURCES, CHARACTER_SOURCES, rigFromMarkers, type CharacterSource, } from './character-sources.js';
 /** What every character in a scene shares: MakeHuman's pack, the hair. */
 export interface CharacterAssets {
     pack: HumanPack;
@@ -93,6 +80,27 @@ export interface SceneCharacter {
     choices(key: string): string[];
     /** The body on show (null while one is being rigged, or when it failed). */
     readonly shown: ShownBody | null;
+    /**
+     * The garments of your own worn on the body shown, bound to it as data
+     * (garment-proxy), each with its slot's material as its look: what
+     * `riggedBodyGlb`'s `garments` writes. Empty on MakeHuman's body.
+     */
+    wornGarments(): GarmentProxy[];
+    /**
+     * Where the hair's hand adjustment is measured from: the Head bone's node
+     * and the skull's middle in its frame (metres, y up, z forward), before
+     * `hairUp`/`hairForward`. Null off MakeHuman's body.
+     */
+    hairAnchor(): {
+        node: BABYLON.TransformNode;
+        centre: {
+            x: number;
+            y: number;
+            z: number;
+        };
+        /** The hair's meshes as placed now, to move while a drag previews. */
+        meshes: BABYLON.AbstractMesh[];
+    } | null;
     /** Its skeleton, read for `retargetClip`. */
     readonly skeleton: ReadSkeleton | null;
     /** Its rig recipe, when it has one. */

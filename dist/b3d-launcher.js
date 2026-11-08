@@ -328,6 +328,7 @@ import * as BABYLON from '@babylonjs/core';
 import { loadLibraryMesh } from './library-mesh.js';
 import { findMuzzle, findSuffixed } from './model-transform.js';
 import { BONE_SOCKETS, findBone } from './bone-mask.js';
+import { anatomyFrame, gripPoint, mat4Invert, mat4Multiply, socketInHand, } from './hand-socket.js';
 /*
 A HAND HOLDS THE SAME WAY ON ANY RIG. A weapon's x/y/z and rotation are
 dialled in against a hand bone, and a bone's axes are the rig maker's choice:
@@ -338,18 +339,6 @@ socket is therefore a node under the hand oriented by the hand's ANATOMY at
 rest (forearm direction, thumb side), offset so UAL's hand is exactly what it
 was: a rig with UAL's joint names holds a weapon as the mannequin does.
 */
-// UAL's right hand in its anatomy frame (`socketCalibration`, measured on
-// UAL1_core). The left hand is its mirror image.
-const HAND_IN_ANATOMY = {
-    r: [
-        0, -0.56698, -0.82373, 0, 0.99985, -0.0142, 0.00977, 0, 0.01724, 0.82361,
-        -0.5669, 0, 0, 0, 0, 1,
-    ],
-    l: [
-        0, 0.56698, -0.82373, 0, 0.99985, -0.0142, -0.00977, 0, 0.01724, 0.82361,
-        0.5669, 0, 0, 0, 0, 1,
-    ],
-};
 /** A bone's rest frame in the world: its rest locals, then what holds the rig. */
 function restWorld(skeleton, name) {
     let bone = skeleton.bones.find((b) => b.name === name);
@@ -362,23 +351,6 @@ function restWorld(skeleton, name) {
     }
     const holder = bone.getTransformNode()?.parent;
     return holder ? m.multiply(holder.computeWorldMatrix(true)) : m;
-}
-/** The hand's rest frame and its anatomy frame (forearm along x, thumb side y), in the world. */
-function handRest(skeleton, hand, side) {
-    const h = restWorld(skeleton, hand);
-    const fore = restWorld(skeleton, `lowerarm_${side}`);
-    const thumb = restWorld(skeleton, `thumb_01_${side}`);
-    if (h == null || fore == null || thumb == null)
-        return null;
-    const at = h.getTranslation();
-    const x = at.subtract(fore.getTranslation()).normalize();
-    const t = thumb.getTranslation().subtract(at);
-    const z = BABYLON.Vector3.Cross(x, t).normalize();
-    const y = BABYLON.Vector3.Cross(z, x).normalize();
-    if (!(z.lengthSquared() > 0.5))
-        return null;
-    const anatomy = BABYLON.Matrix.FromValues(x.x, x.y, x.z, 0, y.x, y.y, y.z, 0, z.x, z.y, z.z, 0, at.x, at.y, at.z, 1);
-    return { hand: h, anatomy };
 }
 /**
  * Where a held model's GRIP is, in its own frame: the middle of its lowest
@@ -412,8 +384,6 @@ export function deriveGrip(root) {
     refreshUnder(root, root);
     const toLocal = BABYLON.Matrix.Invert(root.getWorldMatrix());
     const pts = [];
-    let lo = Infinity;
-    let hi = -Infinity;
     for (const m of root.getChildMeshes()) {
         const data = m.getVerticesData(BABYLON.VertexBuffer.PositionKind);
         if (data == null)
@@ -422,25 +392,11 @@ export function deriveGrip(root) {
         const toRoot = m.getWorldMatrix().multiply(toLocal);
         for (let i = 0; i < data.length; i += 3) {
             const v = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(data[i], data[i + 1], data[i + 2]), toRoot);
-            pts.push(v);
-            if (v.y < lo)
-                lo = v.y;
-            if (v.y > hi)
-                hi = v.y;
+            pts.push(v.x, v.y, v.z);
         }
     }
-    if (pts.length === 0 || !(hi > lo))
-        return null;
-    const cut = lo + (hi - lo) / 3;
-    let n = 0;
-    const acc = BABYLON.Vector3.Zero();
-    for (const v of pts) {
-        if (v.y > cut)
-            continue;
-        acc.addInPlace(v);
-        n++;
-    }
-    return n > 0 ? acc.scaleInPlace(1 / n) : null;
+    const g = gripPoint(pts);
+    return g ? new BABYLON.Vector3(g.x, g.y, g.z) : null;
 }
 /** A held model's grip: its `_grip` node's place if it has one, else `deriveGrip`. */
 export function heldGrip(root) {
@@ -457,20 +413,19 @@ export function heldGrip(root) {
  * once per hand and reused. Null when the rig's hand cannot be read.
  */
 export function handSocket(skeleton, hand, side, handNode) {
-    const calib = HAND_IN_ANATOMY[side];
-    if (calib == null)
-        return null;
     const name = `${hand}-socket`;
     const had = handNode.getChildren((n) => n.name === name, true)[0];
     if (had != null)
         return had;
-    const rest = handRest(skeleton, hand, side);
-    if (rest == null)
+    const h = restWorld(skeleton, hand);
+    const fore = restWorld(skeleton, `lowerarm_${side}`)?.getTranslation();
+    const thumb = restWorld(skeleton, `thumb_01_${side}`)?.getTranslation();
+    if (h == null || fore == null || thumb == null)
         return null;
-    // socket·hand = UAL's hand-in-anatomy · this rig's anatomy (row vectors).
-    const local = BABYLON.Matrix.FromArray(calib)
-        .multiply(rest.anatomy)
-        .multiply(rest.hand.clone().invert());
+    const m = socketInHand(side, Array.from(h.m), fore, thumb);
+    if (m == null)
+        return null;
+    const local = BABYLON.Matrix.FromArray(m);
     const node = new BABYLON.TransformNode(name, handNode.getScene());
     node.parent = handNode;
     const s = new BABYLON.Vector3();
@@ -1262,16 +1217,19 @@ export class B3dLauncher extends AbstractMesh {
     }
     /**
      * The current hand's socket frame relative to the hand's anatomy (the
-     * calibration `HAND_IN_ANATOMY` holds for UAL's rig), for re-measuring it.
+     * calibration hand-socket's `HAND_IN_ANATOMY` holds for UAL's rig), for re-measuring it.
      */
     get socketCalibration() {
         const holder = semanticParent(this);
         const skeleton = holder?.entries?.skeletons?.[0];
         const side = this.socket === 'left-hand' ? 'l' : 'r';
-        const rest = skeleton && handRest(skeleton, `hand_${side}`, side);
-        if (rest == null)
+        const h = skeleton && restWorld(skeleton, `hand_${side}`);
+        const fore = skeleton && restWorld(skeleton, `lowerarm_${side}`);
+        const thumb = skeleton && restWorld(skeleton, `thumb_01_${side}`);
+        if (h == null || fore == null || thumb == null)
             return null;
-        return rest.hand.multiply(rest.anatomy.clone().invert()).asArray().slice();
+        const anatomy = anatomyFrame(h.getTranslation(), fore.getTranslation(), thumb.getTranslation());
+        return anatomy && mat4Multiply(Array.from(h.m), mat4Invert(anatomy));
     }
     /**
      * Riding a BONE rather than the holder's root.

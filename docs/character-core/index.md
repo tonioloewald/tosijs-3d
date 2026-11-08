@@ -29,6 +29,11 @@ import { humanBodyMaker } from 'tosijs-3d/human-rig'
 | [`skin-tone`](/skin-tone/) | skin colour from one dial |
 | [`skin-paint`](/skin-paint/) | the lips and stubble over the skin, as vertex colours (glTF's `COLOR_0`) |
 | [`cloth-bake`](/cloth-bake/) | a recoloured garment's texture, baked to a picture |
+| [`garment-proxy`](/garment-proxy/) | a garment of your own bound to its body as a proxy, its material as data |
+| [`garment-bind`](/garment-bind/) | any mesh bound to a body by its nearest skin |
+| [`glb-clips`](/glb-clips/) | a GLB's animations read and retargeted onto another skeleton |
+| [`hand-socket`](/hand-socket/) | where a hand holds things on any rig (the socket and grip arithmetic) |
+| [`character-sources`](/character-sources/) | the bodies besides MakeHuman's, with Tonio's hand-placed rigs for the AI cast |
 | [`eye-art`](/eye-art/) | Tonio's eye art with its iris recoloured, and UVs that map both eyes onto it |
 | `png` | PNG read and written, byte for byte, with no canvas |
 | [`character-file`](/character-file/) | a character as one versioned JSON document |

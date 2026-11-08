@@ -158,6 +158,32 @@ function materialOf(glb, index, name) {
     return out;
 }
 /**
+ * Where a node is, in the frame `glbRigTriangles` gives with the same
+ * `pick`: an item's `_grip` (say `Pistol_grip` in a library with
+ * `pick: 'Pistol.model'`). Null when the file has no such node.
+ */
+export function glbNodePosition(bytes, name, options = {}) {
+    const nodes = readGlb(bytes).json.nodes ?? [];
+    const parentOf = new Map();
+    nodes.forEach((n, i) => {
+        for (const c of n.children ?? [])
+            parentOf.set(c, i);
+    });
+    const nameOf = (i) => nodes[i].name || `node${i}`;
+    const top = options.pick != null
+        ? nodes.findIndex((_, i) => nameOf(i) === options.pick)
+        : -1;
+    const at = nodes.findIndex((_, i) => nameOf(i) === name);
+    if (at < 0)
+        return null;
+    const worldOf = (i) => {
+        const p = parentOf.get(i);
+        return mul(p != null ? worldOf(p) : IDENTITY, localMatrix(nodes[i], i === top));
+    };
+    const m = worldOf(at);
+    return { x: m[12], y: m[13], z: m[14] };
+}
+/**
  * A GLB's triangles for rigging, with no engine: the file's frame, skinned
  * meshes at rest, one surface per material (its glTF material as data,
  * images as bytes), eyes split out. `pick` takes one node and its children.

@@ -1,5 +1,0 @@
-import{Ye,V,ct,Qt}from"./site-rfjvxq2b.js";import{zt}from"./site-jnn4ympe.js";import{o}from"./site-hcyxrnqg.js";class Jm extends zt{constructor(e){super(ct,V,(r)=>+r,"FlowGraphBooleanToFloat",e)}}class eg extends zt{constructor(e){super(ct,Qt,(r)=>Ye.FromValue(+r),"FlowGraphBooleanToInt",e)}}class tg extends zt{constructor(e){super(V,ct,(r)=>!!r,"FlowGraphFloatToBoolean",e)}}class ig extends zt{constructor(e){super(Qt,ct,(r)=>!!r.value,"FlowGraphIntToBoolean",e)}}class rg extends zt{constructor(e){super(Qt,V,(r)=>r.value,"FlowGraphIntToFloat",e)}}class sg extends zt{constructor(e){super(V,Qt,(r)=>{switch(e?.roundingMode){case"floor":return Ye.FromValue(Math.floor(r));case"ceil":return Ye.FromValue(Math.ceil(r));case"round":return Ye.FromValue(Math.round(r));default:return Ye.FromValue(r)}},"FlowGraphFloatToInt",e)}}var t=!1;function ng(){if(t)return;t=!0,o("FlowGraphBooleanToFloat",Jm),o("FlowGraphBooleanToInt",eg),o("FlowGraphFloatToBoolean",tg),o("FlowGraphIntToBoolean",ig),o("FlowGraphIntToFloat",rg),o("FlowGraphFloatToInt",sg)}ng();
-export{Jm,eg,tg,ig,rg,sg,ng};
-
-//# debugId=F4D9B5A8FEFA5B0564756E2164756E21
-//# sourceMappingURL=site-3bgavvqf.js.map

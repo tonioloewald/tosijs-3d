@@ -127,16 +127,36 @@ function decompose(m: M): { scale: number; rotation: Quat; position: Vec3 } {
   let q: [number, number, number, number]
   if (t > 0) {
     const s = 0.5 / Math.sqrt(t + 1)
-    q = [(r[2][1] - r[1][2]) * s, (r[0][2] - r[2][0]) * s, (r[1][0] - r[0][1]) * s, 0.25 / s]
+    q = [
+      (r[2][1] - r[1][2]) * s,
+      (r[0][2] - r[2][0]) * s,
+      (r[1][0] - r[0][1]) * s,
+      0.25 / s,
+    ]
   } else if (r[0][0] > r[1][1] && r[0][0] > r[2][2]) {
     const s = 2 * Math.sqrt(1 + r[0][0] - r[1][1] - r[2][2])
-    q = [0.25 * s, (r[0][1] + r[1][0]) / s, (r[0][2] + r[2][0]) / s, (r[2][1] - r[1][2]) / s]
+    q = [
+      0.25 * s,
+      (r[0][1] + r[1][0]) / s,
+      (r[0][2] + r[2][0]) / s,
+      (r[2][1] - r[1][2]) / s,
+    ]
   } else if (r[1][1] > r[2][2]) {
     const s = 2 * Math.sqrt(1 + r[1][1] - r[0][0] - r[2][2])
-    q = [(r[0][1] + r[1][0]) / s, 0.25 * s, (r[1][2] + r[2][1]) / s, (r[0][2] - r[2][0]) / s]
+    q = [
+      (r[0][1] + r[1][0]) / s,
+      0.25 * s,
+      (r[1][2] + r[2][1]) / s,
+      (r[0][2] - r[2][0]) / s,
+    ]
   } else {
     const s = 2 * Math.sqrt(1 + r[2][2] - r[0][0] - r[1][1])
-    q = [(r[0][2] + r[2][0]) / s, (r[1][2] + r[2][1]) / s, 0.25 * s, (r[1][0] - r[0][1]) / s]
+    q = [
+      (r[0][2] + r[2][0]) / s,
+      (r[1][2] + r[2][1]) / s,
+      0.25 * s,
+      (r[1][0] - r[0][1]) / s,
+    ]
   }
   const l = Math.hypot(...q) || 1
   return {
@@ -157,7 +177,12 @@ function values(glb: Glb, index: number): Float64Array {
   const a = glb.json.accessors[index]
   const v = accessorValues(glb, index)
   if (!a.normalized) return v
-  const max: Record<number, number> = { 5120: 127, 5121: 255, 5122: 32767, 5123: 65535 }
+  const max: Record<number, number> = {
+    5120: 127,
+    5121: 255,
+    5122: 32767,
+    5123: 65535,
+  }
   const k = max[a.componentType] ?? 1
   return v.map((x) => Math.max(-1, x / k))
 }
@@ -222,7 +247,11 @@ export function readGlbClips(
     const m = aboveMatrix.get(topOf(b).name)
     const k = m ? decompose(m).scale : 1
     if (Math.abs(k - 1) < 1e-9) continue
-    b.position = { x: b.position.x * k, y: b.position.y * k, z: b.position.z * k }
+    b.position = {
+      x: b.position.x * k,
+      y: b.position.y * k,
+      z: b.position.z * k,
+    }
   }
   const clips: GlbClip[] = (json.animations ?? []).map((a: any, i: number) => {
     let start = Infinity
@@ -254,8 +283,7 @@ export function readGlbClips(
 
 /** A channel's value at `t` seconds (held before the first key and after the last). */
 export function sampleChannel(ch: GlbClipChannel, t: number): number[] {
-  const size =
-    ch.path === 'rotation' ? 4 : ch.path === 'weights' ? 0 : 3
+  const size = ch.path === 'rotation' ? 4 : ch.path === 'weights' ? 0 : 3
   const n = ch.times.length
   const stride = ch.interpolation === 'CUBICSPLINE' ? size * 3 : size
   const at = (k: number) => {
@@ -345,7 +373,9 @@ export function bakeClip(
   const frames = Math.max(1, Math.round((c.end - c.start) * fps))
   const moving = rt.roles.map((r) => target.roles[r]!)
   const times = new Float32Array(frames + 1)
-  const rotations = new Map(moving.map((n) => [n, new Float32Array((frames + 1) * 4)]))
+  const rotations = new Map(
+    moving.map((n) => [n, new Float32Array((frames + 1) * 4)])
+  )
   let hips: Float32Array | undefined
   for (let i = 0; i <= frames; i++) {
     const t = c.start + (i / frames) * (c.end - c.start)
@@ -362,5 +392,10 @@ export function bakeClip(
       hips.set([out.hips.x, out.hips.y, out.hips.z], i * 3)
     }
   }
-  return { name: options.name ?? c.name, times, rotations, ...(hips ? { hips } : {}) }
+  return {
+    name: options.name ?? c.name,
+    times,
+    rotations,
+    ...(hips ? { hips } : {}),
+  }
 }

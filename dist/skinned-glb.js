@@ -255,10 +255,13 @@ export function writeSkinnedGlb(g) {
             return prim;
         });
         const out = { name: mesh.name, primitives };
-        if (names.length > 0) {
+        if (names.length > 0)
             out.weights = names.map(() => 0);
-            out.extras = { targetNames: [...names] };
-        }
+        if (names.length > 0 || mesh.extras)
+            out.extras = {
+                ...(mesh.extras ?? {}),
+                ...(names.length > 0 ? { targetNames: [...names] } : {}),
+            };
         return out;
     });
     const meshNodes = g.meshes.map((mesh, i) => {
@@ -329,6 +332,53 @@ export function writeSkinnedGlb(g) {
         }
         return out;
     });
+    // Clips: one input accessor per distinct times array, shared by channels.
+    const timeAccessors = new Map();
+    const animations = (g.animations ?? []).map((a) => {
+        const samplers = [];
+        const channels = a.channels.map((c) => {
+            if (c.joint < 0 || c.joint >= n)
+                throw new Error(`skinned-glb: ${a.name}: no joint ${c.joint}`);
+            const size = c.path === 'rotation' ? 4 : 3;
+            if (c.values.length !== c.times.length * size)
+                throw new Error(`skinned-glb: ${a.name}: ${c.path} on joint ${c.joint} has ${c.values.length} values for ${c.times.length} keys`);
+            let input = timeAccessors.get(c.times);
+            if (input == null) {
+                let lo = Infinity;
+                let hi = -Infinity;
+                for (const t of c.times) {
+                    lo = Math.min(lo, t);
+                    hi = Math.max(hi, t);
+                }
+                input = accessor({
+                    bufferView: bin.add(asBytes(Float32Array.from(c.times))),
+                    componentType: FLOAT,
+                    count: c.times.length,
+                    type: 'SCALAR',
+                    min: [lo],
+                    max: [hi],
+                });
+                timeAccessors.set(c.times, input);
+            }
+            const output = accessor({
+                bufferView: bin.add(asBytes(Float32Array.from(c.values))),
+                componentType: FLOAT,
+                count: c.times.length,
+                type: size === 4 ? 'VEC4' : 'VEC3',
+            });
+            samplers.push({ input, output, interpolation: 'LINEAR' });
+            return {
+                sampler: samplers.length - 1,
+                target: { node: c.joint, path: c.path },
+            };
+        });
+        return {
+            name: a.name,
+            channels,
+            samplers,
+            ...(a.extras ? { extras: a.extras } : {}),
+        };
+    });
     const bytes = bin.bytes();
     const json = {
         asset: {
@@ -355,6 +405,8 @@ export function writeSkinnedGlb(g) {
         bufferViews: bin.views,
         buffers: [{ byteLength: bytes.byteLength }],
     };
+    if (animations.length > 0)
+        json.animations = animations;
     if (materials.length > 0)
         json.materials = materials;
     if (images.length > 0) {

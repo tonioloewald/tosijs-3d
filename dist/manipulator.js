@@ -362,6 +362,7 @@ function apply(drag, now, composeRotation, options) {
     const gridStep = options.gridSnap ?? 0;
     const angleStep = options.angleSnap ?? 0;
     const start = drag.start;
+    const locked = options.lockMove ?? '';
     if (kind === 'planar') {
         if (!axis || typeof now === 'number' || typeof drag.startValue === 'number')
             return;
@@ -370,6 +371,8 @@ function apply(drag, now, composeRotation, options) {
         const position = { ...start.position };
         if (worldAligned(drag.frame)) {
             for (const a of otherAxes(axis)) {
+                if (locked.includes(a))
+                    continue;
                 position[a] = snap(start.position[a] + (now[a] - drag.startValue[a]), gridStep);
             }
         }
@@ -377,6 +380,8 @@ function apply(drag, now, composeRotation, options) {
             // Along the object's own in-plane axes; the grid snaps each step.
             const moved = sub(now, drag.startValue);
             for (const a of otherAxes(axis)) {
+                if (locked.includes(a))
+                    continue;
                 const f = drag.frame[a];
                 const d = snap(dot(moved, f), gridStep);
                 position.x += f.x * d;
@@ -390,7 +395,7 @@ function apply(drag, now, composeRotation, options) {
     if (typeof now !== 'number' || typeof drag.startValue !== 'number')
         return;
     if (kind === 'translate') {
-        if (!axis)
+        if (!axis || locked.includes(axis))
             return;
         /*
           Snap the POSITION, live.

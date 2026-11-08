@@ -383,7 +383,11 @@ describe('a select has one menu at a time', () => {
 
   test('a second tap closes it instead of opening another', () => {
     const h = closingHost()
-    const s = widgets.select3d({ label: 'hold', value: 'none', options: ['none', 'sword'] })
+    const s = widgets.select3d({
+      label: 'hold',
+      value: 'none',
+      options: ['none', 'sword'],
+    })
     s.setHost?.(h.host)
     s.layout(300)
     s.handle?.('up', 280, 10)
@@ -395,7 +399,11 @@ describe('a select has one menu at a time', () => {
 
   test('closed from outside, the next tap opens it again', () => {
     const h = closingHost()
-    const s = widgets.select3d({ label: 'hold', value: 'none', options: ['none', 'sword'] })
+    const s = widgets.select3d({
+      label: 'hold',
+      value: 'none',
+      options: ['none', 'sword'],
+    })
     s.setHost?.(h.host)
     s.layout(300)
     s.handle?.('up', 280, 10)

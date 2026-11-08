@@ -9095,7 +9095,8 @@ export class B3d extends Component {
     if (key === this._panelIconKey) return
     this._panelIconKey = key
     const make = (svgIcons as unknown as Record<string, () => SVGElement>)[icon]
-    const glyph = icon && typeof make === 'function' ? make() : svgIcons.tosiXr()
+    const glyph =
+      icon && typeof make === 'function' ? make() : svgIcons.tosiXr()
     gear.querySelector('svg')?.replaceWith(glyph)
     gear.title = name
   }

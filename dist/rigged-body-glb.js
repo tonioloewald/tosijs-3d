@@ -47,6 +47,29 @@ What the file is (Dramatis's `export-format`, version 1):
   three-vrm, UniVRM and Godot's VRM importer read with no setup, and as
   `TOSIJS_spring_chains`, our own settings exactly (see
   [spring-vrm](/spring-vrm/) for how the two models differ).
+- **Garments**, with `garments`: proxies bound to this body (`garmentProxy`
+  from a garment file: the tailor's cuts and draped cloth, or a garment
+  from Blender), each a mesh named for its slot, skinned with weights from
+  the body's own, as the builder draws them (armour lifted 5 mm), with its
+  material as data (its pictures, and its saved look's glTF factors where
+  it has a plain reading). The skin they cover is tucked under them, as the
+  builder does, and skin a garment lists in its `delete` (as MakeHuman's
+  clothes do) is dropped; `cover: false` leaves the skin alone.
+- **Clips**, with `clips`: animations read from any skinned GLB
+  ([[glb-clips]]: UAL's, Mixamo's, Meshy's) retargeted onto this skeleton
+  and written as glTF animations, 30 keys a second by default (rotations,
+  and the hips' travel), each with its own `extras` (its licence).
+- **A held item**, with `held`: a joint named `weapon_r` (or `held.name`)
+  under the hand, where a grip (see [[hold-grip]]) puts the item's grip
+  point, turned as the grip says, in the hand's socket frame
+  ([[hand-socket]]): the same place the character builder shows it. Unity
+  and Unreal attach their own items to a named bone like this one. With
+  `held.item` (a mesh in its own frame, as `glbRigTriangles(bytes, { pick })`
+  reads one out of a library file) the item goes in too, as a mesh `held`
+  skinned wholly to that joint, scaled by the grip's `scale`, its grip
+  point (`held.gripPoint`, else the middle of its lowest third) on the
+  joint, its own materials and pictures, and `held.extras` (its licence) on
+  the mesh, as its file has it.
 - **`asset.extras`** is passed through as given (Dramatis's licence block
   goes there), with `generator` and `copyright`.
 
@@ -55,6 +78,12 @@ Weights are the body's own, four per vertex, renormalised.
 /*{ "parent": "skinned-glb", "order": 1 }*/
 import { writeSkinnedGlb, } from './skinned-glb.js';
 import { UAL_REST } from './ual-rest.js';
+import { drawnPositions, fitProxy, proxyWeights } from './proxy-fit.js';
+import { coverSkin } from './proxy-cover.js';
+import { vertexNormals } from './hair-fit.js';
+import { bakeClip } from './glb-clips.js';
+import { humanoidRoles } from './retarget.js';
+import { gripMatrix, gripPoint, mat4Multiply, socketWorld, } from './hand-socket.js';
 import { STRAND_DEFAULTS, strandPoints, } from './rig-recipe.js';
 import { SPRING_DEFAULTS } from './spring-chain.js';
 import { springExtensions, } from './spring-vrm.js';
@@ -118,6 +147,72 @@ function qmatrix(q) {
         2 * (y * z + x * w),
         1 - 2 * (x * x + y * y),
     ];
+}
+/** A rotation matrix (column vectors, row-major 3x3) as a quaternion. */
+function matrixQuat(m) {
+    const [m00, m01, m02, m10, m11, m12, m20, m21, m22] = m;
+    const t = m00 + m11 + m22;
+    if (t > 0) {
+        const s = 0.5 / Math.sqrt(t + 1);
+        return qnorm([(m21 - m12) * s, (m02 - m20) * s, (m10 - m01) * s, 0.25 / s]);
+    }
+    if (m00 > m11 && m00 > m22) {
+        const s = 2 * Math.sqrt(1 + m00 - m11 - m22);
+        return qnorm([0.25 * s, (m01 + m10) / s, (m02 + m20) / s, (m21 - m12) / s]);
+    }
+    if (m11 > m22) {
+        const s = 2 * Math.sqrt(1 + m11 - m00 - m22);
+        return qnorm([(m01 + m10) / s, 0.25 * s, (m12 + m21) / s, (m02 - m20) / s]);
+    }
+    const s = 2 * Math.sqrt(1 + m22 - m00 - m11);
+    return qnorm([(m02 + m20) / s, (m12 + m21) / s, 0.25 * s, (m10 - m01) / s]);
+}
+/*
+THE SOCKET IS WORKED OUT WHERE IT WAS CALIBRATED. hand-socket's numbers are
+Babylon's world, which is the file's frame under the glTF loader's root (x
+negated), so the hand's joints go there, the socket and grip are composed
+there, and the root comes off again: world · root⁻¹, the columns' x negated.
+(The calibration is a reflection, det -1, because Babylon's hand carries the
+root's mirror; with the root off, the socket is a plain turn again.)
+*/
+function heldSocket(sk, at, held) {
+    const side = held.side ?? 'r';
+    const ix = (n) => {
+        const i = sk.names.indexOf(n);
+        if (i < 0)
+            throw new Error(`riggedBodyGlb: held needs ${n}, not in the skeleton`);
+        return i;
+    };
+    const hand = ix(`hand_${side}`);
+    const mirror = (p) => ({ x: -p[0], y: p[1], z: p[2] });
+    const socket = socketWorld(side, mirror(at[hand]), mirror(at[ix(`lowerarm_${side}`)]), mirror(at[ix(`thumb_01_${side}`)]));
+    if (socket == null)
+        throw new Error(`riggedBodyGlb: the ${side} hand cannot be read (thumb in line with the forearm)`);
+    const w = mat4Multiply(gripMatrix(held.grip), socket);
+    const r = [-1, 1, 1, 1];
+    const f = w.map((v, k) => v * r[k % 4]);
+    // Row vectors: row i is where axis i goes. Columns of the rotation, unscaled.
+    const axis = (i) => {
+        const l = Math.hypot(f[i * 4], f[i * 4 + 1], f[i * 4 + 2]) || 1;
+        return [f[i * 4] / l, f[i * 4 + 1] / l, f[i * 4 + 2] / l];
+    };
+    const [ax, ay, az] = [axis(0), axis(1), axis(2)];
+    return {
+        name: held.name ?? `weapon_${side}`,
+        hand,
+        position: [f[12], f[13], f[14]],
+        rotation: matrixQuat([
+            ax[0],
+            ay[0],
+            az[0],
+            ax[1],
+            ay[1],
+            az[1],
+            ax[2],
+            ay[2],
+            az[2],
+        ]),
+    };
 }
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -346,9 +441,53 @@ function smoothNormals(positions, indices) {
 }
 const isGltfMaterial = (m) => m != null && Array.isArray(m.baseColorFactor);
 /** The body's materials as glTF, their pictures collected once each. */
-function materialsOf(body, surfaceCount, textured) {
-    const images = [];
+/** A garment's material (garment-proxy's data) as glTF's. */
+function garmentMaterial(m, name, images) {
+    const image = (t, as) => {
+        if (t?.bytes == null)
+            return undefined;
+        if (t.mimeType !== 'image/png' && t.mimeType !== 'image/jpeg')
+            return undefined;
+        let i = images.findIndex((im) => im.bytes === t.bytes);
+        if (i < 0) {
+            images.push({
+                name: `${name}_${as}`,
+                mimeType: t.mimeType,
+                bytes: t.bytes,
+            });
+            i = images.length - 1;
+        }
+        return { image: i };
+    };
+    const gltf = m.gltf ?? {};
+    const out = {
+        name,
+        baseColorFactor: gltf.baseColorFactor ?? m.baseColor ?? [0.8, 0.8, 0.8, 1],
+        metallicFactor: gltf.metallicFactor ?? m.metallic ?? 0,
+        roughnessFactor: gltf.roughnessFactor ?? m.roughness ?? 0.8,
+        alphaMode: m.alphaMode ?? 'OPAQUE',
+        ...(m.alphaMode === 'MASK' ? { alphaCutoff: m.alphaCutoff ?? 0.5 } : {}),
+        doubleSided: m.twoSided,
+    };
+    const base = image(m.baseColorTexture, 'baseColor');
+    if (base)
+        out.baseColorTexture = base;
+    const mr = image(m.metallicRoughnessTexture, 'metallicRoughness');
+    if (mr)
+        out.metallicRoughnessTexture = mr;
+    const normal = image(m.normalTexture, 'normal');
+    if (normal)
+        out.normalTexture = { ...normal, scale: m.normalScale ?? 1 };
+    if (gltf.sheenColorFactor)
+        out.sheen = {
+            colorFactor: gltf.sheenColorFactor,
+            roughnessFactor: gltf.sheenRoughnessFactor ?? 0.5,
+        };
+    return out;
+}
+function materialsOf(surfaces, surfaceCount, textured, prefix = 'body', images = []) {
     const seen = new Map();
+    images.forEach((im, i) => seen.set(im.bytes, i));
     const image = (t, name) => {
         if (!textured || t?.bytes == null)
             return undefined;
@@ -364,8 +503,8 @@ function materialsOf(body, surfaceCount, textured) {
     };
     const materials = [];
     for (let s = 0; s < surfaceCount; s++) {
-        const name = s === 0 ? 'body' : `body_${s + 1}`;
-        const m = body.surfaces?.[s]?.material;
+        const name = s === 0 ? prefix : `${prefix}_${s + 1}`;
+        const m = surfaces?.[s]?.material;
         if (!isGltfMaterial(m)) {
             materials.push({
                 name,
@@ -467,9 +606,47 @@ export function riggedBodyGlb(body, options = {}) {
     for (let i = 0; i < joints.length; i++)
         joints[i] = Math.max(0, sk.from[body.weights.indices[i]] ?? 0);
     const weights = body.weights.weights;
+    // Garments fitted on the body at rest, and the skin they cover tucked.
+    const worn = (options.garments ?? []).map((g) => {
+        const drawn = drawnPositions(g, fitProxy(g, body.positions));
+        if (g.slot === 'armour') {
+            const n = vertexNormals(drawn, g.triangles);
+            for (let i = 0; i < drawn.length; i++)
+                drawn[i] += n[i] * 0.005;
+        }
+        return { g, drawn, w: proxyWeights(g, body.weights) };
+    });
+    let rest = body.positions;
+    let indices = body.indices;
+    let runs = body.surfaces?.length
+        ? body.surfaces.map((s) => [s.start, s.count])
+        : [[0, body.indices.length]];
+    if (worn.length > 0 && options.cover !== false) {
+        const covered = coverSkin(body.positions, vertexNormals(body.positions, body.indices), // unit: coverSkin measures along them
+        body.indices, Uint32Array.from({ length: nVerts }, (_, i) => i), worn.map((x) => x.g), { drawn: new Map(worn.map((x) => [x.g.name, x.drawn])) });
+        rest = covered.positions;
+        if (covered.deleted.size > 0) {
+            const kept = [];
+            runs = runs.map(([start, count]) => {
+                const from = kept.length;
+                for (let t = start; t < start + count; t += 3) {
+                    const a = body.indices[t];
+                    const b = body.indices[t + 1];
+                    const c = body.indices[t + 2];
+                    if (covered.deleted.has(a) ||
+                        covered.deleted.has(b) ||
+                        covered.deleted.has(c))
+                        continue;
+                    kept.push(a, b, c);
+                }
+                return [from, kept.length - from];
+            });
+            indices = Uint32Array.from(kept);
+        }
+    }
     // Into the rest pose.
     const pose = restPose === 't-pose' ? tPose(sk) : sourcePose(sk);
-    const posed = skinTo(body.positions, joints, weights, sk.rest, pose);
+    const posed = skinTo(rest, joints, weights, sk.rest, pose);
     const head = sk.names.indexOf('Head');
     const eyes = (body.eyes ?? []).map((e) => {
         const n = e.positions.length / 3;
@@ -526,8 +703,17 @@ export function riggedBodyGlb(body, options = {}) {
         if (!PROFILE_INDEX.has(name))
             frames[i] = frames[sk.parents[i]];
     });
-    const glbJoints = sk.names.map((name, i) => {
-        const p = sk.parents[i];
+    const names = [...sk.names];
+    const parents = [...sk.parents];
+    const held = options.held && heldSocket(sk, at, options.held);
+    if (held) {
+        names.push(held.name);
+        parents.push(held.hand);
+        frames.push(held.rotation);
+        at.push(held.position);
+    }
+    const glbJoints = names.map((name, i) => {
+        const p = parents[i];
         const parentFrame = p < 0 ? IDENTITY : frames[p];
         const local = p < 0 ? at[i] : qrot(qconj(parentFrame), sub(at[i], at[p]));
         const rotation = qnorm(qmul(qconj(parentFrame), frames[i]));
@@ -539,7 +725,7 @@ export function riggedBodyGlb(body, options = {}) {
         };
     });
     // Inverse binds: the inverse of each joint's model-space matrix.
-    const ibm = new Float32Array(sk.names.length * 16);
+    const ibm = new Float32Array(names.length * 16);
     frames.forEach((q, i) => {
         const r = qmatrix(qconj(q)); // row-major inverse rotation
         const t = qrot(qconj(q), at[i]);
@@ -565,16 +751,14 @@ export function riggedBodyGlb(body, options = {}) {
         ], o);
     });
     // The body, one primitive per surface.
-    const indices = body.indices;
     const normals = smoothNormals(positions, indices);
-    const runs = body.surfaces?.length
-        ? body.surfaces.map((s) => [s.start, s.count])
-        : [[0, indices.length]];
-    const { materials, images } = materialsOf(body, runs.length, body.uvs != null);
+    const { materials, images } = materialsOf(body.surfaces, runs.length, body.uvs != null);
     const meshes = [
         {
             name: 'body',
-            primitives: runs.map(([start, count], s) => primitive(start, count, indices, positions, normals, joints, weights, body.uvs, body.colors, s)),
+            primitives: runs
+                .map(([start, count], s) => primitive(start, count, indices, positions, normals, joints, weights, body.uvs, body.colors, s))
+                .filter((p) => p.indices.length > 0), // a surface wholly covered goes
         },
     ];
     if (eyePositions.length) {
@@ -639,6 +823,60 @@ export function riggedBodyGlb(body, options = {}) {
         });
         void k;
     });
+    worn.forEach(({ g, drawn, w }) => {
+        const gj = new Uint16Array(w.indices.length);
+        for (let i = 0; i < gj.length; i++)
+            gj[i] = Math.max(0, sk.from[w.indices[i]] ?? 0);
+        const pos = placeAll(skinTo(drawn, gj, w.weights, sk.rest, pose));
+        materials.push(garmentMaterial(g.material, `${g.slot ?? 'garment'}_${g.name}`, images));
+        meshes.push({
+            name: `${g.slot ?? 'garment'}: ${g.name}`,
+            primitives: [
+                {
+                    positions: Float32Array.from(pos),
+                    normals: smoothNormals(pos, g.triangles),
+                    uvs: g.uvs.length === (pos.length / 3) * 2 ? g.uvs : null,
+                    colors: null,
+                    joints: gj,
+                    weights: w.weights,
+                    indices: Uint32Array.from(g.triangles),
+                    material: materials.length - 1,
+                },
+            ],
+        });
+    });
+    if (held && options.held.item) {
+        const h = options.held;
+        const item = h.item;
+        const gp = h.gripPoint ?? gripPoint(item.positions) ?? { x: 0, y: 0, z: 0 };
+        const k = h.grip.scale ?? 1;
+        const pos = new Float32Array(item.positions.length);
+        for (let i = 0; i < pos.length; i += 3) {
+            const v = qrot(held.rotation, [
+                (item.positions[i] - gp.x) * k,
+                (item.positions[i + 1] - gp.y) * k,
+                (item.positions[i + 2] - gp.z) * k,
+            ]);
+            pos[i] = held.position[0] + v[0];
+            pos[i + 1] = held.position[1] + v[1];
+            pos[i + 2] = held.position[2] + v[2];
+        }
+        const runs = item.surfaces?.length
+            ? item.surfaces.map((s) => [s.start, s.count])
+            : [[0, item.indices.length]];
+        const first = materials.length;
+        const own = materialsOf(item.surfaces, runs.length, item.uvs != null, 'held', images);
+        materials.push(...own.materials);
+        const n = pos.length / 3;
+        const jw = new Uint16Array(n * 4).fill(names.length - 1);
+        const ww = Float32Array.from({ length: n * 4 }, (_, i) => i % 4 === 0 ? 1 : 0);
+        const itemNormals = smoothNormals(pos, item.indices);
+        meshes.push({
+            name: 'held',
+            primitives: runs.map(([start, count], r) => primitive(start, count, item.indices, pos, itemNormals, jw, ww, item.uvs, undefined, first + r)),
+            ...(h.extras ? { extras: h.extras } : {}),
+        });
+    }
     const chains = springChains(sk, strands, options.recipe, {
         at,
         frames,
@@ -646,7 +884,55 @@ export function riggedBodyGlb(body, options = {}) {
         height: (hi - lo) * scale,
     });
     const extensions = chains.length ? springExtensions(chains, at) : undefined;
+    // Clips, retargeted onto the skeleton as written.
+    const animations = [];
+    if (options.clips?.length) {
+        const bones = glbJoints.map((j) => ({
+            name: j.name,
+            parent: j.parent < 0 ? null : glbJoints[j.parent].name,
+            rotation: {
+                x: j.rotation[0],
+                y: j.rotation[1],
+                z: j.rotation[2],
+                w: j.rotation[3],
+            },
+            position: {
+                x: j.translation[0],
+                y: j.translation[1],
+                z: j.translation[2],
+            },
+        }));
+        const target = { bones, roles: humanoidRoles(bones) };
+        const index = new Map(glbJoints.map((j, i) => [j.name, i]));
+        for (const c of options.clips) {
+            const baked = bakeClip(c.from, c.clip, target, {
+                fps: c.fps,
+                armSpaceDeg: c.armSpaceDeg,
+                name: c.name,
+            });
+            const channels = [];
+            for (const [name, values] of baked.rotations) {
+                const joint = index.get(name);
+                if (joint != null)
+                    channels.push({ joint, path: 'rotation', times: baked.times, values });
+            }
+            const hips = target.roles.hips != null ? index.get(target.roles.hips) : undefined;
+            if (baked.hips && hips != null)
+                channels.push({
+                    joint: hips,
+                    path: 'translation',
+                    times: baked.times,
+                    values: baked.hips,
+                });
+            animations.push({
+                name: baked.name,
+                channels,
+                ...(c.extras ? { extras: c.extras } : {}),
+            });
+        }
+    }
     return writeSkinnedGlb({
+        ...(animations.length ? { animations } : {}),
         asset: {
             generator: options.generator ?? 'tosijs-3d',
             ...(options.copyright ? { copyright: options.copyright } : {}),

@@ -31,6 +31,8 @@ export interface WidgetSemantics {
     disabled?: boolean;
     /** A section: whether it is open. */
     open?: boolean;
+    /** A section: 2 for a sub-section, which belongs to the section above it. */
+    level?: number;
     /** A text box's hint, used for its name when nothing else names it. */
     placeholder?: string;
     /** Set the value through the widget's own setter, as a hand would. */

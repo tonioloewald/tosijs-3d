@@ -20,7 +20,7 @@ panel.push(...exportBodyRows(() => ({ body, recipe, source: { url } }), say))
 */
 /*{ "parent": "rigged-body-glb", "order": 2 }*/
 import { button3d, label3d, select3d } from './widgets3d.js';
-import { glbRigTriangles } from './glb-rig.js';
+import { glbNodePosition, glbRigTriangles } from './glb-rig.js';
 import { riggedBodyGlb, } from './rigged-body-glb.js';
 const HEIGHTS = [
     'as made',
@@ -68,7 +68,20 @@ export async function exportBody(target, settings) {
         note = 'its materials did not match the mesh: plain grey';
     else if (target.body.surfaces?.length)
         note = 'not from a GLB: plain grey';
+    const held = target.held
+        ? await heldItem(target.held).catch(() => {
+            note = [
+                note,
+                `the ${target.held.model} could not be read: hand socket only`,
+            ]
+                .filter(Boolean)
+                .join('; ');
+            return { grip: target.held.grip };
+        })
+        : undefined;
     const out = riggedBodyGlb(body, {
+        ...(held ? { held } : {}),
+        ...(target.garments?.length ? { garments: target.garments } : {}),
         naming: settings.naming,
         restPose: settings.restPose,
         ...(settings.height > 0 ? { height: settings.height } : {}),
@@ -76,6 +89,17 @@ export async function exportBody(target, settings) {
         generator: 'tosijs-3d',
     });
     return { bytes: out, note };
+}
+/** A library model as riggedBodyGlb's `held`: its mesh and grip point, read from its file. */
+async function heldItem(h) {
+    const bytes = new Uint8Array(await (await fetch(h.url)).arrayBuffer());
+    const pick = h.model;
+    return {
+        grip: h.grip,
+        item: glbRigTriangles(bytes, { pick }),
+        gripPoint: (h.gripNode && glbNodePosition(bytes, h.gripNode, { pick })) || undefined,
+        ...(h.extras ? { extras: h.extras } : {}),
+    };
 }
 /** Save bytes as a file. */
 export function downloadBytes(name, bytes, type = 'model/gltf-binary') {

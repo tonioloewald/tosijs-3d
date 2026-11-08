@@ -85,6 +85,15 @@ export interface MaterialCollection {
  * another type takes the inputs it shares (`materialAsType`).
  */
 export declare const MATERIAL_COLLECTIONS: Record<string, MaterialCollection>;
+/**
+ * The old `{ fabric, colour, recolour }` look as a `cloth` recipe, for looks
+ * saved before recipes. `'as made'` (or no fabric) sets no surface.
+ */
+export declare function clothRecipe(look: {
+    fabric?: string;
+    colour?: string;
+    recolour?: number;
+}): MaterialRecipe;
 /** One input of a type, from whatever the recipe says (or its default). */
 export declare function resolveInput(decl: MaterialInputDecl, raw: MaterialInput | undefined): ResolvedInput;
 /** Every input of a recipe's type, resolved. Unknown types resolve to `{}`. */

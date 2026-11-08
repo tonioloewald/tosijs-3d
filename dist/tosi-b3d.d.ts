@@ -122,6 +122,7 @@ export declare class B3d extends Component {
         xrReticle: "on" | "off";
         scenePanelOpen: boolean;
         panelTitle: string;
+        panelIcon: string;
         /** How collapsible sections present: 'fold' (headers you open and close,
          * one open at a time), 'folds' (several open) or 'tabs' (file tabs). */
         panelSections: "fold" | "folds" | "tabs";
@@ -577,6 +578,7 @@ export declare class B3d extends Component {
     xrReticle: 'on' | 'off';
     scenePanelOpen: boolean;
     panelTitle: string;
+    panelIcon: string;
     panelSections: 'fold' | 'folds' | 'tabs';
     /**
      * The on-screen "glass" gamepad. Absent/`false` = none; `true` or an empty
@@ -1495,6 +1497,8 @@ export declare class B3d extends Component {
      * is called from every place one of those can change.
      */
     private _applySsao;
+    private _panelIconKey;
+    private _applyPanelIcon;
     render(): void;
 }
 export declare const b3d: import("tosijs").ElementCreator<B3d>;

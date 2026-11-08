@@ -22,7 +22,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=aeadb365ee59" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=c89d9110f950" data-tosi-doc-system />
   <title>hair place — tosijs-3d</title>
   <meta name="description" content="Hair placed on a body, with no engine: the geometry half of human-hair. Quaternius&#39; CC0 hairstyles are each modelled in place on one of Quaternius&#39; heads…" />
   <link rel="canonical" href="https://3d.tosijs.net/hair-place/" />
@@ -39,7 +39,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=1efe4da519d1" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=7ef9fd7bb1e4" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="hair-place.ts">
 <h1 id="hair-place">hair place</h1>
 <p><strong>Hair placed on a body, with no engine</strong>: the geometry half of
@@ -73,7 +73,10 @@ exactly where the character builder does.</p>
       <li><a class="doc-link" href="../solar-system/">Solar System</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-weapon-fit" aria-label="Weapon Fit"></button><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></div>
       <ul id="tosi-nav-weapon-fit">
-        <li><a class="doc-link" href="../hold-grip/">hold grips</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-hold-grip" aria-label="hold grips"></button><a class="doc-link" href="../hold-grip/">hold grips</a></div>
+        <ul id="tosi-nav-hold-grip">
+          <li><a class="doc-link" href="../hand-socket/">hand socket</a></li>
+        </ul></li>
       </ul></li>
       <li><a class="doc-link" href="../rig-tool/">Rig tool</a></li>
       <li><a class="doc-link" href="../effect-tool/">Effect tool</a></li>
@@ -86,7 +89,10 @@ exactly where the character builder does.</p>
         </ul></li>
         <li><a class="doc-link" href="../human-morph/">human-morph</a></li>
         <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
-        <li><a class="doc-link" href="../tailor-tool/">tailor tool</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-tailor-tool" aria-label="tailor tool"></button><a class="doc-link" href="../tailor-tool/">tailor tool</a></div>
+        <ul id="tosi-nav-tailor-tool">
+          <li><a class="doc-link" href="../tailor-panel/">tailor panel</a></li>
+        </ul></li>
         <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
         <li><a class="doc-link" href="../skin-shading/">skin-shading</a></li>
         <li><a class="doc-link" href="../human-face/">human-face</a></li>
@@ -111,11 +117,15 @@ exactly where the character builder does.</p>
             <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-garment-file" aria-label="garment-file"></button><a class="doc-link" href="../garment-file/">garment-file</a></div>
             <ul id="tosi-nav-garment-file">
               <li><a class="doc-link" href="../uv-unwrap/">uv-unwrap</a></li>
+              <li><a class="doc-link" href="../garment-proxy/">garment proxy</a></li>
             </ul></li>
             <li><a class="doc-link" href="../proxy-rigid/">proxy-rigid</a></li>
           </ul></li>
         </ul></li>
-        <li><a class="doc-link" href="../character/">character</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character" aria-label="character"></button><a class="doc-link" href="../character/">character</a></div>
+        <ul id="tosi-nav-character">
+          <li><a class="doc-link" href="../character-sources/">character sources</a></li>
+        </ul></li>
       </ul></li>
       <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
       <li><a class="doc-link" href="../land-and-sky/">Land and Sky</a></li>
@@ -258,7 +268,10 @@ exactly where the character builder does.</p>
           <li><a class="doc-link" href="../mesh-sdf/">mesh sdf</a></li>
           <li><a class="doc-link" href="../fit-extremes/">fit extremes</a></li>
         </ul></li>
-        <li><a class="doc-link" href="../retarget/">retarget</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-retarget" aria-label="retarget"></button><a class="doc-link" href="../retarget/">retarget</a></div>
+        <ul id="tosi-nav-retarget">
+          <li><a class="doc-link" href="../glb-clips/">glb clips</a></li>
+        </ul></li>
         <li><a class="doc-link" href="../rigged-body/">rigged-body</a></li>
         <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-rig-build" aria-label="auto-rig"></button><a class="doc-link" href="../rig-build/">auto-rig</a></div>
@@ -466,6 +479,7 @@ exactly where the character builder does.</p>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.12.5/">0.12.5</a></li>
         <li><a class="doc-link" href="../v0.12.4/">0.12.4</a></li>
         <li><a class="doc-link" href="../v0.12.3/">0.12.3</a></li>
         <li><a class="doc-link" href="../v0.12.2/">0.12.2</a></li>
@@ -550,6 +564,6 @@ exactly where the character builder does.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-d5cbj3ft.js"></script>
+  <script type="module" src="../hydrate-3xsm839e.js"></script>
 </body>
 </html>

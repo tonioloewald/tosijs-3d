@@ -64,7 +64,10 @@ describe('barMenu', () => {
       icon: 'character',
       title: 'Character',
       options: [
-        { label: 'Select', items: () => [{ label: 'Ada', handleSelect: () => (loaded = 'Ada') }] },
+        {
+          label: 'Select',
+          items: () => [{ label: 'Ada', handleSelect: () => (loaded = 'Ada') }],
+        },
         { label: 'Save', handleSelect: () => {} },
       ],
     })
@@ -128,7 +131,12 @@ describe('barMenu', () => {
       { value: 'back', icon: 'bipedBack' },
     ]
     const tool: any = barMenu({ icon: 'camera', title: 'View', options: opts })
-    const list: any = barMenu({ icon: 'camera', title: 'View', options: opts, layout: 'list' })
+    const list: any = barMenu({
+      icon: 'camera',
+      title: 'View',
+      options: opts,
+      layout: 'list',
+    })
     // A toolbar is one row; a list is a row per option.
     expect(Number(tool.svg.getAttribute('height'))).toBe(PAD * 2 + 44)
     expect(Number(list.svg.getAttribute('height'))).toBe(PAD * 2 + 2 * ROW)

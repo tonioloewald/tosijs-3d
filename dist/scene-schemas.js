@@ -579,8 +579,9 @@ export const SCENE_OMITTED = {
         // presentation, not part of a scene.
         'flatUi',
         'panelSections',
-        // The settings panel's name: the app's chrome, not the scene.
+        // The settings panel's name and button icon: the app's chrome, not the scene.
         'panelTitle',
+        'panelIcon',
         // What an agent may do: the page's policy, not the scene.
         'agent',
         'gamepadScale',

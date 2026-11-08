@@ -34,6 +34,18 @@ export interface GlbRigOptions {
     pick?: string;
 }
 /**
+ * Where a node is, in the frame `glbRigTriangles` gives with the same
+ * `pick`: an item's `_grip` (say `Pistol_grip` in a library with
+ * `pick: 'Pistol.model'`). Null when the file has no such node.
+ */
+export declare function glbNodePosition(bytes: Uint8Array, name: string, options?: {
+    pick?: string;
+}): {
+    x: number;
+    y: number;
+    z: number;
+} | null;
+/**
  * A GLB's triangles for rigging, with no engine: the file's frame, skinned
  * meshes at rest, one surface per material (its glTF material as data,
  * images as bytes), eyes split out. `pick` takes one node and its children.

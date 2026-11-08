@@ -40,6 +40,8 @@ export interface GlbMesh {
     primitives: GlbPrimitive[];
     /** The morph targets' names, one per target (every primitive has them all). */
     targetNames?: string[];
+    /** The mesh's `extras`, as given (a licence, say); `targetNames` joins them. */
+    extras?: Record<string, unknown>;
 }
 export interface GlbTexture {
     /** Index into `images`. */
@@ -96,6 +98,24 @@ export interface SkinnedGlb {
      * (never required). Node indices in them are the joints' (`0..n-1`).
      */
     extensions?: Record<string, unknown>;
+    /** Clips: keyframes on the joints, written as glTF animations. */
+    animations?: GlbAnimation[];
+}
+/** A clip: keyframed joint rotations (and translations), sampled linearly. */
+export interface GlbAnimation {
+    name: string;
+    /** One per animated joint property; channels may share a `times` array. */
+    channels: Array<{
+        /** Index into `joints`. */
+        joint: number;
+        path: 'rotation' | 'translation';
+        /** Seconds, increasing. */
+        times: Float32Array;
+        /** Four numbers per key for a rotation (x, y, z, w), three for a translation. */
+        values: Float32Array;
+    }>;
+    /** The animation's `extras` (its licence, say). */
+    extras?: Record<string, unknown>;
 }
 /** Unit normals, float32; a zero or non-finite one becomes +Y. */
 export declare function unitNormals(normals: ArrayLike<number>): Float32Array;

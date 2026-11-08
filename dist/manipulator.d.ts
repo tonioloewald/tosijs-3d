@@ -36,6 +36,12 @@ export interface TransformSet {
     translate: boolean;
     rotate: boolean;
     scale: boolean;
+    /**
+     * The object's axes a move may NOT go along (`'x'`: no sideways). The
+     * widget draws what is left: an arrow per free axis, a plane pad where both
+     * of its axes are free.
+     */
+    lockMove?: string;
 }
 export declare const NO_TRANSFORMS: TransformSet;
 /** True when the widget would draw nothing. */
@@ -157,6 +163,8 @@ export interface DragOptions {
      * happened to be holding it when you let go.
      */
     secondary?: boolean;
+    /** The object's axes a move may not go along (`'x'`), as `TransformSet.lockMove`. */
+    lockMove?: string;
 }
 /** A drag in progress. Opaque to callers apart from `grip` and `moved`. */
 export interface Drag {

@@ -10,6 +10,7 @@ export declare class B3dManipulator extends B3dChild {
         move: string;
         turn: string;
         scale: string;
+        lockMove: string;
         gridSnap: number;
         angleSnap: number;
         size: number;
@@ -20,6 +21,7 @@ export declare class B3dManipulator extends B3dChild {
     move: string;
     turn: string;
     scale: string;
+    lockMove: string;
     gridSnap: number;
     angleSnap: number;
     size: number;

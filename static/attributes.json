@@ -2824,6 +2824,11 @@
         "description": "`'on'`/`'off'` — cubes, plus the uniform centre cube"
       },
       {
+        "name": "lockMove",
+        "default": "''",
+        "description": "the object's axes a move may not go along, e.g. `'x'` for up and forward only. The widget shows what is left: an arrow per free axis, a pad where both its axes are free, and a drag never moves along a locked one"
+      },
+      {
         "name": "gridSnap",
         "default": "0",
         "description": "position snap in metres. `0` is off"

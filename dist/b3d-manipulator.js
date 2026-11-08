@@ -105,6 +105,7 @@ a plane. Everything is on at once — the part you grab says what the drag means
 | `move` | `'on'` | `'on'`/`'off'` — arrows and plane pads |
 | `turn` | `'off'` | `'on'`/`'off'` — rings |
 | `scale` | `'off'` | `'on'`/`'off'` — cubes, plus the uniform centre cube |
+| `lockMove` | `''` | the object's axes a move may not go along, e.g. `'x'` for up and forward only. The widget shows what is left: an arrow per free axis, a pad where both its axes are free, and a drag never moves along a locked one |
 | `gridSnap` | `0` | position snap in metres. `0` is off |
 | `angleSnap` | `0` | angle snap in degrees. `0` is off |
 | `size` | `0.13` | apparent size — the widget is this fraction of its distance from the camera, so it stays constant on screen |
@@ -241,6 +242,8 @@ export class B3dManipulator extends B3dChild {
         move: 'on',
         turn: 'off',
         scale: 'off',
+        // The object's axes a move may not go along ('x': no sideways).
+        lockMove: '',
         gridSnap: 0,
         angleSnap: 0,
         size: 0.13,
@@ -293,10 +296,12 @@ export class B3dManipulator extends B3dChild {
     */
     _transformSet() {
         const scale = !isOff(this.scale);
+        const locked = String(this.lockMove ?? '').toLowerCase();
         return {
             translate: !scale && !isOff(this.move),
             rotate: !scale && !isOff(this.turn),
             scale,
+            ...(locked ? { lockMove: locked } : {}),
         };
     }
     /** The element whose transform we write, if the target is one. */
@@ -530,6 +535,7 @@ export class B3dManipulator extends B3dChild {
         const options = {
             gridSnap: Number(this.gridSnap) || 0,
             angleSnap: Number(this.angleSnap) || 0,
+            lockMove: String(this.lockMove ?? '').toLowerCase(),
         };
         if (!updateDrag(d, ray, composeRotation, options))
             return;
@@ -557,6 +563,7 @@ export class B3dManipulator extends B3dChild {
         const options = {
             gridSnap: Number(this.gridSnap) || 0,
             angleSnap: Number(this.angleSnap) || 0,
+            lockMove: String(this.lockMove ?? '').toLowerCase(),
         };
         const committed = commitTransform(d, options);
         if (!dragChanged(d, committed))

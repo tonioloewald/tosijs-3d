@@ -399,7 +399,7 @@ export declare class B3dLauncher extends AbstractMesh {
     private _socketNode;
     /**
      * The current hand's socket frame relative to the hand's anatomy (the
-     * calibration `HAND_IN_ANATOMY` holds for UAL's rig), for re-measuring it.
+     * calibration hand-socket's `HAND_IN_ANATOMY` holds for UAL's rig), for re-measuring it.
      */
     get socketCalibration(): number[] | null;
     /**

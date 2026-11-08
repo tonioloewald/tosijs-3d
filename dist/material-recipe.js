@@ -237,6 +237,19 @@ export const MATERIAL_COLLECTIONS = {
         },
     },
 };
+/**
+ * The old `{ fabric, colour, recolour }` look as a `cloth` recipe, for looks
+ * saved before recipes. `'as made'` (or no fabric) sets no surface.
+ */
+export function clothRecipe(look) {
+    const preset = MATERIAL_COLLECTIONS.fabrics.presets.find((p) => p.name === look.fabric);
+    const inputs = { ...preset?.recipe.inputs };
+    if (look.colour != null)
+        inputs.albedo = look.colour;
+    if (look.recolour != null)
+        inputs.recolour = look.recolour;
+    return canonicalMaterial({ type: 'cloth', inputs });
+}
 /** One input of a type, from whatever the recipe says (or its default). */
 export function resolveInput(decl, raw) {
     const intensity0 = decl.intensity?.default ?? 1;

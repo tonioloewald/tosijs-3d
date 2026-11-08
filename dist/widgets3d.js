@@ -666,14 +666,19 @@ function panelPopupSheet(width, items, chromeBand = POPUP_CHROME_BAND, maxHeight
  * `section.isOpen` are wired by the host before layout.
  */
 function sectionLabel(config, fill) {
+    const level = config.level === 2 ? 2 : 1;
     const section = {
         title: config.text,
         icon: config.icon,
         open: config.open,
+        level: level,
         isOpen: config.open ?? false,
         toggle: undefined,
     };
-    const t = baseText(config.text, fill, true);
+    // A sub-section sits one step in, in the regular weight, so it reads as
+    // part of the section above it.
+    const indent = level === 2 ? 14 : 0;
+    const t = baseText(config.text, fill, level === 1);
     const chevron = baseText('', TH.MUTED, true);
     // COMPACT (Tonio: "the collapsed sections could be a little more compact"):
     // a caption line, not a control row, so a panel of folded sections reads as
@@ -687,17 +692,17 @@ function sectionLabel(config, fill) {
         height: h - 2,
         fill: 'transparent',
     });
-    t.setAttribute('x', String(TH.PAD_X + 16));
+    t.setAttribute('x', String(TH.PAD_X + indent + 16));
     t.setAttribute('y', String(h / 2));
-    chevron.setAttribute('x', String(TH.PAD_X));
+    chevron.setAttribute('x', String(TH.PAD_X + indent));
     chevron.setAttribute('y', String(h / 2));
     return {
-        el: g({ 'data-w3d': 'section' }, bg, chevron, t),
+        el: g({ 'data-w3d': level === 2 ? 'subsection' : 'section' }, bg, chevron, t),
         section,
         layout(width) {
             bg.setAttribute('width', String(width));
             chevron.textContent = section.isOpen ? '▾' : '▸';
-            t.textContent = ellipsize(config.text, width - TH.PAD_X * 2 - 16, TH.BOLD_FONT);
+            t.textContent = ellipsize(config.text, width - TH.PAD_X * 2 - 16 - indent, level === 1 ? TH.BOLD_FONT : TH.TEXT_FONT);
             return h;
         },
         handle(kind) {
@@ -709,6 +714,7 @@ function sectionLabel(config, fill) {
             role: 'section',
             name: config.text,
             open: section.isOpen,
+            ...(level === 2 ? { level } : {}),
             activate: () => section.toggle?.(),
         }),
     };
@@ -860,6 +866,10 @@ const tabName = (t) => (typeof t === 'string' ? t : t.title ?? t.icon);
  * - `mode: 'tabs'`: rows before the first section, a `tabs3d` strip of the
  *   sections (a section's `icon` becomes its tab), and the active section's rows.
  *
+ * A `label3d({ collapsible: true, level: 2 })` heads a SUB-SECTION: it folds
+ * inside the section or tab it is in, by the same rule (one open at a time,
+ * except in `'folds'`), so a long tab is an accordion of its own.
+ *
  * A panel is laid out once when built, so folding means REBUILDING: a header's
  * tap or a tab's pick calls `repaint`, and you build the panel again from the
  * same row list. Pass `key` to remember the open set and the active tab across
@@ -884,13 +894,73 @@ export function foldSections(rows, opts) {
             /* no storage: it still works for this visit */
         }
     };
+    const secOf = (row) => row.section;
+    const levelOf = (sec) => (sec.level === 2 ? 2 : 1);
+    /*
+    ONE OPEN AT A TIME ('fold'), as an accordion: opening a section closes the
+    rest, and all of them may be closed. A panel's sections are long, so two
+    open push the second's rows out of reach. 'folds' lets several stay open.
+    */
+    const single = opts.mode !== 'folds';
+    /*
+    Fold the headers of one LEVEL among `rows`; an open section's rows are
+    folded again one level down, so a sub-section folds inside its parent.
+    Open state is kept under the parent's path (`Body/shape`), so two tabs may
+    each have a sub-section of the same name.
+    */
+    const fold = (rows, level, prefix) => {
+        const titles = [];
+        const out = [];
+        let pending = [];
+        let showing = true;
+        let first = true;
+        let anyOpen = false;
+        let current = null;
+        const flush = () => {
+            if (showing)
+                out.push(...(level === 1 && current
+                    ? fold(pending, 2, `${current.title}/`)
+                    : pending));
+            pending = [];
+        };
+        for (const row of rows) {
+            const sec = secOf(row);
+            if (sec == null || levelOf(sec) !== level) {
+                pending.push(row);
+                continue;
+            }
+            flush();
+            const key = prefix + sec.title;
+            titles.push(key);
+            let isOpen = state.open.get(key) ?? sec.open ?? first;
+            // Saved or declared, only the first open section stays open.
+            if (single && anyOpen)
+                isOpen = false;
+            anyOpen ||= isOpen;
+            first = false;
+            sec.isOpen = isOpen;
+            sec.toggle = () => {
+                if (single && !isOpen)
+                    for (const t of titles)
+                        state.open.set(t, false);
+                state.open.set(key, !isOpen);
+                save();
+                opts.repaint();
+            };
+            out.push(row);
+            showing = isOpen;
+            current = sec;
+        }
+        flush();
+        return out;
+    };
     if (opts.mode === 'tabs') {
         const head = [];
         let tools;
         const sections = [];
         for (const row of rows) {
-            const sec = row.section;
-            if (sec != null)
+            const sec = secOf(row);
+            if (sec != null && levelOf(sec) === 1)
                 sections.push({ title: sec.title, icon: sec.icon, rows: [] });
             else if (sections.length === 0 && row.inTabs && !tools)
                 tools = row;
@@ -900,7 +970,7 @@ export function foldSections(rows, opts) {
                 sections[sections.length - 1].rows.push(row);
         }
         if (sections.length === 0)
-            return rows;
+            return fold(rows, 2, '');
         let active = sections.findIndex((x) => x.title === state.tab);
         if (active < 0)
             active = 0;
@@ -915,46 +985,11 @@ export function foldSections(rows, opts) {
                 opts.repaint();
             },
         });
-        return [...head, strip, ...sections[active].rows];
+        // The tab's own sub-sections fold inside it.
+        const tab = sections[active];
+        return [...head, strip, ...fold(tab.rows, 2, `${tab.title}/`)];
     }
-    /*
-    ONE OPEN AT A TIME ('fold'), as an accordion: opening a section closes the
-    rest, and all of them may be closed. A panel's sections are long, so two
-    open push the second's rows out of reach. 'folds' lets several stay open.
-    */
-    const single = opts.mode !== 'folds';
-    const titles = [];
-    const out = [];
-    let showing = true;
-    let first = true;
-    let anyOpen = false;
-    for (const row of rows) {
-        const sec = row.section;
-        if (sec == null) {
-            if (showing)
-                out.push(row);
-            continue;
-        }
-        titles.push(sec.title);
-        let isOpen = state.open.get(sec.title) ?? sec.open ?? first;
-        // Saved or declared, only the first open section stays open.
-        if (single && anyOpen)
-            isOpen = false;
-        anyOpen ||= isOpen;
-        first = false;
-        sec.isOpen = isOpen;
-        sec.toggle = () => {
-            if (single && !isOpen)
-                for (const t of titles)
-                    state.open.set(t, false);
-            state.open.set(sec.title, !isOpen);
-            save();
-            opts.repaint();
-        };
-        out.push(row);
-        showing = isOpen;
-    }
-    return out;
+    return fold(rows, 1, '');
 }
 const sectionStates = new Map();
 function sectionState(key = '') {
@@ -2165,7 +2200,22 @@ export function select3d(config) {
     const openMenu = () => {
         if (host == null || opts.length === 0)
             return;
-        openHandle = host.showPopup({
+        /*
+        ONE MENU PER SELECT. A second tap while it is open closes it: opening
+        another stacked a second copy and orphaned the first (its handle was
+        overwritten, so nothing could close it), and a menu pushed off screen
+        could then be neither reached nor dismissed. `handleClose` clears the
+        handle when the menu goes some other way, so the next tap opens again.
+        */
+        if (openHandle != null) {
+            closeMenu();
+            return;
+        }
+        const handle = host.showPopup({
+            handleClose: () => {
+                if (openHandle === handle)
+                    openHandle = null;
+            },
             // Anchored to the VALUE, not to the whole row: a menu that drops from
             // the far left of a wide row looks unrelated to what it changes.
             anchor: { x: clusterX, y: 0, width: clusterW, height: TH.ROW },
@@ -2182,6 +2232,7 @@ export function select3d(config) {
                     closeMenu();
             },
         }));
+        openHandle = handle;
     };
     return {
         el,

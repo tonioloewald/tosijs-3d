@@ -1,4 +1,6 @@
 import { type Widget3d } from './widgets3d.js';
+import type { Grip } from './hand-socket.js';
+import type { GarmentProxy } from './garment-proxy.js';
 import { type RigNaming, type RigRestPose } from './rigged-body-glb.js';
 import type { RiggedBody } from './rigged-body.js';
 import type { RigRecipe } from './rig-recipe.js';
@@ -14,6 +16,20 @@ export interface BodyExportTarget {
     } | null;
     /** The file's name, without `.glb`. */
     name: string;
+    /**
+     * What the right hand holds: a library model (`url`, its `model` node and
+     * its `gripNode`, `_grip`), placed by `grip`; `extras` (its licence) go on
+     * its mesh. See riggedBodyGlb's `held`.
+     */
+    /** Garments bound to `body` (a character's `wornGarments()`). */
+    garments?: GarmentProxy[];
+    held?: {
+        grip: Grip;
+        url: string;
+        model: string;
+        gripNode?: string;
+        extras?: Record<string, unknown>;
+    } | null;
 }
 /** How the file is written (the panel's choices). */
 export interface BodyExportSettings {

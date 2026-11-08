@@ -119,6 +119,12 @@ const SHAFT_DIAMETER = 0.0707;
 const SHAFT_PICK_FATNESS = 11;
 const SHAFT_OFFSET = 0.35;
 const PAD_SIZE = 0.2;
+/** The two axes a plane pad slides along, by its normal. */
+const PLANE_AXES = {
+    x: ['y', 'z'],
+    y: ['x', 'z'],
+    z: ['x', 'y'],
+};
 const RING_INNER = 0.6;
 const RING_OUTER = 0.8;
 /**
@@ -235,6 +241,13 @@ export function createHandles(scene, scale = 1) {
     const add = (grip, spec) => {
         const { make, colour, alpha = 1, offset = ZERO, spin = ZERO } = spec;
         const key = `${grip.kind}-${grip.axis ?? 'all'}${spec.part ? `-${spec.part}` : ''}`;
+        // A locked axis has no arrow, and no pad slides along it.
+        const locked = transforms.lockMove ?? '';
+        if (grip.kind === 'translate' && locked.includes(grip.axis ?? ''))
+            return;
+        if (grip.kind === 'planar' &&
+            PLANE_AXES[grip.axis ?? 'x'].some((a) => locked.includes(a)))
+            return;
         const mesh = make(`${HANDLE_TAG}-${key}`, 1);
         mesh.material = material(key, colour, alpha);
         mesh.renderingGroupId = 1;
@@ -247,7 +260,13 @@ export function createHandles(scene, scale = 1) {
         could see and aimed at.
         */
         mesh.isPickable = true;
-        mesh.metadata = { [HANDLE_TAG]: grip, [DRAWN_TAG]: true };
+        /*
+        ...EXCEPT THE SHAFT. It is a hairline showing which way the axis runs, and
+        from most views it crosses in front of the plane pads: picked first, it
+        took the press from a pad drawn right under the pointer, so the pads seemed
+        not to work. Its fat target still answers in the second pass.
+        */
+        mesh.metadata = { [HANDLE_TAG]: grip, [DRAWN_TAG]: spec.part !== 'shaft' };
         handles.push({ grip, mesh, offset, spin });
         const target = make(`${HANDLE_TAG}-${key}-pick`, PICK_FATNESS);
         /*
@@ -459,7 +478,8 @@ export function createHandles(scene, scale = 1) {
         setTransforms(next) {
             if (next.translate === transforms.translate &&
                 next.rotate === transforms.rotate &&
-                next.scale === transforms.scale) {
+                next.scale === transforms.scale &&
+                next.lockMove === transforms.lockMove) {
                 return;
             }
             transforms = { ...next };

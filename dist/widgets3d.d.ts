@@ -203,6 +203,10 @@ export declare function tabs3d(config: {
  * - `mode: 'tabs'`: rows before the first section, a `tabs3d` strip of the
  *   sections (a section's `icon` becomes its tab), and the active section's rows.
  *
+ * A `label3d({ collapsible: true, level: 2 })` heads a SUB-SECTION: it folds
+ * inside the section or tab it is in, by the same rule (one open at a time,
+ * except in `'folds'`), so a long tab is an accordion of its own.
+ *
  * A panel is laid out once when built, so folding means REBUILDING: a header's
  * tap or a tab's pick calls `repaint`, and you build the panel again from the
  * same row list. Pass `key` to remember the open set and the active tab across
@@ -427,11 +431,17 @@ export declare function label3d(config: {
     /** An icon for the section: as TABS (`panelSections="tabs"`) it replaces
      * the caption, so the strip stays narrow and does not overlap. */
     icon?: string;
+    /**
+     * `2` makes a SUB-SECTION: it folds inside the section (or tab) it is in,
+     * drawn indented, so a long tab becomes an accordion of its own. Default 1.
+     */
+    level?: 1 | 2;
 }): Widget3d & {
     section?: {
         title: string;
         icon?: string;
         open?: boolean;
+        level: 1 | 2;
         isOpen: boolean;
         toggle?: () => void;
     };

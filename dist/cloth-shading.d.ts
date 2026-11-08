@@ -1,6 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
 import { type MaterialRecipe } from './material-recipe.js';
 export { FABRICS, type Fabric } from './fabrics.js';
+export { clothRecipe } from './material-recipe.js';
 export interface ClothLook {
     fabric?: string;
     /** The recolour, sRGB (anything `parseColor` reads). */
@@ -14,15 +15,6 @@ export interface ClothLook {
      */
     recipe?: MaterialRecipe;
 }
-/**
- * The old `{ fabric, colour, recolour }` look as a `cloth` recipe, for looks
- * saved before recipes. `'as made'` (or no fabric) sets no surface.
- */
-export declare function clothRecipe(look: {
-    fabric?: string;
-    colour?: string;
-    recolour?: number;
-}): MaterialRecipe;
 export interface ClothShading {
     set(look: ClothLook): void;
 }

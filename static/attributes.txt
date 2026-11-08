@@ -694,6 +694,7 @@ b3d-manipulator
   move  = 'on'  — `'on'`/`'off'` — arrows and plane pads
   turn  = 'off'  — `'on'`/`'off'` — rings
   scale  = 'off'  — `'on'`/`'off'` — cubes, plus the uniform centre cube
+  lockMove  = ''  — the object's axes a move may not go along, e.g. `'x'` for up and forward only. The widget shows what is left: an arrow per free axis, a pad where both its axes are free, and a drag never moves along a locked one
   gridSnap  = 0  — position snap in metres. `0` is off
   angleSnap  = 0  — angle snap in degrees. `0` is off
   size  = 0.13  — apparent size — the widget is this fraction of its distance from the camera, so it stays constant on screen

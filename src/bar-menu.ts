@@ -129,14 +129,17 @@ type Opt = Required<Pick<BarMenuOption, 'label'>> & BarMenuOption
 
 const normal = (list: Array<string | BarMenuOption>): Opt[] =>
   list.map((o) =>
-    typeof o === 'string' ? { value: o, label: o } : { label: o.value ?? '', ...o }
+    typeof o === 'string'
+      ? { value: o, label: o }
+      : { label: o.value ?? '', ...o }
   )
 const read = (o: BarMenuConfig['options'] | BarMenuOption['items']) =>
   normal((typeof o === 'function' ? o() : o) ?? [])
 
 export function barMenu(config: BarMenuConfig): BarMenu {
   const { svg, g, rect, text, title, line } = svgElements
-  let value = config.value ?? read(config.options).find((o) => !o.separator)?.value ?? ''
+  let value =
+    config.value ?? read(config.options).find((o) => !o.separator)?.value ?? ''
   /*
   WHERE IT IS: the top list, or a submenu opened from it. A submenu replaces
   the list (with a way back as its first row) rather than flying out beside
@@ -182,7 +185,10 @@ export function barMenu(config: BarMenuConfig): BarMenu {
     )
     const WIDTH = toolbar
       ? PAD * 2 + opts.length * CELL
-      : Math.min(320, Math.max(LIST_WIDTH, (icons ? 48 : 40) + longest * 8.6 + 34))
+      : Math.min(
+          320,
+          Math.max(LIST_WIDTH, (icons ? 48 : 40) + longest * 8.6 + 34)
+        )
     const height = toolbar
       ? PAD * 2 + CELL
       : PAD * 2 + rows.reduce((h, r) => h + r.h, 0)
@@ -196,19 +202,34 @@ export function barMenu(config: BarMenuConfig): BarMenu {
       root.textContent = ''
       root.append(
         title(config.title),
-        rect({ x: 0, y: 0, width: WIDTH, height, rx: 14, fill: 'rgba(20,24,32,0.88)' }),
+        rect({
+          x: 0,
+          y: 0,
+          width: WIDTH,
+          height,
+          rx: 14,
+          fill: 'rgba(20,24,32,0.88)',
+        }),
         panelRim(WIDTH, height, 14)
       )
       if (toolbar) {
         opts.forEach((o, i) => {
           const x = PAD + i * CELL
           const on = o.value === value
-          const bg = i === pressed || i === hover ? CELL_HOT : on ? CELL_ON : CELL_BG
+          const bg =
+            i === pressed || i === hover ? CELL_HOT : on ? CELL_ON : CELL_BG
           root.append(
             g(
               {},
               title(o.label),
-              rect({ x: x + 2, y: PAD + 2, width: CELL - 4, height: CELL - 4, rx: 9, fill: bg }),
+              rect({
+                x: x + 2,
+                y: PAD + 2,
+                width: CELL - 4,
+                height: CELL - 4,
+                rx: 9,
+                fill: bg,
+              }),
               iconGlyph(o.icon!, {
                 color: on ? INK_ON : INK,
                 size: GLYPH,
@@ -253,7 +274,14 @@ export function barMenu(config: BarMenuConfig): BarMenu {
               fill: hot ? 'rgba(74,158,255,0.55)' : 'rgba(255,255,255,0)',
             }),
             ...(o?.icon
-              ? [iconGlyph(o.icon, { color: on ? INK_ON : INK, size: 24, x: 14, y: r.y + 6 })]
+              ? [
+                  iconGlyph(o.icon, {
+                    color: on ? INK_ON : INK,
+                    size: 24,
+                    x: 14,
+                    y: r.y + 6,
+                  }),
+                ]
               : []),
             // The tick: at the left with no icons, at the right beside them.
             ...(on
@@ -329,7 +357,9 @@ export function barMenu(config: BarMenuConfig): BarMenu {
             config.handleChange?.(value)
           }
           // Done: the menu goes (the scene closes a panel that says so).
-          root.dispatchEvent(new CustomEvent('panelfocus', { detail: { focus: false } }))
+          root.dispatchEvent(
+            new CustomEvent('panelfocus', { detail: { focus: false } })
+          )
           return
         }
       } else if (kind === 'leave') pressed = -1
@@ -338,7 +368,9 @@ export function barMenu(config: BarMenuConfig): BarMenu {
         draw()
       }
     }
-    ;(root as unknown as { handlePointer: typeof handlePointer }).handlePointer = handlePointer
+    ;(
+      root as unknown as { handlePointer: typeof handlePointer }
+    ).handlePointer = handlePointer
     draw()
     return { root, draw }
   }

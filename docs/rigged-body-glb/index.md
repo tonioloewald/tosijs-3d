@@ -46,6 +46,29 @@ What the file is (Dramatis's `export-format`, version 1):
   three-vrm, UniVRM and Godot's VRM importer read with no setup, and as
   `TOSIJS_spring_chains`, our own settings exactly (see
   [spring-vrm](/spring-vrm/) for how the two models differ).
+- **Garments**, with `garments`: proxies bound to this body (`garmentProxy`
+  from a garment file: the tailor's cuts and draped cloth, or a garment
+  from Blender), each a mesh named for its slot, skinned with weights from
+  the body's own, as the builder draws them (armour lifted 5 mm), with its
+  material as data (its pictures, and its saved look's glTF factors where
+  it has a plain reading). The skin they cover is tucked under them, as the
+  builder does, and skin a garment lists in its `delete` (as MakeHuman's
+  clothes do) is dropped; `cover: false` leaves the skin alone.
+- **Clips**, with `clips`: animations read from any skinned GLB
+  ([[glb-clips]]: UAL's, Mixamo's, Meshy's) retargeted onto this skeleton
+  and written as glTF animations, 30 keys a second by default (rotations,
+  and the hips' travel), each with its own `extras` (its licence).
+- **A held item**, with `held`: a joint named `weapon_r` (or `held.name`)
+  under the hand, where a grip (see [[hold-grip]]) puts the item's grip
+  point, turned as the grip says, in the hand's socket frame
+  ([[hand-socket]]): the same place the character builder shows it. Unity
+  and Unreal attach their own items to a named bone like this one. With
+  `held.item` (a mesh in its own frame, as `glbRigTriangles(bytes, { pick })`
+  reads one out of a library file) the item goes in too, as a mesh `held`
+  skinned wholly to that joint, scaled by the grip's `scale`, its grip
+  point (`held.gripPoint`, else the middle of its lowest third) on the
+  joint, its own materials and pictures, and `held.extras` (its licence) on
+  the mesh, as its file has it.
 - **`asset.extras`** is passed through as given (Dramatis's licence block
   goes there), with `generator` and `copyright`.
 

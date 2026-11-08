@@ -159,13 +159,16 @@ boxOf) {
         into.push(node);
         return node;
     };
+    // The section a sub-section (level 2) belongs to.
+    let parent = null;
     for (const w of widgets) {
         const s = describe(w);
         if (s?.role === 'section') {
+            const sub = s.level === 2 && parent != null;
             const node = {
                 role: 'section',
                 name: s.name,
-                path: pathOf(prefix, s.name),
+                path: pathOf(sub ? parent.path : prefix, s.name),
                 interactive: s.activate != null,
                 open: s.open,
                 children: [],
@@ -175,7 +178,14 @@ boxOf) {
             const b = boxOf?.(w);
             if (b != null)
                 node.box = b;
-            top.push(node);
+            if (sub)
+                parent.children.push(node);
+            else {
+                top.push(node);
+                // Only a section proper owns sub-sections; one with nothing above it
+                // (a tab's) is a sibling of the next.
+                parent = s.level === 2 ? null : node;
+            }
             level = node.children;
             levelPath = node.path;
             previousText = '';

@@ -1131,8 +1131,17 @@ export function riggedBodyGlb(
     const bones = glbJoints.map((j) => ({
       name: j.name,
       parent: j.parent < 0 ? null : glbJoints[j.parent].name,
-      rotation: { x: j.rotation[0], y: j.rotation[1], z: j.rotation[2], w: j.rotation[3] },
-      position: { x: j.translation[0], y: j.translation[1], z: j.translation[2] },
+      rotation: {
+        x: j.rotation[0],
+        y: j.rotation[1],
+        z: j.rotation[2],
+        w: j.rotation[3],
+      },
+      position: {
+        x: j.translation[0],
+        y: j.translation[1],
+        z: j.translation[2],
+      },
     }))
     const target = { bones, roles: humanoidRoles(bones) }
     const index = new Map(glbJoints.map((j, i) => [j.name, i]))
@@ -1148,10 +1157,20 @@ export function riggedBodyGlb(
         if (joint != null)
           channels.push({ joint, path: 'rotation', times: baked.times, values })
       }
-      const hips = target.roles.hips != null ? index.get(target.roles.hips) : undefined
+      const hips =
+        target.roles.hips != null ? index.get(target.roles.hips) : undefined
       if (baked.hips && hips != null)
-        channels.push({ joint: hips, path: 'translation', times: baked.times, values: baked.hips })
-      animations.push({ name: baked.name, channels, ...(c.extras ? { extras: c.extras } : {}) })
+        channels.push({
+          joint: hips,
+          path: 'translation',
+          times: baked.times,
+          values: baked.hips,
+        })
+      animations.push({
+        name: baked.name,
+        channels,
+        ...(c.extras ? { extras: c.extras } : {}),
+      })
     }
   }
 

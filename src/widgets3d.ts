@@ -920,7 +920,12 @@ function sectionLabel(
   chevron.setAttribute('x', String(TH.PAD_X + indent))
   chevron.setAttribute('y', String(h / 2))
   return {
-    el: g({ 'data-w3d': level === 2 ? 'subsection' : 'section' }, bg, chevron, t),
+    el: g(
+      { 'data-w3d': level === 2 ? 'subsection' : 'section' },
+      bg,
+      chevron,
+      t
+    ),
     section,
     layout(width) {
       bg.setAttribute('width', String(width))
@@ -1205,7 +1210,9 @@ export function foldSections(
     const flush = () => {
       if (showing)
         out.push(
-          ...(level === 1 && current ? fold(pending, 2, `${current.title}/`) : pending)
+          ...(level === 1 && current
+            ? fold(pending, 2, `${current.title}/`)
+            : pending)
         )
       pending = []
     }

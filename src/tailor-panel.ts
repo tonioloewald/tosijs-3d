@@ -142,7 +142,10 @@ export interface TailorPanelOptions {
   /** Export with the body as a helper (default its own, on). */
   includeBody?: Kept<boolean>
   /** The body as a helper in an exported garment. */
-  helperBody: () => { positions: ArrayLike<number>; triangles: ArrayLike<number> } | null
+  helperBody: () => {
+    positions: ArrayLike<number>
+    triangles: ArrayLike<number>
+  } | null
   /** Save a file: a GLB's bytes or an OBJ's text. */
   save: (data: Uint8Array | string, name: string, type: string) => void
   /** The draft or the wardrobe changed: the host's autosave. */
@@ -171,9 +174,15 @@ export interface TailorPanelHandle {
   refresh(): void
   say(message: string): void
   /** The garment to take to an editor (the one being cut, else the slot's own), or null. */
-  garmentFile(format: 'glb' | 'obj', bodyAlone?: boolean): Uint8Array | string | null
+  garmentFile(
+    format: 'glb' | 'obj',
+    bodyAlone?: boolean
+  ): Uint8Array | string | null
   /** Keep a garment file from an editor, worn in its slot. */
-  importFrom(data: ArrayBuffer | Uint8Array | string, fileName: string): Promise<void>
+  importFrom(
+    data: ArrayBuffer | Uint8Array | string,
+    fileName: string
+  ): Promise<void>
 }
 
 const own = <T>(v: T): Kept<T> => ({
@@ -203,7 +212,11 @@ export function tailorPanel(
   let message = ''
   let idleMessage = 'open to tailor'
 
-  const panel = b3dPanel({ icon: 'scissors', title: 'Tailor', exclusive: 'off' })
+  const panel = b3dPanel({
+    icon: 'scissors',
+    title: 'Tailor',
+    exclusive: 'off',
+  })
   el.append(panel)
 
   const say = (m: string) => {
@@ -262,7 +275,10 @@ export function tailorPanel(
       select3d({
         label: 'garment',
         value: pick,
-        options: [...options.choices(slot).filter((n) => n !== 'none'), NEW_GARMENT],
+        options: [
+          ...options.choices(slot).filter((n) => n !== 'none'),
+          NEW_GARMENT,
+        ],
         handleChange: (v) => {
           if (v === pick) return
           void keep().then(() => {
@@ -280,19 +296,34 @@ export function tailorPanel(
     return [
       ...(mine
         ? [
-            button3d({ label: `forget ${pick}`, handleClick: () => void forget() }),
+            button3d({
+              label: `forget ${pick}`,
+              handleClick: () => void forget(),
+            }),
             toggle3d({
               label: 'include the body (a helper)',
               value: includeBody.get(),
               handleChange: (v: boolean) => includeBody.set(v),
             }),
-            button3d({ label: 'export GLB', handleClick: () => exportGarment('glb') }),
-            button3d({ label: 'export OBJ', handleClick: () => exportGarment('obj') }),
+            button3d({
+              label: 'export GLB',
+              handleClick: () => exportGarment('glb'),
+            }),
+            button3d({
+              label: 'export OBJ',
+              handleClick: () => exportGarment('obj'),
+            }),
           ]
         : []),
       // The body alone, to model a garment from nothing beside it.
-      button3d({ label: 'export the body alone', handleClick: () => exportGarment('glb', true) }),
-      button3d({ label: 'import a garment…', handleClick: () => importGarment() }),
+      button3d({
+        label: 'export the body alone',
+        handleClick: () => exportGarment('glb', true),
+      }),
+      button3d({
+        label: 'import a garment…',
+        handleClick: () => importGarment(),
+      }),
       ...(message ? [text3d({ text: message })] : []),
     ]
   }
@@ -300,7 +331,11 @@ export function tailorPanel(
   const idle = (m: string) => {
     idleMessage = m
     panel.svg = panel3d(
-      { width: 340, height: 'fit', maxHeight: Math.min(720, el.panelRoom?.(panel) ?? 720) },
+      {
+        width: 340,
+        height: 'fit',
+        maxHeight: Math.min(720, el.panelRoom?.(panel) ?? 720),
+      },
       ...top(),
       text3d({ text: m }),
       ...bottom()
@@ -319,7 +354,9 @@ export function tailorPanel(
     const saved = pick === NEW_GARMENT ? null : tailored(pick)
     if (pick !== NEW_GARMENT && !saved) {
       ch().set({ hideSlot: '' })
-      return idle(`${pick} has no outline to edit here. Pick ${NEW_GARMENT} to cut one for this slot.`)
+      return idle(
+        `${pick} has no outline to edit here. Pick ${NEW_GARMENT} to cut one for this slot.`
+      )
     }
     ch().set({ hideSlot: slot })
     const draft = options.draft.get()
@@ -376,16 +413,27 @@ export function tailorPanel(
     t.unmount()
     if (!garment) return
     // One of your own, unchanged: nothing to write.
-    if (ed.name != null && JSON.stringify({ cut, look, name }) === ed.start) return
+    if (ed.name != null && JSON.stringify({ cut, look, name }) === ed.start)
+      return
     const kept = freeName(name || ed.name || 'garment', ed.name)
     const bytes = writeGarmentGlb({
       garment,
-      meta: { ...options.madeOn(ed.source), name: kept, slot: ed.slot, look: { material: look } as any, cut: cut as any },
+      meta: {
+        ...options.madeOn(ed.source),
+        name: kept,
+        slot: ed.slot,
+        look: { material: look } as any,
+        cut: cut as any,
+      },
     })
     if (ed.name == null) {
       // Kept: the next new garment starts from nothing.
       const d = options.draft.get()
-      options.draft.set({ ...d, cut: { ...d.cut, shapes: [] as any }, name: '' })
+      options.draft.set({
+        ...d,
+        cut: { ...d.cut, shapes: [] as any },
+        name: '',
+      })
     }
     try {
       await keepFile(bytes, ed.slot)
@@ -421,7 +469,9 @@ export function tailorPanel(
       tool = null
       editing = null
     }
-    await store.delete(name).catch((e) => console.warn('tailor: could not forget', e))
+    await store
+      .delete(name)
+      .catch((e) => console.warn('tailor: could not forget', e))
     ch().forgetGarment(name)
     if (options.worn(slot) === name) options.wear(slot, 'none')
     pick = NEW_GARMENT
@@ -459,25 +509,35 @@ export function tailorPanel(
   }
   // A garment from an editor: kept as a choice in its slot, named as the
   // file says (else after the file).
-  const importFrom = async (data: ArrayBuffer | Uint8Array | string, fileName: string) => {
+  const importFrom = async (
+    data: ArrayBuffer | Uint8Array | string,
+    fileName: string
+  ) => {
     const content = readGarment(data)
     // Bound to the body it was made on, where the file says; else to the
     // body shown, which is then what it was made on.
     if (!content.meta)
-      console.warn('tailor: no metadata in the file (export from Blender with custom properties); bound to the body shown')
+      console.warn(
+        'tailor: no metadata in the file (export from Blender with custom properties); bound to the body shown'
+      )
     if ((content.materialCount ?? 0) > 1)
-      console.warn(`tailor: the garment uses ${content.materialCount} materials; only the first is drawn`)
+      console.warn(
+        `tailor: the garment uses ${content.materialCount} materials; only the first is drawn`
+      )
     const known = content.meta?.source || content.meta?.body
     const meta: GarmentMeta = known
       ? content.meta!
       : { ...options.madeOn(source()), ...content.meta }
     const slot = options.slots.includes(meta.slot ?? '') ? meta.slot! : 'top'
     const wanted =
-      meta.name && meta.name !== 'tailored' ? meta.name : fileName.replace(/\.[^.]*$/, '')
+      meta.name && meta.name !== 'tailored'
+        ? meta.name
+        : fileName.replace(/\.[^.]*$/, '')
     const name = freeName(wanted, null)
     // A garment with its own maps keeps them: no fabric preset, no recolour.
     const look =
-      content.material?.baseColorTexture || content.material?.metallicRoughnessTexture
+      content.material?.baseColorTexture ||
+      content.material?.metallicRoughnessTexture
         ? { material: { type: 'cloth', inputs: { recolour: 0 } } }
         : meta.look
     await keepFile(
@@ -494,7 +554,9 @@ export function tailorPanel(
       if (!file) return
       try {
         await importFrom(
-          file.name.endsWith('.obj') ? await file.text() : await file.arrayBuffer(),
+          file.name.endsWith('.obj')
+            ? await file.text()
+            : await file.arrayBuffer(),
           file.name
         )
       } catch (e: any) {
@@ -514,7 +576,13 @@ export function tailorPanel(
       return tool
     },
     get editing() {
-      return editing && { slot: editing.slot, name: editing.name, source: editing.source }
+      return (
+        editing && {
+          slot: editing.slot,
+          name: editing.name,
+          source: editing.source,
+        }
+      )
     },
     get message() {
       return message

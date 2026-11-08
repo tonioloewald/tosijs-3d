@@ -205,7 +205,11 @@ describe('foldSections: sub-sections', () => {
   ]
 
   test('a tab folds its own sub-sections: the first open, the rest closed', () => {
-    const shown = w.foldSections(nested(), { key: 'sub-tabs', mode: 'tabs', repaint: () => {} })
+    const shown = w.foldSections(nested(), {
+      key: 'sub-tabs',
+      mode: 'tabs',
+      repaint: () => {},
+    })
     const n = names(shown).slice(1) // after the tab strip
     expect(n).toEqual(['source row', 'shape', 'gender row', 'ancestry'])
   })
@@ -213,22 +217,39 @@ describe('foldSections: sub-sections', () => {
   test('opening one sub-section closes its sibling, and the tab stays put', () => {
     const opts = { key: 'sub-tabs-2', mode: 'tabs' as const, repaint: () => {} }
     const first = w.foldSections(nested(), opts)
-    const ancestry = first.find((r: any) => r.section?.title === 'ancestry') as any
+    const ancestry = first.find(
+      (r: any) => r.section?.title === 'ancestry'
+    ) as any
     ancestry.section.toggle()
     const again = names(w.foldSections(nested(), opts)).slice(1)
     expect(again).toEqual(['source row', 'shape', 'ancestry', 'african row'])
   })
 
   test('in fold mode a sub-section folds inside its open parent', () => {
-    const shown = names(w.foldSections(nested(), { key: 'sub-fold', repaint: () => {} }))
-    expect(shown).toEqual(['Body', 'source row', 'shape', 'gender row', 'ancestry', 'Hair'])
+    const shown = names(
+      w.foldSections(nested(), { key: 'sub-fold', repaint: () => {} })
+    )
+    expect(shown).toEqual([
+      'Body',
+      'source row',
+      'shape',
+      'gender row',
+      'ancestry',
+      'Hair',
+    ])
   })
 
   test('a closed parent hides its sub-sections, headers and all', () => {
     const opts = { key: 'sub-fold-2', repaint: () => {} }
     const first = w.foldSections(nested(), opts)
-    ;(first.find((r: any) => r.section?.title === 'Hair') as any).section.toggle()
-    expect(names(w.foldSections(nested(), opts))).toEqual(['Body', 'Hair', 'hair row'])
+    ;(
+      first.find((r: any) => r.section?.title === 'Hair') as any
+    ).section.toggle()
+    expect(names(w.foldSections(nested(), opts))).toEqual([
+      'Body',
+      'Hair',
+      'hair row',
+    ])
   })
 })
 
@@ -249,7 +270,7 @@ describe('sub-sections in the control tree', () => {
 })
 
 describe('sub-sections with no section above them (a tab)', () => {
-  test('are siblings, not each other\'s children', async () => {
+  test("are siblings, not each other's children", async () => {
     const { controlTree } = await import('./widget-semantics.js')
     const tree = controlTree([
       w.label3d({ text: 'shape', collapsible: true, level: 2 }),
