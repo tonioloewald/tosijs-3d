@@ -127,9 +127,14 @@ try {
     `${proj}/package.json`,
     JSON.stringify({ name: 'consumer-smoke', private: true, type: 'module' })
   )
-  // npm, not bun: npm REFUSES a peer range bun would quietly resolve.
+  // npm, not bun: npm REFUSES a peer range bun would quietly resolve. The
+  // Babylon peers are optional (an engine-free consumer takes none of them),
+  // but this is the Babylon consumer, so it installs them as one would.
   const peers = Object.entries(pkg.peerDependencies ?? {})
-    .filter(([n]) => !pkg.peerDependenciesMeta?.[n]?.optional)
+    .filter(
+      ([n]) =>
+        !pkg.peerDependenciesMeta?.[n]?.optional || n.startsWith('@babylonjs/')
+    )
     .map(([n, r]) => `${n}@${r}`)
   const inst =
     await $`npm install --no-audit --no-fund ${tarball} ${peers} @webgpu/types typescript@5`
@@ -221,6 +226,41 @@ try {
             .join('\n  ')
       )
     }
+  }
+
+  // ── an engine-free consumer (a three.js app taking the character core) ───
+  // A plain install must not bring Babylon, and the pure subpaths must still
+  // import: that is what makes the Babylon peers optional.
+  const bare = path.join(work, 'engine-free')
+  await $`mkdir -p ${bare}`.quiet()
+  await Bun.write(
+    `${bare}/package.json`,
+    JSON.stringify({ name: 'engine-free-smoke', private: true, type: 'module' })
+  )
+  const bareInst = await $`npm install --no-audit --no-fund ${tarball}`
+    .cwd(bare)
+    .nothrow()
+    .quiet()
+  check(
+    'npm installs the tarball alone (an engine-free consumer)',
+    bareInst.exitCode === 0,
+    bareInst.stderr.toString().trim().split('\n').slice(-6).join('\n       ')
+  )
+  if (bareInst.exitCode === 0) {
+    const babylon = await Bun.file(
+      `${bare}/node_modules/@babylonjs/core/package.json`
+    ).exists()
+    check('an engine-free install brings no Babylon', !babylon)
+    const imports = PURE.map((n) => `await import('tosijs-3d/${n}')`).join(';')
+    const r = await $`node --input-type=module -e ${imports}`
+      .cwd(bare)
+      .nothrow()
+      .quiet()
+    check(
+      `node imports the ${PURE.length} pure subpaths with no Babylon installed`,
+      r.exitCode === 0,
+      r.stderr.toString().trim().split('\n').slice(0, 3).join('\n       ')
+    )
   }
 } finally {
   rmSync(work, { recursive: true, force: true })

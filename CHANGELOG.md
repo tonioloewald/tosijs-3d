@@ -12,6 +12,10 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+### Changed
+
+- **The `@babylonjs/*` peers are optional**, so a consumer of the engine-free subpaths (a three.js app taking the character core) installs no Babylon. A Babylon app that relied on npm installing the peers for it installs them itself: `npm i @babylonjs/core @babylonjs/gui @babylonjs/loaders @babylonjs/materials`.
+
 ## 0.12.4
 
 The latest release. Tabbed settings panels and undo across the character builder, rig tool and tailor; pictures in materials (Poly Haven's fabric scans as cloth presets, a picture or a flat colour or grey for any input); the tailor always on the bar; grips per class of held item; Tonio's textured weapons and melee in the biped. See [0.12.4](/v0.12.4/).

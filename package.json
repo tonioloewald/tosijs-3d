@@ -96,6 +96,18 @@
     "tosijs": "^1.9.2"
   },
   "peerDependenciesMeta": {
+    "@babylonjs/core": {
+      "optional": true
+    },
+    "@babylonjs/gui": {
+      "optional": true
+    },
+    "@babylonjs/loaders": {
+      "optional": true
+    },
+    "@babylonjs/materials": {
+      "optional": true
+    },
     "jolt-physics": {
       "optional": true
     }

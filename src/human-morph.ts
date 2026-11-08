@@ -10,7 +10,10 @@ male, baby, child, young or old, three muscle and three weight levels, and
 three ancestries. A body between corners is a weighted mix of the corners
 around it, and every slider is a position on one axis of that grid. The rules
 here are written from MakeHuman's file names and documented behaviour; none of
-their (AGPL) code is used.
+their (AGPL) code is used. One number is MakeHuman's behaviour rather than its
+data: the child corner at age 0.1875 (11 years) is where MakeHuman's own age
+slider puts it (`apps/human.py`, `setAge`), reproduced so a slider value
+means the same body in both.
 
 The sliders, each from 0 to 1:
 
