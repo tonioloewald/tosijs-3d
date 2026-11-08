@@ -23,6 +23,8 @@ each one with no DOM.
 export const CHARACTER_CORE = [
   'character-sources',
   'hand-socket',
+  'garment-proxy',
+  'garment-bind',
   'human-pack',
   'human-morph',
   'human-rig',
@@ -71,6 +73,11 @@ const EXTREMES_PARTS = [
   'extremes-sheet',
   'clock',
   'color',
+  'material-recipe',
+  'fabrics',
+  'fabric-textures',
+  'curve',
+  'gradient-filter',
 ]
 
 /** Every import or re-export specifier in a source file, comments stripped (doc examples import the barrel). */

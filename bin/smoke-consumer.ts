@@ -88,6 +88,9 @@ const PURE = [
   'ual-rest',
   'spring-vrm',
   'hand-socket',
+  'garment-proxy',
+  'garment-bind',
+  'material-recipe',
 ]
 
 try {

@@ -138,8 +138,12 @@ import {
   type HumanExpressions,
 } from './human-expression.js'
 import { readSkeleton, type ReadSkeleton } from './retarget-babylon.js'
-import { bindGarment } from './garment-bind.js'
-import { readGarment, garmentRigidity } from './garment-file.js'
+import { readGarment } from './garment-file.js'
+import {
+  garmentMadeOn,
+  garmentProxy,
+  type GarmentProxyMaterial,
+} from './garment-proxy.js'
 import {
   loadRigTriangles,
   loadSkinnedBody,
@@ -441,61 +445,36 @@ export async function makeCharacter(
     img
       ? URL.createObjectURL(new Blob([img.bytes], { type: img.mimeType }))
       : undefined
-  const fileLook = (m: any) =>
-    m
-      ? {
-          diffuse: imageUrl(m.baseColorTexture),
-          normal: imageUrl(m.normalTexture),
-          metallicRoughness: imageUrl(m.metallicRoughnessTexture),
-          roughness: m.roughness,
-          metallic: m.metallic,
-          baseColor: m.baseColor,
-          normalScale: m.normalScale,
-          alpha: m.alphaMode !== 'OPAQUE',
-          blend: m.alphaMode === 'BLEND',
-          alphaCutoff: m.alphaMode === 'MASK' ? m.alphaCutoff : undefined,
-          twoSided: m.doubleSided,
-        }
-      : { alpha: false, twoSided: false }
+  // A garment's material as data (garment-proxy), drawn from blob URLs.
+  const urlLook = (m: GarmentProxyMaterial) => ({
+    diffuse: imageUrl(m.baseColorTexture),
+    normal: imageUrl(m.normalTexture),
+    metallicRoughness: imageUrl(m.metallicRoughnessTexture),
+    roughness: m.roughness,
+    metallic: m.metallic,
+    baseColor: m.baseColor,
+    normalScale: m.normalScale,
+    alpha: m.alphaMode != null && m.alphaMode !== 'OPAQUE',
+    blend: m.alphaMode === 'BLEND',
+    alphaCutoff: m.alphaMode === 'MASK' ? m.alphaCutoff : undefined,
+    twoSided: m.twoSided,
+  })
   const proxyFrom = (
-    binding: any,
+    positions: ArrayLike<number>,
+    triangles: ArrayLike<number>,
     content: any,
     name: string,
     slot: string
   ) => {
-    const { garment, meta, material } = content
-    return {
-      ...binding,
-      triangles: garment.triangles,
-      uvs: garment.uvs ?? new Float32Array(binding.rows * 2),
-      delete: null,
-      name,
-      category: 'clothes',
-      slot,
-      material: {
-        ...fileLook(material),
-        ...(meta?.cut?.skirt || meta?.cut?.drape ? { twoSided: true } : {}),
-      },
-    }
+    const p = garmentProxy(content, { positions, triangles }, { name, slot })
+    return { ...p, material: urlLook(p.material) }
   }
   const proxyOn = (g: any, r: any) => {
-    if (!g.bound.has(r)) {
-      const { garment } = g.content
+    if (!g.bound.has(r))
       g.bound.set(
         r,
-        proxyFrom(
-          bindGarment(
-            r.body.positions,
-            r.body.indices,
-            garment.positions,
-            garmentRigidity(garment)
-          ),
-          g.content,
-          g.name,
-          g.slot
-        )
+        proxyFrom(r.body.positions, r.body.indices, g.content, g.name, g.slot)
       )
-    }
     return g.bound.get(r)
   }
   const addGarment = async (bytes: Uint8Array) => {
@@ -507,26 +486,11 @@ export async function makeCharacter(
     proxyMaterials.delete(`${name}:`)
     let proxy = null
     if (source === 'MakeHuman') {
-      const on = meta.body
-        ? await morphHuman(
-            pack,
-            macroWeights({ ...DEFAULT_HUMAN_BODY, ...meta.body }, (n) =>
-              pack.has(n)
-            )
-          )
+      const madeOn = garmentMadeOn(meta)
+      const on = madeOn
+        ? await morphHuman(pack, macroWeights(madeOn, (n) => pack.has(n)))
         : current
-      const { garment } = content
-      proxy = proxyFrom(
-        bindGarment(
-          on,
-          pack.triangles,
-          garment.positions,
-          garmentRigidity(garment)
-        ),
-        content,
-        name,
-        slot
-      )
+      proxy = proxyFrom(on, pack.triangles, content, name, slot)
       if (!styles[slot].includes(name)) styles[slot].push(name)
     }
     const g = {
