@@ -97,7 +97,7 @@ const surfaceRows = () => {
   if (!surfaces.length) return []
   const source = walker.source.value
   return [
-    label3d({ text: 'Surfaces', icon: 'mesh', collapsible: true, open: true }),
+    label3d({ text: 'surfaces', collapsible: true, level: 2 }),
     ...surfaces.map(({ name, choice }) =>
       select3d({
         label: name,
@@ -195,6 +195,9 @@ const playbackRow = () =>
 // asked for; turning it on pauses the clip, so the hand holds still.
 let gripHandles = false
 let showGripHandles = (on) => { gripHandles = on }
+// The same for the hair, on the head.
+let hairHandles = false
+let showHairHandles = (on) => { hairHandles = on }
 // Every item in Tonio's library is made the same way (origin at the grip, +Y
 // up the grip, +Z forward, real size), so a grip is set per CLASS of item
 // (hold-grip: pistols, rifles, one- and two-handed blades…): placing it on
@@ -302,7 +305,7 @@ preview.append(
         { icon: 'rotateCw', title: 'redo (⇧⌘Z)', dim: !character.canRedo(), handleClick: () => character.redo() },
       ],
       scenePanel: () => madeHuman() ? [
-        label3d({ text: 'Body', icon: 'body', collapsible: true, open: true }),
+        label3d({ text: 'Body', icon: 'mesh', collapsible: true, open: true }),
         select3d({ label: 'source', value: walker.source, options: sourceNames(), stayOpen: true }),
         button3d({ label: 'open a mesh…', handleClick: () => openBody() }),
         // How much of the body is drawn: MakeHuman's lighter skins, or its base mesh.
@@ -352,17 +355,25 @@ preview.append(
         // a base preset brings its usual highlight with it.
         colorPicker3d({ label: 'base', value: walker.hairBase, alpha: false, defaultPresets: 'off', presets: Object.entries(HAIR_COLOURS).map(([name, c]) => ({ name, value: c.base })) }),
         colorPicker3d({ label: 'highlights', value: walker.hairHighlight, alpha: false, defaultPresets: 'off', presets: Object.entries(HAIR_COLOURS).map(([name, c]) => ({ name, value: c.highlight })) }),
-        // A hand adjustment, metres and a scale, after the fit.
-        slider3d({ label: 'up', value: walker.hairUp, min: -0.02, max: 0.02, step: 0.001 }),
-        slider3d({ label: 'forward', value: walker.hairForward, min: -0.02, max: 0.02, step: 0.001 }),
-        slider3d({ label: 'size', value: walker.hairSize, min: 0.9, max: 1.1, step: 0.005 }),
+        // A hand adjustment after the fit: dragged up and forward on the head
+        // (no turn, no sideways: hair stays symmetrical), and a scale. For the
+        // library's styles; MakeHuman's own hair is bound to the body.
+        ...(walker.hair.value === 'none' || packProxies[walker.hair.value] ? [] : [toggle3d({
+          label: 'manipulator',
+          value: hairHandles,
+          handleChange: (v) => {
+            if (v && !walker.paused.value) walker.paused.value = true
+            showHairHandles(v)
+          },
+        }),
+        slider3d({ label: 'scale', value: walker.hairSize, min: 0.9, max: 1.1, step: 0.005 })]),
         ...clothesRows(),
         ...holdRows(),
         ...exportRows(),
       ] : [
         // A body of anyone's: what MakeHuman's carries (shape, face, hair,
         // clothes) is not there; the clips and the skin are.
-        label3d({ text: 'Body', icon: 'body', collapsible: true, open: true }),
+        label3d({ text: 'Body', icon: 'mesh', collapsible: true, open: true }),
         select3d({ label: 'source', value: walker.source, options: sourceNames(), stayOpen: true }),
         button3d({ label: 'open a mesh…', handleClick: () => openBody() }),
         ...(ch?.problem ? [text3d({ text: ch.problem })] : []),
@@ -373,11 +384,12 @@ preview.append(
               text3d({ text: 'Rigging: in the Rig panel (on the bar). Done there brings the body back.' }),
             ]
           : [button3d({ label: 'rig…', handleClick: () => openRig() })]),
+        // Its file's materials, each as made or the skin.
+        ...surfaceRows(),
         label3d({ text: 'Motion', icon: 'motion', collapsible: true, open: true }),
         select3d({ label: 'clip', value: walker.clip, options: clips, stayOpen: true }),
         playbackRow(),
         button3d({ label: 'clips from a file…', handleClick: () => openClips() }),
-        ...surfaceRows(),
         ...clothesRows(),
         ...holdRows(),
         ...exportRows(),
@@ -612,6 +624,53 @@ preview.append(
           gripHandles = on
           gizmo.node = on && held ? gripNode : null
         }
+        // THE HAIR'S HANDLE: a node on the Head bone at the skull's middle plus
+        // the adjustment. Dragging moves the hair's meshes as they are; the
+        // adjustment is kept, and the hair placed again, on release.
+        const hairNode = new BABYLON.TransformNode('hair-handle', el.scene)
+        let hairDrag = null
+        let hairFrom = null
+        const placeHairHandle = () => {
+          const anchor = hairHandles ? ch?.hairAnchor?.() : null
+          hairGizmo.node = null
+          if (!anchor) return
+          const c = anchor.centre
+          hairNode.parent = anchor.node
+          hairNode.rotationQuaternion = BABYLON.Quaternion.Identity()
+          hairNode.position.set(c.x, c.y + walker.hairUp.value, c.z + walker.hairForward.value)
+          hairFrom = hairNode.position.clone()
+          hairGizmo.node = hairNode
+        }
+        const hairGizmo = b3dManipulator({
+          move: 'on',
+          turn: 'off',
+          size: 0.09,
+          whenChange: () => {
+            const anchor = ch?.hairAnchor?.()
+            if (!anchor) return
+            // Up and forward only.
+            hairNode.position.x = anchor.centre.x
+            hairDrag ??= { meshes: anchor.meshes, at: anchor.meshes.map((m) => m.position.clone()) }
+            const d = hairNode.position.subtract(hairFrom ?? hairNode.position)
+            hairDrag.meshes.forEach((m, i) => m.position.copyFrom(hairDrag.at[i].add(d)))
+          },
+          whenCommit: () => {
+            const anchor = ch?.hairAnchor?.()
+            hairDrag = null
+            if (!anchor) return
+            const mm = (v) => Math.round(v * 1000) / 1000
+            walker.hairUp.value = mm(hairNode.position.y - anchor.centre.y)
+            walker.hairForward.value = mm(hairNode.position.z - anchor.centre.z)
+          },
+        })
+        el.append(hairGizmo)
+        showHairHandles = (on) => {
+          hairHandles = on
+          placeHairHandle()
+        }
+        // Undo, a loaded character or a new body puts the handle back.
+        walker.hairUp.observe(() => placeHairHandle())
+        walker.hairForward.observe(() => placeHairHandle())
         weapons?.ready.then(() => {
           heldNames = ['none', ...weapons.getNames().filter((n) => !n.startsWith('ammo')).sort()]
           applyGrip()
@@ -720,6 +779,7 @@ preview.append(
             if (shown && tailor?.tool && tailor.editing?.source === shown.source) tailor.tool.setBody(shown.body, shown.built)
             else if (tailor?.open && !tailor.tool) tailor.begin()
             applyGrip()
+            showHairHandles(hairHandles)
             el.refreshScenePanel?.()
             play()
           },
@@ -756,6 +816,11 @@ preview.append(
         // Wearing something else: its row gets its swatch (the character
         // resets its look).
         for (const slot of SLOTS) walker[slot].observe(() => el.refreshScenePanel?.())
+        // MakeHuman's own hair has no hand adjustment: its rows go, and the handle.
+        walker.hair.observe(() => {
+          if (walker.hair.value === 'none' || packProxies[walker.hair.value]) showHairHandles(false)
+          el.refreshScenePanel?.()
+        })
         // The microphone drives the lips (it asks first, so it is never saved).
         let stopMic = null
         walker.mic.observe(async () => {
@@ -1286,8 +1351,9 @@ made on.
 
 A mesh's body (a file, the Blender or Quaternius bodies) has a tailor and a
 wardrobe of its own: a garment cut or imported on it is worn on that body
-only, and MakeHuman's clothes are MakeHuman's. Its **Surfaces** set each of
-the file's materials **as made** (its textures, metal, glass) or in the
+only, and MakeHuman's clothes are MakeHuman's. Its **surfaces** (under the
+source, on the Body tab) set each of the file's materials **as made** (its
+textures, metal, glass) or in the
 **skin**. Rig a tail before cutting round the hips: cloth is not cut from a
 tail's skin.
 

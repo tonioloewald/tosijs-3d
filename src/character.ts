@@ -269,6 +269,17 @@ export interface SceneCharacter {
    * `riggedBodyGlb`'s `garments` writes. Empty on MakeHuman's body.
    */
   wornGarments(): GarmentProxy[]
+  /**
+   * Where the hair's hand adjustment is measured from: the Head bone's node
+   * and the skull's middle in its frame (metres, y up, z forward), before
+   * `hairUp`/`hairForward`. Null off MakeHuman's body.
+   */
+  hairAnchor(): {
+    node: BABYLON.TransformNode
+    centre: { x: number; y: number; z: number }
+    /** The hair's meshes as placed now, to move while a drag previews. */
+    meshes: BABYLON.AbstractMesh[]
+  } | null
   /** Its skeleton, read for `retargetClip`. */
   readonly skeleton: ReadSkeleton | null
   /** Its rig recipe, when it has one. */
@@ -1242,6 +1253,18 @@ export async function makeCharacter(
         : styles[key] ?? [],
     get shown() {
       return shown()
+    },
+    hairAnchor() {
+      if (!built || !scalp || shownNow !== built) return null
+      const node = built.node('Head')
+      const at = built.rig.at('Head')
+      if (node == null || at == null) return null
+      const c = scalp.centre
+      return {
+        node,
+        centre: { x: c.x - at.x, y: c.y - at.y, z: c.z - at.z },
+        meshes: hairMeshes.filter((m) => m.name.startsWith('hair-')),
+      }
     },
     wornGarments() {
       const r = shownNow
