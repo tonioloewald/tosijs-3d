@@ -433,6 +433,122 @@ simplified, wrinkles baked to a normal map, and bound as in step 4. Runtime
 cloth stays step 8's constrained springs. Steps 1–7 give clothed, rigged
 characters without it, so the solver never blocks the creator.
 
+### 10. Motion from a webcam (medium–large; #3843, ready, high)
+
+Tonio, 2026-11-08: "it would be amazingly useful as a core capability."
+Suggested by Dramatis's owner. The goal is to turn on the webcam and, in a
+minute, give a character a pose or a few seconds of motion of your own,
+aimed at part of the body and played over a base clip.
+
+This is behaviour, not fidelity. Someone's own shrug, wave or way of standing
+is exactly the "depth is systemic" the north star asks for, and it costs no
+vertices.
+
+**What it is for:**
+- gestures, emotes, idles and held poses;
+- one part of the body, over UAL's locomotion.
+
+**What it is not for:** walking and running from one camera. Depth is
+guessed and feet slide, and UAL already has those clips.
+
+**One clip format throughout.** A capture is a `GlbClip` on UAL's skeleton:
+[glb-clips](/glb-clips/)'s shape, with UAL's rest (`ual-rest`) as its
+`GlbClipSource`. So once recorded, it is just a clip:
+- it plays on any body through `bakeClip` / `retargetClip`;
+- it layers through `animation-layers` with a `bone-mask`;
+- it goes out in an export through `riggedBodyGlb`'s `clips`.
+
+Nothing downstream needs a capture-specific path.
+
+**The pipeline:**
+
+1. **Landmarks.** MediaPipe's Pose Landmarker runs in the browser: 33 body
+   points per frame, with world coordinates in metres about the hips. The
+   hand landmarker adds 21 points a hand; the face landmarker adds 52
+   blendshapes and a head transform. Loaded on first use only, so it costs
+   nothing until someone presses capture. Video frames never leave the page;
+   only rotations are kept.
+2. **Solve** (pure, engine-free, in the character core), from landmarks to
+   UAL bone rotations:
+   - each limb's direction (shoulder to elbow to wrist, hip to knee to
+     ankle, mid-hip to mid-shoulder, neck to head) turns UAL's rest
+     direction onto it;
+   - twist comes from a second vector per segment: the shoulder line for
+     the chest, the hip line for the pelvis, the palm's normal for a hand,
+     heel to toe for a foot.
+   This is the retargeter's own way of working (directions since rest), so
+   it is our own solver, not Kalidokit: no dependency, and it agrees with
+   how clips already move. MediaPipe's frame (image axes, mirrored in a
+   selfie view) is converted once, at the edge.
+3. **Clean up:**
+   - a one-euro filter per joint (smooth when still, responsive when moving);
+   - a foot lock when a foot is near the floor and nearly still;
+   - confidence gating: a landmark MediaPipe is unsure of holds its last
+     good value;
+   - the body-part mask: only the chosen bones are written.
+4. **Record:**
+   - a pose (hold still, a short average) or a clip (up to about ten
+     seconds);
+   - trimmed, with an optional loop blend at the seam;
+   - previewed over the base clip, then kept or thrown away.
+5. **Hands and face** (later, separate steps):
+   - finger curl and spread from the hand points onto UAL's finger joints;
+   - the face's blendshapes (ARKit's 52 names) onto MakeHuman's face pose
+     units, through a table tuned by eye, with the head turn from the face's
+     transform.
+
+**Measured, not eyeballed.** The solver is tested with no camera, as a round
+trip:
+1. Pose UAL from its own clips.
+2. Compute where MediaPipe's landmarks would be (joint positions, and
+   offsets for nose, ears, heels and toes).
+3. Solve, and report the angle error per bone (median and worst) over the
+   locomotion and gesture clips.
+4. Add MediaPipe-sized noise and dropouts to tune the filters.
+
+A few real landmark sequences, as JSON with no images, become regression
+fixtures.
+
+**Where it lives:**
+- `motion-capture`, pure and in the character core: the solver, the filters,
+  the mask and the clip, so Dramatis's three.js side can use it too.
+- `webcam-capture`: the camera, the lazy MediaPipe loader and the recorder,
+  as a panel widget that works flat. A headset browser has no webcam;
+  capturing from a headset's own head and hands is a different source for
+  the same solver output, and comes later.
+- The builder's Motion section: **capture**, a body-part choice, pose or clip,
+  a countdown, preview, keep.
+
+**Licences, before anything ships:**
+- MediaPipe's code (`@mediapipe/tasks-vision`, Apache 2.0);
+- each model file's own terms, read from its model card, not assumed;
+- the models can be mirrored to cdn.tosijs.net only if those terms allow
+  it, else loaded from Google's storage, pinned.
+
+Ruled out: OpenPose and SMPL-based models (non-commercial only), and
+FreeMoCap (AGPL: study, don't copy).
+
+**The steps:**
+1. **Solver and round-trip harness** (pure; medium). Done when the median
+   error is under 10° on UAL's gesture and idle clips.
+2. **Filters, mask, the clip format, layering over a base clip** (small–medium).
+3. **Webcam and MediaPipe body capture in the builder, flat** (medium).
+   Watchable: wave at the camera, and the character waves while it walks.
+4. **Hands to fingers** (small–medium).
+5. **Face to expression units** (medium; the table is the work).
+6. **Saving and export** (small): captures saved and exported with their
+   licence, "the user's own capture". The export path exists already.
+
+**Open questions for Tonio:**
+- **Where captures are kept.** In the character file, or in a clip library
+  in the browser's store, shared by every character? A capture is on UAL's
+  skeleton, so it fits any body. Leaning towards the library, with a
+  character file carrying the clips it uses.
+- **Pose and clip both in the first cut,** or the pose alone first? It is
+  simpler and covers portraits and held stances.
+- **A headset's own tracking** (head, controllers or hand tracking) as a
+  capture source: in scope later, or not?
+
 ## Loading: no ceiling, one source of truth
 
 Tonio, 2026-10-21: everything here can load lazily, so there is no absolute
