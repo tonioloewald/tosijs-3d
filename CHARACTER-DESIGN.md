@@ -487,8 +487,7 @@ Nothing downstream needs a capture-specific path.
      good value;
    - the body-part mask: only the chosen bones are written.
 4. **Record:**
-   - a pose (hold still, a short average) or a clip (up to about ten
-     seconds);
+   - a clip, up to about ten seconds (a pose is a frame of one: see below);
    - trimmed, with an optional loop blend at the seam;
    - previewed over the base clip, then kept or thrown away.
 5. **Hands and face** (later, separate steps):
@@ -557,11 +556,18 @@ So step 6 (saving and export) becomes a clip wardrobe: a store, a character
 file field, and a panel. `tailorPanel` and `GarmentStore` are the pattern to
 copy.
 
-**Open questions for Tonio:**
-- **Pose and clip both in the first cut,** or the pose alone first? It is
-  simpler and covers portraits and held stances.
-- **A headset's own tracking** (head, controllers or hand tracking) as a
-  capture source: in scope later, or not?
+**A pose is a frame of a clip** (Tonio, 2026-11-08: "the animation controller
+is an obvious way to pull a pose from a clip precisely, so even for capturing
+a pose, capturing a clip is useful"). The recorder captures clips only. A
+pose is kept by scrubbing the capture in `playback3d` to the moment you want
+and keeping that frame, a one-frame clip. That is more precise than holding
+still for the camera, and there is one capture flow.
+
+**A headset is a separate source, later.** You are unlikely to be in front of
+a webcam and in a headset at the same time (Tonio), so headset capture is not
+a mode of this recorder. It is its own: the head, controllers or tracked
+hands, solved onto the same bones and kept in the same clip format, so it
+joins the same wardrobe.
 
 ## Loading: no ceiling, one source of truth
 
