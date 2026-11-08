@@ -2001,6 +2001,14 @@ export {
   lidBlink,
 } from './rigged-body.js'
 export { mountTailorTool } from './tailor-tool.js'
+export { tailorPanel, garmentStore, NEW_GARMENT } from './tailor-panel.js'
+export type {
+  TailorPanelOptions,
+  TailorPanelHandle,
+  TailorDraft,
+  GarmentStore,
+  Kept,
+} from './tailor-panel.js'
 export { chooseFile } from './choose-file.js'
 export {
   loadSkinnedBody,

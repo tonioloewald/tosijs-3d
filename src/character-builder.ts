@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, mountTailorTool, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, tailorPanel, garmentStore, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 import { exportBodyRows } from 'tosijs-3d/body-export'
@@ -162,20 +162,9 @@ const surfaceRows = () => {
 // character's left; the right is its mirror). A rectangle from the waist to
 // the ankles makes trousers.
 let tailorShapes = []
-// The tailor at work (tailor-tool), while its panel is open on a garment it
-// can edit.
-let tailoring = null
-// The tailor's panel and what it shows (set up with the scene; here because
-// the character's first show can run before that code does).
-const NEW_GARMENT = '(new garment)'
-let tailorOpen = false
-// What the garment picker shows, and what is being edited:
-// { slot, name (null for a new one), source, start (to tell an edit) }.
-let tailorPick = NEW_GARMENT
-let tailorEditing = null
-let beginTailor = () => {}
-let keepTailored = async () => {}
-let refreshTailor = () => {}
+// The tailor on the bar (tailor-panel), made with the scene; here because the
+// character's first show can run before that code does.
+let tailor = null
 // What the tailor cuts from: the body shown, once it is there (and not while
 // the rig tool has it).
 const tailorTarget = () => (!rigging && ch?.shown?.source === walker.source.value ? ch.shown : null)
@@ -692,21 +681,8 @@ preview.append(
         speedClip = (s) => { if (playing) playing.speedRatio = s }
 
         // The saved garments, in IndexedDB: per browser, nothing shared yet.
-        const garmentStore = async (mode, fn) => {
-          const db = await new Promise((ok, no) => {
-            const r = indexedDB.open('tosijs-garments', 1)
-            r.onupgradeneeded = () => r.result.createObjectStore('garments')
-            r.onsuccess = () => ok(r.result)
-            r.onerror = () => no(r.error)
-          })
-          return new Promise((ok, no) => {
-            const t = db.transaction('garments', mode)
-            const req = fn(t.objectStore('garments'))
-            t.oncomplete = () => ok(req?.result)
-            t.onerror = () => no(t.error)
-          })
-        }
-        const savedGarments = await garmentStore('readonly', (st) => st.getAll()).catch((e) => {
+        const garmentFiles = garmentStore()
+        const savedGarments = await garmentFiles.all().catch((e) => {
           console.warn('tailor: no saved garments (storage unavailable)', e)
           return []
         })
@@ -730,8 +706,8 @@ preview.append(
           handleMeshes: (meshes) => el.register({ meshes }),
           handleShown: (shown) => {
             // A garment being cut is cut from the body as it is now.
-            if (shown && tailoring && tailorEditing?.source === shown.source) tailoring.setBody(shown.body, shown.built)
-            else if (tailorOpen && !tailoring) beginTailor()
+            if (shown && tailor?.tool && tailor.editing?.source === shown.source) tailor.tool.setBody(shown.body, shown.built)
+            else if (tailor?.open && !tailor.tool) tailor.begin()
             applyGrip()
             el.refreshScenePanel?.()
             play()
@@ -745,13 +721,14 @@ preview.append(
           get body() { return ch.shown?.body },
           get tailorShapes() { return tailorShapes },
           set tailorShapes(v) { tailorShapes = v },
-          get tailor() { return tailoring },
-          openTailor: () => el.builder.tailorPanel?.show?.(),
-          garmentFile: (f, alone) => garmentFile(f, alone),
-          importFrom: (d, n) => importFrom(d, n),
-          forget: () => forgetTailored(),
+          get tailor() { return tailor?.tool ?? null },
+          get tailorPanel() { return tailor?.panel },
+          openTailor: () => tailor?.panel.show?.(),
+          garmentFile: (f, alone) => tailor?.garmentFile(f, alone) ?? null,
+          importFrom: (d, n) => tailor?.importFrom(d, n),
+          forget: () => tailor?.forget(),
           saved: ch.garments,
-          get message() { return importError },
+          get message() { return importError || tailor?.message || '' },
           get expressions() { return ch.expressions },
         }
         // Each of the character's settings goes to it as it changes.
@@ -791,7 +768,7 @@ preview.append(
         walker.source.observe(() => {
           if (rigging) { rigging.unmount(); rigging = null; ch.hide(false) }
           // The tailor keeps what it was making on the body before.
-          if (tailorOpen) void keepTailored().then(() => tailorOpen && beginTailor())
+          if (tailor?.open) void tailor.keep().then(() => tailor.open && tailor.begin())
         })
 
         // GARMENTS OF YOUR OWN: what a garment was made on (MakeHuman's body,
@@ -802,162 +779,26 @@ preview.append(
           from === 'MakeHuman'
             ? { format: 'tosijs-garment', version: 1, base: pack.manifest.base, pack: pack.manifest.version, body: bodyValues(), name: 'tailored', slot: 'top' }
             : { format: 'tosijs-garment', version: 1, source: from, name: 'tailored', slot: 'top' }
-        // The garment to take to an editor: the one being tailored, else the
-        // one of your own in the chosen slot. A GLB's bytes or an OBJ's text.
-        const garmentFile = (format, bodyAlone = false) => {
-          let garment = null
-          let meta = baseMeta()
-          if (!bodyAlone) {
-            const own = ownIn(walker.tailorSlot.value)
-            const open = tailoring?.garment()
-            if (open) garment = open
-            else if (own) ({ garment, meta } = readGarment(own.bytes))
-            else return null
-          }
-          // The body it was made on, as a helper to model against (left out on import).
-          const shown = ch.shown
-          const body = bodyAlone || walker.exportBody.value
-            ? madeHuman() ? { positions: ch.human.positions, triangles: pack.triangles } : shown && { positions: shown.body.positions, triangles: shown.body.indices }
-            : null
-          return format === 'obj' ? writeGarmentObj({ garment, body, meta }) : writeGarmentGlb({ garment, body, meta })
-        }
-        const say = (message) => { importError = message; el.refreshScenePanel?.(); refreshTailor() }
-        // A name of its own: not MakeHuman's, and not another garment's
-        // unless it is the one being replaced.
-        const freeName = (wanted, replacing) => {
-          const base = (wanted || 'garment').trim()
-          const taken = (n) => n === 'none' || packProxies[n] || (ch.garments.has(n) && n !== replacing)
-          let n = base
-          for (let i = 2; taken(n); i++) n = `${base} ${i}`
-          return n
-        }
-        // A garment file kept in this browser and worn from its slot.
-        const keep = async (bytes, slot) => {
-          await garmentStore('readwrite', (st) => st.put(bytes, readGarment(bytes).meta.name))
-          const g = await ch.addGarment(bytes)
-          importError = ''
-          if (walker[slot].value === g.name) ch.redress()
-          else walker[slot].value = g.name
-          el.refreshScenePanel?.()
-        }
-        // THE TAILOR, always on the bar (scissors). Open, it edits the
-        // garment chosen for its slot: one of your own (its outline), or a
-        // new one. What it makes is kept as it goes: switching slot or
-        // garment, or closing the panel, keeps the garment (a file in this
-        // browser, worn in its slot); undo covers the edits. The garment
-        // being cut steps aside (hideSlot) while the tailor draws it.
-        const tailorPanel = b3dPanel({ icon: 'scissors', title: 'Tailor', exclusive: 'off' })
-        el.append(tailorPanel)
-        el.builder.tailorPanel = tailorPanel
-        // A garment of your own, made on this body, with an outline to edit.
-        const tailored = (name) => {
-          const g = ch?.garments.get(name)
-          return g && g.source === walker.source.value && g.cut ? g : null
-        }
-        // Opening on a slot: what it wears, if the tailor can edit it or it
-        // is something to see; an empty slot starts a new garment.
-        const defaultPick = () => {
-          const worn = walker[walker.tailorSlot.value].value
-          return worn === 'none' ? NEW_GARMENT : worn
-        }
-        const tailorTop = () => {
-          const slot = walker.tailorSlot.value
-          return [
-            select3d({
-              label: 'slot',
-              value: slot,
-              options: SLOTS,
-              handleChange: (v) => {
-                if (v === walker.tailorSlot.value) return
-                void keepTailored().then(() => {
-                  walker.tailorSlot.value = String(v)
-                  tailorPick = defaultPick()
-                  beginTailor()
-                })
-              },
+        // THE TAILOR, always on the bar (tailor-panel): this page keeps its
+        // draft, its slot and what each slot wears.
+        const kept = (key) => ({ get: () => walker[key].value, set: (v) => { walker[key].value = v } })
+        tailor = tailorPanel(el, {
+          character: () => ch,
+          target: () => tailorTarget() ?? (rigging ? 'The rig tool has the body: done or cancel in the Rig panel, then tailor it.' : 'loading the body…'),
+          slots: SLOTS,
+          choices: (slot) => choices(slot),
+          worn: (slot) => walker[slot].value,
+          wear: (slot, name) => { walker[slot].value = name },
+          madeOn: (from) => baseMeta(from),
+          reserved: (name) => !!packProxies[name],
+          store: garmentFiles,
+          draft: {
+            get: () => ({
+              cut: { shapes: tailorShapes, thickness: walker.tailorThickness.value, skirt: walker.tailorSkirt.value, drape: walker.tailorDrape.value, mesh: walker.tailorMesh.value },
+              look: plain(walker.tailorLook.value),
+              name: walker.tailorName.value,
             }),
-            select3d({
-              label: 'garment',
-              value: tailorPick,
-              options: [...choices(slot).filter((n) => n !== 'none'), NEW_GARMENT],
-              handleChange: (v) => {
-                if (v === tailorPick) return
-                void keepTailored().then(() => {
-                  tailorPick = String(v)
-                  // Something to wear (anything but a new one) is worn.
-                  if (tailorPick !== NEW_GARMENT) walker[slot].value = tailorPick
-                  beginTailor()
-                })
-              },
-            }),
-          ]
-        }
-        const tailorBottom = () => {
-          const own = tailorPick !== NEW_GARMENT && ch?.garments.get(tailorPick)
-          return [
-            ...(own
-              ? [
-                  button3d({ label: `forget ${tailorPick}`, handleClick: () => forgetTailored() }),
-                  toggle3d({ label: 'include the body (a helper)', value: walker.exportBody }),
-                  button3d({ label: 'export GLB', handleClick: () => exportGarment('glb') }),
-                  button3d({ label: 'export OBJ', handleClick: () => exportGarment('obj') }),
-                ]
-              : []),
-            // The body alone, to model a garment from nothing beside it.
-            button3d({ label: 'export the body alone', handleClick: () => exportGarment('glb', true) }),
-            button3d({ label: 'import a garment…', handleClick: () => importGarment() }),
-            ...(importError ? [text3d({ text: importError })] : []),
-          ]
-        }
-        // The panel with nothing to cut: what the slot wears, or why not.
-        let idleMessage = ''
-        const tailorIdle = (message) => {
-          idleMessage = message
-          tailorPanel.svg = panel3d(
-            { width: 340, height: 'fit', maxHeight: Math.min(720, el.panelRoom?.(tailorPanel) ?? 720) },
-            ...tailorTop(),
-            text3d({ text: message }),
-            ...tailorBottom()
-          )
-        }
-        // Cut the picked garment (or a new one), or say why it cannot be.
-        refreshTailor = () => (tailoring ? tailoring.refresh() : tailorIdle(idleMessage))
-        beginTailor = () => {
-          if (!tailorOpen || tailoring) return
-          const slot = walker.tailorSlot.value
-          const target = tailorTarget()
-          if (!target) {
-            ch?.set({ hideSlot: '' })
-            return tailorIdle(rigging ? 'The rig tool has the body: done or cancel in the Rig panel, then tailor it.' : 'loading the body…')
-          }
-          const saved = tailorPick === NEW_GARMENT ? null : tailored(tailorPick)
-          if (tailorPick !== NEW_GARMENT && !saved) {
-            ch.set({ hideSlot: '' })
-            return tailorIdle(`${tailorPick} has no outline to edit here. Pick ${NEW_GARMENT} to cut one for this slot.`)
-          }
-          ch.set({ hideSlot: slot })
-          const cut = saved
-            ? { ...saved.cut, skirt: saved.cut.skirt === true, drape: saved.cut.drape === true, mesh: saved.cut.mesh ?? 'medium' }
-            : { shapes: tailorShapes, thickness: walker.tailorThickness.value, skirt: walker.tailorSkirt.value, drape: walker.tailorDrape.value, mesh: walker.tailorMesh.value }
-          const look = saved ? saved.look?.material ?? clothRecipe(saved.look ?? {}) : plain(walker.tailorLook.value)
-          const name = saved ? tailorPick : walker.tailorName.value
-          tailorEditing = { slot, name: saved ? tailorPick : null, source: target.source, start: JSON.stringify({ cut, look, name }) }
-          tailoring = mountTailorTool(el, {
-            body: target.body,
-            built: target.built,
-            cut,
-            look,
-            name,
-            slot,
-            panel: tailorPanel,
-            persistent: true,
-            rows: { top: tailorTop, bottom: tailorBottom },
-            hideOthers: walker.tailorAlone.value,
-            handleHideOthers: (v) => { walker.tailorAlone.value = v },
-            // A new garment's outline is kept with the character as it goes,
-            // so it carries on where it was; one of your own keeps its file.
-            handleChange: ({ cut, look, name }) => {
-              if (tailorEditing?.name != null) return
+            set: ({ cut, look, name }) => {
               tailorShapes = cut.shapes
               walker.tailorThickness.value = cut.thickness
               walker.tailorSkirt.value = cut.skirt
@@ -965,108 +806,18 @@ preview.append(
               walker.tailorMesh.value = cut.mesh ?? 'medium'
               walker.tailorLook.value = look
               walker.tailorName.value = name
-              character.changed()
             },
-          })
-          el.refreshScenePanel?.()
-        }
-        // Keep what the tailor has made (a closed outline) as a garment in
-        // its slot, and put the tailor away.
-        keepTailored = async () => {
-          const t = tailoring
-          const ed = tailorEditing
-          tailoring = null
-          tailorEditing = null
-          ch?.set({ hideSlot: '' })
-          if (!t) return
-          const garment = t.garment()
-          const { cut, look, name } = t.state
-          t.unmount()
-          if (!garment) return
-          // One of your own, unchanged: nothing to write.
-          if (ed.name != null && JSON.stringify({ cut, look, name }) === ed.start) return
-          const kept = freeName(name || ed.name || 'garment', ed.name)
-          const bytes = writeGarmentGlb({ garment, meta: { ...baseMeta(ed.source), name: kept, slot: ed.slot, look: { material: look }, cut } })
-          if (ed.name == null) {
-            // Kept: the next new garment starts from nothing.
-            tailorShapes = []
-            walker.tailorName.value = ''
-          }
-          try {
-            await keep(bytes, ed.slot)
-            // Renamed: the old file goes.
-            if (ed.name != null && kept !== ed.name) {
-              await garmentStore('readwrite', (st) => st.delete(ed.name)).catch(() => {})
-              ch.forgetGarment(ed.name)
-            }
-            if (tailorPick === NEW_GARMENT || tailorPick === ed.name) tailorPick = kept
-          } catch (e) {
-            console.warn('tailor: could not save', e)
-            say(`could not save: ${e?.message ?? e}`)
-          }
-        }
-        tailorPanel.addEventListener('paneltoggle', (e) => {
-          tailorOpen = e.detail.open
-          if (tailorOpen) {
-            tailorPick = defaultPick()
-            beginTailor()
-          } else {
-            void keepTailored()
-            if (walker.tailorAlone.value) walker.tailorAlone.value = false
-          }
+          },
+          slot: kept('tailorSlot'),
+          hideOthers: kept('tailorAlone'),
+          includeBody: kept('exportBody'),
+          helperBody: () =>
+            madeHuman() ? { positions: ch.human.positions, triangles: pack.triangles } : ch.shown && { positions: ch.shown.body.positions, triangles: ch.shown.body.indices },
+          save: (data, name, type) => save(data, name, type),
+          handleChange: () => character.changed?.(),
+          handleWardrobe: () => el.refreshScenePanel?.(),
+          handleMessage: () => el.refreshScenePanel?.(),
         })
-        // Forget the picked garment of your own (its file too); the slot is
-        // left empty and the tailor starts a new one.
-        const forgetTailored = async () => {
-          const name = tailorPick
-          const slot = walker.tailorSlot.value
-          if (name === NEW_GARMENT || !ch.garments.get(name)) return
-          if (tailoring) {
-            tailoring.unmount()
-            tailoring = null
-            tailorEditing = null
-          }
-          await garmentStore('readwrite', (st) => st.delete(name)).catch((e) => console.warn('tailor: could not forget', e))
-          ch.forgetGarment(name)
-          if (walker[slot].value === name) walker[slot].value = 'none'
-          tailorPick = NEW_GARMENT
-          beginTailor()
-          el.refreshScenePanel?.()
-        }
-        tailorIdle('open to tailor')
-        const exportGarment = (format, bodyAlone = false) => {
-          const data = garmentFile(format, bodyAlone)
-          if (data == null) return say('choose a garment of your own to export')
-          save(data, bodyAlone ? 'body.glb' : format === 'obj' ? 'garment.obj' : 'garment.glb', format === 'obj' ? 'text/plain' : 'model/gltf-binary')
-        }
-        // A garment from an editor: kept as a choice in its slot, named as
-        // the file says (else after the file).
-        const importFrom = async (data, fileName) => {
-          const content = readGarment(data)
-          // Bound to the body it was made on, where the file says what that
-          // was; else to the body shown, which is then what it was made on.
-          if (!content.meta) console.warn('tailor: no metadata in the file (export from Blender with custom properties); bound to the body shown')
-          if (content.materialCount > 1) console.warn(`tailor: the garment uses ${content.materialCount} materials; only the first is drawn`)
-          const known = content.meta?.source || content.meta?.body
-          const meta = known ? content.meta : { ...baseMeta(), ...content.meta, ...(madeHuman() ? {} : { source: walker.source.value }) }
-          const slot = SLOTS.includes(meta.slot) ? meta.slot : 'top'
-          const wanted = meta.name && meta.name !== 'tailored' ? meta.name : fileName.replace(/\.[^.]*$/, '')
-          const name = freeName(wanted, null)
-          // A garment with its own maps keeps them: no fabric preset, no recolour.
-          const look = content.material?.baseColorTexture || content.material?.metallicRoughnessTexture ? { material: { type: 'cloth', inputs: { recolour: 0 } } } : meta.look
-          await keep(writeGarmentGlb({ garment: content.garment, material: content.material, meta: { ...meta, name, slot, ...(look ? { look } : {}) } }), slot)
-        }
-        const importGarment = () => {
-          chooseFile('.glb,.obj').then(async (file) => {
-            if (!file) return
-            try {
-              await importFrom(file.name.endsWith('.obj') ? await file.text() : await file.arrayBuffer(), file.name)
-            } catch (e) {
-              console.warn('tailor: could not import', e)
-              say(`${file.name}: ${e?.message ?? e}`)
-            }
-          })
-        }
 
         // A MESH FILE becomes a body source (a choice in the list) and is shown.
         openBody = () => {
@@ -1100,7 +851,7 @@ preview.append(
           if (rigging) return
           if (!file && (madeHuman() || !ch.recipe)) return
           // The tailor keeps what it made and waits for the body back.
-          if (tailoring) void keepTailored().then(() => beginTailor())
+          if (tailor.tool) void tailor.keep().then(() => tailor.begin())
           const opened = file ? file.name : walker.source.value
           const from = file ? { file } : SOURCES[opened]
           ch.hide(true)
@@ -1110,7 +861,7 @@ preview.append(
           const done = () => {
             rigging = null
             ch.hide(false)
-            if (tailorOpen && !tailoring) beginTailor()
+            if (tailor.open && !tailor.tool) tailor.begin()
             applyGrip()
             rigPanel.svg = idleRig()
             rigPanel.hide?.()
@@ -1190,7 +941,7 @@ preview.append(
         let restoring = false
         const apply = async (doc) => {
           // What the tailor was making is kept before another character comes.
-          if (tailoring) await keepTailored()
+          if (tailor?.tool) await tailor.keep()
           const slotLooks = Object.fromEntries(SLOTS.map((slot) => [slot, plain(ch.cloth(slot))]))
           const { character: c, warnings } = readCharacter(doc, { settings: Object.fromEntries(KEPT.map((k) => [k, START[k]])), slots: slotLooks })
           restoring = true
@@ -1200,7 +951,7 @@ preview.append(
             // Its own garments first, so the slots can wear them.
             for (const [name, bytes] of Object.entries(c.garments)) {
               if (ch.garments.has(name)) continue
-              await garmentStore('readwrite', (st) => st.put(bytes, name)).catch(() => {})
+              await garmentFiles.put(name, bytes).catch(() => {})
               await ch.addGarment(bytes)
             }
             // A body the file carries and this page does not have becomes a source.
@@ -1301,7 +1052,7 @@ preview.append(
           el.refreshScenePanel?.()
         }
         // Not while a tool has the body: the rig tool undoes its own edits.
-        const idle = () => !stepping && !rigging && !tailoring
+        const idle = () => !stepping && !rigging && !tailor?.tool
         character.canUndo = () => idle() && (history.canUndo || stepTimer != null)
         character.canRedo = () => idle() && stepTimer == null && history.canRedo
         character.undo = () => {
@@ -1315,10 +1066,10 @@ preview.append(
           if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return
           if (e.target?.closest?.('input, textarea, [contenteditable]')) return
           // The tailor, while it is open, undoes its own edits.
-          if (tailoring && !stepping) {
+          if (tailor?.tool && !stepping) {
             e.preventDefault()
-            if (e.shiftKey) tailoring.redo()
-            else tailoring.undo()
+            if (e.shiftKey) tailor.tool.redo()
+            else tailor.tool.undo()
             return
           }
           if (!idle()) return
