@@ -14,11 +14,16 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ### Added
 
+- **Held items in an exported body**: `riggedBodyGlb(body, { held: { grip, item, gripPoint, extras } })` writes a `weapon_r` joint (or `weapon_l`, or `held.name`) under the hand where the character builder holds the grip, and with `item` (a mesh read by `glbRigTriangles(bytes, { pick })`) the item itself, skinned to that joint with its materials and its licence in the mesh's `extras`. `glbNodePosition` reads an item's `_grip` node with no engine. The socket arithmetic is the engine-free `tosijs-3d/hand-socket`, which the launcher's `handSocket` now runs too. `writeSkinnedGlb` meshes take `extras`.
 - **`tosijs-3d/character-sources`** (engine-free): `CHARACTER_SOURCES` and `AI_CHARACTER_SOURCES` with Tonio's hand-placed rigs for the AI cast, and `rigFromMarkers`, so an exporter rigs the cast as the builder does (`glbRigTriangles`, `bodyFromMarkers` with the source's `recipe.binding`, `riggedBodyGlb`). Still exported from `character` and the barrel. `riggedBodyGlb`'s `recipe` may be partial.
 
 ### Changed
 
 - **The `@babylonjs/*` peers are optional**, so a consumer of the engine-free subpaths (a three.js app taking the character core) installs no Babylon. A Babylon app that relied on npm installing the peers for it installs them itself: `npm i @babylonjs/core @babylonjs/gui @babylonjs/loaders @babylonjs/materials`.
+
+### Fixed
+
+- The character builder keeps a held item's grip point on the grip when the grip's scale is not 1 (the item slid off it).
 
 ## 0.12.4
 

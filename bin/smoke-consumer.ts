@@ -87,6 +87,7 @@ const PURE = [
   'rigged-body-glb',
   'ual-rest',
   'spring-vrm',
+  'hand-socket',
 ]
 
 try {

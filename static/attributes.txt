@@ -1322,6 +1322,7 @@ character core
 
   rig-fit  = a skeleton fitted to any mesh from eight markers
   rig-recipe  = a rig recipe as data
+  png  = PNG read and written, byte for byte, with no canvas
 
 ## city-layout
 city-layout

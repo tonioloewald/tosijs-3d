@@ -560,7 +560,8 @@ preview.append(
         const placeHeld = (g, handle = true) => {
           const d = Math.PI / 180
           const turn = BABYLON.Quaternion.FromEulerAngles(g.rx * d, g.ry * d, g.rz * d)
-          const spun = held.grip.applyRotationQuaternion(turn)
+          // Scaled with the item, so its grip point stays on the grip.
+          const spun = held.grip.scale(g.scale).applyRotationQuaternion(turn)
           held.node.position.set(g.x - spun.x, g.y - spun.y, g.z - spun.z)
           held.node.rotationQuaternion = turn
           held.node.scaling.setAll(g.scale)

@@ -80,6 +80,8 @@ export interface GlbMesh {
   primitives: GlbPrimitive[]
   /** The morph targets' names, one per target (every primitive has them all). */
   targetNames?: string[]
+  /** The mesh's `extras`, as given (a licence, say); `targetNames` joins them. */
+  extras?: Record<string, unknown>
 }
 
 export interface GlbTexture {
@@ -405,10 +407,12 @@ export function writeSkinnedGlb(g: SkinnedGlb): Uint8Array {
       return prim
     })
     const out: Json = { name: mesh.name, primitives }
-    if (names.length > 0) {
-      out.weights = names.map(() => 0)
-      out.extras = { targetNames: [...names] }
-    }
+    if (names.length > 0) out.weights = names.map(() => 0)
+    if (names.length > 0 || mesh.extras)
+      out.extras = {
+        ...(mesh.extras ?? {}),
+        ...(names.length > 0 ? { targetNames: [...names] } : {}),
+      }
     return out
   })
 

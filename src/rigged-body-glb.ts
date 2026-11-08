@@ -47,6 +47,17 @@ What the file is (Dramatis's `export-format`, version 1):
   three-vrm, UniVRM and Godot's VRM importer read with no setup, and as
   `TOSIJS_spring_chains`, our own settings exactly (see
   [spring-vrm](/spring-vrm/) for how the two models differ).
+- **A held item**, with `held`: a joint named `weapon_r` (or `held.name`)
+  under the hand, where a grip (see [[hold-grip]]) puts the item's grip
+  point, turned as the grip says, in the hand's socket frame
+  ([[hand-socket]]): the same place the character builder shows it. Unity
+  and Unreal attach their own items to a named bone like this one. With
+  `held.item` (a mesh in its own frame, as `glbRigTriangles(bytes, { pick })`
+  reads one out of a library file) the item goes in too, as a mesh `held`
+  skinned wholly to that joint, scaled by the grip's `scale`, its grip
+  point (`held.gripPoint`, else the middle of its lowest third) on the
+  joint, its own materials and pictures, and `held.extras` (its licence) on
+  the mesh, as its file has it.
 - **`asset.extras`** is passed through as given (Dramatis's licence block
   goes there), with `generator` and `copyright`.
 
@@ -62,7 +73,15 @@ import {
   type GlbPrimitive,
 } from './skinned-glb.js'
 import { UAL_REST } from './ual-rest.js'
-import type { RiggedBody } from './rigged-body.js'
+import type { BodyTriangles, RiggedBody } from './rigged-body.js'
+import {
+  gripMatrix,
+  gripPoint,
+  mat4Multiply,
+  socketWorld,
+  type Grip,
+  type Vec3 as HandVec3,
+} from './hand-socket.js'
 import type { GltfSurfaceMaterial, GltfTextureRef } from './glb-rig.js'
 import {
   STRAND_DEFAULTS,
@@ -103,6 +122,24 @@ export interface RiggedBodyGlbOptions {
    * `VRMC_springBone` and `TOSIJS_spring_chains` (see spring-vrm).
    */
   recipe?: Partial<RigRecipe>
+  /** A held item, or only its socket: see "A held item" above. */
+  held?: HeldItem
+}
+
+/** What a hand holds, for `riggedBodyGlb`'s `held`. */
+export interface HeldItem {
+  /** The grip: a point and a turn in the hand's socket frame, and a scale. */
+  grip: Grip
+  /** Which hand (default the right). */
+  side?: 'r' | 'l'
+  /** The socket joint's name (default `weapon_r` or `weapon_l`). */
+  name?: string
+  /** The item, in its own frame: left out, the file carries the socket alone. */
+  item?: BodyTriangles
+  /** Where the item is held, in its frame (default `gripPoint` of it). */
+  gripPoint?: HandVec3
+  /** The item mesh's `extras` (its licence). */
+  extras?: Record<string, unknown>
 }
 
 // --- quaternions, [x, y, z, w] ---
@@ -164,6 +201,71 @@ function qmatrix(q: Q): number[] {
     2 * (y * z + x * w),
     1 - 2 * (x * x + y * y),
   ]
+}
+/** A rotation matrix (column vectors, row-major 3x3) as a quaternion. */
+function matrixQuat(m: number[]): Q {
+  const [m00, m01, m02, m10, m11, m12, m20, m21, m22] = m
+  const t = m00 + m11 + m22
+  if (t > 0) {
+    const s = 0.5 / Math.sqrt(t + 1)
+    return qnorm([(m21 - m12) * s, (m02 - m20) * s, (m10 - m01) * s, 0.25 / s])
+  }
+  if (m00 > m11 && m00 > m22) {
+    const s = 2 * Math.sqrt(1 + m00 - m11 - m22)
+    return qnorm([0.25 * s, (m01 + m10) / s, (m02 + m20) / s, (m21 - m12) / s])
+  }
+  if (m11 > m22) {
+    const s = 2 * Math.sqrt(1 + m11 - m00 - m22)
+    return qnorm([(m01 + m10) / s, 0.25 * s, (m12 + m21) / s, (m02 - m20) / s])
+  }
+  const s = 2 * Math.sqrt(1 + m22 - m00 - m11)
+  return qnorm([(m02 + m20) / s, (m12 + m21) / s, 0.25 * s, (m10 - m01) / s])
+}
+
+/*
+THE SOCKET IS WORKED OUT WHERE IT WAS CALIBRATED. hand-socket's numbers are
+Babylon's world, which is the file's frame under the glTF loader's root (x
+negated), so the hand's joints go there, the socket and grip are composed
+there, and the root comes off again: world · root⁻¹, the columns' x negated.
+(The calibration is a reflection, det -1, because Babylon's hand carries the
+root's mirror; with the root off, the socket is a plain turn again.)
+*/
+function heldSocket(
+  sk: Skeleton,
+  at: V3[],
+  held: HeldItem
+): { name: string; hand: number; position: V3; rotation: Q } {
+  const side = held.side ?? 'r'
+  const ix = (n: string) => {
+    const i = sk.names.indexOf(n)
+    if (i < 0) throw new Error(`riggedBodyGlb: held needs ${n}, not in the skeleton`)
+    return i
+  }
+  const hand = ix(`hand_${side}`)
+  const mirror = (p: V3): HandVec3 => ({ x: -p[0], y: p[1], z: p[2] })
+  const socket = socketWorld(
+    side,
+    mirror(at[hand]),
+    mirror(at[ix(`lowerarm_${side}`)]),
+    mirror(at[ix(`thumb_01_${side}`)])
+  )
+  if (socket == null)
+    throw new Error(`riggedBodyGlb: the ${side} hand cannot be read (thumb in line with the forearm)`)
+  const w = mat4Multiply(gripMatrix(held.grip), socket)
+  const r = [-1, 1, 1, 1]
+  const f = w.map((v, k) => v * r[k % 4])
+  // Row vectors: row i is where axis i goes. Columns of the rotation, unscaled.
+  const axis = (i: number) => {
+    const l = Math.hypot(f[i * 4], f[i * 4 + 1], f[i * 4 + 2]) || 1
+    return [f[i * 4] / l, f[i * 4 + 1] / l, f[i * 4 + 2] / l]
+  }
+  const [ax, ay, az] = [axis(0), axis(1), axis(2)]
+  return {
+    name: held.name ?? `weapon_${side}`,
+    hand,
+    position: [f[12], f[13], f[14]],
+    rotation: matrixQuat([ax[0], ay[0], az[0], ax[1], ay[1], az[1], ax[2], ay[2], az[2]]),
+  }
 }
 const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 const add = (a: V3, b: V3): V3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
@@ -429,12 +531,14 @@ const isGltfMaterial = (m: unknown): m is GltfSurfaceMaterial =>
 
 /** The body's materials as glTF, their pictures collected once each. */
 function materialsOf(
-  body: RiggedBody,
+  surfaces: BodyTriangles['surfaces'],
   surfaceCount: number,
-  textured: boolean
+  textured: boolean,
+  prefix = 'body',
+  images: GlbImage[] = []
 ): { materials: GlbMaterial[]; images: GlbImage[] } {
-  const images: GlbImage[] = []
   const seen = new Map<Uint8Array, number>()
+  images.forEach((im, i) => seen.set(im.bytes, i))
   const image = (t: GltfTextureRef | undefined, name: string) => {
     if (!textured || t?.bytes == null) return undefined
     if (t.mimeType !== 'image/png' && t.mimeType !== 'image/jpeg')
@@ -449,8 +553,8 @@ function materialsOf(
   }
   const materials: GlbMaterial[] = []
   for (let s = 0; s < surfaceCount; s++) {
-    const name = s === 0 ? 'body' : `body_${s + 1}`
-    const m = body.surfaces?.[s]?.material
+    const name = s === 0 ? prefix : `${prefix}_${s + 1}`
+    const m = surfaces?.[s]?.material
     if (!isGltfMaterial(m)) {
       materials.push({
         name,
@@ -642,8 +746,18 @@ export function riggedBodyGlb(
     if (!PROFILE_INDEX.has(name)) frames[i] = frames[sk.parents[i]]
   })
 
-  const glbJoints: GlbJoint[] = sk.names.map((name, i) => {
-    const p = sk.parents[i]
+  const names = [...sk.names]
+  const parents = [...sk.parents]
+  const held = options.held && heldSocket(sk, at, options.held)
+  if (held) {
+    names.push(held.name)
+    parents.push(held.hand)
+    frames.push(held.rotation)
+    at.push(held.position)
+  }
+
+  const glbJoints: GlbJoint[] = names.map((name, i) => {
+    const p = parents[i]
     const parentFrame = p < 0 ? IDENTITY : frames[p]
     const local = p < 0 ? at[i] : qrot(qconj(parentFrame), sub(at[i], at[p]))
     const rotation = qnorm(qmul(qconj(parentFrame), frames[i]))
@@ -655,7 +769,7 @@ export function riggedBodyGlb(
     }
   })
   // Inverse binds: the inverse of each joint's model-space matrix.
-  const ibm = new Float32Array(sk.names.length * 16)
+  const ibm = new Float32Array(names.length * 16)
   frames.forEach((q, i) => {
     const r = qmatrix(qconj(q)) // row-major inverse rotation
     const t = qrot(qconj(q), at[i])
@@ -690,7 +804,7 @@ export function riggedBodyGlb(
   const runs = body.surfaces?.length
     ? body.surfaces.map((s) => [s.start, s.count])
     : [[0, indices.length]]
-  const { materials, images } = materialsOf(body, runs.length, body.uvs != null)
+  const { materials, images } = materialsOf(body.surfaces, runs.length, body.uvs != null)
   const meshes = [
     {
       name: 'body',
@@ -773,6 +887,60 @@ export function riggedBodyGlb(
     })
     void k
   })
+
+  if (held && options.held!.item) {
+    const h = options.held!
+    const item = h.item!
+    const gp = h.gripPoint ?? gripPoint(item.positions) ?? { x: 0, y: 0, z: 0 }
+    const k = h.grip.scale ?? 1
+    const pos = new Float32Array(item.positions.length)
+    for (let i = 0; i < pos.length; i += 3) {
+      const v = qrot(held.rotation, [
+        (item.positions[i] - gp.x) * k,
+        (item.positions[i + 1] - gp.y) * k,
+        (item.positions[i + 2] - gp.z) * k,
+      ])
+      pos[i] = held.position[0] + v[0]
+      pos[i + 1] = held.position[1] + v[1]
+      pos[i + 2] = held.position[2] + v[2]
+    }
+    const runs = item.surfaces?.length
+      ? item.surfaces.map((s) => [s.start, s.count])
+      : [[0, item.indices.length]]
+    const first = materials.length
+    const own = materialsOf(
+      item.surfaces,
+      runs.length,
+      item.uvs != null,
+      'held',
+      images
+    )
+    materials.push(...own.materials)
+    const n = pos.length / 3
+    const jw = new Uint16Array(n * 4).fill(names.length - 1)
+    const ww = Float32Array.from({ length: n * 4 }, (_, i) =>
+      i % 4 === 0 ? 1 : 0
+    )
+    const itemNormals = smoothNormals(pos, item.indices)
+    meshes.push({
+      name: 'held',
+      primitives: runs.map(([start, count], r) =>
+        primitive(
+          start,
+          count,
+          item.indices,
+          pos,
+          itemNormals,
+          jw,
+          ww,
+          item.uvs,
+          undefined,
+          first + r
+        )
+      ),
+      ...(h.extras ? { extras: h.extras } : {}),
+    })
+  }
 
   const chains = springChains(sk, strands, options.recipe, {
     at,
