@@ -247,3 +247,14 @@ describe.skipIf(FILES.length === 0)('glb-rig against the Babylon path', () => {
     expect(b.rig.joints).toEqual(a.rig.joints.map((j) => ({ ...j })))
   }, 120000)
 })
+
+describe('ownExportNames', () => {
+  test("riggedBodyGlb's names, and nobody else's", async () => {
+    const { ownExportNames } = await import('./glb-rig.js')
+    expect(ownExportNames(['body', 'eyes', 'held', 'top: Shirt'])).toBe(true)
+    expect(ownExportNames(['body'])).toBe(true)
+    // Someone's own file with a body and its hair: taken whole.
+    expect(ownExportNames(['body', 'hair'])).toBe(false)
+    expect(ownExportNames(['Omnidude', 'HumanBase'])).toBe(false)
+  })
+})

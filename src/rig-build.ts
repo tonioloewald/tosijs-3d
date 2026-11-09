@@ -93,6 +93,7 @@ import {
   type RiggedBody,
 } from './rigged-body.js'
 import { materialConventions } from './b3d-utils.js'
+import { ownExportNames } from './glb-rig.js'
 
 /** A surface's material is a Babylon one here; the pure core types it by name only. */
 const babylonMaterial = (m: { name: string } | null | undefined) =>
@@ -299,12 +300,12 @@ export function gatherTriangles(
     const col = mesh.getVerticesData('color')
     if (uv != null && !hasUvs) {
       hasUvs = true
-      uvs.push(...new Array(base * 2).fill(0))
+      for (let i = 0; i < base * 2; i++) uvs.push(0)
     }
     if (hasUvs) for (let i = 0; i < count * 2; i++) uvs.push(uv?.[i] ?? 0)
     if (col != null && !hasColors) {
       hasColors = true
-      colors.push(...new Array(base * 4).fill(1))
+      for (let i = 0; i < base * 4; i++) colors.push(1)
     }
     if (hasColors) {
       const k = col != null ? col.length / count : 0
@@ -454,10 +455,12 @@ export async function loadRigTriangles(
     if (options.pick != null && top == null)
       throw new Error(`no "${options.pick}" in the file`)
     if (top != null) top.position.set(0, 0, 0)
-    const all = container.meshes.filter(
-      (n) =>
-        n.getTotalVertices() > 0 &&
-        (top == null || n === top || n.isDescendantOf(top))
+    const all = ownExportOnly(
+      container.meshes.filter(
+        (n) =>
+          n.getTotalVertices() > 0 &&
+          (top == null || n === top || n.isDescendantOf(top))
+      )
     )
     const meshes = all.filter((m) => !isEyeName(m.name))
     const tris: RigTriangles = gatherTriangles(root, meshes)
@@ -469,6 +472,20 @@ export async function loadRigTriangles(
   } finally {
     container.dispose()
   }
+}
+
+/*
+OUR OWN EXPORT (riggedBodyGlb) names its skin 'body' and its eyes 'eyes',
+beside the garments and the held item, all skinned to the same skeleton. Read
+back as a body, only the skin and the eyes are the body. (A mesh of several
+surfaces loads as a node of that name over its primitives.)
+*/
+function ownExportOnly<T extends BABYLON.AbstractMesh>(meshes: T[]): T[] {
+  // A mesh of several surfaces is primitives under a node of its name.
+  const nodeName = (m: BABYLON.AbstractMesh) =>
+    /_primitive\d+$/.test(m.name) && m.parent ? m.parent.name : m.name
+  if (!ownExportNames(meshes.map(nodeName))) return meshes
+  return meshes.filter((m) => ['body', 'eyes'].includes(nodeName(m)))
 }
 
 /** The bones a skin needs to be taken as UAL's skeleton (its core; fingers optional). */
@@ -547,19 +564,23 @@ export async function loadSkinnedBody(
     if (skeleton == null) return null
     const names = new Set(skeleton.bones.map(nameOf))
     if (!UAL_CORE.every((n) => names.has(n))) return null
-    const meshes = container.meshes.filter(
-      (m) =>
-        m.skeleton === skeleton &&
-        m.getTotalVertices() > 0 &&
-        under(m) &&
-        !isEyeName(m.name)
+    const meshes = ownExportOnly(
+      container.meshes.filter(
+        (m) =>
+          m.skeleton === skeleton &&
+          m.getTotalVertices() > 0 &&
+          under(m) &&
+          !isEyeName(m.name)
+      )
     )
     if (!meshes.length) return null
     // The skin at rest, in the file's frame (gatherTriangles returns it to rest).
     const tris: RigTriangles = gatherTriangles(root, meshes)
     const eyes = eyesOf(
       root,
-      container.meshes.filter((m) => m.getTotalVertices() > 0 && under(m))
+      ownExportOnly(
+        container.meshes.filter((m) => m.getTotalVertices() > 0 && under(m))
+      )
     )
     if (eyes.length) tris.eyes = eyes
     const toRoot = root.getWorldMatrix().clone().invert()

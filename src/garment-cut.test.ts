@@ -6,6 +6,36 @@ import { drawnPositions, fitProxy } from './proxy-fit.js'
 import { loadHumanPack } from './human-pack.js'
 
 describe('garment-cut', () => {
+  test('a cut with more triangles than a call takes arguments', () => {
+    // A dense sheet (the size of a body with a garment over it) cut along a
+    // diamond, which crosses the grid diagonally and leaves teeth to trim:
+    // the trimmed list was spread into a call and overflowed the stack.
+    const N = 600
+    const grid: number[] = []
+    for (let j = 0; j <= N; j++)
+      for (let i = 0; i <= N; i++) grid.push((i / N) * 2 - 1, (j / N) * 2 - 1, 0)
+    const quads: number[] = []
+    for (let j = 0; j < N; j++)
+      for (let i = 0; i < N; i++) {
+        const a = j * (N + 1) + i
+        quads.push(a, a + 1, a + N + 2, a, a + N + 2, a + N + 1)
+      }
+    const g = cutGarment(grid, quads, {
+      front: [
+        [
+          [0, -0.95],
+          [0.95, 0],
+          [0, 0.95],
+          [-0.95, 0],
+        ],
+      ],
+      thickness: 0.01,
+      ease: 0,
+      hem: false,
+    })
+    expect(g.rows).toBeGreaterThan(150000)
+  })
+
   // A square of four triangles in z = 0, facing +Z, two units across.
   const sheet = [-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0, 0, 0, 0]
   const tris = [0, 1, 4, 1, 2, 4, 2, 3, 4, 3, 0, 4]

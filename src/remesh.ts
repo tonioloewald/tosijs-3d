@@ -402,7 +402,7 @@ export function* remeshSteps(
           add.push(m, y, c)
         }
       }
-      T.push(...add)
+      for (const v of add) T.push(v)
     }
   }
 

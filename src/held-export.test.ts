@@ -145,6 +145,41 @@ describe.skipIf(!existsSync(AI) || !existsSync(WEAPONS))(
       engine.dispose()
     }, 120000)
 
+    test('read back as a body, the export is its skin and eyes, not the item', async () => {
+      const { holdGrip } = await import('./hold-grip.js')
+      const { glbNodePosition } = await import('./glb-rig.js')
+      const body = bodyFromMarkers(
+        glbRigTriangles(new Uint8Array(readFileSync(AI)))
+      )
+      const lib = new Uint8Array(readFileSync(WEAPONS))
+      const pick = 'Long Sword.model'
+      const item = glbRigTriangles(lib, { pick })
+      const gripPoint = glbNodePosition(lib, 'Long Sword_grip', { pick })!
+      const bare = riggedBodyGlb(body)
+      const holding = riggedBodyGlb(body, {
+        held: { grip: holdGrip('Long Sword'), item, gripPoint },
+      })
+      const a = glbRigTriangles(bare)
+      const b = glbRigTriangles(holding)
+      expect(b.positions.length).toBe(a.positions.length)
+      expect(b.indices.length).toBe(a.indices.length)
+
+      // The builder's own reader takes the same.
+      const BABYLON = await import('@babylonjs/core')
+      await import('@babylonjs/loaders')
+      const { loadSkinnedBody } = await import('./rig-build.js')
+      const engine = new BABYLON.NullEngine()
+      const scene = new BABYLON.Scene(engine)
+      const url = (bytes: Uint8Array) =>
+        'data:;base64,' + Buffer.from(bytes).toString('base64')
+      const loaded = async (bytes: Uint8Array) => {
+        const r = await loadSkinnedBody(scene, url(bytes))
+        return r!.indices.length
+      }
+      expect(await loaded(holding)).toBe(await loaded(bare))
+      engine.dispose()
+    }, 120000)
+
     test('the socket alone, with no item', () => {
       const body = bodyFromMarkers(
         glbRigTriangles(new Uint8Array(readFileSync(AI)))
