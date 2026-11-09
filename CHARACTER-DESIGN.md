@@ -611,6 +611,138 @@ a mode of this recorder. It is its own: the head, controllers or tracked
 hands, solved onto the same bones and kept in the same clip format, so it
 joins the same wardrobe.
 
+### 11. Sweeps: one primitive under the tailor, a barber and a cobbler (medium; #3912, design, for review)
+
+Tonio, 2026-11-09: "every object is a sweep of some kind … You start with a
+profile and then you sweep." (After Swivel 3D, and a modeller on the Cheetah 3D
+forums built the same way.) This replaces the drape as the way a garment gets
+its SHAPE. The drape stays, as an optional last pass for folds.
+
+The tailor is already two sweeps without saying so. A cut is a profile (the
+outline through the body) extruded a fixed thickness along the normals. Skirt
+mode is a loft: rings round the body's outline at each height. What is new is
+making the sweep explicit and putting curves on it.
+
+**A sweep is a profile, a path and curves along the path.** Three kinds cover
+clothes, hair and shoes to a first approximation:
+
+| Sweep | Profile | Path | Makes |
+| --- | --- | --- | --- |
+| **normal** | a region cut from the body (the tailor's outlines, a scalp, a beard) | out from the skin | tight clothes, a shoe's upper, stubble, short hair |
+| **loft** | the body's cross-section at each station | along a bone, or several bones in a chain | skirts, sleeves, trouser legs, boot shafts, the foot of a shoe |
+| **path** | a small shape (circle, strap, lock) | a curve, or a spring chain | ponytails, braids, straps, laces, a heel |
+
+A loft follows the BONE, not a fixed axis, for two reasons. Its skin weights
+are known before any binding: a ring belongs to a station on a bone. And its
+UVs are free: the mesh is a grid of (around, along), so u is the angle and v is
+the distance. Everything comes from body slices, so a sweep refits when a
+slider moves, with no binding step and no settling.
+
+**The controls are curves over the sweep** (`curve3d`, and `curveProgram3d`
+where several share markers):
+
+- **ease**: distance out from the skin along the sweep (a flared skirt, a
+  puffed sleeve, a bucket top, a toe box);
+- **fall**: the direction turning from the skin's normal toward gravity, so
+  hair hangs and a long skirt drops;
+- **length** past the profile: a hem below the knee, toe allowance, hair longer
+  than the scalp;
+- **taper** and **twist** (path sweeps: ponytails, braids, heels);
+- a ring's **shape**: the body's slice plus ease by default, or its own (a
+  pointed toe, a squared shoulder).
+
+For hair, a path sweep's path can BE a spring chain, so the simulation moves
+the shape and long hair needs no other physics.
+
+**Ends.** Each end of a sweep is one of three things:
+
+- a **hem**: open, given thickness with an inside wall (the tailor's hem);
+- a **cap**: closed (a toe);
+- a **join** to another sweep's end. The two share one ring; the one with fewer
+  points round it is resampled to match.
+
+**Joins**, easiest first:
+
+- **straight on**: the next sweep carries on from a ring (a shaft into a bucket
+  top). It is one sweep whose curves change there;
+- **at an angle**: shin to foot at the ankle, the elbow in a sleeve. Rings kept
+  square to each bone cross in the bend and pinch. Two answers: a MITRE (both
+  ends cut to the ring halfway between the bones' directions, a pipe elbow) or a
+  CURVED PATH through the joint so the rings turn gradually. The curve is
+  smoother and is the default to try first; the back of the ring needs extra
+  length at a heel so the heel cup is not pinched;
+- **branches**: the crotch, the shoulders. Hard, and deferred: boots, skirts,
+  sleeves and hair do not need them. Until then a shirt is a normal sweep (as
+  the tailor cuts it now) and trousers are two leg lofts under a normal-swept
+  seat.
+
+A **layer** is a sweep that starts on another's surface and leaves it (a
+turned-down cuff). It is not a join: both walls show, and its open edge is a
+hem.
+
+**Worked example: a bucket-top boot** (Tonio):
+
+1. the shaft: a loft down the shin, the leg's slice plus a little ease, from the
+   upper shin to the ankle;
+2. the bucket top: a second cut of the upper shin as its profile, starting flush
+   with the shaft's top ring, its ease growing with height so it stands off the
+   leg. Joined straight on;
+3. the foot: a loft from the ankle along the foot, the foot's slice plus toe
+   allowance, ending in a cap. Joined to the shaft at an angle; the sole is a
+   normal sweep of its bottom outline, downward.
+
+**Three tools, one primitive.** The tailor, a barber and a cobbler are presets
+and views over sweeps; each hands back a garment as the tailor does now
+(`handleDone`), worn, saved in the character file and exported by
+`riggedBodyGlb` as a mesh skinned to the body.
+
+- **Barber** (hair, beard, moustache, brows). FOUR views of the head: front,
+  left, right, back. LEFT AND RIGHT ARE SYNCED by default (draw on one, the
+  other mirrors), with a toggle to draw them apart for a parting or an
+  asymmetric cut. The profile is a region of the scalp (the face for a beard or
+  moustache), drawn as outlines in those views as the tailor draws a neckline.
+  Stubble and short beards are SHELLS (layers of the region pushed out along
+  the normals, a noise texture thinning each), cheap enough for a headset.
+  Longer hair is a normal sweep with length and fall (Cem Yuksel's "hair
+  meshes", 2009: hair modelled as a thick mesh grown from the scalp, which is
+  also what the Quaternius styles are); a ponytail or braid is a path sweep on
+  a spring chain. Strands and alpha cards are out of scope: transparency sorts
+  badly in a headset and they pull toward realism.
+- **Cobbler** (shoes, boots). The LAST is a loft along the foot from the body's
+  own foot (toes merged into one smooth toe box), so it fits every body; the
+  upper is cut on it and the sole swept from its bottom. Two controls are
+  required: **heel height** and **toe pointiness** (how far and how sharply the
+  toe extends past the foot). Heel height changes the POSE, not just the shape:
+  the ankle points down, the toe joint bends up, and the body stands higher. So
+  a shoe carries a foot pose that is added on top of every clip (UAL's walks
+  assume a flat foot, and would pin the heel to the floor), and `groundFor`
+  counts the sole and the heel. The heel itself, and a long pointed toe, are
+  rigid parts on the foot bone (`proxy-rigid`), not stretched cloth.
+- **Tailor**: today's cuts are normal sweeps; skirt mode becomes a loft with
+  ease and fall curves; sleeves and trouser legs become lofts along the arm and
+  leg bones.
+
+**Open-source to lean on** (from memory, not a survey): nothing web-native and
+permissive does hair authoring or lasts. AMD TressFX (MIT) is a strand
+reference only, too heavy for a headset. Blender's curve hair is a round trip
+through Blender (GPL), not an integration. MakeHuman's CC0 packs (Bodyparts
+beards, shoes) are usable content now. ANSUR II (public domain) gives foot
+measurements to check a generated last against. The Foot3D scans (FIND/FOUND)
+are, I believe, research-use only.
+
+**Order.** (a) the sweep core, pure: profile, path, curves, ends, straight and
+angled joins, rings to mesh with weights and UVs, tested on the real pack;
+(b) the barber's beard, moustache and short hair (shells and normal sweeps,
+the four views); (c) the cobbler's flat shoes and boots, then heels with the
+foot pose; (d) skirt mode and sleeves moved onto lofts; (e) long hair on spring
+chains. Branch joins after that, if trousers and shirts need more than they
+have.
+
+**Done when:** a bucket-top boot, a beard and a bob are made in the tools,
+refit on the extreme bodies (`bun run extremes` takes sweeps), and export
+through `riggedBodyGlb` clean under the Khronos validator; heels walk without
+the heel sinking or pinning.
+
 ## Loading: no ceiling, one source of truth
 
 Tonio, 2026-10-21: everything here can load lazily, so there is no absolute
