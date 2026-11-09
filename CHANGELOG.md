@@ -12,6 +12,10 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+### Changed
+
+- Character builder: the panel runs from the most basic, least changeable choices to the most: tabs Body, Skin, Eyes, Face, Hair, Clothes, Hold, Motion, Export; in the Body tab, shape (gender, age, height) then ancestry then figure (weight, muscle and the rest); in Hair, brows and the style before beard, moustache and stubble. Control paths that moved: `Body/figure/weight`, `Body/figure/muscle`.
+
 ## 0.12.5
 
 The latest release. Exported bodies carry clips, garments and held items; the cast's rigs are engine-free; the Babylon peers are optional (install them yourself); the character builder gets a Character menu, a hair manipulator and sub-sections. See [0.12.5](/v0.12.5/).
