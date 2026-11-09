@@ -26,7 +26,7 @@ import { humanBodyMaker } from 'tosijs-3d/human-rig'
 | [`spatial-transform`](/spatial-transform/) | the vector and quaternion maths under them |
 | [`proxy-fit`](/proxy-fit/), [`proxy-rigid`](/proxy-rigid/) | clothes bound to a body (MakeHuman's `.mhclo`), and rigid parts in them |
 | [`hair-fit`](/hair-fit/) | a hairstyle warped onto a head |
-| [`garment-cut`](/garment-cut/), [`uv-unwrap`](/uv-unwrap/), [`garment-file`](/garment-file/) | the tailor: garments cut from a body, unwrapped, saved as GLB or OBJ |
+| [`garment-cut`](/garment-cut/), [`body-sweep`](/body-sweep/), [`uv-unwrap`](/uv-unwrap/), [`garment-file`](/garment-file/) | the tailor: garments cut and swept from a body, unwrapped, saved as GLB or OBJ |
 | [`skin-tone`](/skin-tone/) | skin colour from one dial |
 | [`skin-paint`](/skin-paint/) | the lips and stubble over the skin, as vertex colours (glTF's `COLOR_0`) |
 | [`cloth-bake`](/cloth-bake/) | a recoloured garment's texture, baked to a picture |

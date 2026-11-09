@@ -2055,6 +2055,8 @@ export {
   rebindCut,
   weldVertices,
 } from './garment-cut.js'
+export { loftGarment } from './body-sweep.js'
+export type { Loft, LoftOptions, SweepCurve, SweepEnd } from './body-sweep.js'
 export {
   remesh,
   remeshSteps,

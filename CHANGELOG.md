@@ -12,6 +12,10 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+### Added
+
+- `loftGarment` (`body-sweep`): a garment lofted along a chain of bones, as rings round the hull of the body's slice plus thickness and an `ease` curve, with mitred or rounded (`steps`) bends and open, sealed or capped ends. It returns a `GarmentCut` binding, so it fits and bends like a tailor's cut. The first piece of the sweep core; no tool uses it yet.
+
 ### Changed
 
 - Character builder: the panel runs from the most basic, least changeable choices to the most: tabs Body, Skin, Eyes, Face, Hair, Clothes, Hold, Motion, Export; in the Body tab, shape (gender, age, height) then ancestry then figure (weight, muscle and the rest); in Hair, brows and the style before beard, moustache and stubble. Control paths that moved: `Body/figure/weight`, `Body/figure/muscle`.

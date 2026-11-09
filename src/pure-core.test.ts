@@ -38,6 +38,7 @@ export const CHARACTER_CORE = [
   'proxy-rigid',
   'hair-fit',
   'garment-cut',
+  'body-sweep',
   'remesh',
   'cloth-drape',
   'garment-file',
