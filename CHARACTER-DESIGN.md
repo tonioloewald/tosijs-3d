@@ -666,11 +666,13 @@ the shape and long hair needs no other physics.
 - **straight on**: the next sweep carries on from a ring (a shaft into a bucket
   top). It is one sweep whose curves change there;
 - **at an angle**: shin to foot at the ankle, the elbow in a sleeve. Rings kept
-  square to each bone cross in the bend and pinch. Two answers: a MITRE (both
-  ends cut to the ring halfway between the bones' directions, a pipe elbow) or a
-  CURVED PATH through the joint so the rings turn gradually. The curve is
-  smoother and is the default to try first; the back of the ring needs extra
-  length at a heel so the heel cup is not pinched;
+  square to each bone cross in the bend and pinch. The join is a MITRE: both
+  ends cut to the ring halfway between the bones' directions, a pipe elbow.
+  Rounding is an option, a number of STEPS: that many rings interpolated
+  along a curve through the joint, so the rings turn gradually; 0 steps is
+  the clean mitre and the default (Tonio, 2026-11-09: "A clean mitre makes it
+  easy to roundtrip to a modeling tool and finesse."). The back of the ring
+  needs extra length at a heel so the heel cup is not pinched;
 - **branches**: the crotch, the shoulders. Hard, and deferred: boots, skirts,
   sleeves and hair do not need them. Until then a shirt is a normal sweep (as
   the tailor cuts it now) and trousers are two leg lofts under a normal-swept
