@@ -673,10 +673,25 @@ the shape and long hair needs no other physics.
   the clean mitre and the default (Tonio, 2026-11-09: "A clean mitre makes it
   easy to roundtrip to a modeling tool and finesse."). The back of the ring
   needs extra length at a heel so the heel cup is not pinched;
-- **branches**: the crotch, the shoulders. Hard, and deferred: boots, skirts,
-  sleeves and hair do not need them. Until then a shirt is a normal sweep (as
-  the tailor cuts it now) and trousers are two leg lofts under a normal-swept
-  seat.
+- **branches** (the crotch, the shoulders) are not joined: they are CUT (below).
+
+**Cuts.** The user can make explicit cuts: a line on the garment where it is
+split into separate pieces, each its own sweep, meeting edge to edge at a seam.
+Cuts are drawn as dashed red lines in the views. Tonio, 2026-11-09: two common
+ones are CHECKBOXES, possibly checked by default:
+
+- **at the midline**, splitting left from right. This is what removes the
+  branch at the crotch: each half of a pair of trousers is one leg loft whose
+  rings are open arcs over half the seat, closing into a full loop below the
+  crotch, which is how a trouser pattern is cut. The same checkbox splits a
+  shirt's front and back halves;
+- **across the top of the foot**, where it projects in front of the lower leg:
+  the shaft and the foot become two pieces, which is where a boot is really
+  sewn, and the ankle needs no angled join there.
+
+A shirt's sleeve is a cut at the armhole by the same rule (a suggestion, not
+yet decided). Cuts also serve the round trip: each piece is a UV island and a
+seam a modelling tool keeps, so a piece can be finessed there and brought back.
 
 A **layer** is a sweep that starts on another's surface and leaves it (a
 turned-down cuff). It is not a join: both walls show, and its open edge is a
@@ -733,12 +748,11 @@ measurements to check a generated last against. The Foot3D scans (FIND/FOUND)
 are, I believe, research-use only.
 
 **Order.** (a) the sweep core, pure: profile, path, curves, ends, straight and
-angled joins, rings to mesh with weights and UVs, tested on the real pack;
+angled joins, cuts, rings to mesh with weights and UVs, tested on the real pack;
 (b) the barber's beard, moustache and short hair (shells and normal sweeps,
 the four views); (c) the cobbler's flat shoes and boots, then heels with the
 foot pose; (d) skirt mode and sleeves moved onto lofts; (e) long hair on spring
-chains. Branch joins after that, if trousers and shirts need more than they
-have.
+chains; (f) trousers and shirts on the midline (and armhole) cuts.
 
 **Done when:** a bucket-top boot, a beard and a bob are made in the tools,
 refit on the extreme bodies (`bun run extremes` takes sweeps), and export
