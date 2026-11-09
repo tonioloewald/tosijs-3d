@@ -85,6 +85,7 @@ export function attachSceneLayer(opts: {
       side?: 'below' | 'above' | 'right' | 'left'
       handleClosed?: () => void
       chromeBand?: number
+      dismissOutside?: boolean
     }
   ) => {
     /*
@@ -170,6 +171,8 @@ export function attachSceneLayer(opts: {
       // presentation goes with it and the opener is not left believing it
       // still has one open. See `LayerHost.handleClosed`.
       handleClosed: config.handleClosed,
+      // A press outside it and outside its panel closes it (a menu).
+      dismissOutside: config.dismissOutside,
       /*
       The title bar is the BAND THE SHEET RESERVED, not a share of its height.
       Left at the default fifth, a tall sheet (Perf Stats with a sweep listed)

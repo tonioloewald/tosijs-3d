@@ -821,6 +821,8 @@ export type LayerHost = (
      * record; this is the single number that settles them together.
      */
     chromeBand?: number
+    /** Close on a press outside it (and outside its panel): a menu. */
+    dismissOutside?: boolean
   }
 ) => { close: () => void }
 
@@ -1462,6 +1464,12 @@ export interface WidgetHost {
        * told apart. Only drawn where there is a band (`chrome`).
        */
       title?: string
+      /**
+       * Close on a press anywhere else: outside the popup, and on the panel
+       * anywhere but the control that opened it (which toggles it itself).
+       * What a menu does; `showPopup` asks for it.
+       */
+      dismissOutside?: boolean
       /** Called when it goes away, however it went. */
       handleClose?: () => void
     },
@@ -4169,6 +4177,8 @@ function buildPanel3d(
     inHeader: boolean
     items: Widget3d[]
     sheet: Panel3d | null
+    /** Closes it, for a menu a press elsewhere dismisses (`dismissOutside`). */
+    dismiss?: () => void
   }
   const popups = new Set<OpenPopup>()
   const clipId = `w3d-clip-${clipSeq++}`
@@ -4425,7 +4435,8 @@ function buildPanel3d(
       */
       const slot = root as unknown as { __anchored?: { close: () => void } }
       slot.__anchored?.close()
-      const handle = this.showLayer!(config, ...items)
+      // A menu: a press anywhere else closes it, as a DOM select's list does.
+      const handle = this.showLayer!({ ...config, dismissOutside: true }, ...items)
       slot.__anchored = handle
       return handle
     },
@@ -4616,6 +4627,7 @@ function buildPanel3d(
         for (const o of opened) o.close()
         handlerOf<() => void>(config, 'handleClose', 'onClose')?.()
       }
+      if (config.dismissOutside) entry.dismiss = closeAll
       opened.push(
         // `chromeBand` travels with the popup: the sheet reserved it, so every
         // host has to agree about whether it exists. Computing it twice is how
@@ -4815,6 +4827,12 @@ function buildPanel3d(
     }
     const row = inHeader ? headerRowAt(localX, localY) : rowAt(localX, contentY)
     if (kind === 'down') {
+      // A press on the panel anywhere but a menu's own control closes the
+      // menu; on its control, the control toggles it.
+      for (const p of [...popups]) {
+        const opener = (p.inHeader ? headerWidgets : widgets)[p.index]
+        if (p.dismiss != null && row?.w !== opener) p.dismiss()
+      }
       if (row) {
         /*
         A PRESS ELSEWHERE CLEARS THE LAST WIDGET'S INNER FOCUS.

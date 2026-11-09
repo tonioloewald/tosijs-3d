@@ -20,6 +20,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 - The tailor could not cut a large garment ("Maximum call stack size exceeded"): a big cut's triangle list was spread into a call. The same pattern is gone from `remesh` and `loadRigTriangles`.
 - A body opened from the builder's own export GLB (`riggedBodyGlb`) is its skin and eyes only: `glbRigTriangles`, `loadRigTriangles` and `loadSkinnedBody` leave out the garments and the held item it also carries, which were merged into the body.
+- A menu opened from a scene panel (a select's list) closes on a press anywhere else: outside it, or on its panel anywhere but the control that opened it, which still toggles it. `showLayer` takes `dismissOutside`, and `showPopup` (every menu) asks for it.
+- A popup dropped with its title band off screen comes back on release until the band is reachable (its top on screen, 48 px of it across), as a frame panel's screen drag already does. It may still be slid partly off to see past it.
 
 ## 0.12.5
 

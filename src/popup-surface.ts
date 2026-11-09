@@ -217,6 +217,11 @@ export interface PopupSurfaceOptions {
    */
   handleClosed?: () => void
   /**
+   * Close on a press that lands on neither this popup nor its opener (a
+   * menu). A press on the opener is the opener's: its panel decides.
+   */
+  dismissOutside?: boolean
+  /**
    * Fraction of the panel's height that acts as the TITLE BAR — the only place
    * a drag starts. Default 0.2; `0` makes the whole panel draggable.
    *
@@ -240,6 +245,10 @@ export interface PopupSurfaceOptions {
 export interface PopupSurface {
   /** The plane element (an `AbstractMesh`, so it has x/y/z and rx/ry/rz). */
   plane: B3dSvgPlane
+  /** What it hangs from, if anything. */
+  readonly opener?: BABYLON.TransformNode | BABYLON.AbstractMesh | null
+  /** Closed by a press on neither it nor its opener (`dismissOutside`). */
+  readonly dismissOutside?: boolean
   /** Dispose it. Safe to call twice. */
   close(): void
   /**
@@ -587,6 +596,25 @@ function wirePointer(owner: B3d): void {
     }
     const onPopup = hit?.hit === true ? hit.pickedMesh : null
 
+    /*
+    A MENU GOES WHEN YOU PRESS SOMEWHERE ELSE, as a DOM select's list does.
+    Not on its opener, though: that is a panel, and the panel closes the menu
+    itself unless the press is on the control that opened it (which toggles
+    it). Closed after the hit test, so the press still lands where it was.
+    */
+    if (ray != null) {
+      for (const p of [...list]) {
+        if (!p.dismissOutside || p.plane.mesh == null) continue
+        if (onPopup === p.plane.mesh) continue
+        const o = p.opener as BABYLON.AbstractMesh | null | undefined
+        const onOpener =
+          o != null &&
+          typeof o.getScene === 'function' &&
+          o.getScene().pickWithRay(ray, (m) => m === o)?.hit === true
+        if (!onOpener) p.close()
+      }
+    }
+
     if (onPopup != null) {
       // CLICK to front, not just drag-to-front: raising something only when you
       // move it means a panel you merely want to READ stays buried.
@@ -662,9 +690,13 @@ function wirePointer(owner: B3d): void {
 /**
  * How far to move `mesh` (in its parent's frame) so all of it is on screen,
  * or null when it already is or there is no flat screen to fit (a headset).
- * Pixels off an edge become world units at the mesh's depth.
+ * Pixels off an edge become world units at the mesh's depth. `reach` asks
+ * only for what a dragged popup needs (see `reachable`).
  */
-function intoView(mesh: BABYLON.AbstractMesh): { x: number; y: number } | null {
+function intoView(
+  mesh: BABYLON.AbstractMesh,
+  reach = false
+): { x: number; y: number } | null {
   const scene = mesh.getScene()
   const camera = scene.activeCamera
   if (camera == null || camera.getClassName() === 'WebXRCamera') return null
@@ -687,6 +719,8 @@ function intoView(mesh: BABYLON.AbstractMesh): { x: number; y: number } | null {
       transform,
       viewport
     )
+    // Behind the camera, a projection means nothing (it ran away).
+    if (s.z < 0 || s.z > 1) return null
     left = Math.min(left, s.x)
     right = Math.max(right, s.x)
     top = Math.min(top, s.y)
@@ -695,15 +729,29 @@ function intoView(mesh: BABYLON.AbstractMesh): { x: number; y: number } | null {
   const margin = 8
   let dx = 0
   let dy = 0
-  // Off an edge: back in by that much. Too big to fit at all: centred.
-  if (right - left < w - margin * 2) {
-    if (left < margin) dx = margin - left
-    else if (right > w - margin) dx = w - margin - right
-  } else dx = w / 2 - (left + right) / 2
-  if (bottom - top < h - margin * 2) {
-    if (top < margin) dy = margin - top
-    else if (bottom > h - margin) dy = h - margin - bottom
-  } else dy = h / 2 - (top + bottom) / 2
+  if (reach) {
+    /*
+    WHERE IT WAS DROPPED, AS LONG AS ITS BAR CAN BE HAD. A popup may be slid
+    partly off screen to see past it, but its title band (move and close)
+    must stay reachable: the top on screen, and some of it across. The same
+    rule as a frame panel's screen drag (48 CSS px of it, top never above).
+    */
+    const keep = 48 / engine.getHardwareScalingLevel()
+    if (right < keep) dx = keep - right
+    else if (left > w - keep) dx = w - keep - left
+    if (top < 0) dy = -top
+    else if (top > h - keep) dy = h - keep - top
+  } else {
+    // Off an edge: back in by that much. Too big to fit at all: centred.
+    if (right - left < w - margin * 2) {
+      if (left < margin) dx = margin - left
+      else if (right > w - margin) dx = w - margin - right
+    } else dx = w / 2 - (left + right) / 2
+    if (bottom - top < h - margin * 2) {
+      if (top < margin) dy = margin - top
+      else if (bottom > h - margin) dy = h - margin - bottom
+    } else dy = h / 2 - (top + bottom) / 2
+  }
   if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return null
   if (dx === 0 && dy === 0) return null
   const centre = mesh.getBoundingInfo().boundingBox.centerWorld
@@ -739,6 +787,7 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     gripHeight = 0.2,
     chrome = true,
     handleClosed,
+    dismissOutside = false,
   } = opts
 
   const vb = svg.viewBox?.baseVal
@@ -1042,10 +1091,23 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
       plane.y = mesh.position.y
       plane.z = mesh.position.z
     })
+    // Dropped with its title band out of reach: back until it is.
+    drag.onDragEndObservable.add(() => {
+      for (let pass = 0; pass < 4; pass++) {
+        const shift = intoView(mesh, true)
+        if (shift == null) break
+        plane.x += shift.x
+        plane.y += shift.y
+        mesh.position.set(plane.x, plane.y, plane.z)
+        mesh.computeWorldMatrix(true)
+      }
+    })
   }
 
   const api: PopupSurface = {
     plane,
+    opener,
+    dismissOutside,
     modal,
     vbWidth: vbW,
     vbHeight: vbH,
