@@ -683,8 +683,10 @@ ones are CHECKBOXES, possibly checked by default:
 - **at the midline**, splitting left from right. This is what removes the
   branch at the crotch: each half of a pair of trousers is one leg loft whose
   rings are open arcs over half the seat, closing into a full loop below the
-  crotch, which is how a trouser pattern is cut. The same checkbox splits a
-  shirt's front and back halves;
+  crotch, which is how a trouser pattern is cut. Tonio: the midline is for
+  HAIRDOS, BEARDS AND CLOTHING ITEMS alike, so every tool offers it. With left
+  and right synced (the barber's default), the two halves are one piece and
+  its mirror, which also gives a hairdo its parting line for free;
 - **across the top of the foot**, where it projects in front of the lower leg:
   the shaft and the foot become two pieces, which is where a boot is really
   sewn, and the ankle needs no angled join there.
