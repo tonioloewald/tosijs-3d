@@ -694,6 +694,15 @@ ones are CHECKBOXES, possibly checked by default:
   which removes the branch at the shoulder as the midline removes the one at
   the crotch.
 
+A checkbox puts its cut where the joints say it goes (the armhole round the
+shoulder joint, the foot cut across the instep in front of the shin), and the
+user can then FINESSE it (Tonio): the dashed red line has handles, dragged in
+any view as the tailor's outlines are, and the cut follows the body's surface
+under them. A finessed cut is saved with the garment like any outline. The
+piece's end ring IS the cut, resampled, and it is not flat, so the loft eases
+from the cut's shape to rings square to the bone over its first few stations.
+The midline stays straight: it is what mirroring is about.
+
 Cuts also serve the round trip: each piece is a UV island and a
 seam a modelling tool keeps, so a piece can be finessed there and brought back.
 
