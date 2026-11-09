@@ -706,6 +706,24 @@ The midline stays straight: it is what mirroring is about.
 Cuts also serve the round trip: each piece is a UV island and a
 seam a modelling tool keeps, so a piece can be finessed there and brought back.
 
+**A piece is the body between its cuts** (Tonio, 2026-11-09): a pure
+subtraction, the stretch of body surface bounded by two cuts (or one, at the
+end of a limb), swept from there. And **each cut is OPEN or SEALED**:
+
+- **sealed**: the piece meets its neighbour there, ring for ring (a seam), or
+  stays on the body. A sealed edge cannot leave the surface;
+- **open**: a free edge, hemmed. Its ring may stand out from the body.
+
+The ring is the HULL of the body's slice (it bridges hollows, as skirt mode's
+convex outline does) plus ease, and ease is allowed to grow toward an open
+cut, so the hull stands off the surface there. That one rule gives flared
+trousers, bell sleeves, a bucket top and a standing collar: a piece with a
+sealed cut at one end and an open cut, eased out, at the other. A piece with
+one cut at the end of a limb (the foot beyond the foot cut) is closed by the
+body itself, so the toe cap comes from the subtraction with no cap to build.
+This folds the ends above into the cuts: a hem is an open cut, a join a sealed
+one.
+
 A **layer** is a sweep that starts on another's surface and leaves it (a
 turned-down cuff). It is not a join: both walls show, and its open edge is a
 hem.
