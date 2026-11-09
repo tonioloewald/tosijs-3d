@@ -689,10 +689,12 @@ ones are CHECKBOXES, possibly checked by default:
   its mirror, which also gives a hairdo its parting line for free;
 - **across the top of the foot**, where it projects in front of the lower leg:
   the shaft and the foot become two pieces, which is where a boot is really
-  sewn, and the ankle needs no angled join there.
+  sewn, and the ankle needs no angled join there;
+- **at the armhole**: a sleeve becomes its own piece, a loft along the arm,
+  which removes the branch at the shoulder as the midline removes the one at
+  the crotch.
 
-A shirt's sleeve is a cut at the armhole by the same rule (a suggestion, not
-yet decided). Cuts also serve the round trip: each piece is a UV island and a
+Cuts also serve the round trip: each piece is a UV island and a
 seam a modelling tool keeps, so a piece can be finessed there and brought back.
 
 A **layer** is a sweep that starts on another's surface and leaves it (a
@@ -754,7 +756,7 @@ angled joins, cuts, rings to mesh with weights and UVs, tested on the real pack;
 (b) the barber's beard, moustache and short hair (shells and normal sweeps,
 the four views); (c) the cobbler's flat shoes and boots, then heels with the
 foot pose; (d) skirt mode and sleeves moved onto lofts; (e) long hair on spring
-chains; (f) trousers and shirts on the midline (and armhole) cuts.
+chains; (f) trousers and shirts on the midline and armhole cuts.
 
 **Done when:** a bucket-top boot, a beard and a bob are made in the tools,
 refit on the extreme bodies (`bun run extremes` takes sweeps), and export
