@@ -372,7 +372,10 @@ export function tailorPanel(
           drape: saved.cut.drape === true,
           mesh: saved.cut.mesh ?? 'medium',
         }
-      : draft.cut
+      : draft.cut.shapes?.length
+      ? draft.cut
+      : // Nothing drawn yet: the cheapest, surest way, cut from the body.
+        { ...draft.cut, drape: false, mesh: 'body' as const }
     const look: MaterialRecipe = saved
       ? saved.look?.material ?? clothRecipe(saved.look ?? {})
       : plain(draft.look)
@@ -436,7 +439,7 @@ export function tailorPanel(
       const d = options.draft.get()
       options.draft.set({
         ...d,
-        cut: { ...d.cut, shapes: [] as any },
+        cut: { ...d.cut, shapes: [] as any, drape: false, mesh: 'body' },
         name: '',
       })
     }

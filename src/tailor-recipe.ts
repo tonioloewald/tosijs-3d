@@ -53,7 +53,7 @@ export interface TailorCut {
   skirt: boolean
   /** Draped cloth ([cloth-drape](/cloth-drape/)) in place of a cut from the skin. Ignored with `skirt`. */
   drape?: boolean
-  /** What the cloth is cut from: an even surface at this density, or the body's own triangles. Default `medium`. */
+  /** What the cloth is cut from: an even surface at this density, or the body's own triangles. Absent reads as `medium` (as cuts were made before `body` became the tailor's default). */
   mesh?: TailorMesh
   /** The landmarks of the body the shapes were drawn on (`outlineLandmarks`). */
   on?: OutlineLandmarks
