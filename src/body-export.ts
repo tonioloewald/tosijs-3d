@@ -63,6 +63,8 @@ export interface BodyExportTarget {
   } | null
   /** The clip playing, for **animation**: its file and its name there. */
   clip?: ExportClip | null
+  /** The eyes' picture (see riggedBodyGlb's `eyeTexture`). */
+  eyeTexture?: { bytes: Uint8Array; mimeType: string } | null
 }
 
 /** A clip as its file: a GLB's animation by name, or a BVH capture. */
@@ -173,7 +175,14 @@ export async function exportBody(
     body = { ...body, surfaces: tris.surfaces }
   else if (tris != null)
     note = 'its materials did not match the mesh: plain grey'
-  else if (target.body.surfaces?.length) note = 'not from a GLB: plain grey'
+  else if (
+    target.body.surfaces?.length &&
+    !target.body.surfaces.some((s) =>
+      Array.isArray((s.material as any)?.baseColorFactor)
+    )
+  )
+    // A body that brings its own glTF materials (MakeHuman's skin) keeps them.
+    note = 'not from a GLB: plain grey'
   const held = target.held
     ? await heldItem(target.held).catch(() => {
         note = [
@@ -194,6 +203,7 @@ export async function exportBody(
   const out = riggedBodyGlb(body, {
     ...(held ? { held } : {}),
     ...(clip ? { clips: [clip] } : {}),
+    ...(target.eyeTexture ? { eyeTexture: target.eyeTexture } : {}),
     ...(target.garments?.length ? { garments: target.garments } : {}),
     naming: settings.naming,
     restPose: settings.restPose,

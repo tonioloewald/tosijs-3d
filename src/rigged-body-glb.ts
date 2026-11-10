@@ -37,7 +37,8 @@ What the file is (Dramatis's `export-format`, version 1):
   first (a mesh generator's 1.9 units, say, made a real 1.7 m).
 - **Meshes**: `body`, one primitive per material, and `eyes` (both eyeballs,
   skinned wholly to `Head`, which the profile prefers to parenting a mesh
-  under a joint). The file's own materials go out as glTF PBR with their
+  under a joint; with `eyeTexture`, eye-art's picture laid on each by
+  `gltfEyeUvs`, else plain white). The file's own materials go out as glTF PBR with their
   pictures embedded, when the body's surfaces carry them as data (a body
   read by `glb-rig`); otherwise a plain grey.
 - **Springs**, when given the rig `recipe`: a bone spring (a tail) swings
@@ -98,6 +99,7 @@ import { bakeClothLook } from './cloth-bake.js'
 import { vertexNormals } from './hair-fit.js'
 import { bakeClip, type GlbClip, type GlbClipSource } from './glb-clips.js'
 import { humanoidRoles } from './retarget.js'
+import { gltfEyeUvs } from './eye-art.js'
 import type { GlbAnimation } from './skinned-glb.js'
 import {
   gripMatrix,
@@ -162,6 +164,11 @@ export interface RiggedBodyGlbOptions {
   bake?: boolean
   /** Clips to write: see "Clips" above. */
   clips?: ClipOut[]
+  /**
+   * The eyes' picture (one eye, as eye-art draws it: `recolourEyePng`), laid
+   * on both eyeballs by `gltfEyeUvs`. Without it the eyes are plain white.
+   */
+  eyeTexture?: { bytes: Uint8Array; mimeType: string } | null
 }
 
 /** A clip for `riggedBodyGlb`: one of a file's (`readGlbClips`), retargeted. */
@@ -1171,9 +1178,24 @@ export function riggedBodyGlb(
       for (const i of body.eyes![e].indices) ix.push(base + i)
     })
     const n = pos.length / 3
+    // The picture is laid on by where each point is on its eyeball at rest.
+    const eyeArt = options.eyeTexture
+    const textured =
+      eyeArt != null &&
+      (eyeArt.mimeType === 'image/png' || eyeArt.mimeType === 'image/jpeg')
+    if (textured)
+      images.push({
+        name: 'eyes',
+        mimeType: eyeArt.mimeType as 'image/png' | 'image/jpeg',
+        bytes: eyeArt.bytes,
+      })
+    const eyeUvs = textured
+      ? gltfEyeUvs(body.eyes!.flatMap((e) => Array.from(e.positions)))
+      : null
     materials.push({
       name: 'eyes',
-      baseColorFactor: [0.95, 0.95, 0.95, 1],
+      baseColorFactor: textured ? [1, 1, 1, 1] : [0.95, 0.95, 0.95, 1],
+      ...(textured ? { baseColorTexture: { image: images.length - 1 } } : {}),
       metallicFactor: 0,
       roughnessFactor: 0.2,
       alphaMode: 'OPAQUE',
@@ -1185,7 +1207,7 @@ export function riggedBodyGlb(
         {
           positions: Float32Array.from(pos),
           normals: smoothNormals(pos, ix),
-          uvs: null,
+          uvs: eyeUvs,
           colors: null,
           joints: new Uint16Array(n * 4).fill(head),
           weights: Float32Array.from({ length: n * 4 }, (_, k) =>

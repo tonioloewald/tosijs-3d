@@ -223,8 +223,8 @@ const setGrip = (patch) => {
   applyGrip()
 }
 // Export: the body on show as a GLB that plays UAL's clips by name (its
-// springs too, and the clip playing if asked), in its clothes. Hair and the
-// face's extras stay here for now.
+// springs too, and the clip playing if asked), in its clothes, skin and
+// eyes. Hair, brows and lashes stay here for now.
 // The clip playing as its file: one of your own, else UAL's.
 const playingClip = (recipe) => {
   const name = walker.clip.value
@@ -246,13 +246,15 @@ const exportRows = () =>
       const shown = ch?.shown
       if (shown == null) return 'nothing to export yet'
       const name = walker.characterName.value || shown.source
+      const out = await ch.exportCharacter()
       return {
-        body: shown.body,
+        body: out?.body ?? shown.body,
+        eyeTexture: out?.eyeTexture ?? null,
         recipe: shown.recipe,
         source: shown.source === 'MakeHuman' ? null : ch.sources[shown.source] ?? null,
         name: String(name).replace(/\W+/g, '-').replace(/^-|-$/g, '') || 'character',
         // What it wears: MakeHuman's clothes and garments of your own.
-        garments: (await ch.exportGarments?.()) ?? [],
+        garments: out?.garments ?? [],
         clip: playingClip(shown.recipe),
         // What the right hand holds goes out with it, where it is held.
         held:

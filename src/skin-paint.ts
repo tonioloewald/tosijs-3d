@@ -25,10 +25,16 @@ stubbleTint(colours, mask, 0.6, skinAlbedo(tone, redness), hairRgb)
   not on the lips, and down the front and sides of the neck, fading.
 - `stubbleTint`: the skin there toward a darkened, slightly cool hair
   colour (short hairs read as a shadow), by an amount (0 clean-shaven).
+- `skinSurface`: the skin as an exporter writes it, a glTF material in the
+  skin's albedo and the colours with their alpha set to 1 (the builder keeps
+  the skin's thinness there for its back-light, which glTF would read as
+  opacity). A `RiggedBody`'s `surfaces` and `colors` take them, and
+  `riggedBodyGlb` writes the skin as the builder shows it.
 */
 /*{ "parent": "character-core", "order": 35 }*/
 
 import { lipAlbedo, skinAlbedo, type Rgb } from './skin-tone.js'
+import type { GltfSurfaceMaterial } from './glb-rig.js'
 import { coveredBy } from './proxy-fit.js'
 
 const smooth = (t: number) => {
@@ -177,4 +183,46 @@ export function stubbleMask(input: {
     mask[i] = Math.max(mask[i], smooth(1 - Math.sqrt(d) / REACH) * offLips(i))
   }
   return mask
+}
+
+/**
+ * The skin for an export: a glTF material in the skin's albedo (linear, as
+ * glTF's base colour is) and `colours` (from `lipTint`, `stubbleTint`) copied
+ * with alpha 1, as a body's `surfaces` and `colors` take them.
+ */
+export function skinSurface(
+  colours: ArrayLike<number>,
+  tone: number,
+  redness = 0.5,
+  indexCount = 0
+): {
+  colors: Float32Array
+  surface: {
+    start: number
+    count: number
+    name: string
+    material: GltfSurfaceMaterial
+  }
+} {
+  const colors = Float32Array.from(colours)
+  for (let i = 3; i < colors.length; i += 4) colors[i] = 1
+  const c = skinAlbedo(tone, redness)
+  return {
+    colors,
+    surface: {
+      start: 0,
+      count: indexCount,
+      name: 'skin',
+      material: {
+        name: 'skin',
+        baseColorFactor: [c.r, c.g, c.b, 1],
+        metallicFactor: 0,
+        roughnessFactor: 0.5,
+        emissiveFactor: [0, 0, 0],
+        alphaMode: 'OPAQUE',
+        alphaCutoff: 0.5,
+        doubleSided: false,
+      },
+    },
+  }
 }

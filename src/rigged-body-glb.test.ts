@@ -320,6 +320,74 @@ describe.skipIf(!existsSync(WEASEL))('springs: the weasel’s tail', () => {
   }, 120000)
 })
 
+describe.skipIf(!existsSync(AI))('rigged-body-glb: skin and eyes', () => {
+  test('a skin surface and its vertex colours go out, and the eyes take a picture on uvs', async () => {
+    const { skinSurface } = await import('./skin-paint.js')
+    const { pngEncode } = await import('./png.js')
+    const body = bodyFromMarkers(
+      glbRigTriangles(new Uint8Array(readFileSync(AI)))
+    )
+    const n = body.positions.length / 3
+    const tint = new Float32Array(n * 4).fill(1)
+    for (let i = 0; i < n * 4; i += 40) tint[i] = 0.5
+    const { colors, surface } = skinSurface(tint, 0.3, 0.5, body.indices.length)
+    // Two small eyeballs either side of the head, facing +Z.
+    const eye = (x: number) => {
+      const p: number[] = []
+      const ix: number[] = []
+      for (let a = 0; a < 8; a++)
+        for (let b = 0; b < 8; b++) {
+          const t = (a / 7) * Math.PI
+          const f = (b / 8) * 2 * Math.PI
+          p.push(
+            x + 0.012 * Math.sin(t) * Math.cos(f),
+            1.6 + 0.012 * Math.sin(t) * Math.sin(f),
+            0.1 + 0.012 * Math.cos(t)
+          )
+        }
+      for (let a = 0; a < 7; a++)
+        for (let b = 0; b < 8; b++) {
+          const i = a * 8 + b
+          const j = a * 8 + ((b + 1) % 8)
+          ix.push(i, i + 8, j, j, i + 8, j + 8)
+        }
+      return { positions: Float32Array.from(p), indices: Uint32Array.from(ix) }
+    }
+    const dressed: RiggedBody = {
+      ...body,
+      colors,
+      surfaces: [surface],
+      eyes: [eye(0.03), eye(-0.03)],
+    }
+    const art = new Uint8Array(4 * 4 * 4).fill(200)
+    const bytes = riggedBodyGlb(dressed, {
+      eyeTexture: { bytes: pngEncode(art, 4, 4), mimeType: 'image/png' },
+    })
+    const { json } = readGlb(bytes)
+    const skinPrim = json.meshes.find((m: any) => m.name === 'body')
+      .primitives[0]
+    expect(skinPrim.attributes.COLOR_0).toBeDefined()
+    const skinMat = json.materials[skinPrim.material]
+    expect(skinMat.pbrMetallicRoughness.baseColorFactor[0]).toBeCloseTo(
+      surface.material.baseColorFactor[0],
+      5
+    )
+    const eyes = json.meshes.find((m: any) => m.name === 'eyes').primitives[0]
+    expect(eyes.attributes.TEXCOORD_0).toBeDefined()
+    expect(
+      json.materials[eyes.material].pbrMetallicRoughness.baseColorTexture
+    ).toBeDefined()
+    const report = await validateBytes(bytes, { maxIssues: 50 })
+    expect(
+      report.issues.messages.filter(
+        (m: { code: string; severity: number }) =>
+          m.severity === 0 &&
+          m.code !== 'MESH_PRIMITIVE_GENERATED_TANGENT_SPACE'
+      )
+    ).toEqual([])
+  }, 60000)
+})
+
 describe.skipIf(!existsSync(AI))(
   'rigged-body-glb: garments on a file body',
   () => {

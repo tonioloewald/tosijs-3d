@@ -1,8 +1,23 @@
 import { describe, expect, test } from 'bun:test'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { lipTint, stubbleMask, stubbleTint } from './skin-paint.js'
+import { lipTint, skinSurface, stubbleMask, stubbleTint } from './skin-paint.js'
 import { lipAlbedo, skinAlbedo } from './skin-tone.js'
+
+describe('the skin for an export', () => {
+  test("a surface in the skin's albedo, the colours copied with alpha 1", () => {
+    const colours = Float32Array.from([1, 1, 1, 0.3, 0.8, 0.5, 0.5, 0.9])
+    const { colors, surface } = skinSurface(colours, 0.4, 0.6, 30)
+    const c = skinAlbedo(0.4, 0.6)
+    expect(surface.material.baseColorFactor).toEqual([c.r, c.g, c.b, 1])
+    expect(surface.count).toBe(30)
+    expect(Array.from(colors)).toEqual(
+      [1, 1, 1, 1, 0.8, 0.5, 0.5, 1].map((v) => Math.fround(v))
+    )
+    // The builder's colours are left as they were (their alpha is thinness).
+    expect(colours[3]).toBeCloseTo(0.3, 6)
+  })
+})
 
 describe('lip and stubble tints', () => {
   test('lips take the lips’ albedo over the skin’s; bare skin stays 1', () => {

@@ -94,6 +94,7 @@ import { humanBodyMaker, bodyDetailProxy } from './human-rig.js'
 import { skinMaterial } from './character-builder.js'
 import {
   lipTint,
+  skinSurface,
   stubbleMask as stubbleMask_,
   stubbleTint,
 } from './skin-paint.js'
@@ -106,7 +107,7 @@ import {
   lashMaterial,
   type EyeTextureStyle,
 } from './human-face.js'
-import { eyeStyle } from './eye-art.js'
+import { eyePngUrl, eyeStyle, recolourEyePng } from './eye-art.js'
 import {
   loadHairLibrary,
   headScalp,
@@ -298,6 +299,17 @@ export interface SceneCharacter {
    * fitted as drawn and bound to the skin, their pictures fetched.
    */
   exportGarments(): Promise<GarmentProxy[]>
+  /**
+   * The character as `riggedBodyGlb` writes it: the body shown (on
+   * MakeHuman's, with its skin's colour, lips and stubble as a surface and
+   * vertex colours, and its eyes), its garments (`exportGarments`) and the
+   * eyes' picture in its iris colour. Null when nothing is shown yet.
+   */
+  exportCharacter(): Promise<{
+    body: RiggedBody
+    garments: GarmentProxy[]
+    eyeTexture: { bytes: Uint8Array; mimeType: string } | null
+  } | null>
   /**
    * Where the hair's hand adjustment is measured from: the Head bone's node
    * and the skull's middle in its frame (metres, y up, z forward), before
@@ -1174,6 +1186,53 @@ export async function makeCharacter(
     })
   }
 
+  const exportGarments = async (): Promise<GarmentProxy[]> => {
+    const r = shownNow
+    if (!r) return []
+    if (r !== built) return wornGarments()
+    if (!human || s.hideClothes) return []
+    const body = human as any
+    const out: GarmentProxy[] = []
+    for (const slot of SLOTS) {
+      const name = s[slot]
+      if (name === 'none' || slot === s.hideSlot) continue
+      const own = garments.get(name)
+      const proxy =
+        own?.source === 'MakeHuman'
+          ? own.proxy
+          : proxies[name]
+          ? await pack.proxy(name)
+          : null
+      if (!proxy || proxy.category !== 'clothes') continue
+      let drawn = drawnPositions(proxy, fitProxy(proxy, clothBody))
+      if (slot === 'hat') drawn = inflate(drawn, scalp.centre, HAT_LIFT)
+      const bound = onSkin(proxy, drawn, {
+        positions: body.positions,
+        triangles: body.indices,
+        vertices: body.skin.vertices,
+      })
+      const look = cloth[slot]?.material as MaterialRecipe | null | undefined
+      let material: GarmentProxyMaterial
+      if (own) material = garmentFileMaterial(own.content)
+      else {
+        const alt =
+          cloth[slot].look !== 'as made'
+            ? proxy.material.looks?.[cloth[slot].look]
+            : undefined
+        material = packGarmentMaterial(proxy, {
+          diffuse: await picture(alt?.diffuse ?? proxy.material.diffuse),
+          normal: await picture(alt?.normal ?? proxy.material.normal),
+        })
+      }
+      if (look?.type) {
+        material.look = look
+        material.gltf = lookGltf(look, material.baseColorTexture != null)
+      }
+      out.push({ ...bound, slot, material })
+    }
+    return out
+  }
+
   const shown = (): ShownBody | null =>
     shownNow == null
       ? null
@@ -1342,51 +1401,58 @@ export async function makeCharacter(
       }
     },
     wornGarments,
-    async exportGarments() {
-      const r = shownNow
-      if (!r) return []
-      if (r !== built) return wornGarments()
-      if (!human || s.hideClothes) return []
+    exportGarments,
+    async exportCharacter() {
+      const sh = shown()
+      if (!sh) return null
+      const garments = await exportGarments()
+      if (sh.built !== built || !human)
+        return { body: sh.body, garments, eyeTexture: null }
       const body = human as any
-      const out: GarmentProxy[] = []
-      for (const slot of SLOTS) {
-        const name = s[slot]
-        if (name === 'none' || slot === s.hideSlot) continue
-        const own = garments.get(name)
-        const proxy =
-          own?.source === 'MakeHuman'
-            ? own.proxy
-            : proxies[name]
-            ? await pack.proxy(name)
-            : null
-        if (!proxy || proxy.category !== 'clothes') continue
-        let drawn = drawnPositions(proxy, fitProxy(proxy, clothBody))
-        if (slot === 'hat') drawn = inflate(drawn, scalp.centre, HAT_LIFT)
-        const bound = onSkin(proxy, drawn, {
-          positions: body.positions,
-          triangles: body.indices,
-          vertices: body.skin.vertices,
-        })
-        const look = cloth[slot]?.material as MaterialRecipe | null | undefined
-        let material: GarmentProxyMaterial
-        if (own) material = garmentFileMaterial(own.content)
-        else {
-          const alt =
-            cloth[slot].look !== 'as made'
-              ? proxy.material.looks?.[cloth[slot].look]
-              : undefined
-          material = packGarmentMaterial(proxy, {
-            diffuse: await picture(alt?.diffuse ?? proxy.material.diffuse),
-            normal: await picture(alt?.normal ?? proxy.material.normal),
-          })
+      const colours = lips
+        ? lipTint(skin, lips, s.tone, s.redness)
+        : new Float32Array(skin.vertices.length * 4).fill(1)
+      if (stubbleMask)
+        stubbleTint(
+          colours,
+          stubbleMask,
+          s.stubble,
+          skinAlbedo(s.tone, s.redness),
+          linearHex(s.hairBase)
+        )
+      const { colors, surface } = skinSurface(
+        colours,
+        s.tone,
+        s.redness,
+        body.indices.length
+      )
+      // Both eyeballs as one, where the pack puts them (they turn about
+      // their joints in the builder; at rest they are here).
+      const eyes = eyePart
+        ? [
+            {
+              positions: Float32Array.from(
+                { length: eyePart.vertices.length * 3 },
+                (_, k) => current![eyePart.vertices[(k / 3) | 0] * 3 + (k % 3)]
+              ),
+              indices: eyePart.triangles,
+            },
+          ]
+        : []
+      let eyeTexture: { bytes: Uint8Array; mimeType: string } | null = null
+      const art = await picture(
+        eyePngUrl(s.eyeStyle === 'drawn' ? 'basic' : eyeStyle(s.eyeStyle))
+      )
+      if (art)
+        eyeTexture = {
+          bytes: recolourEyePng(art.bytes, s.irisColour),
+          mimeType: 'image/png',
         }
-        if (look?.type) {
-          material.look = look
-          material.gltf = lookGltf(look, material.baseColorTexture != null)
-        }
-        out.push({ ...bound, slot, material })
+      return {
+        body: { ...body, colors, surfaces: [surface], eyes },
+        garments,
+        eyeTexture,
       }
-      return out
     },
     get skeleton() {
       return read
