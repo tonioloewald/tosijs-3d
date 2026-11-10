@@ -164,7 +164,7 @@ export const AI_CHARACTER_SOURCES: Record<string, CharacterSource> = {
         [0, -0.1614],
         [0.5217, 0.105],
         [0.3631, 0.2801],
-        [0.1217, -0.4923],
+        [0.1217, -0.4773],
       ],
       {
         thumb_01: [0.5421, 0.0598, 0.0834],

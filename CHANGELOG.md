@@ -14,6 +14,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ### Added
 
+- Rig tool: a **floor** slider (Motion) moves the body up or down from where its soles stand, for one that floats or sinks; kept in the rig recipe as `floor` (metres), and the character builder stands the body the same way. At rest the soles, not the mesh's lowest point, are put on the floor.
 - Character builder: exporting MakeHuman's body writes the clothes it wears (MakeHuman's own and garments of your own made on it), fitted as drawn, with their pictures and looks. `character.exportGarments()` gives them for `riggedBodyGlb`'s `garments` on either kind of body; `onSkin` (`garment-proxy`) binds a piece made for MakeHuman's pack to the skin a body draws, and `packGarmentMaterial` gives a pack piece's material as data.
 - The export of MakeHuman's body carries its eyelashes, drawn and faded as in the builder, following the head. The fade is a small ramp picture, so it needs no vertex alpha (`shortenLashes`, `lashAlpha`, `lashUvs`, `lashPicture` in `eye-art`).
 - The export of MakeHuman's body carries its hair, beard, moustache and brows: Quaternius' pieces placed as the builder places them (scalp hair following the head, tucked under a hat), MakeHuman's own hair and brows bound like clothes, each picture coloured as the builder colours hair (`recolourHair`, `cloth-bake`). A garment may `follow` one joint wholly; `riggedBodyGlb` tucks the skin under clothes only. `readHairLibrary` now gives each part's uvs and material, and `readHairMaterials` the library's pictures.
@@ -36,6 +37,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ### Fixed
 
+- Rig tool: a recipe handed over through `api.recipe` with new markers now binds the mesh again (it kept the old binding).
+- Eurasian male's knees sit 1.5 cm higher, so its feet plant more evenly.
 - Tailor: switching to a slot that wears something the body shown cannot (MakeHuman's shoes while another body is on show) opened as "(new garment)" but said there was no outline; it now starts a new garment.
 - Tailor: undo and redo work while an outline is being clicked out, a point at a time (they did nothing until it was closed). `outlineField3d` gains `undoPoint`/`redoPoint`. A panel's tooltips stay inside its padding, so the undo button's is no longer cut off at the edge.
 - `riggedBodyGlb` wrote a garment's uvs upside down (ours run up the image, glTF's down), so a textured garment's picture landed flipped on it in other engines.

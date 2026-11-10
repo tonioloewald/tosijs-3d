@@ -953,7 +953,8 @@ export async function makeCharacter(
   const placeRoot = () => {
     if (!shownNow) return
     body.position.y =
-      -(clipLow ?? shownNow.rig.at('root').y) + (shownNow === built ? sole : 0)
+      -(clipLow ?? shownNow.rig.at('root').y) +
+      (shownNow === built ? sole : shownNow.recipe?.floor ?? 0)
   }
 
   const rebuild = async () => {
@@ -1001,6 +1002,9 @@ export async function makeCharacter(
   let problem = ''
   const recipeOf = (name: string) =>
     plain(s.rigs ?? {})[name] ?? sources[name]?.recipe ?? null
+  // What binding depends on: everything but the floor, which only moves it.
+  const bindKey = (recipe: any) =>
+    JSON.stringify(recipe ? { ...recipe, floor: undefined } : recipe)
   const rig = async (name: string) => {
     const from = sources[name]
     if (!from) throw new Error('no such body')
@@ -1041,7 +1045,7 @@ export async function makeCharacter(
   // A rigged body on the stand, with its recipe.
   const wear = (made: RiggedBody, kept: any, name: string) => {
     const r: any = buildBody(scene, `character-${name}`, made)
-    r.kept = JSON.stringify(kept)
+    r.kept = bindKey(kept)
     r.source = name
     // A body bound from markers carries them in its recipe, so the rig tool
     // binds the same mesh from the same markers; one with its own skin opens
@@ -1486,7 +1490,12 @@ export async function makeCharacter(
   const rebind = () => {
     let again = false
     for (const [name, r] of [...rigged]) {
-      if (r.kept === JSON.stringify(recipeOf(name))) continue
+      if (r.kept === bindKey(recipeOf(name))) {
+        // The floor alone changed: stood again, not bound again.
+        r.recipe.floor = recipeOf(name)?.floor
+        if (r === shownNow) placeRoot()
+        continue
+      }
       if (r === other) {
         hideOther()
         other = null

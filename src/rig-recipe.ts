@@ -97,6 +97,11 @@ export interface RigRecipe {
   roles?: Partial<Record<Role, string>>
   /** See `RetargetOptions.armSpaceDeg`. */
   armSpaceDeg?: number
+  /**
+   * Metres to raise (or, negative, lower) the body from where its soles
+   * would stand: the hand correction for a body that floats or sinks.
+   */
+  floor?: number
   springs?: SpringRecipe[]
   /**
    * A mesh with no skeleton: where its joints are, as Mixamo's eight
@@ -269,6 +274,7 @@ export function validateRigRecipe(doc: unknown): string[] {
     out.push(`version is ${r.version}, expected ${RIG_RECIPE_VERSION}`)
   if (r.armSpaceDeg != null && !isNum(r.armSpaceDeg))
     out.push('armSpaceDeg is not a number')
+  if (r.floor != null && !isNum(r.floor)) out.push('floor is not a number')
   if (r.roles != null) {
     if (typeof r.roles !== 'object') out.push('roles is not an object')
     else
@@ -421,6 +427,14 @@ export function rigRecipeSchema(): Record<string, unknown> {
         maximum: 90,
         default: 0,
         ...DEG,
+      },
+      floor: {
+        type: 'number',
+        description:
+          'Metres to raise (negative: lower) the body from where its soles would stand.',
+        minimum: -0.5,
+        maximum: 0.5,
+        default: 0,
       },
       binding: {
         type: 'object',

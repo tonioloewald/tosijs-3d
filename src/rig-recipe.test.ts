@@ -29,6 +29,7 @@ describe('rig recipe', () => {
         version: RIG_RECIPE_VERSION,
         roles: { head: 'Head', 'l-index1': '' },
         armSpaceDeg: 10,
+        floor: -0.012,
         springs: [
           { ...STRAND_DEFAULTS, anchor: 'Head' },
           {
@@ -44,6 +45,7 @@ describe('rig recipe', () => {
   test('says what is wrong, where', () => {
     const problems = validateRigRecipe({
       version: 0,
+      floor: 'low',
       springs: [
         {
           kind: 'strand',
@@ -60,6 +62,7 @@ describe('rig recipe', () => {
       ],
     })
     expect(problems).toContain(`version is 0, expected ${RIG_RECIPE_VERSION}`)
+    expect(problems).toContain('floor is not a number')
     expect(problems).toContain('springs[0].offset is not {x, y, z}')
     expect(problems).toContain('springs[0].segments is not 1 to 64')
     expect(problems).toContain('springs[0].length is not positive')

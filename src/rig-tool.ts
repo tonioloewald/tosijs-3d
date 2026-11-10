@@ -54,8 +54,11 @@ The panel has these sections, its job first.
   names; fix one by tapping, as above, or pick a role and then the bone that
   plays it, or `(none)` to leave it out. Set `clicking sets` to the chain and
   a tap hangs the chosen spring chain there instead.
-- **Motion.** `animate` and the clip; `arm space` turns the arms out from
-  the body, for a character whose arms are long for its height;
+- **Motion.** `animate` and the clip; `floor` moves the body up or down
+  from where its soles stand (they are put on the floor at rest, and kept
+  there as a clip plays), for one that still floats or sinks; `arm space`
+  turns the arms out from the body, for a character whose arms are long for
+  its height;
   `load animations…` adds the clips in a GLB made on another rig to the
   list: Mixamo's, a mocap file's, another library's. Which bone is which is
   read from the names (UE, Mixamo, Kenney and Blender spellings), so each
@@ -1176,6 +1179,8 @@ export function mountRigTool(
     view(v: RigView): void
     /** Redraw the targets and handles (the selection changed). */
     targets(): void
+    /** Stand it again at the recipe's floor (a slider moved). */
+    restand(): void
   } | null = null
 
   const changed = (clipsToo = false) => {
@@ -1468,6 +1473,20 @@ export function mountRigTool(
           ui.clip = String(v)
           ui.pose = 'animate'
           animate()
+        },
+      }),
+      // A single-axis move: up or down from where its soles would stand.
+      slider3d({
+        label: 'floor',
+        value: recipe.floor ?? 0,
+        min: -0.1,
+        max: 0.1,
+        step: 0.002,
+        format: (v) => `${(v * 100).toFixed(1)} cm`,
+        handleChange: (v) => {
+          recipe.floor = v || undefined
+          tool?.restand()
+          edited()
         },
       }),
       slider3d({
@@ -2293,20 +2312,38 @@ export function mountRigTool(
       }
       return low
     }
+    /*
+    THE SOLES ON THE FLOOR, not the lowest point of the mesh (a strap or a
+    stray vertex below the feet stood the body on it, walking in the air), and
+    then the recipe's `floor`, the hand correction, on top.
+    */
+    let base = 0
+    const restand = () => {
+      stand.position.y = base + (recipe.floor ?? 0)
+    }
+    const standAtRest = () => {
+      base = floor
+      if (model != null) {
+        stand.position.y = floor
+        stand.computeWorldMatrix(true)
+        model.skeleton.returnToRest()
+        const rest = lowest()
+        if (Number.isFinite(rest)) base = floor - rest
+      }
+      restand()
+    }
     const ground = (group: BABYLON.AnimationGroup) => {
       if (model == null) return
       stand.position.y = floor
       stand.computeWorldMatrix(true)
-      model.skeleton.returnToRest()
-      const rest = lowest()
       let low = Infinity
       for (let k = 0; k < 24; k++) {
         group.goToFrame(group.from + ((group.to - group.from) * k) / 24)
         low = Math.min(low, lowest())
       }
       group.goToFrame(group.from)
-      if (Number.isFinite(rest) && Number.isFinite(low))
-        stand.position.y = floor + rest - low
+      base = Number.isFinite(low) ? floor - low : floor
+      restand()
     }
     const play = () => {
       stop()
@@ -2320,6 +2357,7 @@ export function mountRigTool(
         // Stood still: both at rest, the springs in their rest shape.
         ual.skeletons[0].returnToRest()
         if (model != null) rebuildAtRest()
+        standAtRest()
         return
       }
       targets()
@@ -2352,6 +2390,7 @@ export function mountRigTool(
       for (const g of playing) g.start(true)
       const mine = applied != null ? made.get(ui.clip) : undefined
       if (mine != null) ground(mine)
+      else standAtRest()
     }
     /*
     CLIPS FROM ANOTHER RIG (Mixamo, a mocap file, another library): any GLB
@@ -3351,6 +3390,7 @@ export function mountRigTool(
     }
 
     tool = {
+      restand,
       rebuild,
       load,
       rebind,
@@ -3388,13 +3428,20 @@ export function mountRigTool(
     set recipe(r: RigRecipe) {
       const problems = validateRigRecipe(r)
       if (problems.length) throw new Error(`not a rig recipe: ${problems[0]}`)
+      const rebinding =
+        JSON.stringify(r.binding ?? null) !==
+        JSON.stringify(recipe.binding ?? null)
       recipe = fresh({ ...r, model: r.model ?? recipe.model })
       // Handed over before a model is up: it is the one to load with.
       if (tool == null) given = recipe
       ui.spring = 0
       // The host's own edit: kept, applied, not announced back to it.
       if (files) remember(ui.model, recipe)
-      tool?.rebuild(true)
+      // New markers bind the mesh again; anything else is applied as it is.
+      if (rebinding && tool != null) {
+        stale = false
+        void tool.rebind()
+      } else tool?.rebuild(true)
       refresh()
     },
     get applied(): AppliedRig | null {
