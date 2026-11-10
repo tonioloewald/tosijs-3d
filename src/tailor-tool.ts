@@ -67,15 +67,20 @@ import type * as BABYLON from '@babylonjs/core'
 import type { RiggedBody } from './rigged-body.js'
 import type { BuiltRig } from './rig-build.js'
 import {
-  cutGarment,
-  skirtGarment,
-  rebindCut,
   mirrorOutline,
   type GarmentCut,
   type ViewPoint,
 } from './garment-cut.js'
 import { outlineField3d, type OutlineField } from './outline-field.js'
-import { smoothUnder, fitProxy, drawnPositions } from './proxy-fit.js'
+import {
+  cutWith,
+  fitCut,
+  tailorBody,
+  TAILOR_MESH_EDGE,
+  type TailorCut,
+  type TailorMesh,
+} from './tailor-recipe.js'
+import { fitProxy, drawnPositions } from './proxy-fit.js'
 import { remesh, remeshSteps, type Remeshed } from './remesh.js'
 import { drapeGarmentAsync, runSliced } from './cloth-drape.js'
 import { humanProxy, proxyMaterial } from './human-proxy.js'
@@ -99,27 +104,11 @@ import {
   type Widget3d,
 } from './widgets3d.js'
 
-/** What the tailor is making: enough to open it again. */
-export interface TailorCut {
-  /** Half outlines, [x, y] in metres on the character's left. */
-  shapes: ViewPoint[][]
-  /** Metres. */
-  thickness: number
-  skirt: boolean
-  /** Draped cloth ([cloth-drape](/cloth-drape/)) in place of a cut from the skin. Ignored with `skirt`. */
-  drape?: boolean
-  /** What the cloth is cut from: an even surface at this density, or the body's own triangles. Default `medium`. */
-  mesh?: TailorMesh
-}
-
-/** The cloth mesh's density, or `body` for the body's own triangles. */
-export type TailorMesh = 'coarse' | 'medium' | 'fine' | 'body'
-/** The edge length each density aims for, metres. */
-export const TAILOR_MESH_EDGE: Record<Exclude<TailorMesh, 'body'>, number> = {
-  coarse: 0.03,
-  medium: 0.02,
-  fine: 0.012,
-}
+export {
+  TAILOR_MESH_EDGE,
+  type TailorCut,
+  type TailorMesh,
+} from './tailor-recipe.js'
 
 /** The work in progress, as `handleChange` hears it. */
 export interface TailorState {
@@ -190,9 +179,6 @@ export interface TailorTool {
   readonly canRedo: boolean
 }
 
-/** Cloth over the body: the cut is fitted a little out from the skin. */
-const EASE = 6
-
 /**
  * Open the tailor in a `<tosi-b3d>`: a system panel, a preview on `built`,
  * and the garment handed to `handleDone`.
@@ -204,13 +190,18 @@ export function mountTailorTool(
   const scene: BABYLON.Scene = owner.scene
   let body = options.body
   let built = options.built
-  const cut: TailorCut = {
-    shapes: options.cut?.shapes ?? [],
-    thickness: options.cut?.thickness ?? 0.005,
-    skirt: options.cut?.skirt ?? false,
-    drape: options.cut?.drape ?? false,
-    mesh: options.cut?.mesh ?? 'medium',
-  }
+  // Its outlines carried onto this body, if it was drawn on another.
+  const cut: TailorCut = fitCut(
+    {
+      shapes: options.cut?.shapes ?? [],
+      thickness: options.cut?.thickness ?? 0.005,
+      skirt: options.cut?.skirt ?? false,
+      drape: options.cut?.drape ?? false,
+      mesh: options.cut?.mesh ?? 'medium',
+      on: options.cut?.on,
+    },
+    body.rig
+  )
   let look: MaterialRecipe =
     options.look ??
     clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 })
@@ -255,7 +246,7 @@ export function mountTailorTool(
     if (st == null) return
     restoring = true
     const c = JSON.parse(JSON.stringify(st.cut)) as TailorCut
-    Object.assign(cut, c)
+    Object.assign(cut, fitCut(c, body.rig))
     look = JSON.parse(JSON.stringify(st.look))
     name = st.name
     slot = st.slot
@@ -283,55 +274,10 @@ export function mountTailorTool(
   */
   let fitOn: Float32Array = body.positions
   let notArm: Uint8Array = new Uint8Array(0)
-  // The triangles cloth is cut from: not a tail's (behind the body, inside
-  // any outline drawn round the hips, and swung by its spring).
+  // The triangles cloth is cut from: not a tail's.
   let cutFrom: Uint32Array = body.indices
   const readBody = () => {
-    const nipples = body.regions.nipples
-    fitOn = nipples
-      ? smoothUnder(body.positions, body.indices, nipples)
-      : body.positions
-    const arm = new Set(
-      body.rig.joints
-        .map((j, i) =>
-          /^(clavicle|upperarm|lowerarm|hand|thumb|index|middle|ring|pinky)/.test(
-            j.name
-          )
-            ? i
-            : -1
-        )
-        .filter((i) => i >= 0)
-    )
-    const n = body.positions.length / 3
-    notArm = new Uint8Array(n)
-    const w = body.weights
-    for (let v = 0; v < n; v++) {
-      let a = 0
-      for (let k = 0; k < 4; k++)
-        if (arm.has(w.indices[v * 4 + k])) a += w.weights[v * 4 + k]
-      notArm[v] = a < 0.5 ? 1 : 0
-    }
-    const tail = new Set(
-      body.rig.joints
-        .map((j, i) => (/^tail_/.test(j.name) ? i : -1))
-        .filter((i) => i >= 0)
-    )
-    if (tail.size === 0) cutFrom = body.indices
-    else {
-      const onTail = new Uint8Array(n)
-      for (let v = 0; v < n; v++) {
-        let t = 0
-        for (let k = 0; k < 4; k++)
-          if (tail.has(w.indices[v * 4 + k])) t += w.weights[v * 4 + k]
-        onTail[v] = t >= 0.5 ? 1 : 0
-      }
-      const kept: number[] = []
-      const I = body.indices
-      for (let i = 0; i < I.length; i += 3)
-        if (!onTail[I[i]] && !onTail[I[i + 1]] && !onTail[I[i + 2]])
-          kept.push(I[i], I[i + 1], I[i + 2])
-      cutFrom = Uint32Array.from(kept)
-    }
+    ;({ fitOn, cutFrom, notArm } = tailorBody(body))
   }
   readBody()
 
@@ -463,41 +409,7 @@ export function mountTailorTool(
     if (!outline.length) return show(null)
     if (cut.drape && !cut.skirt) return drapeLater(outline)
     try {
-      const nipples = body.regions.nipples
-      // Thicker cloth bridges more of the chest.
-      const cutOn = nipples
-        ? smoothUnder(body.positions, body.indices, nipples, {
-            bridge: cut.thickness / 0.02,
-          })
-        : fitOn
-      const density = cut.mesh ?? 'medium'
-      let next: GarmentCut
-      if (cut.skirt) {
-        next = skirtGarment(fitOn, cutFrom, {
-          front: outline,
-          thickness: cut.thickness,
-          anchor: notArm,
-        })
-      } else if (density === 'body') {
-        next = cutGarment(cutOn, cutFrom, {
-          front: outline,
-          thickness: cut.thickness,
-          ease: EASE,
-          fitOn,
-        })
-      } else {
-        // Cut from the even surface, then bound to the body itself.
-        const d = dummy(density)
-        next = rebindCut(
-          cutGarment(d.positions, d.triangles, {
-            front: outline,
-            thickness: cut.thickness,
-            ease: EASE,
-          }),
-          d,
-          fitOn
-        )
-      }
+      const next = cutWith(body, { fitOn, cutFrom, notArm }, cut, dummy)
       show(next)
       status = ''
     } catch (e) {
@@ -740,6 +652,9 @@ export function mountTailorTool(
     setBody(b, k) {
       body = b
       built = k
+      // The outlines follow the body: drawn at the knee, still at the knee.
+      Object.assign(cut, fitCut(cut, b.rig))
+      field = null
       readBody()
       dummies = new Map()
       recut()

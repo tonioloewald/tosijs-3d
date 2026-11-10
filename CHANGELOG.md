@@ -14,6 +14,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ### Added
 
+- A tailor's garment fits any body (`tailor-recipe`): a cut records the joints of the body it was drawn on (`TailorCut.on`), and `recutGarment(body, cut)` makes it on another rigged body, its outlines carried by the joints so a hem drawn at the knee stays at the knee. In the tailor, outlines now follow the body when it is reshaped. `fitCut`, `warpOutline`, `outlineLandmarks` and `tailorBody` are the parts.
 - `heldParts(joints, held, bases)` (`tosijs-3d/rigged-body-glb`): a held item for any skeleton at rest, as `riggedBodyGlb` writes one: the socket joint under the hand (local transform and inverse bind), and the item's mesh skinned to it with its materials and pictures. For a GLB writer whose skeleton `riggedBodyGlb` did not make; `riggedBodyGlb` now uses the same code.
 - `loftGarment` (`body-sweep`): a garment lofted along a chain of bones, as rings round the hull of the body's slice plus thickness and an `ease` curve, with mitred or rounded (`steps`) bends and open, sealed or capped ends. It returns a `GarmentCut` binding, so it fits and bends like a tailor's cut. The first piece of the sweep core; no tool uses it yet.
 

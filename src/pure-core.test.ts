@@ -39,6 +39,7 @@ export const CHARACTER_CORE = [
   'hair-fit',
   'garment-cut',
   'body-sweep',
+  'tailor-recipe',
   'remesh',
   'cloth-drape',
   'garment-file',

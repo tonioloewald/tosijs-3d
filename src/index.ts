@@ -2023,6 +2023,20 @@ export type {
   TailorState,
   TailoredGarment,
 } from './tailor-tool.js'
+export {
+  recutGarment,
+  fitCut,
+  warpOutline,
+  landmarkWarp,
+  outlineLandmarks,
+  tailorBody,
+  OUTLINE_JOINTS,
+} from './tailor-recipe.js'
+export type {
+  OutlineLandmarks,
+  TailorBody,
+  TailorMesh,
+} from './tailor-recipe.js'
 export { loadHumanPack, decodeHumanTarget } from './human-pack.js'
 export type {
   HumanPack,
