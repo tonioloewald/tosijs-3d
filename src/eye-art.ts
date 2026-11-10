@@ -132,6 +132,109 @@ export function recolourEyePng(
   return pngEncode(data, width, height)
 }
 
+/*
+LASHES. MakeHuman's lash cards stand far off the lid, and solid they read as
+heavy eyeliner (the upper ones as a second pair of brows). So they are drawn
+toward the lid and fade from root to tip, the lower lashes fainter. The
+builder and an export share these rules; an export carries the fade as a
+ramp picture (`lashPicture`) its UVs (`lashUvs`) index, so it needs no vertex
+alpha.
+*/
+type Point = { x: number; y: number; z: number }
+
+/** Each lash vertex's nearest eye centre and its distance, and the nearest of all. */
+function lashReach(positions: ArrayLike<number>, centres: readonly Point[]) {
+  const n = positions.length / 3
+  const near = new Int32Array(n)
+  const dist = new Float32Array(n)
+  let lo = Infinity
+  let hi = 0
+  for (let i = 0; i < n; i++) {
+    let best = Infinity
+    centres.forEach((c, j) => {
+      const d = Math.hypot(
+        positions[i * 3] - c.x,
+        positions[i * 3 + 1] - c.y,
+        positions[i * 3 + 2] - c.z
+      )
+      if (d < best) {
+        best = d
+        near[i] = j
+      }
+    })
+    dist[i] = best
+    lo = Math.min(lo, best)
+    hi = Math.max(hi, best)
+  }
+  return { near, dist, lo, hi }
+}
+
+/**
+ * Lash positions (xyz, in place) drawn toward the lid: each vertex's distance
+ * from its eye past the nearest root is scaled by `k`.
+ */
+export function shortenLashes(
+  positions: Float32Array,
+  centres: readonly Point[],
+  k = 0.35
+): Float32Array {
+  if (centres.length === 0) return positions
+  const { near, dist, lo } = lashReach(positions, centres)
+  for (let i = 0; i < dist.length; i++) {
+    const c = centres[near[i]]
+    const f = (lo + (dist[i] - lo) * k) / dist[i]
+    positions[i * 3] = c.x + (positions[i * 3] - c.x) * f
+    positions[i * 3 + 1] = c.y + (positions[i * 3 + 1] - c.y) * f
+    positions[i * 3 + 2] = c.z + (positions[i * 3 + 2] - c.z) * f
+  }
+  return positions
+}
+
+/** Each lash vertex's opacity: 1 at an upper root, toward 0.4 at the tips, the lower lashes 0.45 of that. */
+export function lashAlpha(
+  positions: ArrayLike<number>,
+  centres: readonly Point[]
+): Float32Array {
+  const { near, dist, lo, hi } = lashReach(positions, centres)
+  const out = new Float32Array(dist.length)
+  for (let i = 0; i < dist.length; i++) {
+    const t = hi > lo ? (dist[i] - lo) / (hi - lo) : 0
+    const above = centres.length && positions[i * 3 + 1] > centres[near[i]].y
+    out[i] = (above ? 1 : 0.45) * (1 - 0.6 * t)
+  }
+  return out
+}
+
+/** The ramp's width in pixels. */
+const LASH_RAMP = 32
+
+/** UVs (glTF's convention) putting each vertex's opacity on `lashPicture`'s ramp. */
+export function lashUvs(alpha: ArrayLike<number>): Float32Array {
+  const out = new Float32Array(alpha.length * 2)
+  for (let i = 0; i < alpha.length; i++) {
+    const a = Math.min(1, Math.max(0, alpha[i]))
+    out[i * 2] = (0.5 + a * (LASH_RAMP - 1)) / LASH_RAMP
+    out[i * 2 + 1] = 0.5
+  }
+  return out
+}
+
+/** The lashes' colour, linear (the builder's lash material). */
+export const LASH_COLOUR = [0.02, 0.015, 0.012] as const
+
+/** A PNG ramp, the lash colour at opacity 0 on the left to 1 on the right. */
+export function lashPicture(): Uint8Array {
+  const srgb = (c: number) =>
+    Math.round(
+      255 * (c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055)
+    )
+  const [r, g, b] = LASH_COLOUR.map(srgb)
+  const data = new Uint8Array(LASH_RAMP * 4)
+  for (let x = 0; x < LASH_RAMP; x++)
+    data.set([r, g, b, Math.round((255 * x) / (LASH_RAMP - 1))], x * 4)
+  return pngEncode(data, LASH_RAMP, 1)
+}
+
 /**
  * UVs for an eyes part holding BOTH eyeballs, on a one-eye picture, in
  * glTF's convention (v down from the top). `positions` are xyz with the body

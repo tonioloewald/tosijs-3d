@@ -49,8 +49,10 @@ import { sceneDelta } from './b3d-utils.js'
 import { pngDecode, type RgbaImage } from './png.js'
 import {
   eyePngUrl,
+  lashAlpha,
   ONE_EYE_LAYOUT,
   recolourIris,
+  shortenLashes,
   type EyeStyle,
 } from './eye-art.js'
 
@@ -320,93 +322,6 @@ function partMesh(
   return mesh
 }
 
-/*
-MakeHuman's lash cards are drawn with an alpha texture of separate hairs; as
-solid cards they read as heavy eyeliner. So they fade by vertex alpha: from
-the lid (the vertices nearest the eyeball) to clear at the tips, and the lower
-lashes, which are sparse on a real eye, much fainter than the upper.
-*/
-/*
-The cards also stand far off the lid (the texture's hairs are short against
-them), and drawn plain the upper ones read as a second pair of brows. So each
-vertex is drawn toward the lid: its distance from its eyeball past the
-nearest root is scaled by `k`.
-*/
-function shortenLashes(
-  local: Float32Array,
-  eyes: BABYLON.TransformNode[],
-  k: number
-): void {
-  const centres = eyes.map((e) => e.position)
-  if (centres.length === 0) return
-  const n = local.length / 3
-  const near = new Int32Array(n)
-  const dist = new Float32Array(n)
-  let lo = Infinity
-  for (let i = 0; i < n; i++) {
-    let best = Infinity
-    centres.forEach((c, j) => {
-      const d = Math.hypot(
-        local[i * 3] - c.x,
-        local[i * 3 + 1] - c.y,
-        local[i * 3 + 2] - c.z
-      )
-      if (d < best) {
-        best = d
-        near[i] = j
-      }
-    })
-    dist[i] = best
-    lo = Math.min(lo, best)
-  }
-  for (let i = 0; i < n; i++) {
-    const c = centres[near[i]]
-    const f = (lo + (dist[i] - lo) * k) / dist[i]
-    local[i * 3] = c.x + (local[i * 3] - c.x) * f
-    local[i * 3 + 1] = c.y + (local[i * 3 + 1] - c.y) * f
-    local[i * 3 + 2] = c.z + (local[i * 3 + 2] - c.z) * f
-  }
-}
-
-function lashAlpha(
-  local: ArrayLike<number>,
-  eyes: BABYLON.TransformNode[]
-): Float32Array {
-  const n = local.length / 3
-  const centres = eyes.map((e) => e.position)
-  const near = new Float32Array(n)
-  const above = new Uint8Array(n)
-  let lo = Infinity
-  let hi = 0
-  for (let i = 0; i < n; i++) {
-    const p = new BABYLON.Vector3(
-      local[i * 3],
-      local[i * 3 + 1],
-      local[i * 3 + 2]
-    )
-    let best = Infinity
-    let c = centres[0]
-    for (const e of centres) {
-      const d = BABYLON.Vector3.Distance(p, e)
-      if (d < best) {
-        best = d
-        c = e
-      }
-    }
-    near[i] = best
-    above[i] = c != null && p.y > c.y ? 1 : 0
-    lo = Math.min(lo, best)
-    hi = Math.max(hi, best)
-  }
-  const out = new Float32Array(n * 4)
-  for (let i = 0; i < n; i++) {
-    const t = hi > lo ? (near[i] - lo) / (hi - lo) : 0
-    out[i * 4] = out[i * 4 + 1] = out[i * 4 + 2] = 1
-    out[i * 4 + 3] = (above[i] ? 1 : 0.45) * (1 - 0.6 * t)
-  }
-  return out
-}
-
 /**
  * Eyes and eyelashes on a built body. `positions` are the morphed pack
  * positions (every vertex) the body was built from, `rig` its fitted rig.
@@ -474,14 +389,18 @@ export function humanFace(
       head
     )
     const local = Float32Array.from(mesh.getVerticesData('position')!)
-    shortenLashes(local, eyes, 0.35)
+    const centres = eyes.map((e) => e.position)
+    shortenLashes(local, centres, 0.35)
     mesh.setVerticesData(BABYLON.VertexBuffer.PositionKind, local)
     const normals: number[] = []
     BABYLON.VertexData.ComputeNormals(local, mesh.getIndices(), normals, {
       useRightHandedSystem: true,
     })
     mesh.setVerticesData(BABYLON.VertexBuffer.NormalKind, normals)
-    mesh.setVerticesData(BABYLON.VertexBuffer.ColorKind, lashAlpha(local, eyes))
+    const alpha = lashAlpha(local, centres)
+    const colours = new Float32Array(alpha.length * 4).fill(1)
+    alpha.forEach((a, i) => (colours[i * 4 + 3] = a))
+    mesh.setVerticesData(BABYLON.VertexBuffer.ColorKind, colours)
     mesh.hasVertexAlpha = true
     if (materials.lashes) mesh.material = materials.lashes
     meshes.push(mesh)

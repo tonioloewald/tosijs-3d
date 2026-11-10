@@ -89,7 +89,12 @@ garment's colourway and a material recipe over it.
 
 import * as BABYLON from '@babylonjs/core'
 import { loadHumanPack, type HumanPack } from './human-pack.js'
-import { macroWeights, morphHuman, DEFAULT_HUMAN_BODY } from './human-morph.js'
+import {
+  macroWeights,
+  morphHuman,
+  humanJoint,
+  DEFAULT_HUMAN_BODY,
+} from './human-morph.js'
 import { humanBodyMaker, bodyDetailProxy } from './human-rig.js'
 import { skinMaterial } from './character-builder.js'
 import {
@@ -107,7 +112,15 @@ import {
   lashMaterial,
   type EyeTextureStyle,
 } from './human-face.js'
-import { eyePngUrl, eyeStyle, recolourEyePng } from './eye-art.js'
+import {
+  eyePngUrl,
+  eyeStyle,
+  lashAlpha,
+  lashPicture,
+  lashUvs,
+  recolourEyePng,
+  shortenLashes,
+} from './eye-art.js'
 import {
   loadHairLibrary,
   headScalp,
@@ -1379,6 +1392,49 @@ export async function makeCharacter(
     return out
   }
 
+  /*
+  THE LASHES FOR AN EXPORT: the pack's cards drawn toward the lid as the
+  builder draws them, following the head, their fade carried by a ramp
+  picture so no vertex alpha is needed.
+  */
+  const exportLashes = (body: any): GarmentProxy[] => {
+    if (!lashPart || !current) return []
+    const at = (v: number, k: number) => current![v * 3 + k]
+    const positions = Float32Array.from(
+      { length: lashPart.vertices.length * 3 },
+      (_, k) => at(lashPart.vertices[(k / 3) | 0], k % 3)
+    )
+    const centres = ['L', 'R'].flatMap((S) => {
+      const joint = pack.manifest.joints[`eye.${S}____head`]
+      if (!joint) return []
+      const [x, y, z] = humanJoint(current!, joint)
+      return [{ x, y, z }]
+    })
+    shortenLashes(positions, centres, 0.35)
+    return [
+      {
+        ...bindGarment(body.positions, body.indices, positions),
+        name: 'eyelashes',
+        category: 'eyelashes',
+        slot: 'eyelashes',
+        follows: 'Head',
+        triangles: Uint32Array.from(lashPart.triangles),
+        uvs: lashUvs(lashAlpha(positions, centres)),
+        delete: null,
+        material: {
+          baseColorTexture: { bytes: lashPicture(), mimeType: 'image/png' },
+          normalTexture: null,
+          roughness: 0.6,
+          metallic: 0,
+          alphaMode: 'BLEND',
+          twoSided: true,
+          look: null,
+          gltf: null,
+        },
+      } as GarmentProxy,
+    ]
+  }
+
   const shown = (): ShownBody | null =>
     shownNow == null
       ? null
@@ -1596,7 +1652,11 @@ export async function makeCharacter(
         }
       return {
         body: { ...body, colors, surfaces: [surface], eyes },
-        garments: [...garments, ...(await exportHair(body))],
+        garments: [
+          ...garments,
+          ...(await exportHair(body)),
+          ...exportLashes(body),
+        ],
         eyeTexture,
       }
     },

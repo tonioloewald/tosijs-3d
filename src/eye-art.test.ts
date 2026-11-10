@@ -8,6 +8,10 @@ import {
   eyeStyle,
   gltfEyeUvs,
   EYE_STYLES,
+  lashAlpha,
+  lashPicture,
+  lashUvs,
+  shortenLashes,
   ONE_EYE_LAYOUT,
   parseHex,
   recolourEyePng,
@@ -195,5 +199,34 @@ describe('gltfEyeUvs', () => {
       expect(uv[i]!).toBeGreaterThan(0)
       expect(uv[i]!).toBeLessThan(1)
     }
+  })
+})
+
+describe('lashes', () => {
+  // One eye at the origin; an upper lash card from the lid (r 1) out to
+  // r 3, and a lower one.
+  const eye = [{ x: 0, y: 0, z: 0 }]
+  const card = () => Float32Array.from([0, 1, 0, 0, 3, 0, 0, -1, 0, 0, -3, 0])
+  test('shortening draws each vertex toward the lid, roots kept', () => {
+    const p = shortenLashes(card(), eye, 0.5)
+    expect(Array.from(p)).toEqual([0, 1, 0, 0, 2, 0, 0, -1, 0, 0, -2, 0])
+  })
+  test('opacity: upper roots solid, tips fainter, lower lashes fainter still', () => {
+    const a = lashAlpha(card(), eye)
+    expect(a[0]).toBeCloseTo(1, 5)
+    expect(a[1]).toBeCloseTo(0.4, 5)
+    expect(a[2]).toBeCloseTo(0.45, 5)
+    expect(a[3]).toBeCloseTo(0.18, 5)
+  })
+  test('the ramp picture and its uvs agree', () => {
+    const img = pngDecode(lashPicture())
+    const uv = lashUvs([0, 0.4, 1])
+    for (const [i, a] of [0, 0.4, 1].entries()) {
+      const x = Math.floor(uv[i * 2] * img.width)
+      expect(Math.abs(img.data[x * 4 + 3] - a * 255)).toBeLessThan(5)
+      expect(uv[i * 2 + 1]).toBe(0.5)
+    }
+    // Dark, as the builder draws them.
+    expect(img.data[0]).toBeLessThan(50)
   })
 })
