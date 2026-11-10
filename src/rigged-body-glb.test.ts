@@ -366,6 +366,10 @@ describe.skipIf(!existsSync(AI))(
         garment: {
           positions: Float32Array.from(pos),
           triangles: Uint32Array.from(tri),
+          // Our convention in memory (OBJ's, v up): v = height up the band.
+          uvs: Float32Array.from({ length: (pos.length / 3) * 2 }, (_, k) =>
+            k % 2 ? (pos[(k >> 1) * 3 + 1] - lo) / (hi - lo) : 0.5
+          ),
         },
         meta: {
           format: 'tosijs-garment',
@@ -434,6 +438,34 @@ describe.skipIf(!existsSync(AI))(
         worst = Math.max(worst, Math.sqrt(best))
       }
       expect(worst).toBeLessThan(0.03)
+      // Its uvs in glTF's convention (v down), as the file had them.
+      const uv = (() => {
+        const acc = json.accessors[shirt.primitives[0].attributes.TEXCOORD_0]
+        const view = json.bufferViews[acc.bufferView]
+        const at = (view.byteOffset ?? 0) + (acc.byteOffset ?? 0)
+        return new Float32Array(
+          glb.bin!.buffer.slice(
+            glb.bin!.byteOffset + at,
+            glb.bin!.byteOffset + at + acc.count * 8
+          )
+        )
+      })()
+      const fileUv = (() => {
+        const g = readGlb(file)
+        const acc =
+          g.json.accessors[g.json.meshes[0].primitives[0].attributes.TEXCOORD_0]
+        const view = g.json.bufferViews[acc.bufferView]
+        const at = (view.byteOffset ?? 0) + (acc.byteOffset ?? 0)
+        return new Float32Array(
+          g.bin!.buffer.slice(
+            g.bin!.byteOffset + at,
+            g.bin!.byteOffset + at + acc.count * 8
+          )
+        )
+      })()
+      expect(uv.length).toBe(fileUv.length)
+      for (let k = 1; k < uv.length; k += 2)
+        expect(uv[k]).toBeCloseTo(fileUv[k], 5)
       const mat = json.materials[shirt.primitives[0].material]
       expect(mat.pbrMetallicRoughness.roughnessFactor).toBeCloseTo(0.9, 4)
       const report = await validateBytes(bytes, { maxIssues: 50 })

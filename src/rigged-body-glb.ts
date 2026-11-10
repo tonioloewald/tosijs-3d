@@ -1245,7 +1245,12 @@ export function riggedBodyGlb(
         {
           positions: Float32Array.from(pos),
           normals: smoothNormals(pos, g.triangles),
-          uvs: g.uvs.length === (pos.length / 3) * 2 ? g.uvs : null,
+          // A garment's uvs are OBJ's (v up), as MakeHuman's and readGarment
+          // hold them; glTF's v runs down.
+          uvs:
+            g.uvs.length === (pos.length / 3) * 2
+              ? Float32Array.from(g.uvs, (v, i) => (i % 2 ? 1 - v : v))
+              : null,
           colors: null,
           joints: gj,
           weights: w.weights,
