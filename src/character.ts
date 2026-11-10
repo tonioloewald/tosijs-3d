@@ -116,6 +116,17 @@ import {
   QUATERNIUS_HAIR,
   type HairLibrary,
 } from './human-hair.js'
+import {
+  placeHair,
+  readHairLibrary,
+  readHairMaterials,
+  type HairMaterialData,
+  type HairPiece,
+} from './hair-place.js'
+import { recolourHair } from './cloth-bake.js'
+import { decodeImage } from './jpeg.js'
+import { pngEncode } from './png.js'
+import { bindGarment } from './garment-bind.js'
 import { skinThinness } from './skin-shading.js'
 import { vertexNormals } from './hair-fit.js'
 import {
@@ -196,6 +207,8 @@ export interface CharacterAssets {
   hair?: HairLibrary | null
   /** Load the hair library (once; later calls get the same one). */
   loadHair?: () => Promise<HairLibrary>
+  /** Where the hair library is, for an export to read its pictures. */
+  hairUrl?: string
 }
 
 /**
@@ -213,6 +226,7 @@ export async function loadCharacterAssets(
   const assets: CharacterAssets = {
     pack: await loadHumanPack(options.pack ?? hm08PackUrl()),
     hair: null,
+    hairUrl: url,
   }
   let loading: Promise<HairLibrary> | null = null
   assets.loadHair = () =>
@@ -302,8 +316,9 @@ export interface SceneCharacter {
   /**
    * The character as `riggedBodyGlb` writes it: the body shown (on
    * MakeHuman's, with its skin's colour, lips and stubble as a surface and
-   * vertex colours, and its eyes), its garments (`exportGarments`) and the
-   * eyes' picture in its iris colour. Null when nothing is shown yet.
+   * vertex colours, and its eyes), its garments (`exportGarments`, and on
+   * MakeHuman's body its hair, beard and brows, coloured) and the eyes'
+   * picture in its iris colour. Null when nothing is shown yet.
    */
   exportCharacter(): Promise<{
     body: RiggedBody
@@ -1233,6 +1248,137 @@ export async function makeCharacter(
     return out
   }
 
+  /*
+  THE HAIR FOR AN EXPORT: Quaternius' pieces read from the library's own
+  file and placed exactly as the builder places them (a hat tucks the hair
+  under it); MakeHuman's own hair and brows bound like clothes. Scalp hair
+  follows the head rigidly, as it hangs in the builder; brows and beards
+  follow the face. Every picture is coloured as hair-shading draws it.
+  */
+  let hairFiles: Promise<{
+    pieces: HairPiece[]
+    materials: Record<string, HairMaterialData>
+  } | null> | null = null
+  const readHairFiles = () =>
+    (hairFiles ??= (async () => {
+      if (!assets.hairUrl) return null
+      const res = await fetch(assets.hairUrl)
+      if (!res.ok) return null
+      const bytes = new Uint8Array(await res.arrayBuffer())
+      return {
+        pieces: readHairLibrary(bytes),
+        materials: readHairMaterials(bytes),
+      }
+    })().catch(() => null))
+  // One bake per picture and colours: the hair, beard and brows share a
+  // texture, and the export writes an image once by its bytes.
+  const baked = new WeakMap<
+    Uint8Array,
+    { key: string; out: { bytes: Uint8Array; mimeType: string } | null }
+  >()
+  const hairPicture = (pic: { bytes: Uint8Array } | null | undefined) => {
+    if (!pic) return null
+    const key = `${s.hairBase} ${s.hairHighlight}`
+    const known = baked.get(pic.bytes)
+    if (known?.key === key) return known.out
+    let out: { bytes: Uint8Array; mimeType: string } | null
+    try {
+      const img = recolourHair(
+        decodeImage(pic.bytes),
+        s.hairBase,
+        s.hairHighlight
+      )
+      out = {
+        bytes: pngEncode(img.data, img.width, img.height),
+        mimeType: 'image/png',
+      }
+    } catch {
+      out = null
+    }
+    baked.set(pic.bytes, { key, out })
+    return out
+  }
+  const exportHair = async (body: any): Promise<GarmentProxy[]> => {
+    if (!scalp || !current) return []
+    const out: GarmentProxy[] = []
+    const onBody = {
+      positions: body.positions,
+      triangles: body.indices,
+      vertices: body.skin.vertices,
+    }
+    const hatProxy =
+      s.hat !== 'none' && proxies[s.hat] ? await pack.proxy(s.hat) : null
+    const crown = hatProxy
+      ? inflate(
+          drawnPositions(hatProxy, fitProxy(hatProxy, current)),
+          scalp.centre,
+          HAT_LIFT
+        )
+      : null
+    const nudge = { y: s.hairUp, z: s.hairForward, scale: s.hairSize }
+    for (const key of ['hair', 'beard', 'moustache', 'brows']) {
+      const style = s[key]
+      if (style === 'none' || garments.has(style)) continue
+      if (proxies[style]) {
+        const proxy = await pack.proxy(style)
+        if (!proxy) continue
+        const drawn = drawnPositions(proxy, fitProxy(proxy, clothBody))
+        out.push({
+          ...onSkin(proxy, drawn, onBody),
+          slot: key,
+          material: packGarmentMaterial(proxy, {
+            diffuse: hairPicture(await picture(proxy.material.diffuse)),
+            normal: await picture(proxy.material.normal),
+          }),
+        })
+        continue
+      }
+      const lib = await hairLibrary()
+      const files = await readHairFiles()
+      const piece = files?.pieces.find((p) => p.name === style)
+      if (!lib || !files || !piece) continue
+      const options = {
+        on: lib.fitFor(style),
+        head: lib.headFor(style),
+        centreY: key === 'brows' ? scalp.brow : undefined,
+        nudge: key === 'hair' ? nudge : undefined,
+      }
+      piece.parts.forEach((part, i) => {
+        const p = placeHair(scalp, part, options)
+        let triangles: ArrayLike<number> = part.indices
+        if (crown && key === 'hair')
+          triangles = underCover(crown, p, triangles, 24, p)
+        const m = part.material ? files.materials[part.material] : undefined
+        const binding = bindGarment(onBody.positions, onBody.triangles, p)
+        out.push({
+          ...binding,
+          name: `${style}-${i}`,
+          category: key === 'brows' ? 'eyebrows' : 'hair',
+          slot: key,
+          ...(key === 'hair' ? { follows: 'Head' } : {}),
+          triangles: Uint32Array.from(triangles),
+          // Ours run up the image (as a garment holds them); the file's down.
+          uvs: part.uvs
+            ? Float32Array.from(part.uvs, (v, k) => (k % 2 ? 1 - v : v))
+            : new Float32Array((p.length / 3) * 2),
+          delete: null,
+          material: {
+            baseColorTexture: hairPicture(m?.baseColor),
+            normalTexture: m?.normal ?? null,
+            roughness: m?.roughness ?? 0.6,
+            metallic: 0,
+            alphaMode: m?.alphaMode ?? 'OPAQUE',
+            alphaCutoff: m?.alphaCutoff,
+            twoSided: true,
+            look: null,
+            gltf: null,
+          },
+        })
+      })
+    }
+    return out
+  }
+
   const shown = (): ShownBody | null =>
     shownNow == null
       ? null
@@ -1450,7 +1596,7 @@ export async function makeCharacter(
         }
       return {
         body: { ...body, colors, surfaces: [surface], eyes },
-        garments,
+        garments: [...garments, ...(await exportHair(body))],
         eyeTexture,
       }
     },

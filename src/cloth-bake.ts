@@ -26,6 +26,11 @@ const sheen = clothSheenColour('#7a2e2e')   // KHR_materials_sheen's colour, lin
 the recoloured picture as a PNG, or null when the look leaves the picture as
 it is. `riggedBodyGlb` does this to every garment it writes unless told not
 to (`bake: false`).
+
+HAIR TOO: `recolourHair(image, base, highlight)` is
+[hair-shading](/hair-shading/) on pixels, for a hairstyle's texture: each
+strand's brightness over the texture's mean (`hairMean`, only where there is
+hair) times the base colour, the brightest strands leaning to the highlight.
 */
 /*{ "parent": "character-core", "order": 38 }*/
 
@@ -120,4 +125,59 @@ export function bakeClothLook(
     bytes: pngEncode(out.data, out.width, out.height),
     mimeType: 'image/png',
   }
+}
+
+/** A hair texture's mean brightness where there is hair (alpha past half), as hair-shading measures it. */
+export function hairMean(image: RgbaImage): number {
+  const d = image.data
+  let sum = 0
+  let n = 0
+  for (let i = 0; i < d.length; i += 4 * 29) {
+    if (d[i + 3] < 128) continue
+    sum +=
+      0.2126 * toLinear(d[i] / 255) +
+      0.7152 * toLinear(d[i + 1] / 255) +
+      0.0722 * toLinear(d[i + 2] / 255)
+    n++
+  }
+  return n > 0 ? sum / n : 0.42
+}
+
+/**
+ * A hair texture coloured as hair-shading draws it: the texture read as
+ * grey, each pixel's brightness over `mean` times `base`, leaning to
+ * `highlight` (both sRGB, anything `parseColor` reads) on the brightest
+ * strands by `strength`. Alpha is kept. An unreadable colour returns a copy.
+ */
+export function recolourHair(
+  image: RgbaImage,
+  base: string,
+  highlight: string,
+  strength = 0.25,
+  mean = hairMean(image)
+): RgbaImage {
+  const data = image.data.slice()
+  const b = parseColor(base)
+  const h = parseColor(highlight)
+  if (b == null || h == null) return { ...image, data }
+  const lb = [toLinear(b.r), toLinear(b.g), toLinear(b.b)]
+  const lh = [toLinear(h.r), toLinear(h.g), toLinear(h.b)]
+  const m = Math.max(0.03, mean)
+  const smooth = (e0: number, e1: number, x: number) => {
+    const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)))
+    return t * t * (3 - 2 * t)
+  }
+  for (let i = 0; i < data.length; i += 4) {
+    const l =
+      (0.2126 * toLinear(data[i] / 255) +
+        0.7152 * toLinear(data[i + 1] / 255) +
+        0.0722 * toLinear(data[i + 2] / 255)) /
+      m
+    const k = smooth(0.9, 1.8, l) * strength
+    for (let ch = 0; ch < 3; ch++) {
+      const v = lb[ch] * l + (lh[ch] * l - lb[ch] * l) * k
+      data[i + ch] = Math.round(Math.min(1, Math.max(0, toSrgb(v))) * 255)
+    }
+  }
+  return { width: image.width, height: image.height, data }
 }

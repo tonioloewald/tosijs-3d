@@ -7,6 +7,7 @@ import {
   moustacheLip,
   QUATERNIUS_HAIR,
   readHairLibrary,
+  readHairMaterials,
   referenceHeads,
   withoutLashes,
 } from './hair-place.js'
@@ -54,6 +55,18 @@ describe.skipIf(!existsSync(LIBRARY))(
       ? new Uint8Array(readFileSync(LIBRARY))
       : new Uint8Array(0)
     const pieces = existsSync(LIBRARY) ? readHairLibrary(bytes) : []
+
+    test('its parts carry their uvs and material, and the materials their pictures', () => {
+      const materials = readHairMaterials(bytes)
+      const hair = pieces.find(
+        (p) => p.category === 'hair' && !p.name.startsWith('Reference')
+      )!
+      for (const part of hair.parts) {
+        expect(part.uvs!.length).toBe((part.positions.length / 3) * 2)
+        expect(materials[part.material!]).toBeDefined()
+        expect(materials[part.material!].baseColor!.bytes[0]).toBe(0x89) // PNG
+      }
+    })
 
     test('QUATERNIUS_HAIR names its pieces (offered before it loads)', () => {
       for (const category of ['hair', 'eyebrows'] as const)

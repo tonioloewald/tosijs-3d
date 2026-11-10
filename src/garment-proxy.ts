@@ -96,6 +96,8 @@ export interface GarmentProxyMaterial
 /** A garment as MakeHuman's clothes are, its material as data. */
 export type GarmentProxy = Omit<HumanProxy, 'material'> & {
   material: GarmentProxyMaterial
+  /** A joint the whole piece follows rigidly (hair on `Head`), instead of the skin under it. */
+  follows?: string
 }
 
 /**

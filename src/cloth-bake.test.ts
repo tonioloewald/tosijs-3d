@@ -2,7 +2,9 @@ import { describe, expect, test } from 'bun:test'
 import {
   bakeClothLook,
   clothSheenColour,
+  hairMean,
   recolourCloth,
+  recolourHair,
   textureMean,
 } from './cloth-bake.js'
 import { pngDecode, type RgbaImage } from './png.js'
@@ -48,6 +50,47 @@ const px = (img: RgbaImage, x: number, y: number) =>
   Array.from(
     img.data.subarray((y * img.width + x) * 4, (y * img.width + x) * 4 + 4)
   )
+
+describe('recolourHair', () => {
+  const lin = (c: number) =>
+    c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+  // A strand at the mean, a bright one, and a clear pixel (not hair).
+  const strands: RgbaImage = {
+    width: 3,
+    height: 1,
+    data: Uint8ClampedArray.from([
+      128, 128, 128, 255, 250, 250, 250, 255, 255, 255, 255, 0,
+    ]) as any,
+  }
+  test('the mean is taken where there is hair', () => {
+    expect(
+      hairMean({
+        width: 1,
+        height: 1,
+        data: Uint8ClampedArray.from([128, 128, 128, 255]) as any,
+      })
+    ).toBeCloseTo(lin(128 / 255), 5)
+  })
+  test('a strand at the mean is the base colour; a bright one leans to the highlight', () => {
+    const out = recolourHair(
+      strands,
+      '#804020',
+      '#ffe0a0',
+      0.25,
+      lin(128 / 255)
+    )
+    // At the mean: the base (the highlight's ramp starts just below the
+    // mean, as in the shader, so a few levels toward it).
+    const base = [0x80, 0x40, 0x20]
+    for (let c = 0; c < 3; c++)
+      expect(Math.abs(out.data[c] - base[c])).toBeLessThanOrEqual(5)
+    // Brighter, and warmer toward the highlight than the base scaled alone.
+    expect(out.data[4]).toBeGreaterThan(0x80)
+    expect(out.data[6] / out.data[4]).toBeGreaterThan(0x20 / 0x80)
+    // Alpha kept.
+    expect(out.data[11]).toBe(0)
+  })
+})
 
 describe('recolourCloth', () => {
   test('amount 0 keeps the texture as it is', () => {

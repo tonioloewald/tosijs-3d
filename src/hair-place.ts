@@ -49,12 +49,18 @@ export interface HairShape {
   indices: Uint32Array
 }
 
+/** A mesh of a piece as `readHairLibrary` reads it: its uvs (glTF's, v down) and its material's name too. */
+export interface HairFilePart extends HairShape {
+  uvs?: Float32Array
+  material?: string
+}
+
 /** A piece of a hair library: a hairstyle, a beard, a pair of brows. */
 export interface HairPiece {
   name: string
   /** `hair` or `eyebrows` (from the node's glTF extras). */
   category: string
-  parts: HairShape[]
+  parts: HairFilePart[]
 }
 
 /**
@@ -310,7 +316,7 @@ export function readHairLibrary(bytes: Uint8Array): HairPiece[] {
     const category =
       node.extras?.category ??
       (String(node.name).startsWith('Eyebrows') ? 'eyebrows' : 'hair')
-    const parts: HairShape[] = []
+    const parts: HairFilePart[] = []
     const visit = (i: number, parent: Mat4) => {
       const n = json.nodes[i]
       const world = mul(parent, localMatrix(n))
@@ -334,7 +340,17 @@ export function readHairLibrary(bytes: Uint8Array): HairPiece[] {
             prim.indices != null
               ? Uint32Array.from(accessorValues(glb, prim.indices))
               : Uint32Array.from({ length: raw.length / 3 }, (_, k) => k)
-          if (positions.length > 0) parts.push({ positions, indices })
+          const uv = prim.attributes.TEXCOORD_0
+          const material = json.materials?.[prim.material]?.name
+          if (positions.length > 0)
+            parts.push({
+              positions,
+              indices,
+              ...(uv != null
+                ? { uvs: Float32Array.from(accessorValues(glb, uv)) }
+                : {}),
+              ...(material != null ? { material } : {}),
+            })
         }
       for (const c of n.children ?? []) visit(c, world)
     }
@@ -344,6 +360,46 @@ export function readHairLibrary(bytes: Uint8Array): HairPiece[] {
     if (parts.length > 0) pieces.push({ name: node.name, category, parts })
   }
   return pieces
+}
+
+/** A hair material's pictures, as bytes: what an export writes. */
+export interface HairMaterialData {
+  baseColor: { bytes: Uint8Array; mimeType: string } | null
+  normal: { bytes: Uint8Array; mimeType: string } | null
+  roughness: number
+  alphaMode: 'OPAQUE' | 'MASK' | 'BLEND'
+  alphaCutoff: number
+}
+
+/** A hair library's materials by name, their pictures as bytes, with no engine. */
+export function readHairMaterials(
+  bytes: Uint8Array
+): Record<string, HairMaterialData> {
+  const glb = readGlb(bytes)
+  const json = glb.json
+  const picture = (ref: { index: number } | undefined) => {
+    if (ref == null || glb.bin == null) return null
+    const image = json.images?.[json.textures?.[ref.index]?.source]
+    if (image?.bufferView == null) return null
+    const view = json.bufferViews[image.bufferView]
+    const at = view.byteOffset ?? 0
+    return {
+      bytes: glb.bin.slice(at, at + view.byteLength),
+      mimeType: image.mimeType ?? 'image/png',
+    }
+  }
+  const out: Record<string, HairMaterialData> = {}
+  for (const m of json.materials ?? []) {
+    const pbr = m.pbrMetallicRoughness ?? {}
+    out[m.name] = {
+      baseColor: picture(pbr.baseColorTexture),
+      normal: picture(m.normalTexture),
+      roughness: pbr.roughnessFactor ?? 1,
+      alphaMode: m.alphaMode ?? 'OPAQUE',
+      alphaCutoff: m.alphaCutoff ?? 0.5,
+    }
+  }
+  return out
 }
 
 /**

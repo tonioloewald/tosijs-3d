@@ -386,6 +386,75 @@ describe.skipIf(!existsSync(AI))('rigged-body-glb: skin and eyes', () => {
       )
     ).toEqual([])
   }, 60000)
+
+  test('a piece that follows a joint is weighted to it alone, and tucks no skin', async () => {
+    const { garmentProxy } = await import('./garment-proxy.js')
+    const { writeGarmentGlb, readGarment } = await import('./garment-file.js')
+    const body = bodyFromMarkers(
+      glbRigTriangles(new Uint8Array(readFileSync(AI)))
+    )
+    // A cap of the head's own skin, lifted a centimetre.
+    const head = body.rig.at('Head')!
+    const pos: number[] = []
+    const tri: number[] = []
+    const remap = new Map<number, number>()
+    const onTop = (v: number) => body.positions[v * 3 + 1] > head.y + 0.05
+    for (let t = 0; t < body.indices.length; t += 3) {
+      const abc = [body.indices[t], body.indices[t + 1], body.indices[t + 2]]
+      if (!abc.every(onTop)) continue
+      for (const v of abc) {
+        if (!remap.has(v)) {
+          remap.set(v, pos.length / 3)
+          pos.push(
+            body.positions[v * 3],
+            body.positions[v * 3 + 1] + 0.01,
+            body.positions[v * 3 + 2]
+          )
+        }
+        tri.push(remap.get(v)!)
+      }
+    }
+    expect(tri.length).toBeGreaterThan(30)
+    const file = writeGarmentGlb({
+      garment: {
+        positions: Float32Array.from(pos),
+        triangles: Uint32Array.from(tri),
+      },
+      meta: {
+        format: 'tosijs-garment',
+        version: 1,
+        source: 'test body',
+        name: 'cap',
+        slot: 'hair',
+      },
+    })
+    const cap = {
+      ...garmentProxy(readGarment(file), {
+        positions: body.positions,
+        triangles: body.indices,
+      }),
+      category: 'hair',
+      slot: 'hair',
+      follows: 'Head',
+    }
+    const out = readGlb(riggedBodyGlb(body, { garments: [cap] }))
+    const json = out.json
+    const mesh = json.meshes.find((m: any) => m.name === 'hair: cap')
+    const joints = accessorValues(out, mesh.primitives[0].attributes.JOINTS_0)
+    const headJoint = json.skins[0].joints.findIndex(
+      (j: number) => json.nodes[j].name === 'Head'
+    )
+    expect(headJoint).toBeGreaterThanOrEqual(0)
+    for (let i = 0; i < joints.length; i += 4) expect(joints[i]).toBe(headJoint)
+    // No skin was tucked under it: the body is the bare body.
+    const bare = readGlb(riggedBodyGlb(body))
+    const a = readVec3(out, json.meshes[0].primitives[0].attributes.POSITION)
+    const b = readVec3(
+      bare,
+      bare.json.meshes[0].primitives[0].attributes.POSITION
+    )
+    expect(Array.from(a)).toEqual(Array.from(b))
+  }, 60000)
 })
 
 describe.skipIf(!existsSync(AI))(

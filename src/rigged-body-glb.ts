@@ -982,21 +982,41 @@ export function riggedBodyGlb(
       const n = vertexNormals(drawn, g.triangles)
       for (let i = 0; i < drawn.length; i++) drawn[i] += n[i] * 0.005
     }
-    return { g, drawn, w: proxyWeights(g, body.weights) }
+    // A rigid piece (hair) follows one joint wholly, as the builder hangs it.
+    const joint = g.follows
+      ? body.rig.joints.findIndex((j) => j.name === g.follows)
+      : -1
+    const w =
+      joint >= 0
+        ? {
+            indices: Float32Array.from(
+              { length: (drawn.length / 3) * 4 },
+              (_, k) => (k % 4 === 0 ? joint : 0)
+            ),
+            weights: Float32Array.from(
+              { length: (drawn.length / 3) * 4 },
+              (_, k) => (k % 4 === 0 ? 1 : 0)
+            ),
+          }
+        : proxyWeights(g, body.weights)
+    return { g, drawn, w }
   })
   let rest: ArrayLike<number> = body.positions
   let indices: ArrayLike<number> = body.indices
   let runs: number[][] = body.surfaces?.length
     ? body.surfaces.map((s) => [s.start, s.count])
     : [[0, body.indices.length]]
-  if (worn.length > 0 && options.cover !== false) {
+  // The skin is tucked under clothes only, as the builder does (hair and
+  // brows sit on it).
+  const clothing = worn.filter((x) => x.g.category === 'clothes')
+  if (clothing.length > 0 && options.cover !== false) {
     const covered = coverSkin(
       body.positions,
       vertexNormals(body.positions, body.indices), // unit: coverSkin measures along them
       body.indices,
       Uint32Array.from({ length: nVerts }, (_, i) => i),
-      worn.map((x) => x.g as unknown as HumanProxy),
-      { drawn: new Map(worn.map((x) => [x.g.name, x.drawn])) }
+      clothing.map((x) => x.g as unknown as HumanProxy),
+      { drawn: new Map(clothing.map((x) => [x.g.name, x.drawn])) }
     )
     rest = covered.positions
     if (covered.deleted.size > 0) {
