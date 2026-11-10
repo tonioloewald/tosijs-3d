@@ -1,6 +1,37 @@
 import { describe, expect, test } from 'bun:test'
-import { clothSheenColour, recolourCloth, textureMean } from './cloth-bake.js'
-import type { RgbaImage } from './png.js'
+import {
+  bakeClothLook,
+  clothSheenColour,
+  recolourCloth,
+  textureMean,
+} from './cloth-bake.js'
+import { pngDecode, type RgbaImage } from './png.js'
+import { jpegDecode } from './jpeg.js'
+import { clothRecipe } from './material-recipe.js'
+
+// A 37 × 29 grey JPEG (jpeg.test.ts's grey fixture).
+const GREY_JPEG = Uint8Array.from(
+  atob(
+    '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIBAQECAgICAgQDAgICAgUEBAMEBgUG' +
+      'BgYFBgYGBwkIBgcJBwYGCAsICQoKCgoKBggLDAsKDAkKCgr/wAALCAAdACUBAREA/8QAHwAA' +
+      'AQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQR' +
+      'BRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RF' +
+      'RkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ip' +
+      'qrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/9oACAEB' +
+      'AAA/APyb+HP7P+r+F9Xt9d13SfItIN3my7lbbuUqOFJJ5IHAr1CX4P8A/CcfZf8AhFrX7V9l' +
+      '3ef8uzbuxt+/jOdp6eleofDr4f6R4X0i30LXT5F1Bu82LymbbuYsOVBB4IPB711fw5/Z/wBX' +
+      '8L6tb69ruk+RaQbvNl3K2NylRwpJPJA4Felap8Hj45tbf/hFrQXX2Xd5/wAuzbuxt+/jOdp6' +
+      'eleQ+GfBI8c7fC39i/ZftX/LfzN+3b8/3cDOduOvevRPC/wdX4Xbf9F+3fbvbytmz/vrOd/t' +
+      '0r0Twz+ziPHO3xT5v2X7V/yw8jft2/J97Iznbnp3r0Twz4J/4Tkr4W/sX7L9q/5b+Zv27fn+' +
+      '7gZ+7jr3rvdH+Di/C625tft32728rZs/76znf7dK8ug/Z90fwtpEmu6FpXkXUG3ypdzNt3MF' +
+      'PDEg8Ejkd67f4V/B0eORMPFNqbr7Ls8j5fL27t277mM52jr6V28Hw81bwvqz6FoR8i0g2+VF' +
+      '5Stt3KGPLAk8k969dg/Z90fwvpEmu6FpfkXcG3ypdzNt3MFPDEjoSOneux+HfwdHjm1n/wCE' +
+      'ptvtX2XZ5Hy7Nu7du+5jP3R19K+efg14D0f/AIS6yGP+en8P/TNq9c8ZeBNIH9ncf89f4f8A' +
+      'cr134NeA9I/4ROyH+/8Aw/8ATRq0/g14C0f/AIS6yGP7/wDD/wBM2r1X4g+A9H+zafx/z1/h' +
+      '/wByv//Z'
+  ),
+  (c) => c.charCodeAt(0)
+)
 
 /** A texture of folds: grey bands, darker and lighter, opaque. */
 function folds(): RgbaImage {
@@ -67,5 +98,37 @@ describe('recolourCloth', () => {
     expect(clothSheenColour('#000000')).toEqual([0.6, 0.6, 0.6])
     expect(clothSheenColour('#ffffff')).toEqual([1, 1, 1])
     expect(clothSheenColour('nope')).toBeNull()
+  })
+
+  test('bakeClothLook: a JPEG picture and a cloth look give the recoloured PNG', () => {
+    const picture = { bytes: GREY_JPEG, mimeType: 'image/jpeg' }
+    const look = clothRecipe({
+      fabric: 'cotton',
+      colour: '#a02020',
+      recolour: 1,
+    })
+    const baked = bakeClothLook(picture, look)!
+    expect(baked.mimeType).toBe('image/png')
+    const out = pngDecode(baked.bytes)
+    const want = recolourCloth(jpegDecode(GREY_JPEG), '#a02020', 1)
+    expect(Buffer.from(out.data).equals(Buffer.from(want.data))).toBe(true)
+    // Red, where the picture was grey.
+    let r = 0
+    let b = 0
+    for (let i = 0; i < out.data.length; i += 4) {
+      r += out.data[i]
+      b += out.data[i + 2]
+    }
+    expect(r).toBeGreaterThan(2 * b)
+    // Nothing to bake: no recolour, not cloth, an unreadable picture.
+    expect(
+      bakeClothLook(picture, clothRecipe({ colour: '#a02020', recolour: 0 }))
+    ).toBeNull()
+    expect(
+      bakeClothLook(picture, { type: 'pbr', inputs: {} } as any)
+    ).toBeNull()
+    expect(
+      bakeClothLook({ bytes: new Uint8Array(4), mimeType: 'image/png' }, look)
+    ).toBeNull()
   })
 })

@@ -52,7 +52,10 @@ What the file is (Dramatis's `export-format`, version 1):
   from Blender), each a mesh named for its slot, skinned with weights from
   the body's own, as the builder draws them (armour lifted 5 mm), with its
   material as data (its pictures, and its saved look's glTF factors where
-  it has a plain reading). The skin they cover is tucked under them, as the
+  it has a plain reading). A recoloured cloth's picture is written
+  recoloured ([cloth-bake](/cloth-bake/), PNG or JPEG in, PNG out), so the
+  file shows what the builder does in any engine; `bake: false` writes the
+  pictures as they came. The skin they cover is tucked under them, as the
   builder does, and skin a garment lists in its `delete` (as MakeHuman's
   clothes do) is dropped; `cover: false` leaves the skin alone.
 - **Clips**, with `clips`: animations read from any skinned GLB
@@ -91,6 +94,7 @@ import type { GarmentProxy, GarmentProxyMaterial } from './garment-proxy.js'
 import type { HumanProxy } from './human-pack.js'
 import { drawnPositions, fitProxy, proxyWeights } from './proxy-fit.js'
 import { coverSkin } from './proxy-cover.js'
+import { bakeClothLook } from './cloth-bake.js'
 import { vertexNormals } from './hair-fit.js'
 import { bakeClip, type GlbClip, type GlbClipSource } from './glb-clips.js'
 import { humanoidRoles } from './retarget.js'
@@ -149,6 +153,13 @@ export interface RiggedBodyGlbOptions {
   garments?: GarmentProxy[]
   /** Tuck the skin the garments cover, drop what they list (default true). */
   cover?: boolean
+  /**
+   * Bake each garment's look into its picture (default true): a recoloured
+   * cloth's texture is written recoloured (cloth-bake's `bakeClothLook`), so
+   * any engine draws what the builder shows. `false` writes the pictures as
+   * they are, the look only as factors.
+   */
+  bake?: boolean
   /** Clips to write: see "Clips" above. */
   clips?: ClipOut[]
 }
@@ -760,7 +771,8 @@ const isGltfMaterial = (m: unknown): m is GltfSurfaceMaterial =>
 function garmentMaterial(
   m: GarmentProxyMaterial,
   name: string,
-  images: GlbImage[]
+  images: GlbImage[],
+  bake = true
 ): GlbMaterial {
   const image = (
     t: { bytes: Uint8Array; mimeType: string } | null | undefined,
@@ -790,7 +802,11 @@ function garmentMaterial(
     ...(m.alphaMode === 'MASK' ? { alphaCutoff: m.alphaCutoff ?? 0.5 } : {}),
     doubleSided: m.twoSided,
   }
-  const base = image(m.baseColorTexture, 'baseColor')
+  const baked =
+    bake && m.baseColorTexture?.bytes != null
+      ? bakeClothLook(m.baseColorTexture, m.look)
+      : null
+  const base = image(baked ?? m.baseColorTexture, 'baseColor')
   if (base) out.baseColorTexture = base
   const mr = image(m.metallicRoughnessTexture, 'metallicRoughness')
   if (mr) out.metallicRoughnessTexture = mr
@@ -1216,7 +1232,12 @@ export function riggedBodyGlb(
       gj[i] = Math.max(0, sk.from[w.indices[i]] ?? 0)
     const pos = placeAll(skinTo(drawn, gj, w.weights, sk.rest, pose))
     materials.push(
-      garmentMaterial(g.material, `${g.slot ?? 'garment'}_${g.name}`, images)
+      garmentMaterial(
+        g.material,
+        `${g.slot ?? 'garment'}_${g.name}`,
+        images,
+        options.bake !== false
+      )
     )
     meshes.push({
       name: `${g.slot ?? 'garment'}: ${g.name}`,

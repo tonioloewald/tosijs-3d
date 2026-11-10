@@ -60,6 +60,7 @@ export const CHARACTER_CORE = [
   'spring-chain',
   'eye-art',
   'png',
+  'jpeg',
   'hair-place',
   'mesh-sdf',
   'fit-extremes',

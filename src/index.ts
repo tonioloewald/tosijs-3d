@@ -990,6 +990,7 @@ export {
   type SkyObject,
 } from './starfield-codec.js'
 export { pngEncode, pngDecode, crc32, adler32 } from './png.js'
+export { jpegDecode, decodeImage } from './jpeg.js'
 export type { RgbaImage } from './png.js'
 export {
   bakeSkyboxCube,
@@ -2179,7 +2180,12 @@ export {
 export type { MacroBody } from './human-morph.js'
 export { humanBody, skinMaterial } from './character-builder.js'
 export { lipTint, stubbleTint, stubbleMask } from './skin-paint.js'
-export { recolourCloth, clothSheenColour, textureMean } from './cloth-bake.js'
+export {
+  recolourCloth,
+  clothSheenColour,
+  textureMean,
+  bakeClothLook,
+} from './cloth-bake.js'
 export { skinShading, skinThinness, SkinShadingPlugin } from './skin-shading.js'
 export type { SkinShadingOptions } from './skin-shading.js'
 export {

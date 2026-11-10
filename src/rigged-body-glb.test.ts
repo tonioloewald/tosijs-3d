@@ -444,6 +444,51 @@ describe.skipIf(!existsSync(AI))(
             m.code !== 'MESH_PRIMITIVE_GENERATED_TANGENT_SPACE'
         )
       ).toEqual([])
+
+      // A recoloured cloth over a picture goes out recoloured; bake: false
+      // writes the picture as it came.
+      const { pngEncode, pngDecode } = await import('./png.js')
+      const { clothRecipe } = await import('./material-recipe.js')
+      const grey = new Uint8Array(8 * 8 * 4).fill(128)
+      const picture = { bytes: pngEncode(grey, 8, 8), mimeType: 'image/png' }
+      const worn = {
+        ...proxy,
+        material: {
+          ...proxy.material,
+          baseColorTexture: picture,
+          look: clothRecipe({
+            fabric: 'cotton',
+            colour: '#a02020',
+            recolour: 1,
+          }),
+        },
+      }
+      const imageOf = (out: Uint8Array) => {
+        const g = readGlb(out)
+        const m =
+          g.json.materials[
+            g.json.meshes.find((x: any) => x.name === 'top: shirt')
+              .primitives[0].material
+          ]
+        const image =
+          g.json.images[
+            g.json.textures[m.pbrMetallicRoughness.baseColorTexture.index]
+              .source
+          ]
+        const view = g.json.bufferViews[image.bufferView]
+        return g.bin!.subarray(
+          view.byteOffset ?? 0,
+          (view.byteOffset ?? 0) + view.byteLength
+        )
+      }
+      const red = pngDecode(
+        imageOf(riggedBodyGlb(body, { garments: [worn as any] }))
+      )
+      expect(red.data[0]).toBeGreaterThan(2 * red.data[2])
+      const kept = imageOf(
+        riggedBodyGlb(body, { garments: [worn as any], bake: false })
+      )
+      expect(Buffer.from(kept).equals(Buffer.from(picture.bytes))).toBe(true)
     }, 120000)
   }
 )

@@ -36,7 +36,7 @@ import { humanBodyMaker } from 'tosijs-3d/human-rig'
 | [`hand-socket`](/hand-socket/) | where a hand holds things on any rig (the socket and grip arithmetic) |
 | [`character-sources`](/character-sources/) | the bodies besides MakeHuman's, with Tonio's hand-placed rigs for the AI cast |
 | [`eye-art`](/eye-art/) | Tonio's eye art with its iris recoloured, and UVs that map both eyes onto it |
-| `png` | PNG read and written, byte for byte, with no canvas |
+| `png`, [`jpeg`](/jpeg/) | PNG read and written, byte for byte, and JPEG read (baseline and progressive), with no canvas |
 | [`character-file`](/character-file/) | a character as one versioned JSON document |
 | [`character-settings`](/character-settings/) | every setting a character has, with its default; the slots; hair colours; the body pack's URL |
 | [`proxy-cover`](/proxy-cover/) | the skin under what is worn, tucked in and hidden |

@@ -14,6 +14,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ### Added
 
+- A garment's look goes out in its picture: `riggedBodyGlb` writes a recoloured cloth's texture recoloured, so any engine shows what the builder does (`bake: false` keeps the pictures as they came). `bakeClothLook(picture, look)` (`cloth-bake`) is the step on its own.
+- `jpegDecode` and `decodeImage` (`tosijs-3d/jpeg`): JPEGs read with no engine or canvas (baseline and progressive, grey or colour, any chroma subsampling), as `pngDecode`'s `RgbaImage`; `decodeImage` reads either. `pngDecode` now reads grey PNGs too.
 - Character builder: **clips from a file…** takes BVH motion captures as well as GLBs, and keeps them in this browser (`clipStore`, IndexedDB `tosijs-clips`), so they come back next visit; **forget** drops one. `retargetSourceClip` plays a clip held as data (a BVH, or a GLB read with `readGlbClips`) on a loaded skeleton, as `retargetClip` does a loaded one.
 - `readBvh` and `writeBvh` (`tosijs-3d/bvh`): BVH motion capture files read as clips (any skeleton, any Euler order, units guessed or given) that `bakeClip` and `retargetClip` play on any body, and any clip written out as BVH.
 - A tailor's garment fits any body (`tailor-recipe`): a cut records the joints of the body it was drawn on (`TailorCut.on`), and `recutGarment(body, cut)` makes it on another rigged body, its outlines carried by the joints so a hem drawn at the knee stays at the knee. In the tailor, outlines now follow the body when it is reshaped. `fitCut`, `warpOutline`, `outlineLandmarks` and `tailorBody` are the parts.

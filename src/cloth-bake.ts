@@ -20,11 +20,19 @@ const red = recolourCloth(shirt, '#7a2e2e', 0.8)
 const png = pngEncode(red.data, red.width, red.height)
 const sheen = clothSheenColour('#7a2e2e')   // KHR_materials_sheen's colour, linear
 ```
+
+`bakeClothLook(picture, look)` is the whole step for a garment: its picture
+(PNG or JPEG bytes, [jpeg](/jpeg/)) and the cloth look it is worn with give
+the recoloured picture as a PNG, or null when the look leaves the picture as
+it is. `riggedBodyGlb` does this to every garment it writes unless told not
+to (`bake: false`).
 */
 /*{ "parent": "character-core", "order": 38 }*/
 
-import type { RgbaImage } from './png.js'
+import { pngEncode, type RgbaImage } from './png.js'
+import { decodeImage } from './jpeg.js'
 import { parseColor } from './color.js'
+import { resolveMaterial, type MaterialRecipe } from './material-recipe.js'
 
 const toLinear = (c: number) =>
   c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
@@ -84,4 +92,32 @@ export function clothSheenColour(
   const c = parseColor(colour)
   if (c == null) return null
   return [0.6 + 0.4 * c.r, 0.6 + 0.4 * c.g, 0.6 + 0.4 * c.b]
+}
+
+/**
+ * A garment's picture as its cloth look draws it: recoloured toward the
+ * look's colour by its recolour, as a PNG. Null when there is nothing to bake
+ * (not a cloth look, no recolour, no colour) or the picture cannot be read.
+ */
+export function bakeClothLook(
+  picture: { bytes: Uint8Array; mimeType: string },
+  look: MaterialRecipe | null | undefined
+): { bytes: Uint8Array; mimeType: 'image/png' } | null {
+  if (look?.type !== 'cloth') return null
+  const r = resolveMaterial(look)
+  const colour = r.albedo?.image == null ? r.albedo?.value : null
+  const amount = r.recolour?.value
+  if (typeof colour !== 'string' || typeof amount !== 'number' || amount <= 0)
+    return null
+  let image: RgbaImage
+  try {
+    image = decodeImage(picture.bytes)
+  } catch {
+    return null
+  }
+  const out = recolourCloth(image, colour, amount)
+  return {
+    bytes: pngEncode(out.data, out.width, out.height),
+    mimeType: 'image/png',
+  }
 }
