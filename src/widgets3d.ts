@@ -4436,7 +4436,10 @@ function buildPanel3d(
       const slot = root as unknown as { __anchored?: { close: () => void } }
       slot.__anchored?.close()
       // A menu: a press anywhere else closes it, as a DOM select's list does.
-      const handle = this.showLayer!({ ...config, dismissOutside: true }, ...items)
+      const handle = this.showLayer!(
+        { ...config, dismissOutside: true },
+        ...items
+      )
       slot.__anchored = handle
       return handle
     },

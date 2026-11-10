@@ -13,7 +13,8 @@ describe('garment-cut', () => {
     const N = 600
     const grid: number[] = []
     for (let j = 0; j <= N; j++)
-      for (let i = 0; i <= N; i++) grid.push((i / N) * 2 - 1, (j / N) * 2 - 1, 0)
+      for (let i = 0; i <= N; i++)
+        grid.push((i / N) * 2 - 1, (j / N) * 2 - 1, 0)
     const quads: number[] = []
     for (let j = 0; j < N; j++)
       for (let i = 0; i < N; i++) {
