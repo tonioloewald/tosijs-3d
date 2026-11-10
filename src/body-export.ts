@@ -6,7 +6,10 @@ character builder put in their **Export** section: which joint names, which
 rest pose, how tall, and a button that writes the body shown with
 [rigged-body-glb](/rigged-body-glb/) (its springs too, from the rig recipe)
 and downloads it. The file plays UAL's clips by name in three.js, Unity,
-Godot and Blender; a tail or a strand swings in any VRM loader.
+Godot and Blender; a tail or a strand swings in any VRM loader. With
+**animation** set to the clip playing, that clip goes in too, retargeted onto
+the skeleton as written (from UAL's file, a GLB's animations or a BVH
+capture: `clip` on the target says which).
 
 The body on screen was read through Babylon, so its materials are Babylon's.
 For the file, the model it came from is read again from its bytes
@@ -32,6 +35,9 @@ import {
 } from './rigged-body-glb.js'
 import type { RiggedBody } from './rigged-body.js'
 import type { RigRecipe } from './rig-recipe.js'
+import { readGlbClips, type GlbClipSource } from './glb-clips.js'
+import { readBvh } from './bvh.js'
+import type { ClipOut } from './rigged-body-glb.js'
 
 /** What an export writes: the body, its recipe, and the model it came from. */
 export interface BodyExportTarget {
@@ -55,6 +61,22 @@ export interface BodyExportTarget {
     gripNode?: string
     extras?: Record<string, unknown>
   } | null
+  /** The clip playing, for **animation**: its file and its name there. */
+  clip?: ExportClip | null
+}
+
+/** A clip as its file: a GLB's animation by name, or a BVH capture. */
+export interface ExportClip {
+  /** Its name in the file (a BVH holds one, whatever it is called). */
+  name: string
+  kind: 'glb' | 'bvh'
+  /** The file's bytes, or where to fetch them. */
+  bytes?: Uint8Array
+  url?: string
+  /** Spread the arms (the body's recipe's `armSpaceDeg`). */
+  armSpaceDeg?: number
+  /** The animation's `extras`: its licence. */
+  extras?: Record<string, unknown>
 }
 
 /** How the file is written (the panel's choices). */
@@ -63,6 +85,8 @@ export interface BodyExportSettings {
   restPose: RigRestPose
   /** Metres, or 0 for the body's own height. */
   height: number
+  /** Whether the clip playing goes in (default not). */
+  animation?: 'none' | 'playing'
 }
 
 const HEIGHTS = [
@@ -86,6 +110,38 @@ async function sourceBytes(
       ? await (await fetch(source.url)).arrayBuffer()
       : null
   return buffer != null ? new Uint8Array(buffer) : null
+}
+
+// A clip library (UAL's is megabytes) is read once a page.
+const clipSources = new Map<string, Promise<GlbClipSource>>()
+
+/** A clip from its file, as riggedBodyGlb's `clips` takes it (null: not in the file). */
+export async function exportClip(c: ExportClip): Promise<ClipOut | null> {
+  const read = async () => {
+    const bytes =
+      c.bytes ?? new Uint8Array(await (await fetch(c.url!)).arrayBuffer())
+    return c.kind === 'bvh'
+      ? readBvh(new TextDecoder().decode(bytes), { name: c.name })
+      : readGlbClips(bytes)
+  }
+  let from: GlbClipSource
+  if (c.url != null && c.bytes == null) {
+    if (!clipSources.has(c.url)) clipSources.set(c.url, read())
+    from = await clipSources.get(c.url)!.catch((e) => {
+      clipSources.delete(c.url!)
+      throw e
+    })
+  } else from = await read()
+  const clip =
+    c.kind === 'bvh' ? from.clips[0] : from.clips.find((k) => k.name === c.name)
+  if (clip == null) return null
+  return {
+    from,
+    clip,
+    name: c.name,
+    ...(c.armSpaceDeg ? { armSpaceDeg: c.armSpaceDeg } : {}),
+    ...(c.extras ? { extras: c.extras } : {}),
+  }
 }
 
 /**
@@ -129,8 +185,15 @@ export async function exportBody(
         return { grip: target.held!.grip }
       })
     : undefined
+  const clip =
+    settings.animation === 'playing' && target.clip
+      ? await exportClip(target.clip).catch(() => null)
+      : null
+  if (settings.animation === 'playing' && clip == null)
+    note = [note, 'no clip to put in'].filter(Boolean).join('; ')
   const out = riggedBodyGlb(body, {
     ...(held ? { held } : {}),
+    ...(clip ? { clips: [clip] } : {}),
     ...(target.garments?.length ? { garments: target.garments } : {}),
     naming: settings.naming,
     restPose: settings.restPose,
@@ -174,6 +237,7 @@ const settings: BodyExportSettings = {
   naming: 'ue',
   restPose: 't-pose',
   height: 0,
+  animation: 'none',
 }
 
 /**
@@ -210,6 +274,14 @@ export function exportBodyRows(
       options: HEIGHTS,
       handleChange: (v) => {
         settings.height = v === 'as made' ? 0 : parseFloat(String(v))
+      },
+    }),
+    select3d({
+      label: 'animation',
+      value: settings.animation === 'playing' ? 'the clip playing' : 'none',
+      options: ['none', 'the clip playing'],
+      handleChange: (v) => {
+        settings.animation = v === 'none' ? 'none' : 'playing'
       },
     }),
     button3d({

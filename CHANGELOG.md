@@ -14,6 +14,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ### Added
 
+- Export (rig tool, character builder): **animation** puts the clip playing in the GLB, retargeted onto the skeleton as written, whether it is UAL's, a GLB of your own or a BVH capture. A host passes it as `clip` on the export target (`ExportClip`: the file and the clip's name); `exportClip` reads one into `riggedBodyGlb`'s `clips`.
 - A character file carries the clip it plays when that is one of your own (`clips`: the BVH or GLB file, by name), so it plays on a page that has never seen the file; the builder reads and keeps it on load. `characterStore` keeps the bytes once, as it does garments.
 - A garment's look goes out in its picture: `riggedBodyGlb` writes a recoloured cloth's texture recoloured, so any engine shows what the builder does (`bake: false` keeps the pictures as they came). `bakeClothLook(picture, look)` (`cloth-bake`) is the step on its own.
 - `jpegDecode` and `decodeImage` (`tosijs-3d/jpeg`): JPEGs read with no engine or canvas (baseline and progressive, grey or colour, any chroma subsampling), as `pngDecode`'s `RgbaImage`; `decodeImage` reads either. `pngDecode` now reads grey PNGs too.

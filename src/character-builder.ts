@@ -223,7 +223,23 @@ const setGrip = (patch) => {
   applyGrip()
 }
 // Export: the body on show as a GLB that plays UAL's clips by name (its
-// springs too). Clothes, hair and the face stay here for now.
+// springs too, and the clip playing if asked). Clothes, hair and the face
+// stay here for now.
+// The clip playing as its file: one of your own, else UAL's.
+const playingClip = (recipe) => {
+  const name = walker.clip.value
+  const file = clipFiles.get(name)
+  const kept = file != null ? clipBytes.get(file) : null
+  const armSpaceDeg = recipe?.armSpaceDeg
+  if (kept) return { name, kind: kept.kind, bytes: kept.bytes, armSpaceDeg }
+  return {
+    name,
+    kind: 'glb',
+    url: assetUrl('quaternius/UAL_builder.glb'),
+    armSpaceDeg,
+    extras: { credit: 'Quaternius', license: 'CC0 (https://creativecommons.org/publicdomain/zero/1.0/)', source: 'quaternius/UAL_builder.glb' },
+  }
+}
 const exportRows = () =>
   exportBodyRows(
     () => {
@@ -237,6 +253,7 @@ const exportRows = () =>
         name: String(name).replace(/\W+/g, '-').replace(/^-|-$/g, '') || 'character',
         // What it wears of your own (on a body from a file).
         garments: ch.wornGarments?.() ?? [],
+        clip: playingClip(shown.recipe),
         // What the right hand holds goes out with it, where it is held.
         held:
           walker.held.value === 'none'
