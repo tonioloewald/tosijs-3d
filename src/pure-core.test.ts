@@ -26,6 +26,7 @@ export const CHARACTER_CORE = [
   'garment-proxy',
   'garment-bind',
   'glb-clips',
+  'bvh',
   'human-pack',
   'human-morph',
   'human-rig',
