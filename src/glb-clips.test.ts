@@ -193,3 +193,50 @@ describe.skipIf(!existsSync(UAL) || !existsSync(AI))(
     }, 120000)
   }
 )
+
+describe.skipIf(!existsSync(UAL) || !existsSync(OMNI))(
+  'retargetSourceClip: a clip held as data plays as a loaded one does',
+  () => {
+    test("UAL's walk from the pure reader matches retargetClip from Babylon's group", async () => {
+      const { retargetClip, retargetSourceClip } = await import(
+        './retarget-babylon.js'
+      )
+      const ual = await viaBabylon(UAL)
+      const omni = await viaBabylon(OMNI)
+      const pure = readGlbClips(new Uint8Array(readFileSync(UAL)))
+      const clip = pure.clips.find((c) => c.name === 'Walk_Loop')!
+      const group = ual.c.animationGroups.find((g) => g.name === 'Walk_Loop')!
+      const a = retargetClip(group, ual.read, omni.read, { fps: 30 })
+      const b = retargetSourceClip(pure, clip, omni.read, { fps: 30 })
+      const byTarget = (g: any) =>
+        new Map<string, any>(
+          g.targetedAnimations
+            .filter(
+              (t: any) => t.animation.targetProperty === 'rotationQuaternion'
+            )
+            .map((t: any) => [t.target.name, t.animation])
+        )
+      const ka = byTarget(a)
+      const kb = byTarget(b)
+      expect(kb.size).toBe(ka.size)
+      expect(kb.size).toBeGreaterThan(15)
+      let worst = 0
+      for (const [name, anim] of ka) {
+        const other = kb.get(name)!
+        const keys = anim.getKeys()
+        const okeys = other.getKeys()
+        expect(okeys.length).toBe(keys.length)
+        for (let k = 0; k < keys.length; k += 5) {
+          const d = sameTurn(keys[k].value, okeys[k].value)
+          worst = Math.max(
+            worst,
+            (2 * Math.acos(Math.min(1, d)) * 180) / Math.PI
+          )
+        }
+      }
+      expect(worst).toBeLessThan(0.5)
+      ual.engine.dispose()
+      omni.engine.dispose()
+    }, 60000)
+  }
+)

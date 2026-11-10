@@ -1925,6 +1925,7 @@ export {
   readSkeleton,
   retargetClip,
   retargetClips,
+  retargetSourceClip,
 } from './retarget-babylon.js'
 export type { ReadSkeleton } from './retarget-babylon.js'
 export {
@@ -2069,6 +2070,10 @@ export {
   rebindCut,
   weldVertices,
 } from './garment-cut.js'
+export { readBvh, writeBvh } from './bvh.js'
+export type { ReadBvhOptions, WriteBvhOptions } from './bvh.js'
+export { clipStore, clipKind } from './clip-store.js'
+export type { ClipStore, StoredClip } from './clip-store.js'
 export { loftGarment } from './body-sweep.js'
 export type { Loft, LoftOptions, SweepCurve, SweepEnd } from './body-sweep.js'
 export {

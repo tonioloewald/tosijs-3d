@@ -19,6 +19,7 @@ import {
   type Skeleton,
 } from './retarget.js'
 import type { Quat, Vec3 } from './spatial-transform.js'
+import { clipPose, type GlbClip, type GlbClipSource } from './glb-clips.js'
 
 /** A skeleton read from a Babylon skin, with what is needed to write back. */
 export interface ReadSkeleton extends Skeleton {
@@ -229,8 +230,6 @@ export function retargetClip(
     armSpaceDeg?: number
   } = {}
 ): BABYLON.AnimationGroup {
-  const rt = retargeter(source, target, { armSpaceDeg: options.armSpaceDeg })
-  const fps = options.fps ?? 30
   // What animates each source bone, by name.
   const rotAnim = new Map<string, BABYLON.Animation>()
   const posAnim = new Map<string, BABYLON.Animation>()
@@ -246,40 +245,92 @@ export function retargetClip(
   }
   const from = group.from
   const to = group.to
-  const seconds = Math.max(0, (to - from) / rate)
-  const frames = Math.max(1, Math.round(seconds * fps))
+  const sHips = source.roles.hips
+  return retargetSampled(
+    (u) => {
+      const at = from + u * (to - from)
+      const rotations = new Map<string, Quat>()
+      for (const [name, anim] of rotAnim) {
+        const value = anim.evaluate(at) as BABYLON.Quaternion
+        let local = q(value)
+        // A top bone's keys are relative to its node parent: bring them to
+        // the model root, as its rest is.
+        const a = source.above.get(name)
+        if (a != null) local = mul(a, local)
+        rotations.set(name, local)
+      }
+      let hips: Vec3 | undefined
+      if (sHips != null) {
+        const anim = posAnim.get(sHips)
+        if (anim != null) {
+          // A top bone's keys are in its parent node's space: to the model's.
+          const key = anim.evaluate(at) as BABYLON.Vector3
+          const m = source.aboveMatrix.get(sHips)
+          hips = v(
+            m != null ? BABYLON.Vector3.TransformCoordinates(key, m) : key
+          )
+        }
+      }
+      return { rotations, hips }
+    },
+    Math.max(0, (to - from) / rate),
+    source,
+    target,
+    { ...options, name: options.name ?? `${group.name}→retargeted` }
+  )
+}
 
+/**
+ * A clip held as data (a [BVH](/bvh/) read with `readBvh`, or a GLB's read
+ * with `readGlbClips`) retargeted onto a loaded skeleton, as `retargetClip`
+ * does a loaded one's.
+ */
+export function retargetSourceClip(
+  source: GlbClipSource,
+  clip: GlbClip,
+  target: ReadSkeleton,
+  options: {
+    fps?: number
+    name?: string
+    scene?: BABYLON.Scene
+    armSpaceDeg?: number
+  } = {}
+): BABYLON.AnimationGroup {
+  return retargetSampled(
+    (u) => clipPose(source, clip, clip.start + u * (clip.end - clip.start)),
+    Math.max(0, clip.end - clip.start),
+    source,
+    target,
+    { ...options, name: options.name ?? clip.name }
+  )
+}
+
+/** A source sampled at 0..1 of its length, retargeted into an animation group on `target`. */
+function retargetSampled(
+  sample: (u: number) => { rotations: Map<string, Quat>; hips?: Vec3 },
+  seconds: number,
+  source: Skeleton,
+  target: ReadSkeleton,
+  options: {
+    fps?: number
+    name?: string
+    scene?: BABYLON.Scene
+    armSpaceDeg?: number
+  }
+): BABYLON.AnimationGroup {
+  const rt = retargeter(source, target, { armSpaceDeg: options.armSpaceDeg })
+  const fps = options.fps ?? 30
+  const frames = Math.max(1, Math.round(seconds * fps))
   const moving = rt.roles.map((r) => target.roles[r]!)
   const keys = new Map<
     string,
     Array<{ frame: number; value: BABYLON.Quaternion }>
   >(moving.map((n) => [n, []]))
   const hipsKeys: Array<{ frame: number; value: BABYLON.Vector3 }> = []
-  const sHips = source.roles.hips
   const tHips = target.roles.hips
 
   for (let i = 0; i <= frames; i++) {
-    const at = from + (i / frames) * (to - from)
-    const rotations = new Map<string, Quat>()
-    for (const [name, anim] of rotAnim) {
-      const value = anim.evaluate(at) as BABYLON.Quaternion
-      let local = q(value)
-      // A top bone's keys are relative to its node parent: bring them to
-      // the model root, as its rest is.
-      const a = source.above.get(name)
-      if (a != null) local = mul(a, local)
-      rotations.set(name, local)
-    }
-    let hips: Vec3 | undefined
-    if (sHips != null) {
-      const anim = posAnim.get(sHips)
-      if (anim != null) {
-        // A top bone's keys are in its parent node's space: to the model's.
-        const key = anim.evaluate(at) as BABYLON.Vector3
-        const m = source.aboveMatrix.get(sHips)
-        hips = v(m != null ? BABYLON.Vector3.TransformCoordinates(key, m) : key)
-      }
-    }
+    const { rotations, hips } = sample(i / frames)
     const out = rt.pose(rotations, hips)
     for (const name of moving) {
       let local = out.rotations.get(name)
@@ -299,7 +350,7 @@ export function retargetClip(
   }
 
   const made = new BABYLON.AnimationGroup(
-    options.name ?? `${group.name}→retargeted`,
+    options.name ?? 'retargeted',
     options.scene
   )
   for (const name of moving) {

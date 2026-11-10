@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, tailorPanel, garmentStore, barMenu, fitPanel, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, retargetSourceClip, readBvh, clipStore, clipKind, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, tailorPanel, garmentStore, barMenu, fitPanel, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 import { exportBodyRows } from 'tosijs-3d/body-export'
@@ -60,10 +60,14 @@ const SLOTS = CHARACTER_SLOTS
 // follows once it has loaded.
 const EVERYDAY = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Dance_Loop', 'Crouch_Fwd_Loop']
 let clips = [...EVERYDAY]
-// Clips from a file (a Mixamo or Meshy character's): name → the clip and the
-// skeleton it was made on, retargeted like UAL's when played.
+// Clips from a file (a Mixamo or Meshy character's GLB, or a BVH capture):
+// name → the clip and the skeleton it was made on, retargeted like UAL's when
+// played. Kept in this browser (clip-store), so they are here next visit.
 const fileClips = new Map()
+// Which kept file each clip came from, to forget it.
+const clipFiles = new Map()
 let openClips = () => {}
+let forgetClip = () => {}
 // Where the body comes from: MakeHuman's, which the sliders shape, or a mesh
 // of anyone's (CHARACTER_SOURCES, and files opened here).
 const SOURCES = { ...CHARACTER_SOURCES }
@@ -372,6 +376,7 @@ preview.append(
         select3d({ label: 'clip', value: walker.clip, options: clips, stayOpen: true }),
         playbackRow(),
         button3d({ label: 'clips from a file…', handleClick: () => openClips() }),
+        ...(clipFiles.has(walker.clip.value) ? [button3d({ label: `forget ${walker.clip.value}`, handleClick: () => forgetClip() })] : []),
         ...exportRows(),
       ] : [
         // A body of anyone's: what MakeHuman's carries (shape, face, hair,
@@ -398,6 +403,7 @@ preview.append(
         select3d({ label: 'clip', value: walker.clip, options: clips, stayOpen: true }),
         playbackRow(),
         button3d({ label: 'clips from a file…', handleClick: () => openClips() }),
+        ...(clipFiles.has(walker.clip.value) ? [button3d({ label: `forget ${walker.clip.value}`, handleClick: () => forgetClip() })] : []),
         ...exportRows(),
       ],
       async sceneCreated(el, BABYLON) {
@@ -688,30 +694,64 @@ preview.append(
         walker.grips.observe(() => applyGrip())
 
         // CLIPS FROM A FILE: any skinned GLB with animations (Mixamo's,
-        // Meshy's): its skeleton read like UAL's, its clips listed and
-        // retargeted onto the body shown. Kept for this visit only.
-        const addClips = async (file) => {
+        // Meshy's), its skeleton read like UAL's, or a BVH motion capture;
+        // its clips listed and retargeted onto the body shown, and the file
+        // kept in this browser (restored quietly on the next visit).
+        const keptClips = clipStore()
+        const addClips = async (file, restoring = false) => {
+          const kind = clipKind(file.name)
+          if (!kind) return console.warn(`character builder: ${file.name} is not a GLB or BVH`)
           try {
-            const c = await BABYLON.LoadAssetContainerAsync(file, scene)
-            const skeleton = c.skeletons[0]
-            if (!skeleton || c.animationGroups.length === 0) {
-              console.warn(`character builder: ${file.name} has no skeleton or no animations`)
-              c.dispose()
-              return
+            let names = []
+            if (kind === 'bvh') {
+              const from = readBvh(await file.text(), { name: file.name.replace(/\.bvh$/i, '') })
+              fileClips.set(from.clips[0].name, { source: from, clip: from.clips[0] })
+              names = [from.clips[0].name]
+            } else {
+              const c = await BABYLON.LoadAssetContainerAsync(file, scene)
+              const skeleton = c.skeletons[0]
+              if (!skeleton || c.animationGroups.length === 0) {
+                console.warn(`character builder: ${file.name} has no skeleton or no animations`)
+                c.dispose()
+                return
+              }
+              const from = readSkeleton(skeleton, c.rootNodes[0])
+              for (const g of c.animationGroups) {
+                g.stop()
+                fileClips.set(g.name, { group: g, from })
+              }
+              names = c.animationGroups.map((g) => g.name)
             }
-            const from = readSkeleton(skeleton, c.rootNodes[0])
-            for (const g of c.animationGroups) {
-              g.stop()
-              fileClips.set(g.name, { group: g, from })
-            }
+            for (const n of names) clipFiles.set(n, file.name)
+            if (!restoring) keptClips.put({ name: file.name, kind, bytes: new Uint8Array(await file.arrayBuffer()) }).catch((e) => console.warn('character builder: could not keep the clips', e))
             listClips()
-            walker.clip.value = c.animationGroups[0].name
+            if (!restoring) walker.clip.value = names[0]
             el.refreshScenePanel?.()
           } catch (e) {
             console.warn('character builder: could not read the clips', e)
           }
         }
-        openClips = () => chooseFile('.glb,.gltf').then((file) => file && addClips(file))
+        openClips = () => chooseFile('.glb,.gltf,.bvh').then((file) => file && addClips(file))
+        forgetClip = () => {
+          const file = clipFiles.get(walker.clip.value)
+          if (file == null) return
+          for (const [n, f] of [...clipFiles]) if (f === file) { clipFiles.delete(n); fileClips.delete(n) }
+          keptClips.delete(file).catch(() => {})
+          listClips()
+          walker.clip.value = 'Walk_Loop'
+          el.refreshScenePanel?.()
+        }
+        keptClips.all().then((list) => Promise.all(list.map((c) => addClips(new File([c.bytes], c.name), true)))).then(() => {
+          // A character saved playing one of them plays it again.
+          if (fileClips.has(walker.clip.value)) play()
+        }).catch(() => {})
+        // The forget button comes and goes with whether the clip is your own.
+        let ownClip = false
+        walker.clip.observe(() => {
+          if (clipFiles.has(walker.clip.value) === ownClip) return
+          ownClip = !ownClip
+          el.refreshScenePanel?.()
+        })
 
         // MakeHuman's pack and Quaternius' hairstyles, shared by any character.
         const assets = await loadCharacterAssets(scene).catch((e) => {
@@ -738,7 +778,9 @@ preview.append(
           // A file's clip (gone after a reload: the walk instead), or UAL's.
           const own = fileClips.get(walker.clip.value)
           const clip = own?.group ?? ual.animationGroups.find((g) => g.name === walker.clip.value) ?? ual.animationGroups.find((g) => g.name === 'Walk_Loop')
-          playing = clip ? retargetClip(clip, own?.from ?? source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg }) : null
+          playing = own?.source
+            ? retargetSourceClip(own.source, own.clip, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg })
+            : clip ? retargetClip(clip, own?.from ?? source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg }) : null
           playing?.start(true, clipSpeed)
           ch.groundFor(playing)
           if (walker.paused.value) playing?.pause()
@@ -1289,8 +1331,10 @@ off the body's outline.
 
 **Motion** plays a clip on whatever body is shown: UAL's library (the
 everyday clips first), retargeted. **Clips from a file…** adds the clips of
-any skinned GLB (a Mixamo or Meshy character's, say), retargeted the same way
-and listed after the everyday ones, for this visit.
+any skinned GLB (a Mixamo or Meshy character's, say) or a BVH motion capture
+([bvh](/bvh/)), retargeted the same way and listed after the everyday ones.
+They are kept in this browser ([clip-store](/clip-store/)) and come back on
+the next visit; **forget** drops the file a clip came from.
 
 **View** (the camera on the bar) holds the body square on from any side, or
 follows the **right hand** close up through the clip, to see how an item sits
