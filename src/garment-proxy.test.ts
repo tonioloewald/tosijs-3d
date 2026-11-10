@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { existsSync, readFileSync } from 'node:fs'
 import {
   readGarment,
   writeGarmentGlb,
@@ -99,4 +100,65 @@ describe('garment proxy', () => {
     expect(garmentMadeOn({ ...meta, source: 'eurasian-male' })).toBeNull()
     expect(garmentMadeOn({ ...meta, body: undefined })).toBeNull()
   })
+})
+
+const PACK = new URL(
+  '../../static-assets/assets/makehuman/hm08/hm08.json',
+  import.meta.url
+).pathname
+
+describe('MakeHuman clothes out on the skin a body draws', () => {
+  test.skipIf(!existsSync(PACK))(
+    'a suit bound to the body proxy sits where it is drawn, its deletes on the skin, and goes out in the GLB',
+    async () => {
+      const { loadHumanPack } = await import('./human-pack.js')
+      const { humanBodyMaker, bodyDetailProxy } = await import('./human-rig.js')
+      const { drawnPositions } = await import('./proxy-fit.js')
+      const { onSkin, packGarmentMaterial } = await import('./garment-proxy.js')
+      const { riggedBodyGlb } = await import('./rigged-body-glb.js')
+      const { readGlb } = await import('./glb-chunks.js')
+      const { pngEncode } = await import('./png.js')
+      const pack = await loadHumanPack(PACK, async (u) => {
+        const b = readFileSync(u)
+        return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)
+      })
+      const proxyName = bodyDetailProxy('medium', 0.5)
+      const skinProxy = proxyName ? await pack.proxy(proxyName) : null
+      const maker = await humanBodyMaker(pack, {}, { proxy: skinProxy })
+      const body = await maker.body({ weight: 0.8 })
+      const suit = (await pack.proxy('male_casualsuit01'))!
+      const drawn = drawnPositions(suit, fitProxy(suit, body.full))
+      const bound = onSkin(suit, drawn, {
+        positions: body.positions,
+        triangles: body.indices,
+        vertices: body.skin.vertices,
+      })
+      // Fitted on the skin, it is where it was drawn on the pack.
+      const again = drawnPositions(bound, fitProxy(bound, body.positions))
+      let worst = 0
+      for (let i = 0; i < drawn.length; i++)
+        worst = Math.max(worst, Math.abs(again[i] - drawn[i]))
+      expect(worst).toBeLessThan(0.002)
+      // What it deletes from the pack is deleted from the skin.
+      if (suit.delete?.length) expect(bound.delete!.length).toBeGreaterThan(0)
+      const grey = new Uint8Array(4 * 4 * 4).fill(150)
+      const garment = {
+        ...bound,
+        slot: 'outfit',
+        material: packGarmentMaterial(suit, {
+          diffuse: { bytes: pngEncode(grey, 4, 4), mimeType: 'image/png' },
+        }),
+      }
+      const { json } = readGlb(riggedBodyGlb(body, { garments: [garment] }))
+      const mesh = json.meshes.find(
+        (m: any) => m.name === 'outfit: male_casualsuit01'
+      )
+      expect(mesh).toBeDefined()
+      expect(
+        json.materials[mesh.primitives[0].material].pbrMetallicRoughness
+          .baseColorTexture
+      ).toBeDefined()
+    },
+    120000
+  )
 })

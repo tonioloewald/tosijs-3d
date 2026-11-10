@@ -141,9 +141,12 @@ import {
 import { readSkeleton, type ReadSkeleton } from './retarget-babylon.js'
 import { readGarment } from './garment-file.js'
 import {
+  garmentFileMaterial,
   garmentMadeOn,
   garmentProxy,
   lookGltf,
+  onSkin,
+  packGarmentMaterial,
   type GarmentProxy,
   type GarmentProxyMaterial,
 } from './garment-proxy.js'
@@ -288,6 +291,13 @@ export interface SceneCharacter {
    * `riggedBodyGlb`'s `garments` writes. Empty on MakeHuman's body.
    */
   wornGarments(): GarmentProxy[]
+  /**
+   * Every garment worn on the body shown, bound to it as data, for
+   * `riggedBodyGlb`'s `garments`: on a mesh's body `wornGarments()`; on
+   * MakeHuman's, its own clothes and the garments of your own made on it,
+   * fitted as drawn and bound to the skin, their pictures fetched.
+   */
+  exportGarments(): Promise<GarmentProxy[]>
   /**
    * Where the hair's hand adjustment is measured from: the Head bone's node
    * and the skull's middle in its frame (metres, y up, z forward), before
@@ -482,6 +492,20 @@ export async function makeCharacter(
   a mesh's body is bound to that body when it is shown.
   */
   const garments = new Map<string, any>()
+  // A pack picture as bytes, for an export (null if it cannot be fetched).
+  const picture = async (url?: string) => {
+    if (!url) return null
+    try {
+      const res = await fetch(url)
+      if (!res.ok) return null
+      const bytes = new Uint8Array(await res.arrayBuffer())
+      const mimeType =
+        bytes[0] === 0xff && bytes[1] === 0xd8 ? 'image/jpeg' : 'image/png'
+      return { bytes, mimeType }
+    } catch {
+      return null
+    }
+  }
   const imageUrl = (img: any) =>
     img
       ? URL.createObjectURL(new Blob([img.bytes], { type: img.mimeType }))
@@ -1131,6 +1155,25 @@ export async function makeCharacter(
   }
   eyesShown = () =>
     shownNow == null ? null : shownNow === built ? face : shownNow.face ?? null
+  const wornGarments = (): GarmentProxy[] => {
+    const r = shownNow
+    if (!r || r === built) return []
+    return SLOTS.filter((slot) => ownIn(slot)?.slot === slot).map((slot) => {
+      const g = ownIn(slot)!
+      const p = garmentProxy(
+        g.content,
+        { positions: r.body.positions, triangles: r.body.indices },
+        { name: g.name, slot }
+      )
+      const look = cloth[slot]?.material as MaterialRecipe | null | undefined
+      if (look?.type) {
+        p.material.look = look
+        p.material.gltf = lookGltf(look, p.material.baseColorTexture != null)
+      }
+      return p
+    })
+  }
+
   const shown = (): ShownBody | null =>
     shownNow == null
       ? null
@@ -1298,23 +1341,52 @@ export async function makeCharacter(
         meshes: hairMeshes.filter((m) => m.name.startsWith('hair-')),
       }
     },
-    wornGarments() {
+    wornGarments,
+    async exportGarments() {
       const r = shownNow
-      if (!r || r === built) return []
-      return SLOTS.filter((slot) => ownIn(slot)?.slot === slot).map((slot) => {
-        const g = ownIn(slot)!
-        const p = garmentProxy(
-          g.content,
-          { positions: r.body.positions, triangles: r.body.indices },
-          { name: g.name, slot }
-        )
+      if (!r) return []
+      if (r !== built) return wornGarments()
+      if (!human || s.hideClothes) return []
+      const body = human as any
+      const out: GarmentProxy[] = []
+      for (const slot of SLOTS) {
+        const name = s[slot]
+        if (name === 'none' || slot === s.hideSlot) continue
+        const own = garments.get(name)
+        const proxy =
+          own?.source === 'MakeHuman'
+            ? own.proxy
+            : proxies[name]
+            ? await pack.proxy(name)
+            : null
+        if (!proxy || proxy.category !== 'clothes') continue
+        let drawn = drawnPositions(proxy, fitProxy(proxy, clothBody))
+        if (slot === 'hat') drawn = inflate(drawn, scalp.centre, HAT_LIFT)
+        const bound = onSkin(proxy, drawn, {
+          positions: body.positions,
+          triangles: body.indices,
+          vertices: body.skin.vertices,
+        })
         const look = cloth[slot]?.material as MaterialRecipe | null | undefined
-        if (look?.type) {
-          p.material.look = look
-          p.material.gltf = lookGltf(look, p.material.baseColorTexture != null)
+        let material: GarmentProxyMaterial
+        if (own) material = garmentFileMaterial(own.content)
+        else {
+          const alt =
+            cloth[slot].look !== 'as made'
+              ? proxy.material.looks?.[cloth[slot].look]
+              : undefined
+          material = packGarmentMaterial(proxy, {
+            diffuse: await picture(alt?.diffuse ?? proxy.material.diffuse),
+            normal: await picture(alt?.normal ?? proxy.material.normal),
+          })
         }
-        return p
-      })
+        if (look?.type) {
+          material.look = look
+          material.gltf = lookGltf(look, material.baseColorTexture != null)
+        }
+        out.push({ ...bound, slot, material })
+      }
+      return out
     },
     get skeleton() {
       return read
