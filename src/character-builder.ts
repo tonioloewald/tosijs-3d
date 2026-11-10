@@ -66,6 +66,8 @@ let clips = [...EVERYDAY]
 const fileClips = new Map()
 // Which kept file each clip came from, to forget it.
 const clipFiles = new Map()
+// Each file's kind and bytes, so a character file can carry the one it plays.
+const clipBytes = new Map()
 let openClips = () => {}
 let forgetClip = () => {}
 // Where the body comes from: MakeHuman's, which the sliders shape, or a mesh
@@ -698,10 +700,11 @@ preview.append(
         // its clips listed and retargeted onto the body shown, and the file
         // kept in this browser (restored quietly on the next visit).
         const keptClips = clipStore()
-        const addClips = async (file, restoring = false) => {
+        const addClips = async (file, restoring = false, keep = !restoring) => {
           const kind = clipKind(file.name)
           if (!kind) return console.warn(`character builder: ${file.name} is not a GLB or BVH`)
           try {
+            const bytes = new Uint8Array(await file.arrayBuffer())
             let names = []
             if (kind === 'bvh') {
               const from = readBvh(await file.text(), { name: file.name.replace(/\.bvh$/i, '') })
@@ -723,7 +726,8 @@ preview.append(
               names = c.animationGroups.map((g) => g.name)
             }
             for (const n of names) clipFiles.set(n, file.name)
-            if (!restoring) keptClips.put({ name: file.name, kind, bytes: new Uint8Array(await file.arrayBuffer()) }).catch((e) => console.warn('character builder: could not keep the clips', e))
+            clipBytes.set(file.name, { kind, bytes })
+            if (keep) keptClips.put({ name: file.name, kind, bytes }).catch((e) => console.warn('character builder: could not keep the clips', e))
             listClips()
             if (!restoring) walker.clip.value = names[0]
             el.refreshScenePanel?.()
@@ -736,6 +740,7 @@ preview.append(
           const file = clipFiles.get(walker.clip.value)
           if (file == null) return
           for (const [n, f] of [...clipFiles]) if (f === file) { clipFiles.delete(n); fileClips.delete(n) }
+          clipBytes.delete(file)
           keptClips.delete(file).catch(() => {})
           listClips()
           walker.clip.value = 'Walk_Loop'
@@ -1057,7 +1062,10 @@ preview.append(
           const bodies = body ? { [kept.source]: body } : {}
           // The pictures its materials use (chosen from disk), by key.
           const pictures = Object.fromEntries(picturesIn({ kept, cloth }).map((k) => [k, pictureData(k)]).filter(([, b]) => b))
-          return writeCharacter({ name, settings: kept, cloth, tailor: plain(tailorShapes), garments, bodies, pictures }, { saved: new Date().toISOString() })
+          // The clip it plays, when that is one of your own: its file.
+          const clipFile = clipFiles.get(kept.clip)
+          const clips = clipFile && clipBytes.has(clipFile) ? { [clipFile]: clipBytes.get(clipFile) } : {}
+          return writeCharacter({ name, settings: kept, cloth, tailor: plain(tailorShapes), garments, bodies, pictures, clips }, { saved: new Date().toISOString() })
         }
         const tell = (message) => { character.note = message; el.refreshScenePanel?.() }
         let restoring = false
@@ -1084,6 +1092,10 @@ preview.append(
               const from = { ...(file ? { file } : { url: b.url }), ...(b.pick != null ? { pick: b.pick } : {}) }
               SOURCES[name] = from
               ch.addSource(name, from)
+            }
+            // A clip file it carries and this browser does not have: read and kept.
+            for (const [name, clip] of Object.entries(c.clips ?? {})) {
+              if (!clipBytes.has(name)) await addClips(new File([clip.bytes], name), true, true)
             }
             if (c.settings.source !== 'MakeHuman' && !(c.settings.source in SOURCES)) {
               warnings.push(`body ${c.settings.source}: open that file again; MakeHuman's shown`)

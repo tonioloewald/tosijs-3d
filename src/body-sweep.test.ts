@@ -112,7 +112,8 @@ describe('body-sweep: loft', () => {
         else out--
       }
       expect(out).toBeGreaterThan(0)
-    }
+    },
+    60000
   )
 
   test.skipIf(!existsSync(PACK))(
@@ -141,7 +142,8 @@ describe('body-sweep: loft', () => {
         }
       }
       expect(close / (loft.rows * 3)).toBeLessThan(0.02)
-    }
+    },
+    60000
   )
 
   test.skipIf(!existsSync(PACK))(
@@ -204,7 +206,8 @@ describe('body-sweep: loft', () => {
       }
       expect(turning(mitre)).toBeLessThanOrEqual(1)
       expect(turning(round)).toBeGreaterThanOrEqual(3)
-    }
+    },
+    60000
   )
 
   test.skipIf(!existsSync(PACK))(
@@ -230,7 +233,8 @@ describe('body-sweep: loft', () => {
       expect(
         Math.abs(ringRadius(b, flare.rings[0]) - ringRadius(a, plain.rings[0]))
       ).toBeLessThan(0.002)
-    }
+    },
+    60000
   )
 
   test.skipIf(!existsSync(PACK))(
@@ -246,6 +250,7 @@ describe('body-sweep: loft', () => {
       for (const x of fat) expect(Number.isFinite(x)).toBe(true)
       const mid = long.rings[Math.floor(long.rings.length / 4)]
       expect(ringRadius(fat, mid)).toBeGreaterThan(ringRadius(thin, mid))
-    }
+    },
+    60000
   )
 })

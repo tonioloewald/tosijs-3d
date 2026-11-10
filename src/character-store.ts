@@ -61,7 +61,7 @@ export function nameCharacter(
   return { ok: true, name, replaces: name !== current && saved.includes(name) }
 }
 
-/** Where in a document a run of bytes is: `garments/<name>` or `bodies/<name>`. */
+/** Where in a document a run of bytes is: `garments/<name>`, `bodies/<name>`, `pictures/<key>` or `clips/<file>`. */
 type BlobPath = string
 
 /** A stored record: the document without its bytes, and where they went. */
@@ -104,12 +104,22 @@ export function splitBlobs(doc: CharacterDoc): {
         })
       )
     : undefined
+  // Clip files, the same.
+  const clips = doc.clips
+    ? Object.fromEntries(
+        Object.entries(doc.clips).map(([name, c]) => {
+          blobs[`clips/${name}`] = c.data
+          return [name, { ...c, data: '' }]
+        })
+      )
+    : undefined
   return {
     doc: {
       ...doc,
       garments,
       ...(bodies ? { bodies } : {}),
       ...(pictures ? { pictures } : {}),
+      ...(clips ? { clips } : {}),
     },
     blobs,
   }
@@ -138,11 +148,17 @@ export function joinBlobs(
     const b64 = blobs[`pictures/${key}`]
     if (b64 != null) pictures[key] = b64
   }
+  const clips: NonNullable<CharacterDoc['clips']> = {}
+  for (const [name, c] of Object.entries(doc.clips ?? {})) {
+    const data = blobs[`clips/${name}`]
+    if (data != null) clips[name] = { ...c, data }
+  }
   return {
     ...doc,
     garments,
     ...(bodies ? { bodies } : {}),
     ...(doc.pictures ? { pictures } : {}),
+    ...(doc.clips ? { clips } : {}),
   }
 }
 

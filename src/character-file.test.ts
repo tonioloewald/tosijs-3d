@@ -62,6 +62,20 @@ describe('character-file', () => {
     expect(warnings).toEqual(['picture not-a-key: unreadable; skipped'])
   })
 
+  test('the clip files it plays travel with it; a bad one is skipped and said', () => {
+    const clips = {
+      '02_01.bvh': { kind: 'bvh' as const, bytes: new Uint8Array([72, 73]) },
+      'dance.glb': { kind: 'glb' as const, bytes: new Uint8Array([0, 255]) },
+    }
+    const raw = JSON.parse(JSON.stringify(writeCharacter({ ...ada, clips })))
+    raw.clips['odd.fbx'] = { kind: 'fbx', data: 'AA==' }
+    const { character, warnings } = readCharacter(raw, defaults)
+    expect(Object.keys(character.clips!)).toEqual(['02_01.bvh', 'dance.glb'])
+    expect(character.clips!['02_01.bvh'].kind).toBe('bvh')
+    expect(Array.from(character.clips!['dance.glb'].bytes)).toEqual([0, 255])
+    expect(warnings).toEqual(['clip odd.fbx: unreadable; skipped'])
+  })
+
   test('a mesh body travels with it: a URL as a URL, a file as its bytes', () => {
     const bodies = {
       weasel: {

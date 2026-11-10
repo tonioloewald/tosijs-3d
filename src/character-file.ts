@@ -40,6 +40,11 @@ SO DOES ITS BODY, when it is a mesh. `bodies` says where the body on show
 comes from: a URL (and the object picked in it) when it has one, or the file
 itself (base64, with its name) when it was opened from disk. A page that
 does not have that body makes it from there.
+
+AND THE CLIP IT PLAYS, when that is one of your own: `clips` carries the file
+it came from (a BVH capture or a GLB's animations, by file name, with its
+kind), so a page that has never seen the file reads it as the builder did
+([clip-store](/clip-store/)).
 */
 /*{ "parent": "character-builder", "order": 20 }*/
 
@@ -68,6 +73,14 @@ export interface Character {
   bodies?: Record<string, CharacterBody>
   /** Pictures its materials use, chosen from disk: key (`picture:…`) → base64. */
   pictures?: Record<string, string>
+  /** Clip files it plays, by file name: a BVH capture or a GLB's animations. */
+  clips?: Record<string, CharacterClip>
+}
+
+/** A clip file a character carries: its kind and bytes. */
+export interface CharacterClip {
+  kind: 'bvh' | 'glb'
+  bytes: Uint8Array
 }
 
 /** Where a mesh body comes from: `url` (and `pick`), or the file itself. */
@@ -97,6 +110,8 @@ export interface CharacterDoc {
   >
   /** key (`picture:…`) → base64. */
   pictures?: Record<string, string>
+  /** file name → `{ kind, data (base64) }`. */
+  clips?: Record<string, { kind: string; data: string }>
 }
 
 /** A character as a document, ready for `JSON.stringify`. */
@@ -140,6 +155,16 @@ export function writeCharacter(
       : {}),
     ...(c.pictures && Object.keys(c.pictures).length
       ? { pictures: { ...c.pictures } }
+      : {}),
+    ...(c.clips && Object.keys(c.clips).length
+      ? {
+          clips: Object.fromEntries(
+            Object.entries(c.clips).map(([k, v]) => [
+              k,
+              { kind: v.kind, data: toBase64(v.bytes) },
+            ])
+          ),
+        }
       : {}),
   }
 }
@@ -269,6 +294,23 @@ export function readCharacter(
     else warnings.push(`picture ${key}: unreadable; skipped`)
   }
 
+  const clips: Record<string, CharacterClip> = {}
+  for (const [name, c] of Object.entries(
+    isObject(doc.clips) ? doc.clips : {}
+  )) {
+    try {
+      if (
+        !isObject(c) ||
+        (c.kind !== 'bvh' && c.kind !== 'glb') ||
+        typeof c.data !== 'string'
+      )
+        throw new Error('not a clip')
+      clips[name] = { kind: c.kind, bytes: fromBase64(c.data) }
+    } catch {
+      warnings.push(`clip ${name}: unreadable; skipped`)
+    }
+  }
+
   return {
     character: {
       name: typeof doc.name === 'string' ? doc.name : '',
@@ -278,6 +320,7 @@ export function readCharacter(
       garments,
       ...(Object.keys(bodies).length ? { bodies } : {}),
       ...(Object.keys(pictures).length ? { pictures } : {}),
+      ...(Object.keys(clips).length ? { clips } : {}),
     },
     warnings,
   }
