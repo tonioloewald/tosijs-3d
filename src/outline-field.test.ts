@@ -95,4 +95,51 @@ describe('outlineField3d', () => {
     next.removeSelected()
     expect(next.value[0]).toEqual([value[0][0], value[0][2], value[0][3]])
   })
+
+  test('undo takes back the points of a shape being clicked out, redo puts them back, across a rebuild', () => {
+    let opens = 0
+    const field = of.outlineField3d({
+      ...box(),
+      symmetry: false,
+      handleOpen: () => opens++,
+    })
+    field.layout!(300)
+    expect(field.canUndoPoint).toBe(false)
+    for (const [x, y] of [
+      [100, 60],
+      [160, 60],
+      [130, 120],
+    ]) {
+      field.handle!('down', x, y)
+      field.handle!('up', x, y)
+    }
+    expect(opens).toBe(3)
+    const placed = field.value[0]
+    expect(placed.length).toBe(3)
+    field.undoPoint()
+    expect(field.value[0].length).toBe(2)
+    expect(field.canRedoPoint).toBe(true)
+    // Rebuilt (the buttons changed): the taken-back point is still there to redo.
+    const next = of.outlineField3d({
+      ...box(),
+      symmetry: false,
+      editing: field.editing,
+    })
+    next.layout!(300)
+    next.undoPoint()
+    next.undoPoint()
+    // Its first point taken back: the shape is gone.
+    expect(next.value).toEqual([])
+    expect(next.canUndoPoint).toBe(false)
+    next.redoPoint()
+    next.redoPoint()
+    next.redoPoint()
+    expect(next.value).toEqual([placed])
+    expect(next.canRedoPoint).toBe(false)
+    // Placing a point drops what redo held.
+    next.undoPoint()
+    next.handle!('down', 150, 150)
+    next.handle!('up', 150, 150)
+    expect(next.canRedoPoint).toBe(false)
+  })
 })

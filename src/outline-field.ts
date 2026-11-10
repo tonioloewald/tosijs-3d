@@ -7,6 +7,8 @@ garment is cut along, clicked out point by point.
 
 - **Click** to place points; click the first one again to close the shape.
 - **Drag** a point to move it; press on an edge to add a point there.
+- `undoPoint()` takes back the last point of the shape being clicked out
+  (`redoPoint()` puts it back); a host's undo calls it before its own.
 - `removeSelected()` deletes the last point touched (a button, since a
   controller has no reliable third gesture); a shape left with fewer than
   three points goes too. `clear()` removes everything.
@@ -63,6 +65,8 @@ export interface OutlineField3dOptions {
   handleChange?: (value: ViewPoint[][]) => void
   /** When a point is placed, let go or deleted: recut here. */
   handleCommit?: (value: ViewPoint[][]) => void
+  /** When the shape being clicked out gains or loses a point (undo's buttons). */
+  handleOpen?: () => void
   /**
    * Carry on from another field's `editing` (a panel rebuilt mid-edit): its
    * outlines, the one being clicked out and the selected point. Wins over `value`.
@@ -75,6 +79,8 @@ export interface OutlineEditing {
   shapes: ViewPoint[][]
   open: number | null
   selected: { s: number; p: number } | null
+  /** Points taken back from the open shape, the last taken last. */
+  redo?: ViewPoint[]
 }
 
 export interface OutlineField extends Widget3d {
@@ -90,6 +96,11 @@ export interface OutlineField extends Widget3d {
   clear: () => void
   /** Where the edit stands, for a field built in its place. */
   readonly editing: OutlineEditing
+  /** A shape is being clicked out: `undoPoint` takes its last point back. */
+  readonly canUndoPoint: boolean
+  readonly canRedoPoint: boolean
+  undoPoint: () => void
+  redoPoint: () => void
   handleChange?: (value: ViewPoint[][]) => void
   handleCommit?: (value: ViewPoint[][]) => void
 }
@@ -150,6 +161,12 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
   let selected: { s: number; p: number } | null =
     config.editing?.selected ?? null
   let hovered: { s: number; p: number } | null = null
+  // Points taken back from the shape being clicked out, for redo. Taking
+  // back its first point removes the shape; redo starts it again.
+  let redo: ViewPoint[] = (config.editing?.redo ?? []).map(
+    (p) => [p[0], p[1]] as ViewPoint
+  )
+  const opened = () => config.handleOpen?.()
 
   const el = g()
   const bg = rect({ rx: 4, ry: 4 })
@@ -396,13 +413,17 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
             // Closed.
             open = null
             selected = null
+            redo = []
             draw()
             emit('handleCommit')
+            opened()
             return
           }
           s.push(place(x, y))
           selected = { s: open, p: s.length - 1 }
+          redo = []
           draw()
+          opened()
           return
         }
         if (hit) {
@@ -422,7 +443,9 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
         shapes.push([place(x, y)])
         open = shapes.length - 1
         selected = { s: open, p: 0 }
+        redo = []
         draw()
+        opened()
         return
       }
       if (kind === 'move' || kind === 'hover') {
@@ -463,7 +486,38 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
         shapes: copy(shapes),
         open,
         selected: selected && { ...selected },
+        redo: redo.map((p) => [p[0], p[1]] as ViewPoint),
       }
+    },
+    get canUndoPoint() {
+      return open != null
+    },
+    get canRedoPoint() {
+      return redo.length > 0
+    },
+    undoPoint() {
+      if (open == null) return
+      const s = shapes[open]
+      redo.push(s.pop()!)
+      if (s.length === 0) {
+        shapes.splice(open, 1)
+        open = null
+        selected = null
+      } else selected = { s: open, p: s.length - 1 }
+      draw()
+      opened()
+    },
+    redoPoint() {
+      const p = redo.pop()
+      if (p == null) return
+      if (open == null) {
+        shapes.push([])
+        open = shapes.length - 1
+      }
+      shapes[open].push(p)
+      selected = { s: open, p: shapes[open].length - 1 }
+      draw()
+      opened()
     },
     get polygons() {
       const closed = shapes.filter((s, i) => i !== open && s.length >= 3)
@@ -472,6 +526,7 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
     setValue(v: ViewPoint[][]) {
       shapes = copy(v)
       open = null
+      redo = []
       selected = dragging = hovered = null
       draw()
     },
@@ -486,15 +541,19 @@ export function outlineField3d(config: OutlineField3dOptions): OutlineField {
         else if (open != null && open > selected.s) open--
       }
       selected = null
+      redo = []
       draw()
       emit('handleCommit')
+      opened()
     },
     clear() {
       shapes = []
       open = null
+      redo = []
       selected = dragging = hovered = null
       draw()
       emit('handleCommit')
+      opened()
     },
   }
 

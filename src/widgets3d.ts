@@ -1994,7 +1994,7 @@ A TOOLTIP, drawn in the SVG: a texture shows no `<title>`, and a headset has
 no browser tooltip at all, but a controller ray hovers as a mouse does. One
 drawer, used by `iconBar3d` on its own and by `panel3d` for every widget in
 it (`WidgetHost.showTip`), so a tip looks the same wherever it comes from.
-Under its anchor, centred, kept inside `width`; above it when there is no
+Under its anchor, centred, kept inside `width` (less `inset` each side); above it when there is no
 room below `height`.
 */
 const TIP_FONT = 11
@@ -2004,7 +2004,8 @@ function tipDrawer(): {
     title: string,
     at: { x: number; y: number; width: number; height: number },
     width: number,
-    height?: number
+    height?: number,
+    inset?: number
   ) => void
   hide: () => void
 } {
@@ -2035,7 +2036,7 @@ function tipDrawer(): {
   ) as unknown as SVGElement
   return {
     el,
-    show(title, at, width, height = Infinity) {
+    show(title, at, width, height = Infinity, inset = 0) {
       const w =
         measureTextWidth(title, {
           size: TIP_FONT,
@@ -2043,9 +2044,13 @@ function tipDrawer(): {
           weight: TH.TEXT_WEIGHT,
         }) + 12
       const h = TIP_FONT + 10
+      // Inside the panel's padding: past it, a plane's edge cuts the tip off.
       const x = Math.max(
-        0,
-        Math.min(at.x + at.width / 2 - w / 2, Math.max(0, width - w))
+        inset,
+        Math.min(
+          at.x + at.width / 2 - w / 2,
+          Math.max(inset, width - inset - w)
+        )
       )
       const below = at.y + at.height + 3
       const y = below + h > height ? Math.max(0, at.y - 3 - h) : below
@@ -4485,7 +4490,8 @@ function buildPanel3d(
           y: anchor.y + paddingTop + rowY(index, inHeader),
         },
         width,
-        height
+        height,
+        padding
       )
     },
     hideTip: () => tips.hide(),

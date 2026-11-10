@@ -233,8 +233,12 @@ export function mountTailorTool(
     history.record(state())
     if (buttons() !== was) refresh()
   }
-  const canUndo = () => history.canUndo || stepTimer != null
-  const canRedo = () => stepTimer == null && history.canRedo
+  // A shape being clicked out is undone point by point first: its points are
+  // not a cut yet, so the history has not seen them.
+  const canUndo = () =>
+    field?.canUndoPoint === true || history.canUndo || stepTimer != null
+  const canRedo = () =>
+    field?.canRedoPoint === true || (stepTimer == null && history.canRedo)
   const changed = () => {
     options.handleChange?.(state())
     if (restoring) return
@@ -259,11 +263,13 @@ export function mountTailorTool(
     refresh()
   }
   const undo = () => {
+    if (field?.canUndoPoint) return field.undoPoint()
     if (!canUndo()) return
     if (stepTimer != null) record()
     restore(history.undo())
   }
   const redo = () => {
+    if (field?.canRedoPoint) return field.redoPoint()
     if (canRedo()) restore(history.redo())
   }
 
@@ -430,40 +436,45 @@ export function mountTailorTool(
   THE PANEL: a system panel of its own, done and cancel first.
   */
   let field: OutlineField | null = null
+  // The undo and redo buttons as last drawn.
+  let shownButtons = ''
   // Pinned above the scrolling rows: they must not scroll out of reach.
-  const header = (): Widget3d[] => [
-    iconBar3d({
-      items: [
-        {
-          icon: 'rotateCcw',
-          title: 'undo (⌘Z)',
-          dim: !canUndo(),
-          handleClick: undo,
-        },
-        {
-          icon: 'rotateCw',
-          title: 'redo (⇧⌘Z)',
-          dim: !canRedo(),
-          handleClick: redo,
-        },
-        ...(options.persistent
-          ? []
-          : [
-              { spacer: true as const },
-              {
-                icon: 'close',
-                title: 'cancel',
-                handleClick: () => finish(false),
-              },
-              {
-                icon: 'check',
-                title: 'done: keep the garment',
-                handleClick: () => finish(true),
-              },
-            ]),
-      ],
-    }),
-  ]
+  const header = (): Widget3d[] => {
+    shownButtons = buttons()
+    return [
+      iconBar3d({
+        items: [
+          {
+            icon: 'rotateCcw',
+            title: 'undo (⌘Z)',
+            dim: !canUndo(),
+            handleClick: undo,
+          },
+          {
+            icon: 'rotateCw',
+            title: 'redo (⇧⌘Z)',
+            dim: !canRedo(),
+            handleClick: redo,
+          },
+          ...(options.persistent
+            ? []
+            : [
+                { spacer: true as const },
+                {
+                  icon: 'close',
+                  title: 'cancel',
+                  handleClick: () => finish(false),
+                },
+                {
+                  icon: 'check',
+                  title: 'done: keep the garment',
+                  handleClick: () => finish(true),
+                },
+              ]),
+        ],
+      }),
+    ]
+  }
   const widgets = (): Widget3d[] => [
     ...(options.rows?.top?.() ?? []),
     ...(status ? [label3d({ text: status, muted: true, compact: true })] : []),
@@ -477,6 +488,13 @@ export function mountTailorTool(
       maxHeight: 400,
       // A drape pins its cloth where the outline is over the body.
       anchors: cut.drape === true && !cut.skirt,
+      // The undo buttons light as the open shape gains its first point (and
+      // dim as it loses its last); redrawn after the press, not inside it.
+      handleOpen: () => {
+        setTimeout(() => {
+          if (!disposed && buttons() !== shownButtons) refresh()
+        })
+      },
       handleCommit: (v) => {
         cut.shapes = v
         recut()
