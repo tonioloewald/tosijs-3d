@@ -251,10 +251,15 @@ export function tailorPanel(
     const g = ch()?.garments.get(name)
     return g && g.source === source() && g.cut ? g : null
   }
-  // Opening on a slot: what it wears; an empty slot starts a new garment.
+  // Opening on a slot: what it wears; an empty slot, or one wearing what this
+  // body cannot (MakeHuman's shoes while another body is shown), starts a new
+  // garment. (The menu would show its first choice for a value not in it.)
   const defaultPick = () => {
-    const worn = options.worn(slotOf.get())
-    return worn === 'none' ? NEW_GARMENT : worn
+    const slot = slotOf.get()
+    const worn = options.worn(slot)
+    return worn !== 'none' && options.choices(slot).includes(worn)
+      ? worn
+      : NEW_GARMENT
   }
   const top = (): Widget3d[] => {
     const slot = slotOf.get()
