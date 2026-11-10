@@ -82,6 +82,7 @@ import {
   type GlbImage,
   type GlbJoint,
   type GlbMaterial,
+  type GlbMesh,
   type GlbPrimitive,
 } from './skinned-glb.js'
 import { UAL_REST } from './ual-rest.js'
@@ -320,6 +321,177 @@ function heldSocket(
       az[2],
     ]),
   }
+}
+
+/**
+ * The held item's mesh, placed on its socket and skinned wholly to the joint
+ * at `jointIndex`, with its materials (indices from `materialBase`); its
+ * pictures are appended to `images`.
+ */
+function heldMesh(
+  held: HeldItem,
+  socket: { position: V3; rotation: Q },
+  jointIndex: number,
+  materialBase: number,
+  images: GlbImage[]
+): { mesh: GlbMesh; materials: GlbMaterial[] } {
+  const item = held.item!
+  const gp = held.gripPoint ?? gripPoint(item.positions) ?? { x: 0, y: 0, z: 0 }
+  const k = held.grip.scale ?? 1
+  const pos = new Float32Array(item.positions.length)
+  for (let i = 0; i < pos.length; i += 3) {
+    const v = qrot(socket.rotation, [
+      (item.positions[i] - gp.x) * k,
+      (item.positions[i + 1] - gp.y) * k,
+      (item.positions[i + 2] - gp.z) * k,
+    ])
+    pos[i] = socket.position[0] + v[0]
+    pos[i + 1] = socket.position[1] + v[1]
+    pos[i + 2] = socket.position[2] + v[2]
+  }
+  const runs = item.surfaces?.length
+    ? item.surfaces.map((s) => [s.start, s.count])
+    : [[0, item.indices.length]]
+  const { materials } = materialsOf(
+    item.surfaces,
+    runs.length,
+    item.uvs != null,
+    'held',
+    images
+  )
+  const n = pos.length / 3
+  const jw = new Uint16Array(n * 4).fill(jointIndex)
+  const ww = Float32Array.from({ length: n * 4 }, (_, i) =>
+    i % 4 === 0 ? 1 : 0
+  )
+  const normals = smoothNormals(pos, item.indices)
+  return {
+    mesh: {
+      name: 'held',
+      primitives: runs.map(([start, count], r) =>
+        primitive(
+          start,
+          count,
+          item.indices,
+          pos,
+          normals,
+          jw,
+          ww,
+          item.uvs,
+          undefined,
+          materialBase + r
+        )
+      ),
+      ...(held.extras ? { extras: held.extras } : {}),
+    },
+    materials,
+  }
+}
+
+/** A skeleton's joint at rest: its local transform and model-space position. */
+export interface RestJoint {
+  name: string
+  /** Index of the parent joint, -1 for a root. */
+  parent: number
+  translation: V3
+  rotation: Q
+  position: V3
+}
+
+/** A held item's parts, to add to a GLB whose skeleton is `joints`. */
+export interface HeldParts {
+  /** The socket joint: append it after the skeleton's joints. */
+  joint: {
+    name: string
+    /** The hand's index. */
+    parent: number
+    translation: V3
+    rotation: Q
+    /** Column-major, 16 numbers. */
+    inverseBind: Float32Array
+  }
+  /** The item's mesh, skinned to the joint (index `joints.length`); null for a socket alone. */
+  mesh: GlbMesh | null
+  /** Its materials; the mesh's material indices count from `materialBase`. */
+  materials: GlbMaterial[]
+  /** Its pictures; the materials' image indices count from `imageBase`. */
+  images: GlbImage[]
+}
+
+/**
+ * A held item for ANY skeleton at rest, as `riggedBodyGlb` writes one: the
+ * socket joint under the hand (hand-socket's socket times the grip) and, with
+ * `held.item`, its mesh skinned to that joint, its materials and pictures.
+ * For a writer whose skeleton `riggedBodyGlb` did not make. The skeleton needs
+ * `hand_<side>`, `lowerarm_<side>` and `thumb_01_<side>`; it throws when the
+ * hand cannot be read.
+ */
+export function heldParts(
+  joints: readonly RestJoint[],
+  held: HeldItem,
+  bases: { materialBase?: number; imageBase?: number } = {}
+): HeldParts {
+  const sk: Skeleton = {
+    names: joints.map((j) => j.name),
+    parents: joints.map((j) => j.parent),
+    rest: joints.map((j) => j.position),
+  }
+  const socket = heldSocket(sk, sk.rest, held)
+  // Each joint's model-space turn at rest.
+  const world: Q[] = []
+  joints.forEach((j, i) => {
+    world[i] =
+      j.parent < 0 ? j.rotation : qnorm(qmul(world[j.parent], j.rotation))
+  })
+  const handQ = world[socket.hand]
+  const translation = qrot(
+    qconj(handQ),
+    sub(socket.position, sk.rest[socket.hand])
+  )
+  const r = qmatrix(qconj(socket.rotation))
+  const t = qrot(qconj(socket.rotation), socket.position)
+  const joint = {
+    name: socket.name,
+    parent: socket.hand,
+    translation,
+    rotation: qnorm(qmul(qconj(handQ), socket.rotation)),
+    inverseBind: Float32Array.from([
+      r[0],
+      r[3],
+      r[6],
+      0,
+      r[1],
+      r[4],
+      r[7],
+      0,
+      r[2],
+      r[5],
+      r[8],
+      0,
+      -t[0],
+      -t[1],
+      -t[2],
+      1,
+    ]),
+  }
+  if (!held.item) return { joint, mesh: null, materials: [], images: [] }
+  const images: GlbImage[] = []
+  const { mesh, materials } = heldMesh(
+    held,
+    socket,
+    joints.length,
+    bases.materialBase ?? 0,
+    images
+  )
+  const imageBase = bases.imageBase ?? 0
+  if (imageBase)
+    for (const m of materials)
+      for (const key of Object.keys(m) as (keyof GlbMaterial)[]) {
+        const v = m[key] as { image?: number } | undefined
+        if (v && typeof v === 'object' && typeof v.image === 'number')
+          (m as any)[key] = { ...v, image: v.image + imageBase }
+      }
+  return { joint, mesh, materials, images }
 }
 const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 const add = (a: V3, b: V3): V3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
@@ -1064,57 +1236,15 @@ export function riggedBodyGlb(
   })
 
   if (held && options.held!.item) {
-    const h = options.held!
-    const item = h.item!
-    const gp = h.gripPoint ?? gripPoint(item.positions) ?? { x: 0, y: 0, z: 0 }
-    const k = h.grip.scale ?? 1
-    const pos = new Float32Array(item.positions.length)
-    for (let i = 0; i < pos.length; i += 3) {
-      const v = qrot(held.rotation, [
-        (item.positions[i] - gp.x) * k,
-        (item.positions[i + 1] - gp.y) * k,
-        (item.positions[i + 2] - gp.z) * k,
-      ])
-      pos[i] = held.position[0] + v[0]
-      pos[i + 1] = held.position[1] + v[1]
-      pos[i + 2] = held.position[2] + v[2]
-    }
-    const runs = item.surfaces?.length
-      ? item.surfaces.map((s) => [s.start, s.count])
-      : [[0, item.indices.length]]
-    const first = materials.length
-    const own = materialsOf(
-      item.surfaces,
-      runs.length,
-      item.uvs != null,
-      'held',
+    const own = heldMesh(
+      options.held!,
+      held,
+      names.length - 1,
+      materials.length,
       images
     )
     materials.push(...own.materials)
-    const n = pos.length / 3
-    const jw = new Uint16Array(n * 4).fill(names.length - 1)
-    const ww = Float32Array.from({ length: n * 4 }, (_, i) =>
-      i % 4 === 0 ? 1 : 0
-    )
-    const itemNormals = smoothNormals(pos, item.indices)
-    meshes.push({
-      name: 'held',
-      primitives: runs.map(([start, count], r) =>
-        primitive(
-          start,
-          count,
-          item.indices,
-          pos,
-          itemNormals,
-          jw,
-          ww,
-          item.uvs,
-          undefined,
-          first + r
-        )
-      ),
-      ...(h.extras ? { extras: h.extras } : {}),
-    })
+    meshes.push(own.mesh)
   }
 
   const chains = springChains(sk, strands, options.recipe, {

@@ -5,7 +5,7 @@ import { validateBytes } from 'gltf-validator'
 import { readGlb } from './glb-chunks.js'
 import { glbRigTriangles } from './glb-rig.js'
 import { bodyFromMarkers } from './rigged-body.js'
-import { riggedBodyGlb } from './rigged-body-glb.js'
+import { heldParts, riggedBodyGlb, type RestJoint } from './rigged-body-glb.js'
 
 // b3d-launcher (whose handSocket the builder holds items on) defines a tosijs
 // Component at load: the few globals it touches, as b3d-launcher.spawn.test does.
@@ -178,6 +178,101 @@ describe.skipIf(!existsSync(AI) || !existsSync(WEAPONS))(
       }
       expect(await loaded(holding)).toBe(await loaded(bare))
       engine.dispose()
+    }, 120000)
+
+    test('heldParts on the export skeleton gives what riggedBodyGlb wrote', async () => {
+      const { holdGrip } = await import('./hold-grip.js')
+      const { glbNodePosition } = await import('./glb-rig.js')
+      const body = bodyFromMarkers(
+        glbRigTriangles(new Uint8Array(readFileSync(AI)))
+      )
+      const lib = new Uint8Array(readFileSync(WEAPONS))
+      const pick = 'Long Sword.model'
+      const item = glbRigTriangles(lib, { pick })
+      const gp = glbNodePosition(lib, 'Long Sword_grip', { pick })!
+      const held = {
+        grip: { ...holdGrip('Long Sword'), scale: 1.25 },
+        item,
+        gripPoint: gp,
+        extras: { licence: 'CC-BY-4.0' },
+      }
+      const { json, bin } = readGlb(riggedBodyGlb(body, { held }))
+      // The skeleton at rest, read back from the file, without the socket.
+      const ids: number[] = json.skins[0].joints
+      const parentOf = new Map<number, number>()
+      json.nodes.forEach((n: any, i: number) =>
+        (n.children ?? []).forEach((c: number) => parentOf.set(c, i))
+      )
+      const qm = (a: number[], b: number[]) => [
+        a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1],
+        a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0],
+        a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3],
+        a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2],
+      ]
+      const qr = (q: number[], v: number[]) =>
+        qm(qm(q, [...v, 0]), [-q[0], -q[1], -q[2], q[3]]).slice(0, 3)
+      const joints: RestJoint[] = []
+      const world: number[][] = []
+      ids.slice(0, -1).forEach((id, i) => {
+        const n = json.nodes[id]
+        const parent = ids.indexOf(parentOf.get(id) ?? -1)
+        const t = n.translation ?? [0, 0, 0]
+        const r = n.rotation ?? [0, 0, 0, 1]
+        world[i] = parent < 0 ? r : qm(world[parent], r)
+        const position =
+          parent < 0
+            ? t
+            : qr(world[parent], t).map((v, k) => v + joints[parent].position[k])
+        joints.push({
+          name: n.name,
+          parent,
+          translation: t,
+          rotation: r,
+          position,
+        })
+      })
+      const parts = heldParts(joints, held, { materialBase: 0, imageBase: 0 })
+      const socket = json.nodes[ids[ids.length - 1]]
+      expect(parts.joint.name).toBe('weapon_r')
+      expect(joints[parts.joint.parent].name).toBe('hand_r')
+      parts.joint.translation.forEach((v, k) =>
+        expect(v).toBeCloseTo(socket.translation[k], 4)
+      )
+      const dot = parts.joint.rotation.reduce(
+        (sum, v, k) => sum + v * socket.rotation[k],
+        0
+      )
+      expect(Math.abs(dot)).toBeCloseTo(1, 4)
+      // The inverse bind is the file's.
+      const skin = json.skins[0]
+      const acc = json.accessors[skin.inverseBindMatrices]
+      const view = json.bufferViews[acc.bufferView]
+      const ibm = new Float32Array(
+        bin!.buffer,
+        bin!.byteOffset + (view.byteOffset ?? 0) + (acc.byteOffset ?? 0),
+        acc.count * 16
+      )
+      for (let k = 0; k < 16; k++)
+        expect(parts.joint.inverseBind[k]).toBeCloseTo(
+          ibm[(ids.length - 1) * 16 + k],
+          4
+        )
+      // The item: the same vertices as the file's held mesh, on that joint.
+      const mesh = json.meshes.find((m: any) => m.name === 'held')
+      expect(parts.mesh!.extras).toEqual({ licence: 'CC-BY-4.0' })
+      expect(parts.mesh!.primitives.length).toBe(mesh.primitives.length)
+      const pa = json.accessors[mesh.primitives[0].attributes.POSITION]
+      const pv = json.bufferViews[pa.bufferView]
+      const filePos = new Float32Array(
+        bin!.buffer,
+        bin!.byteOffset + (pv.byteOffset ?? 0) + (pa.byteOffset ?? 0),
+        pa.count * 3
+      )
+      const ours = parts.mesh!.primitives[0].positions
+      expect(ours.length).toBe(filePos.length)
+      for (let i = 0; i < ours.length; i += 97)
+        expect(ours[i]).toBeCloseTo(filePos[i], 4)
+      expect(parts.mesh!.primitives[0].joints[0]).toBe(joints.length)
     }, 120000)
 
     test('the socket alone, with no item', () => {

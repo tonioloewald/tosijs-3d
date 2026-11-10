@@ -14,6 +14,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ### Added
 
+- `heldParts(joints, held, bases)` (`tosijs-3d/rigged-body-glb`): a held item for any skeleton at rest, as `riggedBodyGlb` writes one: the socket joint under the hand (local transform and inverse bind), and the item's mesh skinned to it with its materials and pictures. For a GLB writer whose skeleton `riggedBodyGlb` did not make; `riggedBodyGlb` now uses the same code.
 - `loftGarment` (`body-sweep`): a garment lofted along a chain of bones, as rings round the hull of the body's slice plus thickness and an `ease` curve, with mitred or rounded (`steps`) bends and open, sealed or capped ends. It returns a `GarmentCut` binding, so it fits and bends like a tailor's cut. The first piece of the sweep core; no tool uses it yet.
 
 ### Changed
