@@ -49,6 +49,7 @@ import {
 export {
   headScalp,
   placeHair,
+  QUATERNIUS_HAIR,
   QUATERNIUS_HEADS,
   type HairPlacement,
   type HeadScalp,

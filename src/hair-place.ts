@@ -58,6 +58,59 @@ export interface HairPiece {
 }
 
 /**
+ * The pieces in Quaternius' hair library (`quaternius/libraries/hairstyles.glb`,
+ * version 2), by category, so a character can offer them as choices before
+ * the 13.9 MB library is fetched (it loads when one is first worn). A test
+ * checks this list against the library itself.
+ */
+export const QUATERNIUS_HAIR: Readonly<
+  Record<'hair' | 'eyebrows', readonly string[]>
+> = {
+  hair: [
+    'Hair_Balding',
+    'Hair_Balding_Teen',
+    'Hair_Beard',
+    'Hair_Beard_Teen',
+    'Hair_Bob',
+    'Hair_Bob_Teen',
+    'Hair_Buns',
+    'Hair_Buns_Teen',
+    'Hair_Buzzed',
+    'Hair_Buzzed_Teen',
+    'Hair_BuzzedFemale',
+    'Hair_BuzzedFemale_Teen',
+    'Hair_Dreads',
+    'Hair_Dreads_Teen',
+    'Hair_Long',
+    'Hair_Long_Teen',
+    'Hair_LongDreads',
+    'Hair_LongDreads_Teen',
+    'Hair_Mohawk',
+    'Hair_Mohawk_Teen',
+    'Hair_Moustache',
+    'Hair_Moustache_Teen',
+    'Hair_MuttonChops',
+    'Hair_MuttonChops_Teen',
+    'Hair_Ponytail',
+    'Hair_Ponytail_2',
+    'Hair_Ponytail_2_Teen',
+    'Hair_Ponytail_Teen',
+    'Hair_SimpleParted',
+    'Hair_SimpleParted_Teen',
+    'Hair_SlickBack',
+    'Hair_SlickBack_Teen',
+  ],
+  eyebrows: [
+    'Eyebrows_Female',
+    'Eyebrows_Regular',
+    'Eyebrows_Regular_Teen',
+    'Eyebrows_Teen',
+    'Eyebrows_Thick',
+    'Eyebrows_Thick_Teen',
+  ],
+}
+
+/**
 Quaternius' two adult heads, which its hairstyles were modelled on (the men's
 on one, the women's on the other), and where their eyes are (measured from
 their eyeball meshes).

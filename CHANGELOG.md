@@ -18,6 +18,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ### Changed
 
+- `loadCharacterAssets` no longer fetches Quaternius' hair library (13.9 MB) at start: a character fetches it the first time it wears one of its pieces, and offers the pieces by name before then (`QUATERNIUS_HAIR`). `CharacterAssets.hair` is null until then; `assets.loadHair()` loads it, and `loadCharacterAssets(scene, { hair: 'now' })` keeps the old behaviour.
 - Character builder: the panel runs from the most basic, least changeable choices to the most: tabs Body, Skin, Eyes, Face, Hair, Clothes, Hold, Motion, Export; in the Body tab, shape (gender, age, height) then ancestry then figure (weight, muscle and the rest); in Hair, brows and the style before beard, moustache and stubble. Control paths that moved: `Body/figure/weight`, `Body/figure/muscle`.
 
 ### Fixed

@@ -2180,6 +2180,7 @@ export {
   hairMaterial,
   humanHair,
   placeHair,
+  QUATERNIUS_HAIR,
   QUATERNIUS_HEADS,
 } from './human-hair.js'
 export { hairShading, HairShadingPlugin, HAIR_COLOURS } from './hair-shading.js'

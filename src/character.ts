@@ -112,6 +112,7 @@ import {
   headScalp,
   hairMaterial,
   humanHair,
+  QUATERNIUS_HAIR,
   type HairLibrary,
 } from './human-hair.js'
 import { skinThinness } from './skin-shading.js'
@@ -180,25 +181,43 @@ export {
 const eyeLook = (v: unknown): EyeTextureStyle =>
   v === 'drawn' ? 'drawn' : eyeStyle(v)
 
-/** What every character in a scene shares: MakeHuman's pack, the hair. */
+/**
+ * What every character in a scene shares: MakeHuman's pack, and Quaternius'
+ * hair library, which is fetched the first time a character wears one of its
+ * pieces (it is 13.9 MB, and MakeHuman's own hair needs none of it).
+ */
 export interface CharacterAssets {
   pack: HumanPack
-  hair: HairLibrary
+  /** The hair library, once loaded (or as passed in). */
+  hair?: HairLibrary | null
+  /** Load the hair library (once; later calls get the same one). */
+  loadHair?: () => Promise<HairLibrary>
 }
 
-/** Load the pack and the hair library (once per scene). */
+/**
+ * Load the pack (once per scene). The hair library waits until a character
+ * wears a Quaternius piece; `hair: 'now'` loads it here as before.
+ */
 export async function loadCharacterAssets(
   scene: BABYLON.Scene,
-  options: { pack?: string; hair?: string } = {}
+  options: { pack?: string; hair?: string | 'now' } = {}
 ): Promise<CharacterAssets> {
-  const [pack, hair] = await Promise.all([
-    loadHumanPack(options.pack ?? hm08PackUrl()),
-    loadHairLibrary(
-      scene,
-      options.hair ?? assetUrl('quaternius/libraries/hairstyles.glb', 2)
-    ),
-  ])
-  return { pack, hair }
+  const url =
+    options.hair && options.hair !== 'now'
+      ? options.hair
+      : assetUrl('quaternius/libraries/hairstyles.glb', 2)
+  const assets: CharacterAssets = {
+    pack: await loadHumanPack(options.pack ?? hm08PackUrl()),
+    hair: null,
+  }
+  let loading: Promise<HairLibrary> | null = null
+  assets.loadHair = () =>
+    (loading ??= loadHairLibrary(scene, url).then((lib) => {
+      assets.hair = lib
+      return lib
+    }))
+  if (options.hair === 'now') await assets.loadHair()
+  return assets
 }
 
 /** What is on show: the body, built, and what it was made from. */
@@ -336,7 +355,12 @@ export async function makeCharacter(
   assets: CharacterAssets,
   options: CharacterOptions = {}
 ): Promise<SceneCharacter> {
-  const { pack, hair: hairLib } = assets
+  const { pack } = assets
+  // Quaternius' hair: its names before it loads, the library when worn.
+  const hairNames = (category: 'hair' | 'eyebrows') =>
+    assets.hair?.names(category) ?? [...QUATERNIUS_HAIR[category]]
+  const hairLibrary = async () =>
+    assets.hair ?? (assets.loadHair ? await assets.loadHair() : null)
   const SLOTS: readonly string[] = CHARACTER_SLOTS
   const s: Record<string, any> = {
     ...plain(DEFAULT_CHARACTER),
@@ -385,7 +409,7 @@ export async function makeCharacter(
     hair: [
       'none',
       ...kinds('hair', () => true),
-      ...hairLib.names('hair').filter((n) => adult(n) && !facial(n)),
+      ...hairNames('hair').filter((n) => adult(n) && !facial(n)),
     ],
     // MakeHuman's beards come without moustaches: a moustache is its own
     // choice. Quaternius' are drawn for its own stylised mouth.
@@ -394,7 +418,7 @@ export async function makeCharacter(
     brows: [
       'none',
       ...kinds('eyebrows', () => true),
-      ...hairLib.names('eyebrows').filter(adult),
+      ...hairNames('eyebrows').filter(adult),
     ],
   }
   for (const slot of SLOTS)
@@ -725,14 +749,22 @@ export async function makeCharacter(
         garments.has(n) ? garments.get(n).proxy : pack.proxy(n)
       )
     )
+    // The hair library, if a piece of it is worn (fetched the first time).
+    const quaternius = ['hair', 'beard', 'moustache', 'brows'].some(
+      (k) => s[k] !== 'none' && !proxies[s[k]] && !garments.has(s[k])
+    )
+    const fetching = quaternius && !assets.hair
+    if (fetching) status('loading hair…')
+    const hairLib = quaternius ? await hairLibrary() : null
+    if (fetching) status(false)
     if (token !== dressing || disposed) return
     if (s.hideClothes) wearing = wearing.filter((p) => p.category !== 'clothes')
     for (const m of hairMeshes) m.dispose()
     hairMeshes = []
     const nudge = { y: s.hairUp, z: s.hairForward, scale: s.hairSize }
     for (const key of ['hair', 'beard', 'moustache', 'brows']) {
-      const parts = hairLib.piece(s[key])
-      if (!parts) continue
+      const parts = hairLib?.piece(s[key])
+      if (!hairLib || !parts) continue
       // Brows and beards follow the face; hair follows the skull.
       const style = s[key]
       hairMeshes.push(

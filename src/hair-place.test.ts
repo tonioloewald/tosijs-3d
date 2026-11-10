@@ -5,6 +5,7 @@ import {
   closestHead,
   hairFitFor,
   moustacheLip,
+  QUATERNIUS_HAIR,
   readHairLibrary,
   referenceHeads,
   withoutLashes,
@@ -53,6 +54,16 @@ describe.skipIf(!existsSync(LIBRARY))(
       ? new Uint8Array(readFileSync(LIBRARY))
       : new Uint8Array(0)
     const pieces = existsSync(LIBRARY) ? readHairLibrary(bytes) : []
+
+    test('QUATERNIUS_HAIR names its pieces (offered before it loads)', () => {
+      for (const category of ['hair', 'eyebrows'] as const)
+        expect(
+          pieces
+            .filter((p: any) => p.category === category)
+            .map((p) => p.name)
+            .sort()
+        ).toEqual([...QUATERNIUS_HAIR[category]].sort())
+    })
 
     test('reads its pieces and the two heads they were made on', () => {
       const names = pieces.map((p) => p.name)
