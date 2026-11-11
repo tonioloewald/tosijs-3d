@@ -12,6 +12,10 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+### Added
+
+- `<tosi-b3d-crowd>`: `setFigure(i, { x, y, z, yaw, clip, speed })` moves, turns or re-clips a figure; changes are uploaded once per frame however many figures moved. `clipNames` lists the clips. The doc page has a demo of walkers crossing a field.
+
 ### Fixed
 
 - `<tosi-b3d-hud>`: changing `size` resizes the HUD straight away; it used to wait for the next window resize. Any `handleResize()` call made after setting it can go.
