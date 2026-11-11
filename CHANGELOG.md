@@ -42,7 +42,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 - Retargeted clips keep the feet on the ground on bodies whose thigh and shin are proportioned differently from the clip's (the rig tool's AI characters crouched with one foot in the air): a foot near the ground goes where the source's went and the leg bends to reach it; a foot in the air keeps the copied angles. On by default in `retargeter`, `retargetClip` and `bakeClip`; `footIk: false` turns it off.
 - Rig tool: a recipe handed over through `api.recipe` with new markers now binds the mesh again (it kept the old binding).
-- The African American female's and Eurasian male's knee joints sit higher (2.5 and 6 cm), at the hollow behind the knee rather than below it.
+- The African American female's and Eurasian male's knee joints sit higher (2.5 and 4.4 cm), at the hollow behind the knee rather than below it.
 - Tailor: switching to a slot that wears something the body shown cannot (MakeHuman's shoes while another body is on show) opened as "(new garment)" but said there was no outline; it now starts a new garment.
 - Tailor: undo and redo work while an outline is being clicked out, a point at a time (they did nothing until it was closed). `outlineField3d` gains `undoPoint`/`redoPoint`. A panel's tooltips stay inside its padding, so the undo button's is no longer cut off at the edge.
 - `riggedBodyGlb` wrote a garment's uvs upside down (ours run up the image, glTF's down), so a textured garment's picture landed flipped on it in other engines.
