@@ -15,6 +15,13 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 ### Added
 
 - `<tosi-b3d-crowd>`: `setFigure(i, { x, y, z, yaw, clip, speed })` moves, turns or re-clips a figure; changes are uploaded once per frame however many figures moved. `clipNames` lists the clips. The doc page has a demo of walkers crossing a field.
+- `aimSpine(chain, held, target)` turns a spine after the clips have posed it so a held item points along an aim.
+
+### Changed
+
+- `<tosi-b3d-biped>` holding a weapon in `gunplay` points it along its aim: the spine is turned after the animations. Crouched, the gun used to point about 45° low, and standing 11° low.
+- `viewMenu` leaves the system bar during a headset session; in VR the camera is your head.
+- The character builder has an **Animation** menu on the system bar (play/pause and the clip) and a separate **Playback** panel for scrubbing and speed.
 
 ### Fixed
 

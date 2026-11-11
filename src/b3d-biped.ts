@@ -314,6 +314,7 @@ import {
   markUiMesh,
   pressWithEitherHand,
   refuseOwnAncestor,
+  sceneDelta,
 } from './b3d-utils.js'
 import {
   CLIMB_PHASE,
@@ -350,6 +351,7 @@ import {
   type Aim,
   type AimLimits,
 } from './aim.js'
+import { aimSpine } from './aim-ik.js'
 import type { B3d } from './tosi-b3d.js'
 import { xrControllers } from './gamepad.js'
 import type { GameController } from './game-controller.js'
@@ -2009,6 +2011,52 @@ export class B3dBiped extends B3dControllable {
     baseGroup.stop()
     this._aimLayer = layerOnUpperBody(scene, skeleton, baseGroup, layerGroup)
     this._aimLayer?.play(layerClip !== 'Pistol_Shoot')
+  }
+
+  /*
+  THE GUN POINTS WHERE THE AIM GOES, whatever the legs are doing. The aim
+  poses are drawn standing; over a crouch they lean with its hips (the gun
+  pointed 56° down at a level aim) and even standing it sat 11° low. So after
+  the clips have posed the body, `aimSpine` turns the spine until the held
+  weapon points along `aimDirection`. Eased in and out over `blendSeconds`.
+  */
+  private _aimIkObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> = null
+  private _aimIkWeight = 0
+  private _aimIkChain: BABYLON.TransformNode[] | null = null
+  private _aimIkOf: BABYLON.Skeleton | null = null
+
+  private _aimIk(scene: BABYLON.Scene): void {
+    const skeleton = this.entries?.skeletons?.[0] ?? null
+    const held = this._weapons().find((w) => w.socketed === true)?.mesh as
+      | BABYLON.TransformNode
+      | undefined
+    const want = this.gunplay && held != null && !this._swimming ? 1 : 0
+    const blend = Math.max(0, (this as any).blendSeconds ?? 0.25)
+    const dt = sceneDelta(scene)
+    this._aimIkWeight =
+      blend > 0
+        ? want > this._aimIkWeight
+          ? Math.min(want, this._aimIkWeight + dt / blend)
+          : Math.max(want, this._aimIkWeight - dt / blend)
+        : want
+    if (this._aimIkWeight <= 0 || skeleton == null || held == null) return
+    if (this._aimIkOf !== skeleton) {
+      this._aimIkOf = skeleton
+      const node = (names: string[]) => {
+        const bone = skeleton.bones.find((b) => names.includes(b.name))
+        return bone?.getTransformNode() ?? null
+      }
+      const chain = [
+        node(['spine_01', 'mixamorig:Spine', 'Spine']),
+        node(['spine_02', 'mixamorig:Spine1', 'Spine1']),
+        node(['spine_03', 'mixamorig:Spine2', 'Spine2']),
+      ].filter((n): n is BABYLON.TransformNode => n != null)
+      this._aimIkChain = chain.length > 0 ? chain : null
+    }
+    if (this._aimIkChain == null) return
+    aimSpine(this._aimIkChain, held, this.aimDirection, {
+      weight: this._aimIkWeight,
+    })
   }
 
   /** Seconds left of the one-shot fire pose. */
@@ -3783,6 +3831,9 @@ export class B3dBiped extends B3dControllable {
 
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     super.sceneReady(owner, scene)
+    this._aimIkObs = scene.onAfterAnimationsObservable.add(() =>
+      this._aimIk(scene)
+    )
     const attrs = this as any
     if (
       (attrs.character !== '' || this.characterDoc != null) &&
@@ -4041,6 +4092,12 @@ export class B3dBiped extends B3dControllable {
   }
 
   sceneDispose() {
+    if (this._aimIkObs != null) {
+      this.owner?.scene.onAfterAnimationsObservable.remove(this._aimIkObs)
+      this._aimIkObs = null
+    }
+    this._aimIkOf = null
+    this._aimIkChain = null
     this._reticle?.dispose()
     this._reticle = null
     // The layer owns AnimationGroups it built; the source clips are the GLB's
