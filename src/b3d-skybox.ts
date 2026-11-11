@@ -168,6 +168,7 @@ import type { B3d } from './tosi-b3d.js'
 import type { B3dSun } from './b3d-shadows.js'
 import { realNow } from './clock.js'
 import { lightPollutionAt } from './light-pollution.js'
+import { moonLight } from './moon-light.js'
 
 const DEG_TO_RAD = Math.PI / 180
 
@@ -1814,10 +1815,7 @@ export class B3dSkybox extends AbstractMesh {
     const c1 = new Array(16).fill(0)
     const c2 = new Array(16).fill(0)
     const x = new Array(16).fill(0)
-    const moons = Array.from(this.querySelectorAll('tosi-b3d-moon')).slice(
-      0,
-      4
-    ) as unknown as B3dMoon[]
+    const moons = this._ownMoons().slice(0, 4)
     // The day moon is real but pale: the sky's own light washes it out.
     // Not the 1.6 of the built-in disc — a coloured moon must stay below
     // clipping or every colour reads as white.
@@ -2278,7 +2276,7 @@ export class B3dSkybox extends AbstractMesh {
       Tonio: "Jupiter is lit from the wrong direction given the sun's
       position." See `_nightLightFrom` for where the night light comes from.
       */
-      const ownMoons = this.querySelector('tosi-b3d-moon') != null
+      const ownMoons = this._ownMoons().length > 0
       sm.setFloat?.(
         'b3dMoon',
         isDay || ownMoons
@@ -2507,23 +2505,44 @@ export class B3dSkybox extends AbstractMesh {
 
   /*
   WHERE NIGHT LIGHT COMES FROM. With the built-in moon, the replayed day arc
-  (`dir` as given: where it is drawn). With moons of the sky's own, the first
-  of them, as bright as the part of it lit by the real sun that faces you
-  (full opposite the sun, dark beside it): Jupitershine on Io. Rewrites `dir`
-  (world, toward the light) and returns that fraction.
+  (`dir` as given: where it is drawn). With moons of the sky's own, the
+  brightest of them above the horizon (`moonLight`), as bright as the part of
+  it lit by the real sun that faces you: Jupitershine on Io. A moon below the
+  horizon lights nothing. Rewrites `dir` (world, toward the light) and returns
+  that fraction, 0 when every moon has set.
   */
   private _nightLightFrom(dir: BABYLON.Vector3): number {
-    const m = this.querySelector('tosi-b3d-moon') as unknown as B3dMoon | null
-    if (m == null) return 1
-    const raw = m.direction()
-    const d = new BABYLON.Vector3(raw.x, raw.y, raw.z)
-    // A star-sphere moon is placed in the dome's frame; the light is world.
-    if (m.frame !== 'ground') d.applyRotationQuaternionInPlace(this._domeQuat)
-    d.normalize()
+    const moons = this._ownMoons()
+    if (moons.length === 0) return 1
+    const dirs = moons.map((m) => {
+      const raw = m.direction()
+      const d = new BABYLON.Vector3(raw.x, raw.y, raw.z)
+      // A star-sphere moon is placed in the dome's frame; the light is world.
+      if (m.frame !== 'ground') d.applyRotationQuaternionInPlace(this._domeQuat)
+      return d.normalize()
+    })
     // By night `dir` is the replayed arc, so the real sun is its antipode.
-    const full = (1 + BABYLON.Vector3.Dot(d, dir)) / 2
-    dir.copyFrom(d)
-    return full
+    const lit = moonLight(dirs, { x: -dir.x, y: -dir.y, z: -dir.z })
+    if (lit.dir != null) dir.copyFrom(dirs[lit.index])
+    return lit.strength
+  }
+
+  /*
+  The sky's own moons, looked up once and again only when its children
+  change (this is read every frame).
+  */
+  private _moonCache: B3dMoon[] | null = null
+  private _moonWatch: MutationObserver | null = null
+  private _ownMoons(): B3dMoon[] {
+    if (this._moonWatch == null && typeof MutationObserver !== 'undefined') {
+      this._moonWatch = new MutationObserver(() => (this._moonCache = null))
+      this._moonWatch.observe(this, { childList: true, subtree: true })
+    }
+    if (this._moonCache == null || this._moonWatch == null)
+      this._moonCache = Array.from(
+        this.querySelectorAll('tosi-b3d-moon')
+      ) as unknown as B3dMoon[]
+    return this._moonCache
   }
 
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
@@ -2802,6 +2821,9 @@ export class B3dSkybox extends AbstractMesh {
     // Hand intensity ownership back to the sun before we let go of it.
     if (this.sunEl != null) this.sunEl.externallyLit = false
     this.sunEl = null
+    this._moonWatch?.disconnect()
+    this._moonWatch = null
+    this._moonCache = null
     super.sceneDispose()
   }
 

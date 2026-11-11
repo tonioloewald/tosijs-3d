@@ -901,6 +901,29 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
   move the mesh. (Same family as `ry` being degrees: when an element manages a
   node, the element's fields are the source of truth and the node's are output.)
   */
+  /*
+  THE SHEET'S SHAPE NOW, not at open. The plane is sized once from the
+  sheet's viewBox, while its texture redraws the sheet as it is: a sheet that
+  changed shape after opening (laid out again once a font or a panel's content
+  arrived) was drawn stretched onto the old plane until it was closed and
+  opened again. So the plane's height follows the viewBox's current aspect
+  (below), and a change is logged to the debug ring.
+  */
+  let seenAspect = aspect
+  const sheetAspect = (): number => {
+    const now = svg.viewBox?.baseVal
+    const a = now && now.width > 0 ? now.height / now.width : aspect
+    if (Math.abs(a - seenAspect) > 1e-4) {
+      seenAspect = a
+      owner.logDebug('popup', {
+        event: 'reshaped',
+        openedAspect: aspect,
+        aspect: a,
+        viewBox: now ? [now.width, now.height] : null,
+      })
+    }
+    return a
+  }
   let unstretch: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> = null
   const place = (): void => {
     const mesh = plane.mesh
@@ -931,7 +954,8 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
       const p = mesh.parent as BABYLON.TransformNode | null
       const sx = p?.scaling?.x ?? 1
       const sy = p?.scaling?.y ?? 1
-      mesh.scaling.y = mesh.scaling.x * (sy !== 0 ? sx / sy : 1)
+      mesh.scaling.y =
+        mesh.scaling.x * (sy !== 0 ? sx / sy : 1) * (sheetAspect() / aspect)
     })
     plane.x = offset.x ?? 0
     plane.y = offset.y ?? 0
@@ -1109,8 +1133,15 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     opener,
     dismissOutside,
     modal,
-    vbWidth: vbW,
-    vbHeight: vbH,
+    // As the sheet is now (see `sheetAspect`), so a press lands where drawn.
+    get vbWidth() {
+      const v = svg.viewBox?.baseVal
+      return v && v.width > 0 ? v.width : vbW
+    },
+    get vbHeight() {
+      const v = svg.viewBox?.baseVal
+      return v && v.height > 0 ? v.height : vbH
+    },
     chromeLayout: layout,
     beginDrag(
       pointerId: number,

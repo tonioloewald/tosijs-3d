@@ -142,4 +142,49 @@ describe('outlineField3d', () => {
     next.handle!('up', 150, 150)
     expect(next.canRedoPoint).toBe(false)
   })
+
+  test('an outline lying past the field is drawn inside it', () => {
+    // Above the body's crown (1.8 m) and wide of it, as one carried over
+    // from a taller, broader body can be.
+    const field = of.outlineField3d({
+      ...box(),
+      symmetry: false,
+      value: [
+        [
+          [-0.1, 2.6],
+          [0.1, 2.6],
+          [0.9, 1],
+          [-0.1, 1],
+        ],
+      ],
+    })
+    const height = field.layout!(300)
+    const el = field.el as unknown as Element
+    const bg = el.querySelector('rect')!
+    const x0 = Number(bg.getAttribute('x'))
+    const y0 = Number(bg.getAttribute('y'))
+    const x1 = x0 + Number(bg.getAttribute('width'))
+    const y1 = y0 + Number(bg.getAttribute('height'))
+    // The points are drawn on the field...
+    const dots = Array.from(el.querySelectorAll('circle'))
+    expect(dots.length).toBe(4)
+    for (const c of dots) {
+      const cx = Number(c.getAttribute('cx'))
+      const cy = Number(c.getAttribute('cy'))
+      expect(cx).toBeGreaterThanOrEqual(x0)
+      expect(cx).toBeLessThanOrEqual(x1)
+      expect(cy).toBeGreaterThanOrEqual(y0)
+      expect(cy).toBeLessThanOrEqual(y1)
+    }
+    expect(y1).toBeLessThan(height)
+    // ...and the lines are clipped to it.
+    const clip = el.querySelector('clipPath')!
+    const outline = el.querySelector('path[fill-opacity="0.2"]')!
+    expect(outline.closest('[clip-path]')!.getAttribute('clip-path')).toBe(
+      `url(#${clip.getAttribute('id')})`
+    )
+    expect(clip.querySelector('rect')!.getAttribute('height')).toBe(
+      bg.getAttribute('height')
+    )
+  })
 })

@@ -2025,7 +2025,7 @@
       {
         "name": "size",
         "default": "70",
-        "description": "HUD height as a % of the canvas's smaller dimension"
+        "description": "HUD height as a % of the canvas's smaller dimension, and at most half that % of the longer one (so in portrait it keeps about the landscape proportion)"
       },
       {
         "name": "pxPerDeg",
