@@ -632,6 +632,88 @@ export type XRStuff = {
   exitXR: AsyncVoidFunction
 }
 
+/*
+WHICHEVER HAND YOU PRESS WITH, THE PRESS COUNTS.
+
+Babylon points with ONE controller at a time. A press on the other one only
+switches the pointer to it, and the press itself is dropped. A Quest decides for
+itself which controller is active, so in practice a press now and then did
+nothing, and a player just learns that the pointer is flaky (Tonio: "I think I
+and most users just internalize flaky pointer behavior"). Nobody should have
+to know which hand is "active".
+
+So: a press on a controller that is not pointing switches to it AND is
+delivered, once its ray has picked something (on the next frame or two).
+Babylon's own release pairs with it, because by then that controller is the one
+pointing. This reads Babylon's per-controller state (`_controllers`, `pick`,
+`pointerDownTriggered`), which is private. `xr-press.test.ts` pins those names
+and the drop itself, so a Babylon upgrade that renames them (or fixes the drop)
+fails the suite and says which; in a live session it warns once instead.
+*/
+export function pressWithEitherHand(
+  xr: BABYLON.WebXRDefaultExperience,
+  scene: BABYLON.Scene
+): void {
+  const sel = xr.pointerSelection as any
+  const frames = xr.baseExperience?.sessionManager.onXRFrameObservable
+  // Pinned by xr-press.test.ts; this is the same check, live, so a Babylon
+  // that changed under us says so instead of quietly dropping presses again.
+  if (
+    sel?._controllers == null ||
+    typeof sel.setAttachedController !== 'function'
+  ) {
+    console.warn(
+      'b3d: Babylon XR pointer selection has changed (no _controllers / setAttachedController), so a press on the hand that is not pointing is dropped again. See pressWithEitherHand.'
+    )
+    return
+  }
+  xr.input.onControllerAddedObservable.add((controller) => {
+    const watch = (mc: BABYLON.WebXRAbstractMotionController) => {
+      const main = mc.getMainComponent()
+      if (main == null || frames == null) return
+      main.onButtonStateChangedObservable.add(
+        (c) => {
+          if (c.changes.pressed == null) return
+          const id = controller.uniqueId
+          /*
+          A PRESS IS AIMED NOW, not a frame ago. Babylon reads the buttons
+          before it picks, so a press or release carries the previous frame's
+          ray, cut to that frame's hit distance. On a moving vehicle the bar
+          has moved on with it since, and the stale ray stops short of it:
+          hover (picked fresh) lit the button and the click never landed.
+          */
+          const ray = sel._controllers?.[id]?.pick?.ray
+          if (ray != null) {
+            freshWorldMatrix(controller.pointer)
+            controller.getWorldPointerRayToRef(ray)
+          }
+          if (!c.changes.pressed.current) return
+          if (
+            sel._attachedController === id ||
+            !sel.setAttachedController?.(id)
+          )
+            return
+          let tries = 0
+          const obs = frames.add(() => {
+            const data = sel._controllers?.[id]
+            if (data?.pick || ++tries > 5) frames.remove(obs)
+            if (!data?.pick) return
+            const init = { pointerId: data.id, pointerType: 'xr' }
+            scene.simulatePointerDown(data.pick, init)
+            data.pointerDownTriggered = true
+            // Let go already? Then it was a tap.
+            if (!main.pressed) scene.simulatePointerUp(data.pick, init)
+          })
+        },
+        undefined,
+        true // ahead of Babylon's own observer, which drops it
+      )
+    }
+    if (controller.motionController) watch(controller.motionController)
+    else controller.onMotionControllerInitObservable.addOnce(watch)
+  })
+}
+
 export async function enterXR(
   scene: BABYLON.Scene,
   options: XRParams = {}
@@ -648,6 +730,7 @@ export async function enterXR(
     // The right hand points first (see tosi-b3d: otherwise a first press is lost).
     pointerSelectionOptions: { preferredHandedness: 'right' } as any,
   })
+  if (xr.pointerSelection != null) pressWithEitherHand(xr, scene)
   const { baseExperience } = xr
   const { camera } = baseExperience
   camera.name = cameraName

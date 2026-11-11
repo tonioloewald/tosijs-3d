@@ -385,11 +385,11 @@ import {
 } from './popup-surface.js'
 import {
   cameraIsAttached,
-  freshWorldMatrix,
   isNoCollide,
   insideCarrier,
   isOff,
   markUiMesh,
+  pressWithEitherHand,
   replaceKeepingLayers,
   refuseOwnAncestor,
   refuseOwnAncestors,
@@ -486,6 +486,9 @@ const { canvas, div, span, slot, button } = elements
 // `showB3dStats()` once so the toggle appears on EVERY scene without a per-scene
 // attribute or a URL flag. Library consumers leave it off — their scenes stay
 // uncluttered unless they set `stats` or add `#perf`.
+// Canvases whose context our teardown lost on purpose (`loseContextOnDispose`).
+const releasedCanvases = new WeakSet<HTMLCanvasElement>()
+
 let _statsGlobal = false
 export const showB3dStats = (on = true): void => {
   _statsGlobal = on
@@ -670,88 +673,6 @@ type LiveDebugRow = {
 // reads but never mutates them), so we never allocate a Vector3 per frame.
 const XR_FORWARD = new BABYLON.Vector3(0, 0, 1)
 const XR_RIGHT = new BABYLON.Vector3(1, 0, 0)
-
-/*
-WHICHEVER HAND YOU PRESS WITH, THE PRESS COUNTS.
-
-Babylon points with ONE controller at a time. A press on the other one only
-switches the pointer to it, and the press itself is dropped. A Quest decides for
-itself which controller is active, so in practice a press now and then did
-nothing, and a player just learns that the pointer is flaky (Tonio: "I think I
-and most users just internalize flaky pointer behavior"). Nobody should have
-to know which hand is "active".
-
-So: a press on a controller that is not pointing switches to it AND is
-delivered, once its ray has picked something (on the next frame or two).
-Babylon's own release pairs with it, because by then that controller is the one
-pointing. This reads Babylon's per-controller state (`_controllers`, `pick`,
-`pointerDownTriggered`), which is private. `xr-press.test.ts` pins those names
-and the drop itself, so a Babylon upgrade that renames them (or fixes the drop)
-fails the suite and says which; in a live session it warns once instead.
-*/
-function pressWithEitherHand(
-  xr: BABYLON.WebXRDefaultExperience,
-  scene: BABYLON.Scene
-): void {
-  const sel = xr.pointerSelection as any
-  const frames = xr.baseExperience?.sessionManager.onXRFrameObservable
-  // Pinned by xr-press.test.ts; this is the same check, live, so a Babylon
-  // that changed under us says so instead of quietly dropping presses again.
-  if (
-    sel?._controllers == null ||
-    typeof sel.setAttachedController !== 'function'
-  ) {
-    console.warn(
-      'tosi-b3d: Babylon XR pointer selection has changed (no _controllers / setAttachedController), so a press on the hand that is not pointing is dropped again. See pressWithEitherHand.'
-    )
-    return
-  }
-  xr.input.onControllerAddedObservable.add((controller) => {
-    const watch = (mc: BABYLON.WebXRAbstractMotionController) => {
-      const main = mc.getMainComponent()
-      if (main == null || frames == null) return
-      main.onButtonStateChangedObservable.add(
-        (c) => {
-          if (c.changes.pressed == null) return
-          const id = controller.uniqueId
-          /*
-          A PRESS IS AIMED NOW, not a frame ago. Babylon reads the buttons
-          before it picks, so a press or release carries the previous frame's
-          ray, cut to that frame's hit distance. On a moving vehicle the bar
-          has moved on with it since, and the stale ray stops short of it:
-          hover (picked fresh) lit the button and the click never landed.
-          */
-          const ray = sel._controllers?.[id]?.pick?.ray
-          if (ray != null) {
-            freshWorldMatrix(controller.pointer)
-            controller.getWorldPointerRayToRef(ray)
-          }
-          if (!c.changes.pressed.current) return
-          if (
-            sel._attachedController === id ||
-            !sel.setAttachedController?.(id)
-          )
-            return
-          let tries = 0
-          const obs = frames.add(() => {
-            const data = sel._controllers?.[id]
-            if (data?.pick || ++tries > 5) frames.remove(obs)
-            if (!data?.pick) return
-            const init = { pointerId: data.id, pointerType: 'xr' }
-            scene.simulatePointerDown(data.pick, init)
-            data.pointerDownTriggered = true
-            // Let go already? Then it was a tap.
-            if (!main.pressed) scene.simulatePointerUp(data.pick, init)
-          })
-        },
-        undefined,
-        true // ahead of Babylon's own observer, which drops it
-      )
-    }
-    if (controller.motionController) watch(controller.motionController)
-    else controller.onMotionControllerInitObservable.addOnce(watch)
-  })
-}
 
 /*
 A CONTROLLER RAY PICKS THE UI LAYERS FIRST.
@@ -5727,6 +5648,8 @@ export class B3d extends Component {
     exists inside a headset.
     */
     cnv.addEventListener('webglcontextlost', (e) => {
+      // Our own teardown loses it on purpose: nothing to report.
+      if (releasedCanvases.has(cnv)) return
       e.preventDefault() // allows a restore; without this it is permanent
       console.warn(
         'b3d: WebGL context LOST. Meshes may render white or the sky dark. ' +
@@ -6542,6 +6465,8 @@ export class B3d extends Component {
     // see the note there. Kept out of the later block so the closure can never
     // reference it before initialisation.
     let chaseFirstFrame = true
+    // Why the chase last took a forward, for the debug sink.
+    let seatReason = 'entry'
     let cockpitYawOffset = 0 // head yaw captured when you take the seat
     // Deferred + re-armable, rather than captured once on entry. See the capture site.
     let yawCaptureNeeded = false
@@ -6603,6 +6528,7 @@ export class B3d extends Component {
       // Chase/FPV. Also re-anchors `chasePos`, which is what a re-seat means
       // for a third-person camera.
       chaseFirstFrame = true
+      seatReason = 're-armed'
       if (debugSink.url !== '') sendDebug('xr', { seat: 're-armed' })
     }
     let resetSpace: XRReferenceSpace | null = null
@@ -6744,6 +6670,15 @@ export class B3d extends Component {
     let lastView = '' // re-seat when the camera view toggles
     let chaseZoom = 0.5 // 0..1 chase distance (right stick Y while piloting)
     let lastPiloted: BABYLON.TransformNode | null = null
+    /*
+    A FRAME WITHOUT A PILOT IS NOT A NEW SEAT. Seconds since anything was
+    piloted: the chase takes your current head yaw as forward again only once
+    this passes RESUME_S. A single frame with nothing piloted used to re-arm it,
+    and the next frame re-seated you wherever you happened to be looking (the
+    debug sink showed captures mid-drive with no re-seat asked for, #3726).
+    */
+    let freeTime = Infinity
+    const RESUME_S = 1
     const ZOOM_RATE = 0.8
     const MAX_PEEK = 0.8 // radians of temporary look (right stick X), ~46°
     const frame = base.sessionManager.onXRFrameObservable.add(() => {
@@ -6805,8 +6740,10 @@ export class B3d extends Component {
         // change, so cockpit↔chase doesn't snap.
         if (view !== lastView) {
           chaseFirstFrame = true
+          seatReason = lastView === '' ? 'entry' : 'view'
           lastView = view
         }
+        freeTime = 0
         /*
         Right stick (while piloting) zooms the chase and peeks left/right.
         From the camera axes if a mapping sets them, else from the LOOK axes,
@@ -6895,6 +6832,7 @@ export class B3d extends Component {
           rig.setParent(null)
           rig.scaling.set(1, 1, 1)
           chaseFirstFrame = true
+          seatReason = 'unparented'
         }
 
         if (isChase) {
@@ -6964,6 +6902,7 @@ export class B3d extends Component {
         // a session's first frames can carry a stale rotation, which left the
         // bar and panels off to one side until a re-seat.
         if ((chaseFirstFrame || lastPiloted !== piloted) && hasViewerPose()) {
+          if (!chaseFirstFrame) seatReason = 'piloted changed'
           // Align to where the headset is currently looking so it doesn't snap.
           chaseFirstFrame = false
           lastPiloted = piloted
@@ -6978,6 +6917,7 @@ export class B3d extends Component {
             const deg = (r: number) => Math.round((r * 180) / Math.PI)
             sendDebug('xr', {
               seat: 'chase',
+              reason: seatReason,
               headYaw: deg(chaseYawOffset),
               head: [cam.position.x, cam.position.y, cam.position.z].map(
                 (n) => +n.toFixed(2)
@@ -7078,9 +7018,14 @@ export class B3d extends Component {
 
       // Free walk/fly. If we were just piloting, hand the rig's yaw back to euler
       // (a set rotationQuaternion overrides the euler the stick-turn below uses).
-      chaseFirstFrame = true
-      lastPiloted = null
-      lastView = ''
+      // The chase forgets its seat only once nothing has been piloted for a
+      // while (see `freeTime`).
+      freeTime += dt
+      if (freeTime >= RESUME_S) {
+        chaseFirstFrame = true
+        lastPiloted = null
+        lastView = ''
+      }
       // Match the seed: the eye frame's yaw is rig-local, so without this the
       // panel hangs `headYaw` away from your gaze — "the panel is behind me",
       // reproducibly, whenever you happened to enter facing off-axis.
@@ -9020,6 +8965,8 @@ export class B3d extends Component {
     try {
       this.engine?.stopRenderLoop()
       this.scene?.dispose()
+      const canvas = this.engine?.getRenderingCanvas()
+      if (canvas) releasedCanvases.add(canvas)
       this.engine?.dispose()
       if (this.engine != null) this._canvasSpent = true
     } catch (err) {

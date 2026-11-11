@@ -312,6 +312,7 @@ import {
   collidable,
   isOff,
   markUiMesh,
+  pressWithEitherHand,
   refuseOwnAncestor,
 } from './b3d-utils.js'
 import {
@@ -3451,6 +3452,7 @@ export class B3dBiped extends B3dControllable {
       // The right hand points first (see tosi-b3d: otherwise a first press is lost).
       pointerSelectionOptions: { preferredHandedness: 'right' } as any,
     })
+    if (xr.pointerSelection != null) pressWithEitherHand(xr, scene)
 
     // Register controller observables BEFORE entering XR so we catch controller connect events
     this.setupXRInput(xr)

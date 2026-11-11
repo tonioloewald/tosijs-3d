@@ -12,6 +12,17 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+### Fixed
+
+- `<tosi-b3d-hud>`: changing `size` resizes the HUD straight away; it used to wait for the next window resize. Any `handleResize()` call made after setting it can go.
+- `<tosi-b3d-sound>` removed while its file loads no longer throws an unhandled rejection ("No volume subnode"); it is disposed once Babylon has finished loading it, and never starts playing.
+- Removing a `<tosi-b3d>` no longer warns "WebGL context LOST": the teardown loses the context on purpose. An unexpected loss still warns.
+- A skybox with its own `<tosi-b3d-moon>`s takes its night light from the brightest moon above the horizon. A moon that has set no longer lights the ground from below, and with every moon set the night has only ambient light.
+- In a headset, a press on the hand that is not pointing now counts on every way into VR (`enterXR` and the biped's own XR camera), not only `<tosi-b3d>`'s.
+- A popup whose content changes shape after it opens follows the new shape. It used to be drawn stretched or squashed until it was closed and opened again.
+- The tailor: an outline that lies past the outline field (one carried over from another body) is clipped to the field, and its points are drawn at the field's edge so you can drag them back. It used to draw over the panel's buttons.
+- In a headset, the vehicle chase camera keeps its seat through a brief moment with nothing piloted. It used to take wherever you were looking as forward again, a re-seat you did not ask for.
+
 ## 0.12.6
 
 The latest release. BVH clips kept and carried in character files; MakeHuman's body exports dressed, with hair, skin and eyes; tailored garments fit any body; feet stay planted under retargeting; marker rigs place pelvis, neck and knees as the mannequins do. See [0.12.6](/v0.12.6/).

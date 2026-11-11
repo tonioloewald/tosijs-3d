@@ -1,5 +1,5 @@
 /*
-What `pressWithEitherHand` (tosi-b3d.ts) relies on in Babylon, pinned without a
+What `pressWithEitherHand` (b3d-utils.ts) relies on in Babylon, pinned without a
 headset.
 
 It reads Babylon's PRIVATE per-controller pointer state to deliver a press that
@@ -22,7 +22,7 @@ const src = (name: string): string => {
   const fn = proto[name]
   if (typeof fn !== 'function') {
     throw new Error(
-      `Babylon's WebXRControllerPointerSelection has no ${name}: pressWithEitherHand in tosi-b3d.ts reads it. Update it, or look for a public API.`
+      `Babylon's WebXRControllerPointerSelection has no ${name}: pressWithEitherHand in b3d-utils.ts reads it. Update it, or look for a public API.`
     )
   }
   return fn.toString()
