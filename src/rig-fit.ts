@@ -288,6 +288,25 @@ export interface FitOptions {
   tailBones?: number
   /** Where the tail starts (its first joint), if not the back of the pelvis. */
   tailStart?: Vec3
+  /**
+   * Depth set by hand, per marker: how far in front (+Z) of where the fit
+   * puts it the marker's joint goes, in the mesh's units. The fit puts a
+   * joint at the middle of the body's thickness, and not every joint is
+   * there: the mannequin's pelvis is well behind the middle of its hips.
+   */
+  depths?: Partial<Record<MarkerName, number>>
+}
+
+/** The joint each marker places (the groin's is the pelvis, above it). */
+export const MARKER_JOINTS: Readonly<Record<MarkerName, string>> = {
+  chin: 'Head',
+  groin: 'pelvis',
+  wristL: 'hand_l',
+  wristR: 'hand_r',
+  elbowL: 'lowerarm_l',
+  elbowR: 'lowerarm_r',
+  kneeL: 'calf_l',
+  kneeR: 'calf_r',
 }
 
 export function fitSkeleton(
@@ -745,6 +764,26 @@ export function fitSkeleton(
         put(name, parent, along(start, tip, i / count))
         parent = name
       }
+    }
+  }
+
+  /*
+  DEPTHS SET BY HAND move the marker's joint alone, toward the front or the
+  back: the pelvis takes the root standing under it, a wrist takes the
+  fingers (they are placed from the hand), the head its end.
+  */
+  for (const [k, dz] of Object.entries(options.depths ?? {})) {
+    const name = MARKER_JOINTS[k as MarkerName]
+    if (name == null || !dz) continue
+    const moves = new Set([name])
+    if (name === 'pelvis') moves.add('root')
+    if (name.startsWith('hand_'))
+      for (const j of joints)
+        if (j.parent != null && moves.has(j.parent)) moves.add(j.name)
+    for (const j of joints) {
+      if (!moves.has(j.name)) continue
+      j.position = { ...j.position, z: j.position.z + dz }
+      if (j.end != null) j.end = { ...j.end, z: j.end.z + dz }
     }
   }
 

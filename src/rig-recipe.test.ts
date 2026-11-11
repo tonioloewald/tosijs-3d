@@ -102,6 +102,39 @@ describe('rig recipe', () => {
     ).toEqual(['full', 'mitten', 'none'])
   })
 
+  test('a binding’s depths are numbers, one per marker', () => {
+    const m = { x: 0, y: 0 }
+    const markers = Object.fromEntries(
+      [
+        'chin',
+        'groin',
+        'wristL',
+        'wristR',
+        'elbowL',
+        'elbowR',
+        'kneeL',
+        'kneeR',
+      ].map((k) => [k, m])
+    )
+    const recipe = (depths: unknown) => ({
+      version: RIG_RECIPE_VERSION,
+      roles: {},
+      springs: [],
+      binding: { markers, depths },
+    })
+    expect(validateRigRecipe(recipe({ groin: -0.05 }))).toEqual([])
+    expect(validateRigRecipe(recipe({ groin: 'back', hip: 1 }))).toEqual([
+      'binding.depths.groin is not a number',
+      'binding.depths.hip is not a marker',
+    ])
+    expect(
+      Object.keys(
+        (rigRecipeSchema() as any).properties.binding.properties.depths
+          .properties
+      )
+    ).toContain('groin')
+  })
+
   test('the schema and the validator agree on what a strand needs', () => {
     const springs = (rigRecipeSchema() as any).properties.springs.items.oneOf
     const strand = springs.find((s: any) => s.title === 'Strand')

@@ -43,7 +43,11 @@ The panel has these sections, its job first.
   drag into place. `hands` says how much hand is rigged: thumb and four
   fingers, a mitten (a thumb and one finger, for a glove: the other fingers
   lie on it and take no skin) or none (the hand alone); `as found` leaves it
-  to the fit. The joints follow the markers. `move joints` shows every
+  to the fit. The joints follow the markers. The fit puts each marker's
+  joint at the middle of the body's thickness; from the side view, drag a
+  marker forward or back to set its depth (the mannequin's pelvis sits well
+  behind the middle of its hips). The depth is kept as an offset from the
+  fit, so it stays when the marker moves again from the front. `move joints` shows every
   joint (blue) to drag by hand from the view that suits: shoulders from the
   front, fingers and thumbs from the top, feet from the side. What hangs from
   a joint comes with it; set `dragging` to turn what hangs from it instead
@@ -206,6 +210,7 @@ import {
   spreadHand,
   applyHandMode,
   type HandMode,
+  type MarkerName,
   type MeshQuery,
   type Markers,
 } from './rig-fit.js'
@@ -578,6 +583,7 @@ function sameBinding(body: RiggedBody, binding?: RigBinding | null): boolean {
       b.tail != null ? b.tailBase ?? null : null,
       b.joints ?? {},
       b.hands ?? null,
+      b.depths ?? {},
     ])
   return key(m) === key(binding)
 }
@@ -603,6 +609,7 @@ function bindMesh(
       tailBase: binding.tailBase,
       joints: binding.joints,
       hands: binding.hands,
+      depths: binding.depths,
       tailBones: options.tailBones,
     })
   const built = buildBody(scene, name, body)
@@ -633,6 +640,7 @@ function bindMesh(
       tailBase: binding.tailBase,
       joints: binding.joints,
       hands: binding.hands,
+      depths: binding.depths,
     },
     body,
     dispose() {
@@ -841,6 +849,7 @@ export function mountRigTool(
       const rig = fitSkeleton(from.markers, query!, {
         tail: from.tail ?? undefined,
         tailStart: from.tail != null ? from.tailBase ?? undefined : undefined,
+        depths: from.depths,
       })
       parents = new Map(rig.joints.map((j) => [j.name, j.parent]))
       const moved = withMoved ? from.joints ?? {} : {}
@@ -896,7 +905,9 @@ export function mountRigTool(
     tail: Vec3 | null,
     tailBase: Vec3 | null = tail != null ? bound?.tailBase ?? null : null,
     /** Markers dragged carrying their joints: every joint below them comes. */
-    carry: string[] = []
+    carry: string[] = [],
+    /** Depth set by hand per marker (a drag in a side view). */
+    depths: Partial<Record<MarkerName, number>> | undefined = bound?.depths
   ) {
     /*
     What hangs from a marker comes with it: a joint moved by hand below one
@@ -905,7 +916,14 @@ export function mountRigTool(
     */
     const before = fittedJoints(bound, false)
     const shown = fittedJoints(bound, true)
-    const next = bound != null ? { ...bound, markers, tail, tailBase } : null
+    const kept =
+      depths != null && Object.values(depths).some((v) => v)
+        ? Object.fromEntries(Object.entries(depths).filter(([, v]) => v))
+        : undefined
+    const next =
+      bound != null
+        ? { ...bound, markers, tail, tailBase, depths: kept }
+        : null
     const after = fittedJoints(next, false)
     const joints: Record<string, Vec3> = {}
     /*
@@ -946,6 +964,7 @@ export function mountRigTool(
       ...(tailBase ? { tailBase } : {}),
       ...moved,
       ...(bound?.hands ? { hands: bound.hands } : {}),
+      ...(kept ? { depths: kept } : {}),
     }
     if (next != null)
       bound = {
@@ -1095,6 +1114,7 @@ export function mountRigTool(
               ...(bound.tailBase ? { tailBase: bound.tailBase } : {}),
               ...(bound.joints ? { joints: bound.joints } : {}),
               ...(bound.hands ? { hands: bound.hands } : {}),
+              ...(bound.depths ? { depths: bound.depths } : {}),
             })
           ),
   })
@@ -1117,6 +1137,7 @@ export function mountRigTool(
         tailBase: b.tailBase ?? null,
         joints: b.joints,
         hands: b.hands,
+        depths: b.depths,
       }
       stale = true
       ui.status = 'bound again when you animate or press done'
@@ -3059,6 +3080,16 @@ export function mountRigTool(
         handle.position,
         cam.getForwardRay().direction
       )
+      /*
+      SEEN FROM THE SIDE a marker moves in depth too: kept as how far in
+      front of the fit's depth its joint goes (binding.depths), so it stays
+      put when the marker moves again in the front view. Its twin takes the
+      same depth.
+      */
+      const side = !tailKey && Math.abs(cam.getForwardRay().direction.x) > 0.7
+      const depths: Partial<Record<MarkerName, number>> = {
+        ...(b.depths ?? {}),
+      }
       const move = (ev: PointerEvent) => {
         const p = toRender(ev)
         const ray = scene.createPickingRay(
@@ -3088,10 +3119,21 @@ export function mountRigTool(
         markers[k] = { x: x - off.x, y: f.y - off.y }
         if (symmetry && other != null)
           markers[other as keyof Markers] = { x: -(x - off.x), y: f.y - off.y }
-        // Its depth is the fit's (the middle of the body there), shown as it
-        // goes: seen from the side it follows the body instead of holding a
-        // depth and jumping there on release.
-        const now = fittedJoints({ ...b, markers }, false)
+        if (side) {
+          const own = [key, ...(symmetry && other != null ? [other] : [])]
+          const without = { ...depths }
+          for (const n of own) delete without[n as MarkerName]
+          const base = fittedJoints(
+            { ...b, markers, depths: without },
+            false
+          )?.get(MARKER_JOINT[key] ?? '')?.z
+          if (base != null)
+            for (const n of own) depths[n as MarkerName] = f.z - base
+        }
+        // Its depth is the fit's (the middle of the body there) plus any set
+        // by hand, shown as it goes: seen from the front it follows the body
+        // instead of holding a depth and jumping there on release.
+        const now = fittedJoints({ ...b, markers, depths }, false)
         const depth = (k2: string | null, d: BABYLON.Mesh) =>
           now?.get(MARKER_JOINT[k2 ?? ''] ?? '')?.z ?? toFile(d.position).z
         handle.position.copyFrom(toScene(x, f.y, depth(key, handle)))
@@ -3132,7 +3174,8 @@ export function mountRigTool(
           tail != null ? tailBase : null,
           carries
             ? [key, ...(symmetry && other != null ? [other] : []), ...carried]
-            : []
+            : [],
+          depths
         )
       }
       window.addEventListener('pointermove', move, true)
@@ -3464,8 +3507,8 @@ export function mountRigTool(
     play(clip?: string | null) {
       if (clip != null) ui.clip = clip
       ui.pose = clip === null ? 'rest' : 'animate'
-      tool?.play()
-      refresh()
+      // Bound first if a marker moved, as the panel's animate is.
+      animate()
     },
     load: (m: RigModel | File) => tool?.load(m),
     loadClips: (f: File | string) => tool?.loadClips(f),

@@ -60,13 +60,18 @@ const hosted = (
  * markers on the left (chin, groin, wrist, elbow, knee; mirrored to the
  * right) and any joints moved by hand, also on the left and mirrored, and
  * any on the centre line (a neck) as they are; `hands` how much hand is
- * rigged (a glove is a mitten: its thumb and middle finger are enough).
+ * rigged (a glove is a mitten: its thumb and middle finger are enough);
+ * `depths` metres in front of the fit's depth for a marker's joint (negative
+ * behind; the groin's is the pelvis), the wrist, elbow and knee for both sides.
  */
 export function rigFromMarkers(
   [chin, groin, wrist, elbow, knee]: Array<[number, number]>,
   joints: Record<string, [number, number, number]> = {},
   centre: Record<string, [number, number, number]> = {},
-  hands?: HandMode
+  hands?: HandMode,
+  depths: Partial<
+    Record<'chin' | 'groin' | 'wrist' | 'elbow' | 'knee', number>
+  > = {}
 ): Partial<RigRecipe> {
   const at = ([x, y]: [number, number], s = 1) => ({ x: x * s, y })
   const moved: Record<string, { x: number; y: number; z: number }> = {}
@@ -91,6 +96,20 @@ export function rigFromMarkers(
       tail: null,
       joints: moved,
       ...(hands != null ? { hands } : {}),
+      ...(Object.keys(depths).length
+        ? {
+            depths: Object.fromEntries(
+              Object.entries(depths).flatMap(([k, v]) =>
+                k === 'chin' || k === 'groin'
+                  ? [[k, v]]
+                  : [
+                      [`${k}L`, v],
+                      [`${k}R`, v],
+                    ]
+              )
+            ),
+          }
+        : {}),
     },
   } as Partial<RigRecipe>
 }

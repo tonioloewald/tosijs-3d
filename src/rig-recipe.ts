@@ -23,6 +23,7 @@ import {
   HAND_MODES,
   MARKER_NAMES,
   type HandMode,
+  type MarkerName,
   type Markers,
 } from './rig-fit.js'
 
@@ -129,6 +130,12 @@ export interface RigBinding {
    * found it. See rig-fit's `applyHandMode`.
    */
   hands?: HandMode
+  /**
+   * Depth set by hand, per marker: metres in front (+Z; negative behind) of
+   * where the fit puts that marker's joint (the groin's is the pelvis). Set
+   * by dragging a marker in a side view.
+   */
+  depths?: Partial<Record<MarkerName, number>>
 }
 
 export const STRAND_DEFAULTS: Omit<StrandSpringRecipe, 'anchor'> = {
@@ -295,6 +302,16 @@ export function validateRigRecipe(doc: unknown): string[] {
       out.push('binding.tail is not {x, y, z}')
     if (b?.tailBase != null && !isVec(b.tailBase))
       out.push('binding.tailBase is not {x, y, z}')
+    if (b?.depths != null) {
+      if (typeof b.depths !== 'object' || Array.isArray(b.depths))
+        out.push('binding.depths is not marker → number')
+      else
+        for (const [k, v] of Object.entries(b.depths)) {
+          if (!MARKER_NAMES.includes(k as MarkerName))
+            out.push(`binding.depths.${k} is not a marker`)
+          else if (!isNum(v)) out.push(`binding.depths.${k} is not a number`)
+        }
+    }
     if (b?.joints != null) {
       if (typeof b.joints !== 'object' || Array.isArray(b.joints))
         out.push('binding.joints is not name → {x, y, z}')
@@ -476,6 +493,15 @@ export function rigRecipeSchema(): Record<string, unknown> {
             description:
               'Joints moved by hand after the fit (a thumb, a toe, a shoulder), by name, in the mesh’s frame.',
             additionalProperties: vec3('Where the joint is.'),
+          },
+          depths: {
+            type: 'object',
+            description:
+              'Depth set by hand, per marker: metres in front (+Z; negative behind) of where the fit puts that marker’s joint.',
+            properties: Object.fromEntries(
+              MARKER_NAMES.map((n) => [n, { type: 'number' }])
+            ),
+            additionalProperties: false,
           },
           hands: {
             enum: [...HAND_MODES],

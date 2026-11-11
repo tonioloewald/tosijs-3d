@@ -108,6 +108,26 @@ describe('fitSkeleton', () => {
     expect(p('spine_01').z).toBeCloseTo(0)
   })
 
+  test('a depth set by hand moves that marker’s joint alone, front or back', () => {
+    const moved = fitSkeleton(figureMarkers, figure, {
+      depths: { groin: -0.05, wristL: 0.02, kneeR: 0.01 },
+    })
+    const q = (n: string) => moved.at(n)!
+    // The pelvis goes back, the root standing under it with it; the spine stays.
+    expect(q('pelvis').z).toBeCloseTo(p('pelvis').z - 0.05)
+    expect(q('root').z).toBeCloseTo(p('root').z - 0.05)
+    expect(q('spine_01').z).toBeCloseTo(p('spine_01').z)
+    expect(q('thigh_l').z).toBeCloseTo(p('thigh_l').z)
+    // A wrist takes its fingers; the forearm stays.
+    expect(q('hand_l').z).toBeCloseTo(p('hand_l').z + 0.02)
+    expect(q('index_01_l').z).toBeCloseTo(p('index_01_l').z + 0.02)
+    expect(q('lowerarm_l').z).toBeCloseTo(p('lowerarm_l').z)
+    // One knee, not its twin (symmetry is the tool's, not the fit's).
+    expect(q('calf_r').z).toBeCloseTo(p('calf_r').z + 0.01)
+    expect(q('calf_l').z).toBeCloseTo(p('calf_l').z)
+    expect(q('foot_r').z).toBeCloseTo(p('foot_r').z)
+  })
+
   test('inferred joints land where a body has them', () => {
     const sh = p('upperarm_l')
     expect(sh.x).toBeGreaterThan(0.1)

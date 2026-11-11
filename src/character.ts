@@ -1036,6 +1036,7 @@ export async function makeCharacter(
         tailBase: b?.tailBase,
         joints: b?.joints,
         hands: b?.hands,
+        depths: b?.depths,
         source: name,
       }),
       kept,

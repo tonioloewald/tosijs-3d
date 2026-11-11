@@ -14,6 +14,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ### Added
 
+- Rig tool: drag a marker forward or back in a side view to set its joint's depth (the fit puts each at the middle of the body's thickness, and the mannequin's pelvis is well behind it). Kept in the rig recipe as `binding.depths`, an offset per marker from the fit's depth; `fitSkeleton`'s `depths`, `bodyFromMarkers`'s `depths` and `rigFromMarkers`'s sixth argument take it too.
 - Rig tool: a **floor** slider (Motion) moves the body up or down from where its soles stand, for one that floats or sinks; kept in the rig recipe as `floor` (metres), and the character builder stands the body the same way. At rest the soles, not the mesh's lowest point, are put on the floor.
 - Character builder: exporting MakeHuman's body writes the clothes it wears (MakeHuman's own and garments of your own made on it), fitted as drawn, with their pictures and looks. `character.exportGarments()` gives them for `riggedBodyGlb`'s `garments` on either kind of body; `onSkin` (`garment-proxy`) binds a piece made for MakeHuman's pack to the skin a body draws, and `packGarmentMaterial` gives a pack piece's material as data.
 - The export of MakeHuman's body carries its eyelashes, drawn and faded as in the builder, following the head. The fade is a small ramp picture, so it needs no vertex alpha (`shortenLashes`, `lashAlpha`, `lashUvs`, `lashPicture` in `eye-art`).

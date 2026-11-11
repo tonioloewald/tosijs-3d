@@ -60,6 +60,7 @@ import {
   skinSegments,
   type FittedRig,
   type HandMode,
+  type MarkerName,
   type Markers,
 } from './rig-fit.js'
 import { boneHeat, type SkinWeights } from './bone-heat.js'
@@ -173,6 +174,8 @@ export function bodyFromMarkers(
     joints?: Record<string, Vec3>
     /** How much hand to rig (rig-fit's `HandMode`); left out, as found. */
     hands?: HandMode
+    /** Depth set by hand per marker (rig-fit's `FitOptions.depths`). */
+    depths?: Partial<Record<MarkerName, number>>
   } = {}
 ): RiggedBody {
   const positions = Float32Array.from(tris.positions)
@@ -183,6 +186,7 @@ export function bodyFromMarkers(
     tail: options.tail ?? undefined,
     tailStart: options.tail != null ? options.tailBase ?? undefined : undefined,
     tailBones: options.tailBones,
+    depths: options.depths,
   })
   const moved = options.joints ?? {}
   const placed: FittedRig = Object.keys(moved).length
@@ -223,6 +227,9 @@ export function bodyFromMarkers(
         : {}),
       ...(Object.keys(moved).length ? { joints: { ...moved } } : {}),
       ...(options.hands != null ? { hands: options.hands } : {}),
+      ...(options.depths != null && Object.keys(options.depths).length
+        ? { depths: { ...options.depths } }
+        : {}),
     },
   }
 }
