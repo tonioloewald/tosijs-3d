@@ -37,6 +37,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ### Fixed
 
+- Retargeted clips keep the feet on the ground on bodies whose thigh and shin are proportioned differently from the clip's (the rig tool's AI characters crouched with one foot in the air): a foot near the ground goes where the source's went and the leg bends to reach it; a foot in the air keeps the copied angles. On by default in `retargeter`, `retargetClip` and `bakeClip`; `footIk: false` turns it off.
 - Rig tool: a recipe handed over through `api.recipe` with new markers now binds the mesh again (it kept the old binding).
 - Eurasian male's knees sit 1.5 cm higher, so its feet plant more evenly.
 - Tailor: switching to a slot that wears something the body shown cannot (MakeHuman's shoes while another body is on show) opened as "(new garment)" but said there was no outline; it now starts a new garment.

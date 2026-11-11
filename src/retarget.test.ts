@@ -382,7 +382,103 @@ describe('feet', () => {
       expect(Math.abs(q.w)).toBeCloseTo(1, 6)
     }
   })
+
+  /*
+  A crouch: hips down, thigh forward, knee bent back. Copied angles put a
+  long-thighed, short-shinned body's ankle somewhere else; foot IK puts it
+  where the source's went (scaled by hip height, which is the same here).
+  */
+  const proportioned = (thigh: number, shin: number): Skeleton => {
+    const s = leg(31)
+    const bones = s.bones.map((b) =>
+      b.name === 'calf_l'
+        ? { ...b, position: { x: 0, y: -thigh, z: 0 } }
+        : b.name === 'foot_l'
+        ? { ...b, position: { x: 0, y: -shin, z: 0 } }
+        : b
+    )
+    return { bones, roles: humanoidRoles(bones) }
+  }
+  const crouch = new Map([
+    ['thigh_l', quatFromAxisAngle({ x: 1, y: 0, z: 0 }, -1)],
+    ['calf_l', quatFromAxisAngle({ x: 1, y: 0, z: 0 }, 1.6)],
+    ['foot_l', quatFromAxisAngle({ x: 1, y: 0, z: 0 }, -0.6)],
+  ])
+  const crouchHips = { x: 0, y: 0.7, z: 0 }
+  const ankle = (
+    sk: Skeleton,
+    pose: { rotations: Map<string, any>; hips?: any }
+  ) => fk(sk.bones, pose.rotations, pose.hips).get('foot_l')!
+  const source = proportioned(0.45, 0.42)
+  const sourceAnkle = ankle(source, { rotations: crouch, hips: crouchHips })
+
+  test('foot IK puts a differently proportioned leg’s ankle where the source’s went', () => {
+    const target = proportioned(0.52, 0.35)
+    const out = retargeter(source, target).pose(crouch, crouchHips)
+    const at = ankle(target, out)
+    expect(at.x).toBeCloseTo(sourceAnkle.x, 4)
+    expect(at.y).toBeCloseTo(sourceAnkle.y, 4)
+    expect(at.z).toBeCloseTo(sourceAnkle.z, 4)
+    // The knee still bends forward, as the clip bends it.
+    const knee = fk(target.bones, out.rotations, out.hips).get('calf_l')!
+    expect(knee.z).toBeGreaterThan(0)
+  })
+
+  test('without foot IK the copied angles leave that ankle elsewhere', () => {
+    const target = proportioned(0.52, 0.35)
+    const out = retargeter(source, target, { footIk: false }).pose(
+      crouch,
+      crouchHips
+    )
+    const at = ankle(target, out)
+    expect(
+      Math.hypot(at.y - sourceAnkle.y, at.z - sourceAnkle.z)
+    ).toBeGreaterThan(0.03)
+  })
+
+  test('a foot well off the floor keeps the copied angles', () => {
+    const target = proportioned(0.52, 0.35)
+    // Standing, the left leg kicked back and up: no foot IK.
+    const kick = new Map([
+      ['thigh_l', quatFromAxisAngle({ x: 1, y: 0, z: 0 }, 0.6)],
+      ['calf_l', quatFromAxisAngle({ x: 1, y: 0, z: 0 }, 1.5)],
+    ])
+    const on = retargeter(source, target).pose(kick)
+    const off = retargeter(source, target, { footIk: false }).pose(kick)
+    for (const n of ['thigh_l', 'calf_l', 'foot_l']) {
+      const a = on.rotations.get(n)!
+      const b = off.rotations.get(n)!
+      expect(
+        Math.abs(a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w)
+      ).toBeCloseTo(1, 9)
+    }
+  })
 })
+
+/** World positions of `bones` posed by local `rotations` (and the hips' position). */
+function fk(
+  bones: readonly RestBone[],
+  rotations: ReadonlyMap<string, any>,
+  hips?: { x: number; y: number; z: number }
+) {
+  const rot = new Map<string, any>()
+  const pos = new Map<string, { x: number; y: number; z: number }>()
+  for (const b of bones) {
+    const local = rotations.get(b.name) ?? b.rotation
+    const at = b.parent == null && hips != null ? hips : b.position
+    const pr = b.parent != null ? rot.get(b.parent) : null
+    const pp = b.parent != null ? pos.get(b.parent) : null
+    if (pr == null || pp == null) {
+      rot.set(b.name, local)
+      pos.set(b.name, at)
+      continue
+    }
+    rot.set(b.name, multiply(pr, local))
+    const o = rotateVector(pr, at)
+    pos.set(b.name, { x: pp.x + o.x, y: pp.y + o.y, z: pp.z + o.z })
+  }
+  return pos
+}
 
 function multiply(a: any, b: any) {
   return {

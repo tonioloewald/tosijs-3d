@@ -228,6 +228,8 @@ export function retargetClip(
     scene?: BABYLON.Scene
     /** See `RetargetOptions.armSpaceDeg`: spread the arms away from the body. */
     armSpaceDeg?: number
+    /** See `RetargetOptions.footIk`: false copies the legs' angles only. */
+    footIk?: boolean
   } = {}
 ): BABYLON.AnimationGroup {
   // What animates each source bone, by name.
@@ -294,6 +296,7 @@ export function retargetSourceClip(
     name?: string
     scene?: BABYLON.Scene
     armSpaceDeg?: number
+    footIk?: boolean
   } = {}
 ): BABYLON.AnimationGroup {
   return retargetSampled(
@@ -316,9 +319,13 @@ function retargetSampled(
     name?: string
     scene?: BABYLON.Scene
     armSpaceDeg?: number
+    footIk?: boolean
   }
 ): BABYLON.AnimationGroup {
-  const rt = retargeter(source, target, { armSpaceDeg: options.armSpaceDeg })
+  const rt = retargeter(source, target, {
+    armSpaceDeg: options.armSpaceDeg,
+    footIk: options.footIk,
+  })
   const fps = options.fps ?? 30
   const frames = Math.max(1, Math.round(seconds * fps))
   const moving = rt.roles.map((r) => target.roles[r]!)
