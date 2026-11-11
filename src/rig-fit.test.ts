@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 import {
   fitSkeleton,
+  PELVIS_BEHIND_THIGHS,
   fittedRestBones,
   meshQuery,
   objTriangles,
@@ -104,8 +105,15 @@ describe('fitSkeleton', () => {
   })
 
   test('the tail behind the body is not the body', () => {
-    expect(p('pelvis').z).toBeCloseTo(0)
     expect(p('spine_01').z).toBeCloseTo(0)
+    expect(fitSkeleton(figureMarkers, figure, { pelvis: 'middle' }).at('pelvis')!.z).toBeCloseTo(0)
+  })
+
+  test('the pelvis sits behind the thighs, as the mannequins’ does, the root under it', () => {
+    const height = figure.max.y - figure.min.y
+    const thighs = (p('thigh_l').z + p('thigh_r').z) / 2
+    expect(p('pelvis').z).toBeCloseTo(thighs - PELVIS_BEHIND_THIGHS * height, 6)
+    expect(p('root').z).toBeCloseTo(p('pelvis').z, 6)
   })
 
   test('a depth set by hand moves that marker’s joint alone, front or back', () => {
@@ -367,9 +375,13 @@ describe.skipIf(!existsSync(DIR))('fitSkeleton on real meshes', () => {
         expect(p(n).z).toBeLessThanOrEqual(spans[0].front)
         expect(p(n).z).toBeGreaterThanOrEqual(spans[0].back)
       }
-      expect(p('pelvis').z).toBeGreaterThan(
-        (mesh.min.z + mesh.max.z) / 2 - 0.05 * height
-      )
+      // The pelvis is inside the body at its height (not out the back of a
+      // thin one), behind the thighs.
+      const hips = mesh.spans(p('pelvis').x, p('pelvis').y)
+      expect(
+        hips.some((s) => p('pelvis').z <= s.front && p('pelvis').z >= s.back)
+      ).toBe(true)
+      expect(p('pelvis').z).toBeLessThan(p('thigh_l').z)
       // A body's order, bottom to top.
       expect(p('foot_l').y).toBeLessThan(p('calf_l').y)
       expect(p('calf_l').y).toBeLessThan(p('thigh_l').y)

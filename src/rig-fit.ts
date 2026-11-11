@@ -17,7 +17,11 @@ Two halves, both pure:
   where palm-down fingers show as separate prongs (`findFingers`). Every
   joint sits at the middle of the mesh's thickness at its (x, y), in the
   FRONT-MOST span, so a tail or a backpack behind the body is not mistaken
-  for it.
+  for it; except the pelvis, which goes behind the thigh joints by 0.028 of
+  the body's height (`PELVIS_BEHIND_THIGHS`), as both of UAL's mannequins
+  have it: the middle of the hips moves with a seat, a belly or armour, and
+  the thighs, found from the legs, do not. `depths` moves any marker's joint
+  forward or back by hand.
 
 The rest pose is the T-pose as drawn: every bone's local rotation is
 identity and its position is its offset from its parent, so a bone points
@@ -295,7 +299,18 @@ export interface FitOptions {
    * there: the mannequin's pelvis is well behind the middle of its hips.
    */
   depths?: Partial<Record<MarkerName, number>>
+  /**
+   * How the pelvis's depth is found. `thighs` (the default): behind the
+   * thigh joints by 0.028 of the body's height, as both of UAL's mannequins
+   * have it (male 0.028, female 0.029), whatever the hips' surface does (a
+   * seat, a belly, armour). `middle`: the middle of the hips' thickness, as
+   * bindings saved before this rule have it.
+   */
+  pelvis?: 'thighs' | 'middle'
 }
+
+/** How far behind the thigh joints the pelvis sits, as a share of height. */
+export const PELVIS_BEHIND_THIGHS = 0.028
 
 /** The joint each marker places (the groin's is the pelvis, above it). */
 export const MARKER_JOINTS: Readonly<Record<MarkerName, string>> = {
@@ -763,6 +778,28 @@ export function fitSkeleton(
           i < count ? `tail_${String(i + 1).padStart(2, '0')}` : 'tail_leaf'
         put(name, parent, along(start, tip, i / count))
         parent = name
+      }
+    }
+  }
+
+  /*
+  THE PELVIS FROM THE THIGHS. The middle of the hips' thickness is reliably
+  wrong: a seat, a belly or armour moves it, and the mannequins' pelvis is
+  well behind it. The thigh joints are found from the leg, which bodies
+  share far more closely, so the pelvis goes behind them (the root under
+  it). The spine keeps its place.
+  */
+  if ((options.pelvis ?? 'thighs') === 'thighs') {
+    const l = byName.get('thigh_l')
+    const r = byName.get('thigh_r')
+    const pj = byName.get('pelvis')
+    if (l && r && pj) {
+      const z =
+        (l.position.z + r.position.z) / 2 -
+        PELVIS_BEHIND_THIGHS * (mesh.max.y - mesh.min.y)
+      for (const n of ['pelvis', 'root']) {
+        const j = byName.get(n)
+        if (j) j.position = { ...j.position, z }
       }
     }
   }

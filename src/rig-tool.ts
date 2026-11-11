@@ -44,10 +44,10 @@ The panel has these sections, its job first.
   fingers, a mitten (a thumb and one finger, for a glove: the other fingers
   lie on it and take no skin) or none (the hand alone); `as found` leaves it
   to the fit. The joints follow the markers. The fit puts each marker's
-  joint at the middle of the body's thickness; from the side view, drag a
-  marker forward or back to set its depth (the mannequin's pelvis sits well
-  behind the middle of its hips). The depth is kept as an offset from the
-  fit, so it stays when the marker moves again from the front. `move joints` shows every
+  joint at the middle of the body's thickness (the pelvis behind the
+  thighs, as the mannequin's is); from the side view, drag a marker forward
+  or back to set its depth. The depth is kept as an offset from the fit, so
+  it stays when the marker moves again from the front. `move joints` shows every
   joint (blue) to drag by hand from the view that suits: shoulders from the
   front, fingers and thumbs from the top, feet from the side. What hangs from
   a joint comes with it; set `dragging` to turn what hangs from it instead
