@@ -547,6 +547,42 @@ preview.append(
             },
           }],
         })
+        // THE ANIMATION on the bar: play or pause, and which clip, in one
+        // place, flat and in a headset. The transport (scrub, speed) is its
+        // own small panel, opened from the menu or its own button.
+        const playbackPanel = b3dPanel({ icon: 'playCircle', title: 'Playback', exclusive: 'off' })
+        playbackPanel.svg = panel3d({ width: 300 }, playbackRow())
+        const clipOption = (name) => ({ label: name, checked: name === walker.clip.value, handleSelect: () => { walker.clip.value = name } })
+        // UAL's names lead with what they are (Pistol_…, Sword_…): the rest of
+        // the library is grouped by that, so no list runs off the view.
+        const moreClips = () => {
+          const groups = new Map()
+          for (const name of clips.slice(EVERYDAY.length + fileClips.size)) {
+            const group = name.split('_')[0]
+            if (!groups.has(group)) groups.set(group, [])
+            groups.get(group).push(name)
+          }
+          return [...groups].map(([group, names]) =>
+            names.length === 1 ? clipOption(names[0]) : { label: group, items: () => names.map(clipOption) }
+          )
+        }
+        el.append(barMenu({
+          icon: 'motion',
+          title: 'Animation',
+          layout: 'list',
+          options: () => [
+            walker.paused.value
+              ? { label: 'Play', icon: 'play', handleSelect: () => { walker.paused.value = false } }
+              : { label: 'Pause', icon: 'pause', handleSelect: () => { walker.paused.value = true } },
+            { label: 'Playback controls', icon: 'playCircle', handleSelect: () => playbackPanel.show?.() },
+            { separator: true },
+            ...EVERYDAY.map(clipOption),
+            ...(fileClips.size ? [{ separator: true }, ...[...fileClips.keys()].map(clipOption)] : []),
+            { separator: true },
+            { label: 'More clips', items: moreClips },
+          ],
+        }))
+        el.append(playbackPanel)
         // A floor with a metre grid (and faint quarters), which takes the sun's shadow.
         const floor = BABYLON.MeshBuilder.CreateGround('floor_nocast', { width: 12, height: 12 }, scene)
         const tile = new BABYLON.DynamicTexture('floor-grid', { width: 256, height: 256 }, scene, true)
@@ -1369,7 +1405,13 @@ the next visit; **forget** drops the file a clip came from.
 
 **View** (the camera on the bar) holds the body square on from any side, or
 follows the **right hand** close up through the clip, to see how an item sits
-in it. The rig tool uses the same menu.
+in it. The rig tool uses the same menu. In a headset it leaves the bar: the
+camera is your head.
+
+**Animation** (on the bar) plays or pauses the clip and picks it: the
+everyday clips, a file's, then the rest of the library grouped by kind.
+**Playback** is the transport (scrub, speed) as its own small panel, opened
+from its button or from the menu.
 
 **Hold** puts an item from Tonio's textured weapons
 (`tonio/weapons-classic/weapons.glb`, CC BY 4.0: guns, blades, a plasma

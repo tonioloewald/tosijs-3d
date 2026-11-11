@@ -498,16 +498,40 @@ export function viewMenu(
       update()
     },
   })
+  // In a headset the camera is your head: there is no view to pick, so the
+  // menu leaves the bar for the session.
+  const b3d = host as Element & {
+    xrActive?: boolean
+    scene?: { onBeforeRenderObservable: { add(f: () => void): unknown; remove(o: unknown): void } }
+    whenReady?: (cb: () => void) => void
+  }
+  let inXr = false
   const update = () => {
     const extra = extras.find((x) => x.active())
     menu.value = extra?.value ?? inspect.face
-    if (inspect.face === 'free' && !extra && !options.always) menu.remove()
+    if (inXr || (inspect.face === 'free' && !extra && !options.always))
+      menu.remove()
     else if (menu.parentElement == null) host.append(menu)
   }
   update()
+  // Declared before `whenReady`, which runs at once when the scene is up.
+  let watch: unknown = null
+  let disposed = false
+  b3d.whenReady?.(() => {
+    const scene = b3d.scene
+    if (scene == null || disposed) return
+    watch = scene.onBeforeRenderObservable.add(() => {
+      const now = b3d.xrActive === true
+      if (now === inXr) return
+      inXr = now
+      update()
+    })
+  })
   return {
     update,
     dispose() {
+      disposed = true
+      if (watch != null) b3d.scene?.onBeforeRenderObservable.remove(watch)
       menu.remove()
     },
   }
