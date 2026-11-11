@@ -4,6 +4,7 @@ import { join } from 'path'
 import {
   fitSkeleton,
   PELVIS_BEHIND_THIGHS,
+  PELVIS_BELOW_THIGHS,
   fittedRestBones,
   meshQuery,
   objTriangles,
@@ -106,13 +107,17 @@ describe('fitSkeleton', () => {
 
   test('the tail behind the body is not the body', () => {
     expect(p('spine_01').z).toBeCloseTo(0)
-    expect(fitSkeleton(figureMarkers, figure, { pelvis: 'middle' }).at('pelvis')!.z).toBeCloseTo(0)
+    expect(
+      fitSkeleton(figureMarkers, figure, { pelvis: 'middle' }).at('pelvis')!.z
+    ).toBeCloseTo(0)
   })
 
-  test('the pelvis sits behind the thighs, as the mannequins’ does, the root under it', () => {
+  test('the pelvis sits behind and below the thighs, as the mannequins’ does, the root under it', () => {
     const height = figure.max.y - figure.min.y
     const thighs = (p('thigh_l').z + p('thigh_r').z) / 2
+    const thighsY = (p('thigh_l').y + p('thigh_r').y) / 2
     expect(p('pelvis').z).toBeCloseTo(thighs - PELVIS_BEHIND_THIGHS * height, 6)
+    expect(p('pelvis').y).toBeCloseTo(thighsY - PELVIS_BELOW_THIGHS * height, 6)
     expect(p('root').z).toBeCloseTo(p('pelvis').z, 6)
   })
 

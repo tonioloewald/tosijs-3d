@@ -18,7 +18,8 @@ Two halves, both pure:
   joint sits at the middle of the mesh's thickness at its (x, y), in the
   FRONT-MOST span, so a tail or a backpack behind the body is not mistaken
   for it; except the pelvis, which goes behind the thigh joints by 0.028 of
-  the body's height (`PELVIS_BEHIND_THIGHS`), as both of UAL's mannequins
+  the body's height (`PELVIS_BEHIND_THIGHS`) and below them by 0.008
+  (`PELVIS_BELOW_THIGHS`), as both of UAL's mannequins
   have it: the middle of the hips moves with a seat, a belly or armour, and
   the thighs, found from the legs, do not. `depths` moves any marker's joint
   forward or back by hand.
@@ -300,17 +301,20 @@ export interface FitOptions {
    */
   depths?: Partial<Record<MarkerName, number>>
   /**
-   * How the pelvis's depth is found. `thighs` (the default): behind the
-   * thigh joints by 0.028 of the body's height, as both of UAL's mannequins
-   * have it (male 0.028, female 0.029), whatever the hips' surface does (a
-   * seat, a belly, armour). `middle`: the middle of the hips' thickness, as
-   * bindings saved before this rule have it.
+   * How the pelvis is placed. `thighs` (the default): behind the thigh
+   * joints by 0.028 of the body's height and below them by 0.008, as both
+   * of UAL's mannequins have it, whatever the hips' surface does (a seat, a
+   * belly, armour). `middle`: above the thighs at the middle of the hips'
+   * thickness, as bindings saved before this rule have it.
    */
   pelvis?: 'thighs' | 'middle'
 }
 
 /** How far behind the thigh joints the pelvis sits, as a share of height. */
 export const PELVIS_BEHIND_THIGHS = 0.028
+
+/** How far below the thigh joints the pelvis sits, as a share of height. */
+export const PELVIS_BELOW_THIGHS = 0.008
 
 /** The joint each marker places (the groin's is the pelvis, above it). */
 export const MARKER_JOINTS: Readonly<Record<MarkerName, string>> = {
@@ -786,21 +790,22 @@ export function fitSkeleton(
   THE PELVIS FROM THE THIGHS. The middle of the hips' thickness is reliably
   wrong: a seat, a belly or armour moves it, and the mannequins' pelvis is
   well behind it. The thigh joints are found from the leg, which bodies
-  share far more closely, so the pelvis goes behind them (the root under
-  it). The spine keeps its place.
+  share far more closely, so the pelvis goes just behind and below them
+  (the root under it). The spine keeps its place.
   */
   if ((options.pelvis ?? 'thighs') === 'thighs') {
     const l = byName.get('thigh_l')
     const r = byName.get('thigh_r')
     const pj = byName.get('pelvis')
     if (l && r && pj) {
+      const height = mesh.max.y - mesh.min.y
       const z =
-        (l.position.z + r.position.z) / 2 -
-        PELVIS_BEHIND_THIGHS * (mesh.max.y - mesh.min.y)
-      for (const n of ['pelvis', 'root']) {
-        const j = byName.get(n)
-        if (j) j.position = { ...j.position, z }
-      }
+        (l.position.z + r.position.z) / 2 - PELVIS_BEHIND_THIGHS * height
+      const y =
+        (l.position.y + r.position.y) / 2 - PELVIS_BELOW_THIGHS * height
+      pj.position = { ...pj.position, y, z }
+      const root = byName.get('root')
+      if (root) root.position = { ...root.position, z }
     }
   }
 

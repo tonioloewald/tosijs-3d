@@ -32,7 +32,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ### Changed
 
-- Rigs bound from markers put the pelvis behind the thigh joints by 0.028 of the body's height, as UAL's mannequins have it, not at the middle of the hips' thickness (a seat, a belly or armour moved it). Every marker rig changes, saved ones too: look at yours in a crouch. `fitSkeleton`'s `pelvis: 'middle'` gives the old placement.
+- Rigs bound from markers put the pelvis behind the thigh joints by 0.028 of the body's height and below them by 0.008, as UAL's mannequins have it, not above them at the middle of the hips' thickness (a seat, a belly or armour moved it). Every marker rig changes, saved ones too: look at yours in a crouch. `fitSkeleton`'s `pelvis: 'middle'` gives the old placement.
 - Tailor: a new garment, or one with nothing drawn yet, is cut from the body's own triangles (**cloth mesh: as the body**), not draped: the cheapest and surest way. Saved garments keep how they were made.
 - `loadCharacterAssets` no longer fetches Quaternius' hair library (13.9 MB) at start: a character fetches it the first time it wears one of its pieces, and offers the pieces by name before then (`QUATERNIUS_HAIR`). `CharacterAssets.hair` is null until then; `assets.loadHair()` loads it, and `loadCharacterAssets(scene, { hair: 'now' })` keeps the old behaviour.
 - Character builder: the panel runs from the most basic, least changeable choices to the most: tabs Body, Skin, Eyes, Face, Hair, Clothes, Hold, Motion, Export; in the Body tab, shape (gender, age, height) then ancestry then figure (weight, muscle and the rest); in Hair, brows and the style before beard, moustache and stubble. Control paths that moved: `Body/figure/weight`, `Body/figure/muscle`.
