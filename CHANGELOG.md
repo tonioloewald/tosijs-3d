@@ -33,6 +33,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 ### Changed
 
 - Rigs bound from markers put the pelvis behind the thigh joints by 0.028 of the body's height and below them by 0.008, as UAL's mannequins have it, not above them at the middle of the hips' thickness (a seat, a belly or armour moved it). Every marker rig changes, saved ones too: look at yours in a crouch. `fitSkeleton`'s `pelvis: 'middle'` gives the old placement.
+- Rigs bound from markers put the neck joint at the top of the shoulders, an eighth of the way down from the head joint to the pelvis as on UAL's mannequins; on a body with its arms down it sat in the upper chest (5 to 9 cm low on the AI cast), so the head turned from there.
 - Tailor: a new garment, or one with nothing drawn yet, is cut from the body's own triangles (**cloth mesh: as the body**), not draped: the cheapest and surest way. Saved garments keep how they were made.
 - `loadCharacterAssets` no longer fetches Quaternius' hair library (13.9 MB) at start: a character fetches it the first time it wears one of its pieces, and offers the pieces by name before then (`QUATERNIUS_HAIR`). `CharacterAssets.hair` is null until then; `assets.loadHair()` loads it, and `loadCharacterAssets(scene, { hair: 'now' })` keeps the old behaviour.
 - Character builder: the panel runs from the most basic, least changeable choices to the most: tabs Body, Skin, Eyes, Face, Hair, Clothes, Hold, Motion, Export; in the Body tab, shape (gender, age, height) then ancestry then figure (weight, muscle and the rest); in Hair, brows and the style before beard, moustache and stubble. Control paths that moved: `Body/figure/weight`, `Body/figure/muscle`.
@@ -41,7 +42,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 - Retargeted clips keep the feet on the ground on bodies whose thigh and shin are proportioned differently from the clip's (the rig tool's AI characters crouched with one foot in the air): a foot near the ground goes where the source's went and the leg bends to reach it; a foot in the air keeps the copied angles. On by default in `retargeter`, `retargetClip` and `bakeClip`; `footIk: false` turns it off.
 - Rig tool: a recipe handed over through `api.recipe` with new markers now binds the mesh again (it kept the old binding).
-- Eurasian male's knees sit 1.5 cm higher, so its feet plant more evenly.
+- The African American female's and Eurasian male's knee joints sit higher (2.5 and 6 cm), at the hollow behind the knee rather than below it.
 - Tailor: switching to a slot that wears something the body shown cannot (MakeHuman's shoes while another body is on show) opened as "(new garment)" but said there was no outline; it now starts a new garment.
 - Tailor: undo and redo work while an outline is being clicked out, a point at a time (they did nothing until it was closed). `outlineField3d` gains `undoPoint`/`redoPoint`. A panel's tooltips stay inside its padding, so the undo button's is no longer cut off at the edge.
 - `riggedBodyGlb` wrote a garment's uvs upside down (ours run up the image, glTF's down), so a textured garment's picture landed flipped on it in other engines.

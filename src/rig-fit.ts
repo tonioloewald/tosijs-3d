@@ -420,7 +420,9 @@ export function fitSkeleton(
   put('root', null, { x: cx, y: floor, z: pelvis.z })
   put('pelvis', 'root', pelvis)
   const armY = (markers.elbowL.y + markers.elbowR.y) / 2
-  const neckY = Math.max(lerp(groin.y, chin.y, 0.82), Math.min(armY, chin.y))
+  // The neck's base is the top of the shoulders: on both mannequins an
+  // eighth of the way down from the head joint to the pelvis.
+  const neckY = Math.max(lerp(pelvisY, chin.y, 0.874), Math.min(armY, chin.y))
   const neckZ = torsoDepth(chin.x, neckY, pelvis.z)
   const neck = { x: lerp(cx, chin.x, 0.8), y: neckY, z: neckZ }
   const spineAt = (t: number) => {
