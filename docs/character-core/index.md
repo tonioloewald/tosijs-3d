@@ -25,17 +25,17 @@ import { humanBodyMaker } from 'tosijs-3d/human-rig'
 | [`spatial-transform`](/spatial-transform/) | the vector and quaternion maths under them |
 | [`proxy-fit`](/proxy-fit/), [`proxy-rigid`](/proxy-rigid/) | clothes bound to a body (MakeHuman's `.mhclo`), and rigid parts in them |
 | [`hair-fit`](/hair-fit/) | a hairstyle warped onto a head |
-| [`garment-cut`](/garment-cut/), [`uv-unwrap`](/uv-unwrap/), [`garment-file`](/garment-file/) | the tailor: garments cut from a body, unwrapped, saved as GLB or OBJ |
+| [`garment-cut`](/garment-cut/), [`body-sweep`](/body-sweep/), [`tailor-recipe`](/tailor-recipe/), [`uv-unwrap`](/uv-unwrap/), [`garment-file`](/garment-file/) | the tailor: garments cut and swept from a body, unwrapped, saved as GLB or OBJ |
 | [`skin-tone`](/skin-tone/) | skin colour from one dial |
 | [`skin-paint`](/skin-paint/) | the lips and stubble over the skin, as vertex colours (glTF's `COLOR_0`) |
 | [`cloth-bake`](/cloth-bake/) | a recoloured garment's texture, baked to a picture |
 | [`garment-proxy`](/garment-proxy/) | a garment of your own bound to its body as a proxy, its material as data |
 | [`garment-bind`](/garment-bind/) | any mesh bound to a body by its nearest skin |
-| [`glb-clips`](/glb-clips/) | a GLB's animations read and retargeted onto another skeleton |
+| [`glb-clips`](/glb-clips/), [`bvh`](/bvh/) | a GLB's animations, or a BVH motion capture, read and retargeted onto another skeleton; clips written out as BVH |
 | [`hand-socket`](/hand-socket/) | where a hand holds things on any rig (the socket and grip arithmetic) |
 | [`character-sources`](/character-sources/) | the bodies besides MakeHuman's, with Tonio's hand-placed rigs for the AI cast |
 | [`eye-art`](/eye-art/) | Tonio's eye art with its iris recoloured, and UVs that map both eyes onto it |
-| `png` | PNG read and written, byte for byte, with no canvas |
+| `png`, [`jpeg`](/jpeg/) | PNG read and written, byte for byte, and JPEG read (baseline and progressive), with no canvas |
 | [`character-file`](/character-file/) | a character as one versioned JSON document |
 | [`character-settings`](/character-settings/) | every setting a character has, with its default; the slots; hair colours; the body pack's URL |
 | [`proxy-cover`](/proxy-cover/) | the skin under what is worn, tucked in and hidden |

@@ -11,15 +11,27 @@ import type { SlotLook } from './character-file.js';
 export { CHARACTER_SLOTS, DEFAULT_CHARACTER } from './character-settings.js';
 import { type CharacterSource } from './character-sources.js';
 export { AI_CHARACTER_SOURCES, CHARACTER_SOURCES, rigFromMarkers, type CharacterSource, } from './character-sources.js';
-/** What every character in a scene shares: MakeHuman's pack, the hair. */
+/**
+ * What every character in a scene shares: MakeHuman's pack, and Quaternius'
+ * hair library, which is fetched the first time a character wears one of its
+ * pieces (it is 13.9 MB, and MakeHuman's own hair needs none of it).
+ */
 export interface CharacterAssets {
     pack: HumanPack;
-    hair: HairLibrary;
+    /** The hair library, once loaded (or as passed in). */
+    hair?: HairLibrary | null;
+    /** Load the hair library (once; later calls get the same one). */
+    loadHair?: () => Promise<HairLibrary>;
+    /** Where the hair library is, for an export to read its pictures. */
+    hairUrl?: string;
 }
-/** Load the pack and the hair library (once per scene). */
+/**
+ * Load the pack (once per scene). The hair library waits until a character
+ * wears a Quaternius piece; `hair: 'now'` loads it here as before.
+ */
 export declare function loadCharacterAssets(scene: BABYLON.Scene, options?: {
     pack?: string;
-    hair?: string;
+    hair?: string | 'now';
 }): Promise<CharacterAssets>;
 /** What is on show: the body, built, and what it was made from. */
 export interface ShownBody {
@@ -86,6 +98,28 @@ export interface SceneCharacter {
      * `riggedBodyGlb`'s `garments` writes. Empty on MakeHuman's body.
      */
     wornGarments(): GarmentProxy[];
+    /**
+     * Every garment worn on the body shown, bound to it as data, for
+     * `riggedBodyGlb`'s `garments`: on a mesh's body `wornGarments()`; on
+     * MakeHuman's, its own clothes and the garments of your own made on it,
+     * fitted as drawn and bound to the skin, their pictures fetched.
+     */
+    exportGarments(): Promise<GarmentProxy[]>;
+    /**
+     * The character as `riggedBodyGlb` writes it: the body shown (on
+     * MakeHuman's, with its skin's colour, lips and stubble as a surface and
+     * vertex colours, and its eyes), its garments (`exportGarments`, and on
+     * MakeHuman's body its hair, beard and brows, coloured) and the eyes'
+     * picture in its iris colour. Null when nothing is shown yet.
+     */
+    exportCharacter(): Promise<{
+        body: RiggedBody;
+        garments: GarmentProxy[];
+        eyeTexture: {
+            bytes: Uint8Array;
+            mimeType: string;
+        } | null;
+    } | null>;
     /**
      * Where the hair's hand adjustment is measured from: the Head bone's node
      * and the skull's middle in its frame (metres, y up, z forward), before

@@ -46,6 +46,12 @@ export declare function glbNodePosition(bytes: Uint8Array, name: string, options
     z: number;
 } | null;
 /**
+ * Whether the names of a file's mesh nodes are riggedBodyGlb's: a `body`, and
+ * nothing but `eyes`, `held` and garments (`<slot>: <name>`) beside it. A
+ * file of anyone else's with a `body` and a `hair` is taken whole.
+ */
+export declare function ownExportNames(names: string[]): boolean;
+/**
  * A GLB's triangles for rigging, with no engine: the file's frame, skinned
  * meshes at rest, one surface per material (its glTF material as data,
  * images as bytes), eyes split out. `pick` takes one node and its children.

@@ -464,6 +464,26 @@ function wirePointer(owner) {
             }
         }
         const onPopup = hit?.hit === true ? hit.pickedMesh : null;
+        /*
+        A MENU GOES WHEN YOU PRESS SOMEWHERE ELSE, as a DOM select's list does.
+        Not on its opener, though: that is a panel, and the panel closes the menu
+        itself unless the press is on the control that opened it (which toggles
+        it). Closed after the hit test, so the press still lands where it was.
+        */
+        if (ray != null) {
+            for (const p of [...list]) {
+                if (!p.dismissOutside || p.plane.mesh == null)
+                    continue;
+                if (onPopup === p.plane.mesh)
+                    continue;
+                const o = p.opener;
+                const onOpener = o != null &&
+                    typeof o.getScene === 'function' &&
+                    o.getScene().pickWithRay(ray, (m) => m === o)?.hit === true;
+                if (!onOpener)
+                    p.close();
+            }
+        }
         if (onPopup != null) {
             // CLICK to front, not just drag-to-front: raising something only when you
             // move it means a panel you merely want to READ stays buried.
@@ -539,9 +559,10 @@ function wirePointer(owner) {
 /**
  * How far to move `mesh` (in its parent's frame) so all of it is on screen,
  * or null when it already is or there is no flat screen to fit (a headset).
- * Pixels off an edge become world units at the mesh's depth.
+ * Pixels off an edge become world units at the mesh's depth. `reach` asks
+ * only for what a dragged popup needs (see `reachable`).
  */
-function intoView(mesh) {
+function intoView(mesh, reach = false) {
     const scene = mesh.getScene();
     const camera = scene.activeCamera;
     if (camera == null || camera.getClassName() === 'WebXRCamera')
@@ -561,6 +582,9 @@ function intoView(mesh) {
     let bottom = -Infinity;
     for (const c of corners) {
         const s = BABYLON.Vector3.Project(c, BABYLON.Matrix.Identity(), transform, viewport);
+        // Behind the camera, a projection means nothing (it ran away).
+        if (s.z < 0 || s.z > 1)
+            return null;
         left = Math.min(left, s.x);
         right = Math.max(right, s.x);
         top = Math.min(top, s.y);
@@ -569,23 +593,42 @@ function intoView(mesh) {
     const margin = 8;
     let dx = 0;
     let dy = 0;
-    // Off an edge: back in by that much. Too big to fit at all: centred.
-    if (right - left < w - margin * 2) {
-        if (left < margin)
-            dx = margin - left;
-        else if (right > w - margin)
-            dx = w - margin - right;
+    if (reach) {
+        /*
+        WHERE IT WAS DROPPED, AS LONG AS ITS BAR CAN BE HAD. A popup may be slid
+        partly off screen to see past it, but its title band (move and close)
+        must stay reachable: the top on screen, and some of it across. The same
+        rule as a frame panel's screen drag (48 CSS px of it, top never above).
+        */
+        const keep = 48 / engine.getHardwareScalingLevel();
+        if (right < keep)
+            dx = keep - right;
+        else if (left > w - keep)
+            dx = w - keep - left;
+        if (top < 0)
+            dy = -top;
+        else if (top > h - keep)
+            dy = h - keep - top;
     }
-    else
-        dx = w / 2 - (left + right) / 2;
-    if (bottom - top < h - margin * 2) {
-        if (top < margin)
-            dy = margin - top;
-        else if (bottom > h - margin)
-            dy = h - margin - bottom;
+    else {
+        // Off an edge: back in by that much. Too big to fit at all: centred.
+        if (right - left < w - margin * 2) {
+            if (left < margin)
+                dx = margin - left;
+            else if (right > w - margin)
+                dx = w - margin - right;
+        }
+        else
+            dx = w / 2 - (left + right) / 2;
+        if (bottom - top < h - margin * 2) {
+            if (top < margin)
+                dy = margin - top;
+            else if (bottom > h - margin)
+                dy = h - margin - bottom;
+        }
+        else
+            dy = h / 2 - (top + bottom) / 2;
     }
-    else
-        dy = h / 2 - (top + bottom) / 2;
     if (Math.abs(dx) < 1 && Math.abs(dy) < 1)
         return null;
     if (dx === 0 && dy === 0)
@@ -609,7 +652,7 @@ function intoView(mesh) {
 /** Per owner: hear pointer events in a layer scene a popup was made in. */
 const layerListeners = new WeakMap();
 export function openPopup(owner, opts) {
-    const { svg, opener = null, width = 1, resolution = 512, offset = {}, lift = 0.02, draggable = true, modal = false, gripHeight = 0.2, chrome = true, handleClosed, } = opts;
+    const { svg, opener = null, width = 1, resolution = 512, offset = {}, lift = 0.02, draggable = true, modal = false, gripHeight = 0.2, chrome = true, handleClosed, dismissOutside = false, } = opts;
     const vb = svg.viewBox?.baseVal;
     const aspect = vb && vb.width > 0 ? vb.height / vb.width : 1;
     /*
@@ -906,9 +949,23 @@ export function openPopup(owner, opts) {
             plane.y = mesh.position.y;
             plane.z = mesh.position.z;
         });
+        // Dropped with its title band out of reach: back until it is.
+        drag.onDragEndObservable.add(() => {
+            for (let pass = 0; pass < 4; pass++) {
+                const shift = intoView(mesh, true);
+                if (shift == null)
+                    break;
+                plane.x += shift.x;
+                plane.y += shift.y;
+                mesh.position.set(plane.x, plane.y, plane.z);
+                mesh.computeWorldMatrix(true);
+            }
+        });
     }
     const api = {
         plane,
+        opener,
+        dismissOutside,
         modal,
         vbWidth: vbW,
         vbHeight: vbH,

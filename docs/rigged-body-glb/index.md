@@ -36,7 +36,8 @@ What the file is (Dramatis's `export-format`, version 1):
   first (a mesh generator's 1.9 units, say, made a real 1.7 m).
 - **Meshes**: `body`, one primitive per material, and `eyes` (both eyeballs,
   skinned wholly to `Head`, which the profile prefers to parenting a mesh
-  under a joint). The file's own materials go out as glTF PBR with their
+  under a joint; with `eyeTexture`, eye-art's picture laid on each by
+  `gltfEyeUvs`, else plain white). The file's own materials go out as glTF PBR with their
   pictures embedded, when the body's surfaces carry them as data (a body
   read by `glb-rig`); otherwise a plain grey.
 - **Springs**, when given the rig `recipe`: a bone spring (a tail) swings
@@ -51,7 +52,10 @@ What the file is (Dramatis's `export-format`, version 1):
   from Blender), each a mesh named for its slot, skinned with weights from
   the body's own, as the builder draws them (armour lifted 5 mm), with its
   material as data (its pictures, and its saved look's glTF factors where
-  it has a plain reading). The skin they cover is tucked under them, as the
+  it has a plain reading). A recoloured cloth's picture is written
+  recoloured ([cloth-bake](/cloth-bake/), PNG or JPEG in, PNG out), so the
+  file shows what the builder does in any engine; `bake: false` writes the
+  pictures as they came. The skin they cover is tucked under them, as the
   builder does, and skin a garment lists in its `delete` (as MakeHuman's
   clothes do) is dropped; `cover: false` leaves the skin alone.
 - **Clips**, with `clips`: animations read from any skinned GLB

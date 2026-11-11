@@ -141,6 +141,8 @@ export function validateRigRecipe(doc) {
         out.push(`version is ${r.version}, expected ${RIG_RECIPE_VERSION}`);
     if (r.armSpaceDeg != null && !isNum(r.armSpaceDeg))
         out.push('armSpaceDeg is not a number');
+    if (r.floor != null && !isNum(r.floor))
+        out.push('floor is not a number');
     if (r.roles != null) {
         if (typeof r.roles !== 'object')
             out.push('roles is not an object');
@@ -163,6 +165,17 @@ export function validateRigRecipe(doc) {
             out.push('binding.tail is not {x, y, z}');
         if (b?.tailBase != null && !isVec(b.tailBase))
             out.push('binding.tailBase is not {x, y, z}');
+        if (b?.depths != null) {
+            if (typeof b.depths !== 'object' || Array.isArray(b.depths))
+                out.push('binding.depths is not marker → number');
+            else
+                for (const [k, v] of Object.entries(b.depths)) {
+                    if (!MARKER_NAMES.includes(k))
+                        out.push(`binding.depths.${k} is not a marker`);
+                    else if (!isNum(v))
+                        out.push(`binding.depths.${k} is not a number`);
+                }
+        }
         if (b?.joints != null) {
             if (typeof b.joints !== 'object' || Array.isArray(b.joints))
                 out.push('binding.joints is not name → {x, y, z}');
@@ -302,6 +315,13 @@ export function rigRecipeSchema() {
                 default: 0,
                 ...DEG,
             },
+            floor: {
+                type: 'number',
+                description: 'Metres to raise (negative: lower) the body from where its soles would stand.',
+                minimum: -0.5,
+                maximum: 0.5,
+                default: 0,
+            },
             binding: {
                 type: 'object',
                 description: 'A mesh with no skeleton: the markers its skeleton is fitted from (front view, metres, left on +X).',
@@ -336,6 +356,12 @@ export function rigRecipeSchema() {
                         type: 'object',
                         description: 'Joints moved by hand after the fit (a thumb, a toe, a shoulder), by name, in the mesh’s frame.',
                         additionalProperties: vec3('Where the joint is.'),
+                    },
+                    depths: {
+                        type: 'object',
+                        description: 'Depth set by hand, per marker: metres in front (+Z; negative behind) of where the fit puts that marker’s joint.',
+                        properties: Object.fromEntries(MARKER_NAMES.map((n) => [n, { type: 'number' }])),
+                        additionalProperties: false,
                     },
                     hands: {
                         enum: [...HAND_MODES],

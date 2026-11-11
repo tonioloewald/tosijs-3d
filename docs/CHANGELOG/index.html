@@ -22,7 +22,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=c89d9110f950" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=f9a43918f299" data-tosi-doc-system />
   <title>Changelog — tosijs-3d</title>
   <meta name="description" content="All notable changes to tosijs-3d, one page per version: each lives in changelog/v&lt;version&gt;.md (on the site at /v&lt;version&gt;/), and this page is the index…" />
   <link rel="canonical" href="https://3d.tosijs.net/CHANGELOG/" />
@@ -33,13 +33,13 @@
   <meta property="og:description" content="All notable changes to tosijs-3d, one page per version: each lives in changelog/v&lt;version&gt;.md (on the site at /v&lt;version&gt;/), and this page is the index…" />
   <meta property="og:url" content="https://3d.tosijs.net/CHANGELOG/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Changelog","description":"All notable changes to tosijs-3d, one page per version: each lives in changelog/v\u003cversion>.md (on the site at /v\u003cversion>/), and this page is the index…","url":"https://3d.tosijs.net/CHANGELOG/","inLanguage":"en","dateModified":"2026-11-08T21:50:31.267Z","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Changelog","description":"All notable changes to tosijs-3d, one page per version: each lives in changelog/v\u003cversion>.md (on the site at /v\u003cversion>/), and this page is the index…","url":"https://3d.tosijs.net/CHANGELOG/","inLanguage":"en","dateModified":"2026-11-11T13:22:37.861Z","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Upgrading","item":"https://3d.tosijs.net/upgrading/"},{"@type":"ListItem","position":2,"name":"Changelog","item":"https://3d.tosijs.net/CHANGELOG/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=7ef9fd7bb1e4" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=964dce30c6d0" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="CHANGELOG.md">
 <h1 id="changelog">Changelog</h1>
 <!--{ "parent": "upgrading", "order": 20 }-->
@@ -52,11 +52,12 @@ versions may carry breaking peer-dependency changes. Each is called out in a
 <strong>⚠️ Breaking</strong> block on its version&#39;s page, with what a consumer must do.
 Upgrading across a minor? Start with <a href="/Migration/">Migration</a>.</p>
 <h2 id="unreleased">Unreleased</h2>
-<h2 id="0125">0.12.5</h2>
-<p>The latest release. Exported bodies carry clips, garments and held items; the cast&#39;s rigs are engine-free; the Babylon peers are optional (install them yourself); the character builder gets a Character menu, a hair manipulator and sub-sections. See <a href="/v0.12.5/">0.12.5</a>.</p>
+<h2 id="0126">0.12.6</h2>
+<p>The latest release. BVH clips kept and carried in character files; MakeHuman&#39;s body exports dressed, with hair, skin and eyes; tailored garments fit any body; feet stay planted under retargeting; marker rigs place pelvis, neck and knees as the mannequins do. See <a href="/v0.12.6/">0.12.6</a>.</p>
 <h2 id="every-version">Every version</h2>
 <!-- toc -->
 <ul>
+<li><a href="/v0.12.6/">0.12.6</a></li>
 <li><a href="/v0.12.5/">0.12.5</a></li>
 <li><a href="/v0.12.4/">0.12.4</a></li>
 <li><a href="/v0.12.3/">0.12.3</a></li>
@@ -156,6 +157,7 @@ Upgrading across a minor? Start with <a href="/Migration/">Migration</a>.</p>
         <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-tailor-tool" aria-label="tailor tool"></button><a class="doc-link" href="../tailor-tool/">tailor tool</a></div>
         <ul id="tosi-nav-tailor-tool">
+          <li><a class="doc-link" href="../tailor-recipe/">tailor-recipe</a></li>
           <li><a class="doc-link" href="../tailor-panel/">tailor panel</a></li>
         </ul></li>
         <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
@@ -176,6 +178,7 @@ Upgrading across a minor? Start with <a href="/Migration/">Migration</a>.</p>
             <li><a class="doc-link" href="../outline-field/">outline field</a></li>
             <li><a class="doc-link" href="../remesh/">remesh</a></li>
             <li><a class="doc-link" href="../cloth-drape/">cloth drape</a></li>
+            <li><a class="doc-link" href="../body-sweep/">body-sweep</a></li>
           </ul></li>
           <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-garment-bind" aria-label="garment-bind"></button><a class="doc-link" href="../garment-bind/">garment-bind</a></div>
           <ul id="tosi-nav-garment-bind">
@@ -328,6 +331,7 @@ Upgrading across a minor? Start with <a href="/Migration/">Migration</a>.</p>
           </ul></li>
           <li><a class="doc-link" href="../skin-paint/">skin paint</a></li>
           <li><a class="doc-link" href="../cloth-bake/">cloth bake</a></li>
+          <li><a class="doc-link" href="../jpeg/">jpeg</a></li>
           <li><a class="doc-link" href="../eye-art/">eye art</a></li>
           <li><a class="doc-link" href="../hair-place/">hair place</a></li>
           <li><a class="doc-link" href="../mesh-sdf/">mesh sdf</a></li>
@@ -335,7 +339,11 @@ Upgrading across a minor? Start with <a href="/Migration/">Migration</a>.</p>
         </ul></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-retarget" aria-label="retarget"></button><a class="doc-link" href="../retarget/">retarget</a></div>
         <ul id="tosi-nav-retarget">
-          <li><a class="doc-link" href="../glb-clips/">glb clips</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-clips" aria-label="glb clips"></button><a class="doc-link" href="../glb-clips/">glb clips</a></div>
+          <ul id="tosi-nav-glb-clips">
+            <li><a class="doc-link" href="../bvh/">bvh</a></li>
+            <li><a class="doc-link" href="../clip-store/">clip-store</a></li>
+          </ul></li>
         </ul></li>
         <li><a class="doc-link" href="../rigged-body/">rigged-body</a></li>
         <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
@@ -544,6 +552,7 @@ Upgrading across a minor? Start with <a href="/Migration/">Migration</a>.</p>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch -open"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="true" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link current" href="../CHANGELOG/" aria-current="page">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.12.6/">0.12.6</a></li>
         <li><a class="doc-link" href="../v0.12.5/">0.12.5</a></li>
         <li><a class="doc-link" href="../v0.12.4/">0.12.4</a></li>
         <li><a class="doc-link" href="../v0.12.3/">0.12.3</a></li>
@@ -629,6 +638,6 @@ Upgrading across a minor? Start with <a href="/Migration/">Migration</a>.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-3xsm839e.js"></script>
+  <script type="module" src="../hydrate-9knhx6yx.js"></script>
 </body>
 </html>

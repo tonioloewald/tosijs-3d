@@ -921,9 +921,7 @@ export function mountRigTool(
         ? Object.fromEntries(Object.entries(depths).filter(([, v]) => v))
         : undefined
     const next =
-      bound != null
-        ? { ...bound, markers, tail, tailBase, depths: kept }
-        : null
+      bound != null ? { ...bound, markers, tail, tailBase, depths: kept } : null
     const after = fittedJoints(next, false)
     const joints: Record<string, Vec3> = {}
     /*

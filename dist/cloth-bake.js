@@ -20,9 +20,23 @@ const red = recolourCloth(shirt, '#7a2e2e', 0.8)
 const png = pngEncode(red.data, red.width, red.height)
 const sheen = clothSheenColour('#7a2e2e')   // KHR_materials_sheen's colour, linear
 ```
+
+`bakeClothLook(picture, look)` is the whole step for a garment: its picture
+(PNG or JPEG bytes, [jpeg](/jpeg/)) and the cloth look it is worn with give
+the recoloured picture as a PNG, or null when the look leaves the picture as
+it is. `riggedBodyGlb` does this to every garment it writes unless told not
+to (`bake: false`).
+
+HAIR TOO: `recolourHair(image, base, highlight)` is
+[hair-shading](/hair-shading/) on pixels, for a hairstyle's texture: each
+strand's brightness over the texture's mean (`hairMean`, only where there is
+hair) times the base colour, the brightest strands leaning to the highlight.
 */
 /*{ "parent": "character-core", "order": 38 }*/
+import { pngEncode } from './png.js';
+import { decodeImage } from './jpeg.js';
 import { parseColor } from './color.js';
+import { resolveMaterial } from './material-recipe.js';
 const toLinear = (c) => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 const toSrgb = (c) => c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
 /** A texture's mean brightness (linear luminance), sampled as the material measures it. */
@@ -71,5 +85,79 @@ export function clothSheenColour(colour) {
     if (c == null)
         return null;
     return [0.6 + 0.4 * c.r, 0.6 + 0.4 * c.g, 0.6 + 0.4 * c.b];
+}
+/**
+ * A garment's picture as its cloth look draws it: recoloured toward the
+ * look's colour by its recolour, as a PNG. Null when there is nothing to bake
+ * (not a cloth look, no recolour, no colour) or the picture cannot be read.
+ */
+export function bakeClothLook(picture, look) {
+    if (look?.type !== 'cloth')
+        return null;
+    const r = resolveMaterial(look);
+    const colour = r.albedo?.image == null ? r.albedo?.value : null;
+    const amount = r.recolour?.value;
+    if (typeof colour !== 'string' || typeof amount !== 'number' || amount <= 0)
+        return null;
+    let image;
+    try {
+        image = decodeImage(picture.bytes);
+    }
+    catch {
+        return null;
+    }
+    const out = recolourCloth(image, colour, amount);
+    return {
+        bytes: pngEncode(out.data, out.width, out.height),
+        mimeType: 'image/png',
+    };
+}
+/** A hair texture's mean brightness where there is hair (alpha past half), as hair-shading measures it. */
+export function hairMean(image) {
+    const d = image.data;
+    let sum = 0;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4 * 29) {
+        if (d[i + 3] < 128)
+            continue;
+        sum +=
+            0.2126 * toLinear(d[i] / 255) +
+                0.7152 * toLinear(d[i + 1] / 255) +
+                0.0722 * toLinear(d[i + 2] / 255);
+        n++;
+    }
+    return n > 0 ? sum / n : 0.42;
+}
+/**
+ * A hair texture coloured as hair-shading draws it: the texture read as
+ * grey, each pixel's brightness over `mean` times `base`, leaning to
+ * `highlight` (both sRGB, anything `parseColor` reads) on the brightest
+ * strands by `strength`. Alpha is kept. An unreadable colour returns a copy.
+ */
+export function recolourHair(image, base, highlight, strength = 0.25, mean = hairMean(image)) {
+    const data = image.data.slice();
+    const b = parseColor(base);
+    const h = parseColor(highlight);
+    if (b == null || h == null)
+        return { ...image, data };
+    const lb = [toLinear(b.r), toLinear(b.g), toLinear(b.b)];
+    const lh = [toLinear(h.r), toLinear(h.g), toLinear(h.b)];
+    const m = Math.max(0.03, mean);
+    const smooth = (e0, e1, x) => {
+        const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+        return t * t * (3 - 2 * t);
+    };
+    for (let i = 0; i < data.length; i += 4) {
+        const l = (0.2126 * toLinear(data[i] / 255) +
+            0.7152 * toLinear(data[i + 1] / 255) +
+            0.0722 * toLinear(data[i + 2] / 255)) /
+            m;
+        const k = smooth(0.9, 1.8, l) * strength;
+        for (let ch = 0; ch < 3; ch++) {
+            const v = lb[ch] * l + (lh[ch] * l - lb[ch] * l) * k;
+            data[i + ch] = Math.round(Math.min(1, Math.max(0, toSrgb(v))) * 255);
+        }
+    }
+    return { width: image.width, height: image.height, data };
 }
 //# sourceMappingURL=cloth-bake.js.map

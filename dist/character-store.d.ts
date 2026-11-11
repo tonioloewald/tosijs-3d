@@ -18,7 +18,7 @@ export type CharacterName = {
  * or renamed: saving under it again replaces nothing.
  */
 export declare function nameCharacter(typed: string, saved: readonly string[], current?: string): CharacterName;
-/** Where in a document a run of bytes is: `garments/<name>` or `bodies/<name>`. */
+/** Where in a document a run of bytes is: `garments/<name>`, `bodies/<name>`, `pictures/<key>` or `clips/<file>`. */
 type BlobPath = string;
 /**
  * A document's bytes taken out (pure): the document left, and each base64

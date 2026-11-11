@@ -24,3 +24,8 @@ stubbleTint(colours, mask, 0.6, skinAlbedo(tone, redness), hairRgb)
   not on the lips, and down the front and sides of the neck, fading.
 - `stubbleTint`: the skin there toward a darkened, slightly cool hair
   colour (short hairs read as a shadow), by an amount (0 clean-shaven).
+- `skinSurface`: the skin as an exporter writes it, a glTF material in the
+  skin's albedo and the colours with their alpha set to 1 (the builder keeps
+  the skin's thinness there for its back-light, which glTF would read as
+  opacity). A `RiggedBody`'s `surfaces` and `colors` take them, and
+  `riggedBodyGlb` writes the skin as the builder shows it.

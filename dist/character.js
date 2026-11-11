@@ -88,13 +88,18 @@ garment's colourway and a material recipe over it.
 /*{ "parent": "character-builder" }*/
 import * as BABYLON from '@babylonjs/core';
 import { loadHumanPack } from './human-pack.js';
-import { macroWeights, morphHuman, DEFAULT_HUMAN_BODY } from './human-morph.js';
+import { macroWeights, morphHuman, humanJoint, DEFAULT_HUMAN_BODY, } from './human-morph.js';
 import { humanBodyMaker, bodyDetailProxy } from './human-rig.js';
 import { skinMaterial } from './character-builder.js';
-import { lipTint, stubbleMask as stubbleMask_, stubbleTint, } from './skin-paint.js';
+import { lipTint, skinSurface, stubbleMask as stubbleMask_, stubbleTint, } from './skin-paint.js';
 import { humanFace, bodyEyes, eyeGaze, eyeTexture, eyeMaterial, lashMaterial, } from './human-face.js';
-import { eyeStyle } from './eye-art.js';
-import { loadHairLibrary, headScalp, hairMaterial, humanHair, } from './human-hair.js';
+import { eyePngUrl, eyeStyle, lashAlpha, lashPicture, lashUvs, recolourEyePng, shortenLashes, } from './eye-art.js';
+import { loadHairLibrary, headScalp, hairMaterial, humanHair, QUATERNIUS_HAIR, } from './human-hair.js';
+import { placeHair, readHairLibrary, readHairMaterials, } from './hair-place.js';
+import { recolourHair } from './cloth-bake.js';
+import { decodeImage } from './jpeg.js';
+import { pngEncode } from './png.js';
+import { bindGarment } from './garment-bind.js';
 import { skinThinness } from './skin-shading.js';
 import { vertexNormals } from './hair-fit.js';
 import { nearestWeights, fitProxy, drawnPositions, underCover, inflate, proxyDelta, smoothUnder, } from './proxy-fit.js';
@@ -105,7 +110,7 @@ import { clothShading, clothRecipe } from './cloth-shading.js';
 import { faceDeltas, humanExpressions, blinker, lidsFollow, babble, } from './human-expression.js';
 import { readSkeleton } from './retarget-babylon.js';
 import { readGarment } from './garment-file.js';
-import { garmentMadeOn, garmentProxy, lookGltf, } from './garment-proxy.js';
+import { garmentFileMaterial, garmentMadeOn, garmentProxy, lookGltf, onSkin, packGarmentMaterial, } from './garment-proxy.js';
 import { loadRigTriangles, loadSkinnedBody, buildBody, soleVertices, lowestOf, surfaceMaterial, } from './rig-build.js';
 import { bodyFromMarkers, lidBlink } from './rigged-body.js';
 import { applyRigRecipe } from './rig-recipe-babylon.js';
@@ -116,13 +121,27 @@ import { CHARACTER_SOURCES } from './character-sources.js';
 export { AI_CHARACTER_SOURCES, CHARACTER_SOURCES, rigFromMarkers, } from './character-sources.js';
 /** A character's `eyeStyle` setting as an eye texture's style. */
 const eyeLook = (v) => v === 'drawn' ? 'drawn' : eyeStyle(v);
-/** Load the pack and the hair library (once per scene). */
+/**
+ * Load the pack (once per scene). The hair library waits until a character
+ * wears a Quaternius piece; `hair: 'now'` loads it here as before.
+ */
 export async function loadCharacterAssets(scene, options = {}) {
-    const [pack, hair] = await Promise.all([
-        loadHumanPack(options.pack ?? hm08PackUrl()),
-        loadHairLibrary(scene, options.hair ?? assetUrl('quaternius/libraries/hairstyles.glb', 2)),
-    ]);
-    return { pack, hair };
+    const url = options.hair && options.hair !== 'now'
+        ? options.hair
+        : assetUrl('quaternius/libraries/hairstyles.glb', 2);
+    const assets = {
+        pack: await loadHumanPack(options.pack ?? hm08PackUrl()),
+        hair: null,
+        hairUrl: url,
+    };
+    let loading = null;
+    assets.loadHair = () => (loading ??= loadHairLibrary(scene, url).then((lib) => {
+        assets.hair = lib;
+        return lib;
+    }));
+    if (options.hair === 'now')
+        await assets.loadHair();
+    return assets;
 }
 const plain = (v) => JSON.parse(JSON.stringify(v));
 const linearHex = (hex) => {
@@ -143,7 +162,10 @@ const HAT_LIFT = 0.012;
  * built and dressed.
  */
 export async function makeCharacter(scene, assets, options = {}) {
-    const { pack, hair: hairLib } = assets;
+    const { pack } = assets;
+    // Quaternius' hair: its names before it loads, the library when worn.
+    const hairNames = (category) => assets.hair?.names(category) ?? [...QUATERNIUS_HAIR[category]];
+    const hairLibrary = async () => assets.hair ?? (assets.loadHair ? await assets.loadHair() : null);
     const SLOTS = CHARACTER_SLOTS;
     const s = {
         ...plain(DEFAULT_CHARACTER),
@@ -187,7 +209,7 @@ export async function makeCharacter(scene, assets, options = {}) {
         hair: [
             'none',
             ...kinds('hair', () => true),
-            ...hairLib.names('hair').filter((n) => adult(n) && !facial(n)),
+            ...hairNames('hair').filter((n) => adult(n) && !facial(n)),
         ],
         // MakeHuman's beards come without moustaches: a moustache is its own
         // choice. Quaternius' are drawn for its own stylised mouth.
@@ -196,7 +218,7 @@ export async function makeCharacter(scene, assets, options = {}) {
         brows: [
             'none',
             ...kinds('eyebrows', () => true),
-            ...hairLib.names('eyebrows').filter(adult),
+            ...hairNames('eyebrows').filter(adult),
         ],
     };
     for (const slot of SLOTS)
@@ -255,6 +277,22 @@ export async function makeCharacter(scene, assets, options = {}) {
     a mesh's body is bound to that body when it is shown.
     */
     const garments = new Map();
+    // A pack picture as bytes, for an export (null if it cannot be fetched).
+    const picture = async (url) => {
+        if (!url)
+            return null;
+        try {
+            const res = await fetch(url);
+            if (!res.ok)
+                return null;
+            const bytes = new Uint8Array(await res.arrayBuffer());
+            const mimeType = bytes[0] === 0xff && bytes[1] === 0xd8 ? 'image/jpeg' : 'image/png';
+            return { bytes, mimeType };
+        }
+        catch {
+            return null;
+        }
+    };
     const imageUrl = (img) => img
         ? URL.createObjectURL(new Blob([img.bytes], { type: img.mimeType }))
         : undefined;
@@ -491,6 +529,14 @@ export async function makeCharacter(scene, assets, options = {}) {
             'tongue01',
         ].filter((n) => proxies[n] || garments.get(n)?.proxy);
         let wearing = await Promise.all(names.map((n) => garments.has(n) ? garments.get(n).proxy : pack.proxy(n)));
+        // The hair library, if a piece of it is worn (fetched the first time).
+        const quaternius = ['hair', 'beard', 'moustache', 'brows'].some((k) => s[k] !== 'none' && !proxies[s[k]] && !garments.has(s[k]));
+        const fetching = quaternius && !assets.hair;
+        if (fetching)
+            status('loading hair…');
+        const hairLib = quaternius ? await hairLibrary() : null;
+        if (fetching)
+            status(false);
         if (token !== dressing || disposed)
             return;
         if (s.hideClothes)
@@ -500,8 +546,8 @@ export async function makeCharacter(scene, assets, options = {}) {
         hairMeshes = [];
         const nudge = { y: s.hairUp, z: s.hairForward, scale: s.hairSize };
         for (const key of ['hair', 'beard', 'moustache', 'brows']) {
-            const parts = hairLib.piece(s[key]);
-            if (!parts)
+            const parts = hairLib?.piece(s[key]);
+            if (!hairLib || !parts)
                 continue;
             // Brows and beards follow the face; hair follows the skull.
             const style = s[key];
@@ -610,7 +656,8 @@ export async function makeCharacter(scene, assets, options = {}) {
         if (!shownNow)
             return;
         body.position.y =
-            -(clipLow ?? shownNow.rig.at('root').y) + (shownNow === built ? sole : 0);
+            -(clipLow ?? shownNow.rig.at('root').y) +
+                (shownNow === built ? sole : shownNow.recipe?.floor ?? 0);
     };
     const rebuild = async () => {
         await detailed();
@@ -651,6 +698,8 @@ export async function makeCharacter(scene, assets, options = {}) {
     let other = null;
     let problem = '';
     const recipeOf = (name) => plain(s.rigs ?? {})[name] ?? sources[name]?.recipe ?? null;
+    // What binding depends on: everything but the floor, which only moves it.
+    const bindKey = (recipe) => JSON.stringify(recipe ? { ...recipe, floor: undefined } : recipe);
     const rig = async (name) => {
         const from = sources[name];
         if (!from)
@@ -677,13 +726,14 @@ export async function makeCharacter(scene, assets, options = {}) {
             tailBase: b?.tailBase,
             joints: b?.joints,
             hands: b?.hands,
+            depths: b?.depths,
             source: name,
         }), kept, name);
     };
     // A rigged body on the stand, with its recipe.
     const wear = (made, kept, name) => {
         const r = buildBody(scene, `character-${name}`, made);
-        r.kept = JSON.stringify(kept);
+        r.kept = bindKey(kept);
         r.source = name;
         // A body bound from markers carries them in its recipe, so the rig tool
         // binds the same mesh from the same markers; one with its own skin opens
@@ -826,6 +876,236 @@ export async function makeCharacter(scene, assets, options = {}) {
         options.handleShown?.(shown());
     };
     eyesShown = () => shownNow == null ? null : shownNow === built ? face : shownNow.face ?? null;
+    const wornGarments = () => {
+        const r = shownNow;
+        if (!r || r === built)
+            return [];
+        return SLOTS.filter((slot) => ownIn(slot)?.slot === slot).map((slot) => {
+            const g = ownIn(slot);
+            const p = garmentProxy(g.content, { positions: r.body.positions, triangles: r.body.indices }, { name: g.name, slot });
+            const look = cloth[slot]?.material;
+            if (look?.type) {
+                p.material.look = look;
+                p.material.gltf = lookGltf(look, p.material.baseColorTexture != null);
+            }
+            return p;
+        });
+    };
+    const exportGarments = async () => {
+        const r = shownNow;
+        if (!r)
+            return [];
+        if (r !== built)
+            return wornGarments();
+        if (!human || s.hideClothes)
+            return [];
+        const body = human;
+        const out = [];
+        for (const slot of SLOTS) {
+            const name = s[slot];
+            if (name === 'none' || slot === s.hideSlot)
+                continue;
+            const own = garments.get(name);
+            const proxy = own?.source === 'MakeHuman'
+                ? own.proxy
+                : proxies[name]
+                    ? await pack.proxy(name)
+                    : null;
+            if (!proxy || proxy.category !== 'clothes')
+                continue;
+            let drawn = drawnPositions(proxy, fitProxy(proxy, clothBody));
+            if (slot === 'hat')
+                drawn = inflate(drawn, scalp.centre, HAT_LIFT);
+            const bound = onSkin(proxy, drawn, {
+                positions: body.positions,
+                triangles: body.indices,
+                vertices: body.skin.vertices,
+            });
+            const look = cloth[slot]?.material;
+            let material;
+            if (own)
+                material = garmentFileMaterial(own.content);
+            else {
+                const alt = cloth[slot].look !== 'as made'
+                    ? proxy.material.looks?.[cloth[slot].look]
+                    : undefined;
+                material = packGarmentMaterial(proxy, {
+                    diffuse: await picture(alt?.diffuse ?? proxy.material.diffuse),
+                    normal: await picture(alt?.normal ?? proxy.material.normal),
+                });
+            }
+            if (look?.type) {
+                material.look = look;
+                material.gltf = lookGltf(look, material.baseColorTexture != null);
+            }
+            out.push({ ...bound, slot, material });
+        }
+        return out;
+    };
+    /*
+    THE HAIR FOR AN EXPORT: Quaternius' pieces read from the library's own
+    file and placed exactly as the builder places them (a hat tucks the hair
+    under it); MakeHuman's own hair and brows bound like clothes. Scalp hair
+    follows the head rigidly, as it hangs in the builder; brows and beards
+    follow the face. Every picture is coloured as hair-shading draws it.
+    */
+    let hairFiles = null;
+    const readHairFiles = () => (hairFiles ??= (async () => {
+        if (!assets.hairUrl)
+            return null;
+        const res = await fetch(assets.hairUrl);
+        if (!res.ok)
+            return null;
+        const bytes = new Uint8Array(await res.arrayBuffer());
+        return {
+            pieces: readHairLibrary(bytes),
+            materials: readHairMaterials(bytes),
+        };
+    })().catch(() => null));
+    // One bake per picture and colours: the hair, beard and brows share a
+    // texture, and the export writes an image once by its bytes.
+    const baked = new WeakMap();
+    const hairPicture = (pic) => {
+        if (!pic)
+            return null;
+        const key = `${s.hairBase} ${s.hairHighlight}`;
+        const known = baked.get(pic.bytes);
+        if (known?.key === key)
+            return known.out;
+        let out;
+        try {
+            const img = recolourHair(decodeImage(pic.bytes), s.hairBase, s.hairHighlight);
+            out = {
+                bytes: pngEncode(img.data, img.width, img.height),
+                mimeType: 'image/png',
+            };
+        }
+        catch {
+            out = null;
+        }
+        baked.set(pic.bytes, { key, out });
+        return out;
+    };
+    const exportHair = async (body) => {
+        if (!scalp || !current)
+            return [];
+        const out = [];
+        const onBody = {
+            positions: body.positions,
+            triangles: body.indices,
+            vertices: body.skin.vertices,
+        };
+        const hatProxy = s.hat !== 'none' && proxies[s.hat] ? await pack.proxy(s.hat) : null;
+        const crown = hatProxy
+            ? inflate(drawnPositions(hatProxy, fitProxy(hatProxy, current)), scalp.centre, HAT_LIFT)
+            : null;
+        const nudge = { y: s.hairUp, z: s.hairForward, scale: s.hairSize };
+        for (const key of ['hair', 'beard', 'moustache', 'brows']) {
+            const style = s[key];
+            if (style === 'none' || garments.has(style))
+                continue;
+            if (proxies[style]) {
+                const proxy = await pack.proxy(style);
+                if (!proxy)
+                    continue;
+                const drawn = drawnPositions(proxy, fitProxy(proxy, clothBody));
+                out.push({
+                    ...onSkin(proxy, drawn, onBody),
+                    slot: key,
+                    material: packGarmentMaterial(proxy, {
+                        diffuse: hairPicture(await picture(proxy.material.diffuse)),
+                        normal: await picture(proxy.material.normal),
+                    }),
+                });
+                continue;
+            }
+            const lib = await hairLibrary();
+            const files = await readHairFiles();
+            const piece = files?.pieces.find((p) => p.name === style);
+            if (!lib || !files || !piece)
+                continue;
+            const options = {
+                on: lib.fitFor(style),
+                head: lib.headFor(style),
+                centreY: key === 'brows' ? scalp.brow : undefined,
+                nudge: key === 'hair' ? nudge : undefined,
+            };
+            piece.parts.forEach((part, i) => {
+                const p = placeHair(scalp, part, options);
+                let triangles = part.indices;
+                if (crown && key === 'hair')
+                    triangles = underCover(crown, p, triangles, 24, p);
+                const m = part.material ? files.materials[part.material] : undefined;
+                const binding = bindGarment(onBody.positions, onBody.triangles, p);
+                out.push({
+                    ...binding,
+                    name: `${style}-${i}`,
+                    category: key === 'brows' ? 'eyebrows' : 'hair',
+                    slot: key,
+                    ...(key === 'hair' ? { follows: 'Head' } : {}),
+                    triangles: Uint32Array.from(triangles),
+                    // Ours run up the image (as a garment holds them); the file's down.
+                    uvs: part.uvs
+                        ? Float32Array.from(part.uvs, (v, k) => (k % 2 ? 1 - v : v))
+                        : new Float32Array((p.length / 3) * 2),
+                    delete: null,
+                    material: {
+                        baseColorTexture: hairPicture(m?.baseColor),
+                        normalTexture: m?.normal ?? null,
+                        roughness: m?.roughness ?? 0.6,
+                        metallic: 0,
+                        alphaMode: m?.alphaMode ?? 'OPAQUE',
+                        alphaCutoff: m?.alphaCutoff,
+                        twoSided: true,
+                        look: null,
+                        gltf: null,
+                    },
+                });
+            });
+        }
+        return out;
+    };
+    /*
+    THE LASHES FOR AN EXPORT: the pack's cards drawn toward the lid as the
+    builder draws them, following the head, their fade carried by a ramp
+    picture so no vertex alpha is needed.
+    */
+    const exportLashes = (body) => {
+        if (!lashPart || !current)
+            return [];
+        const at = (v, k) => current[v * 3 + k];
+        const positions = Float32Array.from({ length: lashPart.vertices.length * 3 }, (_, k) => at(lashPart.vertices[(k / 3) | 0], k % 3));
+        const centres = ['L', 'R'].flatMap((S) => {
+            const joint = pack.manifest.joints[`eye.${S}____head`];
+            if (!joint)
+                return [];
+            const [x, y, z] = humanJoint(current, joint);
+            return [{ x, y, z }];
+        });
+        shortenLashes(positions, centres, 0.35);
+        return [
+            {
+                ...bindGarment(body.positions, body.indices, positions),
+                name: 'eyelashes',
+                category: 'eyelashes',
+                slot: 'eyelashes',
+                follows: 'Head',
+                triangles: Uint32Array.from(lashPart.triangles),
+                uvs: lashUvs(lashAlpha(positions, centres)),
+                delete: null,
+                material: {
+                    baseColorTexture: { bytes: lashPicture(), mimeType: 'image/png' },
+                    normalTexture: null,
+                    roughness: 0.6,
+                    metallic: 0,
+                    alphaMode: 'BLEND',
+                    twoSided: true,
+                    look: null,
+                    gltf: null,
+                },
+            },
+        ];
+    };
     const shown = () => shownNow == null
         ? null
         : shownNow === built
@@ -878,8 +1158,13 @@ export async function makeCharacter(scene, assets, options = {}) {
     const rebind = () => {
         let again = false;
         for (const [name, r] of [...rigged]) {
-            if (r.kept === JSON.stringify(recipeOf(name)))
+            if (r.kept === bindKey(recipeOf(name))) {
+                // The floor alone changed: stood again, not bound again.
+                r.recipe.floor = recipeOf(name)?.floor;
+                if (r === shownNow)
+                    placeRoot();
                 continue;
+            }
             if (r === other) {
                 hideOther();
                 other = null;
@@ -1011,20 +1296,48 @@ export async function makeCharacter(scene, assets, options = {}) {
                 meshes: hairMeshes.filter((m) => m.name.startsWith('hair-')),
             };
         },
-        wornGarments() {
-            const r = shownNow;
-            if (!r || r === built)
-                return [];
-            return SLOTS.filter((slot) => ownIn(slot)?.slot === slot).map((slot) => {
-                const g = ownIn(slot);
-                const p = garmentProxy(g.content, { positions: r.body.positions, triangles: r.body.indices }, { name: g.name, slot });
-                const look = cloth[slot]?.material;
-                if (look?.type) {
-                    p.material.look = look;
-                    p.material.gltf = lookGltf(look, p.material.baseColorTexture != null);
-                }
-                return p;
-            });
+        wornGarments,
+        exportGarments,
+        async exportCharacter() {
+            const sh = shown();
+            if (!sh)
+                return null;
+            const garments = await exportGarments();
+            if (sh.built !== built || !human)
+                return { body: sh.body, garments, eyeTexture: null };
+            const body = human;
+            const colours = lips
+                ? lipTint(skin, lips, s.tone, s.redness)
+                : new Float32Array(skin.vertices.length * 4).fill(1);
+            if (stubbleMask)
+                stubbleTint(colours, stubbleMask, s.stubble, skinAlbedo(s.tone, s.redness), linearHex(s.hairBase));
+            const { colors, surface } = skinSurface(colours, s.tone, s.redness, body.indices.length);
+            // Both eyeballs as one, where the pack puts them (they turn about
+            // their joints in the builder; at rest they are here).
+            const eyes = eyePart
+                ? [
+                    {
+                        positions: Float32Array.from({ length: eyePart.vertices.length * 3 }, (_, k) => current[eyePart.vertices[(k / 3) | 0] * 3 + (k % 3)]),
+                        indices: eyePart.triangles,
+                    },
+                ]
+                : [];
+            let eyeTexture = null;
+            const art = await picture(eyePngUrl(s.eyeStyle === 'drawn' ? 'basic' : eyeStyle(s.eyeStyle)));
+            if (art)
+                eyeTexture = {
+                    bytes: recolourEyePng(art.bytes, s.irisColour),
+                    mimeType: 'image/png',
+                };
+            return {
+                body: { ...body, colors, surfaces: [surface], eyes },
+                garments: [
+                    ...garments,
+                    ...(await exportHair(body)),
+                    ...exportLashes(body),
+                ],
+                eyeTexture,
+            };
         },
         get skeleton() {
             return read;

@@ -1,4 +1,4 @@
-import { type GarmentFileContent, type GarmentMaterial, type GarmentMeta } from './garment-file.js';
+import { type GarmentFileContent, type GarmentImage, type GarmentMaterial, type GarmentMeta } from './garment-file.js';
 import type { HumanProxy } from './human-pack.js';
 import { type MaterialRecipe } from './material-recipe.js';
 import { type MacroBody } from './human-morph.js';
@@ -23,6 +23,8 @@ export interface GarmentProxyMaterial extends Omit<GarmentMaterial, 'doubleSided
 /** A garment as MakeHuman's clothes are, its material as data. */
 export type GarmentProxy = Omit<HumanProxy, 'material'> & {
     material: GarmentProxyMaterial;
+    /** A joint the whole piece follows rigidly (hair on `Head`), instead of the skin under it. */
+    follows?: string;
 };
 /**
  * The look a garment was saved with, as a material recipe: the tailor's
@@ -49,4 +51,29 @@ export declare function garmentProxy(content: GarmentFileContent, body: {
     name?: string;
     slot?: string;
 }): GarmentProxy;
+/** A garment file's material as data, with the look it was saved with. */
+export declare function garmentFileMaterial(content: GarmentFileContent): GarmentProxyMaterial;
+/**
+ * A piece bound to MakeHuman's pack bound instead to the skin a MakeHuman
+ * body draws: `drawn` is the piece as worn (`drawnPositions` of its fit on
+ * the body's every vertex), bound as a garment file is; `skin.vertices` is
+ * the pack vertex each skin vertex leans on (human-rig's `HumanSkin`), which
+ * carries what the piece deletes across. The rest of the proxy (name, slot,
+ * triangles, uvs) is kept.
+ */
+export declare function onSkin<P extends Omit<HumanProxy, 'material'>>(proxy: P, drawn: ArrayLike<number>, skin: {
+    positions: ArrayLike<number>;
+    triangles: ArrayLike<number>;
+    vertices: ArrayLike<number>;
+}): P;
+/**
+ * A pack proxy's material as data: its `pictures` (the diffuse and normal
+ * maps, fetched by the caller: MakeHuman's are PNG or JPEG) and the look it
+ * is worn in, as the builder draws it (cloth matte, hair softer, glasses
+ * blended, other cut-outs at 0.4).
+ */
+export declare function packGarmentMaterial(proxy: Pick<HumanProxy, 'category' | 'slot' | 'material'>, pictures: {
+    diffuse?: GarmentImage | null;
+    normal?: GarmentImage | null;
+}, look?: MaterialRecipe | null): GarmentProxyMaterial;
 //# sourceMappingURL=garment-proxy.d.ts.map

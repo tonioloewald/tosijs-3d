@@ -33,4 +33,20 @@ no factor reading; `recolourCloth` (cloth-bake) bakes it into the picture.
 A garment made on a mesh's body (its `meta.source` names the mesh) binds to
 that body the same way: pass the rigged body's `positions` and `indices`.
 
+MAKEHUMAN'S OWN CLOTHES go out the same way. They are bound to the pack's
+every vertex, helpers included, and the skin a MakeHuman body draws is a part
+of them (or a lighter body proxy over them), so `onSkin` binds the piece as
+worn to that skin instead, carrying the skin it deletes across; and
+`packGarmentMaterial` is a pack proxy's material as data, its pictures as
+bytes the caller fetched.
+
+```javascript
+const drawn = drawnPositions(proxy, fitProxy(proxy, body.full))
+const garment = {
+  ...onSkin(proxy, drawn, { positions: body.positions, triangles: body.indices, vertices: body.skin.vertices }),
+  material: packGarmentMaterial(proxy, { diffuse }, look),
+}
+riggedBodyGlb(body, { garments: [garment] })
+```
+
 Pure: no DOM, no Babylon.

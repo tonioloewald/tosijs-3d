@@ -114,6 +114,13 @@ Arm-Space") turns the upper arms out from the body, and the chibi takes 55°.
    rest pose either rig was bound in.
 4. **The hips move in proportion.** Their translation is scaled by the ratio
    of hip heights, so a short character's stride is shorter, not stretched.
+5. **Feet on the ground stay there.** The same angles on a leg whose thigh
+   and shin are proportioned differently put the foot somewhere else: a
+   crouch on a long-thighed body lifts one foot off the floor. So each foot
+   near the ground goes where the source's went (its travel scaled as the
+   hips' is; the ball, when the source is on its toes), and the thigh and
+   shin bend to reach it, the knee the way the clip bends it. A foot in the
+   air keeps the copied angles. `footIk: false` turns it off.
 
 Babylon-free and deterministic (plain `{x, y, z, w}` quaternions), like
 `fly-by-wire`: the Babylon side (`retarget-babylon`) reads the skeletons and
@@ -597,6 +604,51 @@ function hipHeight(sk, world) {
     }
     return hips.y - low;
 }
+/** Two-bone IK on one leg, in place on the world rotations `tWorld`. */
+function solveLeg(hip, knee, ankle, goal, thighTurn, forward) {
+    const a = Math.hypot(knee.x - hip.x, knee.y - hip.y, knee.z - hip.z);
+    const b = Math.hypot(ankle.x - knee.x, ankle.y - knee.y, ankle.z - knee.z);
+    if (a < 1e-6 || b < 1e-6)
+        return null;
+    // Already there (the rest pose, a body proportioned as the source's).
+    const miss = sub(goal, ankle);
+    if (Math.hypot(miss.x, miss.y, miss.z) < 1e-4 * (a + b))
+        return null;
+    const toGoal = sub(goal, hip);
+    const d0 = Math.hypot(toGoal.x, toGoal.y, toGoal.z);
+    if (d0 < 1e-6)
+        return null;
+    const u = normalize(toGoal);
+    const d = Math.min(a + b - 1e-5, Math.max(Math.abs(a - b) + 1e-5, d0));
+    // The way the knee bends now (the clip's), else the leg's front.
+    const dot = (p, q) => p.x * q.x + p.y * q.y + p.z * q.z;
+    const perp = (v) => {
+        const k = dot(v, u);
+        return { x: v.x - u.x * k, y: v.y - u.y * k, z: v.z - u.z * k };
+    };
+    let v = perp(sub(knee, hip));
+    if (Math.hypot(v.x, v.y, v.z) < 1e-4 * a)
+        v = perp(rotateVector(thighTurn, forward));
+    if (Math.hypot(v.x, v.y, v.z) < 1e-9)
+        return null;
+    v = normalize(v);
+    const cos = Math.min(1, Math.max(-1, (a * a + d * d - b * b) / (2 * a * d)));
+    const sin = Math.sqrt(1 - cos * cos);
+    const knee2 = {
+        x: hip.x + a * (u.x * cos + v.x * sin),
+        y: hip.y + a * (u.y * cos + v.y * sin),
+        z: hip.z + a * (u.z * cos + v.z * sin),
+    };
+    const ankle2 = {
+        x: hip.x + u.x * d,
+        y: hip.y + u.y * d,
+        z: hip.z + u.z * d,
+    };
+    const thigh = rotationBetween(normalize(sub(knee, hip)), normalize(sub(knee2, hip)));
+    const shinNow = rotateVector(thigh, sub(ankle, knee));
+    const shin = quatMul(rotationBetween(normalize(shinNow), normalize(sub(ankle2, knee2))), thigh);
+    return { thigh, shin };
+}
 /**
  * Map `source`'s poses onto `target`. Both skeletons should face the same
  * way in their rest pose (glTF: +Z forward, +Y up, left on +X); their rest
@@ -710,6 +762,27 @@ export function retargeter(source, target, options = {}) {
     const sHips = source.roles.hips;
     const tHips = target.roles.hips;
     const tHipsBone = tHips != null ? target.bones.find((b) => b.name === tHips) : undefined;
+    // The legs foot IK bends: thigh, shin and ankle in both rigs, each its own bone.
+    const legs = options.footIk === false
+        ? []
+        : ['l', 'r']
+            .map((s) => ({
+            thigh: `${s}-upperLeg`,
+            shin: `${s}-lowerLeg`,
+            foot: `${s}-foot`,
+            toes: `${s}-toes`,
+        }))
+            .filter((l) => [l.thigh, l.shin, l.foot].every((r) => roles.includes(r)) &&
+            !aimAt.has(l.thigh) &&
+            !aimAt.has(l.shin))
+            .map((l) => ({
+            thigh: target.roles[l.thigh],
+            shin: target.roles[l.shin],
+            foot: target.roles[l.foot],
+            sFoot: source.roles[l.foot],
+            ball: roles.includes(l.toes) ? target.roles[l.toes] : null,
+            sBall: roles.includes(l.toes) ? source.roles[l.toes] : null,
+        }));
     return {
         roles,
         scale,
@@ -785,6 +858,97 @@ export function retargeter(source, target, options = {}) {
                         pr != null && pp != null
                             ? rotateVector(quatConjugate(pr), sub(w, pp))
                             : w;
+                }
+            }
+            /*
+            FOOT IK. Each ankle goes where the source's went, its travel since
+            rest scaled as the hips' is, and the thigh and shin turn to reach it
+            in the plane the clip bends the knee in. A foot keeps its world turn,
+            so what hangs from it (the toes) is as the clip has it.
+            */
+            if (legs.length) {
+                const now = toWorld(target.bones, out, hipsOut != null && tHips != null
+                    ? new Map([[tHips, hipsOut]])
+                    : undefined);
+                const parentOf = (n) => target.bones.find((b) => b.name === n)?.parent ?? null;
+                for (const l of legs) {
+                    const sAt = sNow.position.get(l.sFoot);
+                    const sRestAt = sRest.position.get(l.sFoot);
+                    const tRestAt = tRest.position.get(l.foot);
+                    const hip = now.position.get(l.thigh);
+                    const knee = now.position.get(l.shin);
+                    const ankle = now.position.get(l.foot);
+                    if (!sAt || !sRestAt || !tRestAt || !hip || !knee || !ankle)
+                        continue;
+                    const travel = (p, from, to) => ({
+                        x: to.x + (p.x - from.x) * scale,
+                        y: to.y + (p.y - from.y) * scale,
+                        z: to.z + (p.z - from.z) * scale,
+                    });
+                    let goal = travel(sAt, sRestAt, tRestAt);
+                    /*
+                    ON ITS TOES the ball is what stays put, and a body whose ankle
+                    stands higher over its ball than the source's would lift it. So
+                    where the source's ankle has risen more than its ball, the ball
+                    follows the source's and the ankle hangs from it by the foot's
+                    turn: all of it once the heel is up by a twentieth of the hip
+                    height.
+                    */
+                    const sb = l.sBall != null ? sNow.position.get(l.sBall) : undefined;
+                    const sbRest = l.sBall != null ? sRest.position.get(l.sBall) : undefined;
+                    const tbRest = l.ball != null ? tRest.position.get(l.ball) : undefined;
+                    if (sb && sbRest && tbRest && sh > 1e-6) {
+                        const lift = sAt.y - sRestAt.y - (sb.y - sbRest.y);
+                        const w = Math.min(1, Math.max(0, lift / (0.05 * sh)));
+                        if (w > 0) {
+                            const ball = travel(sb, sbRest, tbRest);
+                            const turn = quatMul(tWorld.get(l.foot), quatConjugate(tRest.rotation.get(l.foot)));
+                            const hang = rotateVector(turn, sub(tbRest, tRestAt));
+                            goal = {
+                                x: goal.x + (ball.x - hang.x - goal.x) * w,
+                                y: goal.y + (ball.y - hang.y - goal.y) * w,
+                                z: goal.z + (ball.z - hang.z - goal.z) * w,
+                            };
+                        }
+                    }
+                    /*
+                    ONLY A FOOT ON THE GROUND. A foot in the air plants on nothing, and
+                    bending its leg to the source's reshapes the swing (a jog's kick
+                    turned the knee 38°). So the IK is all there while the source's
+                    foot (its lower of ankle and ball, against rest) is within a
+                    twentieth of the hip height of the floor, and gone by a sixth.
+                    */
+                    const up = Math.min(sAt.y - sRestAt.y, sb && sbRest ? sb.y - sbRest.y : Infinity);
+                    const grounded = sh > 1e-6
+                        ? 1 - Math.min(1, Math.max(0, (up / sh - 0.05) / (1 / 6 - 0.05)))
+                        : 1;
+                    if (grounded <= 0)
+                        continue;
+                    goal = {
+                        x: ankle.x + (goal.x - ankle.x) * grounded,
+                        y: ankle.y + (goal.y - ankle.y) * grounded,
+                        z: ankle.z + (goal.z - ankle.z) * grounded,
+                    };
+                    const thighWorld = tWorld.get(l.thigh);
+                    const solved = solveLeg(hip, knee, ankle, goal, quatMul(thighWorld, quatConjugate(tRest.rotation.get(l.thigh))), { x: 0, y: 0, z: 1 });
+                    if (solved == null)
+                        continue;
+                    const pThigh = parentOf(l.thigh);
+                    const pShin = parentOf(l.shin);
+                    const pFoot = parentOf(l.foot);
+                    if (pThigh == null || pShin == null || pFoot == null)
+                        continue;
+                    const world = (n, d) => quatMul(d, tWorld.get(n));
+                    const newThigh = world(l.thigh, solved.thigh);
+                    const newShin = world(l.shin, solved.shin);
+                    // The joints between are turned with whichever bone they hang from.
+                    const shinParent = pShin === l.thigh ? newThigh : world(pShin, solved.thigh);
+                    const footParent = pFoot === l.shin ? newShin : world(pFoot, solved.shin);
+                    out.set(l.thigh, quatMul(quatConjugate(tWorld.get(pThigh)), newThigh));
+                    out.set(l.shin, quatMul(quatConjugate(shinParent), newShin));
+                    out.set(l.foot, quatMul(quatConjugate(footParent), tWorld.get(l.foot)));
+                    tWorld.set(l.thigh, newThigh);
+                    tWorld.set(l.shin, newShin);
                 }
             }
             return { rotations: out, hips: hipsOut };

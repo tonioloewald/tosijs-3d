@@ -322,7 +322,10 @@ export function bakeClip(source, clip, target, options = {}) {
     const c = typeof clip === 'string' ? source.clips.find((x) => x.name === clip) : clip;
     if (c == null)
         throw new Error(`bakeClip: no clip "${clip}"`);
-    const rt = retargeter(source, target, { armSpaceDeg: options.armSpaceDeg });
+    const rt = retargeter(source, target, {
+        armSpaceDeg: options.armSpaceDeg,
+        footIk: options.footIk,
+    });
     const fps = options.fps ?? 30;
     const frames = Math.max(1, Math.round((c.end - c.start) * fps));
     const moving = rt.roles.map((r) => target.roles[r]);

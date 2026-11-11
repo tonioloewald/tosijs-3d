@@ -297,7 +297,8 @@ export function* remeshSteps(positions, triangles, options) {
                     add.push(m, y, c);
                 }
             }
-            T.push(...add);
+            for (const v of add)
+                T.push(v);
         }
     };
     const collapse = () => {

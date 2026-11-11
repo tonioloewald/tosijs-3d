@@ -39,3 +39,8 @@ SO DOES ITS BODY, when it is a mesh. `bodies` says where the body on show
 comes from: a URL (and the object picked in it) when it has one, or the file
 itself (base64, with its name) when it was opened from disk. A page that
 does not have that body makes it from there.
+
+AND THE CLIP IT PLAYS, when that is one of your own: `clips` carries the file
+it came from (a BVH capture or a GLB's animations, by file name, with its
+kind), so a page that has never seen the file reads it as the builder did
+([clip-store](/clip-store/)).

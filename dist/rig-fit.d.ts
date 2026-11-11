@@ -81,7 +81,28 @@ export interface FitOptions {
     tailBones?: number;
     /** Where the tail starts (its first joint), if not the back of the pelvis. */
     tailStart?: Vec3;
+    /**
+     * Depth set by hand, per marker: how far in front (+Z) of where the fit
+     * puts it the marker's joint goes, in the mesh's units. The fit puts a
+     * joint at the middle of the body's thickness, and not every joint is
+     * there: the mannequin's pelvis is well behind the middle of its hips.
+     */
+    depths?: Partial<Record<MarkerName, number>>;
+    /**
+     * How the pelvis is placed. `thighs` (the default): behind the thigh
+     * joints by 0.028 of the body's height and below them by 0.008, as both
+     * of UAL's mannequins have it, whatever the hips' surface does (a seat, a
+     * belly, armour). `middle`: above the thighs at the middle of the hips'
+     * thickness, as bindings saved before this rule have it.
+     */
+    pelvis?: 'thighs' | 'middle';
 }
+/** How far behind the thigh joints the pelvis sits, as a share of height. */
+export declare const PELVIS_BEHIND_THIGHS = 0.028;
+/** How far below the thigh joints the pelvis sits, as a share of height. */
+export declare const PELVIS_BELOW_THIGHS = 0.008;
+/** The joint each marker places (the groin's is the pelvis, above it). */
+export declare const MARKER_JOINTS: Readonly<Record<MarkerName, string>>;
 export declare function fitSkeleton(markers: Markers, mesh: MeshQuery, options?: FitOptions): FittedRig;
 /**
  * The thumb's and fingers' joints for one hand, laid out from its wrist and

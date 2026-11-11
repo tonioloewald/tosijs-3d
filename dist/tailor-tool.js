@@ -27,10 +27,11 @@ top carries **undo**, **redo**, **cancel** and **done**; below it:
 - **the outline**: you draw the character's left, on your right, and the
   other side is its mirror. Click out points, click the first to close a
   shape, drag a point to move it, press an edge to add one;
-- **cloth mesh**: the cloth is cut from an even surface laid over the body
-  ([remesh](/remesh/)), **coarse**, **medium** (the default) or **fine**
-  (edges about 3, 2 or 1.2 cm), whatever the body's own triangles are; **as
-  the body** cuts the body's triangles themselves;
+- **cloth mesh**: **as the body** (the default) cuts the body's triangles
+  themselves, the cheapest and surest; or the cloth is cut from an even
+  surface laid over the body ([remesh](/remesh/)), **coarse**, **medium** or
+  **fine** (edges about 3, 2 or 1.2 cm), whatever the body's own triangles
+  are;
 - **thickness** (thicker cloth bridges more of the chest, where the body
   says where its nipples are);
 - **made by**: **cutting the skin** (the cloth follows the body),
@@ -62,9 +63,10 @@ moves the cut onto a body reshaped while the tool is open; `unmount` (or
 done, or cancel) removes everything it added.
 */
 /*{ "parent": "character-builder", "order": 30 }*/
-import { cutGarment, skirtGarment, rebindCut, mirrorOutline, } from './garment-cut.js';
+import { mirrorOutline, } from './garment-cut.js';
 import { outlineField3d } from './outline-field.js';
-import { smoothUnder, fitProxy, drawnPositions } from './proxy-fit.js';
+import { cutWith, fitCut, tailorBody, TAILOR_MESH_EDGE, } from './tailor-recipe.js';
+import { fitProxy, drawnPositions } from './proxy-fit.js';
 import { remesh, remeshSteps } from './remesh.js';
 import { drapeGarmentAsync, runSliced } from './cloth-drape.js';
 import { humanProxy, proxyMaterial } from './human-proxy.js';
@@ -75,14 +77,7 @@ import { inputField } from './keyboard.js';
 import { b3dPanel } from './b3d-panel.js';
 import { undoHistory } from './undo-history.js';
 import { button3d, iconBar3d, label3d, panel3d, row3d, select3d, slider3d, toggle3d, } from './widgets3d.js';
-/** The edge length each density aims for, metres. */
-export const TAILOR_MESH_EDGE = {
-    coarse: 0.03,
-    medium: 0.02,
-    fine: 0.012,
-};
-/** Cloth over the body: the cut is fitted a little out from the skin. */
-const EASE = 6;
+export { TAILOR_MESH_EDGE, } from './tailor-recipe.js';
 /**
  * Open the tailor in a `<tosi-b3d>`: a system panel, a preview on `built`,
  * and the garment handed to `handleDone`.
@@ -91,13 +86,15 @@ export function mountTailorTool(owner, options) {
     const scene = owner.scene;
     let body = options.body;
     let built = options.built;
-    const cut = {
+    // Its outlines carried onto this body, if it was drawn on another.
+    const cut = fitCut({
         shapes: options.cut?.shapes ?? [],
         thickness: options.cut?.thickness ?? 0.005,
         skirt: options.cut?.skirt ?? false,
         drape: options.cut?.drape ?? false,
-        mesh: options.cut?.mesh ?? 'medium',
-    };
+        mesh: options.cut?.mesh ?? 'body',
+        on: options.cut?.on,
+    }, body.rig);
     let look = options.look ??
         clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 });
     let name = options.name ?? '';
@@ -129,8 +126,10 @@ export function mountTailorTool(owner, options) {
         if (buttons() !== was)
             refresh();
     };
-    const canUndo = () => history.canUndo || stepTimer != null;
-    const canRedo = () => stepTimer == null && history.canRedo;
+    // A shape being clicked out is undone point by point first: its points are
+    // not a cut yet, so the history has not seen them.
+    const canUndo = () => field?.canUndoPoint === true || history.canUndo || stepTimer != null;
+    const canRedo = () => field?.canRedoPoint === true || (stepTimer == null && history.canRedo);
     const changed = () => {
         options.handleChange?.(state());
         if (restoring)
@@ -145,7 +144,7 @@ export function mountTailorTool(owner, options) {
             return;
         restoring = true;
         const c = JSON.parse(JSON.stringify(st.cut));
-        Object.assign(cut, c);
+        Object.assign(cut, fitCut(c, body.rig));
         look = JSON.parse(JSON.stringify(st.look));
         name = st.name;
         slot = st.slot;
@@ -158,6 +157,8 @@ export function mountTailorTool(owner, options) {
         refresh();
     };
     const undo = () => {
+        if (field?.canUndoPoint)
+            return field.undoPoint();
         if (!canUndo())
             return;
         if (stepTimer != null)
@@ -165,6 +166,8 @@ export function mountTailorTool(owner, options) {
         restore(history.undo());
     };
     const redo = () => {
+        if (field?.canRedoPoint)
+            return field.redoPoint();
         if (canRedo())
             restore(history.redo());
     };
@@ -175,50 +178,11 @@ export function mountTailorTool(owner, options) {
     */
     let fitOn = body.positions;
     let notArm = new Uint8Array(0);
-    // The triangles cloth is cut from: not a tail's (behind the body, inside
-    // any outline drawn round the hips, and swung by its spring).
+    // The triangles cloth is cut from: not a tail's.
     let cutFrom = body.indices;
     const readBody = () => {
-        const nipples = body.regions.nipples;
-        fitOn = nipples
-            ? smoothUnder(body.positions, body.indices, nipples)
-            : body.positions;
-        const arm = new Set(body.rig.joints
-            .map((j, i) => /^(clavicle|upperarm|lowerarm|hand|thumb|index|middle|ring|pinky)/.test(j.name)
-            ? i
-            : -1)
-            .filter((i) => i >= 0));
-        const n = body.positions.length / 3;
-        notArm = new Uint8Array(n);
-        const w = body.weights;
-        for (let v = 0; v < n; v++) {
-            let a = 0;
-            for (let k = 0; k < 4; k++)
-                if (arm.has(w.indices[v * 4 + k]))
-                    a += w.weights[v * 4 + k];
-            notArm[v] = a < 0.5 ? 1 : 0;
-        }
-        const tail = new Set(body.rig.joints
-            .map((j, i) => (/^tail_/.test(j.name) ? i : -1))
-            .filter((i) => i >= 0));
-        if (tail.size === 0)
-            cutFrom = body.indices;
-        else {
-            const onTail = new Uint8Array(n);
-            for (let v = 0; v < n; v++) {
-                let t = 0;
-                for (let k = 0; k < 4; k++)
-                    if (tail.has(w.indices[v * 4 + k]))
-                        t += w.weights[v * 4 + k];
-                onTail[v] = t >= 0.5 ? 1 : 0;
-            }
-            const kept = [];
-            const I = body.indices;
-            for (let i = 0; i < I.length; i += 3)
-                if (!onTail[I[i]] && !onTail[I[i + 1]] && !onTail[I[i + 2]])
-                    kept.push(I[i], I[i + 1], I[i + 2]);
-            cutFrom = Uint32Array.from(kept);
-        }
+        ;
+        ({ fitOn, cutFrom, notArm } = tailorBody(body));
     };
     readBody();
     /*
@@ -343,39 +307,7 @@ export function mountTailorTool(owner, options) {
         if (cut.drape && !cut.skirt)
             return drapeLater(outline);
         try {
-            const nipples = body.regions.nipples;
-            // Thicker cloth bridges more of the chest.
-            const cutOn = nipples
-                ? smoothUnder(body.positions, body.indices, nipples, {
-                    bridge: cut.thickness / 0.02,
-                })
-                : fitOn;
-            const density = cut.mesh ?? 'medium';
-            let next;
-            if (cut.skirt) {
-                next = skirtGarment(fitOn, cutFrom, {
-                    front: outline,
-                    thickness: cut.thickness,
-                    anchor: notArm,
-                });
-            }
-            else if (density === 'body') {
-                next = cutGarment(cutOn, cutFrom, {
-                    front: outline,
-                    thickness: cut.thickness,
-                    ease: EASE,
-                    fitOn,
-                });
-            }
-            else {
-                // Cut from the even surface, then bound to the body itself.
-                const d = dummy(density);
-                next = rebindCut(cutGarment(d.positions, d.triangles, {
-                    front: outline,
-                    thickness: cut.thickness,
-                    ease: EASE,
-                }), d, fitOn);
-            }
+            const next = cutWith(body, { fitOn, cutFrom, notArm }, cut, dummy);
             show(next);
             status = '';
         }
@@ -394,40 +326,45 @@ export function mountTailorTool(owner, options) {
     THE PANEL: a system panel of its own, done and cancel first.
     */
     let field = null;
+    // The undo and redo buttons as last drawn.
+    let shownButtons = '';
     // Pinned above the scrolling rows: they must not scroll out of reach.
-    const header = () => [
-        iconBar3d({
-            items: [
-                {
-                    icon: 'rotateCcw',
-                    title: 'undo (⌘Z)',
-                    dim: !canUndo(),
-                    handleClick: undo,
-                },
-                {
-                    icon: 'rotateCw',
-                    title: 'redo (⇧⌘Z)',
-                    dim: !canRedo(),
-                    handleClick: redo,
-                },
-                ...(options.persistent
-                    ? []
-                    : [
-                        { spacer: true },
-                        {
-                            icon: 'close',
-                            title: 'cancel',
-                            handleClick: () => finish(false),
-                        },
-                        {
-                            icon: 'check',
-                            title: 'done: keep the garment',
-                            handleClick: () => finish(true),
-                        },
-                    ]),
-            ],
-        }),
-    ];
+    const header = () => {
+        shownButtons = buttons();
+        return [
+            iconBar3d({
+                items: [
+                    {
+                        icon: 'rotateCcw',
+                        title: 'undo (⌘Z)',
+                        dim: !canUndo(),
+                        handleClick: undo,
+                    },
+                    {
+                        icon: 'rotateCw',
+                        title: 'redo (⇧⌘Z)',
+                        dim: !canRedo(),
+                        handleClick: redo,
+                    },
+                    ...(options.persistent
+                        ? []
+                        : [
+                            { spacer: true },
+                            {
+                                icon: 'close',
+                                title: 'cancel',
+                                handleClick: () => finish(false),
+                            },
+                            {
+                                icon: 'check',
+                                title: 'done: keep the garment',
+                                handleClick: () => finish(true),
+                            },
+                        ]),
+                ],
+            }),
+        ];
+    };
     const widgets = () => [
         ...(options.rows?.top?.() ?? []),
         ...(status ? [label3d({ text: status, muted: true, compact: true })] : []),
@@ -441,6 +378,14 @@ export function mountTailorTool(owner, options) {
             maxHeight: 400,
             // A drape pins its cloth where the outline is over the body.
             anchors: cut.drape === true && !cut.skirt,
+            // The undo buttons light as the open shape gains its first point (and
+            // dim as it loses its last); redrawn after the press, not inside it.
+            handleOpen: () => {
+                setTimeout(() => {
+                    if (!disposed && buttons() !== shownButtons)
+                        refresh();
+                });
+            },
             handleCommit: (v) => {
                 cut.shapes = v;
                 recut();
@@ -467,7 +412,7 @@ export function mountTailorTool(owner, options) {
         }),
         select3d({
             label: 'cloth mesh',
-            value: cut.mesh ?? 'medium',
+            value: cut.mesh ?? 'body',
             options: [
                 'coarse',
                 'medium',
@@ -615,6 +560,9 @@ export function mountTailorTool(owner, options) {
         setBody(b, k) {
             body = b;
             built = k;
+            // The outlines follow the body: drawn at the knee, still at the knee.
+            Object.assign(cut, fitCut(cut, b.rig));
+            field = null;
             readBody();
             dummies = new Map();
             recut();

@@ -22,7 +22,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=c89d9110f950" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=f9a43918f299" data-tosi-doc-system />
   <title>0.7.7 — tosijs-3d</title>
   <meta name="description" content="A lifecycle release. &lt;tosi-b3d&gt; now distinguishes being moved from being removed, which fixes an engine leak and a scene-corruption bug that were the" />
   <link rel="canonical" href="https://3d.tosijs.net/v0.7.7/" />
@@ -39,7 +39,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=7ef9fd7bb1e4" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=964dce30c6d0" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="v0.7.7.md">
 <h1 id="077">0.7.7</h1>
 <!--{ "parent": "CHANGELOG", "order": 9992993 }-->
@@ -124,6 +124,7 @@ Babylon&#39;s failure mode there is a black material that still reports
         <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-tailor-tool" aria-label="tailor tool"></button><a class="doc-link" href="../tailor-tool/">tailor tool</a></div>
         <ul id="tosi-nav-tailor-tool">
+          <li><a class="doc-link" href="../tailor-recipe/">tailor-recipe</a></li>
           <li><a class="doc-link" href="../tailor-panel/">tailor panel</a></li>
         </ul></li>
         <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
@@ -144,6 +145,7 @@ Babylon&#39;s failure mode there is a black material that still reports
             <li><a class="doc-link" href="../outline-field/">outline field</a></li>
             <li><a class="doc-link" href="../remesh/">remesh</a></li>
             <li><a class="doc-link" href="../cloth-drape/">cloth drape</a></li>
+            <li><a class="doc-link" href="../body-sweep/">body-sweep</a></li>
           </ul></li>
           <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-garment-bind" aria-label="garment-bind"></button><a class="doc-link" href="../garment-bind/">garment-bind</a></div>
           <ul id="tosi-nav-garment-bind">
@@ -296,6 +298,7 @@ Babylon&#39;s failure mode there is a black material that still reports
           </ul></li>
           <li><a class="doc-link" href="../skin-paint/">skin paint</a></li>
           <li><a class="doc-link" href="../cloth-bake/">cloth bake</a></li>
+          <li><a class="doc-link" href="../jpeg/">jpeg</a></li>
           <li><a class="doc-link" href="../eye-art/">eye art</a></li>
           <li><a class="doc-link" href="../hair-place/">hair place</a></li>
           <li><a class="doc-link" href="../mesh-sdf/">mesh sdf</a></li>
@@ -303,7 +306,11 @@ Babylon&#39;s failure mode there is a black material that still reports
         </ul></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-retarget" aria-label="retarget"></button><a class="doc-link" href="../retarget/">retarget</a></div>
         <ul id="tosi-nav-retarget">
-          <li><a class="doc-link" href="../glb-clips/">glb clips</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-clips" aria-label="glb clips"></button><a class="doc-link" href="../glb-clips/">glb clips</a></div>
+          <ul id="tosi-nav-glb-clips">
+            <li><a class="doc-link" href="../bvh/">bvh</a></li>
+            <li><a class="doc-link" href="../clip-store/">clip-store</a></li>
+          </ul></li>
         </ul></li>
         <li><a class="doc-link" href="../rigged-body/">rigged-body</a></li>
         <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
@@ -512,6 +519,7 @@ Babylon&#39;s failure mode there is a black material that still reports
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch -open"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="true" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.12.6/">0.12.6</a></li>
         <li><a class="doc-link" href="../v0.12.5/">0.12.5</a></li>
         <li><a class="doc-link" href="../v0.12.4/">0.12.4</a></li>
         <li><a class="doc-link" href="../v0.12.3/">0.12.3</a></li>
@@ -597,6 +605,6 @@ Babylon&#39;s failure mode there is a black material that still reports
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-3xsm839e.js"></script>
+  <script type="module" src="../hydrate-9knhx6yx.js"></script>
 </body>
 </html>

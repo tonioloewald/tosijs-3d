@@ -103,9 +103,10 @@ export function pngEncode(rgba, width, height) {
     return out;
 }
 /**
- * Read a PNG: 8-bit RGB or RGBA, not interlaced (what browsers and image
- * tools write for pictures). RGB comes back with alpha 255. Anything else
- * throws, naming what it found.
+ * Read a PNG: 8-bit grey, grey and alpha, RGB or RGBA, not interlaced (what
+ * browsers and image tools write for pictures). Grey comes back as RGB, and
+ * a picture with no alpha with alpha 255. Anything else throws, naming what
+ * it found.
  */
 export function pngDecode(png) {
     for (let i = 0; i < 8; i++)
@@ -125,8 +126,8 @@ export function pngDecode(png) {
             height = view.getUint32(at + 12);
             const depth = body[8];
             colourType = body[9];
-            if (depth !== 8 || (colourType !== 2 && colourType !== 6) || body[12])
-                throw new Error(`pngDecode: only 8-bit RGB or RGBA, not interlaced (depth ${depth}, colour type ${colourType}, interlace ${body[12]})`);
+            if (depth !== 8 || ![0, 2, 4, 6].includes(colourType) || body[12])
+                throw new Error(`pngDecode: only 8-bit grey or colour, not interlaced (depth ${depth}, colour type ${colourType}, interlace ${body[12]})`);
         }
         else if (type === 'IDAT')
             idat.push(body);
@@ -141,7 +142,7 @@ export function pngDecode(png) {
         o += c.length;
     }
     const raw = unzlibSync(joined);
-    const bpp = colourType === 6 ? 4 : 3;
+    const bpp = [1, 0, 3, 0, 2, 0, 4][colourType];
     const stride = width * bpp;
     const pixels = new Uint8Array(height * stride);
     for (let y = 0; y < height; y++) {
@@ -175,11 +176,12 @@ export function pngDecode(png) {
     if (bpp === 4)
         return { width, height, data: pixels };
     const data = new Uint8Array(width * height * 4);
-    for (let i = 0, j = 0; i < pixels.length; i += 3, j += 4) {
+    const grey = bpp < 3;
+    for (let i = 0, j = 0; i < pixels.length; i += bpp, j += 4) {
         data[j] = pixels[i];
-        data[j + 1] = pixels[i + 1];
-        data[j + 2] = pixels[i + 2];
-        data[j + 3] = 255;
+        data[j + 1] = pixels[grey ? i : i + 1];
+        data[j + 2] = pixels[grey ? i : i + 2];
+        data[j + 3] = bpp === 2 ? pixels[i + 1] : bpp === 4 ? pixels[i + 3] : 255;
     }
     return { width, height, data };
 }

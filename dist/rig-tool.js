@@ -43,7 +43,11 @@ The panel has these sections, its job first.
   drag into place. `hands` says how much hand is rigged: thumb and four
   fingers, a mitten (a thumb and one finger, for a glove: the other fingers
   lie on it and take no skin) or none (the hand alone); `as found` leaves it
-  to the fit. The joints follow the markers. `move joints` shows every
+  to the fit. The joints follow the markers. The fit puts each marker's
+  joint at the middle of the body's thickness (the pelvis behind the
+  thighs, as the mannequin's is); from the side view, drag a marker forward
+  or back to set its depth. The depth is kept as an offset from the fit, so
+  it stays when the marker moves again from the front. `move joints` shows every
   joint (blue) to drag by hand from the view that suits: shoulders from the
   front, fingers and thumbs from the top, feet from the side. What hangs from
   a joint comes with it; set `dragging` to turn what hangs from it instead
@@ -54,8 +58,11 @@ The panel has these sections, its job first.
   names; fix one by tapping, as above, or pick a role and then the bone that
   plays it, or `(none)` to leave it out. Set `clicking sets` to the chain and
   a tap hangs the chosen spring chain there instead.
-- **Motion.** `animate` and the clip; `arm space` turns the arms out from
-  the body, for a character whose arms are long for its height;
+- **Motion.** `animate` and the clip; `floor` moves the body up or down
+  from where its soles stand (they are put on the floor at rest, and kept
+  there as a clip plays), for one that still floats or sinks; `arm space`
+  turns the arms out from the body, for a character whose arms are long for
+  its height;
   `load animations…` adds the clips in a GLB made on another rig to the
   list: Mixamo's, a mocap file's, another library's. Which bone is which is
   read from the names (UE, Mixamo, Kenney and Blender spellings), so each
@@ -396,6 +403,7 @@ function sameBinding(body, binding) {
         b.tail != null ? b.tailBase ?? null : null,
         b.joints ?? {},
         b.hands ?? null,
+        b.depths ?? {},
     ]);
     return key(m) === key(binding);
 }
@@ -412,6 +420,7 @@ function bindMesh(scene, name, tris, binding, options = {}) {
             tailBase: binding.tailBase,
             joints: binding.joints,
             hands: binding.hands,
+            depths: binding.depths,
             tailBones: options.tailBones,
         });
     const built = buildBody(scene, name, body);
@@ -437,6 +446,7 @@ function bindMesh(scene, name, tris, binding, options = {}) {
             tailBase: binding.tailBase,
             joints: binding.joints,
             hands: binding.hands,
+            depths: binding.depths,
         },
         body,
         dispose() {
@@ -550,6 +560,7 @@ export function mountRigTool(owner, options = {}) {
             const rig = fitSkeleton(from.markers, query, {
                 tail: from.tail ?? undefined,
                 tailStart: from.tail != null ? from.tailBase ?? undefined : undefined,
+                depths: from.depths,
             });
             parents = new Map(rig.joints.map((j) => [j.name, j.parent]));
             const moved = withMoved ? from.joints ?? {} : {};
@@ -600,7 +611,9 @@ export function mountRigTool(owner, options = {}) {
     let loadedModel = null;
     function setMarkers(markers, tail, tailBase = tail != null ? bound?.tailBase ?? null : null, 
     /** Markers dragged carrying their joints: every joint below them comes. */
-    carry = []) {
+    carry = [], 
+    /** Depth set by hand per marker (a drag in a side view). */
+    depths = bound?.depths) {
         /*
         What hangs from a marker comes with it: a joint moved by hand below one
         (a finger under the wrist) moves as far as the marker's joint did, and a
@@ -608,7 +621,10 @@ export function mountRigTool(owner, options = {}) {
         */
         const before = fittedJoints(bound, false);
         const shown = fittedJoints(bound, true);
-        const next = bound != null ? { ...bound, markers, tail, tailBase } : null;
+        const kept = depths != null && Object.values(depths).some((v) => v)
+            ? Object.fromEntries(Object.entries(depths).filter(([, v]) => v))
+            : undefined;
+        const next = bound != null ? { ...bound, markers, tail, tailBase, depths: kept } : null;
         const after = fittedJoints(next, false);
         const joints = {};
         /*
@@ -653,6 +669,7 @@ export function mountRigTool(owner, options = {}) {
             ...(tailBase ? { tailBase } : {}),
             ...moved,
             ...(bound?.hands ? { hands: bound.hands } : {}),
+            ...(kept ? { depths: kept } : {}),
         };
         if (next != null)
             bound = {
@@ -792,6 +809,7 @@ export function mountRigTool(owner, options = {}) {
                 ...(bound.tailBase ? { tailBase: bound.tailBase } : {}),
                 ...(bound.joints ? { joints: bound.joints } : {}),
                 ...(bound.hands ? { hands: bound.hands } : {}),
+                ...(bound.depths ? { depths: bound.depths } : {}),
             })),
     });
     function step() {
@@ -814,6 +832,7 @@ export function mountRigTool(owner, options = {}) {
                 tailBase: b.tailBase ?? null,
                 joints: b.joints,
                 hands: b.hands,
+                depths: b.depths,
             };
             stale = true;
             ui.status = 'bound again when you animate or press done';
@@ -1129,6 +1148,20 @@ export function mountRigTool(owner, options = {}) {
                 ui.clip = String(v);
                 ui.pose = 'animate';
                 animate();
+            },
+        }), 
+        // A single-axis move: up or down from where its soles would stand.
+        slider3d({
+            label: 'floor',
+            value: recipe.floor ?? 0,
+            min: -0.1,
+            max: 0.1,
+            step: 0.002,
+            format: (v) => `${(v * 100).toFixed(1)} cm`,
+            handleChange: (v) => {
+                recipe.floor = v || undefined;
+                tool?.restand();
+                edited();
             },
         }), slider3d({
             label: 'arm space',
@@ -1902,21 +1935,40 @@ export function mountRigTool(owner, options = {}) {
             }
             return low;
         };
+        /*
+        THE SOLES ON THE FLOOR, not the lowest point of the mesh (a strap or a
+        stray vertex below the feet stood the body on it, walking in the air), and
+        then the recipe's `floor`, the hand correction, on top.
+        */
+        let base = 0;
+        const restand = () => {
+            stand.position.y = base + (recipe.floor ?? 0);
+        };
+        const standAtRest = () => {
+            base = floor;
+            if (model != null) {
+                stand.position.y = floor;
+                stand.computeWorldMatrix(true);
+                model.skeleton.returnToRest();
+                const rest = lowest();
+                if (Number.isFinite(rest))
+                    base = floor - rest;
+            }
+            restand();
+        };
         const ground = (group) => {
             if (model == null)
                 return;
             stand.position.y = floor;
             stand.computeWorldMatrix(true);
-            model.skeleton.returnToRest();
-            const rest = lowest();
             let low = Infinity;
             for (let k = 0; k < 24; k++) {
                 group.goToFrame(group.from + ((group.to - group.from) * k) / 24);
                 low = Math.min(low, lowest());
             }
             group.goToFrame(group.from);
-            if (Number.isFinite(rest) && Number.isFinite(low))
-                stand.position.y = floor + rest - low;
+            base = Number.isFinite(low) ? floor - low : floor;
+            restand();
         };
         const play = () => {
             stop();
@@ -1931,6 +1983,7 @@ export function mountRigTool(owner, options = {}) {
                 ual.skeletons[0].returnToRest();
                 if (model != null)
                     rebuildAtRest();
+                standAtRest();
                 return;
             }
             targets();
@@ -1963,6 +2016,8 @@ export function mountRigTool(owner, options = {}) {
             const mine = applied != null ? made.get(ui.clip) : undefined;
             if (mine != null)
                 ground(mine);
+            else
+                standAtRest();
         };
         /*
         CLIPS FROM ANOTHER RIG (Mixamo, a mocap file, another library): any GLB
@@ -2575,6 +2630,16 @@ export function mountRigTool(owner, options = {}) {
             const starts = new Map([...followers, ...twinFollowers].map((d) => [d, d.position.clone()]));
             cam.detachControl();
             const plane = BABYLON.Plane.FromPositionAndNormal(handle.position, cam.getForwardRay().direction);
+            /*
+            SEEN FROM THE SIDE a marker moves in depth too: kept as how far in
+            front of the fit's depth its joint goes (binding.depths), so it stays
+            put when the marker moves again in the front view. Its twin takes the
+            same depth.
+            */
+            const side = !tailKey && Math.abs(cam.getForwardRay().direction.x) > 0.7;
+            const depths = {
+                ...(b.depths ?? {}),
+            };
             const move = (ev) => {
                 const p = toRender(ev);
                 const ray = scene.createPickingRay(p.x, p.y, BABYLON.Matrix.Identity(), cam);
@@ -2605,10 +2670,20 @@ export function mountRigTool(owner, options = {}) {
                 markers[k] = { x: x - off.x, y: f.y - off.y };
                 if (symmetry && other != null)
                     markers[other] = { x: -(x - off.x), y: f.y - off.y };
-                // Its depth is the fit's (the middle of the body there), shown as it
-                // goes: seen from the side it follows the body instead of holding a
-                // depth and jumping there on release.
-                const now = fittedJoints({ ...b, markers }, false);
+                if (side) {
+                    const own = [key, ...(symmetry && other != null ? [other] : [])];
+                    const without = { ...depths };
+                    for (const n of own)
+                        delete without[n];
+                    const base = fittedJoints({ ...b, markers, depths: without }, false)?.get(MARKER_JOINT[key] ?? '')?.z;
+                    if (base != null)
+                        for (const n of own)
+                            depths[n] = f.z - base;
+                }
+                // Its depth is the fit's (the middle of the body there) plus any set
+                // by hand, shown as it goes: seen from the front it follows the body
+                // instead of holding a depth and jumping there on release.
+                const now = fittedJoints({ ...b, markers, depths }, false);
                 const depth = (k2, d) => now?.get(MARKER_JOINT[k2 ?? ''] ?? '')?.z ?? toFile(d.position).z;
                 handle.position.copyFrom(toScene(x, f.y, depth(key, handle)));
                 if (symmetry && other != null && twin != null)
@@ -2645,7 +2720,7 @@ export function mountRigTool(owner, options = {}) {
                 }
                 setMarkers(markers, tail, tail != null ? tailBase : null, carries
                     ? [key, ...(symmetry && other != null ? [other] : []), ...carried]
-                    : []);
+                    : [], depths);
             };
             window.addEventListener('pointermove', move, true);
             window.addEventListener('pointerup', up, true);
@@ -2885,6 +2960,7 @@ export function mountRigTool(owner, options = {}) {
             refresh();
         };
         tool = {
+            restand,
             rebuild,
             load,
             rebind,
@@ -2920,6 +2996,8 @@ export function mountRigTool(owner, options = {}) {
             const problems = validateRigRecipe(r);
             if (problems.length)
                 throw new Error(`not a rig recipe: ${problems[0]}`);
+            const rebinding = JSON.stringify(r.binding ?? null) !==
+                JSON.stringify(recipe.binding ?? null);
             recipe = fresh({ ...r, model: r.model ?? recipe.model });
             // Handed over before a model is up: it is the one to load with.
             if (tool == null)
@@ -2928,7 +3006,13 @@ export function mountRigTool(owner, options = {}) {
             // The host's own edit: kept, applied, not announced back to it.
             if (files)
                 remember(ui.model, recipe);
-            tool?.rebuild(true);
+            // New markers bind the mesh again; anything else is applied as it is.
+            if (rebinding && tool != null) {
+                stale = false;
+                void tool.rebind();
+            }
+            else
+                tool?.rebuild(true);
             refresh();
         },
         get applied() {
@@ -2952,8 +3036,8 @@ export function mountRigTool(owner, options = {}) {
             if (clip != null)
                 ui.clip = clip;
             ui.pose = clip === null ? 'rest' : 'animate';
-            tool?.play();
-            refresh();
+            // Bound first if a marker moved, as the panel's animate is.
+            animate();
         },
         load: (m) => tool?.load(m),
         loadClips: (f) => tool?.loadClips(f),

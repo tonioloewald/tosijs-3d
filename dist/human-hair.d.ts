@@ -3,7 +3,7 @@ import type { BuiltRig } from './rig-build.js';
 import type { FittedRig } from './rig-fit.js';
 import { type HeadLandmarks } from './hair-fit.js';
 import { type HairPlacement, type HairShape, type HeadScalp, type ReferenceHead } from './hair-place.js';
-export { headScalp, placeHair, QUATERNIUS_HEADS, type HairPlacement, type HeadScalp, type ReferenceHead, } from './hair-place.js';
+export { headScalp, placeHair, QUATERNIUS_HAIR, QUATERNIUS_HEADS, type HairPlacement, type HeadScalp, type ReferenceHead, } from './hair-place.js';
 /** One mesh of a piece: vertices in the file's frame, its UVs, its triangles, its material. */
 export interface HairPart extends HairShape {
     uvs: Float32Array | null;

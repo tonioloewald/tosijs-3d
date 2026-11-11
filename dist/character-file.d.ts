@@ -21,6 +21,13 @@ export interface Character {
     bodies?: Record<string, CharacterBody>;
     /** Pictures its materials use, chosen from disk: key (`picture:…`) → base64. */
     pictures?: Record<string, string>;
+    /** Clip files it plays, by file name: a BVH capture or a GLB's animations. */
+    clips?: Record<string, CharacterClip>;
+}
+/** A clip file a character carries: its kind and bytes. */
+export interface CharacterClip {
+    kind: 'bvh' | 'glb';
+    bytes: Uint8Array;
 }
 /** Where a mesh body comes from: `url` (and `pick`), or the file itself. */
 export interface CharacterBody {
@@ -53,6 +60,11 @@ export interface CharacterDoc {
     }>;
     /** key (`picture:…`) → base64. */
     pictures?: Record<string, string>;
+    /** file name → `{ kind, data (base64) }`. */
+    clips?: Record<string, {
+        kind: string;
+        data: string;
+    }>;
 }
 /** A character as a document, ready for `JSON.stringify`. */
 export declare function writeCharacter(c: Character, options?: {

@@ -160,6 +160,8 @@ sheet: SVGSVGElement, config: {
      * record; this is the single number that settles them together.
      */
     chromeBand?: number;
+    /** Close on a press outside it (and outside its panel): a menu. */
+    dismissOutside?: boolean;
 }) => {
     close: () => void;
 };
@@ -364,6 +366,12 @@ export interface WidgetHost {
          * told apart. Only drawn where there is a band (`chrome`).
          */
         title?: string;
+        /**
+         * Close on a press anywhere else: outside the popup, and on the panel
+         * anywhere but the control that opened it (which toggles it itself).
+         * What a menu does; `showPopup` asks for it.
+         */
+        dismissOutside?: boolean;
         /** Called when it goes away, however it went. */
         handleClose?: () => void;
     }, ...items: Widget3d[]) => {

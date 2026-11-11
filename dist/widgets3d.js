@@ -1428,7 +1428,7 @@ A TOOLTIP, drawn in the SVG: a texture shows no `<title>`, and a headset has
 no browser tooltip at all, but a controller ray hovers as a mouse does. One
 drawer, used by `iconBar3d` on its own and by `panel3d` for every widget in
 it (`WidgetHost.showTip`), so a tip looks the same wherever it comes from.
-Under its anchor, centred, kept inside `width`; above it when there is no
+Under its anchor, centred, kept inside `width` (less `inset` each side); above it when there is no
 room below `height`.
 */
 const TIP_FONT = 11;
@@ -1451,14 +1451,15 @@ function tipDrawer() {
     const el = css(g({ visibility: 'hidden', 'data-w3d-tip': '' }, tipBg, tipText), 'pointer-events:none');
     return {
         el,
-        show(title, at, width, height = Infinity) {
+        show(title, at, width, height = Infinity, inset = 0) {
             const w = measureTextWidth(title, {
                 size: TIP_FONT,
                 family: TH.FONT_FAMILY,
                 weight: TH.TEXT_WEIGHT,
             }) + 12;
             const h = TIP_FONT + 10;
-            const x = Math.max(0, Math.min(at.x + at.width / 2 - w / 2, Math.max(0, width - w)));
+            // Inside the panel's padding: past it, a plane's edge cuts the tip off.
+            const x = Math.max(inset, Math.min(at.x + at.width / 2 - w / 2, Math.max(inset, width - inset - w)));
             const below = at.y + at.height + 3;
             const y = below + h > height ? Math.max(0, at.y - 3 - h) : below;
             tipBg.setAttribute('x', String(x));
@@ -3257,7 +3258,8 @@ function buildPanel3d(config, ...widgets) {
             */
             const slot = root;
             slot.__anchored?.close();
-            const handle = this.showLayer(config, ...items);
+            // A menu: a press anywhere else closes it, as a DOM select's list does.
+            const handle = this.showLayer({ ...config, dismissOutside: true }, ...items);
             slot.__anchored = handle;
             return handle;
         },
@@ -3296,7 +3298,7 @@ function buildPanel3d(config, ...widgets) {
                 ...anchor,
                 x: anchor.x + padding,
                 y: anchor.y + paddingTop + rowY(index, inHeader),
-            }, width, height);
+            }, width, height, padding);
         },
         hideTip: () => tips.hide(),
         showLayer(config, ...items) {
@@ -3426,6 +3428,8 @@ function buildPanel3d(config, ...widgets) {
                     o.close();
                 handlerOf(config, 'handleClose', 'onClose')?.();
             };
+            if (config.dismissOutside)
+                entry.dismiss = closeAll;
             opened.push(
             // `chromeBand` travels with the popup: the sheet reserved it, so every
             // host has to agree about whether it exists. Computing it twice is how
@@ -3604,6 +3608,13 @@ function buildPanel3d(config, ...widgets) {
         }
         const row = inHeader ? headerRowAt(localX, localY) : rowAt(localX, contentY);
         if (kind === 'down') {
+            // A press on the panel anywhere but a menu's own control closes the
+            // menu; on its control, the control toggles it.
+            for (const p of [...popups]) {
+                const opener = (p.inHeader ? headerWidgets : widgets)[p.index];
+                if (p.dismiss != null && row?.w !== opener)
+                    p.dismiss();
+            }
             if (row) {
                 /*
                 A PRESS ELSEWHERE CLEARS THE LAST WIDGET'S INNER FOCUS.

@@ -184,6 +184,15 @@ export function glbNodePosition(bytes, name, options = {}) {
     return { x: m[12], y: m[13], z: m[14] };
 }
 /**
+ * Whether the names of a file's mesh nodes are riggedBodyGlb's: a `body`, and
+ * nothing but `eyes`, `held` and garments (`<slot>: <name>`) beside it. A
+ * file of anyone else's with a `body` and a `hair` is taken whole.
+ */
+export function ownExportNames(names) {
+    return (names.includes('body') &&
+        names.every((n) => n === 'body' || n === 'eyes' || n === 'held' || n.includes(': ')));
+}
+/**
  * A GLB's triangles for rigging, with no engine: the file's frame, skinned
  * meshes at rest, one surface per material (its glTF material as data,
  * images as bytes), eyes split out. `pick` takes one node and its children.
@@ -237,10 +246,18 @@ export function glbRigTriangles(bytes, options = {}) {
     for (const i of scene?.nodes ??
         nodes.map((_, i) => i).filter((i) => !parentOf.has(i)))
         visit(i);
+    // OUR OWN EXPORT (riggedBodyGlb): read back as a body, only its skin and
+    // eyes are the body; its garments and held item, merged in, lay over the
+    // skin and broke the cut. Known by its names (`ownExportNames`), on NODES,
+    // as Babylon's loader names a mesh (omnidude's MESH is called 'body' too).
+    const meshNamed = (i, name) => nameOf(i) === name;
+    const ownExport = ownExportNames(order.filter((i) => nodes[i].mesh != null && under(i)).map(nameOf));
     const pieces = [];
     for (const i of order) {
         const node = nodes[i];
         if (node.mesh == null || !under(i))
+            continue;
+        if (ownExport && !meshNamed(i, 'body') && !meshNamed(i, 'eyes'))
             continue;
         const prims = json.meshes[node.mesh].primitives;
         const skin = node.skin != null ? json.skins?.[node.skin] : undefined;

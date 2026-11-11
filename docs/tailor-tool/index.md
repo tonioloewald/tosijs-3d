@@ -26,10 +26,11 @@ top carries **undo**, **redo**, **cancel** and **done**; below it:
 - **the outline**: you draw the character's left, on your right, and the
   other side is its mirror. Click out points, click the first to close a
   shape, drag a point to move it, press an edge to add one;
-- **cloth mesh**: the cloth is cut from an even surface laid over the body
-  ([remesh](/remesh/)), **coarse**, **medium** (the default) or **fine**
-  (edges about 3, 2 or 1.2 cm), whatever the body's own triangles are; **as
-  the body** cuts the body's triangles themselves;
+- **cloth mesh**: **as the body** (the default) cuts the body's triangles
+  themselves, the cheapest and surest; or the cloth is cut from an even
+  surface laid over the body ([remesh](/remesh/)), **coarse**, **medium** or
+  **fine** (edges about 3, 2 or 1.2 cm), whatever the body's own triangles
+  are;
 - **thickness** (thicker cloth bridges more of the chest, where the body
   says where its nipples are);
 - **made by**: **cutting the skin** (the cloth follows the body),

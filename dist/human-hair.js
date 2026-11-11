@@ -31,7 +31,7 @@ import * as BABYLON from '@babylonjs/core';
 import { hairColor, hairDye } from './skin-tone.js';
 import { vertexNormals } from './hair-fit.js';
 import { closestHead, hairFitFor, moustacheLip, placeHair, QUATERNIUS_HEADS, withoutLashes, } from './hair-place.js';
-export { headScalp, placeHair, QUATERNIUS_HEADS, } from './hair-place.js';
+export { headScalp, placeHair, QUATERNIUS_HAIR, QUATERNIUS_HEADS, } from './hair-place.js';
 /** Load a hair library (a GLB of named pieces); `reference` hugs its scalp. */
 export async function loadHairLibrary(scene, url, options = {}) {
     const container = await BABYLON.LoadAssetContainerAsync(url, scene);

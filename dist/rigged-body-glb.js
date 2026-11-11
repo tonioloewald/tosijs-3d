@@ -37,7 +37,8 @@ What the file is (Dramatis's `export-format`, version 1):
   first (a mesh generator's 1.9 units, say, made a real 1.7 m).
 - **Meshes**: `body`, one primitive per material, and `eyes` (both eyeballs,
   skinned wholly to `Head`, which the profile prefers to parenting a mesh
-  under a joint). The file's own materials go out as glTF PBR with their
+  under a joint; with `eyeTexture`, eye-art's picture laid on each by
+  `gltfEyeUvs`, else plain white). The file's own materials go out as glTF PBR with their
   pictures embedded, when the body's surfaces carry them as data (a body
   read by `glb-rig`); otherwise a plain grey.
 - **Springs**, when given the rig `recipe`: a bone spring (a tail) swings
@@ -52,7 +53,10 @@ What the file is (Dramatis's `export-format`, version 1):
   from Blender), each a mesh named for its slot, skinned with weights from
   the body's own, as the builder draws them (armour lifted 5 mm), with its
   material as data (its pictures, and its saved look's glTF factors where
-  it has a plain reading). The skin they cover is tucked under them, as the
+  it has a plain reading). A recoloured cloth's picture is written
+  recoloured ([cloth-bake](/cloth-bake/), PNG or JPEG in, PNG out), so the
+  file shows what the builder does in any engine; `bake: false` writes the
+  pictures as they came. The skin they cover is tucked under them, as the
   builder does, and skin a garment lists in its `delete` (as MakeHuman's
   clothes do) is dropped; `cover: false` leaves the skin alone.
 - **Clips**, with `clips`: animations read from any skinned GLB
@@ -80,9 +84,11 @@ import { writeSkinnedGlb, } from './skinned-glb.js';
 import { UAL_REST } from './ual-rest.js';
 import { drawnPositions, fitProxy, proxyWeights } from './proxy-fit.js';
 import { coverSkin } from './proxy-cover.js';
+import { bakeClothLook } from './cloth-bake.js';
 import { vertexNormals } from './hair-fit.js';
 import { bakeClip } from './glb-clips.js';
 import { humanoidRoles } from './retarget.js';
+import { gltfEyeUvs } from './eye-art.js';
 import { gripMatrix, gripPoint, mat4Multiply, socketWorld, } from './hand-socket.js';
 import { STRAND_DEFAULTS, strandPoints, } from './rig-recipe.js';
 import { SPRING_DEFAULTS } from './spring-chain.js';
@@ -213,6 +219,106 @@ function heldSocket(sk, at, held) {
             az[2],
         ]),
     };
+}
+/**
+ * The held item's mesh, placed on its socket and skinned wholly to the joint
+ * at `jointIndex`, with its materials (indices from `materialBase`); its
+ * pictures are appended to `images`.
+ */
+function heldMesh(held, socket, jointIndex, materialBase, images) {
+    const item = held.item;
+    const gp = held.gripPoint ?? gripPoint(item.positions) ?? { x: 0, y: 0, z: 0 };
+    const k = held.grip.scale ?? 1;
+    const pos = new Float32Array(item.positions.length);
+    for (let i = 0; i < pos.length; i += 3) {
+        const v = qrot(socket.rotation, [
+            (item.positions[i] - gp.x) * k,
+            (item.positions[i + 1] - gp.y) * k,
+            (item.positions[i + 2] - gp.z) * k,
+        ]);
+        pos[i] = socket.position[0] + v[0];
+        pos[i + 1] = socket.position[1] + v[1];
+        pos[i + 2] = socket.position[2] + v[2];
+    }
+    const runs = item.surfaces?.length
+        ? item.surfaces.map((s) => [s.start, s.count])
+        : [[0, item.indices.length]];
+    const { materials } = materialsOf(item.surfaces, runs.length, item.uvs != null, 'held', images);
+    const n = pos.length / 3;
+    const jw = new Uint16Array(n * 4).fill(jointIndex);
+    const ww = Float32Array.from({ length: n * 4 }, (_, i) => i % 4 === 0 ? 1 : 0);
+    const normals = smoothNormals(pos, item.indices);
+    return {
+        mesh: {
+            name: 'held',
+            primitives: runs.map(([start, count], r) => primitive(start, count, item.indices, pos, normals, jw, ww, item.uvs, undefined, materialBase + r)),
+            ...(held.extras ? { extras: held.extras } : {}),
+        },
+        materials,
+    };
+}
+/**
+ * A held item for ANY skeleton at rest, as `riggedBodyGlb` writes one: the
+ * socket joint under the hand (hand-socket's socket times the grip) and, with
+ * `held.item`, its mesh skinned to that joint, its materials and pictures.
+ * For a writer whose skeleton `riggedBodyGlb` did not make. The skeleton needs
+ * `hand_<side>`, `lowerarm_<side>` and `thumb_01_<side>`; it throws when the
+ * hand cannot be read.
+ */
+export function heldParts(joints, held, bases = {}) {
+    const sk = {
+        names: joints.map((j) => j.name),
+        parents: joints.map((j) => j.parent),
+        rest: joints.map((j) => j.position),
+    };
+    const socket = heldSocket(sk, sk.rest, held);
+    // Each joint's model-space turn at rest.
+    const world = [];
+    joints.forEach((j, i) => {
+        world[i] =
+            j.parent < 0 ? j.rotation : qnorm(qmul(world[j.parent], j.rotation));
+    });
+    const handQ = world[socket.hand];
+    const translation = qrot(qconj(handQ), sub(socket.position, sk.rest[socket.hand]));
+    const r = qmatrix(qconj(socket.rotation));
+    const t = qrot(qconj(socket.rotation), socket.position);
+    const joint = {
+        name: socket.name,
+        parent: socket.hand,
+        translation,
+        rotation: qnorm(qmul(qconj(handQ), socket.rotation)),
+        inverseBind: Float32Array.from([
+            r[0],
+            r[3],
+            r[6],
+            0,
+            r[1],
+            r[4],
+            r[7],
+            0,
+            r[2],
+            r[5],
+            r[8],
+            0,
+            -t[0],
+            -t[1],
+            -t[2],
+            1,
+        ]),
+    };
+    if (!held.item)
+        return { joint, mesh: null, materials: [], images: [] };
+    const images = [];
+    const { mesh, materials } = heldMesh(held, socket, joints.length, bases.materialBase ?? 0, images);
+    const imageBase = bases.imageBase ?? 0;
+    if (imageBase)
+        for (const m of materials)
+            for (const key of Object.keys(m)) {
+                const v = m[key];
+                if (v && typeof v === 'object' && typeof v.image === 'number')
+                    m[key] = { ...v, image: v.image + imageBase };
+            }
+    return { joint, mesh, materials, images };
 }
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -442,7 +548,7 @@ function smoothNormals(positions, indices) {
 const isGltfMaterial = (m) => m != null && Array.isArray(m.baseColorFactor);
 /** The body's materials as glTF, their pictures collected once each. */
 /** A garment's material (garment-proxy's data) as glTF's. */
-function garmentMaterial(m, name, images) {
+function garmentMaterial(m, name, images, bake = true) {
     const image = (t, as) => {
         if (t?.bytes == null)
             return undefined;
@@ -469,7 +575,10 @@ function garmentMaterial(m, name, images) {
         ...(m.alphaMode === 'MASK' ? { alphaCutoff: m.alphaCutoff ?? 0.5 } : {}),
         doubleSided: m.twoSided,
     };
-    const base = image(m.baseColorTexture, 'baseColor');
+    const baked = bake && m.baseColorTexture?.bytes != null
+        ? bakeClothLook(m.baseColorTexture, m.look)
+        : null;
+    const base = image(baked ?? m.baseColorTexture, 'baseColor');
     if (base)
         out.baseColorTexture = base;
     const mr = image(m.metallicRoughnessTexture, 'metallicRoughness');
@@ -614,16 +723,29 @@ export function riggedBodyGlb(body, options = {}) {
             for (let i = 0; i < drawn.length; i++)
                 drawn[i] += n[i] * 0.005;
         }
-        return { g, drawn, w: proxyWeights(g, body.weights) };
+        // A rigid piece (hair) follows one joint wholly, as the builder hangs it.
+        const joint = g.follows
+            ? body.rig.joints.findIndex((j) => j.name === g.follows)
+            : -1;
+        const w = joint >= 0
+            ? {
+                indices: Float32Array.from({ length: (drawn.length / 3) * 4 }, (_, k) => (k % 4 === 0 ? joint : 0)),
+                weights: Float32Array.from({ length: (drawn.length / 3) * 4 }, (_, k) => (k % 4 === 0 ? 1 : 0)),
+            }
+            : proxyWeights(g, body.weights);
+        return { g, drawn, w };
     });
     let rest = body.positions;
     let indices = body.indices;
     let runs = body.surfaces?.length
         ? body.surfaces.map((s) => [s.start, s.count])
         : [[0, body.indices.length]];
-    if (worn.length > 0 && options.cover !== false) {
+    // The skin is tucked under clothes only, as the builder does (hair and
+    // brows sit on it).
+    const clothing = worn.filter((x) => x.g.category === 'clothes');
+    if (clothing.length > 0 && options.cover !== false) {
         const covered = coverSkin(body.positions, vertexNormals(body.positions, body.indices), // unit: coverSkin measures along them
-        body.indices, Uint32Array.from({ length: nVerts }, (_, i) => i), worn.map((x) => x.g), { drawn: new Map(worn.map((x) => [x.g.name, x.drawn])) });
+        body.indices, Uint32Array.from({ length: nVerts }, (_, i) => i), clothing.map((x) => x.g), { drawn: new Map(clothing.map((x) => [x.g.name, x.drawn])) });
         rest = covered.positions;
         if (covered.deleted.size > 0) {
             const kept = [];
@@ -772,9 +894,23 @@ export function riggedBodyGlb(body, options = {}) {
                 ix.push(base + i);
         });
         const n = pos.length / 3;
+        // The picture is laid on by where each point is on its eyeball at rest.
+        const eyeArt = options.eyeTexture;
+        const textured = eyeArt != null &&
+            (eyeArt.mimeType === 'image/png' || eyeArt.mimeType === 'image/jpeg');
+        if (textured)
+            images.push({
+                name: 'eyes',
+                mimeType: eyeArt.mimeType,
+                bytes: eyeArt.bytes,
+            });
+        const eyeUvs = textured
+            ? gltfEyeUvs(body.eyes.flatMap((e) => Array.from(e.positions)))
+            : null;
         materials.push({
             name: 'eyes',
-            baseColorFactor: [0.95, 0.95, 0.95, 1],
+            baseColorFactor: textured ? [1, 1, 1, 1] : [0.95, 0.95, 0.95, 1],
+            ...(textured ? { baseColorTexture: { image: images.length - 1 } } : {}),
             metallicFactor: 0,
             roughnessFactor: 0.2,
             alphaMode: 'OPAQUE',
@@ -786,7 +922,7 @@ export function riggedBodyGlb(body, options = {}) {
                 {
                     positions: Float32Array.from(pos),
                     normals: smoothNormals(pos, ix),
-                    uvs: null,
+                    uvs: eyeUvs,
                     colors: null,
                     joints: new Uint16Array(n * 4).fill(head),
                     weights: Float32Array.from({ length: n * 4 }, (_, k) => k % 4 === 0 ? 1 : 0),
@@ -828,14 +964,18 @@ export function riggedBodyGlb(body, options = {}) {
         for (let i = 0; i < gj.length; i++)
             gj[i] = Math.max(0, sk.from[w.indices[i]] ?? 0);
         const pos = placeAll(skinTo(drawn, gj, w.weights, sk.rest, pose));
-        materials.push(garmentMaterial(g.material, `${g.slot ?? 'garment'}_${g.name}`, images));
+        materials.push(garmentMaterial(g.material, `${g.slot ?? 'garment'}_${g.name}`, images, options.bake !== false));
         meshes.push({
             name: `${g.slot ?? 'garment'}: ${g.name}`,
             primitives: [
                 {
                     positions: Float32Array.from(pos),
                     normals: smoothNormals(pos, g.triangles),
-                    uvs: g.uvs.length === (pos.length / 3) * 2 ? g.uvs : null,
+                    // A garment's uvs are OBJ's (v up), as MakeHuman's and readGarment
+                    // hold them; glTF's v runs down.
+                    uvs: g.uvs.length === (pos.length / 3) * 2
+                        ? Float32Array.from(g.uvs, (v, i) => (i % 2 ? 1 - v : v))
+                        : null,
                     colors: null,
                     joints: gj,
                     weights: w.weights,
@@ -846,36 +986,9 @@ export function riggedBodyGlb(body, options = {}) {
         });
     });
     if (held && options.held.item) {
-        const h = options.held;
-        const item = h.item;
-        const gp = h.gripPoint ?? gripPoint(item.positions) ?? { x: 0, y: 0, z: 0 };
-        const k = h.grip.scale ?? 1;
-        const pos = new Float32Array(item.positions.length);
-        for (let i = 0; i < pos.length; i += 3) {
-            const v = qrot(held.rotation, [
-                (item.positions[i] - gp.x) * k,
-                (item.positions[i + 1] - gp.y) * k,
-                (item.positions[i + 2] - gp.z) * k,
-            ]);
-            pos[i] = held.position[0] + v[0];
-            pos[i + 1] = held.position[1] + v[1];
-            pos[i + 2] = held.position[2] + v[2];
-        }
-        const runs = item.surfaces?.length
-            ? item.surfaces.map((s) => [s.start, s.count])
-            : [[0, item.indices.length]];
-        const first = materials.length;
-        const own = materialsOf(item.surfaces, runs.length, item.uvs != null, 'held', images);
+        const own = heldMesh(options.held, held, names.length - 1, materials.length, images);
         materials.push(...own.materials);
-        const n = pos.length / 3;
-        const jw = new Uint16Array(n * 4).fill(names.length - 1);
-        const ww = Float32Array.from({ length: n * 4 }, (_, i) => i % 4 === 0 ? 1 : 0);
-        const itemNormals = smoothNormals(pos, item.indices);
-        meshes.push({
-            name: 'held',
-            primitives: runs.map(([start, count], r) => primitive(start, count, item.indices, pos, itemNormals, jw, ww, item.uvs, undefined, first + r)),
-            ...(h.extras ? { extras: h.extras } : {}),
-        });
+        meshes.push(own.mesh);
     }
     const chains = springChains(sk, strands, options.recipe, {
         at,

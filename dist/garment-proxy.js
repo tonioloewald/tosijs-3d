@@ -34,6 +34,22 @@ no factor reading; `recolourCloth` (cloth-bake) bakes it into the picture.
 A garment made on a mesh's body (its `meta.source` names the mesh) binds to
 that body the same way: pass the rigged body's `positions` and `indices`.
 
+MAKEHUMAN'S OWN CLOTHES go out the same way. They are bound to the pack's
+every vertex, helpers included, and the skin a MakeHuman body draws is a part
+of them (or a lighter body proxy over them), so `onSkin` binds the piece as
+worn to that skin instead, carrying the skin it deletes across; and
+`packGarmentMaterial` is a pack proxy's material as data, its pictures as
+bytes the caller fetched.
+
+```javascript
+const drawn = drawnPositions(proxy, fitProxy(proxy, body.full))
+const garment = {
+  ...onSkin(proxy, drawn, { positions: body.positions, triangles: body.indices, vertices: body.skin.vertices }),
+  material: packGarmentMaterial(proxy, { diffuse }, look),
+}
+riggedBodyGlb(body, { garments: [garment] })
+```
+
 Pure: no DOM, no Babylon.
 */
 /*{ "parent": "garment-file" }*/
@@ -103,11 +119,8 @@ export function lookGltf(recipe, textured) {
  * file's (and `top`).
  */
 export function garmentProxy(content, body, options = {}) {
-    const { garment, meta, material } = content;
+    const { garment, meta } = content;
     const binding = bindGarment(body.positions, body.triangles, garment.positions, garmentRigidity(garment));
-    const look = garmentLook(meta);
-    const cut = meta?.cut;
-    const { doubleSided, ...rest } = material ?? {};
     return {
         ...binding,
         triangles: garment.triangles,
@@ -116,12 +129,64 @@ export function garmentProxy(content, body, options = {}) {
         name: options.name ?? meta?.name ?? 'garment',
         category: 'clothes',
         slot: options.slot ?? meta?.slot ?? 'top',
-        material: {
-            ...rest,
-            twoSided: cut?.skirt === true || cut?.drape === true || doubleSided === true,
-            look,
-            gltf: look ? lookGltf(look, material?.baseColorTexture != null) : null,
-        },
+        material: garmentFileMaterial(content),
+    };
+}
+/** A garment file's material as data, with the look it was saved with. */
+export function garmentFileMaterial(content) {
+    const { meta, material } = content;
+    const look = garmentLook(meta);
+    const cut = meta?.cut;
+    const { doubleSided, ...rest } = material ?? {};
+    return {
+        ...rest,
+        twoSided: cut?.skirt === true || cut?.drape === true || doubleSided === true,
+        look,
+        gltf: look ? lookGltf(look, material?.baseColorTexture != null) : null,
+    };
+}
+/**
+ * A piece bound to MakeHuman's pack bound instead to the skin a MakeHuman
+ * body draws: `drawn` is the piece as worn (`drawnPositions` of its fit on
+ * the body's every vertex), bound as a garment file is; `skin.vertices` is
+ * the pack vertex each skin vertex leans on (human-rig's `HumanSkin`), which
+ * carries what the piece deletes across. The rest of the proxy (name, slot,
+ * triangles, uvs) is kept.
+ */
+export function onSkin(proxy, drawn, skin) {
+    const binding = bindGarment(skin.positions, skin.triangles, drawn);
+    let del = null;
+    if (proxy.delete?.length) {
+        const gone = new Set(proxy.delete);
+        const kept = [];
+        for (let i = 0; i < skin.vertices.length; i++)
+            if (gone.has(skin.vertices[i]))
+                kept.push(i);
+        del = Uint32Array.from(kept);
+    }
+    return { ...proxy, ...binding, delete: del };
+}
+/**
+ * A pack proxy's material as data: its `pictures` (the diffuse and normal
+ * maps, fetched by the caller: MakeHuman's are PNG or JPEG) and the look it
+ * is worn in, as the builder draws it (cloth matte, hair softer, glasses
+ * blended, other cut-outs at 0.4).
+ */
+export function packGarmentMaterial(proxy, pictures, look = null) {
+    const textured = pictures.diffuse != null;
+    return {
+        baseColorTexture: pictures.diffuse ?? null,
+        normalTexture: pictures.normal ?? null,
+        roughness: proxy.category === 'clothes' ? 0.8 : 0.72,
+        metallic: 0,
+        ...(proxy.material.alpha && textured
+            ? proxy.slot === 'glasses'
+                ? { alphaMode: 'BLEND' }
+                : { alphaMode: 'MASK', alphaCutoff: 0.4 }
+            : { alphaMode: 'OPAQUE' }),
+        twoSided: proxy.material.twoSided,
+        look,
+        gltf: look ? lookGltf(look, textured) : null,
     };
 }
 //# sourceMappingURL=garment-proxy.js.map

@@ -22,7 +22,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=c89d9110f950" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=f9a43918f299" data-tosi-doc-system />
   <title>Rig tool — tosijs-3d</title>
   <meta name="description" content="Put a character on our animations, give it hair or a tail, and save the result. Pick one of the demo characters or load your own GLB." />
   <link rel="canonical" href="https://3d.tosijs.net/rig-tool/" />
@@ -33,13 +33,13 @@
   <meta property="og:description" content="Put a character on our animations, give it hair or a tail, and save the result. Pick one of the demo characters or load your own GLB." />
   <meta property="og:url" content="https://3d.tosijs.net/rig-tool/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Rig tool","description":"Put a character on our animations, give it hair or a tail, and save the result. Pick one of the demo characters or load your own GLB.","url":"https://3d.tosijs.net/rig-tool/","inLanguage":"en","dateModified":"2026-11-07T23:25:25+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Rig tool","description":"Put a character on our animations, give it hair or a tail, and save the result. Pick one of the demo characters or load your own GLB.","url":"https://3d.tosijs.net/rig-tool/","inLanguage":"en","dateModified":"2026-11-11T12:48:28.389Z","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Demos","item":"https://3d.tosijs.net/demos/"},{"@type":"ListItem","position":2,"name":"Rig tool","item":"https://3d.tosijs.net/rig-tool/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=7ef9fd7bb1e4" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=964dce30c6d0" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="rig-tool.ts">
 <h1 id="rig-tool">Rig tool</h1>
 <p><strong>Put a character on our animations, give it hair or a tail, and save the
@@ -78,7 +78,11 @@ the outline; <code>spread fingers</code> lays both hands out afresh from the wri
 drag into place. <code>hands</code> says how much hand is rigged: thumb and four
 fingers, a mitten (a thumb and one finger, for a glove: the other fingers
 lie on it and take no skin) or none (the hand alone); <code>as found</code> leaves it
-to the fit. The joints follow the markers. <code>move joints</code> shows every
+to the fit. The joints follow the markers. The fit puts each marker&#39;s
+joint at the middle of the body&#39;s thickness (the pelvis behind the
+thighs, as the mannequin&#39;s is); from the side view, drag a marker forward
+or back to set its depth. The depth is kept as an offset from the fit, so
+it stays when the marker moves again from the front. <code>move joints</code> shows every
 joint (blue) to drag by hand from the view that suits: shoulders from the
 front, fingers and thumbs from the top, feet from the side. What hangs from
 a joint comes with it; set <code>dragging</code> to turn what hangs from it instead
@@ -89,8 +93,11 @@ head, the left forearm, each finger joint. They are guessed from the
 names; fix one by tapping, as above, or pick a role and then the bone that
 plays it, or <code>(none)</code> to leave it out. Set <code>clicking sets</code> to the chain and
 a tap hangs the chosen spring chain there instead.</li>
-<li><strong>Motion.</strong> <code>animate</code> and the clip; <code>arm space</code> turns the arms out from
-the body, for a character whose arms are long for its height;
+<li><strong>Motion.</strong> <code>animate</code> and the clip; <code>floor</code> moves the body up or down
+from where its soles stand (they are put on the floor at rest, and kept
+there as a clip plays), for one that still floats or sinks; <code>arm space</code>
+turns the arms out from the body, for a character whose arms are long for
+its height;
 <code>load animations…</code> adds the clips in a GLB made on another rig to the
 list: Mixamo&#39;s, a mocap file&#39;s, another library&#39;s. Which bone is which is
 read from the names (UE, Mixamo, Kenney and Blender spellings), so each
@@ -208,6 +215,7 @@ at its top. Done unmounts the tool and hands the callback the rig: the
         <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-tailor-tool" aria-label="tailor tool"></button><a class="doc-link" href="../tailor-tool/">tailor tool</a></div>
         <ul id="tosi-nav-tailor-tool">
+          <li><a class="doc-link" href="../tailor-recipe/">tailor-recipe</a></li>
           <li><a class="doc-link" href="../tailor-panel/">tailor panel</a></li>
         </ul></li>
         <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
@@ -228,6 +236,7 @@ at its top. Done unmounts the tool and hands the callback the rig: the
             <li><a class="doc-link" href="../outline-field/">outline field</a></li>
             <li><a class="doc-link" href="../remesh/">remesh</a></li>
             <li><a class="doc-link" href="../cloth-drape/">cloth drape</a></li>
+            <li><a class="doc-link" href="../body-sweep/">body-sweep</a></li>
           </ul></li>
           <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-garment-bind" aria-label="garment-bind"></button><a class="doc-link" href="../garment-bind/">garment-bind</a></div>
           <ul id="tosi-nav-garment-bind">
@@ -380,6 +389,7 @@ at its top. Done unmounts the tool and hands the callback the rig: the
           </ul></li>
           <li><a class="doc-link" href="../skin-paint/">skin paint</a></li>
           <li><a class="doc-link" href="../cloth-bake/">cloth bake</a></li>
+          <li><a class="doc-link" href="../jpeg/">jpeg</a></li>
           <li><a class="doc-link" href="../eye-art/">eye art</a></li>
           <li><a class="doc-link" href="../hair-place/">hair place</a></li>
           <li><a class="doc-link" href="../mesh-sdf/">mesh sdf</a></li>
@@ -387,7 +397,11 @@ at its top. Done unmounts the tool and hands the callback the rig: the
         </ul></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-retarget" aria-label="retarget"></button><a class="doc-link" href="../retarget/">retarget</a></div>
         <ul id="tosi-nav-retarget">
-          <li><a class="doc-link" href="../glb-clips/">glb clips</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-clips" aria-label="glb clips"></button><a class="doc-link" href="../glb-clips/">glb clips</a></div>
+          <ul id="tosi-nav-glb-clips">
+            <li><a class="doc-link" href="../bvh/">bvh</a></li>
+            <li><a class="doc-link" href="../clip-store/">clip-store</a></li>
+          </ul></li>
         </ul></li>
         <li><a class="doc-link" href="../rigged-body/">rigged-body</a></li>
         <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
@@ -596,6 +610,7 @@ at its top. Done unmounts the tool and hands the callback the rig: the
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.12.6/">0.12.6</a></li>
         <li><a class="doc-link" href="../v0.12.5/">0.12.5</a></li>
         <li><a class="doc-link" href="../v0.12.4/">0.12.4</a></li>
         <li><a class="doc-link" href="../v0.12.3/">0.12.3</a></li>
@@ -681,6 +696,6 @@ at its top. Done unmounts the tool and hands the callback the rig: the
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-3xsm839e.js"></script>
+  <script type="module" src="../hydrate-9knhx6yx.js"></script>
 </body>
 </html>

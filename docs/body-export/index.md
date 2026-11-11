@@ -5,7 +5,10 @@ character builder put in their **Export** section: which joint names, which
 rest pose, how tall, and a button that writes the body shown with
 [rigged-body-glb](/rigged-body-glb/) (its springs too, from the rig recipe)
 and downloads it. The file plays UAL's clips by name in three.js, Unity,
-Godot and Blender; a tail or a strand swings in any VRM loader.
+Godot and Blender; a tail or a strand swings in any VRM loader. With
+**animation** set to the clip playing, that clip goes in too, retargeted onto
+the skeleton as written (from UAL's file, a GLB's animations or a BVH
+capture: `clip` on the target says which).
 
 The body on screen was read through Babylon, so its materials are Babylon's.
 For the file, the model it came from is read again from its bytes

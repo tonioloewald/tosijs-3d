@@ -129,10 +129,15 @@ export function tailorPanel(el, options) {
         const g = ch()?.garments.get(name);
         return g && g.source === source() && g.cut ? g : null;
     };
-    // Opening on a slot: what it wears; an empty slot starts a new garment.
+    // Opening on a slot: what it wears; an empty slot, or one wearing what this
+    // body cannot (MakeHuman's shoes while another body is shown), starts a new
+    // garment. (The menu would show its first choice for a value not in it.)
     const defaultPick = () => {
-        const worn = options.worn(slotOf.get());
-        return worn === 'none' ? NEW_GARMENT : worn;
+        const slot = slotOf.get();
+        const worn = options.worn(slot);
+        return worn !== 'none' && options.choices(slot).includes(worn)
+            ? worn
+            : NEW_GARMENT;
     };
     const top = () => {
         const slot = slotOf.get();
@@ -241,7 +246,10 @@ export function tailorPanel(el, options) {
                 drape: saved.cut.drape === true,
                 mesh: saved.cut.mesh ?? 'medium',
             }
-            : draft.cut;
+            : draft.cut.shapes?.length
+                ? draft.cut
+                : // Nothing drawn yet: the cheapest, surest way, cut from the body.
+                    { ...draft.cut, drape: false, mesh: 'body' };
         const look = saved
             ? saved.look?.material ?? clothRecipe(saved.look ?? {})
             : plain(draft.look);
@@ -307,7 +315,7 @@ export function tailorPanel(el, options) {
             const d = options.draft.get();
             options.draft.set({
                 ...d,
-                cut: { ...d.cut, shapes: [] },
+                cut: { ...d.cut, shapes: [], drape: false, mesh: 'body' },
                 name: '',
             });
         }

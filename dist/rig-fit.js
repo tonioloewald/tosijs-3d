@@ -17,7 +17,12 @@ Two halves, both pure:
   where palm-down fingers show as separate prongs (`findFingers`). Every
   joint sits at the middle of the mesh's thickness at its (x, y), in the
   FRONT-MOST span, so a tail or a backpack behind the body is not mistaken
-  for it.
+  for it; except the pelvis, which goes behind the thigh joints by 0.028 of
+  the body's height (`PELVIS_BEHIND_THIGHS`) and below them by 0.008
+  (`PELVIS_BELOW_THIGHS`), as both of UAL's mannequins
+  have it: the middle of the hips moves with a seat, a belly or armour, and
+  the thighs, found from the legs, do not. `depths` moves any marker's joint
+  forward or back by hand.
 
 The rest pose is the T-pose as drawn: every bone's local rotation is
 identity and its position is its offset from its parent, so a bone points
@@ -187,6 +192,21 @@ const minus = (a, b) => ({
     z: a.z - b.z,
 });
 const along = (a, b, t) => add(a, scale(minus(b, a), t));
+/** How far behind the thigh joints the pelvis sits, as a share of height. */
+export const PELVIS_BEHIND_THIGHS = 0.028;
+/** How far below the thigh joints the pelvis sits, as a share of height. */
+export const PELVIS_BELOW_THIGHS = 0.008;
+/** The joint each marker places (the groin's is the pelvis, above it). */
+export const MARKER_JOINTS = {
+    chin: 'Head',
+    groin: 'pelvis',
+    wristL: 'hand_l',
+    wristR: 'hand_r',
+    elbowL: 'lowerarm_l',
+    elbowR: 'lowerarm_r',
+    kneeL: 'calf_l',
+    kneeR: 'calf_r',
+};
 export function fitSkeleton(markers, mesh, options = {}) {
     const floor = mesh.min.y;
     const zMid = (mesh.min.z + mesh.max.z) / 2;
@@ -264,7 +284,9 @@ export function fitSkeleton(markers, mesh, options = {}) {
     put('root', null, { x: cx, y: floor, z: pelvis.z });
     put('pelvis', 'root', pelvis);
     const armY = (markers.elbowL.y + markers.elbowR.y) / 2;
-    const neckY = Math.max(lerp(groin.y, chin.y, 0.82), Math.min(armY, chin.y));
+    // The neck's base is the top of the shoulders: on both mannequins an
+    // eighth of the way down from the head joint to the pelvis.
+    const neckY = Math.max(lerp(pelvisY, chin.y, 0.874), Math.min(armY, chin.y));
     const neckZ = torsoDepth(chin.x, neckY, pelvis.z);
     const neck = { x: lerp(cx, chin.x, 0.8), y: neckY, z: neckZ };
     const spineAt = (t) => {
@@ -594,6 +616,51 @@ export function fitSkeleton(markers, mesh, options = {}) {
                 put(name, parent, along(start, tip, i / count));
                 parent = name;
             }
+        }
+    }
+    /*
+    THE PELVIS FROM THE THIGHS. The middle of the hips' thickness is reliably
+    wrong: a seat, a belly or armour moves it, and the mannequins' pelvis is
+    well behind it. The thigh joints are found from the leg, which bodies
+    share far more closely, so the pelvis goes just behind and below them
+    (the root under it). The spine keeps its place.
+    */
+    if ((options.pelvis ?? 'thighs') === 'thighs') {
+        const l = byName.get('thigh_l');
+        const r = byName.get('thigh_r');
+        const pj = byName.get('pelvis');
+        if (l && r && pj) {
+            const height = mesh.max.y - mesh.min.y;
+            const z = (l.position.z + r.position.z) / 2 - PELVIS_BEHIND_THIGHS * height;
+            const y = (l.position.y + r.position.y) / 2 - PELVIS_BELOW_THIGHS * height;
+            pj.position = { ...pj.position, y, z };
+            const root = byName.get('root');
+            if (root)
+                root.position = { ...root.position, z };
+        }
+    }
+    /*
+    DEPTHS SET BY HAND move the marker's joint alone, toward the front or the
+    back: the pelvis takes the root standing under it, a wrist takes the
+    fingers (they are placed from the hand), the head its end.
+    */
+    for (const [k, dz] of Object.entries(options.depths ?? {})) {
+        const name = MARKER_JOINTS[k];
+        if (name == null || !dz)
+            continue;
+        const moves = new Set([name]);
+        if (name === 'pelvis')
+            moves.add('root');
+        if (name.startsWith('hand_'))
+            for (const j of joints)
+                if (j.parent != null && moves.has(j.parent))
+                    moves.add(j.name);
+        for (const j of joints) {
+            if (!moves.has(j.name))
+                continue;
+            j.position = { ...j.position, z: j.position.z + dz };
+            if (j.end != null)
+                j.end = { ...j.end, z: j.end.z + dz };
         }
     }
     return {

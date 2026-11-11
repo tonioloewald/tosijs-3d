@@ -5,13 +5,25 @@ export interface HairShape {
     positions: Float32Array;
     indices: Uint32Array;
 }
+/** A mesh of a piece as `readHairLibrary` reads it: its uvs (glTF's, v down) and its material's name too. */
+export interface HairFilePart extends HairShape {
+    uvs?: Float32Array;
+    material?: string;
+}
 /** A piece of a hair library: a hairstyle, a beard, a pair of brows. */
 export interface HairPiece {
     name: string;
     /** `hair` or `eyebrows` (from the node's glTF extras). */
     category: string;
-    parts: HairShape[];
+    parts: HairFilePart[];
 }
+/**
+ * The pieces in Quaternius' hair library (`quaternius/libraries/hairstyles.glb`,
+ * version 2), by category, so a character can offer them as choices before
+ * the 13.9 MB library is fetched (it loads when one is first worn). A test
+ * checks this list against the library itself.
+ */
+export declare const QUATERNIUS_HAIR: Readonly<Record<'hair' | 'eyebrows', readonly string[]>>;
 /**
 Quaternius' two adult heads, which its hairstyles were modelled on (the men's
 on one, the women's on the other), and where their eyes are (measured from
@@ -64,6 +76,22 @@ export declare function moustacheLip(part: HairShape): {
  * human-hair's loader does.
  */
 export declare function readHairLibrary(bytes: Uint8Array): HairPiece[];
+/** A hair material's pictures, as bytes: what an export writes. */
+export interface HairMaterialData {
+    baseColor: {
+        bytes: Uint8Array;
+        mimeType: string;
+    } | null;
+    normal: {
+        bytes: Uint8Array;
+        mimeType: string;
+    } | null;
+    roughness: number;
+    alphaMode: 'OPAQUE' | 'MASK' | 'BLEND';
+    alphaCutoff: number;
+}
+/** A hair library's materials by name, their pictures as bytes, with no engine. */
+export declare function readHairMaterials(bytes: Uint8Array): Record<string, HairMaterialData>;
 /**
  * The heads a library was modelled on, taken out of its pieces (by node name,
  * `heads` saying where their eyes are), each with its lip line from the

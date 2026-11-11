@@ -19,6 +19,8 @@ export interface OutlineField3dOptions {
     handleChange?: (value: ViewPoint[][]) => void;
     /** When a point is placed, let go or deleted: recut here. */
     handleCommit?: (value: ViewPoint[][]) => void;
+    /** When the shape being clicked out gains or loses a point (undo's buttons). */
+    handleOpen?: () => void;
     /**
      * Carry on from another field's `editing` (a panel rebuilt mid-edit): its
      * outlines, the one being clicked out and the selected point. Wins over `value`.
@@ -33,6 +35,8 @@ export interface OutlineEditing {
         s: number;
         p: number;
     } | null;
+    /** Points taken back from the open shape, the last taken last. */
+    redo?: ViewPoint[];
 }
 export interface OutlineField extends Widget3d {
     /** The outlines as drawn (halves with symmetry on). */
@@ -47,6 +51,11 @@ export interface OutlineField extends Widget3d {
     clear: () => void;
     /** Where the edit stands, for a field built in its place. */
     readonly editing: OutlineEditing;
+    /** A shape is being clicked out: `undoPoint` takes its last point back. */
+    readonly canUndoPoint: boolean;
+    readonly canRedoPoint: boolean;
+    undoPoint: () => void;
+    redoPoint: () => void;
     handleChange?: (value: ViewPoint[][]) => void;
     handleCommit?: (value: ViewPoint[][]) => void;
 }

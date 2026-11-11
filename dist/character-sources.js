@@ -42,9 +42,11 @@ const hosted = (path, pick, recipe) => ({
  * markers on the left (chin, groin, wrist, elbow, knee; mirrored to the
  * right) and any joints moved by hand, also on the left and mirrored, and
  * any on the centre line (a neck) as they are; `hands` how much hand is
- * rigged (a glove is a mitten: its thumb and middle finger are enough).
+ * rigged (a glove is a mitten: its thumb and middle finger are enough);
+ * `depths` metres in front of the fit's depth for a marker's joint (negative
+ * behind; the groin's is the pelvis), the wrist, elbow and knee for both sides.
  */
-export function rigFromMarkers([chin, groin, wrist, elbow, knee], joints = {}, centre = {}, hands) {
+export function rigFromMarkers([chin, groin, wrist, elbow, knee], joints = {}, centre = {}, hands, depths = {}) {
     const at = ([x, y], s = 1) => ({ x: x * s, y });
     const moved = {};
     for (const [name, [x, y, z]] of Object.entries(centre))
@@ -68,6 +70,16 @@ export function rigFromMarkers([chin, groin, wrist, elbow, knee], joints = {}, c
             tail: null,
             joints: moved,
             ...(hands != null ? { hands } : {}),
+            ...(Object.keys(depths).length
+                ? {
+                    depths: Object.fromEntries(Object.entries(depths).flatMap(([k, v]) => k === 'chin' || k === 'groin'
+                        ? [[k, v]]
+                        : [
+                            [`${k}L`, v],
+                            [`${k}R`, v],
+                        ])),
+                }
+                : {}),
         },
     };
 }
@@ -82,7 +94,7 @@ export const AI_CHARACTER_SOURCES = {
         [0, -0.1016],
         [0.4565, 0.0243],
         [0.3338, 0.206],
-        [0.1177, -0.4581],
+        [0.1177, -0.4334],
     ], {
         thumb_01: [0.4798, 0.0089, 0.071],
         thumb_02: [0.4555, -0.0154, 0.0883],
@@ -120,7 +132,7 @@ export const AI_CHARACTER_SOURCES = {
         [0, -0.1614],
         [0.5217, 0.105],
         [0.3631, 0.2801],
-        [0.1217, -0.4923],
+        [0.1217, -0.4337],
     ], {
         thumb_01: [0.5421, 0.0598, 0.0834],
         thumb_02: [0.5399, 0.0357, 0.0961],

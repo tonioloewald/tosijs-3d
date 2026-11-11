@@ -22,7 +22,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=c89d9110f950" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=f9a43918f299" data-tosi-doc-system />
   <title>glb-rig — tosijs-3d</title>
   <meta name="description" content="A mesh file&#39;s triangles for rigging, read with no engine. The same BodyTriangles that loadRigTriangles (rig-build) gives from a Babylon scene, read…" />
   <link rel="canonical" href="https://3d.tosijs.net/glb-rig/" />
@@ -33,13 +33,13 @@
   <meta property="og:description" content="A mesh file&#39;s triangles for rigging, read with no engine. The same BodyTriangles that loadRigTriangles (rig-build) gives from a Babylon scene, read…" />
   <meta property="og:url" content="https://3d.tosijs.net/glb-rig/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"glb-rig","description":"A mesh file's triangles for rigging, read with no engine. The same BodyTriangles that loadRigTriangles (rig-build) gives from a Babylon scene, read…","url":"https://3d.tosijs.net/glb-rig/","inLanguage":"en","dateModified":"2026-11-08T17:07:54+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"glb-rig","description":"A mesh file's triangles for rigging, read with no engine. The same BodyTriangles that loadRigTriangles (rig-build) gives from a Babylon scene, read…","url":"https://3d.tosijs.net/glb-rig/","inLanguage":"en","dateModified":"2026-11-09T18:54:06+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Characters and vehicles","item":"https://3d.tosijs.net/characters-and-vehicles/"},{"@type":"ListItem","position":2,"name":"b3d-biped","item":"https://3d.tosijs.net/b3d-biped/"},{"@type":"ListItem","position":3,"name":"character core","item":"https://3d.tosijs.net/character-core/"},{"@type":"ListItem","position":4,"name":"glb-chunks","item":"https://3d.tosijs.net/glb-chunks/"},{"@type":"ListItem","position":5,"name":"glb-rig","item":"https://3d.tosijs.net/glb-rig/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=7ef9fd7bb1e4" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=964dce30c6d0" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="glb-rig.ts">
 <h1 id="glb-rig">glb-rig</h1>
 <p><strong>A mesh file&#39;s triangles for rigging, read with no engine.</strong> The same
@@ -111,6 +111,7 @@ the same weights, so a saved character exports the same every time.</p>
         <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-tailor-tool" aria-label="tailor tool"></button><a class="doc-link" href="../tailor-tool/">tailor tool</a></div>
         <ul id="tosi-nav-tailor-tool">
+          <li><a class="doc-link" href="../tailor-recipe/">tailor-recipe</a></li>
           <li><a class="doc-link" href="../tailor-panel/">tailor panel</a></li>
         </ul></li>
         <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
@@ -131,6 +132,7 @@ the same weights, so a saved character exports the same every time.</p>
             <li><a class="doc-link" href="../outline-field/">outline field</a></li>
             <li><a class="doc-link" href="../remesh/">remesh</a></li>
             <li><a class="doc-link" href="../cloth-drape/">cloth drape</a></li>
+            <li><a class="doc-link" href="../body-sweep/">body-sweep</a></li>
           </ul></li>
           <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-garment-bind" aria-label="garment-bind"></button><a class="doc-link" href="../garment-bind/">garment-bind</a></div>
           <ul id="tosi-nav-garment-bind">
@@ -283,6 +285,7 @@ the same weights, so a saved character exports the same every time.</p>
           </ul></li>
           <li><a class="doc-link" href="../skin-paint/">skin paint</a></li>
           <li><a class="doc-link" href="../cloth-bake/">cloth bake</a></li>
+          <li><a class="doc-link" href="../jpeg/">jpeg</a></li>
           <li><a class="doc-link" href="../eye-art/">eye art</a></li>
           <li><a class="doc-link" href="../hair-place/">hair place</a></li>
           <li><a class="doc-link" href="../mesh-sdf/">mesh sdf</a></li>
@@ -290,7 +293,11 @@ the same weights, so a saved character exports the same every time.</p>
         </ul></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-retarget" aria-label="retarget"></button><a class="doc-link" href="../retarget/">retarget</a></div>
         <ul id="tosi-nav-retarget">
-          <li><a class="doc-link" href="../glb-clips/">glb clips</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-clips" aria-label="glb clips"></button><a class="doc-link" href="../glb-clips/">glb clips</a></div>
+          <ul id="tosi-nav-glb-clips">
+            <li><a class="doc-link" href="../bvh/">bvh</a></li>
+            <li><a class="doc-link" href="../clip-store/">clip-store</a></li>
+          </ul></li>
         </ul></li>
         <li><a class="doc-link" href="../rigged-body/">rigged-body</a></li>
         <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
@@ -499,6 +506,7 @@ the same weights, so a saved character exports the same every time.</p>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.12.6/">0.12.6</a></li>
         <li><a class="doc-link" href="../v0.12.5/">0.12.5</a></li>
         <li><a class="doc-link" href="../v0.12.4/">0.12.4</a></li>
         <li><a class="doc-link" href="../v0.12.3/">0.12.3</a></li>
@@ -584,6 +592,6 @@ the same weights, so a saved character exports the same every time.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-3xsm839e.js"></script>
+  <script type="module" src="../hydrate-9knhx6yx.js"></script>
 </body>
 </html>

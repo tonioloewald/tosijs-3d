@@ -11,6 +11,7 @@ and "forward" once that is included.
 */
 import * as BABYLON from '@babylonjs/core';
 import { humanoidRoles, retargeter, } from './retarget.js';
+import { clipPose } from './glb-clips.js';
 const q = (r) => ({ x: r.x, y: r.y, z: r.z, w: r.w });
 const v = (p) => ({ x: p.x, y: p.y, z: p.z });
 const toB = (r) => new BABYLON.Quaternion(r.x, r.y, r.z, r.w);
@@ -185,8 +186,6 @@ const conj = (a) => ({ x: -a.x, y: -a.y, z: -a.z, w: a.w });
  * rigs do not share (fingers on a rig without them) are left at rest.
  */
 export function retargetClip(group, source, target, options = {}) {
-    const rt = retargeter(source, target, { armSpaceDeg: options.armSpaceDeg });
-    const fps = options.fps ?? 30;
     // What animates each source bone, by name.
     const rotAnim = new Map();
     const posAnim = new Map();
@@ -203,15 +202,9 @@ export function retargetClip(group, source, target, options = {}) {
     }
     const from = group.from;
     const to = group.to;
-    const seconds = Math.max(0, (to - from) / rate);
-    const frames = Math.max(1, Math.round(seconds * fps));
-    const moving = rt.roles.map((r) => target.roles[r]);
-    const keys = new Map(moving.map((n) => [n, []]));
-    const hipsKeys = [];
     const sHips = source.roles.hips;
-    const tHips = target.roles.hips;
-    for (let i = 0; i <= frames; i++) {
-        const at = from + (i / frames) * (to - from);
+    return retargetSampled((u) => {
+        const at = from + u * (to - from);
         const rotations = new Map();
         for (const [name, anim] of rotAnim) {
             const value = anim.evaluate(at);
@@ -233,6 +226,31 @@ export function retargetClip(group, source, target, options = {}) {
                 hips = v(m != null ? BABYLON.Vector3.TransformCoordinates(key, m) : key);
             }
         }
+        return { rotations, hips };
+    }, Math.max(0, (to - from) / rate), source, target, { ...options, name: options.name ?? `${group.name}→retargeted` });
+}
+/**
+ * A clip held as data (a [BVH](/bvh/) read with `readBvh`, or a GLB's read
+ * with `readGlbClips`) retargeted onto a loaded skeleton, as `retargetClip`
+ * does a loaded one's.
+ */
+export function retargetSourceClip(source, clip, target, options = {}) {
+    return retargetSampled((u) => clipPose(source, clip, clip.start + u * (clip.end - clip.start)), Math.max(0, clip.end - clip.start), source, target, { ...options, name: options.name ?? clip.name });
+}
+/** A source sampled at 0..1 of its length, retargeted into an animation group on `target`. */
+function retargetSampled(sample, seconds, source, target, options) {
+    const rt = retargeter(source, target, {
+        armSpaceDeg: options.armSpaceDeg,
+        footIk: options.footIk,
+    });
+    const fps = options.fps ?? 30;
+    const frames = Math.max(1, Math.round(seconds * fps));
+    const moving = rt.roles.map((r) => target.roles[r]);
+    const keys = new Map(moving.map((n) => [n, []]));
+    const hipsKeys = [];
+    const tHips = target.roles.hips;
+    for (let i = 0; i <= frames; i++) {
+        const { rotations, hips } = sample(i / frames);
         const out = rt.pose(rotations, hips);
         for (const name of moving) {
             let local = out.rotations.get(name);
@@ -252,7 +270,7 @@ export function retargetClip(group, source, target, options = {}) {
             hipsKeys.push({ frame: i, value: p });
         }
     }
-    const made = new BABYLON.AnimationGroup(options.name ?? `${group.name}→retargeted`, options.scene);
+    const made = new BABYLON.AnimationGroup(options.name ?? 'retargeted', options.scene);
     for (const name of moving) {
         const node = target.nodes.get(name);
         const k = keys.get(name);

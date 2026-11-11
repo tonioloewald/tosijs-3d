@@ -803,8 +803,7 @@ export function fitSkeleton(
       const height = mesh.max.y - mesh.min.y
       const z =
         (l.position.z + r.position.z) / 2 - PELVIS_BEHIND_THIGHS * height
-      const y =
-        (l.position.y + r.position.y) / 2 - PELVIS_BELOW_THIGHS * height
+      const y = (l.position.y + r.position.y) / 2 - PELVIS_BELOW_THIGHS * height
       pj.position = { ...pj.position, y, z }
       const root = byName.get('root')
       if (root) root.position = { ...root.position, z }

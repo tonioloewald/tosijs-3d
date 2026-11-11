@@ -42,7 +42,11 @@ The panel has these sections, its job first.
   drag into place. `hands` says how much hand is rigged: thumb and four
   fingers, a mitten (a thumb and one finger, for a glove: the other fingers
   lie on it and take no skin) or none (the hand alone); `as found` leaves it
-  to the fit. The joints follow the markers. `move joints` shows every
+  to the fit. The joints follow the markers. The fit puts each marker's
+  joint at the middle of the body's thickness (the pelvis behind the
+  thighs, as the mannequin's is); from the side view, drag a marker forward
+  or back to set its depth. The depth is kept as an offset from the fit, so
+  it stays when the marker moves again from the front. `move joints` shows every
   joint (blue) to drag by hand from the view that suits: shoulders from the
   front, fingers and thumbs from the top, feet from the side. What hangs from
   a joint comes with it; set `dragging` to turn what hangs from it instead
@@ -53,8 +57,11 @@ The panel has these sections, its job first.
   names; fix one by tapping, as above, or pick a role and then the bone that
   plays it, or `(none)` to leave it out. Set `clicking sets` to the chain and
   a tap hangs the chosen spring chain there instead.
-- **Motion.** `animate` and the clip; `arm space` turns the arms out from
-  the body, for a character whose arms are long for its height;
+- **Motion.** `animate` and the clip; `floor` moves the body up or down
+  from where its soles stand (they are put on the floor at rest, and kept
+  there as a clip plays), for one that still floats or sinks; `arm space`
+  turns the arms out from the body, for a character whose arms are long for
+  its height;
   `load animations…` adds the clips in a GLB made on another rig to the
   list: Mixamo's, a mocap file's, another library's. Which bone is which is
   read from the names (UE, Mixamo, Kenney and Blender spellings), so each

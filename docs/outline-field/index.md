@@ -6,6 +6,8 @@ garment is cut along, clicked out point by point.
 
 - **Click** to place points; click the first one again to close the shape.
 - **Drag** a point to move it; press on an edge to add a point there.
+- `undoPoint()` takes back the last point of the shape being clicked out
+  (`redoPoint()` puts it back); a host's undo calls it before its own.
 - `removeSelected()` deletes the last point touched (a button, since a
   controller has no reliable third gesture); a shape left with fewer than
   three points goes too. `clear()` removes everything.

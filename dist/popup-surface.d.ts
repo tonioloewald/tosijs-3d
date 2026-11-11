@@ -47,6 +47,11 @@ export interface PopupSurfaceOptions {
      */
     handleClosed?: () => void;
     /**
+     * Close on a press that lands on neither this popup nor its opener (a
+     * menu). A press on the opener is the opener's: its panel decides.
+     */
+    dismissOutside?: boolean;
+    /**
      * Fraction of the panel's height that acts as the TITLE BAR — the only place
      * a drag starts. Default 0.2; `0` makes the whole panel draggable.
      *
@@ -69,6 +74,10 @@ export interface PopupSurfaceOptions {
 export interface PopupSurface {
     /** The plane element (an `AbstractMesh`, so it has x/y/z and rx/ry/rz). */
     plane: B3dSvgPlane;
+    /** What it hangs from, if anything. */
+    readonly opener?: BABYLON.TransformNode | BABYLON.AbstractMesh | null;
+    /** Closed by a press on neither it nor its opener (`dismissOutside`). */
+    readonly dismissOutside?: boolean;
     /** Dispose it. Safe to call twice. */
     close(): void;
     /**

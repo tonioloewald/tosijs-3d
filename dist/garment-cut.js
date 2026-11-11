@@ -560,8 +560,11 @@ export function cutGarment(positions, triangles, options) {
         }
         if (kept.length === out.length)
             break;
+        // Copied in a loop: spread into push, a big cut's list is more
+        // arguments than a call takes (the stack overflows).
         out.length = 0;
-        out.push(...kept);
+        for (const v of kept)
+            out.push(v);
     }
     /*
     AND NOTCHES IN IT: where the edge turns sharply back on itself at a point

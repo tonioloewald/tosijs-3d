@@ -22,7 +22,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=c89d9110f950" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=f9a43918f299" data-tosi-doc-system />
   <title>character core — tosijs-3d</title>
   <meta name="description" content="The character creator&#39;s working parts, for any engine. Twenty-nine modules make a character without Babylon or a DOM: they read MakeHuman&#39;s body, shape" />
   <link rel="canonical" href="https://3d.tosijs.net/character-core/" />
@@ -33,13 +33,13 @@
   <meta property="og:description" content="The character creator&#39;s working parts, for any engine. Twenty-nine modules make a character without Babylon or a DOM: they read MakeHuman&#39;s body, shape" />
   <meta property="og:url" content="https://3d.tosijs.net/character-core/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"character core","description":"The character creator's working parts, for any engine. Twenty-nine modules make a character without Babylon or a DOM: they read MakeHuman's body, shape","url":"https://3d.tosijs.net/character-core/","inLanguage":"en","dateModified":"2026-11-08T17:15:19+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"character core","description":"The character creator's working parts, for any engine. Twenty-nine modules make a character without Babylon or a DOM: they read MakeHuman's body, shape","url":"https://3d.tosijs.net/character-core/","inLanguage":"en","dateModified":"2026-11-10T12:27:28+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Characters and vehicles","item":"https://3d.tosijs.net/characters-and-vehicles/"},{"@type":"ListItem","position":2,"name":"b3d-biped","item":"https://3d.tosijs.net/b3d-biped/"},{"@type":"ListItem","position":3,"name":"character core","item":"https://3d.tosijs.net/character-core/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=7ef9fd7bb1e4" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=964dce30c6d0" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="character-core.ts">
 <h1 id="character-core">character core</h1>
 <p><strong>The character creator&#39;s working parts, for any engine.</strong> Twenty-nine modules
@@ -103,8 +103,8 @@ test) imports only what it uses and never pulls in Babylon:</p>
 <td>a hairstyle warped onto a head</td>
 </tr>
 <tr>
-<td><a href="/garment-cut/"><code>garment-cut</code></a>, <a href="/uv-unwrap/"><code>uv-unwrap</code></a>, <a href="/garment-file/"><code>garment-file</code></a></td>
-<td>the tailor: garments cut from a body, unwrapped, saved as GLB or OBJ</td>
+<td><a href="/garment-cut/"><code>garment-cut</code></a>, <a href="/body-sweep/"><code>body-sweep</code></a>, <a href="/tailor-recipe/"><code>tailor-recipe</code></a>, <a href="/uv-unwrap/"><code>uv-unwrap</code></a>, <a href="/garment-file/"><code>garment-file</code></a></td>
+<td>the tailor: garments cut and swept from a body, unwrapped, saved as GLB or OBJ</td>
 </tr>
 <tr>
 <td><a href="/skin-tone/"><code>skin-tone</code></a></td>
@@ -127,8 +127,8 @@ test) imports only what it uses and never pulls in Babylon:</p>
 <td>any mesh bound to a body by its nearest skin</td>
 </tr>
 <tr>
-<td><a href="/glb-clips/"><code>glb-clips</code></a></td>
-<td>a GLB&#39;s animations read and retargeted onto another skeleton</td>
+<td><a href="/glb-clips/"><code>glb-clips</code></a>, <a href="/bvh/"><code>bvh</code></a></td>
+<td>a GLB&#39;s animations, or a BVH motion capture, read and retargeted onto another skeleton; clips written out as BVH</td>
 </tr>
 <tr>
 <td><a href="/hand-socket/"><code>hand-socket</code></a></td>
@@ -143,8 +143,8 @@ test) imports only what it uses and never pulls in Babylon:</p>
 <td>Tonio&#39;s eye art with its iris recoloured, and UVs that map both eyes onto it</td>
 </tr>
 <tr>
-<td><code>png</code></td>
-<td>PNG read and written, byte for byte, with no canvas</td>
+<td><code>png</code>, <a href="/jpeg/"><code>jpeg</code></a></td>
+<td>PNG read and written, byte for byte, and JPEG read (baseline and progressive), with no canvas</td>
 </tr>
 <tr>
 <td><a href="/character-file/"><code>character-file</code></a></td>
@@ -237,6 +237,7 @@ it is a handle, never data.</p>
         <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-tailor-tool" aria-label="tailor tool"></button><a class="doc-link" href="../tailor-tool/">tailor tool</a></div>
         <ul id="tosi-nav-tailor-tool">
+          <li><a class="doc-link" href="../tailor-recipe/">tailor-recipe</a></li>
           <li><a class="doc-link" href="../tailor-panel/">tailor panel</a></li>
         </ul></li>
         <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
@@ -257,6 +258,7 @@ it is a handle, never data.</p>
             <li><a class="doc-link" href="../outline-field/">outline field</a></li>
             <li><a class="doc-link" href="../remesh/">remesh</a></li>
             <li><a class="doc-link" href="../cloth-drape/">cloth drape</a></li>
+            <li><a class="doc-link" href="../body-sweep/">body-sweep</a></li>
           </ul></li>
           <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-garment-bind" aria-label="garment-bind"></button><a class="doc-link" href="../garment-bind/">garment-bind</a></div>
           <ul id="tosi-nav-garment-bind">
@@ -409,6 +411,7 @@ it is a handle, never data.</p>
           </ul></li>
           <li><a class="doc-link" href="../skin-paint/">skin paint</a></li>
           <li><a class="doc-link" href="../cloth-bake/">cloth bake</a></li>
+          <li><a class="doc-link" href="../jpeg/">jpeg</a></li>
           <li><a class="doc-link" href="../eye-art/">eye art</a></li>
           <li><a class="doc-link" href="../hair-place/">hair place</a></li>
           <li><a class="doc-link" href="../mesh-sdf/">mesh sdf</a></li>
@@ -416,7 +419,11 @@ it is a handle, never data.</p>
         </ul></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-retarget" aria-label="retarget"></button><a class="doc-link" href="../retarget/">retarget</a></div>
         <ul id="tosi-nav-retarget">
-          <li><a class="doc-link" href="../glb-clips/">glb clips</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-clips" aria-label="glb clips"></button><a class="doc-link" href="../glb-clips/">glb clips</a></div>
+          <ul id="tosi-nav-glb-clips">
+            <li><a class="doc-link" href="../bvh/">bvh</a></li>
+            <li><a class="doc-link" href="../clip-store/">clip-store</a></li>
+          </ul></li>
         </ul></li>
         <li><a class="doc-link" href="../rigged-body/">rigged-body</a></li>
         <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
@@ -625,6 +632,7 @@ it is a handle, never data.</p>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.12.6/">0.12.6</a></li>
         <li><a class="doc-link" href="../v0.12.5/">0.12.5</a></li>
         <li><a class="doc-link" href="../v0.12.4/">0.12.4</a></li>
         <li><a class="doc-link" href="../v0.12.3/">0.12.3</a></li>
@@ -710,6 +718,6 @@ it is a handle, never data.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-3xsm839e.js"></script>
+  <script type="module" src="../hydrate-9knhx6yx.js"></script>
 </body>
 </html>

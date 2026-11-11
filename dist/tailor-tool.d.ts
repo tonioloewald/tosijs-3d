@@ -1,25 +1,10 @@
 import type { RiggedBody } from './rigged-body.js';
 import type { BuiltRig } from './rig-build.js';
-import { type ViewPoint } from './garment-cut.js';
+import { type TailorCut } from './tailor-recipe.js';
 import { type GarmentMesh } from './garment-file.js';
 import type { MaterialRecipe } from './material-recipe.js';
 import { type Widget3d } from './widgets3d.js';
-/** What the tailor is making: enough to open it again. */
-export interface TailorCut {
-    /** Half outlines, [x, y] in metres on the character's left. */
-    shapes: ViewPoint[][];
-    /** Metres. */
-    thickness: number;
-    skirt: boolean;
-    /** Draped cloth ([cloth-drape](/cloth-drape/)) in place of a cut from the skin. Ignored with `skirt`. */
-    drape?: boolean;
-    /** What the cloth is cut from: an even surface at this density, or the body's own triangles. Default `medium`. */
-    mesh?: TailorMesh;
-}
-/** The cloth mesh's density, or `body` for the body's own triangles. */
-export type TailorMesh = 'coarse' | 'medium' | 'fine' | 'body';
-/** The edge length each density aims for, metres. */
-export declare const TAILOR_MESH_EDGE: Record<Exclude<TailorMesh, 'body'>, number>;
+export { TAILOR_MESH_EDGE, type TailorCut, type TailorMesh, } from './tailor-recipe.js';
 /** The work in progress, as `handleChange` hears it. */
 export interface TailorState {
     cut: TailorCut;

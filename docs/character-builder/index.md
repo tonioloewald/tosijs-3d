@@ -10,13 +10,13 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, tailorPanel, garmentStore, barMenu, fitPanel, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, retargetSourceClip, readBvh, clipStore, clipKind, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, tailorPanel, garmentStore, barMenu, fitPanel, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 import { exportBodyRows } from 'tosijs-3d/body-export'
 
 // Everything the panel sets, as it starts: what a saved character is read against.
-const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorDrape: false, tailorMesh: 'medium', tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, held: 'none', grips: {}, source: 'MakeHuman', bodyDetail: 'medium', characterName: '' }
+const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorDrape: false, tailorMesh: 'body', tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, held: 'none', grips: {}, source: 'MakeHuman', bodyDetail: 'medium', characterName: '' }
 const { walker } = tosi({ walker: structuredClone(START) })
 // What a character file keeps: not the editor's view of one slot (that is in
 // cloth), the microphone (it would ask on load), or the save controls.
@@ -59,10 +59,16 @@ const SLOTS = CHARACTER_SLOTS
 // follows once it has loaded.
 const EVERYDAY = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Dance_Loop', 'Crouch_Fwd_Loop']
 let clips = [...EVERYDAY]
-// Clips from a file (a Mixamo or Meshy character's): name → the clip and the
-// skeleton it was made on, retargeted like UAL's when played.
+// Clips from a file (a Mixamo or Meshy character's GLB, or a BVH capture):
+// name → the clip and the skeleton it was made on, retargeted like UAL's when
+// played. Kept in this browser (clip-store), so they are here next visit.
 const fileClips = new Map()
+// Which kept file each clip came from, to forget it.
+const clipFiles = new Map()
+// Each file's kind and bytes, so a character file can carry the one it plays.
+const clipBytes = new Map()
 let openClips = () => {}
+let forgetClip = () => {}
 // Where the body comes from: MakeHuman's, which the sliders shape, or a mesh
 // of anyone's (CHARACTER_SOURCES, and files opened here).
 const SOURCES = { ...CHARACTER_SOURCES }
@@ -216,20 +222,39 @@ const setGrip = (patch) => {
   applyGrip()
 }
 // Export: the body on show as a GLB that plays UAL's clips by name (its
-// springs too). Clothes, hair and the face stay here for now.
+// springs too, and the clip playing if asked), in its clothes, skin and
+// eyes. Hair, brows and lashes stay here for now.
+// The clip playing as its file: one of your own, else UAL's.
+const playingClip = (recipe) => {
+  const name = walker.clip.value
+  const file = clipFiles.get(name)
+  const kept = file != null ? clipBytes.get(file) : null
+  const armSpaceDeg = recipe?.armSpaceDeg
+  if (kept) return { name, kind: kept.kind, bytes: kept.bytes, armSpaceDeg }
+  return {
+    name,
+    kind: 'glb',
+    url: assetUrl('quaternius/UAL_builder.glb'),
+    armSpaceDeg,
+    extras: { credit: 'Quaternius', license: 'CC0 (https://creativecommons.org/publicdomain/zero/1.0/)', source: 'quaternius/UAL_builder.glb' },
+  }
+}
 const exportRows = () =>
   exportBodyRows(
-    () => {
+    async () => {
       const shown = ch?.shown
       if (shown == null) return 'nothing to export yet'
       const name = walker.characterName.value || shown.source
+      const out = await ch.exportCharacter()
       return {
-        body: shown.body,
+        body: out?.body ?? shown.body,
+        eyeTexture: out?.eyeTexture ?? null,
         recipe: shown.recipe,
         source: shown.source === 'MakeHuman' ? null : ch.sources[shown.source] ?? null,
         name: String(name).replace(/\W+/g, '-').replace(/^-|-$/g, '') || 'character',
-        // What it wears of your own (on a body from a file).
-        garments: ch.wornGarments?.() ?? [],
+        // What it wears: MakeHuman's clothes and garments of your own.
+        garments: out?.garments ?? [],
+        clip: playingClip(shown.recipe),
         // What the right hand holds goes out with it, where it is held.
         held:
           walker.held.value === 'none'
@@ -310,27 +335,26 @@ preview.append(
         // How much of the body is drawn: MakeHuman's lighter skins, or its base mesh.
         select3d({ label: 'detail', value: walker.bodyDetail, options: ['low', 'medium', 'high', 'full'] }),
         // Sub-sections fold inside the tab, one open at a time.
+        // The most basic, least changeable first, here and in the tabs: who
+        // you are (gender, age, height) before what you have made of it
+        // (weight, muscle); face before hair, hair before clothes.
         label3d({ text: 'shape', collapsible: true, level: 2 }),
         slider('gender', 'gender'),
         slider('age', 'age'),
-        slider('muscle', 'muscle'),
-        slider('weight', 'weight'),
         slider('height', 'height'),
-        label3d({ text: 'figure', collapsible: true, level: 2 }),
-        slider('waist', 'waist'),
-        slider('chest depth', 'chestDepth'),
-        slider('pecs', 'pecs'),
-        slider('bust', 'bustSize'),
-        slider('firmness', 'bustFirmness'),
         // MakeHuman's own, so only here.
         label3d({ text: 'ancestry', collapsible: true, level: 2 }),
         slider('african', 'african'),
         slider('asian', 'asian'),
         slider('caucasian', 'caucasian'),
-        label3d({ text: 'Motion', icon: 'motion', collapsible: true }),
-        select3d({ label: 'clip', value: walker.clip, options: clips, stayOpen: true }),
-        playbackRow(),
-        button3d({ label: 'clips from a file…', handleClick: () => openClips() }),
+        label3d({ text: 'figure', collapsible: true, level: 2 }),
+        slider('weight', 'weight'),
+        slider('muscle', 'muscle'),
+        slider('waist', 'waist'),
+        slider('chest depth', 'chestDepth'),
+        slider('pecs', 'pecs'),
+        slider('bust', 'bustSize'),
+        slider('firmness', 'bustFirmness'),
         label3d({ text: 'Skin', icon: 'skin', collapsible: true }),
         slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: 'redness', value: walker.redness, min: 0, max: 1, step: 0.01 }),
@@ -345,11 +369,8 @@ preview.append(
         slider3d({ label: 'brows up', value: walker.browsUp, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: 'frown', value: walker.frown, min: 0, max: 1, step: 0.01 }),
         label3d({ text: 'Hair', icon: 'hair', collapsible: true }),
-        select3d({ label: 'hair', value: walker.hair, options: choices('hair'), stayOpen: true }),
-        select3d({ label: 'beard', value: walker.beard, options: choices('beard'), stayOpen: true }),
-        select3d({ label: 'moustache', value: walker.moustache, options: choices('moustache'), stayOpen: true }),
-        slider3d({ label: 'stubble', value: walker.stubble, min: 0, max: 1, step: 0.01 }),
         select3d({ label: 'brows', value: walker.brows, options: choices('brows'), stayOpen: true }),
+        select3d({ label: 'hair', value: walker.hair, options: choices('hair'), stayOpen: true }),
         // A base and a highlight, each a swatch that opens a picker with presets;
         // a base preset brings its usual highlight with it.
         colorPicker3d({ label: 'base', value: walker.hairBase, alpha: false, defaultPresets: 'off', presets: Object.entries(HAIR_COLOURS).map(([name, c]) => ({ name, value: c.base })) }),
@@ -366,8 +387,16 @@ preview.append(
           },
         }),
         slider3d({ label: 'scale', value: walker.hairSize, min: 0.9, max: 1.1, step: 0.005 })]),
+        select3d({ label: 'beard', value: walker.beard, options: choices('beard'), stayOpen: true }),
+        select3d({ label: 'moustache', value: walker.moustache, options: choices('moustache'), stayOpen: true }),
+        slider3d({ label: 'stubble', value: walker.stubble, min: 0, max: 1, step: 0.01 }),
         ...clothesRows(),
         ...holdRows(),
+        label3d({ text: 'Motion', icon: 'motion', collapsible: true }),
+        select3d({ label: 'clip', value: walker.clip, options: clips, stayOpen: true }),
+        playbackRow(),
+        button3d({ label: 'clips from a file…', handleClick: () => openClips() }),
+        ...(clipFiles.has(walker.clip.value) ? [button3d({ label: `forget ${walker.clip.value}`, handleClick: () => forgetClip() })] : []),
         ...exportRows(),
       ] : [
         // A body of anyone's: what MakeHuman's carries (shape, face, hair,
@@ -385,16 +414,17 @@ preview.append(
           : [button3d({ label: 'rig…', handleClick: () => openRig() })]),
         // Its file's materials, each as made or the skin.
         ...surfaceRows(),
-        label3d({ text: 'Motion', icon: 'motion', collapsible: true, open: true }),
-        select3d({ label: 'clip', value: walker.clip, options: clips, stayOpen: true }),
-        playbackRow(),
-        button3d({ label: 'clips from a file…', handleClick: () => openClips() }),
-        ...clothesRows(),
-        ...holdRows(),
-        ...exportRows(),
         label3d({ text: 'Skin', icon: 'skin', collapsible: true }),
         slider3d({ label: 'tone', value: walker.tone, min: 0, max: 1, step: 0.01 }),
         slider3d({ label: 'redness', value: walker.redness, min: 0, max: 1, step: 0.01 }),
+        ...clothesRows(),
+        ...holdRows(),
+        label3d({ text: 'Motion', icon: 'motion', collapsible: true }),
+        select3d({ label: 'clip', value: walker.clip, options: clips, stayOpen: true }),
+        playbackRow(),
+        button3d({ label: 'clips from a file…', handleClick: () => openClips() }),
+        ...(clipFiles.has(walker.clip.value) ? [button3d({ label: `forget ${walker.clip.value}`, handleClick: () => forgetClip() })] : []),
+        ...exportRows(),
       ],
       async sceneCreated(el, BABYLON) {
         const scene = el.scene
@@ -684,30 +714,67 @@ preview.append(
         walker.grips.observe(() => applyGrip())
 
         // CLIPS FROM A FILE: any skinned GLB with animations (Mixamo's,
-        // Meshy's): its skeleton read like UAL's, its clips listed and
-        // retargeted onto the body shown. Kept for this visit only.
-        const addClips = async (file) => {
+        // Meshy's), its skeleton read like UAL's, or a BVH motion capture;
+        // its clips listed and retargeted onto the body shown, and the file
+        // kept in this browser (restored quietly on the next visit).
+        const keptClips = clipStore()
+        const addClips = async (file, restoring = false, keep = !restoring) => {
+          const kind = clipKind(file.name)
+          if (!kind) return console.warn(`character builder: ${file.name} is not a GLB or BVH`)
           try {
-            const c = await BABYLON.LoadAssetContainerAsync(file, scene)
-            const skeleton = c.skeletons[0]
-            if (!skeleton || c.animationGroups.length === 0) {
-              console.warn(`character builder: ${file.name} has no skeleton or no animations`)
-              c.dispose()
-              return
+            const bytes = new Uint8Array(await file.arrayBuffer())
+            let names = []
+            if (kind === 'bvh') {
+              const from = readBvh(await file.text(), { name: file.name.replace(/\.bvh$/i, '') })
+              fileClips.set(from.clips[0].name, { source: from, clip: from.clips[0] })
+              names = [from.clips[0].name]
+            } else {
+              const c = await BABYLON.LoadAssetContainerAsync(file, scene)
+              const skeleton = c.skeletons[0]
+              if (!skeleton || c.animationGroups.length === 0) {
+                console.warn(`character builder: ${file.name} has no skeleton or no animations`)
+                c.dispose()
+                return
+              }
+              const from = readSkeleton(skeleton, c.rootNodes[0])
+              for (const g of c.animationGroups) {
+                g.stop()
+                fileClips.set(g.name, { group: g, from })
+              }
+              names = c.animationGroups.map((g) => g.name)
             }
-            const from = readSkeleton(skeleton, c.rootNodes[0])
-            for (const g of c.animationGroups) {
-              g.stop()
-              fileClips.set(g.name, { group: g, from })
-            }
+            for (const n of names) clipFiles.set(n, file.name)
+            clipBytes.set(file.name, { kind, bytes })
+            if (keep) keptClips.put({ name: file.name, kind, bytes }).catch((e) => console.warn('character builder: could not keep the clips', e))
             listClips()
-            walker.clip.value = c.animationGroups[0].name
+            if (!restoring) walker.clip.value = names[0]
             el.refreshScenePanel?.()
           } catch (e) {
             console.warn('character builder: could not read the clips', e)
           }
         }
-        openClips = () => chooseFile('.glb,.gltf').then((file) => file && addClips(file))
+        openClips = () => chooseFile('.glb,.gltf,.bvh').then((file) => file && addClips(file))
+        forgetClip = () => {
+          const file = clipFiles.get(walker.clip.value)
+          if (file == null) return
+          for (const [n, f] of [...clipFiles]) if (f === file) { clipFiles.delete(n); fileClips.delete(n) }
+          clipBytes.delete(file)
+          keptClips.delete(file).catch(() => {})
+          listClips()
+          walker.clip.value = 'Walk_Loop'
+          el.refreshScenePanel?.()
+        }
+        keptClips.all().then((list) => Promise.all(list.map((c) => addClips(new File([c.bytes], c.name), true)))).then(() => {
+          // A character saved playing one of them plays it again.
+          if (fileClips.has(walker.clip.value)) play()
+        }).catch(() => {})
+        // The forget button comes and goes with whether the clip is your own.
+        let ownClip = false
+        walker.clip.observe(() => {
+          if (clipFiles.has(walker.clip.value) === ownClip) return
+          ownClip = !ownClip
+          el.refreshScenePanel?.()
+        })
 
         // MakeHuman's pack and Quaternius' hairstyles, shared by any character.
         const assets = await loadCharacterAssets(scene).catch((e) => {
@@ -734,7 +801,9 @@ preview.append(
           // A file's clip (gone after a reload: the walk instead), or UAL's.
           const own = fileClips.get(walker.clip.value)
           const clip = own?.group ?? ual.animationGroups.find((g) => g.name === walker.clip.value) ?? ual.animationGroups.find((g) => g.name === 'Walk_Loop')
-          playing = clip ? retargetClip(clip, own?.from ?? source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg }) : null
+          playing = own?.source
+            ? retargetSourceClip(own.source, own.clip, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg })
+            : clip ? retargetClip(clip, own?.from ?? source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg }) : null
           playing?.start(true, clipSpeed)
           ch.groundFor(playing)
           if (walker.paused.value) playing?.pause()
@@ -879,7 +948,7 @@ preview.append(
               walker.tailorThickness.value = cut.thickness
               walker.tailorSkirt.value = cut.skirt
               walker.tailorDrape.value = cut.drape === true
-              walker.tailorMesh.value = cut.mesh ?? 'medium'
+              walker.tailorMesh.value = cut.mesh ?? 'body'
               walker.tailorLook.value = look
               walker.tailorName.value = name
             },
@@ -1011,7 +1080,10 @@ preview.append(
           const bodies = body ? { [kept.source]: body } : {}
           // The pictures its materials use (chosen from disk), by key.
           const pictures = Object.fromEntries(picturesIn({ kept, cloth }).map((k) => [k, pictureData(k)]).filter(([, b]) => b))
-          return writeCharacter({ name, settings: kept, cloth, tailor: plain(tailorShapes), garments, bodies, pictures }, { saved: new Date().toISOString() })
+          // The clip it plays, when that is one of your own: its file.
+          const clipFile = clipFiles.get(kept.clip)
+          const clips = clipFile && clipBytes.has(clipFile) ? { [clipFile]: clipBytes.get(clipFile) } : {}
+          return writeCharacter({ name, settings: kept, cloth, tailor: plain(tailorShapes), garments, bodies, pictures, clips }, { saved: new Date().toISOString() })
         }
         const tell = (message) => { character.note = message; el.refreshScenePanel?.() }
         let restoring = false
@@ -1038,6 +1110,10 @@ preview.append(
               const from = { ...(file ? { file } : { url: b.url }), ...(b.pick != null ? { pick: b.pick } : {}) }
               SOURCES[name] = from
               ch.addSource(name, from)
+            }
+            // A clip file it carries and this browser does not have: read and kept.
+            for (const [name, clip] of Object.entries(c.clips ?? {})) {
+              if (!clipBytes.has(name)) await addClips(new File([clip.bytes], name), true, true)
             }
             if (c.settings.source !== 'MakeHuman' && !(c.settings.source in SOURCES)) {
               warnings.push(`body ${c.settings.source}: open that file again; MakeHuman's shown`)
@@ -1285,8 +1361,10 @@ off the body's outline.
 
 **Motion** plays a clip on whatever body is shown: UAL's library (the
 everyday clips first), retargeted. **Clips from a file…** adds the clips of
-any skinned GLB (a Mixamo or Meshy character's, say), retargeted the same way
-and listed after the everyday ones, for this visit.
+any skinned GLB (a Mixamo or Meshy character's, say) or a BVH motion capture
+([bvh](/bvh/)), retargeted the same way and listed after the everyday ones.
+They are kept in this browser ([clip-store](/clip-store/)) and come back on
+the next visit; **forget** drops the file a clip came from.
 
 **View** (the camera on the bar) holds the body square on from any side, or
 follows the **right hand** close up through the clip, to see how an item sits

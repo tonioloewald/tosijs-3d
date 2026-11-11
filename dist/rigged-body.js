@@ -65,6 +65,7 @@ export function bodyFromMarkers(tris, options = {}) {
         tail: options.tail ?? undefined,
         tailStart: options.tail != null ? options.tailBase ?? undefined : undefined,
         tailBones: options.tailBones,
+        depths: options.depths,
     });
     const moved = options.joints ?? {};
     const placed = Object.keys(moved).length
@@ -103,6 +104,9 @@ export function bodyFromMarkers(tris, options = {}) {
                 : {}),
             ...(Object.keys(moved).length ? { joints: { ...moved } } : {}),
             ...(options.hands != null ? { hands: options.hands } : {}),
+            ...(options.depths != null && Object.keys(options.depths).length
+                ? { depths: { ...options.depths } }
+                : {}),
         },
     };
 }

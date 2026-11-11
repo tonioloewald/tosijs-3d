@@ -16,9 +16,10 @@ export interface RgbaImage {
     data: Uint8Array;
 }
 /**
- * Read a PNG: 8-bit RGB or RGBA, not interlaced (what browsers and image
- * tools write for pictures). RGB comes back with alpha 255. Anything else
- * throws, naming what it found.
+ * Read a PNG: 8-bit grey, grey and alpha, RGB or RGBA, not interlaced (what
+ * browsers and image tools write for pictures). Grey comes back as RGB, and
+ * a picture with no alpha with alpha 255. Anything else throws, naming what
+ * it found.
  */
 export declare function pngDecode(png: Uint8Array): RgbaImage;
 //# sourceMappingURL=png.d.ts.map

@@ -1,4 +1,5 @@
 import { type Rgb } from './skin-tone.js';
+import type { GltfSurfaceMaterial } from './glb-rig.js';
 /**
  * Per-vertex colours (RGBA, the skin's vertices) that turn a skin material's
  * colour into the lips' where `lips` (a pack region, every vertex) says so.
@@ -32,4 +33,18 @@ export declare function stubbleMask(input: {
     beard: ArrayLike<number>;
     tache?: ArrayLike<number> | null;
 }): Float32Array;
+/**
+ * The skin for an export: a glTF material in the skin's albedo (linear, as
+ * glTF's base colour is) and `colours` (from `lipTint`, `stubbleTint`) copied
+ * with alpha 1, as a body's `surfaces` and `colors` take them.
+ */
+export declare function skinSurface(colours: ArrayLike<number>, tone: number, redness?: number, indexCount?: number): {
+    colors: Float32Array;
+    surface: {
+        start: number;
+        count: number;
+        name: string;
+        material: GltfSurfaceMaterial;
+    };
+};
 //# sourceMappingURL=skin-paint.d.ts.map

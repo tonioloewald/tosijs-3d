@@ -60,6 +60,8 @@ export interface BakedClip {
 export declare function bakeClip(source: GlbClipSource, clip: GlbClip | string, target: Skeleton, options?: {
     fps?: number;
     armSpaceDeg?: number;
+    /** See `RetargetOptions.footIk`: false copies the legs' angles only. */
+    footIk?: boolean;
     name?: string;
 }): BakedClip;
 //# sourceMappingURL=glb-clips.d.ts.map

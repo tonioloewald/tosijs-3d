@@ -12,13 +12,14 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-## 0.12.5
+## 0.12.6
 
-The latest release. Exported bodies carry clips, garments and held items; the cast's rigs are engine-free; the Babylon peers are optional (install them yourself); the character builder gets a Character menu, a hair manipulator and sub-sections. See [0.12.5](/v0.12.5/).
+The latest release. BVH clips kept and carried in character files; MakeHuman's body exports dressed, with hair, skin and eyes; tailored garments fit any body; feet stay planted under retargeting; marker rigs place pelvis, neck and knees as the mannequins do. See [0.12.6](/v0.12.6/).
 
 ## Every version
 
 <!-- toc -->
+- [0.12.6](/v0.12.6/)
 - [0.12.5](/v0.12.5/)
 - [0.12.4](/v0.12.4/)
 - [0.12.3](/v0.12.3/)

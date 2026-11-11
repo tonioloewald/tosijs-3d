@@ -1,6 +1,6 @@
 import type { Role } from './retarget.js';
 import type { Vec3 } from './spatial-transform.js';
-import { type HandMode, type Markers } from './rig-fit.js';
+import { type HandMode, type MarkerName, type Markers } from './rig-fit.js';
 export declare const RIG_RECIPE_VERSION = 1;
 /** A sphere a chain stays out of, on a bone. */
 export interface ColliderRecipe {
@@ -68,6 +68,11 @@ export interface RigRecipe {
     roles?: Partial<Record<Role, string>>;
     /** See `RetargetOptions.armSpaceDeg`. */
     armSpaceDeg?: number;
+    /**
+     * Metres to raise (or, negative, lower) the body from where its soles
+     * would stand: the hand correction for a body that floats or sinks.
+     */
+    floor?: number;
     springs?: SpringRecipe[];
     /**
      * A mesh with no skeleton: where its joints are, as Mixamo's eight
@@ -94,6 +99,12 @@ export interface RigBinding {
      * found it. See rig-fit's `applyHandMode`.
      */
     hands?: HandMode;
+    /**
+     * Depth set by hand, per marker: metres in front (+Z; negative behind) of
+     * where the fit puts that marker's joint (the groin's is the pelvis). Set
+     * by dragging a marker in a side view.
+     */
+    depths?: Partial<Record<MarkerName, number>>;
 }
 export declare const STRAND_DEFAULTS: Omit<StrandSpringRecipe, 'anchor'>;
 /** A strand's direction as a unit vector, in the character's frame. */
