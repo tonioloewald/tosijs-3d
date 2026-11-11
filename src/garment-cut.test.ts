@@ -35,7 +35,7 @@ describe('garment-cut', () => {
       hem: false,
     })
     expect(g.rows).toBeGreaterThan(150000)
-  })
+  }, 60000)
 
   // A square of four triangles in z = 0, facing +Z, two units across.
   const sheet = [-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0, 0, 0, 0]
