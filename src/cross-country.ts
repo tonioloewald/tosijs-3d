@@ -63,7 +63,7 @@ preview.append(
       panelTitle: 'Cross Country',
       scenePanel: () => [
         slider3d({ label: 'time of day', value: crossCountry.time, min: 0, max: 24, step: 0.1 }),
-        slider3d({ label: 'time speed', value: crossCountry.speed, min: 0, max: 600, step: 10 }),
+        slider3d({ label: 'time speed', value: crossCountry.speed, min: 1, max: 600, scale: 'log', zeroStop: true }),
         ...(light ? [] : [slider3d({ label: 'cloud cover', value: crossCountry.coverage, min: 0, max: 1.5, step: 0.05 })]),
       ],
     },
