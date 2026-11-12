@@ -37,6 +37,7 @@ import type { RiggedBody } from './rigged-body.js'
 import type { RigRecipe } from './rig-recipe.js'
 import { readGlbClips, type GlbClipSource } from './glb-clips.js'
 import { readBvh } from './bvh.js'
+import { bakeClothLook } from './cloth-bake.js'
 import type { ClipOut } from './rigged-body-glb.js'
 
 /** What an export writes: the body, its recipe, and the model it came from. */
@@ -204,7 +205,9 @@ export async function exportBody(
     ...(held ? { held } : {}),
     ...(clip ? { clips: [clip] } : {}),
     ...(target.eyeTexture ? { eyeTexture: target.eyeTexture } : {}),
-    ...(target.garments?.length ? { garments: target.garments } : {}),
+    ...(target.garments?.length
+      ? { garments: target.garments, bake: bakeClothLook }
+      : {}),
     naming: settings.naming,
     restPose: settings.restPose,
     ...(settings.height > 0 ? { height: settings.height } : {}),

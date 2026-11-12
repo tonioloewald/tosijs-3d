@@ -614,10 +614,11 @@ describe.skipIf(!existsSync(AI))(
         )
       ).toEqual([])
 
-      // A recoloured cloth over a picture goes out recoloured; bake: false
-      // writes the picture as it came.
+      // A recoloured cloth over a picture goes out recoloured with a baker;
+      // without one the picture goes as it came.
       const { pngEncode, pngDecode } = await import('./png.js')
       const { clothRecipe } = await import('./material-recipe.js')
+      const { bakeClothLook } = await import('./cloth-bake.js')
       const grey = new Uint8Array(8 * 8 * 4).fill(128)
       const picture = { bytes: pngEncode(grey, 8, 8), mimeType: 'image/png' }
       const worn = {
@@ -651,11 +652,11 @@ describe.skipIf(!existsSync(AI))(
         )
       }
       const red = pngDecode(
-        imageOf(riggedBodyGlb(body, { garments: [worn as any] }))
+        imageOf(riggedBodyGlb(body, { garments: [worn as any], bake: bakeClothLook }))
       )
       expect(red.data[0]).toBeGreaterThan(2 * red.data[2])
       const kept = imageOf(
-        riggedBodyGlb(body, { garments: [worn as any], bake: false })
+        riggedBodyGlb(body, { garments: [worn as any] })
       )
       expect(Buffer.from(kept).equals(Buffer.from(picture.bytes))).toBe(true)
     }, 120000)

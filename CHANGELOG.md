@@ -20,6 +20,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ### Changed
 
+- ⚠️ `riggedBodyGlb` bakes a garment's cloth look only when given the baker: pass `bake: bakeClothLook` (from `tosijs-3d/cloth-bake`). Without it the pictures are written as they are, and the writer no longer bundles an image decoder (about 11 KiB gzip less). `exportBody` passes it. `bake: false` still means no bake.
 - `<tosi-b3d-biped>` holding a weapon in `gunplay` points it along its aim: the spine is turned after the animations. Crouched, the gun used to point about 45° low, and standing 11° low.
 - `viewMenu` leaves the system bar during a headset session; in VR the camera is your head.
 - A trackpad pinch on an orbit camera zooms three times as far (`PINCH_GAIN`), and pinching works in Safari, which sends gesture events rather than a ctrl-wheel.
