@@ -53,7 +53,9 @@ const deg = (a: BABYLON.Vector3, b: BABYLON.Vector3) =>
 
 describe('aimSpine', () => {
   for (const mirror of [false, true]) {
-    test(`a leant body points its gun along the aim${mirror ? ' (mirrored root)' : ''}`, () => {
+    test(`a leant body points its gun along the aim${
+      mirror ? ' (mirrored root)' : ''
+    }`, () => {
       const b = body(mirror)
       const level = b.pointing().clone()
       level.y = 0

@@ -58,38 +58,66 @@ describe('barMenu', () => {
     expect(ran).toBe(1)
   })
 
-  test('a submenu opens in place, with a way back', () => {
+  // The top list is LIST_WIDTH (168) wide for short captions; a submenu
+  // starts after a 4-unit gap.
+  const SUB_X = 168 + 4 + 40
+  const tapAt = (menu: any, x: number, y: number) => {
+    menu.svg.handlePointer('down', x, y)
+    menu.svg.handlePointer('up', x, y)
+  }
+
+  test('a submenu opens beside the list, lifted to end with it', () => {
     let loaded = ''
     const m: any = barMenu({
       icon: 'character',
       title: 'Character',
       options: [
+        { label: 'Save', handleSelect: () => {} },
         {
           label: 'Select',
-          items: () => [{ label: 'Ada', handleSelect: () => (loaded = 'Ada') }],
+          items: () => [
+            { label: 'Ada', handleSelect: () => (loaded = 'Ada') },
+            { label: 'Bo', handleSelect: () => (loaded = 'Bo') },
+          ],
         },
-        { label: 'Save', handleSelect: () => {} },
       ],
     })
     const top = m.svg
-    tap(m, rowY(0))
-    expect(m.svg).not.toBe(top) // a new level is a new SVG
-    // Row 0 is "‹ Character", row 1 is Ada.
     tap(m, rowY(1))
-    expect(loaded).toBe('Ada')
+    expect(m.svg).not.toBe(top) // a new shape is a new SVG
+    // Both lists show: the top one is still there beside it.
+    expect(m.svg.textContent).toContain('Save')
+    expect(m.svg.textContent).toContain('Ada')
+    // Two rows beside two rows: lifted to the top, so Bo is the second row
+    // (level with its opener, it would have hung below the list).
+    tapAt(m, SUB_X, rowY(1))
+    expect(loaded).toBe('Bo')
   })
 
-  test('back returns to the parent list', () => {
+  test('submenus cascade, and a press on the open one closes it', () => {
     const m: any = barMenu({
-      icon: 'character',
-      title: 'Character',
-      options: [{ label: 'Select', items: ['Ada', 'Bo'] }, { label: 'Save' }],
+      icon: 'animation',
+      title: 'Animation',
+      options: [
+        {
+          label: 'More',
+          items: [
+            { label: 'Pistol', items: ['Pistol_Aim', 'Pistol_Shoot'] },
+            { label: 'Sword', items: ['Sword_Slash'] },
+          ],
+        },
+      ],
     })
     tap(m, rowY(0))
-    const sub = m.svg
-    tap(m, rowY(0)) // ‹ back
-    expect(m.svg).not.toBe(sub)
-    expect(m.svg.textContent).toContain('Save')
+    tapAt(m, SUB_X, rowY(0)) // Pistol: a third list
+    expect(m.svg.textContent).toContain('Pistol_Shoot')
+    // Sword in the middle list swaps the third.
+    tapAt(m, SUB_X, rowY(1))
+    expect(m.svg.textContent).toContain('Sword_Slash')
+    expect(m.svg.textContent).not.toContain('Pistol_Shoot')
+    // More again: everything beside the top list closes.
+    tap(m, rowY(0))
+    expect(m.svg.textContent).not.toContain('Sword')
   })
 
   test('separators and disabled rows are not pickable', () => {

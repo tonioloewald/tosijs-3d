@@ -16,12 +16,15 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 - `<tosi-b3d-crowd>`: `setFigure(i, { x, y, z, yaw, clip, speed })` moves, turns or re-clips a figure; changes are uploaded once per frame however many figures moved. `clipNames` lists the clips. The doc page has a demo of walkers crossing a field.
 - `aimSpine(chain, held, target)` turns a spine after the clips have posed it so a held item points along an aim.
+- `<tosi-b3d-panel bar-button="off">`: a system panel with no button of its own on the bar, for one something else opens (`el.show()` from a menu entry).
 
 ### Changed
 
 - `<tosi-b3d-biped>` holding a weapon in `gunplay` points it along its aim: the spine is turned after the animations. Crouched, the gun used to point about 45° low, and standing 11° low.
 - `viewMenu` leaves the system bar during a headset session; in VR the camera is your head.
-- The character builder has an **Animation** menu on the system bar (play/pause and the clip) and a separate **Playback** panel for scrubbing and speed.
+- The character builder has an **Animation** menu on the system bar (play/pause and the clip); its **Playback controls** entry opens a small panel for scrubbing and speed. The page is titled **Character Builder**.
+- `barMenu` submenus open beside the list (cascading, all on one surface) instead of replacing it with a way back. A submenu opens on a press, and a press on its row again closes it.
+- A system panel's button on the system bar stays lit while its panel is open (its HTML button carries `aria-pressed`).
 
 ### Fixed
 
@@ -32,6 +35,9 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 - In a headset, a press on the hand that is not pointing now counts on every way into VR (`enterXR` and the biped's own XR camera), not only `<tosi-b3d>`'s.
 - A popup whose content changes shape after it opens follows the new shape. It used to be drawn stretched or squashed until it was closed and opened again.
 - The tailor: an outline that lies past the outline field (one carried over from another body) is clipped to the field, and its points are drawn at the field's edge so you can drag them back. It used to draw over the panel's buttons.
+- In a headset, the system bar follows its panels during the session: a menu that leaves the bar (`viewMenu`) or a panel added late now does so in VR too. It used to keep the buttons it had when you entered.
+- A select (or other popup) in a system panel opens on its own surface in front of the panel instead of being cropped inside it.
+- The biped's aim reticle and the shadow blob under characters and vehicles are never culled. They used to vanish when the spot where they were created went out of view (in a headset, sometimes from one eye only).
 - In a headset, the vehicle chase camera keeps its seat through a brief moment with nothing piloted. It used to take wherever you were looking as forward again, a re-seat you did not ask for.
 
 ## 0.12.6

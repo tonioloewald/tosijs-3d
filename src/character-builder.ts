@@ -1,5 +1,5 @@
 /*#
-# character builder
+# Character Builder
 
 **Make a person, and watch them walk.** The first steps of the character
 creator (CHARACTER-DESIGN.md): MakeHuman's CC0 body
@@ -549,8 +549,8 @@ preview.append(
         })
         // THE ANIMATION on the bar: play or pause, and which clip, in one
         // place, flat and in a headset. The transport (scrub, speed) is its
-        // own small panel, opened from the menu or its own button.
-        const playbackPanel = b3dPanel({ icon: 'playCircle', title: 'Playback', exclusive: 'off' })
+        // own small panel, opened from the menu (it has no button of its own).
+        const playbackPanel = b3dPanel({ icon: 'playCircle', title: 'Playback', exclusive: 'off', barButton: 'off' })
         playbackPanel.svg = panel3d({ width: 300 }, playbackRow())
         const clipOption = (name) => ({ label: name, checked: name === walker.clip.value, handleSelect: () => { walker.clip.value = name } })
         // UAL's names lead with what they are (Pistol_…, Sword_…): the rest of
@@ -574,7 +574,7 @@ preview.append(
             walker.paused.value
               ? { label: 'Play', icon: 'play', handleSelect: () => { walker.paused.value = false } }
               : { label: 'Pause', icon: 'pause', handleSelect: () => { walker.paused.value = true } },
-            { label: 'Playback controls', icon: 'playCircle', handleSelect: () => playbackPanel.show?.() },
+            { label: 'Playback controls', icon: 'playCircle', checked: playbackPanel.isOpen, handleSelect: () => playbackPanel.toggle?.() },
             { separator: true },
             ...EVERYDAY.map(clipOption),
             ...(fileClips.size ? [{ separator: true }, ...[...fileClips.keys()].map(clipOption)] : []),
@@ -1410,8 +1410,8 @@ camera is your head.
 
 **Animation** (on the bar) plays or pauses the clip and picks it: the
 everyday clips, a file's, then the rest of the library grouped by kind.
-**Playback** is the transport (scrub, speed) as its own small panel, opened
-from its button or from the menu.
+**Playback controls** in that menu opens the transport (scrub, speed) as its
+own small panel.
 
 **Hold** puts an item from Tonio's textured weapons
 (`tonio/weapons-classic/weapons.glb`, CC BY 4.0: guns, blades, a plasma

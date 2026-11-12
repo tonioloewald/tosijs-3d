@@ -153,7 +153,10 @@ export function createShadowDecal(
   mesh.scaling.x = mesh.scaling.z = size
   mesh.isPickable = false
   mesh.receiveShadows = false
+  // It follows its caster with its bounds unsynced, so it must never be
+  // culled: the bounds stay where it was made.
   mesh.doNotSyncBoundingInfo = true
+  mesh.alwaysSelectAsActiveMesh = true
   // Alpha-blended, so it renders in the transparent pass over the opaque ground anyway; the y-bias
   // (at placement) is what actually keeps it off the surface.
   return mesh

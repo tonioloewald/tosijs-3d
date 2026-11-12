@@ -1199,7 +1199,11 @@ export class B3dBiped extends B3dControllable {
       mat.zOffset = -8
       this._reticle.material = mat
       this._reticle.isPickable = false
+      // It moves every frame and its bounds are never synced, so it is never
+      // culled: the bounds stayed where it was made, and the sight vanished
+      // whenever that spot was out of view (in a headset, out of one eye's).
       this._reticle.doNotSyncBoundingInfo = true
+      this._reticle.alwaysSelectAsActiveMesh = true
       markUiMesh(this._reticle)
     }
 

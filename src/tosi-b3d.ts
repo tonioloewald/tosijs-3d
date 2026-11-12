@@ -1074,6 +1074,10 @@ export class B3d extends Component {
     ':host .lozenge-button:hover': {
       background: 'rgba(255,255,255,0.15)',
     },
+    // Its panel is showing.
+    ':host .lozenge-button[aria-pressed="true"]': {
+      background: 'rgba(74,158,255,0.35)',
+    },
     // Over the scene, never under a finger: screen readers' copies of the
     // panels sit here, each over the control it stands for.
     ':host .aria-mirror-host': {
@@ -2893,6 +2897,10 @@ export class B3d extends Component {
         })
         this._systemButtonOf.set(svg, b)
       }
+      // A panel something else opens has no button of its own; the bars
+      // leave out a hidden one.
+      const away = (svg as { barButton?: string }).barButton === 'off'
+      if (b.hidden !== away) b.hidden = away
       return b
     })
   }
@@ -2984,6 +2992,13 @@ export class B3d extends Component {
     open: boolean,
     byUser = false
   ): void {
+    // A system panel's button is lit while its panel shows, on both bars.
+    for (const { el: key } of this._systemEntries()) {
+      const b = this._systemButtonOf.get(key)
+      const pressed = String(this._sysPanels.has(key))
+      if (b != null && b.getAttribute('aria-pressed') !== pressed)
+        b.setAttribute('aria-pressed', pressed)
+    }
     if (this._holdPanelEvents) return
     if (el != null)
       el.dispatchEvent(
@@ -3193,6 +3208,37 @@ export class B3d extends Component {
         p.update()
       })
     }
+    /*
+    POPUPS ARE POPUPS here too: a select in a system panel (the builder's
+    playback speed) opens on its own surface in front of the panel, not
+    cropped inside it. Under a title bar the plane shows the frame, so
+    anchors are measured in it.
+    */
+    const layerFor = (c: SVGSVGElement) => {
+      const shownVb = svg.viewBox.baseVal
+      const planeW = this.xrActive ? (shownVb.width || 400) * 0.0018 : 0.3
+      attachSceneLayer({
+        svg: c,
+        owner: this as unknown as PopupOwner,
+        openerMesh: (panel as { drawn?: unknown }).drawn,
+        planeW,
+        planeH: planeW * ((shownVb.height || 1) / (shownVb.width || 1)),
+        // titled3d nests the content at its bar's height (its `y`).
+        inFrame:
+          titled != null
+            ? () => ({ svg: titled, top: Number(c.getAttribute('y')) || 0 })
+            : undefined,
+        screenRoom: this.xrActive
+          ? undefined
+          : () => {
+              const h = this.parts.canvas?.clientHeight ?? 0
+              const spot = this._systemSpots.get(key)
+              const top = Number(spot?.top) || 0
+              return h > 0 ? { top: -top, bottom: h - top } : null
+            },
+      })
+    }
+    layerFor(content)
     const onFocus = (e: Event) => {
       if ((e as CustomEvent<{ focus?: boolean }>).detail?.focus === false)
         this._closeSystemPanel(key)
@@ -3233,6 +3279,7 @@ export class B3d extends Component {
         }
         next.addEventListener('panelfocus', onFocus)
         entry.content = next
+        layerFor(next)
       },
       off: () => {
         entry.content.removeEventListener('panelfocus', onFocus)
@@ -8289,28 +8336,40 @@ export class B3d extends Component {
       .map(([part, icon, title]) =>
         mk(icon, title, () => pads.forEach((p) => p.pulse?.(part)))
       )
-    const buttons = [
-      mk(owl, 'Settings', act.settings),
-      ...this._systemButtons(),
-      ...padButtons,
-      mk(svgIcons.logOut(), 'Exit VR', act.exit),
-    ]
-    const bar = systemBar(buttons)
-    this._xrBarSvg = bar.svg
+    const settingsButton = mk(owl, 'Settings', act.settings)
+    const exitButton = mk(svgIcons.logOut(), 'Exit VR', act.exit)
     /*
-    WHAT A PRESS ON THE BAR DID, to the debug sink: in the aircraft a headset
-    lit a button and the press never landed, while the emulated headset's
-    presses clicked. Presses and releases are rare, so this is cheap.
+    The system panels can change during a session (a menu that leaves the bar
+    in a headset, a panel added late), so the bar is rebuilt when they do,
+    into the same plane: checked every 30 frames, as the flat bar is.
     */
-    const barSvg = bar.svg as unknown as {
-      handlePointer: (k: string, x: number, y: number) => void
+    let system = this._systemButtons()
+    const makeBar = () => {
+      const bar = systemBar([
+        settingsButton,
+        ...system,
+        ...padButtons,
+        exitButton,
+      ])
+      /*
+      WHAT A PRESS ON THE BAR DID, to the debug sink: in the aircraft a
+      headset lit a button and the press never landed, while the emulated
+      headset's presses clicked. Presses and releases are rare, so this is
+      cheap.
+      */
+      const barSvg = bar.svg as unknown as {
+        handlePointer: (k: string, x: number, y: number) => void
+      }
+      const handle = barSvg.handlePointer
+      barSvg.handlePointer = (k, x, y) => {
+        if (k === 'down' || k === 'up')
+          sendDebug('xr-bar', { kind: k, x: Math.round(x), y: Math.round(y) })
+        handle(k, x, y)
+      }
+      this._xrBarSvg = bar.svg
+      return bar
     }
-    const handle = barSvg.handlePointer
-    barSvg.handlePointer = (k, x, y) => {
-      if (k === 'down' || k === 'up')
-        sendDebug('xr-bar', { kind: k, x: Math.round(x), y: Math.round(y) })
-      handle(k, x, y)
-    }
+    let bar = makeBar()
     const vb = bar.svg.viewBox.baseVal
     const width = 0.0022 * (vb.width || 100)
     const panel = attachFramePanel(scene, cam, frames.eye, {
@@ -8326,8 +8385,25 @@ export class B3d extends Component {
       width,
       resolution: 512,
     })
+    let checkIn = 30
     return {
-      update: () => panel.update(),
+      update: () => {
+        if (--checkIn <= 0) {
+          checkIn = 30
+          const now = this._systemButtons()
+          if (
+            now.length !== system.length ||
+            now.some((b, i) => b !== system[i])
+          ) {
+            system = now
+            const old = bar
+            bar = makeBar()
+            panel.setSvg(bar.svg)
+            old.dispose()
+          }
+        }
+        panel.update()
+      },
       dispose: () => {
         if (this._xrBarSvg === bar.svg) this._xrBarSvg = null
         panel.dispose()

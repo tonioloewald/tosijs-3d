@@ -65,6 +65,12 @@ export function attachSceneLayer(opts: {
    * kept on it; without it (a plane in a headset) nothing bounds a popup.
    */
   screenRoom?: () => { top: number; bottom: number } | null
+  /**
+   * When `svg` is shown INSIDE another SVG on the plane (a title bar's
+   * frame), that SVG and where `svg`'s top sits in it: the plane maps the
+   * frame, so anchors are moved down by `top` and measured against it.
+   */
+  inFrame?: () => { svg: SVGSVGElement; top: number }
 }): boolean {
   const panelEl = opts.svg as unknown as LayerHostTarget
   const owner = opts.owner
@@ -102,7 +108,9 @@ export function attachSceneLayer(opts: {
       */
     // Hoisted above its first use — the panel's viewBox is read by BOTH the
     // scale below and the anchor projection further down.
-    const vb = opts.svg.viewBox?.baseVal
+    const frame = opts.inFrame?.()
+    const vb = (frame?.svg ?? opts.svg).viewBox?.baseVal
+    const frameTop = frame?.top ?? 0
     const popW = Number(sheet.getAttribute('width')) || 360
     const popH = Number(sheet.getAttribute('height')) || 200
     /*
@@ -158,7 +166,7 @@ export function attachSceneLayer(opts: {
     const MARGIN = 8
     const room = opts.screenRoom?.() ?? null
     // Beside the panel its top is level with the anchor's; else it hangs below.
-    let topVb = beside ? a.y : a.y + a.height
+    let topVb = frameTop + (beside ? a.y : a.y + a.height)
     if (room != null) {
       topVb = Math.max(
         room.top + MARGIN,

@@ -81,7 +81,9 @@ export function aimSpine(
   const pointing = () => unit(held.getWorldMatrix().getRow(2)!.toVector3())
   const now = pointing()
   if (now == null) return 0
-  const total = Math.acos(Math.max(-1, Math.min(1, BABYLON.Vector3.Dot(now, want))))
+  const total = Math.acos(
+    Math.max(-1, Math.min(1, BABYLON.Vector3.Dot(now, want)))
+  )
   // The whole correction, capped and weighted, shared down the chain.
   let left = Math.min(total, maxRad) * weight
   for (let k = 0; k < chain.length && left > 1e-5; k++) {
@@ -97,7 +99,9 @@ export function aimSpine(
     const b = unit(BABYLON.Vector3.TransformNormal(want, inv))
     if (a == null || b == null) break
     const axis = unit(BABYLON.Vector3.Cross(a, b))
-    const between = Math.acos(Math.max(-1, Math.min(1, BABYLON.Vector3.Dot(a, b))))
+    const between = Math.acos(
+      Math.max(-1, Math.min(1, BABYLON.Vector3.Dot(a, b)))
+    )
     if (axis == null || between < 1e-5) break
     const share = Math.min(between, left / (chain.length - k))
     // Which way round Babylon's axis-angle turns is checked, not assumed.

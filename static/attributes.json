@@ -3043,6 +3043,9 @@
         "name": "open",
         "default": "false",
         "description": "On the system bar: open when the scene starts (and again in a headset, if it was open flat). To open or close it later, `el.show()` / `el.hide()`"
+      },
+      {
+        "name": "barButton"
       }
     ]
   },

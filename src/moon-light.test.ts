@@ -18,9 +18,7 @@ describe('moonLight', () => {
     expect(moonLight([{ x: -0.6, y: 0.8, z: 0 }], sun).strength).toBeCloseTo(
       0.8
     )
-    expect(moonLight([{ x: 0.6, y: 0.8, z: 0 }], sun).strength).toBeCloseTo(
-      0.2
-    )
+    expect(moonLight([{ x: 0.6, y: 0.8, z: 0 }], sun).strength).toBeCloseTo(0.2)
   })
 
   test('the brightest moon that is up wins, a brighter one set does not', () => {

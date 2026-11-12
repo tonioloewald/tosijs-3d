@@ -227,6 +227,7 @@ The `<tosi-b3d-panel>` children are the set (none ship by default):
 | `title` | `''` | Placeholder card title (ignored if `url` set) |
 | `icon` | `''` | Puts it on the scene's system bar: its button's picture, an `svgIcons` name (e.g. `personStanding`, `book`, `map`); unknown draws a square. Its `title` is the button's tooltip and the panel's caption |
 | `exclusive` | `'on'` | On the system bar: one system panel is open at a time. `'off'` lets this one stay open beside the others and leaves them open when it opens (an app's main chrome: a tool palette, a properties panel). The settings panel and exclusive panels still close each other |
+| `bar-button` | `'on'` | On the system bar: `'off'` gives it no button there, for a panel something else opens (a menu entry calling `el.show()`). It still opens under the bar like the others |
 | `open` | `false` | On the system bar: open when the scene starts (and again in a headset, if it was open flat). To open or close it later, `el.show()` / `el.hide()` |
 | `chrome` | `''` | On the system bar: the panel opens with the settings panel's title bar (move, its title, ×; flat, a drag moves it and it reopens where you left it; holding its button on the bar puts it back). `'none'` for content with chrome of its own |
 | `url` | `''` | SVG URL (e.g. a reticle) |
@@ -344,6 +345,8 @@ export class B3dPanel extends Component {
     exclusive: 'on',
     /** System panel: open when the scene starts. */
     open: false,
+    /** System panel: 'off' has no button on the bar; code opens it (`show()`). */
+    barButton: 'on',
   }
 
   static shadowStyleSpec = {
@@ -374,6 +377,7 @@ export class B3dPanel extends Component {
   declare resolution: number
   declare exclusive: string
   declare open: boolean
+  declare barButton: string
 
   /**
    * Live content (JS only): an SVG, with its own `handlePointer` if it takes
