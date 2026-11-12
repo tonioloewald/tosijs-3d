@@ -16,7 +16,7 @@ import {
 } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { cityDrive } = tosi({ cityDrive: { time: 17.5, speed: 60, coverage: 0.45 } })
+const { cityDrive } = tosi({ cityDrive: { time: 17.5, speed: 64, coverage: 0.45 } })
 
 // A LIGHTER WORLD on a headset or a low-powered device: a smaller town, less
 // traffic, a shorter view, fewer trees, no cloud deck. A headset draws
@@ -80,7 +80,7 @@ preview.append(
       panelTitle: 'City Drive',
       scenePanel: () => [
         slider3d({ label: 'time of day', value: cityDrive.time, min: 0, max: 24, step: 0.1 }),
-        slider3d({ label: 'time speed', value: cityDrive.speed, min: 1, max: 600, scale: 'log', zeroStop: true }),
+        slider3d({ label: 'time speed', value: cityDrive.speed, min: 0.25, max: 1024, scale: 'log2', step: 1, zeroStop: true }),
         ...(light ? [] : [slider3d({ label: 'cloud cover', value: cityDrive.coverage, min: 0, max: 1.5, step: 0.05 })]),
       ],
     },
