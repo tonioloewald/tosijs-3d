@@ -30,8 +30,10 @@ expect from a 3D viewer, on every device. `<tosi-b3d>`'s default camera and
   of its distance (`WHEEL_SHARE`, as Babylon's `wheelDeltaPercentage`), so it
   is as gentle at arm's length as across a field. A page that set
   `wheelPrecision` or `wheelDeltaPercentage` itself keeps its own. A
-  trackpad pinch scales the distance by the pinch (`PINCH_SHARE`): it sends
-  many small steps, which the wheel's share per notch barely moved.
+  trackpad pinch scales the distance by the pinch, three times over
+  (`PINCH_GAIN`): a laptop trackpad is small, and a natural pinch on it
+  barely halved the distance. Chrome and Firefox send a pinch as a
+  ctrl-wheel, Safari as gesture events; both are handled.
 - **Zoom stops short of the target**: with no `lowerRadiusLimit` of your own,
   it is set to twice the camera's near plane (at least 1 cm), because Babylon
   has none and zooming in went through the target and flipped the view.
@@ -80,10 +82,18 @@ export const WHEEL_SHARE = 0.01
 
 /**
  * A trackpad pinch's zoom per unit of `deltaY`: the distance scales by
- * `exp(deltaY * PINCH_SHARE)`, so doubling the fingers' spread (about 70
- * units in Chrome) roughly halves it.
+ * `exp(deltaY * PINCH_SHARE)`. Chrome sends `-100 ln(scale)`, so this is
+ * the pinch's own scale raised to the power `PINCH_SHARE * 100`
+ * (`PINCH_GAIN`).
  */
-export const PINCH_SHARE = 0.01
+export const PINCH_SHARE = 0.03
+
+/**
+ * How much more a trackpad pinch zooms than the fingers' spread: the distance
+ * scales by `spread ^ -PINCH_GAIN`. At 1 (natural, as a touch screen) a big
+ * pinch on a laptop trackpad barely halved the distance.
+ */
+export const PINCH_GAIN = PINCH_SHARE * 100
 
 export function touchOrbit(
   camera: BABYLON.ArcRotateCamera,
@@ -185,10 +195,34 @@ export function touchOrbit(
       passive: false,
     })
 
+  /*
+  SAFARI does not send a pinch as a ctrl-wheel: it sends `gesturestart` /
+  `gesturechange` with `scale`, the spread since the gesture began.
+  */
+  let gestureFrom = 0
+  const onGesture = (e: Event) => {
+    const g = e as Event & { scale?: number }
+    if (camera.getScene().activeCamera !== camera) return
+    e.preventDefault()
+    if (e.type === 'gesturestart') gestureFrom = camera.radius
+    else if (e.type === 'gesturechange' && gestureFrom > 0 && g.scale! > 0) {
+      const lo = camera.lowerRadiusLimit ?? 0.001
+      const hi = camera.upperRadiusLimit ?? Infinity
+      camera.radius = Math.min(
+        hi,
+        Math.max(lo, gestureFrom * Math.pow(g.scale!, -PINCH_GAIN))
+      )
+    } else if (e.type === 'gestureend') gestureFrom = 0
+  }
+  const gestures = ['gesturestart', 'gesturechange', 'gestureend']
+  for (const t of gestures)
+    canvas?.addEventListener(t, onGesture, { passive: false })
+
   const restore = () => {
     pointers.onMultiTouch = original
     pointers.onTouch = originalTouch
     canvas?.removeEventListener('wheel', onWheel, { capture: true })
+    for (const t of gestures) canvas?.removeEventListener(t, onGesture)
     delete (camera as any)._tosiTouchOrbit
   }
   ;(camera as any)._tosiTouchOrbit = restore
