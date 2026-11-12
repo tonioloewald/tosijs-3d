@@ -23,7 +23,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 - `<tosi-b3d-biped>` holding a weapon in `gunplay` points it along its aim: the spine is turned after the animations. Crouched, the gun used to point about 45° low, and standing 11° low.
 - `viewMenu` leaves the system bar during a headset session; in VR the camera is your head.
 - A trackpad pinch on an orbit camera zooms three times as far (`PINCH_GAIN`), and pinching works in Safari, which sends gesture events rather than a ctrl-wheel.
-- The character builder has an **Animation** menu on the system bar (play/pause and the clip); its **Playback controls** entry opens a small panel for scrubbing and speed. The page is titled **Character Builder**.
+- The character builder has an **Animation** menu on the system bar (play/pause and the clip); its **Playback controls** entry opens a small panel for scrubbing and speed. The page is titled **Character Builder**. While rigging, Play goes to the perspective view and Pause back to the face view last held.
 - `barMenu` submenus open beside the list (cascading, all on one surface) instead of replacing it with a way back. A submenu opens on a press, and a press on its row again closes it.
 - A system panel's button on the system bar stays lit while its panel is open (its HTML button carries `aria-pressed`).
 

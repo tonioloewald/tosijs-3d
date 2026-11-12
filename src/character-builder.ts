@@ -571,7 +571,13 @@ preview.append(
           title: 'Animation',
           layout: 'list',
           options: () => [
-            walker.paused.value
+            // While rigging the view is the pose: play goes to perspective,
+            // pause back to the face it was held to last.
+            rigging
+              ? rigging.api.view === 'free'
+                ? { label: 'Pause', icon: 'pause', handleSelect: () => rigging?.api.play(null) }
+                : { label: 'Play', icon: 'play', handleSelect: () => rigging?.api.play() }
+              : walker.paused.value
               ? { label: 'Play', icon: 'play', handleSelect: () => { walker.paused.value = false } }
               : { label: 'Pause', icon: 'pause', handleSelect: () => { walker.paused.value = true } },
             { label: 'Playback controls', icon: 'playCircle', checked: playbackPanel.isOpen, handleSelect: () => playbackPanel.toggle?.() },
