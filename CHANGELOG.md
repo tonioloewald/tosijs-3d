@@ -30,6 +30,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ### Fixed
 
+- `<tosi-b3d-launcher>`'s `reloadModel()` no longer disposes the library's materials with the old model: after the first weapon swap, every weapon from that library was drawn white (the Biped Playground's loadout). `<tosi-b3d-crowd>`'s actors had the same fault when removed.
 - `<tosi-b3d-hud>`: changing `size` resizes the HUD straight away; it used to wait for the next window resize. Any `handleResize()` call made after setting it can go.
 - `<tosi-b3d-sound>` removed while its file loads no longer throws an unhandled rejection ("No volume subnode"); it is disposed once Babylon has finished loading it, and never starts playing.
 - Removing a `<tosi-b3d>` no longer warns "WebGL context LOST": the teardown loses the context on purpose. An unexpected loss still warns.

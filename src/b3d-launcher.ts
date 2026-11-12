@@ -464,6 +464,7 @@ import {
   isOff,
   sceneDelta,
   collidable,
+  disposeMeshTree,
   semanticParent,
 } from './b3d-utils.js'
 import type { B3d, RadarFaction } from './tosi-b3d.js'
@@ -1429,7 +1430,9 @@ export class B3dLauncher extends AbstractMesh {
     this._muzzleNode = null
     this._stopLoad?.()
     this._stopLoad = null
-    this.mesh?.dispose(false, true)
+    // Not dispose(false, true): a library model shares its materials with the
+    // library, and every later copy came out white.
+    if (this.mesh != null) disposeMeshTree(this.mesh)
     this.mesh = undefined as unknown as BABYLON.Mesh
   }
 

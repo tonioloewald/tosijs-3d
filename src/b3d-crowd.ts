@@ -1632,7 +1632,8 @@ export class B3dCrowd extends B3dChild {
   private async _buildSkinned(scene: BABYLON.Scene, n: number): Promise<void> {
     this._skinnedWant = n
     if (n < this._skinnedRoots.length) {
-      for (const r of this._skinnedRoots.splice(n)) r.dispose(false, true)
+      // The container owns the materials; the clones share them.
+      for (const r of this._skinnedRoots.splice(n)) r.dispose()
     }
     if (n === 0) {
       this._skinnedNote = ''
@@ -1854,7 +1855,7 @@ export class B3dCrowd extends B3dChild {
       group,
       dispose: () => {
         for (const g of inst.animationGroups) g.dispose()
-        root.dispose(false, true)
+        root.dispose() // its materials are the rig container's
         this.setFigureHidden(i, false)
       },
     }
@@ -2206,7 +2207,7 @@ export class B3dCrowd extends B3dChild {
     this._flushObs = null
     this._offDebug?.()
     this._offDebug = null
-    for (const r of this._skinnedRoots) r.dispose(false, true)
+    for (const r of this._skinnedRoots) r.dispose()
     this._skinnedRoots = []
     this._container?.dispose()
     this._container = null
