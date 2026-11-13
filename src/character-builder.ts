@@ -95,6 +95,7 @@ const choices = (key) => ch?.choices(key) ?? ['none']
 let openBody = () => {}
 // The rig tool, mounted on the body while it is being rigged.
 let rigging = null
+let openMesh = () => {}
 let openRig = (file = null) => {}
 const madeHuman = () => walker.source.value === 'MakeHuman'
 // The imported body's surfaces (its file's materials), each as made or skin.
@@ -515,6 +516,8 @@ preview.append(
                 disabled: !current,
                 handleSelect: () => modal((pop) => namePopup(pop, { prompt: `rename ${current} to`, initial: current, current, verb: 'rename', act: (name) => character.rename(current, name) })),
               },
+              { separator: true },
+              { label: 'Open mesh…', handleSelect: () => openMesh() },
               { separator: true },
               { label: 'Export JSON', handleSelect: () => character.exportJson() },
               { label: 'Load JSON…', handleSelect: () => character.importJson() },
@@ -1030,6 +1033,15 @@ preview.append(
           if (walker.source.value !== file.name) walker.source.value = file.name
         }
         el.builder.openFile = openFile
+        // OPEN MESH (the Character menu): rigging, it is the mesh the rig tool
+        // works on; otherwise a GLB or glTF is the body, and an OBJ, which has
+        // no skeleton, opens in the rig tool to be rigged.
+        openMesh = () => chooseFile('.glb,.gltf,.obj').then((f) => {
+          if (!f) return
+          if (rigging) void rigging.api.load(f)
+          else if (/\.obj$/i.test(f.name)) openRig(f)
+          else openFile(f)
+        })
         // THE RIG TOOL'S BUTTON is always on the bar: it rigs the body shown
         // (a mesh's), or a mesh file opened in it, and done makes what it
         // rigged the builder's body (a choice under source). The character's
@@ -1039,9 +1051,8 @@ preview.append(
         const idleRig = () =>
           panel3d(
             { width: 300 },
-            label3d({ text: 'rig a mesh to play the clips', muted: true, compact: true }),
-            ...(madeHuman() ? [] : [button3d({ label: `rig ${walker.source.value}`, handleClick: () => openRig() })]),
-            button3d({ label: 'open a mesh file…', handleClick: () => chooseFile('.glb,.gltf,.obj').then((f) => f && openRig(f)) })
+            label3d({ text: 'rig a mesh to play the clips (Character → Open mesh…)', muted: true, compact: true }),
+            ...(madeHuman() ? [] : [button3d({ label: `rig ${walker.source.value}`, handleClick: () => openRig() })])
           )
         rigPanel.svg = idleRig()
         el.append(rigPanel)

@@ -1231,6 +1231,36 @@ export function mountRigTool(
   const current = (): SpringRecipe | undefined => recipe.springs?.[ui.spring]
 
   const panel = (): Widget3d[] => {
+    // Only a model with a skeleton of its own can use it: a mesh with none
+    // (an OBJ, Blender's bodies) has nothing to go back to.
+    const ownSkeleton: Widget3d[] =
+      applied == null || !hasOwnSkeleton
+        ? []
+        : [
+            toggle3d({
+              label: 'use its own skeleton',
+              value: recipe.binding == null,
+              handleChange: (own) => {
+                const v = !own
+                /*
+                IGNORE ITS OWN RIG AND BIND IT HERE. Any mesh can be bound
+                from markers, so a model whose skeleton is wrong or missing
+                bones gets one fitted to it. Its roles and chains named the
+                old skeleton's bones, so they go with it.
+                */
+                if (v) bindNext = true
+                else delete recipe.binding
+                recipe.roles = {}
+                recipe.springs = (recipe.springs ?? []).filter(
+                  (s) => s.kind === 'strand'
+                )
+                edited()
+                ui.status = v ? 'binding…' : 'loading its own rig…'
+                refresh()
+                void tool?.rebind()
+              },
+            }),
+          ]
     /*
     THE PANEL, its job first. Finished (or abandoned) at the top when a host
     opened it for one job, then what it is doing; then the markers (a mesh
@@ -1271,6 +1301,8 @@ export function mountRigTool(
         ],
       }),
       label3d({ text: ui.status, muted: true, compact: true }),
+      // Hosted with menus, its own skeleton comes first (no Model section).
+      ...(options.hostMenus ? ownSkeleton : []),
     ]
 
     if (bound != null) {
@@ -1597,10 +1629,14 @@ export function mountRigTool(
             }),
           ]),
 
-      // MODEL: which one, and how it is rigged.
-      label3d({ text: 'Model', icon: 'mesh', collapsible: true }),
+      // MODEL: which one, and how it is rigged. Hosted with menus, the
+      // host's menu opens meshes and its own skeleton is a row at the top.
+      ...(options.hostMenus
+        ? []
+        : [label3d({ text: 'Model', icon: 'mesh', collapsible: true })]),
       // A choice only when there is one (a host's one model has none).
-      ...(models.length > 1 || models[0]?.label !== ui.model
+      ...(!options.hostMenus &&
+      (models.length > 1 || models[0]?.label !== ui.model)
         ? [
             select3d({
               label: 'model',
@@ -1613,40 +1649,18 @@ export function mountRigTool(
             }),
           ]
         : []),
-      // Only a model with a skeleton of its own can use it: a mesh with
-      // none (an OBJ, Blender's bodies) has nothing to go back to.
-      ...(applied == null || !hasOwnSkeleton
+      ...(options.hostMenus ? [] : ownSkeleton),
+      ...(options.hostMenus
         ? []
         : [
-            toggle3d({
-              label: 'use its own skeleton',
-              value: recipe.binding == null,
-              handleChange: (own) => {
-                const v = !own
-                /*
-                IGNORE ITS OWN RIG AND BIND IT HERE. Any mesh can be bound
-                from markers, so a model whose skeleton is wrong or missing
-                bones gets one fitted to it. Its roles and chains named the
-                old skeleton's bones, so they go with it.
-                */
-                if (v) bindNext = true
-                else delete recipe.binding
-                recipe.roles = {}
-                recipe.springs = (recipe.springs ?? []).filter(
-                  (s) => s.kind === 'strand'
-                )
-                edited()
-                ui.status = v ? 'binding…' : 'loading its own rig…'
-                refresh()
-                void tool?.rebind()
-              },
+            button3d({
+              label: 'load model file…',
+              handleClick: () =>
+                void chooseFile('.glb,.gltf,.obj').then(
+                  (f) => f && tool?.load(f)
+                ),
             }),
-          ]),
-      button3d({
-        label: 'load model file…',
-        handleClick: () =>
-          void chooseFile('.glb,.gltf,.obj').then((f) => f && tool?.load(f)),
-      })
+          ])
     )
 
     // Springs.
@@ -1654,7 +1668,7 @@ export function mountRigTool(
     w.push(
       label3d({
         text: 'Springs',
-        icon: 'spring',
+        icon: 'link',
         collapsible: true,
         open: true,
       }),

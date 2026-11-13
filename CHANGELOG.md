@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Changed:** the builder opens meshes from one place, the Character menu's **Open mesh…** (into the rig tool while rigging; otherwise a GLB is the body and an OBJ opens the rig tool). With `hostMenus` the rig tool drops its Model section, and **use its own skeleton** comes first. Springs wear the link icon.
+
 - **Changed:** in the character builder, the Rig panel (now the move icon) has no animate, clip or View rows: the Animation menu plays and picks the clip on the rig, and the View menu has **Mannequin** and **Bones** as checked items while rigging. `mountRigTool`'s `hostMenus` option does this for any host, which drives it through the new `api.clip`, `api.mannequin` and `api.bones`; `viewMenu` takes `items` for extra rows.
 
 - **Added:** rig tool fingertips (orange, with `move joints` on): dragging one turns and stretches its whole finger or thumb about the finger's first joint, keeping the curl, its mirror following with symmetry on.
