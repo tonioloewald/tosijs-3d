@@ -1526,7 +1526,7 @@ export function mountRigTool(
     w.push(
       label3d({
         text: 'Motion',
-        icon: 'motion',
+        icon: 'move',
         collapsible: true,
         open: true,
       }),

@@ -1047,7 +1047,7 @@ preview.append(
         // rigged the builder's body (a choice under source). The character's
         // body steps aside while the tool shows the same mesh bound from the
         // same recipe; cancel puts it back as it was.
-        const rigPanel = b3dPanel({ icon: 'move', title: 'Rig', exclusive: 'off' })
+        const rigPanel = b3dPanel({ icon: 'rig', title: 'Rig', exclusive: 'off' })
         const idleRig = () =>
           panel3d(
             { width: 300 },
