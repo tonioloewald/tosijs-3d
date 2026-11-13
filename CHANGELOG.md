@@ -31,6 +31,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ### Fixed
 
+- In a headset, a system panel whose content grows after it opens (the rig tool once a body is rigged, the tailor) grows downward from under the system bar. It used to grow about its centre, up over the bar. `attachFramePanel` takes `keepTop: true` for this.
 - A trackpad pinch sent as ctrl-wheel notches (many Windows trackpad drivers) zooms one wheel step a notch; each notch used to move the camera about twenty times as far.
 
 - `<tosi-b3d-launcher>`'s `reloadModel()` no longer disposes the library's materials with the old model: after the first weapon swap, every weapon from that library was drawn white (the Biped Playground's loadout). `<tosi-b3d-crowd>`'s actors had the same fault when removed.

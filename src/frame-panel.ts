@@ -480,6 +480,12 @@ export interface FramePanelSpec {
   /** Panel width in metres (height follows the aspect). Default 0.26. */
   width?: number
   /**
+   * Content that grows or shrinks keeps its TOP edge where it was placed
+   * (it grows downward), instead of growing about its centre. A panel under
+   * a bar uses it, or growing content climbed over the bar.
+   */
+  keepTop?: boolean
+  /**
    * Texture resolution in pixels (square). Default 384, which suits a
    * reticle, the job frame panels were first built for. A MENU wants more:
    * a ~1100 device-px panel on a 2× display at 384 upscales text ~2.9× and
@@ -827,10 +833,15 @@ export function attachFramePanel(
   // (`rollDeg: 180`, which rights the grip-space anchors, is symmetric and
   // agrees either way — which is exactly why this needed a test rather than an
   // argument.)
+  // Where it was placed and how tall it was then (`keepTop`).
+  let placed: { pos: BABYLON.Vector3; sy: number } | null = null
+  const contentSy = () =>
+    el && baseVb ? (el.viewBox.baseVal.height || baseVb.h) / baseVb.h : 1
   const placeAt = (a: AnchorSpec) => {
     const pos = resolve(a)
     const f = a.focus ?? DEFAULT_FOCUS
     plane.position.set(pos[0], pos[1], pos[2])
+    placed = { pos: plane.position.clone(), sy: contentSy() }
     // Flat on: oriented as a panel straight ahead of the eye would be.
     const { yaw, pitch, roll } = a.flatOn
       ? faceViewer(
@@ -918,6 +929,18 @@ export function attachFramePanel(
     }
     plane.scaling.x = k * sx
     plane.scaling.y = k * sy
+    // Grown since it was placed: down, its top edge held.
+    if (spec.keepTop && !focused && placed != null && plane.rotationQuaternion) {
+      const up = BABYLON.Vector3.TransformNormal(
+        BABYLON.Vector3.Up(),
+        BABYLON.Matrix.FromQuaternionToRef(
+          plane.rotationQuaternion,
+          BABYLON.Matrix.Identity()
+        )
+      )
+      const grew = k * (sy - placed.sy) * width * aspect
+      plane.position.copyFrom(placed.pos).addInPlace(up.scale(-grew / 2))
+    }
   }
   /*
   SCREEN PLACEMENT (flat): solve the panel's rectangle on screen with the

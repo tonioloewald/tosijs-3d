@@ -3148,6 +3148,9 @@ export class B3d extends Component {
         width: (vb.width || 400) * K,
         resolution: 1024,
         focusable: false,
+        // Content that grows (the rig tool once a body is rigged) grows
+        // down, not up over the bar.
+        keepTop: true,
       })
     } else {
       const cam = scene.activeCamera
