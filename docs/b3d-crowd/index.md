@@ -203,6 +203,93 @@ None of it costs anything. The clips share one texture, so switching is a change
 of two numbers rather than of material, and the CPU still touches nothing once
 the crowd is built.
 
+## Moving figures
+
+The crowd lays its figures out once; moving them is the game's job.
+`setFigure(i, { x, y, z, yaw, clip, speed })` moves, turns or re-clips figure
+`i` (leave out what stays). Call it as often as you like: the changes are
+uploaded once, just before the frame is drawn. The clips play in place, so a
+walker goes nowhere until you move it, and its feet slide unless its speed
+matches its stride. Below, three hundred walkers cross a field, turn back at
+its edge, and stop now and then to wave: all of it is `setFigure` calls.
+
+```js
+import { b3d, b3dSun, b3dSkybox, b3dLight, b3dGround, b3dCrowd, sceneDelta } from 'tosijs-3d'
+import { orbitCam } from 'tosijs-3d/demo-utils'
+
+// Walkers cross the field, turn back at its edge, and stop to wave now and
+// then. WALK is the bench figure's stride at speed 1.
+const FIGURES = 300
+const FIELD = 30
+const WALK = 1.2
+
+const crowd = b3dCrowd({ count: FIGURES, spread: FIELD * 2 })
+let walkers = null
+
+preview.append(
+  b3d(
+    {
+      style: 'width:100%;height:100%',
+      sceneCreated(el) {
+        // Close enough to see them walk: from across the field they are dots.
+        orbitCam(el, { alphaDeg: 35, betaDeg: 72, radius: 22, target: [0, 1, 0] })
+        el.scene.onBeforeRenderObservable.add(() => {
+          const n = crowd.figureCount
+          if (n === 0) return
+          if (walkers == null || walkers.length !== n) {
+            // One per figure: its heading, and how long until it next changes
+            // what it is doing.
+            walkers = Array.from({ length: n }, (_, i) => {
+              const at = crowd.transformOf(i)
+              crowd.setFigure(i, { clip: 'walk', speed: 1 })
+              return { yaw: at.yaw, wait: 3 + Math.random() * 20, waving: false }
+            })
+          }
+          const dt = sceneDelta(el.scene)
+          walkers.forEach((w, i) => {
+            w.wait -= dt
+            if (w.wait < 0) {
+              w.waving = !w.waving
+              w.wait = w.waving ? 2 + Math.random() * 2 : 5 + Math.random() * 20
+              crowd.setFigure(i, { clip: w.waving ? 'wave' : 'walk' })
+            }
+            if (w.waving) return
+            const at = crowd.transformOf(i)
+            // Past the edge and heading out: turn back toward the middle.
+            if (Math.hypot(at.x, at.z) > FIELD && at.x * Math.sin(w.yaw) + at.z * Math.cos(w.yaw) > 0) {
+              w.yaw = Math.atan2(-at.x, -at.z) + (Math.random() - 0.5)
+            }
+            crowd.setFigure(i, {
+              x: at.x + Math.sin(w.yaw) * WALK * dt,
+              z: at.z + Math.cos(w.yaw) * WALK * dt,
+              yaw: w.yaw,
+            })
+          })
+        })
+      },
+    },
+    b3dSun({ shadowMaxZ: 120, activeDistance: 90, shadowDarkness: 0.25 }),
+    b3dSkybox({ timeOfDay: 9 }),
+    b3dLight({ intensity: 0.6, groundColor: '#59604a' }),
+    b3dGround({
+      meshName: 'ground_nocast',
+      width: 100, height: 100,
+      color: '#8a9070', texture: 'noise', textureTiles: 6,
+    }),
+    crowd
+  )
+)
+```
+```css
+.preview { height: 100%; }
+```
+
+A figure plays the new clip from where the old one was in its cycle, with no
+blend between them. Changing `speed` keeps the pose it is in. Moving a figure
+writes its slot in the whole crowd's buffer, so thousands of moving figures
+are cheap and two hundred thousand are not; `clipNames` lists what `clip`
+takes. A rebuild (a new `count`, `url` or `clips`) lays the crowd out again.
+
 ## A real rig, baked
 
 Set `url` and the crowd bakes that GLB instead of the blocky bench figure. The

@@ -22,7 +22,8 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="doc-system.css?v=f9a43918f299" data-tosi-doc-system />
+  <link rel="stylesheet" href="doc-system.css?v=c39a3e225125" data-tosi-doc-system />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&amp;family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&amp;display=swap" />
   <title>tosijs-3d</title>
   <meta name="description" content="Tosijs-3d is a library for building 3D web apps — and standalone apps, if that is what you want. Under the hood it uses Babylon.js for rendering, glTF/GLB" />
   <link rel="canonical" href="https://3d.tosijs.net/" />
@@ -33,12 +34,12 @@
   <meta property="og:description" content="Tosijs-3d is a library for building 3D web apps — and standalone apps, if that is what you want. Under the hood it uses Babylon.js for rendering, glTF/GLB" />
   <meta property="og:url" content="https://3d.tosijs.net/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/","description":"Tosijs-3d is a library for building 3D web apps — and standalone apps, if that is what you want. Under the hood it uses Babylon.js for rendering, glTF/GLB","inLanguage":"en","dateModified":"2026-11-02T10:50:21+02:00"}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/","description":"Tosijs-3d is a library for building 3D web apps — and standalone apps, if that is what you want. Under the hood it uses Babylon.js for rendering, glTF/GLB","inLanguage":"en","dateModified":"2026-11-13T09:32:52.811Z"}</script>
   <link rel="icon" href="favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="docs.json?v=964dce30c6d0" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="docs.json?v=2b7977de6a53" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="README.md">
 <h1 id="tosijs-3d">tosijs-3d</h1>
 <p><a href="https://github.com/tonioloewald/tosijs-3d/">github</a> | <a href="https://3d.tosijs.net">live demo</a> | <a href="https://www.npmjs.com/package/tosijs-3d">npm</a></p>
@@ -146,7 +147,10 @@ from seafloor to mountain, a floating origin so worlds can be large, and
 tubes bored through them, arches, caverns.</p>
 <p><strong>Biped control</strong> — a <a href="https://3d.tosijs.net/b3d-biped/">character controller</a>
 with an animation state machine and follow/XR cameras, from a GLB: walk, run
-and sprint, jump, swim, climb ledges.</p>
+and sprint, jump, swim, climb ledges, and hold a gun that
+<a href="https://3d.tosijs.net/aim-ik/">points where you aim</a>, crouched or standing.
+<a href="https://3d.tosijs.net/b3d-crowd/">Crowds</a> of thousands are drawn on the GPU,
+and each figure can be moved, turned and re-clipped.</p>
 <p><strong>Any character on one animation library</strong> — <a href="https://3d.tosijs.net/retarget/">retargeting</a>
 plays the Universal Animation Library&#39;s clips on a Mixamo, Kenney or
 Blender-named rig, A-pose or T-pose. A mesh with no skeleton at all is
@@ -177,7 +181,10 @@ VTOL, bank-to-turn, a HUD and radar.</p>
 renders as a DOM overlay, as a texture on a surface in the scene, and as a
 floating panel in a headset, from the same declaration. Includes a
 <a href="https://3d.tosijs.net/box/">flowing box model</a>, <a href="https://3d.tosijs.net/surface/">menus and panels</a>,
-a data table, and an on-screen keyboard — because a headset has nowhere to type.</p>
+a data table, and an on-screen keyboard — because a headset has nowhere to type.
+A <a href="https://3d.tosijs.net/system-bar/">system bar</a> of buttons and
+<a href="https://3d.tosijs.net/bar-menu/">cascading menus</a> sits in the corner flat and
+up ahead in VR.</p>
 <p><strong>SVG textures</strong> — <a href="https://3d.tosijs.net/svg-texture/">draw with SVG</a>, use it as
 a live texture. Designer artwork becomes a HUD, a gauge, or a control surface
 without a round-trip through a bitmap.</p>
@@ -200,7 +207,7 @@ always wrong for something. A Quest and a workstation get different worlds.</p>
 or a server imports them without Babylon.</p>
 <p><strong>Pure models, actually tested</strong> — the flight model, ballistics, guidance, biome
 classification, layout and text editing are engine-free and unit-tested (about
-3,000 tests, run in seconds with no GPU). If it can be a function of its inputs,
+3,900 tests, run in about a minute with no GPU). If it can be a function of its inputs,
 it is.</p>
 <h2 id="development">Development</h2>
 <p>Requires <a href="https://bun.sh">Bun</a>.</p>
@@ -230,7 +237,7 @@ bun <span class="token builtin class-name">test</span>
       </ul></li>
       <li><a class="doc-link" href="rig-tool/">Rig tool</a></li>
       <li><a class="doc-link" href="effect-tool/">Effect tool</a></li>
-      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-builder" aria-label="character builder"></button><a class="doc-link" href="character-builder/">character builder</a></div>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-builder" aria-label="Character Builder"></button><a class="doc-link" href="character-builder/">Character Builder</a></div>
       <ul id="tosi-nav-character-builder">
         <li><a class="doc-link" href="human-pack/">human-pack</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-file" aria-label="character-file"></button><a class="doc-link" href="character-file/">character-file</a></div>
@@ -313,7 +320,10 @@ bun <span class="token builtin class-name">test</span>
     <ul id="tosi-nav-sky-and-light">
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-skybox" aria-label="b3d-skybox"></button><a class="doc-link" href="b3d-skybox/">b3d-skybox</a></div>
       <ul id="tosi-nav-b3d-skybox">
-        <li><a class="doc-link" href="b3d-moon/">b3d-moon</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-moon" aria-label="b3d-moon"></button><a class="doc-link" href="b3d-moon/">b3d-moon</a></div>
+        <ul id="tosi-nav-b3d-moon">
+          <li><a class="doc-link" href="moon-light/">moon light</a></li>
+        </ul></li>
         <li><a class="doc-link" href="starfield-codec/">starfield-codec</a></li>
       </ul></li>
       <li><a class="doc-link" href="light-pollution/">light pollution</a></li>
@@ -395,7 +405,10 @@ bun <span class="token builtin class-name">test</span>
     <ul id="tosi-nav-characters-and-vehicles">
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-biped" aria-label="b3d-biped"></button><a class="doc-link" href="b3d-biped/">b3d-biped</a></div>
       <ul id="tosi-nav-b3d-biped">
-        <li><a class="doc-link" href="aim/">aim</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-aim" aria-label="aim"></button><a class="doc-link" href="aim/">aim</a></div>
+        <ul id="tosi-nav-aim">
+          <li><a class="doc-link" href="aim-ik/">aim IK</a></li>
+        </ul></li>
         <li><a class="doc-link" href="animation-layers/">animation-layers</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-core" aria-label="character core"></button><a class="doc-link" href="character-core/">character core</a></div>
         <ul id="tosi-nav-character-core">
@@ -636,6 +649,7 @@ bun <span class="token builtin class-name">test</span>
       <li><a class="doc-link" href="Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="v0.13.0/">0.13.0</a></li>
         <li><a class="doc-link" href="v0.12.6/">0.12.6</a></li>
         <li><a class="doc-link" href="v0.12.5/">0.12.5</a></li>
         <li><a class="doc-link" href="v0.12.4/">0.12.4</a></li>
@@ -722,6 +736,6 @@ bun <span class="token builtin class-name">test</span>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="hydrate-9knhx6yx.js"></script>
+  <script type="module" src="hydrate-swt7z66k.js"></script>
 </body>
 </html>

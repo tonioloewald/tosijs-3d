@@ -514,10 +514,14 @@ export function attachFramePanel(scene, cam, frame, spec) {
     // (`rollDeg: 180`, which rights the grip-space anchors, is symmetric and
     // agrees either way — which is exactly why this needed a test rather than an
     // argument.)
+    // Where it was placed and how tall it was then (`keepTop`).
+    let placed = null;
+    const contentSy = () => el && baseVb ? (el.viewBox.baseVal.height || baseVb.h) / baseVb.h : 1;
     const placeAt = (a) => {
         const pos = resolve(a);
         const f = a.focus ?? DEFAULT_FOCUS;
         plane.position.set(pos[0], pos[1], pos[2]);
+        placed = { pos: plane.position.clone(), sy: contentSy() };
         // Flat on: oriented as a panel straight ahead of the eye would be.
         const { yaw, pitch, roll } = a.flatOn
             ? faceViewer({ x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: 0 }, (a.rollDeg ?? 0) * DEG)
@@ -592,6 +596,15 @@ export function attachFramePanel(scene, cam, frame, spec) {
         }
         plane.scaling.x = k * sx;
         plane.scaling.y = k * sy;
+        // Grown since it was placed: down, its top edge held.
+        if (spec.keepTop &&
+            !focused &&
+            placed != null &&
+            plane.rotationQuaternion) {
+            const up = BABYLON.Vector3.TransformNormal(BABYLON.Vector3.Up(), BABYLON.Matrix.FromQuaternionToRef(plane.rotationQuaternion, BABYLON.Matrix.Identity()));
+            const grew = k * (sy - placed.sy) * width * aspect;
+            plane.position.copyFrom(placed.pos).addInPlace(up.scale(-grew / 2));
+        }
     };
     /*
     SCREEN PLACEMENT (flat): solve the panel's rectangle on screen with the

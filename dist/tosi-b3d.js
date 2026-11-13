@@ -333,10 +333,14 @@ content after that (models, a body, a terrain) holds it up with
 message below it; `setLoading(true)` is the spinner alone, `setLoading(false)`
 lets it go, and `{ spin: false }` shows a message without the spinner (a load
 that failed).
+
+Nothing is heard before the scene is shown: the effect voices and Babylon's
+own sounds are silent until it first appears.
 */
 /*{ "parent": "core", "order": 10 }*/
 import { Component, elements, updates } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
+import { holdEffectAudio, sharedMute } from './effect-audio.js';
 import * as GUI from '@babylonjs/gui';
 import { GridMaterial } from '@babylonjs/materials';
 import '@babylonjs/loaders';
@@ -356,7 +360,7 @@ import { frameProfile } from './frame-profile.js';
 import { b3dSvgPlane } from './b3d-svg-plane.js';
 import { createMakers } from './make-mesh.js';
 import { openPopup, } from './popup-surface.js';
-import { cameraIsAttached, freshWorldMatrix, isNoCollide, insideCarrier, isOff, markUiMesh, replaceKeepingLayers, refuseOwnAncestor, refuseOwnAncestors, } from './b3d-utils.js';
+import { cameraIsAttached, isNoCollide, insideCarrier, isOff, markUiMesh, pressWithEitherHand, replaceKeepingLayers, refuseOwnAncestor, refuseOwnAncestors, } from './b3d-utils.js';
 import { NO_WIND, gustAt, windFromPolar } from './wind.js';
 import { CALM, weatherAt as composeWeather, } from './weather.js';
 import { faceViewer } from './dialog-placement.js';
@@ -386,6 +390,8 @@ const { canvas, div, span, slot, button } = elements;
 // `showB3dStats()` once so the toggle appears on EVERY scene without a per-scene
 // attribute or a URL flag. Library consumers leave it off — their scenes stay
 // uncluttered unless they set `stats` or add `#perf`.
+// Canvases whose context our teardown lost on purpose (`loseContextOnDispose`).
+const releasedCanvases = new WeakSet();
 let _statsGlobal = false;
 export const showB3dStats = (on = true) => {
     _statsGlobal = on;
@@ -409,6 +415,9 @@ const noop = () => { };
 const noopRefresh = () => { };
 // The system bar in a headset: up ahead, where the settings panel hung. Its
 // panels (settings, inventory) open under it.
+// Babylon's audio engine is one per page: every loading scene shares one mute.
+const babylonAudio = () => BABYLON.AbstractEngine.audioEngine;
+const muteBabylonAudio = sharedMute(() => babylonAudio()?.getGlobalVolume() ?? 1, (v) => babylonAudio()?.setGlobalVolume(v));
 const XR_BAR_ELEVATION = 66;
 /** Flat, where a panel opened from the system bar starts: under the bar. */
 const UNDER_BAR = 8 + BAR_HEIGHT + 8;
@@ -439,83 +448,6 @@ function xrSeatFor(pin, width, halfHeightDeg, K) {
 // reads but never mutates them), so we never allocate a Vector3 per frame.
 const XR_FORWARD = new BABYLON.Vector3(0, 0, 1);
 const XR_RIGHT = new BABYLON.Vector3(1, 0, 0);
-/*
-WHICHEVER HAND YOU PRESS WITH, THE PRESS COUNTS.
-
-Babylon points with ONE controller at a time. A press on the other one only
-switches the pointer to it, and the press itself is dropped. A Quest decides for
-itself which controller is active, so in practice a press now and then did
-nothing, and a player just learns that the pointer is flaky (Tonio: "I think I
-and most users just internalize flaky pointer behavior"). Nobody should have
-to know which hand is "active".
-
-So: a press on a controller that is not pointing switches to it AND is
-delivered, once its ray has picked something (on the next frame or two).
-Babylon's own release pairs with it, because by then that controller is the one
-pointing. This reads Babylon's per-controller state (`_controllers`, `pick`,
-`pointerDownTriggered`), which is private. `xr-press.test.ts` pins those names
-and the drop itself, so a Babylon upgrade that renames them (or fixes the drop)
-fails the suite and says which; in a live session it warns once instead.
-*/
-function pressWithEitherHand(xr, scene) {
-    const sel = xr.pointerSelection;
-    const frames = xr.baseExperience?.sessionManager.onXRFrameObservable;
-    // Pinned by xr-press.test.ts; this is the same check, live, so a Babylon
-    // that changed under us says so instead of quietly dropping presses again.
-    if (sel?._controllers == null ||
-        typeof sel.setAttachedController !== 'function') {
-        console.warn('tosi-b3d: Babylon XR pointer selection has changed (no _controllers / setAttachedController), so a press on the hand that is not pointing is dropped again. See pressWithEitherHand.');
-        return;
-    }
-    xr.input.onControllerAddedObservable.add((controller) => {
-        const watch = (mc) => {
-            const main = mc.getMainComponent();
-            if (main == null || frames == null)
-                return;
-            main.onButtonStateChangedObservable.add((c) => {
-                if (c.changes.pressed == null)
-                    return;
-                const id = controller.uniqueId;
-                /*
-                A PRESS IS AIMED NOW, not a frame ago. Babylon reads the buttons
-                before it picks, so a press or release carries the previous frame's
-                ray, cut to that frame's hit distance. On a moving vehicle the bar
-                has moved on with it since, and the stale ray stops short of it:
-                hover (picked fresh) lit the button and the click never landed.
-                */
-                const ray = sel._controllers?.[id]?.pick?.ray;
-                if (ray != null) {
-                    freshWorldMatrix(controller.pointer);
-                    controller.getWorldPointerRayToRef(ray);
-                }
-                if (!c.changes.pressed.current)
-                    return;
-                if (sel._attachedController === id ||
-                    !sel.setAttachedController?.(id))
-                    return;
-                let tries = 0;
-                const obs = frames.add(() => {
-                    const data = sel._controllers?.[id];
-                    if (data?.pick || ++tries > 5)
-                        frames.remove(obs);
-                    if (!data?.pick)
-                        return;
-                    const init = { pointerId: data.id, pointerType: 'xr' };
-                    scene.simulatePointerDown(data.pick, init);
-                    data.pointerDownTriggered = true;
-                    // Let go already? Then it was a tap.
-                    if (!main.pressed)
-                        scene.simulatePointerUp(data.pick, init);
-                });
-            }, undefined, true // ahead of Babylon's own observer, which drops it
-            );
-        };
-        if (controller.motionController)
-            watch(controller.motionController);
-        else
-            controller.onMotionControllerInitObservable.addOnce(watch);
-    });
-}
 /*
 A CONTROLLER RAY PICKS THE UI LAYERS FIRST.
 
@@ -910,6 +842,10 @@ export class B3d extends Component {
         },
         ':host .lozenge-button:hover': {
             background: 'rgba(255,255,255,0.15)',
+        },
+        // Its panel is showing.
+        ':host .lozenge-button[aria-pressed="true"]': {
+            background: 'rgba(74,158,255,0.35)',
         },
         // Over the scene, never under a finger: screen readers' copies of the
         // panels sit here, each over the control it stands for.
@@ -2574,6 +2510,11 @@ export class B3d extends Component {
                 });
                 this._systemButtonOf.set(svg, b);
             }
+            // A panel something else opens has no button of its own; the bars
+            // leave out a hidden one.
+            const away = svg.barButton === 'off';
+            if (b.hidden !== away)
+                b.hidden = away;
             return b;
         });
     }
@@ -2647,6 +2588,13 @@ export class B3d extends Component {
     closes and reopens the shared ones; that is reported once, when it is over.
     */
     _panelToggled(el, open, byUser = false) {
+        // A system panel's button is lit while its panel shows, on both bars.
+        for (const { el: key } of this._systemEntries()) {
+            const b = this._systemButtonOf.get(key);
+            const pressed = String(this._sysPanels.has(key));
+            if (b != null && b.getAttribute('aria-pressed') !== pressed)
+                b.setAttribute('aria-pressed', pressed);
+        }
         if (this._holdPanelEvents)
             return;
         if (el != null)
@@ -2787,6 +2735,9 @@ export class B3d extends Component {
                 width: (vb.width || 400) * K,
                 resolution: 1024,
                 focusable: false,
+                // Content that grows (the rig tool once a body is rigged) grows
+                // down, not up over the bar.
+                keepTop: true,
             });
         }
         else {
@@ -2844,6 +2795,36 @@ export class B3d extends Component {
                 p.update();
             });
         }
+        /*
+        POPUPS ARE POPUPS here too: a select in a system panel (the builder's
+        playback speed) opens on its own surface in front of the panel, not
+        cropped inside it. Under a title bar the plane shows the frame, so
+        anchors are measured in it.
+        */
+        const layerFor = (c) => {
+            const shownVb = svg.viewBox.baseVal;
+            const planeW = this.xrActive ? (shownVb.width || 400) * 0.0018 : 0.3;
+            attachSceneLayer({
+                svg: c,
+                owner: this,
+                openerMesh: panel.drawn,
+                planeW,
+                planeH: planeW * ((shownVb.height || 1) / (shownVb.width || 1)),
+                // titled3d nests the content at its bar's height (its `y`).
+                inFrame: titled != null
+                    ? () => ({ svg: titled, top: Number(c.getAttribute('y')) || 0 })
+                    : undefined,
+                screenRoom: this.xrActive
+                    ? undefined
+                    : () => {
+                        const h = this.parts.canvas?.clientHeight ?? 0;
+                        const spot = this._systemSpots.get(key);
+                        const top = Number(spot?.top) || 0;
+                        return h > 0 ? { top: -top, bottom: h - top } : null;
+                    },
+            });
+        };
+        layerFor(content);
         const onFocus = (e) => {
             if (e.detail?.focus === false)
                 this._closeSystemPanel(key);
@@ -2881,6 +2862,7 @@ export class B3d extends Component {
                 }
                 next.addEventListener('panelfocus', onFocus);
                 entry.content = next;
+                layerFor(next);
             },
             off: () => {
                 entry.content.removeEventListener('panelfocus', onFocus);
@@ -4498,23 +4480,6 @@ export class B3d extends Component {
                 this._repaintPanels();
             },
         });
-        /*
-        SLOW MOTION, beside Pause: world time at a quarter speed and back. Input,
-        the UI and the camera stay in real time; everything stepping by
-        `sceneDelta` slows (physics, bipeds, vehicles, the sky).
-        */
-        const scale = Number(this.timeScale ?? 1);
-        out.push({
-            id: '__slow',
-            name: scale < 1 ? 'Normal speed' : 'Slow motion',
-            icon: 'clock',
-            active: scale < 1,
-            handleClick: () => {
-                ;
-                this.timeScale = scale < 1 ? 1 : 0.25;
-                this._repaintPanels();
-            },
-        });
         const pad = this.querySelector('tosi-b3d-gamepad');
         if (pad?.setFade != null) {
             const forced = String(pad.fade) === 'off';
@@ -5158,6 +5123,9 @@ export class B3d extends Component {
         exists inside a headset.
         */
         cnv.addEventListener('webglcontextlost', (e) => {
+            // Our own teardown loses it on purpose: nothing to report.
+            if (releasedCanvases.has(cnv))
+                return;
             e.preventDefault(); // allows a restore; without this it is permanent
             console.warn('b3d: WebGL context LOST. Meshes may render white or the sky dark. ' +
                 'Usually too many live contexts on one page (browsers cap ~16 and ' +
@@ -5281,11 +5249,20 @@ export class B3d extends Component {
             // compiling, to avoid an indefinitely hidden canvas.
             const spinner = this.parts.spinner;
             let revealed = false;
+            // NOTHING HEARD BEFORE ANYTHING IS SEEN: the effect voices (traffic,
+            // lamps, effects) and the scene's own sounds wait for the reveal.
+            this._audioHold?.();
+            this._audioHold = holdEffectAudio();
+            // Babylon's own sounds: muted, not disabled (a disabled scene drops an
+            // autoplay sound that finishes loading meanwhile). Page-wide, so held
+            // with every other loading scene's.
+            this._audioUnmute = muteBabylonAudio();
             const reveal = () => {
                 if (revealed)
                     return;
                 revealed = true;
                 mark('shown');
+                this._releaseAudio();
                 // Frame times for the 20 s after showing, a second at a time.
                 const frames = [];
                 let count = 0;
@@ -5913,6 +5890,8 @@ export class B3d extends Component {
         // see the note there. Kept out of the later block so the closure can never
         // reference it before initialisation.
         let chaseFirstFrame = true;
+        // Why the chase last took a forward, for the debug sink.
+        let seatReason = 'entry';
         let cockpitYawOffset = 0; // head yaw captured when you take the seat
         // Deferred + re-armable, rather than captured once on entry. See the capture site.
         let yawCaptureNeeded = false;
@@ -5974,6 +5953,7 @@ export class B3d extends Component {
             // Chase/FPV. Also re-anchors `chasePos`, which is what a re-seat means
             // for a third-person camera.
             chaseFirstFrame = true;
+            seatReason = 're-armed';
             if (debugSink.url !== '')
                 sendDebug('xr', { seat: 're-armed' });
         };
@@ -6103,6 +6083,15 @@ export class B3d extends Component {
         let lastView = ''; // re-seat when the camera view toggles
         let chaseZoom = 0.5; // 0..1 chase distance (right stick Y while piloting)
         let lastPiloted = null;
+        /*
+        A FRAME WITHOUT A PILOT IS NOT A NEW SEAT. Seconds since anything was
+        piloted: the chase takes your current head yaw as forward again only once
+        this passes RESUME_S. A single frame with nothing piloted used to re-arm it,
+        and the next frame re-seated you wherever you happened to be looking (the
+        debug sink showed captures mid-drive with no re-seat asked for, #3726).
+        */
+        let freeTime = Infinity;
+        const RESUME_S = 1;
         const ZOOM_RATE = 0.8;
         const MAX_PEEK = 0.8; // radians of temporary look (right stick X), ~46°
         const frame = base.sessionManager.onXRFrameObservable.add(() => {
@@ -6163,8 +6152,10 @@ export class B3d extends Component {
                 // change, so cockpit↔chase doesn't snap.
                 if (view !== lastView) {
                     chaseFirstFrame = true;
+                    seatReason = lastView === '' ? 'entry' : 'view';
                     lastView = view;
                 }
+                freeTime = 0;
                 /*
                 Right stick (while piloting) zooms the chase and peeks left/right.
                 From the camera axes if a mapping sets them, else from the LOOK axes,
@@ -6242,6 +6233,7 @@ export class B3d extends Component {
                     rig.setParent(null);
                     rig.scaling.set(1, 1, 1);
                     chaseFirstFrame = true;
+                    seatReason = 'unparented';
                 }
                 if (isChase) {
                     chaseZoom = Math.max(0, Math.min(1, chaseZoom - zoomIn * dt * ZOOM_RATE));
@@ -6298,6 +6290,8 @@ export class B3d extends Component {
                 // a session's first frames can carry a stale rotation, which left the
                 // bar and panels off to one side until a re-seat.
                 if ((chaseFirstFrame || lastPiloted !== piloted) && hasViewerPose()) {
+                    if (!chaseFirstFrame)
+                        seatReason = 'piloted changed';
                     // Align to where the headset is currently looking so it doesn't snap.
                     chaseFirstFrame = false;
                     lastPiloted = piloted;
@@ -6312,6 +6306,7 @@ export class B3d extends Component {
                         const deg = (r) => Math.round((r * 180) / Math.PI);
                         sendDebug('xr', {
                             seat: 'chase',
+                            reason: seatReason,
                             headYaw: deg(chaseYawOffset),
                             head: [cam.position.x, cam.position.y, cam.position.z].map((n) => +n.toFixed(2)),
                             vehicleYaw: deg(targetYaw),
@@ -6401,9 +6396,14 @@ export class B3d extends Component {
             }
             // Free walk/fly. If we were just piloting, hand the rig's yaw back to euler
             // (a set rotationQuaternion overrides the euler the stick-turn below uses).
-            chaseFirstFrame = true;
-            lastPiloted = null;
-            lastView = '';
+            // The chase forgets its seat only once nothing has been piloted for a
+            // while (see `freeTime`).
+            freeTime += dt;
+            if (freeTime >= RESUME_S) {
+                chaseFirstFrame = true;
+                lastPiloted = null;
+                lastView = '';
+            }
             // Match the seed: the eye frame's yaw is rig-local, so without this the
             // panel hangs `headYaw` away from your gaze — "the panel is behind me",
             // reproducibly, whenever you happened to enter facing off-axis.
@@ -7564,26 +7564,38 @@ export class B3d extends Component {
         ]
             .filter(([part]) => pads.some((p) => p.requested?.(part)))
             .map(([part, icon, title]) => mk(icon, title, () => pads.forEach((p) => p.pulse?.(part))));
-        const buttons = [
-            mk(owl, 'Settings', act.settings),
-            ...this._systemButtons(),
-            ...padButtons,
-            mk(svgIcons.logOut(), 'Exit VR', act.exit),
-        ];
-        const bar = systemBar(buttons);
-        this._xrBarSvg = bar.svg;
+        const settingsButton = mk(owl, 'Settings', act.settings);
+        const exitButton = mk(svgIcons.logOut(), 'Exit VR', act.exit);
         /*
-        WHAT A PRESS ON THE BAR DID, to the debug sink: in the aircraft a headset
-        lit a button and the press never landed, while the emulated headset's
-        presses clicked. Presses and releases are rare, so this is cheap.
+        The system panels can change during a session (a menu that leaves the bar
+        in a headset, a panel added late), so the bar is rebuilt when they do,
+        into the same plane: checked every 30 frames, as the flat bar is.
         */
-        const barSvg = bar.svg;
-        const handle = barSvg.handlePointer;
-        barSvg.handlePointer = (k, x, y) => {
-            if (k === 'down' || k === 'up')
-                sendDebug('xr-bar', { kind: k, x: Math.round(x), y: Math.round(y) });
-            handle(k, x, y);
+        let system = this._systemButtons();
+        const makeBar = () => {
+            const bar = systemBar([
+                settingsButton,
+                ...system,
+                ...padButtons,
+                exitButton,
+            ]);
+            /*
+            WHAT A PRESS ON THE BAR DID, to the debug sink: in the aircraft a
+            headset lit a button and the press never landed, while the emulated
+            headset's presses clicked. Presses and releases are rare, so this is
+            cheap.
+            */
+            const barSvg = bar.svg;
+            const handle = barSvg.handlePointer;
+            barSvg.handlePointer = (k, x, y) => {
+                if (k === 'down' || k === 'up')
+                    sendDebug('xr-bar', { kind: k, x: Math.round(x), y: Math.round(y) });
+                handle(k, x, y);
+            };
+            this._xrBarSvg = bar.svg;
+            return bar;
         };
+        let bar = makeBar();
         const vb = bar.svg.viewBox.baseVal;
         const width = 0.0022 * (vb.width || 100);
         const panel = attachFramePanel(scene, cam, frames.eye, {
@@ -7599,8 +7611,23 @@ export class B3d extends Component {
             width,
             resolution: 512,
         });
+        let checkIn = 30;
         return {
-            update: () => panel.update(),
+            update: () => {
+                if (--checkIn <= 0) {
+                    checkIn = 30;
+                    const now = this._systemButtons();
+                    if (now.length !== system.length ||
+                        now.some((b, i) => b !== system[i])) {
+                        system = now;
+                        const old = bar;
+                        bar = makeBar();
+                        panel.setSvg(bar.svg);
+                        old.dispose();
+                    }
+                }
+                panel.update();
+            },
             dispose: () => {
                 if (this._xrBarSvg === bar.svg)
                     this._xrBarSvg = null;
@@ -8068,7 +8095,19 @@ export class B3d extends Component {
     _teardownTimer = null;
     /** The canvas's context was lost by teardown — see `connectedCallback`. */
     _canvasSpent = false;
+    /** The audio held until the scene is first shown (see reveal). */
+    _audioHold = null;
+    _releaseAudio() {
+        if (this._audioHold == null)
+            return;
+        this._audioHold();
+        this._audioHold = null;
+        this._audioUnmute?.();
+        this._audioUnmute = null;
+    }
+    _audioUnmute = null;
     _teardown() {
+        this._releaseAudio();
         // Both presentations' widgets, not just the visible one — an XR panel's
         // rows outlive the session that built them otherwise.
         this._disposeWidgets('flat');
@@ -8178,6 +8217,9 @@ export class B3d extends Component {
         try {
             this.engine?.stopRenderLoop();
             this.scene?.dispose();
+            const canvas = this.engine?.getRenderingCanvas();
+            if (canvas)
+                releasedCanvases.add(canvas);
             this.engine?.dispose();
             if (this.engine != null)
                 this._canvasSpent = true;

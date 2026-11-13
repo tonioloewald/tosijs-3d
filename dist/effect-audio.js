@@ -25,8 +25,55 @@ function tryResume(c) {
     c.resume().catch(() => { });
 }
 const buffers = new Map();
+// Holds on the voices (a scene still behind its loading spinner).
+const holds = new Set();
+/**
+ * Silence the effect voices until the release is called: a scene holds them
+ * while its loading spinner is up, so nothing is heard before anything is
+ * seen. Voices are not started while held, and the context is suspended.
+ */
+export function holdEffectAudio() {
+    const key = Symbol('hold');
+    holds.add(key);
+    ctx?.suspend().catch(() => { });
+    return () => {
+        if (!holds.delete(key))
+            return;
+        if (holds.size === 0 && ctx != null) {
+            nextResume = 0;
+            tryResume(ctx);
+        }
+    };
+}
+/**
+ * A page-wide mute shared by everyone who holds it: the volume is read when
+ * the first hold is taken and put back when the last is released, unless
+ * something else changed it meanwhile. Pure; `<tosi-b3d>` uses it for
+ * Babylon's own sounds while a scene is behind its spinner.
+ */
+export function sharedMute(get, set) {
+    const held = new Set();
+    let saved = 1;
+    return () => {
+        const key = Symbol('mute');
+        if (held.size === 0) {
+            saved = get();
+            set(0);
+        }
+        held.add(key);
+        return () => {
+            if (!held.delete(key) || held.size > 0)
+                return;
+            // Someone set a volume while it was held: theirs stands.
+            if (get() === 0)
+                set(saved);
+        };
+    };
+}
 /** The shared audio context, running, or null (no audio yet, or none). */
 export function effectAudio() {
+    if (holds.size > 0)
+        return null;
     try {
         if (ctx == null) {
             const C = globalThis.AudioContext ??
@@ -42,7 +89,7 @@ export function effectAudio() {
                     return;
                 if (doc.hidden)
                     ctx.suspend().catch(() => { });
-                else
+                else if (holds.size === 0)
                     tryResume(ctx);
             });
         }

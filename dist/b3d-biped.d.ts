@@ -655,6 +655,11 @@ export declare class B3dBiped extends B3dControllable {
     private _aimLayer;
     private _aimLayerKey;
     private _updateAimLayer;
+    private _aimIkObs;
+    private _aimIkWeight;
+    private _aimIkChain;
+    private _aimIkOf;
+    private _aimIk;
     /** Seconds left of the one-shot fire pose. */
     private _shootFor;
     private _eased;

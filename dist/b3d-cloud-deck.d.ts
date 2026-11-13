@@ -34,6 +34,12 @@ export declare class B3dCloudDeck extends B3dChild {
         cirrus: number;
         /** Metres per second the deck drifts. The whole sky slides; nothing rebakes. */
         wind: number;
+        /**
+         * `'on'`: the deck drifts and evolves on the sky's clock, so a sped-up
+         * skybox carries it too. `'off'`: in world time, so a day can run fast
+         * under clouds that move at their own pace.
+         */
+        skyClock: string;
         /** Which way it drifts. Also the direction cirrus streaks run. */
         windHeadingDeg: number;
         /**
@@ -197,6 +203,7 @@ export declare class B3dCloudDeck extends B3dChild {
     wind: number;
     windHeadingDeg: number;
     evolve: number;
+    skyClock: string;
     follow: string;
     localRise: number;
     stormRise: number;

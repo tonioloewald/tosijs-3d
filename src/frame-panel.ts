@@ -930,7 +930,12 @@ export function attachFramePanel(
     plane.scaling.x = k * sx
     plane.scaling.y = k * sy
     // Grown since it was placed: down, its top edge held.
-    if (spec.keepTop && !focused && placed != null && plane.rotationQuaternion) {
+    if (
+      spec.keepTop &&
+      !focused &&
+      placed != null &&
+      plane.rotationQuaternion
+    ) {
       const up = BABYLON.Vector3.TransformNormal(
         BABYLON.Vector3.Up(),
         BABYLON.Matrix.FromQuaternionToRef(

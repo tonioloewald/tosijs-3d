@@ -1,0 +1,5 @@
+import{le,H}from"./site-tceyfdvy.js";import{K,Z}from"./site-jfk529r4.js";var t="KHR_texture_basisu";class Wy{constructor(e){this.name=t,this._loader=e,this.enabled=e.isExtensionUsed(t)}dispose(){this._loader=null}_loadTextureAsync(e,r,o){return H.LoadExtensionAsync(e,r,this.name,async(n,a)=>{let i=r.sampler==null?H.DefaultSampler:le.Get(`${e}/sampler`,this._loader.gltf.samplers,r.sampler),l=le.Get(`${n}/source`,this._loader.gltf.images,a.source);return await this._loader._createTextureAsync(e,i,l,(u)=>{o(u)},r._textureInfo.nonColorData?{useRGBAIfASTCBC7NotAvailableWhenUASTC:!0}:void 0,!r._textureInfo.nonColorData)})}}var s=!1;function Hy(){if(s)return;s=!0,Z(t),K(t,!0,(e)=>new Wy(e))}Hy();
+export{Wy,Hy};
+
+//# debugId=A652D389E8B1EBED64756E2164756E21
+//# sourceMappingURL=site-8qz1pek4.js.map

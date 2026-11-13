@@ -111,7 +111,13 @@ export class B3dSound extends B3dChild {
         const url = fetchedUrl(attrs.url, 'b3d-sound url');
         if (!url)
             return;
-        this.sound = new BABYLON.Sound('sound', url, this.owner.scene, () => {
+        const sound = new BABYLON.Sound('sound', url, this.owner.scene, () => {
+            // Removed while it loaded: dispose it now that Babylon has finished
+            // building it (see sceneDispose).
+            if (this.sound !== sound) {
+                sound.dispose();
+                return;
+            }
             this.dispatchEvent(new CustomEvent('loaded', { bubbles: true }));
             // Attach to mesh after loading if specified
             if (attrs.attachTo && attrs.spatialSound && this.sound) {
@@ -130,16 +136,23 @@ export class B3dSound extends B3dChild {
             rolloffFactor: attrs.rolloffFactor,
             maxDistance: attrs.maxDistance,
         });
+        this.sound = sound;
         // Set initial position for spatial sounds not attached to a mesh
         if (attrs.spatialSound && !attrs.attachTo) {
             this.sound.setPosition(new BABYLON.Vector3(attrs.x, attrs.y, attrs.z));
         }
     }
     sceneDispose() {
-        if (this.sound) {
-            this.sound.dispose();
-            this.sound = null;
-        }
+        // A sound disposed before it is ready makes Babylon's own load reject
+        // ("No volume subnode") into a promise nobody holds, so one still loading
+        // is silenced here and disposed by its ready callback instead.
+        const sound = this.sound;
+        this.sound = null;
+        if (sound?.isReady())
+            sound.dispose();
+        // Not autoplay, or Babylon plays it just after the callback disposes it.
+        else if (sound)
+            sound.autoplay = false;
         this.owner = null;
     }
     render() {

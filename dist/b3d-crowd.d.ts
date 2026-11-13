@@ -364,6 +364,37 @@ export declare class B3dCrowd extends B3dChild {
     setFigureHidden(i: number, hidden: boolean): void;
     /** Is figure `i` currently taken out? */
     isFigureHidden(i: number): boolean;
+    /** The clips this crowd's bake holds, by name: what `setFigure` takes. */
+    get clipNames(): string[];
+    private _matrixDirty;
+    private _stateDirty;
+    private _flushObs;
+    private _flush;
+    /**
+     * Move figure `i`, turn it, or change what it plays. Leave out what stays.
+     *
+     * - `x`, `y`, `z`: where it stands, in the crowd's frame (metres)
+     * - `yaw`: radians about +Y, as `transformOf` reports it
+     * - `clip`: one of `clipNames`
+     * - `speed`: playback speed, 1 = as baked
+     *
+     * The clips play in place, so a walking figure goes nowhere unless you move
+     * it; match its speed to its stride or its feet slide. A new clip starts
+     * where the old one was in its cycle: there is no blend. A change of speed
+     * keeps the pose it is in now. Returns false for a figure that does not
+     * exist or a clip the bake does not hold.
+     *
+     * A hidden figure moves too, and comes back where it was moved to. A
+     * rebuild (a change of `count`, `url` or `clips`) lays the crowd out again.
+     */
+    setFigure(i: number, change: {
+        x?: number;
+        y?: number;
+        z?: number;
+        yaw?: number;
+        clip?: string;
+        speed?: number;
+    }): boolean;
     /**
      * The figures nearest a point, nearest first.
      *

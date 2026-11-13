@@ -183,6 +183,7 @@ export { bakeSkyboxCube, bakeSkyPair, starsFromGalaxy, starsFromVoxelGalaxy, fac
 export { SurroundingsProbe, makeProbeScratch, readSurroundings, type ProbeScratch, type ReadOptions, } from './surroundings-probe.js';
 export { DEFAULT_HEIGHTS, bearingIndex, exposure, inShelter, makeSurroundings, muzzleClearance, peekSide, sampleAt, setSample, shelterFrom, shuffleToward, stanceFor, type PeekSide, type Shelter, type ShelterOptions, type Stature, type Surroundings, type SurroundingsSpec, } from './surroundings.js';
 export { DEFAULT_AIM_LIMITS, aimAuthority, aimDirection, aimPoseWeights, aimToward, aimWobble, bodyCatchUp, clampAim2, relaxAim, stepAim, wrapDeg, type Aim, type AimLimits, type AimPoseWeights, type AimStep, type AimVec, type BodyCatchUp, } from './aim.js';
+export { aimSpine, type AimSpineOptions } from './aim-ik.js';
 export { B3dCrowd, b3dCrowd, VatPlugin, buildBenchFigure, writeVatTextures, type VatBake, } from './b3d-crowd.js';
 export { framePair, framesForClip, phaseAt, socketLayout, socketTexel, vatBytes, vatLayout, vatTexel, type FramePair, type SocketLayout, type VatClip, type VatLayout, } from './vertex-animation.js';
 export { ORBIT_MAX_AZIMUTH, ORBIT_RUBBER_BAND, bandOrbit, orbitFromAim, rubberBand, ORBIT_MAX_ELEVATION, ORBIT_MIN_ELEVATION, angularHeight, clampOrbit, orbitCentre, orbitClampedBy, orbitFromDirection, orbitOf, orbitPosition, type Orbit, type OrbitVec3, } from './panel-orbit.js';

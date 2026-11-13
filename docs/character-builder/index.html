@@ -22,26 +22,27 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=f9a43918f299" data-tosi-doc-system />
-  <title>character builder — tosijs-3d</title>
+  <link rel="stylesheet" href="../doc-system.css?v=c39a3e225125" data-tosi-doc-system />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&amp;family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&amp;display=swap" />
+  <title>Character Builder — tosijs-3d</title>
   <meta name="description" content="Make a person, and watch them walk. The first steps of the character creator (CHARACTER-DESIGN.md): MakeHuman&#39;s CC0 body (human-pack), reshaped by sliders…" />
   <link rel="canonical" href="https://3d.tosijs.net/character-builder/" />
-  <link rel="alternate" type="text/markdown" href="index.md" title="character builder — tosijs-3d (markdown)" />
+  <link rel="alternate" type="text/markdown" href="index.md" title="Character Builder — tosijs-3d (markdown)" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
-  <meta property="og:title" content="character builder — tosijs-3d" />
+  <meta property="og:title" content="Character Builder — tosijs-3d" />
   <meta property="og:description" content="Make a person, and watch them walk. The first steps of the character creator (CHARACTER-DESIGN.md): MakeHuman&#39;s CC0 body (human-pack), reshaped by sliders…" />
   <meta property="og:url" content="https://3d.tosijs.net/character-builder/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"character builder","description":"Make a person, and watch them walk. The first steps of the character creator (CHARACTER-DESIGN.md): MakeHuman's CC0 body (human-pack), reshaped by sliders…","url":"https://3d.tosijs.net/character-builder/","inLanguage":"en","dateModified":"2026-11-10T23:02:47+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Demos","item":"https://3d.tosijs.net/demos/"},{"@type":"ListItem","position":2,"name":"character builder","item":"https://3d.tosijs.net/character-builder/"}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Character Builder","description":"Make a person, and watch them walk. The first steps of the character creator (CHARACTER-DESIGN.md): MakeHuman's CC0 body (human-pack), reshaped by sliders…","url":"https://3d.tosijs.net/character-builder/","inLanguage":"en","dateModified":"2026-11-12T18:10:04+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Demos","item":"https://3d.tosijs.net/demos/"},{"@type":"ListItem","position":2,"name":"Character Builder","item":"https://3d.tosijs.net/character-builder/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=964dce30c6d0" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=2b7977de6a53" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="character-builder.ts">
-<h1 id="character-builder">character builder</h1>
+<h1 id="character-builder">Character Builder</h1>
 <p><strong>Make a person, and watch them walk.</strong> The first steps of the character
 creator (CHARACTER-DESIGN.md): MakeHuman&#39;s CC0 body
 (<a href="/human-pack/">human-pack</a>), reshaped by sliders for gender, age, muscle,
@@ -585,6 +586,48 @@ preview.append(
             },
           }],
         })
+        // THE ANIMATION on the bar: play or pause, and which clip, in one
+        // place, flat and in a headset. The transport (scrub, speed) is its
+        // own small panel, opened from the menu (it has no button of its own).
+        const playbackPanel = b3dPanel({ icon: &#39;playCircle&#39;, title: &#39;Playback&#39;, exclusive: &#39;off&#39;, barButton: &#39;off&#39; })
+        playbackPanel.svg = panel3d({ width: 300 }, playbackRow())
+        const clipOption = (name) =&gt; ({ label: name, checked: name === walker.clip.value, handleSelect: () =&gt; { walker.clip.value = name } })
+        // UAL&#39;s names lead with what they are (Pistol_…, Sword_…): the rest of
+        // the library is grouped by that, so no list runs off the view.
+        const moreClips = () =&gt; {
+          const groups = new Map()
+          for (const name of clips.slice(EVERYDAY.length + fileClips.size)) {
+            const group = name.split(&#39;_&#39;)[0]
+            if (!groups.has(group)) groups.set(group, [])
+            groups.get(group).push(name)
+          }
+          return [...groups].map(([group, names]) =&gt;
+            names.length === 1 ? clipOption(names[0]) : { label: group, items: () =&gt; names.map(clipOption) }
+          )
+        }
+        el.append(barMenu({
+          icon: &#39;motion&#39;,
+          title: &#39;Animation&#39;,
+          layout: &#39;list&#39;,
+          options: () =&gt; [
+            // While rigging the view is the pose: play goes to perspective,
+            // pause back to the face it was held to last.
+            rigging
+              ? rigging.api.view === &#39;free&#39;
+                ? { label: &#39;Pause&#39;, icon: &#39;pause&#39;, handleSelect: () =&gt; rigging?.api.play(null) }
+                : { label: &#39;Play&#39;, icon: &#39;play&#39;, handleSelect: () =&gt; rigging?.api.play() }
+              : walker.paused.value
+              ? { label: &#39;Play&#39;, icon: &#39;play&#39;, handleSelect: () =&gt; { walker.paused.value = false } }
+              : { label: &#39;Pause&#39;, icon: &#39;pause&#39;, handleSelect: () =&gt; { walker.paused.value = true } },
+            { label: &#39;Playback controls&#39;, icon: &#39;playCircle&#39;, checked: playbackPanel.isOpen, handleSelect: () =&gt; playbackPanel.toggle?.() },
+            { separator: true },
+            ...EVERYDAY.map(clipOption),
+            ...(fileClips.size ? [{ separator: true }, ...[...fileClips.keys()].map(clipOption)] : []),
+            { separator: true },
+            { label: &#39;More clips&#39;, items: moreClips },
+          ],
+        }))
+        el.append(playbackPanel)
         // A floor with a metre grid (and faint quarters), which takes the sun&#39;s shadow.
         const floor = BABYLON.MeshBuilder.CreateGround(&#39;floor_nocast&#39;, { width: 12, height: 12 }, scene)
         const tile = new BABYLON.DynamicTexture(&#39;floor-grid&#39;, { width: 256, height: 256 }, scene, true)
@@ -1401,7 +1444,12 @@ They are kept in this browser (<a href="/clip-store/">clip-store</a>) and come b
 the next visit; <strong>forget</strong> drops the file a clip came from.</p>
 <p><strong>View</strong> (the camera on the bar) holds the body square on from any side, or
 follows the <strong>right hand</strong> close up through the clip, to see how an item sits
-in it. The rig tool uses the same menu.</p>
+in it. The rig tool uses the same menu. In a headset it leaves the bar: the
+camera is your head.</p>
+<p><strong>Animation</strong> (on the bar) plays or pauses the clip and picks it: the
+everyday clips, a file&#39;s, then the rest of the library grouped by kind.
+<strong>Playback controls</strong> in that menu opens the transport (scrub, speed) as its
+own small panel.</p>
 <p><strong>Hold</strong> puts an item from Tonio&#39;s textured weapons
 (<code>tonio/weapons-classic/weapons.glb</code>, CC BY 4.0: guns, blades, a plasma
 blade, a spear, a buckler) in the right hand, on the hand&#39;s
@@ -1495,7 +1543,7 @@ body&#39;s triangles.</p>
       </ul></li>
       <li><a class="doc-link" href="../rig-tool/">Rig tool</a></li>
       <li><a class="doc-link" href="../effect-tool/">Effect tool</a></li>
-      <li class="nav-branch -open"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="true" aria-controls="tosi-nav-character-builder" aria-label="character builder"></button><a class="doc-link current" href="../character-builder/" aria-current="page">character builder</a></div>
+      <li class="nav-branch -open"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="true" aria-controls="tosi-nav-character-builder" aria-label="Character Builder"></button><a class="doc-link current" href="../character-builder/" aria-current="page">Character Builder</a></div>
       <ul id="tosi-nav-character-builder">
         <li><a class="doc-link" href="../human-pack/">human-pack</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-file" aria-label="character-file"></button><a class="doc-link" href="../character-file/">character-file</a></div>
@@ -1578,7 +1626,10 @@ body&#39;s triangles.</p>
     <ul id="tosi-nav-sky-and-light">
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-skybox" aria-label="b3d-skybox"></button><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></div>
       <ul id="tosi-nav-b3d-skybox">
-        <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-moon" aria-label="b3d-moon"></button><a class="doc-link" href="../b3d-moon/">b3d-moon</a></div>
+        <ul id="tosi-nav-b3d-moon">
+          <li><a class="doc-link" href="../moon-light/">moon light</a></li>
+        </ul></li>
         <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
       </ul></li>
       <li><a class="doc-link" href="../light-pollution/">light pollution</a></li>
@@ -1660,7 +1711,10 @@ body&#39;s triangles.</p>
     <ul id="tosi-nav-characters-and-vehicles">
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-biped" aria-label="b3d-biped"></button><a class="doc-link" href="../b3d-biped/">b3d-biped</a></div>
       <ul id="tosi-nav-b3d-biped">
-        <li><a class="doc-link" href="../aim/">aim</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-aim" aria-label="aim"></button><a class="doc-link" href="../aim/">aim</a></div>
+        <ul id="tosi-nav-aim">
+          <li><a class="doc-link" href="../aim-ik/">aim IK</a></li>
+        </ul></li>
         <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-core" aria-label="character core"></button><a class="doc-link" href="../character-core/">character core</a></div>
         <ul id="tosi-nav-character-core">
@@ -1901,6 +1955,7 @@ body&#39;s triangles.</p>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.13.0/">0.13.0</a></li>
         <li><a class="doc-link" href="../v0.12.6/">0.12.6</a></li>
         <li><a class="doc-link" href="../v0.12.5/">0.12.5</a></li>
         <li><a class="doc-link" href="../v0.12.4/">0.12.4</a></li>
@@ -1987,6 +2042,6 @@ body&#39;s triangles.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-9knhx6yx.js"></script>
+  <script type="module" src="../hydrate-swt7z66k.js"></script>
 </body>
 </html>

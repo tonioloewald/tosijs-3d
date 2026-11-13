@@ -858,6 +858,10 @@ export function cloudDeckSchema(extra = {}) {
         wind: num(8, { minimum: 0, maximum: 60, 'x-unit': 'm/s' }),
         windHeadingDeg: num(0, { minimum: 0, maximum: 360, ...DEG }),
         evolve: num(0.5, unit),
+        skyClock: {
+            ...choice('on', ['on', 'off']),
+            description: "on: drift and evolve on the sky's clock (a sped-up skybox carries the clouds); off: world time.",
+        },
         follow: choice('on', ['on', 'off']),
         localRise: num(1200, { minimum: 0, maximum: 5000, ...M }),
         // Storm towers from weather cells past coverage 1 (board #1122).

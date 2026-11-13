@@ -15,7 +15,7 @@ the code does.
 - [Weapon Fit](/weapon-fit/)
 - [Rig tool](/rig-tool/)
 - [Effect tool](/effect-tool/)
-- [character builder](/character-builder/)
+- [Character Builder](/character-builder/)
 - [Skybox Baker](/skybox-baker/)
 - [Land and Sky](/land-and-sky/)
 - [City Drive](/city-drive/)

@@ -291,6 +291,9 @@ export declare class B3dSkybox extends AbstractMesh {
     private _applyPollution;
     private updateSky;
     private _nightLightFrom;
+    private _moonCache;
+    private _moonWatch;
+    private _ownMoons;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;
     render(): void;

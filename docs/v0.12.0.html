@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    document.documentElement.classList.add('tosi-js')
+    document.addEventListener('click', function (e) {
+      if (customElements.get('tosi-doc-system')) return
+      var b = e.target.closest && e.target.closest('.doc-nav .nav-toggle')
+      if (!b) return
+      var open = b.closest('.nav-branch').classList.toggle('-open')
+      b.setAttribute('aria-expanded', String(open))
+    })
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="doc-system.css?v=c39a3e225125" data-tosi-doc-system />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&amp;family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&amp;display=swap" />
+  <title>0.12.0 — tosijs-3d</title>
+  <meta name="description" content="0.12 in one paragraph. Vehicles you drive: a pure model of wheeled and tracked vehicles (no physics engine), &lt;tosi-b3d-car&gt; rebuilt on it and a new…" />
+  <link rel="canonical" href="https://3d.tosijs.net/v0.12.0/" />
+  <link rel="alternate" type="text/markdown" href="index.md" title="0.12.0 — tosijs-3d (markdown)" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="0.12.0 — tosijs-3d" />
+  <meta property="og:description" content="0.12 in one paragraph. Vehicles you drive: a pure model of wheeled and tracked vehicles (no physics engine), &lt;tosi-b3d-car&gt; rebuilt on it and a new…" />
+  <meta property="og:url" content="https://3d.tosijs.net/v0.12.0/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"0.12.0","description":"0.12 in one paragraph. Vehicles you drive: a pure model of wheeled and tracked vehicles (no physics engine), \u003ctosi-b3d-car> rebuilt on it and a new…","url":"https://3d.tosijs.net/v0.12.0/","inLanguage":"en","dateModified":"2026-11-02T10:50:21+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Upgrading","item":"https://3d.tosijs.net/upgrading/"},{"@type":"ListItem","position":2,"name":"Changelog","item":"https://3d.tosijs.net/CHANGELOG/"},{"@type":"ListItem","position":3,"name":"0.12.0","item":"https://3d.tosijs.net/v0.12.0/"}]}</script>
+  <link rel="icon" href="favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
+</head>
+<body>
+  <tosi-doc-system docs="docs.json?v=2b7977de6a53" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <article class="doc-content" data-doc="v0.12.0.md">
+<h1 id="0120">0.12.0</h1>
+<!--{ "parent": "CHANGELOG", "order": 9988000 }-->
+
+<p><strong>0.12 in one paragraph.</strong> Vehicles you drive: a pure model of wheeled and
+tracked vehicles (no physics engine), <code>&lt;tosi-b3d-car&gt;</code> rebuilt on it and a new
+<code>&lt;tosi-b3d-tank&gt;</code>, with a chase camera that orbits, booms up to overhead and
+climbs over what is in its way, flat and in a headset. A procedural city to
+drive them in (<code>cityLayout</code>, <code>&lt;tosi-b3d-city&gt;</code>: Kenney&#39;s kits, traffic, street
+lights, lit windows, sound, light pollution), and two demos, City Drive and
+Cross Country. Models are no longer drawn mirrored. The character creator&#39;s
+working parts are promised as twenty engine-free subpaths, for other engines.</p>
+<p>Size: barrel (min, packages external) 1510.4 KB raw / 523.7 KB gz, +6.16% gz on 0.11.6 (vehicles, the city, traffic, its sound and lights, the character core split out).</p>
+<h2 id="️-breaking">⚠️ Breaking</h2>
+<p>Each is in <a href="/Migration/">Migration</a> with what to do.</p>
+<ul>
+<li><strong><code>&lt;tosi-b3d-car&gt;</code>&#39;s <code>turnRate</code> and <code>friction</code> are gone</strong> (setting either warns once): use <code>steerDeg</code> and <code>grip</code>. <code>acceleration</code> and <code>braking</code> are now m/s².</li>
+<li><strong>Models are no longer drawn mirrored.</strong> Anything loaded through <code>canonicalize</code> or a <code>&lt;tosi-b3d-library&gt;</code> now looks as authored; 0.11 drew it as its mirror image. Check anything you placed or measured against the mirrored picture. Skinned models are unchanged.</li>
+<li><strong><code>KENNEY_CITY</code>&#39;s <code>bend</code> is <code>turns: 0</code> and its <code>end</code> <code>turns: 3</code></strong>, measured on the unmirrored models.</li>
+<li><strong><code>RiggedBody.surfaces[].material</code> is <code>SurfaceMaterial</code></strong> (a name), not Babylon&#39;s <code>Material</code>; cast it back on the Babylon side.</li>
+</ul>
+<h2 id="added">Added</h2>
+<ul>
+<li><strong>Vehicles you can drive.</strong> <code>ground-vehicle</code> is a pure model of wheeled and tracked vehicles (springs, tyre grip that slides past its limit, Ackermann steering, skid steer), no physics engine. <code>&lt;tosi-b3d-car&gt;</code> is rebuilt on it: give it a model whose wheels have <code>wheel</code> in their names (Tonio Loewald&#39;s cars on the CDN, <code>tonio/vehicles/cars.glb</code>, work at <code>scale: 2</code>; so does Kenney&#39;s Car Kit at <code>1.7</code>), and it measures them. <code>&lt;tosi-b3d-tank&gt;</code> is new: tracks, a pivot turn, and a plain tank when given no model. The car mapping is GTA V&#39;s: right trigger accelerates, left trigger brakes and reverses, the left stick only steers, the right stick looks around, A is the handbrake, and one step from GTA, the right bumper also brakes and reverses so the right thumb has both pedals on the on-screen pad (W/S still drive on a keyboard, through the new <code>keyboard</code> hook on an <code>InputMapping</code>). Vehicles bring their own chase camera, high and aimed ahead of the car (<code>chaseRigFor</code>, <code>chasePose</code>). Off the throttle a car coasts down (<code>coast</code>, m/s²); steering at speed is held to what the tyres grip, so turns keep their speed. A tank keeps turning at top speed and goes where it points. The tank&#39;s right stick (arrow keys) aims its turret: traverse and gun elevation, held in the world while the hull turns, and the camera looks where it aims; a model&#39;s <code>turret</code> and <code>gun</code>/<code>barrel</code>/<code>cannon</code> nodes are found by name. A tank climbs a step about as high as its tracks (a <code>TrackSpec</code> may carry <code>climb</code> points, which carry nothing on the flat). Vehicles stop at walls with rays from their own body instead of a swept ellipsoid, which stepped over anything under half its height.</li>
+<li><strong>Chase camera and Cross Country.</strong> A vehicle&#39;s chase camera pivots round a point above it: the right stick orbits (springing back on release) and up/down moves it along an arc from close behind to nearly overhead, where it stays (<code>CHASE_BOOM</code>; <code>chasePose</code> takes the boom and a lift). It climbs over walls, traffic and hillsides before it pulls in, and keeps clear of the ground. In a headset it orbits too and looks down from the top. A tank&#39;s view follows its turret. <code>ControlInput.lookMode</code> is the right-stick click (R3; <strong>V</strong> on a keyboard, <code>right_stick_click</code> on the glass gamepad): on a tank it swaps the stick&#39;s up/down between the gun and the camera, with a buzz in a headset (<code>b3d.haptic()</code>). The track links of a model that animates them (Tonio&#39;s tank) run at ground speed. <strong>Cross Country</strong> (Demos): that tank in open country.</li>
+<li><strong>A city to drive in</strong>: <code>&lt;tosi-b3d-city&gt;</code> builds roads, buildings, street lights and parked cars from a seed with Kenney&#39;s city kits (any kit, through its <code>kit</code> manifest), drawn as thin instances at 12 m a cell (9.6 m kerb to kerb: a lane each way and a parked car; the kit&#39;s <code>roadway</code> says how wide its road is), each building on as many cells as its model covers; <code>cityStart(options)</code> is a clear spot in the middle to start a car. Street lights are spots pointing down from their poles (<code>lampAngle</code>, reaching twice their height), and some flicker (<code>flicker</code>, <code>lampFlicker</code>). <strong>Traffic</strong> (<code>traffic</code>, default 24): cars drive round on their own in the right-hand lane, turn at junctions, keep their distance and stop for your car. Each is a body on the same model as your car (<code>TRAFFIC_CAR</code>), steering after a plan that drives the lane: cars that touch push and spin each other, and ramming one knocks both cars about (momentum is exchanged; your car is no longer stopped dead), kerbs keep them out of buildings, and two cars jammed into each other sort it out by one backing away. The count is a GTA-style budget (<code>recycleTraffic</code>): cars far away or out of view go and come back out of view, driving toward you. Head, tail and brake lamps, and a headlight beam at night. The model is pure (<code>createTraffic</code>, <code>stepTraffic</code>). <strong>Lit windows</strong> (<code>windowLights</code>, <code>roomLit</code>): a material plugin lights rooms&#39; windows at night (warm lamps, the odd blue screen). Every room has a habit it keeps (always dark, night owl, early riser, evening, bathroom), each with its own hours: most lit around ten, rare after midnight, more from five. <strong>Lamps</strong> (<code>lightPool</code>): street lights and headlights are virtual lights, and the few that matter most to the view get real lights (<code>lampLights</code>, a new device budget; ranked by <code>poolScore</code>, lamps ahead first), falling off linearly to their range on PBR materials too. Where the device supports clustered lighting, every lamp is a real light (a <code>ClusteredLightContainer</code>): a city&#39;s hundred street lights and the traffic&#39;s headlights all light the street. A <code>VirtualLight</code> may carry a ranking <code>weight</code>. The sky reports <code>daylight</code>, so street lights come on at dusk and a driven vehicle&#39;s <code>headlights</code> at night.</li>
+<li><strong>City Drive</strong> (Demos): a 48 × 48 city on ground flattened for it, in green hills by the sea under the full sky (day and night, cloud deck, stars), with woods round it; drive out of town and keep going. <code>cityGround({ width, depth, level, x, z })</code> gives a terrain <code>landform</code> (a pad flat under the grid) and a decorator <code>clear</code>; <code>&lt;tosi-b3d-decorator&gt;</code> takes <code>clear</code>, ground kept clear of trees and rocks.</li>
+<li><strong>Sound in the city</strong> (positional, synthesised): the nearest traffic&#39;s engines (the note rises with speed, opens on the throttle), a horn from a driver you block (and, after a long wait, from one stuck behind a stuck car; <code>car.honk</code> in the pure model), the hum of the nearest street lights and a sputtering buzz from the failing ones. Your own vehicle&#39;s engine plays while you drive it (<code>sound=&quot;off&quot;</code> to silence; a tank&#39;s is lower). New effect voices: <code>engine</code>, <code>hum</code>, <code>horn</code>. <code>&lt;tosi-b3d-city sound=&quot;off&quot;&gt;</code> for silence.</li>
+<li><strong>A city&#39;s plan</strong>: <code>cityLayout({ width, depth, seed })</code> lays out roads, blocks and lots on a grid of cells (every road connected, every lot on a street), with each road cell&#39;s piece and rotation; it knows no kit or metres, so any kit on any grid can dress it.</li>
+<li><strong>Light pollution.</strong> A lit town washes the faint stars out of its own sky and lays a warm glow along the horizon; out in the country they come back. Anything that lights the night registers a source (<code>lightPollutionSource(scene, { centre, radius, strength })</code>, <code>&lt;tosi-b3d-city&gt;</code> does, following its street lights), and <code>&lt;tosi-b3d-skybox&gt;</code> reads them at the camera every frame; its <code>lightPollution</code> attribute is the base for the whole sky (0, a dark sky).</li>
+<li><strong>The scene waits until it is built.</strong> <code>el.holdLoading(label)</code> keeps a <code>&lt;tosi-b3d&gt;</code> behind its spinner until the returned release is called (at most 20 s); the first showing also waits for a streaming terrain. <code>&lt;tosi-b3d-city&gt;</code> and <code>&lt;tosi-b3d-library&gt;</code> hold it, so a city is never shown without its buildings.</li>
+<li><strong>The character core is engine-free, and promised.</strong> Twenty modules that make a character with no Babylon and no DOM (human-pack, human-morph, human-rig, rigged-body, rig-fit, bone-heat, rig-recipe, retarget, spatial-transform, proxy-fit, proxy-rigid, hair-fit, garment-cut, garment-file, uv-unwrap, skin-tone, character-file, and the new character-settings, proxy-cover and asset-url) are subpaths (<code>tosijs-3d/human-morph</code>, …) a three.js app or a server can import; a test fails if any of them reaches Babylon, types included, and the packed tarball imports each under plain Node. <code>RiggedBody.surfaces[].material</code> is typed <code>SurfaceMaterial</code> (a name) instead of Babylon&#39;s <code>Material</code>: cast it back on the Babylon side. New: <code>character-settings</code> holds <code>DEFAULT_CHARACTER</code>, <code>CHARACTER_SLOTS</code>, <code>HAIR_COLOURS</code> and <code>hm08PackUrl()</code> (with <code>HM08_PACK_PATH</code>, <code>HM08_PACK_VERSION</code>); <code>proxy-cover</code> is the engine-free half of <code>coverBody</code> (<code>coverSkin</code>, <code>BODY_WRAPPING_SLOTS</code>). The barrel exports everything it did. See the <code>character-core</code> page.</li>
+<li><code>b3dLight</code> takes <code>nightIntensity</code>: under a day/night <code>b3dSkybox</code> the ambient fill eases to it as the daylight goes (the sun is already the moon), so night no longer looks like an overcast noon.</li>
+</ul>
+<h2 id="changed">Changed</h2>
+<ul>
+<li><strong>Faster on a headset</strong>: a vehicle&#39;s physics takes at most 0.1 s a frame, so a stall cannot pile up steps; the vehicle model steps at 1/60 s (was 1/120), and a vehicle casts each wheel&#39;s ground ray once a frame, its later steps meeting the plane that ray found; <code>pickWorld(scene, ray, predicate)</code> and <code>rayProxies(scene)</code> let something that knows its own shape answer rays (a <code>RayProxy</code>), and <code>&lt;tosi-b3d-city&gt;</code> does (flat ground, a box per building, parked car and pole, filed by cell), so a vehicle&#39;s ray in the city costs a quarter of what it did. City models are one mesh each, and only buildings and moving traffic cast shadows. Fixed: cars with their wheels as instances (half Kenney&#39;s) were drawn without wheels; your own headlights flickered as you looked round (the lamp pool gave their light away; the one you drive now keeps it, and a lamp holding a light keeps it unless another is clearly better). Effect audio that cannot start (an iPhone&#39;s audio device) no longer retries every frame or throws an unhandled rejection; it tries once a second. In a headset the lamp pool uses its ranked lights, not clustered lighting: Babylon&#39;s container bins lamps for one camera a frame, so the second eye flickered and lost the street lights.</li>
+</ul>
+<h2 id="fixed">Fixed</h2>
+<ul>
+<li><strong>Fixed: models were drawn mirrored.</strong> Everything loaded through <code>canonicalize</code> or a <code>&lt;tosi-b3d-library&gt;</code> (vehicles, aircraft, lamp fixtures, the city&#39;s kits, any library instance) was its own mirror image: text backwards, left and right swapped. Babylon&#39;s glTF loader converts handedness with one mirror on <code>__root__</code>, which both paths dropped. <code>unmirrorGltf</code> / <code>unmirrorContainer</code> now move that mirror into the content node by node (transforms, vertices with their winding, animation keys), so every frame stays proper and the model looks as authored. ⚠️ An asymmetric model now appears the other way round from 0.11, and anything measured off the mirrored picture needs checking: <code>KENNEY_CITY</code>&#39;s bend is now <code>turns: 0</code> and its end <code>turns: 3</code>. Skinned models are left as they were.</li>
+<li>Fixed: a car&#39;s headlight beam trailed the car by a frame or two (visible from above at speed). The lamp pool now places its lights after everything else has moved that frame, and a vehicle aims its beam from where it is now.</li>
+<li>Fixed: building a scene after the page&#39;s only one was removed (a route change) lost skin, hair and cloth shading, caustics, the biome ground, cloud shadows and projected occlusion; skin shading threw &#39;plugin not registered&#39;. Babylon clears material plugins when its last engine goes; ours now register again (<code>registerMaterialPlugin</code>).</li>
+<li>iPhone: the page no longer zooms from inside a scene (<code>&lt;tosi-b3d&gt;</code> is <code>touch-action: none</code> and cancels Safari&#39;s pinch), and a zoomed page is reset when the scene goes full screen, where nothing was left to pinch out on.</li>
+<li>Fixed: getting into a car during a VR session no longer blanks the headset (the car&#39;s camera waits until you leave VR), and leaving VR in a vehicle shows the scene behind it, not a frame from inside the ground; the Enter VR button is no longer left lit.</li>
+<li>Fixed: setting a vehicle&#39;s removed <code>turnRate</code> or <code>friction</code> warns once instead of doing nothing silently.</li>
+</ul>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="./">tosijs-3d</a></li>
+    <li><a class="doc-link" href="getting-started/">Getting started</a></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-demos" aria-label="Demos"></button><a class="doc-link" href="demos/">Demos</a></div>
+    <ul id="tosi-nav-demos">
+      <li><a class="doc-link" href="playground/">Biped Playground</a></li>
+      <li><a class="doc-link" href="solar-system/">Solar System</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-weapon-fit" aria-label="Weapon Fit"></button><a class="doc-link" href="weapon-fit/">Weapon Fit</a></div>
+      <ul id="tosi-nav-weapon-fit">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-hold-grip" aria-label="hold grips"></button><a class="doc-link" href="hold-grip/">hold grips</a></div>
+        <ul id="tosi-nav-hold-grip">
+          <li><a class="doc-link" href="hand-socket/">hand socket</a></li>
+        </ul></li>
+      </ul></li>
+      <li><a class="doc-link" href="rig-tool/">Rig tool</a></li>
+      <li><a class="doc-link" href="effect-tool/">Effect tool</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-builder" aria-label="Character Builder"></button><a class="doc-link" href="character-builder/">Character Builder</a></div>
+      <ul id="tosi-nav-character-builder">
+        <li><a class="doc-link" href="human-pack/">human-pack</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-file" aria-label="character-file"></button><a class="doc-link" href="character-file/">character-file</a></div>
+        <ul id="tosi-nav-character-file">
+          <li><a class="doc-link" href="character-store/">character-store</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="human-morph/">human-morph</a></li>
+        <li><a class="doc-link" href="human-rig/">human-rig</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-tailor-tool" aria-label="tailor tool"></button><a class="doc-link" href="tailor-tool/">tailor tool</a></div>
+        <ul id="tosi-nav-tailor-tool">
+          <li><a class="doc-link" href="tailor-recipe/">tailor-recipe</a></li>
+          <li><a class="doc-link" href="tailor-panel/">tailor panel</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="skin-tone/">skin-tone</a></li>
+        <li><a class="doc-link" href="skin-shading/">skin-shading</a></li>
+        <li><a class="doc-link" href="human-face/">human-face</a></li>
+        <li><a class="doc-link" href="human-expression/">human-expression</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-human-hair" aria-label="human-hair"></button><a class="doc-link" href="human-hair/">human-hair</a></div>
+        <ul id="tosi-nav-human-hair">
+          <li><a class="doc-link" href="hair-shading/">hair-shading</a></li>
+          <li><a class="doc-link" href="hair-fit/">hair-fit</a></li>
+        </ul></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-human-proxy" aria-label="human-proxy"></button><a class="doc-link" href="human-proxy/">human-proxy</a></div>
+        <ul id="tosi-nav-human-proxy">
+          <li><a class="doc-link" href="proxy-fit/">proxy-fit</a></li>
+          <li><a class="doc-link" href="cloth-shading/">cloth-shading</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-garment-cut" aria-label="garment-cut"></button><a class="doc-link" href="garment-cut/">garment-cut</a></div>
+          <ul id="tosi-nav-garment-cut">
+            <li><a class="doc-link" href="outline-field/">outline field</a></li>
+            <li><a class="doc-link" href="remesh/">remesh</a></li>
+            <li><a class="doc-link" href="cloth-drape/">cloth drape</a></li>
+            <li><a class="doc-link" href="body-sweep/">body-sweep</a></li>
+          </ul></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-garment-bind" aria-label="garment-bind"></button><a class="doc-link" href="garment-bind/">garment-bind</a></div>
+          <ul id="tosi-nav-garment-bind">
+            <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-garment-file" aria-label="garment-file"></button><a class="doc-link" href="garment-file/">garment-file</a></div>
+            <ul id="tosi-nav-garment-file">
+              <li><a class="doc-link" href="uv-unwrap/">uv-unwrap</a></li>
+              <li><a class="doc-link" href="garment-proxy/">garment proxy</a></li>
+            </ul></li>
+            <li><a class="doc-link" href="proxy-rigid/">proxy-rigid</a></li>
+          </ul></li>
+        </ul></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character" aria-label="character"></button><a class="doc-link" href="character/">character</a></div>
+        <ul id="tosi-nav-character">
+          <li><a class="doc-link" href="character-sources/">character sources</a></li>
+        </ul></li>
+      </ul></li>
+      <li><a class="doc-link" href="skybox-baker/">Skybox Baker</a></li>
+      <li><a class="doc-link" href="land-and-sky/">Land and Sky</a></li>
+      <li><a class="doc-link" href="city-drive/">City Drive</a></li>
+      <li><a class="doc-link" href="cross-country/">Cross Country</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-core" aria-label="Core"></button><a class="doc-link" href="core/">Core</a></div>
+    <ul id="tosi-nav-core">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-tosi-b3d" aria-label="b3d"></button><a class="doc-link" href="tosi-b3d/">b3d</a></div>
+      <ul id="tosi-nav-tosi-b3d">
+        <li><a class="doc-link" href="demo-utils/">demo-utils</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-loader" aria-label="b3d-loader"></button><a class="doc-link" href="b3d-loader/">b3d-loader</a></div>
+      <ul id="tosi-nav-b3d-loader">
+        <li><a class="doc-link" href="asset-url/">asset-url</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-primitives/">Primitives: box, sphere, ground</a></li>
+      <li><a class="doc-link" href="make-mesh/">make-mesh</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-library" aria-label="b3d-library"></button><a class="doc-link" href="b3d-library/">b3d-library</a></div>
+      <ul id="tosi-nav-b3d-library">
+        <li><a class="doc-link" href="glb-manifest/">glb-manifest</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-agent" aria-label="agents"></button><a class="doc-link" href="b3d-agent/">agents</a></div>
+      <ul id="tosi-nav-b3d-agent">
+        <li><a class="doc-link" href="agent-driver/">agent driver</a></li>
+        <li><a class="doc-link" href="scene-description/">scene description</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-prop/">b3d-prop</a></li>
+      <li><a class="doc-link" href="b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="scene-schemas/">Scene schemas</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-sky-and-light" aria-label="Sky and light"></button><a class="doc-link" href="sky-and-light/">Sky and light</a></div>
+    <ul id="tosi-nav-sky-and-light">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-skybox" aria-label="b3d-skybox"></button><a class="doc-link" href="b3d-skybox/">b3d-skybox</a></div>
+      <ul id="tosi-nav-b3d-skybox">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-moon" aria-label="b3d-moon"></button><a class="doc-link" href="b3d-moon/">b3d-moon</a></div>
+        <ul id="tosi-nav-b3d-moon">
+          <li><a class="doc-link" href="moon-light/">moon light</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="starfield-codec/">starfield-codec</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="light-pollution/">light pollution</a></li>
+      <li><a class="doc-link" href="b3d-shadows/">Sun and shadows (b3d-shadows)</a></li>
+      <li><a class="doc-link" href="b3d-light/">Ambient light (b3d-light)</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-lamp" aria-label="Lamps"></button><a class="doc-link" href="b3d-lamp/">Lamps</a></div>
+      <ul id="tosi-nav-b3d-lamp">
+        <li><a class="doc-link" href="curve-program/">Light program editor</a></li>
+        <li><a class="doc-link" href="light-modulation/">Light programs</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-light-shafts/">b3d-light-shafts</a></li>
+      <li><a class="doc-link" href="b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="environment/">environment</a></li>
+      <li><a class="doc-link" href="shadow-decal/">shadow-decal</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-weather-and-clouds" aria-label="Weather and clouds"></button><a class="doc-link" href="weather-and-clouds/">Weather and clouds</a></div>
+    <ul id="tosi-nav-weather-and-clouds">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-cloud-deck" aria-label="b3d-cloud-deck"></button><a class="doc-link" href="b3d-cloud-deck/">b3d-cloud-deck</a></div>
+      <ul id="tosi-nav-b3d-cloud-deck">
+        <li><a class="doc-link" href="cloud-shadows/">cloud-shadows</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-clouds/">b3d-clouds</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-weather-cell" aria-label="b3d-weather-cell"></button><a class="doc-link" href="b3d-weather-cell/">b3d-weather-cell</a></div>
+      <ul id="tosi-nav-b3d-weather-cell">
+        <li><a class="doc-link" href="weather/">weather</a></li>
+        <li><a class="doc-link" href="wind/">wind</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-lightning/">b3d-lightning</a></li>
+      <li><a class="doc-link" href="b3d-ambient/">b3d-ambient</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-terrain" aria-label="Terrain"></button><a class="doc-link" href="terrain/">Terrain</a></div>
+    <ul id="tosi-nav-terrain">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-terrain" aria-label="b3d-terrain"></button><a class="doc-link" href="b3d-terrain/">b3d-terrain</a></div>
+      <ul id="tosi-nav-b3d-terrain">
+        <li><a class="doc-link" href="biome-chart/">biome-chart</a></li>
+        <li><a class="doc-link" href="biome-plugin/">biome-plugin</a></li>
+        <li><a class="doc-link" href="slope-profile/">slope-profile</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-landform" aria-label="landform"></button><a class="doc-link" href="landform/">landform</a></div>
+        <ul id="tosi-nav-landform">
+          <li><a class="doc-link" href="landform-schemas/">landform schemas</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="province-climate/">Province climate</a></li>
+        <li><a class="doc-link" href="terrain-editor/">terrainEditor3d</a></li>
+        <li><a class="doc-link" href="gradient-filter/">gradient-filter</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-decorator" aria-label="b3d-decorator"></button><a class="doc-link" href="b3d-decorator/">b3d-decorator</a></div>
+      <ul id="tosi-nav-b3d-decorator">
+        <li><a class="doc-link" href="scatter/">scatter</a></li>
+        <li><a class="doc-link" href="procedural-rock/">procedural-rock</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-sdf-lattice" aria-label="Carved landforms"></button><a class="doc-link" href="sdf-lattice/">Carved landforms</a></div>
+      <ul id="tosi-nav-sdf-lattice">
+        <li><a class="doc-link" href="carve/">carve</a></li>
+        <li><a class="doc-link" href="patch-field/">patch-field</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="city-layout/">city-layout</a></li>
+      <li><a class="doc-link" href="b3d-city/">b3d-city</a></li>
+      <li><a class="doc-link" href="city-traffic/">city-traffic</a></li>
+      <li><a class="doc-link" href="window-lights/">window-lights</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-water" aria-label="Water"></button><a class="doc-link" href="water/">Water</a></div>
+    <ul id="tosi-nav-water">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-water" aria-label="b3d-water"></button><a class="doc-link" href="b3d-water/">b3d-water</a></div>
+      <ul id="tosi-nav-b3d-water">
+        <li><a class="doc-link" href="medium/">medium</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-effects" aria-label="Effects"></button><a class="doc-link" href="effects/">Effects</a></div>
+    <ul id="tosi-nav-effects">
+      <li><a class="doc-link" href="b3d-effect/">b3d-effect</a></li>
+      <li><a class="doc-link" href="b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="b3d-trail/">b3d-trail</a></li>
+      <li><a class="doc-link" href="b3d-exploder/">b3d-exploder</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-characters-and-vehicles" aria-label="Characters and vehicles"></button><a class="doc-link" href="characters-and-vehicles/">Characters and vehicles</a></div>
+    <ul id="tosi-nav-characters-and-vehicles">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-biped" aria-label="b3d-biped"></button><a class="doc-link" href="b3d-biped/">b3d-biped</a></div>
+      <ul id="tosi-nav-b3d-biped">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-aim" aria-label="aim"></button><a class="doc-link" href="aim/">aim</a></div>
+        <ul id="tosi-nav-aim">
+          <li><a class="doc-link" href="aim-ik/">aim IK</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="animation-layers/">animation-layers</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-core" aria-label="character core"></button><a class="doc-link" href="character-core/">character core</a></div>
+        <ul id="tosi-nav-character-core">
+          <li><a class="doc-link" href="character-settings/">character settings</a></li>
+          <li><a class="doc-link" href="proxy-cover/">proxy-cover</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-skinned-glb" aria-label="skinned-glb"></button><a class="doc-link" href="skinned-glb/">skinned-glb</a></div>
+          <ul id="tosi-nav-skinned-glb">
+            <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-rigged-body-glb" aria-label="rigged-body-glb"></button><a class="doc-link" href="rigged-body-glb/">rigged-body-glb</a></div>
+            <ul id="tosi-nav-rigged-body-glb">
+              <li><a class="doc-link" href="spring-vrm/">spring-vrm</a></li>
+              <li><a class="doc-link" href="body-export/">body export</a></li>
+            </ul></li>
+          </ul></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-chunks" aria-label="glb-chunks"></button><a class="doc-link" href="glb-chunks/">glb-chunks</a></div>
+          <ul id="tosi-nav-glb-chunks">
+            <li><a class="doc-link" href="glb-rig/">glb-rig</a></li>
+          </ul></li>
+          <li><a class="doc-link" href="skin-paint/">skin paint</a></li>
+          <li><a class="doc-link" href="cloth-bake/">cloth bake</a></li>
+          <li><a class="doc-link" href="jpeg/">jpeg</a></li>
+          <li><a class="doc-link" href="eye-art/">eye art</a></li>
+          <li><a class="doc-link" href="hair-place/">hair place</a></li>
+          <li><a class="doc-link" href="mesh-sdf/">mesh sdf</a></li>
+          <li><a class="doc-link" href="fit-extremes/">fit extremes</a></li>
+        </ul></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-retarget" aria-label="retarget"></button><a class="doc-link" href="retarget/">retarget</a></div>
+        <ul id="tosi-nav-retarget">
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-clips" aria-label="glb clips"></button><a class="doc-link" href="glb-clips/">glb clips</a></div>
+          <ul id="tosi-nav-glb-clips">
+            <li><a class="doc-link" href="bvh/">bvh</a></li>
+            <li><a class="doc-link" href="clip-store/">clip-store</a></li>
+          </ul></li>
+        </ul></li>
+        <li><a class="doc-link" href="rigged-body/">rigged-body</a></li>
+        <li><a class="doc-link" href="surroundings/">surroundings</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-rig-build" aria-label="auto-rig"></button><a class="doc-link" href="rig-build/">auto-rig</a></div>
+        <ul id="tosi-nav-rig-build">
+          <li><a class="doc-link" href="rig-markers/">rig markers</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="spring-chain-babylon/">spring bones</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-aircraft" aria-label="b3d-aircraft"></button><a class="doc-link" href="b3d-aircraft/">b3d-aircraft</a></div>
+      <ul id="tosi-nav-b3d-aircraft">
+        <li><a class="doc-link" href="fly-by-wire/">fly-by-wire</a></li>
+        <li><a class="doc-link" href="b3d-hud/">b3d-hud</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="ground-vehicle/">ground-vehicle</a></li>
+      <li><a class="doc-link" href="b3d-car/">b3d-car</a></li>
+      <li><a class="doc-link" href="b3d-tank/">b3d-tank</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-elevator" aria-label="b3d-elevator"></button><a class="doc-link" href="b3d-elevator/">b3d-elevator</a></div>
+      <ul id="tosi-nav-b3d-elevator">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-spatial-transform" aria-label="spatial-transform"></button><a class="doc-link" href="spatial-transform/">spatial-transform</a></div>
+        <ul id="tosi-nav-spatial-transform">
+          <li><a class="doc-link" href="portal-transform/">portal-transform</a></li>
+        </ul></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-crowd" aria-label="b3d-crowd"></button><a class="doc-link" href="b3d-crowd/">b3d-crowd</a></div>
+      <ul id="tosi-nav-b3d-crowd">
+        <li><a class="doc-link" href="vertex-animation/">vertex-animation</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-input" aria-label="Input"></button><a class="doc-link" href="input/">Input</a></div>
+    <ul id="tosi-nav-input">
+      <li><a class="doc-link" href="b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="touch-orbit/">touch-orbit</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-inspect-view" aria-label="inspect-view"></button><a class="doc-link" href="inspect-view/">inspect-view</a></div>
+      <ul id="tosi-nav-inspect-view">
+        <li><a class="doc-link" href="seam-material/">seam-material</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="game-controller/">game-controller</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-input-internals" aria-label="How input works"></button><a class="doc-link" href="input-internals/">How input works</a></div>
+      <ul id="tosi-nav-input-internals">
+        <li><a class="doc-link" href="control-input/">control-input</a></li>
+        <li><a class="doc-link" href="b3d-controllable/">b3d-controllable</a></li>
+        <li><a class="doc-link" href="virtual-gamepad/">virtual-gamepad</a></li>
+        <li><a class="doc-link" href="touch-gamepad/">touch-gamepad</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-interacting" aria-label="Interacting with the world"></button><a class="doc-link" href="interacting/">Interacting with the world</a></div>
+    <ul id="tosi-nav-interacting">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-interactive" aria-label="b3d-interactive"></button><a class="doc-link" href="b3d-interactive/">b3d-interactive</a></div>
+      <ul id="tosi-nav-b3d-interactive">
+        <li><a class="doc-link" href="interaction/">interaction</a></li>
+        <li><a class="doc-link" href="interactive-behavior/">interactive-behavior</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="b3d-beacon/">b3d-beacon</a></li>
+      <li><a class="doc-link" href="b3d-manipulator/">b3d-manipulator</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-combat" aria-label="Combat"></button><a class="doc-link" href="combat/">Combat</a></div>
+    <ul id="tosi-nav-combat">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-destroyable" aria-label="b3d-destroyable"></button><a class="doc-link" href="b3d-destroyable/">b3d-destroyable</a></div>
+      <ul id="tosi-nav-b3d-destroyable">
+        <li><a class="doc-link" href="destroyable-behavior/">destroyable-behavior</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-launcher" aria-label="b3d-launcher"></button><a class="doc-link" href="b3d-launcher/">b3d-launcher</a></div>
+      <ul id="tosi-nav-b3d-launcher">
+        <li><a class="doc-link" href="ballistics/">ballistics</a></li>
+        <li><a class="doc-link" href="guidance/">guidance</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="b3d-turret/">b3d-turret</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-radar" aria-label="b3d-radar"></button><a class="doc-link" href="b3d-radar/">b3d-radar</a></div>
+      <ul id="tosi-nav-b3d-radar">
+        <li><a class="doc-link" href="b3d-radar-blip/">b3d-radar-blip</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-world-sim" aria-label="World Sim"></button><a class="doc-link" href="world-sim/">World Sim</a></div>
+    <ul id="tosi-nav-world-sim">
+      <li><a class="doc-link" href="world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="world-store/">world-store</a></li>
+      <li><a class="doc-link" href="world-view/">world-view</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-inventory" aria-label="inventory"></button><a class="doc-link" href="inventory/">inventory</a></div>
+      <ul id="tosi-nav-inventory">
+        <li><a class="doc-link" href="inventory-box/">inventory-box</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="min-sim-conformance/">min-sim-conformance</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-spawner" aria-label="b3d-spawner"></button><a class="doc-link" href="b3d-spawner/">b3d-spawner</a></div>
+      <ul id="tosi-nav-b3d-spawner">
+        <li><a class="doc-link" href="formations/">formations</a></li>
+        <li><a class="doc-link" href="prefab/">prefab</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-death/">b3d-death</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui" aria-label="UI"></button><a class="doc-link" href="ui/">UI</a></div>
+    <ul id="tosi-nav-ui">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widgets3d" aria-label="widgets3d"></button><a class="doc-link" href="widgets3d/">widgets3d</a></div>
+      <ul id="tosi-nav-widgets3d">
+        <li><a class="doc-link" href="playback-field/">Playback</a></li>
+        <li><a class="doc-link" href="widget-box/">widget-box</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widget-semantics" aria-label="widget semantics"></button><a class="doc-link" href="widget-semantics/">widget semantics</a></div>
+        <ul id="tosi-nav-widget-semantics">
+          <li><a class="doc-link" href="aria-mirror/">aria mirror</a></li>
+        </ul></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-carry" aria-label="carry"></button><a class="doc-link" href="carry/">carry</a></div>
+      <ul id="tosi-nav-carry">
+        <li><a class="doc-link" href="carry-box/">carry-box</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="dials/">dials</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui-controls" aria-label="Controls"></button><a class="doc-link" href="ui-controls/">Controls</a></div>
+      <ul id="tosi-nav-ui-controls">
+        <li><a class="doc-link" href="vector-field/">Coordinate fields</a></li>
+        <li><a class="doc-link" href="angle-field/">angle-field</a></li>
+        <li><a class="doc-link" href="curve-field/">Curve editor</a></li>
+        <li><a class="doc-link" href="footprint-field/">Footprint editor</a></li>
+        <li><a class="doc-link" href="color-picker/">colorPicker3d</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-material-picker" aria-label="materialPicker3d"></button><a class="doc-link" href="material-picker/">materialPicker3d</a></div>
+        <ul id="tosi-nav-material-picker">
+          <li><a class="doc-link" href="fabric-textures/">fabric textures</a></li>
+          <li><a class="doc-link" href="material-pictures/">material pictures</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="material-recipe/">material-recipe</a></li>
+        <li><a class="doc-link" href="icon-grid/">Icon grid</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-color-field" aria-label="color3d"></button><a class="doc-link" href="color-field/">color3d</a></div>
+        <ul id="tosi-nav-color-field">
+          <li><a class="doc-link" href="color/">color</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="picker/">picker</a></li>
+        <li><a class="doc-link" href="keyboard/">keyboard</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-table" aria-label="table"></button><a class="doc-link" href="table/">table</a></div>
+        <ul id="tosi-nav-table">
+          <li><a class="doc-link" href="selection/">selection</a></li>
+        </ul></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui-containers" aria-label="Containers"></button><a class="doc-link" href="ui-containers/">Containers</a></div>
+      <ul id="tosi-nav-ui-containers">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-box" aria-label="box"></button><a class="doc-link" href="box/">box</a></div>
+        <ul id="tosi-nav-box">
+          <li><a class="doc-link" href="flow-layout/">flow-layout</a></li>
+          <li><a class="doc-link" href="anchor-layout/">anchor-layout</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="surface/">surface</a></li>
+        <li><a class="doc-link" href="popup-surface/">popup-surface</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui-in-scene" aria-label="In the scene and XR"></button><a class="doc-link" href="ui-in-scene/">In the scene and XR</a></div>
+      <ul id="tosi-nav-ui-in-scene">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-panel" aria-label="b3d-panel"></button><a class="doc-link" href="b3d-panel/">b3d-panel</a></div>
+        <ul id="tosi-nav-b3d-panel">
+          <li><a class="doc-link" href="frame-panel/">frame-panel</a></li>
+          <li><a class="doc-link" href="xr-frames/">xr-frames</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-system-bar" aria-label="system-bar"></button><a class="doc-link" href="system-bar/">system-bar</a></div>
+          <ul id="tosi-nav-system-bar">
+            <li><a class="doc-link" href="bar-menu/">bar-menu</a></li>
+          </ul></li>
+        </ul></li>
+        <li><a class="doc-link" href="b3d-svg-plane/">b3d-svg-plane</a></li>
+        <li><a class="doc-link" href="svg-texture/">svg-texture</a></li>
+        <li><a class="doc-link" href="gamepad-focus/">gamepad-focus</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui-theme" aria-label="Theme and icons"></button><a class="doc-link" href="ui-theme/">Theme and icons</a></div>
+      <ul id="tosi-nav-ui-theme">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-w3d-theme" aria-label="w3d-theme"></button><a class="doc-link" href="w3d-theme/">w3d-theme</a></div>
+        <ul id="tosi-nav-w3d-theme">
+          <li><a class="doc-link" href="theme-editor/">theme-editor</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="svg-icons/">svg-icons</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-space" aria-label="Space"></button><a class="doc-link" href="space/">Space</a></div>
+    <ul id="tosi-nav-space">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-galaxy" aria-label="b3d-galaxy"></button><a class="doc-link" href="b3d-galaxy/">b3d-galaxy</a></div>
+      <ul id="tosi-nav-b3d-galaxy">
+        <li><a class="doc-link" href="voxel-galaxy/">voxel-galaxy</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="gas-giant/">gas-giant</a></li>
+      <li><a class="doc-link" href="rocky-world/">rocky-world</a></li>
+      <li><a class="doc-link" href="b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="sphere-map/">sphere-map</a></li>
+      <li><a class="doc-link" href="planet-map/">planet-map</a></li>
+      <li><a class="doc-link" href="space-backdrop/">space-backdrop</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-performance" aria-label="Performance"></button><a class="doc-link" href="performance/">Performance</a></div>
+    <ul id="tosi-nav-performance">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-probe" aria-label="b3d-probe"></button><a class="doc-link" href="b3d-probe/">b3d-probe</a></div>
+      <ul id="tosi-nav-b3d-probe">
+        <li><a class="doc-link" href="perf-probe/">perf-probe</a></li>
+        <li><a class="doc-link" href="b3d-quality/">b3d-quality</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="cost-sweep/">Cost sweep</a></li>
+      <li><a class="doc-link" href="draw-order/">Draw order</a></li>
+      <li><a class="doc-link" href="debug-sink/">debug-sink</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-utilities" aria-label="utilities"></button><a class="doc-link" href="utilities/">utilities</a></div>
+    <ul id="tosi-nav-utilities">
+      <li><a class="doc-link" href="clock/">clock</a></li>
+      <li><a class="doc-link" href="undo-history/">undo history</a></li>
+    </ul></li>
+    <li class="nav-branch -open"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="true" aria-controls="tosi-nav-upgrading" aria-label="Upgrading"></button><a class="doc-link" href="upgrading/">Upgrading</a></div>
+    <ul id="tosi-nav-upgrading">
+      <li><a class="doc-link" href="Migration/">Migration</a></li>
+      <li class="nav-branch -open"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="true" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="CHANGELOG/">Changelog</a></div>
+      <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="v0.13.0/">0.13.0</a></li>
+        <li><a class="doc-link" href="v0.12.6/">0.12.6</a></li>
+        <li><a class="doc-link" href="v0.12.5/">0.12.5</a></li>
+        <li><a class="doc-link" href="v0.12.4/">0.12.4</a></li>
+        <li><a class="doc-link" href="v0.12.3/">0.12.3</a></li>
+        <li><a class="doc-link" href="v0.12.2/">0.12.2</a></li>
+        <li><a class="doc-link" href="v0.12.1/">0.12.1</a></li>
+        <li><a class="doc-link current" href="v0.12.0/" aria-current="page">0.12.0</a></li>
+        <li><a class="doc-link" href="v0.11.6/">0.11.6</a></li>
+        <li><a class="doc-link" href="v0.11.5/">0.11.5</a></li>
+        <li><a class="doc-link" href="v0.11.4/">0.11.4</a></li>
+        <li><a class="doc-link" href="v0.11.3/">0.11.3</a></li>
+        <li><a class="doc-link" href="v0.11.2/">0.11.2</a></li>
+        <li><a class="doc-link" href="v0.11.1/">0.11.1</a></li>
+        <li><a class="doc-link" href="v0.11.0/">0.11.0</a></li>
+        <li><a class="doc-link" href="v0.10.20/">0.10.20</a></li>
+        <li><a class="doc-link" href="v0.10.19/">0.10.19</a></li>
+        <li><a class="doc-link" href="v0.10.18/">0.10.18</a></li>
+        <li><a class="doc-link" href="v0.10.17/">0.10.17</a></li>
+        <li><a class="doc-link" href="v0.10.16/">0.10.16</a></li>
+        <li><a class="doc-link" href="v0.10.15/">0.10.15</a></li>
+        <li><a class="doc-link" href="v0.10.14/">0.10.14</a></li>
+        <li><a class="doc-link" href="v0.10.13/">0.10.13</a></li>
+        <li><a class="doc-link" href="v0.10.12/">0.10.12</a></li>
+        <li><a class="doc-link" href="v0.10.11/">0.10.11</a></li>
+        <li><a class="doc-link" href="v0.10.10/">0.10.10</a></li>
+        <li><a class="doc-link" href="v0.10.9/">0.10.9</a></li>
+        <li><a class="doc-link" href="v0.10.8/">0.10.8</a></li>
+        <li><a class="doc-link" href="v0.10.7/">0.10.7</a></li>
+        <li><a class="doc-link" href="v0.10.6/">0.10.6</a></li>
+        <li><a class="doc-link" href="v0.10.5/">0.10.5</a></li>
+        <li><a class="doc-link" href="v0.10.4/">0.10.4</a></li>
+        <li><a class="doc-link" href="v0.10.3/">0.10.3</a></li>
+        <li><a class="doc-link" href="v0.10.2/">0.10.2</a></li>
+        <li><a class="doc-link" href="v0.10.1/">0.10.1</a></li>
+        <li><a class="doc-link" href="v0.10.0/">0.10.0</a></li>
+        <li><a class="doc-link" href="v0.9.0/">0.9.0</a></li>
+        <li><a class="doc-link" href="v0.8.15/">0.8.15</a></li>
+        <li><a class="doc-link" href="v0.8.14/">0.8.14</a></li>
+        <li><a class="doc-link" href="v0.8.13/">0.8.13</a></li>
+        <li><a class="doc-link" href="v0.8.12/">0.8.12</a></li>
+        <li><a class="doc-link" href="v0.8.11/">0.8.11</a></li>
+        <li><a class="doc-link" href="v0.8.10/">0.8.10</a></li>
+        <li><a class="doc-link" href="v0.8.9/">0.8.9</a></li>
+        <li><a class="doc-link" href="v0.8.8/">0.8.8</a></li>
+        <li><a class="doc-link" href="v0.8.7/">0.8.7</a></li>
+        <li><a class="doc-link" href="v0.8.6/">0.8.6</a></li>
+        <li><a class="doc-link" href="v0.8.5/">0.8.5</a></li>
+        <li><a class="doc-link" href="v0.8.4/">0.8.4</a></li>
+        <li><a class="doc-link" href="v0.8.3/">0.8.3</a></li>
+        <li><a class="doc-link" href="v0.8.2/">0.8.2</a></li>
+        <li><a class="doc-link" href="v0.8.1/">0.8.1</a></li>
+        <li><a class="doc-link" href="v0.8.0/">0.8.0</a></li>
+        <li><a class="doc-link" href="v0.7.8/">0.7.8</a></li>
+        <li><a class="doc-link" href="v0.7.7/">0.7.7</a></li>
+        <li><a class="doc-link" href="v0.7.6/">0.7.6</a></li>
+        <li><a class="doc-link" href="v0.7.5/">0.7.5</a></li>
+        <li><a class="doc-link" href="v0.7.4/">0.7.4</a></li>
+        <li><a class="doc-link" href="v0.7.3/">0.7.3</a></li>
+        <li><a class="doc-link" href="v0.7.2/">0.7.2</a></li>
+        <li><a class="doc-link" href="v0.7.1/">0.7.1</a></li>
+        <li><a class="doc-link" href="v0.7.0/">0.7.0</a></li>
+        <li><a class="doc-link" href="v0.7.0-rc.1/">0.7.0-rc.1</a></li>
+        <li><a class="doc-link" href="v0.6.2/">0.6.2</a></li>
+        <li><a class="doc-link" href="v0.6.1/">0.6.1</a></li>
+        <li><a class="doc-link" href="v0.6.0/">0.6.0</a></li>
+        <li><a class="doc-link" href="v0.5.2/">0.5.2</a></li>
+        <li><a class="doc-link" href="v0.5.1/">0.5.1</a></li>
+        <li><a class="doc-link" href="v0.5.0/">0.5.0</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-reference" aria-label="Reference"></button><a class="doc-link" href="reference/">Reference</a></div>
+    <ul id="tosi-nav-reference">
+      <li><a class="doc-link" href="mersenne-twister/">Pseudo Random Numbers</a></li>
+      <li><a class="doc-link" href="perlin-noise/">perlin-noise</a></li>
+      <li><a class="doc-link" href="noise-texture/">Noise texture</a></li>
+    </ul></li>
+    <li><a class="doc-link" href="design-notes/">Design notes</a></li>
+    <li><a class="doc-link" href="acknowledgements/">Acknowledgements</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="hydrate-swt7z66k.js"></script>
+</body>
+</html>

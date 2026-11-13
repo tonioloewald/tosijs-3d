@@ -12,13 +12,14 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-## 0.12.6
+## 0.13.0
 
-The latest release. BVH clips kept and carried in character files; MakeHuman's body exports dressed, with hair, skin and eyes; tailored garments fit any body; feet stay planted under retargeting; marker rigs place pelvis, neck and knees as the mannequins do. See [0.12.6](/v0.12.6/).
+The latest release. Biped gunplay aims where you look, crowds move figure by figure, system-bar menus cascade flat and in VR, and headset panels, presses and the chase camera behave. Garment exports bake their look only when given the baker. See [0.13.0](/v0.13.0/).
 
 ## Every version
 
 <!-- toc -->
+- [0.13.0](/v0.13.0/)
 - [0.12.6](/v0.12.6/)
 - [0.12.5](/v0.12.5/)
 - [0.12.4](/v0.12.4/)

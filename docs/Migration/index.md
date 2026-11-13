@@ -9,6 +9,24 @@ This file ships **inside the package**, because a migration table you can only
 read on GitHub does not exist for someone who has already installed the thing
 and is staring at an error.
 
+## 0.12.x → 0.13.0
+
+The peer ranges are unchanged. Four things change under you:
+
+1. **`riggedBodyGlb` no longer recolours garment pictures by default.** Its
+   `bake` option is now the baker itself: pass `bake: bakeClothLook` (from
+   `tosijs-3d/cloth-bake`) to keep the baked look. Without it the pictures
+   are written as they are, and it warns once. `bake: false` still means no
+   bake; `bake: true` no longer means anything. `exportBody` passes the baker
+   for you.
+2. **The settings panel's Slow motion button is gone.** Set `timeScale` on
+   the `<tosi-b3d>` from your own control if you want one.
+3. **`barMenu` submenus cascade** beside the list, all on one surface,
+   instead of replacing it with a way back. A press opens one; a press on its
+   row again closes it.
+4. **`viewMenu` leaves the system bar during a headset session**, since in VR
+   the camera is your head. It comes back when the session ends.
+
 ## 0.11.x → 0.12.0
 
 The peer ranges are unchanged. Four things change under you:

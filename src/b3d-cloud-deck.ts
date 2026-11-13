@@ -1503,8 +1503,7 @@ export class B3dCloudDeck extends B3dChild {
       // than once per frame and the engine's delta is the WHOLE frame each time.
       // On the sky's clock: a sky sped up to a time-lapse carries its clouds
       // (unless `skyClock` is off).
-      const dt =
-        sceneDelta(scene) * (isOff(this.skyClock) ? 1 : skyRate(owner))
+      const dt = sceneDelta(scene) * (isOff(this.skyClock) ? 1 : skyRate(owner))
       this._elapsed += dt
       const wn = this._windNow()
       this._carriedX += Math.cos(wn.h) * wn.speed * dt

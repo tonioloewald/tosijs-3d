@@ -31,6 +31,8 @@ export declare class B3dPanel extends Component {
         exclusive: string;
         /** System panel: open when the scene starts. */
         open: boolean;
+        /** System panel: 'off' has no button on the bar; code opens it (`show()`). */
+        barButton: string;
     };
     static shadowStyleSpec: {
         ':host': {
@@ -61,6 +63,7 @@ export declare class B3dPanel extends Component {
     resolution: number;
     exclusive: string;
     open: boolean;
+    barButton: string;
     /**
      * Live content (JS only): an SVG, with its own `handlePointer` if it takes
      * the pointer. Setting it again swaps an open system panel's content in

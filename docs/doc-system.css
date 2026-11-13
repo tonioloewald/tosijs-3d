@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&famiSpline+Sans+Mono:ital,wght@0,300..700;1,300..700&display=swap');
-
 :root {
   --font-family: 'Aleo', sans-serif;
   --code-font-family: 'Spline Sans Mono', monospace;
@@ -250,6 +248,13 @@ h3 {
 
 input[type=search] {
   border-radius: 99px;
+}
+
+.doc-continue {
+  margin-top: calc(var(--spacing) * 2);
+  padding-top: var(--spacing);
+  box-shadow: inset 0 1px 0 var(--shadow-color);
+  font-weight: 700;
 }
 
 blockquote {

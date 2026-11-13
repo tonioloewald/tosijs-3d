@@ -54,9 +54,10 @@ What the file is (Dramatis's `export-format`, version 1):
   the body's own, as the builder draws them (armour lifted 5 mm), with its
   material as data (its pictures, and its saved look's glTF factors where
   it has a plain reading). A recoloured cloth's picture is written
-  recoloured ([cloth-bake](/cloth-bake/), PNG or JPEG in, PNG out), so the
-  file shows what the builder does in any engine; `bake: false` writes the
-  pictures as they came. The skin they cover is tucked under them, as the
+  recoloured when you pass `bake: bakeClothLook` ([cloth-bake](/cloth-bake/),
+  PNG or JPEG in, PNG out), so the file shows what the builder does in any
+  engine; without it the pictures go as they came, and the writer carries no
+  image decoder. The skin they cover is tucked under them, as the
   builder does, and skin a garment lists in its `delete` (as MakeHuman's
   clothes do) is dropped; `cover: false` leaves the skin alone.
 - **Clips**, with `clips`: animations read from any skinned GLB
@@ -84,7 +85,6 @@ import { writeSkinnedGlb, } from './skinned-glb.js';
 import { UAL_REST } from './ual-rest.js';
 import { drawnPositions, fitProxy, proxyWeights } from './proxy-fit.js';
 import { coverSkin } from './proxy-cover.js';
-import { bakeClothLook } from './cloth-bake.js';
 import { vertexNormals } from './hair-fit.js';
 import { bakeClip } from './glb-clips.js';
 import { humanoidRoles } from './retarget.js';
@@ -546,9 +546,10 @@ function smoothNormals(positions, indices) {
     return out; // writeSkinnedGlb makes them unit length
 }
 const isGltfMaterial = (m) => m != null && Array.isArray(m.baseColorFactor);
+let warnedNoBaker = false;
 /** The body's materials as glTF, their pictures collected once each. */
 /** A garment's material (garment-proxy's data) as glTF's. */
-function garmentMaterial(m, name, images, bake = true) {
+function garmentMaterial(m, name, images, bake) {
     const image = (t, as) => {
         if (t?.bytes == null)
             return undefined;
@@ -575,8 +576,18 @@ function garmentMaterial(m, name, images, bake = true) {
         ...(m.alphaMode === 'MASK' ? { alphaCutoff: m.alphaCutoff ?? 0.5 } : {}),
         doubleSided: m.twoSided,
     };
-    const baked = bake && m.baseColorTexture?.bytes != null
-        ? bakeClothLook(m.baseColorTexture, m.look)
+    if (typeof bake !== 'function' &&
+        bake !== false &&
+        m.look != null &&
+        m.baseColorTexture?.bytes != null &&
+        !warnedNoBaker) {
+        // Until 0.13 the writer baked by default; a caller relying on that now
+        // gets the pictures as they are.
+        warnedNoBaker = true;
+        console.warn("riggedBodyGlb: a garment has a look but no baker, so its picture is written unrecoloured. Pass `bake: bakeClothLook` (from 'tosijs-3d/cloth-bake'), or `bake: false` to say so.");
+    }
+    const baked = typeof bake === 'function' && m.baseColorTexture?.bytes != null
+        ? bake(m.baseColorTexture, m.look)
         : null;
     const base = image(baked ?? m.baseColorTexture, 'baseColor');
     if (base)
@@ -964,7 +975,7 @@ export function riggedBodyGlb(body, options = {}) {
         for (let i = 0; i < gj.length; i++)
             gj[i] = Math.max(0, sk.from[w.indices[i]] ?? 0);
         const pos = placeAll(skinTo(drawn, gj, w.weights, sk.rest, pose));
-        materials.push(garmentMaterial(g.material, `${g.slot ?? 'garment'}_${g.name}`, images, options.bake !== false));
+        materials.push(garmentMaterial(g.material, `${g.slot ?? 'garment'}_${g.name}`, images, options.bake));
         meshes.push({
             name: `${g.slot ?? 'garment'}: ${g.name}`,
             primitives: [

@@ -283,6 +283,7 @@ b3d-cloud-deck
   frequency  = 3  — Field repeats across its own width. Higher = smaller puffs
   cirrus  = 0  — Rounded heaps `0` → long wispy streaks at `±1`: positive streaks ALONG the wind heading, negative ACROSS it. Rebakes the field
   wind  = 8  — Metres per second the deck drifts, on the sky's clock: a skybox sped up (`realtimeScale` 60) drifts it 60 times as fast. Nothing rebakes
+  skyClock  = 'on'  — `'on'`: drift and evolve on the sky's clock (a sped-up skybox carries the clouds). `'off'`: world time, so a fast day passes under clouds moving at their own pace
   windHeadingDeg  = 0  — Which way it drifts — and the direction cirrus streaks run. Used only when the scene has no wind of its own (`<tosi-b3d wind-speed>`): with one, the deck drifts with it, as smoke and storms do
   evolve  = 0.5  — How fast shapes change, `0` rigid → `1` restless
   follow  = 'on'  — Keep the deck centred under the camera. A deck is finite; the world is not
@@ -499,7 +500,7 @@ b3d-galaxy
 b3d-hud
 
   url  = ''  — Empty = the built-in code HUD (fully wired); set to a designer SVG to load one
-  size  = 70  — HUD height as a % of the canvas's smaller dimension
+  size  = 70  — HUD height as a % of the canvas's smaller dimension, and at most half that % of the longer one (so in portrait it keeps about the landscape proportion)
   pxPerDeg  = 8  — Pitch-ladder pixels per degree
   blend  = 'plus-lighter'  — How the flat overlay is mixed with the scene (any CSS `mix-blend-mode`). The default ADDS light, which reads as a projected display over mid tones and goes faint over a black sky or a white one. `'normal'` paints it on top
   opacity  = 0.5  — Opacity of the flat overlay, `0…1`. With `blend="normal"` about `0.85` reads well
@@ -745,6 +746,7 @@ b3d-panel
   layer  = 'world'  — `'ui'`: drawn over the whole world and pressed first, never hidden by a nearer wall (what a page overlay is flat); `'modal'`: over even the ui (pause, a dialog). `'world'`: in the scene like anything else. The same in a headset: the controller's ray picks modal, then ui, then the world
   exclusive  = 'on'  — On the system bar: one system panel is open at a time. `'off'` lets this one stay open beside the others and leaves them open when it opens (an app's main chrome: a tool palette, a properties panel). The settings panel and exclusive panels still close each other
   open  = false  — On the system bar: open when the scene starts (and again in a headset, if it was open flat). To open or close it later, `el.show()` / `el.hide()`
+  barButton
 
 ## b3d-particles — <tosi-b3d-particles>
 b3d-particles

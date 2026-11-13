@@ -40,5 +40,14 @@ export declare function attachSceneLayer(opts: {
         top: number;
         bottom: number;
     } | null;
+    /**
+     * When `svg` is shown INSIDE another SVG on the plane (a title bar's
+     * frame), that SVG and where `svg`'s top sits in it: the plane maps the
+     * frame, so anchors are moved down by `top` and measured against it.
+     */
+    inFrame?: () => {
+        svg: SVGSVGElement;
+        top: number;
+    };
 }): boolean;
 //# sourceMappingURL=panel-layer.d.ts.map

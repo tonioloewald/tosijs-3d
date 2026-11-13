@@ -332,3 +332,6 @@ content after that (models, a body, a terrain) holds it up with
 message below it; `setLoading(true)` is the spinner alone, `setLoading(false)`
 lets it go, and `{ spin: false }` shows a message without the spinner (a load
 that failed).
+
+Nothing is heard before the scene is shown: the effect voices and Babylon's
+own sounds are silent until it first appears.

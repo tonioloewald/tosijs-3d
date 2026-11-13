@@ -27,6 +27,7 @@ import { glbNodePosition, glbRigTriangles } from './glb-rig.js';
 import { riggedBodyGlb, } from './rigged-body-glb.js';
 import { readGlbClips } from './glb-clips.js';
 import { readBvh } from './bvh.js';
+import { bakeClothLook } from './cloth-bake.js';
 const HEIGHTS = [
     'as made',
     '1.5 m',
@@ -127,7 +128,9 @@ export async function exportBody(target, settings) {
         ...(held ? { held } : {}),
         ...(clip ? { clips: [clip] } : {}),
         ...(target.eyeTexture ? { eyeTexture: target.eyeTexture } : {}),
-        ...(target.garments?.length ? { garments: target.garments } : {}),
+        ...(target.garments?.length
+            ? { garments: target.garments, bake: bakeClothLook }
+            : {}),
         naming: settings.naming,
         restPose: settings.restPose,
         ...(settings.height > 0 ? { height: settings.height } : {}),

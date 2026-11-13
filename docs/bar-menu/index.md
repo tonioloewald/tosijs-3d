@@ -36,8 +36,9 @@ it).
 ## A menu of actions
 
 An option can be an action, not a choice (`handleSelect`, with a tick when
-`checked`), a submenu (`items`, opened in place of the list with a way back,
-which is easier to reach in a headset than a list flying out beside it), a
+`checked`), a submenu (`items`, opened by a press, beside the list level with
+the row that opened it, lifted to end no lower than that list; the lists are all one surface,
+so in a headset there is no gap to aim across), a
 rule (`separator: true`) or `disabled`. `options` may be a function, read each
 time the menu opens, so a list of saved things is always current. The
 character builder's **Character** menu is one:

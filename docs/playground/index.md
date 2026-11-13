@@ -5,7 +5,7 @@ arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, button3d, characterStore, holdGrip, inputFocus, playground, select3d, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, button3d, characterStore, holdGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
@@ -167,6 +167,11 @@ preview.append(
   b3d(
     {
       style: 'width:100%;height:100%',
+      // Something for the weapons' metal to reflect: without it a PBR metal
+      // has nothing to show and renders nearly black.
+      sceneCreated(el) {
+        studioEnvironment(el.scene, { sky: '#7d9cc4', horizon: '#e8e4da', ground: '#55604a' })
+      },
       // The glass pad shows only what this demo USES. These are control names,
       // not a mapping name (`gamepad: 'biped'` names nothing and draws nothing).
       // Move, aim, shoot, jump, sneak, sprint; `Y` switches first/third person.

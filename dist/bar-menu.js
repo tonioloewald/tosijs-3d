@@ -37,8 +37,9 @@ it).
 ## A menu of actions
 
 An option can be an action, not a choice (`handleSelect`, with a tick when
-`checked`), a submenu (`items`, opened in place of the list with a way back,
-which is easier to reach in a headset than a list flying out beside it), a
+`checked`), a submenu (`items`, opened by a press, beside the list level with
+the row that opened it, lifted to end no lower than that list; the lists are all one surface,
+so in a headset there is no gap to aim across), a
 rule (`separator: true`) or `disabled`. `options` may be a function, read each
 time the menu opens, so a list of saved things is always current. The
 character builder's **Character** menu is one:
@@ -85,24 +86,15 @@ const read = (o) => normal((typeof o === 'function' ? o() : o) ?? []);
 export function barMenu(config) {
     const { svg, g, rect, text, title, line } = svgElements;
     let value = config.value ?? read(config.options).find((o) => !o.separator)?.value ?? '';
-    /*
-    WHERE IT IS: the top list, or a submenu opened from it. A submenu replaces
-    the list (with a way back as its first row) rather than flying out beside
-    it: one surface, the same flat and in a headset, and nothing to aim at
-    across a gap.
-    */
-    let stack = [];
-    let hover = -1;
-    let pressed = -1;
+    let cols = [];
+    /** The hovered and the pressed row, as `[column, row]`. */
+    let hover = null;
+    let pressed = null;
     let root;
-    const level = () => stack[stack.length - 1];
-    const rowsOf = (opts, back) => {
+    const same = (a, b) => a != null && b != null && a[0] === b[0] && a[1] === b[1];
+    const rowsOf = (opts) => {
         const rows = [];
         let y = PAD;
-        if (back) {
-            rows.push({ y, h: ROW, opt: null, back: true });
-            y += ROW;
-        }
         for (const o of opts) {
             const h = o.separator ? RULE : ROW;
             rows.push({ y, h, opt: o });
@@ -110,23 +102,42 @@ export function barMenu(config) {
         }
         return rows;
     };
+    /** A gap between a list and the submenu beside it. */
+    const COL_GAP = 4;
     const make = () => {
-        const opts = level().options;
-        const back = stack.length > 1;
-        const toolbar = !back &&
+        const top = cols[0].options;
+        const toolbar = cols.length === 1 &&
             config.layout !== 'list' &&
-            opts.length > 0 &&
-            opts.every((o) => o.icon != null && !o.separator);
-        const icons = opts.some((o) => o.icon != null);
-        const rows = rowsOf(opts, back);
-        // Wide enough for its longest caption (about half an em a letter).
-        const longest = Math.max(back ? level().label.length + 2 : 0, ...opts.map((o) => (o.separator ? 0 : o.label.length + (o.items ? 2 : 0))));
-        const WIDTH = toolbar
-            ? PAD * 2 + opts.length * CELL
-            : Math.min(320, Math.max(LIST_WIDTH, (icons ? 48 : 40) + longest * 8.6 + 34));
-        const height = toolbar
-            ? PAD * 2 + CELL
-            : PAD * 2 + rows.reduce((h, r) => h + r.h, 0);
+            top.length > 0 &&
+            top.every((o) => o.icon != null && !o.separator);
+        // Each column: its rows, its size and where it sits.
+        const laid = [];
+        let x = 0;
+        for (let k = 0; k < cols.length; k++) {
+            const col = cols[k];
+            const opts = col.options;
+            const rows = rowsOf(opts);
+            const icons = opts.some((o) => o.icon != null);
+            // Wide enough for its longest caption (about half an em a letter).
+            const longest = Math.max(0, ...opts.map((o) => o.separator ? 0 : o.label.length + (o.items ? 2 : 0)));
+            const w = toolbar
+                ? PAD * 2 + opts.length * CELL
+                : Math.min(320, Math.max(LIST_WIDTH, (icons ? 48 : 40) + longest * 8.6 + 34));
+            const h = toolbar
+                ? PAD * 2 + CELL
+                : PAD * 2 + rows.reduce((t, r) => t + r.h, 0);
+            // Level with its opener, but lifted so it ends no lower than the list
+            // it came from when it fits: a submenu off the last row would hang off
+            // the screen.
+            const prev = laid[k - 1];
+            const y = prev
+                ? Math.max(0, Math.min(prev.y + prev.rows[prev.col.open].y - PAD, prev.y + prev.h - h))
+                : 0;
+            laid.push({ col, rows, icons, x, y, w, h });
+            x += w + COL_GAP;
+        }
+        const WIDTH = x - COL_GAP;
+        const height = Math.max(...laid.map((c) => c.y + c.h));
         root = svg({
             xmlns: 'http://www.w3.org/2000/svg',
             viewBox: `0 0 ${WIDTH} ${height}`,
@@ -135,19 +146,22 @@ export function barMenu(config) {
         });
         const draw = () => {
             root.textContent = '';
-            root.append(title(config.title), rect({
-                x: 0,
-                y: 0,
-                width: WIDTH,
-                height,
-                rx: 14,
-                fill: 'rgba(20,24,32,0.88)',
-            }), panelRim(WIDTH, height, 14));
+            root.append(title(config.title));
+            for (const c of laid)
+                root.append(g({ transform: `translate(${c.x} ${c.y})` }, rect({
+                    x: 0,
+                    y: 0,
+                    width: c.w,
+                    height: c.h,
+                    rx: 14,
+                    fill: 'rgba(20,24,32,0.88)',
+                }), panelRim(c.w, c.h, 14)));
             if (toolbar) {
-                opts.forEach((o, i) => {
+                top.forEach((o, i) => {
                     const x = PAD + i * CELL;
                     const on = o.value === value;
-                    const bg = i === pressed || i === hover ? CELL_HOT : on ? CELL_ON : CELL_BG;
+                    const hot = same(pressed, [0, i]) || same(hover, [0, i]);
+                    const bg = hot ? CELL_HOT : on ? CELL_ON : CELL_BG;
                     root.append(g({}, title(o.label), rect({
                         x: x + 2,
                         y: PAD + 2,
@@ -164,101 +178,116 @@ export function barMenu(config) {
                 });
                 return;
             }
-            rows.forEach((r, i) => {
-                const o = r.opt;
-                if (o?.separator) {
-                    root.append(line({
-                        x1: PAD + 8,
-                        x2: WIDTH - PAD - 8,
-                        y1: r.y + r.h / 2,
-                        y2: r.y + r.h / 2,
-                        stroke: 'rgba(200,210,224,0.25)',
-                        'stroke-width': 1,
-                    }));
-                    return;
-                }
-                const label = r.back ? `‹ ${level().label}` : o.label;
-                const choice = o != null && !o.handleSelect && !o.items;
-                const on = choice ? o.value === value : o?.checked === true;
-                const off = o?.disabled === true;
-                const hot = !off && (i === pressed || i === hover);
-                const textX = icons || r.back ? 48 : 40;
-                root.append(g({ opacity: off ? '0.4' : '1' }, rect({
-                    x: PAD,
-                    y: r.y,
-                    width: WIDTH - PAD * 2,
-                    height: r.h,
-                    rx: 9,
-                    fill: hot ? 'rgba(74,158,255,0.55)' : 'rgba(255,255,255,0)',
-                }), ...(o?.icon
-                    ? [
-                        iconGlyph(o.icon, {
-                            color: on ? INK_ON : INK,
-                            size: 24,
-                            x: 14,
-                            y: r.y + 6,
-                        }),
-                    ]
-                    : []), 
-                // The tick: at the left with no icons, at the right beside them.
-                ...(on
-                    ? [
-                        iconGlyph('check', {
-                            color: '#e8eef8',
-                            size: 18,
-                            x: icons ? WIDTH - PAD - 26 : 14,
-                            y: r.y + 9,
-                        }),
-                    ]
-                    : []), text({
-                    x: textX,
-                    y: r.y + ROW / 2 + 6,
-                    fill: on ? INK_ON : INK,
-                    'font-size': 16,
-                    'font-family': 'system-ui, sans-serif',
-                }, label), ...(o?.items
-                    ? [
-                        text({
-                            x: WIDTH - PAD - 20,
-                            y: r.y + ROW / 2 + 6,
-                            fill: INK,
-                            'font-size': 16,
-                            'font-family': 'system-ui, sans-serif',
-                        }, '▸'),
-                    ]
-                    : [])));
+            laid.forEach((c, k) => {
+                const W = c.w;
+                const parts = [];
+                c.rows.forEach((r, i) => {
+                    const o = r.opt;
+                    if (o.separator) {
+                        parts.push(line({
+                            x1: PAD + 8,
+                            x2: W - PAD - 8,
+                            y1: r.y + r.h / 2,
+                            y2: r.y + r.h / 2,
+                            stroke: 'rgba(200,210,224,0.25)',
+                            'stroke-width': 1,
+                        }));
+                        return;
+                    }
+                    const choice = !o.handleSelect && !o.items;
+                    const on = choice ? o.value === value : o.checked === true;
+                    const off = o.disabled === true;
+                    const hot = !off && (same(pressed, [k, i]) || same(hover, [k, i]));
+                    // The row whose submenu is open beside it.
+                    const opener = o.items != null && cols[k + 1] && c.col.open === i;
+                    const textX = c.icons ? 48 : 40;
+                    parts.push(g({ opacity: off ? '0.4' : '1' }, rect({
+                        x: PAD,
+                        y: r.y,
+                        width: W - PAD * 2,
+                        height: r.h,
+                        rx: 9,
+                        fill: hot
+                            ? 'rgba(74,158,255,0.55)'
+                            : opener
+                                ? 'rgba(74,158,255,0.3)'
+                                : 'rgba(255,255,255,0)',
+                    }), ...(o.icon
+                        ? [
+                            iconGlyph(o.icon, {
+                                color: on ? INK_ON : INK,
+                                size: 24,
+                                x: 14,
+                                y: r.y + 6,
+                            }),
+                        ]
+                        : []), 
+                    // The tick: at the left with no icons, at the right beside them.
+                    ...(on
+                        ? [
+                            iconGlyph('check', {
+                                color: '#e8eef8',
+                                size: 18,
+                                x: c.icons ? W - PAD - 26 : 14,
+                                y: r.y + 9,
+                            }),
+                        ]
+                        : []), text({
+                        x: textX,
+                        y: r.y + ROW / 2 + 6,
+                        fill: on ? INK_ON : INK,
+                        'font-size': 16,
+                        'font-family': 'system-ui, sans-serif',
+                    }, o.label), ...(o.items
+                        ? [
+                            text({
+                                x: W - PAD - 20,
+                                y: r.y + ROW / 2 + 6,
+                                fill: INK,
+                                'font-size': 16,
+                                'font-family': 'system-ui, sans-serif',
+                            }, '▸'),
+                        ]
+                        : [])));
+                });
+                root.append(g({ transform: `translate(${c.x} ${c.y})` }, ...parts));
             });
         };
-        const indexAt = (x, y) => {
+        const indexAt = (px, py) => {
             if (toolbar) {
-                const i = Math.floor((x - PAD) / CELL);
-                return y >= 0 && y <= height && i >= 0 && i < opts.length ? i : -1;
+                const i = Math.floor((px - PAD) / CELL);
+                return py >= 0 && py <= height && i >= 0 && i < top.length
+                    ? [0, i]
+                    : null;
             }
-            if (x < 0 || x > WIDTH)
-                return -1;
-            return rows.findIndex((r) => y >= r.y && y < r.y + r.h);
+            for (let k = laid.length - 1; k >= 0; k--) {
+                const c = laid[k];
+                if (px < c.x || px > c.x + c.w || py < c.y || py > c.y + c.h)
+                    continue;
+                const i = c.rows.findIndex((r) => py - c.y >= r.y && py - c.y < r.y + r.h);
+                return i >= 0 ? [k, i] : null;
+            }
+            return null;
         };
-        const pick = (i) => {
-            if (toolbar)
-                return { opt: opts[i], back: false };
-            const r = rows[i];
-            return { opt: r?.opt ?? null, back: r?.back === true };
-        };
-        const handlePointer = (kind, x, y) => {
-            const i = kind === 'leave' ? -1 : indexAt(x, y);
+        const handlePointer = (kind, px, py) => {
+            const at = kind === 'leave' ? null : indexAt(px, py);
             if (kind === 'down')
-                pressed = i;
+                pressed = at;
             else if (kind === 'up') {
-                const hit = i >= 0 && i === pressed ? pick(i) : null;
-                pressed = -1;
-                if (hit?.back) {
-                    stack.pop();
-                    return show();
-                }
-                const o = hit?.opt;
-                if (o != null && !o.separator && !o.disabled) {
+                const hit = at != null && same(at, pressed) ? at : null;
+                pressed = null;
+                const o = hit ? laid[hit[0]].rows[hit[1]].opt : null;
+                if (hit != null && o != null && !o.separator && !o.disabled) {
+                    const [k, i] = hit;
                     if (o.items) {
-                        stack.push({ label: o.label, options: read(o.items) });
+                        // Open it beside this list (closing anything deeper), or close
+                        // it if it is the one already open.
+                        const wasOpen = cols[k + 1] != null && cols[k].open === i;
+                        cols = cols.slice(0, k + 1);
+                        if (!wasOpen) {
+                            cols[k].open = i;
+                            cols.push({ options: read(o.items), open: -1 });
+                        }
                         return show();
                     }
                     if (o.handleSelect)
@@ -273,9 +302,9 @@ export function barMenu(config) {
                 }
             }
             else if (kind === 'leave')
-                pressed = -1;
-            if (i !== hover || kind !== 'move') {
-                hover = i;
+                pressed = null;
+            if (!same(at, hover) || kind !== 'move') {
+                hover = at;
                 draw();
             }
         };
@@ -291,15 +320,15 @@ export function barMenu(config) {
     let drawNow = () => { };
     // A new level is a new size: a new SVG, swapped into the same panel.
     const show = () => {
-        hover = -1;
-        pressed = -1;
+        hover = null;
+        pressed = null;
         const made = make();
         drawNow = made.draw;
         el.svg = made.root;
     };
     // Each opening starts at the top, with the options as they are now.
     const reset = () => {
-        stack = [{ label: config.title, options: read(config.options) }];
+        cols = [{ options: read(config.options), open: -1 }];
         show();
     };
     el.addEventListener('paneltoggle', (e) => {
@@ -375,18 +404,40 @@ export function viewMenu(inspect, host, options = {}) {
             update();
         },
     });
+    // In a headset the camera is your head: there is no view to pick, so the
+    // menu leaves the bar for the session.
+    const b3d = host;
+    let inXr = false;
     const update = () => {
         const extra = extras.find((x) => x.active());
         menu.value = extra?.value ?? inspect.face;
-        if (inspect.face === 'free' && !extra && !options.always)
+        if (inXr || (inspect.face === 'free' && !extra && !options.always))
             menu.remove();
         else if (menu.parentElement == null)
             host.append(menu);
     };
     update();
+    // Declared before `whenReady`, which runs at once when the scene is up.
+    let watch = null;
+    let disposed = false;
+    b3d.whenReady?.(() => {
+        const scene = b3d.scene;
+        if (scene == null || disposed)
+            return;
+        watch = scene.onBeforeRenderObservable.add(() => {
+            const now = b3d.xrActive === true;
+            if (now === inXr)
+                return;
+            inXr = now;
+            update();
+        });
+    });
     return {
         update,
         dispose() {
+            disposed = true;
+            if (watch != null)
+                b3d.scene?.onBeforeRenderObservable.remove(watch);
             menu.remove();
         },
     };

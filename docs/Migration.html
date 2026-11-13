@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    document.documentElement.classList.add('tosi-js')
+    document.addEventListener('click', function (e) {
+      if (customElements.get('tosi-doc-system')) return
+      var b = e.target.closest && e.target.closest('.doc-nav .nav-toggle')
+      if (!b) return
+      var open = b.closest('.nav-branch').classList.toggle('-open')
+      b.setAttribute('aria-expanded', String(open))
+    })
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="doc-system.css?v=c39a3e225125" data-tosi-doc-system />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&amp;family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&amp;display=swap" />
+  <title>Migration — tosijs-3d</title>
+  <meta name="description" content="What to change when upgrading. Only breaking changes are listed — everything else is additive. The full detail for each is in CHANGELOG.md." />
+  <link rel="canonical" href="https://3d.tosijs.net/Migration/" />
+  <link rel="alternate" type="text/markdown" href="index.md" title="Migration — tosijs-3d (markdown)" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="Migration — tosijs-3d" />
+  <meta property="og:description" content="What to change when upgrading. Only breaking changes are listed — everything else is additive. The full detail for each is in CHANGELOG.md." />
+  <meta property="og:url" content="https://3d.tosijs.net/Migration/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Migration","description":"What to change when upgrading. Only breaking changes are listed — everything else is additive. The full detail for each is in CHANGELOG.md.","url":"https://3d.tosijs.net/Migration/","inLanguage":"en","dateModified":"2026-11-13T11:30:26+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Upgrading","item":"https://3d.tosijs.net/upgrading/"},{"@type":"ListItem","position":2,"name":"Migration","item":"https://3d.tosijs.net/Migration/"}]}</script>
+  <link rel="icon" href="favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
+</head>
+<body>
+  <tosi-doc-system docs="docs.json?v=2b7977de6a53" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <article class="doc-content" data-doc="Migration.md">
+<h1 id="migration">Migration</h1>
+<!--{ "parent": "upgrading", "order": 10 }-->
+
+<p>What to change when upgrading. Only breaking changes are listed — everything
+else is additive. The full detail for each is in <a href="https://3d.tosijs.net/CHANGELOG/">CHANGELOG.md</a>.</p>
+<p>This file ships <strong>inside the package</strong>, because a migration table you can only
+read on GitHub does not exist for someone who has already installed the thing
+and is staring at an error.</p>
+<h2 id="012x--0130">0.12.x → 0.13.0</h2>
+<p>The peer ranges are unchanged. Four things change under you:</p>
+<ol>
+<li><strong><code>riggedBodyGlb</code> no longer recolours garment pictures by default.</strong> Its
+<code>bake</code> option is now the baker itself: pass <code>bake: bakeClothLook</code> (from
+<code>tosijs-3d/cloth-bake</code>) to keep the baked look. Without it the pictures
+are written as they are, and it warns once. <code>bake: false</code> still means no
+bake; <code>bake: true</code> no longer means anything. <code>exportBody</code> passes the baker
+for you.</li>
+<li><strong>The settings panel&#39;s Slow motion button is gone.</strong> Set <code>timeScale</code> on
+the <code>&lt;tosi-b3d&gt;</code> from your own control if you want one.</li>
+<li><strong><code>barMenu</code> submenus cascade</strong> beside the list, all on one surface,
+instead of replacing it with a way back. A press opens one; a press on its
+row again closes it.</li>
+<li><strong><code>viewMenu</code> leaves the system bar during a headset session</strong>, since in VR
+the camera is your head. It comes back when the session ends.</li>
+</ol>
+<h2 id="011x--0120">0.11.x → 0.12.0</h2>
+<p>The peer ranges are unchanged. Four things change under you:</p>
+<ol>
+<li><strong><code>&lt;tosi-b3d-car&gt;</code> is rebuilt on the vehicle model.</strong> <code>turnRate</code> and
+<code>friction</code> are gone (setting either now warns once and does nothing): use
+<code>steerDeg</code> (degrees of full lock) and <code>grip</code> (a tyre friction coefficient).
+<code>acceleration</code> and <code>braking</code> are now m/s². The default mapping is GTA V&#39;s:
+the right trigger drives, the left brakes and reverses, the left stick
+steers.</li>
+<li><strong>Models are no longer drawn mirrored.</strong> Everything loaded through
+<code>canonicalize</code> or a <code>&lt;tosi-b3d-library&gt;</code> (vehicles, aircraft, lamp
+fixtures, library instances) now looks as authored, where 0.11 drew each as
+its mirror image. An asymmetric model now faces the other way from before;
+anything you measured or placed against the mirrored picture (a marker&#39;s
+side, a kit&#39;s road turns) needs checking. Skinned models are unchanged.</li>
+<li><strong><code>KENNEY_CITY</code>&#39;s road turns changed</strong> with that: <code>bend</code> is <code>turns: 0</code>
+(it joins north and east) and <code>end</code> is <code>turns: 3</code> (it opens west). A kit
+manifest of your own measured against 0.11&#39;s picture needs the same check.</li>
+<li><strong><code>RiggedBody.surfaces[].material</code> is typed <code>SurfaceMaterial</code></strong> (a name),
+not Babylon&#39;s <code>Material</code>, so the character core carries no engine in its
+types. On the Babylon side, cast it back: <code>surface.material as BABYLON.Material</code>.</li>
+</ol>
+<h2 id="010x--0110">0.10.x → 0.11.0</h2>
+<p>Nothing was removed, and the peer ranges are unchanged. 0.11 collects the
+0.10.x line&#39;s new features (retargeting, auto-rig, spring bones, effects, the
+rig and effect tools); see <a href="/v0.11.0/">0.11.0</a>&#39;s summary. A few behaviours
+changed that you may see without touching your code:</p>
+<ol>
+<li><strong>Retargeting no longer lines up the body&#39;s axis.</strong> The hips, spine, chest,
+neck and head now take the clip&#39;s turn as it is; only limbs are lined up
+with the source&#39;s rest pose. A character whose neck or torso leans at rest
+(a weasel&#39;s neck forward to its snout) keeps that lean in every clip
+instead of being pulled upright, which tipped its head back by about 14°.
+Nothing to do, unless you had corrected for the old tilt in your own code.</li>
+<li><strong>A biped sprints.</strong> Near full speed it plays the rig&#39;s <code>sprint</code> state
+(UAL&#39;s <code>Sprint_Loop</code>, already in <code>ualAnimationStates()</code>) instead of the
+jog sped up. A rig with no sprint clip jogs as before. To keep the jog,
+leave <code>sprint</code> out of your animation states.</li>
+<li><strong>Effects release their shared parts with the last player.</strong> The per-scene
+driver observer, pooled lights and sprite textures go when a scene&#39;s last
+<code>EffectPlayer</code> is disposed, and are made again by the next effect. Code that
+held on to a sprite texture from <code>effectSprite()</code> past that point holds a
+disposed texture.</li>
+<li><strong><code>InspectStage.light</code> can be null</strong> (new in 0.10.19): <code>inspectStage(scene, { light: false })</code> adds no key light, for a scene with a sun of its own.</li>
+</ol>
+<h2 id="090--0100">0.9.0 → 0.10.0</h2>
+<h3 id="1-the-deprecated-callback-names-are-gone-onx--handlex">1. The deprecated callback names are gone: <code>onX</code> → <code>handleX</code></h3>
+<p><strong>What changed.</strong> The <code>onX</code> callback options were deprecated in 0.8.0 and kept
+working, with a warning, through 0.9.x. They are removed. An <code>onX</code> option is
+no longer called.</p>
+<p><strong>Who is affected.</strong> Anyone who saw the console warning
+&quot;<code>onChange</code> is deprecated — use <code>handleChange</code>&quot; and has not renamed yet.</p>
+<p><strong>How you will notice.</strong> TypeScript reports the old name as an unknown
+property. At runtime the callback does not fire, and the console says so once
+per name: &quot;<code>onChange</code> was removed in 0.10 and is IGNORED — use <code>handleChange</code>&quot;.
+Demo code in doc comments and plain JavaScript is not type-checked, so search
+for the names rather than relying on the compiler.</p>
+<p><strong>What to do.</strong> Rename. Every pair:</p>
+<table>
+<thead>
+<tr>
+<th>where</th>
+<th>removed</th>
+<th>use</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>toggle3d</code> <code>slider3d</code> <code>select3d</code> <code>color3d</code> <code>vector3d</code> <code>euler3d</code> <code>angle3d</code> <code>arc3d</code> <code>picker3d</code> <code>curve3d</code> <code>footprint3d</code> <code>themeEditor</code> <code>terrainEditor3d</code></td>
+<td><code>onChange</code></td>
+<td><code>handleChange</code></td>
+</tr>
+<tr>
+<td><code>button3d</code>, menu actions, <code>addDebugSource</code> actions</td>
+<td><code>onClick</code></td>
+<td><code>handleClick</code></td>
+</tr>
+<tr>
+<td><code>list3d</code>, <code>surface</code> <code>MenuItem</code>, <code>table</code></td>
+<td><code>onSelect</code></td>
+<td><code>handleSelect</code></td>
+</tr>
+<tr>
+<td><code>table</code>, <code>box</code> <code>button</code> / <code>BoxChild</code></td>
+<td><code>onActivate</code></td>
+<td><code>handleActivate</code></td>
+</tr>
+<tr>
+<td><code>showPopup</code> / <code>openPopup</code> / <code>openMenu3d</code> / <code>surface.openPanel</code></td>
+<td><code>onClose</code></td>
+<td><code>handleClose</code></td>
+</tr>
+<tr>
+<td><code>inputField</code></td>
+<td><code>onChange</code> / <code>onEnter</code> / <code>onFocus</code></td>
+<td><code>handleChange</code> / <code>handleEnter</code> / <code>handleFocus</code></td>
+</tr>
+<tr>
+<td><code>keyboard</code></td>
+<td><code>onKey</code> / <code>onAction</code> / <code>onCaretMove</code></td>
+<td><code>handleKey</code> / <code>handleAction</code> / <code>handleCaretMove</code></td>
+</tr>
+<tr>
+<td><code>curve3d</code> / <code>footprint3d</code> result (<code>field.onChange = …</code>)</td>
+<td><code>onChange</code></td>
+<td><code>handleChange</code></td>
+</tr>
+</tbody></table>
+<p>Components take <code>when*</code>:</p>
+<table>
+<thead>
+<tr>
+<th>component</th>
+<th>removed</th>
+<th>use</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>&lt;tosi-b3d-trigger&gt;</code></td>
+<td><code>onEnter</code> / <code>onExit</code> properties</td>
+<td><code>whenEnter</code> / <code>whenExit</code></td>
+</tr>
+<tr>
+<td><code>&lt;tosi-b3d-manipulator&gt;</code></td>
+<td><code>handleChange</code> / <code>handleCommit</code></td>
+<td><code>whenChange</code> / <code>whenCommit</code></td>
+</tr>
+</tbody></table>
+<p><code>b3dTrigger({ onEnter })</code> through the element creator is unchanged: it was
+never the property, it is a listener for the <code>&#39;enter&#39;</code> event and receives an
+<code>Event</code>.</p>
+<p><code>handlerOf(config, &#39;handleX&#39;, &#39;onX&#39;)</code> keeps its signature. It now returns only
+<code>handleX</code>, and warns once if it finds a function under the old name.</p>
+<h3 id="2-generategalaxy-and-galaxygetstarsps-are-removed">2. <code>generateGalaxy</code> and <code>galaxy.getStarSPS()</code> are removed</h3>
+<p><code>generateGalaxy(seed, count, options)</code> was an adapter over the voxel galaxy.
+Call that directly:</p>
+<pre><code class="language-javascript" data-highlighted><span class="token comment">// before</span>
+<span class="token keyword">const</span> galaxy <span class="token operator">=</span> <span class="token function">generateGalaxy</span><span class="token punctuation">(</span><span class="token number">1234</span><span class="token punctuation">,</span> <span class="token number">10000</span><span class="token punctuation">,</span> options<span class="token punctuation">)</span>
+<span class="token comment">// after</span>
+<span class="token keyword">const</span> galaxy <span class="token operator">=</span> <span class="token function">voxelGalaxy</span><span class="token punctuation">(</span><span class="token punctuation">{</span>
+  <span class="token literal-property property">seed</span><span class="token operator">:</span> <span class="token number">1234</span><span class="token punctuation">,</span>
+  <span class="token literal-property property">brightBudget</span><span class="token operator">:</span> <span class="token number">10000</span><span class="token punctuation">,</span>
+  <span class="token literal-property property">dimBudget</span><span class="token operator">:</span> <span class="token number">0</span><span class="token punctuation">,</span>
+  <span class="token literal-property property">galaxyOptions</span><span class="token operator">:</span> options<span class="token punctuation">,</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">view</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">generatePlanets</span><span class="token operator">:</span> options<span class="token punctuation">.</span>generatePlanets <span class="token operator">===</span> <span class="token boolean">true</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
+</code></pre>
+<p>The result is identical. <code>getStarSPS()</code> on <code>&lt;tosi-b3d-galaxy&gt;</code> returned <code>null</code>
+since the stars moved to a vertex shader; use <code>galaxy.pickStar(x, y)</code>.</p>
+<h3 id="3-new-mersennetwister-needs-a-seed">3. <code>new MersenneTwister()</code> needs a seed</h3>
+<p>It used to seed from <code>Date.now()</code> when you left the argument out. It now
+throws. Pass a seed, or <code>new MersenneTwister(Date.now())</code> if you want a
+different sequence each run. (<code>PRNG</code> always required one.)</p>
+<h3 id="4-worldstore-queries-return-copies">4. <code>WorldStore</code> queries return copies</h3>
+<p><code>getState()</code>, <code>getEntity()</code> and <code>query()</code> used to return the store&#39;s live
+objects, so writing to a result changed the simulation. They return copies
+now. If you were moving something by writing to a query result, call the
+command for it. Engine-side code that needs the live state every frame reads
+<code>store.liveState</code> and must not write to it. A store passed to the conformance
+kit must also implement <code>chooseOption(choiceId, optionId)</code>.</p>
+<h3 id="5-some-defaults-changed-a-scene-can-look-different">5. Some defaults changed: a scene can look different</h3>
+<p>Nothing to rename, but four things change what you see without a line of
+yours changing. The changelog&#39;s <strong>Changed defaults</strong> block has all of them.</p>
+<ul>
+<li><strong>Decoration layouts differ again.</strong> Plants thin out in drier country, things
+gather into clumps more strongly, and a low-tier device (a Quest in a
+session) places 60% of the budget as fewer clumps. <code>budgetScale: 1</code> places
+the whole budget; <code>clump: 0.85</code> on the decorator is the old gathering.</li>
+<li><strong>Opaque meshes are drawn nearest first.</strong> Same picture for ordinary meshes.
+<code>scene.setRenderingOrder(0)</code> puts Babylon&#39;s order back; a camera-pinned sky
+of your own needs <code>infiniteDistance</code>.</li>
+<li><strong>A headset on the low tier renders at reduced scale with foveation.</strong>
+<code>xrRenderScale: 1</code> and <code>xrFoveation: 0</code> are full resolution.</li>
+<li><strong>Water receives sun and cloud shadows.</strong></li>
+</ul>
+<h2 id="0815--090">0.8.15 → 0.9.0</h2>
+<h3 id="1-biometemperature-is-in-degrees-now-0-is-0-c-1-is-50-c">1. <code>biomeTemperature</code> is in degrees now: 0 is 0 °C, 1 is 50 °C</h3>
+<p><strong>What changed.</strong> <code>&lt;tosi-b3d-terrain biomeTemperature&gt;</code> used to be the biome
+chart&#39;s own axis: <code>0…1</code>, cold to warm, with <code>-1</code> meaning &quot;use the default&quot;.
+It is now a temperature: <code>0</code> is 0 °C and each unit is 50 °C, so <code>-1</code> is
+-50 °C, and the value is not limited to any range. The default is <code>0.45</code>
+(22.5 °C), which is the same climate as before.</p>
+<p><strong>Who is affected.</strong> Anyone who sets <code>biomeTemperature</code>. An old value is read
+on the new scale and comes out much warmer: <code>0.3</code> used to be about -4 °C and
+is now 15 °C. <code>-1</code> used to mean the default and is now -50 °C.</p>
+<p><strong>What to do.</strong> Convert each value: <code>new = (old - 0.36) / 0.8</code>. Replace <code>-1</code>
+with <code>0.45</code>, or delete the attribute.</p>
+<table>
+<thead>
+<tr>
+<th>Old</th>
+<th>New</th>
+<th>Climate</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>-1</code> (auto)</td>
+<td><code>0.45</code></td>
+<td>22.5 °C</td>
+</tr>
+<tr>
+<td><code>1</code></td>
+<td><code>0.8</code></td>
+<td>40 °C</td>
+</tr>
+<tr>
+<td><code>0.72</code></td>
+<td><code>0.45</code></td>
+<td>22.5 °C</td>
+</tr>
+<tr>
+<td><code>0.36</code></td>
+<td><code>0</code></td>
+<td>0 °C</td>
+</tr>
+<tr>
+<td><code>0</code></td>
+<td><code>-0.45</code></td>
+<td>-22.5 °C</td>
+</tr>
+</tbody></table>
+<p><code>chartTemperature</code> and <code>planetTemperature</code> (from <code>biome-chart</code>) do the
+conversion in code. Only this attribute moved. <code>BiomePlugin.params</code>, the
+province climate curves and the decorator&#39;s rule bands are still in chart
+units.</p>
+<h3 id="2-nothing-else-is-removed-including-what-was-promised">2. Nothing else is removed, including what was promised</h3>
+<p>The deprecated <code>onX</code> callback names (and the other names announced as
+&quot;removed in 0.9&quot;) still work in 0.9.x and warn once. They are removed in
+0.10. Rename when convenient.</p>
+<h2 id="0814--0815">0.8.14 → 0.8.15</h2>
+<p><strong>Nothing breaks at compile time. Three defaults change what you see.</strong></p>
+<h3 id="1-the-decorators-default-library-is-quaternius-not-kenneys">1. The decorator&#39;s default library is Quaternius&#39;, not Kenney&#39;s</h3>
+<p><strong>What changed.</strong> <code>&lt;tosi-b3d-decorator&gt;</code> with no <code>url</code> loads
+<code>quaternius/libraries/nature.glb</code> and uses <code>NATURE_RULES</code>. It used to load
+Kenney&#39;s Nature Kit and use <code>NATURE_KIT_RULES</code>.</p>
+<p><strong>Who is affected.</strong></p>
+<ul>
+<li>You set no <code>url</code> and no <code>rules</code>: you get the new trees. Nothing to do unless
+you want the old ones.</li>
+<li>You set custom <code>rules</code> that use Kenney&#39;s model names (<code>tree_oak</code>,
+<code>rock_largeA</code>) and no <code>url</code>: none of those names exist in the new library.
+The decorator now warns in the console and places nothing for them.</li>
+<li>You self-host only the Kenney kit: the default URL is a file you do not have.</li>
+</ul>
+<p><strong>What to do.</strong> To stay on Kenney&#39;s kit, name it:</p>
+<pre><code class="language-javascript" data-highlighted><span class="token function">b3dDecorator</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">url</span><span class="token operator">:</span> <span class="token function">assetUrl</span><span class="token punctuation">(</span><span class="token string">'kenney/libraries/nature-kit.glb'</span><span class="token punctuation">)</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
+</code></pre>
+<p>With a <code>url</code> set and no <code>rules</code>, the decorator uses <code>NATURE_KIT_RULES</code>.</p>
+<h3 id="2-layouts-are-different-and-things-clump">2. Layouts are different, and things clump</h3>
+<p><strong>What changed.</strong> Every scatter rule now gathers into clumps by default, the
+candidate grid changed, and the budget became a ceiling (a small radius or a
+mostly-sea map places fewer than the budget). The same seed gives a different
+layout than 0.8.14 did. <code>NATURE_KIT_RULES</code>&#39; rocks are now procedural
+(<code>rock:boulder:1</code> …) at a different scale, and no rocks are placed on a
+volcanic province.</p>
+<p><strong>Who is affected.</strong> Anyone who stored placements, compared them in a test, or
+tuned a scene around where things stood.</p>
+<p><strong>What to do.</strong> There is no switch that restores 0.8.14&#39;s exact layout. For an
+even spread again, set <code>clump=&quot;0&quot;</code> on the element (or <code>clump: 0</code> on a rule).</p>
+<h3 id="3-water-reflections-follow-the-device-tier">3. Water reflections follow the device tier</h3>
+<p><strong>What changed.</strong> <code>&lt;tosi-b3d-water&gt;</code>&#39;s <code>textureSize</code> defaults to auto (1024,
+512 or 256 by device tier; it was 1024 everywhere) and a new
+<code>reflectionRefresh</code> redraws the reflection every frame, every second or every
+third by tier on a flat screen.</p>
+<p><strong>What to do.</strong> Top-tier devices see no change. To keep the old behaviour on
+every device:</p>
+<pre><code class="language-javascript" data-highlighted><span class="token function">b3dWater</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">textureSize</span><span class="token operator">:</span> <span class="token number">1024</span><span class="token punctuation">,</span> <span class="token literal-property property">reflectionRefresh</span><span class="token operator">:</span> <span class="token number">1</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
+</code></pre>
+<h2 id="080--081">0.8.0 → 0.8.1</h2>
+<p><strong>Nothing breaks at compile time, and one behaviour changes.</strong> The
+<code>activationVeto</code> signature grew a second parameter and it is OPTIONAL — a
+required one would have been a hard TypeScript break for every caller, and the
+default is chosen so that a veto reading it gets a conservative answer rather
+than a permissive one.</p>
+<h3 id="1-aircraft-guns-are-direct-hit-not-area-effect">1. Aircraft guns are direct-hit, not area-effect</h3>
+<p><strong>What changed.</strong> <code>&lt;tosi-b3d-aircraft&gt;</code>&#39;s cannon damages the thing its shell
+passes through. It used to detonate a small AOE warhead at the impact point.</p>
+<p><strong>Why.</strong> Blast damage resolves by distance to a destroyable&#39;s registered point —
+one point, at the model&#39;s origin. Scale a fighter up and its wing sits outside
+the blast, so point-blank fire does nothing, silently. Direct-hit damage has no
+length scale in it, so it cannot break that way. Reported by an adopter who hit
+it by making their world four times larger (#23).</p>
+<p><strong>If you relied on the old behaviour</strong>, say so explicitly:</p>
+<!--
+`xml`, NOT `html` — the doc system RUNS a ```html fence as a live example, and
+this one is illustrative markup in a reference document with no scene to mount
+into. `xml` highlights the same and stays inert. See `doc-examples.test.ts`,
+which now fails on any live-language fence in a published markdown file.
+-->
+
+<pre><code class="language-xml" data-highlighted><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>tosi-b3d-aircraft</span>
+  <span class="token attr-name">gun-mode</span><span class="token attr-value"><span class="token punctuation attr-equals">=</span><span class="token punctuation">"</span>blast<span class="token punctuation">"</span></span>
+  <span class="token attr-name">gun-blast-radius</span><span class="token attr-value"><span class="token punctuation attr-equals">=</span><span class="token punctuation">"</span>1.5<span class="token punctuation">"</span></span>
+  <span class="token attr-name">gun-full-radius</span><span class="token attr-value"><span class="token punctuation attr-equals">=</span><span class="token punctuation">"</span>0.5<span class="token punctuation">"</span></span>
+<span class="token punctuation">></span></span><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>tosi-b3d-aircraft</span><span class="token punctuation">></span></span>
+</code></pre>
+<p>Both radii are attributes now; they used to be hardcoded. Missiles and bombs are
+unchanged — AOE is right for those.</p>
+<h3 id="2-activationvetos-second-parameter-optional">2. <code>activationVeto</code>&#39;s second parameter (optional)</h3>
+<p><code>blocks(info)</code> now receives a description of the activation — who, how, how far.
+A veto that ignores its argument is unaffected, which is every veto written
+before this existed:</p>
+<pre><code class="language-javascript" data-highlighted>use<span class="token punctuation">.</span>vetoes<span class="token punctuation">.</span><span class="token function">push</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">name</span><span class="token operator">:</span> <span class="token string">'locked'</span><span class="token punctuation">,</span> <span class="token function-variable function">blocks</span><span class="token operator">:</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token operator">!</span>hasKey <span class="token punctuation">}</span><span class="token punctuation">)</span> <span class="token comment">// unchanged</span>
+</code></pre>
+<p>Calling <code>activationVeto(vetoes)</code> directly still compiles. When you omit the
+info, vetoes are told <code>distance: Infinity</code> — &quot;we do not know that you are near&quot;
+— so a <strong>reach veto refuses</strong> rather than waving the activation through. If you
+call it yourself and want a reach veto to pass, supply the distance:</p>
+<pre><code class="language-javascript" data-highlighted><span class="token function">activationVeto</span><span class="token punctuation">(</span>vetoes<span class="token punctuation">,</span> <span class="token punctuation">{</span> <span class="token literal-property property">source</span><span class="token operator">:</span> <span class="token string">'near'</span><span class="token punctuation">,</span> <span class="token literal-property property">distance</span><span class="token operator">:</span> <span class="token number">0.4</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
+</code></pre>
+<h3 id="3-select3d-no-longer-draws---stepper-arrows">3. <code>select3d</code> no longer draws ‹ › stepper arrows</h3>
+<p>Tapping the control opens a popup list, which it already did — the arrows were
+a second way to do the same thing and made the popup undiscoverable. Nothing to
+change; the control is the same size and the same tap.</p>
+<h2 id="078--080">0.7.8 → 0.8.0</h2>
+<p><strong>Nothing breaks at runtime.</strong> Both items below keep working in 0.8.x; one is an
+install-time floor, the other is a deprecation with a removal date.</p>
+<h3 id="1-peer-floor-tosijs-178--192">1. Peer floor: <code>tosijs</code> <code>^1.7.8</code> → <code>^1.9.2</code></h3>
+<p>Upgrade <code>tosijs</code> alongside this. npm will refuse to install otherwise
+(<code>ERESOLVE</code>); bun and pnpm warn and proceed, which is the case worth reading on.</p>
+<p>One behaviour changed with it, and it is silent. A wrong-typed write to an
+<code>initAttributes</code> prop used to be <strong>discarded</strong>; since tosijs 1.9 it <strong>warns and
+applies the value as given</strong>. So on an <code>&#39;on&#39; | &#39;off&#39;</code> attribute, <code>foo: false</code>
+used to mean <code>&#39;on&#39;</code> and now genuinely sets <code>false</code> — anything comparing against
+the string breaks instead of quietly defaulting.</p>
+<p>Use <strong><code>isOff()</code></strong> from <code>tosijs-3d</code>, which accepts <code>&#39;off&#39;</code>, <code>false</code> and
+<code>&#39;false&#39;</code>, rather than comparing to a string yourself.</p>
+<h3 id="2-callback-options-onx--handlex">2. Callback options: <code>onX</code> → <code>handleX</code></h3>
+<p>Every callback option in the library now takes <code>handleX</code>. The old <code>onX</code> spelling
+kept working through 0.9.x, warning <strong>once per name</strong>, and was <strong>removed in
+0.10</strong> (see the top of this file).</p>
+<table>
+<thead>
+<tr>
+<th>widget</th>
+<th>old</th>
+<th>new</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>inputField</code></td>
+<td><code>onChange</code> / <code>onEnter</code> / <code>onFocus</code></td>
+<td><code>handleChange</code> / <code>handleEnter</code> / <code>handleFocus</code></td>
+</tr>
+<tr>
+<td><code>keyboard</code></td>
+<td><code>onKey</code> / <code>onAction</code> / <code>onCaretMove</code></td>
+<td><code>handleKey</code> / <code>handleAction</code> / <code>handleCaretMove</code></td>
+</tr>
+<tr>
+<td><code>table</code></td>
+<td><code>onSelect</code> / <code>onActivate</code></td>
+<td><code>handleSelect</code> / <code>handleActivate</code></td>
+</tr>
+<tr>
+<td><code>box</code> <code>button</code> / <code>BoxChild</code></td>
+<td><code>onActivate</code></td>
+<td><code>handleActivate</code></td>
+</tr>
+<tr>
+<td><code>surface</code> <code>MenuItem</code></td>
+<td><code>onSelect</code></td>
+<td><code>handleSelect</code></td>
+</tr>
+<tr>
+<td><code>showPopup</code> / <code>openPopup</code> / <code>openMenu3d</code></td>
+<td><code>onClose</code></td>
+<td><code>handleClose</code></td>
+</tr>
+<tr>
+<td><code>addDebugSource</code> actions</td>
+<td><code>onClick</code></td>
+<td><code>handleClick</code></td>
+</tr>
+<tr>
+<td><code>themeEditor</code></td>
+<td><code>onChange</code></td>
+<td><code>handleChange</code></td>
+</tr>
+</tbody></table>
+<p><strong>Why, in one sentence:</strong> these are plain factories today, but the moment one
+becomes a tosijs component the element creator binds an <code>on*</code> prop as a DOM
+event <strong>listener</strong>, so the callback is never called and nothing errors — which
+is not hypothetical, it shipped three times in this codebase.</p>
+<p><strong>Components use <code>when*</code>, not <code>handleX</code></strong> — <code>b3d-trigger</code> gains
+<code>whenEnter</code>/<code>whenExit</code> (<code>onEnter</code>/<code>onExit</code> still work). Passing <code>onEnter</code> to the
+element creator never set the field at all; it added a listener for the <code>&#39;enter&#39;</code>
+CustomEvent, so your callback received an <code>Event</code> instead of the trigger.</p>
+<p>If you write your own widgets, <code>handlerOf(config, &#39;handleX&#39;, &#39;onX&#39;)</code> is exported
+so you can follow the same rule.</p>
+<h2 id="062--070">0.6.2 → 0.7.0</h2>
+<blockquote>
+<h1 id="️-read-this-first-library-rotation">⚠️ READ THIS FIRST: library rotation</h1>
+<p><strong>If you place library models with <code>rx</code>/<code>ry</code>/<code>rz</code>, your scenes will MOVE.</strong></p>
+<p>Everything else in this release either errors or looks obviously wrong. This
+one changes a scene that previously looked <strong>correct</strong>, which is why it is at
+the top instead of in the table.</p>
+<p>Two things happened to the same option at once:</p>
+<ol>
+<li>It <strong>never worked</strong> on the default path. <code>instantiate()</code> wrote
+<code>result.rotation</code>, but Babylon&#39;s glTF loader always assigns a
+<code>rotationQuaternion</code>, and a <code>TransformNode</code> ignores <code>.rotation</code> while one is
+present. Measured on a real model: <code>ry: 0</code>, <code>ry: 140</code> and <code>ry: -90</code> all
+produced <strong>bit-identical</strong> orientations — you got the GLB&#39;s own baked
+rotation whatever you asked for. Position worked, which is exactly what made
+it look wired up.</li>
+<li>It is now <strong>degrees</strong>, not radians.</li>
+</ol>
+<p>So a value that did nothing now does something, in a unit that also changed.</p>
+<p><strong>What to do:</strong></p>
+<ul>
+<li><strong>If you passed rotation and it appeared to work</strong> — it was not your value
+doing it. Something else was: baked rotation in the model, a parent
+transform, or a compensating tweak downstream. That compensation is now
+<strong>doubled up</strong>. Look at every placement before assuming a regression.</li>
+<li><strong>If you passed rotation and gave up because it did nothing</strong> — it works now.
+Your values are in radians; multiply by <code>180 / Math.PI</code>.</li>
+<li><strong>If you never passed rotation</strong> — nothing changes. <code>canonical: true</code> was
+unaffected throughout.</li>
+</ul>
+<p>Quickest way to tell: search for <code>instantiate(</code> and <code>make.</code> with an <code>r[xyz]</code>
+key. If there are none, skip this entirely.</p>
+</blockquote>
+<blockquote>
+<h2 id="️-and-this-models-placed-away-from-the-origin-in-their-file">⚠️ AND THIS: models placed away from the origin in their file</h2>
+<p><strong>If a <code>.glb</code> has its object sitting somewhere other than (0,0,0) in the source
+scene, <code>canonicalize</code> now discards that placement</strong> — as its contract always
+claimed it did. It previously zeroed only the glTF loader&#39;s <code>__root__</code>
+wrapper, leaving the authored object&#39;s scene transform intact.</p>
+<p><strong>The tell is a vehicle that pivots or collides oddly</strong>, because the control
+node used to sit a fixed distance from the model it steers (1.7 m for our own
+scout). A <code>_centerOfGravity</code> marker measured against that node folded the
+offset into the pivot, so a marker authored <strong>correctly on the centreline</strong>
+produced a pivot 1.75 m out, while a hand-tuned offset came out right. Ours
+was re-exported to the documented convention and immediately began crashing on
+every bank.</p>
+<p><strong>What to do:</strong> author in the model&#39;s LOCAL frame and delete compensating
+offsets. Before treating a changed vehicle as a regression, check whether a
+marker or placement was tuned against the old behaviour. <strong>Models authored at
+the origin — the common case — are unaffected.</strong></p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>What</th>
+<th>Before</th>
+<th>After</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>landform.gulley</code> / <code>landform.cover</code> <code>heading</code></td>
+<td>radians</td>
+<td><strong>degrees</strong> — <code>heading * 180 / Math.PI</code></td>
+</tr>
+<tr>
+<td><code>library.instantiate()</code> / <code>lib.make.*</code> rotation</td>
+<td>radians <strong>and silently ignored</strong> — see the box above</td>
+<td><strong>degrees, and actually applied</strong></td>
+</tr>
+<tr>
+<td><code>b3d-aircraft</code> chase HUD</td>
+<td><code>hudChase: true</code> / <code>hudChase: false</code></td>
+<td>delete it (now default) / <code>hudChaseOff: true</code></td>
+</tr>
+<tr>
+<td>Right stick</td>
+<td>aux roll</td>
+<td><strong>camera</strong>. <code>strafe</code> still sums into roll, so a custom mapping can restore a roll axis</td>
+</tr>
+<tr>
+<td>Glass gamepad</td>
+<td>always visible</td>
+<td><strong>auto-hides</strong> once a keyboard or hardware gamepad is used. <code>fade=&quot;off&quot;</code> pins it</td>
+</tr>
+<tr>
+<td><code>carve</code> exports</td>
+<td>13 bare names (<code>sphere</code>, <code>tube</code>, …)</td>
+<td>the <strong><code>carve.*</code> namespace</strong> (<code>carve.sphere</code>, <code>carve.tube</code>)</td>
+</tr>
+<tr>
+<td><code>b3dPatch</code> / <code>B3dPatch</code></td>
+<td>experimental element</td>
+<td><strong>removed</strong> — the pure modules it used (<code>carve.*</code>, <code>sdf-lattice</code>, <code>patch-field</code>) are kept</td>
+</tr>
+<tr>
+<td><code>library.getNames()</code></td>
+<td>raw node names</td>
+<td><strong>public names</strong> — <code>.model</code>, behaviour suffixes and the glTF loader&#39;s <code>_primitiveN</code> removed, so <code>building_collideCylinder_primitive0</code> lists as <code>building</code></td>
+</tr>
+<tr>
+<td>Model scene transform</td>
+<td>kept on the content node under <code>__root__</code></td>
+<td><strong>dropped</strong> — see the box above; affects models not authored at the origin</td>
+</tr>
+<tr>
+<td><code>spawnProjectile</code> / <code>spawnMissile</code> impact</td>
+<td><code>onImpact(point)</code></td>
+<td><code>whenImpact({ point, normal, mesh })</code>. The old name still fires, with a one-shot warning</td>
+</tr>
+</tbody></table>
+<h3 id="the-two-that-fail-silently">The two that fail SILENTLY</h3>
+<p>Most of the above errors, or is obvious the first time you look. These two do
+not, so check them by hand:</p>
+<ul>
+<li><strong>Angles.</strong> A bare number is valid in either unit, so a value meant as radians
+now produces a different orientation rather than an error.</li>
+<li><strong><code>hudChase</code>.</strong> tosijs props end in an index signature, so a stale <code>hudChase</code>
+<strong>compiles and is silently ignored</strong>. Nothing will tell you.</li>
+</ul>
+<h3 id="a-note-on-library-rotation">A note on library rotation</h3>
+<p>See the box at the top of this section. It is the one change here that can move a
+scene which previously looked correct, so it is not buried down here.</p>
+<h3 id="prerelease-users">Prerelease users</h3>
+<p>If you pinned <code>0.7.0-rc.1</code> or any <code>0.7.0-beta.*</code>, move to <code>0.7.0</code>. The
+prerelease channel was inverted — <code>rc.1</code> was published before <code>beta.1…6</code>, and
+semver sorts beta below rc, so <code>@next</code> resolved <em>backwards</em> to the older build.
+<code>0.7.0</code> sorts above all of them.</p>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="./">tosijs-3d</a></li>
+    <li><a class="doc-link" href="getting-started/">Getting started</a></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-demos" aria-label="Demos"></button><a class="doc-link" href="demos/">Demos</a></div>
+    <ul id="tosi-nav-demos">
+      <li><a class="doc-link" href="playground/">Biped Playground</a></li>
+      <li><a class="doc-link" href="solar-system/">Solar System</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-weapon-fit" aria-label="Weapon Fit"></button><a class="doc-link" href="weapon-fit/">Weapon Fit</a></div>
+      <ul id="tosi-nav-weapon-fit">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-hold-grip" aria-label="hold grips"></button><a class="doc-link" href="hold-grip/">hold grips</a></div>
+        <ul id="tosi-nav-hold-grip">
+          <li><a class="doc-link" href="hand-socket/">hand socket</a></li>
+        </ul></li>
+      </ul></li>
+      <li><a class="doc-link" href="rig-tool/">Rig tool</a></li>
+      <li><a class="doc-link" href="effect-tool/">Effect tool</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-builder" aria-label="Character Builder"></button><a class="doc-link" href="character-builder/">Character Builder</a></div>
+      <ul id="tosi-nav-character-builder">
+        <li><a class="doc-link" href="human-pack/">human-pack</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-file" aria-label="character-file"></button><a class="doc-link" href="character-file/">character-file</a></div>
+        <ul id="tosi-nav-character-file">
+          <li><a class="doc-link" href="character-store/">character-store</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="human-morph/">human-morph</a></li>
+        <li><a class="doc-link" href="human-rig/">human-rig</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-tailor-tool" aria-label="tailor tool"></button><a class="doc-link" href="tailor-tool/">tailor tool</a></div>
+        <ul id="tosi-nav-tailor-tool">
+          <li><a class="doc-link" href="tailor-recipe/">tailor-recipe</a></li>
+          <li><a class="doc-link" href="tailor-panel/">tailor panel</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="skin-tone/">skin-tone</a></li>
+        <li><a class="doc-link" href="skin-shading/">skin-shading</a></li>
+        <li><a class="doc-link" href="human-face/">human-face</a></li>
+        <li><a class="doc-link" href="human-expression/">human-expression</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-human-hair" aria-label="human-hair"></button><a class="doc-link" href="human-hair/">human-hair</a></div>
+        <ul id="tosi-nav-human-hair">
+          <li><a class="doc-link" href="hair-shading/">hair-shading</a></li>
+          <li><a class="doc-link" href="hair-fit/">hair-fit</a></li>
+        </ul></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-human-proxy" aria-label="human-proxy"></button><a class="doc-link" href="human-proxy/">human-proxy</a></div>
+        <ul id="tosi-nav-human-proxy">
+          <li><a class="doc-link" href="proxy-fit/">proxy-fit</a></li>
+          <li><a class="doc-link" href="cloth-shading/">cloth-shading</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-garment-cut" aria-label="garment-cut"></button><a class="doc-link" href="garment-cut/">garment-cut</a></div>
+          <ul id="tosi-nav-garment-cut">
+            <li><a class="doc-link" href="outline-field/">outline field</a></li>
+            <li><a class="doc-link" href="remesh/">remesh</a></li>
+            <li><a class="doc-link" href="cloth-drape/">cloth drape</a></li>
+            <li><a class="doc-link" href="body-sweep/">body-sweep</a></li>
+          </ul></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-garment-bind" aria-label="garment-bind"></button><a class="doc-link" href="garment-bind/">garment-bind</a></div>
+          <ul id="tosi-nav-garment-bind">
+            <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-garment-file" aria-label="garment-file"></button><a class="doc-link" href="garment-file/">garment-file</a></div>
+            <ul id="tosi-nav-garment-file">
+              <li><a class="doc-link" href="uv-unwrap/">uv-unwrap</a></li>
+              <li><a class="doc-link" href="garment-proxy/">garment proxy</a></li>
+            </ul></li>
+            <li><a class="doc-link" href="proxy-rigid/">proxy-rigid</a></li>
+          </ul></li>
+        </ul></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character" aria-label="character"></button><a class="doc-link" href="character/">character</a></div>
+        <ul id="tosi-nav-character">
+          <li><a class="doc-link" href="character-sources/">character sources</a></li>
+        </ul></li>
+      </ul></li>
+      <li><a class="doc-link" href="skybox-baker/">Skybox Baker</a></li>
+      <li><a class="doc-link" href="land-and-sky/">Land and Sky</a></li>
+      <li><a class="doc-link" href="city-drive/">City Drive</a></li>
+      <li><a class="doc-link" href="cross-country/">Cross Country</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-core" aria-label="Core"></button><a class="doc-link" href="core/">Core</a></div>
+    <ul id="tosi-nav-core">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-tosi-b3d" aria-label="b3d"></button><a class="doc-link" href="tosi-b3d/">b3d</a></div>
+      <ul id="tosi-nav-tosi-b3d">
+        <li><a class="doc-link" href="demo-utils/">demo-utils</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-loader" aria-label="b3d-loader"></button><a class="doc-link" href="b3d-loader/">b3d-loader</a></div>
+      <ul id="tosi-nav-b3d-loader">
+        <li><a class="doc-link" href="asset-url/">asset-url</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-primitives/">Primitives: box, sphere, ground</a></li>
+      <li><a class="doc-link" href="make-mesh/">make-mesh</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-library" aria-label="b3d-library"></button><a class="doc-link" href="b3d-library/">b3d-library</a></div>
+      <ul id="tosi-nav-b3d-library">
+        <li><a class="doc-link" href="glb-manifest/">glb-manifest</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-agent" aria-label="agents"></button><a class="doc-link" href="b3d-agent/">agents</a></div>
+      <ul id="tosi-nav-b3d-agent">
+        <li><a class="doc-link" href="agent-driver/">agent driver</a></li>
+        <li><a class="doc-link" href="scene-description/">scene description</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-prop/">b3d-prop</a></li>
+      <li><a class="doc-link" href="b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="scene-schemas/">Scene schemas</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-sky-and-light" aria-label="Sky and light"></button><a class="doc-link" href="sky-and-light/">Sky and light</a></div>
+    <ul id="tosi-nav-sky-and-light">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-skybox" aria-label="b3d-skybox"></button><a class="doc-link" href="b3d-skybox/">b3d-skybox</a></div>
+      <ul id="tosi-nav-b3d-skybox">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-moon" aria-label="b3d-moon"></button><a class="doc-link" href="b3d-moon/">b3d-moon</a></div>
+        <ul id="tosi-nav-b3d-moon">
+          <li><a class="doc-link" href="moon-light/">moon light</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="starfield-codec/">starfield-codec</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="light-pollution/">light pollution</a></li>
+      <li><a class="doc-link" href="b3d-shadows/">Sun and shadows (b3d-shadows)</a></li>
+      <li><a class="doc-link" href="b3d-light/">Ambient light (b3d-light)</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-lamp" aria-label="Lamps"></button><a class="doc-link" href="b3d-lamp/">Lamps</a></div>
+      <ul id="tosi-nav-b3d-lamp">
+        <li><a class="doc-link" href="curve-program/">Light program editor</a></li>
+        <li><a class="doc-link" href="light-modulation/">Light programs</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-light-shafts/">b3d-light-shafts</a></li>
+      <li><a class="doc-link" href="b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="environment/">environment</a></li>
+      <li><a class="doc-link" href="shadow-decal/">shadow-decal</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-weather-and-clouds" aria-label="Weather and clouds"></button><a class="doc-link" href="weather-and-clouds/">Weather and clouds</a></div>
+    <ul id="tosi-nav-weather-and-clouds">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-cloud-deck" aria-label="b3d-cloud-deck"></button><a class="doc-link" href="b3d-cloud-deck/">b3d-cloud-deck</a></div>
+      <ul id="tosi-nav-b3d-cloud-deck">
+        <li><a class="doc-link" href="cloud-shadows/">cloud-shadows</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-clouds/">b3d-clouds</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-weather-cell" aria-label="b3d-weather-cell"></button><a class="doc-link" href="b3d-weather-cell/">b3d-weather-cell</a></div>
+      <ul id="tosi-nav-b3d-weather-cell">
+        <li><a class="doc-link" href="weather/">weather</a></li>
+        <li><a class="doc-link" href="wind/">wind</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-lightning/">b3d-lightning</a></li>
+      <li><a class="doc-link" href="b3d-ambient/">b3d-ambient</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-terrain" aria-label="Terrain"></button><a class="doc-link" href="terrain/">Terrain</a></div>
+    <ul id="tosi-nav-terrain">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-terrain" aria-label="b3d-terrain"></button><a class="doc-link" href="b3d-terrain/">b3d-terrain</a></div>
+      <ul id="tosi-nav-b3d-terrain">
+        <li><a class="doc-link" href="biome-chart/">biome-chart</a></li>
+        <li><a class="doc-link" href="biome-plugin/">biome-plugin</a></li>
+        <li><a class="doc-link" href="slope-profile/">slope-profile</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-landform" aria-label="landform"></button><a class="doc-link" href="landform/">landform</a></div>
+        <ul id="tosi-nav-landform">
+          <li><a class="doc-link" href="landform-schemas/">landform schemas</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="province-climate/">Province climate</a></li>
+        <li><a class="doc-link" href="terrain-editor/">terrainEditor3d</a></li>
+        <li><a class="doc-link" href="gradient-filter/">gradient-filter</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-decorator" aria-label="b3d-decorator"></button><a class="doc-link" href="b3d-decorator/">b3d-decorator</a></div>
+      <ul id="tosi-nav-b3d-decorator">
+        <li><a class="doc-link" href="scatter/">scatter</a></li>
+        <li><a class="doc-link" href="procedural-rock/">procedural-rock</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-sdf-lattice" aria-label="Carved landforms"></button><a class="doc-link" href="sdf-lattice/">Carved landforms</a></div>
+      <ul id="tosi-nav-sdf-lattice">
+        <li><a class="doc-link" href="carve/">carve</a></li>
+        <li><a class="doc-link" href="patch-field/">patch-field</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="city-layout/">city-layout</a></li>
+      <li><a class="doc-link" href="b3d-city/">b3d-city</a></li>
+      <li><a class="doc-link" href="city-traffic/">city-traffic</a></li>
+      <li><a class="doc-link" href="window-lights/">window-lights</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-water" aria-label="Water"></button><a class="doc-link" href="water/">Water</a></div>
+    <ul id="tosi-nav-water">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-water" aria-label="b3d-water"></button><a class="doc-link" href="b3d-water/">b3d-water</a></div>
+      <ul id="tosi-nav-b3d-water">
+        <li><a class="doc-link" href="medium/">medium</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-effects" aria-label="Effects"></button><a class="doc-link" href="effects/">Effects</a></div>
+    <ul id="tosi-nav-effects">
+      <li><a class="doc-link" href="b3d-effect/">b3d-effect</a></li>
+      <li><a class="doc-link" href="b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="b3d-trail/">b3d-trail</a></li>
+      <li><a class="doc-link" href="b3d-exploder/">b3d-exploder</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-characters-and-vehicles" aria-label="Characters and vehicles"></button><a class="doc-link" href="characters-and-vehicles/">Characters and vehicles</a></div>
+    <ul id="tosi-nav-characters-and-vehicles">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-biped" aria-label="b3d-biped"></button><a class="doc-link" href="b3d-biped/">b3d-biped</a></div>
+      <ul id="tosi-nav-b3d-biped">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-aim" aria-label="aim"></button><a class="doc-link" href="aim/">aim</a></div>
+        <ul id="tosi-nav-aim">
+          <li><a class="doc-link" href="aim-ik/">aim IK</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="animation-layers/">animation-layers</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-core" aria-label="character core"></button><a class="doc-link" href="character-core/">character core</a></div>
+        <ul id="tosi-nav-character-core">
+          <li><a class="doc-link" href="character-settings/">character settings</a></li>
+          <li><a class="doc-link" href="proxy-cover/">proxy-cover</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-skinned-glb" aria-label="skinned-glb"></button><a class="doc-link" href="skinned-glb/">skinned-glb</a></div>
+          <ul id="tosi-nav-skinned-glb">
+            <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-rigged-body-glb" aria-label="rigged-body-glb"></button><a class="doc-link" href="rigged-body-glb/">rigged-body-glb</a></div>
+            <ul id="tosi-nav-rigged-body-glb">
+              <li><a class="doc-link" href="spring-vrm/">spring-vrm</a></li>
+              <li><a class="doc-link" href="body-export/">body export</a></li>
+            </ul></li>
+          </ul></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-chunks" aria-label="glb-chunks"></button><a class="doc-link" href="glb-chunks/">glb-chunks</a></div>
+          <ul id="tosi-nav-glb-chunks">
+            <li><a class="doc-link" href="glb-rig/">glb-rig</a></li>
+          </ul></li>
+          <li><a class="doc-link" href="skin-paint/">skin paint</a></li>
+          <li><a class="doc-link" href="cloth-bake/">cloth bake</a></li>
+          <li><a class="doc-link" href="jpeg/">jpeg</a></li>
+          <li><a class="doc-link" href="eye-art/">eye art</a></li>
+          <li><a class="doc-link" href="hair-place/">hair place</a></li>
+          <li><a class="doc-link" href="mesh-sdf/">mesh sdf</a></li>
+          <li><a class="doc-link" href="fit-extremes/">fit extremes</a></li>
+        </ul></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-retarget" aria-label="retarget"></button><a class="doc-link" href="retarget/">retarget</a></div>
+        <ul id="tosi-nav-retarget">
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-clips" aria-label="glb clips"></button><a class="doc-link" href="glb-clips/">glb clips</a></div>
+          <ul id="tosi-nav-glb-clips">
+            <li><a class="doc-link" href="bvh/">bvh</a></li>
+            <li><a class="doc-link" href="clip-store/">clip-store</a></li>
+          </ul></li>
+        </ul></li>
+        <li><a class="doc-link" href="rigged-body/">rigged-body</a></li>
+        <li><a class="doc-link" href="surroundings/">surroundings</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-rig-build" aria-label="auto-rig"></button><a class="doc-link" href="rig-build/">auto-rig</a></div>
+        <ul id="tosi-nav-rig-build">
+          <li><a class="doc-link" href="rig-markers/">rig markers</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="spring-chain-babylon/">spring bones</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-aircraft" aria-label="b3d-aircraft"></button><a class="doc-link" href="b3d-aircraft/">b3d-aircraft</a></div>
+      <ul id="tosi-nav-b3d-aircraft">
+        <li><a class="doc-link" href="fly-by-wire/">fly-by-wire</a></li>
+        <li><a class="doc-link" href="b3d-hud/">b3d-hud</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="ground-vehicle/">ground-vehicle</a></li>
+      <li><a class="doc-link" href="b3d-car/">b3d-car</a></li>
+      <li><a class="doc-link" href="b3d-tank/">b3d-tank</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-elevator" aria-label="b3d-elevator"></button><a class="doc-link" href="b3d-elevator/">b3d-elevator</a></div>
+      <ul id="tosi-nav-b3d-elevator">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-spatial-transform" aria-label="spatial-transform"></button><a class="doc-link" href="spatial-transform/">spatial-transform</a></div>
+        <ul id="tosi-nav-spatial-transform">
+          <li><a class="doc-link" href="portal-transform/">portal-transform</a></li>
+        </ul></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-crowd" aria-label="b3d-crowd"></button><a class="doc-link" href="b3d-crowd/">b3d-crowd</a></div>
+      <ul id="tosi-nav-b3d-crowd">
+        <li><a class="doc-link" href="vertex-animation/">vertex-animation</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-input" aria-label="Input"></button><a class="doc-link" href="input/">Input</a></div>
+    <ul id="tosi-nav-input">
+      <li><a class="doc-link" href="b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="touch-orbit/">touch-orbit</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-inspect-view" aria-label="inspect-view"></button><a class="doc-link" href="inspect-view/">inspect-view</a></div>
+      <ul id="tosi-nav-inspect-view">
+        <li><a class="doc-link" href="seam-material/">seam-material</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="game-controller/">game-controller</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-input-internals" aria-label="How input works"></button><a class="doc-link" href="input-internals/">How input works</a></div>
+      <ul id="tosi-nav-input-internals">
+        <li><a class="doc-link" href="control-input/">control-input</a></li>
+        <li><a class="doc-link" href="b3d-controllable/">b3d-controllable</a></li>
+        <li><a class="doc-link" href="virtual-gamepad/">virtual-gamepad</a></li>
+        <li><a class="doc-link" href="touch-gamepad/">touch-gamepad</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-interacting" aria-label="Interacting with the world"></button><a class="doc-link" href="interacting/">Interacting with the world</a></div>
+    <ul id="tosi-nav-interacting">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-interactive" aria-label="b3d-interactive"></button><a class="doc-link" href="b3d-interactive/">b3d-interactive</a></div>
+      <ul id="tosi-nav-b3d-interactive">
+        <li><a class="doc-link" href="interaction/">interaction</a></li>
+        <li><a class="doc-link" href="interactive-behavior/">interactive-behavior</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="b3d-beacon/">b3d-beacon</a></li>
+      <li><a class="doc-link" href="b3d-manipulator/">b3d-manipulator</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-combat" aria-label="Combat"></button><a class="doc-link" href="combat/">Combat</a></div>
+    <ul id="tosi-nav-combat">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-destroyable" aria-label="b3d-destroyable"></button><a class="doc-link" href="b3d-destroyable/">b3d-destroyable</a></div>
+      <ul id="tosi-nav-b3d-destroyable">
+        <li><a class="doc-link" href="destroyable-behavior/">destroyable-behavior</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-launcher" aria-label="b3d-launcher"></button><a class="doc-link" href="b3d-launcher/">b3d-launcher</a></div>
+      <ul id="tosi-nav-b3d-launcher">
+        <li><a class="doc-link" href="ballistics/">ballistics</a></li>
+        <li><a class="doc-link" href="guidance/">guidance</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="b3d-turret/">b3d-turret</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-radar" aria-label="b3d-radar"></button><a class="doc-link" href="b3d-radar/">b3d-radar</a></div>
+      <ul id="tosi-nav-b3d-radar">
+        <li><a class="doc-link" href="b3d-radar-blip/">b3d-radar-blip</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-world-sim" aria-label="World Sim"></button><a class="doc-link" href="world-sim/">World Sim</a></div>
+    <ul id="tosi-nav-world-sim">
+      <li><a class="doc-link" href="world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="world-store/">world-store</a></li>
+      <li><a class="doc-link" href="world-view/">world-view</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-inventory" aria-label="inventory"></button><a class="doc-link" href="inventory/">inventory</a></div>
+      <ul id="tosi-nav-inventory">
+        <li><a class="doc-link" href="inventory-box/">inventory-box</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="min-sim-conformance/">min-sim-conformance</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-spawner" aria-label="b3d-spawner"></button><a class="doc-link" href="b3d-spawner/">b3d-spawner</a></div>
+      <ul id="tosi-nav-b3d-spawner">
+        <li><a class="doc-link" href="formations/">formations</a></li>
+        <li><a class="doc-link" href="prefab/">prefab</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-death/">b3d-death</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui" aria-label="UI"></button><a class="doc-link" href="ui/">UI</a></div>
+    <ul id="tosi-nav-ui">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widgets3d" aria-label="widgets3d"></button><a class="doc-link" href="widgets3d/">widgets3d</a></div>
+      <ul id="tosi-nav-widgets3d">
+        <li><a class="doc-link" href="playback-field/">Playback</a></li>
+        <li><a class="doc-link" href="widget-box/">widget-box</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widget-semantics" aria-label="widget semantics"></button><a class="doc-link" href="widget-semantics/">widget semantics</a></div>
+        <ul id="tosi-nav-widget-semantics">
+          <li><a class="doc-link" href="aria-mirror/">aria mirror</a></li>
+        </ul></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-carry" aria-label="carry"></button><a class="doc-link" href="carry/">carry</a></div>
+      <ul id="tosi-nav-carry">
+        <li><a class="doc-link" href="carry-box/">carry-box</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="dials/">dials</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui-controls" aria-label="Controls"></button><a class="doc-link" href="ui-controls/">Controls</a></div>
+      <ul id="tosi-nav-ui-controls">
+        <li><a class="doc-link" href="vector-field/">Coordinate fields</a></li>
+        <li><a class="doc-link" href="angle-field/">angle-field</a></li>
+        <li><a class="doc-link" href="curve-field/">Curve editor</a></li>
+        <li><a class="doc-link" href="footprint-field/">Footprint editor</a></li>
+        <li><a class="doc-link" href="color-picker/">colorPicker3d</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-material-picker" aria-label="materialPicker3d"></button><a class="doc-link" href="material-picker/">materialPicker3d</a></div>
+        <ul id="tosi-nav-material-picker">
+          <li><a class="doc-link" href="fabric-textures/">fabric textures</a></li>
+          <li><a class="doc-link" href="material-pictures/">material pictures</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="material-recipe/">material-recipe</a></li>
+        <li><a class="doc-link" href="icon-grid/">Icon grid</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-color-field" aria-label="color3d"></button><a class="doc-link" href="color-field/">color3d</a></div>
+        <ul id="tosi-nav-color-field">
+          <li><a class="doc-link" href="color/">color</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="picker/">picker</a></li>
+        <li><a class="doc-link" href="keyboard/">keyboard</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-table" aria-label="table"></button><a class="doc-link" href="table/">table</a></div>
+        <ul id="tosi-nav-table">
+          <li><a class="doc-link" href="selection/">selection</a></li>
+        </ul></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui-containers" aria-label="Containers"></button><a class="doc-link" href="ui-containers/">Containers</a></div>
+      <ul id="tosi-nav-ui-containers">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-box" aria-label="box"></button><a class="doc-link" href="box/">box</a></div>
+        <ul id="tosi-nav-box">
+          <li><a class="doc-link" href="flow-layout/">flow-layout</a></li>
+          <li><a class="doc-link" href="anchor-layout/">anchor-layout</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="surface/">surface</a></li>
+        <li><a class="doc-link" href="popup-surface/">popup-surface</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui-in-scene" aria-label="In the scene and XR"></button><a class="doc-link" href="ui-in-scene/">In the scene and XR</a></div>
+      <ul id="tosi-nav-ui-in-scene">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-panel" aria-label="b3d-panel"></button><a class="doc-link" href="b3d-panel/">b3d-panel</a></div>
+        <ul id="tosi-nav-b3d-panel">
+          <li><a class="doc-link" href="frame-panel/">frame-panel</a></li>
+          <li><a class="doc-link" href="xr-frames/">xr-frames</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-system-bar" aria-label="system-bar"></button><a class="doc-link" href="system-bar/">system-bar</a></div>
+          <ul id="tosi-nav-system-bar">
+            <li><a class="doc-link" href="bar-menu/">bar-menu</a></li>
+          </ul></li>
+        </ul></li>
+        <li><a class="doc-link" href="b3d-svg-plane/">b3d-svg-plane</a></li>
+        <li><a class="doc-link" href="svg-texture/">svg-texture</a></li>
+        <li><a class="doc-link" href="gamepad-focus/">gamepad-focus</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui-theme" aria-label="Theme and icons"></button><a class="doc-link" href="ui-theme/">Theme and icons</a></div>
+      <ul id="tosi-nav-ui-theme">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-w3d-theme" aria-label="w3d-theme"></button><a class="doc-link" href="w3d-theme/">w3d-theme</a></div>
+        <ul id="tosi-nav-w3d-theme">
+          <li><a class="doc-link" href="theme-editor/">theme-editor</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="svg-icons/">svg-icons</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-space" aria-label="Space"></button><a class="doc-link" href="space/">Space</a></div>
+    <ul id="tosi-nav-space">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-galaxy" aria-label="b3d-galaxy"></button><a class="doc-link" href="b3d-galaxy/">b3d-galaxy</a></div>
+      <ul id="tosi-nav-b3d-galaxy">
+        <li><a class="doc-link" href="voxel-galaxy/">voxel-galaxy</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="gas-giant/">gas-giant</a></li>
+      <li><a class="doc-link" href="rocky-world/">rocky-world</a></li>
+      <li><a class="doc-link" href="b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="sphere-map/">sphere-map</a></li>
+      <li><a class="doc-link" href="planet-map/">planet-map</a></li>
+      <li><a class="doc-link" href="space-backdrop/">space-backdrop</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-performance" aria-label="Performance"></button><a class="doc-link" href="performance/">Performance</a></div>
+    <ul id="tosi-nav-performance">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-probe" aria-label="b3d-probe"></button><a class="doc-link" href="b3d-probe/">b3d-probe</a></div>
+      <ul id="tosi-nav-b3d-probe">
+        <li><a class="doc-link" href="perf-probe/">perf-probe</a></li>
+        <li><a class="doc-link" href="b3d-quality/">b3d-quality</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="cost-sweep/">Cost sweep</a></li>
+      <li><a class="doc-link" href="draw-order/">Draw order</a></li>
+      <li><a class="doc-link" href="debug-sink/">debug-sink</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-utilities" aria-label="utilities"></button><a class="doc-link" href="utilities/">utilities</a></div>
+    <ul id="tosi-nav-utilities">
+      <li><a class="doc-link" href="clock/">clock</a></li>
+      <li><a class="doc-link" href="undo-history/">undo history</a></li>
+    </ul></li>
+    <li class="nav-branch -open"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="true" aria-controls="tosi-nav-upgrading" aria-label="Upgrading"></button><a class="doc-link" href="upgrading/">Upgrading</a></div>
+    <ul id="tosi-nav-upgrading">
+      <li><a class="doc-link current" href="Migration/" aria-current="page">Migration</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="CHANGELOG/">Changelog</a></div>
+      <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="v0.13.0/">0.13.0</a></li>
+        <li><a class="doc-link" href="v0.12.6/">0.12.6</a></li>
+        <li><a class="doc-link" href="v0.12.5/">0.12.5</a></li>
+        <li><a class="doc-link" href="v0.12.4/">0.12.4</a></li>
+        <li><a class="doc-link" href="v0.12.3/">0.12.3</a></li>
+        <li><a class="doc-link" href="v0.12.2/">0.12.2</a></li>
+        <li><a class="doc-link" href="v0.12.1/">0.12.1</a></li>
+        <li><a class="doc-link" href="v0.12.0/">0.12.0</a></li>
+        <li><a class="doc-link" href="v0.11.6/">0.11.6</a></li>
+        <li><a class="doc-link" href="v0.11.5/">0.11.5</a></li>
+        <li><a class="doc-link" href="v0.11.4/">0.11.4</a></li>
+        <li><a class="doc-link" href="v0.11.3/">0.11.3</a></li>
+        <li><a class="doc-link" href="v0.11.2/">0.11.2</a></li>
+        <li><a class="doc-link" href="v0.11.1/">0.11.1</a></li>
+        <li><a class="doc-link" href="v0.11.0/">0.11.0</a></li>
+        <li><a class="doc-link" href="v0.10.20/">0.10.20</a></li>
+        <li><a class="doc-link" href="v0.10.19/">0.10.19</a></li>
+        <li><a class="doc-link" href="v0.10.18/">0.10.18</a></li>
+        <li><a class="doc-link" href="v0.10.17/">0.10.17</a></li>
+        <li><a class="doc-link" href="v0.10.16/">0.10.16</a></li>
+        <li><a class="doc-link" href="v0.10.15/">0.10.15</a></li>
+        <li><a class="doc-link" href="v0.10.14/">0.10.14</a></li>
+        <li><a class="doc-link" href="v0.10.13/">0.10.13</a></li>
+        <li><a class="doc-link" href="v0.10.12/">0.10.12</a></li>
+        <li><a class="doc-link" href="v0.10.11/">0.10.11</a></li>
+        <li><a class="doc-link" href="v0.10.10/">0.10.10</a></li>
+        <li><a class="doc-link" href="v0.10.9/">0.10.9</a></li>
+        <li><a class="doc-link" href="v0.10.8/">0.10.8</a></li>
+        <li><a class="doc-link" href="v0.10.7/">0.10.7</a></li>
+        <li><a class="doc-link" href="v0.10.6/">0.10.6</a></li>
+        <li><a class="doc-link" href="v0.10.5/">0.10.5</a></li>
+        <li><a class="doc-link" href="v0.10.4/">0.10.4</a></li>
+        <li><a class="doc-link" href="v0.10.3/">0.10.3</a></li>
+        <li><a class="doc-link" href="v0.10.2/">0.10.2</a></li>
+        <li><a class="doc-link" href="v0.10.1/">0.10.1</a></li>
+        <li><a class="doc-link" href="v0.10.0/">0.10.0</a></li>
+        <li><a class="doc-link" href="v0.9.0/">0.9.0</a></li>
+        <li><a class="doc-link" href="v0.8.15/">0.8.15</a></li>
+        <li><a class="doc-link" href="v0.8.14/">0.8.14</a></li>
+        <li><a class="doc-link" href="v0.8.13/">0.8.13</a></li>
+        <li><a class="doc-link" href="v0.8.12/">0.8.12</a></li>
+        <li><a class="doc-link" href="v0.8.11/">0.8.11</a></li>
+        <li><a class="doc-link" href="v0.8.10/">0.8.10</a></li>
+        <li><a class="doc-link" href="v0.8.9/">0.8.9</a></li>
+        <li><a class="doc-link" href="v0.8.8/">0.8.8</a></li>
+        <li><a class="doc-link" href="v0.8.7/">0.8.7</a></li>
+        <li><a class="doc-link" href="v0.8.6/">0.8.6</a></li>
+        <li><a class="doc-link" href="v0.8.5/">0.8.5</a></li>
+        <li><a class="doc-link" href="v0.8.4/">0.8.4</a></li>
+        <li><a class="doc-link" href="v0.8.3/">0.8.3</a></li>
+        <li><a class="doc-link" href="v0.8.2/">0.8.2</a></li>
+        <li><a class="doc-link" href="v0.8.1/">0.8.1</a></li>
+        <li><a class="doc-link" href="v0.8.0/">0.8.0</a></li>
+        <li><a class="doc-link" href="v0.7.8/">0.7.8</a></li>
+        <li><a class="doc-link" href="v0.7.7/">0.7.7</a></li>
+        <li><a class="doc-link" href="v0.7.6/">0.7.6</a></li>
+        <li><a class="doc-link" href="v0.7.5/">0.7.5</a></li>
+        <li><a class="doc-link" href="v0.7.4/">0.7.4</a></li>
+        <li><a class="doc-link" href="v0.7.3/">0.7.3</a></li>
+        <li><a class="doc-link" href="v0.7.2/">0.7.2</a></li>
+        <li><a class="doc-link" href="v0.7.1/">0.7.1</a></li>
+        <li><a class="doc-link" href="v0.7.0/">0.7.0</a></li>
+        <li><a class="doc-link" href="v0.7.0-rc.1/">0.7.0-rc.1</a></li>
+        <li><a class="doc-link" href="v0.6.2/">0.6.2</a></li>
+        <li><a class="doc-link" href="v0.6.1/">0.6.1</a></li>
+        <li><a class="doc-link" href="v0.6.0/">0.6.0</a></li>
+        <li><a class="doc-link" href="v0.5.2/">0.5.2</a></li>
+        <li><a class="doc-link" href="v0.5.1/">0.5.1</a></li>
+        <li><a class="doc-link" href="v0.5.0/">0.5.0</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-reference" aria-label="Reference"></button><a class="doc-link" href="reference/">Reference</a></div>
+    <ul id="tosi-nav-reference">
+      <li><a class="doc-link" href="mersenne-twister/">Pseudo Random Numbers</a></li>
+      <li><a class="doc-link" href="perlin-noise/">perlin-noise</a></li>
+      <li><a class="doc-link" href="noise-texture/">Noise texture</a></li>
+    </ul></li>
+    <li><a class="doc-link" href="design-notes/">Design notes</a></li>
+    <li><a class="doc-link" href="acknowledgements/">Acknowledgements</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="hydrate-swt7z66k.js"></script>
+</body>
+</html>

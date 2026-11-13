@@ -1,6 +1,6 @@
 import { type GlbImage, type GlbMaterial, type GlbMesh } from './skinned-glb.js';
 import type { BodyTriangles, RiggedBody } from './rigged-body.js';
-import type { GarmentProxy } from './garment-proxy.js';
+import type { GarmentProxy, GarmentProxyMaterial } from './garment-proxy.js';
 import { type GlbClip, type GlbClipSource } from './glb-clips.js';
 import { type Grip, type Vec3 as HandVec3 } from './hand-socket.js';
 import { type RigRecipe } from './rig-recipe.js';
@@ -34,12 +34,13 @@ export interface RiggedBodyGlbOptions {
     /** Tuck the skin the garments cover, drop what they list (default true). */
     cover?: boolean;
     /**
-     * Bake each garment's look into its picture (default true): a recoloured
-     * cloth's texture is written recoloured (cloth-bake's `bakeClothLook`), so
-     * any engine draws what the builder shows. `false` writes the pictures as
-     * they are, the look only as factors.
+     * Bakes each garment's look into its picture: pass cloth-bake's
+     * `bakeClothLook` and a recoloured cloth's texture is written recoloured,
+     * so any engine draws what the builder shows. Without it the pictures are
+     * written as they are, the look only as factors. Passed in rather than
+     * imported so a writer that bakes nothing does not carry an image decoder.
      */
-    bake?: boolean;
+    bake?: ClothBaker | false;
     /** Clips to write: see "Clips" above. */
     clips?: ClipOut[];
     /**
@@ -122,6 +123,14 @@ export declare function heldParts(joints: readonly RestJoint[], held: HeldItem, 
 }): HeldParts;
 /** Mixamo's name for each profile joint (`root` keeps its own). */
 export declare const MIXAMO_JOINT_NAMES: Readonly<Record<string, string>>;
+/** What `bake` takes: cloth-bake's `bakeClothLook`, or one of the same shape. */
+export type ClothBaker = (picture: {
+    bytes: Uint8Array;
+    mimeType: string;
+}, look: GarmentProxyMaterial['look']) => {
+    bytes: Uint8Array;
+    mimeType: string;
+} | null;
 /**
  * A rigged body as a skinned GLB in Dramatis's export profile: the 65 UAL
  * joints with UAL's frames (or Mixamo's names), a T-pose (or the body's own

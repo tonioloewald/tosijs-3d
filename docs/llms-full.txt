@@ -136,7 +136,10 @@ tubes bored through them, arches, caverns.
 
 **Biped control** — a [character controller](https://3d.tosijs.net/b3d-biped/)
 with an animation state machine and follow/XR cameras, from a GLB: walk, run
-and sprint, jump, swim, climb ledges.
+and sprint, jump, swim, climb ledges, and hold a gun that
+[points where you aim](https://3d.tosijs.net/aim-ik/), crouched or standing.
+[Crowds](https://3d.tosijs.net/b3d-crowd/) of thousands are drawn on the GPU,
+and each figure can be moved, turned and re-clipped.
 
 **Any character on one animation library** — [retargeting](https://3d.tosijs.net/retarget/)
 plays the Universal Animation Library's clips on a Mixamo, Kenney or
@@ -173,6 +176,9 @@ renders as a DOM overlay, as a texture on a surface in the scene, and as a
 floating panel in a headset, from the same declaration. Includes a
 [flowing box model](https://3d.tosijs.net/box/), [menus and panels](https://3d.tosijs.net/surface/),
 a data table, and an on-screen keyboard — because a headset has nowhere to type.
+A [system bar](https://3d.tosijs.net/system-bar/) of buttons and
+[cascading menus](https://3d.tosijs.net/bar-menu/) sits in the corner flat and
+up ahead in VR.
 
 **SVG textures** — [draw with SVG](https://3d.tosijs.net/svg-texture/), use it as
 a live texture. Designer artwork becomes a HUD, a gauge, or a control surface
@@ -202,7 +208,7 @@ or a server imports them without Babylon.
 
 **Pure models, actually tested** — the flight model, ballistics, guidance, biome
 classification, layout and text editing are engine-free and unit-tested (about
-3,000 tests, run in seconds with no GPU). If it can be a function of its inputs,
+3,900 tests, run in about a minute with no GPU). If it can be a function of its inputs,
 it is.
 
 ## Development
@@ -337,7 +343,7 @@ the code does.
 - [Weapon Fit](/weapon-fit/)
 - [Rig tool](/rig-tool/)
 - [Effect tool](/effect-tool/)
-- [character builder](/character-builder/)
+- [Character Builder](/character-builder/)
 - [Skybox Baker](/skybox-baker/)
 - [Land and Sky](/land-and-sky/)
 - [City Drive](/city-drive/)
@@ -355,7 +361,7 @@ arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, button3d, characterStore, holdGrip, inputFocus, playground, select3d, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, button3d, characterStore, holdGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
@@ -517,6 +523,11 @@ preview.append(
   b3d(
     {
       style: 'width:100%;height:100%',
+      // Something for the weapons' metal to reflect: without it a PBR metal
+      // has nothing to show and renders nearly black.
+      sceneCreated(el) {
+        studioEnvironment(el.scene, { sky: '#7d9cc4', horizon: '#e8e4da', ground: '#55604a' })
+      },
       // The glass pad shows only what this demo USES. These are control names,
       // not a mapping name (`gamepad: 'biped'` names nothing and draws nothing).
       // Move, aim, shoot, jump, sneak, sprint; `Y` switches first/third person.
@@ -1280,7 +1291,7 @@ Source: https://3d.tosijs.net/effect-tool/
 
 ---
 
-# character builder
+# Character Builder
 
 **Make a person, and watch them walk.** The first steps of the character
 creator (CHARACTER-DESIGN.md): MakeHuman's CC0 body
@@ -1828,6 +1839,48 @@ preview.append(
             },
           }],
         })
+        // THE ANIMATION on the bar: play or pause, and which clip, in one
+        // place, flat and in a headset. The transport (scrub, speed) is its
+        // own small panel, opened from the menu (it has no button of its own).
+        const playbackPanel = b3dPanel({ icon: 'playCircle', title: 'Playback', exclusive: 'off', barButton: 'off' })
+        playbackPanel.svg = panel3d({ width: 300 }, playbackRow())
+        const clipOption = (name) => ({ label: name, checked: name === walker.clip.value, handleSelect: () => { walker.clip.value = name } })
+        // UAL's names lead with what they are (Pistol_…, Sword_…): the rest of
+        // the library is grouped by that, so no list runs off the view.
+        const moreClips = () => {
+          const groups = new Map()
+          for (const name of clips.slice(EVERYDAY.length + fileClips.size)) {
+            const group = name.split('_')[0]
+            if (!groups.has(group)) groups.set(group, [])
+            groups.get(group).push(name)
+          }
+          return [...groups].map(([group, names]) =>
+            names.length === 1 ? clipOption(names[0]) : { label: group, items: () => names.map(clipOption) }
+          )
+        }
+        el.append(barMenu({
+          icon: 'motion',
+          title: 'Animation',
+          layout: 'list',
+          options: () => [
+            // While rigging the view is the pose: play goes to perspective,
+            // pause back to the face it was held to last.
+            rigging
+              ? rigging.api.view === 'free'
+                ? { label: 'Pause', icon: 'pause', handleSelect: () => rigging?.api.play(null) }
+                : { label: 'Play', icon: 'play', handleSelect: () => rigging?.api.play() }
+              : walker.paused.value
+              ? { label: 'Play', icon: 'play', handleSelect: () => { walker.paused.value = false } }
+              : { label: 'Pause', icon: 'pause', handleSelect: () => { walker.paused.value = true } },
+            { label: 'Playback controls', icon: 'playCircle', checked: playbackPanel.isOpen, handleSelect: () => playbackPanel.toggle?.() },
+            { separator: true },
+            ...EVERYDAY.map(clipOption),
+            ...(fileClips.size ? [{ separator: true }, ...[...fileClips.keys()].map(clipOption)] : []),
+            { separator: true },
+            { label: 'More clips', items: moreClips },
+          ],
+        }))
+        el.append(playbackPanel)
         // A floor with a metre grid (and faint quarters), which takes the sun's shadow.
         const floor = BABYLON.MeshBuilder.CreateGround('floor_nocast', { width: 12, height: 12 }, scene)
         const tile = new BABYLON.DynamicTexture('floor-grid', { width: 256, height: 256 }, scene, true)
@@ -2650,7 +2703,13 @@ the next visit; **forget** drops the file a clip came from.
 
 **View** (the camera on the bar) holds the body square on from any side, or
 follows the **right hand** close up through the clip, to see how an item sits
-in it. The rig tool uses the same menu.
+in it. The rig tool uses the same menu. In a headset it leaves the bar: the
+camera is your head.
+
+**Animation** (on the bar) plays or pauses the clip and picks it: the
+everyday clips, a file's, then the rest of the library grouped by kind.
+**Playback controls** in that menu opens the transport (scrub, speed) as its
+own small panel.
 
 **Hold** puts an item from Tonio's textured weapons
 (`tonio/weapons-classic/weapons.glb`, CC BY 4.0: guns, blades, a plasma
@@ -3814,7 +3873,7 @@ const garment = {
   ...onSkin(proxy, drawn, { positions: body.positions, triangles: body.indices, vertices: body.skin.vertices }),
   material: packGarmentMaterial(proxy, { diffuse }, look),
 }
-riggedBodyGlb(body, { garments: [garment] })
+riggedBodyGlb(body, { garments: [garment], bake: bakeClothLook }) // from 'tosijs-3d/cloth-bake'
 ```
 
 Pure: no DOM, no Babylon.
@@ -4961,7 +5020,7 @@ import {
 } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { cityDrive } = tosi({ cityDrive: { time: 17.5, speed: 60, coverage: 0.45 } })
+const { cityDrive } = tosi({ cityDrive: { time: 17.5, speed: 64, coverage: 0.45 } })
 
 // A LIGHTER WORLD on a headset or a low-powered device: a smaller town, less
 // traffic, a shorter view, fewer trees, no cloud deck. A headset draws
@@ -5025,7 +5084,7 @@ preview.append(
       panelTitle: 'City Drive',
       scenePanel: () => [
         slider3d({ label: 'time of day', value: cityDrive.time, min: 0, max: 24, step: 0.1 }),
-        slider3d({ label: 'time speed', value: cityDrive.speed, min: 0, max: 600, step: 10 }),
+        slider3d({ label: 'time speed', value: cityDrive.speed, min: 0.25, max: 1024, scale: 'log2', step: 1, zeroStop: true }),
         ...(light ? [] : [slider3d({ label: 'cloud cover', value: cityDrive.coverage, min: 0, max: 1.5, step: 0.05 })]),
       ],
     },
@@ -5041,7 +5100,7 @@ preview.append(
     b3dFog({ syncSkybox: true, start: light ? 400 : 800, end: light ? 1400 : 3500 }),
     terrain,
     woods,
-    ...(light ? [] : [b3dCloudDeck({ altitude: 600, coverage: cityDrive.coverage, orographic: 0.6, wind: 8 })]),
+    ...(light ? [] : [b3dCloudDeck({ altitude: 600, coverage: cityDrive.coverage, orographic: 0.6, wind: 8, skyClock: 'off' })]),
     b3dWater({ y: 0, waterSize: 8000, follow: true, twoSided: true }),
     b3dLibrary({ url: assetUrl('kenney/libraries/car-kit.glb'), type: 'cars' }),
     b3dCity({ ...plan, y: level, traffic: light ? 12 : 32 }),
@@ -5104,7 +5163,7 @@ import {
 } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { crossCountry } = tosi({ crossCountry: { time: 9, speed: 30, coverage: 0.4 } })
+const { crossCountry } = tosi({ crossCountry: { time: 9, speed: 32, coverage: 0.4 } })
 
 // A LIGHTER WORLD on a headset or a low-powered device: a shorter view, fewer
 // trees, no cloud deck.
@@ -5151,7 +5210,7 @@ preview.append(
       panelTitle: 'Cross Country',
       scenePanel: () => [
         slider3d({ label: 'time of day', value: crossCountry.time, min: 0, max: 24, step: 0.1 }),
-        slider3d({ label: 'time speed', value: crossCountry.speed, min: 0, max: 600, step: 10 }),
+        slider3d({ label: 'time speed', value: crossCountry.speed, min: 0.25, max: 1024, scale: 'log2', step: 1, zeroStop: true }),
         ...(light ? [] : [slider3d({ label: 'cloud cover', value: crossCountry.coverage, min: 0, max: 1.5, step: 0.05 })]),
       ],
     },
@@ -5167,7 +5226,7 @@ preview.append(
     b3dFog({ syncSkybox: true, start: light ? 400 : 800, end: light ? 1400 : 3500 }),
     terrain,
     woods,
-    ...(light ? [] : [b3dCloudDeck({ altitude: 600, coverage: crossCountry.coverage, orographic: 0.6, wind: 8 })]),
+    ...(light ? [] : [b3dCloudDeck({ altitude: 600, coverage: crossCountry.coverage, orographic: 0.6, wind: 8, skyClock: 'off' })]),
     b3dWater({ y: 0, waterSize: 8000, follow: true, twoSided: true }),
     inputFocus(
       b3dTank({ url: assetUrl('tonio/tank/tank2.glb'), player: true, x: 0, z: 0, y: level + 0.5 })
@@ -5566,6 +5625,9 @@ content after that (models, a body, a terrain) holds it up with
 message below it; `setLoading(true)` is the spinner alone, `setLoading(false)`
 lets it go, and `{ spin: false }` shows a message without the spinner (a load
 that failed).
+
+Nothing is heard before the scene is shown: the effect voices and Babylon's
+own sounds are silent until it first appears.
 
 Source: https://3d.tosijs.net/tosi-b3d/
 
@@ -6944,6 +7006,28 @@ preview.append(
 ```
 
 Source: https://3d.tosijs.net/b3d-moon/
+
+---
+
+# moon light
+
+Where a sky's night light comes from when it has moons of its own
+(`<tosi-b3d-moon>`): the brightest moon ABOVE the horizon, as bright as the
+part of it lit by the real sun that faces you (full opposite the sun, dark
+beside it). A moon below the horizon lights nothing, and with every moon set
+the night has only its ambient light.
+
+```javascript
+import { moonLight } from 'tosijs-3d/moon-light'
+
+// The real sun below the horizon to the east; one moon up in the west.
+moonLight([{ x: -0.6, y: 0.8, z: 0 }], { x: 0.8, y: -0.6, z: 0 })
+// { dir: { x: -0.6, y: 0.8, z: 0 }, strength: 0.98, index: 0 }
+```
+
+Pure: plain `{x, y, z}` world directions, toward each body, unit length.
+
+Source: https://3d.tosijs.net/moon-light/
 
 ---
 
@@ -8650,6 +8734,7 @@ preview.append(
 | `thickenDepth` | `900` | MAX thickening — how far the cloud TOP rises above `altitude` at `coverage: 2` |
 | `cirrus` | `0` | Rounded heaps `0` → long wispy streaks at `±1`: positive streaks ALONG the wind heading, negative ACROSS it. Rebakes the field |
 | `wind` | `8` | Metres per second the deck drifts, on the sky's clock: a skybox sped up (`realtimeScale` 60) drifts it 60 times as fast. Nothing rebakes |
+| `skyClock` | `'on'` | `'on'`: drift and evolve on the sky's clock (a sped-up skybox carries the clouds). `'off'`: world time, so a fast day passes under clouds moving at their own pace |
 | `windHeadingDeg` | `0` | Which way it drifts — and the direction cirrus streaks run. Used only when the scene has no wind of its own (`<tosi-b3d wind-speed>`): with one, the deck drifts with it, as smoke and storms do |
 | `evolve` | `0.5` | How fast shapes change, `0` rigid → `1` restless |
 | `follow` | `'on'` | Keep the deck centred under the camera. A deck is finite; the world is not |
@@ -12687,6 +12772,36 @@ Source: https://3d.tosijs.net/aim/
 
 ---
 
+# aim IK
+
+**Point what is held where the aim goes**, by turning the spine after the
+clips have posed the body. An aim pose is drawn standing; laid over a crouch it
+leans with the crouch's hips, and the gun points at the floor. This measures
+where the held thing actually points and turns the spine bones, a share each,
+until it points along the aim.
+
+```javascript
+import { aimSpine } from 'tosijs-3d'
+
+// Each frame, after the animations (scene.onAfterAnimationsObservable):
+aimSpine([spine01, spine02, spine03], gun, aimDirection, { weight: 1, maxDeg: 70 })
+```
+
+- `chain`: the bones to turn, root first (their TransformNodes, which a glTF
+  skeleton's bones are linked to)
+- `held`: a node below the chain whose `forward` (its +Z) is the barrel
+- `target`: the world direction to point along
+- `weight` 0..1 eases it in and out; `maxDeg` caps the turn, so a target
+  behind the body turns the spine only so far
+
+It works on directions in each bone's parent's frame, so a glTF root's
+handedness mirror and a uniform scale make no difference. `<tosi-b3d-biped>`
+runs it on its spine while it holds a weapon in `gunplay`.
+
+Source: https://3d.tosijs.net/aim-ik/
+
+---
+
 # animation-layers
 
 **Play two clips on one skeleton, split by a bone mask.** The Babylon half of
@@ -13056,9 +13171,10 @@ What the file is (Dramatis's `export-format`, version 1):
   the body's own, as the builder draws them (armour lifted 5 mm), with its
   material as data (its pictures, and its saved look's glTF factors where
   it has a plain reading). A recoloured cloth's picture is written
-  recoloured ([cloth-bake](/cloth-bake/), PNG or JPEG in, PNG out), so the
-  file shows what the builder does in any engine; `bake: false` writes the
-  pictures as they came. The skin they cover is tucked under them, as the
+  recoloured when you pass `bake: bakeClothLook` ([cloth-bake](/cloth-bake/),
+  PNG or JPEG in, PNG out), so the file shows what the builder does in any
+  engine; without it the pictures go as they came, and the writer carries no
+  image decoder. The skin they cover is tucked under them, as the
   builder does, and skin a garment lists in its `delete` (as MakeHuman's
   clothes do) is dropped; `cover: false` leaves the skin alone.
 - **Clips**, with `clips`: animations read from any skinned GLB
@@ -13300,8 +13416,8 @@ const sheen = clothSheenColour('#7a2e2e')   // KHR_materials_sheen's colour, lin
 `bakeClothLook(picture, look)` is the whole step for a garment: its picture
 (PNG or JPEG bytes, [jpeg](/jpeg/)) and the cloth look it is worn with give
 the recoloured picture as a PNG, or null when the look leaves the picture as
-it is. `riggedBodyGlb` does this to every garment it writes unless told not
-to (`bake: false`).
+it is. `riggedBodyGlb` does this to every garment it writes when it is passed as
+`bake`.
 
 HAIR TOO: `recolourHair(image, base, highlight)` is
 [hair-shading](/hair-shading/) on pixels, for a hairstyle's texture: each
@@ -14795,7 +14911,7 @@ they swing out or behind.
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `url` | `''` | Empty = the built-in code HUD (fully wired); set to a designer SVG to load one |
-| `size` | `70` | HUD height as a % of the canvas's smaller dimension |
+| `size` | `70` | HUD height as a % of the canvas's smaller dimension, and at most half that % of the longer one (so in portrait it keeps about the landscape proportion) |
 | `pxPerDeg` | `8` | Pitch-ladder pixels per degree |
 | `blend` | `'plus-lighter'` | How the flat overlay is mixed with the scene (any CSS `mix-blend-mode`). The default ADDS light, which reads as a projected display over mid tones and goes faint over a black sky or a white one. `'normal'` paints it on top |
 | `opacity` | `0.5` | Opacity of the flat overlay, `0…1`. With `blend="normal"` about `0.85` reads well |
@@ -15415,6 +15531,93 @@ None of it costs anything. The clips share one texture, so switching is a change
 of two numbers rather than of material, and the CPU still touches nothing once
 the crowd is built.
 
+## Moving figures
+
+The crowd lays its figures out once; moving them is the game's job.
+`setFigure(i, { x, y, z, yaw, clip, speed })` moves, turns or re-clips figure
+`i` (leave out what stays). Call it as often as you like: the changes are
+uploaded once, just before the frame is drawn. The clips play in place, so a
+walker goes nowhere until you move it, and its feet slide unless its speed
+matches its stride. Below, three hundred walkers cross a field, turn back at
+its edge, and stop now and then to wave: all of it is `setFigure` calls.
+
+```js
+import { b3d, b3dSun, b3dSkybox, b3dLight, b3dGround, b3dCrowd, sceneDelta } from 'tosijs-3d'
+import { orbitCam } from 'tosijs-3d/demo-utils'
+
+// Walkers cross the field, turn back at its edge, and stop to wave now and
+// then. WALK is the bench figure's stride at speed 1.
+const FIGURES = 300
+const FIELD = 30
+const WALK = 1.2
+
+const crowd = b3dCrowd({ count: FIGURES, spread: FIELD * 2 })
+let walkers = null
+
+preview.append(
+  b3d(
+    {
+      style: 'width:100%;height:100%',
+      sceneCreated(el) {
+        // Close enough to see them walk: from across the field they are dots.
+        orbitCam(el, { alphaDeg: 35, betaDeg: 72, radius: 22, target: [0, 1, 0] })
+        el.scene.onBeforeRenderObservable.add(() => {
+          const n = crowd.figureCount
+          if (n === 0) return
+          if (walkers == null || walkers.length !== n) {
+            // One per figure: its heading, and how long until it next changes
+            // what it is doing.
+            walkers = Array.from({ length: n }, (_, i) => {
+              const at = crowd.transformOf(i)
+              crowd.setFigure(i, { clip: 'walk', speed: 1 })
+              return { yaw: at.yaw, wait: 3 + Math.random() * 20, waving: false }
+            })
+          }
+          const dt = sceneDelta(el.scene)
+          walkers.forEach((w, i) => {
+            w.wait -= dt
+            if (w.wait < 0) {
+              w.waving = !w.waving
+              w.wait = w.waving ? 2 + Math.random() * 2 : 5 + Math.random() * 20
+              crowd.setFigure(i, { clip: w.waving ? 'wave' : 'walk' })
+            }
+            if (w.waving) return
+            const at = crowd.transformOf(i)
+            // Past the edge and heading out: turn back toward the middle.
+            if (Math.hypot(at.x, at.z) > FIELD && at.x * Math.sin(w.yaw) + at.z * Math.cos(w.yaw) > 0) {
+              w.yaw = Math.atan2(-at.x, -at.z) + (Math.random() - 0.5)
+            }
+            crowd.setFigure(i, {
+              x: at.x + Math.sin(w.yaw) * WALK * dt,
+              z: at.z + Math.cos(w.yaw) * WALK * dt,
+              yaw: w.yaw,
+            })
+          })
+        })
+      },
+    },
+    b3dSun({ shadowMaxZ: 120, activeDistance: 90, shadowDarkness: 0.25 }),
+    b3dSkybox({ timeOfDay: 9 }),
+    b3dLight({ intensity: 0.6, groundColor: '#59604a' }),
+    b3dGround({
+      meshName: 'ground_nocast',
+      width: 100, height: 100,
+      color: '#8a9070', texture: 'noise', textureTiles: 6,
+    }),
+    crowd
+  )
+)
+```
+```css
+.preview { height: 100%; }
+```
+
+A figure plays the new clip from where the old one was in its cycle, with no
+blend between them. Changing `speed` keeps the pose it is in. Moving a figure
+writes its slot in the whole crowd's buffer, so thousands of moving figures
+are cheap and two hundred thousand are not; `clipNames` lists what `clip`
+takes. A rebuild (a new `count`, `url` or `clips`) lays the crowd out again.
+
 ## A real rig, baked
 
 Set `url` and the crowd bakes that GLB instead of the blocky bench figure. The
@@ -15940,8 +16143,12 @@ expect from a 3D viewer, on every device. `<tosi-b3d>`'s default camera and
   of its distance (`WHEEL_SHARE`, as Babylon's `wheelDeltaPercentage`), so it
   is as gentle at arm's length as across a field. A page that set
   `wheelPrecision` or `wheelDeltaPercentage` itself keeps its own. A
-  trackpad pinch scales the distance by the pinch (`PINCH_SHARE`): it sends
-  many small steps, which the wheel's share per notch barely moved.
+  trackpad pinch scales the distance by the pinch, three times over
+  (`PINCH_GAIN`): a laptop trackpad is small, and a natural pinch on it
+  barely halved the distance. Chrome and Firefox send a pinch as a
+  ctrl-wheel, Safari as gesture events; both are handled. A trackpad driver
+  that sends a pinch as ctrl-wheel notches (common on Windows) zooms one wheel
+  step a notch (`pinchZoom`).
 - **Zoom stops short of the target**: with no `lowerRadiusLimit` of your own,
   it is set to twice the camera's near plane (at least 1 cm), because Babylon
   has none and zooming in went through the target and flipped the view.
@@ -24427,6 +24634,7 @@ The `<tosi-b3d-panel>` children are the set (none ship by default):
 | `title` | `''` | Placeholder card title (ignored if `url` set) |
 | `icon` | `''` | Puts it on the scene's system bar: its button's picture, an `svgIcons` name (e.g. `personStanding`, `book`, `map`); unknown draws a square. Its `title` is the button's tooltip and the panel's caption |
 | `exclusive` | `'on'` | On the system bar: one system panel is open at a time. `'off'` lets this one stay open beside the others and leaves them open when it opens (an app's main chrome: a tool palette, a properties panel). The settings panel and exclusive panels still close each other |
+| `bar-button` | `'on'` | On the system bar: `'off'` gives it no button there, for a panel something else opens (a menu entry calling `el.show()`). It still opens under the bar like the others |
 | `open` | `false` | On the system bar: open when the scene starts (and again in a headset, if it was open flat). To open or close it later, `el.show()` / `el.hide()` |
 | `chrome` | `''` | On the system bar: the panel opens with the settings panel's title bar (move, its title, ×; flat, a drag moves it and it reopens where you left it; holding its button on the bar puts it back). `'none'` for content with chrome of its own |
 | `url` | `''` | SVG URL (e.g. a reticle) |
@@ -24661,7 +24869,8 @@ full screen. One UI, arranged a little differently on each.
 It does not re-implement its buttons. It MIRRORS a list of real HTML buttons:
 a button that is hidden (by its `hidden` attribute or by a style, such as
 `::part(enterVrButton) { display: none }`) is not drawn, one that is disabled
-is drawn dimmed and ignores a press, its icon and title come along, and a press
+is drawn dimmed and ignores a press, one with `aria-pressed="true"` is drawn
+lit (the scene sets it on a panel's button while that panel shows), its icon and title come along, and a press
 calls that button's own `click()` (held for `HOLD_MS`, it gets a `systemhold`
 event instead: the scene puts that button's panel back where it started). So entering VR and going full screen keep
 their one definition, and both still run inside the press the browser requires
@@ -24717,8 +24926,9 @@ it).
 ## A menu of actions
 
 An option can be an action, not a choice (`handleSelect`, with a tick when
-`checked`), a submenu (`items`, opened in place of the list with a way back,
-which is easier to reach in a headset than a list flying out beside it), a
+`checked`), a submenu (`items`, opened by a press, beside the list level with
+the row that opened it, lifted to end no lower than that list; the lists are all one surface,
+so in a headset there is no gap to aim across), a
 rule (`separator: true`) or `disabled`. `options` may be a function, read each
 time the menu opens, so a list of saved things is always current. The
 character builder's **Character** menu is one:
@@ -27837,6 +28047,24 @@ This file ships **inside the package**, because a migration table you can only
 read on GitHub does not exist for someone who has already installed the thing
 and is staring at an error.
 
+## 0.12.x → 0.13.0
+
+The peer ranges are unchanged. Four things change under you:
+
+1. **`riggedBodyGlb` no longer recolours garment pictures by default.** Its
+   `bake` option is now the baker itself: pass `bake: bakeClothLook` (from
+   `tosijs-3d/cloth-bake`) to keep the baked look. Without it the pictures
+   are written as they are, and it warns once. `bake: false` still means no
+   bake; `bake: true` no longer means anything. `exportBody` passes the baker
+   for you.
+2. **The settings panel's Slow motion button is gone.** Set `timeScale` on
+   the `<tosi-b3d>` from your own control if you want one.
+3. **`barMenu` submenus cascade** beside the list, all on one surface,
+   instead of replacing it with a way back. A press opens one; a press on its
+   row again closes it.
+4. **`viewMenu` leaves the system bar during a headset session**, since in VR
+   the camera is your head. It comes back when the session ends.
+
 ## 0.11.x → 0.12.0
 
 The peer ranges are unchanged. Four things change under you:
@@ -28293,13 +28521,14 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-## 0.12.6
+## 0.13.0
 
-The latest release. BVH clips kept and carried in character files; MakeHuman's body exports dressed, with hair, skin and eyes; tailored garments fit any body; feet stay planted under retargeting; marker rigs place pelvis, neck and knees as the mannequins do. See [0.12.6](/v0.12.6/).
+The latest release. Biped gunplay aims where you look, crowds move figure by figure, system-bar menus cascade flat and in VR, and headset panels, presses and the chase camera behave. Garment exports bake their look only when given the baker. See [0.13.0](/v0.13.0/).
 
 ## Every version
 
 <!-- toc -->
+- [0.13.0](/v0.13.0/)
 - [0.12.6](/v0.12.6/)
 - [0.12.5](/v0.12.5/)
 - [0.12.4](/v0.12.4/)
@@ -28371,6 +28600,57 @@ The latest release. BVH clips kept and carried in character files; MakeHuman's b
 <!-- /toc -->
 
 Source: https://3d.tosijs.net/CHANGELOG/
+
+---
+
+# 0.13.0
+
+Biped gunplay that aims where you look, crowds you can move figure by figure, cascading system-bar menus that work flat and in a headset (the character builder's Animation menu among them), and a round of headset fixes: panels that keep their place under the bar, presses from either hand, a chase camera that keeps its seat. Garment exports bake their cloth look only when given the baker.
+
+Size: barrel (min, packages external) 1707.6 KB raw / 594.0 KB gz, up 9.2 KB / 3.0 KB gz (+0.5%) on 0.12.6.
+
+### ⚠️ Breaking
+
+- `riggedBodyGlb` bakes a garment's cloth look only when given the baker: pass `bake: bakeClothLook` (from `tosijs-3d/cloth-bake`). Without it the pictures are written as they are, and a bundle that imports `tosijs-3d/rigged-body-glb` alone no longer carries an image decoder (about 11 KiB gzip less; the barrel still exports both). It warns once when a garment has a look and no baker. `exportBody` passes it. `bake: false` still means no bake.
+
+See [Migration](/Migration/) for the other changes that need attention (Slow motion removed, cascading `barMenu` submenus, `viewMenu` in a headset).
+
+### Added
+
+- `<tosi-b3d-crowd>`: `setFigure(i, { x, y, z, yaw, clip, speed })` moves, turns or re-clips a figure; changes are uploaded once per frame however many figures moved. `clipNames` lists the clips. The doc page has a demo of walkers crossing a field.
+- `aimSpine(chain, held, target)` turns a spine after the clips have posed it so a held item points along an aim.
+- `<tosi-b3d-cloud-deck sky-clock="off">`: the deck drifts in world time, not the sky's, so a fast day passes under clouds that move at their own pace. City Drive and Cross Country use it.
+- `<tosi-b3d-panel bar-button="off">`: a system panel with no button of its own on the bar, for one something else opens (`el.show()` from a menu entry).
+
+### Changed
+
+- `<tosi-b3d-biped>` holding a weapon in `gunplay` points it along its aim: the spine is turned after the animations. Crouched, the gun used to point about 45° low, and standing 11° low.
+- `viewMenu` leaves the system bar during a headset session; in VR the camera is your head.
+- A trackpad pinch on an orbit camera zooms three times as far (`PINCH_GAIN`), and pinching works in Safari, which sends gesture events rather than a ctrl-wheel.
+- The character builder has an **Animation** menu on the system bar (play/pause and the clip); its **Playback controls** entry opens a small panel for scrubbing and speed. The page is titled **Character Builder**. While rigging, Play goes to the perspective view and Pause back to the face view last held.
+- `barMenu` submenus open beside the list (cascading, all on one surface) instead of replacing it with a way back. A submenu opens on a press, and a press on its row again closes it.
+- A system panel's button on the system bar stays lit while its panel is open (its HTML button carries `aria-pressed`).
+- Nothing is heard before the scene is shown: the effect voices (traffic, street lights, effects) and Babylon's own sounds stay silent until the loading spinner gives way. `holdEffectAudio()` (from `tosijs-3d/effect-audio`) holds them for a page's own reasons.
+- The settings panel no longer has a Slow motion button. Set `timeScale` from a page that wants one.
+
+### Fixed
+
+- In a headset, a system panel whose content grows after it opens (the rig tool once a body is rigged, the tailor) grows downward from under the system bar. It used to grow about its centre, up over the bar. `attachFramePanel` takes `keepTop: true` for this.
+- A trackpad pinch sent as ctrl-wheel notches (many Windows trackpad drivers) zooms one wheel step a notch; each notch used to move the camera about twenty times as far.
+- `<tosi-b3d-launcher>`'s `reloadModel()` no longer disposes the library's materials with the old model: after the first weapon swap, every weapon from that library was drawn white (the Biped Playground's loadout). `<tosi-b3d-crowd>`'s actors had the same fault when removed.
+- `<tosi-b3d-hud>`: changing `size` resizes the HUD straight away; it used to wait for the next window resize. Any `handleResize()` call made after setting it can go.
+- `<tosi-b3d-sound>` removed while its file loads no longer throws an unhandled rejection ("No volume subnode"); it is disposed once Babylon has finished loading it, and never starts playing.
+- Removing a `<tosi-b3d>` no longer warns "WebGL context LOST": the teardown loses the context on purpose. An unexpected loss still warns.
+- A skybox with its own `<tosi-b3d-moon>`s takes its night light from the brightest moon above the horizon. A moon that has set no longer lights the ground from below, and with every moon set the night has only ambient light.
+- In a headset, a press on the hand that is not pointing now counts on every way into VR (`enterXR` and the biped's own XR camera), not only `<tosi-b3d>`'s.
+- A popup whose content changes shape after it opens follows the new shape. It used to be drawn stretched or squashed until it was closed and opened again.
+- The tailor: an outline that lies past the outline field (one carried over from another body) is clipped to the field, and its points are drawn at the field's edge so you can drag them back. It used to draw over the panel's buttons.
+- In a headset, the system bar follows its panels during the session: a menu that leaves the bar (`viewMenu`) or a panel added late now does so in VR too. It used to keep the buttons it had when you entered.
+- A select (or other popup) in a system panel opens on its own surface in front of the panel instead of being cropped inside it.
+- The biped's aim reticle and the shadow blob under characters and vehicles are never culled. They used to vanish when the spot where they were created went out of view (in a headset, sometimes from one eye only).
+- In a headset, the vehicle chase camera keeps its seat through a brief moment with nothing piloted. It used to take wherever you were looking as forward again, a re-seat you did not ask for.
+
+Source: https://3d.tosijs.net/v0.13.0/
 
 ---
 

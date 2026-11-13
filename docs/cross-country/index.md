@@ -15,7 +15,7 @@ import {
 } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { crossCountry } = tosi({ crossCountry: { time: 9, speed: 30, coverage: 0.4 } })
+const { crossCountry } = tosi({ crossCountry: { time: 9, speed: 32, coverage: 0.4 } })
 
 // A LIGHTER WORLD on a headset or a low-powered device: a shorter view, fewer
 // trees, no cloud deck.
@@ -62,7 +62,7 @@ preview.append(
       panelTitle: 'Cross Country',
       scenePanel: () => [
         slider3d({ label: 'time of day', value: crossCountry.time, min: 0, max: 24, step: 0.1 }),
-        slider3d({ label: 'time speed', value: crossCountry.speed, min: 0, max: 600, step: 10 }),
+        slider3d({ label: 'time speed', value: crossCountry.speed, min: 0.25, max: 1024, scale: 'log2', step: 1, zeroStop: true }),
         ...(light ? [] : [slider3d({ label: 'cloud cover', value: crossCountry.coverage, min: 0, max: 1.5, step: 0.05 })]),
       ],
     },
@@ -78,7 +78,7 @@ preview.append(
     b3dFog({ syncSkybox: true, start: light ? 400 : 800, end: light ? 1400 : 3500 }),
     terrain,
     woods,
-    ...(light ? [] : [b3dCloudDeck({ altitude: 600, coverage: crossCountry.coverage, orographic: 0.6, wind: 8 })]),
+    ...(light ? [] : [b3dCloudDeck({ altitude: 600, coverage: crossCountry.coverage, orographic: 0.6, wind: 8, skyClock: 'off' })]),
     b3dWater({ y: 0, waterSize: 8000, follow: true, twoSided: true }),
     inputFocus(
       b3dTank({ url: assetUrl('tonio/tank/tank2.glb'), player: true, x: 0, z: 0, y: level + 0.5 })

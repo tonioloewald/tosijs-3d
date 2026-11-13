@@ -40,7 +40,8 @@ import { rigSilhouette } from './rig-fit.js';
 import { mirrorOutline } from './garment-cut.js';
 import { insidePolygon, rimSeam } from './cloth-drape.js';
 import { w3dTheme } from './w3d-theme.js';
-const { g, rect, path, circle, text } = svgElements;
+const { g, rect, path, circle, text, clipPath } = svgElements;
+let clipSeq = 0;
 const copy = (v) => v.map((s) => s.map((p) => [p[0], p[1]]));
 /** The body's front view with garment outlines drawn over it. */
 export function outlineField3d(config) {
@@ -98,7 +99,25 @@ export function outlineField3d(config) {
         'font-size': String(Math.round(w3dTheme.fontSize * 0.85)),
         fill: w3dTheme.muted,
     });
-    for (const n of [bg, body, centre, ghosts, lines, anchored, dots, caption])
+    /*
+    KEPT INSIDE THE FIELD. An outline can reach past the view (one carried over
+    from another body, or the body reshaped under it): its lines are clipped to
+    the field, and its points are drawn (and grabbed) at the field's edge, so a
+    drag brings one back rather than it painting over the panel.
+    */
+    const clipId = `w3d-outline-${clipSeq++}`;
+    const clipRect = rect({ x: 0, y: 0, width: 0, height: 0 });
+    const clipped = g({ 'clip-path': `url(#${clipId})` });
+    for (const n of [centre, ghosts, lines, anchored])
+        clipped.appendChild(n);
+    for (const n of [
+        clipPath({ id: clipId }, clipRect),
+        bg,
+        body,
+        clipped,
+        dots,
+        caption,
+    ])
         el.appendChild(n);
     const HANDLE = 4;
     const GRAB = 14;
@@ -111,6 +130,9 @@ export function outlineField3d(config) {
     let viewH = 0;
     const fx = (x) => left + (x - view.min.u) * scale;
     const py = (y) => top + (view.max.v - y) * scale;
+    // A point as drawn: on the field, at its edge if it lies past it.
+    const dx = (x) => Math.max(left, Math.min(left + viewW, fx(x)));
+    const dy = (y) => Math.max(top, Math.min(top + viewH, py(y)));
     const toX = (px) => view.min.u + (px - left) / scale;
     const toY = (pv) => view.max.v - (pv - top) / scale;
     const place = (px, pv) => {
@@ -138,6 +160,10 @@ export function outlineField3d(config) {
         bg.setAttribute('fill', w3dTheme.rowBg);
         bg.setAttribute('stroke', w3dTheme.divider);
         bg.setAttribute('stroke-width', String(w3dTheme.strokeWidth));
+        clipRect.setAttribute('x', String(left - 4));
+        clipRect.setAttribute('y', String(top - 4));
+        clipRect.setAttribute('width', String(viewW + 8));
+        clipRect.setAttribute('height', String(viewH + 8));
         body.setAttribute('d', front.runs
             .map((r) => {
             const x0 = fx(r.u0).toFixed(1);
@@ -211,8 +237,8 @@ export function outlineField3d(config) {
                 const on = (selected?.s === si && selected.p === pi) ||
                     (hovered?.s === si && hovered.p === pi);
                 dots.appendChild(circle({
-                    cx: fx(x),
-                    cy: py(y),
+                    cx: dx(x),
+                    cy: dy(y),
                     r: on ? HANDLE + 1.5 : HANDLE,
                     fill: si === open && pi === 0
                         ? w3dTheme.text
@@ -238,7 +264,7 @@ export function outlineField3d(config) {
         let best = null;
         let bestD = GRAB * GRAB;
         shapes.forEach((s, si) => s.forEach(([x, y], pi) => {
-            const d = (fx(x) - px) ** 2 + (py(y) - pv) ** 2;
+            const d = (dx(x) - px) ** 2 + (dy(y) - pv) ** 2;
             if (d <= bestD) {
                 bestD = d;
                 best = { s: si, p: pi };

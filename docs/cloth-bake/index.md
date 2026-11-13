@@ -23,8 +23,8 @@ const sheen = clothSheenColour('#7a2e2e')   // KHR_materials_sheen's colour, lin
 `bakeClothLook(picture, look)` is the whole step for a garment: its picture
 (PNG or JPEG bytes, [jpeg](/jpeg/)) and the cloth look it is worn with give
 the recoloured picture as a PNG, or null when the look leaves the picture as
-it is. `riggedBodyGlb` does this to every garment it writes unless told not
-to (`bake: false`).
+it is. `riggedBodyGlb` does this to every garment it writes when it is passed as
+`bake`.
 
 HAIR TOO: `recolourHair(image, base, highlight)` is
 [hair-shading](/hair-shading/) on pixels, for a hairstyle's texture: each

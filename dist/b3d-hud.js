@@ -88,7 +88,7 @@ they swing out or behind.
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `url` | `''` | Empty = the built-in code HUD (fully wired); set to a designer SVG to load one |
-| `size` | `70` | HUD height as a % of the canvas's smaller dimension |
+| `size` | `70` | HUD height as a % of the canvas's smaller dimension, and at most half that % of the longer one (so in portrait it keeps about the landscape proportion) |
 | `pxPerDeg` | `8` | Pitch-ladder pixels per degree |
 | `blend` | `'plus-lighter'` | How the flat overlay is mixed with the scene (any CSS `mix-blend-mode`). The default ADDS light, which reads as a projected display over mid tones and goes faint over a black sky or a white one. `'normal'` paints it on top |
 | `opacity` | `0.5` | Opacity of the flat overlay, `0…1`. With `blend="normal"` about `0.85` reads well |
@@ -207,6 +207,8 @@ export class B3dHud extends B3dChild {
             this.style.removeProperty('--hud-opacity');
         else
             this.style.setProperty('--hud-opacity', String(Math.min(1, opacity)));
+        // A change of `size` re-renders: measure again, or it waits for a resize.
+        this._measure();
     }
     controller = null;
     _meters = new Map();

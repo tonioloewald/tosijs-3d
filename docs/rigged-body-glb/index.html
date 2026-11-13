@@ -22,7 +22,8 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=f9a43918f299" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=c39a3e225125" data-tosi-doc-system />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&amp;family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&amp;display=swap" />
   <title>rigged-body-glb — tosijs-3d</title>
   <meta name="description" content="Any rigged body out as a skinned GLB that plays UAL&#39;s clips by name. A body the rig tool made (an AI mesh, an artist&#39;s mesh, a scan), a file&#39;s own skin…" />
   <link rel="canonical" href="https://3d.tosijs.net/rigged-body-glb/" />
@@ -33,13 +34,13 @@
   <meta property="og:description" content="Any rigged body out as a skinned GLB that plays UAL&#39;s clips by name. A body the rig tool made (an AI mesh, an artist&#39;s mesh, a scan), a file&#39;s own skin…" />
   <meta property="og:url" content="https://3d.tosijs.net/rigged-body-glb/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"rigged-body-glb","description":"Any rigged body out as a skinned GLB that plays UAL's clips by name. A body the rig tool made (an AI mesh, an artist's mesh, a scan), a file's own skin…","url":"https://3d.tosijs.net/rigged-body-glb/","inLanguage":"en","dateModified":"2026-11-10T19:01:33+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"rigged-body-glb","description":"Any rigged body out as a skinned GLB that plays UAL's clips by name. A body the rig tool made (an AI mesh, an artist's mesh, a scan), a file's own skin…","url":"https://3d.tosijs.net/rigged-body-glb/","inLanguage":"en","dateModified":"2026-11-13T11:30:26+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Characters and vehicles","item":"https://3d.tosijs.net/characters-and-vehicles/"},{"@type":"ListItem","position":2,"name":"b3d-biped","item":"https://3d.tosijs.net/b3d-biped/"},{"@type":"ListItem","position":3,"name":"character core","item":"https://3d.tosijs.net/character-core/"},{"@type":"ListItem","position":4,"name":"skinned-glb","item":"https://3d.tosijs.net/skinned-glb/"},{"@type":"ListItem","position":5,"name":"rigged-body-glb","item":"https://3d.tosijs.net/rigged-body-glb/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=964dce30c6d0" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=2b7977de6a53" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="rigged-body-glb.ts">
 <h1 id="rigged-body-glb">rigged-body-glb</h1>
 <p><strong>Any rigged body out as a skinned GLB that plays UAL&#39;s clips by name.</strong> A
@@ -92,9 +93,10 @@ from Blender), each a mesh named for its slot, skinned with weights from
 the body&#39;s own, as the builder draws them (armour lifted 5 mm), with its
 material as data (its pictures, and its saved look&#39;s glTF factors where
 it has a plain reading). A recoloured cloth&#39;s picture is written
-recoloured (<a href="/cloth-bake/">cloth-bake</a>, PNG or JPEG in, PNG out), so the
-file shows what the builder does in any engine; <code>bake: false</code> writes the
-pictures as they came. The skin they cover is tucked under them, as the
+recoloured when you pass <code>bake: bakeClothLook</code> (<a href="/cloth-bake/">cloth-bake</a>,
+PNG or JPEG in, PNG out), so the file shows what the builder does in any
+engine; without it the pictures go as they came, and the writer carries no
+image decoder. The skin they cover is tucked under them, as the
 builder does, and skin a garment lists in its <code>delete</code> (as MakeHuman&#39;s
 clothes do) is dropped; <code>cover: false</code> leaves the skin alone.</li>
 <li><strong>Clips</strong>, with <code>clips</code>: animations read from any skinned GLB
@@ -135,7 +137,7 @@ goes there), with <code>generator</code> and <code>copyright</code>.</li>
       </ul></li>
       <li><a class="doc-link" href="../rig-tool/">Rig tool</a></li>
       <li><a class="doc-link" href="../effect-tool/">Effect tool</a></li>
-      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-builder" aria-label="character builder"></button><a class="doc-link" href="../character-builder/">character builder</a></div>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-builder" aria-label="Character Builder"></button><a class="doc-link" href="../character-builder/">Character Builder</a></div>
       <ul id="tosi-nav-character-builder">
         <li><a class="doc-link" href="../human-pack/">human-pack</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-file" aria-label="character-file"></button><a class="doc-link" href="../character-file/">character-file</a></div>
@@ -218,7 +220,10 @@ goes there), with <code>generator</code> and <code>copyright</code>.</li>
     <ul id="tosi-nav-sky-and-light">
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-skybox" aria-label="b3d-skybox"></button><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></div>
       <ul id="tosi-nav-b3d-skybox">
-        <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-moon" aria-label="b3d-moon"></button><a class="doc-link" href="../b3d-moon/">b3d-moon</a></div>
+        <ul id="tosi-nav-b3d-moon">
+          <li><a class="doc-link" href="../moon-light/">moon light</a></li>
+        </ul></li>
         <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
       </ul></li>
       <li><a class="doc-link" href="../light-pollution/">light pollution</a></li>
@@ -300,7 +305,10 @@ goes there), with <code>generator</code> and <code>copyright</code>.</li>
     <ul id="tosi-nav-characters-and-vehicles">
       <li class="nav-branch -open"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="true" aria-controls="tosi-nav-b3d-biped" aria-label="b3d-biped"></button><a class="doc-link" href="../b3d-biped/">b3d-biped</a></div>
       <ul id="tosi-nav-b3d-biped">
-        <li><a class="doc-link" href="../aim/">aim</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-aim" aria-label="aim"></button><a class="doc-link" href="../aim/">aim</a></div>
+        <ul id="tosi-nav-aim">
+          <li><a class="doc-link" href="../aim-ik/">aim IK</a></li>
+        </ul></li>
         <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
         <li class="nav-branch -open"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="true" aria-controls="tosi-nav-character-core" aria-label="character core"></button><a class="doc-link" href="../character-core/">character core</a></div>
         <ul id="tosi-nav-character-core">
@@ -541,6 +549,7 @@ goes there), with <code>generator</code> and <code>copyright</code>.</li>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.13.0/">0.13.0</a></li>
         <li><a class="doc-link" href="../v0.12.6/">0.12.6</a></li>
         <li><a class="doc-link" href="../v0.12.5/">0.12.5</a></li>
         <li><a class="doc-link" href="../v0.12.4/">0.12.4</a></li>
@@ -627,6 +636,6 @@ goes there), with <code>generator</code> and <code>copyright</code>.</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-9knhx6yx.js"></script>
+  <script type="module" src="../hydrate-swt7z66k.js"></script>
 </body>
 </html>

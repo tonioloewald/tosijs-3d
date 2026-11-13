@@ -204,6 +204,93 @@ None of it costs anything. The clips share one texture, so switching is a change
 of two numbers rather than of material, and the CPU still touches nothing once
 the crowd is built.
 
+## Moving figures
+
+The crowd lays its figures out once; moving them is the game's job.
+`setFigure(i, { x, y, z, yaw, clip, speed })` moves, turns or re-clips figure
+`i` (leave out what stays). Call it as often as you like: the changes are
+uploaded once, just before the frame is drawn. The clips play in place, so a
+walker goes nowhere until you move it, and its feet slide unless its speed
+matches its stride. Below, three hundred walkers cross a field, turn back at
+its edge, and stop now and then to wave: all of it is `setFigure` calls.
+
+```js
+import { b3d, b3dSun, b3dSkybox, b3dLight, b3dGround, b3dCrowd, sceneDelta } from 'tosijs-3d'
+import { orbitCam } from 'tosijs-3d/demo-utils'
+
+// Walkers cross the field, turn back at its edge, and stop to wave now and
+// then. WALK is the bench figure's stride at speed 1.
+const FIGURES = 300
+const FIELD = 30
+const WALK = 1.2
+
+const crowd = b3dCrowd({ count: FIGURES, spread: FIELD * 2 })
+let walkers = null
+
+preview.append(
+  b3d(
+    {
+      style: 'width:100%;height:100%',
+      sceneCreated(el) {
+        // Close enough to see them walk: from across the field they are dots.
+        orbitCam(el, { alphaDeg: 35, betaDeg: 72, radius: 22, target: [0, 1, 0] })
+        el.scene.onBeforeRenderObservable.add(() => {
+          const n = crowd.figureCount
+          if (n === 0) return
+          if (walkers == null || walkers.length !== n) {
+            // One per figure: its heading, and how long until it next changes
+            // what it is doing.
+            walkers = Array.from({ length: n }, (_, i) => {
+              const at = crowd.transformOf(i)
+              crowd.setFigure(i, { clip: 'walk', speed: 1 })
+              return { yaw: at.yaw, wait: 3 + Math.random() * 20, waving: false }
+            })
+          }
+          const dt = sceneDelta(el.scene)
+          walkers.forEach((w, i) => {
+            w.wait -= dt
+            if (w.wait < 0) {
+              w.waving = !w.waving
+              w.wait = w.waving ? 2 + Math.random() * 2 : 5 + Math.random() * 20
+              crowd.setFigure(i, { clip: w.waving ? 'wave' : 'walk' })
+            }
+            if (w.waving) return
+            const at = crowd.transformOf(i)
+            // Past the edge and heading out: turn back toward the middle.
+            if (Math.hypot(at.x, at.z) > FIELD && at.x * Math.sin(w.yaw) + at.z * Math.cos(w.yaw) > 0) {
+              w.yaw = Math.atan2(-at.x, -at.z) + (Math.random() - 0.5)
+            }
+            crowd.setFigure(i, {
+              x: at.x + Math.sin(w.yaw) * WALK * dt,
+              z: at.z + Math.cos(w.yaw) * WALK * dt,
+              yaw: w.yaw,
+            })
+          })
+        })
+      },
+    },
+    b3dSun({ shadowMaxZ: 120, activeDistance: 90, shadowDarkness: 0.25 }),
+    b3dSkybox({ timeOfDay: 9 }),
+    b3dLight({ intensity: 0.6, groundColor: '#59604a' }),
+    b3dGround({
+      meshName: 'ground_nocast',
+      width: 100, height: 100,
+      color: '#8a9070', texture: 'noise', textureTiles: 6,
+    }),
+    crowd
+  )
+)
+```
+```css
+.preview { height: 100%; }
+```
+
+A figure plays the new clip from where the old one was in its cycle, with no
+blend between them. Changing `speed` keeps the pose it is in. Moving a figure
+writes its slot in the whole crowd's buffer, so thousands of moving figures
+are cheap and two hundred thousand are not; `clipNames` lists what `clip`
+takes. A rebuild (a new `count`, `url` or `clips`) lays the crowd out again.
+
 ## A real rig, baked
 
 Set `url` and the crowd bakes that GLB instead of the blocky bench figure. The
@@ -1150,6 +1237,9 @@ export class B3dCrowd extends B3dChild {
                 },
             ],
         });
+        // After every onBeforeRender observer, so moves made in any of them are
+        // drawn this frame.
+        this._flushObs = scene.onBeforeActiveMeshesEvaluationObservable.add(() => this._flush());
         this._obs = scene.onBeforeRenderObservable.add(() => {
             /*
             TWO CLOCKS, and they are not the same one.
@@ -1373,8 +1463,9 @@ export class B3dCrowd extends B3dChild {
     async _buildSkinned(scene, n) {
         this._skinnedWant = n;
         if (n < this._skinnedRoots.length) {
+            // The container owns the materials; the clones share them.
             for (const r of this._skinnedRoots.splice(n))
-                r.dispose(false, true);
+                r.dispose();
         }
         if (n === 0) {
             this._skinnedNote = '';
@@ -1574,7 +1665,7 @@ export class B3dCrowd extends B3dChild {
             dispose: () => {
                 for (const g of inst.animationGroups)
                     g.dispose();
-                root.dispose(false, true);
+                root.dispose(); // its materials are the rig container's
                 this.setFigureHidden(i, false);
             },
         };
@@ -1689,6 +1780,99 @@ export class B3dCrowd extends B3dChild {
     /** Is figure `i` currently taken out? */
     isFigureHidden(i) {
         return this._hidden.has(i);
+    }
+    /** The clips this crowd's bake holds, by name: what `setFigure` takes. */
+    get clipNames() {
+        return this._bake?.clips.map((c) => c.name) ?? [];
+    }
+    /*
+    MOVING A FIGURE. Each call edits the CPU copy of the buffers and marks them;
+    the upload happens once, just before the frame is drawn, however many
+    figures changed. So moving a thousand figures in your own frame observer
+    costs one upload, not a thousand.
+  
+    That upload is the WHOLE buffer (64 bytes a figure for matrices, 16 for
+    state), which is fine for thousands of moving figures and not for the
+    200,000-figure bench.
+    */
+    _matrixDirty = false;
+    _stateDirty = false;
+    _flushObs = null;
+    _flush() {
+        const mesh = this._mesh;
+        if (mesh == null)
+            return;
+        if (this._matrixDirty)
+            mesh.thinInstanceBufferUpdated('matrix');
+        if (this._stateDirty)
+            mesh.thinInstanceBufferUpdated('vatState');
+        this._matrixDirty = false;
+        this._stateDirty = false;
+    }
+    /**
+     * Move figure `i`, turn it, or change what it plays. Leave out what stays.
+     *
+     * - `x`, `y`, `z`: where it stands, in the crowd's frame (metres)
+     * - `yaw`: radians about +Y, as `transformOf` reports it
+     * - `clip`: one of `clipNames`
+     * - `speed`: playback speed, 1 = as baked
+     *
+     * The clips play in place, so a walking figure goes nowhere unless you move
+     * it; match its speed to its stride or its feet slide. A new clip starts
+     * where the old one was in its cycle: there is no blend. A change of speed
+     * keeps the pose it is in now. Returns false for a figure that does not
+     * exist or a clip the bake does not hold.
+     *
+     * A hidden figure moves too, and comes back where it was moved to. A
+     * rebuild (a change of `count`, `url` or `clips`) lays the crowd out again.
+     */
+    setFigure(i, change) {
+        const m = this._matrices;
+        const st = this._state;
+        const bake = this._bake;
+        if (m == null || st == null || bake == null)
+            return false;
+        if (i < 0 || i >= this.figureCount)
+            return false;
+        if (change.x != null ||
+            change.y != null ||
+            change.z != null ||
+            change.yaw != null) {
+            // A hidden figure's matrix is zero; its real one is kept aside.
+            const target = this._hidden.get(i) ?? m.subarray(i * 16, i * 16 + 16);
+            const yaw = change.yaw ?? Math.atan2(target[8], target[10]);
+            const c = Math.cos(yaw);
+            const s = Math.sin(yaw);
+            // Babylon's RotationY, column-major, plus translation.
+            target.set([c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0]);
+            target[12] = change.x ?? target[12];
+            target[13] = change.y ?? target[13];
+            target[14] = change.z ?? target[14];
+            target[15] = 1;
+            if (!this._hidden.has(i))
+                this._matrixDirty = true;
+        }
+        if (change.clip != null || change.speed != null) {
+            const o = i * 4;
+            const was = bake.clips.find((c) => c.start === st[o]) ?? bake.clips[0] ?? null;
+            const clip = change.clip != null
+                ? bake.clips.find((c) => c.name === change.clip) ?? null
+                : was;
+            if (clip == null || was == null)
+                return false;
+            const dur = (c) => (c.duration > 0 ? c.duration : 1);
+            // The speed it plays at now, as a multiple of the baked speed.
+            const speed = change.speed ?? st[o + 3] * dur(was);
+            const rate = speed / dur(clip);
+            // Keep the phase it is at: the shader plays `phase + time * rate`.
+            const phase = (st[o + 2] + this._t * (st[o + 3] - rate)) % 1;
+            st[o] = clip.start;
+            st[o + 1] = clip.frames;
+            st[o + 2] = phase < 0 ? phase + 1 : phase;
+            st[o + 3] = rate;
+            this._stateDirty = true;
+        }
+        return true;
     }
     /**
      * The figures nearest a point, nearest first.
@@ -1807,11 +1991,15 @@ export class B3dCrowd extends B3dChild {
         if (scene != null && this._obs != null) {
             scene.onBeforeRenderObservable.remove(this._obs);
         }
+        if (scene != null && this._flushObs != null) {
+            scene.onBeforeActiveMeshesEvaluationObservable.remove(this._flushObs);
+        }
         this._obs = null;
+        this._flushObs = null;
         this._offDebug?.();
         this._offDebug = null;
         for (const r of this._skinnedRoots)
-            r.dispose(false, true);
+            r.dispose();
         this._skinnedRoots = [];
         this._container?.dispose();
         this._container = null;

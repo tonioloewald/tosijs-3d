@@ -22,7 +22,8 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=f9a43918f299" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=c39a3e225125" data-tosi-doc-system />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&amp;family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&amp;display=swap" />
   <title>b3d-cloud-deck — tosijs-3d</title>
   <meta name="description" content="A cloud LAYER, as a layer. One lit surface overhead with dark undersides and bright fringes, driven by a field you can dial from clear to overcast and…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-cloud-deck/" />
@@ -33,13 +34,13 @@
   <meta property="og:description" content="A cloud LAYER, as a layer. One lit surface overhead with dark undersides and bright fringes, driven by a field you can dial from clear to overcast and…" />
   <meta property="og:url" content="https://3d.tosijs.net/b3d-cloud-deck/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-cloud-deck","description":"A cloud LAYER, as a layer. One lit surface overhead with dark undersides and bright fringes, driven by a field you can dial from clear to overcast and…","url":"https://3d.tosijs.net/b3d-cloud-deck/","inLanguage":"en","dateModified":"2026-11-03T12:07:54+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-cloud-deck","description":"A cloud LAYER, as a layer. One lit surface overhead with dark undersides and bright fringes, driven by a field you can dial from clear to overcast and…","url":"https://3d.tosijs.net/b3d-cloud-deck/","inLanguage":"en","dateModified":"2026-11-13T09:33:22.026Z","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Weather and clouds","item":"https://3d.tosijs.net/weather-and-clouds/"},{"@type":"ListItem","position":2,"name":"b3d-cloud-deck","item":"https://3d.tosijs.net/b3d-cloud-deck/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=964dce30c6d0" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=2b7977de6a53" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="b3d-cloud-deck.ts">
 <h1 id="b3d-cloud-deck">b3d-cloud-deck</h1>
 <p><strong>A cloud LAYER, as a layer.</strong> One lit surface overhead with dark undersides and
@@ -208,6 +209,11 @@ where your eye is; orbiting then changes only which way you look.</p>
 <td><code>wind</code></td>
 <td><code>8</code></td>
 <td>Metres per second the deck drifts, on the sky&#39;s clock: a skybox sped up (<code>realtimeScale</code> 60) drifts it 60 times as fast. Nothing rebakes</td>
+</tr>
+<tr>
+<td><code>skyClock</code></td>
+<td><code>&#39;on&#39;</code></td>
+<td><code>&#39;on&#39;</code>: drift and evolve on the sky&#39;s clock (a sped-up skybox carries the clouds). <code>&#39;off&#39;</code>: world time, so a fast day passes under clouds moving at their own pace</td>
 </tr>
 <tr>
 <td><code>windHeadingDeg</code></td>
@@ -426,7 +432,7 @@ worse than no clouds.</li>
       </ul></li>
       <li><a class="doc-link" href="../rig-tool/">Rig tool</a></li>
       <li><a class="doc-link" href="../effect-tool/">Effect tool</a></li>
-      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-builder" aria-label="character builder"></button><a class="doc-link" href="../character-builder/">character builder</a></div>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-builder" aria-label="Character Builder"></button><a class="doc-link" href="../character-builder/">Character Builder</a></div>
       <ul id="tosi-nav-character-builder">
         <li><a class="doc-link" href="../human-pack/">human-pack</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-file" aria-label="character-file"></button><a class="doc-link" href="../character-file/">character-file</a></div>
@@ -509,7 +515,10 @@ worse than no clouds.</li>
     <ul id="tosi-nav-sky-and-light">
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-skybox" aria-label="b3d-skybox"></button><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></div>
       <ul id="tosi-nav-b3d-skybox">
-        <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-moon" aria-label="b3d-moon"></button><a class="doc-link" href="../b3d-moon/">b3d-moon</a></div>
+        <ul id="tosi-nav-b3d-moon">
+          <li><a class="doc-link" href="../moon-light/">moon light</a></li>
+        </ul></li>
         <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
       </ul></li>
       <li><a class="doc-link" href="../light-pollution/">light pollution</a></li>
@@ -591,7 +600,10 @@ worse than no clouds.</li>
     <ul id="tosi-nav-characters-and-vehicles">
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-biped" aria-label="b3d-biped"></button><a class="doc-link" href="../b3d-biped/">b3d-biped</a></div>
       <ul id="tosi-nav-b3d-biped">
-        <li><a class="doc-link" href="../aim/">aim</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-aim" aria-label="aim"></button><a class="doc-link" href="../aim/">aim</a></div>
+        <ul id="tosi-nav-aim">
+          <li><a class="doc-link" href="../aim-ik/">aim IK</a></li>
+        </ul></li>
         <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-core" aria-label="character core"></button><a class="doc-link" href="../character-core/">character core</a></div>
         <ul id="tosi-nav-character-core">
@@ -832,6 +844,7 @@ worse than no clouds.</li>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.13.0/">0.13.0</a></li>
         <li><a class="doc-link" href="../v0.12.6/">0.12.6</a></li>
         <li><a class="doc-link" href="../v0.12.5/">0.12.5</a></li>
         <li><a class="doc-link" href="../v0.12.4/">0.12.4</a></li>
@@ -918,6 +931,6 @@ worse than no clouds.</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-9knhx6yx.js"></script>
+  <script type="module" src="../hydrate-swt7z66k.js"></script>
 </body>
 </html>

@@ -1147,6 +1147,11 @@
         "description": "Metres per second the deck drifts, on the sky's clock: a skybox sped up (`realtimeScale` 60) drifts it 60 times as fast. Nothing rebakes"
       },
       {
+        "name": "skyClock",
+        "default": "'on'",
+        "description": "`'on'`: drift and evolve on the sky's clock (a sped-up skybox carries the clouds). `'off'`: world time, so a fast day passes under clouds moving at their own pace"
+      },
+      {
         "name": "windHeadingDeg",
         "default": "0",
         "description": "Which way it drifts — and the direction cirrus streaks run. Used only when the scene has no wind of its own (`<tosi-b3d wind-speed>`): with one, the deck drifts with it, as smoke and storms do"
@@ -2025,7 +2030,7 @@
       {
         "name": "size",
         "default": "70",
-        "description": "HUD height as a % of the canvas's smaller dimension"
+        "description": "HUD height as a % of the canvas's smaller dimension, and at most half that % of the longer one (so in portrait it keeps about the landscape proportion)"
       },
       {
         "name": "pxPerDeg",
@@ -3043,6 +3048,9 @@
         "name": "open",
         "default": "false",
         "description": "On the system bar: open when the scene starts (and again in a headset, if it was open flat). To open or close it later, `el.show()` / `el.hide()`"
+      },
+      {
+        "name": "barButton"
       }
     ]
   },

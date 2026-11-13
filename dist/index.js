@@ -221,6 +221,7 @@ export { bakeSkyboxCube, bakeSkyPair, starsFromGalaxy, starsFromVoxelGalaxy, fac
 export { SurroundingsProbe, makeProbeScratch, readSurroundings, } from './surroundings-probe.js';
 export { DEFAULT_HEIGHTS, bearingIndex, exposure, inShelter, makeSurroundings, muzzleClearance, peekSide, sampleAt, setSample, shelterFrom, shuffleToward, stanceFor, } from './surroundings.js';
 export { DEFAULT_AIM_LIMITS, aimAuthority, aimDirection, aimPoseWeights, aimToward, aimWobble, bodyCatchUp, clampAim2, relaxAim, stepAim, wrapDeg, } from './aim.js';
+export { aimSpine } from './aim-ik.js';
 export { B3dCrowd, b3dCrowd, VatPlugin, buildBenchFigure, writeVatTextures, } from './b3d-crowd.js';
 /*
 Vertex-animation substrate — the crowd/fauna primitive. Pure layout and phase

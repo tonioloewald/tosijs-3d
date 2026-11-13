@@ -22,7 +22,8 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=f9a43918f299" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=c39a3e225125" data-tosi-doc-system />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&amp;family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&amp;display=swap" />
   <title>terrainEditor3d — tosijs-3d</title>
   <meta name="description" content="An editor for a terrain, built FROM its schema. Every range, log track, unit and enum comes from sceneSchemas.terrain(), so the control cannot disagree…" />
   <link rel="canonical" href="https://3d.tosijs.net/terrain-editor/" />
@@ -39,7 +40,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=964dce30c6d0" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=2b7977de6a53" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="terrain-editor.ts">
 <h1 id="terraineditor3d">terrainEditor3d</h1>
 <p><strong>An editor for a terrain, built FROM its schema.</strong> Every range, log track,
@@ -136,7 +137,7 @@ the element implements.</li>
       </ul></li>
       <li><a class="doc-link" href="../rig-tool/">Rig tool</a></li>
       <li><a class="doc-link" href="../effect-tool/">Effect tool</a></li>
-      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-builder" aria-label="character builder"></button><a class="doc-link" href="../character-builder/">character builder</a></div>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-builder" aria-label="Character Builder"></button><a class="doc-link" href="../character-builder/">Character Builder</a></div>
       <ul id="tosi-nav-character-builder">
         <li><a class="doc-link" href="../human-pack/">human-pack</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-file" aria-label="character-file"></button><a class="doc-link" href="../character-file/">character-file</a></div>
@@ -219,7 +220,10 @@ the element implements.</li>
     <ul id="tosi-nav-sky-and-light">
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-skybox" aria-label="b3d-skybox"></button><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></div>
       <ul id="tosi-nav-b3d-skybox">
-        <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-moon" aria-label="b3d-moon"></button><a class="doc-link" href="../b3d-moon/">b3d-moon</a></div>
+        <ul id="tosi-nav-b3d-moon">
+          <li><a class="doc-link" href="../moon-light/">moon light</a></li>
+        </ul></li>
         <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
       </ul></li>
       <li><a class="doc-link" href="../light-pollution/">light pollution</a></li>
@@ -301,7 +305,10 @@ the element implements.</li>
     <ul id="tosi-nav-characters-and-vehicles">
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-biped" aria-label="b3d-biped"></button><a class="doc-link" href="../b3d-biped/">b3d-biped</a></div>
       <ul id="tosi-nav-b3d-biped">
-        <li><a class="doc-link" href="../aim/">aim</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-aim" aria-label="aim"></button><a class="doc-link" href="../aim/">aim</a></div>
+        <ul id="tosi-nav-aim">
+          <li><a class="doc-link" href="../aim-ik/">aim IK</a></li>
+        </ul></li>
         <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-core" aria-label="character core"></button><a class="doc-link" href="../character-core/">character core</a></div>
         <ul id="tosi-nav-character-core">
@@ -542,6 +549,7 @@ the element implements.</li>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.13.0/">0.13.0</a></li>
         <li><a class="doc-link" href="../v0.12.6/">0.12.6</a></li>
         <li><a class="doc-link" href="../v0.12.5/">0.12.5</a></li>
         <li><a class="doc-link" href="../v0.12.4/">0.12.4</a></li>
@@ -628,6 +636,6 @@ the element implements.</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-9knhx6yx.js"></script>
+  <script type="module" src="../hydrate-swt7z66k.js"></script>
 </body>
 </html>

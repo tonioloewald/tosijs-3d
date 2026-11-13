@@ -12,7 +12,7 @@ export interface BarMenuOption {
     icon?: string;
     /** An ACTION: called when picked (it is not a choice, so no tick). */
     handleSelect?: () => void;
-    /** A SUBMENU, opened in place of the list, with a way back. */
+    /** A SUBMENU, opened beside the list by a press on this row. */
     items?: Array<string | BarMenuOption> | (() => Array<string | BarMenuOption>);
     /** A rule between groups. */
     separator?: boolean;

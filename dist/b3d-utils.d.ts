@@ -319,6 +319,7 @@ export type XRStuff = {
     xr: BABYLON.WebXRDefaultExperience;
     exitXR: AsyncVoidFunction;
 };
+export declare function pressWithEitherHand(xr: BABYLON.WebXRDefaultExperience, scene: BABYLON.Scene): void;
 export declare function enterXR(scene: BABYLON.Scene, options?: XRParams): Promise<XRStuff>;
 /**
  * Dispose a mesh AND the materials/textures nothing else is still using.

@@ -437,7 +437,7 @@ export function handSocket(skeleton, hand, side, handNode) {
     node.position.copyFrom(p);
     return node;
 }
-import { AbstractMesh, isOff, sceneDelta, collidable, semanticParent, } from './b3d-utils.js';
+import { AbstractMesh, isOff, sceneDelta, collidable, disposeMeshTree, semanticParent, } from './b3d-utils.js';
 /** A guided missile always cruises at least this much FASTER than the platform that
  * launched it — otherwise it crawls off the rail and trails a fast mover. Sized to feel
  * like the dumb round (which leaves at +missileSpeed relative, and reads well). */
@@ -1089,7 +1089,10 @@ export class B3dLauncher extends AbstractMesh {
         this._muzzleNode = null;
         this._stopLoad?.();
         this._stopLoad = null;
-        this.mesh?.dispose(false, true);
+        // Not dispose(false, true): a library model shares its materials with the
+        // library, and every later copy came out white.
+        if (this.mesh != null)
+            disposeMeshTree(this.mesh);
         this.mesh = undefined;
     }
     /** Load the library model, once, after the attribute drain has finished. */

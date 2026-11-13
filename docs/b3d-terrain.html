@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    document.documentElement.classList.add('tosi-js')
+    document.addEventListener('click', function (e) {
+      if (customElements.get('tosi-doc-system')) return
+      var b = e.target.closest && e.target.closest('.doc-nav .nav-toggle')
+      if (!b) return
+      var open = b.closest('.nav-branch').classList.toggle('-open')
+      b.setAttribute('aria-expanded', String(open))
+    })
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="doc-system.css?v=c39a3e225125" data-tosi-doc-system />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&amp;family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&amp;display=swap" />
+  <title>b3d-terrain — tosijs-3d</title>
+  <meta name="description" content="Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface. Longitude (u) wraps seamlessly; latitude (v) reflects at the midpoint…" />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-terrain/" />
+  <link rel="alternate" type="text/markdown" href="index.md" title="b3d-terrain — tosijs-3d (markdown)" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="b3d-terrain — tosijs-3d" />
+  <meta property="og:description" content="Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface. Longitude (u) wraps seamlessly; latitude (v) reflects at the midpoint…" />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-terrain/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-terrain","description":"Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface. Longitude (u) wraps seamlessly; latitude (v) reflects at the midpoint…","url":"https://3d.tosijs.net/b3d-terrain/","inLanguage":"en","dateModified":"2026-10-27T15:42:42+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Terrain","item":"https://3d.tosijs.net/terrain/"},{"@type":"ListItem","position":2,"name":"b3d-terrain","item":"https://3d.tosijs.net/b3d-terrain/"}]}</script>
+  <link rel="icon" href="favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
+</head>
+<body>
+  <tosi-doc-system docs="docs.json?v=2b7977de6a53" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <article class="doc-content" data-doc="b3d-terrain.ts">
+<h1 id="b3d-terrain">b3d-terrain</h1>
+<p>Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface.
+Longitude (u) wraps seamlessly; latitude (v) reflects at the midpoint, creating
+symmetric hemispheres with no singularities. Two noise layers (gross
+contour and fine detail) each pass through gradient filters for shaping plateaus, mesas, etc.</p>
+<h2 id="demo">Demo</h2>
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dCloudDeck, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dDeath, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField, volcano } from &#39;tosijs-3d&#39;
+import { tosi, elements } from &#39;tosijs&#39;
+const { div, span } = elements
+
+const { demo } = tosi({
+  demo: {
+    seed: 111,
+    volcano: false,
+    // AMPLITUDES INTERACT WITH horizScale: the scales are DIVIDED by it, so at
+    // h-size 8 a grossScale of 0.015 means ~530m features — and a few metres
+    // of amplitude across 530m is a plain, not a landscape.
+    // (⚠️ line comments ONLY in a doc demo: a block comment&#39;s closing
+    // delimiter ends the enclosing doc comment and truncates the demo —
+    // which is exactly how v-size ended up undefined and this went flat.
+    // Writing the delimiter even inside a line comment does it too.)
+    grossScale: 0.015,
+    detailScale: 0.09,
+    horizScale: 8,
+    grossAmplitude: 350,
+    detailAmplitude: 45,
+    wireframe: false,
+    debugColor: false,
+  },
+})
+
+// The weather is ONE dial. Transmission, the gloom under the deck and (past 1)
+// the height of the cloud all follow `coverage`, so there is no way to ask for
+// a sky that contradicts itself. Past 1 the base stays put and the top towers.
+//
+// `cloud base` is separate because it is geography, not weather: drop it to
+// ~250 and the peaks stand out of the overcast, and you have to get down into
+// the valleys to see anything at all.
+const { sky } = tosi({
+  sky: { coverage: 0.3, altitude: 400, timeOfDay: 10, orographic: 0.8 },
+})
+
+// Priority-pool quadtree LOD: one shared pool of tiles, fine near / coarse far,
+// filled by priority (biased toward where you&#39;re looking + going). horizScale 4
+// makes level-0 tiles 320 across, so the fine region is broad; reach 5000 puts
+// the coarse edge just past the fog. Larger radius so the cylinder doesn&#39;t repeat.
+const terrain = b3dTerrain({
+  seed: demo.seed,
+  biome: &#39;on&#39;, // biome-shaded — see /biome-chart/ for the full showcase
+  surfaceType: &#39;cylinder&#39;,
+  radius: 1000,
+  cylinderHeight: 1000,
+  // Big tiles + few levels keep the pool small and the meshes cheap. tileSize /
+  // lodLevels / reach are world-shape choices; hiResSubdivisions and poolSize are
+  // left to adapt to the device tier (see b3d-quality) — a workstation gets more
+  // detail, a Quest less, with no per-scene tuning.
+  tileSize: 128,
+  lodLevels: 3,
+  splitFactor: 2,
+  reach: 5000,
+  grossScale: demo.grossScale,
+  detailScale: demo.detailScale,
+  horizScale: demo.horizScale,
+  grossAmplitude: demo.grossAmplitude,
+  detailAmplitude: demo.detailAmplitude,
+  // Auto-centre the heightfield on 0 (peaks up, valleys down) so the water plane at 0 floods the
+  // valleys into a sea — and it stays centred as you slide v-size, unlike a fixed baseHeight.
+  center: true,
+  wireframe: demo.wireframe,
+  debugColor: demo.debugColor,
+})
+// LOCALIZED slope profiles give the terrain regional character: mesas in one
+// province, rolling country in another, sea-cliff coasts in a third — with
+// continuous transitions between (see /slope-profile/).
+terrain.grossFilter = blendProfiles(
+  blendProfiles(mesaProfile(5), cliffProfile(0.45, 0.12), profileField(demo.seed + 7, 0.003)),
+  rollingProfile(0.4),
+  profileField(demo.seed + 13, 0.0024)
+)
+terrain.regenerate()
+
+const posDisplay = span({ class: &#39;pos-display&#39; })
+
+// Fly the terrain in the VTOL aircraft. It spawns under the cloud base (400) and
+// above the peaks, already above the hover ceiling → in FLIGHT mode:
+// right trigger = forward throttle, pull back to climb, turn stick banks.
+const plane = () =&gt; b3dAircraft({
+  library: &#39;vehicles&#39;, meshName: &#39;scout&#39;,
+  // A ceiling ABOVE the cloud deck, because the whole point of a deck is that
+  // you can be under it, in it, or over it. The stock 300 m is a low-level
+  // strike ceiling and it sat below even the spawn altitude here.
+  player: true, y: 320, ceiling: 1600, vtolSpeed: 6, maxSpeed: 50,
+})
+const focus = inputFocus(gameController(), plane())
+
+const scene = b3d(
+  {
+    frameRate: 60,
+    gamepad: true,
+    // Controls live in the dual-presence scene panel: the owl opens them on flat
+    // screens, and the SAME panel opens in VR — so you can retune
+    // the terrain from inside the headset. All widgets bind the same `demo.*`
+    // reactive values the regenerate observers below already watch.
+    panelTitle: &#39;Terrain&#39;,
+    scenePanel: () =&gt; [
+      slider3d({ label: &#39;gross scale&#39;, value: demo.grossScale, min: 0.005, max: 0.3, scale: &#39;log&#39; }),
+      slider3d({ label: &#39;detail scale&#39;, value: demo.detailScale, min: 0.02, max: 1, scale: &#39;log&#39; }),
+      slider3d({ label: &#39;h size&#39;, value: demo.horizScale, min: 0.25, max: 10, scale: &#39;log2&#39; }),
+      slider3d({ label: &#39;v size&#39;, value: demo.grossAmplitude, min: 0, max: 400, step: 1 }),
+      slider3d({ label: &#39;v detail&#39;, value: demo.detailAmplitude, min: 0, max: 50, step: 0.5 }),
+      slider3d({ label: &#39;seed&#39;, value: demo.seed, min: 0, max: 999, step: 1 }),
+      // A PROVINCE, on the live terrain: an authored volcano forced through the
+      // noise plus the volcanism field that makes it glow. This is the half of
+      // the province idea that works today — the carving half needs a
+      // volumetric tile path (see TUNNEL-DESIGN). Worth having here because it
+      // is the half that meets LOD, streaming and floating origin.
+      toggle3d({
+        label: &#39;volcano province&#39;,
+        value: demo.volcano,
+        handleChange: (on) =&gt; {
+          const v = volcano({ x: 600, z: -400, radius: 420, height: 260, craterRadius: 90, craterDepth: 80 })
+          terrain.landform = on ? v.landform : null
+          terrain.provinceField = on ? v.province : null
+          terrain.regenerate()
+        },
+      }),
+      label3d({ text: &#39;Weather&#39; }),
+      slider3d({ label: &#39;cloud cover&#39;, value: sky.coverage, min: 0, max: 2, step: 0.02 }),
+      slider3d({ label: &#39;cloud base&#39;, value: sky.altitude, min: 60, max: 1400, step: 10 }),
+      slider3d({ label: &#39;time of day&#39;, value: sky.timeOfDay, min: 0, max: 24, step: 0.25 }),
+      slider3d({ label: &#39;orographic&#39;, value: sky.orographic, min: 0, max: 1, step: 0.05 }),
+      toggle3d({ label: &#39;wireframe&#39;, value: demo.wireframe }),
+      toggle3d({ label: &#39;debug color&#39;, value: demo.debugColor }),
+    ],
+    update(el) {
+      const cam = el.scene.activeCamera
+      if (cam) {
+        const p = cam.globalPosition // world pos (the chase cam is parented)
+        posDisplay.textContent =
+          `pos: ${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)}`
+      }
+    },
+  },
+  b3dSun({ activeDistance: 80 }),
+  // THE PAIR: a 256 cube for the nebulae, a data cube the shader decodes into
+  // points for the stars. Split because they are different KINDS of thing —
+  // one is low-frequency and one is not — and the points stay points at any
+  // zoom rather than being a smear baked at one resolution.
+  b3dSkybox({
+    timeOfDay: sky.timeOfDay,
+    realtimeScale: 0,
+    starfieldCube: &#39;/sky/nebula&#39;,
+    starfieldData: &#39;/sky/stars&#39;,
+    starfieldTilt: &#39;12,25,58&#39;,
+  }),
+  b3dLight({ intensity: 0.5 }),
+  b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),
+  b3dLibrary({ url: &#39;/test-3.glb&#39;, type: &#39;vehicles&#39; }),
+  terrain,
+  // A cloud DECK over the peaks. `follow` keeps it centred under you and it is
+  // origin-shift aware, so it neither runs out nor lurches when the terrain rebases
+  // the world — the sheet slides, the weather stays where it is. Fly up through it
+  // and the world whites out; the shadows underfoot are the same field you flew into.
+  //
+  // This is the layer case. Blob clouds (b3d-clouds) are still the right tool for
+  // cloud you fly BETWEEN, and for a stylised sky — see their own page.
+  // `orographic` asks the TERRAIN for its own height sampler, so the towers build
+  // over the mountains that are actually there — landforms, the volcano province,
+  // slider changes and all — rather than over a second guess at the same ground.
+  b3dCloudDeck({
+    altitude: sky.altitude,
+    coverage: sky.coverage,
+    orographic: sky.orographic,
+    wind: 10,
+  }),
+  // A sea at height 0. The terrain now straddles 0 (center above), so the valleys flood into
+  // fjords and islands. Big AND `follow`: the plane snaps to a coarse grid under the camera (so it
+  // never runs out from under you and never flickers), while the ripples stay anchored in world
+  // space — an endless, stationary ocean. Dive below it and the underwater fog closes in.
+  b3dWater({ y: 0, waterSize: 8000, follow: true, twoSided: true }),
+  // Cockpit HUD (speed / altitude / horizon). Cockpit view only by default.
+  b3dHud({}),
+  // Death&#39;s exit: crash into a hillside and you get the wreck, spectate, and a
+  // respawn panel instead of being welded to the wreck forever.
+  b3dDeath({ title: &#39;DOWN&#39;, spectate: &#39;chase&#39;, respawn() { focus.appendChild(plane()) } }),
+  focus,
+)
+
+// Only a readout stays as a flat overlay — the tweakable settings all live in the
+// settings panel (which also works in VR). See the `scenePanel` hook above.
+preview.append(
+  scene,
+  div(
+    { class: &#39;debug-panel&#39; },
+    posDisplay,
+  )
+)
+
+// Regenerate terrain when parameters change
+for (const key of [&#39;seed&#39;, &#39;grossScale&#39;, &#39;detailScale&#39;, &#39;horizScale&#39;, &#39;grossAmplitude&#39;, &#39;detailAmplitude&#39;, &#39;wireframe&#39;, &#39;debugColor&#39;]) {
+  demo[key].observe(() =&gt; {
+    terrain.regenerate()
+  })
+}
+</code></pre>
+<pre><code class="language-css">.preview { display: flex; flex-direction: column; height: 100%; }
+tosi-b3d { flex: 1; min-height: 0; width: 100%; }
+.debug-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.debug-panel label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.debug-panel p {
+  margin: 0;
+  opacity: 0.7;
+}
+.pos-display {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  opacity: 0.7;
+}
+</code></pre>
+<p>Pull back on the stick to climb, the triggers go up and down (they are the throttle once you are fast), and turn to bank. The terrain&#39;s settings are in the scene panel (the owl), in VR too.</p>
+<h2 id="how-it-works">How it works</h2>
+<p>The terrain streams from one shared <strong>priority pool</strong> of tiles over a <strong>quadtree
+LOD</strong>: fine near the camera, coarse far, with exactly one LOD per patch of ground
+(a coarse cell is exactly four finer cells — no overlap, no gaps). Each frame the
+pool is diffed against the cells that <em>should</em> exist; blanks are filled by
+priority (near, and biased toward where you&#39;re facing/travelling) — reusing free
+tiles or stealing the weakest placed one — capped at <code>fillBudget</code> per frame so
+movement never hitches. Per-tile skirts (with lied normals) hide any crack at a
+LOD boundary. Includes floating-origin rebasing and a recenter mechanism — when
+travel exceeds <code>maxTravelDistance</code>, a <code>recenter-needed</code> event fires so the game
+layer can orchestrate a visual transition before calling <code>recenter()</code>.</p>
+<h2 id="attributes">Attributes</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>seed</code></td>
+<td><code>12345</code></td>
+<td>Noise seed</td>
+</tr>
+<tr>
+<td><code>surfaceType</code></td>
+<td><code>&#39;cylinder&#39;</code></td>
+<td><code>&#39;cylinder&#39;</code>, <code>&#39;torus&#39;</code>, or <code>&#39;sphere&#39;</code></td>
+</tr>
+<tr>
+<td><code>majorRadius</code></td>
+<td><code>100</code></td>
+<td>Torus major radius</td>
+</tr>
+<tr>
+<td><code>minorRadius</code></td>
+<td><code>40</code></td>
+<td>Torus minor radius</td>
+</tr>
+<tr>
+<td><code>radius</code></td>
+<td><code>200</code></td>
+<td>Sphere/cylinder radius</td>
+</tr>
+<tr>
+<td><code>cylinderHeight</code></td>
+<td><code>200</code></td>
+<td>Cylinder height (v range before reflection)</td>
+</tr>
+<tr>
+<td><code>tileSize</code></td>
+<td><code>10</code></td>
+<td>World-space size of a level-0 (finest) tile</td>
+</tr>
+<tr>
+<td><code>hiResSubdivisions</code></td>
+<td><code>auto</code></td>
+<td>Vertices per tile edge (same at every level); <code>auto</code> = device tier</td>
+</tr>
+<tr>
+<td><code>lodLevels</code></td>
+<td><code>5</code></td>
+<td>Number of LOD levels; level k tiles are <code>tileSize × 2^k</code></td>
+</tr>
+<tr>
+<td><code>poolSize</code></td>
+<td><code>auto</code></td>
+<td>Shared tile budget; the pool renders the top-priority cells (<code>auto</code> = device tier)</td>
+</tr>
+<tr>
+<td><code>fillBudget</code></td>
+<td><code>auto</code></td>
+<td>Max tiles (re)built per frame — a churn backstop (<code>auto</code> = device tier)</td>
+</tr>
+<tr>
+<td><code>tileBuildMs</code></td>
+<td><code>auto</code></td>
+<td><strong>Milliseconds of tile building allowed per frame</strong> — the cap that actually bounds the worst frame. A tile COUNT bounds it only by accident (a tile&#39;s cost swings with subdivisions, octaves, device and JS engine); a time cap bounds it by construction everywhere, and self-corrects when you raise detail. Always builds ≥1 tile. (<code>auto</code> = device tier)</td>
+</tr>
+<tr>
+<td><code>splitFactor</code></td>
+<td><code>2</code></td>
+<td>LOD falloff: subdivide a cell when nearer than <code>splitFactor × tileSize</code></td>
+</tr>
+<tr>
+<td><code>reach</code></td>
+<td><code>0</code></td>
+<td>Terrain radius (0 = auto from the coarsest tile). Clamped against <code>tileSize</code> — the product is the footgun. Import <code>budgetedReach</code> from <code>tosijs-3d/terrain-grid</code> to clamp a slider against the same limit</td>
+</tr>
+<tr>
+<td><code>grossScale</code></td>
+<td><code>0.015</code></td>
+<td>Gross noise frequency — a RECIPROCAL wavelength, so SMALL numbers make BIG landforms (0.015 ≈ 65m features before <code>horizScale</code>)</td>
+</tr>
+<tr>
+<td><code>detailScale</code></td>
+<td><code>0.09</code></td>
+<td>Detail noise frequency, same units</td>
+</tr>
+<tr>
+<td><code>horizScale</code></td>
+<td><code>1</code></td>
+<td>Horizontal world scale — scales every tile&#39;s size AND the sampling together (&gt;1 = bigger terrain that reaches further; a clean zoom, not just a frequency change)</td>
+</tr>
+<tr>
+<td><code>debugColor</code></td>
+<td><code>false</code></td>
+<td>Debug: tint each tile a distinct hashed colour to expose the tile/LOD layout</td>
+</tr>
+<tr>
+<td><code>profile</code></td>
+<td><code>false</code></td>
+<td>Debug: time tile building and report it on <code>debugState</code> (see below). Off = zero cost</td>
+</tr>
+<tr>
+<td><code>grossAmplitude</code></td>
+<td><code>8</code></td>
+<td>Gross height multiplier. ⚠️ Meaningless on its own: it&#39;s spread over <code>grossScale</code>/<code>horizScale</code>, so the same number is a mountain range at one scale and a plain at another</td>
+</tr>
+<tr>
+<td><code>detailAmplitude</code></td>
+<td><code>3</code></td>
+<td>Detail height multiplier. Landscape reads best when this does REAL work rather than 5% — big gross features, small gross amplitude, busy detail</td>
+</tr>
+<tr>
+<td><code>biome</code></td>
+<td><code>&#39;off&#39;</code></td>
+<td><code>&#39;on&#39;</code> shades the ground with the procedural biome shader (<a href="/biome-plugin/">biome-plugin</a>): a flat-colour chart picked from temperature, moisture, height and slope. Tune it live through <code>.biomePlugin</code></td>
+</tr>
+<tr>
+<td><code>biomeSeaLevel</code></td>
+<td><code>0</code></td>
+<td>Sea level for the biome classifier (<code>biome=&quot;on&quot;</code>) — keep it equal to your water plane&#39;s <code>y</code></td>
+</tr>
+<tr>
+<td><code>biomeLapseRate</code></td>
+<td><code>0</code> (auto: 0.004)</td>
+<td>Height→temperature lapse, in the biome CHART&#39;s units per metre (not <code>biomeTemperature</code>&#39;s; see biome-chart). ⚠️ Must be scaled to your vertical range: <code>≈ baseTemperature / relief</code>. The auto value, 0.004, is fixed (not scaled to your relief): it is a small-world number and renders a 340m world entirely as snow</td>
+</tr>
+<tr>
+<td><code>biomeTemperature</code></td>
+<td><code>0.45</code></td>
+<td>Sea-level temperature: <code>0</code> is 0 °C and each unit is 50 °C, so the default is 22.5 °C, <code>-1</code> is -50 °C, and it is not limited to that range (see biome-chart&#39;s <code>chartTemperature</code>). LIVE</td>
+</tr>
+<tr>
+<td><code>biomeMoisture</code></td>
+<td><code>-1</code> (auto 0.45)</td>
+<td>Land moisture, <code>0…1</code>: dead → dry (dune) → medium (steppe) → <strong>wet (forest)</strong>. Land sits on the chart at three quarters of this (the top row is the sea&#39;s), so forest needs ≈1 and a green world wants ~0.9; height and the climate regions dry it from there. The default is steppe. LIVE</td>
+</tr>
+<tr>
+<td><code>biomeVolcanicScale</code></td>
+<td><code>-1</code> (auto 0.09)</td>
+<td>Volcanic plate frequency, 1/m. Scale to the volcano: 0.09 suits a ~50 m cone; a 400 m one wants ~0.02. LIVE</td>
+</tr>
+<tr>
+<td><code>biomeSeason</code></td>
+<td><code>0.25</code></td>
+<td>Where in the year it is, 0…1: 0 spring equinox, 0.25 midsummer, 0.5 autumn equinox, 0.75 midwinter. Does nothing while <code>biomeSeasonality</code> is 0. LIVE</td>
+</tr>
+<tr>
+<td><code>biomeSeasonality</code></td>
+<td><code>0</code></td>
+<td>How far the year swings the temperature axis, in chart units (0 = no seasons; 0.2 is temperate). Winter cools the whole chart; autumn turns decorator leaves. LIVE</td>
+</tr>
+<tr>
+<td><code>normalSmoothing</code></td>
+<td><code>0.6</code></td>
+<td>Low-pass the NORMALS&#39; height field (positions stay crisp) — kills cliff-face zigzag</td>
+</tr>
+<tr>
+<td><code>landform</code> (property)</td>
+<td><code>null</code></td>
+<td><code>(x,z,h) =&gt; h&#39;</code> — force an authored shape through the noise. See <a href="b3d-terrain/landform/">landform</a></td>
+</tr>
+<tr>
+<td><code>provinceField</code> (property)</td>
+<td><code>null</code></td>
+<td><code>(x,z) =&gt; 0..1</code> — local volcanism, carried per-vertex to the biome shader</td>
+</tr>
+<tr>
+<td><code>rimCollar</code></td>
+<td><code>12</code></td>
+<td>Metres the rim of a patch hole folds down into the opening</td>
+</tr>
+<tr>
+<td><code>lat</code> / <code>lon</code></td>
+<td><code>-45</code> / <code>0</code></td>
+<td>Where this ground is on its planet: the latitude and longitude of the terrain&#39;s origin, degrees. On a cylinder or torus, the same position in the noise&#39;s domain</td>
+</tr>
+<tr>
+<td><code>planet</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>A selector for the <code>&lt;tosi-b3d-planet&gt;</code> this is the GROUND OF (<code>&#39;#moon&#39;</code>, sphere only): where the sea, coasts and mountain ranges are is the planet&#39;s, scaled to this <code>radius</code> with the sea at 0, and this terrain&#39;s detail layer and landforms ride on top. A pin on the globe lands on the ground it shows. Rebuilds when the planet changes. (The other way round, a planet&#39;s <code>terrain</code> draws the globe from this ground)</td>
+</tr>
+<tr>
+<td><code>worldU</code> / <code>worldV</code></td>
+<td><code>0</code> / <code>0.25</code></td>
+<td>The same place as fractions of a turn (JS properties over <code>lon</code>/<code>lat</code>: <code>worldU = lon / 360</code>, <code>worldV = (lat + 90) / 180</code>). ⚠️ <code>worldV = 0</code> (<code>lat = -90</code>) puts a cylinder world ON a mirror plane (<code>CylinderSampler</code> reflects v) — 0.25 is the furthest from both</td>
+</tr>
+<tr>
+<td><code>baseHeight</code></td>
+<td><code>0</code></td>
+<td>Flat vertical offset (m). The noise is 0..amplitude; <code>-grossAmplitude/2</code> centres the terrain on 0 so a water plane at 0 floods the valleys into a sea</td>
+</tr>
+<tr>
+<td><code>center</code></td>
+<td><code>false</code></td>
+<td>Centre the heightfield on 0 (an offset of <code>-grossAmplitude/2</code>) whatever the amplitude, so a water plane at 0 keeps reading as a sea while you tune. Adds to <code>baseHeight</code></td>
+</tr>
+<tr>
+<td><code>originResetThreshold</code></td>
+<td><code>500</code></td>
+<td>Distance before origin rebase</td>
+</tr>
+<tr>
+<td><code>maxTravelDistance</code></td>
+<td><code>5000</code></td>
+<td>Distance before firing recenter-needed event</td>
+</tr>
+<tr>
+<td><code>wireframe</code></td>
+<td><code>false</code></td>
+<td>Debug: render terrain as wireframe</td>
+</tr>
+</tbody></table>
+<h2 id="profiling-tile-builds">Profiling tile builds</h2>
+<p>Terrain is the only place this library does <em>bulk</em> numeric work in a burst, so it&#39;s the
+only real candidate for a worker or wasm. Before moving anything, measure it:</p>
+<pre><code class="language-javascript" data-highlighted>terrain<span class="token punctuation">.</span><span class="token function">setProfiling</span><span class="token punctuation">(</span><span class="token boolean">true</span><span class="token punctuation">)</span>   <span class="token comment">// or the `profile` attribute</span>
+<span class="token comment">// …fly around for a bit, then:</span>
+terrain<span class="token punctuation">.</span><span class="token function">resetProfile</span><span class="token punctuation">(</span><span class="token punctuation">)</span>       <span class="token comment">// drop the first-load burst</span>
+<span class="token comment">// …fly some more:</span>
+console<span class="token punctuation">.</span><span class="token function">table</span><span class="token punctuation">(</span>terrain<span class="token punctuation">.</span>debugState<span class="token punctuation">)</span>
+</code></pre>
+<p><code>debugState</code> splits the cost where it actually matters — <strong>not</strong> into &quot;fast&quot; and &quot;slow&quot;,
+but into <strong>movable</strong> and <strong>immovable</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Means</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>fieldMsPerTile</code></td>
+<td>Noise + analytic normals. Plain float arithmetic — a worker or wasm <em>could</em> take this</td>
+</tr>
+<tr>
+<td><code>skirtMsPerTile</code></td>
+<td>Skirt verts + debug tint. Also movable</td>
+</tr>
+<tr>
+<td><code>uploadMsPerTile</code></td>
+<td><code>updateVerticesData</code> — a GPU handoff. <strong>Nothing</strong> moves this off the main thread</td>
+</tr>
+<tr>
+<td><code>movableShare</code></td>
+<td>The <strong>ceiling on any threading/wasm win</strong>. If it&#39;s small, don&#39;t bother</td>
+</tr>
+<tr>
+<td><code>nsPerSample</code></td>
+<td>Cost per <code>heightAt</code> (each is 2 fractal calls × 6 octaves = 12 perlin evals)</td>
+</tr>
+<tr>
+<td><code>worstFrameMs</code></td>
+<td>The hitch you actually feel — one saturated frame, not the average tile</td>
+</tr>
+<tr>
+<td><code>worstFrameSaturated</code></td>
+<td>Whether that frame hit <code>fillBudget</code> (the cap set the ceiling, not the work)</td>
+</tr>
+</tbody></table>
+<p>Two things to know before reading the numbers. <code>samplesPerTile</code> counts <strong>five</strong> <code>heightAt</code>
+per vertex — one for the height, four for the ±e normal gradient — so ~80% of the noise
+exists to make normals; sampling a padded grid once and central-differencing it would cut
+that ~4–5× <strong>in plain JS</strong>, before any new technology. And a big <code>movableMs</code> only becomes a
+<em>felt</em> win if it moves off-thread: making a blocking 20ms burst into a blocking 5ms burst
+still drops frames (and in XR a dropped frame is nausea, not jank).</p>
+<h2 id="the-tile-grid">The tile grid</h2>
+<p>The arithmetic under the tiles is pure (no Babylon, no DOM) and exported as
+<code>tosijs-3d/terrain-grid</code>: where a tile sits in the world, which world point
+each of its vertices samples, how far a level reaches, and which coarse tiles a
+finer level hides. You only need it if you build on the tile substrate yourself
+(a volumetric patch, a custom streamer), or to clamp a <code>reach</code> slider with
+<code>budgetedReach</code>.</p>
+<pre><code class="language-javascript" data-highlighted><span class="token keyword">import</span> <span class="token punctuation">{</span> lodTileSize<span class="token punctuation">,</span> tileCenter<span class="token punctuation">,</span> cellIndex <span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'tosijs-3d/terrain-grid'</span>
+
+<span class="token function">lodTileSize</span><span class="token punctuation">(</span><span class="token number">128</span><span class="token punctuation">,</span> <span class="token number">2</span><span class="token punctuation">)</span> <span class="token comment">// 512: each level doubles the tile</span>
+<span class="token function">cellIndex</span><span class="token punctuation">(</span><span class="token number">700</span><span class="token punctuation">,</span> <span class="token number">512</span><span class="token punctuation">)</span> <span class="token comment">// 1: which tile a coordinate falls in</span>
+<span class="token function">tileCenter</span><span class="token punctuation">(</span><span class="token number">1</span><span class="token punctuation">,</span> <span class="token operator">-</span><span class="token number">2</span><span class="token punctuation">,</span> <span class="token number">512</span><span class="token punctuation">)</span> <span class="token comment">// { x: 512, z: -1024 }</span>
+</code></pre>
+<p><code>desiredCells</code> is the quadtree: given a viewer, the set of tiles that should
+exist. See also <a href="/sdf-lattice/" class="wikilink">sdf-lattice</a>.</p>
+<h2 id="usage">Usage</h2>
+<pre><code class="language-javascript" data-highlighted><span class="token keyword">import</span> <span class="token punctuation">{</span> b3d<span class="token punctuation">,</span> b3dTerrain<span class="token punctuation">,</span> plateauFilter <span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'tosijs-3d'</span>
+
+<span class="token keyword">const</span> terrain <span class="token operator">=</span> <span class="token function">b3dTerrain</span><span class="token punctuation">(</span><span class="token punctuation">{</span>
+  <span class="token literal-property property">seed</span><span class="token operator">:</span> <span class="token number">42</span><span class="token punctuation">,</span>
+  <span class="token literal-property property">surfaceType</span><span class="token operator">:</span> <span class="token string">'cylinder'</span><span class="token punctuation">,</span>
+  <span class="token literal-property property">grossScale</span><span class="token operator">:</span> <span class="token number">0.02</span><span class="token punctuation">,</span>
+  <span class="token literal-property property">grossAmplitude</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span>
+
+<span class="token comment">// Apply a plateau gradient filter for stepped terrain</span>
+terrain<span class="token punctuation">.</span>grossFilter <span class="token operator">=</span> <span class="token function">plateauFilter</span><span class="token punctuation">(</span><span class="token number">5</span><span class="token punctuation">)</span>
+terrain<span class="token punctuation">.</span><span class="token function">regenerate</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+
+document<span class="token punctuation">.</span>body<span class="token punctuation">.</span><span class="token function">append</span><span class="token punctuation">(</span><span class="token function">b3d</span><span class="token punctuation">(</span><span class="token punctuation">{</span><span class="token punctuation">}</span><span class="token punctuation">,</span> terrain<span class="token punctuation">)</span><span class="token punctuation">)</span>
+</code></pre>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="./">tosijs-3d</a></li>
+    <li><a class="doc-link" href="getting-started/">Getting started</a></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-demos" aria-label="Demos"></button><a class="doc-link" href="demos/">Demos</a></div>
+    <ul id="tosi-nav-demos">
+      <li><a class="doc-link" href="playground/">Biped Playground</a></li>
+      <li><a class="doc-link" href="solar-system/">Solar System</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-weapon-fit" aria-label="Weapon Fit"></button><a class="doc-link" href="weapon-fit/">Weapon Fit</a></div>
+      <ul id="tosi-nav-weapon-fit">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-hold-grip" aria-label="hold grips"></button><a class="doc-link" href="hold-grip/">hold grips</a></div>
+        <ul id="tosi-nav-hold-grip">
+          <li><a class="doc-link" href="hand-socket/">hand socket</a></li>
+        </ul></li>
+      </ul></li>
+      <li><a class="doc-link" href="rig-tool/">Rig tool</a></li>
+      <li><a class="doc-link" href="effect-tool/">Effect tool</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-builder" aria-label="Character Builder"></button><a class="doc-link" href="character-builder/">Character Builder</a></div>
+      <ul id="tosi-nav-character-builder">
+        <li><a class="doc-link" href="human-pack/">human-pack</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-file" aria-label="character-file"></button><a class="doc-link" href="character-file/">character-file</a></div>
+        <ul id="tosi-nav-character-file">
+          <li><a class="doc-link" href="character-store/">character-store</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="human-morph/">human-morph</a></li>
+        <li><a class="doc-link" href="human-rig/">human-rig</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-tailor-tool" aria-label="tailor tool"></button><a class="doc-link" href="tailor-tool/">tailor tool</a></div>
+        <ul id="tosi-nav-tailor-tool">
+          <li><a class="doc-link" href="tailor-recipe/">tailor-recipe</a></li>
+          <li><a class="doc-link" href="tailor-panel/">tailor panel</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="skin-tone/">skin-tone</a></li>
+        <li><a class="doc-link" href="skin-shading/">skin-shading</a></li>
+        <li><a class="doc-link" href="human-face/">human-face</a></li>
+        <li><a class="doc-link" href="human-expression/">human-expression</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-human-hair" aria-label="human-hair"></button><a class="doc-link" href="human-hair/">human-hair</a></div>
+        <ul id="tosi-nav-human-hair">
+          <li><a class="doc-link" href="hair-shading/">hair-shading</a></li>
+          <li><a class="doc-link" href="hair-fit/">hair-fit</a></li>
+        </ul></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-human-proxy" aria-label="human-proxy"></button><a class="doc-link" href="human-proxy/">human-proxy</a></div>
+        <ul id="tosi-nav-human-proxy">
+          <li><a class="doc-link" href="proxy-fit/">proxy-fit</a></li>
+          <li><a class="doc-link" href="cloth-shading/">cloth-shading</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-garment-cut" aria-label="garment-cut"></button><a class="doc-link" href="garment-cut/">garment-cut</a></div>
+          <ul id="tosi-nav-garment-cut">
+            <li><a class="doc-link" href="outline-field/">outline field</a></li>
+            <li><a class="doc-link" href="remesh/">remesh</a></li>
+            <li><a class="doc-link" href="cloth-drape/">cloth drape</a></li>
+            <li><a class="doc-link" href="body-sweep/">body-sweep</a></li>
+          </ul></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-garment-bind" aria-label="garment-bind"></button><a class="doc-link" href="garment-bind/">garment-bind</a></div>
+          <ul id="tosi-nav-garment-bind">
+            <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-garment-file" aria-label="garment-file"></button><a class="doc-link" href="garment-file/">garment-file</a></div>
+            <ul id="tosi-nav-garment-file">
+              <li><a class="doc-link" href="uv-unwrap/">uv-unwrap</a></li>
+              <li><a class="doc-link" href="garment-proxy/">garment proxy</a></li>
+            </ul></li>
+            <li><a class="doc-link" href="proxy-rigid/">proxy-rigid</a></li>
+          </ul></li>
+        </ul></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character" aria-label="character"></button><a class="doc-link" href="character/">character</a></div>
+        <ul id="tosi-nav-character">
+          <li><a class="doc-link" href="character-sources/">character sources</a></li>
+        </ul></li>
+      </ul></li>
+      <li><a class="doc-link" href="skybox-baker/">Skybox Baker</a></li>
+      <li><a class="doc-link" href="land-and-sky/">Land and Sky</a></li>
+      <li><a class="doc-link" href="city-drive/">City Drive</a></li>
+      <li><a class="doc-link" href="cross-country/">Cross Country</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-core" aria-label="Core"></button><a class="doc-link" href="core/">Core</a></div>
+    <ul id="tosi-nav-core">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-tosi-b3d" aria-label="b3d"></button><a class="doc-link" href="tosi-b3d/">b3d</a></div>
+      <ul id="tosi-nav-tosi-b3d">
+        <li><a class="doc-link" href="demo-utils/">demo-utils</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-loader" aria-label="b3d-loader"></button><a class="doc-link" href="b3d-loader/">b3d-loader</a></div>
+      <ul id="tosi-nav-b3d-loader">
+        <li><a class="doc-link" href="asset-url/">asset-url</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-primitives/">Primitives: box, sphere, ground</a></li>
+      <li><a class="doc-link" href="make-mesh/">make-mesh</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-library" aria-label="b3d-library"></button><a class="doc-link" href="b3d-library/">b3d-library</a></div>
+      <ul id="tosi-nav-b3d-library">
+        <li><a class="doc-link" href="glb-manifest/">glb-manifest</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-agent" aria-label="agents"></button><a class="doc-link" href="b3d-agent/">agents</a></div>
+      <ul id="tosi-nav-b3d-agent">
+        <li><a class="doc-link" href="agent-driver/">agent driver</a></li>
+        <li><a class="doc-link" href="scene-description/">scene description</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-prop/">b3d-prop</a></li>
+      <li><a class="doc-link" href="b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="scene-schemas/">Scene schemas</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-sky-and-light" aria-label="Sky and light"></button><a class="doc-link" href="sky-and-light/">Sky and light</a></div>
+    <ul id="tosi-nav-sky-and-light">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-skybox" aria-label="b3d-skybox"></button><a class="doc-link" href="b3d-skybox/">b3d-skybox</a></div>
+      <ul id="tosi-nav-b3d-skybox">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-moon" aria-label="b3d-moon"></button><a class="doc-link" href="b3d-moon/">b3d-moon</a></div>
+        <ul id="tosi-nav-b3d-moon">
+          <li><a class="doc-link" href="moon-light/">moon light</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="starfield-codec/">starfield-codec</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="light-pollution/">light pollution</a></li>
+      <li><a class="doc-link" href="b3d-shadows/">Sun and shadows (b3d-shadows)</a></li>
+      <li><a class="doc-link" href="b3d-light/">Ambient light (b3d-light)</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-lamp" aria-label="Lamps"></button><a class="doc-link" href="b3d-lamp/">Lamps</a></div>
+      <ul id="tosi-nav-b3d-lamp">
+        <li><a class="doc-link" href="curve-program/">Light program editor</a></li>
+        <li><a class="doc-link" href="light-modulation/">Light programs</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-light-shafts/">b3d-light-shafts</a></li>
+      <li><a class="doc-link" href="b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="environment/">environment</a></li>
+      <li><a class="doc-link" href="shadow-decal/">shadow-decal</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-weather-and-clouds" aria-label="Weather and clouds"></button><a class="doc-link" href="weather-and-clouds/">Weather and clouds</a></div>
+    <ul id="tosi-nav-weather-and-clouds">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-cloud-deck" aria-label="b3d-cloud-deck"></button><a class="doc-link" href="b3d-cloud-deck/">b3d-cloud-deck</a></div>
+      <ul id="tosi-nav-b3d-cloud-deck">
+        <li><a class="doc-link" href="cloud-shadows/">cloud-shadows</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-clouds/">b3d-clouds</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-weather-cell" aria-label="b3d-weather-cell"></button><a class="doc-link" href="b3d-weather-cell/">b3d-weather-cell</a></div>
+      <ul id="tosi-nav-b3d-weather-cell">
+        <li><a class="doc-link" href="weather/">weather</a></li>
+        <li><a class="doc-link" href="wind/">wind</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-lightning/">b3d-lightning</a></li>
+      <li><a class="doc-link" href="b3d-ambient/">b3d-ambient</a></li>
+    </ul></li>
+    <li class="nav-branch -open"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="true" aria-controls="tosi-nav-terrain" aria-label="Terrain"></button><a class="doc-link" href="terrain/">Terrain</a></div>
+    <ul id="tosi-nav-terrain">
+      <li class="nav-branch -open"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="true" aria-controls="tosi-nav-b3d-terrain" aria-label="b3d-terrain"></button><a class="doc-link current" href="b3d-terrain/" aria-current="page">b3d-terrain</a></div>
+      <ul id="tosi-nav-b3d-terrain">
+        <li><a class="doc-link" href="biome-chart/">biome-chart</a></li>
+        <li><a class="doc-link" href="biome-plugin/">biome-plugin</a></li>
+        <li><a class="doc-link" href="slope-profile/">slope-profile</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-landform" aria-label="landform"></button><a class="doc-link" href="landform/">landform</a></div>
+        <ul id="tosi-nav-landform">
+          <li><a class="doc-link" href="landform-schemas/">landform schemas</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="province-climate/">Province climate</a></li>
+        <li><a class="doc-link" href="terrain-editor/">terrainEditor3d</a></li>
+        <li><a class="doc-link" href="gradient-filter/">gradient-filter</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-decorator" aria-label="b3d-decorator"></button><a class="doc-link" href="b3d-decorator/">b3d-decorator</a></div>
+      <ul id="tosi-nav-b3d-decorator">
+        <li><a class="doc-link" href="scatter/">scatter</a></li>
+        <li><a class="doc-link" href="procedural-rock/">procedural-rock</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-sdf-lattice" aria-label="Carved landforms"></button><a class="doc-link" href="sdf-lattice/">Carved landforms</a></div>
+      <ul id="tosi-nav-sdf-lattice">
+        <li><a class="doc-link" href="carve/">carve</a></li>
+        <li><a class="doc-link" href="patch-field/">patch-field</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="city-layout/">city-layout</a></li>
+      <li><a class="doc-link" href="b3d-city/">b3d-city</a></li>
+      <li><a class="doc-link" href="city-traffic/">city-traffic</a></li>
+      <li><a class="doc-link" href="window-lights/">window-lights</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-water" aria-label="Water"></button><a class="doc-link" href="water/">Water</a></div>
+    <ul id="tosi-nav-water">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-water" aria-label="b3d-water"></button><a class="doc-link" href="b3d-water/">b3d-water</a></div>
+      <ul id="tosi-nav-b3d-water">
+        <li><a class="doc-link" href="medium/">medium</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-effects" aria-label="Effects"></button><a class="doc-link" href="effects/">Effects</a></div>
+    <ul id="tosi-nav-effects">
+      <li><a class="doc-link" href="b3d-effect/">b3d-effect</a></li>
+      <li><a class="doc-link" href="b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="b3d-trail/">b3d-trail</a></li>
+      <li><a class="doc-link" href="b3d-exploder/">b3d-exploder</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-characters-and-vehicles" aria-label="Characters and vehicles"></button><a class="doc-link" href="characters-and-vehicles/">Characters and vehicles</a></div>
+    <ul id="tosi-nav-characters-and-vehicles">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-biped" aria-label="b3d-biped"></button><a class="doc-link" href="b3d-biped/">b3d-biped</a></div>
+      <ul id="tosi-nav-b3d-biped">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-aim" aria-label="aim"></button><a class="doc-link" href="aim/">aim</a></div>
+        <ul id="tosi-nav-aim">
+          <li><a class="doc-link" href="aim-ik/">aim IK</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="animation-layers/">animation-layers</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-core" aria-label="character core"></button><a class="doc-link" href="character-core/">character core</a></div>
+        <ul id="tosi-nav-character-core">
+          <li><a class="doc-link" href="character-settings/">character settings</a></li>
+          <li><a class="doc-link" href="proxy-cover/">proxy-cover</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-skinned-glb" aria-label="skinned-glb"></button><a class="doc-link" href="skinned-glb/">skinned-glb</a></div>
+          <ul id="tosi-nav-skinned-glb">
+            <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-rigged-body-glb" aria-label="rigged-body-glb"></button><a class="doc-link" href="rigged-body-glb/">rigged-body-glb</a></div>
+            <ul id="tosi-nav-rigged-body-glb">
+              <li><a class="doc-link" href="spring-vrm/">spring-vrm</a></li>
+              <li><a class="doc-link" href="body-export/">body export</a></li>
+            </ul></li>
+          </ul></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-chunks" aria-label="glb-chunks"></button><a class="doc-link" href="glb-chunks/">glb-chunks</a></div>
+          <ul id="tosi-nav-glb-chunks">
+            <li><a class="doc-link" href="glb-rig/">glb-rig</a></li>
+          </ul></li>
+          <li><a class="doc-link" href="skin-paint/">skin paint</a></li>
+          <li><a class="doc-link" href="cloth-bake/">cloth bake</a></li>
+          <li><a class="doc-link" href="jpeg/">jpeg</a></li>
+          <li><a class="doc-link" href="eye-art/">eye art</a></li>
+          <li><a class="doc-link" href="hair-place/">hair place</a></li>
+          <li><a class="doc-link" href="mesh-sdf/">mesh sdf</a></li>
+          <li><a class="doc-link" href="fit-extremes/">fit extremes</a></li>
+        </ul></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-retarget" aria-label="retarget"></button><a class="doc-link" href="retarget/">retarget</a></div>
+        <ul id="tosi-nav-retarget">
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-clips" aria-label="glb clips"></button><a class="doc-link" href="glb-clips/">glb clips</a></div>
+          <ul id="tosi-nav-glb-clips">
+            <li><a class="doc-link" href="bvh/">bvh</a></li>
+            <li><a class="doc-link" href="clip-store/">clip-store</a></li>
+          </ul></li>
+        </ul></li>
+        <li><a class="doc-link" href="rigged-body/">rigged-body</a></li>
+        <li><a class="doc-link" href="surroundings/">surroundings</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-rig-build" aria-label="auto-rig"></button><a class="doc-link" href="rig-build/">auto-rig</a></div>
+        <ul id="tosi-nav-rig-build">
+          <li><a class="doc-link" href="rig-markers/">rig markers</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="spring-chain-babylon/">spring bones</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-aircraft" aria-label="b3d-aircraft"></button><a class="doc-link" href="b3d-aircraft/">b3d-aircraft</a></div>
+      <ul id="tosi-nav-b3d-aircraft">
+        <li><a class="doc-link" href="fly-by-wire/">fly-by-wire</a></li>
+        <li><a class="doc-link" href="b3d-hud/">b3d-hud</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="ground-vehicle/">ground-vehicle</a></li>
+      <li><a class="doc-link" href="b3d-car/">b3d-car</a></li>
+      <li><a class="doc-link" href="b3d-tank/">b3d-tank</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-elevator" aria-label="b3d-elevator"></button><a class="doc-link" href="b3d-elevator/">b3d-elevator</a></div>
+      <ul id="tosi-nav-b3d-elevator">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-spatial-transform" aria-label="spatial-transform"></button><a class="doc-link" href="spatial-transform/">spatial-transform</a></div>
+        <ul id="tosi-nav-spatial-transform">
+          <li><a class="doc-link" href="portal-transform/">portal-transform</a></li>
+        </ul></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-crowd" aria-label="b3d-crowd"></button><a class="doc-link" href="b3d-crowd/">b3d-crowd</a></div>
+      <ul id="tosi-nav-b3d-crowd">
+        <li><a class="doc-link" href="vertex-animation/">vertex-animation</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-input" aria-label="Input"></button><a class="doc-link" href="input/">Input</a></div>
+    <ul id="tosi-nav-input">
+      <li><a class="doc-link" href="b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="touch-orbit/">touch-orbit</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-inspect-view" aria-label="inspect-view"></button><a class="doc-link" href="inspect-view/">inspect-view</a></div>
+      <ul id="tosi-nav-inspect-view">
+        <li><a class="doc-link" href="seam-material/">seam-material</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="game-controller/">game-controller</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-input-internals" aria-label="How input works"></button><a class="doc-link" href="input-internals/">How input works</a></div>
+      <ul id="tosi-nav-input-internals">
+        <li><a class="doc-link" href="control-input/">control-input</a></li>
+        <li><a class="doc-link" href="b3d-controllable/">b3d-controllable</a></li>
+        <li><a class="doc-link" href="virtual-gamepad/">virtual-gamepad</a></li>
+        <li><a class="doc-link" href="touch-gamepad/">touch-gamepad</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-interacting" aria-label="Interacting with the world"></button><a class="doc-link" href="interacting/">Interacting with the world</a></div>
+    <ul id="tosi-nav-interacting">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-interactive" aria-label="b3d-interactive"></button><a class="doc-link" href="b3d-interactive/">b3d-interactive</a></div>
+      <ul id="tosi-nav-b3d-interactive">
+        <li><a class="doc-link" href="interaction/">interaction</a></li>
+        <li><a class="doc-link" href="interactive-behavior/">interactive-behavior</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="b3d-beacon/">b3d-beacon</a></li>
+      <li><a class="doc-link" href="b3d-manipulator/">b3d-manipulator</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-combat" aria-label="Combat"></button><a class="doc-link" href="combat/">Combat</a></div>
+    <ul id="tosi-nav-combat">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-destroyable" aria-label="b3d-destroyable"></button><a class="doc-link" href="b3d-destroyable/">b3d-destroyable</a></div>
+      <ul id="tosi-nav-b3d-destroyable">
+        <li><a class="doc-link" href="destroyable-behavior/">destroyable-behavior</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-launcher" aria-label="b3d-launcher"></button><a class="doc-link" href="b3d-launcher/">b3d-launcher</a></div>
+      <ul id="tosi-nav-b3d-launcher">
+        <li><a class="doc-link" href="ballistics/">ballistics</a></li>
+        <li><a class="doc-link" href="guidance/">guidance</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="b3d-turret/">b3d-turret</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-radar" aria-label="b3d-radar"></button><a class="doc-link" href="b3d-radar/">b3d-radar</a></div>
+      <ul id="tosi-nav-b3d-radar">
+        <li><a class="doc-link" href="b3d-radar-blip/">b3d-radar-blip</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-world-sim" aria-label="World Sim"></button><a class="doc-link" href="world-sim/">World Sim</a></div>
+    <ul id="tosi-nav-world-sim">
+      <li><a class="doc-link" href="world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="world-store/">world-store</a></li>
+      <li><a class="doc-link" href="world-view/">world-view</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-inventory" aria-label="inventory"></button><a class="doc-link" href="inventory/">inventory</a></div>
+      <ul id="tosi-nav-inventory">
+        <li><a class="doc-link" href="inventory-box/">inventory-box</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="min-sim-conformance/">min-sim-conformance</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-spawner" aria-label="b3d-spawner"></button><a class="doc-link" href="b3d-spawner/">b3d-spawner</a></div>
+      <ul id="tosi-nav-b3d-spawner">
+        <li><a class="doc-link" href="formations/">formations</a></li>
+        <li><a class="doc-link" href="prefab/">prefab</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-death/">b3d-death</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui" aria-label="UI"></button><a class="doc-link" href="ui/">UI</a></div>
+    <ul id="tosi-nav-ui">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widgets3d" aria-label="widgets3d"></button><a class="doc-link" href="widgets3d/">widgets3d</a></div>
+      <ul id="tosi-nav-widgets3d">
+        <li><a class="doc-link" href="playback-field/">Playback</a></li>
+        <li><a class="doc-link" href="widget-box/">widget-box</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widget-semantics" aria-label="widget semantics"></button><a class="doc-link" href="widget-semantics/">widget semantics</a></div>
+        <ul id="tosi-nav-widget-semantics">
+          <li><a class="doc-link" href="aria-mirror/">aria mirror</a></li>
+        </ul></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-carry" aria-label="carry"></button><a class="doc-link" href="carry/">carry</a></div>
+      <ul id="tosi-nav-carry">
+        <li><a class="doc-link" href="carry-box/">carry-box</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="dials/">dials</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui-controls" aria-label="Controls"></button><a class="doc-link" href="ui-controls/">Controls</a></div>
+      <ul id="tosi-nav-ui-controls">
+        <li><a class="doc-link" href="vector-field/">Coordinate fields</a></li>
+        <li><a class="doc-link" href="angle-field/">angle-field</a></li>
+        <li><a class="doc-link" href="curve-field/">Curve editor</a></li>
+        <li><a class="doc-link" href="footprint-field/">Footprint editor</a></li>
+        <li><a class="doc-link" href="color-picker/">colorPicker3d</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-material-picker" aria-label="materialPicker3d"></button><a class="doc-link" href="material-picker/">materialPicker3d</a></div>
+        <ul id="tosi-nav-material-picker">
+          <li><a class="doc-link" href="fabric-textures/">fabric textures</a></li>
+          <li><a class="doc-link" href="material-pictures/">material pictures</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="material-recipe/">material-recipe</a></li>
+        <li><a class="doc-link" href="icon-grid/">Icon grid</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-color-field" aria-label="color3d"></button><a class="doc-link" href="color-field/">color3d</a></div>
+        <ul id="tosi-nav-color-field">
+          <li><a class="doc-link" href="color/">color</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="picker/">picker</a></li>
+        <li><a class="doc-link" href="keyboard/">keyboard</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-table" aria-label="table"></button><a class="doc-link" href="table/">table</a></div>
+        <ul id="tosi-nav-table">
+          <li><a class="doc-link" href="selection/">selection</a></li>
+        </ul></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui-containers" aria-label="Containers"></button><a class="doc-link" href="ui-containers/">Containers</a></div>
+      <ul id="tosi-nav-ui-containers">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-box" aria-label="box"></button><a class="doc-link" href="box/">box</a></div>
+        <ul id="tosi-nav-box">
+          <li><a class="doc-link" href="flow-layout/">flow-layout</a></li>
+          <li><a class="doc-link" href="anchor-layout/">anchor-layout</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="surface/">surface</a></li>
+        <li><a class="doc-link" href="popup-surface/">popup-surface</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui-in-scene" aria-label="In the scene and XR"></button><a class="doc-link" href="ui-in-scene/">In the scene and XR</a></div>
+      <ul id="tosi-nav-ui-in-scene">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-panel" aria-label="b3d-panel"></button><a class="doc-link" href="b3d-panel/">b3d-panel</a></div>
+        <ul id="tosi-nav-b3d-panel">
+          <li><a class="doc-link" href="frame-panel/">frame-panel</a></li>
+          <li><a class="doc-link" href="xr-frames/">xr-frames</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-system-bar" aria-label="system-bar"></button><a class="doc-link" href="system-bar/">system-bar</a></div>
+          <ul id="tosi-nav-system-bar">
+            <li><a class="doc-link" href="bar-menu/">bar-menu</a></li>
+          </ul></li>
+        </ul></li>
+        <li><a class="doc-link" href="b3d-svg-plane/">b3d-svg-plane</a></li>
+        <li><a class="doc-link" href="svg-texture/">svg-texture</a></li>
+        <li><a class="doc-link" href="gamepad-focus/">gamepad-focus</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui-theme" aria-label="Theme and icons"></button><a class="doc-link" href="ui-theme/">Theme and icons</a></div>
+      <ul id="tosi-nav-ui-theme">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-w3d-theme" aria-label="w3d-theme"></button><a class="doc-link" href="w3d-theme/">w3d-theme</a></div>
+        <ul id="tosi-nav-w3d-theme">
+          <li><a class="doc-link" href="theme-editor/">theme-editor</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="svg-icons/">svg-icons</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-space" aria-label="Space"></button><a class="doc-link" href="space/">Space</a></div>
+    <ul id="tosi-nav-space">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-galaxy" aria-label="b3d-galaxy"></button><a class="doc-link" href="b3d-galaxy/">b3d-galaxy</a></div>
+      <ul id="tosi-nav-b3d-galaxy">
+        <li><a class="doc-link" href="voxel-galaxy/">voxel-galaxy</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="gas-giant/">gas-giant</a></li>
+      <li><a class="doc-link" href="rocky-world/">rocky-world</a></li>
+      <li><a class="doc-link" href="b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="sphere-map/">sphere-map</a></li>
+      <li><a class="doc-link" href="planet-map/">planet-map</a></li>
+      <li><a class="doc-link" href="space-backdrop/">space-backdrop</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-performance" aria-label="Performance"></button><a class="doc-link" href="performance/">Performance</a></div>
+    <ul id="tosi-nav-performance">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-probe" aria-label="b3d-probe"></button><a class="doc-link" href="b3d-probe/">b3d-probe</a></div>
+      <ul id="tosi-nav-b3d-probe">
+        <li><a class="doc-link" href="perf-probe/">perf-probe</a></li>
+        <li><a class="doc-link" href="b3d-quality/">b3d-quality</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="cost-sweep/">Cost sweep</a></li>
+      <li><a class="doc-link" href="draw-order/">Draw order</a></li>
+      <li><a class="doc-link" href="debug-sink/">debug-sink</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-utilities" aria-label="utilities"></button><a class="doc-link" href="utilities/">utilities</a></div>
+    <ul id="tosi-nav-utilities">
+      <li><a class="doc-link" href="clock/">clock</a></li>
+      <li><a class="doc-link" href="undo-history/">undo history</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-upgrading" aria-label="Upgrading"></button><a class="doc-link" href="upgrading/">Upgrading</a></div>
+    <ul id="tosi-nav-upgrading">
+      <li><a class="doc-link" href="Migration/">Migration</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="CHANGELOG/">Changelog</a></div>
+      <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="v0.13.0/">0.13.0</a></li>
+        <li><a class="doc-link" href="v0.12.6/">0.12.6</a></li>
+        <li><a class="doc-link" href="v0.12.5/">0.12.5</a></li>
+        <li><a class="doc-link" href="v0.12.4/">0.12.4</a></li>
+        <li><a class="doc-link" href="v0.12.3/">0.12.3</a></li>
+        <li><a class="doc-link" href="v0.12.2/">0.12.2</a></li>
+        <li><a class="doc-link" href="v0.12.1/">0.12.1</a></li>
+        <li><a class="doc-link" href="v0.12.0/">0.12.0</a></li>
+        <li><a class="doc-link" href="v0.11.6/">0.11.6</a></li>
+        <li><a class="doc-link" href="v0.11.5/">0.11.5</a></li>
+        <li><a class="doc-link" href="v0.11.4/">0.11.4</a></li>
+        <li><a class="doc-link" href="v0.11.3/">0.11.3</a></li>
+        <li><a class="doc-link" href="v0.11.2/">0.11.2</a></li>
+        <li><a class="doc-link" href="v0.11.1/">0.11.1</a></li>
+        <li><a class="doc-link" href="v0.11.0/">0.11.0</a></li>
+        <li><a class="doc-link" href="v0.10.20/">0.10.20</a></li>
+        <li><a class="doc-link" href="v0.10.19/">0.10.19</a></li>
+        <li><a class="doc-link" href="v0.10.18/">0.10.18</a></li>
+        <li><a class="doc-link" href="v0.10.17/">0.10.17</a></li>
+        <li><a class="doc-link" href="v0.10.16/">0.10.16</a></li>
+        <li><a class="doc-link" href="v0.10.15/">0.10.15</a></li>
+        <li><a class="doc-link" href="v0.10.14/">0.10.14</a></li>
+        <li><a class="doc-link" href="v0.10.13/">0.10.13</a></li>
+        <li><a class="doc-link" href="v0.10.12/">0.10.12</a></li>
+        <li><a class="doc-link" href="v0.10.11/">0.10.11</a></li>
+        <li><a class="doc-link" href="v0.10.10/">0.10.10</a></li>
+        <li><a class="doc-link" href="v0.10.9/">0.10.9</a></li>
+        <li><a class="doc-link" href="v0.10.8/">0.10.8</a></li>
+        <li><a class="doc-link" href="v0.10.7/">0.10.7</a></li>
+        <li><a class="doc-link" href="v0.10.6/">0.10.6</a></li>
+        <li><a class="doc-link" href="v0.10.5/">0.10.5</a></li>
+        <li><a class="doc-link" href="v0.10.4/">0.10.4</a></li>
+        <li><a class="doc-link" href="v0.10.3/">0.10.3</a></li>
+        <li><a class="doc-link" href="v0.10.2/">0.10.2</a></li>
+        <li><a class="doc-link" href="v0.10.1/">0.10.1</a></li>
+        <li><a class="doc-link" href="v0.10.0/">0.10.0</a></li>
+        <li><a class="doc-link" href="v0.9.0/">0.9.0</a></li>
+        <li><a class="doc-link" href="v0.8.15/">0.8.15</a></li>
+        <li><a class="doc-link" href="v0.8.14/">0.8.14</a></li>
+        <li><a class="doc-link" href="v0.8.13/">0.8.13</a></li>
+        <li><a class="doc-link" href="v0.8.12/">0.8.12</a></li>
+        <li><a class="doc-link" href="v0.8.11/">0.8.11</a></li>
+        <li><a class="doc-link" href="v0.8.10/">0.8.10</a></li>
+        <li><a class="doc-link" href="v0.8.9/">0.8.9</a></li>
+        <li><a class="doc-link" href="v0.8.8/">0.8.8</a></li>
+        <li><a class="doc-link" href="v0.8.7/">0.8.7</a></li>
+        <li><a class="doc-link" href="v0.8.6/">0.8.6</a></li>
+        <li><a class="doc-link" href="v0.8.5/">0.8.5</a></li>
+        <li><a class="doc-link" href="v0.8.4/">0.8.4</a></li>
+        <li><a class="doc-link" href="v0.8.3/">0.8.3</a></li>
+        <li><a class="doc-link" href="v0.8.2/">0.8.2</a></li>
+        <li><a class="doc-link" href="v0.8.1/">0.8.1</a></li>
+        <li><a class="doc-link" href="v0.8.0/">0.8.0</a></li>
+        <li><a class="doc-link" href="v0.7.8/">0.7.8</a></li>
+        <li><a class="doc-link" href="v0.7.7/">0.7.7</a></li>
+        <li><a class="doc-link" href="v0.7.6/">0.7.6</a></li>
+        <li><a class="doc-link" href="v0.7.5/">0.7.5</a></li>
+        <li><a class="doc-link" href="v0.7.4/">0.7.4</a></li>
+        <li><a class="doc-link" href="v0.7.3/">0.7.3</a></li>
+        <li><a class="doc-link" href="v0.7.2/">0.7.2</a></li>
+        <li><a class="doc-link" href="v0.7.1/">0.7.1</a></li>
+        <li><a class="doc-link" href="v0.7.0/">0.7.0</a></li>
+        <li><a class="doc-link" href="v0.7.0-rc.1/">0.7.0-rc.1</a></li>
+        <li><a class="doc-link" href="v0.6.2/">0.6.2</a></li>
+        <li><a class="doc-link" href="v0.6.1/">0.6.1</a></li>
+        <li><a class="doc-link" href="v0.6.0/">0.6.0</a></li>
+        <li><a class="doc-link" href="v0.5.2/">0.5.2</a></li>
+        <li><a class="doc-link" href="v0.5.1/">0.5.1</a></li>
+        <li><a class="doc-link" href="v0.5.0/">0.5.0</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-reference" aria-label="Reference"></button><a class="doc-link" href="reference/">Reference</a></div>
+    <ul id="tosi-nav-reference">
+      <li><a class="doc-link" href="mersenne-twister/">Pseudo Random Numbers</a></li>
+      <li><a class="doc-link" href="perlin-noise/">perlin-noise</a></li>
+      <li><a class="doc-link" href="noise-texture/">Noise texture</a></li>
+    </ul></li>
+    <li><a class="doc-link" href="design-notes/">Design notes</a></li>
+    <li><a class="doc-link" href="acknowledgements/">Acknowledgements</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="hydrate-swt7z66k.js"></script>
+</body>
+</html>

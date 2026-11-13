@@ -306,13 +306,14 @@ on: under when you swim under, above otherwise.
 */
 /*{ "parent": "characters-and-vehicles", "order": 10 }*/
 import * as BABYLON from '@babylonjs/core';
-import { collidable, isOff, markUiMesh, refuseOwnAncestor, } from './b3d-utils.js';
+import { collidable, isOff, markUiMesh, pressWithEitherHand, refuseOwnAncestor, sceneDelta, } from './b3d-utils.js';
 import { CLIMB_PHASE, canMantle, mantleClip, mantlePath, defaultMantleLimits, } from './mantle.js';
 import { buoyantStep, diveBuoyancy, submergedFraction, isSwimming, swimBuoyancy, } from './buoyancy.js';
 import { aimFromLook, clampAim, easeAim, aimTarget, surfaceAimLimit, } from './swim-aim.js';
 import { iceSide } from './water-shore.js';
 import { fitChase } from './camera-fit.js';
 import { DEFAULT_AIM_LIMITS, aimDirection as aimToDirection, aimPoseWeights, bodyCatchUp, relaxAim, stepAim, wrapDeg, } from './aim.js';
+import { aimSpine } from './aim-ik.js';
 import { xrControllers } from './gamepad.js';
 import { B3dControllable } from './b3d-controllable.js';
 import { CompositeInputProvider } from './control-input.js';
@@ -1067,7 +1068,11 @@ export class B3dBiped extends B3dControllable {
             mat.zOffset = -8;
             this._reticle.material = mat;
             this._reticle.isPickable = false;
+            // It moves every frame and its bounds are never synced, so it is never
+            // culled: the bounds stayed where it was made, and the sight vanished
+            // whenever that spot was out of view (in a headset, out of one eye's).
             this._reticle.doNotSyncBoundingInfo = true;
+            this._reticle.alwaysSelectAsActiveMesh = true;
             markUiMesh(this._reticle);
         }
         const origin = this.aimOrigin;
@@ -1769,6 +1774,50 @@ export class B3dBiped extends B3dControllable {
         baseGroup.stop();
         this._aimLayer = layerOnUpperBody(scene, skeleton, baseGroup, layerGroup);
         this._aimLayer?.play(layerClip !== 'Pistol_Shoot');
+    }
+    /*
+    THE GUN POINTS WHERE THE AIM GOES, whatever the legs are doing. The aim
+    poses are drawn standing; over a crouch they lean with its hips (the gun
+    pointed 56° down at a level aim) and even standing it sat 11° low. So after
+    the clips have posed the body, `aimSpine` turns the spine until the held
+    weapon points along `aimDirection`. Eased in and out over `blendSeconds`.
+    */
+    _aimIkObs = null;
+    _aimIkWeight = 0;
+    _aimIkChain = null;
+    _aimIkOf = null;
+    _aimIk(scene) {
+        const skeleton = this.entries?.skeletons?.[0] ?? null;
+        const held = this._weapons().find((w) => w.socketed === true)?.mesh;
+        const want = this.gunplay && held != null && !this._swimming ? 1 : 0;
+        const blend = Math.max(0, this.blendSeconds ?? 0.25);
+        const dt = sceneDelta(scene);
+        this._aimIkWeight =
+            blend > 0
+                ? want > this._aimIkWeight
+                    ? Math.min(want, this._aimIkWeight + dt / blend)
+                    : Math.max(want, this._aimIkWeight - dt / blend)
+                : want;
+        if (this._aimIkWeight <= 0 || skeleton == null || held == null)
+            return;
+        if (this._aimIkOf !== skeleton) {
+            this._aimIkOf = skeleton;
+            const node = (names) => {
+                const bone = skeleton.bones.find((b) => names.includes(b.name));
+                return bone?.getTransformNode() ?? null;
+            };
+            const chain = [
+                node(['spine_01', 'mixamorig:Spine', 'Spine']),
+                node(['spine_02', 'mixamorig:Spine1', 'Spine1']),
+                node(['spine_03', 'mixamorig:Spine2', 'Spine2']),
+            ].filter((n) => n != null);
+            this._aimIkChain = chain.length > 0 ? chain : null;
+        }
+        if (this._aimIkChain == null)
+            return;
+        aimSpine(this._aimIkChain, held, this.aimDirection, {
+            weight: this._aimIkWeight,
+        });
     }
     /** Seconds left of the one-shot fire pose. */
     _shootFor = 0;
@@ -3108,6 +3157,8 @@ export class B3dBiped extends B3dControllable {
             // The right hand points first (see tosi-b3d: otherwise a first press is lost).
             pointerSelectionOptions: { preferredHandedness: 'right' },
         });
+        if (xr.pointerSelection != null)
+            pressWithEitherHand(xr, scene);
         // Register controller observables BEFORE entering XR so we catch controller connect events
         this.setupXRInput(xr);
         // Now enter XR
@@ -3387,6 +3438,7 @@ export class B3dBiped extends B3dControllable {
     figure = null;
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
+        this._aimIkObs = scene.onAfterAnimationsObservable.add(() => this._aimIk(scene));
         const attrs = this;
         if ((attrs.character !== '' || this.characterDoc != null) &&
             !this.entries) {
@@ -3608,6 +3660,12 @@ export class B3dBiped extends B3dControllable {
         this.queueRender();
     }
     sceneDispose() {
+        if (this._aimIkObs != null) {
+            this.owner?.scene.onAfterAnimationsObservable.remove(this._aimIkObs);
+            this._aimIkObs = null;
+        }
+        this._aimIkOf = null;
+        this._aimIkChain = null;
         this._reticle?.dispose();
         this._reticle = null;
         // The layer owns AnimationGroups it built; the source clips are the GLB's

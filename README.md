@@ -130,7 +130,10 @@ tubes bored through them, arches, caverns.
 
 **Biped control** — a [character controller](https://3d.tosijs.net/b3d-biped/)
 with an animation state machine and follow/XR cameras, from a GLB: walk, run
-and sprint, jump, swim, climb ledges.
+and sprint, jump, swim, climb ledges, and hold a gun that
+[points where you aim](https://3d.tosijs.net/aim-ik/), crouched or standing.
+[Crowds](https://3d.tosijs.net/b3d-crowd/) of thousands are drawn on the GPU,
+and each figure can be moved, turned and re-clipped.
 
 **Any character on one animation library** — [retargeting](https://3d.tosijs.net/retarget/)
 plays the Universal Animation Library's clips on a Mixamo, Kenney or
@@ -167,6 +170,9 @@ renders as a DOM overlay, as a texture on a surface in the scene, and as a
 floating panel in a headset, from the same declaration. Includes a
 [flowing box model](https://3d.tosijs.net/box/), [menus and panels](https://3d.tosijs.net/surface/),
 a data table, and an on-screen keyboard — because a headset has nowhere to type.
+A [system bar](https://3d.tosijs.net/system-bar/) of buttons and
+[cascading menus](https://3d.tosijs.net/bar-menu/) sits in the corner flat and
+up ahead in VR.
 
 **SVG textures** — [draw with SVG](https://3d.tosijs.net/svg-texture/), use it as
 a live texture. Designer artwork becomes a HUD, a gauge, or a control surface
@@ -196,7 +202,7 @@ or a server imports them without Babylon.
 
 **Pure models, actually tested** — the flight model, ballistics, guidance, biome
 classification, layout and text editing are engine-free and unit-tested (about
-3,000 tests, run in seconds with no GPU). If it can be a function of its inputs,
+3,900 tests, run in about a minute with no GPU). If it can be a function of its inputs,
 it is.
 
 ## Development

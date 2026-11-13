@@ -15,7 +15,7 @@ import {
 } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { cityDrive } = tosi({ cityDrive: { time: 17.5, speed: 60, coverage: 0.45 } })
+const { cityDrive } = tosi({ cityDrive: { time: 17.5, speed: 64, coverage: 0.45 } })
 
 // A LIGHTER WORLD on a headset or a low-powered device: a smaller town, less
 // traffic, a shorter view, fewer trees, no cloud deck. A headset draws
@@ -79,7 +79,7 @@ preview.append(
       panelTitle: 'City Drive',
       scenePanel: () => [
         slider3d({ label: 'time of day', value: cityDrive.time, min: 0, max: 24, step: 0.1 }),
-        slider3d({ label: 'time speed', value: cityDrive.speed, min: 0, max: 600, step: 10 }),
+        slider3d({ label: 'time speed', value: cityDrive.speed, min: 0.25, max: 1024, scale: 'log2', step: 1, zeroStop: true }),
         ...(light ? [] : [slider3d({ label: 'cloud cover', value: cityDrive.coverage, min: 0, max: 1.5, step: 0.05 })]),
       ],
     },
@@ -95,7 +95,7 @@ preview.append(
     b3dFog({ syncSkybox: true, start: light ? 400 : 800, end: light ? 1400 : 3500 }),
     terrain,
     woods,
-    ...(light ? [] : [b3dCloudDeck({ altitude: 600, coverage: cityDrive.coverage, orographic: 0.6, wind: 8 })]),
+    ...(light ? [] : [b3dCloudDeck({ altitude: 600, coverage: cityDrive.coverage, orographic: 0.6, wind: 8, skyClock: 'off' })]),
     b3dWater({ y: 0, waterSize: 8000, follow: true, twoSided: true }),
     b3dLibrary({ url: assetUrl('kenney/libraries/car-kit.glb'), type: 'cars' }),
     b3dCity({ ...plan, y: level, traffic: light ? 12 : 32 }),

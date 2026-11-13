@@ -235,6 +235,12 @@ export interface FramePanelSpec {
     /** Panel width in metres (height follows the aspect). Default 0.26. */
     width?: number;
     /**
+     * Content that grows or shrinks keeps its TOP edge where it was placed
+     * (it grows downward), instead of growing about its centre. A panel under
+     * a bar uses it, or growing content climbed over the bar.
+     */
+    keepTop?: boolean;
+    /**
      * Texture resolution in pixels (square). Default 384, which suits a
      * reticle, the job frame panels were first built for. A MENU wants more:
      * a ~1100 device-px panel on a 2× display at 384 upscales text ~2.9× and

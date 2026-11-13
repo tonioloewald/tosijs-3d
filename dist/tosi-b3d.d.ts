@@ -318,6 +318,9 @@ export declare class B3d extends Component {
         ':host .lozenge-button:hover': {
             background: string;
         };
+        ':host .lozenge-button[aria-pressed="true"]': {
+            background: string;
+        };
         ':host .aria-mirror-host': {
             position: string;
             inset: string;
@@ -1490,6 +1493,10 @@ export declare class B3d extends Component {
     private _teardownTimer;
     /** The canvas's context was lost by teardown — see `connectedCallback`. */
     private _canvasSpent;
+    /** The audio held until the scene is first shown (see reveal). */
+    private _audioHold;
+    private _releaseAudio;
+    private _audioUnmute;
     private _teardown;
     /**
      * Bring the SSAO pipeline in line with the `ssao*` attributes, the device

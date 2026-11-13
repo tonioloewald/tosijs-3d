@@ -10,7 +10,8 @@ full screen. One UI, arranged a little differently on each.
 It does not re-implement its buttons. It MIRRORS a list of real HTML buttons:
 a button that is hidden (by its `hidden` attribute or by a style, such as
 `::part(enterVrButton) { display: none }`) is not drawn, one that is disabled
-is drawn dimmed and ignores a press, its icon and title come along, and a press
+is drawn dimmed and ignores a press, one with `aria-pressed="true"` is drawn
+lit (the scene sets it on a panel's button while that panel shows), its icon and title come along, and a press
 calls that button's own `click()` (held for `HOLD_MS`, it gets a `systemhold`
 event instead: the scene puts that button's panel back where it started). So entering VR and going full screen keep
 their one definition, and both still run inside the press the browser requires
@@ -96,6 +97,8 @@ export function systemBar(buttons) {
         shown.forEach((b, i) => {
             const x = PAD + i * (SIZE + GAP);
             const lit = !b.disabled && (i === pressed || i === hover);
+            // A toggle that is on (its panel showing): lit until it is off.
+            const on = !b.disabled && b.getAttribute('aria-pressed') === 'true';
             const icon = b.querySelector('svg')?.cloneNode(true);
             if (icon) {
                 icon.setAttribute('x', String(x + 8));
@@ -120,7 +123,9 @@ export function systemBar(buttons) {
                     ? ATTENTION_FILL
                     : lit
                         ? 'rgba(74,158,255,0.55)'
-                        : 'rgba(255,255,255,0.06)',
+                        : on
+                            ? 'rgba(74,158,255,0.35)'
+                            : 'rgba(255,255,255,0.06)',
             }), ...(icon ? [icon] : [])));
         });
     };
@@ -185,6 +190,7 @@ export function systemBar(buttons) {
                 'class',
                 'part',
                 'data-attention',
+                'aria-pressed',
             ],
             childList: true,
         });

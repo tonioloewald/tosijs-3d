@@ -46,7 +46,7 @@ const garment = {
   ...onSkin(proxy, drawn, { positions: body.positions, triangles: body.indices, vertices: body.skin.vertices }),
   material: packGarmentMaterial(proxy, { diffuse }, look),
 }
-riggedBodyGlb(body, { garments: [garment] })
+riggedBodyGlb(body, { garments: [garment], bake: bakeClothLook }) // from 'tosijs-3d/cloth-bake'
 ```
 
 Pure: no DOM, no Babylon.

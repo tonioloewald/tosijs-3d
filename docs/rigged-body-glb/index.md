@@ -53,9 +53,10 @@ What the file is (Dramatis's `export-format`, version 1):
   the body's own, as the builder draws them (armour lifted 5 mm), with its
   material as data (its pictures, and its saved look's glTF factors where
   it has a plain reading). A recoloured cloth's picture is written
-  recoloured ([cloth-bake](/cloth-bake/), PNG or JPEG in, PNG out), so the
-  file shows what the builder does in any engine; `bake: false` writes the
-  pictures as they came. The skin they cover is tucked under them, as the
+  recoloured when you pass `bake: bakeClothLook` ([cloth-bake](/cloth-bake/),
+  PNG or JPEG in, PNG out), so the file shows what the builder does in any
+  engine; without it the pictures go as they came, and the writer carries no
+  image decoder. The skin they cover is tucked under them, as the
   builder does, and skin a garment lists in its `delete` (as MakeHuman's
   clothes do) is dropped; `cover: false` leaves the skin alone.
 - **Clips**, with `clips`: animations read from any skinned GLB
