@@ -283,6 +283,7 @@ b3d-cloud-deck
   frequency  = 3  — Field repeats across its own width. Higher = smaller puffs
   cirrus  = 0  — Rounded heaps `0` → long wispy streaks at `±1`: positive streaks ALONG the wind heading, negative ACROSS it. Rebakes the field
   wind  = 8  — Metres per second the deck drifts, on the sky's clock: a skybox sped up (`realtimeScale` 60) drifts it 60 times as fast. Nothing rebakes
+  skyClock  = 'on'  — `'on'`: drift and evolve on the sky's clock (a sped-up skybox carries the clouds). `'off'`: world time, so a fast day passes under clouds moving at their own pace
   windHeadingDeg  = 0  — Which way it drifts — and the direction cirrus streaks run. Used only when the scene has no wind of its own (`<tosi-b3d wind-speed>`): with one, the deck drifts with it, as smoke and storms do
   evolve  = 0.5  — How fast shapes change, `0` rigid → `1` restless
   follow  = 'on'  — Keep the deck centred under the camera. A deck is finite; the world is not

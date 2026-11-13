@@ -369,9 +369,7 @@ export function barMenu(config: BarMenuConfig): BarMenu {
             )
           )
         })
-        root.append(
-          g({ transform: `translate(${c.x} ${c.y})` }, ...parts)
-        )
+        root.append(g({ transform: `translate(${c.x} ${c.y})` }, ...parts))
       })
     }
     const indexAt = (px: number, py: number): [number, number] | null => {

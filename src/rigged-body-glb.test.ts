@@ -652,12 +652,12 @@ describe.skipIf(!existsSync(AI))(
         )
       }
       const red = pngDecode(
-        imageOf(riggedBodyGlb(body, { garments: [worn as any], bake: bakeClothLook }))
+        imageOf(
+          riggedBodyGlb(body, { garments: [worn as any], bake: bakeClothLook })
+        )
       )
       expect(red.data[0]).toBeGreaterThan(2 * red.data[2])
-      const kept = imageOf(
-        riggedBodyGlb(body, { garments: [worn as any] })
-      )
+      const kept = imageOf(riggedBodyGlb(body, { garments: [worn as any] }))
       expect(Buffer.from(kept).equals(Buffer.from(picture.bytes))).toBe(true)
     }, 120000)
   }
