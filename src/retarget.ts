@@ -750,15 +750,32 @@ function solveLeg(
   if (d0 < 1e-6) return null
   const u = normalize(toGoal)
   const d = Math.min(a + b - 1e-5, Math.max(Math.abs(a - b) + 1e-5, d0))
-  // The way the knee bends now (the clip's), else the leg's front.
+  /*
+  WHICH WAY THE KNEE BENDS: the clip's way where its knee is clearly bent,
+  the leg's front where it is nearly straight. A straight leg's knee sits a
+  few millimetres off the hip-to-ankle line in no particular direction, and
+  bending in that plane twisted the leg from frame to frame (MakeHuman's
+  right leg in UAL's idle). The two blend by how far the knee is off the
+  line, all the clip's by a tenth of the thigh's length.
+  */
   const dot = (p: Vec3, q: Vec3) => p.x * q.x + p.y * q.y + p.z * q.z
   const perp = (v: Vec3) => {
     const k = dot(v, u)
     return { x: v.x - u.x * k, y: v.y - u.y * k, z: v.z - u.z * k }
   }
-  let v = perp(sub(knee, hip))
-  if (Math.hypot(v.x, v.y, v.z) < 1e-4 * a)
-    v = perp(rotateVector(thighTurn, forward))
+  const clip = perp(sub(knee, hip))
+  const off = Math.hypot(clip.x, clip.y, clip.z)
+  const front = perp(rotateVector(thighTurn, forward))
+  const frontLen = Math.hypot(front.x, front.y, front.z)
+  const s = Math.min(1, off / (0.1 * a))
+  const t = frontLen < 1e-9 ? 1 : s * s * (3 - 2 * s)
+  const cw = off > 1e-12 ? t / off : 0
+  const fw = frontLen > 1e-9 ? (1 - t) / frontLen : 0
+  let v = {
+    x: clip.x * cw + front.x * fw,
+    y: clip.y * cw + front.y * fw,
+    z: clip.z * cw + front.z * fw,
+  }
   if (Math.hypot(v.x, v.y, v.z) < 1e-9) return null
   v = normalize(v)
   const cos = Math.min(1, Math.max(-1, (a * a + d * d - b * b) / (2 * a * d)))

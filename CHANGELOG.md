@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Fixed:** a retargeted leg that is nearly straight no longer twitches (MakeHuman's right thigh in UAL's idle). Foot IK bends a straight leg's knee toward the leg's front instead of the way a knee a few millimetres off the line happens to point.
+
 ## 0.13.0
 
 The latest release. Biped gunplay aims where you look, crowds move figure by figure, system-bar menus cascade flat and in VR, and headset panels, presses and the chase camera behave. Garment exports bake their look only when given the baker. See [0.13.0](/v0.13.0/).

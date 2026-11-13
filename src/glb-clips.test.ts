@@ -240,3 +240,52 @@ describe.skipIf(!existsSync(UAL) || !existsSync(OMNI))(
     }, 60000)
   }
 )
+
+const PACK = join(ASSETS, 'makehuman', 'hm08', 'hm08.json')
+
+describe('glb clips: foot IK on a straight leg', () => {
+  test.skipIf(!existsSync(UAL) || !existsSync(PACK))(
+    "MakeHuman's idle: the legs turn smoothly, frame to frame",
+    async () => {
+      // The right leg is nearly straight in UAL's idle: bending it in the
+      // plane of a knee a few millimetres off the line twisted it 6° to 12°
+      // in a frame near the end of the loop.
+      const { humanoidRoles } = await import('./retarget.js')
+      const { fittedRestBones } = await import('./rig-fit.js')
+      const { humanBodyMaker } = await import('./human-rig.js')
+      const { loadHumanPack } = await import('./human-pack.js')
+      const fromDisk = async (url: string) => {
+        const b = readFileSync(url)
+        return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)
+      }
+      const ual = readGlbClips(new Uint8Array(readFileSync(UAL)))
+      const maker = await humanBodyMaker(await loadHumanPack(PACK, fromDisk))
+      const bones = fittedRestBones(maker.first.rig)
+      const target = { bones, roles: humanoidRoles(bones) }
+      const baked = bakeClip(ual, 'Idle_Loop', target, { fps: 60 })
+      let worst = 0
+      for (const role of [
+        'l-upperLeg',
+        'r-upperLeg',
+        'l-lowerLeg',
+        'r-lowerLeg',
+      ] as const) {
+        const q = baked.rotations.get(target.roles[role]!)!
+        for (let i = 4; i < q.length; i += 4) {
+          const d = Math.abs(
+            q[i] * q[i - 4] +
+              q[i + 1] * q[i - 3] +
+              q[i + 2] * q[i - 2] +
+              q[i + 3] * q[i - 1]
+          )
+          worst = Math.max(
+            worst,
+            (2 * Math.acos(Math.min(1, d)) * 180) / Math.PI
+          )
+        }
+      }
+      expect(worst).toBeLessThan(2)
+    },
+    60000
+  )
+})
