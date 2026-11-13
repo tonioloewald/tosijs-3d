@@ -527,6 +527,13 @@ preview.append(
         let onHand = false
         views = viewMenu(inspect, el, {
           always: true,
+          // Rigging: what is shown beside the mesh.
+          items: () => rigging
+            ? [
+                { label: 'Mannequin', icon: 'personStanding', checked: rigging.api.mannequin, handleSelect: () => { rigging.api.mannequin = !rigging.api.mannequin } },
+                { label: 'Bones', icon: 'rig', checked: rigging.api.bones, handleSelect: () => { rigging.api.bones = !rigging.api.bones } },
+              ]
+            : [],
           extras: [{
             value: 'hand',
             label: 'right hand',
@@ -816,6 +823,8 @@ preview.append(
         // The forget button comes and goes with whether the clip is your own.
         let ownClip = false
         walker.clip.observe(() => {
+          // Rigging, a clip from the Animation menu plays on the rig.
+          if (rigging) rigging.api.clip = walker.clip.value
           if (clipFiles.has(walker.clip.value) === ownClip) return
           ownClip = !ownClip
           el.refreshScenePanel?.()
@@ -1026,7 +1035,7 @@ preview.append(
         // rigged the builder's body (a choice under source). The character's
         // body steps aside while the tool shows the same mesh bound from the
         // same recipe; cancel puts it back as it was.
-        const rigPanel = b3dPanel({ icon: 'rig', title: 'Rig', exclusive: 'off' })
+        const rigPanel = b3dPanel({ icon: 'move', title: 'Rig', exclusive: 'off' })
         const idleRig = () =>
           panel3d(
             { width: 300 },
@@ -1070,6 +1079,8 @@ preview.append(
             camera: cam,
             // One view menu: the builder's, which the rig tool follows.
             inspect,
+            // Its playback and view come from the bar's Animation and View menus.
+            hostMenus: true,
             panel: rigPanel,
             // The rig it hands back is worn as it is: the body the tool bound,
             // its recipe kept with the character.
@@ -1096,6 +1107,8 @@ preview.append(
               play()
             },
           })
+          // It plays the clip the Animation menu has.
+          rigging.api.clip = walker.clip.value
           // The item goes while the rig tool has the body.
           applyGrip()
           el.refreshScenePanel?.()

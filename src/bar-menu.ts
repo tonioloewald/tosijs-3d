@@ -509,6 +509,11 @@ export interface ViewMenuOptions {
    * picked, `active` says whether it is the view shown now.
    */
   extras?: ViewMenuExtra[]
+  /**
+   * More rows after the views (what is shown beside the model, as checked
+   * actions), read on each opening; an empty list adds nothing.
+   */
+  items?: () => BarMenuOption[]
 }
 
 /** A view of the page's own in a `viewMenu`. */
@@ -539,14 +544,18 @@ export function viewMenu(
     // A list: each view its icon and its name ("front" is not mistaken for
     // "back").
     layout: 'list',
-    options: [
-      ...(options.faces ?? [...INSPECT_FACES, 'free']).map((v) => ({
-        value: v as string,
-        label: labels[v],
-        icon: FACE_ICONS[v],
-      })),
-      ...extras.map(({ value, label, icon }) => ({ value, label, icon })),
-    ],
+    options: () => {
+      const more = options.items?.() ?? []
+      return [
+        ...(options.faces ?? [...INSPECT_FACES, 'free']).map((v) => ({
+          value: v as string,
+          label: labels[v],
+          icon: FACE_ICONS[v],
+        })),
+        ...extras.map(({ value, label, icon }) => ({ value, label, icon })),
+        ...(more.length ? [{ separator: true }, ...more] : []),
+      ]
+    },
     value: inspect.face,
     handleChange: (v) => {
       const extra = extras.find((x) => x.value === v)

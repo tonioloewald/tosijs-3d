@@ -419,6 +419,12 @@ export interface RigToolApi {
   view: RigView
   /** Play a clip (the current one if none is named); `null` stands it at rest. */
   play(clip?: string | null): void
+  /** The clip it plays: set it to change clips (playing on if it was). */
+  clip: string
+  /** UAL's mannequin beside the character, to compare. */
+  mannequin: boolean
+  /** The skeleton drawn over the character. */
+  bones: boolean
   load(model: RigModel | File): Promise<void> | undefined
   /**
    * Add the clips in a GLB made on another rig (Mixamo, mocap, another
@@ -722,6 +728,13 @@ export interface RigToolOptions {
    * the character builder, not two). Left in perspective on unmount.
    */
   inspect?: InspectView
+  /**
+   * The host's system-bar menus drive playback and the view (the character
+   * builder's Animation and View menus, through `api.play`, `api.clip`,
+   * `api.view`, `api.mannequin` and `api.bones`): the panel leaves out its
+   * animate toggle, clip list and View section.
+   */
+  hostMenus?: boolean
   /**
    * Hosted: the panel is a system panel (a button on the system bar,
    * stacking with the host's), not the scene's settings panel. Default true;
@@ -1485,24 +1498,29 @@ export function mountRigTool(
         collapsible: true,
         open: true,
       }),
-      toggle3d({
-        label: 'animate',
-        value: ui.pose === 'animate',
-        handleChange: (v) => {
-          ui.pose = v ? 'animate' : 'rest'
-          animate()
-        },
-      }),
-      select3d({
-        label: 'clip',
-        value: ui.clip,
-        options: clips.length ? clips : [ui.clip],
-        handleChange: (v) => {
-          ui.clip = String(v)
-          ui.pose = 'animate'
-          animate()
-        },
-      }),
+      // Hosted with menus, the host's Animation menu plays and picks clips.
+      ...(options.hostMenus
+        ? []
+        : [
+            toggle3d({
+              label: 'animate',
+              value: ui.pose === 'animate',
+              handleChange: (v) => {
+                ui.pose = v ? 'animate' : 'rest'
+                animate()
+              },
+            }),
+            select3d({
+              label: 'clip',
+              value: ui.clip,
+              options: clips.length ? clips : [ui.clip],
+              handleChange: (v) => {
+                ui.clip = String(v)
+                ui.pose = 'animate'
+                animate()
+              },
+            }),
+          ]),
       // A single-axis move: up or down from where its soles would stand.
       slider3d({
         label: 'floor',
@@ -1549,30 +1567,35 @@ export function mountRigTool(
 
       // VIEW: where it is seen from (also the camera on the bar) and what is
       // shown beside it.
-      label3d({ text: 'View', icon: 'camera', collapsible: true }),
-      select3d({
-        label: 'seen from',
-        value: ui.view,
-        options: [...INSPECT_FACES, 'free'].map((v) => ({
-          label: v === 'free' ? 'perspective' : v,
-          value: v,
-        })),
-        handleChange: (v: unknown) => {
-          ui.view = v as RigView
-          tool?.view(ui.view)
-          refresh()
-        },
-      } as any),
-      toggle3d({
-        label: 'mannequin',
-        value: ui.compare,
-        handleChange: (v) => tool?.compare((ui.compare = v)),
-      }),
-      toggle3d({
-        label: 'bones',
-        value: ui.bones,
-        handleChange: (v) => tool?.bones((ui.bones = v)),
-      }),
+      // Hosted with menus, the host's View menu has these.
+      ...(options.hostMenus
+        ? []
+        : [
+            label3d({ text: 'View', icon: 'camera', collapsible: true }),
+            select3d({
+              label: 'seen from',
+              value: ui.view,
+              options: [...INSPECT_FACES, 'free'].map((v) => ({
+                label: v === 'free' ? 'perspective' : v,
+                value: v,
+              })),
+              handleChange: (v: unknown) => {
+                ui.view = v as RigView
+                tool?.view(ui.view)
+                refresh()
+              },
+            } as any),
+            toggle3d({
+              label: 'mannequin',
+              value: ui.compare,
+              handleChange: (v) => tool?.compare((ui.compare = v)),
+            }),
+            toggle3d({
+              label: 'bones',
+              value: ui.bones,
+              handleChange: (v) => tool?.bones((ui.bones = v)),
+            }),
+          ]),
 
       // MODEL: which one, and how it is rigged.
       label3d({ text: 'Model', icon: 'mesh', collapsible: true }),
@@ -3109,7 +3132,9 @@ export function mountRigTool(
         return d == null ? null : ray.origin.add(ray.direction.scale(d))
       }
       let from: BABYLON.Vector3 | null = null
-      ui.status = `${finger} ${side === 'l' ? 'left' : 'right'}: pulling the finger`
+      ui.status = `${finger} ${
+        side === 'l' ? 'left' : 'right'
+      }: pulling the finger`
       refresh()
       const move = (ev: PointerEvent) => {
         const at = hit(ev)
@@ -3621,6 +3646,29 @@ export function mountRigTool(
       ui.pose = clip === null ? 'rest' : 'animate'
       // Bound first if a marker moved, as the panel's animate is.
       animate()
+    },
+    get clip() {
+      return ui.clip
+    },
+    set clip(v: string) {
+      if (v === ui.clip) return
+      ui.clip = v
+      if (ui.pose === 'animate') animate()
+      refresh()
+    },
+    get mannequin() {
+      return ui.compare
+    },
+    set mannequin(v: boolean) {
+      tool?.compare((ui.compare = v))
+      refresh()
+    },
+    get bones() {
+      return ui.bones
+    },
+    set bones(v: boolean) {
+      tool?.bones((ui.bones = v))
+      refresh()
     },
     load: (m: RigModel | File) => tool?.load(m),
     loadClips: (f: File | string) => tool?.loadClips(f),
