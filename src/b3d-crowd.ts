@@ -211,7 +211,8 @@ The crowd lays its figures out once; moving them is the game's job.
 `i` (leave out what stays). Call it as often as you like: the changes are
 uploaded once, just before the frame is drawn. The clips play in place, so a
 walker goes nowhere until you move it, and its feet slide unless its speed
-matches its stride.
+matches its stride. Below, three hundred walkers cross a field, turn back at
+its edge, and stop now and then to wave: all of it is `setFigure` calls.
 
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLight, b3dGround, b3dCrowd, sceneDelta } from 'tosijs-3d'
@@ -231,7 +232,8 @@ preview.append(
     {
       style: 'width:100%;height:100%',
       sceneCreated(el) {
-        orbitCam(el, { alphaDeg: 35, betaDeg: 60, radius: 70, target: [0, 1, 0] })
+        // Close enough to see them walk: from across the field they are dots.
+        orbitCam(el, { alphaDeg: 35, betaDeg: 72, radius: 22, target: [0, 1, 0] })
         el.scene.onBeforeRenderObservable.add(() => {
           const n = crowd.figureCount
           if (n === 0) return
