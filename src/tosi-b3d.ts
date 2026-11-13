@@ -341,7 +341,7 @@ own sounds are silent until it first appears.
 
 import { Component, elements, updates } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import { holdEffectAudio } from './effect-audio.js'
+import { holdEffectAudio, sharedMute } from './effect-audio.js'
 import * as GUI from '@babylonjs/gui'
 import { GridMaterial } from '@babylonjs/materials'
 import '@babylonjs/loaders'
@@ -622,6 +622,17 @@ const noop = () => {}
 const noopRefresh = () => {}
 // The system bar in a headset: up ahead, where the settings panel hung. Its
 // panels (settings, inventory) open under it.
+// Babylon's audio engine is one per page: every loading scene shares one mute.
+const babylonAudio = () =>
+  (BABYLON.AbstractEngine as any).audioEngine as
+    | { getGlobalVolume(): number; setGlobalVolume(v: number): void }
+    | null
+    | undefined
+const muteBabylonAudio = sharedMute(
+  () => babylonAudio()?.getGlobalVolume() ?? 1,
+  (v) => babylonAudio()?.setGlobalVolume(v)
+)
+
 const XR_BAR_ELEVATION = 66
 /** Flat, where a panel opened from the system bar starts: under the bar. */
 const UNDER_BAR = 8 + BAR_HEIGHT + 8
@@ -5827,11 +5838,9 @@ export class B3d extends Component {
       this._audioHold?.()
       this._audioHold = holdEffectAudio()
       // Babylon's own sounds: muted, not disabled (a disabled scene drops an
-      // autoplay sound that finishes loading meanwhile).
-      const babylonAudio = (BABYLON.AbstractEngine as any).audioEngine
-      const volume = babylonAudio?.getGlobalVolume?.() ?? 1
-      babylonAudio?.setGlobalVolume?.(0)
-      this._audioUnmute = () => babylonAudio?.setGlobalVolume?.(volume)
+      // autoplay sound that finishes loading meanwhile). Page-wide, so held
+      // with every other loading scene's.
+      this._audioUnmute = muteBabylonAudio()
       const reveal = () => {
         if (revealed) return
         revealed = true

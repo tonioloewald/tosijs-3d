@@ -780,6 +780,8 @@ export type ClothBaker = (
 const isGltfMaterial = (m: unknown): m is GltfSurfaceMaterial =>
   m != null && Array.isArray((m as GltfSurfaceMaterial).baseColorFactor)
 
+let warnedNoBaker = false
+
 /** The body's materials as glTF, their pictures collected once each. */
 /** A garment's material (garment-proxy's data) as glTF's. */
 function garmentMaterial(
@@ -815,6 +817,20 @@ function garmentMaterial(
     alphaMode: m.alphaMode ?? 'OPAQUE',
     ...(m.alphaMode === 'MASK' ? { alphaCutoff: m.alphaCutoff ?? 0.5 } : {}),
     doubleSided: m.twoSided,
+  }
+  if (
+    typeof bake !== 'function' &&
+    bake !== false &&
+    m.look != null &&
+    m.baseColorTexture?.bytes != null &&
+    !warnedNoBaker
+  ) {
+    // Until 0.13 the writer baked by default; a caller relying on that now
+    // gets the pictures as they are.
+    warnedNoBaker = true
+    console.warn(
+      "riggedBodyGlb: a garment has a look but no baker, so its picture is written unrecoloured. Pass `bake: bakeClothLook` (from 'tosijs-3d/cloth-bake'), or `bake: false` to say so."
+    )
   }
   const baked =
     typeof bake === 'function' && m.baseColorTexture?.bytes != null
