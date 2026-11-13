@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Added:** rig tool fingertips (orange, with `move joints` on): dragging one turns and stretches its whole finger or thumb about the finger's first joint, keeping the curl, its mirror following with symmetry on.
+
 - **Added:** `footTurnDeg` in a rig recipe (the rig tool's **foot turn** slider, under Motion): both feet turn in (negative) or out (positive) in every clip, for a body modelled with its feet turned out. Retargeting, `bakeClip`, `retargetClip` / `retargetSourceClip`, the biped, the builder and exports all pass it.
 
 - **Fixed:** a retargeted leg that is nearly straight no longer twitches (MakeHuman's right thigh in UAL's idle). Foot IK bends a straight leg's knee toward the leg's front instead of the way a knee a few millimetres off the line happens to point.

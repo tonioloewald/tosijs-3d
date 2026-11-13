@@ -51,7 +51,10 @@ The panel has these sections, its job first.
   joint (blue) to drag by hand from the view that suits: shoulders from the
   front, fingers and thumbs from the top, feet from the side. What hangs from
   a joint comes with it; set `dragging` to turn what hangs from it instead
-  (a hand or foot at an angle). Markers and moved joints are saved in the
+  (a hand or foot at an angle). Each finger's and thumb's tip (orange) pulls
+  its finger: the joints after its first turn and stretch about the first,
+  so the finger keeps its curl and reaches where you drop the tip. Markers
+  and moved joints are saved in the
   recipe as `binding`.
 - **Roles**, for a model on its own skeleton: which bone is the hips, the
   head, the left forearm, each finger joint. They are guessed from the
@@ -311,6 +314,9 @@ const TAIL: SpringRecipe = {
  * Is a hand joint shown to move in this mode? A mitten shows its thumb and
  * the one finger the others lie on; none shows no finger at all.
  */
+/** A fingertip (or the thumb's): the end joint a drag pulls its finger by. */
+const FINGER_TIP = /^(thumb|index|middle|ring|pinky)_04_leaf_([lr])$/
+
 function handJointShown(name: string, mode?: HandMode): boolean {
   if (mode === 'mitten') return !/^(index|ring|pinky)_/.test(name)
   if (mode === 'none') return !/^(thumb|index|middle|ring|pinky)_/.test(name)
@@ -2561,6 +2567,7 @@ export function mountRigTool(
     const springPickedMat = dotMat('rig-spring-picked', '#ff9f0a')
     const markerMat = dotMat('rig-marker', '#ff375f')
     const jointMat = dotMat('rig-joint', '#64d2ff')
+    const tipMat = dotMat('rig-finger-tip', '#ff9f0a')
     cleanups.push(() => jointMat.dispose())
     /*
     A COLOUR PER KIND OF MARKER, the same on the body and on the mannequin
@@ -2626,6 +2633,7 @@ export function mountRigTool(
         springMat,
         springPickedMat,
         markerMat,
+        tipMat,
       ])
         m.dispose()
     })
@@ -2740,10 +2748,14 @@ export function mountRigTool(
               m != null ? toScene(m.x, m.y, m.z) : node.getAbsolutePosition()
             const small = /^(thumb|index|middle|ring|pinky)_|ball/.test(name)
             const kin = markerOfJoint(name)
-            dot(at, r * (small ? 0.5 : 0.8), kin ? matFor(kin) : jointMat, {
-              joint: name,
-              handle: -2,
-            })
+            // A fingertip pulls its whole finger (dragTip), so it stands out.
+            const tip = FINGER_TIP.test(name)
+            dot(
+              at,
+              r * (tip ? 0.7 : small ? 0.5 : 0.8),
+              tip ? tipMat : kin ? matFor(kin) : jointMat,
+              { joint: name, handle: -2, ...(tip ? { tip: true } : {}) }
+            )
             // Its reference on the mannequin's same joint, as the markers
             // have (to look at, not to drag).
             const ref =
@@ -2866,6 +2878,10 @@ export function mountRigTool(
       }
       if (handle.metadata.marker != null && markerBound()) {
         dragMarker(handle, handle.metadata.marker as string)
+        return
+      }
+      if (handle.metadata.tip === true && markerBound()) {
+        dragTip(handle, handle.metadata.joint as string)
         return
       }
       if (handle.metadata.joint != null && markerBound()) {
@@ -3049,6 +3065,88 @@ export function mountRigTool(
             ] = { x: -f.x, y: f.y, z: f.z }
         }
         if (Object.keys(moved).length) setJoints(name, moved)
+      }
+      window.addEventListener('pointermove', move, true)
+      window.addEventListener('pointerup', up, true)
+    }
+    /*
+    A FINGERTIP DRAGGED pulls its finger: the finger's joints after the first
+    turn and stretch about the first, as one, so its middle joints go where
+    the tip says and the finger keeps its curl (the one step finger placement
+    mostly is). Dragged on the plane facing the camera, as a joint is; its
+    mirror follows with symmetry on.
+    */
+    function dragTip(handle: BABYLON.Mesh, tip: string) {
+      const [, finger, side] = FINGER_TIP.exec(tip)!
+      const names = ['02', '03', '04_leaf'].map((k) => `${finger}_${k}_${side}`)
+      const dotOf = (n: string) => dots.find((d) => jointOfDot(d) === n)
+      const baseDot = dotOf(`${finger}_01_${side}`)
+      const chain = names
+        .map((n) => ({ n, d: dotOf(n) }))
+        .filter((g): g is { n: string; d: BABYLON.Mesh } => g.d != null)
+      if (baseDot == null || chain.length !== names.length) {
+        dragJoint(handle, tip)
+        return
+      }
+      const base = baseDot.position.clone()
+      const start = new Map(chain.map((g) => [g.n, g.d.position.clone()]))
+      const reach = handle.position.subtract(base)
+      if (reach.length() < 1e-6) return
+      cam.detachControl()
+      const plane = BABYLON.Plane.FromPositionAndNormal(
+        handle.position,
+        cam.getForwardRay().direction.normalize()
+      )
+      const hit = (ev: PointerEvent) => {
+        const p = toRender(ev)
+        const ray = scene.createPickingRay(
+          p.x,
+          p.y,
+          BABYLON.Matrix.Identity(),
+          cam
+        )
+        const d = ray.intersectsPlane(plane)
+        return d == null ? null : ray.origin.add(ray.direction.scale(d))
+      }
+      let from: BABYLON.Vector3 | null = null
+      ui.status = `${finger} ${side === 'l' ? 'left' : 'right'}: pulling the finger`
+      refresh()
+      const move = (ev: PointerEvent) => {
+        const at = hit(ev)
+        if (at == null) return
+        from ??= at
+        const now = start.get(tip)!.add(at.subtract(from)).subtract(base)
+        if (now.length() < 1e-6) return
+        // The turn from the finger's reach to the new one, and its stretch.
+        const q = new BABYLON.Quaternion()
+        BABYLON.Quaternion.FromUnitVectorsToRef(
+          reach.normalizeToNew(),
+          now.normalizeToNew(),
+          q
+        )
+        const k = now.length() / reach.length()
+        for (const g of chain)
+          g.d.position.copyFrom(
+            base.add(
+              start.get(g.n)!.subtract(base).applyRotationQuaternion(q).scale(k)
+            )
+          )
+      }
+      const up = () => {
+        window.removeEventListener('pointermove', move, true)
+        window.removeEventListener('pointerup', up, true)
+        cam.attachControl(canvas, true)
+        if (from == null) return
+        const moved: Record<string, Vec3> = {}
+        for (const g of chain) {
+          const f = toFile(g.d.position)
+          moved[g.n] = { x: f.x, y: f.y, z: f.z }
+          if (symmetry)
+            moved[
+              g.n.replace(/_([lr])$/, (_, s) => (s === 'l' ? '_r' : '_l'))
+            ] = { x: -f.x, y: f.y, z: f.z }
+        }
+        setJoints(`${finger} tip`, moved)
       }
       window.addEventListener('pointermove', move, true)
       window.addEventListener('pointerup', up, true)
