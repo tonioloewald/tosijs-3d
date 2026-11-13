@@ -5008,22 +5008,6 @@ export class B3d extends Component {
         this._repaintPanels()
       },
     })
-    /*
-    SLOW MOTION, beside Pause: world time at a quarter speed and back. Input,
-    the UI and the camera stay in real time; everything stepping by
-    `sceneDelta` slows (physics, bipeds, vehicles, the sky).
-    */
-    const scale = Number((this as any).timeScale ?? 1)
-    out.push({
-      id: '__slow',
-      name: scale < 1 ? 'Normal speed' : 'Slow motion',
-      icon: 'clock',
-      active: scale < 1,
-      handleClick: () => {
-        ;(this as any).timeScale = scale < 1 ? 1 : 0.25
-        this._repaintPanels()
-      },
-    })
     const pad = this.querySelector('tosi-b3d-gamepad') as unknown as {
       hidden?: boolean
       setFade?: (on: boolean) => void

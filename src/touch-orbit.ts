@@ -33,7 +33,9 @@ expect from a 3D viewer, on every device. `<tosi-b3d>`'s default camera and
   trackpad pinch scales the distance by the pinch, three times over
   (`PINCH_GAIN`): a laptop trackpad is small, and a natural pinch on it
   barely halved the distance. Chrome and Firefox send a pinch as a
-  ctrl-wheel, Safari as gesture events; both are handled.
+  ctrl-wheel, Safari as gesture events; both are handled. A trackpad driver
+  that sends a pinch as ctrl-wheel notches (common on Windows) zooms one wheel
+  step a notch (`pinchZoom`).
 - **Zoom stops short of the target**: with no `lowerRadiusLimit` of your own,
   it is set to twice the camera's near plane (at least 1 cm), because Babylon
   has none and zooming in went through the target and flipped the view.
@@ -94,6 +96,19 @@ export const PINCH_SHARE = 0.03
  * pinch on a laptop trackpad barely halved the distance.
  */
 export const PINCH_GAIN = PINCH_SHARE * 100
+
+/**
+ * The distance's multiplier for one ctrl-wheel event of a pinch. Many
+ * Windows trackpad drivers send a pinch as ctrl + mouse-wheel notches
+ * (`deltaY` of 100 or 120), and at `PINCH_SHARE` one notch moved the camera
+ * twenty times as far: a notch-sized event is one wheel step instead (as
+ * the wheel zooms), and no single event moves it more than a quarter.
+ */
+export function pinchZoom(deltaY: number): number {
+  if (Math.abs(deltaY) >= 50)
+    return Math.exp(Math.sign(deltaY) * WHEEL_SHARE * 15)
+  return Math.exp(Math.max(-0.25, Math.min(0.25, deltaY * PINCH_SHARE)))
+}
 
 export function touchOrbit(
   camera: BABYLON.ArcRotateCamera,
@@ -179,7 +194,7 @@ export function touchOrbit(
       const hi = camera.upperRadiusLimit ?? Infinity
       camera.radius = Math.min(
         hi,
-        Math.max(lo, camera.radius * Math.exp(e.deltaY * PINCH_SHARE))
+        Math.max(lo, camera.radius * pinchZoom(e.deltaY))
       )
       return
     }

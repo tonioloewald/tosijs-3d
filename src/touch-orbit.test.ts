@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import * as BABYLON from '@babylonjs/core'
-import { touchOrbit, WHEEL_SHARE } from './touch-orbit.js'
+import { pinchZoom, touchOrbit, WHEEL_SHARE } from './touch-orbit.js'
 
 const camera = (set?: (c: BABYLON.ArcRotateCamera) => void) => {
   const scene = new BABYLON.Scene(new BABYLON.NullEngine())
@@ -33,5 +33,16 @@ describe('touchOrbit', () => {
 
   test('zoom stops short of the target', () => {
     expect(camera().lowerRadiusLimit).toBeGreaterThan(0)
+  })
+
+  test('a pinch sent as wheel notches zooms one step a notch', () => {
+    expect(pinchZoom(100)).toBeCloseTo(pinchZoom(120), 6)
+    expect(pinchZoom(100)).toBeLessThan(1.2)
+    expect(pinchZoom(-100)).toBeCloseTo(1 / pinchZoom(100), 6)
+  })
+
+  test("a trackpad's small pinch events follow the pinch, capped", () => {
+    expect(pinchZoom(2)).toBeCloseTo(Math.exp(0.06), 6)
+    expect(pinchZoom(40)).toBeCloseTo(Math.exp(0.25), 6)
   })
 })

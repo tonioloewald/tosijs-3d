@@ -27,8 +27,11 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 - The character builder has an **Animation** menu on the system bar (play/pause and the clip); its **Playback controls** entry opens a small panel for scrubbing and speed. The page is titled **Character Builder**. While rigging, Play goes to the perspective view and Pause back to the face view last held.
 - `barMenu` submenus open beside the list (cascading, all on one surface) instead of replacing it with a way back. A submenu opens on a press, and a press on its row again closes it.
 - A system panel's button on the system bar stays lit while its panel is open (its HTML button carries `aria-pressed`).
+- The settings panel no longer has a Slow motion button. Set `timeScale` from a page that wants one.
 
 ### Fixed
+
+- A trackpad pinch sent as ctrl-wheel notches (many Windows trackpad drivers) zooms one wheel step a notch; each notch used to move the camera about twenty times as far.
 
 - `<tosi-b3d-launcher>`'s `reloadModel()` no longer disposes the library's materials with the old model: after the first weapon swap, every weapon from that library was drawn white (the Biped Playground's loadout). `<tosi-b3d-crowd>`'s actors had the same fault when removed.
 - `<tosi-b3d-hud>`: changing `size` resizes the HUD straight away; it used to wait for the next window resize. Any `handleResize()` call made after setting it can go.
