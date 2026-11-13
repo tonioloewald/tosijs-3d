@@ -9,6 +9,9 @@ stubbed (no AudioContext in a test).
 */
 mock.module('./effect-audio.js', () => ({
   placeListener() {},
+  holdEffectAudio() {
+    return () => {}
+  },
   startVoice() {
     return { place() {}, set() {}, stop() {} }
   },

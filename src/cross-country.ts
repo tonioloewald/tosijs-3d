@@ -79,7 +79,7 @@ preview.append(
     b3dFog({ syncSkybox: true, start: light ? 400 : 800, end: light ? 1400 : 3500 }),
     terrain,
     woods,
-    ...(light ? [] : [b3dCloudDeck({ altitude: 600, coverage: crossCountry.coverage, orographic: 0.6, wind: 8 })]),
+    ...(light ? [] : [b3dCloudDeck({ altitude: 600, coverage: crossCountry.coverage, orographic: 0.6, wind: 8, skyClock: 'off' })]),
     b3dWater({ y: 0, waterSize: 8000, follow: true, twoSided: true }),
     inputFocus(
       b3dTank({ url: assetUrl('tonio/tank/tank2.glb'), player: true, x: 0, z: 0, y: level + 0.5 })

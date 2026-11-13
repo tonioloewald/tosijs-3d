@@ -12,6 +12,9 @@ let starts = 0
 let stops = 0
 mock.module('./effect-audio.js', () => ({
   placeListener() {},
+  holdEffectAudio() {
+    return () => {}
+  },
   startVoice() {
     starts++
     return {

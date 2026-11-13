@@ -333,11 +333,15 @@ content after that (models, a body, a terrain) holds it up with
 message below it; `setLoading(true)` is the spinner alone, `setLoading(false)`
 lets it go, and `{ spin: false }` shows a message without the spinner (a load
 that failed).
+
+Nothing is heard before the scene is shown: the effect voices and Babylon's
+own sounds are silent until it first appears.
 */
 /*{ "parent": "core", "order": 10 }*/
 
 import { Component, elements, updates } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
+import { holdEffectAudio } from './effect-audio.js'
 import * as GUI from '@babylonjs/gui'
 import { GridMaterial } from '@babylonjs/materials'
 import '@babylonjs/loaders'
@@ -5818,10 +5822,21 @@ export class B3d extends Component {
       // compiling, to avoid an indefinitely hidden canvas.
       const spinner = this.parts.spinner as HTMLElement
       let revealed = false
+      // NOTHING HEARD BEFORE ANYTHING IS SEEN: the effect voices (traffic,
+      // lamps, effects) and the scene's own sounds wait for the reveal.
+      this._audioHold?.()
+      this._audioHold = holdEffectAudio()
+      // Babylon's own sounds: muted, not disabled (a disabled scene drops an
+      // autoplay sound that finishes loading meanwhile).
+      const babylonAudio = (BABYLON.AbstractEngine as any).audioEngine
+      const volume = babylonAudio?.getGlobalVolume?.() ?? 1
+      babylonAudio?.setGlobalVolume?.(0)
+      this._audioUnmute = () => babylonAudio?.setGlobalVolume?.(volume)
       const reveal = () => {
         if (revealed) return
         revealed = true
         mark('shown')
+        this._releaseAudio()
         // Frame times for the 20 s after showing, a second at a time.
         const frames: number[] = []
         let count = 0
@@ -8918,7 +8933,18 @@ export class B3d extends Component {
   /** The canvas's context was lost by teardown — see `connectedCallback`. */
   private _canvasSpent = false
 
+  /** The audio held until the scene is first shown (see reveal). */
+  private _audioHold: (() => void) | null = null
+  private _releaseAudio(): void {
+    if (this._audioHold == null) return
+    this._audioHold()
+    this._audioHold = null
+    this._audioUnmute?.()
+    this._audioUnmute = null
+  }
+  private _audioUnmute: (() => void) | null = null
   private _teardown(): void {
+    this._releaseAudio()
     // Both presentations' widgets, not just the visible one — an XR panel's
     // rows outlive the session that built them otherwise.
     this._disposeWidgets('flat')

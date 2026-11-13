@@ -145,6 +145,7 @@ preview.append(
 | `thickenDepth` | `900` | MAX thickening — how far the cloud TOP rises above `altitude` at `coverage: 2` |
 | `cirrus` | `0` | Rounded heaps `0` → long wispy streaks at `±1`: positive streaks ALONG the wind heading, negative ACROSS it. Rebakes the field |
 | `wind` | `8` | Metres per second the deck drifts, on the sky's clock: a skybox sped up (`realtimeScale` 60) drifts it 60 times as fast. Nothing rebakes |
+| `skyClock` | `'on'` | `'on'`: drift and evolve on the sky's clock (a sped-up skybox carries the clouds). `'off'`: world time, so a fast day passes under clouds moving at their own pace |
 | `windHeadingDeg` | `0` | Which way it drifts — and the direction cirrus streaks run. Used only when the scene has no wind of its own (`<tosi-b3d wind-speed>`): with one, the deck drifts with it, as smoke and storms do |
 | `evolve` | `0.5` | How fast shapes change, `0` rigid → `1` restless |
 | `follow` | `'on'` | Keep the deck centred under the camera. A deck is finite; the world is not |
@@ -928,6 +929,12 @@ export class B3dCloudDeck extends B3dChild {
     cirrus: 0,
     /** Metres per second the deck drifts. The whole sky slides; nothing rebakes. */
     wind: 8,
+    /**
+     * `'on'`: the deck drifts and evolves on the sky's clock, so a sped-up
+     * skybox carries it too. `'off'`: in world time, so a day can run fast
+     * under clouds that move at their own pace.
+     */
+    skyClock: 'on',
     /** Which way it drifts. Also the direction cirrus streaks run. */
     windHeadingDeg: 0,
     /**
@@ -1092,6 +1099,7 @@ export class B3dCloudDeck extends B3dChild {
   declare wind: number
   declare windHeadingDeg: number
   declare evolve: number
+  declare skyClock: string
   declare follow: string
   declare localRise: number
   declare stormRise: number
@@ -1493,8 +1501,10 @@ export class B3dCloudDeck extends B3dChild {
     this._obs = scene.onBeforeRenderObservable.add(() => {
       // sceneDelta, never engine.getDeltaTime: a scene observer can run more
       // than once per frame and the engine's delta is the WHOLE frame each time.
-      // On the sky's clock: a sky sped up to a time-lapse carries its clouds.
-      const dt = sceneDelta(scene) * skyRate(owner)
+      // On the sky's clock: a sky sped up to a time-lapse carries its clouds
+      // (unless `skyClock` is off).
+      const dt =
+        sceneDelta(scene) * (isOff(this.skyClock) ? 1 : skyRate(owner))
       this._elapsed += dt
       const wn = this._windNow()
       this._carriedX += Math.cos(wn.h) * wn.speed * dt

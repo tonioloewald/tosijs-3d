@@ -96,7 +96,7 @@ preview.append(
     b3dFog({ syncSkybox: true, start: light ? 400 : 800, end: light ? 1400 : 3500 }),
     terrain,
     woods,
-    ...(light ? [] : [b3dCloudDeck({ altitude: 600, coverage: cityDrive.coverage, orographic: 0.6, wind: 8 })]),
+    ...(light ? [] : [b3dCloudDeck({ altitude: 600, coverage: cityDrive.coverage, orographic: 0.6, wind: 8, skyClock: 'off' })]),
     b3dWater({ y: 0, waterSize: 8000, follow: true, twoSided: true }),
     b3dLibrary({ url: assetUrl('kenney/libraries/car-kit.glb'), type: 'cars' }),
     b3dCity({ ...plan, y: level, traffic: light ? 12 : 32 }),

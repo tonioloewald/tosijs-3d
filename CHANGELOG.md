@@ -16,6 +16,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 - `<tosi-b3d-crowd>`: `setFigure(i, { x, y, z, yaw, clip, speed })` moves, turns or re-clips a figure; changes are uploaded once per frame however many figures moved. `clipNames` lists the clips. The doc page has a demo of walkers crossing a field.
 - `aimSpine(chain, held, target)` turns a spine after the clips have posed it so a held item points along an aim.
+- `<tosi-b3d-cloud-deck sky-clock="off">`: the deck drifts in world time, not the sky's, so a fast day passes under clouds that move at their own pace. City Drive and Cross Country use it.
 - `<tosi-b3d-panel bar-button="off">`: a system panel with no button of its own on the bar, for one something else opens (`el.show()` from a menu entry).
 
 ### Changed
@@ -27,6 +28,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 - The character builder has an **Animation** menu on the system bar (play/pause and the clip); its **Playback controls** entry opens a small panel for scrubbing and speed. The page is titled **Character Builder**. While rigging, Play goes to the perspective view and Pause back to the face view last held.
 - `barMenu` submenus open beside the list (cascading, all on one surface) instead of replacing it with a way back. A submenu opens on a press, and a press on its row again closes it.
 - A system panel's button on the system bar stays lit while its panel is open (its HTML button carries `aria-pressed`).
+- Nothing is heard before the scene is shown: the effect voices (traffic, street lights, effects) and Babylon's own sounds stay silent until the loading spinner gives way. `holdEffectAudio()` (from `tosijs-3d/effect-audio`) holds them for a page's own reasons.
 - The settings panel no longer has a Slow motion button. Set `timeScale` from a page that wants one.
 
 ### Fixed

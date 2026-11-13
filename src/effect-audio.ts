@@ -29,8 +29,30 @@ function tryResume(c: AudioContext) {
 }
 const buffers = new Map<string, AudioBuffer>()
 
+// Holds on the voices (a scene still behind its loading spinner).
+const holds = new Set<symbol>()
+
+/**
+ * Silence the effect voices until the release is called: a scene holds them
+ * while its loading spinner is up, so nothing is heard before anything is
+ * seen. Voices are not started while held, and the context is suspended.
+ */
+export function holdEffectAudio(): () => void {
+  const key = Symbol('hold')
+  holds.add(key)
+  ctx?.suspend().catch(() => {})
+  return () => {
+    if (!holds.delete(key)) return
+    if (holds.size === 0 && ctx != null) {
+      nextResume = 0
+      tryResume(ctx)
+    }
+  }
+}
+
 /** The shared audio context, running, or null (no audio yet, or none). */
 export function effectAudio(): AudioContext | null {
+  if (holds.size > 0) return null
   try {
     if (ctx == null) {
       const C =
@@ -44,7 +66,7 @@ export function effectAudio(): AudioContext | null {
       doc?.addEventListener('visibilitychange', () => {
         if (ctx == null) return
         if (doc.hidden) ctx.suspend().catch(() => {})
-        else tryResume(ctx)
+        else if (holds.size === 0) tryResume(ctx)
       })
     }
     const hidden = (globalThis as any).document?.hidden === true
