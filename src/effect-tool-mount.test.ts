@@ -12,9 +12,6 @@ mock.module('./effect-audio.js', () => ({
   holdEffectAudio() {
     return () => {}
   },
-  sharedMute() {
-    return () => () => {}
-  },
   startVoice() {
     return { place() {}, set() {}, stop() {} }
   },

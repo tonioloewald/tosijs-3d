@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://3d.tosijs.net/</loc><lastmod>2026-11-13T09:32:52.811Z</lastmod></url>
+  <url><loc>https://3d.tosijs.net/</loc><lastmod>2026-11-13T11:37:15+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/getting-started/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/glb-rig/</loc><lastmod>2026-11-09T18:54:06+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/rigged-body-glb/</loc><lastmod>2026-11-13T11:30:26+02:00</lastmod></url>
@@ -11,9 +11,9 @@
   <url><loc>https://3d.tosijs.net/demos/</loc><lastmod>2026-11-05T18:04:16+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/agent-driver/</loc><lastmod>2026-11-02T23:36:39+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/aria-mirror/</loc><lastmod>2026-11-03T15:57:12+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/tosi-b3d/</loc><lastmod>2026-11-13T11:30:26+02:00</lastmod></url>
+  <url><loc>https://3d.tosijs.net/tosi-b3d/</loc><lastmod>2026-11-13T09:43:37.529Z</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-biped/</loc><lastmod>2026-11-12T11:35:31+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/b3d-cloud-deck/</loc><lastmod>2026-11-13T09:33:22.026Z</lastmod></url>
+  <url><loc>https://3d.tosijs.net/b3d-cloud-deck/</loc><lastmod>2026-11-13T11:37:15+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-controller/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-destroyable/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-galaxy/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
@@ -44,7 +44,7 @@
   <url><loc>https://3d.tosijs.net/flow-layout/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/fly-by-wire/</loc><lastmod>2026-10-09T16:58:51+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/formations/</loc><lastmod>2026-10-27T15:42:42+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/frame-panel/</loc><lastmod>2026-11-13T09:33:22.175Z</lastmod></url>
+  <url><loc>https://3d.tosijs.net/frame-panel/</loc><lastmod>2026-11-13T11:37:15+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/garment-file/</loc><lastmod>2026-10-29T19:24:03+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/hair-shading/</loc><lastmod>2026-11-02T10:32:24+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/human-pack/</loc><lastmod>2026-10-27T08:56:58+02:00</lastmod></url>
@@ -89,7 +89,7 @@
   <url><loc>https://3d.tosijs.net/b3d-svg-plane/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/b3d-trigger/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/biome-plugin/</loc><lastmod>2026-11-02T10:50:21+02:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/CHANGELOG/</loc><lastmod>2026-11-13T09:32:24.681Z</lastmod></url>
+  <url><loc>https://3d.tosijs.net/CHANGELOG/</loc><lastmod>2026-11-13T11:37:15+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/character-file/</loc><lastmod>2026-11-10T15:11:24+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/clip-store/</loc><lastmod>2026-11-10T09:19:00+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/cloth-drape/</loc><lastmod>2026-11-07T23:25:25+02:00</lastmod></url>
@@ -271,7 +271,7 @@
   <url><loc>https://3d.tosijs.net/undo-history/</loc><lastmod>2026-11-06T20:15:04+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/utilities/</loc><lastmod>2026-10-24T21:36:46+03:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/input-internals/</loc><lastmod>2026-10-21T14:02:07+03:00</lastmod></url>
-  <url><loc>https://3d.tosijs.net/v0.13.0/</loc></url>
+  <url><loc>https://3d.tosijs.net/v0.13.0/</loc><lastmod>2026-11-13T11:37:15+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/v0.12.6/</loc><lastmod>2026-11-11T15:25:10+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/v0.12.5/</loc><lastmod>2026-11-08T23:53:13+02:00</lastmod></url>
   <url><loc>https://3d.tosijs.net/v0.12.4/</loc><lastmod>2026-11-07T23:25:25+02:00</lastmod></url>

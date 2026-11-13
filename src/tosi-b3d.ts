@@ -341,7 +341,8 @@ own sounds are silent until it first appears.
 
 import { Component, elements, updates } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import { holdEffectAudio, sharedMute } from './effect-audio.js'
+import { holdEffectAudio } from './effect-audio.js'
+import { sharedMute } from './shared-mute.js'
 import * as GUI from '@babylonjs/gui'
 import { GridMaterial } from '@babylonjs/materials'
 import '@babylonjs/loaders'
