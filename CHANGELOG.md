@@ -13,6 +13,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 ## Unreleased
 
 - **Fixed:** a retargeted leg that is nearly straight no longer twitches (MakeHuman's right thigh in UAL's idle). Foot IK bends a straight leg's knee toward the leg's front instead of the way a knee a few millimetres off the line happens to point.
+- **Changed:** foot IK sets only a grounded foot's HEIGHT; its place across the floor is the clip's. Pulling it to where the source's foot was dragged a body that stands wider than UAL's mannequin (MakeHuman, by 8 cm) toward the mannequin's stance and hitched every step of a walk. Crouches still plant.
 
 ## 0.13.0
 

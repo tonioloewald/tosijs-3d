@@ -412,13 +412,17 @@ describe('feet', () => {
   const source = proportioned(0.45, 0.42)
   const sourceAnkle = ankle(source, { rotations: crouch, hips: crouchHips })
 
-  test('foot IK puts a differently proportioned leg’s ankle where the source’s went', () => {
+  test('foot IK puts a differently proportioned leg’s ankle as high as the source’s, where the clip has it across the floor', () => {
     const target = proportioned(0.52, 0.35)
     const out = retargeter(source, target).pose(crouch, crouchHips)
+    const copied = ankle(
+      target,
+      retargeter(source, target, { footIk: false }).pose(crouch, crouchHips)
+    )
     const at = ankle(target, out)
-    expect(at.x).toBeCloseTo(sourceAnkle.x, 4)
     expect(at.y).toBeCloseTo(sourceAnkle.y, 4)
-    expect(at.z).toBeCloseTo(sourceAnkle.z, 4)
+    expect(at.x).toBeCloseTo(copied.x, 4)
+    expect(at.z).toBeCloseTo(copied.z, 4)
     // The knee still bends forward, as the clip bends it.
     const knee = fk(target.bones, out.rotations, out.hips).get('calf_l')!
     expect(knee.z).toBeGreaterThan(0)
