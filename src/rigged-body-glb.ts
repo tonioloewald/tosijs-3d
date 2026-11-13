@@ -183,6 +183,8 @@ export interface ClipOut {
   fps?: number
   /** Spread the arms (see retarget's `armSpaceDeg`). */
   armSpaceDeg?: number
+  /** Turn the feet (see retarget's `footTurnDeg`). */
+  footTurnDeg?: number
   /** The animation's `extras`: its licence. */
   extras?: Record<string, unknown>
 }
@@ -1370,6 +1372,7 @@ export function riggedBodyGlb(
       const baked = bakeClip(c.from, c.clip, target, {
         fps: c.fps,
         armSpaceDeg: c.armSpaceDeg,
+        footTurnDeg: c.footTurnDeg,
         name: c.name,
       })
       const channels: GlbAnimation['channels'] = []

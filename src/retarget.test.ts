@@ -561,3 +561,37 @@ describe('a collapsed chain (one target bone for several source bones)', () => {
     expect(leg.z).toBeCloseTo(Math.SQRT1_2, 6)
   })
 })
+
+describe('footTurnDeg', () => {
+  test('turns each foot about the vertical, toes out when positive, mirrored', () => {
+    const mirror = (sk: Skeleton): RestBone[] =>
+      sk.bones.map((b) => ({
+        ...b,
+        name: b.name.replace(/_l$/, '_r'),
+        parent: b.parent?.replace(/_l$/, '_r') ?? null,
+        position: { ...b.position, x: -b.position.x },
+      }))
+    const one = leg(31)
+    const bones = [
+      ...one.bones,
+      ...mirror(one).filter((b) => b.name !== 'hips'),
+    ]
+    const both: Skeleton = { bones, roles: humanoidRoles(bones) }
+    const toes = (deg: number) => {
+      const out = retargeter(both, both, { footTurnDeg: deg }).pose(new Map())
+      const p = fk(both.bones, out.rotations, out.hips)
+      return {
+        l: p.get('ball_leaf_l')!.x - p.get('foot_l')!.x,
+        r: p.get('ball_leaf_r')!.x - p.get('foot_r')!.x,
+      }
+    }
+    const rest = toes(0)
+    const out = toes(20)
+    const inward = toes(-20)
+    // Left is +X: toes out moves the left toe toward +X, the right toward -X.
+    expect(out.l).toBeGreaterThan(rest.l + 0.02)
+    expect(out.r).toBeLessThan(rest.r - 0.02)
+    expect(inward.l).toBeLessThan(rest.l - 0.02)
+    expect(inward.r).toBeGreaterThan(rest.r + 0.02)
+  })
+})

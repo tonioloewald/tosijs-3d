@@ -231,12 +231,14 @@ const playingClip = (recipe) => {
   const file = clipFiles.get(name)
   const kept = file != null ? clipBytes.get(file) : null
   const armSpaceDeg = recipe?.armSpaceDeg
-  if (kept) return { name, kind: kept.kind, bytes: kept.bytes, armSpaceDeg }
+  const footTurnDeg = recipe?.footTurnDeg
+  if (kept) return { name, kind: kept.kind, bytes: kept.bytes, armSpaceDeg, footTurnDeg }
   return {
     name,
     kind: 'glb',
     url: assetUrl('quaternius/UAL_builder.glb'),
     armSpaceDeg,
+    footTurnDeg,
     extras: { credit: 'Quaternius', license: 'CC0 (https://creativecommons.org/publicdomain/zero/1.0/)', source: 'quaternius/UAL_builder.glb' },
   }
 }
@@ -845,8 +847,8 @@ preview.append(
           const own = fileClips.get(walker.clip.value)
           const clip = own?.group ?? ual.animationGroups.find((g) => g.name === walker.clip.value) ?? ual.animationGroups.find((g) => g.name === 'Walk_Loop')
           playing = own?.source
-            ? retargetSourceClip(own.source, own.clip, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg })
-            : clip ? retargetClip(clip, own?.from ?? source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg }) : null
+            ? retargetSourceClip(own.source, own.clip, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg, footTurnDeg: ch.recipe?.footTurnDeg })
+            : clip ? retargetClip(clip, own?.from ?? source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg, footTurnDeg: ch.recipe?.footTurnDeg }) : null
           playing?.start(true, clipSpeed)
           ch.groundFor(playing)
           if (walker.paused.value) playing?.pause()

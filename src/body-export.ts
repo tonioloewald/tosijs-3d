@@ -78,6 +78,8 @@ export interface ExportClip {
   url?: string
   /** Spread the arms (the body's recipe's `armSpaceDeg`). */
   armSpaceDeg?: number
+  /** Turn the feet (the body's recipe's `footTurnDeg`). */
+  footTurnDeg?: number
   /** The animation's `extras`: its licence. */
   extras?: Record<string, unknown>
 }
@@ -143,6 +145,7 @@ export async function exportClip(c: ExportClip): Promise<ClipOut | null> {
     clip,
     name: c.name,
     ...(c.armSpaceDeg ? { armSpaceDeg: c.armSpaceDeg } : {}),
+    ...(c.footTurnDeg ? { footTurnDeg: c.footTurnDeg } : {}),
     ...(c.extras ? { extras: c.extras } : {}),
   }
 }

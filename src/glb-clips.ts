@@ -366,6 +366,7 @@ export function bakeClip(
   options: {
     fps?: number
     armSpaceDeg?: number
+    footTurnDeg?: number
     /** See `RetargetOptions.footIk`: false copies the legs' angles only. */
     footIk?: boolean
     name?: string
@@ -376,6 +377,7 @@ export function bakeClip(
   if (c == null) throw new Error(`bakeClip: no clip "${clip}"`)
   const rt = retargeter(source, target, {
     armSpaceDeg: options.armSpaceDeg,
+    footTurnDeg: options.footTurnDeg,
     footIk: options.footIk,
   })
   const fps = options.fps ?? 30

@@ -2,7 +2,7 @@
 PUT A RIG RECIPE ON A LOADED CHARACTER (see `rig-recipe`): read its
 skeleton with the recipe's role corrections, and hang its spring chains.
 The rig tool saves recipes; a game loads the same model, calls this, and
-retargets clips onto `read` with the recipe's `armSpaceDeg`.
+retargets clips onto `read` with the recipe's `armSpaceDeg` and `footTurnDeg`.
 
 Call it with the character in its REST pose (it puts the skeleton there):
 a strand is placed by where its anchor bone is at rest.

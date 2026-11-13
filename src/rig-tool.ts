@@ -62,7 +62,9 @@ The panel has these sections, its job first.
   from where its soles stand (they are put on the floor at rest, and kept
   there as a clip plays), for one that still floats or sinks; `arm space`
   turns the arms out from the body, for a character whose arms are long for
-  its height;
+  its height; `foot turn` turns both feet in or out in every clip, for a
+  body modelled with its feet turned out (a foot's turn at rest is the
+  body's own, so it walks splay-footed otherwise);
   `load animations…` adds the clips in a GLB made on another rig to the
   list: Mixamo's, a mocap file's, another library's. Which bone is which is
   read from the names (UE, Mixamo, Kenney and Blender spellings), so each
@@ -96,6 +98,7 @@ const rig = applyRigRecipe(scene, root, skeleton, recipe)
 const walk = retargetClip(ualWalk, readSkeleton(ualSkeleton, ualRoot), rig.read, {
   scene,
   armSpaceDeg: recipe.armSpaceDeg,
+  footTurnDeg: recipe.footTurnDeg,
 })
 walk.start(true)
 ```
@@ -1520,6 +1523,18 @@ export function mountRigTool(
           changed(true)
         },
       }),
+      slider3d({
+        label: 'foot turn',
+        value: recipe.footTurnDeg ?? 0,
+        min: -45,
+        max: 45,
+        step: 1,
+        format: (v) => `${v > 0 ? 'out ' : v < 0 ? 'in ' : ''}${Math.abs(v)}°`,
+        handleChange: (v) => {
+          recipe.footTurnDeg = v || undefined
+          changed(true)
+        },
+      }),
       button3d({
         label: 'load animations…',
         handleClick: () =>
@@ -2401,6 +2416,7 @@ export function mountRigTool(
             retargetClip(clip, from, applied.read, {
               scene,
               armSpaceDeg: recipe.armSpaceDeg,
+              footTurnDeg: recipe.footTurnDeg,
             })
           )
         playing.push(made.get(ui.clip)!)

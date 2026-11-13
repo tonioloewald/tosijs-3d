@@ -228,6 +228,8 @@ export function retargetClip(
     scene?: BABYLON.Scene
     /** See `RetargetOptions.armSpaceDeg`: spread the arms away from the body. */
     armSpaceDeg?: number
+    /** See `RetargetOptions.footTurnDeg`: toes out (+) or in (-). */
+    footTurnDeg?: number
     /** See `RetargetOptions.footIk`: false copies the legs' angles only. */
     footIk?: boolean
   } = {}
@@ -296,6 +298,7 @@ export function retargetSourceClip(
     name?: string
     scene?: BABYLON.Scene
     armSpaceDeg?: number
+    footTurnDeg?: number
     footIk?: boolean
   } = {}
 ): BABYLON.AnimationGroup {
@@ -319,11 +322,13 @@ function retargetSampled(
     name?: string
     scene?: BABYLON.Scene
     armSpaceDeg?: number
+    footTurnDeg?: number
     footIk?: boolean
   }
 ): BABYLON.AnimationGroup {
   const rt = retargeter(source, target, {
     armSpaceDeg: options.armSpaceDeg,
+    footTurnDeg: options.footTurnDeg,
     footIk: options.footIk,
   })
   const fps = options.fps ?? 30

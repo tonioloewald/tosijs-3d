@@ -721,15 +721,23 @@ export interface RetargetOptions {
    */
   armSpaceDeg?: number
   /**
-   * FOOT IK: after the rotations, bend each leg (thigh and shin) so its
-   * ankle goes where the source's went, its travel since rest scaled by hip
-   * height as the hips' is. Copied angles alone put the feet of a body whose
-   * thigh and shin are proportioned unlike the source's in the air or the
-   * floor; this keeps a crouch's feet planted. The knee bends the way the
-   * clip bends it and the foot keeps the clip's turn. Default true; a leg
-   * that is one bone (a chibi's) is left as it is.
+   * FOOT IK: after the rotations, bend each leg (thigh and shin) so a
+   * grounded ankle is as high as the source's, its travel since rest scaled
+   * by hip height as the hips' is. Copied angles alone put the feet of a
+   * body whose thigh and shin are proportioned unlike the source's in the
+   * air or the floor; this keeps a crouch's feet planted. The knee bends the
+   * way the clip bends it and the foot keeps the clip's turn. Default true;
+   * a leg that is one bone (a chibi's) is left as it is.
    */
   footIk?: boolean
+  /**
+   * Degrees each foot (and its toes) turns about the vertical in every pose,
+   * positive toes OUT, negative in; mirrored left and right. A foot's turn
+   * at rest is the body's own (see "A FOOT AND ITS TOES ARE NOT LINED UP"),
+   * so a body modelled with its feet turned out walks splay-footed in every
+   * clip; a negative turn brings them in. Default 0.
+   */
+  footTurnDeg?: number
 }
 
 /** Two-bone IK on one leg, in place on the world rotations `tWorld`. */
@@ -829,6 +837,19 @@ export function retargeter(
   const roles = ROLES.filter(
     (r) => source.roles[r] != null && target.roles[r] != null
   )
+  // Each foot's and toe's turn about +Y: toes (+Z) toward its own side (left +X).
+  const footTurn = new Map<Role, Quat>()
+  const toesOut = ((options.footTurnDeg ?? 0) * Math.PI) / 180
+  if (toesOut !== 0)
+    for (const [side, sign] of [
+      ['l', 1],
+      ['r', -1],
+    ] as const) {
+      const h = (sign * toesOut) / 2
+      const q = { x: 0, y: Math.sin(h), z: 0, w: Math.cos(h) }
+      footTurn.set(`${side}-foot` as Role, q)
+      footTurn.set(`${side}-toes` as Role, q)
+    }
   /*
   ALIGNMENT, per role: the rotation that turns the target's rest direction
   onto the source's, so "the arm moved 30° from rest" means the same arm
@@ -1015,6 +1036,8 @@ export function retargeter(
               world
             )
         }
+        const turn = r != null ? footTurn.get(r) : undefined
+        if (turn != null) world = quatMul(turn, world)
         tWorld.set(b.name, world)
         out.set(
           b.name,

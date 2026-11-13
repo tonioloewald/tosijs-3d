@@ -3981,6 +3981,7 @@ export class B3dBiped extends B3dControllable {
           scene,
           name: g.name,
           armSpaceDeg: ch.recipe?.armSpaceDeg,
+          footTurnDeg: ch.recipe?.footTurnDeg,
         })
       )
     }

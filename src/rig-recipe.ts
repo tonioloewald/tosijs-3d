@@ -98,6 +98,8 @@ export interface RigRecipe {
   roles?: Partial<Record<Role, string>>
   /** See `RetargetOptions.armSpaceDeg`. */
   armSpaceDeg?: number
+  /** See `RetargetOptions.footTurnDeg`: toes out (+) or in (-), mirrored. */
+  footTurnDeg?: number
   /**
    * Metres to raise (or, negative, lower) the body from where its soles
    * would stand: the hand correction for a body that floats or sinks.
@@ -281,6 +283,8 @@ export function validateRigRecipe(doc: unknown): string[] {
     out.push(`version is ${r.version}, expected ${RIG_RECIPE_VERSION}`)
   if (r.armSpaceDeg != null && !isNum(r.armSpaceDeg))
     out.push('armSpaceDeg is not a number')
+  if (r.footTurnDeg != null && !isNum(r.footTurnDeg))
+    out.push('footTurnDeg is not a number')
   if (r.floor != null && !isNum(r.floor)) out.push('floor is not a number')
   if (r.roles != null) {
     if (typeof r.roles !== 'object') out.push('roles is not an object')
@@ -442,6 +446,15 @@ export function rigRecipeSchema(): Record<string, unknown> {
         type: 'number',
         minimum: -90,
         maximum: 90,
+        default: 0,
+        ...DEG,
+      },
+      footTurnDeg: {
+        type: 'number',
+        description:
+          'Degrees each foot turns about the vertical in every clip: toes out (positive) or in (negative), mirrored.',
+        minimum: -45,
+        maximum: 45,
         default: 0,
         ...DEG,
       },
