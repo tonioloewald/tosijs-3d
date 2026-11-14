@@ -807,6 +807,29 @@
         "description": "Highest ledge the character can pull itself onto, metres (see Mantling, below)"
       },
       {
+        "name": "hardLanding",
+        "default": "0",
+        "description": "Metres of drop past which a landing is hard: the `hardLand` clip (UAL's `Roll`), standing still while it plays. Auto is 1.5 body heights. The drop is from the top of the flight, so a jump on flat ground is never hard ([fall](/fall/))"
+      },
+      {
+        "name": "lethalFall",
+        "default": "0",
+        "description": "Metres of drop that kill on landing: the `death` clip (`Death01`) where you land, then a bubbling `crash` event (`detail: { cause: 'fall', drop }`) that `<tosi-b3d-death>` answers without exploding you. Off by default, since a death needs an exit. Water breaks a fall"
+      },
+      {
+        "name": "health",
+        "default": "0",
+        "description": "Hit points. Above 0 the biped is a target like any destroyable: a hit plays a hit clip (`hitChest` / `hitStomach` / `hitHead` in turn, `hitKnockback` for a blast) and holds it still for the clip; at 0 it plays `death` where it stands and dispatches a bubbling `destroyed`, which `<tosi-b3d-death>` answers. `hp` reads what is left, `damage(amount, cause)` hurts it, `aimTarget` is a chest-height node for turrets and AI to track"
+      },
+      {
+        "name": "healthRegen",
+        "default": "0",
+        "description": "Hit points regained per second, from `healthRegenDelay` (5) seconds after the last hit"
+      },
+      {
+        "name": "healthRegenDelay"
+      },
+      {
         "name": "wadeDepth",
         "default": "0.45",
         "description": "Water depth, as a fraction of standing height, where wading becomes swimming"
@@ -1007,6 +1030,67 @@
         "name": "drive",
         "default": "'rear'",
         "description": "Driven wheels: `rear`, `front` or `all`"
+      }
+    ]
+  },
+  {
+    "module": "b3d-chest",
+    "tag": "tosi-b3d-chest",
+    "summary": "b3d-chest",
+    "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
+        "name": "color"
+      },
+      {
+        "name": "trim"
+      },
+      {
+        "name": "seconds"
+      },
+      {
+        "name": "open"
+      },
+      {
+        "name": "lock"
+      },
+      {
+        "name": "reach"
+      },
+      {
+        "name": "width",
+        "default": "0.9",
+        "description": "Metres"
+      },
+      {
+        "name": "depth",
+        "default": "0.55",
+        "description": "Metres"
+      },
+      {
+        "name": "height",
+        "default": "0.6",
+        "description": "Metres, lid shut"
       }
     ]
   },
@@ -1532,7 +1616,7 @@
       {
         "name": "wreckage",
         "default": "'on'",
-        "description": "Explode + leave burning wreckage (`'off'` = just the panel)"
+        "description": "Explode + leave burning wreckage (`'off'` = just the panel). An entity that shows its own death (`diesInPlace`, a biped with a death clip) never explodes"
       },
       {
         "name": "blastRadius",
@@ -1768,6 +1852,89 @@
         "name": "blastDelay",
         "default": "0.1",
         "description": "Seconds after death before the blast fires"
+      }
+    ]
+  },
+  {
+    "module": "b3d-door",
+    "tag": "tosi-b3d-door",
+    "summary": "b3d-door",
+    "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
+        "name": "color",
+        "default": "'#7a5236'",
+        "description": "The slab"
+      },
+      {
+        "name": "trim",
+        "default": "'#c9a24a'",
+        "description": "The handle (and a chest's lock plate)"
+      },
+      {
+        "name": "seconds",
+        "default": "0.6",
+        "description": "How long it takes to open or close"
+      },
+      {
+        "name": "open",
+        "default": "false",
+        "description": "Open now (set it to open or close it from code)"
+      },
+      {
+        "name": "lock",
+        "default": "''",
+        "description": "The key kind it needs; empty is unlocked"
+      },
+      {
+        "name": "reach",
+        "default": "2",
+        "description": "Metres from the player within which it can be used"
+      },
+      {
+        "name": "width",
+        "default": "1.2",
+        "description": "Metres"
+      },
+      {
+        "name": "height",
+        "default": "2.2",
+        "description": "Metres"
+      },
+      {
+        "name": "thickness",
+        "default": "0.08",
+        "description": "Metres"
+      },
+      {
+        "name": "frame",
+        "default": "'on'",
+        "description": "Draw a frame (two posts and a lintel), solid"
+      },
+      {
+        "name": "swing",
+        "default": "100",
+        "description": "Degrees it opens, always away from whoever opens it"
       }
     ]
   },
@@ -2535,6 +2702,11 @@
         "name": "los",
         "default": "'on'",
         "description": "Warhead line-of-sight gating"
+      },
+      {
+        "name": "directHit",
+        "default": "'off'",
+        "description": "`'on'`: a round damages what it hits and says where (`Cause.at`), so a body can tell a head shot from a hand; `'off'` bursts as a warhead and hurts what is near"
       }
     ]
   },
@@ -2933,6 +3105,93 @@
     ]
   },
   {
+    "module": "b3d-npc",
+    "tag": "tosi-b3d-npc",
+    "summary": "b3d-npc",
+    "attributes": [
+      {
+        "name": "target",
+        "default": "'player'",
+        "description": "Who it is after: the player (the input focus's biped)"
+      },
+      {
+        "name": "skill",
+        "default": "0",
+        "description": "0..1: how often it thinks again, so how fast it reacts and how fresh its idea of where you are (dumb is the default)"
+      },
+      {
+        "name": "sightRange",
+        "default": "50",
+        "description": "Metres it notices you in front"
+      },
+      {
+        "name": "sightDeg",
+        "default": "180",
+        "description": "How wide \"in front\" is"
+      },
+      {
+        "name": "nearRange",
+        "default": "10",
+        "description": "Metres it notices you behind it"
+      },
+      {
+        "name": "stealth",
+        "default": "0.33",
+        "description": "What crouching multiplies those by"
+      },
+      {
+        "name": "hearing",
+        "default": "1",
+        "description": "Multiplies how far a noise carries to it"
+      },
+      {
+        "name": "wanderRadius",
+        "default": "0",
+        "description": "Metres it wanders from where it started; 0 stands guard"
+      },
+      {
+        "name": "memory",
+        "default": "6",
+        "description": "Seconds it remembers you after losing you"
+      },
+      {
+        "name": "attackRange",
+        "default": "1.4",
+        "description": "Metres it attacks from"
+      },
+      {
+        "name": "attackDamage",
+        "default": "20",
+        "description": "What a blow does"
+      },
+      {
+        "name": "attackCooldown",
+        "default": "1.6",
+        "description": "Seconds between attacks"
+      },
+      {
+        "name": "attackState",
+        "default": "'attack'",
+        "description": "The biped state its attack plays"
+      },
+      {
+        "name": "walkPace",
+        "default": "0.3",
+        "description": "Forward input while walking (0..1)"
+      },
+      {
+        "name": "runPace",
+        "default": "0.7",
+        "description": "Forward input while chasing"
+      },
+      {
+        "name": "seed",
+        "default": "1",
+        "description": "Its wandering and timing: the same seed, the same behaviour"
+      }
+    ]
+  },
+  {
     "module": "b3d-panel",
     "tag": "tosi-b3d-panel",
     "summary": "b3d-panel",
@@ -3220,6 +3479,61 @@
         "name": "wasmUrl",
         "default": "''",
         "description": "Where to load Jolt's `.wasm` from, when it is not beside the loader script"
+      }
+    ]
+  },
+  {
+    "module": "b3d-pickup",
+    "tag": "tosi-b3d-pickup",
+    "summary": "b3d-pickup",
+    "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
+        "name": "library"
+      },
+      {
+        "name": "libraryUrl"
+      },
+      {
+        "name": "meshName"
+      },
+      {
+        "name": "scale"
+      },
+      {
+        "name": "item",
+        "default": "''",
+        "description": "What this is: the inventory kind it becomes (`meshName` when empty)"
+      },
+      {
+        "name": "reach",
+        "default": "1.8",
+        "description": "Metres from the player within which it can be picked up"
+      },
+      {
+        "name": "noise",
+        "default": "15",
+        "description": "Metres the noise carries when it lands after `toss` (0: silent)"
       }
     ]
   },
@@ -5783,6 +6097,36 @@
     ]
   },
   {
+    "module": "inventory-trade",
+    "summary": "inventory-trade",
+    "attributes": [
+      {
+        "name": "inv",
+        "default": "The inventory and a carry (`createCarry()`)"
+      },
+      {
+        "name": "carry",
+        "default": "The inventory and a carry (`createCarry()`)"
+      },
+      {
+        "name": "titles",
+        "default": "{ mine, theirs }"
+      },
+      {
+        "name": "currency",
+        "default": "'gold'"
+      },
+      {
+        "name": "decorations",
+        "default": "As [inventoryPanel](/inventory-box/)'s"
+      },
+      {
+        "name": "info",
+        "default": "As [inventoryPanel](/inventory-box/)'s"
+      }
+    ]
+  },
+  {
     "module": "inventory",
     "summary": "inventory",
     "attributes": [
@@ -6064,6 +6408,42 @@
         "name": "shade",
         "default": "0.45",
         "description": "how much light shapes it and shadows darken it (0: perfectly flat, and no shadow shows)"
+      }
+    ]
+  },
+  {
+    "module": "sensorium",
+    "summary": "sensorium",
+    "attributes": [
+      {
+        "name": "smell",
+        "default": "all round, best downwind",
+        "description": "carried by the wind; lingers as a trail"
+      },
+      {
+        "name": "vibration",
+        "default": "all round",
+        "description": "through the ground"
+      },
+      {
+        "name": "echolocation",
+        "default": "a forward cone",
+        "description": "line of sight, short"
+      },
+      {
+        "name": "ir",
+        "default": "a cone",
+        "description": "line of sight; cut by glass and cover"
+      },
+      {
+        "name": "radar",
+        "default": "a cone or a sweep",
+        "description": "line of sight, long"
+      },
+      {
+        "name": "rdf",
+        "default": "all round, a bearing only",
+        "description": "radio"
       }
     ]
   },

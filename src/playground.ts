@@ -6,7 +6,7 @@ arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dDeath, b3dLauncher, b3dLibrary, b3dNpc, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dBox, b3dChest, b3dDeath, b3dDoor, b3dPanel, createCarry, tradePanel, b3dLauncher, b3dLibrary, b3dNpc, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
@@ -41,6 +41,8 @@ const WEAPONS = {
   'Plasma Blade': { tags: ['side', 'hand'], mass: 1, art: 'sword' },
   Spear: { tags: ['back', 'hand', 'two-handed'], mass: 2, art: 'sword' },
   Buckler: { tags: ['back', 'hand'], mass: 2.5, art: 'shield' },
+  // Not a weapon: it lives in the bag, and opens the yard's door.
+  'Iron Key': { tags: ['key'], mass: 0.1, art: 'key' },
 }
 
 // ONE LAUNCHER, carrying whatever is in your right hand. `socket` parents it
@@ -105,6 +107,8 @@ let hero = makeHero(null, { x: -4, z: 10 })
 const loadout = demoLoadout({
   catalogue: WEAPONS,
   equip: { right_side: 'Pistol' },
+  // The yard's two chests are holders in the same inventory.
+  holders: { 'gate chest': {}, 'yard chest': {} },
   // Dropped is THROWN: 6 m ahead, and where it lands it makes a noise, so it
   // is how you lure the enemy away.
   handleDrop: (item) => {
@@ -127,6 +131,58 @@ const pickup = (kind, x, z) => b3dPickup({
 })
 const ON_THE_GROUND = [['Assault Rifle', -2, 6.5], ['Long Sword', -4.5, 6], ['Buckler', -7, 6.5]]
 for (const [kind] of ON_THE_GROUND) loadout.inv.move({ item: kind, to: null })
+// THE YARD, behind you: a walled pen (too high to climb) whose door is
+// locked. The key is in the chest by the door; inside is a chest with the
+// rocket launcher and the big sword in it. Having the key is having an item
+// of its kind.
+const stock = (holder) => ({ holder, container: 'stock' })
+loadout.inv.move({ item: 'Iron Key', to: stock('gate chest') })
+loadout.inv.move({ item: 'Rocket Launcher', to: stock('yard chest') }, { item: 'Hand and a Half', to: stock('yard chest') })
+const has = (kind) => Object.values(loadout.inv.doc.items).some((i) => i.kind === kind)
+// OPENING A CHEST opens a trade: its contents beside your bag, take what you
+// take and leave the rest. One panel (no button on the system bar), one
+// trade per chest, made the first time it opens. Walk off and it closes.
+const tradeBox = b3dPanel({ title: 'Chest', icon: 'lucideBackpack', barButton: 'off' })
+const trades = {}
+let trading = null
+const endTrade = () => {
+  if (!trading) return
+  tradeBox.hide()
+  trading.chest.open = false
+  trading = null
+}
+const openTrade = (holder, chest) => {
+  trades[holder] ??= tradePanel({
+    inv: loadout.inv, carry: createCarry(),
+    mine: BAG, theirs: stock(holder),
+    titles: { mine: 'you', theirs: holder },
+    handleDone: endTrade,
+  })
+  trades[holder].begin()
+  tradeBox.svg = trades[holder].svg
+  tradeBox.show()
+  trading = { chest }
+}
+const chest = (holder, at) => {
+  const el = b3dChest({ ...at, whenOpened: () => openTrade(holder, el), whenClosed: () => trading?.chest === el && endTrade() })
+  return el
+}
+// Walls 2.8 m: a mantle reaches 2.2.
+const wall = (x, z, width, depth, height = 2.8, y = 0) =>
+  b3dBox({ x, y: y + height / 2, z, width, height, depth, color: '#9a9284', solid: 'on' })
+const YARD = [
+  wall(-2.4, 24, 3.4, 0.2), wall(2.4, 24, 3.4, 0.2), // the front, either side of the door
+  wall(0, 24, 1.4, 0.2, 0.5, 2.3), // over the door
+  wall(0, 30, 8.2, 0.2), wall(-4, 27, 0.2, 6), wall(4, 27, 0.2, 6),
+  b3dDoor({
+    x: 0, z: 24, lock: 'Iron Key',
+    hasKey: (key) => has(key),
+    whenRefused: ({ key }) => say(`Locked. It needs the ${key}.`),
+  }),
+  chest('gate chest', { x: -2.5, z: 22.8 }),
+  chest('yard chest', { x: 0, z: 28.9 }),
+  tradeBox,
+]
 const kindOf = (id) => (id ? loadout.inv.doc.items[id]?.kind ?? null : null)
 const body = (slot) => ({ holder: 'hero', container: 'body', slot })
 const slotsNow = () => loadout.inv.doc.holders.hero.containers.body.slots
@@ -244,6 +300,14 @@ const enemyText = (e) => {
 // Health, under the scene (a live readout sits beside the scene, never over it).
 const readout = elements.div({ style: 'padding: 4px 8px; font: 14px system-ui' })
 let shown = ''
+// What just happened (a locked door, what a chest held), for a few seconds.
+let said = ''
+let saidTimer = 0
+const say = (text) => {
+  said = text
+  clearTimeout(saidTimer)
+  saidTimer = setTimeout(() => { said = '' }, 4000)
+}
 
 preview.append(
   b3d(
@@ -254,10 +318,14 @@ preview.append(
       sceneCreated(el) {
         studioEnvironment(el.scene, { sky: '#7d9cc4', horizon: '#e8e4da', ground: '#55604a' })
         el.scene.onBeforeRenderObservable.add(() => {
+          // Walked away from an open chest: the trade closes.
+          const chestAt = trading?.chest.mesh?.position
+          if (chestAt && hero.mesh && hero.mesh.position.subtract(chestAt).length() > 3) endTrade()
           if (hero.aimTarget && !hero.halted) turret.track(hero.aimTarget)
           else turret.clearTarget()
           const text = (hero.halted ? 'health: dead' : `health: ${Math.max(0, Math.round(hero.hp))} / 100`) +
-            ` · guard: ${enemyText(enemies[0])} · patrol: ${enemyText(enemies[1])}`
+            ` · guard: ${enemyText(enemies[0])} · patrol: ${enemyText(enemies[1])}` +
+            (said ? ` · ${said}` : '')
           if (text !== shown) readout.textContent = shown = text
         })
       },
@@ -288,6 +356,7 @@ preview.append(
     weapons,
     turret,
     ...ON_THE_GROUND.map(([kind, x, z]) => pickup(kind, x, z)),
+    ...YARD,
     ...enemies,
     ...playground(),
     ...loadout.panels(),

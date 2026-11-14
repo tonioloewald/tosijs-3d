@@ -196,6 +196,11 @@ b3d-biped
   sneakSpeed  = 0.4  — Fraction of walking speed while sneaking
   strafeSpeed  = 0.75  — Sidestep speed as a fraction of walking
   climbReach  = 2.2  — Highest ledge the character can pull itself onto, metres (see Mantling, below)
+  hardLanding  = 0  — Metres of drop past which a landing is hard: the `hardLand` clip (UAL's `Roll`), standing still while it plays. Auto is 1.5 body heights. The drop is from the top of the flight, so a jump on flat ground is never hard ([fall](/fall/))
+  lethalFall  = 0  — Metres of drop that kill on landing: the `death` clip (`Death01`) where you land, then a bubbling `crash` event (`detail: { cause: 'fall', drop }`) that `<tosi-b3d-death>` answers without exploding you. Off by default, since a death needs an exit. Water breaks a fall
+  health  = 0  — Hit points. Above 0 the biped is a target like any destroyable: a hit plays a hit clip (`hitChest` / `hitStomach` / `hitHead` in turn, `hitKnockback` for a blast) and holds it still for the clip; at 0 it plays `death` where it stands and dispatches a bubbling `destroyed`, which `<tosi-b3d-death>` answers. `hp` reads what is left, `damage(amount, cause)` hurts it, `aimTarget` is a chest-height node for turrets and AI to track
+  healthRegen  = 0  — Hit points regained per second, from `healthRegenDelay` (5) seconds after the last hit
+  healthRegenDelay
   wadeDepth  = 0.45  — Water depth, as a fraction of standing height, where wading becomes swimming
   strafing  = 'off'  — `'on'` sidesteps with the left stick; `'off'` turns with it
   buoyancy  = 0  — How high the figure rides in the water, metres. `0` puts the waterline at the head
@@ -249,6 +254,26 @@ b3d-car
   sound  = 'on'  — `'off'` silences its engine
   steerDeg  = 35  — Full lock, degrees; at speed, no more than the tyres can hold
   drive  = 'rear'  — Driven wheels: `rear`, `front` or `all`
+
+## b3d-chest — <tosi-b3d-chest>
+b3d-chest
+
+  x
+  y
+  z
+  rx
+  ry
+  rz
+  axes
+  color
+  trim
+  seconds
+  open
+  lock
+  reach
+  width  = 0.9  — Metres
+  depth  = 0.55  — Metres
+  height  = 0.6  — Metres, lid shut
 
 ## b3d-city — <tosi-b3d-city>
 b3d-city
@@ -376,7 +401,7 @@ b3d-death
   orbitHeight  = 6  — Camera height above the wreck
   orbitSpeed  = 6  — Degrees/sec — slow. This is a moment, not a ride
   spectate  = 'orbit'  — `orbit` circles the wreck; `chase` freezes the third-person shot you died in (static). Flat only
-  wreckage  = 'on'  — Explode + leave burning wreckage (`'off'` = just the panel)
+  wreckage  = 'on'  — Explode + leave burning wreckage (`'off'` = just the panel). An entity that shows its own death (`diesInPlace`, a biped with a death clip) never explodes
   blastRadius  = 6  — Size of the fireball
 
 ## b3d-decorator — <tosi-b3d-decorator>
@@ -432,6 +457,28 @@ b3d-destroyable
   blastFullRadius  = 1  — Death blast full-damage radius
   blastRadius  = 4  — Death blast falloff radius
   blastDelay  = 0.1  — Seconds after death before the blast fires
+
+## b3d-door — <tosi-b3d-door>
+b3d-door
+
+  x
+  y
+  z
+  rx
+  ry
+  rz
+  axes
+  color  = '#7a5236'  — The slab
+  trim  = '#c9a24a'  — The handle (and a chest's lock plate)
+  seconds  = 0.6  — How long it takes to open or close
+  open  = false  — Open now (set it to open or close it from code)
+  lock  = ''  — The key kind it needs; empty is unlocked
+  reach  = 2  — Metres from the player within which it can be used
+  width  = 1.2  — Metres
+  height  = 2.2  — Metres
+  thickness  = 0.08  — Metres
+  frame  = 'on'  — Draw a frame (two posts and a lintel), solid
+  swing  = 100  — Degrees it opens, always away from whoever opens it
 
 ## b3d-effect — <tosi-b3d-effect>
 b3d-effect
@@ -619,6 +666,7 @@ b3d-launcher
   fullRadius  = 1  — Warhead full-damage radius
   blastRadius  = 3  — Warhead falloff radius
   los  = 'on'  — Warhead line-of-sight gating
+  directHit  = 'off'  — `'on'`: a round damages what it hits and says where (`Cause.at`), so a body can tell a head shot from a hand; `'off'` bursts as a warhead and hurts what is near
 
 ## b3d-library — <tosi-b3d-library>
 b3d-library
@@ -719,6 +767,26 @@ b3d-moon
   spin  = 1  — Gas giant: how fast its clouds run. `0` freezes them
   seed  = 0  — Gas giant: a different planet with the same look. `0` = the preset's
 
+## b3d-npc — <tosi-b3d-npc>
+b3d-npc
+
+  target  = 'player'  — Who it is after: the player (the input focus's biped)
+  skill  = 0  — 0..1: how often it thinks again, so how fast it reacts and how fresh its idea of where you are (dumb is the default)
+  sightRange  = 50  — Metres it notices you in front
+  sightDeg  = 180  — How wide "in front" is
+  nearRange  = 10  — Metres it notices you behind it
+  stealth  = 0.33  — What crouching multiplies those by
+  hearing  = 1  — Multiplies how far a noise carries to it
+  wanderRadius  = 0  — Metres it wanders from where it started; 0 stands guard
+  memory  = 6  — Seconds it remembers you after losing you
+  attackRange  = 1.4  — Metres it attacks from
+  attackDamage  = 20  — What a blow does
+  attackCooldown  = 1.6  — Seconds between attacks
+  attackState  = 'attack'  — The biped state its attack plays
+  walkPace  = 0.3  — Forward input while walking (0..1)
+  runPace  = 0.7  — Forward input while chasing
+  seed  = 1  — Its wandering and timing: the same seed, the same behaviour
+
 ## b3d-panel — <tosi-b3d-panel>
 b3d-panel
 
@@ -786,6 +854,24 @@ b3d-physics
   gravityZ  = 0  — Gravity Z component
   debug  = false  — Show wireframe physics collider shapes
   wasmUrl  = ''  — Where to load Jolt's `.wasm` from, when it is not beside the loader script
+
+## b3d-pickup — <tosi-b3d-pickup>
+b3d-pickup
+
+  x
+  y
+  z
+  rx
+  ry
+  rz
+  axes
+  library
+  libraryUrl
+  meshName
+  scale
+  item  = ''  — What this is: the inventory kind it becomes (`meshName` when empty)
+  reach  = 1.8  — Metres from the player within which it can be picked up
+  noise  = 15  — Metres the noise carries when it lands after `toss` (0: silent)
 
 ## b3d-planet — <tosi-b3d-planet>
 b3d-planet
@@ -1431,6 +1517,16 @@ inventory-box
   height  = a fixed height that scrolls, instead of growing to fit
   handleDrop  = (item, kind, from)
 
+## inventory-trade
+inventory-trade
+
+  inv  = The inventory and a carry (`createCarry()`)
+  carry  = The inventory and a carry (`createCarry()`)
+  titles  = { mine, theirs }
+  currency  = 'gold'
+  decorations  = As [inventoryPanel](/inventory-box/)'s
+  info  = As [inventoryPanel](/inventory-box/)'s
+
 ## inventory
 inventory
 
@@ -1521,6 +1617,16 @@ seam-material
   lineAlpha  = 0.45  — how strongly the edges show
   lineWidth  = 1.25  — their width, in pixels
   shade  = 0.45  — how much light shapes it and shadows darken it (0: perfectly flat, and no shadow shows)
+
+## sensorium
+sensorium
+
+  smell  = all round, best downwind  — carried by the wind; lingers as a trail
+  vibration  = all round  — through the ground
+  echolocation  = a forward cone  — line of sight, short
+  ir  = a cone  — line of sight; cut by glass and cover
+  radar  = a cone or a sweep  — line of sight, long
+  rdf  = all round, a bearing only  — radio
 
 ## slope-profile
 slope-profile

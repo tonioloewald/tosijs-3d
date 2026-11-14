@@ -326,7 +326,7 @@ describe.skipIf(!existsSync(UAL))('glb clips: mirror', () => {
   }
   const reflect = (q: any) => ({ x: q.x, y: -q.y, z: -q.z, w: q.w })
 
-  test("a mirrored clip turns each bone as its partner turned, reflected", () => {
+  test('a mirrored clip turns each bone as its partner turned, reflected', () => {
     const ual = readGlbClips(new Uint8Array(readFileSync(UAL)))
     const plain = bakeClip(ual, 'Walk_Loop', ual, { fps: 30, footIk: false })
     const mirrored = bakeClip(ual, 'Walk_Loop', ual, {

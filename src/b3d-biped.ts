@@ -505,6 +505,8 @@ export function ualAnimationStates(extra: AnimStateSpec[] = []): AnimState[] {
     { name: 'pickup', animation: 'Interact', loop: false },
     // Reaching down to the floor (a `<tosi-b3d-pickup>` lying low).
     { name: 'pickupLow', animation: 'PickUp_Kneeling', loop: false },
+    // Kneeling to lift a lid (a `<tosi-b3d-chest>`).
+    { name: 'chestOpen', animation: 'Chest_Open', loop: false },
     { name: 'look', animation: 'Idle_Loop', loop: true },
     /*
     THE GUNPLAY SET, and the three aim poses are not arbitrary — they are

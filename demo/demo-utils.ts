@@ -438,6 +438,16 @@ export function demoLoadout(
      * inventory, and this puts it in the world (default: it is gone).
      */
     handleDrop?: (item: { id: string; kind: string }) => void
+    /**
+     * Other holders in the same inventory, each a list called `stock` (a
+     * chest, a shop): `{ 'yard-chest': [] }`. Fill them with
+     * `inv.move({ kind, to: { holder, container: 'stock' } })`.
+     */
+    holders?: Record<string, { purse?: Record<string, number> }>
+    /** The hero's purse (`{ gold: 50 }`). */
+    purse?: Record<string, number>
+    /** The inventory's price rule, for a shop (`tradePanel`'s `price`). */
+    price?: (item: any, from: any, to: any) => number
   } = {}
 ): {
   panels: () => B3dPanel[]
@@ -498,8 +508,19 @@ export function demoLoadout(
     {
       items,
       holders: {
+        ...Object.fromEntries(
+          Object.entries(opts.holders ?? {}).map(([id, h]) => [
+            id,
+            {
+              id,
+              containers: { stock: { type: 'list', holds: [] } },
+              ...(h.purse ? { purse: { ...h.purse } } : {}),
+            },
+          ])
+        ),
         hero: {
           id: 'hero',
+          ...(opts.purse ? { purse: { ...opts.purse } } : {}),
           containers: {
             body,
             bag: {
@@ -514,6 +535,7 @@ export function demoLoadout(
     } as any,
     {
       kinds,
+      ...(opts.price ? { price: opts.price } : {}),
       rules: [
         ({ doc, kinds: ks }: any) => {
           const s = doc.holders.hero.containers.body.slots

@@ -93,7 +93,7 @@ const MIN_SOLID_HEIGHT = 0.7
  * Returns the proxy, or `null` when the mesh is already tall enough to be
  * noticed on its own. See the long note on `solid`.
  */
-function addSolidProxy(
+export function addSolidProxy(
   mesh: BABYLON.Mesh,
   scene: BABYLON.Scene
 ): BABYLON.Mesh | null {

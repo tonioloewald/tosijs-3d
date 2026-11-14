@@ -479,6 +479,8 @@ export type {
   Schematic,
   SchematicSocket,
 } from './inventory-box.js'
+export { tradePanel, type TradePanel, type TradePanelOptions } from './inventory-trade.js'
+export { beginTrade, type Trade, type TradeSides, type TradeChange } from './trade.js'
 // Common nouns, so prefixed as they leave the barrel (CLAUDE.md: bare
 // common nouns don't leak); the module itself keeps the short names.
 export type {
@@ -1769,6 +1771,8 @@ export type {
 export { B3dDestroyable, b3dDestroyable } from './b3d-destroyable.js'
 export { B3dProp, b3dProp } from './b3d-prop.js'
 export { B3dPickup, b3dPickup } from './b3d-pickup.js'
+export { B3dDoor, b3dDoor, B3dOpenable, type Opener } from './b3d-door.js'
+export { B3dChest, b3dChest } from './b3d-chest.js'
 export { B3dNpc, b3dNpc } from './b3d-npc.js'
 export { npcBrain } from './npc-brain.js'
 export type { NpcBrain, NpcBrainOptions, NpcIntent, NpcMode, NpcPercept } from './npc-brain.js'
