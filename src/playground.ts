@@ -6,7 +6,7 @@ arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dDeath, b3dLauncher, b3dLibrary, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dDeath, b3dLauncher, b3dLibrary, b3dNpc, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
@@ -105,11 +105,17 @@ let hero = makeHero(null, { x: -4, z: 10 })
 const loadout = demoLoadout({
   catalogue: WEAPONS,
   equip: { right_side: 'Pistol' },
+  // Dropped is THROWN: 6 m ahead, and where it lands it makes a noise, so it
+  // is how you lure the enemy away.
   handleDrop: (item) => {
     const node = hero.entries?.rootNodes[0]
     if (!node) return
-    const ahead = node.forward.scale(0.9)
-    hero.owner?.append(pickup(item.kind, node.position.x + ahead.x, node.position.z + ahead.z))
+    const f = node.forward
+    const p = node.position
+    const thrown = pickup(item.kind, p.x + f.x * 0.4, p.z + f.z * 0.4)
+    thrown.y = 1.3
+    hero.owner?.append(thrown)
+    requestAnimationFrame(() => thrown.toss({ x: p.x + f.x * 6, z: p.z + f.z * 6 }))
   },
 })
 const BAG = { holder: 'hero', container: 'bag' }
@@ -200,6 +206,41 @@ else playChar.pick.value = MANNEQUIN
 // SOMETHING SHOOTS BACK: a turret past the cover line, slow enough to dodge,
 // aiming at the hero's chest. Cover is cover now.
 const turret = b3dTurret({ x: 0, z: -30, range: 35, fireRate: 0.5, muzzleSpeed: 25, smart: 1, damage: 25, blastRadius: 2 })
+// ENEMIES ON FOOT, stand-ins for zombies (the mannequin, a sword swing for a
+// blow): one stands guard with its back to where you start, one walks a loop
+// past the cover line. Oblivious until they notice you; three pistol shots
+// put one down, and a new one takes its place a little later.
+const ENEMIES = [
+  // (A biped's ry 0 faces -z; -35 faces away from the start, toward +x -z.)
+  { x: 10, z: -10, ry: -35 },
+  { x: -10, z: -20, patrol: [{ x: -10, z: -20 }, { x: 7, z: -20 }, { x: 7, z: -27 }, { x: -10, z: -27 }] },
+]
+const makeEnemy = ({ patrol, ...at }, i) => b3dBiped(
+  {
+    url: assetUrl('quaternius/UAL1_core.glb', 4),
+    animationStates: ualAnimationStates([{ name: 'attack', animation: 'Sword_Attack', loop: false }]),
+    ...at,
+    health: 60,
+  },
+  b3dNpc({ skill: 0.1, attackDamage: 20, seed: i + 1, patrol: patrol ?? null })
+)
+const enemies = ENEMIES.map(makeEnemy)
+// A fresh one where it began: after it is put down, and when you respawn (or
+// it would be waiting where you start).
+const newEnemy = (i) => {
+  const next = makeEnemy(ENEMIES[i], i)
+  next.addEventListener('destroyed', () => setTimeout(() => newEnemy(i), 8000))
+  enemies[i].replaceWith(next)
+  enemies[i] = next
+}
+enemies.forEach((e, i) => e.addEventListener('destroyed', () => setTimeout(() => newEnemy(i), 8000)))
+const enemyText = (e) => {
+  const d = e.querySelector('tosi-b3d-npc')?.debugState
+  if (!d) return ''
+  if (e.halted) return 'down'
+  return d.mode + (d.sees ? ', sees you' : d.senses ? ', senses you' : d.heard ? ', heard something' : '')
+}
+
 // Health, under the scene (a live readout sits beside the scene, never over it).
 const readout = elements.div({ style: 'padding: 4px 8px; font: 14px system-ui' })
 let shown = ''
@@ -215,7 +256,8 @@ preview.append(
         el.scene.onBeforeRenderObservable.add(() => {
           if (hero.aimTarget && !hero.halted) turret.track(hero.aimTarget)
           else turret.clearTarget()
-          const text = hero.halted ? 'health: dead' : `health: ${Math.max(0, Math.round(hero.hp))} / 100`
+          const text = (hero.halted ? 'health: dead' : `health: ${Math.max(0, Math.round(hero.hp))} / 100`) +
+            ` · guard: ${enemyText(enemies[0])} · patrol: ${enemyText(enemies[1])}`
           if (text !== shown) readout.textContent = shown = text
         })
       },
@@ -246,6 +288,7 @@ preview.append(
     weapons,
     turret,
     ...ON_THE_GROUND.map(([kind, x, z]) => pickup(kind, x, z)),
+    ...enemies,
     ...playground(),
     ...loadout.panels(),
     // Death's exit: the panel, and a new hero back at the start.
@@ -259,6 +302,7 @@ preview.append(
         hero.replaceWith(next)
         hero = next
         hold(next)
+        enemies.forEach((_, i) => newEnemy(i))
       },
     }),
     inputFocus(hero)
@@ -287,7 +331,20 @@ bumper again to put away what is in your hand. Only the right hand is drawn.
 
 **Things to pick up.** A rifle, a sword and a buckler lie in front of you:
 walk up and press **E** to pick one up (you kneel for it), and it goes in your
-bag. Drag anything from the loadout onto **drop** and it lands at your feet.
+bag. Drag anything from the loadout onto **drop** and you throw it: it lands
+6 m ahead with a clatter the enemy hears.
+
+**Something hunts you.** Two enemies (stand-ins for zombies): one stands guard
+this side of the cover line with its back to you, one walks a loop beyond it.
+Each is oblivious until it notices you: anywhere in front of it within 50 m
+(cover hides you), or within 10 m behind it. Crouch (left shift) and those
+drop to a third, so you can creep to 3 m behind one. A shot is heard 25 m
+off. Noticed, it chases and swings when it reaches you; lose it and it
+searches where it last saw you, then goes back to its post or its route.
+Throw something (drop it from the loadout) and it goes to look where it
+landed. It is deliberately dumb: it runs to where you WERE, so a sidestep
+beats it. Three pistol shots put one down. The line under the scene says what
+each is doing.
 
 **Something shoots back.** A turret past the cover line fires slow shells at
 you (four hits kill); each hit staggers you, and out of its sight you heal.

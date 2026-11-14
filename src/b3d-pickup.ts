@@ -24,7 +24,9 @@ scene.append(
 ```
 
 Dropping is the same in reverse: take the item out of the inventory and put a
-new pickup in the world where it fell. The Biped Playground does both: a
+new pickup in the world where it fell. `toss(to)` throws it there in an arc,
+and where it lands it makes a [noise](/noise/): an NPC goes to look, which is
+how you lure one away. The Biped Playground does both: a
 rifle, a sword and a buckler lie by the start, and anything dragged out of
 the loadout lands at your feet.
 
@@ -36,6 +38,7 @@ Everything [b3d-prop](/b3d-prop/) takes, plus:
 |-----------|---------|-------------|
 | `item` | `''` | What this is: the inventory kind it becomes (`meshName` when empty) |
 | `reach` | `1.8` | Metres from the player within which it can be picked up |
+| `noise` | `15` | Metres the noise carries when it lands after `toss` (0: silent) |
 
 ## Callbacks and events
 
@@ -54,6 +57,7 @@ import * as BABYLON from '@babylonjs/core'
 import { B3dProp } from './b3d-prop.js'
 import { InteractiveBehavior } from './interactive-behavior.js'
 import { sceneDelta } from './b3d-utils.js'
+import { makeNoise } from './noise.js'
 import type { B3d } from './tosi-b3d.js'
 
 /** Something that can bend down for it: a biped. */
@@ -74,10 +78,12 @@ export class B3dPickup extends B3dProp {
     ...B3dProp.initAttributes,
     item: '',
     reach: 1.8,
+    noise: 15,
   }
 
   declare item: string
   declare reach: number
+  declare noise: number
 
   /** Taken: what, and by whom. Not `onPickedUp`: on* props become DOM listeners. */
   whenPickedUp: ((info: { item: string; by: unknown }) => void) | null = null
@@ -85,6 +91,7 @@ export class B3dPickup extends B3dProp {
   private _use: InteractiveBehavior | null = null
   private _taking = false
   private _wait: BABYLON.Observer<BABYLON.Scene> | null = null
+  private _flight: BABYLON.Observer<BABYLON.Scene> | null = null
 
   sceneReady(owner: B3d): void {
     super.sceneReady(owner)
@@ -101,7 +108,7 @@ export class B3dPickup extends B3dProp {
         const p = this._player()?.getCameraTarget?.()?.getAbsolutePosition()
         return p == null ? null : { x: p.x, y: p.y, z: p.z }
       },
-      enabled: () => !this._taking,
+      enabled: () => !this._taking && this._flight == null,
       highlight: () => '#ffd45e',
     })
     this._use.whenActivated = () => this.pickUp()
@@ -114,6 +121,36 @@ export class B3dPickup extends B3dProp {
       | (Element & { focused?: Picker | null })
       | null
     return focus?.focused ?? null
+  }
+
+  /**
+   * Throw it from where it is to `to` in an arc (`height` metres above the
+   * straight line, over `seconds`, in scene time). Where it lands it makes a
+   * noise that carries `noise` metres: an NPC goes to look.
+   */
+  toss(
+    to: { x: number; y?: number; z: number },
+    options: { height?: number; seconds?: number } = {}
+  ): void {
+    const scene = this.owner?.scene
+    if (scene == null) return
+    const attrs = this as any
+    const from = { x: attrs.x, y: attrs.y, z: attrs.z }
+    const end = { x: to.x, y: to.y ?? 0.08, z: to.z }
+    const height = options.height ?? 1.2
+    const seconds = options.seconds ?? 0.6
+    let t = 0
+    if (this._flight != null) scene.onBeforeRenderObservable.remove(this._flight)
+    this._flight = scene.onBeforeRenderObservable.add(() => {
+      t = Math.min(1, t + sceneDelta(scene) / seconds)
+      attrs.x = from.x + (end.x - from.x) * t
+      attrs.z = from.z + (end.z - from.z) * t
+      attrs.y = from.y + (end.y - from.y) * t + height * 4 * t * (1 - t)
+      if (t < 1) return
+      scene.onBeforeRenderObservable.remove(this._flight)
+      this._flight = null
+      if (this.noise > 0) makeNoise(scene, end, this.noise)
+    })
   }
 
   /** Pick it up: by `by`, else the player. Does nothing if already being taken. */
@@ -153,6 +190,9 @@ export class B3dPickup extends B3dProp {
     if (this._wait != null)
       this.owner?.scene.onBeforeRenderObservable.remove(this._wait)
     this._wait = null
+    if (this._flight != null)
+      this.owner?.scene.onBeforeRenderObservable.remove(this._flight)
+    this._flight = null
     this._use?.dispose()
     this._use = null
     super.sceneDispose()

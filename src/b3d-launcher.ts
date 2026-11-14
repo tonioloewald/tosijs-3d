@@ -499,6 +499,7 @@ import { detonateWarhead } from './b3d-warhead.js'
 import type { WarheadSpec } from './warhead.js'
 import type { Cause } from './destroyable.js'
 import { destroyableAt } from './destroyable-behavior.js'
+import { makeNoise } from './noise.js'
 import { attachTrail, type TrailOptions } from './b3d-trail.js'
 
 /**
@@ -670,6 +671,8 @@ export function spawnProjectile(
   opts: ProjectileOpts
 ): { dispose: () => void } {
   const scene = owner.scene
+  // A shot is heard 25 m off (see noise): an NPC goes to look.
+  makeNoise(scene, opts.origin, 25)
   const r = opts.radius ?? 0.12
   // Scratch copy so a per-frame drag change never mutates the caller's params
   // (they are commonly a shared constant on a launcher).

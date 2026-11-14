@@ -1619,7 +1619,11 @@ export class B3dBiped extends B3dControllable {
       },
       { meshOnDeath: 'keep', flash: false }
     )
-    d.whenDamaged = ({ cause }) => this._onHit(cause)
+    d.whenDamaged = (info) => {
+      this._onHit(info.cause)
+      // For whoever drives it (an NPC brain turns on whoever hurt it).
+      this.dispatchEvent(new CustomEvent('hurt', { detail: info }))
+    }
     d.whenDestroyed = () => this._fallDead()
     d.attach()
     this.destroyable = d
@@ -4227,6 +4231,15 @@ export class B3dBiped extends B3dControllable {
       .flat()
     this.mesh = this.entries.rootNodes[0] as BABYLON.Mesh
     if (attrs.scale !== 1) this.mesh.scaling.setAll(attrs.scale)
+    // Stand where the attributes say NOW. The render that syncs them is a
+    // frame away, and in that frame the body stood at the origin facing -z:
+    // a turret fired at it there, and an NPC facing the wrong way saw you.
+    this.mesh.position.set(attrs.x, attrs.y, attrs.z)
+    this.mesh.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
+      (this.yaw * Math.PI) / 180,
+      (this.pitch * Math.PI) / 180,
+      (this.roll * Math.PI) / 180
+    )
     // Derive eye height from the model (after scaling, so it's the real size) so first-person sits at the head, not
     // the origin (the feet). ~0.93 of total height ≈ eye level. Used as a
     // fallback when there's no head node to anchor to.

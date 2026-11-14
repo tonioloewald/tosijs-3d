@@ -285,7 +285,13 @@ The AI acts on what it has perceived, not ground truth: **known enemies**,
    tactics)? (Single scalar simplest; unifies with weapon smartness. Note sensory
    acuity already lives in the sensorium, so a perception sub-skill may be
    redundant.)
-2. **Detectable profiles depth** — v1 = **vision cone + hearing radius** only, or
+2. **Detectable profiles depth** — _First version built (2026-11-14,
+   `src/sensorium.ts`): vision (front 180° to 50 m with a clear line, behind
+   10 m, crouching ×0.33) and hearing (noises carry a distance, any
+   direction; `src/noise.ts`). Tonio: the channels to plan for are vision,
+   hearing, smell, vibration, echolocation, IR, radar and RDF, each with arcs
+   of different sensitivity and its own propagation and visibility rules;
+   they are named slots in sensorium's doc._ v1 = **vision cone + hearing radius** only, or
    the fuller **Sensorium/Detectable** (radar/visible/audio/scent, each with
    sensitivity + range + **directional falloff** via dot-product with facing)?
    (Your earlier TODO had the fuller version; alertness multiplies whichever we
