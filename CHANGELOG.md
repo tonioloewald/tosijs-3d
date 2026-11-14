@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Added:** mounts beyond the right hand. A shield is strapped to the LEFT FOREARM (`holdMount(class)`: `lowerarm_l`, in the bone's frame), and anything stowed rides on the BACK across the shoulders (`STOW_MOUNT`, the upper spine; `stowGrip(name)`, blades hilt up, long guns barrel up). The character builder's Hold section has **on the back** beside **right hand**, each with its manipulator and per-class numbers (a character keeps stowed places as `stow:<class>` in `grips`, and a new `stowed` setting). In the Biped Playground the buckler goes in the left hand (not the right) and is drawn on the forearm, and whatever is on the back is drawn there.
+
 - **Added:** a shopkeeper in the Biped Playground: a stand-in mannequin behind a counter; E at the counter opens a priced trade (ammo by the box, buy at value, sell at half). `tradePanel` takes `moveFor`, and `trade` counts what crossed by kind and quantity, so stacks split and joined in a trade are paid for correctly (`TradeChange` is now `{ kind, qty, from, to }`).
 - **Added:** the rig tool's `dragging` has **moves the joint alone**: a shoulder moved without carrying its elbow and wrist. `RigToolApi.skeleton` is the model's skeleton now.
 - **Changed:** in the character builder, the grip and hair manipulators turn off when the clip plays or changes, and the held item stays in hand while rigging (on the rig tool's body), so arm space can be judged with it.

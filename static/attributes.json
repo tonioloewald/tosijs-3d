@@ -6076,7 +6076,7 @@
       },
       {
         "name": "shield",
-        "default": "on the forearm",
+        "default": "strapped to the left forearm",
         "description": "Buckler"
       }
     ]

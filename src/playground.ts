@@ -6,7 +6,7 @@ arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dBox, b3dChest, b3dDeath, b3dDoor, b3dPanel, createCarry, tradePanel, b3dInteractive, b3dLauncher, b3dLibrary, b3dNpc, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dBox, b3dChest, b3dDeath, b3dDoor, b3dPanel, createCarry, tradePanel, b3dInteractive, b3dLauncher, b3dLibrary, b3dNpc, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, holdMount, holdClassOf, stowGrip, heldGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
@@ -42,7 +42,8 @@ const WEAPONS = {
   'Hand and a Half': { tags: ['back', 'hand', 'two-handed'], mass: 2, art: 'sword' },
   'Plasma Blade': { tags: ['side', 'hand'], mass: 1, art: 'sword' },
   Spear: { tags: ['back', 'hand', 'two-handed'], mass: 2, art: 'sword' },
-  Buckler: { tags: ['back', 'hand'], mass: 2.5, art: 'shield' },
+  // A shield goes in the LEFT hand (strapped to the forearm) or on the back.
+  Buckler: { tags: ['back', 'shield'], mass: 2.5, art: 'shield' },
   // Not a weapon: it lives in the bag, and opens the yard's door.
   'Iron Key': { tags: ['key'], mass: 0.1, art: 'key' },
   // Rounds, in stacks.
@@ -295,10 +296,41 @@ const wire = (h) => {
       return
     }
     // Draw: what is on the right hip, then the left, then the back.
-    const from = away.map((s) => slotsNow()[s].holds).find(Boolean)
+    const from = away.map((s) => slotsNow()[s].holds).find((id) => id && !loadout.inv.check({ item: id, to: body('hand_right') }).length)
     if (from) loadout.inv.move({ item: from, to: body('hand_right'), swap: true })
   }
   return h
+}
+// WHAT IS WORN, drawn on the body: a shield in the left hand is strapped to
+// the left forearm, and whatever is on the back rides across the shoulders
+// (hold-grip's mounts). Only the right hand is a launcher; these are models.
+let gear = { key: '', nodes: [] }
+// Babylon, from sceneCreated (lowercase: see the doc transpiler's all-caps rule).
+let babylon = null
+const wearGear = (h) => {
+  if (!babylon) return
+  const skeleton = h.entries?.skeletons?.[0]
+  const left = kindOf(slotsNow().hand_left.holds)
+  const back = kindOf(slotsNow().back.holds)
+  const key = `${skeleton?.uniqueId}|${left}|${back}`
+  if (!skeleton || key === gear.key) return
+  for (const n of gear.nodes) n.dispose()
+  gear = { key, nodes: [] }
+  const mount = (kind, boneName, g) => {
+    const bone = skeleton.bones.find((b) => b.name === boneName)?.getTransformNode()
+    const node = bone && weapons.instantiate?.(kind, { canonical: true })
+    if (!node) return
+    node.parent = bone
+    const d = Math.PI / 180
+    const turn = babylon.Quaternion.FromEulerAngles(g.rx * d, g.ry * d, g.rz * d)
+    const grip = (heldGrip(node) ?? babylon.Vector3.Zero()).scale(g.scale).applyRotationQuaternion(turn)
+    node.position.set(g.x - grip.x, g.y - grip.y, g.z - grip.z)
+    node.rotationQuaternion = turn
+    node.scaling.setAll(g.scale)
+    gear.nodes.push(node)
+  }
+  if (left && holdMount(holdClassOf(left)).bone === 'lowerarm_l') mount(left, 'lowerarm_l', holdGrip(left))
+  if (back) mount(back, 'spine_03', stowGrip(back))
 }
 // Each gun keeps what is in its magazine while it is put away.
 const magazines = {}
@@ -419,9 +451,13 @@ preview.append(
       style: 'flex: 1; min-height: 0',
       // Something for the weapons' metal to reflect: without it a PBR metal
       // has nothing to show and renders nearly black.
-      sceneCreated(el) {
+      sceneCreated(el, b) {
+        babylon = b
+        // For the console: the inventory (move things, read the purse).
+        el.inventory = loadout.inv
         studioEnvironment(el.scene, { sky: '#7d9cc4', horizon: '#e8e4da', ground: '#55604a' })
         el.scene.onBeforeRenderObservable.add(() => {
+          wearGear(hero)
           // Walked away from an open chest: the trade closes.
           const chestAt = trading?.at()
           if (chestAt && hero.mesh && hero.mesh.position.subtract(chestAt).length() > 3) endTrade()

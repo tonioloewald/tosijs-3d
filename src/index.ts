@@ -1163,6 +1163,10 @@ export {
   HOLD_GRIPS,
   holdClassOf,
   holdGrip,
+  holdMount,
+  stowGrip,
+  STOW_MOUNT,
+  STOW_GRIPS,
 } from './hold-grip.js'
 export {
   FABRIC_TEXTURES,
@@ -1813,7 +1817,7 @@ export type {
   PlaybackState,
 } from './playback-field.js'
 export type { UndoHistory } from './undo-history.js'
-export type { HoldClass, HoldGrip } from './hold-grip.js'
+export type { HoldClass, HoldGrip, HoldMount } from './hold-grip.js'
 export type { Makers, MakeOptions, MakeOwner } from './make-mesh.js'
 export { B3dTurret, b3dTurret } from './b3d-turret.js'
 export { B3dRadarBlip, b3dRadarBlip } from './b3d-radar-blip.js'

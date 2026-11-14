@@ -98,13 +98,16 @@ export const DEFAULT_CHARACTER: Record<string, any> = {
   hideSlot: '',
   rigs: {},
   surfaces: {},
-  /** The item in the right hand (a weapon library's name), or `none`. */
+  /** The item in the right hand (a weapon library's name; a shield goes on the left forearm), or `none`. */
   held: 'none',
+  /** The item stowed on the back, across the shoulders (a rifle, a two-handed sword, a quiver), or `none`. */
+  stowed: 'none',
   /**
    * Each item's grip, by name: where its grip point goes, `{ x, y, z }`
    * metres from the hand's socket, turned `{ rx, ry, rz }` degrees, and
    * `scale`. A launcher with `socket: 'right-hand'` (its grip `auto`) takes
-   * the same numbers.
+   * the same numbers. A shield's are from its left forearm bone; a stowed
+   * item's are kept as `stow:<class>`, from the upper spine.
    */
   grips: {},
   source: 'MakeHuman',

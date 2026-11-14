@@ -509,7 +509,8 @@ export function demoLoadout(
       right_side: slot('side'),
       legs: slot('legs'),
       feet: slot('feet'),
-      hand_left: slot('hand'),
+      // The off hand takes a shield too (strapped to the forearm).
+      hand_left: slot('hand', 'shield'),
       hand_right: slot('hand'),
     },
   }

@@ -1508,7 +1508,7 @@ hold grips
   melee1h  = a blade, one hand  — Dagger, Short Sword, Long Sword, Plasma Blade
   melee2h  = a long blade or a pole, two hands  — Hand and a Half, Spear
   bow  = a bow
-  shield  = on the forearm  — Buckler
+  shield  = strapped to the left forearm  — Buckler
 
 ## inventory-box
 inventory-box
