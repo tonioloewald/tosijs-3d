@@ -215,6 +215,8 @@ animation is doing with that hand.
 | `climbReach` | `2.2` | Highest ledge the character can pull itself onto, metres (see Mantling, below) |
 | `hardLanding` | `0` (auto) | Metres of drop past which a landing is hard: the `hardLand` clip (UAL's `Roll`), standing still while it plays. Auto is 1.5 body heights. The drop is from the top of the flight, so a jump on flat ground is never hard ([fall](/fall/)) |
 | `lethalFall` | `0` (off) | Metres of drop that kill on landing: the `death` clip (`Death01`) where you land, then a bubbling `crash` event (`detail: { cause: 'fall', drop }`) that `<tosi-b3d-death>` answers without exploding you. Off by default, since a death needs an exit. Water breaks a fall |
+| `health` | `0` (can't be hurt) | Hit points. Above 0 the biped is a target like any destroyable: a hit plays a hit clip (`hitChest` / `hitStomach` / `hitHead` in turn, `hitKnockback` for a blast) and holds it still for the clip; at 0 it plays `death` where it stands and dispatches a bubbling `destroyed`, which `<tosi-b3d-death>` answers. `hp` reads what is left, `damage(amount, cause)` hurts it, `aimTarget` is a chest-height node for turrets and AI to track |
+| `healthRegen` | `0` | Hit points regained per second, from `healthRegenDelay` (5) seconds after the last hit |
 | `wadeDepth` | `0.45` | Water depth, as a fraction of standing height, where wading becomes swimming |
 | `buoyancy` | `0` | How high the figure rides in the water, metres. `0` puts the waterline at the head |
 
@@ -371,6 +373,8 @@ import { XRInputProvider } from './xr-input-provider.js'
 import { forwardGait } from './gait.js'
 import { realNow } from './clock.js'
 import { FALL_START_DROP, fallRules, landingOutcome } from './fall.js'
+import { DestroyableBehavior } from './destroyable-behavior.js'
+import type { Cause } from './destroyable.js'
 
 const DEG_TO_RAD = Math.PI / 180
 
@@ -467,6 +471,11 @@ export function ualAnimationStates(extra: AnimStateSpec[] = []): AnimState[] {
     // A landing from high up (`hardLanding`), and a fall that kills (`lethalFall`).
     { name: 'hardLand', animation: 'Roll', loop: false },
     { name: 'death', animation: 'Death01', loop: false },
+    // Taking hits (`health`): three that take turns, and a blast's knockback.
+    { name: 'hitChest', animation: 'Hit_Chest', loop: false },
+    { name: 'hitStomach', animation: 'Hit_Stomach', loop: false },
+    { name: 'hitHead', animation: 'Hit_Head', loop: false },
+    { name: 'hitKnockback', animation: 'Hit_Knockback', loop: false },
     /*
     CLIMB clips are named for the HEIGHT they cover, not for the state that
     preceded them — which is why `mantle.mantleClip` picks one by measuring the
@@ -768,6 +777,18 @@ export class B3dBiped extends B3dControllable {
      * Water breaks a fall.
      */
     lethalFall: 0,
+    /**
+     * **Hit points.** `0` (the default) means nothing can hurt this biped.
+     * Above 0 it is a target for warheads and shots like any destroyable
+     * (`destroyable-behavior`): a hit plays a hit clip and holds it still for
+     * the clip's length; at 0 it plays `death` where it stands and dispatches
+     * a bubbling `destroyed` event, which `<tosi-b3d-death>` answers. Read
+     * what is left from `hp`.
+     */
+    health: 0,
+    /** Hit points regained per second, starting `healthRegenDelay` s after the last hit. */
+    healthRegen: 0,
+    healthRegenDelay: 5,
     /**
      * **How deep the water gets before you swim, as a fraction of standing
      * height.** Below this you wade — feet on the bottom, walking; above it
@@ -1495,6 +1516,28 @@ export class B3dBiped extends B3dControllable {
   private _airTopY = 0
   /** The landing playing is a hard one: the `hardLand` clip, standing still. */
   private _hardLanding = false
+  /** The hit clip playing, and how long it has left (it holds the biped still). */
+  private _hitClip = ''
+  private _hitLeft = 0
+  private _hits = 0
+  /** Its health in the scene's combat world, when `health` is above 0. */
+  destroyable: DestroyableBehavior | null = null
+  /**
+   * The point an enemy aims at: a node at chest height under the root, which
+   * stands at the feet. A turret or an AI tracks this.
+   */
+  aimTarget: BABYLON.TransformNode | null = null
+
+  /** Hit points left (Infinity when `health` is 0, so nothing can hurt it). */
+  get hp(): number {
+    if (this.destroyable == null) return Infinity
+    return this.owner?.combat.get(this.destroyable.combatId)?.hp.value ?? 0
+  }
+
+  /** Hurt this biped (no effect when `health` is 0 or it is already dead). */
+  damage(amount: number, cause?: Cause): void {
+    this.destroyable?.damage(amount, cause)
+  }
   private _phaseLeft = 0
 
   /**
@@ -1503,15 +1546,69 @@ export class B3dBiped extends B3dControllable {
    * `<tosi-b3d-death>` or the game to answer.
    */
   private _dieFromFall(drop: number): void {
+    this._fallDead()
+    this.dispatchEvent(
+      new CustomEvent('crash', { bubbles: true, detail: { cause: 'fall', drop } })
+    )
+  }
+
+  /** Down where it stands: the death clip, nothing more moves it. */
+  private _fallDead(): void {
     this._airPhase = null
     this._hardLanding = false
+    this._hitLeft = 0
     this._fallVel = 0
     this.diesInPlace = this._hasState('death')
     if (this.diesInPlace) this.setAnimationState('death')
     this.halt()
-    this.dispatchEvent(
-      new CustomEvent('crash', { bubbles: true, detail: { cause: 'fall', drop } })
+  }
+
+  /**
+   * A hit that lands: a blast knocks back, other hits take turns between
+   * chest, stomach and head, so the same three hits never look alike. Not in
+   * the air, in water or mid-climb, where a full-body clip would fight the
+   * motion.
+   */
+  private _onHit(cause?: Cause): void {
+    if (this.halted || this._swimming || this._airPhase != null) return
+    if (this._mantle != null) return
+    const turn = ['hitChest', 'hitStomach', 'hitHead'][this._hits++ % 3]
+    const want =
+      cause?.kind === 'blast' && this._hasState('hitKnockback')
+        ? 'hitKnockback'
+        : turn
+    if (!this._hasState(want)) return
+    this._hitClip = want
+    this._hitLeft = this._clipSeconds(want)
+  }
+
+  /** Health in the combat world, a chest-height aim point, once the model is in. */
+  private _attachHealth(owner: B3d, height: number): void {
+    const attrs = this as any
+    this.aimTarget?.dispose()
+    this.aimTarget = new BABYLON.TransformNode('biped-aim-target', owner.scene)
+    this.aimTarget.parent = this.mesh!
+    this.aimTarget.position.y = (height * 0.7) / (attrs.scale || 1)
+    this.destroyable?.dispose()
+    this.destroyable = null
+    if (!(attrs.health > 0)) return
+    // Set before anything can kill it: <tosi-b3d-death> reads it on `destroyed`.
+    this.diesInPlace = this._hasState('death')
+    const d = new DestroyableBehavior(
+      owner,
+      this,
+      {
+        capacity: attrs.health,
+        regenRate: attrs.healthRegen || 0,
+        regenDelay: attrs.healthRegenDelay,
+        idBase: 'biped',
+      },
+      { meshOnDeath: 'keep', flash: false }
     )
+    d.whenDamaged = ({ cause }) => this._onHit(cause)
+    d.whenDestroyed = () => this._fallDead()
+    d.attach()
+    this.destroyable = d
   }
 
   /** The rig has this state AND the clip it names is loaded. */
@@ -2459,8 +2556,11 @@ export class B3dBiped extends B3dControllable {
     this._paceBlends(dt)
 
     // A hard landing holds you where you landed while it plays.
+    this._hitLeft = Math.max(0, this._hitLeft - dt)
     const speed =
-      this._hardLanding && this._airPhase === 'land' ? 0 : input.forward
+      (this._hardLanding && this._airPhase === 'land') || this._hitLeft > 0
+        ? 0
+        : input.forward
     /*
     STRAFING IS OPTIONAL, AND OFF BY DEFAULT.
 
@@ -3308,10 +3408,10 @@ export class B3dBiped extends B3dControllable {
           this._airPhase = 'loop'
       } else if (wasInAir && submerged <= 0) {
         const drop = this._airTopY - node.position.y
-        // Eye height is about 0.89 of a body's.
+        // Eye height is taken as 0.93 of the model's (see _modelReady).
         const outcome = landingOutcome(
           drop,
-          fallRules(standHeight / 0.89, {
+          fallRules(standHeight / 0.93, {
             hardLanding: attrs.hardLanding,
             lethalFall: attrs.lethalFall,
           })
@@ -3508,6 +3608,8 @@ export class B3dBiped extends B3dControllable {
             : 'jumpLand'
         const has = this.animationStates.some((st) => st.name === want)
         this.setAnimationState(has ? want : this._jumpClip)
+      } else if (this._hitLeft > 0) {
+        this.setAnimationState(this._hitClip)
       } else if (Math.abs(strafe) > 0.1 && Math.abs(strafe) > Math.abs(speed)) {
         /*
         SIDESTEPPING HAS ITS OWN CLIPS — use them.
@@ -4117,6 +4219,7 @@ export class B3dBiped extends B3dControllable {
     const bounds = this.mesh.getHierarchyBoundingVectors()
     const height = bounds.max.y - bounds.min.y
     ;(this as any).eyeHeight = height * 0.93
+    this._attachHealth(owner, height)
     this.chaseHeight = height * 1.5
     this.chaseDistance = height * 2.0
     // Find the head BONE node (e.g. `mixamorig:Head`) so first-person anchors
@@ -4186,6 +4289,10 @@ export class B3dBiped extends B3dControllable {
   }
 
   sceneDispose() {
+    this.destroyable?.dispose()
+    this.destroyable = null
+    this.aimTarget?.dispose()
+    this.aimTarget = null
     if (this._aimIkObs != null) {
       this.owner?.scene.onAfterAnimationsObservable.remove(this._aimIkObs)
       this._aimIkObs = null

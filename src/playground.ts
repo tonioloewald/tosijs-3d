@@ -6,8 +6,8 @@ arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dDeath, b3dLauncher, b3dLibrary, button3d, characterStore, holdGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
-import { tosi } from 'tosijs'
+import { assetUrl, b3d, b3dBiped, b3dDeath, b3dLauncher, b3dLibrary, b3dTurret, button3d, characterStore, holdGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
+import { tosi, elements } from 'tosijs'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
 // TONIO'S WEAPONS (CC BY 4.0), the character builder's: every one is made
@@ -84,6 +84,9 @@ const makeHero = (doc, at) => b3dBiped(
     // Walk off the 6 m tower and you die where you land; jump off the
     // catwalk and you land hard.
     lethalFall: 5,
+    // A turret's shell takes a quarter; out of its sight you heal.
+    health: 100,
+    healthRegen: 10,
   },
   gun
 )
@@ -170,14 +173,27 @@ const start = asked ? (asked === WORKING_CHARACTER ? BUILDER : asked) : last
 if (start && start !== MANNEQUIN) useCharacter(start)
 else playChar.pick.value = MANNEQUIN
 
+// SOMETHING SHOOTS BACK: a turret past the cover line, slow enough to dodge,
+// aiming at the hero's chest. Cover is cover now.
+const turret = b3dTurret({ x: 0, z: -30, range: 35, fireRate: 0.5, muzzleSpeed: 25, smart: 1, damage: 25, blastRadius: 2 })
+// Health, under the scene (a live readout sits beside the scene, never over it).
+const readout = elements.div({ style: 'padding: 4px 8px; font: 14px system-ui' })
+let shown = ''
+
 preview.append(
   b3d(
     {
-      style: 'width:100%;height:100%',
+      style: 'flex: 1; min-height: 0',
       // Something for the weapons' metal to reflect: without it a PBR metal
       // has nothing to show and renders nearly black.
       sceneCreated(el) {
         studioEnvironment(el.scene, { sky: '#7d9cc4', horizon: '#e8e4da', ground: '#55604a' })
+        el.scene.onBeforeRenderObservable.add(() => {
+          if (hero.aimTarget && !hero.halted) turret.track(hero.aimTarget)
+          else turret.clearTarget()
+          const text = hero.halted ? 'health: dead' : `health: ${Math.max(0, Math.round(hero.hp))} / 100`
+          if (text !== shown) readout.textContent = shown = text
+        })
       },
       // The glass pad shows only what this demo USES. These are control names,
       // not a mapping name (`gamepad: 'biped'` names nothing and draws nothing).
@@ -204,6 +220,7 @@ preview.append(
       },
     },
     weapons,
+    turret,
     ...playground(),
     ...loadout.panels(),
     // Death's exit: the panel, and a new hero back at the start.
@@ -220,11 +237,12 @@ preview.append(
       },
     }),
     inputFocus(hero)
-  )
+  ),
+  readout
 )
 ```
 ```css
-.preview { height: 100%; }
+.preview { height: 100%; display: flex; flex-direction: column; }
 ```
 
 **Two modes, and the right bumper (or clicking the right stick) is the
@@ -241,6 +259,10 @@ Each gun fires its own way (the SMG fast, the rocket launcher slow and heavy).
 A blade, the spear or the buckler takes a guard (UAL's `Sword_Idle`) and **R**
 swings it (`Sword_Attack`, played through; held, it swings again). Press the
 bumper again to put away what is in your hand. Only the right hand is drawn.
+
+**Something shoots back.** A turret past the cover line fires slow shells at
+you (four hits kill); each hit staggers you, and out of its sight you heal.
+Crouch behind the low wall or duck behind a pillar.
 
 **Falls hurt.** Jump off the catwalk and you land hard (a roll that holds you a
 moment); walk off the top of the tower and you die where you land, then

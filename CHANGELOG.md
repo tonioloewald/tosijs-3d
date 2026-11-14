@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Added:** `<tosi-b3d-biped health>`: hit points (0, the default, means it can't be hurt). A hurt biped is a target for warheads like any destroyable; each hit plays a hit clip (chest, stomach and head in turn, a knockback for a blast) and holds it still; at 0 it plays `death` and dispatches `destroyed`, which `<tosi-b3d-death>` answers without exploding it. `healthRegen` heals after `healthRegenDelay`. `hp`, `damage()` and `aimTarget` (a chest-height node for turrets and AI). `DestroyableBehavior` gains `whenDamaged` and `flash: false`. The Biped Playground has a turret past the cover line and a health readout.
+
 - **Added:** falls on `<tosi-b3d-biped>`. Walking off a ledge plays the air loop; a landing from more than `hardLanding` metres (auto: 1.5 body heights) plays `hardLand` (UAL's `Roll`) and holds you still; `lethalFall` (metres, off by default) kills on landing: the `death` clip where you land and a bubbling `crash` event (`detail: { cause: 'fall', drop }`). `<tosi-b3d-death>` answers it without an explosion for an entity that shows its own death (`diesInPlace`). The Biped Playground's tower kills, and Respawn puts you back at the start. `fall` holds the rules.
 - **Changed:** `quaternius/UAL1_core.glb` carries `Death01`, `Death02`, `Roll`, `Hit_Chest`, `Hit_Head`, `Hit_Stomach`, `PickUp_Kneeling`, `NinjaJump_Land`, `Hit_Knockback` and `Chest_Open` (8.0 MB, was 6.9); the library asks for it as `?v=4`.
 
