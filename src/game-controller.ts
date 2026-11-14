@@ -28,6 +28,7 @@ For standalone keyboard-only or hardware-only sources, see
 | leftTrigger | Q |
 | rightTrigger | R |
 | dpadDown | G (toggle) |
+| dpadLeft | J (a biped reloads) |
 
 The mouse wheel is ZOOM: it drives the d-pad up/down axis, not the right
 stick. Mouse buttons count only when the press starts on a scene canvas.
@@ -151,6 +152,8 @@ const DEFAULT_BUTTONS: ButtonDef[] = [
   { field: 'leftTrigger', keys: ['Q'], attack: 5, decay: 10 },
   { field: 'rightTrigger', keys: ['R'], attack: 5, decay: 10 },
   { field: 'dpadDown', keys: ['G'], attack: 5, decay: 10, type: 'toggle' },
+  // Reload, for a biped (d-pad left on a pad).
+  { field: 'dpadLeft', keys: ['J'], attack: 5, decay: 10 },
 ]
 
 export class GameController extends Component implements GamepadSource {

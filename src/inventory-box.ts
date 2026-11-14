@@ -381,7 +381,7 @@ what it adds (`info` replaces that).
 | `schematics` | art per container: `{ body: svgText }`; its sockets are the slots (`data-slot`, or ids in a `Sockets` group) |
 | `only`, `hide` | which containers this panel draws (one holder can be split over panels) |
 | `height` | a fixed height that scrolls, instead of growing to fit |
-| `totals` | show the holder's purse and totals under its title (default on) |
+| `totals` | show the holder's purse and totals under its title (default on); money is written in the inventory's `currencies` ([currency](/currency/)) |
 | `handleDrop` | `(item, kind, from)`: adds a **drop** target at the top of the list; return reasons to refuse, else it leaves the inventory (put it in the world yourself) |
 | `alsoIn(item, kind, at)` | other slots an item takes up, where it is drawn faded (a two-handed weapon in both hands) |
 | `overlay` | draw the drag's ghost in a page overlay above every panel (default); off inside a 3D plane |
@@ -407,6 +407,7 @@ import {
 import type { Carry, CarryTarget } from './carry.js'
 import type { InventoryApi, Item, ItemKind, Move, Place } from './inventory.js'
 import { panelRim } from './panel-rim.js'
+import { currencyFor, formatMoney, type Currency } from './currency.js'
 
 export interface InventoryPanelOptions {
   inv: InventoryApi
@@ -687,12 +688,25 @@ function artChild(s: Schematic, avail: number): BoxChild {
 /** Places are passed through the carry as strings. */
 const enc = (p: Place) => JSON.stringify(p)
 
-const defaultInfo = (item: Item, kind: ItemKind | undefined): string[] => {
+const defaultInfo = (
+  item: Item,
+  kind: ItemKind | undefined,
+  currencies: Currency[] = []
+): string[] => {
   const lines = [
     `${kind?.name ?? item.kind}${item.qty > 1 ? ` ×${item.qty}` : ''}`,
   ]
   if (kind?.description) lines.push(kind.description)
   if (kind?.mass != null) lines.push(`mass ${kind.mass}`)
+  // What it is worth, in the game's first currency.
+  if (kind?.cost)
+    lines.push(
+      `value ${
+        currencies[0]
+          ? formatMoney(kind.cost * item.qty, currencies[0])
+          : kind.cost * item.qty
+      }`
+    )
   for (const [k, v] of Object.entries(kind?.contributes ?? {}))
     lines.push(`${k} ${v > 0 ? '+' : ''}${v}`)
   if (item.damaged) lines.push(`damaged (${item.damaged})`)
@@ -780,7 +794,10 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
       from: enc(at),
       label: kind?.name ?? item.kind,
       icon: kind?.icon,
-      info: () => (opts.info ?? defaultInfo)(item, kind),
+      info: () =>
+        opts.info
+          ? opts.info(item, kind)
+          : defaultInfo(item, kind, inv.currencies),
       decorations: () => opts.decorations?.(item, kind),
       target: into,
       ...size,
@@ -817,10 +834,18 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
         })
       )
     if (opts.totals !== false) {
-      const t = { ...h.purse, ...inv.totals(holder) }
-      const line = Object.entries(t)
-        .map(([k, v]) => `${k} ${Math.round(v * 10) / 10}`)
-        .join(' · ')
+      // Money as the game writes it (`€12`, `12 gold`), then the totals.
+      const line = [
+        ...Object.entries(h.purse ?? {}).map(([k, v]) =>
+          formatMoney(v, currencyFor(inv.currencies, k))
+        ),
+        ...Object.entries(inv.totals(holder)).map(([k, v]) =>
+          // `cost` is money too: in the game's first currency.
+          k === 'cost' && inv.currencies[0]
+            ? `${k} ${formatMoney(v, inv.currencies[0])}`
+            : `${k} ${Math.round(v * 10) / 10}`
+        ),
+      ].join(' · ')
       // Always there, empty or not, so the first thing worn does not push
       // everything under it down.
       head.push(

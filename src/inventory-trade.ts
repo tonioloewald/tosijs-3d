@@ -41,7 +41,7 @@ panel.show()
 | `mine`, `theirs` | The two containers |
 | `titles` | `{ mine, theirs }` over each list |
 | `price` | The inventory's own price rule, `(item, from, to) => number`: makes it a shop |
-| `currency` | The purse key a shop pays in (`'gold'`) |
+| `currency` | The purse key a shop pays in (default: the inventory's first currency, else `gold`), written as the inventory's `currencies` say (`€12`, `12 gp`) |
 | `width`, `height` | Each list's size (220 × 280) |
 | `decorations`, `info` | As [inventoryPanel](/inventory-box/)'s |
 | `handleDone({ dealt })` | Closed: done, a deal, or cancelled (`dealt: false`) |
@@ -60,6 +60,7 @@ import { inventoryPanel, type InventoryPanel } from './inventory-box.js'
 import type { InventoryApi, Item, ItemKind, Place } from './inventory.js'
 import { panelRim } from './panel-rim.js'
 import { beginTrade, type Trade } from './trade.js'
+import { currencyFor, formatMoney } from './currency.js'
 
 export interface TradePanelOptions {
   inv: InventoryApi
@@ -98,7 +99,9 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
   const GAP = 8
   const FOOT = 74
   const shop = price != null
-  const currency = opts.currency ?? 'gold'
+  const currency = opts.currency ?? inv.currencies[0]?.id ?? 'gold'
+  // Written as the game writes it (`€12`, `12 gold`): the inventory's currencies.
+  const money = (n: number) => formatMoney(n, currencyFor(inv.currencies, currency))
   const TW = W * 2 + GAP
   const TH = H + FOOT
   const { svg, g, rect, text } = svgElements
@@ -237,13 +240,9 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
     if (shop) {
       const b = trade?.balance() ?? 0
       line.textContent =
-        b > 0
-          ? `you pay ${b} ${currency}`
-          : b < 0
-          ? `you receive ${-b} ${currency}`
-          : 'even'
+        b > 0 ? `you pay ${money(b)}` : b < 0 ? `you receive ${money(-b)}` : 'even'
       note.textContent =
-        said || `you have ${purse(mine)} ${currency} · they have ${purse(theirs)}`
+        said || `you have ${money(purse(mine))} · they have ${money(purse(theirs))}`
     } else {
       const n = inContainer(inv, theirs).length
       const taken = trade?.changed().filter((c) => same(c.to, mine)).length ?? 0

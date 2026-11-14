@@ -61,6 +61,8 @@ items stay inside it and do not overlap.
 */
 /*{ "parent": "world-sim", "order": 40 }*/
 
+import type { Currency } from './currency.js'
+
 export interface ItemKind {
   id: string
   name?: string
@@ -198,6 +200,8 @@ export interface InventoryPlugins {
   price?: (item: Item, from: Place | null, to: Place | null) => number
   /** Which containers count toward totals. Default: all but lists. */
   fitted?: (holder: Holder, container: string) => boolean
+  /** How the game's money is written: purse key, label, before or after ([currency](/currency/)). */
+  currencies?: Currency[]
 }
 
 export interface MoveResult {
@@ -210,6 +214,8 @@ export interface InventoryApi {
   readonly doc: InventoryDoc
   /** The catalogue it was made with. */
   readonly kinds: Record<string, ItemKind>
+  /** The currencies it was made with (how money is written), if any. */
+  readonly currencies: Currency[]
   where: (item: string) => Place | null
   /** Why these moves would be refused; empty means they would go. */
   check: (...moves: Move[]) => string[]
@@ -562,6 +568,7 @@ export function createInventory(
       return doc
     },
     kinds,
+    currencies: plugins.currencies ?? [],
     where: (item) => findItem(doc, item),
     check: (...moves) => apply(doc, moves).reasons,
     move: (...moves) => commit(moves),

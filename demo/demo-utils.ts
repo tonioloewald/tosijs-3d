@@ -31,7 +31,7 @@ import {
   inventoryDock,
   b3dPanel,
 } from '../src/index'
-import type { InventoryDock, B3dPanel, InventoryApi } from '../src/index'
+import type { InventoryDock, B3dPanel, InventoryApi, Currency } from '../src/index'
 
 // The b3d element examples receive as `el` in sceneCreated — just the bits these helpers touch.
 type B3dEl = {
@@ -432,7 +432,10 @@ export function demoLoadout(
      * mass, and `art`, its picture: an entry in `/item-icons.json` (its own id
      * if absent).
      */
-    catalogue?: Record<string, { tags: string[]; mass: number; art?: string }>
+    catalogue?: Record<
+      string,
+      { tags: string[]; mass: number; art?: string; stack?: number; cost?: number }
+    >
     /**
      * An item dragged out of the loadout onto drop: it leaves the
      * inventory, and this puts it in the world (default: it is gone).
@@ -448,6 +451,8 @@ export function demoLoadout(
     purse?: Record<string, number>
     /** The inventory's price rule, for a shop (`tradePanel`'s `price`). */
     price?: (item: any, from: any, to: any) => number
+    /** How money is written (`[{ id: 'gold', label: 'gp' }]`, `€` before): see currency. */
+    currencies?: Currency[]
   } = {}
 ): {
   panels: () => B3dPanel[]
@@ -455,16 +460,26 @@ export function demoLoadout(
   /** The inventory itself, to watch (`subscribe`) and move things in. */
   inv: InventoryApi
 } {
-  const kind = (id: string, tags: string[], mass: number) => ({
+  const kind = (
+    id: string,
+    tags: string[],
+    mass: number,
+    more: { stack?: number; cost?: number } = {}
+  ) => ({
     id,
     name: id,
     tags,
     mass,
+    ...(more.stack ? { stack: more.stack } : {}),
+    ...(more.cost ? { cost: more.cost } : {}),
   })
   const given = opts.catalogue
   const kinds: Record<string, ReturnType<typeof kind>> = given
     ? Object.fromEntries(
-        Object.entries(given).map(([id, k]) => [id, kind(id, k.tags, k.mass)])
+        Object.entries(given).map(([id, k]) => [
+          id,
+          kind(id, k.tags, k.mass, k),
+        ])
       )
     : {
         helm: kind('helm', ['helmet'], 2),
@@ -536,6 +551,7 @@ export function demoLoadout(
     {
       kinds,
       ...(opts.price ? { price: opts.price } : {}),
+      ...(opts.currencies ? { currencies: opts.currencies } : {}),
       rules: [
         ({ doc, kinds: ks }: any) => {
           const s = doc.holders.hero.containers.body.slots

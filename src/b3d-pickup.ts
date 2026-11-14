@@ -39,13 +39,15 @@ Everything [b3d-prop](/b3d-prop/) takes, plus:
 | `item` | `''` | What this is: the inventory kind it becomes (`meshName` when empty) |
 | `reach` | `1.8` | Metres from the player within which it can be picked up |
 | `noise` | `15` | Metres the noise carries when it lands after `toss` (0: silent) |
+| `qty` | `1` | How many it is (a box of 30 rounds is one pickup, `qty` 30) |
 
 ## Callbacks and events
 
 | | |
 |---|---|
-| `whenPickedUp({ item, by })` | Taken: `item` as above, `by` the biped (or whoever `pickUp(by)` names) |
-| `pickedup` event | The same, bubbling, `detail: { item, by }` |
+| `whenPickedUp({ item, qty, by })` | Taken: `item` as above, `by` the biped (or whoever `pickUp(by)` names) |
+| `pickedup` event | The same, bubbling, `detail: { item, qty, by }` |
+| `refuse(by)` | (a property) A reason it cannot be taken now, or nothing: a health potion at full health. A refusal leaves it lying there, with `whenRefused({ reason, by })` and a bubbling `refused` event |
 
 `pickUp(by?)` picks it up from code (an AI, a cutscene): with a biped, the
 biped plays `pickupLow` (UAL's `PickUp_Kneeling`) or `pickup` and the item
@@ -79,14 +81,20 @@ export class B3dPickup extends B3dProp {
     item: '',
     reach: 1.8,
     noise: 15,
+    qty: 1,
   }
 
   declare item: string
   declare reach: number
   declare noise: number
+  declare qty: number
 
   /** Taken: what, and by whom. Not `onPickedUp`: on* props become DOM listeners. */
-  whenPickedUp: ((info: { item: string; by: unknown }) => void) | null = null
+  whenPickedUp: ((info: { item: string; qty: number; by: unknown }) => void) | null =
+    null
+  /** A reason it cannot be taken now (full health), or nothing. */
+  refuse: ((by: unknown) => string | null | undefined) | null = null
+  whenRefused: ((info: { reason: string; by: unknown }) => void) | null = null
 
   private _use: InteractiveBehavior | null = null
   private _taking = false
@@ -156,8 +164,16 @@ export class B3dPickup extends B3dProp {
   /** Pick it up: by `by`, else the player. Does nothing if already being taken. */
   pickUp(by: Picker | null = this._player()): void {
     if (this._taking || this.owner == null) return
+    const reason = this.refuse?.(by)
+    if (reason) {
+      const info = { reason, by }
+      this.dispatchEvent(new CustomEvent('refused', { bubbles: true, detail: info }))
+      this.whenRefused?.(info)
+      return
+    }
     this._taking = true
     const item = String(this.item || this.meshName || '')
+    const qty = this.qty > 0 ? this.qty : 1
     const feet = by?.getCameraTarget?.()?.getAbsolutePosition()
     const at = this.mesh?.getAbsolutePosition()
     const low = feet == null || at == null || at.y - feet.y < LOW
@@ -165,9 +181,9 @@ export class B3dPickup extends B3dProp {
       (low ? by?.perform?.('pickupLow') : 0) || by?.perform?.('pickup') || 0
     const take = () => {
       this.dispatchEvent(
-        new CustomEvent('pickedup', { bubbles: true, detail: { item, by } })
+        new CustomEvent('pickedup', { bubbles: true, detail: { item, qty, by } })
       )
-      this.whenPickedUp?.({ item, by })
+      this.whenPickedUp?.({ item, qty, by })
       this.remove()
     }
     if (seconds <= 0) {

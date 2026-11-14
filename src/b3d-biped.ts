@@ -215,7 +215,7 @@ animation is doing with that hand.
 | `climbReach` | `2.2` | Highest ledge the character can pull itself onto, metres (see Mantling, below) |
 | `hardLanding` | `0` (auto) | Metres of drop past which a landing is hard: the `hardLand` clip (UAL's `Roll`), standing still while it plays. Auto is 1.5 body heights. The drop is from the top of the flight, so a jump on flat ground is never hard ([fall](/fall/)) |
 | `lethalFall` | `0` (off) | Metres of drop that kill on landing: the `death` clip (`Death01`) where you land, then a bubbling `crash` event (`detail: { cause: 'fall', drop }`) that `<tosi-b3d-death>` answers without exploding you. Off by default, since a death needs an exit. Water breaks a fall |
-| `health` | `0` (can't be hurt) | Hit points. Above 0 the biped is a target like any destroyable: a hit plays a hit clip (`hitChest` / `hitStomach` / `hitHead` in turn, `hitKnockback` for a blast) and holds it still for the clip; at 0 it plays `death` where it stands and dispatches a bubbling `destroyed`, which `<tosi-b3d-death>` answers. `hp` reads what is left, `damage(amount, cause)` hurts it, `aimTarget` is a chest-height node for turrets and AI to track |
+| `health` | `0` (can't be hurt) | Hit points. Above 0 the biped is a target like any destroyable: a hit plays a hit clip (`hitChest` / `hitStomach` / `hitHead` in turn, `hitKnockback` for a blast) and holds it still for the clip; at 0 it plays `death` where it stands and dispatches a bubbling `destroyed`, which `<tosi-b3d-death>` answers. `hp` reads what is left, `damage(amount, cause)` hurts it, `heal(amount)` mends it, `aimTarget` is a chest-height node for turrets and AI to track |
 | `hitScale` | head 2.5, trunk 1, limb 0.5 | (a property) What a hit does by where it lands. A round that says where it struck (a launcher with `direct-hit="on"`) is placed by `hitRegion(point)`: the head round the head bone, the trunk near the hips-to-neck axis, a limb anywhere else; a crouch moves them with the body. The head plays `hitHead`, the trunk `hitChest` and `hitStomach` in turn, a limb `hitShoulderL`/`R` by side. `hurt` events carry the `region` |
 | `healthRegen` | `0` | Hit points regained per second, from `healthRegenDelay` (5) seconds after the last hit |
 | `wadeDepth` | `0.45` | Water depth, as a fraction of standing height, where wading becomes swimming |
@@ -1003,6 +1003,7 @@ export class B3dBiped extends B3dControllable {
    */
   gunplay = false
   private weaponWasPressed = false
+  private _reloadWasPressed = false
   /**
    * What the weapon button does, when a game decides (JS only). Called with
    * whether the button asks for the weapon UP; the game moves it (draw from
@@ -1578,6 +1579,13 @@ export class B3dBiped extends B3dControllable {
     const ax = feet.x + (head.x - feet.x) * u
     const az = feet.z + (head.z - feet.z) * u
     return Math.hypot(at.x - ax, at.z - az) < 0.2 * s ? 'trunk' : 'limb'
+  }
+
+  /** Heal it by `amount`, up to its `health` (a first-aid kit, a potion; nothing once dead). */
+  heal(amount: number): void {
+    const d = this.destroyable
+    if (d == null || this.halted) return
+    this.owner?.combat.heal(d.combatId, amount)
   }
 
   /** Hurt this biped (no effect when `health` is 0 or it is already dead). */
@@ -2993,6 +3001,11 @@ export class B3dBiped extends B3dControllable {
       // is down, but an XR controller or an AI feeds this directly and a
       // holstered character who fires anyway is worse than one who cannot.
       if (this.gunplay && (input.shoot ?? 0) > 0.5) this._fireWeapons()
+      // Reload, on the press (a launcher with a magazine; others ignore it).
+      const reloadDown = (input.reload ?? 0) > 0.5
+      if (reloadDown && !this._reloadWasPressed)
+        for (const w of this._weapons()) (w as { reload?: () => boolean }).reload?.()
+      this._reloadWasPressed = reloadDown
       // A melee weapon swings, once per swing: held, it swings again after.
       this._attackFor = Math.max(0, this._attackFor - dt)
       if (

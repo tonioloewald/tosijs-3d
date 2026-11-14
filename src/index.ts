@@ -481,6 +481,7 @@ export type {
 } from './inventory-box.js'
 export { tradePanel, type TradePanel, type TradePanelOptions } from './inventory-trade.js'
 export { beginTrade, type Trade, type TradeSides, type TradeChange } from './trade.js'
+export { formatMoney, currencyFor, type Currency } from './currency.js'
 // Common nouns, so prefixed as they leave the barrel (CLAUDE.md: bare
 // common nouns don't leak); the module itself keeps the short names.
 export type {

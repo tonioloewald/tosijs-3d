@@ -548,6 +548,8 @@ export function bipedMapping(
   */
   // Clicking the right stick toggles it too (R3), so both clicks do something.
   input.weapon = Math.max(pad.rightBumper, pad.rightStickPress)
+  // Reload: the d-pad (J on a keyboard); an empty gun also reloads itself.
+  input.reload = pad.dpadLeft
   input.jump = pad.buttonA
   // Clicking the left stick sneaks too, as L3 does in GTA V.
   input.sneak = Math.max(pad.leftBumper, pad.leftStickPress)
@@ -573,6 +575,7 @@ export const bipedMappingDescriptor: InputMappingDescriptor = {
     leftTrigger: 'aim',
     buttonX: 'interact',
     buttonB: 'fire',
+    dpadLeft: 'reload',
     rightStickY: 'pitch',
     dpadUp: 'zoom',
   },

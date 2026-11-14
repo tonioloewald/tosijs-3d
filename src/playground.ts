@@ -30,10 +30,12 @@ const gripFor = (name) => {
 // so the rifles are fired from a one-handed stance. Anything else is a melee
 // weapon (`holdingWeapon`): on guard, and the trigger swings it.
 const WEAPONS = {
-  Pistol: { tags: ['side', 'hand'], mass: 1, art: 'pistol', fire: { fireRate: 6, muzzleSpeed: 45, damage: 25, projRadius: 0.08, gravity: -2, directHit: 'on' } },
-  SMG: { tags: ['side', 'hand'], mass: 2.5, art: 'pistol', fire: { fireRate: 14, muzzleSpeed: 50, damage: 12, projRadius: 0.06, gravity: -2, directHit: 'on' } },
-  'Assault Rifle': { tags: ['back', 'hand', 'two-handed'], mass: 3.5, art: 'rifle', fire: { fireRate: 9, muzzleSpeed: 80, damage: 20, projRadius: 0.06, gravity: -1, directHit: 'on' } },
-  'Rocket Launcher': { tags: ['back', 'hand', 'two-handed'], mass: 7, art: 'rifle', fire: { fireRate: 0.8, muzzleSpeed: 25, damage: 120, projRadius: 0.16, gravity: -1, directHit: 'off' } },
+  // A gun's magazine is `ammo` rounds, reloaded in `reloadTime` seconds from
+  // what it `loads` in your bag.
+  Pistol: { tags: ['side', 'hand'], mass: 1, art: 'pistol', loads: 'Pistol Ammo', fire: { fireRate: 6, muzzleSpeed: 45, damage: 25, projRadius: 0.08, gravity: -2, directHit: 'on', ammo: 12, reloadTime: 1.2 } },
+  SMG: { tags: ['side', 'hand'], mass: 2.5, art: 'pistol', loads: 'Pistol Ammo', fire: { fireRate: 14, muzzleSpeed: 50, damage: 12, projRadius: 0.06, gravity: -2, directHit: 'on', ammo: 30, reloadTime: 1.6 } },
+  'Assault Rifle': { tags: ['back', 'hand', 'two-handed'], mass: 3.5, art: 'rifle', loads: 'Rifle Ammo', fire: { fireRate: 9, muzzleSpeed: 80, damage: 20, projRadius: 0.06, gravity: -1, directHit: 'on', ammo: 30, reloadTime: 2 } },
+  'Rocket Launcher': { tags: ['back', 'hand', 'two-handed'], mass: 7, art: 'rifle', loads: 'Rockets', fire: { fireRate: 0.8, muzzleSpeed: 25, damage: 120, projRadius: 0.16, gravity: -1, directHit: 'off', ammo: 1, reloadTime: 2.5 } },
   Dagger: { tags: ['side', 'hand'], mass: 0.4, art: 'knife' },
   'Short Sword': { tags: ['side', 'hand'], mass: 1, art: 'sword' },
   'Long Sword': { tags: ['side', 'hand'], mass: 1.5, art: 'sword' },
@@ -43,7 +45,14 @@ const WEAPONS = {
   Buckler: { tags: ['back', 'hand'], mass: 2.5, art: 'shield' },
   // Not a weapon: it lives in the bag, and opens the yard's door.
   'Iron Key': { tags: ['key'], mass: 0.1, art: 'key' },
+  // Rounds, in stacks.
+  'Pistol Ammo': { tags: ['ammo'], mass: 0.01, art: 'ammo', stack: 200 },
+  'Rifle Ammo': { tags: ['ammo'], mass: 0.015, art: 'ammo', stack: 200 },
+  Rockets: { tags: ['ammo'], mass: 1.5, art: 'rocket', stack: 10 },
 }
+// What things are worth (the info floater shows it, in the purse's currency).
+const COST = { Pistol: 40, SMG: 90, 'Assault Rifle': 160, 'Rocket Launcher': 300, Dagger: 8, 'Short Sword': 20, 'Long Sword': 35, 'Hand and a Half': 60, 'Plasma Blade': 120, Spear: 15, Buckler: 12, 'Pistol Ammo': 0.5, 'Rifle Ammo': 1, Rockets: 25 }
+for (const [kind, cost] of Object.entries(COST)) WEAPONS[kind].cost = cost
 
 // ONE LAUNCHER, carrying whatever is in your right hand. `socket` parents it
 // to the hand BONE, so it follows the animation, and with a socket x/y/z/rx/
@@ -53,7 +62,7 @@ const gun = b3dLauncher({
   socket: 'right-hand',
   ...gripFor('Pistol'),
   ...WEAPONS.Pistol.fire,
-  ammo: 999, reloadRate: 40, projColor: '#ffdd66',
+  projColor: '#ffdd66',
 })
 
 // A QUATERNIUS UAL RIG, not omnidude, and the arena is the reason rather than
@@ -109,6 +118,10 @@ const loadout = demoLoadout({
   equip: { right_side: 'Pistol' },
   // The yard's two chests are holders in the same inventory.
   holders: { 'gate chest': {}, 'yard chest': {} },
+  // Money, written as the game writes it: `12 gold` (a label after the
+  // amount; `€` or `$` would go before it).
+  purse: { gold: 25 },
+  currencies: [{ id: 'gold', label: 'gold' }],
   // Dropped is THROWN: 6 m ahead, and where it lands it makes a noise, so it
   // is how you lure the enemy away.
   handleDrop: (item) => {
@@ -123,12 +136,59 @@ const loadout = demoLoadout({
   },
 })
 const BAG = { holder: 'hero', container: 'bag' }
+// AMMO: what your guns load is in the bag, in stacks. Start with 36 pistol
+// rounds and nothing else; more lies around (and rockets are in the yard).
+const AMMO = ['Pistol Ammo', 'Rifle Ammo', 'Rockets']
+for (const kind of AMMO) loadout.inv.move({ item: kind, to: null })
+loadout.inv.move({ kind: 'Pistol Ammo', qty: 36, to: BAG })
+const heroItems = () => Object.values(loadout.inv.doc.items).filter((i) => loadout.inv.where(i.id)?.holder === 'hero')
+const rounds = (kind) => heroItems().filter((i) => i.kind === kind).reduce((n, i) => n + i.qty, 0)
+const useRounds = (kind, n) => {
+  let got = 0
+  for (const i of heroItems().filter((i) => i.kind === kind)) {
+    const take = Math.min(n - got, i.qty)
+    if (take <= 0) break
+    loadout.inv.move({ item: i.id, qty: take, to: null })
+    got += take
+  }
+  return got
+}
+// The gun reloads from the bag: whatever the gun in hand loads.
+const loads = () => WEAPONS[kindOf(inRight())]?.loads
+gun.ammoSource = {
+  count: () => (loads() ? rounds(loads()) : 0),
+  take: (n) => (loads() ? useRounds(loads(), n) : 0),
+}
 // Lying on its side (the weapons stand on their grips, blade or barrel up +Y).
 const pickup = (kind, x, z) => b3dPickup({
   library: 'weapons', meshName: kind, item: kind,
   x, y: 0.08, z, rz: 90,
   whenPickedUp: ({ item }) => loadout.inv.move({ kind: item, to: BAG }),
 })
+// AMMO AND HEALTH lying about (Kenney's ammo boxes, a potion and a heart),
+// scaled up to be seen: Kenney's ammo is a real cartridge's size.
+// Ammo goes in the bag; health is taken at once, and left lying while you
+// are at full health.
+const kenney = b3dLibrary({ url: assetUrl('kenney/libraries/weapon-pack.glb'), type: 'kenney-weapons' })
+const survival = b3dLibrary({ url: assetUrl('kenney/libraries/survival-kit.glb'), type: 'survival' })
+const platformer = b3dLibrary({ url: assetUrl('kenney/libraries/platformer-kit.glb'), type: 'platformer' })
+const ammoBox = (kind, meshName, qty, x, z) => b3dPickup({
+  library: 'kenney-weapons', meshName, item: kind, qty, x, y: 0.05, z, scale: 6,
+  whenPickedUp: ({ item, qty }) => { loadout.inv.move({ kind: item, qty, to: BAG }); say(`${qty} ${item}`) },
+})
+const healer = (library, meshName, heals, x, z, scale = 1) => b3dPickup({
+  library, meshName, item: meshName, x, y: 0.05, z, scale,
+  refuse: () => (hero.hp >= 100 ? 'You are at full health.' : null),
+  whenRefused: ({ reason }) => say(reason),
+  whenPickedUp: () => { hero.heal(heals); say(`+${heals} health`) },
+})
+const LYING_ABOUT = [
+  ammoBox('Pistol Ammo', 'ammo_uzi', 24, 1, 7),
+  ammoBox('Rifle Ammo', 'ammo_machinegun', 30, -9, -6),
+  ammoBox('Pistol Ammo', 'ammo_uzi', 24, 12, 12),
+  healer('survival', 'bottle', 30, 3, 6.5, 2.5),
+  healer('platformer', 'heart', 60, -14, -8),
+]
 const ON_THE_GROUND = [['Assault Rifle', -2, 6.5], ['Long Sword', -4.5, 6], ['Buckler', -7, 6.5]]
 for (const [kind] of ON_THE_GROUND) loadout.inv.move({ item: kind, to: null })
 // THE YARD, behind you: a walled pen (too high to climb) whose door is
@@ -138,6 +198,7 @@ for (const [kind] of ON_THE_GROUND) loadout.inv.move({ item: kind, to: null })
 const stock = (holder) => ({ holder, container: 'stock' })
 loadout.inv.move({ item: 'Iron Key', to: stock('gate chest') })
 loadout.inv.move({ item: 'Rocket Launcher', to: stock('yard chest') }, { item: 'Hand and a Half', to: stock('yard chest') })
+loadout.inv.move({ kind: 'Rockets', qty: 4, to: stock('yard chest') })
 const has = (kind) => Object.values(loadout.inv.doc.items).some((i) => i.kind === kind)
 // OPENING A CHEST opens a trade: its contents beside your bag, take what you
 // take and leave the rest. One panel (no button on the system bar), one
@@ -203,11 +264,18 @@ const wire = (h) => {
   }
   return h
 }
+// Each gun keeps what is in its magazine while it is put away.
+const magazines = {}
+let inHand = null
 const hold = (h) => {
-  const kind = kindOf(inRight())
+  const id = inRight()
+  const kind = kindOf(id)
   const w = kind ? WEAPONS[kind] : null
-  if (w && gun.meshName !== kind) {
-    Object.assign(gun, gripFor(kind), w.fire ?? {}, { meshName: kind })
+  if (w?.fire && id !== inHand) {
+    if (inHand && WEAPONS[kindOf(inHand)]?.fire) magazines[inHand] = gun.loaded
+    inHand = id
+    Object.assign(gun, gripFor(kind), w.fire, { meshName: kind })
+    gun.loaded = magazines[id] ?? w.fire.ammo
     gun.reloadModel()
   }
   h.holdingWeapon = w != null && w.fire == null
@@ -324,6 +392,7 @@ preview.append(
           if (hero.aimTarget && !hero.halted) turret.track(hero.aimTarget)
           else turret.clearTarget()
           const text = (hero.halted ? 'health: dead' : `health: ${Math.max(0, Math.round(hero.hp))} / 100`) +
+            (hero.gunplay && loads() ? ` · ${loads()}: ${gun.reloading ? 'reloading' : gun.loaded} / ${rounds(loads())}` : '') +
             ` · guard: ${enemyText(enemies[0])} · patrol: ${enemyText(enemies[1])}` +
             (said ? ` · ${said}` : '')
           if (text !== shown) readout.textContent = shown = text
@@ -354,7 +423,9 @@ preview.append(
       },
     },
     weapons,
+    kenney, survival, platformer,
     turret,
+    ...LYING_ABOUT,
     ...ON_THE_GROUND.map(([kind, x, z]) => pickup(kind, x, z)),
     ...YARD,
     ...enemies,
@@ -398,10 +469,26 @@ A blade, the spear or the buckler takes a guard (UAL's `Sword_Idle`) and **R**
 swings it (`Sword_Attack`, played through; held, it swings again). Press the
 bumper again to put away what is in your hand. Only the right hand is drawn.
 
+**Ammo.** A gun holds a magazine (the pistol 12, the SMG and rifle 30, the
+rocket launcher one) and reloads from what is in your bag: **J** (d-pad
+left) reloads, and an empty gun reloads itself when you pull the trigger.
+The line under the scene shows what is loaded and what is left. You start
+with 36 pistol rounds; ammo boxes lie about, and each gun keeps its own
+magazine while it is put away.
+
+**Health.** A potion (30) and a heart (60) lie about: walk up and press
+**E**. At full health they stay where they are.
+
 **Things to pick up.** A rifle, a sword and a buckler lie in front of you:
 walk up and press **E** to pick one up (you kneel for it), and it goes in your
 bag. Drag anything from the loadout onto **drop** and you throw it: it lands
 6 m ahead with a clatter the enemy hears.
+
+**A locked yard.** Behind the start is a walled yard with a locked door.
+The key is in the chest beside it: press **E** and the chest opens with
+what is inside next to your bag; take what you want and leave the rest. The
+key opens the door, and the chest inside holds the rocket launcher, the big
+sword and rockets.
 
 **Something hunts you.** Two enemies: one stands guard
 this side of the cover line with its back to you, one walks a loop beyond it.

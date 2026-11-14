@@ -217,6 +217,7 @@ that assumes one orients its effect off nothing.
 | `ammo` | `40` | Magazine capacity (a `Resource`) |
 | `reloadRate` | `8` | Ammo regenerated per second (0 = no reload) |
 | `reloadDelay` | `1` | Seconds after firing before reload resumes |
+| `reloadTime` | `0` | Seconds a reload takes. Set, the launcher has a MAGAZINE of `ammo` rounds instead of regenerating: `reload()` (a biped's reload button) fills it from `ammoSource` after this long, and pulling the trigger on an empty one starts a reload. See [magazine](/magazine/) |
 | `gravity` | `-9.81` | Vertical acceleration on the shell |
 | `drag` | `0.01` | Quadratic drag coefficient (0 = vacuum) |
 | `mass` | `1` | Shell mass (higher flies flatter/further under drag) |
@@ -501,6 +502,16 @@ import type { WarheadSpec } from './warhead.js'
 import type { Cause } from './destroyable.js'
 import { destroyableAt } from './destroyable-behavior.js'
 import { makeNoise } from './noise.js'
+import {
+  beginReload,
+  cancelReload,
+  fireRound,
+  makeMagazine,
+  reloading,
+  setCapacity,
+  tickMagazine,
+  type Magazine,
+} from './magazine.js'
 import { attachTrail, type TrailOptions } from './b3d-trail.js'
 
 /**
@@ -1135,6 +1146,7 @@ export class B3dLauncher extends AbstractMesh {
     ammo: 40, // magazine capacity
     reloadRate: 8, // ammo regenerated per second (0 = no reload)
     reloadDelay: 1, // seconds after firing before reload resumes
+    reloadTime: 0, // seconds a magazine reload takes; 0 = regenerate instead
     gravity: -9.81,
     drag: 0.01,
     mass: 1,
@@ -1234,8 +1246,19 @@ export class B3dLauncher extends AbstractMesh {
   declare blastRadius: number
   declare los: string
   declare directHit: 'on' | 'off'
+  declare reloadTime: number
+
+  /**
+   * Where a magazine reload's rounds come from (`reloadTime` set): `count()`
+   * is how many there are, `take(n)` hands over up to n. The game's, usually
+   * an inventory. Unset: an endless supply.
+   */
+  ammoSource: { count: () => number; take: (n: number) => number } | null =
+    null
 
   private _ammoPool!: Resource
+  private _mag: Magazine | null = null
+  private _dry = false
   private _cooldown = 0
   private _stopLoad: (() => void) | null = null
   private _muzzleNode: BABYLON.TransformNode | null = null
@@ -1259,7 +1282,64 @@ export class B3dLauncher extends AbstractMesh {
 
   /** Ammo currently in the magazine. */
   get ammoRemaining(): number {
+    if (this.reloadTime > 0) return this._magazine().loaded
     return this._ammoPool?.value ?? 0
+  }
+
+  /** Rounds in the magazine (`reloadTime` set); setting it loads that many (a gun taken out of the bag keeps its own). */
+  get loaded(): number {
+    return this._magazine().loaded
+  }
+  set loaded(n: number) {
+    const m = this._magazine()
+    cancelReload(m)
+    m.loaded = Math.max(0, Math.min(m.capacity, Math.round(n)))
+  }
+
+  /** A magazine reload is under way. */
+  get reloading(): boolean {
+    return this._mag != null && reloading(this._mag)
+  }
+
+  /** The magazine, sized to `ammo` (which changes when a hand takes another gun). */
+  private _magazine(): Magazine {
+    if (this._mag == null) this._mag = makeMagazine(this.ammo)
+    else if (this._mag.capacity !== this.ammo) setCapacity(this._mag, this.ammo)
+    return this._mag
+  }
+
+  /**
+   * Reload (`reloadTime` set): after `reloadTime` the magazine fills from
+   * `ammoSource`. False when it is full, already reloading, or there is
+   * nothing to load. Dispatches `reloading`, then `reloaded`.
+   */
+  reload(): boolean {
+    if (!(this.reloadTime > 0)) return false
+    const available = this.ammoSource ? this.ammoSource.count() : Infinity
+    if (!beginReload(this._magazine(), this.reloadTime, available)) return false
+    this._dry = false
+    this.dispatchEvent(new CustomEvent('reloading', { bubbles: true, detail: { seconds: this.reloadTime } }))
+    return true
+  }
+
+  /** Spend a round, from the magazine or the regenerating pool. */
+  private _spend(): boolean {
+    if (this.reloadTime > 0) {
+      const m = this._magazine()
+      if (fireRound(m)) {
+        this._dry = false
+        return true
+      }
+      // Empty: reload if there is anything to load; if not, say so (once, until something changes).
+      if (!reloading(m) && !this.reload() && !this._dry) {
+        this._dry = true
+        this.dispatchEvent(new CustomEvent('empty', { bubbles: true }))
+      }
+      return false
+    }
+    if (isEmpty(this._ammoPool)) return false
+    drain(this._ammoPool, 1)
+    return true
   }
 
   sceneReady(owner: B3d, scene: BABYLON.Scene): void {
@@ -1299,6 +1379,15 @@ export class B3dLauncher extends AbstractMesh {
       }
       if (this._cooldown > 0) this._cooldown -= dt
       regenTick(this._ammoPool, dt)
+      if (this._mag != null && this.reloadTime > 0) {
+        const done = tickMagazine(this._magazine(), dt, (n) =>
+          this.ammoSource ? this.ammoSource.take(n) : n
+        )
+        if (done) {
+          this._dry = false
+          this.dispatchEvent(new CustomEvent('reloaded', { bubbles: true, detail: { loaded: this._mag.loaded } }))
+        }
+      }
     })
 
     /*
@@ -1750,8 +1839,7 @@ export class B3dLauncher extends AbstractMesh {
    */
   fire(direction?: BABYLON.Vector3, origin?: BABYLON.Vector3): boolean {
     if (this.owner == null) return false
-    if (this._cooldown > 0 || isEmpty(this._ammoPool)) return false
-    drain(this._ammoPool, 1)
+    if (this._cooldown > 0 || !this._spend()) return false
     this._cooldown = this.fireRate > 0 ? 1 / this.fireRate : 0
     const dir = (direction ?? this.forward()).normalizeToNew()
     spawnProjectile(this.owner, {
@@ -1777,8 +1865,7 @@ export class B3dLauncher extends AbstractMesh {
    */
   fireAt(target: BABYLON.AbstractMesh, direction?: BABYLON.Vector3): boolean {
     if (this.owner == null) return false
-    if (this._cooldown > 0 || isEmpty(this._ammoPool)) return false
-    drain(this._ammoPool, 1)
+    if (this._cooldown > 0 || !this._spend()) return false
     this._cooldown = this.fireRate > 0 ? 1 / this.fireRate : 0
     spawnMissile(this.owner, {
       origin: this.muzzle(),

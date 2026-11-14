@@ -33,6 +33,7 @@ const input = { ...emptyInput(), forward: 1, turn: -0.5, shoot: 1 }
 | `interact` | 0..1 | Enter vehicle / pick up / use |
 | `aim` | 0..1 | Aim down sights |
 | `weapon` | 0..1 | Raise/lower the weapon — edge-detected by consumers, so it TOGGLES |
+| `reload` | 0..1 | Reload what is in hand — edge-detected |
 | `cameraZoom` | -1..1 | Camera zoom |
 | `lookMode` | 0..1 | Toggle (edge-detected) what the look stick's up and down do: a tank's gun, or its camera |
 | `sneak` | 0\|1 | Sneak toggle |
@@ -82,6 +83,8 @@ export interface ControlInput {
    * not aiming, but a character who is not aiming may still be armed.
    */
   weapon: number // 0..1
+  /** Reload what is in hand — edge-detected. */
+  reload: number // 0..1
   cameraZoom: number // -1..1 (negative = zoom in, positive = zoom out)
   sneak: number // 0|1
   view: number // 0..1 (cycle camera/view — edge-detected by consumers)
@@ -115,6 +118,7 @@ export function emptyInput(): ControlInput {
     interact: 0,
     aim: 0,
     weapon: 0,
+    reload: 0,
     cameraZoom: 0,
     sneak: 0,
     view: 0,
@@ -168,6 +172,7 @@ export class CompositeInputProvider implements InputProvider {
       result.interact = Math.max(result.interact, input.interact)
       result.aim = Math.max(result.aim, input.aim)
       result.weapon = Math.max(result.weapon, input.weapon)
+      result.reload = Math.max(result.reload, input.reload ?? 0)
       result.sneak = Math.max(result.sneak, input.sneak)
       result.view = Math.max(result.view, input.view)
       result.cameraPeek = maxAbs(result.cameraPeek, input.cameraPeek)

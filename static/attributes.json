@@ -819,7 +819,7 @@
       {
         "name": "health",
         "default": "0",
-        "description": "Hit points. Above 0 the biped is a target like any destroyable: a hit plays a hit clip (`hitChest` / `hitStomach` / `hitHead` in turn, `hitKnockback` for a blast) and holds it still for the clip; at 0 it plays `death` where it stands and dispatches a bubbling `destroyed`, which `<tosi-b3d-death>` answers. `hp` reads what is left, `damage(amount, cause)` hurts it, `aimTarget` is a chest-height node for turrets and AI to track"
+        "description": "Hit points. Above 0 the biped is a target like any destroyable: a hit plays a hit clip (`hitChest` / `hitStomach` / `hitHead` in turn, `hitKnockback` for a blast) and holds it still for the clip; at 0 it plays `death` where it stands and dispatches a bubbling `destroyed`, which `<tosi-b3d-death>` answers. `hp` reads what is left, `damage(amount, cause)` hurts it, `heal(amount)` mends it, `aimTarget` is a chest-height node for turrets and AI to track"
       },
       {
         "name": "healthRegen",
@@ -2639,6 +2639,11 @@
         "description": "Seconds after firing before reload resumes"
       },
       {
+        "name": "reloadTime",
+        "default": "0",
+        "description": "Seconds a reload takes. Set, the launcher has a MAGAZINE of `ammo` rounds instead of regenerating: `reload()` (a biped's reload button) fills it from `ammoSource` after this long, and pulling the trigger on an empty one starts a reload. See [magazine](/magazine/)"
+      },
+      {
         "name": "gravity",
         "default": "-9.81",
         "description": "Vertical acceleration on the shell"
@@ -3534,6 +3539,11 @@
         "name": "noise",
         "default": "15",
         "description": "Metres the noise carries when it lands after `toss` (0: silent)"
+      },
+      {
+        "name": "qty",
+        "default": "1",
+        "description": "How many it is (a box of 30 rounds is one pickup, `qty` 30)"
       }
     ]
   },
@@ -5895,6 +5905,11 @@
         "description": "Raise/lower the weapon — edge-detected by consumers, so it TOGGLES"
       },
       {
+        "name": "reload",
+        "default": "0..1",
+        "description": "Reload what is in hand — edge-detected"
+      },
+      {
         "name": "cameraZoom",
         "default": "-1..1",
         "description": "Camera zoom"
@@ -6114,7 +6129,7 @@
       },
       {
         "name": "currency",
-        "default": "'gold'"
+        "default": "The purse key a shop pays in (default: the inventory's first currency, else `gold`), written as the inventory's `currencies` say (`€12`, `12 gp`)"
       },
       {
         "name": "decorations",
