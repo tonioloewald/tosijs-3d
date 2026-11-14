@@ -82,7 +82,7 @@ const gun = b3dLauncher({
 // on a figure half the intended size.
 const hero = b3dBiped(
   {
-    url: assetUrl('quaternius/UAL1_core.glb', 3),
+    url: assetUrl('quaternius/UAL1_core.glb', 4),
     animationStates: ualAnimationStates(),
     player: true, cameraType: 'follow', aiming: 'on', aimFreeYaw: 45,
   },
@@ -213,6 +213,8 @@ animation is doing with that hand.
 | `strafing` | `'off'` | `'on'` sidesteps with the left stick; `'off'` turns with it |
 | `strafeSpeed` | `0.75` | Sidestep speed as a fraction of walking |
 | `climbReach` | `2.2` | Highest ledge the character can pull itself onto, metres (see Mantling, below) |
+| `hardLanding` | `0` (auto) | Metres of drop past which a landing is hard: the `hardLand` clip (UAL's `Roll`), standing still while it plays. Auto is 1.5 body heights. The drop is from the top of the flight, so a jump on flat ground is never hard ([fall](/fall/)) |
+| `lethalFall` | `0` (off) | Metres of drop that kill on landing: the `death` clip (`Death01`) where you land, then a bubbling `crash` event (`detail: { cause: 'fall', drop }`) that `<tosi-b3d-death>` answers without exploding you. Off by default, since a death needs an exit. Water breaks a fall |
 | `wadeDepth` | `0.45` | Water depth, as a fraction of standing height, where wading becomes swimming |
 | `buoyancy` | `0` | How high the figure rides in the water, metres. `0` puts the waterline at the head |
 
@@ -368,6 +370,7 @@ import { predictPath, type BallisticParams, type Vec3 } from './ballistics.js'
 import { XRInputProvider } from './xr-input-provider.js'
 import { forwardGait } from './gait.js'
 import { realNow } from './clock.js'
+import { FALL_START_DROP, fallRules, landingOutcome } from './fall.js'
 
 const DEG_TO_RAD = Math.PI / 180
 
@@ -413,7 +416,7 @@ export class AnimState {
  *
  * ```js
  * b3dBiped({
- *   url: assetUrl('quaternius/UAL1_core.glb', 3),
+ *   url: assetUrl('quaternius/UAL1_core.glb', 4),
  *   animationStates: ualAnimationStates(),
  * })
  * ```
@@ -461,6 +464,9 @@ export function ualAnimationStates(extra: AnimStateSpec[] = []): AnimState[] {
     { name: 'jump', animation: 'Jump_Start', loop: false },
     { name: 'jumpLoop', animation: 'Jump_Loop', loop: true },
     { name: 'jumpLand', animation: 'Jump_Land', loop: false },
+    // A landing from high up (`hardLanding`), and a fall that kills (`lethalFall`).
+    { name: 'hardLand', animation: 'Roll', loop: false },
+    { name: 'death', animation: 'Death01', loop: false },
     /*
     CLIMB clips are named for the HEIGHT they cover, not for the state that
     preceded them — which is why `mantle.mantleClip` picks one by measuring the
@@ -746,6 +752,22 @@ export class B3dBiped extends B3dControllable {
      * rather than painted onto it.
      */
     climbReach: 2.2,
+    /**
+     * **Metres of drop past which a landing is hard**: a heavy landing clip
+     * (`hardLand`) that holds you still while it plays. The drop is from the
+     * top of the flight to where you land, so a jump on flat ground is never
+     * hard. `0` (auto) is 1.5 body heights, 2.7 m for a 1.8 m person.
+     */
+    hardLanding: 0,
+    /**
+     * **Metres of drop that kill you on landing.** `0` (the default) means no
+     * fall kills: a death needs an exit, so a scene that has one
+     * (`<tosi-b3d-death>`) asks for it. A lethal landing plays `death` where
+     * you land, halts the biped and dispatches a bubbling `crash` event
+     * (`detail: { cause: 'fall', drop }`), which `<tosi-b3d-death>` answers.
+     * Water breaks a fall.
+     */
+    lethalFall: 0,
     /**
      * **How deep the water gets before you swim, as a fraction of standing
      * height.** Below this you wade — feet on the bottom, walking; above it
@@ -1469,7 +1491,33 @@ export class B3dBiped extends B3dControllable {
    * flight, which is what `speedRatio` retiming was compensating for.
    */
   private _airPhase: 'start' | 'loop' | 'land' | null = null
+  /** The highest the body has been since it left the ground (the drop is from here). */
+  private _airTopY = 0
+  /** The landing playing is a hard one: the `hardLand` clip, standing still. */
+  private _hardLanding = false
   private _phaseLeft = 0
+
+  /**
+   * A fall that kills: the death clip where you landed, then halt (the clip
+   * plays on; nothing moves the body), then a bubbling `crash` for
+   * `<tosi-b3d-death>` or the game to answer.
+   */
+  private _dieFromFall(drop: number): void {
+    this._airPhase = null
+    this._hardLanding = false
+    this._fallVel = 0
+    this.diesInPlace = this._hasState('death')
+    if (this.diesInPlace) this.setAnimationState('death')
+    this.halt()
+    this.dispatchEvent(
+      new CustomEvent('crash', { bubbles: true, detail: { cause: 'fall', drop } })
+    )
+  }
+
+  /** The rig has this state AND the clip it names is loaded. */
+  private _hasState(name: string): boolean {
+    return this._clipSeconds(name) > 0
+  }
 
   /**
    * How long an animation clip runs, in seconds — `0` if there is no such clip.
@@ -2410,7 +2458,9 @@ export class B3dBiped extends B3dControllable {
     this._stanceLeft = Math.max(0, this._stanceLeft - dt)
     this._paceBlends(dt)
 
-    const speed = input.forward
+    // A hard landing holds you where you landed while it plays.
+    const speed =
+      this._hardLanding && this._airPhase === 'land' ? 0 : input.forward
     /*
     STRAFING IS OPTIONAL, AND OFF BY DEFAULT.
 
@@ -3242,6 +3292,38 @@ export class B3dBiped extends B3dControllable {
       if (submerged > 0) this._inAir = false
 
       /*
+      FALLS. The drop is measured from the highest point of the flight (the
+      top of a jump's arc, or the ledge walked off) to where you land, so a
+      jump on flat ground lands softly however high it went. Walking off a
+      ledge plays the air loop once it is clearly more than a step down.
+      */
+      if (this._inAir) {
+        this._airTopY = wasInAir
+          ? Math.max(this._airTopY, node.position.y)
+          : node.position.y
+        if (
+          this._airPhase == null &&
+          this._airTopY - node.position.y > FALL_START_DROP
+        )
+          this._airPhase = 'loop'
+      } else if (wasInAir && submerged <= 0) {
+        const drop = this._airTopY - node.position.y
+        // Eye height is about 0.89 of a body's.
+        const outcome = landingOutcome(
+          drop,
+          fallRules(standHeight / 0.89, {
+            hardLanding: attrs.hardLanding,
+            lethalFall: attrs.lethalFall,
+          })
+        )
+        if (outcome === 'lethal') {
+          this._dieFromFall(drop)
+          return
+        }
+        this._hardLanding = outcome === 'hard'
+      }
+
+      /*
       START → LOOP → LAND, each for as long as it is actually true.
 
       `Jump_Start` runs its own length; `Jump_Loop` then covers however long the
@@ -3254,16 +3336,21 @@ export class B3dBiped extends B3dControllable {
       */
       if (this._airPhase != null) {
         this._phaseLeft -= dt
+        const landClip =
+          this._hardLanding && this._hasState('hardLand')
+            ? 'hardLand'
+            : 'jumpLand'
         if (wasInAir && !this._inAir) {
           this._airPhase = 'land'
-          this._phaseLeft = this._clipSeconds('jumpLand') || 0.3
+          this._phaseLeft = this._clipSeconds(landClip) || 0.3
         } else if (this._airPhase === 'start' && this._phaseLeft <= 0) {
           this._airPhase = this._inAir ? 'loop' : null
         } else if (this._airPhase === 'land' && this._phaseLeft <= 0) {
           this._airPhase = null
+          this._hardLanding = false
         } else if (this._airPhase === 'loop' && !this._inAir) {
           this._airPhase = 'land'
-          this._phaseLeft = this._clipSeconds('jumpLand') || 0.3
+          this._phaseLeft = this._clipSeconds(landClip) || 0.3
         }
       }
       /*
@@ -3416,6 +3503,8 @@ export class B3dBiped extends B3dControllable {
             ? this._jumpClip
             : this._airPhase === 'loop'
             ? 'jumpLoop'
+            : this._hardLanding && this._hasState('hardLand')
+            ? 'hardLand'
             : 'jumpLand'
         const has = this.animationStates.some((st) => st.name === want)
         this.setAnimationState(has ? want : this._jumpClip)
@@ -3961,7 +4050,7 @@ export class B3dBiped extends B3dControllable {
     }
     // The clips the states name, from the library, retargeted and named as they were.
     const library = await BABYLON.LoadAssetContainerAsync(
-      attrs.animations || assetUrl('quaternius/UAL1_core.glb', 3),
+      attrs.animations || assetUrl('quaternius/UAL1_core.glb', 4),
       scene
     )
     library.addAllToScene()

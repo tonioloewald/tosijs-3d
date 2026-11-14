@@ -12,6 +12,9 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Added:** falls on `<tosi-b3d-biped>`. Walking off a ledge plays the air loop; a landing from more than `hardLanding` metres (auto: 1.5 body heights) plays `hardLand` (UAL's `Roll`) and holds you still; `lethalFall` (metres, off by default) kills on landing: the `death` clip where you land and a bubbling `crash` event (`detail: { cause: 'fall', drop }`). `<tosi-b3d-death>` answers it without an explosion for an entity that shows its own death (`diesInPlace`). The Biped Playground's tower kills, and Respawn puts you back at the start. `fall` holds the rules.
+- **Changed:** `quaternius/UAL1_core.glb` carries `Death01`, `Death02`, `Roll`, `Hit_Chest`, `Hit_Head`, `Hit_Stomach`, `PickUp_Kneeling`, `NinjaJump_Land`, `Hit_Knockback` and `Chest_Open` (8.0 MB, was 6.9); the library asks for it as `?v=4`.
+
 - **Added:** `mirror` on `bakeClip`, `retargetClip`, `retargetSourceClip` and retargeting: the clip played left to right, each bone moving as its partner on the other side did, reflected. In the character builder it is **Mirrored** in the Animation menu, and an exported clip carries it as "<clip> (mirrored)".
 
 ## 0.13.1

@@ -45,7 +45,7 @@ preview.append(
           return c.skeletons.find((s) => s.bones.some((b) => { const t = b.getTransformNode(); return t && top && t.isDescendantOf(top) }))
         }
 
-        const ual = await load(assetUrl('quaternius/UAL1_core.glb', 3))
+        const ual = await load(assetUrl('quaternius/UAL1_core.glb', 4))
         const source = readSkeleton(ual.skeletons[0], rootOf(ual))
         const bodies = [{ root: rootOf(ual), skeleton: null, x: 2.4 }]
         const hero = await load(assetUrl('quaternius/libraries/characters-superhero-male.glb'))
@@ -761,7 +761,11 @@ const reflectVec = (v: Vec3): Vec3 => ({ x: -v.x, y: v.y, z: v.z })
 /** The role on the other side ('l-hand' ↔ 'r-hand'); a centre role is its own. */
 function mirrorRole(r: Role): Role {
   return (
-    r.startsWith('l-') ? `r-${r.slice(2)}` : r.startsWith('r-') ? `l-${r.slice(2)}` : r
+    r.startsWith('l-')
+      ? `r-${r.slice(2)}`
+      : r.startsWith('r-')
+      ? `l-${r.slice(2)}`
+      : r
   ) as Role
 }
 

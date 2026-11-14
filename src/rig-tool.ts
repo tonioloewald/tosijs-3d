@@ -395,7 +395,7 @@ export function rigToolModels(): RigModel[] {
       scale: 3,
       recipe: { armSpaceDeg: 55 },
     },
-    { label: 'UAL mannequin', url: assetUrl('quaternius/UAL1_core.glb', 3) },
+    { label: 'UAL mannequin', url: assetUrl('quaternius/UAL1_core.glb', 4) },
   ]
 }
 

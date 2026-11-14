@@ -24,7 +24,7 @@ const gun = b3dLauncher({
 })
 
 const hero = b3dBiped({
-  url: assetUrl('quaternius/UAL1_core.glb', 3),
+  url: assetUrl('quaternius/UAL1_core.glb', 4),
   animationStates: ualAnimationStates(),
   player: true, cameraType: 'none',
 })

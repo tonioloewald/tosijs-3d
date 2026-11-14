@@ -14,7 +14,7 @@ import { assetUrl, b3d, b3dBiped, b3dCar, b3dTank, b3dLibrary, inputFocus, playg
 
 const cars = b3dLibrary({ url: assetUrl('tonio/vehicles/cars.glb'), type: 'cars' })
 const hero = b3dBiped({
-  url: assetUrl('quaternius/UAL1_core.glb', 3),
+  url: assetUrl('quaternius/UAL1_core.glb', 4),
   animationStates: ualAnimationStates(),
   x: -4, z: 10, player: true, cameraType: 'follow',
 })

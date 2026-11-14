@@ -166,6 +166,13 @@ export class B3dControllable extends AbstractMesh {
     this._halted = true
   }
 
+  /**
+   * This entity shows its own death (a biped's death clip), so
+   * `<tosi-b3d-death>` leaves out the explosion and the falling wreck and
+   * keeps the exit: release, spectate, the panel.
+   */
+  diesInPlace = false
+
   /** True once `halt()` has been called. */
   get halted(): boolean {
     return this._halted

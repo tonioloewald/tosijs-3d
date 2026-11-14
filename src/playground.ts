@@ -6,7 +6,7 @@ arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, button3d, characterStore, holdGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dDeath, b3dLauncher, b3dLibrary, button3d, characterStore, holdGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
@@ -71,7 +71,7 @@ const gun = b3dLauncher({
 const MANNEQUIN = 'UAL mannequin'
 const makeHero = (doc, at) => b3dBiped(
   {
-    ...(doc ? { characterDoc: doc } : { url: assetUrl('quaternius/UAL1_core.glb', 3) }),
+    ...(doc ? { characterDoc: doc } : { url: assetUrl('quaternius/UAL1_core.glb', 4) }),
     animationStates: ualAnimationStates(),
     // WHERE THE ARENA IS IN FRONT OF YOU. Spawning at the origin put `pillar-b`
     // (0, -12.3) literally touching your muzzle line, so every shot from the
@@ -81,6 +81,9 @@ const makeHero = (doc, at) => b3dBiped(
     // built around, and there is room to see a round travel.
     x: at.x, z: at.z, ry: at.ry ?? 0,
     player: true, cameraType: 'follow',
+    // Walk off the 6 m tower and you die where you land; jump off the
+    // catwalk and you land hard.
+    lethalFall: 5,
   },
   gun
 )
@@ -139,10 +142,13 @@ const listSaved = (host) =>
     host?.refreshScenePanel?.()
   }).catch(() => {})
 listSaved()
+// The character file the hero is made from (null: the mannequin), for a respawn.
+let heroDoc = null
 const useCharacter = async (name) => {
   const doc = name === MANNEQUIN ? null : await store.get(stored(name)).catch(() => null)
   // Gone (forgotten, or another browser's): the menu says who you are.
   if (name !== MANNEQUIN && !doc) { playChar.pick.value = MANNEQUIN; return }
+  heroDoc = doc
   // Where the hero is now and which way he faces, so the new one takes over there.
   const was = hero.entries?.rootNodes[0]
   const p = was?.position
@@ -200,6 +206,19 @@ preview.append(
     weapons,
     ...playground(),
     ...loadout.panels(),
+    // Death's exit: the panel, and a new hero back at the start.
+    b3dDeath({
+      title: 'DEAD',
+      // A person, not an aircraft: watch from close by.
+      orbitRadius: 5,
+      orbitHeight: 2.5,
+      respawn() {
+        const next = wire(makeHero(heroDoc, { x: -4, z: 10 }))
+        hero.replaceWith(next)
+        hero = next
+        hold(next)
+      },
+    }),
     inputFocus(hero)
   )
 )
@@ -222,6 +241,10 @@ Each gun fires its own way (the SMG fast, the rocket launcher slow and heavy).
 A blade, the spear or the buckler takes a guard (UAL's `Sword_Idle`) and **R**
 swings it (`Sword_Attack`, played through; held, it swings again). Press the
 bumper again to put away what is in your hand. Only the right hand is drawn.
+
+**Falls hurt.** Jump off the catwalk and you land hard (a roll that holds you a
+moment); walk off the top of the tower and you die where you land, then
+respawn at the start.
 
 **WASD** moves, **arrow keys** look, **space** jumps, **left shift** sneaks,
 **E** interacts, **Y** switches between third and first person. On a pad,
@@ -262,7 +285,7 @@ arrangement is a test you walk around in rather than one you read.
 | the **bunker** (an L) | cover from a threat the wall does not face, which is why `shelterFrom` searches an arc |
 | the **railing** | cover that ISN'T. Same height, same distance, gap underneath. The one everybody's first implementation gets wrong |
 | the **crate steps** (0.4 / 0.9 / 1.6m) | the band between a step and a wall — `mantle` |
-| the **catwalk** | verticality, a firing position, and something to fall off |
+| the **catwalk** | verticality, a firing position, and something to fall off (a hard landing) |
 | the **targets** | something to murder |
 | the **pool** | swimming, diving (aim down and swim), surfacing, and a shelving ramp to walk in on slowly |
 

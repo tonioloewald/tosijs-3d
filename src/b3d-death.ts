@@ -86,7 +86,7 @@ should really emit a death and really emit a spawn, because that's the stream a 
 | `orbitHeight` | `6` | Camera height above the wreck |
 | `orbitSpeed` | `6` | Degrees/sec — slow. This is a moment, not a ride |
 | `spectate` | `'orbit'` | `orbit` circles the wreck; `chase` freezes the third-person shot you died in (static). Flat only |
-| `wreckage` | `'on'` | Explode + leave burning wreckage (`'off'` = just the panel) |
+| `wreckage` | `'on'` | Explode + leave burning wreckage (`'off'` = just the panel). An entity that shows its own death (`diesInPlace`, a biped with a death clip) never explodes |
 | `blastRadius` | `6` | Size of the fireball |
 
 ## Callbacks
@@ -317,7 +317,7 @@ export class B3dDeath extends B3dChild {
     // the player was left welded to a burning wreck with no panel — the exact
     // failure this component was written to prevent, reintroduced through its
     // own fireworks.)
-    if (this.wreckage !== 'off') {
+    if (this.wreckage !== 'off' && !entity?.diesInPlace) {
       try {
         explosionFx(scene, at, this.blastRadius)
         if (this.remains != null) {
