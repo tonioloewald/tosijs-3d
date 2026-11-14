@@ -12,6 +12,10 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Added:** a shopkeeper in the Biped Playground: a stand-in mannequin behind a counter; E at the counter opens a priced trade (ammo by the box, buy at value, sell at half). `tradePanel` takes `moveFor`, and `trade` counts what crossed by kind and quantity, so stacks split and joined in a trade are paid for correctly (`TradeChange` is now `{ kind, qty, from, to }`).
+- **Added:** the rig tool's `dragging` has **moves the joint alone**: a shoulder moved without carrying its elbow and wrist. `RigToolApi.skeleton` is the model's skeleton now.
+- **Changed:** in the character builder, the grip and hair manipulators turn off when the clip plays or changes, and the held item stays in hand while rigging (on the rig tool's body), so arm space can be judged with it.
+
 - **Added:** magazines and reloading. `<tosi-b3d-launcher reload-time>` gives a launcher a magazine of `ammo` rounds, refilled from `ammoSource` (`count()`, `take(n)`: the game's, an inventory) after `reloadTime` seconds; `reload()`, `loaded`, `reloading`, and `empty` / `reloading` / `reloaded` events. An empty gun reloads when the trigger is pulled. Without `reloadTime` a launcher regenerates as before. `magazine` is the pure model. `ControlInput.reload` (d-pad left, J on a keyboard) makes a biped reload what it holds.
 - **Added:** `B3dBiped.heal(amount)`. `<tosi-b3d-pickup>` gains `qty` (a box of 30 rounds is one pickup) and `refuse(by)` (a reason it can't be taken now: a potion at full health), with `whenRefused` and a `refused` event.
 - **Added:** `currency`: how money is written, `formatMoney(amount, { id, label, position })` (`€12`, `12 gold`, `12 gp`). An inventory takes `currencies`, and its panel's purse line, an item's value in the info floater and a trade's `you pay …` are written with them.

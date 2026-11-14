@@ -6,7 +6,7 @@ arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dBox, b3dChest, b3dDeath, b3dDoor, b3dPanel, createCarry, tradePanel, b3dLauncher, b3dLibrary, b3dNpc, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dBox, b3dChest, b3dDeath, b3dDoor, b3dPanel, createCarry, tradePanel, b3dInteractive, b3dLauncher, b3dLibrary, b3dNpc, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
@@ -80,6 +80,8 @@ const gun = b3dLauncher({
 // character builder saved in this browser, and picking one swaps the hero for
 // a biped made from it (`characterDoc`), carrying what you hold across.
 const MANNEQUIN = 'UAL mannequin'
+// A shop sells at an item's value and buys back at half.
+const shopPrice = (item, from) => (WEAPONS[item.kind]?.cost ?? 0) * item.qty * (from?.holder === 'shop' ? 1 : 0.5)
 const makeHero = (doc, at) => b3dBiped(
   {
     ...(doc ? { characterDoc: doc } : { url: assetUrl('quaternius/UAL1_core.glb', 4) }),
@@ -117,7 +119,8 @@ const loadout = demoLoadout({
   catalogue: WEAPONS,
   equip: { right_side: 'Pistol' },
   // The yard's two chests are holders in the same inventory.
-  holders: { 'gate chest': {}, 'yard chest': {} },
+  holders: { 'gate chest': {}, 'yard chest': {}, shop: { purse: { gold: 200 } } },
+  price: (item, from) => shopPrice(item, from),
   // Money, written as the game writes it: `12 gold` (a label after the
   // amount; `€` or `$` would go before it).
   purse: { gold: 25 },
@@ -136,6 +139,7 @@ const loadout = demoLoadout({
   },
 })
 const BAG = { holder: 'hero', container: 'bag' }
+const stock = (holder) => ({ holder, container: 'stock' })
 // AMMO: what your guns load is in the bag, in stacks. Start with 36 pistol
 // rounds and nothing else; more lies around (and rockets are in the yard).
 const AMMO = ['Pistol Ammo', 'Rifle Ammo', 'Rockets']
@@ -182,7 +186,30 @@ const healer = (library, meshName, heals, x, z, scale = 1) => b3dPickup({
   whenRefused: ({ reason }) => say(reason),
   whenPickedUp: () => { hero.heal(heals); say(`+${heals} health`) },
 })
+// THE SHOPKEEPER: a stand-in mannequin behind a counter by the start. E at
+// the counter opens the shop: its stock beside your bag, priced; deal or
+// cancel. It sells ammo by the box and buys anything at half its value.
+loadout.inv.move({ item: 'SMG', to: stock('shop') }, { item: 'Plasma Blade', to: stock('shop') })
+loadout.inv.move({ kind: 'Pistol Ammo', qty: 120, to: stock('shop') })
+loadout.inv.move({ kind: 'Rifle Ammo', qty: 120, to: stock('shop') })
+loadout.inv.move({ kind: 'Rockets', qty: 4, to: stock('shop') })
+const SHOP_AT = { x: 7.2, z: 9 }
+const shopkeeper = b3dBiped({
+  url: assetUrl('quaternius/UAL1_core.glb', 4),
+  animationStates: ualAnimationStates(),
+  ...SHOP_AT, ry: 90, // facing the start (-x)
+})
+const counter = b3dBox({ meshName: 'shop-counter', x: 6.2, y: 0.5, z: 9, width: 0.6, height: 1, depth: 2.4, color: '#8a6a44', solid: 'on' })
+const shop = b3dInteractive({
+  target: 'shop-counter', reach: 2.5,
+  whenActivated: () => openTrade('shop', {
+    title: 'Shop',
+    at: () => counter.mesh?.position,
+    price: shopPrice,
+  }),
+})
 const LYING_ABOUT = [
+  shopkeeper, counter, shop,
   ammoBox('Pistol Ammo', 'ammo_uzi', 24, 1, 7),
   ammoBox('Rifle Ammo', 'ammo_machinegun', 30, -9, -6),
   ammoBox('Pistol Ammo', 'ammo_uzi', 24, 12, 12),
@@ -195,7 +222,6 @@ for (const [kind] of ON_THE_GROUND) loadout.inv.move({ item: kind, to: null })
 // locked. The key is in the chest by the door; inside is a chest with the
 // rocket launcher and the big sword in it. Having the key is having an item
 // of its kind.
-const stock = (holder) => ({ holder, container: 'stock' })
 loadout.inv.move({ item: 'Iron Key', to: stock('gate chest') })
 loadout.inv.move({ item: 'Rocket Launcher', to: stock('yard chest') }, { item: 'Hand and a Half', to: stock('yard chest') })
 loadout.inv.move({ kind: 'Rockets', qty: 4, to: stock('yard chest') })
@@ -209,23 +235,33 @@ let trading = null
 const endTrade = () => {
   if (!trading) return
   tradeBox.hide()
-  trading.chest.open = false
+  if (trading.chest) trading.chest.open = false
   trading = null
 }
-const openTrade = (holder, chest) => {
+// One trade per holder, made the first time; a shop's has prices.
+const openTrade = (holder, { chest = null, title = 'Chest', at, price } = {}) => {
   trades[holder] ??= tradePanel({
     inv: loadout.inv, carry: createCarry(),
     mine: BAG, theirs: stock(holder),
     titles: { mine: 'you', theirs: holder },
+    price,
+    // How many, on a stack.
+    decorations: (it) => (it.qty > 1 ? { badge: `×${it.qty}` } : undefined),
+    // Ammo goes a box (24 rounds) at a time, not the whole stack.
+    moveFor: (item, from, to) => {
+      const it = loadout.inv.doc.items[item]
+      return AMMO.includes(it?.kind) ? { item, qty: Math.min(24, it.qty), to } : { item, to }
+    },
     handleDone: endTrade,
   })
   trades[holder].begin()
+  tradeBox.title = title
   tradeBox.svg = trades[holder].svg
   tradeBox.show()
-  trading = { chest }
+  trading = { chest, at: at ?? (() => chest?.mesh?.position) }
 }
 const chest = (holder, at) => {
-  const el = b3dChest({ ...at, whenOpened: () => openTrade(holder, el), whenClosed: () => trading?.chest === el && endTrade() })
+  const el = b3dChest({ ...at, whenOpened: () => openTrade(holder, { chest: el }), whenClosed: () => trading?.chest === el && endTrade() })
   return el
 }
 // Walls 2.8 m: a mantle reaches 2.2.
@@ -387,7 +423,7 @@ preview.append(
         studioEnvironment(el.scene, { sky: '#7d9cc4', horizon: '#e8e4da', ground: '#55604a' })
         el.scene.onBeforeRenderObservable.add(() => {
           // Walked away from an open chest: the trade closes.
-          const chestAt = trading?.chest.mesh?.position
+          const chestAt = trading?.at()
           if (chestAt && hero.mesh && hero.mesh.position.subtract(chestAt).length() > 3) endTrade()
           if (hero.aimTarget && !hero.halted) turret.track(hero.aimTarget)
           else turret.clearTarget()
@@ -478,6 +514,13 @@ magazine while it is put away.
 
 **Health.** A potion (30) and a heart (60) lie about: walk up and press
 **E**. At full health they stay where they are.
+
+**A shop.** The mannequin behind the counter to your right is a shopkeeper:
+press **E** at the counter and its stock opens beside your bag, with prices.
+Drag things across either way (ammo goes a box of 24 at a time); the line
+under the lists says whether you pay or receive and how much. **Deal**
+settles, **cancel** puts it all back. It sells at an item's value and buys
+at half. You have 25 gold.
 
 **Things to pick up.** A rifle, a sword and a buckler lie in front of you:
 walk up and press **E** to pick one up (you kneel for it), and it goes in your

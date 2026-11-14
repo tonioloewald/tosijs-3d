@@ -6133,11 +6133,15 @@
       },
       {
         "name": "decorations",
-        "default": "As [inventoryPanel](/inventory-box/)'s"
+        "default": "As [inventoryPanel](/inventory-box/)'s (`moveFor` sells a box of rounds off a stack, not the whole stack)"
       },
       {
         "name": "info",
-        "default": "As [inventoryPanel](/inventory-box/)'s"
+        "default": "As [inventoryPanel](/inventory-box/)'s (`moveFor` sells a box of rounds off a stack, not the whole stack)"
+      },
+      {
+        "name": "moveFor",
+        "default": "As [inventoryPanel](/inventory-box/)'s (`moveFor` sells a box of rounds off a stack, not the whole stack)"
       }
     ]
   },

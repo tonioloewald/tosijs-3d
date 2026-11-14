@@ -7,7 +7,8 @@ the panels show it as it would be); the trade remembers which side each
 thing started on, so it can say what changed, what that comes to, and undo
 it.
 
-- `changed()`: what crossed, and from where.
+- `changed()`: what crossed, by kind and how many, and from where (stacks
+  split and join, so it counts, rather than following ids).
 - `balance()`: what you pay (negative: what you receive), by the inventory's
   own price rule, buying from them and selling to them.
 - `revert()`: everything goes back.
@@ -44,7 +45,7 @@ trade.deal('gold') // me: 15 gold
 */
 /*{ "parent": "inventory", "order": 12 }*/
 
-import type { InventoryApi, Item, MoveResult, Place } from './inventory.js'
+import type { InventoryApi, Item, Move, MoveResult, Place } from './inventory.js'
 
 export interface TradeSides {
   /** Yours: a container (your bag). */
@@ -54,14 +55,16 @@ export interface TradeSides {
 }
 
 export interface TradeChange {
-  item: string
+  /** What crossed, by kind (stacks split and join, so ids do not last). */
+  kind: string
+  qty: number
   from: Place
   to: Place
 }
 
 export interface Trade {
   readonly sides: TradeSides
-  /** What has crossed since it began, from where. */
+  /** What has crossed since it began, by kind, from where. */
   changed: () => TradeChange[]
   /** What you pay; negative is what you receive. 0 without a price. */
   balance: () => number
@@ -81,23 +84,46 @@ const inContainer = (inv: InventoryApi, p: Place): string[] => {
     .filter((id): id is string => id != null)
 }
 
+/** How many of each kind are in a container. */
+const tally = (inv: InventoryApi, p: Place): Map<string, number> => {
+  const t = new Map<string, number>()
+  for (const id of inContainer(inv, p)) {
+    const it = inv.doc.items[id]
+    if (it) t.set(it.kind, (t.get(it.kind) ?? 0) + it.qty)
+  }
+  return t
+}
+
+/** The moves that take `qty` of `kind` from `from` to `to`, stack by stack. */
+const movesFor = (inv: InventoryApi, c: TradeChange, extra: Partial<Move> = {}): Move[] => {
+  const out: Move[] = []
+  let left = c.qty
+  for (const id of inContainer(inv, c.from)) {
+    const it = inv.doc.items[id]
+    if (left <= 0) break
+    if (it?.kind !== c.kind) continue
+    const qty = Math.min(left, it.qty)
+    out.push({ item: id, qty, to: c.to, ...extra })
+    left -= qty
+  }
+  return out
+}
+
 /** Begin a trade between `sides`; `price` is the inventory's own price rule (for the balance). */
 export function beginTrade(
   inv: InventoryApi,
   sides: TradeSides,
   price?: (item: Item, from: Place | null, to: Place | null) => number
 ): Trade {
-  const started = new Map<string, 'mine' | 'theirs'>()
-  for (const id of inContainer(inv, sides.mine)) started.set(id, 'mine')
-  for (const id of inContainer(inv, sides.theirs)) started.set(id, 'theirs')
+  let started = tally(inv, sides.mine)
 
   const changed = (): TradeChange[] => {
+    const now = tally(inv, sides.mine)
     const out: TradeChange[] = []
-    for (const side of ['mine', 'theirs'] as const) {
-      const other = side === 'mine' ? 'theirs' : 'mine'
-      for (const id of inContainer(inv, sides[side]))
-        if (started.get(id) === other)
-          out.push({ item: id, from: sides[other], to: sides[side] })
+    for (const kind of new Set([...started.keys(), ...now.keys()])) {
+      const d = (now.get(kind) ?? 0) - (started.get(kind) ?? 0)
+      if (d > 0) out.push({ kind, qty: d, from: sides.theirs, to: sides.mine })
+      else if (d < 0) out.push({ kind, qty: -d, from: sides.mine, to: sides.theirs })
     }
     return out
   }
@@ -106,45 +132,39 @@ export function beginTrade(
     if (price == null) return 0
     let n = 0
     for (const c of changed()) {
-      const item = inv.doc.items[c.item]
-      if (item == null) continue
-      const amount = price(item, c.from, c.to)
+      const amount = price({ id: c.kind, kind: c.kind, qty: c.qty }, c.from, c.to)
       n += c.to === sides.mine ? amount : -amount
     }
     return n
   }
 
-  const back = (cs: TradeChange[]) => cs.map((c) => ({ item: c.item, to: c.from }))
+  const back = (cs: TradeChange[]) => cs.map((c) => ({ ...c, from: c.to, to: c.from }))
+  const moving = (cs: TradeChange[]) => cs.flatMap((c) => movesFor(inv, c))
 
   return {
     sides,
     changed,
     balance,
-    revert: () => inv.move(...back(changed())),
+    revert: () => inv.move(...moving(back(changed()))),
     deal(currency) {
       const cs = changed()
       if (cs.length === 0) return { ok: true, reasons: [], events: [] }
-      const undone = inv.move(...back(cs))
+      const undone = inv.move(...moving(back(cs)))
       if (!undone.ok) return undone
+      // Sales first, so what yours fetch pays for what you buy.
       const sells = cs.filter((c) => c.to === sides.theirs)
       const buys = cs.filter((c) => c.to === sides.mine)
       const paid = [
-        ...sells.map((c) => ({
-          item: c.item,
-          to: c.to,
-          pay: { holder: sides.theirs.holder, in: currency },
-          payee: sides.mine.holder,
-        })),
-        ...buys.map((c) => ({
-          item: c.item,
-          to: c.to,
-          pay: { holder: sides.mine.holder, in: currency },
-          payee: sides.theirs.holder,
-        })),
+        ...sells.flatMap((c) =>
+          movesFor(inv, c, { pay: { holder: sides.theirs.holder, in: currency }, payee: sides.mine.holder })
+        ),
+        ...buys.flatMap((c) =>
+          movesFor(inv, c, { pay: { holder: sides.mine.holder, in: currency }, payee: sides.theirs.holder })
+        ),
       ]
       const r = inv.move(...paid)
-      if (!r.ok) inv.move(...cs.map((c) => ({ item: c.item, to: c.to })))
-      else for (const c of cs) started.set(c.item, c.to === sides.mine ? 'mine' : 'theirs')
+      if (!r.ok) inv.move(...moving(cs))
+      else started = tally(inv, sides.mine)
       return r
     },
   }

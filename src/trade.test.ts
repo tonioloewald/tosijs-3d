@@ -38,7 +38,7 @@ describe('trade', () => {
     const inv = make(0, false)
     const trade = beginTrade(inv, { mine: BAG, theirs: STOCK })
     inv.move({ item: 'rope', to: BAG })
-    expect(trade.changed().map((c) => c.item)).toEqual(['rope'])
+    expect(trade.changed().map((c) => c.kind)).toEqual(['rope'])
     expect(trade.balance()).toBe(0)
     // Taken back before it closes: nothing changed.
     inv.move({ item: 'rope', to: STOCK })
@@ -87,5 +87,31 @@ describe('trade', () => {
     trade.revert()
     expect(bag(inv)).toEqual(['pelt'])
     expect(trade.changed()).toEqual([])
+  })
+
+  test('a stack sold in part: counted by kind, paid for what moved', () => {
+    const inv = createInventory(
+      {
+        items: { ammo: { id: 'ammo', kind: 'ammo', qty: 100 } },
+        holders: {
+          me: { id: 'me', containers: { bag: { type: 'list', holds: [] } }, purse: { gold: 10 } },
+          shop: { id: 'shop', containers: { stock: { type: 'list', holds: ['ammo'] } }, purse: { gold: 0 } },
+        },
+      } as any,
+      { kinds: { ammo: { id: 'ammo', stack: 200 } } as any, price: (it: Item) => it.qty * 0.5 }
+    )
+    const trade = beginTrade(inv, { mine: BAG, theirs: STOCK }, (it) => it.qty * 0.5)
+    inv.move({ item: 'ammo', qty: 12, to: BAG })
+    inv.move({ item: 'ammo', qty: 12, to: BAG })
+    expect(trade.changed()).toEqual([{ kind: 'ammo', qty: 24, from: STOCK, to: BAG }])
+    expect(trade.balance()).toBe(12)
+    expect(trade.deal('gold').reasons).toContain('not enough gold')
+    expect(trade.balance()).toBe(12)
+    trade.revert()
+    expect(trade.changed()).toEqual([])
+    inv.move({ item: 'ammo', qty: 20, to: BAG })
+    expect(trade.deal('gold').ok).toBe(true)
+    expect(inv.doc.holders.me.purse).toEqual({ gold: 0 })
+    expect(inv.doc.holders.shop.purse).toEqual({ gold: 10 })
   })
 })

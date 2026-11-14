@@ -1527,8 +1527,9 @@ inventory-trade
   carry  = The inventory and a carry (`createCarry()`)
   titles  = { mine, theirs }
   currency  = The purse key a shop pays in (default: the inventory's first currency, else `gold`), written as the inventory's `currencies` say (`€12`, `12 gp`)
-  decorations  = As [inventoryPanel](/inventory-box/)'s
-  info  = As [inventoryPanel](/inventory-box/)'s
+  decorations  = As [inventoryPanel](/inventory-box/)'s (`moveFor` sells a box of rounds off a stack, not the whole stack)
+  info  = As [inventoryPanel](/inventory-box/)'s (`moveFor` sells a box of rounds off a stack, not the whole stack)
+  moveFor  = As [inventoryPanel](/inventory-box/)'s (`moveFor` sells a box of rounds off a stack, not the whole stack)
 
 ## inventory
 inventory

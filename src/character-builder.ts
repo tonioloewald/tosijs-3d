@@ -590,7 +590,7 @@ preview.append(
             rigging
               ? rigging.api.view === 'free'
                 ? { label: 'Pause', icon: 'pause', handleSelect: () => rigging?.api.play(null) }
-                : { label: 'Play', icon: 'play', handleSelect: () => rigging?.api.play() }
+                : { label: 'Play', icon: 'play', handleSelect: () => { showGripHandles(false); showHairHandles(false); rigging?.api.play() } }
               : walker.paused.value
               ? { label: 'Play', icon: 'play', handleSelect: () => { walker.paused.value = false } }
               : { label: 'Pause', icon: 'pause', handleSelect: () => { walker.paused.value = true } },
@@ -647,26 +647,28 @@ preview.append(
         ualRoot.setEnabled(false)
         // THE HELD ITEM: an instance of the library's model on the shown
         // body's right-hand socket, made again when the item or body changes.
+        // While rigging it is on the rig tool's body, so arm space and the
+        // arms' roles can be judged with it in hand.
         const weapons = el.querySelector('tosi-b3d-library')
         let held = null
+        const holdingSkeleton = () => (rigging ? rigging.api.skeleton : ch?.shown?.built?.skeleton) ?? null
         applyGrip = () => {
           const name = walker.held.value
-          const shown = ch?.shown
-          if (held && (held.name !== name || held.shown !== shown || rigging)) {
+          const skeleton = holdingSkeleton()
+          if (held && (held.name !== name || held.skeleton !== skeleton)) {
             held.node.dispose()
             held = null
             gizmo.node = null
           }
-          if (name === 'none' || !shown || rigging) return
+          if (name === 'none' || !skeleton) return
           if (!held) {
-            const skeleton = shown.built?.skeleton
             const hand = skeleton?.bones.find((b) => b.name === 'hand_r')?.getTransformNode()
             const node = hand && weapons?.instantiate?.(name, { canonical: true })
             if (!node) return
             node.parent = handSocket(skeleton, 'hand_r', 'r', hand) ?? hand
             // Its grip (a pistol's handle), measured once: that point, not
             // its origin, goes where the numbers say, as on a launcher.
-            held = { node, name, shown, grip: heldGrip(node) ?? BABYLON.Vector3.Zero() }
+            held = { node, name, skeleton, grip: heldGrip(node) ?? BABYLON.Vector3.Zero() }
           }
           placeHeld(gripOf(name))
         }
@@ -712,6 +714,11 @@ preview.append(
           gripHandles = on
           gizmo.node = on && held ? gripNode : null
         }
+        // The rig tool binds again (a marker moved): a new skeleton, so the
+        // item goes on its hand.
+        scene.onBeforeRenderObservable.add(() => {
+          if (rigging && walker.held.value !== 'none' && (held?.skeleton ?? null) !== holdingSkeleton()) applyGrip()
+        })
         // THE HAIR'S HANDLE: a node on the Head bone at the skull's middle plus
         // the adjustment. Dragging moves the hair's meshes as they are; the
         // adjustment is kept, and the hair placed again, on release.
@@ -757,6 +764,16 @@ preview.append(
           hairHandles = on
           placeHairHandle()
         }
+        // Back to the animation (play, or another clip): the handles go, as a
+        // manipulator holds a pose still and the clip no longer does.
+        const handlesOff = () => {
+          if (!gripHandles && !hairHandles) return
+          showGripHandles(false)
+          showHairHandles(false)
+          el.refreshScenePanel?.()
+        }
+        walker.paused.observe(() => { if (!walker.paused.value) handlesOff() })
+        walker.clip.observe(handlesOff)
         // Undo, a loaded character or a new body puts the handle back.
         walker.hairUp.observe(() => placeHairHandle())
         walker.hairForward.observe(() => placeHairHandle())
@@ -1124,7 +1141,7 @@ preview.append(
           })
           // It plays the clip the Animation menu has.
           rigging.api.clip = walker.clip.value
-          // The item goes while the rig tool has the body.
+          // The item moves to the rig tool's body.
           applyGrip()
           el.refreshScenePanel?.()
         }

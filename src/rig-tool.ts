@@ -50,7 +50,8 @@ The panel has these sections, its job first.
   it stays when the marker moves again from the front. `move joints` shows every
   joint (blue) to drag by hand from the view that suits: shoulders from the
   front, fingers and thumbs from the top, feet from the side. What hangs from
-  a joint comes with it; set `dragging` to turn what hangs from it instead
+  a joint comes with it; set `dragging` to move the joint alone (a shoulder,
+  leaving the elbow and wrist where they are) or to turn what hangs from it
   (a hand or foot at an angle). Each finger's and thumb's tip (orange) pulls
   its finger: the joints after its first turn and stretch about the first,
   so the finger keeps its curl and reaches where you drop the tip. Markers
@@ -425,6 +426,8 @@ export interface RigToolApi {
   mannequin: boolean
   /** The skeleton drawn over the character. */
   bones: boolean
+  /** The model's skeleton now (a host hangs a held item on its hand); a rebind replaces it. */
+  readonly skeleton: BABYLON.Skeleton | null
   load(model: RigModel | File): Promise<void> | undefined
   /**
    * Add the clips in a GLB made on another rig (Mixamo, mocap, another
@@ -834,8 +837,8 @@ export function mountRigTool(
     view: 'front' as RigView,
     /** Show every joint of a mesh bound from markers, to move by hand. */
     joints: false,
-    /** Dragging a joint moves it (and what hangs from it) or turns what hangs from it. */
-    jointDrag: 'move' as 'move' | 'turn',
+    /** Dragging a joint moves it (and what hangs from it), moves it alone, or turns what hangs from it. */
+    jointDrag: 'move' as 'move' | 'alone' | 'turn',
   }
   let recipe = fresh(given ?? {})
   let clips: string[] = []
@@ -1222,6 +1225,8 @@ export function mountRigTool(
     targets(): void
     /** Stand it again at the recipe's floor (a slider moved). */
     restand(): void
+    /** The skeleton on the model now (a rebind makes a new one). */
+    skeleton(): BABYLON.Skeleton | null
   } | null = null
 
   const changed = (clipsToo = false) => {
@@ -1439,10 +1444,12 @@ export function mountRigTool(
                 value: ui.jointDrag,
                 options: [
                   { label: 'moves the joint', value: 'move' },
+                  // A shoulder moved without its elbow and wrist.
+                  { label: 'moves the joint alone', value: 'alone' },
                   { label: 'turns what hangs from it', value: 'turn' },
                 ],
                 handleChange: (v) => {
-                  ui.jointDrag = v as 'move' | 'turn'
+                  ui.jointDrag = v as 'move' | 'alone' | 'turn'
                   refresh()
                 },
               }),
@@ -2999,7 +3006,8 @@ export function mountRigTool(
       // A marker below comes too (the elbow under a shoulder): it is drawn
       // as a marker, not a joint dot, so it is found by its joint.
       const dotOf = (n: string) => dots.find((d) => jointOfDot(d) === n)
-      const group = [name, ...below]
+      // Alone: only this joint; what hangs from it stays where it is.
+      const group = (ui.jointDrag === 'alone' ? [name] : [name, ...below])
         .map((n) => ({ n, d: dotOf(n) }))
         .filter((g): g is { n: string; d: BABYLON.Mesh } => g.d != null)
       const start = new Map(group.map((g) => [g.n, g.d.position.clone()]))
@@ -3597,6 +3605,7 @@ export function mountRigTool(
       bones: showBones,
       view: snapView,
       targets,
+      skeleton: () => model?.skeleton ?? null,
     }
     cleanups.push(() => {
       tool = null
@@ -3683,6 +3692,9 @@ export function mountRigTool(
     set bones(v: boolean) {
       tool?.bones((ui.bones = v))
       refresh()
+    },
+    get skeleton() {
+      return tool?.skeleton() ?? null
     },
     load: (m: RigModel | File) => tool?.load(m),
     loadClips: (f: File | string) => tool?.loadClips(f),

@@ -43,7 +43,7 @@ panel.show()
 | `price` | The inventory's own price rule, `(item, from, to) => number`: makes it a shop |
 | `currency` | The purse key a shop pays in (default: the inventory's first currency, else `gold`), written as the inventory's `currencies` say (`€12`, `12 gp`) |
 | `width`, `height` | Each list's size (220 × 280) |
-| `decorations`, `info` | As [inventoryPanel](/inventory-box/)'s |
+| `decorations`, `info`, `moveFor` | As [inventoryPanel](/inventory-box/)'s (`moveFor` sells a box of rounds off a stack, not the whole stack) |
 | `handleDone({ dealt })` | Closed: done, a deal, or cancelled (`dealt: false`) |
 
 `begin()` starts a fresh trade (call it each time it opens); `trade` is the
@@ -57,7 +57,7 @@ import { carryGhostLayer } from './carry-box.js'
 import type { CarryDecorations } from './carry-box.js'
 import type { Carry } from './carry.js'
 import { inventoryPanel, type InventoryPanel } from './inventory-box.js'
-import type { InventoryApi, Item, ItemKind, Place } from './inventory.js'
+import type { InventoryApi, Item, ItemKind, Move, Place } from './inventory.js'
 import { panelRim } from './panel-rim.js'
 import { beginTrade, type Trade } from './trade.js'
 import { currencyFor, formatMoney } from './currency.js'
@@ -77,6 +77,8 @@ export interface TradePanelOptions {
     kind: ItemKind | undefined
   ) => CarryDecorations | undefined
   info?: (item: Item, kind: ItemKind | undefined) => string[]
+  /** The move a drop makes (a box of 24 rounds off a stack of 120): as inventoryPanel's. */
+  moveFor?: (item: string, from: Place | null, to: Place) => Move
   handleDone?: (result: { dealt: boolean }) => void
 }
 
@@ -129,6 +131,7 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
     carry,
     decorations: opts.decorations,
     info: opts.info,
+    moveFor: opts.moveFor,
     refuse,
     overlay: false,
     fit: false,
