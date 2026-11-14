@@ -147,6 +147,7 @@ import {
   type Quat,
   type Vec3,
 } from './spatial-transform.js'
+import { rotationBetween, twoBoneIk } from './two-bone-ik.js'
 
 export type Side = 'l' | 'r'
 export type Limb =
@@ -421,27 +422,7 @@ const normalize = (v: Vec3): Vec3 => {
     : { x: 0, y: 0, z: 0 }
 }
 
-/** The shortest rotation taking unit vector `a` onto unit vector `b`. */
-export function rotationBetween(a: Vec3, b: Vec3): Quat {
-  const d = a.x * b.x + a.y * b.y + a.z * b.z
-  if (d < -0.999999) {
-    // Opposite: half a turn about any axis at right angles to `a`.
-    const axis = normalize(
-      Math.abs(a.x) < 0.9
-        ? { x: 0, y: -a.z, z: a.y }
-        : { x: a.z, y: 0, z: -a.x }
-    )
-    return { x: axis.x, y: axis.y, z: axis.z, w: 0 }
-  }
-  const c = {
-    x: a.y * b.z - a.z * b.y,
-    y: a.z * b.x - a.x * b.z,
-    z: a.x * b.y - a.y * b.x,
-  }
-  const w = 1 + d
-  const l = Math.hypot(c.x, c.y, c.z, w)
-  return { x: c.x / l, y: c.y / l, z: c.z / l, w: w / l }
-}
+export { rotationBetween }
 
 /*
 WHERE A ROLE POINTS: from its joint toward the next role down the limb (the
@@ -816,7 +797,6 @@ function solveLeg(
   const d0 = Math.hypot(toGoal.x, toGoal.y, toGoal.z)
   if (d0 < 1e-6) return null
   const u = normalize(toGoal)
-  const d = Math.min(a + b - 1e-5, Math.max(Math.abs(a - b) + 1e-5, d0))
   /*
   WHICH WAY THE KNEE BENDS: the clip's way where its knee is clearly bent,
   the leg's front where it is nearly straight. A straight leg's knee sits a
@@ -838,35 +818,13 @@ function solveLeg(
   const t = frontLen < 1e-9 ? 1 : s * s * (3 - 2 * s)
   const cw = off > 1e-12 ? t / off : 0
   const fw = frontLen > 1e-9 ? (1 - t) / frontLen : 0
-  let v = {
+  const v = {
     x: clip.x * cw + front.x * fw,
     y: clip.y * cw + front.y * fw,
     z: clip.z * cw + front.z * fw,
   }
-  if (Math.hypot(v.x, v.y, v.z) < 1e-9) return null
-  v = normalize(v)
-  const cos = Math.min(1, Math.max(-1, (a * a + d * d - b * b) / (2 * a * d)))
-  const sin = Math.sqrt(1 - cos * cos)
-  const knee2 = {
-    x: hip.x + a * (u.x * cos + v.x * sin),
-    y: hip.y + a * (u.y * cos + v.y * sin),
-    z: hip.z + a * (u.z * cos + v.z * sin),
-  }
-  const ankle2 = {
-    x: hip.x + u.x * d,
-    y: hip.y + u.y * d,
-    z: hip.z + u.z * d,
-  }
-  const thigh = rotationBetween(
-    normalize(sub(knee, hip)),
-    normalize(sub(knee2, hip))
-  )
-  const shinNow = rotateVector(thigh, sub(ankle, knee))
-  const shin = quatMul(
-    rotationBetween(normalize(shinNow), normalize(sub(ankle2, knee2))),
-    thigh
-  )
-  return { thigh, shin }
+  const turn = twoBoneIk(hip, knee, ankle, goal, v)
+  return turn && { thigh: turn.first, shin: turn.second }
 }
 
 /**

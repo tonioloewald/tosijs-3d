@@ -35,6 +35,7 @@ export const CHARACTER_CORE = [
   'retarget',
   'bone-heat',
   'spatial-transform',
+  'two-bone-ik',
   'proxy-fit',
   'proxy-rigid',
   'hair-fit',

@@ -1054,7 +1054,13 @@ export {
   type AimVec,
   type BodyCatchUp,
 } from './aim.js'
-export { aimSpine, type AimSpineOptions } from './aim-ik.js'
+export {
+  aimSpine,
+  reachLimb,
+  setWorldRotation,
+  type AimSpineOptions,
+} from './aim-ik.js'
+export { twoBoneIk, type TwoBoneTurn } from './two-bone-ik.js'
 export {
   B3dCrowd,
   b3dCrowd,

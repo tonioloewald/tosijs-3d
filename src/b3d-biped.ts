@@ -356,7 +356,9 @@ import {
   type Aim,
   type AimLimits,
 } from './aim.js'
-import { aimSpine } from './aim-ik.js'
+import { aimSpine, reachLimb, setWorldRotation, turnAbout } from './aim-ik.js'
+import { holdClassOf } from './hold-grip.js'
+import { findSuffixed } from './model-transform.js'
 import type { B3d } from './tosi-b3d.js'
 import { xrControllers } from './gamepad.js'
 import type { GameController } from './game-controller.js'
@@ -2353,6 +2355,260 @@ export class B3dBiped extends B3dControllable {
     aimSpine(this._aimIkChain, held, this.aimDirection, {
       weight: this._aimIkWeight,
     })
+    const weapon = this._weapons().find((w) => w.socketed === true)
+    this._shoulderGun(skeleton, held, weapon, this._aimIkWeight)
+  }
+
+  /*
+  A LONG GUN IS SHOULDERED. No CC0 set has rifle clips, so a rifle plays the
+  pistol's aim, which already holds the gun in both hands, and the arms are
+  corrected after it: the gun turns about its stock so the barrel lies along
+  the aim and the stock sits in the right shoulder's pocket, the right hand
+  follows the grip there, and the left hand reaches the foregrip. Each hand is
+  a two-bone reach (`reachLimb`). A long gun is a `rifle` by its class
+  (`holdClassOf(meshName)`) or a model with a `_foregrip` node; its `_stock`
+  and `_foregrip` nodes, when it has them, say where those are, else they are
+  read off its shape. While it reloads the left hand is the clip's.
+  */
+  private _longGuns = new WeakMap<
+    BABYLON.TransformNode,
+    {
+      model: string
+      gun: { stock: BABYLON.Vector3; foregrip: BABYLON.Vector3 } | null
+    }
+  >()
+
+  private _longGun(
+    held: BABYLON.TransformNode,
+    weapon: unknown
+  ): { stock: BABYLON.Vector3; foregrip: BABYLON.Vector3 } | null {
+    const meshName = String((weapon as { meshName?: string })?.meshName ?? '')
+    // One launcher swaps its model in place (the playground's), so by name too.
+    const known = this._longGuns.get(held)
+    if (known?.model === meshName) return known.gun
+    const named = (sfx: string) => findSuffixed(held, [sfx])
+    const fore = named('_foregrip')
+    let found: { stock: BABYLON.Vector3; foregrip: BABYLON.Vector3 } | null =
+      null
+    if (fore != null || holdClassOf(meshName) === 'rifle') {
+      held.computeWorldMatrix(true)
+      const inv = held.getWorldMatrix().clone().invert()
+      const local = (n: BABYLON.TransformNode) =>
+        BABYLON.Vector3.TransformCoordinates(
+          n.computeWorldMatrix(true).getTranslation(),
+          inv
+        )
+      const min = new BABYLON.Vector3(Infinity, Infinity, Infinity)
+      const max = min.scale(-1)
+      const meshes = held.getChildMeshes(false)
+      if (held instanceof BABYLON.AbstractMesh) meshes.push(held)
+      for (const m of meshes) {
+        const box = m.getBoundingInfo().boundingBox
+        const toHeld = m.computeWorldMatrix(true).multiply(inv)
+        for (const c of box.vectors) {
+          const v = BABYLON.Vector3.TransformCoordinates(c, toHeld)
+          min.minimizeInPlace(v)
+          max.maximizeInPlace(v)
+        }
+      }
+      if (Number.isFinite(min.z)) {
+        const g = named('_grip')
+        const grip = g != null ? local(g) : BABYLON.Vector3.Zero()
+        const muzzle = named('_muzzle')
+        const bore = muzzle != null ? local(muzzle).y : (min.y + max.y) / 2
+        const stock = named('_stock')
+        found = {
+          stock:
+            stock != null
+              ? local(stock)
+              : new BABYLON.Vector3(
+                  (min.x + max.x) / 2,
+                  bore * 0.85 + grip.y * 0.15,
+                  min.z
+                ),
+          foregrip:
+            fore != null
+              ? local(fore)
+              : new BABYLON.Vector3(
+                  (min.x + max.x) / 2,
+                  grip.y + (bore - grip.y) * 0.75,
+                  grip.z + (max.z - grip.z) * 0.45
+                ),
+        }
+      }
+    }
+    this._longGuns.set(held, { model: meshName, gun: found })
+    return found
+  }
+
+  private _armNodes: {
+    of: BABYLON.Skeleton
+    nodes: Record<string, BABYLON.TransformNode | null>
+  } | null = null
+
+  private _shoulderGun(
+    skeleton: BABYLON.Skeleton,
+    held: BABYLON.TransformNode,
+    weapon: unknown,
+    weight: number
+  ): void {
+    const gun = this._longGun(held, weapon)
+    if (gun == null || weight <= 0) return
+    if (this._armNodes?.of !== skeleton) {
+      const node = (names: string[]) =>
+        skeleton.bones
+          .find((b) => names.includes(b.name))
+          ?.getTransformNode() ?? null
+      const side = (ual: string, mixamo: string) =>
+        node([ual, `mixamorig:${mixamo}`, mixamo])
+      this._armNodes = {
+        of: skeleton,
+        nodes: {
+          upR: side('upperarm_r', 'RightArm'),
+          loR: side('lowerarm_r', 'RightForeArm'),
+          handR: side('hand_r', 'RightHand'),
+          upL: side('upperarm_l', 'LeftArm'),
+          loL: side('lowerarm_l', 'LeftForeArm'),
+          handL: side('hand_l', 'LeftHand'),
+          palmL: side('middle_01_l', 'LeftHandMiddle1'),
+          thumbL: side('thumb_01_l', 'LeftHandThumb1'),
+        },
+      }
+    }
+    const { upR, loR, handR, upL, loL, handL, palmL } = this._armNodes.nodes
+    if (upR == null || loR == null || handR == null) return
+    if (upL == null || loL == null || handL == null) return
+    const at = (n: BABYLON.TransformNode) => n.getAbsolutePosition().clone()
+    const aim = this.aimDirection.clone().normalize()
+    const level = new BABYLON.Vector3(aim.x, 0, aim.z)
+    if (level.lengthSquared() > 1e-9) level.normalize()
+    /*
+    BLADED: the left shoulder leads, so the left hand reaches the foregrip.
+    The pistol's aim squares the shoulders to the target or turns the left one
+    back, which left a rifle's foregrip a forearm out of reach. The spine
+    turns about the vertical, a share each, until the shoulder line is
+    `BLADE` past square; the neck turns back so the head stays on the aim.
+    */
+    const chain = this._aimIkChain ?? []
+    const line0 = at(upL).subtract(at(upR))
+    line0.y = 0
+    if (chain.length > 0 && line0.lengthSquared() > 1e-9 && level.lengthSquared() > 0) {
+      line0.normalize()
+      const lateral = line0.subtract(level.scale(BABYLON.Vector3.Dot(line0, level)))
+      if (lateral.lengthSquared() > 1e-9) {
+        lateral.normalize()
+        const BLADE = (35 * Math.PI) / 180
+        const want = lateral.scale(Math.cos(BLADE)).add(level.scale(Math.sin(BLADE)))
+        const cross = BABYLON.Vector3.Cross(line0, want)
+        const angle =
+          Math.atan2(cross.y, BABYLON.Vector3.Dot(line0, want)) * weight
+        for (const bone of chain)
+          turnAbout(bone, BABYLON.Axis.Y, angle / chain.length)
+        const neck =
+          skeleton.bones
+            .find((b) => ['neck_01', 'mixamorig:Neck', 'Neck'].includes(b.name))
+            ?.getTransformNode() ?? null
+        if (neck != null) turnAbout(neck, BABYLON.Axis.Y, -angle)
+        const top = chain[0].parent as BABYLON.TransformNode | null
+        top?.computeWorldMatrix(true)
+        for (const n of top?.getDescendants(false) ?? [])
+          (n as BABYLON.TransformNode).computeWorldMatrix?.(true)
+      }
+    }
+    const W = held.computeWorldMatrix(true).clone()
+    const shoulderR = at(upR)
+    const shoulderL = at(upL)
+    const across = shoulderL.subtract(shoulderR)
+    const width = across.length()
+    if (width < 1e-6) return
+    const right = across.scale(-1 / width)
+    // The shoulder's pocket: in from the joint, a little forward and down.
+    const pocket = shoulderR
+      .add(across.scale(0.22))
+      .add(level.scale(width * 0.2))
+      .add(new BABYLON.Vector3(0, -width * 0.05, 0))
+    // Turn the gun about its stock: the barrel along the aim, its top up.
+    const fwd = W.getRow(2)!.toVector3().normalize()
+    const q1 = new BABYLON.Quaternion()
+    BABYLON.Quaternion.FromUnitVectorsToRef(fwd, aim, q1)
+    const top = W.getRow(1)!.toVector3().normalize()
+    const topNow = top.applyRotationQuaternion(q1)
+    const flat = (v: BABYLON.Vector3) =>
+      v.subtract(aim.scale(BABYLON.Vector3.Dot(v, aim)))
+    const a = flat(topNow)
+    const b = flat(BABYLON.Axis.Y)
+    const turn = new BABYLON.Matrix()
+    q1.toRotationMatrix(turn)
+    if (a.lengthSquared() > 1e-9 && b.lengthSquared() > 1e-9) {
+      const q2 = new BABYLON.Quaternion()
+      BABYLON.Quaternion.FromUnitVectorsToRef(a.normalize(), b.normalize(), q2)
+      const roll = new BABYLON.Matrix()
+      q2.toRotationMatrix(roll)
+      turn.multiplyToRef(roll, turn)
+    }
+    const stockW = BABYLON.Vector3.TransformCoordinates(gun.stock, W)
+    const W2 = W.multiply(BABYLON.Matrix.Translation(-stockW.x, -stockW.y, -stockW.z))
+      .multiply(turn)
+      .multiply(BABYLON.Matrix.Translation(pocket.x, pocket.y, pocket.z))
+    // The hand keeps its hold: the hand's place that puts the gun at W2.
+    const H = handR.computeWorldMatrix(true)
+    const H2 = H.multiply(W.clone().invert()).multiply(W2)
+    const down = new BABYLON.Vector3(0, -1, 0)
+    reachLimb(upR, loR, handR, H2.getTranslation(), down.add(right.scale(0.6)), {
+      weight,
+    })
+    setWorldRotation(handR, H2, weight)
+    for (const n of handR.getDescendants(false))
+      (n as BABYLON.TransformNode).computeWorldMatrix?.(true)
+    if ((weapon as { reloading?: boolean })?.reloading === true) return
+    const G = held.getWorldMatrix()
+    const foregrip = BABYLON.Vector3.TransformCoordinates(gun.foregrip, G)
+    /*
+    THE LEFT PALM UNDER THE HANDGUARD, facing up into it, fingers across
+    toward the far side. The hand's own frame is read from the clip (fingers
+    from wrist to the middle knuckle, the palm's normal from the thumb), so
+    no rig's bone axes are assumed, and the turn is the one that takes that
+    frame onto the wanted one.
+    */
+    const thumbL = this._armNodes.nodes.thumbL
+    const wrist = at(handL)
+    const H0 = handL.computeWorldMatrix(true).clone()
+    let turnL: BABYLON.Matrix | null = null
+    let palmAt = BABYLON.Vector3.Zero()
+    if (palmL != null && thumbL != null) {
+      const fingers = at(palmL).subtract(wrist)
+      const thumb = at(thumbL).subtract(wrist)
+      const n0 = BABYLON.Vector3.Cross(thumb, fingers).normalize()
+      const f0 = fingers.clone().normalize()
+      const up = G.getRow(1)!.toVector3().normalize()
+      const barrel = G.getRow(2)!.toVector3().normalize()
+      const across = right.subtract(barrel.scale(BABYLON.Vector3.Dot(right, barrel)))
+      const f1 = across.normalize().scale(0.8).add(barrel.scale(0.6))
+      f1.subtractInPlace(up.scale(BABYLON.Vector3.Dot(f1, up))).normalize()
+      const basis = (f: BABYLON.Vector3, n: BABYLON.Vector3) => {
+        const side = BABYLON.Vector3.Cross(n, f).normalize()
+        const m = BABYLON.Matrix.Identity()
+        BABYLON.Matrix.FromXYZAxesToRef(f, n, side, m)
+        return m
+      }
+      // n × f's triple product is n's part square to f.
+      const from = basis(f0, BABYLON.Vector3.Cross(f0, BABYLON.Vector3.Cross(n0, f0)).normalize())
+      const to = basis(f1, BABYLON.Vector3.Cross(f1, BABYLON.Vector3.Cross(up, f1)).normalize())
+      turnL = from.clone().invert().multiply(to)
+      // The palm's middle, just off the bones on the palm side.
+      const palm = fingers.scale(0.5).add(n0.scale(width * 0.04))
+      palmAt = BABYLON.Vector3.TransformNormal(palm, turnL)
+    }
+    reachLimb(upL, loL, handL, foregrip.subtract(palmAt), down.add(right.scale(-0.3)), {
+      weight,
+    })
+    if (turnL != null) {
+      const p = H0.getTranslation()
+      const H1 = H0.multiply(BABYLON.Matrix.Translation(-p.x, -p.y, -p.z))
+        .multiply(turnL)
+        .multiply(BABYLON.Matrix.Translation(p.x, p.y, p.z))
+      setWorldRotation(handL, H1, weight)
+    }
   }
 
   /** Seconds left of the one-shot fire pose. */

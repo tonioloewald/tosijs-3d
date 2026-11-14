@@ -12,6 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Added:** a biped in gunplay SHOULDERS a long gun (a `rifle` by `holdClassOf`, or a model with a `_foregrip` node): the shoulders blade, the stock goes to the right shoulder with the barrel along the aim, and the left palm cradles the foregrip. It plays the pistol aim corrected by arm IK, since no CC0 set has rifle clips; `_stock` and `_foregrip` nodes place it exactly, else it is read off the model's shape. New: `twoBoneIk` (pure; the retargeter's leg IK now uses it), and `reachLimb`, `setWorldRotation`, `turnAbout` in aim-ik.
 - **Added:** `B3dBiped.setAimClips(AIM_CLIPS.bow)` switches the gunplay states (stance, aim up/level/down, shoot, reload) to UAL2's bow set; `AIM_CLIPS.pistol` is the default. `UAL1_core.glb` carries the bow clips once static-assets is deployed.
 - **Fixed:** scene panels and modals work by touch on a phone. The screen-reader copies laid over them took every tap, so a menu opened Android's own picker instead of the drawn one. They now take touches only once a screen reader is in use (`ariaMirror`'s new `touchable` option), and a long press no longer counts as a screen reader.
 - **Fixed:** a `barMenu` submenu (the character builder's Select and Delete, the Animation menu's groups) opens and stays open. The list it replaced still answered the panel's last `leave` and repainted itself over the new one, so a submenu flashed and vanished or never appeared.

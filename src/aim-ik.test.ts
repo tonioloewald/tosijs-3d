@@ -90,3 +90,36 @@ describe('aimSpine', () => {
     expect(aimSpine(b.spine, stray, new BABYLON.Vector3(0, 0, 1))).toBe(0)
   })
 })
+
+describe('reachLimb', () => {
+  for (const mirror of [false, true]) {
+    test(`an arm puts its hand on a point${mirror ? ' (mirrored root)' : ''}`, async () => {
+      const { reachLimb, setWorldRotation } = await import('./aim-ik.js')
+      const node = (name: string, parent: BABYLON.Node | null, x = 0) => {
+        const n = new BABYLON.TransformNode(name, scene)
+        n.parent = parent
+        n.position.x = x
+        n.rotationQuaternion = BABYLON.Quaternion.Identity()
+        return n
+      }
+      const root = node('root', null)
+      if (mirror) root.scaling.set(1.5, 1.5, -1.5)
+      const upper = node('upper', root)
+      upper.position.y = 1.4
+      const lower = node('lower', upper, 0.3)
+      const hand = node('hand', lower, 0.25)
+      for (const n of [root, upper, lower, hand]) n.computeWorldMatrix(true)
+      const s = upper.getAbsolutePosition()
+      const goal = s.add(new BABYLON.Vector3(0.1, -0.1, mirror ? 0.4 : -0.4))
+      const miss = reachLimb(upper, lower, hand, goal, new BABYLON.Vector3(0, -1, 0))
+      expect(miss).toBeLessThan(1e-4)
+      expect(lower.getAbsolutePosition().y).toBeLessThan(s.y - 0.02)
+      // And the hand turned to a world rotation.
+      const want = BABYLON.Matrix.RotationY(0.7).multiply(root.getWorldMatrix())
+      setWorldRotation(hand, want)
+      const got = hand.getWorldMatrix().getRow(2)!.toVector3().normalize()
+      const wantZ = want.getRow(2)!.toVector3().normalize()
+      expect(BABYLON.Vector3.Dot(got, wantZ)).toBeGreaterThan(0.9999)
+    })
+  }
+})
