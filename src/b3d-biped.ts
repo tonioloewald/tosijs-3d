@@ -216,6 +216,7 @@ animation is doing with that hand.
 | `hardLanding` | `0` (auto) | Metres of drop past which a landing is hard: the `hardLand` clip (UAL's `Roll`), standing still while it plays. Auto is 1.5 body heights. The drop is from the top of the flight, so a jump on flat ground is never hard ([fall](/fall/)) |
 | `lethalFall` | `0` (off) | Metres of drop that kill on landing: the `death` clip (`Death01`) where you land, then a bubbling `crash` event (`detail: { cause: 'fall', drop }`) that `<tosi-b3d-death>` answers without exploding you. Off by default, since a death needs an exit. Water breaks a fall |
 | `health` | `0` (can't be hurt) | Hit points. Above 0 the biped is a target like any destroyable: a hit plays a hit clip (`hitChest` / `hitStomach` / `hitHead` in turn, `hitKnockback` for a blast) and holds it still for the clip; at 0 it plays `death` where it stands and dispatches a bubbling `destroyed`, which `<tosi-b3d-death>` answers. `hp` reads what is left, `damage(amount, cause)` hurts it, `aimTarget` is a chest-height node for turrets and AI to track |
+| `hitScale` | head 2.5, trunk 1, limb 0.5 | (a property) What a hit does by where it lands. A round that says where it struck (a launcher with `direct-hit="on"`) is placed by `hitRegion(point)`: the head round the head bone, the trunk near the hips-to-neck axis, a limb anywhere else; a crouch moves them with the body. The head plays `hitHead`, the trunk `hitChest` and `hitStomach` in turn, a limb `hitShoulderL`/`R` by side. `hurt` events carry the `region` |
 | `healthRegen` | `0` | Hit points regained per second, from `healthRegenDelay` (5) seconds after the last hit |
 | `wadeDepth` | `0.45` | Water depth, as a fraction of standing height, where wading becomes swimming |
 | `buoyancy` | `0` | How high the figure rides in the water, metres. `0` puts the waterline at the head |
@@ -376,6 +377,9 @@ import { FALL_START_DROP, fallRules, landingOutcome } from './fall.js'
 import { DestroyableBehavior } from './destroyable-behavior.js'
 import type { Cause } from './destroyable.js'
 
+/** Where a hit lands on a body. */
+export type HitRegion = 'head' | 'trunk' | 'limb'
+
 const DEG_TO_RAD = Math.PI / 180
 
 function lerp(a: number, b: number, t: number): number {
@@ -476,6 +480,8 @@ export function ualAnimationStates(extra: AnimStateSpec[] = []): AnimState[] {
     { name: 'hitStomach', animation: 'Hit_Stomach', loop: false },
     { name: 'hitHead', animation: 'Hit_Head', loop: false },
     { name: 'hitKnockback', animation: 'Hit_Knockback', loop: false },
+    { name: 'hitShoulderL', animation: 'Hit_Shoulder_L', loop: false },
+    { name: 'hitShoulderR', animation: 'Hit_Shoulder_R', loop: false },
     /*
     CLIMB clips are named for the HEIGHT they cover, not for the state that
     preceded them — which is why `mantle.mantleClip` picks one by measuring the
@@ -1536,6 +1542,42 @@ export class B3dBiped extends B3dControllable {
     return this.owner?.combat.get(this.destroyable.combatId)?.hp.value ?? 0
   }
 
+  /**
+   * What a hit does by where it lands: a head shot hurts more than a hand.
+   * Only hits that say where (a direct-hit round's `Cause.at`) are scaled; a
+   * blast or a blow is the trunk.
+   */
+  hitScale: Record<HitRegion, number> = { head: 2.5, trunk: 1, limb: 0.5 }
+
+  /**
+   * Which part of the body a world point is on: the HEAD (round the head
+   * bone), the TRUNK (close to the axis from the hips to the neck) or a LIMB
+   * (anything else: arms out from the trunk, legs below the hips). Measured
+   * from the head node, so a crouch moves the regions with it.
+   */
+  hitRegion(at: { x: number; y: number; z: number }): HitRegion {
+    const root = this.mesh
+    if (root == null) return 'trunk'
+    const feet = root.getAbsolutePosition()
+    const head =
+      this.headNode?.getAbsolutePosition() ??
+      feet.add(new BABYLON.Vector3(0, (this as any).eyeHeight || 1.6, 0))
+    const tall = head.y - feet.y
+    if (tall < 0.2) return 'trunk'
+    // A person's head bone is about 1.6 m up; everything scales from that.
+    const s = tall / 1.6
+    const skull = { x: head.x, y: head.y + 0.08 * s, z: head.z }
+    if (Math.hypot(at.x - skull.x, at.y - skull.y, at.z - skull.z) < 0.17 * s)
+      return 'head'
+    const t = (at.y - feet.y) / tall
+    if (t < 0.5 || t > 1.05) return 'limb'
+    // The axis from the hips (over the feet) to the neck (under the head).
+    const u = (t - 0.5) / 0.5
+    const ax = feet.x + (head.x - feet.x) * u
+    const az = feet.z + (head.z - feet.z) * u
+    return Math.hypot(at.x - ax, at.z - az) < 0.2 * s ? 'trunk' : 'limb'
+  }
+
   /** Hurt this biped (no effect when `health` is 0 or it is already dead). */
   damage(amount: number, cause?: Cause): void {
     this.destroyable?.damage(amount, cause)
@@ -1572,12 +1614,21 @@ export class B3dBiped extends B3dControllable {
    * motion.
    */
   private _onHit(cause?: Cause): void {
-    const turn = ['hitChest', 'hitStomach', 'hitHead'][this._hits++ % 3]
-    this.perform(
-      cause?.kind === 'blast' && this._hasState('hitKnockback')
-        ? 'hitKnockback'
-        : turn
-    )
+    if (cause?.kind === 'blast' && this._hasState('hitKnockback')) {
+      this.perform('hitKnockback')
+      return
+    }
+    const region = cause?.at ? this.hitRegion(cause.at) : 'trunk'
+    let clip = ['hitChest', 'hitStomach'][this._hits++ % 2]
+    if (region === 'head') clip = 'hitHead'
+    else if (region === 'limb' && cause?.at && this.mesh) {
+      // Which side: the hit point against the body's right (facing +z, right is +x).
+      const f = this.mesh.forward
+      const p = this.mesh.getAbsolutePosition()
+      const right = (cause.at.x - p.x) * f.z - (cause.at.z - p.z) * f.x
+      clip = right > 0 ? 'hitShoulderR' : 'hitShoulderL'
+    }
+    this.perform(this._hasState(clip) ? clip : 'hitChest')
   }
 
   /**
@@ -1619,10 +1670,13 @@ export class B3dBiped extends B3dControllable {
       },
       { meshOnDeath: 'keep', flash: false }
     )
+    d.damageScale = (cause) =>
+      cause?.at ? this.hitScale[this.hitRegion(cause.at)] ?? 1 : 1
     d.whenDamaged = (info) => {
       this._onHit(info.cause)
       // For whoever drives it (an NPC brain turns on whoever hurt it).
-      this.dispatchEvent(new CustomEvent('hurt', { detail: info }))
+      const region = info.cause?.at ? this.hitRegion(info.cause.at) : 'trunk'
+      this.dispatchEvent(new CustomEvent('hurt', { detail: { ...info, region } }))
     }
     d.whenDestroyed = () => this._fallDead()
     d.attach()

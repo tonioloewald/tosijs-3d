@@ -167,6 +167,11 @@ export class DestroyableBehavior {
   readonly combatId: string
   /** On-destruction direct-transfer chain links (see destroyable.ts). */
   chain: ChainLink[]
+  /**
+   * Scales a hit before it lands: a body takes more from a head shot than a
+   * hand (see the cause's `at`). Default 1.
+   */
+  damageScale?: (cause?: Cause) => number
   /** Code hook run on every hit that lands: how much, health left, and who. */
   whenDamaged?: (info: { amount: number; hp: number; cause?: Cause }) => void
   /** Code hook run once on death, before the visual outcome. */
@@ -221,9 +226,10 @@ export class DestroyableBehavior {
    * accumulated-damage glow so you can read how close it is to dying). */
   damage(amount: number, cause?: Cause): CombatEvent[] {
     if (this._dead) return []
+    const scale = this.damageScale?.(cause) ?? 1
     const events = this.owner.combat.applyDamage(
       this.combatId,
-      amount,
+      amount * scale,
       [],
       cause
     )

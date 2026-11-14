@@ -30,10 +30,10 @@ const gripFor = (name) => {
 // so the rifles are fired from a one-handed stance. Anything else is a melee
 // weapon (`holdingWeapon`): on guard, and the trigger swings it.
 const WEAPONS = {
-  Pistol: { tags: ['side', 'hand'], mass: 1, art: 'pistol', fire: { fireRate: 6, muzzleSpeed: 45, damage: 25, projRadius: 0.08, gravity: -2 } },
-  SMG: { tags: ['side', 'hand'], mass: 2.5, art: 'pistol', fire: { fireRate: 14, muzzleSpeed: 50, damage: 12, projRadius: 0.06, gravity: -2 } },
-  'Assault Rifle': { tags: ['back', 'hand', 'two-handed'], mass: 3.5, art: 'rifle', fire: { fireRate: 9, muzzleSpeed: 80, damage: 20, projRadius: 0.06, gravity: -1 } },
-  'Rocket Launcher': { tags: ['back', 'hand', 'two-handed'], mass: 7, art: 'rifle', fire: { fireRate: 0.8, muzzleSpeed: 25, damage: 120, projRadius: 0.16, gravity: -1 } },
+  Pistol: { tags: ['side', 'hand'], mass: 1, art: 'pistol', fire: { fireRate: 6, muzzleSpeed: 45, damage: 25, projRadius: 0.08, gravity: -2, directHit: 'on' } },
+  SMG: { tags: ['side', 'hand'], mass: 2.5, art: 'pistol', fire: { fireRate: 14, muzzleSpeed: 50, damage: 12, projRadius: 0.06, gravity: -2, directHit: 'on' } },
+  'Assault Rifle': { tags: ['back', 'hand', 'two-handed'], mass: 3.5, art: 'rifle', fire: { fireRate: 9, muzzleSpeed: 80, damage: 20, projRadius: 0.06, gravity: -1, directHit: 'on' } },
+  'Rocket Launcher': { tags: ['back', 'hand', 'two-handed'], mass: 7, art: 'rifle', fire: { fireRate: 0.8, muzzleSpeed: 25, damage: 120, projRadius: 0.16, gravity: -1, directHit: 'off' } },
   Dagger: { tags: ['side', 'hand'], mass: 0.4, art: 'knife' },
   'Short Sword': { tags: ['side', 'hand'], mass: 1, art: 'sword' },
   'Long Sword': { tags: ['side', 'hand'], mass: 1.5, art: 'sword' },
@@ -343,7 +343,9 @@ off. Noticed, it chases and swings when it reaches you; lose it and it
 searches where it last saw you, then goes back to its post or its route.
 Throw something (drop it from the loadout) and it goes to look where it
 landed. It is deliberately dumb: it runs to where you WERE, so a sidestep
-beats it. Three pistol shots put one down. The line under the scene says what
+beats it. Bullets hit where they land: a head shot does two and a half
+times the damage, a limb half: one pistol round to the head puts one down,
+three to the body, five to the arms and legs. The line under the scene says what
 each is doing.
 
 **Something shoots back.** A turret past the cover line fires slow shells at

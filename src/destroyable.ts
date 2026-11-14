@@ -137,6 +137,11 @@ export interface Cause {
    * event stream, which it has in order.
    */
   hops?: number
+  /**
+   * WHERE it struck, in world space, when the hit was a point (a bullet), so a
+   * body can tell a head from a hand. Absent for a blast or a chain.
+   */
+  at?: { x: number; y: number; z: number }
 }
 
 export type CombatEvent =

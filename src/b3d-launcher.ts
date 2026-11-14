@@ -228,6 +228,7 @@ that assumes one orients its effect off nothing.
 | `fullRadius` | `1` | Warhead full-damage radius |
 | `blastRadius` | `3` | Warhead falloff radius |
 | `los` | `'on'` | Warhead line-of-sight gating |
+| `directHit` | `'off'` | `'on'`: a round damages what it hits and says where (`Cause.at`), so a body can tell a head shot from a hand; `'off'` bursts as a warhead and hurts what is near |
 | `x`,`y`,`z` | `0` | Launcher position (muzzle offset forward from here) |
 
 ## Authoring a weapon mesh
@@ -810,9 +811,11 @@ export function spawnProjectile(
       if (hit != null && hit.hit && hit.pickedPoint != null) {
         if (opts.directHit === true) {
           // What it went through, not what was near where it stopped.
+          const p = hit.pickedPoint
           destroyableAt(hit.pickedMesh)?.damage(opts.warhead.damage, {
             ...(opts.cause ?? {}),
             kind: 'direct',
+            at: { x: p.x, y: p.y, z: p.z },
           })
         } else {
           detonateWarhead(
@@ -1146,6 +1149,12 @@ export class B3dLauncher extends AbstractMesh {
     fullRadius: 1,
     blastRadius: 3,
     los: 'on',
+    /**
+     * `'on'`: a round damages what it hits, all of it, and tells it where
+     * (a bullet: a head shot is not a leg shot). `'off'` (default): it bursts
+     * as a warhead and hurts what is near by distance (a shell).
+     */
+    directHit: 'off' as 'on' | 'off',
   }
 
   declare meshName: string
@@ -1224,6 +1233,7 @@ export class B3dLauncher extends AbstractMesh {
   declare fullRadius: number
   declare blastRadius: number
   declare los: string
+  declare directHit: 'on' | 'off'
 
   private _ammoPool!: Resource
   private _cooldown = 0
@@ -1753,6 +1763,7 @@ export class B3dLauncher extends AbstractMesh {
       color: this.projColor,
       maxLifetime: this.maxLifetime,
       useLos: !isOff(this.los),
+      directHit: this.directHit === 'on',
       // Our own barrel AND whoever is holding us — see `_selfHit`.
       ignore: (m) => this._selfHit(m),
     })

@@ -571,6 +571,7 @@ export type { Trail, TrailOptions } from './b3d-trail.js'
 
 // Character & input
 export { B3dBiped, b3dBiped, AnimState } from './b3d-biped.js'
+export type { HitRegion } from './b3d-biped.js'
 // Clip-name map for Quaternius UAL rigs — see b3d-biped.
 export { ualAnimationStates } from './b3d-biped.js'
 export type { AnimStateSpec } from './b3d-biped.js'
