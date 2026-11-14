@@ -414,6 +414,40 @@ export class AnimState {
   }
 }
 
+/** The clips a weapon's gunplay states play: a stance, three aim poses, a shot, a reload. */
+export interface AimClips {
+  aimIdle: string
+  aimUp: string
+  aimLevel: string
+  aimDown: string
+  shoot: string
+  reload: string
+}
+
+/**
+ * UAL's gunplay sets, by the weapon they are for. The bow has no stance of
+ * its own, so standing it holds the level aim; its reload notches an arrow.
+ * `B3dBiped.setAimClips` switches between them.
+ */
+export const AIM_CLIPS: Record<'pistol' | 'bow', AimClips> = {
+  pistol: {
+    aimIdle: 'Pistol_Idle_Loop',
+    aimUp: 'Pistol_Aim_Up',
+    aimLevel: 'Pistol_Aim_Neutral',
+    aimDown: 'Pistol_Aim_Down',
+    shoot: 'Pistol_Shoot',
+    reload: 'Pistol_Reload',
+  },
+  bow: {
+    aimIdle: 'Bow_Aim_Neutral',
+    aimUp: 'Bow_Aim_Up',
+    aimLevel: 'Bow_Aim_Neutral',
+    aimDown: 'Bow_Aim_Down',
+    shoot: 'Bow_Shoot',
+    reload: 'Bow_Notch',
+  },
+}
+
 /**
  * **Animation states for a Quaternius UAL rig** (the Universal Animation
  * Library, on `cdn.tosijs.net/quaternius/`).
@@ -527,12 +561,12 @@ export function ualAnimationStates(extra: AnimStateSpec[] = []): AnimState[] {
     1.28 MB of its 6.28, the biggest single line in that subset, which is worth
     knowing before anyone trims it.
     */
-    { name: 'aimIdle', animation: 'Pistol_Idle_Loop', loop: true },
-    { name: 'aimUp', animation: 'Pistol_Aim_Up', loop: true },
-    { name: 'aimLevel', animation: 'Pistol_Aim_Neutral', loop: true },
-    { name: 'aimDown', animation: 'Pistol_Aim_Down', loop: true },
-    { name: 'shoot', animation: 'Pistol_Shoot', loop: false },
-    { name: 'reload', animation: 'Pistol_Reload', loop: false },
+    { name: 'aimIdle', animation: AIM_CLIPS.pistol.aimIdle, loop: true },
+    { name: 'aimUp', animation: AIM_CLIPS.pistol.aimUp, loop: true },
+    { name: 'aimLevel', animation: AIM_CLIPS.pistol.aimLevel, loop: true },
+    { name: 'aimDown', animation: AIM_CLIPS.pistol.aimDown, loop: true },
+    { name: 'shoot', animation: AIM_CLIPS.pistol.shoot, loop: false },
+    { name: 'reload', animation: AIM_CLIPS.pistol.reload, loop: false },
     // MELEE, with a weapon held but not raised (see `holdingWeapon`): standing
     // still on guard, and one swing per pull of the trigger.
     { name: 'meleeIdle', animation: 'Sword_Idle', loop: true },
@@ -2142,7 +2176,7 @@ export class B3dBiped extends B3dControllable {
     if (!this.gunplay && this._holdingWeapon) return this._meleeState(name)
     if (!this.gunplay) return name
     if (name !== 'idle') return name
-    if (this._hasClip('Pistol_Idle_Loop')) return 'aimIdle'
+    if (this._hasClip(this._clipOf('aimIdle'))) return 'aimIdle'
     /*
     SAY SO, ONCE, rather than quietly standing there.
 
@@ -2160,10 +2194,39 @@ export class B3dBiped extends B3dControllable {
     */
     this._warnOnce(
       `b3d-biped: weapon raised, but ${this.url || 'this rig'} has no ` +
-        `Pistol_Idle_Loop — the character will aim in its walking pose. ` +
+        `${this._clipOf('aimIdle')} — the character will aim in its walking pose. ` +
         `If the rig should have it, the asset is probably cached (hard-reload).`
     )
     return name
+  }
+
+  /** The clip a state plays (its name when it has no state). */
+  private _clipOf(state: string): string {
+    return this.animationStates.find((st) => st.name === state)?.animation ?? state
+  }
+
+  /**
+   * Which clips the gunplay states play: `AIM_CLIPS.bow` for a bow, `.pistol`
+   * (the default) for a gun. JS only; a game calls it when what is in hand
+   * changes. A state whose clip the rig lacks is skipped as before.
+   */
+  setAimClips(clips: AimClips): void {
+    let changed = false
+    for (const st of this.animationStates) {
+      const clip = clips[st.name as keyof AimClips]
+      if (clip != null && st.animation !== clip) {
+        st.animation = clip
+        changed = true
+      }
+    }
+    if (!changed) return
+    // The layer and the stance pick the new clips on their next look.
+    this._aimLayerKey = '\u0000'
+    const now = this.animationState?.name
+    if (now != null && now in clips) {
+      this.animationState = undefined
+      this.setAnimationState(now)
+    }
   }
 
   private _warned = new Set<string>()
@@ -2201,21 +2264,23 @@ export class B3dBiped extends B3dControllable {
     if (skeleton == null || scene == null) return
 
     let layerClip = ''
+    const shot = this._clipOf('shoot')
     if (this._shootFor > 0) {
-      layerClip = 'Pistol_Shoot'
+      layerClip = shot
     } else if (this.gunplay) {
       const w = aimPoseWeights(this._aim.pitchDeg)
-      layerClip =
+      layerClip = this._clipOf(
         w.up > w.level && w.up > w.down
-          ? 'Pistol_Aim_Up'
+          ? 'aimUp'
           : w.down > w.level
-          ? 'Pistol_Aim_Down'
-          : 'Pistol_Aim_Neutral'
+          ? 'aimDown'
+          : 'aimLevel'
+      )
     }
     const baseGroup = this.animationGroup
     const baseClip = baseGroup?.name.replace(/^Clone of /, '') ?? ''
     // The gun-ready idle IS the pose; layering one over it fights itself.
-    if (layerClip !== 'Pistol_Shoot' && baseClip === 'Pistol_Idle_Loop') {
+    if (layerClip !== shot && baseClip === this._clipOf('aimIdle')) {
       layerClip = ''
     }
     const key = layerClip === '' ? '' : `${baseClip}|${layerClip}`
@@ -2241,7 +2306,7 @@ export class B3dBiped extends B3dControllable {
     this._ease(layerGroup)
     baseGroup.stop()
     this._aimLayer = layerOnUpperBody(scene, skeleton, baseGroup, layerGroup)
-    this._aimLayer?.play(layerClip !== 'Pistol_Shoot')
+    this._aimLayer?.play(layerClip !== shot)
   }
 
   /*
@@ -4248,9 +4313,10 @@ export class B3dBiped extends B3dControllable {
       library.meshes.find((m) => m.name === '__root__') ??
       library.transformNodes[0]
     const from = readSkeleton(library.skeletons[0], libRoot)
-    const wanted = new Set(
-      this.animationStates.map((st: any) => st.animation ?? st.name)
-    )
+    const wanted = new Set([
+      ...this.animationStates.map((st: any) => st.animation ?? st.name),
+      ...Object.values(AIM_CLIPS).flatMap((c) => Object.values(c)),
+    ])
     const clips: BABYLON.AnimationGroup[] = []
     for (const g of library.animationGroups) {
       if (!wanted.has(g.name)) continue

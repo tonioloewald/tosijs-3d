@@ -576,8 +576,8 @@ export type { Trail, TrailOptions } from './b3d-trail.js'
 export { B3dBiped, b3dBiped, AnimState } from './b3d-biped.js'
 export type { HitRegion } from './b3d-biped.js'
 // Clip-name map for Quaternius UAL rigs — see b3d-biped.
-export { ualAnimationStates } from './b3d-biped.js'
-export type { AnimStateSpec } from './b3d-biped.js'
+export { ualAnimationStates, AIM_CLIPS } from './b3d-biped.js'
+export type { AnimStateSpec, AimClips } from './b3d-biped.js'
 export { GameController, gameController } from './game-controller.js'
 export { B3dInputFocus, inputFocus } from './b3d-input-focus.js'
 export {
