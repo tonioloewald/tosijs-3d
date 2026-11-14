@@ -433,6 +433,11 @@ export function demoLoadout(
      * if absent).
      */
     catalogue?: Record<string, { tags: string[]; mass: number; art?: string }>
+    /**
+     * An item dragged out of the loadout onto drop: it leaves the
+     * inventory, and this puts it in the world (default: it is gone).
+     */
+    handleDrop?: (item: { id: string; kind: string }) => void
   } = {}
 ): {
   panels: () => B3dPanel[]
@@ -545,7 +550,11 @@ export function demoLoadout(
           : [],
       // Nowhere to put it down in this scene: it is simply gone (a game puts
       // it on the ground here).
-      handleDrop: (item) => console.log('dropped', item.kind),
+      // It leaves the inventory; the page puts it in the world, if it has one.
+      handleDrop: (item) => {
+        if (opts.handleDrop) opts.handleDrop(item)
+        else console.log('dropped', item.kind)
+      },
     })
     // Laid out on the page (text is measured there), out of sight.
     const park = document.createElement('div')

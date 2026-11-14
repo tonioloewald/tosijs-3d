@@ -6,7 +6,7 @@ arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dDeath, b3dLauncher, b3dLibrary, b3dTurret, button3d, characterStore, holdGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dDeath, b3dLauncher, b3dLibrary, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
@@ -97,7 +97,31 @@ let hero = makeHero(null, { x: -4, z: 10 })
 // your right hand is what the launcher carries; a gun in hand is up (aim and
 // fire), anything else is held with the weapon down. The weapon button draws
 // from the hip or back, or puts away what is in hand; dragging works too.
-const loadout = demoLoadout({ catalogue: WEAPONS, equip: { right_side: 'Pistol' } })
+//
+// AND SOME OF IT IS LYING ON THE GROUND. Walk up and press E (interact) to
+// pick a thing up into your bag; drag anything out of the loadout onto drop
+// and it lands at your feet. A world item is a KIND: picking it up makes an
+// item of that kind, so items are looked up by kind, never by id.
+const loadout = demoLoadout({
+  catalogue: WEAPONS,
+  equip: { right_side: 'Pistol' },
+  handleDrop: (item) => {
+    const node = hero.entries?.rootNodes[0]
+    if (!node) return
+    const ahead = node.forward.scale(0.9)
+    hero.owner?.append(pickup(item.kind, node.position.x + ahead.x, node.position.z + ahead.z))
+  },
+})
+const BAG = { holder: 'hero', container: 'bag' }
+// Lying on its side (the weapons stand on their grips, blade or barrel up +Y).
+const pickup = (kind, x, z) => b3dPickup({
+  library: 'weapons', meshName: kind, item: kind,
+  x, y: 0.08, z, rz: 90,
+  whenPickedUp: ({ item }) => loadout.inv.move({ kind: item, to: BAG }),
+})
+const ON_THE_GROUND = [['Assault Rifle', -2, 6.5], ['Long Sword', -4.5, 6], ['Buckler', -7, 6.5]]
+for (const [kind] of ON_THE_GROUND) loadout.inv.move({ item: kind, to: null })
+const kindOf = (id) => (id ? loadout.inv.doc.items[id]?.kind ?? null : null)
 const body = (slot) => ({ holder: 'hero', container: 'body', slot })
 const slotsNow = () => loadout.inv.doc.holders.hero.containers.body.slots
 const inRight = () => slotsNow().hand_right.holds
@@ -118,10 +142,10 @@ const wire = (h) => {
   return h
 }
 const hold = (h) => {
-  const id = inRight()
-  const w = id ? WEAPONS[id] : null
-  if (w && gun.meshName !== id) {
-    Object.assign(gun, gripFor(id), w.fire ?? {}, { meshName: id })
+  const kind = kindOf(inRight())
+  const w = kind ? WEAPONS[kind] : null
+  if (w && gun.meshName !== kind) {
+    Object.assign(gun, gripFor(kind), w.fire ?? {}, { meshName: kind })
     gun.reloadModel()
   }
   h.holdingWeapon = w != null && w.fire == null
@@ -221,6 +245,7 @@ preview.append(
     },
     weapons,
     turret,
+    ...ON_THE_GROUND.map(([kind, x, z]) => pickup(kind, x, z)),
     ...playground(),
     ...loadout.panels(),
     // Death's exit: the panel, and a new hero back at the start.
@@ -260,6 +285,10 @@ A blade, the spear or the buckler takes a guard (UAL's `Sword_Idle`) and **R**
 swings it (`Sword_Attack`, played through; held, it swings again). Press the
 bumper again to put away what is in your hand. Only the right hand is drawn.
 
+**Things to pick up.** A rifle, a sword and a buckler lie in front of you:
+walk up and press **E** to pick one up (you kneel for it), and it goes in your
+bag. Drag anything from the loadout onto **drop** and it lands at your feet.
+
 **Something shoots back.** A turret past the cover line fires slow shells at
 you (four hits kill); each hit staggers you, and out of its sight you heal.
 Crouch behind the low wall or duck behind a pillar.
@@ -279,7 +308,7 @@ character…** in this page's settings panel, the goggles on the bar) and press
 here. It takes the hero's place where he stands, holding what you held. Characters
 belong to the browser that made them.
 
-Things to try: put the pistol in the bag and try to raise it (nothing to raise), drag the rifle into your hand (it comes up, and both hands are taken); carry a sword on your hip and draw it; swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
+Things to try: put the pistol in the bag and try to raise it (nothing to raise), pick up the rifle and drag it into your hand (it comes up, and both hands are taken); carry a sword on your hip and draw it; swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
 and watch the ring disappear behind it until you stand; walk the cover line and
 compare the railing with the wall beside it.
 

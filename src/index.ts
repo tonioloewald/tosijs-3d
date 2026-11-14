@@ -1767,6 +1767,7 @@ export type {
 } from './destroyable.js'
 export { B3dDestroyable, b3dDestroyable } from './b3d-destroyable.js'
 export { B3dProp, b3dProp } from './b3d-prop.js'
+export { B3dPickup, b3dPickup } from './b3d-pickup.js'
 export { loadLibraryMesh } from './library-mesh.js'
 export type { LibraryMeshRequest } from './library-mesh.js'
 export { DestroyableBehavior } from './destroyable-behavior.js'

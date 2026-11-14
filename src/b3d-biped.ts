@@ -497,6 +497,8 @@ export function ualAnimationStates(extra: AnimStateSpec[] = []): AnimState[] {
     { name: 'dance', animation: 'Dance_Loop', loop: true },
     { name: 'pilot', animation: 'Driving_Loop', loop: true },
     { name: 'pickup', animation: 'Interact', loop: false },
+    // Reaching down to the floor (a `<tosi-b3d-pickup>` lying low).
+    { name: 'pickupLow', animation: 'PickUp_Kneeling', loop: false },
     { name: 'look', animation: 'Idle_Loop', loop: true },
     /*
     THE GUNPLAY SET, and the three aim poses are not arbitrary — they are
@@ -1516,9 +1518,9 @@ export class B3dBiped extends B3dControllable {
   private _airTopY = 0
   /** The landing playing is a hard one: the `hardLand` clip, standing still. */
   private _hardLanding = false
-  /** The hit clip playing, and how long it has left (it holds the biped still). */
-  private _hitClip = ''
-  private _hitLeft = 0
+  /** The one-off clip playing (a hit, a pickup), and how long it has left (it holds the biped still). */
+  private _actionClip = ''
+  private _actionLeft = 0
   private _hits = 0
   /** Its health in the scene's combat world, when `health` is above 0. */
   destroyable: DestroyableBehavior | null = null
@@ -1556,7 +1558,7 @@ export class B3dBiped extends B3dControllable {
   private _fallDead(): void {
     this._airPhase = null
     this._hardLanding = false
-    this._hitLeft = 0
+    this._actionLeft = 0
     this._fallVel = 0
     this.diesInPlace = this._hasState('death')
     if (this.diesInPlace) this.setAnimationState('death')
@@ -1570,16 +1572,28 @@ export class B3dBiped extends B3dControllable {
    * motion.
    */
   private _onHit(cause?: Cause): void {
-    if (this.halted || this._swimming || this._airPhase != null) return
-    if (this._mantle != null) return
     const turn = ['hitChest', 'hitStomach', 'hitHead'][this._hits++ % 3]
-    const want =
+    this.perform(
       cause?.kind === 'blast' && this._hasState('hitKnockback')
         ? 'hitKnockback'
         : turn
-    if (!this._hasState(want)) return
-    this._hitClip = want
-    this._hitLeft = this._clipSeconds(want)
+    )
+  }
+
+  /**
+   * Play a one-off clip (picking something up, opening a chest, a hit) and
+   * stand still while it plays. Returns its length in seconds, or 0 when it
+   * cannot play: the rig lacks the clip, or the biped is in the air, in water,
+   * mid-climb or dead. For a game, an AI or a cutscene.
+   */
+  perform(state: string): number {
+    if (this.halted || this._swimming || this._airPhase != null) return 0
+    if (this._mantle != null) return 0
+    const seconds = this._clipSeconds(state)
+    if (seconds <= 0) return 0
+    this._actionClip = state
+    this._actionLeft = seconds
+    return seconds
   }
 
   /** Health in the combat world, a chest-height aim point, once the model is in. */
@@ -2556,9 +2570,9 @@ export class B3dBiped extends B3dControllable {
     this._paceBlends(dt)
 
     // A hard landing holds you where you landed while it plays.
-    this._hitLeft = Math.max(0, this._hitLeft - dt)
+    this._actionLeft = Math.max(0, this._actionLeft - dt)
     const speed =
-      (this._hardLanding && this._airPhase === 'land') || this._hitLeft > 0
+      (this._hardLanding && this._airPhase === 'land') || this._actionLeft > 0
         ? 0
         : input.forward
     /*
@@ -3608,8 +3622,8 @@ export class B3dBiped extends B3dControllable {
             : 'jumpLand'
         const has = this.animationStates.some((st) => st.name === want)
         this.setAnimationState(has ? want : this._jumpClip)
-      } else if (this._hitLeft > 0) {
-        this.setAnimationState(this._hitClip)
+      } else if (this._actionLeft > 0) {
+        this.setAnimationState(this._actionClip)
       } else if (Math.abs(strafe) > 0.1 && Math.abs(strafe) > Math.abs(speed)) {
         /*
         SIDESTEPPING HAS ITS OWN CLIPS — use them.

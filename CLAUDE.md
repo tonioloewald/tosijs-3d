@@ -577,6 +577,7 @@ an accessible name in the markup (an SVG `<title>`, or the mirrored button's
 | `src/b3d-trigger.ts` | Proximity-based trigger zones |
 | `src/b3d-beacon.ts` | `<tosi-b3d-beacon>`: an invisible clickable hull for anything with a position and no geometry (a lamp with `geometry="off"`, a positional sound, a spawn point) |
 | `src/b3d-interactive.ts` | `<tosi-b3d-interactive>` — the "touch a mesh" substrate (doors, knobs, switches, locks); press-then-release ON the thing, reach is part of the rule |
+| `src/b3d-pickup.ts` | `<tosi-b3d-pickup item>`: a prop that is interactive. E (or a click) makes the player `perform('pickupLow')` (kneeling, for something low) or `pickup`; the item leaves the world at the hand's moment (scene time), then `whenPickedUp({ item, by })` and a bubbling `pickedup`. The game puts it in an inventory (`inv.move({ kind, to })`: a world item is a KIND). `B3dBiped.perform(state)` is the one-off clip that holds still (hits use it) |
 | `src/interaction.ts` | Pure interaction rules — activation, reach, disabled-mid-gesture, vetoes consulted at activation not hover. Babylon-free, unit-tested |
 | `src/interactive-behavior.ts` | Attachable interactivity — makes any modeled element usable without being a separate element |
 
