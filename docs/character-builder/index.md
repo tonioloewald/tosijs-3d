@@ -94,6 +94,7 @@ const choices = (key) => ch?.choices(key) ?? ['none']
 let openBody = () => {}
 // The rig tool, mounted on the body while it is being rigged.
 let rigging = null
+let openMesh = () => {}
 let openRig = (file = null) => {}
 const madeHuman = () => walker.source.value === 'MakeHuman'
 // The imported body's surfaces (its file's materials), each as made or skin.
@@ -230,12 +231,14 @@ const playingClip = (recipe) => {
   const file = clipFiles.get(name)
   const kept = file != null ? clipBytes.get(file) : null
   const armSpaceDeg = recipe?.armSpaceDeg
-  if (kept) return { name, kind: kept.kind, bytes: kept.bytes, armSpaceDeg }
+  const footTurnDeg = recipe?.footTurnDeg
+  if (kept) return { name, kind: kept.kind, bytes: kept.bytes, armSpaceDeg, footTurnDeg }
   return {
     name,
     kind: 'glb',
     url: assetUrl('quaternius/UAL_builder.glb'),
     armSpaceDeg,
+    footTurnDeg,
     extras: { credit: 'Quaternius', license: 'CC0 (https://creativecommons.org/publicdomain/zero/1.0/)', source: 'quaternius/UAL_builder.glb' },
   }
 }
@@ -513,6 +516,8 @@ preview.append(
                 handleSelect: () => modal((pop) => namePopup(pop, { prompt: `rename ${current} to`, initial: current, current, verb: 'rename', act: (name) => character.rename(current, name) })),
               },
               { separator: true },
+              { label: 'Open mesh…', handleSelect: () => openMesh() },
+              { separator: true },
               { label: 'Export JSON', handleSelect: () => character.exportJson() },
               { label: 'Load JSON…', handleSelect: () => character.importJson() },
               { separator: true },
@@ -524,6 +529,13 @@ preview.append(
         let onHand = false
         views = viewMenu(inspect, el, {
           always: true,
+          // Rigging: what is shown beside the mesh.
+          items: () => rigging
+            ? [
+                { label: 'Mannequin', icon: 'personStanding', checked: rigging.api.mannequin, handleSelect: () => { rigging.api.mannequin = !rigging.api.mannequin } },
+                { label: 'Bones', icon: 'rig', checked: rigging.api.bones, handleSelect: () => { rigging.api.bones = !rigging.api.bones } },
+              ]
+            : [],
           extras: [{
             value: 'hand',
             label: 'right hand',
@@ -813,6 +825,8 @@ preview.append(
         // The forget button comes and goes with whether the clip is your own.
         let ownClip = false
         walker.clip.observe(() => {
+          // Rigging, a clip from the Animation menu plays on the rig.
+          if (rigging) rigging.api.clip = walker.clip.value
           if (clipFiles.has(walker.clip.value) === ownClip) return
           ownClip = !ownClip
           el.refreshScenePanel?.()
@@ -844,8 +858,8 @@ preview.append(
           const own = fileClips.get(walker.clip.value)
           const clip = own?.group ?? ual.animationGroups.find((g) => g.name === walker.clip.value) ?? ual.animationGroups.find((g) => g.name === 'Walk_Loop')
           playing = own?.source
-            ? retargetSourceClip(own.source, own.clip, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg })
-            : clip ? retargetClip(clip, own?.from ?? source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg }) : null
+            ? retargetSourceClip(own.source, own.clip, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg, footTurnDeg: ch.recipe?.footTurnDeg })
+            : clip ? retargetClip(clip, own?.from ?? source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg, footTurnDeg: ch.recipe?.footTurnDeg }) : null
           playing?.start(true, clipSpeed)
           ch.groundFor(playing)
           if (walker.paused.value) playing?.pause()
@@ -1018,6 +1032,15 @@ preview.append(
           if (walker.source.value !== file.name) walker.source.value = file.name
         }
         el.builder.openFile = openFile
+        // OPEN MESH (the Character menu): rigging, it is the mesh the rig tool
+        // works on; otherwise a GLB or glTF is the body, and an OBJ, which has
+        // no skeleton, opens in the rig tool to be rigged.
+        openMesh = () => chooseFile('.glb,.gltf,.obj').then((f) => {
+          if (!f) return
+          if (rigging) void rigging.api.load(f)
+          else if (/\.obj$/i.test(f.name)) openRig(f)
+          else openFile(f)
+        })
         // THE RIG TOOL'S BUTTON is always on the bar: it rigs the body shown
         // (a mesh's), or a mesh file opened in it, and done makes what it
         // rigged the builder's body (a choice under source). The character's
@@ -1027,9 +1050,8 @@ preview.append(
         const idleRig = () =>
           panel3d(
             { width: 300 },
-            label3d({ text: 'rig a mesh to play the clips', muted: true, compact: true }),
-            ...(madeHuman() ? [] : [button3d({ label: `rig ${walker.source.value}`, handleClick: () => openRig() })]),
-            button3d({ label: 'open a mesh file…', handleClick: () => chooseFile('.glb,.gltf,.obj').then((f) => f && openRig(f)) })
+            label3d({ text: 'rig a mesh to play the clips (Character → Open mesh…)', muted: true, compact: true }),
+            ...(madeHuman() ? [] : [button3d({ label: `rig ${walker.source.value}`, handleClick: () => openRig() })])
           )
         rigPanel.svg = idleRig()
         el.append(rigPanel)
@@ -1067,6 +1089,8 @@ preview.append(
             camera: cam,
             // One view menu: the builder's, which the rig tool follows.
             inspect,
+            // Its playback and view come from the bar's Animation and View menus.
+            hostMenus: true,
             panel: rigPanel,
             // The rig it hands back is worn as it is: the body the tool bound,
             // its recipe kept with the character.
@@ -1093,6 +1117,8 @@ preview.append(
               play()
             },
           })
+          // It plays the clip the Animation menu has.
+          rigging.api.clip = walker.clip.value
           // The item goes while the rig tool has the body.
           applyGrip()
           el.refreshScenePanel?.()

@@ -1112,7 +1112,10 @@ The panel has these sections, its job first.
   joint (blue) to drag by hand from the view that suits: shoulders from the
   front, fingers and thumbs from the top, feet from the side. What hangs from
   a joint comes with it; set `dragging` to turn what hangs from it instead
-  (a hand or foot at an angle). Markers and moved joints are saved in the
+  (a hand or foot at an angle). Each finger's and thumb's tip (orange) pulls
+  its finger: the joints after its first turn and stretch about the first,
+  so the finger keeps its curl and reaches where you drop the tip. Markers
+  and moved joints are saved in the
   recipe as `binding`.
 - **Roles**, for a model on its own skeleton: which bone is the hips, the
   head, the left forearm, each finger joint. They are guessed from the
@@ -1123,7 +1126,9 @@ The panel has these sections, its job first.
   from where its soles stand (they are put on the floor at rest, and kept
   there as a clip plays), for one that still floats or sinks; `arm space`
   turns the arms out from the body, for a character whose arms are long for
-  its height;
+  its height; `foot turn` turns both feet in or out in every clip, for a
+  body modelled with its feet turned out (a foot's turn at rest is the
+  body's own, so it walks splay-footed otherwise);
   `load animations…` adds the clips in a GLB made on another rig to the
   list: Mixamo's, a mocap file's, another library's. Which bone is which is
   read from the names (UE, Mixamo, Kenney and Blender spellings), so each
@@ -1157,6 +1162,7 @@ const rig = applyRigRecipe(scene, root, skeleton, recipe)
 const walk = retargetClip(ualWalk, readSkeleton(ualSkeleton, ualRoot), rig.read, {
   scene,
   armSpaceDeg: recipe.armSpaceDeg,
+  footTurnDeg: recipe.footTurnDeg,
 })
 walk.start(true)
 ```
@@ -1387,6 +1393,7 @@ const choices = (key) => ch?.choices(key) ?? ['none']
 let openBody = () => {}
 // The rig tool, mounted on the body while it is being rigged.
 let rigging = null
+let openMesh = () => {}
 let openRig = (file = null) => {}
 const madeHuman = () => walker.source.value === 'MakeHuman'
 // The imported body's surfaces (its file's materials), each as made or skin.
@@ -1523,12 +1530,14 @@ const playingClip = (recipe) => {
   const file = clipFiles.get(name)
   const kept = file != null ? clipBytes.get(file) : null
   const armSpaceDeg = recipe?.armSpaceDeg
-  if (kept) return { name, kind: kept.kind, bytes: kept.bytes, armSpaceDeg }
+  const footTurnDeg = recipe?.footTurnDeg
+  if (kept) return { name, kind: kept.kind, bytes: kept.bytes, armSpaceDeg, footTurnDeg }
   return {
     name,
     kind: 'glb',
     url: assetUrl('quaternius/UAL_builder.glb'),
     armSpaceDeg,
+    footTurnDeg,
     extras: { credit: 'Quaternius', license: 'CC0 (https://creativecommons.org/publicdomain/zero/1.0/)', source: 'quaternius/UAL_builder.glb' },
   }
 }
@@ -1806,6 +1815,8 @@ preview.append(
                 handleSelect: () => modal((pop) => namePopup(pop, { prompt: `rename ${current} to`, initial: current, current, verb: 'rename', act: (name) => character.rename(current, name) })),
               },
               { separator: true },
+              { label: 'Open mesh…', handleSelect: () => openMesh() },
+              { separator: true },
               { label: 'Export JSON', handleSelect: () => character.exportJson() },
               { label: 'Load JSON…', handleSelect: () => character.importJson() },
               { separator: true },
@@ -1817,6 +1828,13 @@ preview.append(
         let onHand = false
         views = viewMenu(inspect, el, {
           always: true,
+          // Rigging: what is shown beside the mesh.
+          items: () => rigging
+            ? [
+                { label: 'Mannequin', icon: 'personStanding', checked: rigging.api.mannequin, handleSelect: () => { rigging.api.mannequin = !rigging.api.mannequin } },
+                { label: 'Bones', icon: 'rig', checked: rigging.api.bones, handleSelect: () => { rigging.api.bones = !rigging.api.bones } },
+              ]
+            : [],
           extras: [{
             value: 'hand',
             label: 'right hand',
@@ -2106,6 +2124,8 @@ preview.append(
         // The forget button comes and goes with whether the clip is your own.
         let ownClip = false
         walker.clip.observe(() => {
+          // Rigging, a clip from the Animation menu plays on the rig.
+          if (rigging) rigging.api.clip = walker.clip.value
           if (clipFiles.has(walker.clip.value) === ownClip) return
           ownClip = !ownClip
           el.refreshScenePanel?.()
@@ -2137,8 +2157,8 @@ preview.append(
           const own = fileClips.get(walker.clip.value)
           const clip = own?.group ?? ual.animationGroups.find((g) => g.name === walker.clip.value) ?? ual.animationGroups.find((g) => g.name === 'Walk_Loop')
           playing = own?.source
-            ? retargetSourceClip(own.source, own.clip, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg })
-            : clip ? retargetClip(clip, own?.from ?? source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg }) : null
+            ? retargetSourceClip(own.source, own.clip, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg, footTurnDeg: ch.recipe?.footTurnDeg })
+            : clip ? retargetClip(clip, own?.from ?? source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg, footTurnDeg: ch.recipe?.footTurnDeg }) : null
           playing?.start(true, clipSpeed)
           ch.groundFor(playing)
           if (walker.paused.value) playing?.pause()
@@ -2311,6 +2331,15 @@ preview.append(
           if (walker.source.value !== file.name) walker.source.value = file.name
         }
         el.builder.openFile = openFile
+        // OPEN MESH (the Character menu): rigging, it is the mesh the rig tool
+        // works on; otherwise a GLB or glTF is the body, and an OBJ, which has
+        // no skeleton, opens in the rig tool to be rigged.
+        openMesh = () => chooseFile('.glb,.gltf,.obj').then((f) => {
+          if (!f) return
+          if (rigging) void rigging.api.load(f)
+          else if (/\.obj$/i.test(f.name)) openRig(f)
+          else openFile(f)
+        })
         // THE RIG TOOL'S BUTTON is always on the bar: it rigs the body shown
         // (a mesh's), or a mesh file opened in it, and done makes what it
         // rigged the builder's body (a choice under source). The character's
@@ -2320,9 +2349,8 @@ preview.append(
         const idleRig = () =>
           panel3d(
             { width: 300 },
-            label3d({ text: 'rig a mesh to play the clips', muted: true, compact: true }),
-            ...(madeHuman() ? [] : [button3d({ label: `rig ${walker.source.value}`, handleClick: () => openRig() })]),
-            button3d({ label: 'open a mesh file…', handleClick: () => chooseFile('.glb,.gltf,.obj').then((f) => f && openRig(f)) })
+            label3d({ text: 'rig a mesh to play the clips (Character → Open mesh…)', muted: true, compact: true }),
+            ...(madeHuman() ? [] : [button3d({ label: `rig ${walker.source.value}`, handleClick: () => openRig() })])
           )
         rigPanel.svg = idleRig()
         el.append(rigPanel)
@@ -2360,6 +2388,8 @@ preview.append(
             camera: cam,
             // One view menu: the builder's, which the rig tool follows.
             inspect,
+            // Its playback and view come from the bar's Animation and View menus.
+            hostMenus: true,
             panel: rigPanel,
             // The rig it hands back is worn as it is: the body the tool bound,
             // its recipe kept with the character.
@@ -2386,6 +2416,8 @@ preview.append(
               play()
             },
           })
+          // It plays the clip the Animation menu has.
+          rigging.api.clip = walker.clip.value
           // The item goes while the rig tool has the body.
           applyGrip()
           el.refreshScenePanel?.()
@@ -3987,6 +4019,7 @@ const character = await makeCharacter(scene, assets, {
 character.root.parent = someNode           // move it by this
 const walk = retargetClip(ualWalk, ualSkeleton, character.skeleton, {
   scene, armSpaceDeg: character.recipe?.armSpaceDeg,
+  footTurnDeg: character.recipe?.footTurnDeg,
 })
 walk.start(true)
 character.set({ smile: 0.6, hair: 'short02' })  // change it live
@@ -13714,10 +13747,12 @@ Arm-Space") turns the upper arms out from the body, and the chibi takes 55°.
 5. **Feet on the ground stay there.** The same angles on a leg whose thigh
    and shin are proportioned differently put the foot somewhere else: a
    crouch on a long-thighed body lifts one foot off the floor. So each foot
-   near the ground goes where the source's went (its travel scaled as the
-   hips' is; the ball, when the source is on its toes), and the thigh and
-   shin bend to reach it, the knee the way the clip bends it. A foot in the
-   air keeps the copied angles. `footIk: false` turns it off.
+   near the ground goes as high as the source's went (its travel scaled as
+   the hips' is; the ball, when the source is on its toes), keeping the
+   clip's place across the floor, and the thigh and shin bend to reach it,
+   the knee the way the clip bends it (toward the leg's front when the leg
+   is nearly straight). A foot in the air keeps the copied angles.
+   `footIk: false` turns it off.
 
 Babylon-free and deterministic (plain `{x, y, z, w}` quaternions), like
 `fly-by-wire`: the Babylon side (`retarget-babylon`) reads the skeletons and
@@ -28521,13 +28556,14 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-## 0.13.0
+## 0.13.1
 
-The latest release. Biped gunplay aims where you look, crowds move figure by figure, system-bar menus cascade flat and in VR, and headset panels, presses and the chase camera behave. Garment exports bake their look only when given the baker. See [0.13.0](/v0.13.0/).
+The latest release. Retargeted legs that hold still and walk cleanly, a foot-turn dial for splay-footed bodies, fingertip handles in the rig tool, and a character builder whose rig panel follows the bar's menus. See [0.13.1](/v0.13.1/).
 
 ## Every version
 
 <!-- toc -->
+- [0.13.1](/v0.13.1/)
 - [0.13.0](/v0.13.0/)
 - [0.12.6](/v0.12.6/)
 - [0.12.5](/v0.12.5/)
@@ -28600,6 +28636,31 @@ The latest release. Biped gunplay aims where you look, crowds move figure by fig
 <!-- /toc -->
 
 Source: https://3d.tosijs.net/CHANGELOG/
+
+---
+
+# 0.13.1
+
+Retargeted legs that hold still and walk cleanly, a foot-turn dial for splay-footed bodies, fingertip handles in the rig tool, and a character builder whose rig panel follows the bar's menus.
+
+Size: barrel (min, packages external) 1708.6 KB raw / 594.3 KB gz, up 1.0 KB / 0.3 KB gz (+0.06%) on 0.13.0.
+
+### Added
+
+- `footTurnDeg` in a rig recipe (the rig tool's **foot turn** slider, under Motion): both feet turn in (negative) or out (positive) in every clip, for a body modelled with its feet turned out. Retargeting, `bakeClip`, `retargetClip` / `retargetSourceClip`, the biped, the builder and exports all pass it.
+- Rig tool fingertips (orange, with `move joints` on): dragging one turns and stretches its whole finger or thumb about the finger's first joint, keeping the curl, its mirror following with symmetry on.
+
+### Changed
+
+- Foot IK sets only a grounded foot's HEIGHT; its place across the floor is the clip's. Pulling it to where the source's foot was dragged a body that stands wider than UAL's mannequin (MakeHuman, by 8 cm) toward the mannequin's stance and hitched every step of a walk. Crouches still plant.
+- In the character builder, the Rig panel has no animate, clip or View rows: the Animation menu plays and picks the clip on the rig, and the View menu has **Mannequin** and **Bones** as checked items while rigging. `mountRigTool`'s `hostMenus` option does this for any host, which drives it through the new `api.clip`, `api.mannequin` and `api.bones`; `viewMenu` takes `items` for extra rows.
+- The builder opens meshes from one place, the Character menu's **Open mesh…** (into the rig tool while rigging; otherwise a GLB is the body and an OBJ opens the rig tool). With `hostMenus` the rig tool drops its Model section, and **use its own skeleton** comes first. Its Motion section (offsets and spacing: floor, arm space, foot turn) wears the move icon, Springs the link icon.
+
+### Fixed
+
+- A retargeted leg that is nearly straight no longer twitches (MakeHuman's right thigh in UAL's idle). Foot IK bends a straight leg's knee toward the leg's front instead of the way a knee a few millimetres off the line happens to point.
+
+Source: https://3d.tosijs.net/v0.13.1/
 
 ---
 

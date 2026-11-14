@@ -22,7 +22,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="doc-system.css?v=a3372fa4752d" data-tosi-doc-system />
+  <link rel="stylesheet" href="doc-system.css?v=200b40e99a0e" data-tosi-doc-system />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&amp;family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&amp;display=swap" />
   <title>Changelog — tosijs-3d</title>
   <meta name="description" content="All notable changes to tosijs-3d, one page per version: each lives in changelog/v&lt;version&gt;.md (on the site at /v&lt;version&gt;/), and this page is the index…" />
@@ -34,13 +34,13 @@
   <meta property="og:description" content="All notable changes to tosijs-3d, one page per version: each lives in changelog/v&lt;version&gt;.md (on the site at /v&lt;version&gt;/), and this page is the index…" />
   <meta property="og:url" content="https://3d.tosijs.net/CHANGELOG/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Changelog","description":"All notable changes to tosijs-3d, one page per version: each lives in changelog/v\u003cversion>.md (on the site at /v\u003cversion>/), and this page is the index…","url":"https://3d.tosijs.net/CHANGELOG/","inLanguage":"en","dateModified":"2026-11-13T11:37:15+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Changelog","description":"All notable changes to tosijs-3d, one page per version: each lives in changelog/v\u003cversion>.md (on the site at /v\u003cversion>/), and this page is the index…","url":"https://3d.tosijs.net/CHANGELOG/","inLanguage":"en","dateModified":"2026-11-14T00:12:48.312Z","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Upgrading","item":"https://3d.tosijs.net/upgrading/"},{"@type":"ListItem","position":2,"name":"Changelog","item":"https://3d.tosijs.net/CHANGELOG/"}]}</script>
   <link rel="icon" href="favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="docs.json?v=2b7977de6a53" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="docs.json?v=41191e253fb7" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="CHANGELOG.md">
 <h1 id="changelog">Changelog</h1>
 <!--{ "parent": "upgrading", "order": 20 }-->
@@ -53,11 +53,12 @@ versions may carry breaking peer-dependency changes. Each is called out in a
 <strong>⚠️ Breaking</strong> block on its version&#39;s page, with what a consumer must do.
 Upgrading across a minor? Start with <a href="/Migration/">Migration</a>.</p>
 <h2 id="unreleased">Unreleased</h2>
-<h2 id="0130">0.13.0</h2>
-<p>The latest release. Biped gunplay aims where you look, crowds move figure by figure, system-bar menus cascade flat and in VR, and headset panels, presses and the chase camera behave. Garment exports bake their look only when given the baker. See <a href="/v0.13.0/">0.13.0</a>.</p>
+<h2 id="0131">0.13.1</h2>
+<p>The latest release. Retargeted legs that hold still and walk cleanly, a foot-turn dial for splay-footed bodies, fingertip handles in the rig tool, and a character builder whose rig panel follows the bar&#39;s menus. See <a href="/v0.13.1/">0.13.1</a>.</p>
 <h2 id="every-version">Every version</h2>
 <!-- toc -->
 <ul>
+<li><a href="/v0.13.1/">0.13.1</a></li>
 <li><a href="/v0.13.0/">0.13.0</a></li>
 <li><a href="/v0.12.6/">0.12.6</a></li>
 <li><a href="/v0.12.5/">0.12.5</a></li>
@@ -560,6 +561,7 @@ Upgrading across a minor? Start with <a href="/Migration/">Migration</a>.</p>
       <li><a class="doc-link" href="Migration/">Migration</a></li>
       <li class="nav-branch -open"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="true" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link current" href="CHANGELOG/" aria-current="page">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="v0.13.1/">0.13.1</a></li>
         <li><a class="doc-link" href="v0.13.0/">0.13.0</a></li>
         <li><a class="doc-link" href="v0.12.6/">0.12.6</a></li>
         <li><a class="doc-link" href="v0.12.5/">0.12.5</a></li>
@@ -647,6 +649,6 @@ Upgrading across a minor? Start with <a href="/Migration/">Migration</a>.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="hydrate-kpq0k8je.js"></script>
+  <script type="module" src="hydrate-8gnd2qzs.js"></script>
 </body>
 </html>

@@ -22,7 +22,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=a3372fa4752d" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=200b40e99a0e" data-tosi-doc-system />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&amp;family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&amp;display=swap" />
   <title>Rig tool — tosijs-3d</title>
   <meta name="description" content="Put a character on our animations, give it hair or a tail, and save the result. Pick one of the demo characters or load your own GLB." />
@@ -34,13 +34,13 @@
   <meta property="og:description" content="Put a character on our animations, give it hair or a tail, and save the result. Pick one of the demo characters or load your own GLB." />
   <meta property="og:url" content="https://3d.tosijs.net/rig-tool/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Rig tool","description":"Put a character on our animations, give it hair or a tail, and save the result. Pick one of the demo characters or load your own GLB.","url":"https://3d.tosijs.net/rig-tool/","inLanguage":"en","dateModified":"2026-11-11T15:25:10+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Rig tool","description":"Put a character on our animations, give it hair or a tail, and save the result. Pick one of the demo characters or load your own GLB.","url":"https://3d.tosijs.net/rig-tool/","inLanguage":"en","dateModified":"2026-11-13T22:23:09+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Demos","item":"https://3d.tosijs.net/demos/"},{"@type":"ListItem","position":2,"name":"Rig tool","item":"https://3d.tosijs.net/rig-tool/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=2b7977de6a53" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=41191e253fb7" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="rig-tool.ts">
 <h1 id="rig-tool">Rig tool</h1>
 <p><strong>Put a character on our animations, give it hair or a tail, and save the
@@ -87,7 +87,10 @@ it stays when the marker moves again from the front. <code>move joints</code> sh
 joint (blue) to drag by hand from the view that suits: shoulders from the
 front, fingers and thumbs from the top, feet from the side. What hangs from
 a joint comes with it; set <code>dragging</code> to turn what hangs from it instead
-(a hand or foot at an angle). Markers and moved joints are saved in the
+(a hand or foot at an angle). Each finger&#39;s and thumb&#39;s tip (orange) pulls
+its finger: the joints after its first turn and stretch about the first,
+so the finger keeps its curl and reaches where you drop the tip. Markers
+and moved joints are saved in the
 recipe as <code>binding</code>.</li>
 <li><strong>Roles</strong>, for a model on its own skeleton: which bone is the hips, the
 head, the left forearm, each finger joint. They are guessed from the
@@ -98,7 +101,9 @@ a tap hangs the chosen spring chain there instead.</li>
 from where its soles stand (they are put on the floor at rest, and kept
 there as a clip plays), for one that still floats or sinks; <code>arm space</code>
 turns the arms out from the body, for a character whose arms are long for
-its height;
+its height; <code>foot turn</code> turns both feet in or out in every clip, for a
+body modelled with its feet turned out (a foot&#39;s turn at rest is the
+body&#39;s own, so it walks splay-footed otherwise);
 <code>load animations…</code> adds the clips in a GLB made on another rig to the
 list: Mixamo&#39;s, a mocap file&#39;s, another library&#39;s. Which bone is which is
 read from the names (UE, Mixamo, Kenney and Blender spellings), so each
@@ -130,6 +135,7 @@ const rig = applyRigRecipe(scene, root, skeleton, recipe)
 const walk = retargetClip(ualWalk, readSkeleton(ualSkeleton, ualRoot), rig.read, {
   scene,
   armSpaceDeg: recipe.armSpaceDeg,
+  footTurnDeg: recipe.footTurnDeg,
 })
 walk.start(true)
 </code></pre>
@@ -617,6 +623,7 @@ at its top. Done unmounts the tool and hands the callback the rig: the
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.13.1/">0.13.1</a></li>
         <li><a class="doc-link" href="../v0.13.0/">0.13.0</a></li>
         <li><a class="doc-link" href="../v0.12.6/">0.12.6</a></li>
         <li><a class="doc-link" href="../v0.12.5/">0.12.5</a></li>
@@ -704,6 +711,6 @@ at its top. Done unmounts the tool and hands the callback the rig: the
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-kpq0k8je.js"></script>
+  <script type="module" src="../hydrate-8gnd2qzs.js"></script>
 </body>
 </html>

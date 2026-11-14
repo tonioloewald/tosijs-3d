@@ -51,7 +51,10 @@ The panel has these sections, its job first.
   joint (blue) to drag by hand from the view that suits: shoulders from the
   front, fingers and thumbs from the top, feet from the side. What hangs from
   a joint comes with it; set `dragging` to turn what hangs from it instead
-  (a hand or foot at an angle). Markers and moved joints are saved in the
+  (a hand or foot at an angle). Each finger's and thumb's tip (orange) pulls
+  its finger: the joints after its first turn and stretch about the first,
+  so the finger keeps its curl and reaches where you drop the tip. Markers
+  and moved joints are saved in the
   recipe as `binding`.
 - **Roles**, for a model on its own skeleton: which bone is the hips, the
   head, the left forearm, each finger joint. They are guessed from the
@@ -62,7 +65,9 @@ The panel has these sections, its job first.
   from where its soles stand (they are put on the floor at rest, and kept
   there as a clip plays), for one that still floats or sinks; `arm space`
   turns the arms out from the body, for a character whose arms are long for
-  its height;
+  its height; `foot turn` turns both feet in or out in every clip, for a
+  body modelled with its feet turned out (a foot's turn at rest is the
+  body's own, so it walks splay-footed otherwise);
   `load animations…` adds the clips in a GLB made on another rig to the
   list: Mixamo's, a mocap file's, another library's. Which bone is which is
   read from the names (UE, Mixamo, Kenney and Blender spellings), so each
@@ -96,6 +101,7 @@ const rig = applyRigRecipe(scene, root, skeleton, recipe)
 const walk = retargetClip(ualWalk, readSkeleton(ualSkeleton, ualRoot), rig.read, {
   scene,
   armSpaceDeg: recipe.armSpaceDeg,
+  footTurnDeg: recipe.footTurnDeg,
 })
 walk.start(true)
 ```
@@ -214,6 +220,8 @@ const TAIL = {
  * Is a hand joint shown to move in this mode? A mitten shows its thumb and
  * the one finger the others lie on; none shows no finger at all.
  */
+/** A fingertip (or the thumb's): the end joint a drag pulls its finger by. */
+const FINGER_TIP = /^(thumb|index|middle|ring|pinky)_04_leaf_([lr])$/;
 function handJointShown(name, mode) {
     if (mode === 'mitten')
         return !/^(index|ring|pinky)_/.test(name);
@@ -893,6 +901,35 @@ export function mountRigTool(owner, options = {}) {
     };
     const current = () => recipe.springs?.[ui.spring];
     const panel = () => {
+        // Only a model with a skeleton of its own can use it: a mesh with none
+        // (an OBJ, Blender's bodies) has nothing to go back to.
+        const ownSkeleton = applied == null || !hasOwnSkeleton
+            ? []
+            : [
+                toggle3d({
+                    label: 'use its own skeleton',
+                    value: recipe.binding == null,
+                    handleChange: (own) => {
+                        const v = !own;
+                        /*
+                        IGNORE ITS OWN RIG AND BIND IT HERE. Any mesh can be bound
+                        from markers, so a model whose skeleton is wrong or missing
+                        bones gets one fitted to it. Its roles and chains named the
+                        old skeleton's bones, so they go with it.
+                        */
+                        if (v)
+                            bindNext = true;
+                        else
+                            delete recipe.binding;
+                        recipe.roles = {};
+                        recipe.springs = (recipe.springs ?? []).filter((s) => s.kind === 'strand');
+                        edited();
+                        ui.status = v ? 'binding…' : 'loading its own rig…';
+                        refresh();
+                        void tool?.rebind();
+                    },
+                }),
+            ];
         /*
         THE PANEL, its job first. Finished (or abandoned) at the top when a host
         opened it for one job, then what it is doing; then the markers (a mesh
@@ -929,6 +966,8 @@ export function mountRigTool(owner, options = {}) {
                 ],
             }),
             label3d({ text: ui.status, muted: true, compact: true }),
+            // Hosted with menus, its own skeleton comes first (no Model section).
+            ...(options.hostMenus ? ownSkeleton : []),
         ];
         if (bound != null) {
             /*
@@ -1130,26 +1169,33 @@ export function mountRigTool(owner, options = {}) {
         // MOTION: the clips it plays, how they sit on it, and more of them.
         w.push(label3d({
             text: 'Motion',
-            icon: 'motion',
+            icon: 'move',
             collapsible: true,
             open: true,
-        }), toggle3d({
-            label: 'animate',
-            value: ui.pose === 'animate',
-            handleChange: (v) => {
-                ui.pose = v ? 'animate' : 'rest';
-                animate();
-            },
-        }), select3d({
-            label: 'clip',
-            value: ui.clip,
-            options: clips.length ? clips : [ui.clip],
-            handleChange: (v) => {
-                ui.clip = String(v);
-                ui.pose = 'animate';
-                animate();
-            },
         }), 
+        // Hosted with menus, the host's Animation menu plays and picks clips.
+        ...(options.hostMenus
+            ? []
+            : [
+                toggle3d({
+                    label: 'animate',
+                    value: ui.pose === 'animate',
+                    handleChange: (v) => {
+                        ui.pose = v ? 'animate' : 'rest';
+                        animate();
+                    },
+                }),
+                select3d({
+                    label: 'clip',
+                    value: ui.clip,
+                    options: clips.length ? clips : [ui.clip],
+                    handleChange: (v) => {
+                        ui.clip = String(v);
+                        ui.pose = 'animate';
+                        animate();
+                    },
+                }),
+            ]), 
         // A single-axis move: up or down from where its soles would stand.
         slider3d({
             label: 'floor',
@@ -1174,37 +1220,60 @@ export function mountRigTool(owner, options = {}) {
                 recipe.armSpaceDeg = v;
                 changed(true);
             },
+        }), slider3d({
+            label: 'foot turn',
+            value: recipe.footTurnDeg ?? 0,
+            min: -45,
+            max: 45,
+            step: 1,
+            format: (v) => `${v > 0 ? 'out ' : v < 0 ? 'in ' : ''}${Math.abs(v)}°`,
+            handleChange: (v) => {
+                recipe.footTurnDeg = v || undefined;
+                changed(true);
+            },
         }), button3d({
             label: 'load animations…',
             handleClick: () => void chooseFile('.glb,.gltf').then((f) => f && tool?.loadClips(f)),
         }), 
         // VIEW: where it is seen from (also the camera on the bar) and what is
         // shown beside it.
-        label3d({ text: 'View', icon: 'camera', collapsible: true }), select3d({
-            label: 'seen from',
-            value: ui.view,
-            options: [...INSPECT_FACES, 'free'].map((v) => ({
-                label: v === 'free' ? 'perspective' : v,
-                value: v,
-            })),
-            handleChange: (v) => {
-                ui.view = v;
-                tool?.view(ui.view);
-                refresh();
-            },
-        }), toggle3d({
-            label: 'mannequin',
-            value: ui.compare,
-            handleChange: (v) => tool?.compare((ui.compare = v)),
-        }), toggle3d({
-            label: 'bones',
-            value: ui.bones,
-            handleChange: (v) => tool?.bones((ui.bones = v)),
-        }), 
-        // MODEL: which one, and how it is rigged.
-        label3d({ text: 'Model', icon: 'mesh', collapsible: true }), 
+        // Hosted with menus, the host's View menu has these.
+        ...(options.hostMenus
+            ? []
+            : [
+                label3d({ text: 'View', icon: 'camera', collapsible: true }),
+                select3d({
+                    label: 'seen from',
+                    value: ui.view,
+                    options: [...INSPECT_FACES, 'free'].map((v) => ({
+                        label: v === 'free' ? 'perspective' : v,
+                        value: v,
+                    })),
+                    handleChange: (v) => {
+                        ui.view = v;
+                        tool?.view(ui.view);
+                        refresh();
+                    },
+                }),
+                toggle3d({
+                    label: 'mannequin',
+                    value: ui.compare,
+                    handleChange: (v) => tool?.compare((ui.compare = v)),
+                }),
+                toggle3d({
+                    label: 'bones',
+                    value: ui.bones,
+                    handleChange: (v) => tool?.bones((ui.bones = v)),
+                }),
+            ]), 
+        // MODEL: which one, and how it is rigged. Hosted with menus, the
+        // host's menu opens meshes and its own skeleton is a row at the top.
+        ...(options.hostMenus
+            ? []
+            : [label3d({ text: 'Model', icon: 'mesh', collapsible: true })]), 
         // A choice only when there is one (a host's one model has none).
-        ...(models.length > 1 || models[0]?.label !== ui.model
+        ...(!options.hostMenus &&
+            (models.length > 1 || models[0]?.label !== ui.model)
             ? [
                 select3d({
                     label: 'model',
@@ -1217,44 +1286,19 @@ export function mountRigTool(owner, options = {}) {
                     },
                 }),
             ]
-            : []), 
-        // Only a model with a skeleton of its own can use it: a mesh with
-        // none (an OBJ, Blender's bodies) has nothing to go back to.
-        ...(applied == null || !hasOwnSkeleton
+            : []), ...(options.hostMenus ? [] : ownSkeleton), ...(options.hostMenus
             ? []
             : [
-                toggle3d({
-                    label: 'use its own skeleton',
-                    value: recipe.binding == null,
-                    handleChange: (own) => {
-                        const v = !own;
-                        /*
-                        IGNORE ITS OWN RIG AND BIND IT HERE. Any mesh can be bound
-                        from markers, so a model whose skeleton is wrong or missing
-                        bones gets one fitted to it. Its roles and chains named the
-                        old skeleton's bones, so they go with it.
-                        */
-                        if (v)
-                            bindNext = true;
-                        else
-                            delete recipe.binding;
-                        recipe.roles = {};
-                        recipe.springs = (recipe.springs ?? []).filter((s) => s.kind === 'strand');
-                        edited();
-                        ui.status = v ? 'binding…' : 'loading its own rig…';
-                        refresh();
-                        void tool?.rebind();
-                    },
+                button3d({
+                    label: 'load model file…',
+                    handleClick: () => void chooseFile('.glb,.gltf,.obj').then((f) => f && tool?.load(f)),
                 }),
-            ]), button3d({
-            label: 'load model file…',
-            handleClick: () => void chooseFile('.glb,.gltf,.obj').then((f) => f && tool?.load(f)),
-        }));
+            ]));
         // Springs.
         const springs = recipe.springs ?? [];
         w.push(label3d({
             text: 'Springs',
-            icon: 'spring',
+            icon: 'link',
             collapsible: true,
             open: true,
         }), button3d({
@@ -2007,6 +2051,7 @@ export function mountRigTool(owner, options = {}) {
                     made.set(ui.clip, retargetClip(clip, from, applied.read, {
                         scene,
                         armSpaceDeg: recipe.armSpaceDeg,
+                        footTurnDeg: recipe.footTurnDeg,
                     }));
                 playing.push(made.get(ui.clip));
             }
@@ -2148,6 +2193,7 @@ export function mountRigTool(owner, options = {}) {
         const springPickedMat = dotMat('rig-spring-picked', '#ff9f0a');
         const markerMat = dotMat('rig-marker', '#ff375f');
         const jointMat = dotMat('rig-joint', '#64d2ff');
+        const tipMat = dotMat('rig-finger-tip', '#ff9f0a');
         cleanups.push(() => jointMat.dispose());
         /*
         A COLOUR PER KIND OF MARKER, the same on the body and on the mannequin
@@ -2216,6 +2262,7 @@ export function mountRigTool(owner, options = {}) {
                 springMat,
                 springPickedMat,
                 markerMat,
+                tipMat,
             ])
                 m.dispose();
         });
@@ -2314,10 +2361,9 @@ export function mountRigTool(owner, options = {}) {
                         const at = m != null ? toScene(m.x, m.y, m.z) : node.getAbsolutePosition();
                         const small = /^(thumb|index|middle|ring|pinky)_|ball/.test(name);
                         const kin = markerOfJoint(name);
-                        dot(at, r * (small ? 0.5 : 0.8), kin ? matFor(kin) : jointMat, {
-                            joint: name,
-                            handle: -2,
-                        });
+                        // A fingertip pulls its whole finger (dragTip), so it stands out.
+                        const tip = FINGER_TIP.test(name);
+                        dot(at, r * (tip ? 0.7 : small ? 0.5 : 0.8), tip ? tipMat : kin ? matFor(kin) : jointMat, { joint: name, handle: -2, ...(tip ? { tip: true } : {}) });
                         // Its reference on the mannequin's same joint, as the markers
                         // have (to look at, not to drag).
                         const ref = ui.compare && ualStand?.isEnabled()
@@ -2423,6 +2469,10 @@ export function mountRigTool(owner, options = {}) {
             }
             if (handle.metadata.marker != null && markerBound()) {
                 dragMarker(handle, handle.metadata.marker);
+                return;
+            }
+            if (handle.metadata.tip === true && markerBound()) {
+                dragTip(handle, handle.metadata.joint);
                 return;
             }
             if (handle.metadata.joint != null && markerBound()) {
@@ -2590,6 +2640,74 @@ export function mountRigTool(owner, options = {}) {
                 }
                 if (Object.keys(moved).length)
                     setJoints(name, moved);
+            };
+            window.addEventListener('pointermove', move, true);
+            window.addEventListener('pointerup', up, true);
+        }
+        /*
+        A FINGERTIP DRAGGED pulls its finger: the finger's joints after the first
+        turn and stretch about the first, as one, so its middle joints go where
+        the tip says and the finger keeps its curl (the one step finger placement
+        mostly is). Dragged on the plane facing the camera, as a joint is; its
+        mirror follows with symmetry on.
+        */
+        function dragTip(handle, tip) {
+            const [, finger, side] = FINGER_TIP.exec(tip);
+            const names = ['02', '03', '04_leaf'].map((k) => `${finger}_${k}_${side}`);
+            const dotOf = (n) => dots.find((d) => jointOfDot(d) === n);
+            const baseDot = dotOf(`${finger}_01_${side}`);
+            const chain = names
+                .map((n) => ({ n, d: dotOf(n) }))
+                .filter((g) => g.d != null);
+            if (baseDot == null || chain.length !== names.length) {
+                dragJoint(handle, tip);
+                return;
+            }
+            const base = baseDot.position.clone();
+            const start = new Map(chain.map((g) => [g.n, g.d.position.clone()]));
+            const reach = handle.position.subtract(base);
+            if (reach.length() < 1e-6)
+                return;
+            cam.detachControl();
+            const plane = BABYLON.Plane.FromPositionAndNormal(handle.position, cam.getForwardRay().direction.normalize());
+            const hit = (ev) => {
+                const p = toRender(ev);
+                const ray = scene.createPickingRay(p.x, p.y, BABYLON.Matrix.Identity(), cam);
+                const d = ray.intersectsPlane(plane);
+                return d == null ? null : ray.origin.add(ray.direction.scale(d));
+            };
+            let from = null;
+            ui.status = `${finger} ${side === 'l' ? 'left' : 'right'}: pulling the finger`;
+            refresh();
+            const move = (ev) => {
+                const at = hit(ev);
+                if (at == null)
+                    return;
+                from ??= at;
+                const now = start.get(tip).add(at.subtract(from)).subtract(base);
+                if (now.length() < 1e-6)
+                    return;
+                // The turn from the finger's reach to the new one, and its stretch.
+                const q = new BABYLON.Quaternion();
+                BABYLON.Quaternion.FromUnitVectorsToRef(reach.normalizeToNew(), now.normalizeToNew(), q);
+                const k = now.length() / reach.length();
+                for (const g of chain)
+                    g.d.position.copyFrom(base.add(start.get(g.n).subtract(base).applyRotationQuaternion(q).scale(k)));
+            };
+            const up = () => {
+                window.removeEventListener('pointermove', move, true);
+                window.removeEventListener('pointerup', up, true);
+                cam.attachControl(canvas, true);
+                if (from == null)
+                    return;
+                const moved = {};
+                for (const g of chain) {
+                    const f = toFile(g.d.position);
+                    moved[g.n] = { x: f.x, y: f.y, z: f.z };
+                    if (symmetry)
+                        moved[g.n.replace(/_([lr])$/, (_, s) => (s === 'l' ? '_r' : '_l'))] = { x: -f.x, y: f.y, z: f.z };
+                }
+                setJoints(`${finger} tip`, moved);
             };
             window.addEventListener('pointermove', move, true);
             window.addEventListener('pointerup', up, true);
@@ -3038,6 +3156,31 @@ export function mountRigTool(owner, options = {}) {
             ui.pose = clip === null ? 'rest' : 'animate';
             // Bound first if a marker moved, as the panel's animate is.
             animate();
+        },
+        get clip() {
+            return ui.clip;
+        },
+        set clip(v) {
+            if (v === ui.clip)
+                return;
+            ui.clip = v;
+            if (ui.pose === 'animate')
+                animate();
+            refresh();
+        },
+        get mannequin() {
+            return ui.compare;
+        },
+        set mannequin(v) {
+            tool?.compare((ui.compare = v));
+            refresh();
+        },
+        get bones() {
+            return ui.bones;
+        },
+        set bones(v) {
+            tool?.bones((ui.bones = v));
+            refresh();
         },
         load: (m) => tool?.load(m),
         loadClips: (f) => tool?.loadClips(f),

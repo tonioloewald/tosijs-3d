@@ -22,7 +22,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=a3372fa4752d" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=200b40e99a0e" data-tosi-doc-system />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&amp;family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&amp;display=swap" />
   <title>retarget — tosijs-3d</title>
   <meta name="description" content="One humanoid&#39;s animation on another humanoid&#39;s body. The Universal Animation Library&#39;s clips are authored on the UE mannequin; a Mixamo character, a…" />
@@ -34,13 +34,13 @@
   <meta property="og:description" content="One humanoid&#39;s animation on another humanoid&#39;s body. The Universal Animation Library&#39;s clips are authored on the UE mannequin; a Mixamo character, a…" />
   <meta property="og:url" content="https://3d.tosijs.net/retarget/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"retarget","description":"One humanoid's animation on another humanoid's body. The Universal Animation Library's clips are authored on the UE mannequin; a Mixamo character, a…","url":"https://3d.tosijs.net/retarget/","inLanguage":"en","dateModified":"2026-11-11T09:54:02+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"retarget","description":"One humanoid's animation on another humanoid's body. The Universal Animation Library's clips are authored on the UE mannequin; a Mixamo character, a…","url":"https://3d.tosijs.net/retarget/","inLanguage":"en","dateModified":"2026-11-13T21:13:25+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Characters and vehicles","item":"https://3d.tosijs.net/characters-and-vehicles/"},{"@type":"ListItem","position":2,"name":"b3d-biped","item":"https://3d.tosijs.net/b3d-biped/"},{"@type":"ListItem","position":3,"name":"retarget","item":"https://3d.tosijs.net/retarget/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=2b7977de6a53" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=41191e253fb7" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="retarget.ts">
 <h1 id="retarget">retarget</h1>
 <p><strong>One humanoid&#39;s animation on another humanoid&#39;s body.</strong> The Universal
@@ -153,10 +153,12 @@ of hip heights, so a short character&#39;s stride is shorter, not stretched.</li
 <li><strong>Feet on the ground stay there.</strong> The same angles on a leg whose thigh
 and shin are proportioned differently put the foot somewhere else: a
 crouch on a long-thighed body lifts one foot off the floor. So each foot
-near the ground goes where the source&#39;s went (its travel scaled as the
-hips&#39; is; the ball, when the source is on its toes), and the thigh and
-shin bend to reach it, the knee the way the clip bends it. A foot in the
-air keeps the copied angles. <code>footIk: false</code> turns it off.</li>
+near the ground goes as high as the source&#39;s went (its travel scaled as
+the hips&#39; is; the ball, when the source is on its toes), keeping the
+clip&#39;s place across the floor, and the thigh and shin bend to reach it,
+the knee the way the clip bends it (toward the leg&#39;s front when the leg
+is nearly straight). A foot in the air keeps the copied angles.
+<code>footIk: false</code> turns it off.</li>
 </ol>
 <p>Babylon-free and deterministic (plain <code>{x, y, z, w}</code> quaternions), like
 <code>fly-by-wire</code>: the Babylon side (<code>retarget-babylon</code>) reads the skeletons and
@@ -596,6 +598,7 @@ mesh, as Mixamo&#39;s auto-rigger does, and binds the mesh to it
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.13.1/">0.13.1</a></li>
         <li><a class="doc-link" href="../v0.13.0/">0.13.0</a></li>
         <li><a class="doc-link" href="../v0.12.6/">0.12.6</a></li>
         <li><a class="doc-link" href="../v0.12.5/">0.12.5</a></li>
@@ -683,6 +686,6 @@ mesh, as Mixamo&#39;s auto-rigger does, and binds the mesh to it
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-kpq0k8je.js"></script>
+  <script type="module" src="../hydrate-8gnd2qzs.js"></script>
 </body>
 </html>

@@ -1,0 +1,5 @@
+import{it}from"./site-3t3g319r.js";import{V}from"./site-8r8s7x74.js";import{o}from"./site-twypjy9n.js";class Dg extends it{constructor(e){super(e);this.count=this.registerDataInput("count",V),this.reset=this._registerSignalInput("reset"),this.currentCount=this.registerDataOutput("currentCount",V)}_execute(e,u){if(u===this.reset){e._setExecutionVariable(this,"debounceCount",0);return}let i=this.count.getValue(e),t=e._getExecutionVariable(this,"debounceCount",0)+1;if(this.currentCount.setValue(t,e),e._setExecutionVariable(this,"debounceCount",t),t>=i)this.out._activateSignal(e),e._setExecutionVariable(this,"debounceCount",0)}getClassName(){return"FlowGraphDebounceBlock"}}var r=!1;function Lg(){if(r)return;r=!0,o("FlowGraphDebounceBlock",Dg)}Lg();
+export{Dg,Lg};
+
+//# debugId=7F6FA964B089ACAF64756E2164756E21
+//# sourceMappingURL=site-781mwy13.js.map

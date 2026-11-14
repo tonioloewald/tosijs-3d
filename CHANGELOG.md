@@ -12,24 +12,14 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-- **Changed:** the builder opens meshes from one place, the Character menu's **Open mesh…** (into the rig tool while rigging; otherwise a GLB is the body and an OBJ opens the rig tool). With `hostMenus` the rig tool drops its Model section, and **use its own skeleton** comes first. Its Motion section (now offsets and spacing: floor, arm space, foot turn) wears the move icon, Springs the link icon.
+## 0.13.1
 
-- **Changed:** in the character builder, the Rig panel has no animate, clip or View rows: the Animation menu plays and picks the clip on the rig, and the View menu has **Mannequin** and **Bones** as checked items while rigging. `mountRigTool`'s `hostMenus` option does this for any host, which drives it through the new `api.clip`, `api.mannequin` and `api.bones`; `viewMenu` takes `items` for extra rows.
-
-- **Added:** rig tool fingertips (orange, with `move joints` on): dragging one turns and stretches its whole finger or thumb about the finger's first joint, keeping the curl, its mirror following with symmetry on.
-
-- **Added:** `footTurnDeg` in a rig recipe (the rig tool's **foot turn** slider, under Motion): both feet turn in (negative) or out (positive) in every clip, for a body modelled with its feet turned out. Retargeting, `bakeClip`, `retargetClip` / `retargetSourceClip`, the biped, the builder and exports all pass it.
-
-- **Fixed:** a retargeted leg that is nearly straight no longer twitches (MakeHuman's right thigh in UAL's idle). Foot IK bends a straight leg's knee toward the leg's front instead of the way a knee a few millimetres off the line happens to point.
-- **Changed:** foot IK sets only a grounded foot's HEIGHT; its place across the floor is the clip's. Pulling it to where the source's foot was dragged a body that stands wider than UAL's mannequin (MakeHuman, by 8 cm) toward the mannequin's stance and hitched every step of a walk. Crouches still plant.
-
-## 0.13.0
-
-The latest release. Biped gunplay aims where you look, crowds move figure by figure, system-bar menus cascade flat and in VR, and headset panels, presses and the chase camera behave. Garment exports bake their look only when given the baker. See [0.13.0](/v0.13.0/).
+The latest release. Retargeted legs that hold still and walk cleanly, a foot-turn dial for splay-footed bodies, fingertip handles in the rig tool, and a character builder whose rig panel follows the bar's menus. See [0.13.1](/v0.13.1/).
 
 ## Every version
 
 <!-- toc -->
+- [0.13.0](/v0.13.0/)
 - [0.12.2](/v0.12.2/)
 - [0.12.1](/v0.12.1/)
 - [0.12.0](/v0.12.0/)

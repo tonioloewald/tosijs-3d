@@ -22,7 +22,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="doc-system.css?v=a3372fa4752d" data-tosi-doc-system />
+  <link rel="stylesheet" href="doc-system.css?v=200b40e99a0e" data-tosi-doc-system />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&amp;family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&amp;display=swap" />
   <title>Character Builder — tosijs-3d</title>
   <meta name="description" content="Make a person, and watch them walk. The first steps of the character creator (CHARACTER-DESIGN.md): MakeHuman&#39;s CC0 body (human-pack), reshaped by sliders…" />
@@ -34,13 +34,13 @@
   <meta property="og:description" content="Make a person, and watch them walk. The first steps of the character creator (CHARACTER-DESIGN.md): MakeHuman&#39;s CC0 body (human-pack), reshaped by sliders…" />
   <meta property="og:url" content="https://3d.tosijs.net/character-builder/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Character Builder","description":"Make a person, and watch them walk. The first steps of the character creator (CHARACTER-DESIGN.md): MakeHuman's CC0 body (human-pack), reshaped by sliders…","url":"https://3d.tosijs.net/character-builder/","inLanguage":"en","dateModified":"2026-11-12T18:10:04+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Character Builder","description":"Make a person, and watch them walk. The first steps of the character creator (CHARACTER-DESIGN.md): MakeHuman's CC0 body (human-pack), reshaped by sliders…","url":"https://3d.tosijs.net/character-builder/","inLanguage":"en","dateModified":"2026-11-13T22:23:09+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Demos","item":"https://3d.tosijs.net/demos/"},{"@type":"ListItem","position":2,"name":"Character Builder","item":"https://3d.tosijs.net/character-builder/"}]}</script>
   <link rel="icon" href="favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="docs.json?v=2b7977de6a53" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="docs.json?v=41191e253fb7" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="character-builder.ts">
 <h1 id="character-builder">Character Builder</h1>
 <p><strong>Make a person, and watch them walk.</strong> The first steps of the character
@@ -134,6 +134,7 @@ const choices = (key) =&gt; ch?.choices(key) ?? [&#39;none&#39;]
 let openBody = () =&gt; {}
 // The rig tool, mounted on the body while it is being rigged.
 let rigging = null
+let openMesh = () =&gt; {}
 let openRig = (file = null) =&gt; {}
 const madeHuman = () =&gt; walker.source.value === &#39;MakeHuman&#39;
 // The imported body&#39;s surfaces (its file&#39;s materials), each as made or skin.
@@ -270,12 +271,14 @@ const playingClip = (recipe) =&gt; {
   const file = clipFiles.get(name)
   const kept = file != null ? clipBytes.get(file) : null
   const armSpaceDeg = recipe?.armSpaceDeg
-  if (kept) return { name, kind: kept.kind, bytes: kept.bytes, armSpaceDeg }
+  const footTurnDeg = recipe?.footTurnDeg
+  if (kept) return { name, kind: kept.kind, bytes: kept.bytes, armSpaceDeg, footTurnDeg }
   return {
     name,
     kind: &#39;glb&#39;,
     url: assetUrl(&#39;quaternius/UAL_builder.glb&#39;),
     armSpaceDeg,
+    footTurnDeg,
     extras: { credit: &#39;Quaternius&#39;, license: &#39;CC0 (https://creativecommons.org/publicdomain/zero/1.0/)&#39;, source: &#39;quaternius/UAL_builder.glb&#39; },
   }
 }
@@ -553,6 +556,8 @@ preview.append(
                 handleSelect: () =&gt; modal((pop) =&gt; namePopup(pop, { prompt: `rename ${current} to`, initial: current, current, verb: &#39;rename&#39;, act: (name) =&gt; character.rename(current, name) })),
               },
               { separator: true },
+              { label: &#39;Open mesh…&#39;, handleSelect: () =&gt; openMesh() },
+              { separator: true },
               { label: &#39;Export JSON&#39;, handleSelect: () =&gt; character.exportJson() },
               { label: &#39;Load JSON…&#39;, handleSelect: () =&gt; character.importJson() },
               { separator: true },
@@ -564,6 +569,13 @@ preview.append(
         let onHand = false
         views = viewMenu(inspect, el, {
           always: true,
+          // Rigging: what is shown beside the mesh.
+          items: () =&gt; rigging
+            ? [
+                { label: &#39;Mannequin&#39;, icon: &#39;personStanding&#39;, checked: rigging.api.mannequin, handleSelect: () =&gt; { rigging.api.mannequin = !rigging.api.mannequin } },
+                { label: &#39;Bones&#39;, icon: &#39;rig&#39;, checked: rigging.api.bones, handleSelect: () =&gt; { rigging.api.bones = !rigging.api.bones } },
+              ]
+            : [],
           extras: [{
             value: &#39;hand&#39;,
             label: &#39;right hand&#39;,
@@ -853,6 +865,8 @@ preview.append(
         // The forget button comes and goes with whether the clip is your own.
         let ownClip = false
         walker.clip.observe(() =&gt; {
+          // Rigging, a clip from the Animation menu plays on the rig.
+          if (rigging) rigging.api.clip = walker.clip.value
           if (clipFiles.has(walker.clip.value) === ownClip) return
           ownClip = !ownClip
           el.refreshScenePanel?.()
@@ -884,8 +898,8 @@ preview.append(
           const own = fileClips.get(walker.clip.value)
           const clip = own?.group ?? ual.animationGroups.find((g) =&gt; g.name === walker.clip.value) ?? ual.animationGroups.find((g) =&gt; g.name === &#39;Walk_Loop&#39;)
           playing = own?.source
-            ? retargetSourceClip(own.source, own.clip, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg })
-            : clip ? retargetClip(clip, own?.from ?? source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg }) : null
+            ? retargetSourceClip(own.source, own.clip, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg, footTurnDeg: ch.recipe?.footTurnDeg })
+            : clip ? retargetClip(clip, own?.from ?? source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg, footTurnDeg: ch.recipe?.footTurnDeg }) : null
           playing?.start(true, clipSpeed)
           ch.groundFor(playing)
           if (walker.paused.value) playing?.pause()
@@ -1058,6 +1072,15 @@ preview.append(
           if (walker.source.value !== file.name) walker.source.value = file.name
         }
         el.builder.openFile = openFile
+        // OPEN MESH (the Character menu): rigging, it is the mesh the rig tool
+        // works on; otherwise a GLB or glTF is the body, and an OBJ, which has
+        // no skeleton, opens in the rig tool to be rigged.
+        openMesh = () =&gt; chooseFile(&#39;.glb,.gltf,.obj&#39;).then((f) =&gt; {
+          if (!f) return
+          if (rigging) void rigging.api.load(f)
+          else if (/\.obj$/i.test(f.name)) openRig(f)
+          else openFile(f)
+        })
         // THE RIG TOOL&#39;S BUTTON is always on the bar: it rigs the body shown
         // (a mesh&#39;s), or a mesh file opened in it, and done makes what it
         // rigged the builder&#39;s body (a choice under source). The character&#39;s
@@ -1067,9 +1090,8 @@ preview.append(
         const idleRig = () =&gt;
           panel3d(
             { width: 300 },
-            label3d({ text: &#39;rig a mesh to play the clips&#39;, muted: true, compact: true }),
-            ...(madeHuman() ? [] : [button3d({ label: `rig ${walker.source.value}`, handleClick: () =&gt; openRig() })]),
-            button3d({ label: &#39;open a mesh file…&#39;, handleClick: () =&gt; chooseFile(&#39;.glb,.gltf,.obj&#39;).then((f) =&gt; f &amp;&amp; openRig(f)) })
+            label3d({ text: &#39;rig a mesh to play the clips (Character → Open mesh…)&#39;, muted: true, compact: true }),
+            ...(madeHuman() ? [] : [button3d({ label: `rig ${walker.source.value}`, handleClick: () =&gt; openRig() })])
           )
         rigPanel.svg = idleRig()
         el.append(rigPanel)
@@ -1107,6 +1129,8 @@ preview.append(
             camera: cam,
             // One view menu: the builder&#39;s, which the rig tool follows.
             inspect,
+            // Its playback and view come from the bar&#39;s Animation and View menus.
+            hostMenus: true,
             panel: rigPanel,
             // The rig it hands back is worn as it is: the body the tool bound,
             // its recipe kept with the character.
@@ -1133,6 +1157,8 @@ preview.append(
               play()
             },
           })
+          // It plays the clip the Animation menu has.
+          rigging.api.clip = walker.clip.value
           // The item goes while the rig tool has the body.
           applyGrip()
           el.refreshScenePanel?.()
@@ -1955,6 +1981,7 @@ body&#39;s triangles.</p>
       <li><a class="doc-link" href="Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="v0.13.1/">0.13.1</a></li>
         <li><a class="doc-link" href="v0.13.0/">0.13.0</a></li>
         <li><a class="doc-link" href="v0.12.6/">0.12.6</a></li>
         <li><a class="doc-link" href="v0.12.5/">0.12.5</a></li>
@@ -2042,6 +2069,6 @@ body&#39;s triangles.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="hydrate-kpq0k8je.js"></script>
+  <script type="module" src="hydrate-8gnd2qzs.js"></script>
 </body>
 </html>

@@ -383,14 +383,18 @@ export function viewMenu(inspect, host, options = {}) {
         // A list: each view its icon and its name ("front" is not mistaken for
         // "back").
         layout: 'list',
-        options: [
-            ...(options.faces ?? [...INSPECT_FACES, 'free']).map((v) => ({
-                value: v,
-                label: labels[v],
-                icon: FACE_ICONS[v],
-            })),
-            ...extras.map(({ value, label, icon }) => ({ value, label, icon })),
-        ],
+        options: () => {
+            const more = options.items?.() ?? [];
+            return [
+                ...(options.faces ?? [...INSPECT_FACES, 'free']).map((v) => ({
+                    value: v,
+                    label: labels[v],
+                    icon: FACE_ICONS[v],
+                })),
+                ...extras.map(({ value, label, icon }) => ({ value, label, icon })),
+                ...(more.length ? [{ separator: true }, ...more] : []),
+            ];
+        },
         value: inspect.face,
         handleChange: (v) => {
             const extra = extras.find((x) => x.value === v);

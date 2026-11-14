@@ -2,7 +2,7 @@
 
 > Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
-Version 0.13.0.
+Version 0.13.1.
 
 - Docs: https://3d.tosijs.net
 - Source: https://github.com/tonioloewald/tosijs-3d
@@ -340,6 +340,7 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - [Upgrading](https://3d.tosijs.net/upgrading/index.md): What changed, and what to do about it. Migration lists the changes you have to make in your own code, minor by minor.
 - [Migration](https://3d.tosijs.net/Migration/index.md): What to change when upgrading. Only breaking changes are listed — everything else is additive. The full detail for each is in CHANGELOG.md.
 - [Changelog](https://3d.tosijs.net/CHANGELOG/index.md): All notable changes to tosijs-3d, one page per version: each lives in changelog/v<version>.md (on the site at /v<version>/), and this page is the index…
+- [0.13.1](https://3d.tosijs.net/v0.13.1/index.md): Retargeted legs that hold still and walk cleanly, a foot-turn dial for splay-footed bodies, fingertip handles in the rig tool, and a character builder…
 - [0.13.0](https://3d.tosijs.net/v0.13.0/index.md): Biped gunplay that aims where you look, crowds you can move figure by figure, cascading system-bar menus that work flat and in a headset (the character…
 - [0.12.6](https://3d.tosijs.net/v0.12.6/index.md): For the character builder and the rig tool: clips from motion capture (BVH) kept in the browser and carried in character files, exports of MakeHuman's…
 - [0.12.5](https://3d.tosijs.net/v0.12.5/index.md): For Dramatis and the character builder: an exported body now carries clips, garments and what the hand holds, the cast's rigs are engine-free data, and…

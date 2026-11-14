@@ -49,6 +49,8 @@ export interface ExportClip {
     url?: string;
     /** Spread the arms (the body's recipe's `armSpaceDeg`). */
     armSpaceDeg?: number;
+    /** Turn the feet (the body's recipe's `footTurnDeg`). */
+    footTurnDeg?: number;
     /** The animation's `extras`: its licence. */
     extras?: Record<string, unknown>;
 }

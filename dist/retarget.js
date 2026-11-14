@@ -117,10 +117,12 @@ Arm-Space") turns the upper arms out from the body, and the chibi takes 55°.
 5. **Feet on the ground stay there.** The same angles on a leg whose thigh
    and shin are proportioned differently put the foot somewhere else: a
    crouch on a long-thighed body lifts one foot off the floor. So each foot
-   near the ground goes where the source's went (its travel scaled as the
-   hips' is; the ball, when the source is on its toes), and the thigh and
-   shin bend to reach it, the knee the way the clip bends it. A foot in the
-   air keeps the copied angles. `footIk: false` turns it off.
+   near the ground goes as high as the source's went (its travel scaled as
+   the hips' is; the ball, when the source is on its toes), keeping the
+   clip's place across the floor, and the thigh and shin bend to reach it,
+   the knee the way the clip bends it (toward the leg's front when the leg
+   is nearly straight). A foot in the air keeps the copied angles.
+   `footIk: false` turns it off.
 
 Babylon-free and deterministic (plain `{x, y, z, w}` quaternions), like
 `fly-by-wire`: the Babylon side (`retarget-babylon`) reads the skeletons and
@@ -620,15 +622,32 @@ function solveLeg(hip, knee, ankle, goal, thighTurn, forward) {
         return null;
     const u = normalize(toGoal);
     const d = Math.min(a + b - 1e-5, Math.max(Math.abs(a - b) + 1e-5, d0));
-    // The way the knee bends now (the clip's), else the leg's front.
+    /*
+    WHICH WAY THE KNEE BENDS: the clip's way where its knee is clearly bent,
+    the leg's front where it is nearly straight. A straight leg's knee sits a
+    few millimetres off the hip-to-ankle line in no particular direction, and
+    bending in that plane twisted the leg from frame to frame (MakeHuman's
+    right leg in UAL's idle). The two blend by how far the knee is off the
+    line, all the clip's by a tenth of the thigh's length.
+    */
     const dot = (p, q) => p.x * q.x + p.y * q.y + p.z * q.z;
     const perp = (v) => {
         const k = dot(v, u);
         return { x: v.x - u.x * k, y: v.y - u.y * k, z: v.z - u.z * k };
     };
-    let v = perp(sub(knee, hip));
-    if (Math.hypot(v.x, v.y, v.z) < 1e-4 * a)
-        v = perp(rotateVector(thighTurn, forward));
+    const clip = perp(sub(knee, hip));
+    const off = Math.hypot(clip.x, clip.y, clip.z);
+    const front = perp(rotateVector(thighTurn, forward));
+    const frontLen = Math.hypot(front.x, front.y, front.z);
+    const s = Math.min(1, off / (0.1 * a));
+    const t = frontLen < 1e-9 ? 1 : s * s * (3 - 2 * s);
+    const cw = off > 1e-12 ? t / off : 0;
+    const fw = frontLen > 1e-9 ? (1 - t) / frontLen : 0;
+    let v = {
+        x: clip.x * cw + front.x * fw,
+        y: clip.y * cw + front.y * fw,
+        z: clip.z * cw + front.z * fw,
+    };
     if (Math.hypot(v.x, v.y, v.z) < 1e-9)
         return null;
     v = normalize(v);
@@ -668,6 +687,19 @@ export function retargeter(source, target, options = {}) {
         ])
             armOut.set(role, { sign, rest: restDirection(role, target, tRest) });
     const roles = ROLES.filter((r) => source.roles[r] != null && target.roles[r] != null);
+    // Each foot's and toe's turn about +Y: toes (+Z) toward its own side (left +X).
+    const footTurn = new Map();
+    const toesOut = ((options.footTurnDeg ?? 0) * Math.PI) / 180;
+    if (toesOut !== 0)
+        for (const [side, sign] of [
+            ['l', 1],
+            ['r', -1],
+        ]) {
+            const h = (sign * toesOut) / 2;
+            const q = { x: 0, y: Math.sin(h), z: 0, w: Math.cos(h) };
+            footTurn.set(`${side}-foot`, q);
+            footTurn.set(`${side}-toes`, q);
+        }
     /*
     ALIGNMENT, per role: the rotation that turns the target's rest direction
     onto the source's, so "the arm moved 30° from rest" means the same arm
@@ -825,6 +857,9 @@ export function retargeter(source, target, options = {}) {
                     if (h !== 0)
                         world = quatMul({ x: 0, y: 0, z: Math.sin(h), w: Math.cos(h) }, world);
                 }
+                const turn = r != null ? footTurn.get(r) : undefined;
+                if (turn != null)
+                    world = quatMul(turn, world);
                 tWorld.set(b.name, world);
                 out.set(b.name, parentWorld != null
                     ? quatMul(quatConjugate(parentWorld), world)
@@ -861,8 +896,9 @@ export function retargeter(source, target, options = {}) {
                 }
             }
             /*
-            FOOT IK. Each ankle goes where the source's went, its travel since
-            rest scaled as the hips' is, and the thigh and shin turn to reach it
+            FOOT IK. Each ankle goes as high as the source's went, its travel
+            since rest scaled as the hips' is (its place across the floor is the
+            clip's, see "HEIGHT ONLY"), and the thigh and shin turn to reach it
             in the plane the clip bends the knee in. A foot keeps its world turn,
             so what hangs from it (the toes) is as the clip has it.
             */
@@ -924,10 +960,21 @@ export function retargeter(source, target, options = {}) {
                         : 1;
                     if (grounded <= 0)
                         continue;
+                    /*
+                    HEIGHT ONLY. The goal is the target's REST ankle plus the source's
+                    travel, and the copied pose lines each leg up with the source's
+                    rest direction, so a body standing wider or with its feet further
+                    forward than the source puts the goal a constant few centimetres
+                    off where the clip has the foot (MakeHuman: 8 cm out, 4.5 cm
+                    forward). Near full extension that is 15° to 25° of knee, let go
+                    over a few frames as the foot lifts: a hitch at every step of a
+                    walk. What the IK is for is the floor, so the foot keeps the
+                    clip's place across it and takes only the goal's height.
+                    */
                     goal = {
-                        x: ankle.x + (goal.x - ankle.x) * grounded,
+                        x: ankle.x,
                         y: ankle.y + (goal.y - ankle.y) * grounded,
-                        z: ankle.z + (goal.z - ankle.z) * grounded,
+                        z: ankle.z,
                     };
                     const thighWorld = tWorld.get(l.thigh);
                     const solved = solveLeg(hip, knee, ankle, goal, quatMul(thighWorld, quatConjugate(tRest.rotation.get(l.thigh))), { x: 0, y: 0, z: 1 });

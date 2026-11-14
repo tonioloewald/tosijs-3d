@@ -12,13 +12,14 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-## 0.13.0
+## 0.13.1
 
-The latest release. Biped gunplay aims where you look, crowds move figure by figure, system-bar menus cascade flat and in VR, and headset panels, presses and the chase camera behave. Garment exports bake their look only when given the baker. See [0.13.0](/v0.13.0/).
+The latest release. Retargeted legs that hold still and walk cleanly, a foot-turn dial for splay-footed bodies, fingertip handles in the rig tool, and a character builder whose rig panel follows the bar's menus. See [0.13.1](/v0.13.1/).
 
 ## Every version
 
 <!-- toc -->
+- [0.13.1](/v0.13.1/)
 - [0.13.0](/v0.13.0/)
 - [0.12.6](/v0.12.6/)
 - [0.12.5](/v0.12.5/)

@@ -57,6 +57,12 @@ export interface RigToolApi {
     view: RigView;
     /** Play a clip (the current one if none is named); `null` stands it at rest. */
     play(clip?: string | null): void;
+    /** The clip it plays: set it to change clips (playing on if it was). */
+    clip: string;
+    /** UAL's mannequin beside the character, to compare. */
+    mannequin: boolean;
+    /** The skeleton drawn over the character. */
+    bones: boolean;
     load(model: RigModel | File): Promise<void> | undefined;
     /**
      * Add the clips in a GLB made on another rig (Mixamo, mocap, another
@@ -98,6 +104,13 @@ export interface RigToolOptions {
      * the character builder, not two). Left in perspective on unmount.
      */
     inspect?: InspectView;
+    /**
+     * The host's system-bar menus drive playback and the view (the character
+     * builder's Animation and View menus, through `api.play`, `api.clip`,
+     * `api.view`, `api.mannequin` and `api.bones`): the panel leaves out its
+     * animate toggle, clip list and View section.
+     */
+    hostMenus?: boolean;
     /**
      * Hosted: the panel is a system panel (a button on the system bar,
      * stacking with the host's), not the scene's settings panel. Default true;

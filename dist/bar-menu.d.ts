@@ -58,6 +58,11 @@ export interface ViewMenuOptions {
      * picked, `active` says whether it is the view shown now.
      */
     extras?: ViewMenuExtra[];
+    /**
+     * More rows after the views (what is shown beside the model, as checked
+     * actions), read on each opening; an empty list adds nothing.
+     */
+    items?: () => BarMenuOption[];
 }
 /** A view of the page's own in a `viewMenu`. */
 export interface ViewMenuExtra {

@@ -1,0 +1,4 @@
+import{wR}from"../hydrate-8gnd2qzs.js";export{wR as meshUVSpaceRendererFinaliserVertexShaderWGSL};
+
+//# debugId=127E093D6D1D868F64756E2164756E21
+//# sourceMappingURL=meshUVSpaceRendererFinaliser.vertex-nq18ybxx.js.map

@@ -1032,6 +1032,7 @@ export function riggedBodyGlb(body, options = {}) {
             const baked = bakeClip(c.from, c.clip, target, {
                 fps: c.fps,
                 armSpaceDeg: c.armSpaceDeg,
+                footTurnDeg: c.footTurnDeg,
                 name: c.name,
             });
             const channels = [];

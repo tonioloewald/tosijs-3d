@@ -76,6 +76,7 @@ export async function exportClip(c) {
         clip,
         name: c.name,
         ...(c.armSpaceDeg ? { armSpaceDeg: c.armSpaceDeg } : {}),
+        ...(c.footTurnDeg ? { footTurnDeg: c.footTurnDeg } : {}),
         ...(c.extras ? { extras: c.extras } : {}),
     };
 }

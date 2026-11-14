@@ -50,7 +50,10 @@ The panel has these sections, its job first.
   joint (blue) to drag by hand from the view that suits: shoulders from the
   front, fingers and thumbs from the top, feet from the side. What hangs from
   a joint comes with it; set `dragging` to turn what hangs from it instead
-  (a hand or foot at an angle). Markers and moved joints are saved in the
+  (a hand or foot at an angle). Each finger's and thumb's tip (orange) pulls
+  its finger: the joints after its first turn and stretch about the first,
+  so the finger keeps its curl and reaches where you drop the tip. Markers
+  and moved joints are saved in the
   recipe as `binding`.
 - **Roles**, for a model on its own skeleton: which bone is the hips, the
   head, the left forearm, each finger joint. They are guessed from the
@@ -61,7 +64,9 @@ The panel has these sections, its job first.
   from where its soles stand (they are put on the floor at rest, and kept
   there as a clip plays), for one that still floats or sinks; `arm space`
   turns the arms out from the body, for a character whose arms are long for
-  its height;
+  its height; `foot turn` turns both feet in or out in every clip, for a
+  body modelled with its feet turned out (a foot's turn at rest is the
+  body's own, so it walks splay-footed otherwise);
   `load animations…` adds the clips in a GLB made on another rig to the
   list: Mixamo's, a mocap file's, another library's. Which bone is which is
   read from the names (UE, Mixamo, Kenney and Blender spellings), so each
@@ -95,6 +100,7 @@ const rig = applyRigRecipe(scene, root, skeleton, recipe)
 const walk = retargetClip(ualWalk, readSkeleton(ualSkeleton, ualRoot), rig.read, {
   scene,
   armSpaceDeg: recipe.armSpaceDeg,
+  footTurnDeg: recipe.footTurnDeg,
 })
 walk.start(true)
 ```

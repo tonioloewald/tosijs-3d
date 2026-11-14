@@ -85,6 +85,7 @@ declare const _default: {
     hair: string;
     motion: string;
     skin: string;
+    link: string;
     loadout: string;
     lucideBackpack: string;
     personStanding: string;

@@ -74,15 +74,23 @@ export interface RetargetOptions {
      */
     armSpaceDeg?: number;
     /**
-     * FOOT IK: after the rotations, bend each leg (thigh and shin) so its
-     * ankle goes where the source's went, its travel since rest scaled by hip
-     * height as the hips' is. Copied angles alone put the feet of a body whose
-     * thigh and shin are proportioned unlike the source's in the air or the
-     * floor; this keeps a crouch's feet planted. The knee bends the way the
-     * clip bends it and the foot keeps the clip's turn. Default true; a leg
-     * that is one bone (a chibi's) is left as it is.
+     * FOOT IK: after the rotations, bend each leg (thigh and shin) so a
+     * grounded ankle is as high as the source's, its travel since rest scaled
+     * by hip height as the hips' is. Copied angles alone put the feet of a
+     * body whose thigh and shin are proportioned unlike the source's in the
+     * air or the floor; this keeps a crouch's feet planted. The knee bends the
+     * way the clip bends it and the foot keeps the clip's turn. Default true;
+     * a leg that is one bone (a chibi's) is left as it is.
      */
     footIk?: boolean;
+    /**
+     * Degrees each foot (and its toes) turns about the vertical in every pose,
+     * positive toes OUT, negative in; mirrored left and right. A foot's turn
+     * at rest is the body's own (see "A FOOT AND ITS TOES ARE NOT LINED UP"),
+     * so a body modelled with its feet turned out walks splay-footed in every
+     * clip; a negative turn brings them in. Default 0.
+     */
+    footTurnDeg?: number;
 }
 /**
  * Map `source`'s poses onto `target`. Both skeletons should face the same

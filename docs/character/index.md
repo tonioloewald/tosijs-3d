@@ -51,6 +51,7 @@ const character = await makeCharacter(scene, assets, {
 character.root.parent = someNode           // move it by this
 const walk = retargetClip(ualWalk, ualSkeleton, character.skeleton, {
   scene, armSpaceDeg: character.recipe?.armSpaceDeg,
+  footTurnDeg: character.recipe?.footTurnDeg,
 })
 walk.start(true)
 character.set({ smile: 0.6, hair: 'short02' })  // change it live

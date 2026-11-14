@@ -31,6 +31,8 @@ export declare function retargetClip(group: BABYLON.AnimationGroup, source: Read
     scene?: BABYLON.Scene;
     /** See `RetargetOptions.armSpaceDeg`: spread the arms away from the body. */
     armSpaceDeg?: number;
+    /** See `RetargetOptions.footTurnDeg`: toes out (+) or in (-). */
+    footTurnDeg?: number;
     /** See `RetargetOptions.footIk`: false copies the legs' angles only. */
     footIk?: boolean;
 }): BABYLON.AnimationGroup;
@@ -44,6 +46,7 @@ export declare function retargetSourceClip(source: GlbClipSource, clip: GlbClip,
     name?: string;
     scene?: BABYLON.Scene;
     armSpaceDeg?: number;
+    footTurnDeg?: number;
     footIk?: boolean;
 }): BABYLON.AnimationGroup;
 /** `retargetClip` for several groups, each named after its source. */

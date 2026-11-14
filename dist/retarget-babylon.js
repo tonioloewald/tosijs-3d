@@ -241,6 +241,7 @@ export function retargetSourceClip(source, clip, target, options = {}) {
 function retargetSampled(sample, seconds, source, target, options) {
     const rt = retargeter(source, target, {
         armSpaceDeg: options.armSpaceDeg,
+        footTurnDeg: options.footTurnDeg,
         footIk: options.footIk,
     });
     const fps = options.fps ?? 30;

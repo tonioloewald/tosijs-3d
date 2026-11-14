@@ -324,6 +324,7 @@ export function bakeClip(source, clip, target, options = {}) {
         throw new Error(`bakeClip: no clip "${clip}"`);
     const rt = retargeter(source, target, {
         armSpaceDeg: options.armSpaceDeg,
+        footTurnDeg: options.footTurnDeg,
         footIk: options.footIk,
     });
     const fps = options.fps ?? 30;

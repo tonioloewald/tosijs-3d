@@ -141,6 +141,8 @@ export function validateRigRecipe(doc) {
         out.push(`version is ${r.version}, expected ${RIG_RECIPE_VERSION}`);
     if (r.armSpaceDeg != null && !isNum(r.armSpaceDeg))
         out.push('armSpaceDeg is not a number');
+    if (r.footTurnDeg != null && !isNum(r.footTurnDeg))
+        out.push('footTurnDeg is not a number');
     if (r.floor != null && !isNum(r.floor))
         out.push('floor is not a number');
     if (r.roles != null) {
@@ -312,6 +314,14 @@ export function rigRecipeSchema() {
                 type: 'number',
                 minimum: -90,
                 maximum: 90,
+                default: 0,
+                ...DEG,
+            },
+            footTurnDeg: {
+                type: 'number',
+                description: 'Degrees each foot turns about the vertical in every clip: toes out (positive) or in (negative), mirrored.',
+                minimum: -45,
+                maximum: 45,
                 default: 0,
                 ...DEG,
             },

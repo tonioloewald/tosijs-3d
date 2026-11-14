@@ -116,10 +116,12 @@ Arm-Space") turns the upper arms out from the body, and the chibi takes 55°.
 5. **Feet on the ground stay there.** The same angles on a leg whose thigh
    and shin are proportioned differently put the foot somewhere else: a
    crouch on a long-thighed body lifts one foot off the floor. So each foot
-   near the ground goes where the source's went (its travel scaled as the
-   hips' is; the ball, when the source is on its toes), and the thigh and
-   shin bend to reach it, the knee the way the clip bends it. A foot in the
-   air keeps the copied angles. `footIk: false` turns it off.
+   near the ground goes as high as the source's went (its travel scaled as
+   the hips' is; the ball, when the source is on its toes), keeping the
+   clip's place across the floor, and the thigh and shin bend to reach it,
+   the knee the way the clip bends it (toward the leg's front when the leg
+   is nearly straight). A foot in the air keeps the copied angles.
+   `footIk: false` turns it off.
 
 Babylon-free and deterministic (plain `{x, y, z, w}` quaternions), like
 `fly-by-wire`: the Babylon side (`retarget-babylon`) reads the skeletons and

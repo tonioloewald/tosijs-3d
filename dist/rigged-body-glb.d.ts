@@ -63,6 +63,8 @@ export interface ClipOut {
     fps?: number;
     /** Spread the arms (see retarget's `armSpaceDeg`). */
     armSpaceDeg?: number;
+    /** Turn the feet (see retarget's `footTurnDeg`). */
+    footTurnDeg?: number;
     /** The animation's `extras`: its licence. */
     extras?: Record<string, unknown>;
 }

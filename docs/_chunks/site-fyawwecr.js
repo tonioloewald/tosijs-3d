@@ -1,0 +1,5 @@
+import{$e}from"./site-3t3g319r.js";import{w,V,Ks}from"./site-8r8s7x74.js";import{zl}from"./site-1ekvpwz1.js";import{o}from"./site-twypjy9n.js";class mg extends $e{constructor(t){super(t);this.config=t,this._easingFunctions={},this.mode=this.registerDataInput("mode",V,0),this.controlPoint1=this.registerDataInput("controlPoint1",Ks),this.controlPoint2=this.registerDataInput("controlPoint2",Ks),this.easingFunction=this.registerDataOutput("easingFunction",w)}_updateOutputs(t){let r=this.mode.getValue(t),e=this.controlPoint1.getValue(t),i=this.controlPoint2.getValue(t);if(r===void 0)return;let s=`${r}-${e.x}-${e.y}-${i.x}-${i.y}`;if(!this._easingFunctions[s]){let n=new zl(e.x,e.y,i.x,i.y);n.setEasingMode(r),this._easingFunctions[s]=n}this.easingFunction.setValue(this._easingFunctions[s],t)}getClassName(){return"FlowGraphBezierCurveEasing"}}var a=!1;function gg(){if(a)return;a=!0,o("FlowGraphBezierCurveEasing",mg)}gg();
+export{mg,gg};
+
+//# debugId=AD9C8B687D8FD4AE64756E2164756E21
+//# sourceMappingURL=site-fyawwecr.js.map

@@ -68,6 +68,8 @@ export interface RigRecipe {
     roles?: Partial<Record<Role, string>>;
     /** See `RetargetOptions.armSpaceDeg`. */
     armSpaceDeg?: number;
+    /** See `RetargetOptions.footTurnDeg`: toes out (+) or in (-), mirrored. */
+    footTurnDeg?: number;
     /**
      * Metres to raise (or, negative, lower) the body from where its soles
      * would stand: the hand correction for a body that floats or sinks.
