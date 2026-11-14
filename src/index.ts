@@ -1062,6 +1062,21 @@ export {
 } from './aim-ik.js'
 export { twoBoneIk, type TwoBoneTurn } from './two-bone-ik.js'
 export {
+  startConversation,
+  speakingSeconds,
+  repliesDueAt,
+  type Conversation,
+  type ConversationCondition,
+  type ConversationEffect,
+  type ConversationEvent,
+  type ConversationHost,
+  type ConversationLine,
+  type ConversationNode,
+  type ConversationReply,
+  type ConversationScript,
+  type TranscriptEntry,
+} from './conversation.js'
+export {
   B3dCrowd,
   b3dCrowd,
   VatPlugin,
