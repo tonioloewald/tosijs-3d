@@ -544,6 +544,15 @@ export function ualAnimationStates(extra: AnimStateSpec[] = []): AnimState[] {
     // Kneeling to lift a lid (a `<tosi-b3d-chest>`).
     { name: 'chestOpen', animation: 'Chest_Open', loop: false },
     { name: 'look', animation: 'Idle_Loop', loop: true },
+    // CONVERSATION (`<tosi-b3d-conversation>`): talking while a line plays,
+    // and gestures a line can ask for by name.
+    { name: 'talk', animation: 'Idle_Talking_Loop', loop: true },
+    { name: 'yes', animation: 'Yes', loop: false },
+    { name: 'no', animation: 'Idle_No_Loop', loop: false },
+    { name: 'give', animation: 'Counter_Give', loop: false },
+    { name: 'show', animation: 'Counter_Show', loop: false },
+    { name: 'surprise', animation: 'Surprise', loop: false },
+    { name: 'foldArms', animation: 'Idle_FoldArms_Loop', loop: true },
     /*
     THE GUNPLAY SET, and the three aim poses are not arbitrary — they are
     exactly the shape [[aim]]'s `aimPoseWeights` was written against: up, level,
@@ -1681,17 +1690,26 @@ export class B3dBiped extends B3dControllable {
    * Play a one-off clip (picking something up, opening a chest, a hit) and
    * stand still while it plays. Returns its length in seconds, or 0 when it
    * cannot play: the rig lacks the clip, or the biped is in the air, in water,
-   * mid-climb or dead. For a game, an AI or a cutscene.
+   * mid-climb or dead. For a game, an AI or a cutscene. `seconds` holds it
+   * that long instead of the clip's length (a looping clip loops: talking for
+   * as long as a line lasts).
    */
-  perform(state: string): number {
+  perform(state: string, seconds?: number): number {
     if (this.halted || this._swimming || this._airPhase != null) return 0
     if (this._mantle != null) return 0
-    const seconds = this._clipSeconds(state)
-    if (seconds <= 0) return 0
+    const clip = this._clipSeconds(state)
+    if (clip <= 0) return 0
+    seconds = seconds != null && seconds > 0 ? seconds : clip
     this._actionClip = state
     this._actionLeft = seconds
     return seconds
   }
+
+  /** Stop a `perform` early (a line cut short stops the talking). */
+  endPerform(): void {
+    this._actionLeft = 0
+  }
+
 
   /** Health in the combat world, a chest-height aim point, once the model is in. */
   private _attachHealth(owner: B3d, height: number): void {

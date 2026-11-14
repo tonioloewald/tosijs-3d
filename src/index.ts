@@ -1076,6 +1076,7 @@ export {
   type ConversationScript,
   type TranscriptEntry,
 } from './conversation.js'
+export { B3dConversation, b3dConversation } from './b3d-conversation.js'
 export {
   B3dCrowd,
   b3dCrowd,

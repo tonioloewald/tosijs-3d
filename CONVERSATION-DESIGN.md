@@ -1,5 +1,10 @@
 # Conversation design — talking to NPCs without the boredom
 
+**Built:** the core (`conversation`: scripts, barge-in timing, effects through a host) and the
+face-to-face staging (`b3d-conversation`: balloons, gestures, facing, trade and back), with the
+playground's shopkeeper as the demo. **Not yet:** comms, walk-and-talk, the transcript panel,
+keyword mode, a conversation camera, head look-at, lip sync, Ariosto driving it.
+
 The SIM-lane spec for MVP conversation. Ariosto owns **what is said** (dialogue trees, branches,
 the choice content, the chronicle); tosijs-3d owns **how it is staged** — panels, audio, camera,
 animation, turn-taking. The seam is the contract's choice primitive

@@ -6,7 +6,7 @@ arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dBox, b3dChest, b3dDeath, b3dDoor, b3dPanel, createCarry, tradePanel, b3dInteractive, b3dLauncher, b3dLibrary, b3dNpc, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, holdMount, holdClassOf, stowGrip, heldGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, AIM_CLIPS, WORKING_CHARACTER } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dBox, b3dChest, b3dDeath, b3dDoor, b3dPanel, createCarry, tradePanel, b3dInteractive, b3dLauncher, b3dLibrary, b3dNpc, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, holdMount, holdClassOf, stowGrip, heldGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, AIM_CLIPS, b3dConversation, WORKING_CHARACTER } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
@@ -48,6 +48,8 @@ const WEAPONS = {
   // A shield goes in the LEFT hand (strapped to the forearm) or on the back.
   Buckler: { tags: ['back', 'shield'], mass: 2.5, art: 'shield' },
   'Kite Shield': { tags: ['back', 'shield'], mass: 4, art: 'shield' },
+  // Kept, not drunk: the shopkeeper wants one (see THE SHOPKEEPER).
+  Potion: { tags: ['bag'], mass: 0.3, art: 'potion' },
   // Not a weapon: it lives in the bag, and opens the yard's door.
   'Iron Key': { tags: ['key'], mass: 0.1, art: 'key' },
   // Rounds, in stacks.
@@ -57,7 +59,7 @@ const WEAPONS = {
   Arrows: { tags: ['ammo'], mass: 0.03, art: 'ammo', stack: 60 },
 }
 // What things are worth (the info floater shows it, in the purse's currency).
-const COST = { Pistol: 40, SMG: 90, 'Assault Rifle': 160, 'Rocket Launcher': 300, Dagger: 8, 'Short Sword': 20, 'Long Sword': 35, 'Hand and a Half': 60, 'Plasma Blade': 120, Spear: 15, Bow: 50, Buckler: 12, 'Kite Shield': 30, 'Pistol Ammo': 0.5, 'Rifle Ammo': 1, Rockets: 25, Arrows: 0.5 }
+const COST = { Pistol: 40, SMG: 90, 'Assault Rifle': 160, 'Rocket Launcher': 300, Dagger: 8, 'Short Sword': 20, 'Long Sword': 35, 'Hand and a Half': 60, 'Plasma Blade': 120, Spear: 15, Bow: 50, Buckler: 12, 'Kite Shield': 30, 'Pistol Ammo': 0.5, 'Rifle Ammo': 1, Rockets: 25, Arrows: 0.5, Potion: 10 }
 for (const [kind, cost] of Object.entries(COST)) WEAPONS[kind].cost = cost
 
 // ONE LAUNCHER, carrying whatever is in your right hand. `socket` parents it
@@ -202,19 +204,81 @@ loadout.inv.move({ kind: 'Rockets', qty: 4, to: stock('shop') })
 loadout.inv.move({ item: 'Kite Shield', to: stock('shop') })
 loadout.inv.move({ kind: 'Arrows', qty: 40, to: stock('shop') })
 const SHOP_AT = { x: 7.2, z: 9 }
+// TALKING TO HIM: E at the counter starts a conversation (b3d-conversation).
+// He talks and gestures, his lines and your replies are in a balloon over his
+// head (click one, or press its number), "What do you sell?" opens the shop
+// and the talk picks up when it closes, and his errand takes the potion from
+// the gate chest out of your bag and pays you in rifle rounds.
+const SHOP_TALK = {
+  start: 'hello',
+  nodes: {
+    hello: {
+      lines: [{ speaker: 'shopkeeper', text: 'Welcome, welcome. Looking for something?', gesture: 'show' }],
+      replies: [
+        { id: 'shop', label: 'What do you sell?', then: [{ trade: true }, { goto: 'after' }] },
+        {
+          id: 'work', label: 'Need anything?', line: 'Need a hand with anything?',
+          when: { not: 'asked' },
+          then: [{ set: 'asked' }, { goto: 'errand' }],
+        },
+        {
+          id: 'potion', label: 'Your potion.', line: "Here's that potion I promised you.",
+          when: [{ flag: 'asked' }, { not: 'paid' }, { has: 'Potion' }],
+          then: [{ take: 'Potion' }, { give: 'Rifle Ammo', qty: 30 }, { set: 'paid' }, { goto: 'thanks' }],
+        },
+        { id: 'bye', label: 'Bye.', then: [{ goto: 'bye' }] },
+      ],
+    },
+    errand: {
+      lines: [
+        { speaker: 'shopkeeper', text: 'My knees are not what they were.', gesture: 'no' },
+        { speaker: 'shopkeeper', text: "Bring me a potion and I'll make it worth your while." },
+      ],
+      then: [{ goto: 'more' }],
+    },
+    thanks: {
+      lines: [{ speaker: 'shopkeeper', text: 'You remembered! Here, thirty rounds, on the house.', gesture: 'give' }],
+      then: [{ goto: 'more' }],
+    },
+    after: { lines: [{ speaker: 'shopkeeper', text: 'Pleasure doing business.', gesture: 'yes' }], then: [{ goto: 'more' }] },
+    more: {
+      lines: [{ speaker: 'shopkeeper', text: 'Anything else?' }],
+      replies: [], // filled from hello's, below
+    },
+    bye: { lines: [{ speaker: 'shopkeeper', text: 'Mind how you go.' }], then: [{ end: true }] },
+  },
+}
+SHOP_TALK.nodes.more.replies = SHOP_TALK.nodes.hello.replies
+const shopTalk = b3dConversation()
+shopTalk.script = SHOP_TALK
+const heroCount = (kind) => heroItems().filter((i) => i.kind === kind).reduce((n, i) => n + (i.qty ?? 1), 0)
+shopTalk.host = {
+  has: (kind, qty) => heroCount(kind) >= qty,
+  give: (kind, qty) => {
+    const r = loadout.inv.move({ kind, qty, to: BAG })
+    if (r.ok) say(`${qty} ${kind}`)
+    return r.ok ? null : r.reasons.join(', ')
+  },
+  take: (kind, qty) => {
+    const it = heroItems().find((i) => i.kind === kind)
+    if (!it) return `no ${kind}`
+    const r = loadout.inv.move({ item: it.id, qty, to: null })
+    return r.ok ? null : r.reasons.join(', ')
+  },
+  trade: (done) => openTrade('shop', { title: 'Shop', at: () => counter.mesh?.position, price: shopPrice, done }),
+}
 const shopkeeper = b3dBiped({
   url: assetUrl('quaternius/UAL1_core.glb', 5),
   animationStates: ualAnimationStates(),
+  id: 'Shopkeeper',
   ...SHOP_AT, ry: 90, // facing the start (-x)
-})
+}, shopTalk)
 const counter = b3dBox({ meshName: 'shop-counter', x: 6.2, y: 0.5, z: 9, width: 0.6, height: 1, depth: 2.4, color: '#8a6a44', solid: 'on' })
 const shop = b3dInteractive({
   target: 'shop-counter', reach: 2.5,
-  whenActivated: () => openTrade('shop', {
-    title: 'Shop',
-    at: () => counter.mesh?.position,
-    price: shopPrice,
-  }),
+  whenActivated: () => {
+    if (!shopTalk.talk || shopTalk.talk.ended) shopTalk.start(hero)
+  },
 })
 const LYING_ABOUT = [
   shopkeeper, counter, shop,
@@ -234,6 +298,7 @@ loadout.inv.move({ item: 'Iron Key', to: stock('gate chest') })
 loadout.inv.move({ item: 'Rocket Launcher', to: stock('yard chest') }, { item: 'Hand and a Half', to: stock('yard chest') })
 loadout.inv.move({ kind: 'Rockets', qty: 4, to: stock('yard chest') })
 loadout.inv.move({ kind: 'Arrows', qty: 12, to: stock('gate chest') })
+loadout.inv.move({ item: 'Potion', to: stock('gate chest') })
 const has = (kind) => Object.values(loadout.inv.doc.items).some((i) => i.kind === kind)
 // OPENING A CHEST opens a trade: its contents beside your bag, take what you
 // take and leave the rest. One panel (no button on the system bar), one
@@ -243,12 +308,19 @@ const trades = {}
 let trading = null
 const endTrade = () => {
   if (!trading) return
-  tradeBox.hide()
-  if (trading.chest) trading.chest.open = false
+  const { chest, done } = trading
   trading = null
+  tradeBox.hide()
+  if (chest) chest.open = false
+  // A trade opened from a conversation hands back to it.
+  done?.()
 }
+// Closed with its own ×, it ends the same way.
+tradeBox.addEventListener('paneltoggle', (e) => {
+  if (!e.detail.open) endTrade()
+})
 // One trade per holder, made the first time; a shop's has prices.
-const openTrade = (holder, { chest = null, title = 'Chest', at, price } = {}) => {
+const openTrade = (holder, { chest = null, title = 'Chest', at, price, done } = {}) => {
   trades[holder] ??= tradePanel({
     inv: loadout.inv, carry: createCarry(),
     mine: BAG, theirs: stock(holder),
@@ -267,7 +339,7 @@ const openTrade = (holder, { chest = null, title = 'Chest', at, price } = {}) =>
   tradeBox.title = title
   tradeBox.svg = trades[holder].svg
   tradeBox.show()
-  trading = { chest, at: at ?? (() => chest?.mesh?.position) }
+  trading = { chest, at: at ?? (() => chest?.mesh?.position), done }
 }
 const chest = (holder, at) => {
   const el = b3dChest({ ...at, whenOpened: () => openTrade(holder, { chest: el }), whenClosed: () => trading?.chest === el && endTrade() })
@@ -563,9 +635,13 @@ magazine while it is put away.
 **Health.** A potion (30) and a heart (60) lie about: walk up and press
 **E**. At full health they stay where they are.
 
-**A shop.** The mannequin behind the counter to your right is a shopkeeper:
-press **E** at the counter and its stock opens beside your bag, with prices.
-Drag things across either way (ammo goes a box of 24 at a time); the line
+**A shop, and someone to talk to.** The mannequin behind the counter to your
+right is a shopkeeper: press **E** at the counter and he talks. His lines and
+your replies appear in a balloon over his head; click a reply or press its
+number. Ask what he sells and his stock opens beside your bag, with prices;
+when you close it he carries on. Ask whether he needs anything, then bring
+him the potion from the gate chest. Walk away and the conversation ends.
+In the shop, drag things across either way (ammo goes a box of 24 at a time); the line
 under the lists says whether you pay or receive and how much. **Deal**
 settles, **cancel** puts it all back. It sells at an item's value and buys
 at half. You have 25 gold.
