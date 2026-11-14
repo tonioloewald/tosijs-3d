@@ -206,9 +206,9 @@ else playChar.pick.value = MANNEQUIN
 // SOMETHING SHOOTS BACK: a turret past the cover line, slow enough to dodge,
 // aiming at the hero's chest. Cover is cover now.
 const turret = b3dTurret({ x: 0, z: -30, range: 35, fireRate: 0.5, muzzleSpeed: 25, smart: 1, damage: 25, blastRadius: 2 })
-// ENEMIES ON FOOT, stand-ins for zombies (the mannequin, a sword swing for a
-// blow): one stands guard with its back to where you start, one walks a loop
-// past the cover line. Oblivious until they notice you; three pistol shots
+// ENEMIES ON FOOT (the mannequin, a sword swing for a blow): one stands
+// guard with its back to where you start, one walks a loop past the cover
+// line. Oblivious until they notice you; three pistol shots
 // put one down, and a new one takes its place a little later.
 const ENEMIES = [
   // (A biped's ry 0 faces -z; -35 faces away from the start, toward +x -z.)
@@ -334,7 +334,7 @@ walk up and press **E** to pick one up (you kneel for it), and it goes in your
 bag. Drag anything from the loadout onto **drop** and you throw it: it lands
 6 m ahead with a clatter the enemy hears.
 
-**Something hunts you.** Two enemies (stand-ins for zombies): one stands guard
+**Something hunts you.** Two enemies: one stands guard
 this side of the cover line with its back to you, one walks a loop beyond it.
 Each is oblivious until it notices you: anywhere in front of it within 50 m
 (cover hides you), or within 10 m behind it. Crouch (left shift) and those
