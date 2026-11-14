@@ -94,6 +94,22 @@ describe('barMenu', () => {
     expect(loaded).toBe('Bo')
   })
 
+  test('the list swapped out cannot paint over the submenu or act', () => {
+    const m: any = barMenu({
+      icon: 'character',
+      title: 'Character',
+      options: [{ label: 'Select', items: ['Ada', 'Bo'] }],
+    })
+    const top = m.svg
+    tap(m, rowY(0))
+    // The panel tells the old SVG its gesture ended as it swaps.
+    top.handlePointer('leave', 0, 0)
+    expect(m.svg.textContent).toContain('Ada')
+    top.handlePointer('down', 40, rowY(0))
+    top.handlePointer('up', 40, rowY(0))
+    expect(m.svg.textContent).toContain('Ada')
+  })
+
   test('submenus cascade, and a press on the open one closes it', () => {
     const m: any = barMenu({
       icon: 'animation',

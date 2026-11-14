@@ -153,7 +153,14 @@ export function barMenu(config: BarMenuConfig): BarMenu {
   /** The hovered and the pressed row, as `[column, row]`. */
   let hover: [number, number] | null = null
   let pressed: [number, number] | null = null
-  let root: SVGSVGElement
+  /*
+  The SVG on show. Each level is its own SVG with its own handler, and the
+  panel sends the one it swaps out a last `leave`: a handler that is not the
+  current one's must do nothing, or it repaints over the new level (its draw
+  had reached the new SVG through a shared variable, so a submenu opened and
+  was painted over at once, or a stale release closed it).
+  */
+  let current: SVGSVGElement | null = null
   const same = (a: [number, number] | null, b: [number, number] | null) =>
     a != null && b != null && a[0] === b[0] && a[1] === b[1]
 
@@ -228,7 +235,7 @@ export function barMenu(config: BarMenuConfig): BarMenu {
     }
     const WIDTH = x - COL_GAP
     const height = Math.max(...laid.map((c) => c.y + c.h))
-    root = svg({
+    const root = svg({
       xmlns: 'http://www.w3.org/2000/svg',
       viewBox: `0 0 ${WIDTH} ${height}`,
       width: WIDTH,
@@ -390,6 +397,7 @@ export function barMenu(config: BarMenuConfig): BarMenu {
       return null
     }
     const handlePointer = (kind: PointerKind, px: number, py: number) => {
+      if (root !== current) return
       const at = kind === 'leave' ? null : indexAt(px, py)
       if (kind === 'down') pressed = at
       else if (kind === 'up') {
@@ -444,6 +452,7 @@ export function barMenu(config: BarMenuConfig): BarMenu {
     hover = null
     pressed = null
     const made = make()
+    current = made.root
     drawNow = made.draw
     el.svg = made.root
   }
