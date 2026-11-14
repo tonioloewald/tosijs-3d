@@ -13,8 +13,8 @@ one-handed blade follows.
 | `heavy` | on the shoulder | Rocket Launcher |
 | `melee1h` | a blade, one hand | Dagger, Short Sword, Long Sword, Plasma Blade |
 | `melee2h` | a long blade or a pole, two hands | Hand and a Half, Spear |
-| `bow` | a bow | |
-| `shield` | strapped to the left forearm | Buckler |
+| `bow` | a bow, in the LEFT hand | Bow |
+| `shield` | strapped to the left forearm | Buckler, Kite Shield |
 
 ```javascript
 import { holdClassOf, holdGrip } from 'tosijs-3d'
@@ -26,13 +26,15 @@ holdGrip('Long Sword', { melee1h: { ry: 170 } }) // with your adjustment
 
 A grip is the item's grip point and turn in its MOUNT's frame (metres and
 degrees; see [[character-builder]]'s Hold). Most things are held in the right
-hand, in the hand's socket frame; a shield is strapped to the LEFT FOREARM, in
-that bone's own frame: `holdMount(class)` says which. Put away on the back
+hand, in the hand's socket frame; a bow in the LEFT hand's socket (UAL's bow
+clips hold it there); a shield is strapped to the LEFT FOREARM, in that bone's
+own frame: `holdMount(class)` says which. Put away on the back
 (a rifle, a two-handed sword, a quiver), it rides across the shoulders on
 `STOW_MOUNT` (the upper spine) at `stowGrip(name)`. An item not in the table is
 held as a `pistol`; pass your own table as `classes` to name a library's. Only the
-`pistol` and `melee1h` defaults were placed by hand; the others start from the
-nearest of those two until someone places them.
+`pistol` and `melee1h` defaults were placed by hand and the `bow` measured on
+UAL's bow aim; the others start from the nearest of those until someone places
+them.
 
 Pure: no DOM, no Babylon.
 */
@@ -77,6 +79,19 @@ const BLADE: HoldGrip = {
   scale: 1,
 }
 
+// In the LEFT hand's socket: upright through the fist, the arrow along the
+// aim, measured on UAL's Bow_Aim_Neutral. A first placement, to be set with
+// the manipulator.
+const BOW: HoldGrip = {
+  x: 0,
+  y: 0.061,
+  z: 0.003,
+  rx: -75,
+  ry: 165,
+  rz: 13.5,
+  scale: 1,
+}
+
 // On the forearm, in the bone's frame: a first placement, to be set with the
 // manipulator on an asymmetric (kite) shield.
 const SHIELD: HoldGrip = {
@@ -96,7 +111,7 @@ export const HOLD_GRIPS: Record<HoldClass, HoldGrip> = {
   heavy: GUN,
   melee1h: BLADE,
   melee2h: BLADE,
-  bow: BLADE,
+  bow: BOW,
   shield: SHIELD,
 }
 
@@ -106,7 +121,7 @@ export const HOLD_GRIPS: Record<HoldClass, HoldGrip> = {
  */
 export interface HoldMount {
   /** UAL's bone name. */
-  bone: 'hand_r' | 'lowerarm_l' | 'spine_03'
+  bone: 'hand_r' | 'hand_l' | 'lowerarm_l' | 'spine_03'
   /** `socket`: the hand's anatomical socket; `bone`: the bone's own frame. */
   frame: 'socket' | 'bone'
 }
@@ -141,6 +156,8 @@ export const HOLD_CLASSES: Record<string, HoldClass> = {
   'Hand and a Half': 'melee2h',
   Spear: 'melee2h',
   Buckler: 'shield',
+  'Kite Shield': 'shield',
+  Bow: 'bow',
 }
 
 /** An item's class: from `classes` (default Tonio's library), else `pistol`. */

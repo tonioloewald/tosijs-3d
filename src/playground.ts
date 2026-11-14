@@ -6,7 +6,7 @@ arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dBox, b3dChest, b3dDeath, b3dDoor, b3dPanel, createCarry, tradePanel, b3dInteractive, b3dLauncher, b3dLibrary, b3dNpc, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, holdMount, holdClassOf, stowGrip, heldGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dBox, b3dChest, b3dDeath, b3dDoor, b3dPanel, createCarry, tradePanel, b3dInteractive, b3dLauncher, b3dLibrary, b3dNpc, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, holdMount, holdClassOf, stowGrip, heldGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, AIM_CLIPS, WORKING_CHARACTER } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
@@ -15,7 +15,7 @@ import { demoLoadout } from 'tosijs-3d/demo-utils'
 // one grip holds them all, and the blades another. (Line comments in this
 // demo: a block comment inside a fence would close the enclosing doc comment.)
 const weapons = b3dLibrary({
-  url: assetUrl('tonio/weapons-classic/weapons.glb', 2),
+  url: assetUrl('tonio/weapons-classic/weapons.glb', 3),
   type: 'weapons',
 })
 // Where the hand holds each one: the character builder's defaults, placed
@@ -26,9 +26,10 @@ const gripFor = (name) => {
   return grip
 }
 // What each one is in the inventory (slot tags, mass, its picture), and for the
-// guns how it fires. Only guns are raised: UAL's ranged clips are Pistol_*,
-// so the rifles are fired from a one-handed stance. Anything else is a melee
-// weapon (`holdingWeapon`): on guard, and the trigger swings it.
+// guns how it fires. Guns and the bow are raised: a gun plays UAL's Pistol_*
+// clips (a rifle shouldered by arm IK on top), the bow UAL's Bow_* clips in
+// the left hand. Anything else is a melee weapon (`holdingWeapon`): on guard,
+// and the trigger swings it.
 const WEAPONS = {
   // A gun's magazine is `ammo` rounds, reloaded in `reloadTime` seconds from
   // what it `loads` in your bag.
@@ -42,17 +43,21 @@ const WEAPONS = {
   'Hand and a Half': { tags: ['back', 'hand', 'two-handed'], mass: 2, art: 'sword' },
   'Plasma Blade': { tags: ['side', 'hand'], mass: 1, art: 'sword' },
   Spear: { tags: ['back', 'hand', 'two-handed'], mass: 2, art: 'sword' },
+  // One arrow at a time: each shot is a reload (UAL's notch), and arrows drop.
+  Bow: { tags: ['back', 'hand', 'two-handed'], mass: 1, art: 'rifle', loads: 'Arrows', fire: { fireRate: 1, muzzleSpeed: 40, damage: 45, projRadius: 0.03, gravity: -9.8, directHit: 'on', ammo: 1, reloadTime: 0.8 } },
   // A shield goes in the LEFT hand (strapped to the forearm) or on the back.
   Buckler: { tags: ['back', 'shield'], mass: 2.5, art: 'shield' },
+  'Kite Shield': { tags: ['back', 'shield'], mass: 4, art: 'shield' },
   // Not a weapon: it lives in the bag, and opens the yard's door.
   'Iron Key': { tags: ['key'], mass: 0.1, art: 'key' },
   // Rounds, in stacks.
   'Pistol Ammo': { tags: ['ammo'], mass: 0.01, art: 'ammo', stack: 200 },
   'Rifle Ammo': { tags: ['ammo'], mass: 0.015, art: 'ammo', stack: 200 },
   Rockets: { tags: ['ammo'], mass: 1.5, art: 'rocket', stack: 10 },
+  Arrows: { tags: ['ammo'], mass: 0.03, art: 'ammo', stack: 60 },
 }
 // What things are worth (the info floater shows it, in the purse's currency).
-const COST = { Pistol: 40, SMG: 90, 'Assault Rifle': 160, 'Rocket Launcher': 300, Dagger: 8, 'Short Sword': 20, 'Long Sword': 35, 'Hand and a Half': 60, 'Plasma Blade': 120, Spear: 15, Buckler: 12, 'Pistol Ammo': 0.5, 'Rifle Ammo': 1, Rockets: 25 }
+const COST = { Pistol: 40, SMG: 90, 'Assault Rifle': 160, 'Rocket Launcher': 300, Dagger: 8, 'Short Sword': 20, 'Long Sword': 35, 'Hand and a Half': 60, 'Plasma Blade': 120, Spear: 15, Bow: 50, Buckler: 12, 'Kite Shield': 30, 'Pistol Ammo': 0.5, 'Rifle Ammo': 1, Rockets: 25, Arrows: 0.5 }
 for (const [kind, cost] of Object.entries(COST)) WEAPONS[kind].cost = cost
 
 // ONE LAUNCHER, carrying whatever is in your right hand. `socket` parents it
@@ -85,7 +90,7 @@ const MANNEQUIN = 'UAL mannequin'
 const shopPrice = (item, from) => (WEAPONS[item.kind]?.cost ?? 0) * item.qty * (from?.holder === 'shop' ? 1 : 0.5)
 const makeHero = (doc, at) => b3dBiped(
   {
-    ...(doc ? { characterDoc: doc } : { url: assetUrl('quaternius/UAL1_core.glb', 4) }),
+    ...(doc ? { characterDoc: doc } : { url: assetUrl('quaternius/UAL1_core.glb', 5) }),
     animationStates: ualAnimationStates(),
     // WHERE THE ARENA IS IN FRONT OF YOU. Spawning at the origin put `pillar-b`
     // (0, -12.3) literally touching your muzzle line, so every shot from the
@@ -143,7 +148,7 @@ const BAG = { holder: 'hero', container: 'bag' }
 const stock = (holder) => ({ holder, container: 'stock' })
 // AMMO: what your guns load is in the bag, in stacks. Start with 36 pistol
 // rounds and nothing else; more lies around (and rockets are in the yard).
-const AMMO = ['Pistol Ammo', 'Rifle Ammo', 'Rockets']
+const AMMO = ['Pistol Ammo', 'Rifle Ammo', 'Rockets', 'Arrows']
 for (const kind of AMMO) loadout.inv.move({ item: kind, to: null })
 loadout.inv.move({ kind: 'Pistol Ammo', qty: 36, to: BAG })
 const heroItems = () => Object.values(loadout.inv.doc.items).filter((i) => loadout.inv.where(i.id)?.holder === 'hero')
@@ -194,9 +199,11 @@ loadout.inv.move({ item: 'SMG', to: stock('shop') }, { item: 'Plasma Blade', to:
 loadout.inv.move({ kind: 'Pistol Ammo', qty: 120, to: stock('shop') })
 loadout.inv.move({ kind: 'Rifle Ammo', qty: 120, to: stock('shop') })
 loadout.inv.move({ kind: 'Rockets', qty: 4, to: stock('shop') })
+loadout.inv.move({ item: 'Kite Shield', to: stock('shop') })
+loadout.inv.move({ kind: 'Arrows', qty: 40, to: stock('shop') })
 const SHOP_AT = { x: 7.2, z: 9 }
 const shopkeeper = b3dBiped({
-  url: assetUrl('quaternius/UAL1_core.glb', 4),
+  url: assetUrl('quaternius/UAL1_core.glb', 5),
   animationStates: ualAnimationStates(),
   ...SHOP_AT, ry: 90, // facing the start (-x)
 })
@@ -217,7 +224,7 @@ const LYING_ABOUT = [
   healer('survival', 'bottle', 30, 3, 6.5, 2.5),
   healer('platformer', 'heart', 60, -14, -8),
 ]
-const ON_THE_GROUND = [['Assault Rifle', -2, 6.5], ['Long Sword', -4.5, 6], ['Buckler', -7, 6.5]]
+const ON_THE_GROUND = [['Assault Rifle', -2, 6.5], ['Long Sword', -4.5, 6], ['Buckler', -7, 6.5], ['Bow', -9.5, 6]]
 for (const [kind] of ON_THE_GROUND) loadout.inv.move({ item: kind, to: null })
 // THE YARD, behind you: a walled pen (too high to climb) whose door is
 // locked. The key is in the chest by the door; inside is a chest with the
@@ -226,6 +233,7 @@ for (const [kind] of ON_THE_GROUND) loadout.inv.move({ item: kind, to: null })
 loadout.inv.move({ item: 'Iron Key', to: stock('gate chest') })
 loadout.inv.move({ item: 'Rocket Launcher', to: stock('yard chest') }, { item: 'Hand and a Half', to: stock('yard chest') })
 loadout.inv.move({ kind: 'Rockets', qty: 4, to: stock('yard chest') })
+loadout.inv.move({ kind: 'Arrows', qty: 12, to: stock('gate chest') })
 const has = (kind) => Object.values(loadout.inv.doc.items).some((i) => i.kind === kind)
 // OPENING A CHEST opens a trade: its contents beside your bag, take what you
 // take and leave the rest. One panel (no button on the system bar), one
@@ -342,10 +350,14 @@ const hold = (h) => {
   if (w?.fire && id !== inHand) {
     if (inHand && WEAPONS[kindOf(inHand)]?.fire) magazines[inHand] = gun.loaded
     inHand = id
-    Object.assign(gun, gripFor(kind), w.fire, { meshName: kind })
+    // A bow rides the LEFT hand's socket (hold-grip's mount for its class).
+    const socket = holdMount(holdClassOf(kind)).bone === 'hand_l' ? 'left-hand' : 'right-hand'
+    Object.assign(gun, gripFor(kind), w.fire, { meshName: kind, socket })
     gun.loaded = magazines[id] ?? w.fire.ammo
     gun.reloadModel()
   }
+  // The clips the raised weapon plays (a new hero, after a respawn, too).
+  if (w?.fire) h.setAimClips(holdClassOf(kind) === 'bow' ? AIM_CLIPS.bow : AIM_CLIPS.pistol)
   h.holdingWeapon = w != null && w.fire == null
   h.setGunplay(w?.fire != null)
 }
@@ -409,7 +421,7 @@ const ENEMIES = [
 ]
 const makeEnemy = ({ patrol, ...at }, i) => b3dBiped(
   {
-    url: assetUrl('quaternius/UAL1_core.glb', 4),
+    url: assetUrl('quaternius/UAL1_core.glb', 5),
     animationStates: ualAnimationStates([{ name: 'attack', animation: 'Sword_Attack', loop: false }]),
     ...at,
     health: 60,

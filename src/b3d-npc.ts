@@ -30,7 +30,7 @@ import { b3dBiped, b3dNpc, ualAnimationStates, assetUrl } from 'tosijs-3d'
 
 b3dBiped(
   {
-    url: assetUrl('quaternius/UAL1_core.glb', 4),
+    url: assetUrl('quaternius/UAL1_core.glb', 5),
     animationStates: ualAnimationStates([{ name: 'attack', animation: 'Sword_Attack', loop: false }]),
     x: 10, z: -10, ry: -35, health: 60,
   },

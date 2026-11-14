@@ -269,15 +269,15 @@ const exportRows = () =>
         clip: playingClip(shown.recipe),
         // What the right hand holds goes out with it, where it is held.
         held:
-          walker.held.value === 'none' || holdMount(holdClassOf(walker.held.value)).frame !== 'socket'
+          walker.held.value === 'none' || holdMount(holdClassOf(walker.held.value)).bone !== 'hand_r'
             ? null
             : {
                 grip: gripOf(walker.held.value),
-                url: assetUrl('tonio/weapons-classic/weapons.glb', 2),
+                url: assetUrl('tonio/weapons-classic/weapons.glb', 3),
                 model: `${walker.held.value}.model`,
                 gripNode: `${walker.held.value}_grip`,
                 // As static-assets' metadata for the library says it.
-                extras: { credit: 'Tonio Loewald', license: 'CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)', source: 'tonio/weapons-classic/weapons.glb' },
+                extras: { credit: 'Tonio Loewald', license: 'CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/)', source: 'tonio/weapons-classic/weapons.glb' },
               },
       }
     },
@@ -299,11 +299,13 @@ const itemRows = (slot) => {
       ? `on the back, for all ${HOLD_CLASS_LABELS[c]}: from the upper spine (metres)`
       : holdMount(c).bone === 'lowerarm_l'
       ? `strapped to the left forearm, for all ${HOLD_CLASS_LABELS[c]}: from the forearm (metres)`
+      : holdMount(c).bone === 'hand_l'
+      ? `grip for all ${HOLD_CLASS_LABELS[c]}, in the left hand: from the hand (metres)`
       : `grip for all ${HOLD_CLASS_LABELS[c]}: from the hand (metres)`
   const handles = slot === 'stowed' ? stowHandles : gripHandles
   const show = slot === 'stowed' ? showStowHandles : showGripHandles
   return [
-    select3d({ label: slot === 'stowed' ? 'on the back' : 'right hand', value: walker[slot], options: heldNames, stayOpen: true }),
+    select3d({ label: slot === 'stowed' ? 'on the back' : 'in hand', value: walker[slot], options: heldNames, stayOpen: true }),
     ...(name === 'none'
       ? []
       : [
@@ -698,7 +700,7 @@ preview.append(
             const node = bone && weapons?.instantiate?.(name, { canonical: true })
             if (!node) return
             // The hand's anatomical socket, or the bone itself (forearm, spine).
-            node.parent = mount.frame === 'socket' ? handSocket(skeleton, 'hand_r', 'r', bone) ?? bone : bone
+            node.parent = mount.frame === 'socket' ? handSocket(skeleton, mount.bone, mount.bone === 'hand_l' ? 'l' : 'r', bone) ?? bone : bone
             // Its grip (a pistol's handle), measured once: that point, not
             // its origin, goes where the numbers say, as on a launcher.
             it = items[slot] = { node, name, skeleton, grip: heldGrip(node) ?? BABYLON.Vector3.Zero() }
@@ -1468,7 +1470,7 @@ preview.append(
       },
     },
     // Things to hold: Tonio's weapons (CC BY 4.0), each with its grip at its origin.
-    b3dLibrary({ url: assetUrl('tonio/weapons-classic/weapons.glb', 2), type: 'weapons' }),
+    b3dLibrary({ url: assetUrl('tonio/weapons-classic/weapons.glb', 3), type: 'weapons' }),
     b3dSun({ timeOfDay: 16.5, shadowTextureSize: 2048, shadowMaxZ: 20, shadowNormalBias: 0.008 }),
     b3dLight({ intensity: 0.5 })
   )
@@ -1529,8 +1531,9 @@ throw thrown left-handed), and an exported clip carries it, named
 "<clip> (mirrored)".
 
 **Hold** puts an item from Tonio's textured weapons
-(`tonio/weapons-classic/weapons.glb`, CC BY 4.0: guns, blades, a plasma
-blade, a spear, a buckler) in the right hand, on the hand's
+(`tonio/weapons-classic/weapons.glb`, CC0: guns, blades, a plasma
+blade, a spear, a bow, a buckler and a kite shield) in the right hand (a bow
+in the left), on the hand's
 socket (a frame normalised to the hand's anatomy, so one grip fits any
 body's hand). Every item is made the same way, its origin at its grip (a
 `_grip` node), +Y up the grip and +Z forward, at its real size, so one grip

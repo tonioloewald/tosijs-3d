@@ -45,7 +45,7 @@ preview.append(
           return c.skeletons.find((s) => s.bones.some((b) => { const t = b.getTransformNode(); return t && top && t.isDescendantOf(top) }))
         }
 
-        const ual = await load(assetUrl('quaternius/UAL1_core.glb', 4))
+        const ual = await load(assetUrl('quaternius/UAL1_core.glb', 5))
         const source = readSkeleton(ual.skeletons[0], rootOf(ual))
         const bodies = [{ root: rootOf(ual), skeleton: null, x: 2.4 }]
         const hero = await load(assetUrl('quaternius/libraries/characters-superhero-male.glb'))
