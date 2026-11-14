@@ -12,6 +12,9 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Fixed:** typing in a text field on a scene modal (the character builder's save and rename prompts) shows each key as it is typed. The modal's screen-reader copy holds focus, and its typing reached the drawn field only on Enter or blur; it now passes every keystroke through, Enter is the field's Enter, and the old text is selected so a new name replaces it.
+- **Changed:** the character builder's clips include UAL's zombie idle, walk, run, scratch and bite (once static-assets is deployed).
+
 - **Added:** mounts beyond the right hand. A shield is strapped to the LEFT FOREARM (`holdMount(class)`: `lowerarm_l`, in the bone's frame), and anything stowed rides on the BACK across the shoulders (`STOW_MOUNT`, the upper spine; `stowGrip(name)`, blades hilt up, long guns barrel up). The character builder's Hold section has **on the back** beside **right hand**, each with its manipulator and per-class numbers (a character keeps stowed places as `stow:<class>` in `grips`, and a new `stowed` setting). In the Biped Playground the buckler goes in the left hand (not the right) and is drawn on the forearm, and whatever is on the back is drawn there.
 
 - **Added:** a shopkeeper in the Biped Playground: a stand-in mannequin behind a counter; E at the counter opens a priced trade (ammo by the box, buy at value, sell at half). `tradePanel` takes `moveFor`, and `trade` counts what crossed by kind and quantity, so stacks split and joined in a trade are paid for correctly (`TradeChange` is now `{ kind, qty, from, to }`).

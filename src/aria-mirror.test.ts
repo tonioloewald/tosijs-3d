@@ -268,3 +268,23 @@ describe('placed over the drawn controls', () => {
     m.dispose()
   })
 })
+
+describe('a text field in the mirror', () => {
+  test('typing reaches the field as it is typed, and Enter is its Enter', async () => {
+    const { inputField } = await import('./keyboard.js')
+    let entered: string | null = null
+    const field = inputField({ value: 'nanoc', handleEnter: (v) => (entered = v) })
+    const host = document.createElement('div')
+    const m = ariaMirror(host, () => controlTree([field as any]))
+    m.update()
+    const t = m.root.querySelector('input[type=text]') as HTMLInputElement
+    t.value = 'zo'
+    fire(t, 'input')
+    expect(field.value).toBe('zo')
+    t.value = 'zom'
+    const win = t.ownerDocument.defaultView as any
+    t.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter' }))
+    expect(entered as unknown).toBe('zom')
+    m.dispose()
+  })
+})

@@ -1529,6 +1529,8 @@ export function inputField(config: InputFieldOptions = {}): InputField {
         change(edit(String(v ?? '')))
         commitField()
       },
+      // Enter, from a screen reader's copy or an agent.
+      activate: () => api.action('enter'),
     }),
     commit: commitField,
     setValue(v: string) {

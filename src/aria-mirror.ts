@@ -373,7 +373,19 @@ export function ariaMirror(
         t.value = String(n.value ?? '')
         disabled(t)
         if (!n.set) t.readOnly = true
+        // Live, as typed: when this copy has focus (a modal gives it focus),
+        // the drawn field's own key listener stands aside for a real input,
+        // so this is the only way the typing reaches it.
+        t.addEventListener('input', () => node(key)?.set?.(t.value))
         t.addEventListener('change', () => node(key)?.set?.(t.value))
+        // Selected on arrival, as Tab does and the drawn field's autofocus
+        // does: typing a new name replaces the old one.
+        t.addEventListener('focus', () => t.select())
+        t.addEventListener('keydown', (e) => {
+          if (e.key !== 'Enter') return
+          node(key)?.set?.(t.value)
+          node(key)?.activate?.()
+        })
         put(t)
         patches.set(key, (m) => {
           if (focused() !== t) t.value = String(m.value ?? '')
