@@ -369,6 +369,8 @@ export function bakeClip(
     footTurnDeg?: number
     /** See `RetargetOptions.footIk`: false copies the legs' angles only. */
     footIk?: boolean
+    /** See `RetargetOptions.mirror`: the clip left to right. */
+    mirror?: boolean
     name?: string
   } = {}
 ): BakedClip {
@@ -379,6 +381,7 @@ export function bakeClip(
     armSpaceDeg: options.armSpaceDeg,
     footTurnDeg: options.footTurnDeg,
     footIk: options.footIk,
+    mirror: options.mirror,
   })
   const fps = options.fps ?? 30
   const frames = Math.max(1, Math.round((c.end - c.start) * fps))

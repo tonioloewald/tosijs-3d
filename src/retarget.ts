@@ -123,6 +123,10 @@ Arm-Space") turns the upper arms out from the body, and the chibi takes 55°.
    the knee the way the clip bends it (toward the leg's front when the leg
    is nearly straight). A foot in the air keeps the copied angles.
    `footIk: false` turns it off.
+6. **Mirroring.** `mirror: true` plays a clip left to right: each bone turns
+   as its partner on the other side turned, reflected across the body's
+   centre plane, and the hips travel the other way sideways. A right-handed
+   throw becomes a left-handed one, on any source and any body.
 
 Babylon-free and deterministic (plain `{x, y, z, w}` quaternions), like
 `fly-by-wire`: the Babylon side (`retarget-babylon`) reads the skeletons and
@@ -738,6 +742,55 @@ export interface RetargetOptions {
    * clip; a negative turn brings them in. Default 0.
    */
   footTurnDeg?: number
+  /**
+   * MIRROR the clip left to right: each left bone takes what the right one
+   * did in the clip, reflected across the body's centre plane, and the hips
+   * travel the other way sideways. A right-handed throw becomes a
+   * left-handed one. Default false.
+   */
+  mirror?: boolean
+}
+
+/** A turn reflected across the body's centre plane (x → -x). */
+function reflectQuat(q: Quat): Quat {
+  return { x: q.x, y: -q.y, z: -q.z, w: q.w }
+}
+
+const reflectVec = (v: Vec3): Vec3 => ({ x: -v.x, y: v.y, z: v.z })
+
+/** The role on the other side ('l-hand' ↔ 'r-hand'); a centre role is its own. */
+function mirrorRole(r: Role): Role {
+  return (
+    r.startsWith('l-') ? `r-${r.slice(2)}` : r.startsWith('r-') ? `l-${r.slice(2)}` : r
+  ) as Role
+}
+
+/**
+ * A source pose seen in a mirror: each role bone moves as its partner on the
+ * other side did, reflected. Turns and travel are taken since rest, so a rig
+ * whose rest pose is a little lopsided keeps its own rest.
+ */
+function mirrorPose(source: Skeleton, rest: World, now: World): World {
+  const rotation = new Map(now.rotation)
+  const position = new Map(now.position)
+  for (const r of ROLES) {
+    const n = source.roles[r]
+    if (n == null) continue
+    const m = source.roles[mirrorRole(r)] ?? n
+    const rn = rest.rotation.get(n)
+    const rm = rest.rotation.get(m)
+    const qm = now.rotation.get(m)
+    if (rn && rm && qm)
+      rotation.set(n, quatMul(reflectQuat(quatMul(qm, quatConjugate(rm))), rn))
+    const pn = rest.position.get(n)
+    const pm = rest.position.get(m)
+    const am = now.position.get(m)
+    if (pn && pm && am) {
+      const t = reflectVec(sub(am, pm))
+      position.set(n, { x: pn.x + t.x, y: pn.y + t.y, z: pn.z + t.z })
+    }
+  }
+  return { rotation, position }
 }
 
 /** Two-bone IK on one leg, in place on the world rotations `tWorld`. */
@@ -980,11 +1033,12 @@ export function retargeter(
     roles,
     scale,
     pose(rotations, hips) {
-      const sNow = toWorld(
+      const sPosed = toWorld(
         source.bones,
         rotations,
         hips != null && sHips != null ? new Map([[sHips, hips]]) : undefined
       )
+      const sNow = options.mirror ? mirrorPose(source, sRest, sPosed) : sPosed
       const out = new Map<string, Quat>()
       const tWorld = new Map<string, Quat>()
       for (const b of tOrder) {

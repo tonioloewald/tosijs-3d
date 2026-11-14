@@ -185,6 +185,8 @@ export interface ClipOut {
   armSpaceDeg?: number
   /** Turn the feet (see retarget's `footTurnDeg`). */
   footTurnDeg?: number
+  /** Left to right (see retarget's `mirror`). */
+  mirror?: boolean
   /** The animation's `extras`: its licence. */
   extras?: Record<string, unknown>
 }
@@ -1373,6 +1375,7 @@ export function riggedBodyGlb(
         fps: c.fps,
         armSpaceDeg: c.armSpaceDeg,
         footTurnDeg: c.footTurnDeg,
+        mirror: c.mirror,
         name: c.name,
       })
       const channels: GlbAnimation['channels'] = []

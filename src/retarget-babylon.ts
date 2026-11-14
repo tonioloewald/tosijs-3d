@@ -232,6 +232,8 @@ export function retargetClip(
     footTurnDeg?: number
     /** See `RetargetOptions.footIk`: false copies the legs' angles only. */
     footIk?: boolean
+    /** See `RetargetOptions.mirror`: the clip left to right. */
+    mirror?: boolean
   } = {}
 ): BABYLON.AnimationGroup {
   // What animates each source bone, by name.
@@ -300,6 +302,7 @@ export function retargetSourceClip(
     armSpaceDeg?: number
     footTurnDeg?: number
     footIk?: boolean
+    mirror?: boolean
   } = {}
 ): BABYLON.AnimationGroup {
   return retargetSampled(
@@ -324,12 +327,14 @@ function retargetSampled(
     armSpaceDeg?: number
     footTurnDeg?: number
     footIk?: boolean
+    mirror?: boolean
   }
 ): BABYLON.AnimationGroup {
   const rt = retargeter(source, target, {
     armSpaceDeg: options.armSpaceDeg,
     footTurnDeg: options.footTurnDeg,
     footIk: options.footIk,
+    mirror: options.mirror,
   })
   const fps = options.fps ?? 30
   const frames = Math.max(1, Math.round(seconds * fps))

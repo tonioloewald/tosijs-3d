@@ -17,7 +17,7 @@ import { mountRigTool } from 'tosijs-3d/rig-tool'
 import { exportBodyRows } from 'tosijs-3d/body-export'
 
 // Everything the panel sets, as it starts: what a saved character is read against.
-const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorDrape: false, tailorMesh: 'body', tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, held: 'none', grips: {}, source: 'MakeHuman', bodyDetail: 'medium', characterName: '' }
+const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', mirror: false, tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorDrape: false, tailorMesh: 'body', tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, held: 'none', grips: {}, source: 'MakeHuman', bodyDetail: 'medium', characterName: '' }
 const { walker } = tosi({ walker: structuredClone(START) })
 // What a character file keeps: not the editor's view of one slot (that is in
 // cloth), the microphone (it would ask on load), or the save controls.
@@ -233,13 +233,15 @@ const playingClip = (recipe) => {
   const kept = file != null ? clipBytes.get(file) : null
   const armSpaceDeg = recipe?.armSpaceDeg
   const footTurnDeg = recipe?.footTurnDeg
-  if (kept) return { name, kind: kept.kind, bytes: kept.bytes, armSpaceDeg, footTurnDeg }
+  const mirror = walker.mirror.value || undefined
+  if (kept) return { name, kind: kept.kind, bytes: kept.bytes, armSpaceDeg, footTurnDeg, mirror }
   return {
     name,
     kind: 'glb',
     url: assetUrl('quaternius/UAL_builder.glb'),
     armSpaceDeg,
     footTurnDeg,
+    mirror,
     extras: { credit: 'Quaternius', license: 'CC0 (https://creativecommons.org/publicdomain/zero/1.0/)', source: 'quaternius/UAL_builder.glb' },
   }
 }
@@ -593,6 +595,8 @@ preview.append(
               ? { label: 'Play', icon: 'play', handleSelect: () => { walker.paused.value = false } }
               : { label: 'Pause', icon: 'pause', handleSelect: () => { walker.paused.value = true } },
             { label: 'Playback controls', icon: 'playCircle', checked: playbackPanel.isOpen, handleSelect: () => playbackPanel.toggle?.() },
+            // Left to right: a right-handed throw played left-handed.
+            { label: 'Mirrored', checked: walker.mirror.value, handleSelect: () => { walker.mirror.value = !walker.mirror.value } },
             { separator: true },
             ...EVERYDAY.map(clipOption),
             ...(fileClips.size ? [{ separator: true }, ...[...fileClips.keys()].map(clipOption)] : []),
@@ -859,8 +863,8 @@ preview.append(
           const own = fileClips.get(walker.clip.value)
           const clip = own?.group ?? ual.animationGroups.find((g) => g.name === walker.clip.value) ?? ual.animationGroups.find((g) => g.name === 'Walk_Loop')
           playing = own?.source
-            ? retargetSourceClip(own.source, own.clip, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg, footTurnDeg: ch.recipe?.footTurnDeg })
-            : clip ? retargetClip(clip, own?.from ?? source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg, footTurnDeg: ch.recipe?.footTurnDeg }) : null
+            ? retargetSourceClip(own.source, own.clip, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg, footTurnDeg: ch.recipe?.footTurnDeg, mirror: walker.mirror.value })
+            : clip ? retargetClip(clip, own?.from ?? source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg, footTurnDeg: ch.recipe?.footTurnDeg, mirror: walker.mirror.value }) : null
           playing?.start(true, clipSpeed)
           ch.groundFor(playing)
           if (walker.paused.value) playing?.pause()
@@ -1383,6 +1387,7 @@ preview.append(
         play()
         el.refreshScenePanel?.()
         walker.clip.observe(play)
+        walker.mirror.observe(play)
         walker.paused.observe(() => (walker.paused.value ? playing?.pause() : playing?.play(true)))
       },
     },
@@ -1443,7 +1448,9 @@ camera is your head.
 **Animation** (on the bar) plays or pauses the clip and picks it: the
 everyday clips, a file's, then the rest of the library grouped by kind.
 **Playback controls** in that menu opens the transport (scrub, speed) as its
-own small panel.
+own small panel. **Mirrored** plays the clip left to right (a right-handed
+throw thrown left-handed), and an exported clip carries it, named
+"<clip> (mirrored)".
 
 **Hold** puts an item from Tonio's textured weapons
 (`tonio/weapons-classic/weapons.glb`, CC BY 4.0: guns, blades, a plasma

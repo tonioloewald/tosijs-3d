@@ -289,3 +289,97 @@ describe('glb clips: foot IK on a straight leg', () => {
     60000
   )
 })
+
+describe.skipIf(!existsSync(UAL))('glb clips: mirror', () => {
+  const deg = (a: any, b: any) =>
+    (2 * Math.acos(Math.min(1, sameTurn(a, b))) * 180) / Math.PI
+  const mul = (a: any, b: any) => ({
+    x: a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+    y: a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+    z: a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
+    w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
+  })
+  const conj = (q: any) => ({ x: -q.x, y: -q.y, z: -q.z, w: q.w })
+  const at = (baked: any, name: string, k: number) => {
+    const q = baked.rotations.get(name)
+    return q
+      ? { x: q[k * 4], y: q[k * 4 + 1], z: q[k * 4 + 2], w: q[k * 4 + 3] }
+      : null
+  }
+  /** Each bone's model-space rotation in frame k. */
+  const worldAt = (ual: any, baked: any, k: number) => {
+    const out = new Map<string, any>()
+    for (const b of ual.bones) {
+      const local = at(baked, b.name, k) ?? b.rotation
+      const p = b.parent != null ? out.get(b.parent) : null
+      out.set(b.name, p ? mul(p, local) : local)
+    }
+    return out
+  }
+  const restWorld = (ual: any) => {
+    const out = new Map<string, any>()
+    for (const b of ual.bones) {
+      const p = b.parent != null ? out.get(b.parent) : null
+      out.set(b.name, p ? mul(p, b.rotation) : b.rotation)
+    }
+    return out
+  }
+  const reflect = (q: any) => ({ x: q.x, y: -q.y, z: -q.z, w: q.w })
+
+  test("a mirrored clip turns each bone as its partner turned, reflected", () => {
+    const ual = readGlbClips(new Uint8Array(readFileSync(UAL)))
+    const plain = bakeClip(ual, 'Walk_Loop', ual, { fps: 30, footIk: false })
+    const mirrored = bakeClip(ual, 'Walk_Loop', ual, {
+      fps: 30,
+      footIk: false,
+      mirror: true,
+    })
+    const rest = restWorld(ual)
+    const k = Math.floor(plain.times.length / 3)
+    const a = worldAt(ual, plain, k)
+    const b = worldAt(ual, mirrored, k)
+    let worst = 0
+    for (const [l, r] of [
+      ['upperarm_l', 'upperarm_r'],
+      ['hand_l', 'hand_r'],
+      ['thigh_l', 'thigh_r'],
+      ['calf_r', 'calf_l'],
+      ['spine_03', 'spine_03'],
+      ['Head', 'Head'],
+    ]) {
+      // The turn since rest of one side, reflected, is the other's.
+      const want = reflect(mul(a.get(l), conj(rest.get(l))))
+      const got = mul(b.get(r), conj(rest.get(r)))
+      worst = Math.max(worst, deg(want, got))
+    }
+    expect(worst).toBeLessThan(1)
+    // The hips go the other way sideways.
+    const hx = plain.hips![k * 3]
+    const mx = mirrored.hips![k * 3]
+    const rx = ual.bones.find((b) => b.name === 'pelvis')!.position.x
+    expect(mx - rx).toBeCloseTo(-(hx - rx), 3)
+  })
+
+  test("UAL's mirrored walk is its walk half a step on", () => {
+    const ual = readGlbClips(new Uint8Array(readFileSync(UAL)))
+    const plain = bakeClip(ual, 'Walk_Loop', ual, { fps: 30, footIk: false })
+    const mirrored = bakeClip(ual, 'Walk_Loop', ual, {
+      fps: 30,
+      footIk: false,
+      mirror: true,
+    })
+    const n = plain.times.length - 1
+    const half = Math.round(n / 2)
+    // On average: UAL's walk is itself a little lopsided (about 20° at one
+    // moment), so the worst frame says more about the clip than the mirror.
+    let sum = 0
+    let count = 0
+    for (const name of ['thigh_l', 'thigh_r', 'calf_l', 'calf_r']) {
+      for (let k = 0; k < n; k++) {
+        sum += deg(at(mirrored, name, k), at(plain, name, (k + half) % n))
+        count++
+      }
+    }
+    expect(sum / count).toBeLessThan(5)
+  })
+})

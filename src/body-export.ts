@@ -80,6 +80,8 @@ export interface ExportClip {
   armSpaceDeg?: number
   /** Turn the feet (the body's recipe's `footTurnDeg`). */
   footTurnDeg?: number
+  /** Left to right (see retarget's `mirror`); named "<name> (mirrored)". */
+  mirror?: boolean
   /** The animation's `extras`: its licence. */
   extras?: Record<string, unknown>
 }
@@ -143,7 +145,8 @@ export async function exportClip(c: ExportClip): Promise<ClipOut | null> {
   return {
     from,
     clip,
-    name: c.name,
+    name: c.mirror ? `${c.name} (mirrored)` : c.name,
+    ...(c.mirror ? { mirror: true } : {}),
     ...(c.armSpaceDeg ? { armSpaceDeg: c.armSpaceDeg } : {}),
     ...(c.footTurnDeg ? { footTurnDeg: c.footTurnDeg } : {}),
     ...(c.extras ? { extras: c.extras } : {}),

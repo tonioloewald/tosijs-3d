@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Added:** `mirror` on `bakeClip`, `retargetClip`, `retargetSourceClip` and retargeting: the clip played left to right, each bone moving as its partner on the other side did, reflected. In the character builder it is **Mirrored** in the Animation menu, and an exported clip carries it as "<clip> (mirrored)".
+
 ## 0.13.1
 
 The latest release. Retargeted legs that hold still and walk cleanly, a foot-turn dial for splay-footed bodies, fingertip handles in the rig tool, and a character builder whose rig panel follows the bar's menus. See [0.13.1](/v0.13.1/).
