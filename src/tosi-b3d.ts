@@ -2082,7 +2082,9 @@ export class B3d extends Component {
       role: 'dialog',
       label: () => first,
       place: (box) => this._panelToHost(svg, box),
+      touchable: () => this._assistive,
     })
+    this._modalMirrors.add(mirror)
     mirror.update()
     first = mirror.root.querySelector('p')?.textContent ?? ''
     if (first) {
@@ -2100,6 +2102,7 @@ export class B3d extends Component {
       mirror.root.querySelector<HTMLElement>('button, input, select')
     )
     return () => {
+      this._modalMirrors.delete(mirror)
       mirror.dispose()
       // Back where it was, or to the scene when that is gone (a panel closed).
       this._quietFocus(
@@ -2109,6 +2112,8 @@ export class B3d extends Component {
       )
     }
   }
+  /** Open modals' mirrors: placed again (now touchable) when the scene goes assistive. */
+  private _modalMirrors = new Set<AriaMirror>()
   private _focusQuiet = false
   private _quietFocus(el: HTMLElement | null | undefined): void {
     if (el == null) return
@@ -5601,6 +5606,7 @@ export class B3d extends Component {
     // Described on demand only (see the canvas in `content`).
     this.shadowRoot?.addEventListener('focusin', this._wakeOnFocus)
     this.addEventListener('pointerdown', this._notePointer, true)
+    this.addEventListener('pointerup', this._notePointer, true)
     this.addEventListener('wheel', this._holdSideways, {
       capture: true,
       passive: false,
@@ -7903,6 +7909,7 @@ export class B3d extends Component {
     this._syncAriaMirror()
     this._describe(false)
     for (const m of this._modals) m.unmirror ??= this._mirrorModal(m.svg)
+    for (const mirror of this._modalMirrors) mirror.update()
     ;(
       this.querySelector('tosi-b3d-input-focus') as {
         labelPad?: () => void
@@ -7913,7 +7920,11 @@ export class B3d extends Component {
   FOCUS FROM A PRESS IS NOT A SCREEN READER. The canvas is focusable, so a
   mouse press on the scene focuses it, and that woke everything for every
   mouse user: the copies then lay over the panel and took its clicks. Focus
-  within a second of a press in this scene is the press's, and is ignored.
+  within a second of a press or its release in this scene is the press's,
+  and is ignored (a touch focuses on release, so a held drag's focus came
+  long after its press). Until then the placed copies take no touches either,
+  or a sighted tap on a phone reached a real `<select>` and Android opened its
+  own picker.
   VoiceOver selecting a control sends no press before its focus (read off an
   iPhone), and a press on the hidden bar buttons still wakes it through
   `_wakeOnClick`.
@@ -8040,6 +8051,7 @@ export class B3d extends Component {
       {
         label: () => `${(this as any).panelTitle || 'Scene'} settings`,
         place: (box) => this._panelToHost(this._livePanel(), box),
+        touchable: () => this._assistive,
       }
     )
     this._ariaMirror.update()

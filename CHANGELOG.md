@@ -12,6 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Fixed:** scene panels and modals work by touch on a phone. The screen-reader copies laid over them took every tap, so a menu opened Android's own picker instead of the drawn one. They now take touches only once a screen reader is in use (`ariaMirror`'s new `touchable` option), and a long press no longer counts as a screen reader.
 - **Fixed:** a `barMenu` submenu (the character builder's Select and Delete, the Animation menu's groups) opens and stays open. The list it replaced still answered the panel's last `leave` and repainted itself over the new one, so a submenu flashed and vanished or never appeared.
 - **Fixed:** typing in a text field on a scene modal (the character builder's save and rename prompts) shows each key as it is typed. The modal's screen-reader copy holds focus, and its typing reached the drawn field only on Enter or blur; it now passes every keystroke through, Enter is the field's Enter, and the old text is selected so a new name replaces it.
 - **Changed:** the character builder's clips include UAL's zombie idle, walk, run, scratch and bite (once static-assets is deployed).

@@ -267,6 +267,32 @@ describe('placed over the drawn controls', () => {
     expect(m.root.querySelector('p')!.style.clipPath).toBe('inset(50%)')
     m.dispose()
   })
+
+  test('on a phone, copies take touches only while the host says a reader is in use', () => {
+    const was = (globalThis as any).matchMedia
+    ;(globalThis as any).matchMedia = (q: string) => ({ matches: q.includes('coarse') })
+    try {
+      const tree = controlTree(
+        [W.button3d({ label: 'Continue', handleClick: () => {} })],
+        '',
+        () => ({ x: 0, y: 0, w: 100, h: 40 })
+      )
+      let reader = false
+      const m = ariaMirror(document.createElement('div'), () => tree, {
+        place: (b) => b,
+        touchable: () => reader,
+      })
+      m.update()
+      const b = m.root.querySelector('button')!
+      expect(b.style.pointerEvents).toBe('none')
+      reader = true
+      m.update()
+      expect(b.style.pointerEvents).toBe('auto')
+      m.dispose()
+    } finally {
+      ;(globalThis as any).matchMedia = was
+    }
+  })
 })
 
 describe('a text field in the mirror', () => {
