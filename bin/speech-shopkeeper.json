@@ -1,0 +1,14 @@
+{
+  "engine": "orpheus",
+  "model": "mlx-community/orpheus-3b-0.1-ft-4bit",
+  "voices": { "shopkeeper": "dan" },
+  "lines": [
+    { "id": "shopkeeper-hello", "voice": "shopkeeper", "text": "Welcome, welcome. Looking for something?", "say": "Welcome, welcome! <chuckle> Looking for something?" },
+    { "id": "shopkeeper-knees", "voice": "shopkeeper", "text": "My knees are not what they were.", "say": "<sigh> My knees are not what they were." },
+    { "id": "shopkeeper-potion", "voice": "shopkeeper", "text": "Bring me a potion and I'll make it worth your while." },
+    { "id": "shopkeeper-thanks", "voice": "shopkeeper", "text": "You remembered! Here, thirty rounds, on the house.", "say": "You remembered! <laugh> Here, thirty rounds, on the house." },
+    { "id": "shopkeeper-after", "voice": "shopkeeper", "text": "Pleasure doing business." },
+    { "id": "shopkeeper-more", "voice": "shopkeeper", "text": "Anything else?" },
+    { "id": "shopkeeper-bye", "voice": "shopkeeper", "text": "Mind how you go." }
+  ]
+}

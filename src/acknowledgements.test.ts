@@ -20,6 +20,7 @@ const CREDITS: Record<string, string> = {
   thebasemesh: 'The Base Mesh',
   blender: 'Blender Studio',
   polyhaven: 'Poly Haven',
+  speech: 'Orpheus',
   // Our own demo geometry: nothing to credit.
   'tosijs-3d': '',
 }

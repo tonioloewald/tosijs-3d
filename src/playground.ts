@@ -209,11 +209,13 @@ const SHOP_AT = { x: 7.2, z: 9 }
 // head (click one, or press its number), "What do you sell?" opens the shop
 // and the talk picks up when it closes, and his errand takes the potion from
 // the gate chest out of your bag and pays you in rifle rounds.
+// Voiced by Orpheus (local), from static-assets' speech/shopkeeper.json.
+const voice = (id) => assetUrl(`speech/shopkeeper-${id}.mp3`, 1)
 const SHOP_TALK = {
   start: 'hello',
   nodes: {
     hello: {
-      lines: [{ speaker: 'shopkeeper', text: 'Welcome, welcome. Looking for something?', gesture: 'show' }],
+      lines: [{ speaker: 'shopkeeper', text: 'Welcome, welcome. Looking for something?', audio: voice('hello'), gesture: 'show' }],
       replies: [
         { id: 'shop', label: 'What do you sell?', then: [{ trade: true }, { goto: 'after' }] },
         {
@@ -231,21 +233,21 @@ const SHOP_TALK = {
     },
     errand: {
       lines: [
-        { speaker: 'shopkeeper', text: 'My knees are not what they were.', gesture: 'no' },
-        { speaker: 'shopkeeper', text: "Bring me a potion and I'll make it worth your while." },
+        { speaker: 'shopkeeper', text: 'My knees are not what they were.', audio: voice('knees'), gesture: 'no' },
+        { speaker: 'shopkeeper', text: "Bring me a potion and I'll make it worth your while.", audio: voice('potion') },
       ],
       then: [{ goto: 'more' }],
     },
     thanks: {
-      lines: [{ speaker: 'shopkeeper', text: 'You remembered! Here, thirty rounds, on the house.', gesture: 'give' }],
+      lines: [{ speaker: 'shopkeeper', text: 'You remembered! Here, thirty rounds, on the house.', audio: voice('thanks'), gesture: 'give' }],
       then: [{ goto: 'more' }],
     },
-    after: { lines: [{ speaker: 'shopkeeper', text: 'Pleasure doing business.', gesture: 'yes' }], then: [{ goto: 'more' }] },
+    after: { lines: [{ speaker: 'shopkeeper', text: 'Pleasure doing business.', audio: voice('after'), gesture: 'yes' }], then: [{ goto: 'more' }] },
     more: {
-      lines: [{ speaker: 'shopkeeper', text: 'Anything else?' }],
+      lines: [{ speaker: 'shopkeeper', text: 'Anything else?', audio: voice('more') }],
       replies: [], // filled from hello's, below
     },
-    bye: { lines: [{ speaker: 'shopkeeper', text: 'Mind how you go.' }], then: [{ end: true }] },
+    bye: { lines: [{ speaker: 'shopkeeper', text: 'Mind how you go.', audio: voice('bye') }], then: [{ end: true }] },
   },
 }
 SHOP_TALK.nodes.more.replies = SHOP_TALK.nodes.hello.replies
