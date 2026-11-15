@@ -209,8 +209,8 @@ const SHOP_AT = { x: 7.2, z: 9 }
 // head (click one, or press its number), "What do you sell?" opens the shop
 // and the talk picks up when it closes, and his errand takes the potion from
 // the gate chest out of your bag and pays you in rifle rounds.
-// Voiced by Orpheus (local), from static-assets' speech/shopkeeper.json.
-const voice = (id) => assetUrl(`speech/shopkeeper-${id}.mp3`, 1)
+// Voiced locally by Qwen3-TTS from bin/speech-shopkeeper.json (a direction per line).
+const voice = (id) => assetUrl(`speech/shopkeeper-${id}.mp3`, 2)
 const SHOP_TALK = {
   start: 'hello',
   nodes: {
@@ -239,7 +239,10 @@ const SHOP_TALK = {
       then: [{ goto: 'more' }],
     },
     thanks: {
-      lines: [{ speaker: 'shopkeeper', text: 'You remembered! Here, thirty rounds, on the house.', audio: voice('thanks'), gesture: 'give' }],
+      lines: [
+        { speaker: 'shopkeeper', text: 'You remembered!', audio: voice('remembered'), gesture: 'surprise' },
+        { speaker: 'shopkeeper', text: 'Here, thirty rounds, on the house.', audio: voice('rounds'), gesture: 'give' },
+      ],
       then: [{ goto: 'more' }],
     },
     after: { lines: [{ speaker: 'shopkeeper', text: 'Pleasure doing business.', audio: voice('after'), gesture: 'yes' }], then: [{ goto: 'more' }] },

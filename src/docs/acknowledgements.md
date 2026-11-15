@@ -50,9 +50,9 @@ headers, so a file found on its own still says where it came from.
 
 - **Tonio Loewald**: the hum the sound demo plays, made with
   [Suno](https://suno.com).
-- **[Orpheus](https://github.com/canopyai/Orpheus-TTS)** (Canopy Labs): the
-  shopkeeper's voice in the biped playground, generated on our own machine.
-  Apache 2.0.
+- **[Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS)** (Alibaba's Qwen team):
+  the shopkeeper's voice in the biped playground, generated on our own
+  machine. Apache 2.0.
 
 ## Maps and measurements
 
