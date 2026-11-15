@@ -15,7 +15,7 @@
  *
  * Manifest shape:
  *   {
- *     "model": "chatterbox",                       // optional; Chatterbox = acting directions
+ *     "model": "ultra",                            // optional; omitted = Resemble's default ("chatterbox" was retired)
  *     "voices": { "grant": "7c4296be", … },        // logical name → Resemble voice_uuid
  *     "lines": [
  *       { "id": "witness-weary", "voice": "grant",
@@ -66,7 +66,7 @@ if (!key)
   )
 
 const manifest: Manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
-const model = manifest.model ?? 'chatterbox'
+const model = manifest.model
 
 await mkdir(outDir, { recursive: true })
 const cachePath = join(outDir, '.bake-cache.json')
@@ -86,7 +86,7 @@ const contentKey = (voiceUuid: string, l: Line) =>
     which hides every future change to it from `git diff` and from grep --
     see `source-hygiene.test.ts` for what that cost once already.
     */
-    .update(`${l.text}\0${voiceUuid}\0${l.direction ?? ''}\0${model}`)
+    .update(`${l.text}\0${voiceUuid}\0${l.direction ?? ''}\0${model ?? ''}`)
     .digest('hex')
     .slice(0, 16)
 
@@ -132,7 +132,7 @@ for (const line of manifest.lines) {
     body: JSON.stringify({
       voice_uuid: voiceUuid,
       data,
-      model,
+      ...(model ? { model } : {}),
       output_format: 'mp3',
       sample_rate: 44100,
       project_uuid: PROJECT,
