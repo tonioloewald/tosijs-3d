@@ -122,6 +122,25 @@ export class B3dPickup extends B3dProp {
     })
     this._use.whenActivated = () => this.pickUp()
     this._use.attach()
+    // A toss asked for before it was in the scene (it was just appended).
+    const pending = this._pendingToss
+    this._pendingToss = null
+    if (pending) this.toss(pending.to, pending.options)
+  }
+
+  private _pendingToss: {
+    to: { x: number; y?: number; z: number }
+    options: { height?: number; seconds?: number }
+  } | null = null
+
+  /** The top of whatever is under (x, z), or 0. */
+  private _groundAt(scene: BABYLON.Scene, x: number, z: number): number {
+    const own = new Set([this.mesh, ...(this.mesh?.getChildMeshes() ?? [])])
+    const hit = scene.pickWithRay(
+      new BABYLON.Ray(new BABYLON.Vector3(x, 50, z), BABYLON.Vector3.Down(), 100),
+      (m) => m.isPickable && m.isEnabled() && m.isVisible && !own.has(m)
+    )
+    return hit?.hit && hit.pickedPoint ? hit.pickedPoint.y : 0
   }
 
   /** The player, when a focus manager is driving one. */
@@ -142,10 +161,14 @@ export class B3dPickup extends B3dProp {
     options: { height?: number; seconds?: number } = {}
   ): void {
     const scene = this.owner?.scene
-    if (scene == null) return
+    if (scene == null) {
+      this._pendingToss = { to, options }
+      return
+    }
     const attrs = this as any
     const from = { x: attrs.x, y: attrs.y, z: attrs.z }
-    const end = { x: to.x, y: to.y ?? 0.08, z: to.z }
+    // Unless told, it lands on what is there (a crate, the catwalk, the floor).
+    const end = { x: to.x, y: to.y ?? this._groundAt(scene, to.x, to.z) + 0.08, z: to.z }
     const height = options.height ?? 1.2
     const seconds = options.seconds ?? 0.6
     let t = 0
