@@ -503,9 +503,12 @@ const makeEnemy = ({ patrol, ...at }, i) => b3dBiped(
     ...at,
     health: 60,
   },
-  b3dNpc({ skill: 0.1, attackDamage: 20, seed: i + 1, patrol: patrol ?? null })
+  // Sight 25 m: the start is out of reach of both, so you can learn the
+  // controls before anything comes for you.
+  b3dNpc({ skill: 0.1, attackDamage: 20, seed: i + 1, patrol: patrol ?? null, sightRange: 25 })
 )
 const enemies = ENEMIES.map(makeEnemy)
+const focus = inputFocus(hero)
 // A fresh one where it began: after it is put down, and when you respawn (or
 // it would be waiting where you start).
 const newEnemy = (i) => {
@@ -554,6 +557,8 @@ preview.append(
           else turret.clearTarget()
           const text = (hero.halted ? 'health: dead' : `health: ${Math.max(0, Math.round(hero.hp))} / 100`) +
             (hero.gunplay && loads() ? ` · ${loads()}: ${gun.reloading ? 'reloading' : gun.loaded} / ${rounds(loads())}` : '') +
+            // How to fight, until you are: the bumper is not a key anyone guesses.
+            (hero.halted ? '' : hero.gunplay ? ' · R fires, Q aims' : !inRight() ? ' · right shift (or middle click) draws your pistol' : '') +
             ` · guard: ${enemyText(enemies[0])} · patrol: ${enemyText(enemies[1])}` +
             (said ? ` · ${said}` : '')
           if (text !== shown) readout.textContent = shown = text
@@ -599,14 +604,16 @@ preview.append(
       orbitRadius: 5,
       orbitHeight: 2.5,
       respawn() {
+        // The dead hero is already gone (death removes it), so the new one
+        // goes into the focus manager, which takes it.
         const next = wire(makeHero(heroDoc, { x: -4, z: 10 }))
-        hero.replaceWith(next)
+        focus.append(next)
         hero = next
         hold(next)
         enemies.forEach((_, i) => newEnemy(i))
       },
     }),
-    inputFocus(hero)
+    focus
   ),
   readout
 )
@@ -620,7 +627,7 @@ switch.** You start with a pistol on your hip and the rest of
 [Tonio's weapons](/character-builder/) in the bag: open the loadout from its
 button on the system bar and drag any of them onto a hip, your back or your
 right hand. With the weapon down you are walking: **R** sprints. Press **right
-bumper** and you draw what is on your hip (or back), and if it is a gun it
+shift** (middle click, or the right bumper on a pad) and you draw what is on your hip (or back), and if it is a gun it
 comes up: now **R** fires, **Q** aims down the sights, and a ring shows where
 the round will actually land, sinking as the range grows because it is the
 real ballistic arc rather than a dot in the middle of the screen. You cannot
@@ -664,8 +671,8 @@ sword and rockets.
 
 **Something hunts you.** Two enemies: one stands guard
 this side of the cover line with its back to you, one walks a loop beyond it.
-Each is oblivious until it notices you: anywhere in front of it within 50 m
-(cover hides you), or within 10 m behind it. Crouch (left shift) and those
+Each is oblivious until it notices you: anywhere in front of it within 25 m
+(cover hides you; where you start, neither can see you), or within 10 m behind it. Crouch (left shift) and those
 drop to a third, so you can creep to 3 m behind one. A shot is heard 25 m
 off. Noticed, it chases and swings when it reaches you; lose it and it
 searches where it last saw you, then goes back to its post or its route.

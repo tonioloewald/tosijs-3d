@@ -1661,7 +1661,13 @@ export class B3dBiped extends B3dControllable {
     this._actionLeft = 0
     this._fallVel = 0
     this.diesInPlace = this._hasState('death')
-    if (this.diesInPlace) this.setAnimationState('death')
+    if (this.diesInPlace) {
+      // Nothing else plays under a corpse: a one-shot leaves the loop it
+      // started over running, and when the clip ended that loop stood the
+      // body back up.
+      for (const g of this.entries?.animationGroups ?? []) g.stop()
+      this.setAnimationState('death')
+    }
     this.halt()
   }
 
