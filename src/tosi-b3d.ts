@@ -6113,6 +6113,25 @@ export class B3d extends Component {
         m.metadata?.b3dRayProxy !== true &&
         !insideCarrier(m, this._xrRig)
     }
+    /*
+    A CONTROLLER'S RAY IS 1000 UNITS LONG, in scene units. With the viewer
+    scaled up (WebXR's worldScalingFactor: a tabletop view), the panels a metre
+    off are a thousand units away and the ray stopped short of them: seen, never
+    pressed. Every ray is built here (Babylon's pointer and our presses), so it
+    is stretched here, by the scale.
+    */
+    const scaled = new WeakSet<object>()
+    const stretchRay = (source: BABYLON.WebXRInputSource) => {
+      if (scaled.has(source)) return
+      scaled.add(source)
+      const build = source.getWorldPointerRayToRef.bind(source)
+      source.getWorldPointerRayToRef = (ray, grip) => {
+        build(ray, grip)
+        ray.length *= Math.max(1, xr.baseExperience.sessionManager.worldScalingFactor)
+      }
+    }
+    for (const c of xr.input.controllers) stretchRay(c)
+    xr.input.onControllerAddedObservable.add(stretchRay)
     if (xr.pointerSelection != null) pressWithEitherHand(xr, this.scene)
     this._unpickLayers?.()
     this._unpickLayers = pickLayersFirst(xr, this.scene)
