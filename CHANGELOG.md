@@ -24,7 +24,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 - **Fixed:** an open flat system panel follows a new active camera (it is opened again on it). One opened at scene start, before a biped's follow camera, was never drawn.
 - **Changed:** the Biped Playground shows health, ammo and messages in a panel at the top right (flat and in a headset) instead of a line of text under the scene; what each enemy is doing is in Perf Stats (`#debug`).
 
-- **Fixed:** a biped killed by damage or a fall stays down. When the death clip ended, the loop it died in stood the body back up.
+- **Fixed:** a biped killed by damage or a fall stays down. When the death clip ended, the loop it died in stood the body back up. Killed with a gun up, its upper-body aim layer kept looping over the corpse; it is dropped too.
 - **Fixed:** in the Biped Playground, Respawn brings the hero back; before, it removed him and added nobody. The line under the scene now says how to draw and fire. The enemies see 25 m (was 50) and the guard stands beyond the cover line, so neither notices you at the start, the shop or the things lying about.
 
 - **Added:** the default AR session (`xr-passthrough`) scales you to the scene: you arrive with what the flat view showed a step ahead, one grip drags the scene, both grips resize and turn it, and the sticks walk at your scale. `b3d.xrFrame(centre, radius)` puts any point in front of you at a chosen size; `b3d.xrSupport` says whether the device offers VR and AR. Pure maths in `xr-grab`. In the Solar System, **look at** brings a body in front of you, and the passthrough toggle shows only where AR exists, outside a session.

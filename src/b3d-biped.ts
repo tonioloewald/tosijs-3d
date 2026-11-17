@@ -1693,7 +1693,12 @@ export class B3dBiped extends B3dControllable {
     if (this.diesInPlace) {
       // Nothing else plays under a corpse: a one-shot leaves the loop it
       // started over running, and when the clip ended that loop stood the
-      // body back up.
+      // body back up. The aim layer too: it plays its own copies, looping,
+      // and a halted biped never updates it again.
+      this._aimLayer?.stop()
+      this._aimLayer?.dispose()
+      this._aimLayer = null
+      this._aimLayerKey = ''
       for (const g of this.entries?.animationGroups ?? []) g.stop()
       this.setAnimationState('death')
     }
