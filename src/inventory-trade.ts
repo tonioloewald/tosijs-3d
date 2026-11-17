@@ -6,8 +6,8 @@ left, yours on the right) with the deal under them. Drag a thing across (or
 tap it, then tap the other side) and it moves at once, so each side shows
 what it will hold; the [trade](/trade/) remembers where everything started.
 
-- **A chest** (no `price`): **take all**, or move what you want, then
-  **done**. Whatever you left stays in it.
+- **A chest** (no `price`): **take all** (it closes itself a moment
+  later), or move what you want, then **done**. Whatever you left stays in it.
 - **A shop** (`price`): your money is under your list, and the line under
   both says which way it goes: `you'll pay 12 gold`, `you'll receive 6 gold`,
   or, when they cannot pay what yours fetch, `you'll receive 200 gold (all
@@ -236,7 +236,12 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
   }
   let trade: Trade | null = null
   let said = ''
+  /** How long after take all the panel stays, so you see what you took. */
+  const TAKE_ALL_CLOSE_MS = 700
+  let finished = false
   const done = (dealt: boolean) => {
+    if (finished) return
+    finished = true
     carry.cancel()
     opts.handleDone?.({ dealt })
   }
@@ -263,7 +268,10 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
           if (!r.ok) {
             said = r.reasons[0] ?? 'refused'
             draw()
+            return
           }
+          // Taken: you see it land in your list, then it closes by itself.
+          setTimeout(() => done(true), TAKE_ALL_CLOSE_MS)
         }),
         button('done', 90, () => done(true)),
       ]
