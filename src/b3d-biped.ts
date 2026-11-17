@@ -1494,11 +1494,14 @@ export class B3dBiped extends B3dControllable {
   ): number {
     const scene = this.owner?.scene
     if (scene == null) return Infinity
+    // From what the camera looks at to where it will be: the follow camera
+    // sits `height` above its target, not above the feet. Measured from the
+    // feet, the ray went through a doorway while the camera sat over the wall.
     const origin = node.absolutePosition.clone()
-    origin.y += Math.max(0.2, height * 0.5)
+    origin.y += (this as any).cameraTargetHeight ?? 1.4
     const back = node.forward.scale(-radius)
     const target = origin.add(back)
-    target.y = node.absolutePosition.y + height
+    target.y = origin.y + height
     const to = target.subtract(origin)
     const len = to.length()
     if (!(len > 0.01)) return Infinity
@@ -1516,10 +1519,39 @@ export class B3dBiped extends B3dControllable {
       (m) =>
         m.isPickable !== false &&
         m.isEnabled() &&
+        // A hull you can't see (a door's or a pickup's touch target) hides nothing.
+        m.isVisible &&
+        m.visibility > 0 &&
         m.getTotalVertices() > 0 &&
         !(root != null && m.isDescendantOf(root))
     )
     return hit?.hit === true ? hit.distance : Infinity
+  }
+
+  private _wallRay = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Forward(), 1)
+  /** Something you can see is between `from` (what the camera looks at) and the camera. */
+  private _seenThroughWall(from: BABYLON.Vector3, cam: BABYLON.Vector3): boolean {
+    const scene = this.owner?.scene
+    if (scene == null) return false
+    const d = cam.subtract(from)
+    const len = d.length()
+    if (!(len > 0.3)) return false
+    this._wallRay.origin.copyFrom(from)
+    this._wallRay.direction.copyFrom(d.scaleInPlace(1 / len))
+    this._wallRay.length = len
+    const root = this.entries?.rootNodes?.[0]
+    return (
+      scene.pickWithRay(
+        this._wallRay,
+        (m) =>
+          m.isPickable !== false &&
+          m.isEnabled() &&
+          m.isVisible &&
+          m.visibility > 0 &&
+          m.getTotalVertices() > 0 &&
+          !(root != null && m.isDescendantOf(root))
+      )?.hit === true
+    )
   }
 
   /**
@@ -3258,6 +3290,29 @@ export class B3dBiped extends B3dControllable {
       this._camFit = fit
       this.camera.radius = fit.distance
       this.camera.heightOffset = fit.height
+      /*
+      SNAP IN MEANS THE CAMERA, not its goal. Babylon's follow camera eases
+      toward where it is told to be, so a wall arriving in a doorway left it
+      trailing through the wall, and a turn in a small room swung it round
+      outside the walls. Pulled in, or with a wall between it and you, it is
+      put where it should be.
+      */
+      const look = this.camera.lockedTarget as BABYLON.TransformNode | null
+      if (look != null && camNode != null) {
+        const at = look.getAbsolutePosition()
+        const off = this.camera.position.subtract(at)
+        const flat = Math.hypot(off.x, off.z)
+        const pulledIn =
+          fit.distance < desiredRadius - 0.05 && flat > fit.distance + 0.05
+        if (pulledIn || this._seenThroughWall(at, this.camera.position)) {
+          const back = camNode.forward.scale(-fit.distance)
+          this.camera.position.set(
+            at.x + back.x,
+            at.y + fit.height,
+            at.z + back.z
+          )
+        }
+      }
 
       /*
       NOWHERE SAFE: GO FIRST PERSON. Tonio's call, and what every third-person

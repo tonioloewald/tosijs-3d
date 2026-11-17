@@ -20,6 +20,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 - **Added:** in the Biped Playground, a pile of 50 gold by the gate chest, and the shopkeeper says "Please, take a look." before the shop opens, in the middle of the view.
 
 - **Fixed:** `pickup.toss(to)` called before the pickup has joined the scene (just appended) waits for it instead of doing nothing (a dropped item hung in mid-air), and without a `to.y` it lands on whatever is under the spot, not at y 0.
+- **Fixed:** a tossed pickup stops at the foot of a wall in its way, and lands on what is under its arc, never on top of a wall higher than it flew. The Biped Playground throws a dropped item 3 m to the right front, low.
+- **Fixed:** the biped's follow camera in doorways and small rooms: its wall check runs from what it looks at to where the camera really sits (it ran from the waist, through the doorway, while the camera sat over the wall), ignores invisible hulls, and when a wall pulls it in, or stands between it and you, the camera goes straight there instead of easing through the wall.
 
 - **Fixed:** an open flat system panel follows a new active camera (it is opened again on it). One opened at scene start, before a biped's follow camera, was never drawn.
 - **Changed:** the Biped Playground shows health, ammo and messages in a panel at the top right (flat and in a headset) instead of a line of text under the scene; what each enemy is doing is in Perf Stats (`#debug`).

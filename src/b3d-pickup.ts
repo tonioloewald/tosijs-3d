@@ -134,11 +134,21 @@ export class B3dPickup extends B3dProp {
   } | null = null
 
   /** The top of whatever is under (x, z), or 0. */
-  private _groundAt(scene: BABYLON.Scene, x: number, z: number): number {
+  private _solid(): (m: BABYLON.AbstractMesh) => boolean {
     const own = new Set([this.mesh, ...(this.mesh?.getChildMeshes() ?? [])])
+    return (m) => m.isPickable && m.isEnabled() && m.isVisible && !own.has(m)
+  }
+
+  /** The top of what is under (x, z), looking down from `fromY`. */
+  private _groundAt(
+    scene: BABYLON.Scene,
+    x: number,
+    z: number,
+    fromY = 50
+  ): number {
     const hit = scene.pickWithRay(
-      new BABYLON.Ray(new BABYLON.Vector3(x, 50, z), BABYLON.Vector3.Down(), 100),
-      (m) => m.isPickable && m.isEnabled() && m.isVisible && !own.has(m)
+      new BABYLON.Ray(new BABYLON.Vector3(x, fromY, z), BABYLON.Vector3.Down(), fromY + 50),
+      this._solid()
     )
     return hit?.hit && hit.pickedPoint ? hit.pickedPoint.y : 0
   }
@@ -167,9 +177,33 @@ export class B3dPickup extends B3dProp {
     }
     const attrs = this as any
     const from = { x: attrs.x, y: attrs.y, z: attrs.z }
-    // Unless told, it lands on what is there (a crate, the catwalk, the floor).
-    const end = { x: to.x, y: to.y ?? this._groundAt(scene, to.x, to.z) + 0.08, z: to.z }
     const height = options.height ?? 1.2
+    // A wall in the way stops it short, at its foot.
+    const dx = to.x - from.x
+    const dz = to.z - from.z
+    const far = Math.hypot(dx, dz)
+    if (to.y == null && far > 0.01) {
+      const wall = scene.pickWithRay(
+        new BABYLON.Ray(
+          new BABYLON.Vector3(from.x, from.y, from.z),
+          new BABYLON.Vector3(dx / far, 0, dz / far),
+          far
+        ),
+        this._solid()
+      )
+      if (wall?.hit && wall.distance < far) {
+        const k = Math.max(0, wall.distance - 0.3) / far
+        to = { x: from.x + dx * k, z: from.z + dz * k }
+      }
+    }
+    // Unless told, it lands on what is there under its arc (a crate, the
+    // catwalk, the floor), never on top of a wall higher than it flew.
+    const top = Math.max(from.y, from.y + height)
+    const end = {
+      x: to.x,
+      y: to.y ?? this._groundAt(scene, to.x, to.z, top) + 0.08,
+      z: to.z,
+    }
     const seconds = options.seconds ?? 0.6
     let t = 0
     if (this._flight != null)

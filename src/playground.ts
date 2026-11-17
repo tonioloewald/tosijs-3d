@@ -133,17 +133,21 @@ const loadout = demoLoadout({
   // amount; `€` or `$` would go before it).
   purse: { gold: 25 },
   currencies: [{ id: 'gold', label: 'gold' }],
-  // Dropped is THROWN: 6 m ahead, and where it lands it makes a noise, so it
-  // is how you lure the enemy away.
+  // Dropped is THROWN: 3 m off to the right front, low, and where it lands it
+  // makes a noise, so it is how you lure the enemy away.
   handleDrop: (item) => {
     const node = hero.entries?.rootNodes[0]
     if (!node) return
     const f = node.forward
+    // 45 degrees right of facing.
+    const d = { x: (f.x + f.z) / Math.SQRT2, z: (f.z - f.x) / Math.SQRT2 }
     const p = node.position
-    const thrown = pickup(item.kind, p.x + f.x * 0.4, p.z + f.z * 0.4)
-    thrown.y = 1.3
+    const thrown = pickup(item.kind, p.x + d.x * 0.4, p.z + d.z * 0.4)
+    thrown.y = 1.1
     hero.owner?.append(thrown)
-    requestAnimationFrame(() => thrown.toss({ x: p.x + f.x * 6, z: p.z + f.z * 6 }))
+    requestAnimationFrame(() =>
+      thrown.toss({ x: p.x + d.x * 3, z: p.z + d.z * 3 }, { height: 0.3, seconds: 0.45 })
+    )
   },
 })
 const BAG = { holder: 'hero', container: 'bag' }
