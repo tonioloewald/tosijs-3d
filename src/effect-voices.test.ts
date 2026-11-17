@@ -11,6 +11,10 @@ often a voice is started.
 let starts = 0
 let stops = 0
 mock.module('./effect-audio.js', () => ({
+  // No context in a test (gun-sound asks for one).
+  effectAudio() {
+    return null
+  },
   placeListener() {},
   holdEffectAudio() {
     return () => {}

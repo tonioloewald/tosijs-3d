@@ -12,6 +12,9 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Added:** aiming is finer and a little sticky. While a biped aims, the sticks follow a response curve (`aimCurve`, default 2: a nudge fine-tunes, full deflection is unchanged), and the aim slows as it crosses something that can be hurt (`aimAssist`, default 0.5; 0 turns it off). It never moves the aim for you. Pure helpers in `aim-assist` (`stickCurve`, `aimFriction`).
+- **Added:** `<tosi-b3d-launcher sound="pistol|rifle|heavy|bow">` plays a synthesised shot at the muzzle on every `fire()` (`gunshot(scene, at, kind)` in `gun-sound`; no files). The Biped Playground's guns have them.
+
 - **Changed:** a shop's trade panel no longer shows their purse. Yours is under your list, and the line under both reads `you'll pay 12 gold`, `you'll receive 6 gold`, or, when they cannot pay what yours fetch, `you'll receive 200 gold (all he can offer)` with `he can't offer more than 200 gold`. Deal then takes all they have. New option `they` (how the other side is named in a sentence, default `'they'`).
 - **Added:** `trade.offer(currency)` (what changes hands, and whether they are short) and `trade.deal(currency, { upTo: true })` (one payment of what it comes to, capped at what they have). An inventory move with `pay` and `amount` and no item is a payment alone; `pay.holder: ''` is money from outside the world (a reward, coins found).
 - **Added:** in the Biped Playground, a pile of 50 gold by the gate chest, and the shopkeeper says "Please, take a look." before the shop opens, in the middle of the view.

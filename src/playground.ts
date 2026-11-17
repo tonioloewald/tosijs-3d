@@ -33,10 +33,10 @@ const gripFor = (name) => {
 const WEAPONS = {
   // A gun's magazine is `ammo` rounds, reloaded in `reloadTime` seconds from
   // what it `loads` in your bag.
-  Pistol: { tags: ['side', 'hand'], mass: 1, art: 'pistol', loads: 'Pistol Ammo', fire: { fireRate: 6, muzzleSpeed: 45, damage: 25, projRadius: 0.08, gravity: -2, directHit: 'on', ammo: 12, reloadTime: 1.2 } },
-  SMG: { tags: ['side', 'hand'], mass: 2.5, art: 'pistol', loads: 'Pistol Ammo', fire: { fireRate: 14, muzzleSpeed: 50, damage: 12, projRadius: 0.06, gravity: -2, directHit: 'on', ammo: 30, reloadTime: 1.6 } },
-  'Assault Rifle': { tags: ['back', 'hand', 'two-handed'], mass: 3.5, art: 'rifle', loads: 'Rifle Ammo', fire: { fireRate: 9, muzzleSpeed: 80, damage: 20, projRadius: 0.06, gravity: -1, directHit: 'on', ammo: 30, reloadTime: 2 } },
-  'Rocket Launcher': { tags: ['back', 'hand', 'two-handed'], mass: 7, art: 'rifle', loads: 'Rockets', fire: { fireRate: 0.8, muzzleSpeed: 25, damage: 120, projRadius: 0.16, gravity: -1, directHit: 'off', ammo: 1, reloadTime: 2.5 } },
+  Pistol: { tags: ['side', 'hand'], mass: 1, art: 'pistol', loads: 'Pistol Ammo', fire: { sound: 'pistol', fireRate: 6, muzzleSpeed: 45, damage: 25, projRadius: 0.08, gravity: -2, directHit: 'on', ammo: 12, reloadTime: 1.2 } },
+  SMG: { tags: ['side', 'hand'], mass: 2.5, art: 'pistol', loads: 'Pistol Ammo', fire: { sound: 'pistol', fireRate: 14, muzzleSpeed: 50, damage: 12, projRadius: 0.06, gravity: -2, directHit: 'on', ammo: 30, reloadTime: 1.6 } },
+  'Assault Rifle': { tags: ['back', 'hand', 'two-handed'], mass: 3.5, art: 'rifle', loads: 'Rifle Ammo', fire: { sound: 'rifle', fireRate: 9, muzzleSpeed: 80, damage: 20, projRadius: 0.06, gravity: -1, directHit: 'on', ammo: 30, reloadTime: 2 } },
+  'Rocket Launcher': { tags: ['back', 'hand', 'two-handed'], mass: 7, art: 'rifle', loads: 'Rockets', fire: { sound: 'heavy', fireRate: 0.8, muzzleSpeed: 25, damage: 120, projRadius: 0.16, gravity: -1, directHit: 'off', ammo: 1, reloadTime: 2.5 } },
   Dagger: { tags: ['side', 'hand'], mass: 0.4, art: 'knife' },
   'Short Sword': { tags: ['side', 'hand'], mass: 1, art: 'sword' },
   'Long Sword': { tags: ['side', 'hand'], mass: 1.5, art: 'sword' },
@@ -44,7 +44,7 @@ const WEAPONS = {
   'Plasma Blade': { tags: ['side', 'hand'], mass: 1, art: 'sword' },
   Spear: { tags: ['back', 'hand', 'two-handed'], mass: 2, art: 'sword' },
   // One arrow at a time: each shot is a reload (UAL's notch), and arrows drop.
-  Bow: { tags: ['back', 'hand', 'two-handed'], mass: 1, art: 'rifle', loads: 'Arrows', fire: { fireRate: 1, muzzleSpeed: 40, damage: 45, projRadius: 0.03, gravity: -9.8, directHit: 'on', ammo: 1, reloadTime: 0.8 } },
+  Bow: { tags: ['back', 'hand', 'two-handed'], mass: 1, art: 'rifle', loads: 'Arrows', fire: { sound: 'bow', fireRate: 1, muzzleSpeed: 40, damage: 45, projRadius: 0.03, gravity: -9.8, directHit: 'on', ammo: 1, reloadTime: 0.8 } },
   // A shield goes in the LEFT hand (strapped to the forearm) or on the back.
   Buckler: { tags: ['back', 'shield'], mass: 2.5, art: 'shield' },
   'Kite Shield': { tags: ['back', 'shield'], mass: 4, art: 'shield' },

@@ -1854,6 +1854,8 @@ export {
   heldGrip,
 } from './b3d-launcher.js'
 export type { ProjectileOpts, MissileOpts, Impact } from './b3d-launcher.js'
+export { gunshot } from './gun-sound.js'
+export type { GunSound } from './gun-sound.js'
 export { createMakers } from './make-mesh.js'
 export { roundedRectGeometry, signedArea } from './rounded-rect.js'
 export type { RoundedRectOptions, RoundedRectGeometry } from './rounded-rect.js'

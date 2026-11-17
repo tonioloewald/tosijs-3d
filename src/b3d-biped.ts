@@ -204,6 +204,8 @@ animation is doing with that hand.
 | `eyeForward` | `0.13` | How far in front of the head bone the first-person eye sits, metres |
 | `lookRate` | `120` | Degrees per second the right stick swings the view |
 | `maxLookPitch` | `70` | How far up or down the look goes, degrees |
+| `aimCurve` | `2` | While aiming, the sticks' response curve: 1 is linear, 2 turns at a quarter of the rate at half deflection (a nudge fine-tunes, full deflection is unchanged) |
+| `aimAssist` | `0.5` | While aiming, how much the aim slows as it crosses something that can be hurt (another biped with `health`, a `<tosi-b3d-destroyable>`): 0 is off, 1 stops it. It never moves the aim ([aim-assist](/aim-assist/)) |
 | `invertLookY` | `'off'` | `'on'` inverts the right stick's vertical (pushing up looks down, the aircraft mapping) |
 | `aiming` | `'off'` | `'on'` gives the character an aim separate from its facing (see [aim](/aim/)). Nesting a weapon turns it on |
 | `aimFreeYaw` | `0` | Twist the shoulders hold before the body turns, degrees. `0` keeps aim and body together |
@@ -372,6 +374,7 @@ import {
 } from './virtual-gamepad.js'
 import { layerOnUpperBody, type LayeredAnimation } from './animation-layers.js'
 import { predictPath, type BallisticParams, type Vec3 } from './ballistics.js'
+import { aimFriction, stickCurve, type AimTarget } from './aim-assist.js'
 import { XRInputProvider } from './xr-input-provider.js'
 import { forwardGait } from './gait.js'
 import { realNow } from './clock.js'
@@ -741,6 +744,10 @@ export class B3dBiped extends B3dControllable {
     aimMaxYaw: 90,
     /** How far up/down the look can go, degrees. */
     maxLookPitch: 70,
+    /** While aiming: the sticks' response curve (1 linear, 2 fine near centre). */
+    aimCurve: 2,
+    /** While aiming: how much the aim slows on a target (0 off, 1 stops it). */
+    aimAssist: 0.5,
     /*
     NOT INVERTED, which is a changed default and the direct cause of a bug
     report: "when I fire it just fires into my feet".
@@ -1262,6 +1269,28 @@ export class B3dBiped extends B3dControllable {
   private _reticleScratch: { pos: Vec3; vel: Vec3 } = {
     pos: { x: 0, y: 0, z: 0 },
     vel: { x: 0, y: 0, z: 0 },
+  }
+
+  /** The aim's rate factor from what it is crossing (see aim-assist). */
+  private _aimFriction(strength: number): number {
+    if (!(strength > 0) || this.owner == null) return 1
+    const targets: AimTarget[] = []
+    for (const el of this.owner.querySelectorAll('tosi-b3d-biped')) {
+      const b = el as unknown as B3dBiped
+      if (b === this || b.halted || b.destroyable == null) continue
+      const p = (b.aimTarget ?? b.mesh)?.getAbsolutePosition()
+      if (p) targets.push({ at: p, radius: 0.35 })
+    }
+    for (const el of this.owner.querySelectorAll('tosi-b3d-destroyable')) {
+      const d = el as unknown as { mesh?: BABYLON.AbstractMesh | null; dead?: boolean }
+      if (d.mesh == null || d.dead) continue
+      targets.push({
+        at: d.mesh.getAbsolutePosition(),
+        radius: d.mesh.getBoundingInfo().boundingSphere.radiusWorld || 0.5,
+      })
+    }
+    if (targets.length === 0) return 1
+    return aimFriction(this.aimOrigin, this.aimDirection, targets, strength)
   }
 
   private _updateReticle(scene: BABYLON.Scene): void {
@@ -3112,6 +3141,11 @@ export class B3dBiped extends B3dControllable {
 
     Eased rather than snapped, because a hard cut to a narrow FOV is a flinch.
     */
+    // AIMING IS FINER: a nudge fine-tunes (the curve), and the sight drags
+    // across a target rather than skating off it (the friction).
+    const assist = this.gunplay ? this._aimFriction(Number(attrs.aimAssist)) : 1
+    const aimStick = (v: number) =>
+      this.gunplay ? stickCurve(v, Number(attrs.aimCurve) || 1) * assist : v
     const adsWant = this.gunplay && (input.aim ?? 0) > 0.3 ? 1 : 0
     this._ads += (adsWant - this._ads) * Math.min(1, dt * 8)
     this._lookPitch = Math.max(
@@ -3119,7 +3153,7 @@ export class B3dBiped extends B3dControllable {
       Math.min(
         attrs.maxLookPitch,
         this._lookPitch +
-          (input.lookY ?? 0) *
+          aimStick(input.lookY ?? 0) *
             lookYSign *
             attrs.lookRate *
             // Slower with the sights up — the half of ADS you feel most.
@@ -3347,7 +3381,7 @@ export class B3dBiped extends B3dControllable {
         const want: Aim = {
           yawDeg: firstPerson
             ? 0
-            : this._aim.yawDeg + rotation * dt * attrs.turnSpeed,
+            : this._aim.yawDeg + aimStick(rotation) * dt * attrs.turnSpeed,
           pitchDeg: -this._lookPitch,
         }
         this._aim = stepAim(this._aim, want, dt, {
@@ -3364,7 +3398,7 @@ export class B3dBiped extends B3dControllable {
           offset fixes. In first person the look IS the facing, so the turn
           input goes straight to the body and the aim stays dead ahead of it.
           */
-          bodyTurnDeg = rotation * dt * attrs.turnSpeed
+          bodyTurnDeg = aimStick(rotation) * dt * attrs.turnSpeed
         } else {
           const caught = bodyCatchUp(
             this._aim.yawDeg,

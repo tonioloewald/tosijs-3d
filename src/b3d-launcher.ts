@@ -223,6 +223,7 @@ that assumes one orients its effect off nothing.
 | `mass` | `1` | Shell mass (higher flies flatter/further under drag) |
 | `projRadius` | `0.12` | Shell visual radius |
 | `projColor` | `'#ffdd55'` | Shell emissive colour |
+| `sound` | `''` | The shot you hear on every `fire()`: `pistol`, `rifle`, `heavy` or `bow`, synthesised ([gun-sound](/gun-sound/)); `''` is silent |
 | `missileTrail` | `'off'` | `'on'` leaves a smoke ribbon behind each guided missile (`fireAt`); see [b3d-trail](/b3d-trail/). For your own rounds, pass `trail` to `spawnProjectile`/`spawnMissile` |
 | `maxLifetime` | `6` | Seconds before an un-impacted shell self-disposes |
 | `damage` | `20` | Warhead full damage (see [b3d-warhead](/b3d-warhead/)) |
@@ -502,6 +503,7 @@ import type { WarheadSpec } from './warhead.js'
 import type { Cause } from './destroyable.js'
 import { destroyableAt } from './destroyable-behavior.js'
 import { makeNoise } from './noise.js'
+import { gunshot, type GunSound } from './gun-sound.js'
 import {
   beginReload,
   cancelReload,
@@ -1156,6 +1158,8 @@ export class B3dLauncher extends AbstractMesh {
     /** `'on'` leaves a smoke ribbon behind each guided missile (`fireAt`). */
     missileTrail: 'off' as 'on' | 'off',
     projColor: '#ffdd55',
+    // The shot heard on fire(): '' | 'pistol' | 'rifle' | 'heavy' | 'bow'.
+    sound: '',
     maxLifetime: 6,
     damage: 20,
     fullRadius: 1,
@@ -1240,6 +1244,7 @@ export class B3dLauncher extends AbstractMesh {
   declare projRadius: number
   declare missileTrail: 'on' | 'off'
   declare projColor: string
+  declare sound: '' | GunSound
   declare maxLifetime: number
   declare damage: number
   declare fullRadius: number
@@ -1851,8 +1856,10 @@ export class B3dLauncher extends AbstractMesh {
     if (this._cooldown > 0 || !this._spend()) return false
     this._cooldown = this.fireRate > 0 ? 1 / this.fireRate : 0
     const dir = (direction ?? this.forward()).normalizeToNew()
+    const from = origin ?? this.muzzle()
+    if (this.sound) gunshot(this.owner.scene, from, this.sound)
     spawnProjectile(this.owner, {
-      origin: origin ?? this.muzzle(),
+      origin: from,
       velocity: dir.scale(this.muzzleSpeed),
       warhead: this.warheadSpec,
       params: this.ballisticParams,

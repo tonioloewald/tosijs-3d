@@ -8,6 +8,10 @@ asserts every count is back; this pins the same promise here. WebAudio is
 stubbed (no AudioContext in a test).
 */
 mock.module('./effect-audio.js', () => ({
+  // No context in a test (gun-sound asks for one).
+  effectAudio() {
+    return null
+  },
   placeListener() {},
   holdEffectAudio() {
     return () => {}
