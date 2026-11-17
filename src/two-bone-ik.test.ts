@@ -2,7 +2,8 @@ import { describe, expect, test } from 'bun:test'
 import { twoBoneIk } from './two-bone-ik.js'
 import { rotateVector, sub } from './spatial-transform.js'
 
-const len = (v: { x: number; y: number; z: number }) => Math.hypot(v.x, v.y, v.z)
+const len = (v: { x: number; y: number; z: number }) =>
+  Math.hypot(v.x, v.y, v.z)
 
 describe('twoBoneIk', () => {
   // A straight arm out along +x, 0.3 + 0.25 long.
@@ -25,7 +26,13 @@ describe('twoBoneIk', () => {
   })
 
   test('reaches toward a point out of range in a straight line', () => {
-    const t = twoBoneIk(root, mid, end, { x: 0, y: 0, z: 2 }, { x: 0, y: -1, z: 0 })!
+    const t = twoBoneIk(
+      root,
+      mid,
+      end,
+      { x: 0, y: 0, z: 2 },
+      { x: 0, y: -1, z: 0 }
+    )!
     expect(t.end.z).toBeCloseTo(0.55, 4)
     expect(Math.abs(t.end.x)).toBeLessThan(1e-4)
   })

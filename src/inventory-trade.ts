@@ -103,7 +103,8 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
   const shop = price != null
   const currency = opts.currency ?? inv.currencies[0]?.id ?? 'gold'
   // Written as the game writes it (`€12`, `12 gold`): the inventory's currencies.
-  const money = (n: number) => formatMoney(n, currencyFor(inv.currencies, currency))
+  const money = (n: number) =>
+    formatMoney(n, currencyFor(inv.currencies, currency))
   const TW = W * 2 + GAP
   const TH = H + FOOT
   const { svg, g, rect, text } = svgElements
@@ -114,7 +115,14 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
     height: TH,
   }) as unknown as SVGSVGElement
   root.append(
-    rect({ x: 0, y: 0, width: TW, height: TH, rx: 10, fill: '#161b26' }) as unknown as SVGElement
+    rect({
+      x: 0,
+      y: 0,
+      width: TW,
+      height: TH,
+      rx: 10,
+      fill: '#161b26',
+    }) as unknown as SVGElement
   )
   const nested = (x: number) => {
     const s = svg({ x, y: 0, width: W, height: H }) as unknown as SVGSVGElement
@@ -173,13 +181,26 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
     'font-family': 'system-ui, sans-serif',
   }) as unknown as SVGTextElement
   root.append(line, note)
-  type Button = { label: string; x: number; w: number; act: () => void; el: SVGGElement }
+  type Button = {
+    label: string
+    x: number
+    w: number
+    act: () => void
+    el: SVGGElement
+  }
   const BH = 32
   const BY = H + FOOT - BH - 10
   const button = (label: string, w: number, act: () => void): Button => {
     const el = g(
       { cursor: 'pointer' },
-      rect({ width: w, height: BH, rx: 8, fill: '#2c3546', stroke: '#9fb0c8', 'stroke-width': 1 }),
+      rect({
+        width: w,
+        height: BH,
+        rx: 8,
+        fill: '#2c3546',
+        stroke: '#9fb0c8',
+        'stroke-width': 1,
+      }),
       text(
         {
           x: w / 2,
@@ -243,15 +264,21 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
     if (shop) {
       const b = trade?.balance() ?? 0
       line.textContent =
-        b > 0 ? `you pay ${money(b)}` : b < 0 ? `you receive ${money(-b)}` : 'even'
+        b > 0
+          ? `you pay ${money(b)}`
+          : b < 0
+          ? `you receive ${money(-b)}`
+          : 'even'
       note.textContent =
-        said || `you have ${money(purse(mine))} · they have ${money(purse(theirs))}`
+        said ||
+        `you have ${money(purse(mine))} · they have ${money(purse(theirs))}`
     } else {
       const n = inContainer(inv, theirs).length
       const taken = trade?.changed().filter((c) => same(c.to, mine)).length ?? 0
       line.textContent =
         n === 0 ? 'empty' : `${n} thing${n === 1 ? '' : 's'} left in it`
-      note.textContent = said || (taken ? `taking ${taken}` : 'drag across, or take all')
+      note.textContent =
+        said || (taken ? `taking ${taken}` : 'drag across, or take all')
     }
   }
   const stop = inv.subscribe(() => {
@@ -261,14 +288,20 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
   draw()
 
   const ghosts = carryGhostLayer(carry, root)
-  const parts: Array<{ host: SVGSVGElement; panel: InventoryPanel; x: number }> = [
+  const parts: Array<{
+    host: SVGSVGElement
+    panel: InventoryPanel
+    x: number
+  }> = [
     { host: theirHost, panel: theirPanel, x: 0 },
     { host: myHost, panel: myPanel, x: W + GAP },
   ]
   let under: (typeof parts)[number] | null = null
   let pressed: Button | null = null
   const buttonAt = (x: number, y: number) =>
-    buttons.find((b) => x >= b.x && x <= b.x + b.w && y >= BY && y <= BY + BH) ?? null
+    buttons.find(
+      (b) => x >= b.x && x <= b.x + b.w && y >= BY && y <= BY + BH
+    ) ?? null
   const handlePointer = (kind: PointerKind, x: number, y: number) => {
     if (kind === 'down' && buttonAt(x, y)) {
       pressed = buttonAt(x, y)

@@ -270,7 +270,9 @@ describe('placed over the drawn controls', () => {
 
   test('on a phone, copies take touches only while the host says a reader is in use', () => {
     const was = (globalThis as any).matchMedia
-    ;(globalThis as any).matchMedia = (q: string) => ({ matches: q.includes('coarse') })
+    ;(globalThis as any).matchMedia = (q: string) => ({
+      matches: q.includes('coarse'),
+    })
     try {
       const tree = controlTree(
         [W.button3d({ label: 'Continue', handleClick: () => {} })],
@@ -299,7 +301,10 @@ describe('a text field in the mirror', () => {
   test('typing reaches the field as it is typed, and Enter is its Enter', async () => {
     const { inputField } = await import('./keyboard.js')
     let entered: string | null = null
-    const field = inputField({ value: 'nanoc', handleEnter: (v) => (entered = v) })
+    const field = inputField({
+      value: 'nanoc',
+      handleEnter: (v) => (entered = v),
+    })
     const host = document.createElement('div')
     const m = ariaMirror(host, () => controlTree([field as any]))
     m.update()

@@ -89,7 +89,12 @@ export interface NpcPercept {
    * reaches it (the caller casts the ray), and how conspicuous it is (1
    * standing, `STEALTH` crouching).
    */
-  target?: { x: number; z: number; clearLine: boolean; conspicuity?: number } | null
+  target?: {
+    x: number
+    z: number
+    clearLine: boolean
+    conspicuity?: number
+  } | null
   /** Noises made since the last step (it hears those that carry to it). */
   noises?: Noise[]
 }
@@ -164,8 +169,7 @@ export function npcBrain(options: NpcBrainOptions) {
     const r = wanderRadius * Math.sqrt(rand())
     return { x: home.x + Math.cos(a) * r, z: home.z + Math.sin(a) * r }
   }
-  const engaged = () =>
-    known != null && sinceKnown < memory && alertness >= 0.5
+  const engaged = () => known != null && sinceKnown < memory && alertness >= 0.5
 
   function think(p: NpcPercept, sees: boolean): void {
     const here = p.self
@@ -251,12 +255,16 @@ export function npcBrain(options: NpcBrainOptions) {
   function step(p: NpcPercept, dt: number): NpcIntent {
     const t = p.target
     // An alert creature looks a little harder.
-    const noticed = t != null ? notices(p.self, senses, t, 1 + 0.25 * alertness) : null
+    const noticed =
+      t != null ? notices(p.self, senses, t, 1 + 0.25 * alertness) : null
     const sees = noticed === 'seen'
     const sensed = noticed === 'sensed'
     let heardAt: Noise | null = null
     for (const n of p.noises ?? [])
-      if (hears(p.self, senses, n) && (heardAt == null || dist(p.self, n) < dist(p.self, heardAt)))
+      if (
+        hears(p.self, senses, n) &&
+        (heardAt == null || dist(p.self, n) < dist(p.self, heardAt))
+      )
         heardAt = n
     if (t != null && (sees || sensed)) {
       // Noticed: wide awake, and it knows where you are, after a moment to

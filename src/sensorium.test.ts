@@ -20,20 +20,34 @@ describe('sensorium', () => {
 
   test('crouching cuts both to a third', () => {
     const sneak = { conspicuity: STEALTH }
-    expect(notices(guard, {}, { x: 0, z: -3.2, clearLine: false, ...sneak })).toBe('sensed')
-    expect(notices(guard, {}, { x: 0, z: -3.5, clearLine: false, ...sneak })).toBe(null)
-    expect(notices(guard, {}, { x: 0, z: 16, clearLine: true, ...sneak })).toBe('seen')
-    expect(notices(guard, {}, { x: 0, z: 17, clearLine: true, ...sneak })).toBe(null)
+    expect(
+      notices(guard, {}, { x: 0, z: -3.2, clearLine: false, ...sneak })
+    ).toBe('sensed')
+    expect(
+      notices(guard, {}, { x: 0, z: -3.5, clearLine: false, ...sneak })
+    ).toBe(null)
+    expect(notices(guard, {}, { x: 0, z: 16, clearLine: true, ...sneak })).toBe(
+      'seen'
+    )
+    expect(notices(guard, {}, { x: 0, z: 17, clearLine: true, ...sneak })).toBe(
+      null
+    )
   })
 
   test('a noise is heard from any direction within its carry', () => {
     expect(hears(guard, {}, { x: 0, z: -24, carries: 25 })).toBe(true)
     expect(hears(guard, {}, { x: 26, z: 0, carries: 25 })).toBe(false)
-    expect(hears(guard, { hearing: 2 }, { x: 26, z: 0, carries: 25 })).toBe(true)
+    expect(hears(guard, { hearing: 2 }, { x: 26, z: 0, carries: 25 })).toBe(
+      true
+    )
   })
 
-  test('the ranges are the creature\'s', () => {
-    expect(notices(guard, { sightRange: 10 }, { x: 0, z: 12, clearLine: true })).toBe(null)
-    expect(notices(guard, { nearRange: 2 }, { x: 0, z: -3, clearLine: true })).toBe(null)
+  test("the ranges are the creature's", () => {
+    expect(
+      notices(guard, { sightRange: 10 }, { x: 0, z: 12, clearLine: true })
+    ).toBe(null)
+    expect(
+      notices(guard, { nearRange: 2 }, { x: 0, z: -3, clearLine: true })
+    ).toBe(null)
   })
 })

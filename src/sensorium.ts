@@ -110,7 +110,11 @@ export interface Observer {
 }
 
 /** Whether `d` is in front of the observer (within half of `sightDeg` of its heading). */
-export function inFront(o: Observer, s: Partial<Sensorium>, d: { x: number; z: number }): boolean {
+export function inFront(
+  o: Observer,
+  s: Partial<Sensorium>,
+  d: { x: number; z: number }
+): boolean {
   const deg = s.sightDeg ?? DEFAULT_SENSORIUM.sightDeg
   return Math.abs(bearingDeg(o, o.heading, d)) <= deg / 2
 }

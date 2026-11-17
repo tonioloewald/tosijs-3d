@@ -50,7 +50,9 @@ export function balloonLayout(
   replies: { id: string; label: string }[]
 ): BalloonLayout {
   const chars = Math.floor((BALLOON_W - PAD * 2) / (FONT * 0.52))
-  const room = Math.floor((BALLOON_H - TAIL - PAD * 2 - replies.length * ROW_H) / LINE_H)
+  const room = Math.floor(
+    (BALLOON_H - TAIL - PAD * 2 - replies.length * ROW_H) / LINE_H
+  )
   let wrapped = caption ? wrapText(caption, chars) : []
   if (wrapped.length > Math.max(1, room)) {
     wrapped = wrapped.slice(0, Math.max(1, room))
@@ -78,7 +80,11 @@ export function balloonLayout(
 }
 
 /** The reply row under a point, if any. Pure. */
-export function rowAt(layout: BalloonLayout, x: number, y: number): string | null {
+export function rowAt(
+  layout: BalloonLayout,
+  x: number,
+  y: number
+): string | null {
   const { box } = layout
   if (x < box.x || x > box.x + box.w) return null
   return layout.rows.find((r) => y >= r.y && y <= r.y + r.h)?.id ?? null

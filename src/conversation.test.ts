@@ -11,21 +11,38 @@ const shop: ConversationScript = {
   start: 'hello',
   nodes: {
     hello: {
-      lines: [{ speaker: 'keeper', text: 'Back again?', seconds: 2, gesture: 'wave' }],
+      lines: [
+        { speaker: 'keeper', text: 'Back again?', seconds: 2, gesture: 'wave' },
+      ],
       replies: [
-        { id: 'shop', label: 'What do you sell?', then: [{ trade: true }, { goto: 'after' }] },
+        {
+          id: 'shop',
+          label: 'What do you sell?',
+          then: [{ trade: true }, { goto: 'after' }],
+        },
         {
           id: 'potion',
           label: 'Your potion.',
           line: "Here's that potion I promised you.",
           when: { has: 'Potion' },
-          then: [{ take: 'Potion' }, { give: 'gold', qty: 20 }, { set: 'delivered' }, { goto: 'thanks' }],
+          then: [
+            { take: 'Potion' },
+            { give: 'gold', qty: 20 },
+            { set: 'delivered' },
+            { goto: 'thanks' },
+          ],
         },
         { id: 'bye', label: 'Bye.', then: [{ end: true }] },
       ],
     },
-    thanks: { lines: [{ speaker: 'keeper', text: 'You remembered!', seconds: 1 }], then: [{ goto: 'hello' }] },
-    after: { lines: [{ speaker: 'keeper', text: 'Anything else?', seconds: 1 }], then: [{ goto: 'hello' }] },
+    thanks: {
+      lines: [{ speaker: 'keeper', text: 'You remembered!', seconds: 1 }],
+      then: [{ goto: 'hello' }],
+    },
+    after: {
+      lines: [{ speaker: 'keeper', text: 'Anything else?', seconds: 1 }],
+      then: [{ goto: 'hello' }],
+    },
   },
 }
 
@@ -47,7 +64,13 @@ function world(bag: Record<string, number> = {}) {
     trade: (done: () => void) => (tradeDone = done),
     handleEvent: (e: ConversationEvent) => events.push(e),
   }
-  return { bag, events, host, closeTrade: () => tradeDone?.(), types: () => events.map((e) => e.type) }
+  return {
+    bag,
+    events,
+    host,
+    closeTrade: () => tradeDone?.(),
+    types: () => events.map((e) => e.type),
+  }
 }
 
 const run = (talk: { tick: (dt: number) => void }, seconds: number) => {
@@ -83,7 +106,10 @@ describe('conversation', () => {
     run(talk, 1.6)
     expect(talk.pick('potion')).toBe(true)
     expect(talk.transcript[0].cut).toBe(true)
-    expect(talk.line).toEqual({ speaker: 'player', text: "Here's that potion I promised you." })
+    expect(talk.line).toEqual({
+      speaker: 'player',
+      text: "Here's that potion I promised you.",
+    })
     run(talk, speakingSeconds(talk.line!.text) + 0.1)
     expect(w.bag).toEqual({ Potion: 0, gold: 20 })
     expect(talk.flags.get('delivered')).toBe(true)
@@ -116,7 +142,14 @@ describe('conversation', () => {
       start: 'a',
       nodes: {
         a: {
-          lines: [{ speaker: 'npc', text: 'And the butler did it.', seconds: 2, interruptible: false }],
+          lines: [
+            {
+              speaker: 'npc',
+              text: 'And the butler did it.',
+              seconds: 2,
+              interruptible: false,
+            },
+          ],
           replies: [{ id: 'gasp', label: 'No!', then: [{ end: true }] }],
         },
       },
@@ -135,18 +168,31 @@ describe('conversation', () => {
   test('a refused effect is an event, and the rest still runs', () => {
     const script: ConversationScript = {
       start: 'a',
-      nodes: { a: { lines: [], then: [{ take: 'Key' }, { set: 'asked' }, { end: true }] } },
+      nodes: {
+        a: {
+          lines: [],
+          then: [{ take: 'Key' }, { set: 'asked' }, { end: true }],
+        },
+      },
     }
     const w = world()
     const talk = startConversation(script, w.host)
-    expect(w.events.find((e) => e.type === 'refused')).toMatchObject({ reason: 'no Key' })
+    expect(w.events.find((e) => e.type === 'refused')).toMatchObject({
+      reason: 'no Key',
+    })
     expect(talk.flags.get('asked')).toBe(true)
     expect(talk.ended).toBe(true)
   })
 
   test('a node with neither replies nor then ends the talk; end() stops it now', () => {
     const w = world()
-    const done = startConversation({ start: 'a', nodes: { a: { lines: [{ speaker: 'n', text: 'Hm.', seconds: 1 }] } } }, w.host)
+    const done = startConversation(
+      {
+        start: 'a',
+        nodes: { a: { lines: [{ speaker: 'n', text: 'Hm.', seconds: 1 }] } },
+      },
+      w.host
+    )
     run(done, 1.1)
     expect(done.ended).toBe(true)
     const walked = startConversation(shop, world().host)
@@ -158,15 +204,25 @@ describe('conversation', () => {
   test('a line is as long as its audio when the host knows it', () => {
     const script: ConversationScript = {
       start: 'a',
-      nodes: { a: { lines: [{ speaker: 'n', text: 'Hold there.', audio: 'guard-halt.mp3' }] } },
+      nodes: {
+        a: {
+          lines: [
+            { speaker: 'n', text: 'Hold there.', audio: 'guard-halt.mp3' },
+          ],
+        },
+      },
     }
-    const talk = startConversation(script, { duration: (a) => (a === 'guard-halt.mp3' ? 3.2 : null) })
+    const talk = startConversation(script, {
+      duration: (a) => (a === 'guard-halt.mp3' ? 3.2 : null),
+    })
     expect(talk.lineSeconds).toBe(3.2)
   })
 
   test('timing rules', () => {
     expect(speakingSeconds('Hm.')).toBe(1.2)
-    expect(speakingSeconds('one two three four five six seven eight nine')).toBeCloseTo(3.4)
+    expect(
+      speakingSeconds('one two three four five six seven eight nine')
+    ).toBeCloseTo(3.4)
     expect(repliesDueAt(8)).toBeCloseTo(7.3) // 0.7 s before the end beats 75%
     expect(repliesDueAt(2)).toBeCloseTo(1.5)
   })

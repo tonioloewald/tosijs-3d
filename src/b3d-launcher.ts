@@ -1253,8 +1253,7 @@ export class B3dLauncher extends AbstractMesh {
    * is how many there are, `take(n)` hands over up to n. The game's, usually
    * an inventory. Unset: an endless supply.
    */
-  ammoSource: { count: () => number; take: (n: number) => number } | null =
-    null
+  ammoSource: { count: () => number; take: (n: number) => number } | null = null
 
   private _ammoPool!: Resource
   private _mag: Magazine | null = null
@@ -1318,7 +1317,12 @@ export class B3dLauncher extends AbstractMesh {
     const available = this.ammoSource ? this.ammoSource.count() : Infinity
     if (!beginReload(this._magazine(), this.reloadTime, available)) return false
     this._dry = false
-    this.dispatchEvent(new CustomEvent('reloading', { bubbles: true, detail: { seconds: this.reloadTime } }))
+    this.dispatchEvent(
+      new CustomEvent('reloading', {
+        bubbles: true,
+        detail: { seconds: this.reloadTime },
+      })
+    )
     return true
   }
 
@@ -1385,7 +1389,12 @@ export class B3dLauncher extends AbstractMesh {
         )
         if (done) {
           this._dry = false
-          this.dispatchEvent(new CustomEvent('reloaded', { bubbles: true, detail: { loaded: this._mag.loaded } }))
+          this.dispatchEvent(
+            new CustomEvent('reloaded', {
+              bubbles: true,
+              detail: { loaded: this._mag.loaded },
+            })
+          )
         }
       }
     })

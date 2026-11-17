@@ -12,7 +12,12 @@ import {
 describe('magazine', () => {
   test('fires until empty', () => {
     const m = makeMagazine(3)
-    expect([fireRound(m), fireRound(m), fireRound(m), fireRound(m)]).toEqual([true, true, true, false])
+    expect([fireRound(m), fireRound(m), fireRound(m), fireRound(m)]).toEqual([
+      true,
+      true,
+      true,
+      false,
+    ])
   })
 
   test('a reload takes its time, then fills from the reserve', () => {

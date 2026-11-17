@@ -5,7 +5,8 @@ import { beginTrade } from './trade.js'
 const BAG = { holder: 'me', container: 'bag' }
 const STOCK = { holder: 'shop', container: 'stock' }
 // Buy at 10, sell at 5.
-const price = (_item: Item, from: Place | null) => (from?.holder === 'shop' ? 10 : 5)
+const price = (_item: Item, from: Place | null) =>
+  from?.holder === 'shop' ? 10 : 5
 
 const make = (gold = 20, withPrice = true) =>
   createInventory(
@@ -16,7 +17,11 @@ const make = (gold = 20, withPrice = true) =>
         pelt: { id: 'pelt', kind: 'pelt', qty: 1 },
       },
       holders: {
-        me: { id: 'me', containers: { bag: { type: 'list', holds: ['pelt'] } }, purse: { gold } },
+        me: {
+          id: 'me',
+          containers: { bag: { type: 'list', holds: ['pelt'] } },
+          purse: { gold },
+        },
         shop: {
           id: 'shop',
           containers: { stock: { type: 'list', holds: ['rope', 'lamp'] } },
@@ -25,7 +30,11 @@ const make = (gold = 20, withPrice = true) =>
       },
     } as any,
     {
-      kinds: { rope: { id: 'rope' }, lamp: { id: 'lamp' }, pelt: { id: 'pelt' } } as any,
+      kinds: {
+        rope: { id: 'rope' },
+        lamp: { id: 'lamp' },
+        pelt: { id: 'pelt' },
+      } as any,
       ...(withPrice ? { price } : {}),
     }
   )
@@ -58,7 +67,11 @@ describe('trade', () => {
     const inv = make(15)
     const trade = beginTrade(inv, { mine: BAG, theirs: STOCK }, price)
     // 20 to pay, 15 in the purse: only the pelt's 5 makes it.
-    inv.move({ item: 'rope', to: BAG }, { item: 'lamp', to: BAG }, { item: 'pelt', to: STOCK })
+    inv.move(
+      { item: 'rope', to: BAG },
+      { item: 'lamp', to: BAG },
+      { item: 'pelt', to: STOCK }
+    )
     const r = trade.deal('gold')
     expect(r.ok).toBe(true)
     expect(inv.doc.holders.me.purse).toEqual({ gold: 0 })
@@ -94,16 +107,33 @@ describe('trade', () => {
       {
         items: { ammo: { id: 'ammo', kind: 'ammo', qty: 100 } },
         holders: {
-          me: { id: 'me', containers: { bag: { type: 'list', holds: [] } }, purse: { gold: 10 } },
-          shop: { id: 'shop', containers: { stock: { type: 'list', holds: ['ammo'] } }, purse: { gold: 0 } },
+          me: {
+            id: 'me',
+            containers: { bag: { type: 'list', holds: [] } },
+            purse: { gold: 10 },
+          },
+          shop: {
+            id: 'shop',
+            containers: { stock: { type: 'list', holds: ['ammo'] } },
+            purse: { gold: 0 },
+          },
         },
       } as any,
-      { kinds: { ammo: { id: 'ammo', stack: 200 } } as any, price: (it: Item) => it.qty * 0.5 }
+      {
+        kinds: { ammo: { id: 'ammo', stack: 200 } } as any,
+        price: (it: Item) => it.qty * 0.5,
+      }
     )
-    const trade = beginTrade(inv, { mine: BAG, theirs: STOCK }, (it) => it.qty * 0.5)
+    const trade = beginTrade(
+      inv,
+      { mine: BAG, theirs: STOCK },
+      (it) => it.qty * 0.5
+    )
     inv.move({ item: 'ammo', qty: 12, to: BAG })
     inv.move({ item: 'ammo', qty: 12, to: BAG })
-    expect(trade.changed()).toEqual([{ kind: 'ammo', qty: 24, from: STOCK, to: BAG }])
+    expect(trade.changed()).toEqual([
+      { kind: 'ammo', qty: 24, from: STOCK, to: BAG },
+    ])
     expect(trade.balance()).toBe(12)
     expect(trade.deal('gold').reasons).toContain('not enough gold')
     expect(trade.balance()).toBe(12)

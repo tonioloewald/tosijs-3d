@@ -45,7 +45,13 @@ trade.deal('gold') // me: 15 gold
 */
 /*{ "parent": "inventory", "order": 12 }*/
 
-import type { InventoryApi, Item, Move, MoveResult, Place } from './inventory.js'
+import type {
+  InventoryApi,
+  Item,
+  Move,
+  MoveResult,
+  Place,
+} from './inventory.js'
 
 export interface TradeSides {
   /** Yours: a container (your bag). */
@@ -95,7 +101,11 @@ const tally = (inv: InventoryApi, p: Place): Map<string, number> => {
 }
 
 /** The moves that take `qty` of `kind` from `from` to `to`, stack by stack. */
-const movesFor = (inv: InventoryApi, c: TradeChange, extra: Partial<Move> = {}): Move[] => {
+const movesFor = (
+  inv: InventoryApi,
+  c: TradeChange,
+  extra: Partial<Move> = {}
+): Move[] => {
   const out: Move[] = []
   let left = c.qty
   for (const id of inContainer(inv, c.from)) {
@@ -123,7 +133,8 @@ export function beginTrade(
     for (const kind of new Set([...started.keys(), ...now.keys()])) {
       const d = (now.get(kind) ?? 0) - (started.get(kind) ?? 0)
       if (d > 0) out.push({ kind, qty: d, from: sides.theirs, to: sides.mine })
-      else if (d < 0) out.push({ kind, qty: -d, from: sides.mine, to: sides.theirs })
+      else if (d < 0)
+        out.push({ kind, qty: -d, from: sides.mine, to: sides.theirs })
     }
     return out
   }
@@ -132,13 +143,18 @@ export function beginTrade(
     if (price == null) return 0
     let n = 0
     for (const c of changed()) {
-      const amount = price({ id: c.kind, kind: c.kind, qty: c.qty }, c.from, c.to)
+      const amount = price(
+        { id: c.kind, kind: c.kind, qty: c.qty },
+        c.from,
+        c.to
+      )
       n += c.to === sides.mine ? amount : -amount
     }
     return n
   }
 
-  const back = (cs: TradeChange[]) => cs.map((c) => ({ ...c, from: c.to, to: c.from }))
+  const back = (cs: TradeChange[]) =>
+    cs.map((c) => ({ ...c, from: c.to, to: c.from }))
   const moving = (cs: TradeChange[]) => cs.flatMap((c) => movesFor(inv, c))
 
   return {
@@ -156,10 +172,16 @@ export function beginTrade(
       const buys = cs.filter((c) => c.to === sides.mine)
       const paid = [
         ...sells.flatMap((c) =>
-          movesFor(inv, c, { pay: { holder: sides.theirs.holder, in: currency }, payee: sides.mine.holder })
+          movesFor(inv, c, {
+            pay: { holder: sides.theirs.holder, in: currency },
+            payee: sides.mine.holder,
+          })
         ),
         ...buys.flatMap((c) =>
-          movesFor(inv, c, { pay: { holder: sides.mine.holder, in: currency }, payee: sides.theirs.holder })
+          movesFor(inv, c, {
+            pay: { holder: sides.mine.holder, in: currency },
+            payee: sides.theirs.holder,
+          })
         ),
       ]
       const r = inv.move(...paid)

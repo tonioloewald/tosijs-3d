@@ -93,7 +93,9 @@ describe('aimSpine', () => {
 
 describe('reachLimb', () => {
   for (const mirror of [false, true]) {
-    test(`an arm puts its hand on a point${mirror ? ' (mirrored root)' : ''}`, async () => {
+    test(`an arm puts its hand on a point${
+      mirror ? ' (mirrored root)' : ''
+    }`, async () => {
       const { reachLimb, setWorldRotation } = await import('./aim-ik.js')
       const node = (name: string, parent: BABYLON.Node | null, x = 0) => {
         const n = new BABYLON.TransformNode(name, scene)
@@ -111,7 +113,13 @@ describe('reachLimb', () => {
       for (const n of [root, upper, lower, hand]) n.computeWorldMatrix(true)
       const s = upper.getAbsolutePosition()
       const goal = s.add(new BABYLON.Vector3(0.1, -0.1, mirror ? 0.4 : -0.4))
-      const miss = reachLimb(upper, lower, hand, goal, new BABYLON.Vector3(0, -1, 0))
+      const miss = reachLimb(
+        upper,
+        lower,
+        hand,
+        goal,
+        new BABYLON.Vector3(0, -1, 0)
+      )
       expect(miss).toBeLessThan(1e-4)
       expect(lower.getAbsolutePosition().y).toBeLessThan(s.y - 0.02)
       // And the hand turned to a world rotation.

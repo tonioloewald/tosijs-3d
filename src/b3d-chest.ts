@@ -88,10 +88,20 @@ export class B3dChest extends B3dOpenable {
     const lidH = h - baseH
     const root = new BABYLON.Mesh(`${this.localName}-root`, scene)
     this.mesh = root
-    const base = this.box('base', { width: w, height: baseH, depth: d }, this.color, scene)
+    const base = this.box(
+      'base',
+      { width: w, height: baseH, depth: d },
+      this.color,
+      scene
+    )
     base.parent = root
     base.position.y = baseH / 2
-    const plate = this.box('plate', { width: 0.12, height: 0.14, depth: 0.03 }, this.trim, scene)
+    const plate = this.box(
+      'plate',
+      { width: 0.12, height: 0.14, depth: 0.03 },
+      this.trim,
+      scene
+    )
     plate.checkCollisions = false
     plate.parent = root
     plate.position.set(0, baseH - 0.05, -d / 2 - 0.015)
@@ -100,7 +110,12 @@ export class B3dChest extends B3dOpenable {
     hinge.parent = root
     hinge.position.set(0, baseH, d / 2)
     this._hinge = hinge
-    const lid = this.box('lid', { width: w + 0.02, height: lidH, depth: d + 0.02 }, this.color, scene)
+    const lid = this.box(
+      'lid',
+      { width: w + 0.02, height: lidH, depth: d + 0.02 },
+      this.color,
+      scene
+    )
     lid.parent = hinge
     lid.position.set(0, lidH / 2, -d / 2)
     this._touchable = [base, plate, lid]

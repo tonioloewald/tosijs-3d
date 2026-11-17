@@ -73,7 +73,11 @@ const { svg, g, path, text, rect } = svgElements
 class Balloon {
   readonly svg: SVGSVGElement
   plane: B3dSvgPlane | null = null
-  private layout: BalloonLayout = { box: { x: 0, y: 0, w: 0, h: 0 }, lines: [], rows: [] }
+  private layout: BalloonLayout = {
+    box: { x: 0, y: 0, w: 0, h: 0 },
+    lines: [],
+    rows: [],
+  }
   private hover: string | null = null
   private pressed: string | null = null
   private caption = ''
@@ -129,10 +133,16 @@ class Balloon {
     const r = 14
     // The outline with its tail, one path, so the tail has no seam.
     const outline =
-      `M${box.x + r},${box.y} H${box.x + box.w - r} Q${box.x + box.w},${box.y} ${box.x + box.w},${box.y + r}` +
-      ` V${box.y + box.h - r} Q${box.x + box.w},${box.y + box.h} ${box.x + box.w - r},${box.y + box.h}` +
+      `M${box.x + r},${box.y} H${box.x + box.w - r} Q${box.x + box.w},${
+        box.y
+      } ${box.x + box.w},${box.y + r}` +
+      ` V${box.y + box.h - r} Q${box.x + box.w},${box.y + box.h} ${
+        box.x + box.w - r
+      },${box.y + box.h}` +
       ` H${mid + 14} L${mid},${BALLOON_H - 2} L${mid - 14},${box.y + box.h}` +
-      ` H${box.x + r} Q${box.x},${box.y + box.h} ${box.x},${box.y + box.h - r}` +
+      ` H${box.x + r} Q${box.x},${box.y + box.h} ${box.x},${
+        box.y + box.h - r
+      }` +
       ` V${box.y + r} Q${box.x},${box.y} ${box.x + r},${box.y} Z`
     this.svg.replaceChildren(
       path({ d: outline, fill: t.panelBg, stroke: t.muted, 'stroke-width': 2 }),
@@ -149,7 +159,14 @@ class Balloon {
               rx: 8,
               fill: row.id === this.hover ? t.buttonHover : t.buttonBg,
             }),
-            text({ x: box.x + PAD, y: row.y + row.h / 2 + FONT * 0.35, fill: t.accent }, row.label)
+            text(
+              {
+                x: box.x + PAD,
+                y: row.y + row.h / 2 + FONT * 0.35,
+                fill: t.accent,
+              },
+              row.label
+            )
           )
         )
       )
@@ -159,7 +176,10 @@ class Balloon {
 
 interface Talker {
   mesh?: BABYLON.AbstractMesh | null
-  entries?: { skeletons?: BABYLON.Skeleton[]; rootNodes?: BABYLON.TransformNode[] }
+  entries?: {
+    skeletons?: BABYLON.Skeleton[]
+    rootNodes?: BABYLON.TransformNode[]
+  }
   perform?: (state: string, seconds?: number) => number
   endPerform?: () => void
   inputProvider?: InputProvider | null
@@ -189,7 +209,8 @@ export class B3dConversation extends B3dChild {
   host: ConversationHost = {}
   /** The running conversation, if any. */
   talk: Conversation | null = null
-  whenEvent: ((event: ConversationEvent, talk: Conversation) => void) | null = null
+  whenEvent: ((event: ConversationEvent, talk: Conversation) => void) | null =
+    null
   whenEnded: ((talk: Conversation) => void) | null = null
 
   private _player: Talker | null = null
@@ -257,7 +278,8 @@ export class B3dConversation extends B3dChild {
 
   private _cleanup(): void {
     window.removeEventListener('keydown', this._keys)
-    if (this._lent != null && this._lent.inputProvider === STAND_STILL) this._lent.inputProvider = null
+    if (this._lent != null && this._lent.inputProvider === STAND_STILL)
+      this._lent.inputProvider = null
     this._lent = null
     this._stopAudio()
     this._theirs.set('', [])
@@ -318,7 +340,8 @@ export class B3dConversation extends B3dChild {
         this._theirs.set(e.line.text, [])
         this._mine.set('', [])
         const gesture = e.line.gesture
-        if (!(gesture && speaker?.perform?.(gesture))) speaker?.perform?.('talk', e.seconds)
+        if (!(gesture && speaker?.perform?.(gesture)))
+          speaker?.perform?.('talk', e.seconds)
       }
       this._play(e.line.audio)
     } else if (e.type === 'lineEnd') {
@@ -327,7 +350,8 @@ export class B3dConversation extends B3dChild {
         if (!this._isPlayer(e.line)) speaker?.endPerform?.()
       }
     } else if (e.type === 'replies') {
-      const caption = talk?.line != null && !this._isPlayer(talk.line) ? talk.line.text : ''
+      const caption =
+        talk?.line != null && !this._isPlayer(talk.line) ? talk.line.text : ''
       this._theirs.set(caption, e.replies)
     } else if (e.type === 'picked') {
       this._theirs.set('', [])
@@ -388,7 +412,11 @@ export class B3dConversation extends B3dChild {
   }
 
   // The speaker eases round to face whoever it is talking to.
-  private _face(node: BABYLON.AbstractMesh, target: BABYLON.Vector3, dt: number): void {
+  private _face(
+    node: BABYLON.AbstractMesh,
+    target: BABYLON.Vector3,
+    dt: number
+  ): void {
     const here = node.getAbsolutePosition()
     const want = new BABYLON.Vector3(target.x - here.x, 0, target.z - here.z)
     const fwd = node.forward
@@ -396,7 +424,9 @@ export class B3dConversation extends B3dChild {
     if (want.lengthSquared() < 1e-6 || now.lengthSquared() < 1e-6) return
     want.normalize()
     now.normalize()
-    const angle = Math.acos(Math.max(-1, Math.min(1, BABYLON.Vector3.Dot(now, want))))
+    const angle = Math.acos(
+      Math.max(-1, Math.min(1, BABYLON.Vector3.Dot(now, want)))
+    )
     if (angle < 0.02) return
     const step = Math.min(angle, dt * 4)
     const before = BABYLON.Vector3.Dot(now, want)
@@ -404,7 +434,12 @@ export class B3dConversation extends B3dChild {
     node.computeWorldMatrix(true)
     const after = node.forward
     // Which way round is measured, not assumed (a glTF root mirrors).
-    if (BABYLON.Vector3.Dot(new BABYLON.Vector3(after.x, 0, after.z).normalize(), want) < before)
+    if (
+      BABYLON.Vector3.Dot(
+        new BABYLON.Vector3(after.x, 0, after.z).normalize(),
+        want
+      ) < before
+    )
       node.rotate(BABYLON.Axis.Y, -2 * step, BABYLON.Space.WORLD)
   }
 
@@ -426,7 +461,8 @@ export class B3dConversation extends B3dChild {
       ['Head', 'head', 'mixamorig:Head'].includes(b.name)
     )
     const node = head?.getTransformNode()
-    if (node != null) return node.getAbsolutePosition().add(new BABYLON.Vector3(0, 0.22, 0))
+    if (node != null)
+      return node.getAbsolutePosition().add(new BABYLON.Vector3(0, 0.22, 0))
     const m = who.mesh
     if (m == null) return null
     const { max } = m.getHierarchyBoundingVectors(true)

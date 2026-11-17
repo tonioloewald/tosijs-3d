@@ -1,9 +1,19 @@
 import { describe, expect, test } from 'bun:test'
-import { BALLOON_H, BALLOON_W, balloonLayout, rowAt, wrapText } from './balloon-layout.js'
+import {
+  BALLOON_H,
+  BALLOON_W,
+  balloonLayout,
+  rowAt,
+  wrapText,
+} from './balloon-layout.js'
 
 describe('balloon layout', () => {
   test('words wrap at the width, never splitting one', () => {
-    expect(wrapText('one two three four', 9)).toEqual(['one two', 'three', 'four'])
+    expect(wrapText('one two three four', 9)).toEqual([
+      'one two',
+      'three',
+      'four',
+    ])
     expect(wrapText('', 10)).toEqual([])
   })
 
@@ -15,7 +25,10 @@ describe('balloon layout', () => {
     expect(L.box.y + L.box.h).toBeLessThan(BALLOON_H)
     expect(L.box.y).toBeGreaterThan(0)
     expect(L.lines.length).toBeGreaterThan(0)
-    expect(L.rows.map((r) => r.label)).toEqual(['1. What do you sell?', '2. Bye.'])
+    expect(L.rows.map((r) => r.label)).toEqual([
+      '1. What do you sell?',
+      '2. Bye.',
+    ])
     expect(L.rows[0].y).toBeGreaterThan(L.lines.at(-1)!.y)
   })
 
@@ -32,7 +45,10 @@ describe('balloon layout', () => {
 
   test('a caption too long for the room is cut with an ellipsis', () => {
     const long = 'word '.repeat(200)
-    const replies = [1, 2, 3, 4].map((n) => ({ id: `${n}`, label: `reply ${n}` }))
+    const replies = [1, 2, 3, 4].map((n) => ({
+      id: `${n}`,
+      label: `reply ${n}`,
+    }))
     const L = balloonLayout(long, replies)
     expect(L.lines.at(-1)!.text.endsWith('…')).toBe(true)
     expect(L.box.y).toBeGreaterThanOrEqual(0)

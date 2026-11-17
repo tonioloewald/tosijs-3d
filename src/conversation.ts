@@ -256,7 +256,12 @@ export function startConversation(
       line.seconds ??
       (line.audio != null ? host.duration?.(line.audio) ?? null : null) ??
       speakingSeconds(line.text)
-    entry = { speaker: line.speaker, text: line.text, audio: line.audio, at: clock }
+    entry = {
+      speaker: line.speaker,
+      text: line.text,
+      audio: line.audio,
+      at: clock,
+    }
     transcript.push(entry)
     emit({ type: 'line', line, seconds: length })
   }
@@ -312,7 +317,13 @@ export function startConversation(
       const reason = give ? host.give?.(kind, qty) : host.take?.(kind, qty)
       if (reason) emit({ type: 'refused', effect: e, reason })
     }
-    if (effects.length === 0 && !trading && !ended && current == null && queue.length === 0)
+    if (
+      effects.length === 0 &&
+      !trading &&
+      !ended &&
+      current == null &&
+      queue.length === 0
+    )
       if (offerable.length === 0) finish()
   }
 
@@ -341,7 +352,11 @@ export function startConversation(
     queue =
       spoken == null
         ? []
-        : [typeof spoken === 'string' ? { speaker: player, text: spoken } : { ...spoken, speaker: player }]
+        : [
+            typeof spoken === 'string'
+              ? { speaker: player, text: spoken }
+              : { ...spoken, speaker: player },
+          ]
     after = [...reply.then]
     advance()
   }
@@ -376,7 +391,12 @@ export function startConversation(
       if (current == null) return
       at += dt
       // The last line of a node with replies offers them before it ends.
-      if (queue.length === 0 && after === 'replies' && at >= repliesDueAt(length)) offer()
+      if (
+        queue.length === 0 &&
+        after === 'replies' &&
+        at >= repliesDueAt(length)
+      )
+        offer()
       if (at >= length) {
         finishLine(false)
         if (waiting != null) return choose(waiting)

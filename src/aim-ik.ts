@@ -189,7 +189,10 @@ export function turnAbout(
   if (n == null) return
   // Any direction square to the axis, and where the turn takes it.
   const side = unit(
-    BABYLON.Vector3.Cross(n, Math.abs(n.y) < 0.9 ? BABYLON.Axis.Y : BABYLON.Axis.X)
+    BABYLON.Vector3.Cross(
+      n,
+      Math.abs(n.y) < 0.9 ? BABYLON.Axis.Y : BABYLON.Axis.X
+    )
   )!
   const q = BABYLON.Quaternion.RotationAxis(n, angle)
   turnToward(bone, side, side.applyRotationQuaternion(q))

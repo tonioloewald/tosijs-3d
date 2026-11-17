@@ -1647,7 +1647,10 @@ export class B3dBiped extends B3dControllable {
   private _dieFromFall(drop: number): void {
     this._fallDead()
     this.dispatchEvent(
-      new CustomEvent('crash', { bubbles: true, detail: { cause: 'fall', drop } })
+      new CustomEvent('crash', {
+        bubbles: true,
+        detail: { cause: 'fall', drop },
+      })
     )
   }
 
@@ -1710,7 +1713,6 @@ export class B3dBiped extends B3dControllable {
     this._actionLeft = 0
   }
 
-
   /** Health in the combat world, a chest-height aim point, once the model is in. */
   private _attachHealth(owner: B3d, height: number): void {
     const attrs = this as any
@@ -1740,7 +1742,9 @@ export class B3dBiped extends B3dControllable {
       this._onHit(info.cause)
       // For whoever drives it (an NPC brain turns on whoever hurt it).
       const region = info.cause?.at ? this.hitRegion(info.cause.at) : 'trunk'
-      this.dispatchEvent(new CustomEvent('hurt', { detail: { ...info, region } }))
+      this.dispatchEvent(
+        new CustomEvent('hurt', { detail: { ...info, region } })
+      )
     }
     d.whenDestroyed = () => this._fallDead()
     d.attach()
@@ -2214,7 +2218,9 @@ export class B3dBiped extends B3dControllable {
     */
     this._warnOnce(
       `b3d-biped: weapon raised, but ${this.url || 'this rig'} has no ` +
-        `${this._clipOf('aimIdle')} — the character will aim in its walking pose. ` +
+        `${this._clipOf(
+          'aimIdle'
+        )} — the character will aim in its walking pose. ` +
         `If the rig should have it, the asset is probably cached (hard-reload).`
     )
     return name
@@ -2222,7 +2228,9 @@ export class B3dBiped extends B3dControllable {
 
   /** The clip a state plays (its name when it has no state). */
   private _clipOf(state: string): string {
-    return this.animationStates.find((st) => st.name === state)?.animation ?? state
+    return (
+      this.animationStates.find((st) => st.name === state)?.animation ?? state
+    )
   }
 
   /**
@@ -2510,13 +2518,21 @@ export class B3dBiped extends B3dControllable {
     const chain = this._aimIkChain ?? []
     const line0 = at(upL).subtract(at(upR))
     line0.y = 0
-    if (chain.length > 0 && line0.lengthSquared() > 1e-9 && level.lengthSquared() > 0) {
+    if (
+      chain.length > 0 &&
+      line0.lengthSquared() > 1e-9 &&
+      level.lengthSquared() > 0
+    ) {
       line0.normalize()
-      const lateral = line0.subtract(level.scale(BABYLON.Vector3.Dot(line0, level)))
+      const lateral = line0.subtract(
+        level.scale(BABYLON.Vector3.Dot(line0, level))
+      )
       if (lateral.lengthSquared() > 1e-9) {
         lateral.normalize()
         const BLADE = (35 * Math.PI) / 180
-        const want = lateral.scale(Math.cos(BLADE)).add(level.scale(Math.sin(BLADE)))
+        const want = lateral
+          .scale(Math.cos(BLADE))
+          .add(level.scale(Math.sin(BLADE)))
         const cross = BABYLON.Vector3.Cross(line0, want)
         const angle =
           Math.atan2(cross.y, BABYLON.Vector3.Dot(line0, want)) * weight
@@ -2565,16 +2581,25 @@ export class B3dBiped extends B3dControllable {
       turn.multiplyToRef(roll, turn)
     }
     const stockW = BABYLON.Vector3.TransformCoordinates(gun.stock, W)
-    const W2 = W.multiply(BABYLON.Matrix.Translation(-stockW.x, -stockW.y, -stockW.z))
+    const W2 = W.multiply(
+      BABYLON.Matrix.Translation(-stockW.x, -stockW.y, -stockW.z)
+    )
       .multiply(turn)
       .multiply(BABYLON.Matrix.Translation(pocket.x, pocket.y, pocket.z))
     // The hand keeps its hold: the hand's place that puts the gun at W2.
     const H = handR.computeWorldMatrix(true)
     const H2 = H.multiply(W.clone().invert()).multiply(W2)
     const down = new BABYLON.Vector3(0, -1, 0)
-    reachLimb(upR, loR, handR, H2.getTranslation(), down.add(right.scale(0.6)), {
-      weight,
-    })
+    reachLimb(
+      upR,
+      loR,
+      handR,
+      H2.getTranslation(),
+      down.add(right.scale(0.6)),
+      {
+        weight,
+      }
+    )
     setWorldRotation(handR, H2, weight)
     for (const n of handR.getDescendants(false))
       (n as BABYLON.TransformNode).computeWorldMatrix?.(true)
@@ -2600,7 +2625,9 @@ export class B3dBiped extends B3dControllable {
       const f0 = fingers.clone().normalize()
       const up = G.getRow(1)!.toVector3().normalize()
       const barrel = G.getRow(2)!.toVector3().normalize()
-      const across = right.subtract(barrel.scale(BABYLON.Vector3.Dot(right, barrel)))
+      const across = right.subtract(
+        barrel.scale(BABYLON.Vector3.Dot(right, barrel))
+      )
       const f1 = across.normalize().scale(0.8).add(barrel.scale(0.6))
       f1.subtractInPlace(up.scale(BABYLON.Vector3.Dot(f1, up))).normalize()
       const basis = (f: BABYLON.Vector3, n: BABYLON.Vector3) => {
@@ -2610,16 +2637,29 @@ export class B3dBiped extends B3dControllable {
         return m
       }
       // n × f's triple product is n's part square to f.
-      const from = basis(f0, BABYLON.Vector3.Cross(f0, BABYLON.Vector3.Cross(n0, f0)).normalize())
-      const to = basis(f1, BABYLON.Vector3.Cross(f1, BABYLON.Vector3.Cross(up, f1)).normalize())
+      const from = basis(
+        f0,
+        BABYLON.Vector3.Cross(f0, BABYLON.Vector3.Cross(n0, f0)).normalize()
+      )
+      const to = basis(
+        f1,
+        BABYLON.Vector3.Cross(f1, BABYLON.Vector3.Cross(up, f1)).normalize()
+      )
       turnL = from.clone().invert().multiply(to)
       // The palm's middle, just off the bones on the palm side.
       const palm = fingers.scale(0.5).add(n0.scale(width * 0.04))
       palmAt = BABYLON.Vector3.TransformNormal(palm, turnL)
     }
-    reachLimb(upL, loL, handL, foregrip.subtract(palmAt), down.add(right.scale(-0.3)), {
-      weight,
-    })
+    reachLimb(
+      upL,
+      loL,
+      handL,
+      foregrip.subtract(palmAt),
+      down.add(right.scale(-0.3)),
+      {
+        weight,
+      }
+    )
     if (turnL != null) {
       const p = H0.getTranslation()
       const H1 = H0.multiply(BABYLON.Matrix.Translation(-p.x, -p.y, -p.z))
@@ -3343,7 +3383,8 @@ export class B3dBiped extends B3dControllable {
       // Reload, on the press (a launcher with a magazine; others ignore it).
       const reloadDown = (input.reload ?? 0) > 0.5
       if (reloadDown && !this._reloadWasPressed)
-        for (const w of this._weapons()) (w as { reload?: () => boolean }).reload?.()
+        for (const w of this._weapons())
+          (w as { reload?: () => boolean }).reload?.()
       this._reloadWasPressed = reloadDown
       // A melee weapon swings, once per swing: held, it swings again after.
       this._attackFor = Math.max(0, this._attackFor - dt)

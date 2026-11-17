@@ -168,7 +168,10 @@ export class B3dOpenable extends AbstractMesh {
       const want = this.open ? 1 : 0
       if (this._t === want) return
       const step = dt / Math.max(0.05, this.seconds)
-      this._t = want > this._t ? Math.min(want, this._t + step) : Math.max(want, this._t - step)
+      this._t =
+        want > this._t
+          ? Math.min(want, this._t + step)
+          : Math.max(want, this._t - step)
       this.pose(ease(this._t))
     })
   }
@@ -181,7 +184,9 @@ export class B3dOpenable extends AbstractMesh {
 
   private _refuse(by: unknown): void {
     const info = { reason: 'locked', key: this.lock, by }
-    this.dispatchEvent(new CustomEvent('refused', { bubbles: true, detail: info }))
+    this.dispatchEvent(
+      new CustomEvent('refused', { bubbles: true, detail: info })
+    )
     this.whenRefused?.(info)
   }
 
@@ -208,7 +213,9 @@ export class B3dOpenable extends AbstractMesh {
     }
     if (this.open) {
       this.open = false
-      this.dispatchEvent(new CustomEvent('closed', { bubbles: true, detail: { by } }))
+      this.dispatchEvent(
+        new CustomEvent('closed', { bubbles: true, detail: { by } })
+      )
       this.whenClosed?.({ by })
       return
     }
@@ -226,7 +233,11 @@ export class B3dOpenable extends AbstractMesh {
     color: string,
     scene: BABYLON.Scene
   ): BABYLON.Mesh {
-    const m = BABYLON.MeshBuilder.CreateBox(`${this.localName}-${name}`, size, scene)
+    const m = BABYLON.MeshBuilder.CreateBox(
+      `${this.localName}-${name}`,
+      size,
+      scene
+    )
     const mat = new BABYLON.StandardMaterial(`${this.localName}-${name}`, scene)
     mat.diffuseColor = BABYLON.Color3.FromHexString(color)
     mat.specularColor = new BABYLON.Color3(0.08, 0.08, 0.08)
@@ -236,7 +247,8 @@ export class B3dOpenable extends AbstractMesh {
   }
 
   sceneDispose(): void {
-    if (this._tick != null) this.owner?.scene.onBeforeRenderObservable.remove(this._tick)
+    if (this._tick != null)
+      this.owner?.scene.onBeforeRenderObservable.remove(this._tick)
     this._tick = null
     this._use?.dispose()
     this._use = null
@@ -280,7 +292,12 @@ export class B3dDoor extends B3dOpenable {
     hinge.position.x = -w / 2
     this._hinge = hinge
     // Slightly short of the frame, so it swings without catching.
-    const slab = this.box('slab', { width: w - 0.02, height: h - 0.02, depth: t }, this.color, scene)
+    const slab = this.box(
+      'slab',
+      { width: w - 0.02, height: h - 0.02, depth: t },
+      this.color,
+      scene
+    )
     slab.parent = hinge
     slab.position.set(w / 2, h / 2, 0)
     const parts: BABYLON.AbstractMesh[] = [slab]
@@ -300,11 +317,21 @@ export class B3dDoor extends B3dOpenable {
     if (!isOff(this.frame)) {
       const post = 0.1
       for (const side of [-1, 1]) {
-        const p = this.box(`post${side}`, { width: post, height: h + post, depth: t + 0.06 }, this.color, scene)
+        const p = this.box(
+          `post${side}`,
+          { width: post, height: h + post, depth: t + 0.06 },
+          this.color,
+          scene
+        )
         p.parent = root
         p.position.set(side * (w / 2 + post / 2), (h + post) / 2, 0)
       }
-      const lintel = this.box('lintel', { width: w + post * 2, height: post, depth: t + 0.06 }, this.color, scene)
+      const lintel = this.box(
+        'lintel',
+        { width: w + post * 2, height: post, depth: t + 0.06 },
+        this.color,
+        scene
+      )
       lintel.parent = root
       lintel.position.set(0, h + post / 2, 0)
     }

@@ -38,20 +38,30 @@ export interface Currency {
 }
 
 /** `amount` written in `currency` (or a bare purse key). */
-export function formatMoney(amount: number, currency: Currency | string): string {
+export function formatMoney(
+  amount: number,
+  currency: Currency | string
+): string {
   const c = typeof currency === 'string' ? { id: currency } : currency
   const label = c.label ?? c.id
   const prefix = c.position === 'prefix'
   const space = c.space ?? !prefix
   const n = Math.abs(amount)
   const digits =
-    c.decimals != null ? n.toFixed(c.decimals) : String(Math.round(n * 100) / 100)
+    c.decimals != null
+      ? n.toFixed(c.decimals)
+      : String(Math.round(n * 100) / 100)
   const sign = amount < 0 ? '-' : ''
   const gap = space ? ' ' : ''
-  return prefix ? `${sign}${label}${gap}${digits}` : `${sign}${digits}${gap}${label}`
+  return prefix
+    ? `${sign}${label}${gap}${digits}`
+    : `${sign}${digits}${gap}${label}`
 }
 
 /** The currency for purse key `id` among `currencies`, else a plain one named after it. */
-export function currencyFor(currencies: Currency[] | undefined, id: string): Currency {
+export function currencyFor(
+  currencies: Currency[] | undefined,
+  id: string
+): Currency {
   return currencies?.find((c) => c.id === id) ?? { id }
 }

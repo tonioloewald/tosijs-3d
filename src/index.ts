@@ -479,8 +479,17 @@ export type {
   Schematic,
   SchematicSocket,
 } from './inventory-box.js'
-export { tradePanel, type TradePanel, type TradePanelOptions } from './inventory-trade.js'
-export { beginTrade, type Trade, type TradeSides, type TradeChange } from './trade.js'
+export {
+  tradePanel,
+  type TradePanel,
+  type TradePanelOptions,
+} from './inventory-trade.js'
+export {
+  beginTrade,
+  type Trade,
+  type TradeSides,
+  type TradeChange,
+} from './trade.js'
 export { formatMoney, currencyFor, type Currency } from './currency.js'
 // Common nouns, so prefixed as they leave the barrel (CLAUDE.md: bare
 // common nouns don't leak); the module itself keeps the short names.
@@ -1802,9 +1811,27 @@ export { B3dDoor, b3dDoor, B3dOpenable, type Opener } from './b3d-door.js'
 export { B3dChest, b3dChest } from './b3d-chest.js'
 export { B3dNpc, b3dNpc } from './b3d-npc.js'
 export { npcBrain } from './npc-brain.js'
-export type { NpcBrain, NpcBrainOptions, NpcIntent, NpcMode, NpcPercept } from './npc-brain.js'
-export { notices, hears, inFront, STEALTH, DEFAULT_SENSORIUM } from './sensorium.js'
-export type { Sensorium, Detectable, Noise, Observer, SenseChannel } from './sensorium.js'
+export type {
+  NpcBrain,
+  NpcBrainOptions,
+  NpcIntent,
+  NpcMode,
+  NpcPercept,
+} from './npc-brain.js'
+export {
+  notices,
+  hears,
+  inFront,
+  STEALTH,
+  DEFAULT_SENSORIUM,
+} from './sensorium.js'
+export type {
+  Sensorium,
+  Detectable,
+  Noise,
+  Observer,
+  SenseChannel,
+} from './sensorium.js'
 export { makeNoise, noisesSince } from './noise.js'
 export type { SceneNoise } from './noise.js'
 export { loadLibraryMesh } from './library-mesh.js'

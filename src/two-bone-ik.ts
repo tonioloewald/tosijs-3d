@@ -24,7 +24,13 @@ Pure: no Babylon.
 */
 /*{ "parent": "aim" }*/
 
-import { quatMul, rotateVector, sub, type Quat, type Vec3 } from './spatial-transform.js'
+import {
+  quatMul,
+  rotateVector,
+  sub,
+  type Quat,
+  type Vec3,
+} from './spatial-transform.js'
 
 export interface TwoBoneTurn {
   /** The upper bone's world turn. */
@@ -41,7 +47,9 @@ const dot = (p: Vec3, q: Vec3) => p.x * q.x + p.y * q.y + p.z * q.z
 const length = (v: Vec3) => Math.hypot(v.x, v.y, v.z)
 const normalize = (v: Vec3): Vec3 => {
   const l = length(v)
-  return l > 1e-9 ? { x: v.x / l, y: v.y / l, z: v.z / l } : { x: 0, y: 0, z: 0 }
+  return l > 1e-9
+    ? { x: v.x / l, y: v.y / l, z: v.z / l }
+    : { x: 0, y: 0, z: 0 }
 }
 
 /** The shortest rotation taking unit vector `a` onto unit vector `b`. */
@@ -50,7 +58,9 @@ export function rotationBetween(a: Vec3, b: Vec3): Quat {
   if (d < -0.999999) {
     // Opposite: half a turn about any axis at right angles to `a`.
     const axis = normalize(
-      Math.abs(a.x) < 0.9 ? { x: 0, y: -a.z, z: a.y } : { x: a.z, y: 0, z: -a.x }
+      Math.abs(a.x) < 0.9
+        ? { x: 0, y: -a.z, z: a.y }
+        : { x: a.z, y: 0, z: -a.x }
     )
     return { x: axis.x, y: axis.y, z: axis.z, w: 0 }
   }

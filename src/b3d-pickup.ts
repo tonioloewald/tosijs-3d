@@ -90,8 +90,9 @@ export class B3dPickup extends B3dProp {
   declare qty: number
 
   /** Taken: what, and by whom. Not `onPickedUp`: on* props become DOM listeners. */
-  whenPickedUp: ((info: { item: string; qty: number; by: unknown }) => void) | null =
-    null
+  whenPickedUp:
+    | ((info: { item: string; qty: number; by: unknown }) => void)
+    | null = null
   /** A reason it cannot be taken now (full health), or nothing. */
   refuse: ((by: unknown) => string | null | undefined) | null = null
   whenRefused: ((info: { reason: string; by: unknown }) => void) | null = null
@@ -148,7 +149,8 @@ export class B3dPickup extends B3dProp {
     const height = options.height ?? 1.2
     const seconds = options.seconds ?? 0.6
     let t = 0
-    if (this._flight != null) scene.onBeforeRenderObservable.remove(this._flight)
+    if (this._flight != null)
+      scene.onBeforeRenderObservable.remove(this._flight)
     this._flight = scene.onBeforeRenderObservable.add(() => {
       t = Math.min(1, t + sceneDelta(scene) / seconds)
       attrs.x = from.x + (end.x - from.x) * t
@@ -167,7 +169,9 @@ export class B3dPickup extends B3dProp {
     const reason = this.refuse?.(by)
     if (reason) {
       const info = { reason, by }
-      this.dispatchEvent(new CustomEvent('refused', { bubbles: true, detail: info }))
+      this.dispatchEvent(
+        new CustomEvent('refused', { bubbles: true, detail: info })
+      )
       this.whenRefused?.(info)
       return
     }
@@ -181,7 +185,10 @@ export class B3dPickup extends B3dProp {
       (low ? by?.perform?.('pickupLow') : 0) || by?.perform?.('pickup') || 0
     const take = () => {
       this.dispatchEvent(
-        new CustomEvent('pickedup', { bubbles: true, detail: { item, qty, by } })
+        new CustomEvent('pickedup', {
+          bubbles: true,
+          detail: { item, qty, by },
+        })
       )
       this.whenPickedUp?.({ item, qty, by })
       this.remove()

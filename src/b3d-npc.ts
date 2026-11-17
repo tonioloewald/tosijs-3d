@@ -281,7 +281,8 @@ export class B3dNpc extends B3dChild {
     }
     const hit = scene.pickWithRay(
       new BABYLON.Ray(from, dir.scale(1 / d), d),
-      (mesh) => mesh.isPickable && mesh.isVisible && mesh.isEnabled() && !own(mesh)
+      (mesh) =>
+        mesh.isPickable && mesh.isVisible && mesh.isEnabled() && !own(mesh)
     )
     return !(hit?.hit && hit.distance < d - 0.1)
   }

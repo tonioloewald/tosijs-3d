@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { npcBrain, type NpcBrainOptions, type NpcIntent, type NpcPercept } from './npc-brain.js'
+import {
+  npcBrain,
+  type NpcBrainOptions,
+  type NpcIntent,
+  type NpcPercept,
+} from './npc-brain.js'
 import { headingDeg } from './agent-driver.js'
 import { STEALTH } from './sensorium.js'
 
@@ -17,7 +22,9 @@ function run(
 ) {
   const brain = npcBrain(options)
   const self = { ...start }
-  const log: Array<NpcIntent & { x: number; z: number; t: number; heading: number }> = []
+  const log: Array<
+    NpcIntent & { x: number; z: number; t: number; heading: number }
+  > = []
   for (let t = 0; t < seconds; t += DT) {
     const intent = brain.step(
       { self, target: target(t), noises: extra.noise?.(t) ?? [] },
@@ -46,16 +53,27 @@ describe('npc brain', () => {
   })
 
   test('a patroller walks its route in a loop, and rejoins it after an alarm', () => {
-    const route = [{ x: 0, z: 0 }, { x: 8, z: 0 }, { x: 8, z: 8 }]
+    const route = [
+      { x: 0, z: 0 },
+      { x: 8, z: 0 },
+      { x: 8, z: 8 },
+    ]
     const visits = (log: Array<{ x: number; z: number }>) =>
       route.map((p) => log.some((s) => Math.hypot(s.x - p.x, s.z - p.z) < 1.3))
     const calm = run({ home: { x: 0, z: 0 }, patrol: route }, 45, () => null)
     expect(visits(calm)).toEqual([true, true, true])
     expect(calm.some((s) => s.mode === 'patrol' && s.moveTo == null)).toBe(true)
     // A noise calls it away; afterwards it is patrolling again.
-    const called = run({ home: { x: 0, z: 0 }, patrol: route }, 60, () => null, undefined, {
-      noise: (t) => (Math.abs(t - 3) < DT / 2 ? [{ x: -6, z: 4, carries: 15 }] : []),
-    })
+    const called = run(
+      { home: { x: 0, z: 0 }, patrol: route },
+      60,
+      () => null,
+      undefined,
+      {
+        noise: (t) =>
+          Math.abs(t - 3) < DT / 2 ? [{ x: -6, z: 4, carries: 15 }] : [],
+      }
+    )
     const firstLook = called.findIndex((s) => s.mode === 'investigate')
     expect(firstLook).toBeGreaterThan(-1)
     expect(called.slice(firstLook).some((s) => s.mode === 'patrol')).toBe(true)
@@ -71,7 +89,11 @@ describe('npc brain', () => {
   })
 
   test('it notices you in front from 50 m, chases, and attacks within reach', () => {
-    const log = run({ home: { x: 0, z: 0 } }, 25, () => ({ x: 0, z: 40, clearLine: true }))
+    const log = run({ home: { x: 0, z: 0 } }, 25, () => ({
+      x: 0,
+      z: 40,
+      clearLine: true,
+    }))
     const chased = log.findIndex((s) => s.mode === 'chase')
     const attacked = log.findIndex((s) => s.attack)
     expect(log[0].sees).toBe(true)
@@ -86,15 +108,26 @@ describe('npc brain', () => {
 
   test('behind it: noticed within 10 m, unless you crouch (3.3 m)', () => {
     const behind = (z: number, conspicuity = 1) =>
-      run({ home: { x: 0, z: 0 } }, 3, () => ({ x: 0, z, clearLine: true, conspicuity }))
+      run({ home: { x: 0, z: 0 } }, 3, () => ({
+        x: 0,
+        z,
+        clearLine: true,
+        conspicuity,
+      }))
     expect(behind(-12).every((s) => !s.senses && s.mode === 'idle')).toBe(true)
-    expect(behind(-8).some((s) => s.mode === 'chase' || s.mode === 'attack')).toBe(true)
+    expect(
+      behind(-8).some((s) => s.mode === 'chase' || s.mode === 'attack')
+    ).toBe(true)
     expect(behind(-8, STEALTH).every((s) => s.mode === 'idle')).toBe(true)
     expect(behind(-3, STEALTH).some((s) => s.senses)).toBe(true)
   })
 
   test('cover hides you in front', () => {
-    const log = run({ home: { x: 0, z: 0 } }, 5, () => ({ x: 0, z: 20, clearLine: false }))
+    const log = run({ home: { x: 0, z: 0 } }, 5, () => ({
+      x: 0,
+      z: 20,
+      clearLine: false,
+    }))
     expect(log.every((s) => s.mode === 'idle')).toBe(true)
   })
 
@@ -105,12 +138,19 @@ describe('npc brain', () => {
       30,
       () => ({ x: 0, z: -20, clearLine: false }),
       { x: 0, z: 0, heading: 0 },
-      { noise: (t) => (Math.abs(t - 1) < DT / 2 ? [{ x: 12, z: 0, carries: 15 }] : []) }
+      {
+        noise: (t) =>
+          Math.abs(t - 1) < DT / 2 ? [{ x: 12, z: 0, carries: 15 }] : [],
+      }
     )
     const looking = log.filter((s) => s.mode === 'investigate')
     expect(looking.length).toBeGreaterThan(0)
-    expect(looking.some((s) => s.moveTo && s.moveTo.x === 12 && s.moveTo.z === 0)).toBe(true)
-    expect(Math.min(...log.map((s) => Math.hypot(s.x - 12, s.z)))).toBeLessThan(1.3)
+    expect(
+      looking.some((s) => s.moveTo && s.moveTo.x === 12 && s.moveTo.z === 0)
+    ).toBe(true)
+    expect(Math.min(...log.map((s) => Math.hypot(s.x - 12, s.z)))).toBeLessThan(
+      1.3
+    )
     expect(log.every((s) => s.mode !== 'chase')).toBe(true)
     // Then it looks about and goes back to its post.
     expect(log.some((s) => s.mode === 'return')).toBe(true)
@@ -127,7 +167,9 @@ describe('npc brain', () => {
 
   test('it loses you, searches, then goes back', () => {
     const log = run({ home: { x: 0, z: 0 }, memory: 3 }, 40, (t) =>
-      t < 2 ? { x: 0, z: 8, clearLine: true } : { x: 0, z: 60, clearLine: false }
+      t < 2
+        ? { x: 0, z: 8, clearLine: true }
+        : { x: 0, z: 60, clearLine: false }
     )
     const modes = log.map((s) => s.mode)
     const firstSearch = modes.indexOf('search')
@@ -164,7 +206,9 @@ describe('npc brain', () => {
       { x: 0, z: 0, heading: 0 },
       { frozen: true }
     )
-    const detours = log.filter((s) => s.mode === 'chase' && s.moveTo && s.moveTo.z < 5)
+    const detours = log.filter(
+      (s) => s.mode === 'chase' && s.moveTo && s.moveTo.z < 5
+    )
     expect(detours.length).toBeGreaterThan(0)
   })
 

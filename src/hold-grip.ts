@@ -178,8 +178,24 @@ export const STOW_MOUNT: HoldMount = { bone: 'spine_03', frame: 'bone' }
 
 // Behind the shoulders, slanted: first placements, set with the manipulator.
 // A long gun is slung barrel up; a blade rides hilt up by the shoulder.
-const SLUNG: HoldGrip = { x: 0, y: 0.1, z: -0.18, rx: 0, ry: 0, rz: 35, scale: 1 }
-const SHEATHED: HoldGrip = { x: 0.05, y: 0.28, z: -0.16, rx: 0, ry: 0, rz: 215, scale: 1 }
+const SLUNG: HoldGrip = {
+  x: 0,
+  y: 0.1,
+  z: -0.18,
+  rx: 0,
+  ry: 0,
+  rz: 35,
+  scale: 1,
+}
+const SHEATHED: HoldGrip = {
+  x: 0.05,
+  y: 0.28,
+  z: -0.16,
+  rx: 0,
+  ry: 0,
+  rz: 215,
+  scale: 1,
+}
 export const STOW_GRIPS: Record<HoldClass, HoldGrip> = {
   pistol: SLUNG,
   rifle: SLUNG,

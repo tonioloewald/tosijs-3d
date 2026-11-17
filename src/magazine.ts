@@ -30,7 +30,11 @@ export interface Magazine {
 }
 
 export function makeMagazine(capacity: number, loaded = capacity): Magazine {
-  return { capacity, loaded: Math.max(0, Math.min(capacity, loaded)), reloadLeft: 0 }
+  return {
+    capacity,
+    loaded: Math.max(0, Math.min(capacity, loaded)),
+    reloadLeft: 0,
+  }
 }
 
 export const reloading = (m: Magazine) => m.reloadLeft > 0
@@ -46,7 +50,11 @@ export function fireRound(m: Magazine): boolean {
  * Start reloading, `seconds` long. False (nothing starts) when it is full,
  * already reloading, or the reserve (`available` rounds) is empty.
  */
-export function beginReload(m: Magazine, seconds: number, available: number): boolean {
+export function beginReload(
+  m: Magazine,
+  seconds: number,
+  available: number
+): boolean {
   if (reloading(m) || m.loaded >= m.capacity || available <= 0) return false
   m.reloadLeft = Math.max(1e-6, seconds)
   return true
@@ -69,7 +77,10 @@ export function tickMagazine(
   if (!reloading(m)) return null
   m.reloadLeft = Math.max(0, m.reloadLeft - dt)
   if (m.reloadLeft > 0) return null
-  const got = Math.max(0, Math.min(m.capacity - m.loaded, take(m.capacity - m.loaded)))
+  const got = Math.max(
+    0,
+    Math.min(m.capacity - m.loaded, take(m.capacity - m.loaded))
+  )
   m.loaded += got
   return 'reloaded'
 }
