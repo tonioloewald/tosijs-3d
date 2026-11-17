@@ -73,18 +73,13 @@ describe('bipedMapping: the right stick is LOOK', () => {
     expect(i.cameraZoom).toBe(0)
   })
 
-  test('zoom moved to the d-pad, which sneak vacated — and it is SIGNED', () => {
-    expect(bipedMapping(pad({ dpadUp: 1 }), 1 / 60).cameraZoom).toBe(1)
-    // Down must be NEGATIVE. This line read `.toBe(0)` and passed, because it
-    // was written next to a mapping wrapped in `Math.max(0, …)` — so the test
-    // pinned the bug instead of catching it, and the camera could only ever
-    // retreat. A test that agrees with the code it was written beside is worth
-    // less than no test: it converts a bug into a documented decision.
-    expect(bipedMapping(pad({ dpadDown: 1 }), 1 / 60).cameraZoom).toBe(-1)
-    // Both at once cancels, rather than one winning.
-    expect(
-      bipedMapping(pad({ dpadUp: 1, dpadDown: 1 }), 1 / 60).cameraZoom
-    ).toBe(0)
+  test('zoom is the wheel (the pad\'s zoom axis), SIGNED; the d-pad does not zoom', () => {
+    // The d-pad zoomed once; it is UI navigation now (it is the gap a gamepad
+    // has that XR controllers do not). Signed: down the wheel zooms in.
+    expect(bipedMapping(pad({ zoom: 1 }), 1 / 60).cameraZoom).toBe(1)
+    expect(bipedMapping(pad({ zoom: -1 }), 1 / 60).cameraZoom).toBe(-1)
+    expect(bipedMapping(pad({ dpadUp: 1 }), 1 / 60).cameraZoom).toBe(0)
+    expect(bipedMapping(pad({ dpadDown: 1 }), 1 / 60).cameraZoom).toBe(0)
   })
 })
 
@@ -188,7 +183,7 @@ describe('the mouse wheel must not reach the LOOK stick', () => {
   the same gap that let the original "no aim on a flat screen" bug ship.
   */
   test('the zoom axis reaches cameraZoom and never lookY', () => {
-    const zoomed = bipedMapping(pad({ dpadUp: 1 }), 1 / 60)
+    const zoomed = bipedMapping(pad({ zoom: 1 }), 1 / 60)
     expect(zoomed.cameraZoom).toBe(1)
     expect(zoomed.lookY).toBe(0)
   })

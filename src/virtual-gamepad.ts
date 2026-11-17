@@ -335,6 +335,11 @@ export interface VirtualGamepad {
   leftStickPress: number
   /** Pressing the right stick in (R3). */
   rightStickPress: number
+  /**
+   * Camera zoom, -1…1 (positive zooms out): the mouse wheel. Not a pad
+   * control: the D-pad belongs to UI navigation.
+   */
+  zoom?: number
 }
 
 export function emptyGamepad(): VirtualGamepad {
@@ -387,6 +392,7 @@ export function mergeGamepads(
     dpadDown: Math.max(a.dpadDown, b.dpadDown),
     dpadLeft: Math.max(a.dpadLeft, b.dpadLeft),
     dpadRight: Math.max(a.dpadRight, b.dpadRight),
+    zoom: maxAbs(a.zoom ?? 0, b.zoom ?? 0),
     menu: Math.max(a.menu, b.menu),
     view: Math.max(a.view, b.view),
     leftStickPress: Math.max(a.leftStickPress, b.leftStickPress),
@@ -527,11 +533,10 @@ export function bipedMapping(
   nothing to point DOWN with. Zoom moved to the d-pad, which sneak vacated.
   */
   input.lookY = pad.rightStickY
-  // Signed: up zooms out, down zooms in. It was wrapped in `Math.max(0, …)`,
-  // which silently discarded the entire zoom-in half — down produced 0, not −1,
-  // so the camera could only ever retreat. Tonio: "d-pad up zooms out and I
-  // can't zoom in."
-  input.cameraZoom = pad.dpadUp - pad.dpadDown
+  // ZOOM is the mouse wheel only. The D-pad zoomed, and is UI navigation
+  // now (Tonio: it "is not available in VR", so it is the gap a gamepad has
+  // that XR controllers do not, and the UI is what fills it).
+  input.cameraZoom = pad.zoom ?? 0
   /*
   BUMPERS for the two vertical verbs: left bumper sneak, right bumper jump.
 
@@ -608,7 +613,6 @@ export const bipedMappingDescriptor: InputMappingDescriptor = {
     buttonB: 'use / duck',
     dpadLeft: 'reload',
     rightStickY: 'pitch',
-    dpadUp: 'zoom',
   },
 }
 

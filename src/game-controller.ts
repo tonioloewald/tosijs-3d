@@ -30,8 +30,8 @@ For standalone keyboard-only or hardware-only sources, see
 | dpadDown | G (toggle) |
 | dpadLeft | J (a biped reloads) |
 
-The mouse wheel is ZOOM: it drives the d-pad up/down axis, not the right
-stick. Mouse buttons count only when the press starts on a scene canvas.
+The mouse wheel is ZOOM: it drives the pad's `zoom` axis, not the right
+stick or the d-pad (the d-pad is UI navigation). Mouse buttons count only when the press starts on a scene canvas.
 
 ## Attributes
 
@@ -219,8 +219,8 @@ export class GameController extends Component implements GamepadSource {
       ;(pad as any)[btn.field] = this.buttonState[btn.field] ?? 0
     }
     /*
-    THE WHEEL IS ZOOM, not look — the d-pad axis, exactly as
-    `keyboard-gamepad.ts` already does it.
+    THE WHEEL IS ZOOM, not look: its own `zoom` axis, exactly as
+    `keyboard-gamepad.ts` does it (it was the d-pad, which is UI navigation now).
 
     It used to write `rightStickY` directly, which was right while the right
     stick WAS zoom and became a trap when the stick turned into look: scrolling
@@ -229,8 +229,7 @@ export class GameController extends Component implements GamepadSource {
     wheel both work.
     */
     const wheel = clamp(-1, this.wheelAccum, 1)
-    if (wheel > Math.abs(pad.dpadUp)) pad.dpadUp = wheel
-    else if (-wheel > Math.abs(pad.dpadDown)) pad.dpadDown = -wheel
+    if (Math.abs(wheel) > Math.abs(pad.zoom ?? 0)) pad.zoom = wheel
     this.wheelAccum *= 0.8
     /*
     MOUSE LOOK, fed in as a RATE rather than a position.
