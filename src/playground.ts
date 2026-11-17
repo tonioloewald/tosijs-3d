@@ -493,7 +493,9 @@ const turret = b3dTurret({ x: 0, z: -30, range: 35, fireRate: 0.5, muzzleSpeed: 
 // put one down, and a new one takes its place a little later.
 const ENEMIES = [
   // (A biped's ry 0 faces -z; -35 faces away from the start, toward +x -z.)
-  { x: 10, z: -10, ry: -35 },
+  // Beyond the cover line, over 25 m (its sight) from the start, the shop and
+  // everything lying about, so they are safe to play with.
+  { x: 12, z: -22, ry: -35 },
   { x: -10, z: -20, patrol: [{ x: -10, z: -20 }, { x: 7, z: -20 }, { x: 7, z: -27 }, { x: -10, z: -27 }] },
 ]
 const makeEnemy = ({ patrol, ...at }, i) => b3dBiped(
@@ -670,7 +672,9 @@ key opens the door, and the chest inside holds the rocket launcher, the big
 sword and rockets.
 
 **Something hunts you.** Two enemies: one stands guard
-this side of the cover line with its back to you, one walks a loop beyond it.
+beyond the cover line with its back to you, one walks a loop near it. Neither
+can see the start, the shop or the things lying about, so you can try those in
+peace; the fight starts when you cross toward the cover line.
 Each is oblivious until it notices you: anywhere in front of it within 25 m
 (cover hides you; where you start, neither can see you), or within 10 m behind it. Crouch (left shift) and those
 drop to a third, so you can creep to 3 m behind one. A shot is heard 25 m

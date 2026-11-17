@@ -13,7 +13,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 ## Unreleased
 
 - **Fixed:** a biped killed by damage or a fall stays down. When the death clip ended, the loop it died in stood the body back up.
-- **Fixed:** in the Biped Playground, Respawn brings the hero back; before, it removed him and added nobody. The line under the scene now says how to draw and fire. The enemies see 25 m (was 50), so neither notices you where you start.
+- **Fixed:** in the Biped Playground, Respawn brings the hero back; before, it removed him and added nobody. The line under the scene now says how to draw and fire. The enemies see 25 m (was 50) and the guard stands beyond the cover line, so neither notices you at the start, the shop or the things lying about.
 
 - **Added:** the default AR session (`xr-passthrough`) scales you to the scene: you arrive with what the flat view showed a step ahead, one grip drags the scene, both grips resize and turn it, and the sticks walk at your scale. `b3d.xrFrame(centre, radius)` puts any point in front of you at a chosen size; `b3d.xrSupport` says whether the device offers VR and AR. Pure maths in `xr-grab`. In the Solar System, **look at** brings a body in front of you, and the passthrough toggle shows only where AR exists, outside a session.
 - **Fixed:** in a scaled XR session a controller's ray reaches the system bar (it stopped 1000 units out).
