@@ -1744,13 +1744,16 @@ export class B3dLauncher extends AbstractMesh {
    * when the launcher is re-parented — which `_rideHolder` does once.
    */
   private _mountRoot(): BABYLON.TransformNode | null {
-    if (this._mount !== undefined) return this._mount
+    // Looked up each time: a launcher moves to a new body (a respawn hands
+    // the dead hero's gear to the next one), and a body can still be loading
+    // when first asked. Cached, the new holder was a target for its own gun.
     const holder = semanticParent(this) as unknown as {
       entries?: { rootNodes?: BABYLON.TransformNode[] }
       mesh?: BABYLON.TransformNode
     } | null
-    this._mount = holder?.entries?.rootNodes?.[0] ?? holder?.mesh ?? null
-    return this._mount
+    const root = holder?.entries?.rootNodes?.[0] ?? holder?.mesh ?? null
+    this._mount = root
+    return root
   }
   private _mount: BABYLON.TransformNode | null | undefined = undefined
 
@@ -1771,9 +1774,11 @@ export class B3dLauncher extends AbstractMesh {
    * it would put the muzzle through a wall the shooter is standing against.
    * Whoever holds the gun is not a target for it, at any distance.
    */
-  private _selfHit(m: BABYLON.AbstractMesh): boolean {
+  private _selfHit(
+    m: BABYLON.AbstractMesh,
+    root = this._mountRoot()
+  ): boolean {
     if (m === this.mesh) return true
-    const root = this._mountRoot()
     if (root == null) return false
     return (
       (m as unknown as BABYLON.TransformNode) === root || m.isDescendantOf(root)
@@ -1858,6 +1863,7 @@ export class B3dLauncher extends AbstractMesh {
     const dir = (direction ?? this.forward()).normalizeToNew()
     const from = origin ?? this.muzzle()
     if (this.sound) gunshot(this.owner.scene, from, this.sound)
+    const holder = this._mountRoot()
     spawnProjectile(this.owner, {
       origin: from,
       velocity: dir.scale(this.muzzleSpeed),
@@ -1869,7 +1875,7 @@ export class B3dLauncher extends AbstractMesh {
       useLos: !isOff(this.los),
       directHit: this.directHit === 'on',
       // Our own barrel AND whoever is holding us — see `_selfHit`.
-      ignore: (m) => this._selfHit(m),
+      ignore: (m) => this._selfHit(m, holder),
     })
     return true
   }
@@ -1883,6 +1889,7 @@ export class B3dLauncher extends AbstractMesh {
     if (this.owner == null) return false
     if (this._cooldown > 0 || !this._spend()) return false
     this._cooldown = this.fireRate > 0 ? 1 / this.fireRate : 0
+    const holder = this._mountRoot()
     spawnMissile(this.owner, {
       origin: this.muzzle(),
       target,
@@ -1893,7 +1900,7 @@ export class B3dLauncher extends AbstractMesh {
       radius: this.projRadius,
       maxLifetime: this.maxLifetime + 4, // missiles loiter a bit longer
       useLos: !isOff(this.los),
-      ignore: (m) => this._selfHit(m),
+      ignore: (m) => this._selfHit(m, holder),
       trail: isOff(this.missileTrail)
         ? undefined
         : {

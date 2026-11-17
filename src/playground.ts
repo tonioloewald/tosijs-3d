@@ -550,23 +550,30 @@ const enemyText = (e) => {
 }
 
 // THE HUD: health, what the gun holds and what just happened (a locked
-// door, what a pickup gave), top right of the view, and in a headset with
-// the other panels. A system panel with no button, open from the start.
+// door, what a pickup gave), small, at the top middle of the view, and in a
+// headset with the other panels. A system panel with no button, open from the
+// start; drag it anywhere (it is all grip), and it stays there.
 const { svg: hudSvgEl, rect, text } = svgElements
-const HUD_W = 220
-const BAR_W = HUD_W - 24
-const hudFont = { 'font-family': 'system-ui, sans-serif', 'font-size': 15 }
-const hudBar = rect({ x: 12, y: 14, width: BAR_W, height: 10, rx: 5, fill: '#e04848' })
-const hudAmmo = text({ x: 12, y: 46, fill: '#e8eef8', ...hudFont })
-const hudSaid = text({ x: 12, y: 70, fill: '#ffd966', ...hudFont })
+const HUD_W = 180
+const HUD_H = 40
+const BAR_W = HUD_W - 16
+const hudFont = { 'font-family': 'system-ui, sans-serif', 'font-size': 12 }
+const hudBar = rect({ x: 8, y: 8, width: BAR_W, height: 7, rx: 3.5, fill: '#e04848' })
+const hudAmmo = text({ x: 8, y: 31, fill: '#e8eef8', ...hudFont })
+const hudSaid = text({ x: HUD_W - 8, y: 31, fill: '#ffd966', 'text-anchor': 'end', ...hudFont })
 const hud = b3dPanel({ icon: 'heart', title: 'Status', barButton: 'off', exclusive: 'off', chrome: 'none', open: true })
-hud.screenAnchor = { right: '2vmin', top: '2vmin' }
+// Its height stated: a system panel otherwise fits its height to the room,
+// at least 80 px, twice this.
+hud.screenAnchor = { left: '50%', anchorX: 0.5, top: '1.5vmin', height: HUD_H }
 hud.svg = hudSvgEl(
-  { viewBox: `0 0 ${HUD_W} 82`, width: HUD_W, height: 82 },
-  rect({ x: 0, y: 0, width: HUD_W, height: 82, rx: 10, fill: '#1b2230' }),
-  rect({ x: 12, y: 14, width: BAR_W, height: 10, rx: 5, fill: '#3a4252' }),
+  { viewBox: `0 0 ${HUD_W} ${HUD_H}`, width: HUD_W, height: HUD_H },
+  rect({ x: 0, y: 0, width: HUD_W, height: HUD_H, rx: 8, fill: '#1b2230', 'fill-opacity': 0.45 }),
+  rect({ x: 8, y: 8, width: BAR_W, height: 7, rx: 3.5, fill: '#3a4252', 'fill-opacity': 0.8 }),
   hudBar, hudAmmo, hudSaid
 )
+// All of it is a handle: a press anywhere drags it (it has no controls).
+hud.svg.handlePointer = () => {}
+hud.svg.gripHit = () => true
 const shown = { hp: -1, ammo: null, said: null }
 const showHud = () => {
   const hp = hero.halted ? 0 : Math.max(0, Math.round(hero.hp))
@@ -686,7 +693,7 @@ bumper again to put away what is in your hand. Only the right hand is drawn.
 **Ammo.** A gun holds a magazine (the pistol 12, the SMG and rifle 30, the
 rocket launcher one) and reloads from what is in your bag: **J** (d-pad
 left) reloads, and an empty gun reloads itself when you pull the trigger.
-The panel at the top right shows your health, what is loaded and what is left. You start
+The panel at the top of the view shows your health, what is loaded and what is left; drag it wherever you like. You start
 with 36 pistol rounds; ammo boxes lie about, and each gun keeps its own
 magazine while it is put away.
 

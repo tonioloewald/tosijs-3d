@@ -205,7 +205,8 @@ animation is doing with that hand.
 | `lookRate` | `120` | Degrees per second the right stick swings the view |
 | `maxLookPitch` | `70` | How far up or down the look goes, degrees |
 | `aimCurve` | `2` | While aiming, the sticks' response curve: 1 is linear, 2 turns at a quarter of the rate at half deflection (a nudge fine-tunes, full deflection is unchanged) |
-| `aimAssist` | `0.5` | While aiming, how much the aim slows as it crosses something that can be hurt (another biped with `health`, a `<tosi-b3d-destroyable>`): 0 is off, 1 stops it. It never moves the aim ([aim-assist](/aim-assist/)) |
+| `aimAssist` | `0.5` | While aiming, how much the aim slows as it crosses something that can be hurt (another biped with `health`, a `<tosi-b3d-destroyable>`): 0 is off, 1 stops it. Above 0 the aim also STICKS: sweep near a target with the stick below `aimBreakout` and it locks on, following the target as it or you move ([aim-assist](/aim-assist/)) |
+| `aimBreakout` | `0.7` | While locked onto a target, a stick pushed less than this slides the aim slowly across it (onto the head, say) and one pushed past it lets go and swings freely. 0 never locks |
 | `invertLookY` | `'off'` | `'on'` inverts the right stick's vertical (pushing up looks down, the aircraft mapping) |
 | `aiming` | `'off'` | `'on'` gives the character an aim separate from its facing (see [aim](/aim/)). Nesting a weapon turns it on |
 | `aimFreeYaw` | `0` | Twist the shoulders hold before the body turns, degrees. `0` keeps aim and body together |
@@ -374,7 +375,15 @@ import {
 } from './virtual-gamepad.js'
 import { layerOnUpperBody, type LayeredAnimation } from './animation-layers.js'
 import { predictPath, type BallisticParams, type Vec3 } from './ballistics.js'
-import { aimFriction, stickCurve, type AimTarget } from './aim-assist.js'
+import {
+  aimFriction,
+  NO_LOCK,
+  stickCurve,
+  stickyAim,
+  type AimLock,
+  type AimTarget,
+  type AngularTarget,
+} from './aim-assist.js'
 import { XRInputProvider } from './xr-input-provider.js'
 import { forwardGait } from './gait.js'
 import { realNow } from './clock.js'
@@ -748,6 +757,8 @@ export class B3dBiped extends B3dControllable {
     aimCurve: 2,
     /** While aiming: how much the aim slows on a target (0 off, 1 stops it). */
     aimAssist: 0.5,
+    /** While aiming: stick deflection past which a locked aim lets go (0 = no locking). */
+    aimBreakout: 0.7,
     /*
     NOT INVERTED, which is a changed default and the direct cause of a bug
     report: "when I fire it just fires into my feet".
@@ -1272,25 +1283,94 @@ export class B3dBiped extends B3dControllable {
   }
 
   /** The aim's rate factor from what it is crossing (see aim-assist). */
-  private _aimFriction(strength: number): number {
-    if (!(strength > 0) || this.owner == null) return 1
-    const targets: AimTarget[] = []
+  /** What there is to aim at: other living bipeds that can be hurt, and destroyables. */
+  private _aimCandidates(): (AimTarget & { id: Element; root: BABYLON.Node | null })[] {
+    const out: (AimTarget & { id: Element; root: BABYLON.Node | null })[] = []
+    if (this.owner == null) return out
     for (const el of this.owner.querySelectorAll('tosi-b3d-biped')) {
       const b = el as unknown as B3dBiped
       if (b === this || b.halted || b.destroyable == null) continue
       const p = (b.aimTarget ?? b.mesh)?.getAbsolutePosition()
-      if (p) targets.push({ at: p, radius: 0.35 })
+      if (p) out.push({ at: p, radius: 0.35, id: el, root: b.entries?.rootNodes?.[0] ?? b.mesh ?? null })
     }
     for (const el of this.owner.querySelectorAll('tosi-b3d-destroyable')) {
       const d = el as unknown as { mesh?: BABYLON.AbstractMesh | null; dead?: boolean }
       if (d.mesh == null || d.dead) continue
-      targets.push({
+      out.push({
         at: d.mesh.getAbsolutePosition(),
         radius: d.mesh.getBoundingInfo().boundingSphere.radiusWorld || 0.5,
+        id: el,
+        root: d.mesh,
       })
     }
+    return out
+  }
+
+  private _aimFriction(strength: number): number {
+    if (!(strength > 0) || this.owner == null) return 1
+    const targets = this._aimCandidates()
     if (targets.length === 0) return 1
     return aimFriction(this.aimOrigin, this.aimDirection, targets, strength)
+  }
+
+  private _aimLock: AimLock & { id?: unknown } = { ...NO_LOCK }
+
+  /**
+   * Sticky aim's frame: the targets as angles from the aim's origin (within
+   * 60 m, and a line-of-sight test only for those near the aim), then
+   * `stickyAim`. Returns the world aim to use, or null to aim freely.
+   */
+  private _stickyAim(
+    stick: { x: number; y: number },
+    facingDeg: number,
+    dt: number
+  ): { yawDeg: number; pitchDeg: number } | null {
+    const scene = this.owner?.scene
+    const breakout = Number((this as any).aimBreakout)
+    if (scene == null || !(breakout > 0) || !(Number((this as any).aimAssist) > 0)) {
+      this._aimLock = { ...NO_LOCK }
+      return null
+    }
+    const origin = this.aimOrigin
+    const aim = { yawDeg: wrapDeg(facingDeg + this._aim.yawDeg), pitchDeg: this._aim.pitchDeg }
+    const self = this.entries?.rootNodes?.[0]
+    const targets: (AngularTarget & { id: unknown })[] = []
+    for (const c of this._aimCandidates()) {
+      const dx = c.at.x - origin.x
+      const dy = c.at.y - origin.y
+      const dz = c.at.z - origin.z
+      const flat = Math.hypot(dx, dz)
+      const dist = Math.hypot(flat, dy)
+      if (dist > 60 || dist < 0.5) continue
+      const t: AngularTarget & { id: unknown } = {
+        id: c.id,
+        yawDeg: (Math.atan2(dx, dz) * 180) / Math.PI,
+        pitchDeg: (-Math.atan2(dy, flat) * 180) / Math.PI,
+        radiusDeg: (Math.atan2(c.radius, dist) * 180) / Math.PI,
+        // Only one near the aim is tested, and only those can be caught.
+        clear: c.id === this._aimLock.id,
+      }
+      const off = Math.hypot(wrapDeg(aim.yawDeg - t.yawDeg), aim.pitchDeg - t.pitchDeg)
+      if (off < 12 && c.id !== this._aimLock.id) {
+        // Nothing solid in the way (it, and we, don't count).
+        const dir = new BABYLON.Vector3(dx / dist, dy / dist, dz / dist)
+        const hit = scene.pickWithRay(
+          new BABYLON.Ray(origin, dir, dist - c.radius),
+          (m) =>
+            m.isPickable !== false &&
+            m.isEnabled() &&
+            m.isVisible &&
+            m.getTotalVertices() > 0 &&
+            !(self != null && m.isDescendantOf(self)) &&
+            !(c.root != null && (m === c.root || m.isDescendantOf(c.root)))
+        )
+        t.clear = hit?.hit !== true
+      }
+      targets.push(t)
+    }
+    const r = stickyAim(this._aimLock, { aim, stick, targets, dt }, { breakout })
+    this._aimLock = r.lock
+    return r.aim
   }
 
   private _updateReticle(scene: BABYLON.Scene): void {
@@ -3438,9 +3518,27 @@ export class B3dBiped extends B3dControllable {
         same thing every first-person game does.
         */
         const firstPerson = this.cameraView === 'fpv'
+        const facingDeg =
+          (Math.atan2(node.forward.x, node.forward.z) * 180) / Math.PI
+        // Locked onto a target: the aim is on it, wherever it goes, and the
+        // stick (below the breakout) only slides across it. See aim-assist.
+        const locked = this.player
+          ? this._stickyAim(
+              { x: rotation, y: (input.lookY ?? 0) * lookYSign },
+              facingDeg,
+              dt
+            )
+          : null
+        if (locked != null)
+          this._lookPitch = Math.max(
+            -attrs.maxLookPitch,
+            Math.min(attrs.maxLookPitch, -locked.pitchDeg)
+          )
         const want: Aim = {
           yawDeg: firstPerson
             ? 0
+            : locked != null
+            ? wrapDeg(locked.yawDeg - facingDeg)
             : this._aim.yawDeg + aimStick(rotation) * dt * attrs.turnSpeed,
           pitchDeg: -this._lookPitch,
         }
@@ -3458,7 +3556,10 @@ export class B3dBiped extends B3dControllable {
           offset fixes. In first person the look IS the facing, so the turn
           input goes straight to the body and the aim stays dead ahead of it.
           */
-          bodyTurnDeg = aimStick(rotation) * dt * attrs.turnSpeed
+          bodyTurnDeg =
+            locked != null
+              ? wrapDeg(locked.yawDeg - facingDeg)
+              : aimStick(rotation) * dt * attrs.turnSpeed
         } else {
           const caught = bodyCatchUp(
             this._aim.yawDeg,
@@ -4346,9 +4447,42 @@ export class B3dBiped extends B3dControllable {
 
       // Target position: behind and above the character
       const behind = node.forward.scale(-backDist)
-      const targetX = node.position.x + behind.x
-      const targetY = node.position.y + upDist + lookLift
-      const targetZ = node.position.z + behind.z
+      let targetX = node.position.x + behind.x
+      let targetY = node.position.y + upDist + lookLift
+      let targetZ = node.position.z + behind.z
+
+      // Walls, as the flat camera does them: pulled in to stay this side of
+      // one, and put there at once if one is between you and the view (eased,
+      // walking into a room left the view outside it).
+      const chest = node.position.clone()
+      chest.y += (this as any).cameraTargetHeight ?? 1.4
+      const want = new BABYLON.Vector3(targetX, targetY, targetZ)
+      const toWant = want.subtract(chest)
+      const wantLen = toWant.length()
+      if (wantLen > 0.01) {
+        this._wallRay.origin.copyFrom(chest)
+        this._wallRay.direction.copyFrom(toWant.scale(1 / wantLen))
+        this._wallRay.length = wantLen
+        const root = this.entries.rootNodes[0]
+        const hit = this.owner?.scene.pickWithRay(
+          this._wallRay,
+          (m) =>
+            m.isPickable !== false &&
+            m.isEnabled() &&
+            m.isVisible &&
+            m.visibility > 0 &&
+            m.getTotalVertices() > 0 &&
+            !m.isDescendantOf(root)
+        )
+        if (hit?.hit) {
+          const k = Math.max(0.3, hit.distance - 0.35) / wantLen
+          targetX = chest.x + toWant.x * k
+          targetY = chest.y + toWant.y * k
+          targetZ = chest.z + toWant.z * k
+        }
+        if (!firstFrame && this._seenThroughWall(chest, currentPos))
+          currentPos.set(targetX, targetY, targetZ)
+      }
 
       // Target yaw: face same direction as character
       const fwd = node.forward

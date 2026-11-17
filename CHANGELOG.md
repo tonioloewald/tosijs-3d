@@ -12,7 +12,10 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-- **Added:** aiming is finer and a little sticky. While a biped aims, the sticks follow a response curve (`aimCurve`, default 2: a nudge fine-tunes, full deflection is unchanged), and the aim slows as it crosses something that can be hurt (`aimAssist`, default 0.5; 0 turns it off). It never moves the aim for you. Pure helpers in `aim-assist` (`stickCurve`, `aimFriction`).
+- **Added:** aiming is finer and sticky. While a biped aims, the sticks follow a response curve (`aimCurve`, default 2), the aim slows as it crosses something that can be hurt (`aimAssist`, default 0.5; 0 turns all of this off), and a sweep near a target with the stick below `aimBreakout` (default 0.7) LOCKS onto it: the aim eases onto its body and follows it as it or you move, a lighter stick slides the aim slowly across it (onto the head), and a push past the breakout lets go. Targets behind something solid are not locked. Pure helpers in `aim-assist` (`stickCurve`, `aimFriction`, `stickyAim`).
+- **Fixed:** a launcher finds who is holding it at each shot (it cached the first answer, so after a respawn the new hero's own shots hit him).
+- **Fixed:** in a headset, a system panel pinned by a percentage of the screen (`left: '50%'`, `top: '50%'`, a centred `anchor`) goes that far across the view in front of you; it hung under the system bar, 66° up (the trade panel was in the sky). The biped's third-person camera in a headset stays this side of walls, as the flat one does.
+- **Changed:** Biped Playground: the HUD is smaller, at the top middle, translucent, and can be dragged anywhere.
 - **Added:** `<tosi-b3d-launcher sound="pistol|rifle|heavy|bow">` plays a synthesised shot at the muzzle on every `fire()` (`gunshot(scene, at, kind)` in `gun-sound`; no files). The Biped Playground's guns have them.
 
 - **Changed:** a shop's trade panel no longer shows their purse. Yours is under your list, and the line under both reads `you'll pay 12 gold`, `you'll receive 6 gold`, or, when they cannot pay what yours fetch, `you'll receive 200 gold (all he can offer)` with `he can't offer more than 200 gold`. Deal then takes all they have. New option `they` (how the other side is named in a sentence, default `'they'`).

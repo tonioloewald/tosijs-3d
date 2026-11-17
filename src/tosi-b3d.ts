@@ -663,6 +663,21 @@ function xrSeatFor(
   K: number
 ): { azimuthDeg: number; elevationDeg: number; distance: number } {
   const deg = (m: number) => (Math.atan2(m, XR_BAR_DISTANCE) * 180) / Math.PI
+  /*
+  A FRACTION OF THE SCREEN IS A DIRECTION IN FRONT OF YOU. `top: '50%'` on a
+  monitor is the middle of the view; under the bar it was 66° up, in the sky
+  over your head. So a percentage pin maps onto a comfortable cone ahead
+  (±30° across, eye level a little below the middle), and only a pixel pin
+  hangs from the bar.
+  */
+  const frac = (v: unknown) =>
+    typeof v === 'string' && v.trim().endsWith('%')
+      ? parseFloat(v) / 100
+      : null
+  const fx = frac(pin?.left)
+  const fy = frac(pin?.top)
+  const ax = pin?.anchor === 'center' ? 0.5 : pin?.anchorX ?? 0
+  const ay = pin?.anchor === 'center' ? 0.5 : pin?.anchorY ?? 0
   const side =
     pin?.left != null && pin.right == null
       ? -1
@@ -672,8 +687,14 @@ function xrSeatFor(
   const down =
     typeof pin?.top === 'number' ? Math.max(0, pin.top - UNDER_BAR) * K : 0
   return {
-    azimuthDeg: side * (8 + deg(width / 2)),
-    elevationDeg: XR_BAR_ELEVATION - 5 - halfHeightDeg - deg(down),
+    azimuthDeg:
+      fx != null
+        ? (fx - 0.5) * 60 + (0.5 - ax) * 2 * deg(width / 2)
+        : side * (8 + deg(width / 2)),
+    elevationDeg:
+      fy != null
+        ? (0.5 - fy) * 60 - 10 + (ay - 0.5) * 2 * halfHeightDeg
+        : XR_BAR_ELEVATION - 5 - halfHeightDeg - deg(down),
     distance: XR_BAR_DISTANCE,
   }
 }
