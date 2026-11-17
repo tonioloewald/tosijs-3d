@@ -279,7 +279,7 @@ document.body.append(
 | `enterXrOnResume` | `'off'` | `'on'`: resuming enters immersive VR where the device supports it. The Continue tap is the user gesture `enterXRAsync` requires |
 | `reseatFreeze` | `'on'` | Freeze the clock while the re-seat dialog is up. Set `'off'` for a networked world, which cannot stop the other players; the dialog still gates your own input |
 | `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
-| `xrPassthrough` | `'off'` | `'on'`: Enter VR starts an AR session where the device has one (passthrough: your room behind the scene, no sky, no floor grid, transparent clear colour); elsewhere it enters VR. `passthrough` is true during such a session, and the scene dispatches `xrenter` (`detail.passthrough`) and `xrexit` around every session. Read on entering |
+| `xrPassthrough` | `'off'` | `'on'`: Enter VR starts an AR session where the device has one (passthrough: your room behind the scene, no sky, no floor grid, transparent clear colour); elsewhere it enters VR. In AR you are scaled to the scene: you arrive with what the flat view showed a step ahead (`xrFrame(centre, radius)` frames something else), one grip drags the scene, both resize and turn it, and the sticks walk at your scale. `passthrough` is true during such a session, `xrSupport` says which sessions the device offers, and the scene dispatches `xrenter` (`detail.passthrough`) and `xrexit` around every session. Read on entering |
 | `xrMultiview` | `'off'` | ⚠️ Experimental, not working: `'on'` asks for both eyes in one pass (WebXR layers). On a Quest 3 it gave a blank view, and water and sky do not handle multiview |
 | `xrRenderScale` | `0` | In a headset: the fraction of each eye's width and height drawn. `0` is auto (from the device tier: 0.67 on the low tier). Engine hardware scaling does not reach a headset; this does. Read on entering a session |
 | `xrFoveation` | `-1` | In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session |
@@ -471,6 +471,14 @@ import {
   type SweepRun,
 } from './cost-sweep.js'
 import { nearFirst } from './draw-order.js'
+import {
+  frameViewer,
+  grabOne,
+  grabTwo,
+  worldToRoom,
+  type XrVec,
+  type XrViewer,
+} from './xr-grab.js'
 import {
   setBiomeLite,
   biomeLite,
@@ -705,6 +713,31 @@ ray to the hit distance and the press re-casts it (an exact-length ray can
 fall just short of the plane). Other picks (a biped's ground probe, in
 onBeforeRender) are outside the window and untouched.
 */
+/** The free XR rig as xr-grab's viewer. */
+function rigViewer(rig: BABYLON.TransformNode, scale: number): XrViewer {
+  const yaw =
+    rig.rotationQuaternion != null
+      ? rig.rotationQuaternion.toEulerAngles().y
+      : rig.rotation.y
+  return {
+    position: { x: rig.position.x, y: rig.position.y, z: rig.position.z },
+    yaw,
+    scale,
+  }
+}
+
+/** Put the free XR rig (and the session's scale) where xr-grab says. */
+function applyViewer(
+  rig: BABYLON.TransformNode,
+  sm: BABYLON.WebXRSessionManager,
+  v: XrViewer
+): void {
+  rig.rotationQuaternion = null
+  rig.rotation.set(0, v.yaw, 0)
+  rig.position.set(v.position.x, v.position.y, v.position.z)
+  sm.worldScalingFactor = v.scale
+}
+
 function pickLayersFirst(
   xr: BABYLON.WebXRDefaultExperience,
   scene: BABYLON.Scene
@@ -1449,6 +1482,11 @@ export class B3d extends Component {
   passthrough = false
   private _arSupported = false
   private _vrSupported = false
+  /** Which immersive sessions this device offers (known once XR is set up). */
+  get xrSupport(): { vr: boolean; ar: boolean } {
+    return { vr: this._vrSupported, ar: this._arSupported }
+  }
+  private _xrFrameObs: BABYLON.Observer<XRFrame> | null = null
   /** True from ENTERING_XR to the end of EXITING_XR: wider than `xrActive`. */
   private _xrPresenting = false
 
@@ -6012,6 +6050,41 @@ export class B3d extends Component {
       : 'requested, not available here'
   }
 
+  /**
+   * In a session, show `centre` a step ahead of you at chest height, `radius`
+   * world units as `across` metres (default 0.75: something a metre and a half
+   * wide), by moving and scaling the VIEWER (WebXR's worldScalingFactor). The
+   * scene is untouched. The default AR session frames what the flat view was
+   * looking at; call it again (on `xrenter`, or from a "look at") to choose.
+   */
+  xrFrame(
+    centre: { x: number; y: number; z: number },
+    radius: number,
+    opts: { across?: number; distance?: number; above?: number } = {}
+  ): void {
+    const base = this.xrHelper?.baseExperience
+    const rig = this._xrRig
+    if (base == null || rig == null || !this.xrActive) return
+    const sm = base.sessionManager
+    if (this._xrFrameObs != null) sm.onXRFrameObservable.remove(this._xrFrameObs)
+    // A changed scale reaches the head a frame late, so settle over a few.
+    let frames = 0
+    const at = { x: centre.x, y: centre.y, z: centre.z }
+    this._xrFrameObs = sm.onXRFrameObservable.add(() => {
+      if (++frames > 10 && this._xrFrameObs != null) {
+        sm.onXRFrameObservable.remove(this._xrFrameObs)
+        this._xrFrameObs = null
+      }
+      if (rig.parent != null) return
+      const viewer = rigViewer(rig, sm.worldScalingFactor)
+      const cam = base.camera
+      const eye = worldToRoom(viewer, cam.globalPosition)
+      const look = cam.getDirection(BABYLON.Axis.Z)
+      const facing = Math.atan2(look.x, look.z) - viewer.yaw
+      applyViewer(rig, sm, frameViewer(viewer, at, radius, eye, facing, opts))
+    })
+  }
+
   /** The session Enter VR starts: AR where passthrough is asked for and offered. */
   private _xrSessionMode(): XRSessionMode {
     if (this.xrPassthrough === 'on' && this._arSupported) return 'immersive-ar'
@@ -6058,6 +6131,8 @@ export class B3d extends Component {
     }
     this._vrSupported = await offers('immersive-vr')
     this._arSupported = await offers('immersive-ar')
+    // A panel may offer AR only where it exists.
+    this.refreshScenePanel?.()
     const supported =
       this._vrSupported || (this._arSupported && this.xrPassthrough === 'on')
     if (!supported || this.xrHelper != null) return
@@ -6633,6 +6708,49 @@ export class B3d extends Component {
     let freeYawOffset = 0
 
     const sm = base.sessionManager
+    /*
+    AR: THE GRIPS GRAB THE WORLD. One grip drags it, both resize and turn it
+    (xr-grab). Altitude on the grips means nothing in your own room.
+    */
+    const held: { left?: XrVec; right?: XrVec } = {}
+    const gripWorld = (h: 'left' | 'right'): BABYLON.Vector3 | null => {
+      const source = this.xrHelper?.input.controllers.find(
+        (c) => c.inputSource.handedness === h
+      )
+      const node = source?.grip ?? source?.pointer
+      if (node == null) return null
+      node.computeWorldMatrix(true)
+      return node.absolutePosition
+    }
+    const arGrab = (gripping: (h: 'left' | 'right') => boolean): void => {
+      const viewer = rigViewer(rig, sm.worldScalingFactor)
+      const hands = (['left', 'right'] as const).filter(
+        (h) => gripping(h) && gripWorld(h) != null
+      )
+      // A grip pressed or let go: everything held is taken afresh, no jump.
+      const same =
+        hands.length === Object.keys(held).length &&
+        hands.every((h) => held[h] != null)
+      if (!same) {
+        delete held.left
+        delete held.right
+        for (const h of hands) {
+          const w = gripWorld(h)!
+          held[h] = { x: w.x, y: w.y, z: w.z }
+        }
+        return
+      }
+      if (hands.length === 0) return
+      const room = (h: 'left' | 'right') => worldToRoom(viewer, gripWorld(h)!)
+      const next =
+        hands.length === 1
+          ? grabOne(viewer, held[hands[0]]!, room(hands[0]))
+          : grabTwo(viewer, held.left!, held.right!, room('left'), room('right'), {
+              minScale: 0.01,
+              maxScale: 1e7,
+            })
+      applyViewer(rig, sm, next)
+    }
     /** A real head pose this frame? Before one arrives the camera's rotation is stale. */
     const hasViewerPose = (): boolean => {
       const f = sm.currentFrame
@@ -7293,7 +7411,11 @@ export class B3d extends Component {
         cam.getDirectionToRef(XR_RIGHT, side)
         side.y = 0
         side.normalize()
-        const step = HORIZ_SPEED * dt
+        // In AR you walk at your own scale: a giant takes giant steps.
+        const step =
+          HORIZ_SPEED *
+          dt *
+          (this.passthrough ? sm.worldScalingFactor / MOVE_SCALE : 1)
         fwd.scaleToRef(-left.y * step, tmp)
         rig.position.addInPlace(tmp)
         side.scaleToRef(left.x * step, tmp)
@@ -7321,7 +7443,9 @@ export class B3d extends Component {
         ((controllers[h] as Record<string, any> | undefined)?.[
           'xr-standard-squeeze'
         ]?.value as number | undefined) ?? 0
-      const lift = squeeze('right') - squeeze('left')
+      const ar = this.passthrough && rig.parent == null
+      if (ar) arGrab((h) => squeeze(h) > 0.5)
+      const lift = ar ? 0 : squeeze('right') - squeeze('left')
       if (Math.abs(lift) > DEAD) rig.position.y += lift * VERT_SPEED * dt
       if (right != null && !rightScroll && Math.abs(right.y) > DEAD) {
         rig.position.y += -right.y * VERT_SPEED * dt // push up to ascend
@@ -7339,9 +7463,31 @@ export class B3d extends Component {
       }
     })
 
+    /*
+    AR ARRIVES LOOKING AT WHAT THE FLAT VIEW SHOWED: the orbit camera's target
+    a step ahead, as big as it looked from the orbit (the camera's distance
+    becomes 1.2 m). A page frames something else with `xrFrame` on `xrenter`.
+    */
+    const flatOrbit = this.camera
+    if (
+      this.passthrough &&
+      !playerDriven &&
+      flatOrbit instanceof BABYLON.ArcRotateCamera
+    ) {
+      const radius = (this._flatOrbitState?.radius ?? flatOrbit.radius) * 0.625
+      const t = this._flatOrbitState?.target ?? flatOrbit.target
+      this.xrFrame(t, radius)
+    }
+
     return {
       dispose: () => {
         base.sessionManager.onXRFrameObservable.remove(frame)
+        if (this._xrFrameObs != null) {
+          base.sessionManager.onXRFrameObservable.remove(this._xrFrameObs)
+          this._xrFrameObs = null
+        }
+        // The next session starts life-size.
+        base.sessionManager.worldScalingFactor = 1
         clearReseatPrompt()
         xrInputDbgOff()
         sm.onXRReferenceSpaceChanged.remove(refSpaceObs)

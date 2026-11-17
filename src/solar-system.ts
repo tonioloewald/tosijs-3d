@@ -14,7 +14,9 @@ and NOAA's own height and colour maps instead of being made up.
 
 In a headset with passthrough (a Quest), switch on **passthrough (AR)** before
 entering: the system sits a metre and a half across, in front of you in your
-own room, and you walk round it.
+own room. Walk round it; hold a grip to drag it, both grips to make it bigger
+or smaller and turn it, and pick a body under **look at** to bring it in
+front of you.
 
 ## Demo
 
@@ -64,7 +66,7 @@ preview.append(
       clearColor: '#000000',
       scenePanelOpen: true,
       panelTitle: 'Solar System',
-      scenePanel: () => [
+      scenePanel: (host) => [
         select3d({ label: 'look at', value: sol.focus, options: names }),
         toggle3d({ label: 'real maps (Earth, Moon, Mars)', value: sol.maps }),
         toggle3d({ label: 'orbit', value: sol.animate }),
@@ -72,7 +74,8 @@ preview.append(
         slider3d({ label: 'time', value: sol.time, min: 1, max: 3.16e6, scale: 'log', format: perSecond }),
         toggle3d({ label: 'show orbits', value: sol.showOrbits }),
         slider3d({ label: 'belt rocks', value: sol.belt, min: 0, max: 6000, step: 250 }),
-        toggle3d({ label: 'passthrough (AR)', value: sol.ar }),
+        // Only where AR exists, and not in a session: it takes effect on entering.
+        ...(host.xrSupport.ar && !host.xrActive ? [toggle3d({ label: 'passthrough (AR)', value: sol.ar })] : []),
       ],
       sceneCreated(el, BABYLON) {
         const camera = new BABYLON.ArcRotateCamera('sol', -Math.PI / 2, Math.PI / 2.6, 40, BABYLON.Vector3.Zero(), el.scene)
@@ -84,35 +87,18 @@ preview.append(
         camera.attachControl(el.querySelector('canvas'), true)
         el.setActiveCamera(camera)
         sol.ar.observe(() => (el.xrPassthrough = sol.ar.value ? 'on' : 'off'))
-        // IN YOUR ROOM: rather than shrink the system (its shaders work in
-        // its own units), make the viewer a giant, so the system is a metre and
-        // a half across, then stand them where it is a step ahead at chest
-        // height. Head height scales too, so this waits for the first pose.
+        // IN YOUR ROOM: the whole system a metre and a half across, a step
+        // ahead; 'look at' brings a body in front of you instead. (Grips grab:
+        // one drags, both resize and turn.)
+        const centre = () => new BABYLON.Vector3(system.x, system.y, system.z)
         el.addEventListener('xrenter', (event) => {
-          const xr = el.xrHelper?.baseExperience
-          if (!event.detail.passthrough || xr == null) return
-          const centre = new BABYLON.Vector3(system.x, system.y, system.z)
-          const across = Math.max(1, ...system.bodies.map((b) => BABYLON.Vector3.Distance(b.node.getAbsolutePosition(), centre)))
-          const k = across / 0.75
-          xr.sessionManager.worldScalingFactor = k
-          // The scaled head height arrives a frame or two late, so settle the
-          // placement over the first few frames.
-          let frames = 0
-          const settle = el.scene.onAfterRenderObservable.add(() => {
-            if (++frames > 10) el.scene.onAfterRenderObservable.remove(settle)
-            const rig = xr.camera.parent
-            if (rig == null) return
-            const eye = xr.camera.globalPosition
-            const ahead = xr.camera.getForwardRay(1).direction
-            ahead.y = 0
-            ahead.normalize()
-            const want = centre.subtract(ahead.scale(1.2 * k)).add(new BABYLON.Vector3(0, 0.35 * k, 0))
-            rig.position.addInPlace(want.subtract(eye))
-          })
+          if (!event.detail.passthrough) return
+          const c = centre()
+          el.xrFrame(c, Math.max(1, ...system.bodies.map((b) => BABYLON.Vector3.Distance(b.node.getAbsolutePosition(), c))))
         })
-        el.addEventListener('xrexit', () => {
-          const xr = el.xrHelper?.baseExperience
-          if (xr != null) xr.sessionManager.worldScalingFactor = 1
+        sol.focus.observe(() => {
+          const body = system.bodies.find((b) => b.name === sol.focus.value)
+          if (el.passthrough && body != null) el.xrFrame(body.node.getAbsolutePosition(), Math.max(body.radius * 3, 0.5))
         })
         // FOLLOW THE CHOSEN BODY: ease onto it every frame, and on choosing,
         // pull in to a few of its radii.

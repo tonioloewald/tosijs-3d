@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Added:** the default AR session (`xr-passthrough`) scales you to the scene: you arrive with what the flat view showed a step ahead, one grip drags the scene, both grips resize and turn it, and the sticks walk at your scale. `b3d.xrFrame(centre, radius)` puts any point in front of you at a chosen size; `b3d.xrSupport` says whether the device offers VR and AR. Pure maths in `xr-grab`. In the Solar System, **look at** brings a body in front of you, and the passthrough toggle shows only where AR exists, outside a session.
+- **Fixed:** in a scaled XR session a controller's ray reaches the system bar (it stopped 1000 units out).
 - **Added:** `<tosi-b3d xr-passthrough="on">`: Enter VR starts an AR session where the device has passthrough (a Quest): the room shows behind the scene, with no sky and no floor grid. Elsewhere it enters VR. The scene dispatches `xrenter` (`detail.passthrough`) and `xrexit`. The Solar System demo has a **passthrough (AR)** toggle: the system stands a metre and a half across in your room.
 - **Fixed:** in a session with a WebXR `worldScalingFactor`, panels on the head-following frames (the system bar, the settings panel) keep their size (`XrFrames` takes `worldScale`).
 - **Added:** the Biped Playground's shopkeeper speaks his lines (`speech/shopkeeper-*.mp3`, voiced locally with Qwen3-TTS, a direction per line; deploy static-assets first). Their manifest is `bin/speech-shopkeeper.json`.
