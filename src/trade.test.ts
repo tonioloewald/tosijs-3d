@@ -144,4 +144,30 @@ describe('trade', () => {
     expect(inv.doc.holders.me.purse).toEqual({ gold: 0 })
     expect(inv.doc.holders.shop.purse).toEqual({ gold: 10 })
   })
+
+  test('upTo: selling more than they can pay takes all they have', () => {
+    const inv = make(0)
+    inv.doc.holders.shop.purse!.gold = 3
+    const trade = beginTrade(inv, { mine: BAG, theirs: STOCK }, price)
+    inv.move({ item: 'pelt', to: STOCK })
+    expect(trade.balance()).toBe(-5)
+    expect(trade.offer('gold')).toEqual({ pay: -3, short: true })
+    // Without upTo it is refused.
+    expect(trade.deal('gold').ok).toBe(false)
+    expect(trade.deal('gold', { upTo: true }).ok).toBe(true)
+    expect(inv.doc.holders.me.purse).toEqual({ gold: 3 })
+    expect(inv.doc.holders.shop.purse).toEqual({ gold: 0 })
+    expect(trade.changed()).toEqual([])
+  })
+
+  test('upTo: buying pays what it comes to, and refuses what you cannot afford', () => {
+    const inv = make(5)
+    const trade = beginTrade(inv, { mine: BAG, theirs: STOCK }, price)
+    inv.move({ item: 'rope', to: BAG })
+    expect(trade.offer('gold')).toEqual({ pay: 10, short: false })
+    const r = trade.deal('gold', { upTo: true })
+    expect(r.ok).toBe(false)
+    expect(r.reasons).toContain('not enough gold')
+    expect(inv.doc.holders.me.purse).toEqual({ gold: 5 })
+  })
 })

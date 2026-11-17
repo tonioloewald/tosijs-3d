@@ -150,6 +150,12 @@ export interface Move {
   pay?: { holder: string; in: string }
   /** Who is paid. */
   payee?: string
+  /**
+   * With `pay` and no `item` or `kind`: a payment of this much, and nothing
+   * moves (a trade settling what it comes to). `to` is ignored. A `pay.holder`
+   * of `''` is money from outside the world (found, a reward) to `payee`.
+   */
+  amount?: number
 }
 
 /** Inputs and tools are matched by kind id or by tag. */
@@ -469,6 +475,26 @@ export function createInventory(
     for (const m of moves) {
       let id = m.item ?? null
       let from: Place | null = null
+      // Money alone.
+      if (id == null && m.kind == null && m.pay && m.amount != null) {
+        const payer = m.pay.holder === '' ? null : d.holders[m.pay.holder]
+        if (m.pay.holder !== '' && !payer) {
+          reasons.push(`no such holder: ${m.pay.holder}`)
+          continue
+        }
+        if (payer) {
+          payer.purse = payer.purse ?? {}
+          payer.purse[m.pay.in] = (payer.purse[m.pay.in] ?? 0) - m.amount
+          if (payer.purse[m.pay.in] < 0) reasons.push(`not enough ${m.pay.in}`)
+        }
+        const p = m.payee ? d.holders[m.payee] : null
+        if (p) {
+          p.purse = p.purse ?? {}
+          p.purse[m.pay.in] = (p.purse[m.pay.in] ?? 0) + m.amount
+        }
+        events.push({ type: 'paid', from: m.pay.holder, to: m.payee ?? null, amount: m.amount, in: m.pay.in })
+        continue
+      }
       if (id == null) {
         if (!m.kind || !kinds[m.kind]) {
           reasons.push(`no such kind: ${m.kind}`)

@@ -12,6 +12,10 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Changed:** a shop's trade panel no longer shows their purse. Yours is under your list, and the line under both reads `you'll pay 12 gold`, `you'll receive 6 gold`, or, when they cannot pay what yours fetch, `you'll receive 200 gold (all he can offer)` with `he can't offer more than 200 gold`. Deal then takes all they have. New option `they` (how the other side is named in a sentence, default `'they'`).
+- **Added:** `trade.offer(currency)` (what changes hands, and whether they are short) and `trade.deal(currency, { upTo: true })` (one payment of what it comes to, capped at what they have). An inventory move with `pay` and `amount` and no item is a payment alone; `pay.holder: ''` is money from outside the world (a reward, coins found).
+- **Added:** in the Biped Playground, a pile of 50 gold by the gate chest, and the shopkeeper says "Please, take a look." before the shop opens, in the middle of the view.
+
 - **Fixed:** `pickup.toss(to)` called before the pickup has joined the scene (just appended) waits for it instead of doing nothing (a dropped item hung in mid-air), and without a `to.y` it lands on whatever is under the spot, not at y 0.
 
 - **Fixed:** an open flat system panel follows a new active camera (it is opened again on it). One opened at scene start, before a biped's follow camera, was never drawn.

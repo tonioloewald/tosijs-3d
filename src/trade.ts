@@ -76,8 +76,18 @@ export interface Trade {
   balance: () => number
   /** Put everything back where it started. */
   revert: () => MoveResult
-  /** Settle in `currency`: back, then the same moves paid. Refused, left as it was. */
-  deal: (currency: string) => MoveResult
+  /**
+   * Settle in `currency`: back, then the same moves paid. Refused, left as it
+   * was. `upTo`: when you receive more than they have, take all they have
+   * (one payment of what it comes to, see `offer`) rather than refusing.
+   */
+  deal: (currency: string, options?: { upTo?: boolean }) => MoveResult
+  /**
+   * What changes hands in `currency` if you deal with `upTo`: `pay` (what
+   * you pay, negative is what you receive) and `short`, true when they
+   * cannot pay what it comes to and `pay` is all they have.
+   */
+  offer: (currency: string) => { pay: number; short: boolean }
 }
 
 const inContainer = (inv: InventoryApi, p: Place): string[] => {
@@ -157,14 +167,40 @@ export function beginTrade(
     cs.map((c) => ({ ...c, from: c.to, to: c.from }))
   const moving = (cs: TradeChange[]) => cs.flatMap((c) => movesFor(inv, c))
 
+  const theirPurse = (currency: string) =>
+    inv.doc.holders[sides.theirs.holder]?.purse?.[currency] ?? 0
+  const offer = (currency: string) => {
+    const b = balance()
+    const can = theirPurse(currency)
+    return b < 0 && -b > can ? { pay: -can, short: true } : { pay: b, short: false }
+  }
+
   return {
     sides,
     changed,
     balance,
+    offer,
     revert: () => inv.move(...moving(back(changed()))),
-    deal(currency) {
+    deal(currency, options = {}) {
       const cs = changed()
       if (cs.length === 0) return { ok: true, reasons: [], events: [] }
+      if (options.upTo) {
+        // The goods as they lie, and one payment of what it comes to.
+        const { pay } = offer(currency)
+        const me = sides.mine.holder
+        const them = sides.theirs.holder
+        if (pay === 0) {
+          started = tally(inv, sides.mine)
+          return { ok: true, reasons: [], events: [] }
+        }
+        const r = inv.move(
+          pay > 0
+            ? { to: null, pay: { holder: me, in: currency }, payee: them, amount: pay }
+            : { to: null, pay: { holder: them, in: currency }, payee: me, amount: -pay }
+        )
+        if (r.ok) started = tally(inv, sides.mine)
+        return r
+      }
       const undone = inv.move(...moving(back(cs)))
       if (!undone.ok) return undone
       // Sales first, so what yours fetch pays for what you buy.

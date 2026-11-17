@@ -8,10 +8,13 @@ what it will hold; the [trade](/trade/) remembers where everything started.
 
 - **A chest** (no `price`): **take all**, or move what you want, then
   **done**. Whatever you left stays in it.
-- **A shop** (`price`): the line under the lists says which way the money
-  goes, `you pay 12 gold` or `you receive 6 gold`, and each side's purse.
-  **Deal** settles through the inventory's rules (`not enough gold` comes back
-  as the reason and nothing changes); **cancel** puts everything back.
+- **A shop** (`price`): your money is under your list, and the line under
+  both says which way it goes: `you'll pay 12 gold`, `you'll receive 6 gold`,
+  or, when they cannot pay what yours fetch, `you'll receive 200 gold (all
+  they can offer)` and `he can't offer more than 200 gold` (their purse is
+  never shown otherwise). **Deal** settles: you pay what it comes to (`not
+  enough gold` comes back as the reason and nothing changes) or take what
+  they can pay; **cancel** puts everything back.
 
 One SVG, so it goes on a plane: give `svg` to a
 [`<tosi-b3d-panel>`](/b3d-panel/) (`bar-button="off"`, opened with `show()`)
@@ -40,6 +43,7 @@ panel.show()
 | `inv`, `carry` | The inventory and a carry (`createCarry()`) |
 | `mine`, `theirs` | The two containers |
 | `titles` | `{ mine, theirs }` over each list |
+| `they` | How the other side is named in a sentence (`'he'`, `'the smith'`; default `'they'`) |
 | `price` | The inventory's own price rule, `(item, from, to) => number`: makes it a shop |
 | `currency` | The purse key a shop pays in (default: the inventory's first currency, else `gold`), written as the inventory's `currencies` say (`€12`, `12 gp`) |
 | `width`, `height` | Each list's size (220 × 280) |
@@ -68,6 +72,8 @@ export interface TradePanelOptions {
   mine: Place
   theirs: Place
   titles?: { mine?: string; theirs?: string }
+  /** How the other side is named in a sentence ('he', 'the smith'). */
+  they?: string
   price?: (item: Item, from: Place | null, to: Place | null) => number
   currency?: string
   width?: number
@@ -101,6 +107,7 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
   const GAP = 8
   const FOOT = 74
   const shop = price != null
+  const they = opts.they ?? 'they'
   const currency = opts.currency ?? inv.currencies[0]?.id ?? 'gold'
   // Written as the game writes it (`€12`, `12 gold`): the inventory's currencies.
   const money = (n: number) =>
@@ -124,8 +131,10 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
       fill: '#161b26',
     }) as unknown as SVGElement
   )
+  // A shop keeps a row under the lists for your money.
+  const LH = shop ? H - 24 : H
   const nested = (x: number) => {
-    const s = svg({ x, y: 0, width: W, height: H }) as unknown as SVGSVGElement
+    const s = svg({ x, y: 0, width: W, height: LH }) as unknown as SVGSVGElement
     root.append(s)
     return s
   }
@@ -143,8 +152,9 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
     refuse,
     overlay: false,
     fit: false,
-    height: H,
-    totals: shop,
+    height: LH,
+    // Their purse is theirs to keep quiet about; yours is under your list.
+    totals: false,
     putLabel: 'put here',
   }
   const theirPanel = inventoryPanel({
@@ -180,7 +190,15 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
     'font-size': 12,
     'font-family': 'system-ui, sans-serif',
   }) as unknown as SVGTextElement
-  root.append(line, note)
+  const myPurse = text({
+    x: W + GAP + W - 12,
+    y: H - 8,
+    'text-anchor': 'end',
+    fill: '#ffd966',
+    'font-size': 14,
+    'font-family': 'system-ui, sans-serif',
+  }) as unknown as SVGTextElement
+  root.append(line, note, myPurse)
   type Button = {
     label: string
     x: number
@@ -229,7 +247,7 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
           done(false)
         }),
         button('deal', 90, () => {
-          const r = trade?.deal(currency)
+          const r = trade?.deal(currency, { upTo: true })
           if (r && !r.ok) {
             said = r.reasons[0] ?? 'refused'
             draw()
@@ -262,16 +280,19 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
   const purse = (p: Place) => inv.doc.holders[p.holder]?.purse?.[currency] ?? 0
   function draw() {
     if (shop) {
-      const b = trade?.balance() ?? 0
+      const { pay, short } = trade?.offer(currency) ?? { pay: 0, short: false }
       line.textContent =
-        b > 0
-          ? `you pay ${money(b)}`
-          : b < 0
-          ? `you receive ${money(-b)}`
+        pay > 0
+          ? `you'll pay ${money(pay)}`
+          : pay < 0
+          ? `you'll receive ${money(-pay)}${short ? ` (all ${they} can offer)` : ''}`
+          : short
+          ? `${they} can't pay anything`
           : 'even'
       note.textContent =
         said ||
-        `you have ${money(purse(mine))} · they have ${money(purse(theirs))}`
+        (short ? `${they} can't offer more than ${money(purse(theirs))}` : '')
+      myPurse.textContent = `you have ${money(purse(mine))}`
     } else {
       const n = inContainer(inv, theirs).length
       const taken = trade?.changed().filter((c) => same(c.to, mine)).length ?? 0
@@ -316,7 +337,7 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
     const now =
       kind === 'leave'
         ? null
-        : parts.find((p) => x >= p.x && x < p.x + W && y >= 0 && y < H) ?? null
+        : parts.find((p) => x >= p.x && x < p.x + W && y >= 0 && y < LH) ?? null
     if (now !== under) {
       under?.panel.handlePointer('leave', 0, 0)
       under = now

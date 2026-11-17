@@ -217,7 +217,7 @@ const SHOP_TALK = {
     hello: {
       lines: [{ speaker: 'shopkeeper', text: 'Welcome, welcome. Looking for something?', audio: voice('hello'), gesture: 'show' }],
       replies: [
-        { id: 'shop', label: 'What do you sell?', then: [{ trade: true }, { goto: 'after' }] },
+        { id: 'shop', label: 'What do you sell?', then: [{ goto: 'browse' }] },
         {
           id: 'work', label: 'Need anything?', line: 'Need a hand with anything?',
           when: { not: 'asked' },
@@ -244,6 +244,11 @@ const SHOP_TALK = {
         { speaker: 'shopkeeper', text: 'Here, thirty rounds, on the house.', audio: voice('rounds'), gesture: 'give' },
       ],
       then: [{ goto: 'more' }],
+    },
+    // He invites you to look, then the shop opens.
+    browse: {
+      lines: [{ speaker: 'shopkeeper', text: 'Please, take a look.', gesture: 'show' }],
+      then: [{ trade: true }, { goto: 'after' }],
     },
     after: { lines: [{ speaker: 'shopkeeper', text: 'Pleasure doing business.', audio: voice('after'), gesture: 'yes' }], then: [{ goto: 'more' }] },
     more: {
@@ -285,7 +290,16 @@ const shop = b3dInteractive({
     if (!shopTalk.talk || shopTalk.talk.ended) shopTalk.start(hero)
   },
 })
+// MONEY lying about: a pile of gold by the gate chest, into your purse.
+const gold = (qty, x, z) => b3dPickup({
+  library: 'platformer', meshName: 'coin-gold', item: 'gold', qty, x, y: 0.05, z, scale: 1.5,
+  whenPickedUp: ({ qty }) => {
+    loadout.inv.move({ to: null, pay: { holder: '', in: 'gold' }, payee: 'hero', amount: qty })
+    say(`+${qty} gold`)
+  },
+})
 const LYING_ABOUT = [
+  gold(50, -5, 21.5),
   shopkeeper, counter, shop,
   ammoBox('Pistol Ammo', 'ammo_uzi', 24, 1, 7),
   ammoBox('Rifle Ammo', 'ammo_machinegun', 30, -9, -6),
@@ -309,6 +323,8 @@ const has = (kind) => Object.values(loadout.inv.doc.items).some((i) => i.kind ==
 // take and leave the rest. One panel (no button on the system bar), one
 // trade per chest, made the first time it opens. Walk off and it closes.
 const tradeBox = b3dPanel({ title: 'Chest', icon: 'lucideBackpack', barButton: 'off' })
+// In front of you, in the middle of the view.
+tradeBox.screenAnchor = { left: '50%', top: '50%', anchor: 'center' }
 const trades = {}
 let trading = null
 const endTrade = () => {
@@ -330,6 +346,8 @@ const openTrade = (holder, { chest = null, title = 'Chest', at, price, done } = 
     inv: loadout.inv, carry: createCarry(),
     mine: BAG, theirs: stock(holder),
     titles: { mine: 'you', theirs: holder },
+    // The shopkeeper, in a sentence ("he can't offer more than 200 gold").
+    they: holder === 'shop' ? 'he' : undefined,
     price,
     // How many, on a stack.
     decorations: (it) => (it.qty > 1 ? { badge: `×${it.qty}` } : undefined),
