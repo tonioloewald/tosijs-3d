@@ -614,6 +614,8 @@ type Nameplate = {
   panel: {
     update: (ctx?: { firstPerson?: boolean }) => void
     dispose: () => void
+    readonly mesh: BABYLON.Mesh
+    readonly drawn: BABYLON.Mesh
     readonly debug: {
       reveal: number
       cosine: number
@@ -7628,9 +7630,20 @@ export class B3d extends Component {
         this._nameplateScan = 30
         this._scanNameplates(cam)
       }
-      for (let i = 0; i < this._nameplateList.length; i++) {
-        this._nameplateList[i].ef.update(cam)
-        this._nameplateList[i].panel.update()
+      for (const [el, n] of this._nameplates) {
+        // Talking to you, they need no name over their head: the balloon is
+        // there (and the plate sat behind it).
+        const talk = (
+          el.querySelector('tosi-b3d-conversation') as {
+            talk?: { ended?: boolean } | null
+          } | null
+        )?.talk
+        const talking = talk != null && !talk.ended
+        n.panel.mesh.setEnabled(!talking)
+        if (n.panel.drawn !== n.panel.mesh) n.panel.drawn.setEnabled(!talking)
+        if (talking) continue
+        n.ef.update(cam)
+        n.panel.update()
       }
     })
   }

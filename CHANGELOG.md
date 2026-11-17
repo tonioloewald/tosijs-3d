@@ -12,6 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Fixed:** a biped's nameplate is hidden while it is in a conversation (it sat behind the balloon).
 - **Fixed:** rig tool: a marker joint (elbow, wrist, knee) dragged with `dragging` set to move the joint alone no longer carries what hangs from it, and a joint drag that moves markers too (a collar carrying the elbow and wrist) is one undo step, not two.
 - **Added:** aiming is finer and sticky. While a biped aims, the sticks follow a response curve (`aimCurve`, default 2), the aim slows as it crosses something that can be hurt (`aimAssist`, default 0.5; 0 turns all of this off), and a sweep near a target with the stick below `aimBreakout` (default 0.7) LOCKS onto it: the aim eases onto its body and follows it as it or you move, a lighter stick slides the aim slowly across it (onto the head), and a push past the breakout lets go. Targets behind something solid are not locked. Pure helpers in `aim-assist` (`stickCurve`, `aimFriction`, `stickyAim`).
 - **Fixed:** a launcher finds who is holding it at each shot (it cached the first answer, so after a respawn the new hero's own shots hit him).
