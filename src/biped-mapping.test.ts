@@ -97,8 +97,10 @@ describe('bipedMapping: bumpers carry the vertical verbs', () => {
     expect(bipedMapping(pad({ leftStickPress: 1 }), 1 / 60).sneak).toBe(1)
   })
 
-  test('clicking the right stick (R3) toggles the weapon, as the right bumper does', () => {
-    expect(bipedMapping(pad({ rightStickPress: 1 }), 1 / 60).weapon).toBe(1)
+  test('clicking the right stick (R3) jumps, and does not toggle the weapon', () => {
+    const input = bipedMapping(pad({ rightStickPress: 1 }), 1 / 60)
+    expect(input.jump).toBe(1)
+    expect(input.weapon).toBe(0)
   })
 
   /*
@@ -116,19 +118,41 @@ describe('bipedMapping: bumpers carry the vertical verbs', () => {
   third-person shooter puts weapon-ready, a mode toggled constantly deserves the
   better button, and A-to-jump is the most universal convention there is.
 
-  Kept as tests rather than deleted, because the next person to find A jumping
-  will wonder whether it was deliberate.
+  Reversed again (2026-11-18), by Tonio: A ATTACKS and B USES, the frequent
+  verbs on the right hand, and B is never aggressive ("so that a player hitting
+  it to open a door when there's no door doesn't shoot a child by accident").
+  Jump went to the right stick's click, still the right hand, which a headset
+  needs: X and Y are on the left controller. ("Right stick click for jump
+  actually works really well. It messes up aim which you know jumping ought to.")
   */
   test('right bumper raises and lowers the weapon', () => {
     expect(bipedMapping(pad({ rightBumper: 1 }), 1 / 60).weapon).toBe(1)
   })
 
-  test('A jumps now, and does NOT also toggle the weapon', () => {
-    const input = bipedMapping(pad({ buttonA: 1 }), 1 / 60)
-    expect(input.jump).toBe(1)
-    // The trap while moving these: leaving `weapon` reading buttonA as well, so
-    // one press both jumped and holstered.
-    expect(input.weapon).toBe(0)
+  test('A attacks: it fires with the weapon up, and neither jumps nor toggles', () => {
+    const up = bipedMapping(pad({ buttonA: 1 }), 1 / 60, true)
+    expect(up.shoot).toBe(1)
+    const down = bipedMapping(pad({ buttonA: 1 }), 1 / 60)
+    expect(down.jump).toBe(0)
+    expect(down.weapon).toBe(0)
+  })
+
+  test('B uses with the weapon down, and ducks (never fires) with it up', () => {
+    const down = bipedMapping(pad({ buttonB: 1 }), 1 / 60)
+    expect(down.interact).toBe(1)
+    expect(down.shoot).toBe(0)
+    const up = bipedMapping(pad({ buttonB: 1 }), 1 / 60, true)
+    expect(up.sneak).toBe(1)
+    expect(up.shoot).toBe(0)
+    expect(up.interact).toBe(0)
+  })
+
+  test('the keyboard keeps its keys: space jumps, E uses, F attacks', () => {
+    const kb = (bipedMapping as unknown as { keyboard: (p: ReturnType<typeof pad>) => ReturnType<typeof pad> }).keyboard
+    expect(bipedMapping(kb(pad({ buttonA: 1 })), 1 / 60).jump).toBe(1)
+    expect(bipedMapping(kb(pad({ buttonX: 1 })), 1 / 60).interact).toBe(1)
+    expect(bipedMapping(kb(pad({ buttonB: 1 })), 1 / 60, true).shoot).toBe(1)
+    expect(bipedMapping(kb(pad({ buttonB: 1 })), 1 / 60).interact).toBe(0)
   })
 
   test('the right bumper does not also jump', () => {

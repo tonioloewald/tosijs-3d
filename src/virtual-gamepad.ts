@@ -194,7 +194,7 @@ the mapping function with human-readable labels for UI visualizers:
 
 ```typescript
 bipedMappingDescriptor.labels
-// { leftStickY: 'move', buttonA: 'jump', leftBumper: 'sneak', rightTrigger: 'sprint / fire', ... }
+// { leftStickY: 'move', buttonA: 'attack', buttonB: 'use / duck', rightStickPress: 'jump', ... }
 ```
 
 ## MappedInputProvider
@@ -471,7 +471,15 @@ export function bipedMapping(
   input.forward = pad.leftStickY
   input.strafe = pad.leftStickX
   input.turn = pad.rightStickX
-  input.interact = pad.buttonX
+  /*
+  A ATTACKS, B USES: the frequent verbs on the right hand, movement on the
+  left, as shooters and consoles do. Tonio: B is "do something" and never
+  aggressive, "so that a player hitting it to open a door when there's no
+  door doesn't shoot a child by accident". In combat (weapon raised) B is the
+  defensive reflex instead: duck (parry, once melee has a block), which
+  commits no crime when pressed by mistake. X is a use alias (E on a keyboard).
+  */
+  input.interact = gunplay ? pad.buttonX : Math.max(pad.buttonB, pad.buttonX)
   /*
   THE RIGHT TRIGGER CHANGES JOB WITH THE WEAPON, and nothing else does.
 
@@ -493,10 +501,13 @@ export function bipedMapping(
   the glass pad, where a trigger is a poor touch target — can still shoot.
   */
   if (gunplay) {
-    input.shoot = Math.max(pad.rightTrigger, pad.buttonB)
+    input.shoot = Math.max(pad.rightTrigger, pad.buttonA)
     input.aim = pad.leftTrigger
   } else {
     input.sprint = pad.rightTrigger
+    // Only a melee weapon reads it with the weapon down (it swings); a gun
+    // fires only when raised.
+    input.shoot = pad.buttonA
   }
   /*
   RAISE AND LOWER on A, which is the one face button the biped left unused.
@@ -546,17 +557,37 @@ export function bipedMapping(
   most universal convention there is, and a mode you toggle constantly deserves
   the better button. Easily reverted if it plays worse than it reads.
   */
-  // Clicking the right stick toggles it too (R3), so both clicks do something.
-  input.weapon = Math.max(pad.rightBumper, pad.rightStickPress)
+  input.weapon = pad.rightBumper
   // Reload: the d-pad (J on a keyboard); an empty gun also reloads itself.
   input.reload = pad.dpadLeft
-  input.jump = pad.buttonA
-  // Clicking the left stick sneaks too, as L3 does in GTA V.
-  input.sneak = Math.max(pad.leftBumper, pad.leftStickPress)
+  /*
+  JUMP IS CLICKING THE RIGHT STICK: still the right hand, which matters in a
+  headset, where X and Y are on the LEFT controller (Tonio: "you don't want
+  jump on the left controller in VR"), and A and B are taken by attack and use.
+  */
+  input.jump = pad.rightStickPress
+  // Clicking the left stick sneaks too, as L3 does in GTA V; B ducks in combat.
+  input.sneak = Math.max(
+    pad.leftBumper,
+    pad.leftStickPress,
+    gunplay ? pad.buttonB : 0
+  )
   // Camera toggle: glass-gamepad view button, or Y (reachable on a controller).
   input.view = Math.max(pad.view, pad.buttonY)
   return input
 }
+
+/*
+The KEYBOARD keeps its keys: Space (and a left click) jump, E uses, F (and a
+right click) attacks. The key table is shared with every vehicle, so the
+biped moves them here, for the keyboard alone, as the car's mapping does.
+*/
+;(bipedMapping as InputMapping).keyboard = (pad: VirtualGamepad) => ({
+  ...pad,
+  buttonA: pad.buttonB,
+  buttonB: 0,
+  rightStickPress: Math.max(pad.rightStickPress, pad.buttonA),
+})
 
 export const bipedMappingDescriptor: InputMappingDescriptor = {
   map: bipedMapping,
@@ -565,16 +596,16 @@ export const bipedMappingDescriptor: InputMappingDescriptor = {
     leftStickX: 'strafe',
     rightStickX: 'turn',
     rightBumper: 'weapon',
-    rightStickPress: 'weapon',
-    buttonA: 'jump',
+    rightStickPress: 'jump',
+    buttonA: 'attack',
     leftBumper: 'sneak',
     leftStickPress: 'sneak',
     // The trigger's label is mode-dependent and a descriptor is not, so it
     // names both rather than picking the half that happens to be true now.
     rightTrigger: 'sprint / fire',
     leftTrigger: 'aim',
-    buttonX: 'interact',
-    buttonB: 'fire',
+    buttonX: 'use',
+    buttonB: 'use / duck',
     dpadLeft: 'reload',
     rightStickY: 'pitch',
     dpadUp: 'zoom',
@@ -599,7 +630,8 @@ export const carMapping: InputMapping = Object.assign(
     input.lookX = pad.rightStickX
     input.lookY = pad.rightStickY
     input.lookMode = pad.rightStickPress
-    input.interact = pad.buttonX
+    // B uses (gets out), as it does on foot; X too.
+    input.interact = Math.max(pad.buttonB, pad.buttonX)
     input.sprint = pad.leftBumper
     input.jump = pad.buttonA
     return input
@@ -607,6 +639,8 @@ export const carMapping: InputMapping = Object.assign(
   {
     keyboard: (pad: VirtualGamepad): VirtualGamepad => ({
       ...pad,
+      // E gets out on a keyboard; F (its B) stays nothing.
+      buttonB: 0,
       rightTrigger: Math.max(pad.rightTrigger, pad.leftStickY),
       leftTrigger: Math.max(pad.leftTrigger, -pad.leftStickY),
       leftStickY: 0,
@@ -624,7 +658,8 @@ export const carMappingDescriptor: InputMappingDescriptor = {
     leftTrigger: 'brake / reverse',
     buttonA: 'handbrake',
     rightBumper: 'brake / reverse',
-    buttonX: 'interact',
+    buttonB: 'get out',
+    buttonX: 'get out',
     leftBumper: 'nitro',
   },
 }

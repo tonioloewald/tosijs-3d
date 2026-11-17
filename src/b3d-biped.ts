@@ -159,7 +159,7 @@ preview.append(
 .preview { height: 100%; }
 ```
 
-**WASD** to move, **mouse / right stick** to aim, **F or the trigger** to shoot
+**WASD** to move, **mouse / right stick** to aim, **F, the trigger or A** to shoot
 the cans off the wall. The white marker is where he is FACING; the orange one is
 where he is AIMING, and they are different things — which is the whole point of
 `aiming="on"`.
@@ -371,6 +371,7 @@ import { CompositeInputProvider } from './control-input.js'
 import {
   bipedMapping,
   bipedMappingDescriptor,
+  type InputMapping,
   type VirtualGamepad,
 } from './virtual-gamepad.js'
 import { layerOnUpperBody, type LayeredAnimation } from './animation-layers.js'
@@ -1203,9 +1204,13 @@ export class B3dBiped extends B3dControllable {
    * (TS2611). An arrow field binds `this` and reads the mode live, which is all
    * the getter was for.
    */
-  inputMapping = (pad: VirtualGamepad, dt: number): ControlInput =>
-    // A melee weapon takes the trigger too: it swings rather than sprints.
-    bipedMapping(pad, dt, this.gunplay || this._holdingWeapon)
+  inputMapping = Object.assign(
+    (pad: VirtualGamepad, dt: number): ControlInput =>
+      // A melee weapon takes the trigger too: it swings rather than sprints.
+      bipedMapping(pad, dt, this.gunplay || this._holdingWeapon),
+    // The keyboard keeps its keys (see bipedMapping's `keyboard`).
+    { keyboard: (bipedMapping as InputMapping).keyboard }
+  )
   inputLabels = bipedMappingDescriptor.labels
 
   /**

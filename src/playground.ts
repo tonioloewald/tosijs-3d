@@ -675,8 +675,7 @@ preview.append(
 .preview { height: 100%; display: flex; flex-direction: column; }
 ```
 
-**Two modes, and the right bumper (or clicking the right stick) is the
-switch.** You start with a pistol on your hip and the rest of
+**Two modes, and the right bumper is the switch.** You start with a pistol on your hip and the rest of
 [Tonio's weapons](/character-builder/) in the bag: open the loadout from its
 button on the system bar and drag any of them onto a hip, your back or your
 right hand. With the weapon down you are walking: **R** sprints. Press **right
@@ -747,8 +746,10 @@ moment); walk off the top of the tower and you die where you land, then
 respawn at the start.
 
 **WASD** moves, **arrow keys** look, **space** jumps, **left shift** sneaks,
-**E** interacts, **Y** switches between third and first person. On a pad,
-clicking the left stick sneaks.
+**E** interacts, **Y** switches between third and first person. On a pad
+the actions are on the right hand: **A** attacks, **B** uses (doors, chests,
+the lift, picking up, talking; with the weapon up it ducks instead),
+clicking the **right stick** jumps, and clicking the left stick sneaks.
 
 **Play as a character of your own.** Make one in the
 [character builder](/character-builder/) (or press **make your own

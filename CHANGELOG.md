@@ -12,6 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Changed:** ⚠️ the biped's gamepad layout. **A** attacks (fires with the weapon raised, the right trigger still does; swings a melee weapon), **B** uses (doors, chests, lifts, pickups, talking) and, with the weapon raised, ducks instead, so it can never fire; clicking the **right stick** jumps (it toggled the weapon; the right bumper still does); **X** is a use alias. In a car **B** gets out as well as X. The keyboard is unchanged (space jumps, E uses, F attacks): a mapping's `keyboard` transform moves the keys. Pure in `bipedMapping`; labels in `bipedMappingDescriptor`.
 - **Changed:** a chest's trade panel closes itself 0.7 s after **take all** takes everything.
 - **Fixed:** a biped's nameplate is hidden while it is in a conversation (it sat behind the balloon).
 - **Fixed:** rig tool: a marker joint (elbow, wrist, knee) dragged with `dragging` set to move the joint alone no longer carries what hangs from it, and a joint drag that moves markers too (a collar carrying the elbow and wrist) is one undo step, not two.
