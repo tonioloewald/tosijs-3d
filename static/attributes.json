@@ -1528,6 +1528,23 @@
     ]
   },
   {
+    "module": "b3d-conversation",
+    "tag": "tosi-b3d-conversation",
+    "summary": "b3d-conversation",
+    "attributes": [
+      {
+        "name": "reach",
+        "default": "4",
+        "description": "Metres: walk further than this from the speaker and the talk ends"
+      },
+      {
+        "name": "balloonWidth",
+        "default": "1.2",
+        "description": "The balloon's width in metres"
+      }
+    ]
+  },
+  {
     "module": "b3d-crowd",
     "tag": "tosi-b3d-crowd",
     "summary": "b3d-crowd",
@@ -6072,12 +6089,13 @@
       },
       {
         "name": "bow",
-        "default": "a bow"
+        "default": "a bow, in the LEFT hand",
+        "description": "Bow"
       },
       {
         "name": "shield",
         "default": "strapped to the left forearm",
-        "description": "Buckler"
+        "description": "Buckler, Kite Shield"
       }
     ]
   },
@@ -6680,6 +6698,11 @@
         "name": "xrMultiview",
         "default": "'off'",
         "description": "⚠️ Experimental, not working: `'on'` asks for both eyes in one pass (WebXR layers). On a Quest 3 it gave a blank view, and water and sky do not handle multiview"
+      },
+      {
+        "name": "xrPassthrough",
+        "default": "'off'",
+        "description": "`'on'`: Enter VR starts an AR session where the device has one (passthrough: your room behind the scene, no sky, no floor grid, transparent clear colour); elsewhere it enters VR. `passthrough` is true during such a session, and the scene dispatches `xrenter` (`detail.passthrough`) and `xrexit` around every session. Read on entering"
       },
       {
         "name": "groundDetail",

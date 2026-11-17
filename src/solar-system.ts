@@ -12,6 +12,10 @@ Pick a body under **look at** and the camera follows it round its orbit.
 Switch on **real maps** and the Earth, the Moon and Mars are drawn from NASA's
 and NOAA's own height and colour maps instead of being made up.
 
+In a headset with passthrough (a Quest), switch on **passthrough (AR)** before
+entering: the system sits a metre and a half across, in front of you in your
+own room, and you walk round it.
+
 ## Demo
 
 ```js
@@ -19,7 +23,7 @@ import { b3d, b3dLight, b3dStarSystem, spaceBackdrop, SOL, label3d, slider3d, to
 import { tosi } from 'tosijs'
 
 const { sol } = tosi({
-  sol: { maps: false, focus: 'Earth', animate: true, showOrbits: true, belt: 1500, time: 3600 },
+  sol: { maps: false, focus: 'Earth', animate: true, showOrbits: true, belt: 1500, time: 3600, ar: false },
 })
 
 const system = b3dStarSystem({ scale: 5, orbitScale: 3, animate: 'on', showOrbits: 'on', maps: 'off', beltCount: sol.belt.value, timeScale: sol.time })
@@ -68,6 +72,7 @@ preview.append(
         slider3d({ label: 'time', value: sol.time, min: 1, max: 3.16e6, scale: 'log', format: perSecond }),
         toggle3d({ label: 'show orbits', value: sol.showOrbits }),
         slider3d({ label: 'belt rocks', value: sol.belt, min: 0, max: 6000, step: 250 }),
+        toggle3d({ label: 'passthrough (AR)', value: sol.ar }),
       ],
       sceneCreated(el, BABYLON) {
         const camera = new BABYLON.ArcRotateCamera('sol', -Math.PI / 2, Math.PI / 2.6, 40, BABYLON.Vector3.Zero(), el.scene)
@@ -78,6 +83,37 @@ preview.append(
         camera.wheelDeltaPercentage = 0.02
         camera.attachControl(el.querySelector('canvas'), true)
         el.setActiveCamera(camera)
+        sol.ar.observe(() => (el.xrPassthrough = sol.ar.value ? 'on' : 'off'))
+        // IN YOUR ROOM: rather than shrink the system (its shaders work in
+        // its own units), make the viewer a giant, so the system is a metre and
+        // a half across, then stand them where it is a step ahead at chest
+        // height. Head height scales too, so this waits for the first pose.
+        el.addEventListener('xrenter', (event) => {
+          const xr = el.xrHelper?.baseExperience
+          if (!event.detail.passthrough || xr == null) return
+          const centre = new BABYLON.Vector3(system.x, system.y, system.z)
+          const across = Math.max(1, ...system.bodies.map((b) => BABYLON.Vector3.Distance(b.node.getAbsolutePosition(), centre)))
+          const k = across / 0.75
+          xr.sessionManager.worldScalingFactor = k
+          // The scaled head height arrives a frame or two late, so settle the
+          // placement over the first few frames.
+          let frames = 0
+          const settle = el.scene.onAfterRenderObservable.add(() => {
+            if (++frames > 10) el.scene.onAfterRenderObservable.remove(settle)
+            const rig = xr.camera.parent
+            if (rig == null) return
+            const eye = xr.camera.globalPosition
+            const ahead = xr.camera.getForwardRay(1).direction
+            ahead.y = 0
+            ahead.normalize()
+            const want = centre.subtract(ahead.scale(1.2 * k)).add(new BABYLON.Vector3(0, 0.35 * k, 0))
+            rig.position.addInPlace(want.subtract(eye))
+          })
+        })
+        el.addEventListener('xrexit', () => {
+          const xr = el.xrHelper?.baseExperience
+          if (xr != null) xr.sessionManager.worldScalingFactor = 1
+        })
         // FOLLOW THE CHOSEN BODY: ease onto it every frame, and on choosing,
         // pull in to a few of its radii.
         let following = ''

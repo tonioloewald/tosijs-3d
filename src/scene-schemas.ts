@@ -1429,6 +1429,11 @@ export function b3dSchema(extra: Record<string, unknown> = {}) {
         description:
           'Experimental, not working: both eyes in one pass in a headset. On a Quest 3 it gave a blank view.',
       },
+      xrPassthrough: {
+        ...choice('off', ['on', 'off']),
+        description:
+          'In a headset with passthrough: Enter VR starts an AR session, your room behind the scene with no sky. Elsewhere it enters VR.',
+      },
       groundDetail: {
         ...choice('auto', ['auto', 'full', 'lite']),
         description:
@@ -1477,7 +1482,12 @@ export function b3dSchema(extra: Record<string, unknown> = {}) {
         },
         {
           title: 'Headset',
-          keys: ['xrRenderScale', 'xrFoveation', 'xrMultiview'],
+          keys: [
+            'xrRenderScale',
+            'xrFoveation',
+            'xrMultiview',
+            'xrPassthrough',
+          ],
         },
         { title: 'Ground', keys: ['groundDetail'] },
         { title: 'Wind', keys: ['windSpeed', 'windBearingDeg', 'windGust'] },

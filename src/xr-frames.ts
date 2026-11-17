@@ -134,6 +134,12 @@ export interface XrFramesOptions {
   flat?: boolean
   /** Flat only: how far below the camera the floor (the `body` frame) sits. */
   eyeHeight?: number
+  /**
+   * The session's world scale (WebXR's `worldScalingFactor`): world units per
+   * real metre. The head-following frames are scaled by it, so a panel stays
+   * the size it was made for when the viewer is a giant (a tabletop view).
+   */
+  worldScale?: () => number
 }
 
 const FORWARD = new BABYLON.Vector3(0, 0, 1)
@@ -199,6 +205,7 @@ export class XrFrames {
   private bodyYawRate: number
   private bodyYawDeadband: number
   private neckOffset: BABYLON.Vector3
+  private worldScale: () => number
 
   // Scratch — never allocate per frame.
   private _q = new BABYLON.Quaternion()
@@ -219,6 +226,7 @@ export class XrFrames {
     this.neckOffset = opts.neckOffset ?? new BABYLON.Vector3(0, -0.12, -0.1)
     this.flatMode = opts.flat === true
     this.eyeHeight = opts.eyeHeight ?? 1.6
+    this.worldScale = opts.worldScale ?? (() => 1)
 
     // world: fixed at the play-space origin (scene root, no parent).
     this.world = new BABYLON.TransformNode('xr-frame-world', scene)
@@ -362,6 +370,10 @@ export class XrFrames {
     }
     const cam = this.cam
     const headYaw = this.headLocalYaw()
+    const k = this.worldScale()
+    for (const f of [this.body, this.neck, this.eye]) f.scaling.setAll(k)
+    // The face rides the camera, which carries no scale of its own.
+    this.face.scaling.setAll(k)
 
     // Body: floor under the head, but RIG yaw — identity local rotation inherits
     // the rig's facing via parenting. So body-pinned panels stay put when you
@@ -395,9 +407,9 @@ export class XrFrames {
     BABYLON.Matrix.FromQuaternionToRef(q, this._m)
     BABYLON.Vector3.TransformCoordinatesToRef(this.neckOffset, this._m, this._v)
     this.neck.position.set(
-      cam.position.x + this._v.x,
-      cam.position.y + this._v.y,
-      cam.position.z + this._v.z
+      cam.position.x + this._v.x * k,
+      cam.position.y + this._v.y * k,
+      cam.position.z + this._v.z * k
     )
     BABYLON.Quaternion.RotationYawPitchRollToRef(
       headYaw,

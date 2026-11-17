@@ -279,6 +279,7 @@ document.body.append(
 | `enterXrOnResume` | `'off'` | `'on'`: resuming enters immersive VR where the device supports it. The Continue tap is the user gesture `enterXRAsync` requires |
 | `reseatFreeze` | `'on'` | Freeze the clock while the re-seat dialog is up. Set `'off'` for a networked world, which cannot stop the other players; the dialog still gates your own input |
 | `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
+| `xrPassthrough` | `'off'` | `'on'`: Enter VR starts an AR session where the device has one (passthrough: your room behind the scene, no sky, no floor grid, transparent clear colour); elsewhere it enters VR. `passthrough` is true during such a session, and the scene dispatches `xrenter` (`detail.passthrough`) and `xrexit` around every session. Read on entering |
 | `xrMultiview` | `'off'` | ⚠️ Experimental, not working: `'on'` asks for both eyes in one pass (WebXR layers). On a Quest 3 it gave a blank view, and water and sky do not handle multiview |
 | `xrRenderScale` | `0` | In a headset: the fraction of each eye's width and height drawn. `0` is auto (from the device tier: 0.67 on the low tier). Engine hardware scaling does not reach a headset; this does. Read on entering a session |
 | `xrFoveation` | `-1` | In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session |
@@ -857,6 +858,13 @@ export class B3d extends Component {
     Read on entering a session.
     */
     xrMultiview: 'off' as 'on' | 'off',
+    /*
+    PASSTHROUGH. 'on' makes Enter VR start an immersive-ar session where the
+    device offers one (a Quest's passthrough): the room shows behind the
+    scene, the sky and the floor grid are left out and the clear colour is
+    transparent. Elsewhere it enters VR as before. Read on entering.
+    */
+    xrPassthrough: 'off' as 'on' | 'off',
     // The ground (biome) shader's form. `auto` is the device tier's: the
     // cheap one on the low tier, and in a headset on the medium tier.
     groundDetail: 'auto' as 'auto' | 'full' | 'lite',
@@ -1437,6 +1445,10 @@ export class B3d extends Component {
   xrHelper?: BABYLON.WebXRDefaultExperience
   private _unpickLayers: (() => void) | null = null
   xrActive = false
+  /** True during an immersive-ar (passthrough) session. */
+  passthrough = false
+  private _arSupported = false
+  private _vrSupported = false
   /** True from ENTERING_XR to the end of EXITING_XR: wider than `xrActive`. */
   private _xrPresenting = false
 
@@ -1610,6 +1622,7 @@ export class B3d extends Component {
   declare maxDistance: number
   declare noXr: boolean
   declare xrMultiview: 'on' | 'off'
+  declare xrPassthrough: 'on' | 'off'
   declare xrGrid: 'on' | 'off' | 'auto'
   declare xrReticle: 'on' | 'off'
   declare scenePanelOpen: boolean
@@ -1845,7 +1858,7 @@ export class B3d extends Component {
         // compositor — a render queued at the moment of entry is stranded for
         // the whole session (see _installXrRafPump).
         void updates()
-          .then(() => base.enterXRAsync('immersive-vr', 'local-floor'))
+          .then(() => base.enterXRAsync(this._xrSessionMode(), 'local-floor'))
           .catch(() => {
             /* no headset, or the user declined — staying flat is fine */
           })
@@ -5999,6 +6012,36 @@ export class B3d extends Component {
       : 'requested, not available here'
   }
 
+  /** The session Enter VR starts: AR where passthrough is asked for and offered. */
+  private _xrSessionMode(): XRSessionMode {
+    if (this.xrPassthrough === 'on' && this._arSupported) return 'immersive-ar'
+    return this._vrSupported ? 'immersive-vr' : 'immersive-ar'
+  }
+
+  /**
+   * Passthrough: the room is the backdrop. The clear colour goes transparent
+   * and every sky mesh (they are `infiniteDistance`) is hidden for the session;
+   * the skybox stops writing the clear colour while `passthrough` is set.
+   */
+  private _enterPassthrough(): () => void {
+    const scene = this.scene
+    this.passthrough = true
+    const clear = scene.clearColor.clone()
+    const hidden = scene.meshes.filter(
+      (m) => m.infiniteDistance && m.isEnabled()
+    )
+    for (const m of hidden) m.setEnabled(false)
+    const keepClear = scene.onBeforeRenderObservable.add(() => {
+      scene.clearColor.set(0, 0, 0, 0)
+    })
+    return () => {
+      this.passthrough = false
+      scene.onBeforeRenderObservable.remove(keepClear)
+      scene.clearColor.copyFrom(clear)
+      for (const m of hidden) if (!m.isDisposed()) m.setEnabled(true)
+    }
+  }
+
   private async _setupXR(): Promise<void> {
     if (this.noXr) return
     if (this.setupXr !== noop) {
@@ -6006,12 +6049,17 @@ export class B3d extends Component {
       return
     }
     if (navigator.xr == null) return
-    let supported: boolean
-    try {
-      supported = await navigator.xr.isSessionSupported('immersive-vr')
-    } catch {
-      supported = false
+    const offers = async (mode: XRSessionMode): Promise<boolean> => {
+      try {
+        return (await navigator.xr?.isSessionSupported(mode)) === true
+      } catch {
+        return false
+      }
     }
+    this._vrSupported = await offers('immersive-vr')
+    this._arSupported = await offers('immersive-ar')
+    const supported =
+      this._vrSupported || (this._arSupported && this.xrPassthrough === 'on')
     if (!supported || this.xrHelper != null) return
 
     // Creating the default experience can steal scene.activeCamera (switching
@@ -6105,7 +6153,7 @@ export class B3d extends Component {
           // another render in-session and its reactive bindings freeze — the
           // "time-of-day slider dead on first XR entry" bug.
           await updates()
-          await base.enterXRAsync('immersive-vr', 'local-floor')
+          await base.enterXRAsync(this._xrSessionMode(), 'local-floor')
         }
       } catch (err) {
         console.warn('XR session change failed', err)
@@ -6144,6 +6192,7 @@ export class B3d extends Component {
     // locomotion; on exit we tear it down.
     let xrSession: { dispose: () => void } | undefined
     let restoreRaf: (() => void) | undefined
+    let endPassthrough: (() => void) | undefined
     base.onStateChangedObservable.add((state) => {
       this.xrActive = state === BABYLON.WebXRState.IN_XR
       // SSAO must be gone BEFORE the headset camera becomes active, which
@@ -6153,7 +6202,14 @@ export class B3d extends Component {
       // Keep the xrColor icon as the button face; the title carries the state
       // (the flat button isn't visible in-session anyway). Setting textContent
       // here would wipe the icon.
-      vrButton.title = this.xrActive ? 'Exit VR' : 'Enter VR'
+      const ar = this.xrPassthrough === 'on' && this._arSupported
+      vrButton.title = this.xrActive
+        ? this.passthrough || ar
+          ? 'Exit AR'
+          : 'Exit VR'
+        : ar
+        ? 'Enter AR'
+        : 'Enter VR'
       if (state === BABYLON.WebXRState.IN_XR) {
         /*
         ENTERING VR UNPAUSES. Putting the headset on IS the resume.
@@ -6203,9 +6259,16 @@ export class B3d extends Component {
         this._ambientBadSamples = 0
         // Keep tosijs's rAF-batched reactive bindings flushing while in-session.
         restoreRaf ??= this._installXrRafPump(base)
+        if (base.sessionManager.sessionMode === 'immersive-ar')
+          endPassthrough ??= this._enterPassthrough()
         xrSession ??= this._startDefaultXrExperience(base, controllers)
         // A modal open on the monitor comes into the headset with you.
         this._representModals()
+        this.dispatchEvent(
+          new CustomEvent('xrenter', {
+            detail: { passthrough: this.passthrough },
+          })
+        )
       } else if (state === BABYLON.WebXRState.NOT_IN_XR) {
         // Restore the orbit camera Babylon has just carried the (low) headset
         // pose into. Runs after Babylon's restore; setting target then angles
@@ -6234,6 +6297,9 @@ export class B3d extends Component {
         this._reallocAmbient()
         xrSession?.dispose()
         xrSession = undefined
+        endPassthrough?.()
+        endPassthrough = undefined
+        this.dispatchEvent(new CustomEvent('xrexit'))
         restoreRaf?.()
         restoreRaf = undefined
         /*
@@ -6314,7 +6380,9 @@ export class B3d extends Component {
 
     // Reference frames for spatial UI (body/neck/face follow the head; rig/world
     // are locomotion/play-space). Updated each XR frame below; UI parents to one.
-    const frames = new XrFrames(scene, rig, cam)
+    const frames = new XrFrames(scene, rig, cam, {
+      worldScale: () => base.sessionManager.worldScalingFactor,
+    })
     frames.attachInput(this.xrHelper?.input) // hand/wrist frames follow the grips
     this.xrFrames = frames
 
@@ -6414,7 +6482,8 @@ export class B3d extends Component {
     } | null
     const playerDriven = focus?.focused != null
     const showGrid =
-      this.xrGrid === 'on' || (this.xrGrid === 'auto' && !playerDriven)
+      !this.passthrough &&
+      (this.xrGrid === 'on' || (this.xrGrid === 'auto' && !playerDriven))
     let ground: BABYLON.Mesh | undefined
     let grid: GridMaterial | undefined
     if (showGrid) {
