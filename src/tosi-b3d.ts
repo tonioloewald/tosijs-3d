@@ -3196,6 +3196,7 @@ export class B3d extends Component {
       setSvg: (next: SVGSVGElement) => void
     }
     let reanchored: ((fixed: boolean) => void) | undefined
+    let offCamera = noop
     let frames: XrFrames | null = null
     let obs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Camera>> = null
     const xrCam = this.xrHelper?.baseExperience?.camera
@@ -3282,6 +3283,21 @@ export class B3d extends Component {
         f.update(0)
         p.update()
       })
+      // The panel rides this camera's frames. When another flat camera
+      // takes over (a biped's follow camera arriving after an early open,
+      // a death camera), open it again on that one, quietly: to the page
+      // nothing opened or closed.
+      const recam = scene.onBeforeRenderObservable.add(() => {
+        const now = scene.activeCamera
+        const open = this._sysPanels.get(key)
+        if (now == null || now === cam || this.xrActive || open == null) return
+        const held = this._holdPanelEvents
+        this._holdPanelEvents = true
+        this._closeSystemPanel(key)
+        this._openSystemPanel(key, open.byUser)
+        this._holdPanelEvents = held
+      })
+      offCamera = () => scene.onBeforeRenderObservable.remove(recam)
     }
     /*
     POPUPS ARE POPUPS here too: a select in a system panel (the builder's
@@ -3359,6 +3375,7 @@ export class B3d extends Component {
       off: () => {
         entry.content.removeEventListener('panelfocus', onFocus)
         titled?.dispose()
+        offCamera()
       },
     }
     this._sysPanels.set(key, entry)

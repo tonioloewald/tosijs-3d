@@ -7,7 +7,7 @@ ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
 import { assetUrl, b3d, b3dBiped, b3dBox, b3dChest, b3dDeath, b3dDoor, b3dPanel, createCarry, tradePanel, b3dInteractive, b3dLauncher, b3dLibrary, b3dNpc, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, holdMount, holdClassOf, stowGrip, heldGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, AIM_CLIPS, b3dConversation, WORKING_CHARACTER } from 'tosijs-3d'
-import { tosi, elements } from 'tosijs'
+import { tosi, svgElements } from 'tosijs'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
 // TONIO'S WEAPONS (CC BY 4.0), the character builder's: every one is made
@@ -527,10 +527,33 @@ const enemyText = (e) => {
   return d.mode + (d.sees ? ', sees you' : d.senses ? ', senses you' : d.heard ? ', heard something' : '')
 }
 
-// Health, under the scene (a live readout sits beside the scene, never over it).
-const readout = elements.div({ style: 'padding: 4px 8px; font: 14px system-ui' })
-let shown = ''
-// What just happened (a locked door, what a chest held), for a few seconds.
+// THE HUD: health, what the gun holds and what just happened (a locked
+// door, what a pickup gave), top right of the view, and in a headset with
+// the other panels. A system panel with no button, open from the start.
+const { svg: hudSvgEl, rect, text } = svgElements
+const HUD_W = 220
+const BAR_W = HUD_W - 24
+const hudFont = { 'font-family': 'system-ui, sans-serif', 'font-size': 15 }
+const hudBar = rect({ x: 12, y: 14, width: BAR_W, height: 10, rx: 5, fill: '#e04848' })
+const hudAmmo = text({ x: 12, y: 46, fill: '#e8eef8', ...hudFont })
+const hudSaid = text({ x: 12, y: 70, fill: '#ffd966', ...hudFont })
+const hud = b3dPanel({ icon: 'heart', title: 'Status', barButton: 'off', exclusive: 'off', chrome: 'none', open: true })
+hud.screenAnchor = { right: '2vmin', top: '2vmin' }
+hud.svg = hudSvgEl(
+  { viewBox: `0 0 ${HUD_W} 82`, width: HUD_W, height: 82 },
+  rect({ x: 0, y: 0, width: HUD_W, height: 82, rx: 10, fill: '#1b2230' }),
+  rect({ x: 12, y: 14, width: BAR_W, height: 10, rx: 5, fill: '#3a4252' }),
+  hudBar, hudAmmo, hudSaid
+)
+const shown = { hp: -1, ammo: null, said: null }
+const showHud = () => {
+  const hp = hero.halted ? 0 : Math.max(0, Math.round(hero.hp))
+  if (hp !== shown.hp) hudBar.setAttribute('width', String((BAR_W * (shown.hp = hp)) / 100))
+  const ammo = hero.gunplay && loads() ? `${loads()}: ${gun.reloading ? 'reloading' : gun.loaded} / ${rounds(loads())}` : ''
+  if (ammo !== shown.ammo) hudAmmo.textContent = shown.ammo = ammo
+  if (said !== shown.said) hudSaid.textContent = shown.said = said
+}
+// What just happened, for a few seconds.
 let said = ''
 let saidTimer = 0
 const say = (text) => {
@@ -557,13 +580,12 @@ preview.append(
           if (chestAt && hero.mesh && hero.mesh.position.subtract(chestAt).length() > 3) endTrade()
           if (hero.aimTarget && !hero.halted) turret.track(hero.aimTarget)
           else turret.clearTarget()
-          const text = (hero.halted ? 'health: dead' : `health: ${Math.max(0, Math.round(hero.hp))} / 100`) +
-            (hero.gunplay && loads() ? ` · ${loads()}: ${gun.reloading ? 'reloading' : gun.loaded} / ${rounds(loads())}` : '') +
-            // How to fight, until you are: the bumper is not a key anyone guesses.
-            (hero.halted ? '' : hero.gunplay ? ' · R fires, Q aims' : !inRight() ? ' · right shift (or middle click) draws your pistol' : '') +
-            ` · guard: ${enemyText(enemies[0])} · patrol: ${enemyText(enemies[1])}` +
-            (said ? ` · ${said}` : '')
-          if (text !== shown) readout.textContent = shown = text
+          showHud()
+        })
+        // What each enemy is doing, in Perf Stats (a diagnostic, not the game's).
+        el.addDebugSource({
+          name: 'enemies',
+          lines: () => [`guard: ${enemyText(enemies[0])}`, `patrol: ${enemyText(enemies[1])}`],
         })
       },
       // The glass pad shows only what this demo USES. These are control names,
@@ -599,6 +621,7 @@ preview.append(
     ...enemies,
     ...playground(),
     ...loadout.panels(),
+    hud,
     // Death's exit: the panel, and a new hero back at the start.
     b3dDeath({
       title: 'DEAD',
@@ -616,8 +639,7 @@ preview.append(
       },
     }),
     focus
-  ),
-  readout
+  )
 )
 ```
 ```css
@@ -642,7 +664,7 @@ bumper again to put away what is in your hand. Only the right hand is drawn.
 **Ammo.** A gun holds a magazine (the pistol 12, the SMG and rifle 30, the
 rocket launcher one) and reloads from what is in your bag: **J** (d-pad
 left) reloads, and an empty gun reloads itself when you pull the trigger.
-The line under the scene shows what is loaded and what is left. You start
+The panel at the top right shows your health, what is loaded and what is left. You start
 with 36 pistol rounds; ammo boxes lie about, and each gun keeps its own
 magazine while it is put away.
 
@@ -684,8 +706,8 @@ Throw something (drop it from the loadout) and it goes to look where it
 landed. It is deliberately dumb: it runs to where you WERE, so a sidestep
 beats it. Bullets hit where they land: a head shot does two and a half
 times the damage, a limb half: one pistol round to the head puts one down,
-three to the body, five to the arms and legs. The line under the scene says what
-each is doing.
+three to the body, five to the arms and legs. Add `#debug` to the
+page's address and Perf Stats, in the settings panel, says what each is doing.
 
 **Something shoots back.** A turret past the cover line fires slow shells at
 you (four hits kill); each hit staggers you, and out of its sight you heal.
