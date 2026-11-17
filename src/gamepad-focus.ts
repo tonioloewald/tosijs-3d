@@ -40,6 +40,10 @@ it's how you walk.
 | `menu` / `buttonA` | `focusActivate()` |
 | `buttonB` | `focusBack()` |
 
+`activate` and `back` choose other buttons: a scene's own UI confirms with
+**B**, the "use" button (`activate: ['buttonB'], back: []`), as the
+conversation balloon does.
+
 ## Edge-triggered, with a repeat
 
 A gamepad reports *held*, not *pressed*, so polling raw state would fire every frame and
@@ -89,10 +93,18 @@ export function createFocusPulse(
     repeatDelayMs?: number
     /** ms between repeats once started. Default 90. */
     repeatRateMs?: number
+    /** The buttons that confirm. Default `menu` and `buttonA`. */
+    activate?: (keyof VirtualGamepad)[]
+    /** The buttons that back out. Default `buttonB`; `[]` for none. */
+    back?: (keyof VirtualGamepad)[]
   } = {}
 ) {
   const DELAY = opts.repeatDelayMs ?? 400
   const RATE = opts.repeatRateMs ?? 90
+  const ACT = opts.activate ?? ['menu', 'buttonA']
+  const BACK = opts.back ?? ['buttonB']
+  const any = (pad: VirtualGamepad, keys: (keyof VirtualGamepad)[]) =>
+    keys.some((k) => Boolean(pad[k]))
   // Per-direction: when it went down, and when it last fired.
   const held = new Map<string, { since: number; last: number }>()
   let prevActivate = false
@@ -118,8 +130,8 @@ export function createFocusPulse(
     }
     // `menu` is the primary confirm (it's the button a VR set leaves spare); `a` is
     // accepted too because on a hardware pad that's where a thumb expects it.
-    const act = Boolean(pad.menu || pad.buttonA)
-    const bk = Boolean(pad.buttonB)
+    const act = any(pad, ACT)
+    const bk = any(pad, BACK)
     const pulse: FocusPulse = {
       moves,
       activate: act && !prevActivate, // confirm does NOT repeat — one press, one action
@@ -155,6 +167,10 @@ export interface GamepadFocusOptions {
   claim?: Element
   repeatDelayMs?: number
   repeatRateMs?: number
+  /** The buttons that confirm (default `menu`, `buttonA`). */
+  activate?: (keyof VirtualGamepad)[]
+  /** The buttons that back out (default `buttonB`). */
+  back?: (keyof VirtualGamepad)[]
   /** Override the frame pump (tests, or an XR session's own rAF). */
   raf?: (cb: () => void) => number
   cancel?: (id: number) => void

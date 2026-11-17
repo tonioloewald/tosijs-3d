@@ -315,3 +315,15 @@ describe('gamepadFocus — a claimless instance is not starved forever', () => {
     outside.remove()
   })
 })
+
+describe('createFocusPulse: which buttons confirm', () => {
+  test('activate: ["buttonB"] confirms on B, and A does nothing; back: [] never backs', () => {
+    const p = createFocusPulse({ activate: ['buttonB'], back: [] })
+    const b = p({ ...emptyGamepad(), buttonB: 1 }, 0)
+    expect(b.activate).toBe(true)
+    expect(b.back).toBe(false)
+    p(emptyGamepad(), 16)
+    const a = p({ ...emptyGamepad(), buttonA: 1 }, 32)
+    expect(a.activate).toBe(false)
+  })
+})

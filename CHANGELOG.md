@@ -12,6 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Added:** a conversation's replies can be chosen on a gamepad: the D-pad steps through them, **B** picks. `gamepadFocus` takes `activate` and `back` (which buttons confirm and back out; the defaults are unchanged).
 - **Changed:** ⚠️ the D-pad no longer zooms the biped's camera (it is for UI navigation; XR controllers have none). The mouse wheel still zooms, through a new optional `VirtualGamepad.zoom` axis, not the d-pad.
 - **Fixed:** City Drive's cars: some drew black and mangled, others as nothing but their lamps. Babylon's `Mesh.MergeMeshes` appends into the first part's index array in place, and the parts shared their geometry with the library's, so each merge grew the library's wheel and every car built after it was corrupt. `<tosi-b3d-city>` gives each part its own geometry before merging.
 - **Changed:** ⚠️ the biped's gamepad layout. **A** attacks (fires with the weapon raised, the right trigger still does; swings a melee weapon), **B** uses (doors, chests, lifts, pickups, talking) and, with the weapon raised, ducks instead, so it can never fire; clicking the **right stick** jumps (it toggled the weapon; the right bumper still does); **X** is a use alias. In a car **B** gets out as well as X. The keyboard is unchanged (space jumps, E uses, F attacks): a mapping's `keyboard` transform moves the keys. Pure in `bipedMapping`; labels in `bipedMappingDescriptor`.

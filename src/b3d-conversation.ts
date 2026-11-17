@@ -7,7 +7,7 @@ to face you and talks (UAL's talking loop) or gestures while a line plays,
 the line appears in a speech balloon over its head, your replies appear in the
 balloon as its line nears its end, and your character's own line goes in a
 balloon over you. Pick a reply with the pointer (flat or a controller in a
-headset) or its number key. Walk away and the talk ends: you are never held
+headset), its number key, or on a gamepad the D-pad and **B**. Walk away and the talk ends: you are never held
 in place.
 
 ```javascript
@@ -66,6 +66,8 @@ import {
   type BalloonLayout,
 } from './balloon-layout.js'
 import { emptyInput, type InputProvider } from './control-input.js'
+import { gamepadFocus } from './gamepad-focus.js'
+import { HardwareGamepadSource } from './hardware-gamepad.js'
 
 const { svg, g, path, text, rect } = svgElements
 
@@ -116,6 +118,28 @@ class Balloon {
 
   get empty(): boolean {
     return this.caption === '' && this.replies.length === 0
+  }
+
+  /** It shows replies to choose from. */
+  get choosing(): boolean {
+    return this.replies.length > 0
+  }
+
+  /** A pad's D-pad: step the highlighted reply (the first press lands on the first). */
+  focusMove(_dx: number, dy: number): void {
+    if (this.replies.length === 0 || dy === 0) return
+    const i = this.replies.findIndex((r) => r.id === this.hover)
+    const next =
+      i < 0
+        ? 0
+        : Math.max(0, Math.min(this.replies.length - 1, i + Math.sign(dy)))
+    this.hover = this.replies[next].id
+    this.draw()
+  }
+
+  /** A pad's click: pick the highlighted reply. */
+  focusActivate(): void {
+    if (this.hover != null) this.pick(this.hover)
   }
 
   private draw(): void {
@@ -258,6 +282,22 @@ export class B3dConversation extends B3dChild {
     this._theirs.pick = this._mine.pick = (id) => this.talk?.pick(id)
     this._ensurePlanes()
     window.addEventListener('keydown', this._keys)
+    /*
+    A GAMEPAD CHOOSES TOO: the D-pad steps through the replies and B (the use
+    button) picks one. Whichever balloon is showing replies takes it.
+    */
+    const pad = new HardwareGamepadSource()
+    const showing = () =>
+      this._mine.choosing ? this._mine : this._theirs.choosing ? this._theirs : null
+    this._stopPad = gamepadFocus({
+      poll: () => pad.poll(),
+      target: {
+        focusMove: (dx, dy) => showing()?.focusMove(dx, dy),
+        focusActivate: () => showing()?.focusActivate(),
+      },
+      activate: ['buttonB'],
+      back: [],
+    })
     const host = this.host
     this.talk = startConversation(this.script, {
       ...host,
@@ -276,8 +316,12 @@ export class B3dConversation extends B3dChild {
 
   private _lent: Talker | null = null
 
+  private _stopPad: (() => void) | null = null
+
   private _cleanup(): void {
     window.removeEventListener('keydown', this._keys)
+    this._stopPad?.()
+    this._stopPad = null
     if (this._lent != null && this._lent.inputProvider === STAND_STILL)
       this._lent.inputProvider = null
     this._lent = null
