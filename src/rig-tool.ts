@@ -932,7 +932,13 @@ export function mountRigTool(
     /** Markers dragged carrying their joints: every joint below them comes. */
     carry: string[] = [],
     /** Depth set by hand per marker (a drag in a side view). */
-    depths: Partial<Record<MarkerName, number>> | undefined = bound?.depths
+    depths: Partial<Record<MarkerName, number>> | undefined = bound?.depths,
+    /**
+     * `alone`: what hangs from the markers stays where it is (a drag set to
+     * move the joint alone). `commit: false`: the caller commits, after a
+     * second change in the same gesture, so one drag is one undo step.
+     */
+    how: { alone?: boolean; commit?: boolean } = {}
   ) {
     /*
     What hangs from a marker comes with it: a joint moved by hand below one
@@ -954,7 +960,7 @@ export function mountRigTool(
     whole hand or foot as it stands (the fit's fingers too, not only the
     ones moved by hand), so a placed hand is not undone by moving its wrist.
     */
-    const carried = new Set(carry.map((k) => MARKER_JOINT[k]))
+    const carried = new Set(how.alone ? [] : carry.map((k) => MARKER_JOINT[k]))
     if (carried.size && shown != null)
       for (const [n, p] of shown) {
         if (markerJoints.has(n)) continue
@@ -972,7 +978,7 @@ export function mountRigTool(
     for (const [n, p] of Object.entries(recipe.binding?.joints ?? {})) {
       if (n in joints) continue
       if (markerJoints.has(n)) continue
-      const m = markerAbove(n)
+      const m = how.alone ? null : markerAbove(n)
       const a = m != null ? before?.get(m) : undefined
       const b = m != null ? after?.get(m) : undefined
       joints[n] =
@@ -997,7 +1003,7 @@ export function mountRigTool(
     stale = true
     ui.status = 'bound again when you animate or press done'
     edited()
-    commitNow()
+    if (how.commit !== false) commitNow()
     refresh()
     tool?.targets()
   }
@@ -3074,6 +3080,21 @@ export function mountRigTool(
             )
           : []
         const carriedJoints = new Set(markerMoves.map((g) => g.n))
+        const alone = ui.jointDrag === 'alone'
+        const moved: Record<string, Vec3> = {}
+        for (const g of group) {
+          if (carriedJoints.has(g.n)) continue
+          const m = markerAbove(g.n)
+          if (m != null && carriedJoints.has(m)) continue
+          const f = toFile(g.d.position)
+          moved[g.n] = { x: f.x, y: f.y, z: f.z }
+          // Its mirror follows, as the markers' do (the left is on +X).
+          if (symmetry && /_[lr]$/.test(g.n))
+            moved[
+              g.n.replace(/_([lr])$/, (_, s) => (s === 'l' ? '_r' : '_l'))
+            ] = { x: -f.x, y: f.y, z: f.z }
+        }
+        const both = Object.keys(moved).length > 0
         if (b && markerMoves.length) {
           const markers: Markers = JSON.parse(JSON.stringify(b.markers))
           const keys: string[] = []
@@ -3089,27 +3110,17 @@ export function mountRigTool(
               keys.push(twin)
             }
           }
+          // One gesture, one undo step: the joints below commit it.
           setMarkers(
             markers,
             b.tail ?? null,
             b.tail != null ? b.tailBase ?? null : null,
-            keys
+            keys,
+            bound?.depths,
+            { alone, commit: !both }
           )
         }
-        const moved: Record<string, Vec3> = {}
-        for (const g of group) {
-          if (carriedJoints.has(g.n)) continue
-          const m = markerAbove(g.n)
-          if (m != null && carriedJoints.has(m)) continue
-          const f = toFile(g.d.position)
-          moved[g.n] = { x: f.x, y: f.y, z: f.z }
-          // Its mirror follows, as the markers' do (the left is on +X).
-          if (symmetry && /_[lr]$/.test(g.n))
-            moved[
-              g.n.replace(/_([lr])$/, (_, s) => (s === 'l' ? '_r' : '_l'))
-            ] = { x: -f.x, y: f.y, z: f.z }
-        }
-        if (Object.keys(moved).length) setJoints(name, moved)
+        if (both) setJoints(name, moved)
       }
       window.addEventListener('pointermove', move, true)
       window.addEventListener('pointerup', up, true)
