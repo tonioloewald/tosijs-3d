@@ -550,7 +550,7 @@ const enemyText = (e) => {
 }
 
 // THE HUD: health, what the gun holds and what just happened (a locked
-// door, what a pickup gave), small, at the top middle of the view, and in a
+// door, what a pickup gave), small, at the bottom middle of the view (where there is least to see), and in a
 // headset with the other panels. A system panel with no button, open from the
 // start; drag it anywhere (it is all grip), and it stays there.
 const { svg: hudSvgEl, rect, text } = svgElements
@@ -564,7 +564,7 @@ const hudSaid = text({ x: HUD_W - 8, y: 31, fill: '#ffd966', 'text-anchor': 'end
 const hud = b3dPanel({ icon: 'heart', title: 'Status', barButton: 'off', exclusive: 'off', chrome: 'none', open: true })
 // Its height stated: a system panel otherwise fits its height to the room,
 // at least 80 px, twice this.
-hud.screenAnchor = { left: '50%', anchorX: 0.5, top: '1.5vmin', height: HUD_H }
+hud.screenAnchor = { left: '50%', anchorX: 0.5, bottom: '2%', anchorY: 1, height: HUD_H }
 hud.svg = hudSvgEl(
   { viewBox: `0 0 ${HUD_W} ${HUD_H}`, width: HUD_W, height: HUD_H },
   rect({ x: 0, y: 0, width: HUD_W, height: HUD_H, rx: 8, fill: '#1b2230', 'fill-opacity': 0.45 }),
@@ -693,7 +693,7 @@ bumper again to put away what is in your hand. Only the right hand is drawn.
 **Ammo.** A gun holds a magazine (the pistol 12, the SMG and rifle 30, the
 rocket launcher one) and reloads from what is in your bag: **J** (d-pad
 left) reloads, and an empty gun reloads itself when you pull the trigger.
-The panel at the top of the view shows your health, what is loaded and what is left; drag it wherever you like. You start
+The panel at the bottom of the view shows your health, what is loaded and what is left; drag it wherever you like. You start
 with 36 pistol rounds; ammo boxes lie about, and each gun keeps its own
 magazine while it is put away.
 

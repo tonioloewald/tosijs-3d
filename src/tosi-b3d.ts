@@ -674,8 +674,10 @@ function xrSeatFor(
     typeof v === 'string' && v.trim().endsWith('%')
       ? parseFloat(v) / 100
       : null
-  const fx = frac(pin?.left)
-  const fy = frac(pin?.top)
+  const fr = frac(pin?.right)
+  const fb = frac(pin?.bottom)
+  const fx = frac(pin?.left) ?? (fr != null ? 1 - fr : null)
+  const fy = frac(pin?.top) ?? (fb != null ? 1 - fb : null)
   const ax = pin?.anchor === 'center' ? 0.5 : pin?.anchorX ?? 0
   const ay = pin?.anchor === 'center' ? 0.5 : pin?.anchorY ?? 0
   const side =
