@@ -250,6 +250,154 @@ export function socketInHand(
   return world && mat4Multiply(world, mat4Invert(handWorld))
 }
 
+/*
+UAL's lower arm in the same anatomy frame, set at the elbow (the lower arm's
+joint) instead of the hand: measured as the hand's was. A shield or a watch
+rides here, so on UAL its numbers are in the lower arm bone's own frame.
+*/
+export const FOREARM_IN_ANATOMY: Record<'r' | 'l', Mat4> = {
+  r: [
+    0, -0.56698, -0.82373, 0, 1, 0, 0, 0, 0, 0.82373, -0.56698, 0, 0, 0, 0, 1,
+  ],
+  l: [
+    0, 0.56698, -0.82373, 0, 1, 0, 0, 0, 0, 0.82373, 0.56698, 0, 0, 0, 0, 1,
+  ],
+}
+
+/** Where a held thing rides: in the hand or on the forearm. */
+export type Mount = 'hand' | 'forearm'
+
+const CALIBRATION: Record<Mount, Record<'r' | 'l', Mat4>> = {
+  hand: HAND_IN_ANATOMY,
+  forearm: FOREARM_IN_ANATOMY,
+}
+
+/**
+ * The forearm's socket in the world: the hand's anatomy frame, at the lower
+ * arm's joint. Null when the hand cannot be read.
+ */
+export function forearmWorld(
+  side: 'r' | 'l',
+  hand: Vec3,
+  lowerarm: Vec3,
+  thumb: Vec3
+): Mat4 | null {
+  const a = anatomyFrame(hand, lowerarm, thumb)
+  if (a == null) return null
+  a[12] = lowerarm.x
+  a[13] = lowerarm.y
+  a[14] = lowerarm.z
+  return mat4Multiply(FOREARM_IN_ANATOMY[side], a)
+}
+
+/** The forearm's socket as a child of the lower arm, whose world matrix is `foreWorld`. */
+export function socketInForearm(
+  side: 'r' | 'l',
+  foreWorld: Mat4,
+  hand: Vec3,
+  thumb: Vec3
+): Mat4 | null {
+  const lowerarm = { x: foreWorld[12], y: foreWorld[13], z: foreWorld[14] }
+  const world = forearmWorld(side, hand, lowerarm, thumb)
+  return world && mat4Multiply(world, mat4Invert(foreWorld))
+}
+
+/** A rotation matrix's turn as Babylon's Euler angles, in degrees (the inverse of `eulerQuaternion`). */
+export function matrixEuler(m: Mat4): { rx: number; ry: number; rz: number } {
+  // Babylon's Quaternion.FromRotationMatrix, then toEulerAngles.
+  const [m11, m21, m31] = [m[0], m[1], m[2]]
+  const [m12, m22, m32] = [m[4], m[5], m[6]]
+  const [m13, m23, m33] = [m[8], m[9], m[10]]
+  const trace = m11 + m22 + m33
+  let x: number, y: number, z: number, w: number
+  if (trace > 0) {
+    const s = 0.5 / Math.sqrt(trace + 1)
+    w = 0.25 / s
+    x = (m32 - m23) * s
+    y = (m13 - m31) * s
+    z = (m21 - m12) * s
+  } else if (m11 > m22 && m11 > m33) {
+    const s = 2 * Math.sqrt(1 + m11 - m22 - m33)
+    w = (m32 - m23) / s
+    x = 0.25 * s
+    y = (m12 + m21) / s
+    z = (m13 + m31) / s
+  } else if (m22 > m33) {
+    const s = 2 * Math.sqrt(1 + m22 - m11 - m33)
+    w = (m13 - m31) / s
+    x = (m12 + m21) / s
+    y = 0.25 * s
+    z = (m23 + m32) / s
+  } else {
+    const s = 2 * Math.sqrt(1 + m33 - m11 - m22)
+    w = (m21 - m12) / s
+    x = (m13 + m31) / s
+    y = (m23 + m32) / s
+    z = 0.25 * s
+  }
+  const deg = 180 / Math.PI
+  const zAxisY = y * z - x * w
+  if (Math.abs(zAxisY) > 0.4999999)
+    return {
+      rx: (zAxisY < 0 ? 90 : -90),
+      ry: 2 * Math.atan2(y, w) * deg,
+      rz: 0,
+    }
+  return {
+    rx: Math.asin(-2 * zAxisY) * deg,
+    ry: Math.atan2(2 * (z * x + y * w), z * z - x * x - y * y + w * w) * deg,
+    rz: Math.atan2(2 * (x * y + z * w), -z * z - x * x + y * y + w * w) * deg,
+  }
+}
+
+const det3 = (m: Mat4): number =>
+  m[0] * (m[5] * m[10] - m[6] * m[9]) -
+  m[1] * (m[4] * m[10] - m[6] * m[8]) +
+  m[2] * (m[4] * m[9] - m[5] * m[8])
+
+/*
+THE OTHER SIDE. A body's left hand is its right hand's mirror image, and so
+are their anatomy frames but for the third axis (a cross product, which a
+mirror reverses). So a grip for one side becomes the other's by one constant
+matrix, K = calibration(from) · flip z · calibration(to)⁻¹, whatever the rig.
+That alone would mirror the ITEM, which no rotation can do, so the item is
+also mirrored through its own plane of symmetry (`flip`: a sword's or a
+gun's is across its local x, left to right): the two mirrors make a turn.
+*/
+/**
+ * A grip for one side's hand or forearm as the same hold on the other side
+ * (`to`). `flip` is the item's own axis across its plane of symmetry.
+ */
+export function mirrorGrip<G extends Grip>(
+  g: G,
+  mount: Mount,
+  to: 'r' | 'l',
+  flip: 'x' | 'y' | 'z' = 'x'
+): G {
+  const from = to === 'r' ? 'l' : 'r'
+  const cal = CALIBRATION[mount]
+  const zFlip = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1]
+  const k = mat4Multiply(mat4Multiply(cal[from], zFlip), mat4Invert(cal[to]))
+  const item = [...IDENTITY4]
+  if (det3(k) < 0) item[flip === 'x' ? 0 : flip === 'y' ? 5 : 10] = -1
+  const turned = mat4Multiply(
+    mat4Multiply(item, gripMatrix({ ...g, x: 0, y: 0, z: 0 })),
+    k
+  )
+  const at = mat4Point(k, { x: g.x, y: g.y, z: g.z })
+  const round = (n: number) => Math.round(n * 1e6) / 1e6
+  const e = matrixEuler(turned)
+  return {
+    ...g,
+    x: round(at.x),
+    y: round(at.y),
+    z: round(at.z),
+    rx: round(e.rx),
+    ry: round(e.ry),
+    rz: round(e.rz),
+  }
+}
+
 export interface Grip {
   x: number
   y: number

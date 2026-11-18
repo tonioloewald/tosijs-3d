@@ -337,6 +337,7 @@ import {
   mat4Invert,
   mat4Multiply,
   socketInHand,
+  socketInForearm,
 } from './hand-socket.js'
 
 /*
@@ -461,6 +462,66 @@ export function handSocket(
   node.rotationQuaternion = q
   node.position.copyFrom(p)
   return node
+}
+/**
+ * A forearm's SOCKET: a node under the lower arm in the arm's anatomy frame
+ * (UAL's calibration, so on UAL it is the bone itself), for what is strapped
+ * or worn there (a shield, a watch) on either side. Made once and reused.
+ */
+export function forearmSocket(
+  skeleton: BABYLON.Skeleton,
+  side: 'r' | 'l',
+  foreNode: BABYLON.TransformNode
+): BABYLON.TransformNode | null {
+  const name = `lowerarm_${side}-socket`
+  const had = foreNode.getChildren(
+    (n) => n.name === name,
+    true
+  )[0] as BABYLON.TransformNode
+  if (had != null) return had
+  const f = restWorld(skeleton, `lowerarm_${side}`)
+  const hand = restWorld(skeleton, `hand_${side}`)?.getTranslation()
+  const thumb = restWorld(skeleton, `thumb_01_${side}`)?.getTranslation()
+  if (f == null || hand == null || thumb == null) return null
+  const m = socketInForearm(side, Array.from(f.m), hand, thumb)
+  if (m == null) return null
+  const node = new BABYLON.TransformNode(name, foreNode.getScene())
+  node.parent = foreNode
+  const s = new BABYLON.Vector3()
+  const q = new BABYLON.Quaternion()
+  const p = new BABYLON.Vector3()
+  BABYLON.Matrix.FromArray(m).decompose(s, q, p)
+  node.scaling.copyFrom(s)
+  node.rotationQuaternion = q
+  node.position.copyFrom(p)
+  return node
+}
+
+/**
+ * The node a held or worn thing hangs from on a skeleton: a hand's or
+ * forearm's socket, or a bone itself (`frame: 'bone'`, the spine). Pass
+ * hold-grip's `holdMount(class, side)`. Null when the rig has no such bone.
+ */
+export function mountNode(
+  skeleton: BABYLON.Skeleton,
+  mount: {
+    bone: string
+    frame: 'socket' | 'bone'
+    mount?: 'hand' | 'forearm'
+    side?: 'r' | 'l'
+  }
+): BABYLON.TransformNode | null {
+  const bone = skeleton.bones
+    .find((b) => b.name === mount.bone)
+    ?.getTransformNode()
+  if (bone == null) return null
+  if (mount.frame === 'bone') return bone
+  const side = mount.side ?? (/_l$/.test(mount.bone) ? 'l' : 'r')
+  return (
+    (mount.mount === 'forearm'
+      ? forearmSocket(skeleton, side, bone)
+      : handSocket(skeleton, mount.bone, side, bone)) ?? bone
+  )
 }
 import {
   AbstractMesh,

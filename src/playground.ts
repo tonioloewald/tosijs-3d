@@ -6,7 +6,7 @@ arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dBox, b3dChest, b3dDeath, b3dDoor, b3dPanel, createCarry, tradePanel, b3dInteractive, b3dLauncher, b3dLibrary, b3dNpc, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, holdMount, holdClassOf, stowGrip, heldGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, AIM_CLIPS, b3dConversation, WORKING_CHARACTER } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dBox, b3dChest, b3dDeath, b3dDoor, b3dPanel, createCarry, tradePanel, b3dInteractive, b3dLauncher, b3dLibrary, b3dNpc, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, holdMount, holdClassOf, stowGrip, STOW_MOUNT, heldGrip, mountNode, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, AIM_CLIPS, b3dConversation, WORKING_CHARACTER } from 'tosijs-3d'
 import { tosi, svgElements } from 'tosijs'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
@@ -408,9 +408,11 @@ const wire = (h) => {
   }
   return h
 }
-// WHAT IS WORN, drawn on the body: a shield in the left hand is strapped to
-// the left forearm, and whatever is on the back rides across the shoulders
-// (hold-grip's mounts). Only the right hand is a launcher; these are models.
+// WHAT IS WORN, drawn on the body: what is in the left hand is held there
+// (a shield strapped to the forearm, a dagger in the hand, each class's grip
+// mirrored from the right if it is set for the right), and whatever is on the
+// back rides across the shoulders (hold-grip's mounts). Only the right hand is
+// a launcher; these are models.
 let gear = { key: '', nodes: [] }
 // Babylon, from sceneCreated (lowercase: see the doc transpiler's all-caps rule).
 let babylon = null
@@ -423,11 +425,11 @@ const wearGear = (h) => {
   if (!skeleton || key === gear.key) return
   for (const n of gear.nodes) n.dispose()
   gear = { key, nodes: [] }
-  const mount = (kind, boneName, g) => {
-    const bone = skeleton.bones.find((b) => b.name === boneName)?.getTransformNode()
-    const node = bone && weapons.instantiate?.(kind, { canonical: true })
+  const mount = (kind, where, g) => {
+    const at = mountNode(skeleton, where)
+    const node = at && weapons.instantiate?.(kind, { canonical: true })
     if (!node) return
-    node.parent = bone
+    node.parent = at
     const d = Math.PI / 180
     const turn = babylon.Quaternion.FromEulerAngles(g.rx * d, g.ry * d, g.rz * d)
     const grip = (heldGrip(node) ?? babylon.Vector3.Zero()).scale(g.scale).applyRotationQuaternion(turn)
@@ -436,8 +438,10 @@ const wearGear = (h) => {
     node.scaling.setAll(g.scale)
     gear.nodes.push(node)
   }
-  if (left && holdMount(holdClassOf(left)).bone === 'lowerarm_l') mount(left, 'lowerarm_l', holdGrip(left))
-  if (back) mount(back, 'spine_03', stowGrip(back))
+  // The left hand's thing on its LEFT mount (a shield strapped to the
+  // forearm, a dagger in the hand), its grip mirrored if set for the right.
+  if (left) mount(left, holdMount(holdClassOf(left), 'l'), holdGrip(left, {}, undefined, 'l'))
+  if (back) mount(back, STOW_MOUNT, stowGrip(back))
 }
 // Each gun keeps what is in its magazine while it is put away.
 const magazines = {}

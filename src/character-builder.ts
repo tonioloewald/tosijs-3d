@@ -11,13 +11,13 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, retargetSourceClip, readBvh, clipStore, clipKind, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, tailorPanel, garmentStore, barMenu, fitPanel, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, holdMount, stowGrip, STOW_MOUNT, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, retargetSourceClip, readBvh, clipStore, clipKind, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, tailorPanel, garmentStore, barMenu, fitPanel, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, holdMount, holdPlace, holdSide, ownSideGrip, mountNode, stowGrip, STOW_MOUNT, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 import { exportBodyRows } from 'tosijs-3d/body-export'
 
 // Everything the panel sets, as it starts: what a saved character is read against.
-const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', mirror: false, tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorDrape: false, tailorMesh: 'body', tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, held: 'none', stowed: 'none', grips: {}, source: 'MakeHuman', bodyDetail: 'medium', characterName: '' }
+const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', mirror: false, tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorDrape: false, tailorMesh: 'body', tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, held: 'none', heldSide: 'auto', stowed: 'none', grips: {}, source: 'MakeHuman', bodyDetail: 'medium', characterName: '' }
 const { walker } = tosi({ walker: structuredClone(START) })
 // What a character file keeps: not the editor's view of one slot (that is in
 // cloth), the microphone (it would ask on load), or the save controls.
@@ -213,20 +213,28 @@ let showHairHandles = (on) => { hairHandles = on }
 // (hold-grip: pistols, rifles, one- and two-handed blades…): placing it on
 // one sword places every one-handed blade.
 const gripsKept = () => JSON.parse(JSON.stringify(walker.grips.value))
+// Which side the held thing is on: its class's own (`auto`: the right hand,
+// a bow's left, a shield's left forearm) or the one picked.
+const heldSideOf = (name) => {
+  const v = walker.heldSide.value
+  return v === 'right' ? 'r' : v === 'left' ? 'l' : holdSide(holdClassOf(name))
+}
 const gripOf = (name, slot = 'held') => {
   const kept = gripsKept()
   // On the back: per class too, kept under `stow:<class>`.
   if (slot === 'stowed') return stowGrip(name, kept)
   // A character saved before grips were per class kept them per item.
   const own = kept[holdClassOf(name)] ?? kept[name]
-  return holdGrip(name, own ? { [holdClassOf(name)]: own } : {})
+  // Kept for the class's own side; on the other it is mirrored.
+  return holdGrip(name, own ? { [holdClassOf(name)]: own } : {}, undefined, heldSideOf(name))
 }
 const setGrip = (patch, slot = 'held') => {
   const name = walker[slot].value
   const kept = gripsKept()
   const key = slot === 'stowed' ? `stow:${holdClassOf(name)}` : holdClassOf(name)
   if (slot === 'held') delete kept[name]
-  walker.grips.value = { ...kept, [key]: { ...gripOf(name, slot), ...patch } }
+  const g = { ...gripOf(name, slot), ...patch }
+  walker.grips.value = { ...kept, [key]: slot === 'held' ? ownSideGrip(name, g, heldSideOf(name)) : g }
   applyGrip()
 }
 // Export: the body on show as a GLB that plays UAL's clips by name (its
@@ -269,7 +277,7 @@ const exportRows = () =>
         clip: playingClip(shown.recipe),
         // What the right hand holds goes out with it, where it is held.
         held:
-          walker.held.value === 'none' || holdMount(holdClassOf(walker.held.value)).bone !== 'hand_r'
+          walker.held.value === 'none' || holdMount(holdClassOf(walker.held.value), heldSideOf(walker.held.value)).bone !== 'hand_r'
             ? null
             : {
                 grip: gripOf(walker.held.value),
@@ -288,27 +296,27 @@ const exportRows = () =>
   )
 
 // One item slot's rows: what it is, its manipulator, and its grip for the
-// whole class. `held` is the right hand (a shield: the left forearm); `stowed`
-// rides on the back, across the shoulders.
+// whole class. `held` is in a hand or on a forearm (`side`: the class's own,
+// or the one picked); `stowed` rides on the back, across the shoulders.
 const itemRows = (slot) => {
   const name = walker[slot].value
   const g = gripOf(name, slot)
   const c = holdClassOf(name)
+  const sideWord = heldSideOf(name) === 'l' ? 'left' : 'right'
   const where =
     slot === 'stowed'
       ? `on the back, for all ${HOLD_CLASS_LABELS[c]}: from the upper spine (metres)`
-      : holdMount(c).bone === 'lowerarm_l'
-      ? `strapped to the left forearm, for all ${HOLD_CLASS_LABELS[c]}: from the forearm (metres)`
-      : holdMount(c).bone === 'hand_l'
-      ? `grip for all ${HOLD_CLASS_LABELS[c]}, in the left hand: from the hand (metres)`
-      : `grip for all ${HOLD_CLASS_LABELS[c]}: from the hand (metres)`
+      : holdPlace(c) === 'forearm'
+      ? `on the ${sideWord} forearm, for all ${HOLD_CLASS_LABELS[c]}: from the forearm (metres)`
+      : `grip for all ${HOLD_CLASS_LABELS[c]}, in the ${sideWord} hand: from the hand (metres)`
   const handles = slot === 'stowed' ? stowHandles : gripHandles
   const show = slot === 'stowed' ? showStowHandles : showGripHandles
   return [
-    select3d({ label: slot === 'stowed' ? 'on the back' : 'in hand', value: walker[slot], options: heldNames, stayOpen: true }),
+    select3d({ label: slot === 'stowed' ? 'on the back' : 'held', value: walker[slot], options: heldNames, stayOpen: true }),
     ...(name === 'none'
       ? []
       : [
+          ...(slot === 'held' ? [select3d({ label: 'side', value: walker.heldSide, options: ['auto', 'right', 'left'] })] : []),
           toggle3d({
             label: 'manipulator',
             value: handles,
@@ -681,29 +689,29 @@ preview.append(
         // Two slots: the right hand (a shield on the left forearm) and the back.
         const items = { held: null, stowed: null }
         const holdingSkeleton = () => (rigging ? rigging.api.skeleton : ch?.shown?.built?.skeleton) ?? null
-        const mountFor = (slot, name) => (slot === 'stowed' ? STOW_MOUNT : holdMount(holdClassOf(name)))
+        const mountFor = (slot, name) => (slot === 'stowed' ? STOW_MOUNT : holdMount(holdClassOf(name), heldSideOf(name)))
         // Whose handles are up (one manipulator for both).
         const handlesSlot = () => (gripHandles ? 'held' : stowHandles ? 'stowed' : null)
         const placeSlot = (slot) => {
           const name = walker[slot].value
           const skeleton = holdingSkeleton()
           let it = items[slot]
-          if (it && (it.name !== name || it.skeleton !== skeleton)) {
+          const mount = mountFor(slot, name)
+          if (it && (it.name !== name || it.skeleton !== skeleton || it.bone !== mount.bone)) {
             it.node.dispose()
             it = items[slot] = null
             if (handlesSlot() === slot) gizmo.node = null
           }
           if (name === 'none' || !skeleton) return
           if (!it) {
-            const mount = mountFor(slot, name)
-            const bone = skeleton.bones.find((b) => b.name === mount.bone)?.getTransformNode()
-            const node = bone && weapons?.instantiate?.(name, { canonical: true })
+            // A hand's or forearm's anatomical socket, or the spine itself.
+            const at = mountNode(skeleton, mount)
+            const node = at && weapons?.instantiate?.(name, { canonical: true })
             if (!node) return
-            // The hand's anatomical socket, or the bone itself (forearm, spine).
-            node.parent = mount.frame === 'socket' ? handSocket(skeleton, mount.bone, mount.bone === 'hand_l' ? 'l' : 'r', bone) ?? bone : bone
+            node.parent = at
             // Its grip (a pistol's handle), measured once: that point, not
             // its origin, goes where the numbers say, as on a launcher.
-            it = items[slot] = { node, name, skeleton, grip: heldGrip(node) ?? BABYLON.Vector3.Zero() }
+            it = items[slot] = { node, name, skeleton, bone: mount.bone, grip: heldGrip(node) ?? BABYLON.Vector3.Zero() }
           }
           placeItem(slot, gripOf(name, slot))
         }
@@ -840,6 +848,10 @@ preview.append(
           el.refreshScenePanel?.()
         })
         walker.held.observe(() => {
+          applyGrip()
+          el.refreshScenePanel?.()
+        })
+        walker.heldSide.observe(() => {
           applyGrip()
           el.refreshScenePanel?.()
         })

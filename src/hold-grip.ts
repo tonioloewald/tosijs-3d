@@ -16,6 +16,7 @@ one-handed blade follows.
 | `pole` | a spear or staff, two hands | Spear |
 | `bow` | a bow, in the LEFT hand | Bow |
 | `shield` | strapped to the left forearm | Buckler, Kite Shield |
+| `wrist` | worn on the left forearm (a watch, a wrist computer) | |
 
 ```javascript
 import { holdClassOf, holdGrip } from 'tosijs-3d'
@@ -26,10 +27,15 @@ holdGrip('Long Sword', { melee1h: { ry: 170 } }) // with your adjustment
 ```
 
 A grip is the item's grip point and turn in its MOUNT's frame (metres and
-degrees; see [[character-builder]]'s Hold). Most things are held in the right
-hand, in the hand's socket frame; a bow in the LEFT hand's socket (UAL's bow
-clips hold it there); a shield is strapped to the LEFT FOREARM, in that bone's
-own frame: `holdMount(class)` says which. Put away on the back
+degrees; see [[character-builder]]'s Hold). A class says WHERE a thing rides,
+in the hand or on the forearm (`holdPlace`), and which side it goes on unless
+told (`holdSide`: the right hand, but a bow's left hand, where UAL's bow clips
+hold it, and a shield's or a watch's left forearm). Either side's hand and
+forearm have a socket made from the arm's anatomy ([[hand-socket]]), and a
+grip set for one side holds the same way on the other:
+`holdGrip(name, adjusted, classes, 'l')` mirrors it (`mirrorGrip`), so a
+dagger in the off hand or a watch on the right wrist needs no numbers of its
+own. `holdMount(class, side)` names the bone. Put away on the back
 (a rifle, a two-handed sword, a quiver), it rides across the shoulders on
 `STOW_MOUNT` (the upper spine) at `stowGrip(name)`. An item not in the table is
 held as a `pistol`; pass your own table as `classes` to name a library's. Only the
@@ -41,6 +47,8 @@ Pure: no DOM, no Babylon.
 */
 /*{ "parent": "weapon-fit" }*/
 
+import { mirrorGrip, type Mount } from './hand-socket.js'
+
 export type HoldClass =
   | 'pistol'
   | 'rifle'
@@ -50,6 +58,7 @@ export type HoldClass =
   | 'pole'
   | 'bow'
   | 'shield'
+  | 'wrist'
 
 export interface HoldGrip {
   x: number
@@ -116,23 +125,50 @@ export const HOLD_GRIPS: Record<HoldClass, HoldGrip> = {
   pole: BLADE,
   bow: BOW,
   shield: SHIELD,
+  // On the back of the wrist, face out: a first placement.
+  wrist: { x: 0, y: 0.2, z: 0, rx: 0, ry: 0, rz: 0, scale: 1 },
+}
+
+/** Where a class rides: in the hand, or on the forearm (a shield, a watch). */
+export function holdPlace(c: HoldClass): Mount {
+  return c === 'shield' || c === 'wrist' ? 'forearm' : 'hand'
 }
 
 /**
- * What a class rides on: the right hand (a socket made from the hand's
- * anatomy) or, for a shield, the left forearm (the bone itself).
+ * The side a class goes on unless told, and the side its grip is SET for:
+ * the right, but a bow's left hand and a shield's or a watch's left forearm.
+ */
+export function holdSide(c: HoldClass): 'r' | 'l' {
+  return c === 'bow' || c === 'shield' || c === 'wrist' ? 'l' : 'r'
+}
+
+/**
+ * What a thing rides on: a hand or a forearm's anatomical socket (made from
+ * the arm, calibrated so that on UAL it is the bone itself), or a bone's own
+ * frame (the spine, for what is on the back).
  */
 export interface HoldMount {
   /** UAL's bone name. */
-  bone: 'hand_r' | 'hand_l' | 'lowerarm_l' | 'spine_03'
-  /** `socket`: the hand's anatomical socket; `bone`: the bone's own frame. */
+  bone: 'hand_r' | 'hand_l' | 'lowerarm_r' | 'lowerarm_l' | 'spine_03'
+  /** `socket`: the arm's anatomical socket; `bone`: the bone's own frame. */
   frame: 'socket' | 'bone'
+  /** For a socket: the hand's or the forearm's. */
+  mount?: Mount
+  side?: 'r' | 'l'
 }
 
-export function holdMount(c: HoldClass): HoldMount {
-  return c === 'shield'
-    ? { bone: 'lowerarm_l', frame: 'bone' }
-    : { bone: 'hand_r', frame: 'socket' }
+/** Where class `c` rides on `side` (default its own, `holdSide`). */
+export function holdMount(
+  c: HoldClass,
+  side: 'r' | 'l' = holdSide(c)
+): HoldMount {
+  const mount = holdPlace(c)
+  return {
+    bone: mount === 'forearm' ? `lowerarm_${side}` : `hand_${side}`,
+    frame: 'socket',
+    mount,
+    side,
+  }
 }
 
 /** Labels for a panel. */
@@ -145,6 +181,7 @@ export const HOLD_CLASS_LABELS: Record<HoldClass, string> = {
   pole: 'spears and staves',
   bow: 'bows',
   shield: 'shields',
+  wrist: 'things worn on the wrist',
 }
 
 /** Tonio's weapon library (`tonio/weapons-classic`), by class. */
@@ -231,6 +268,7 @@ export const STOW_GRIPS: Record<HoldClass, HoldGrip> = {
   pole: POLE,
   bow: BOW_SLUNG,
   shield: { x: 0, y: 0.05, z: -0.2, rx: 0, ry: 0, rz: 0, scale: 1 },
+  wrist: SLUNG,
 }
 
 /** Where `name` rides stowed on the back: its class's default with `adjusted['stow:' + class]` over it. */
@@ -244,14 +282,35 @@ export function stowGrip(
 }
 
 /**
- * Where the hand holds `name`: its class's default with `adjusted[class]`
- * laid over it (the adjustments a character keeps, one per class).
+ * Where the hand (or forearm) holds `name`: its class's default with
+ * `adjusted[class]` laid over it (the adjustments a character keeps, one per
+ * class), both set for the class's own side; on the other `side` it is
+ * mirrored.
  */
 export function holdGrip(
   name: string,
   adjusted: Partial<Record<string, Partial<HoldGrip>>> = {},
+  classes: Record<string, HoldClass> = HOLD_CLASSES,
+  side?: 'r' | 'l'
+): HoldGrip {
+  const c = holdClassOf(name, classes)
+  const g = { ...HOLD_GRIPS[c], ...(adjusted[c] ?? {}) }
+  return side == null || side === holdSide(c)
+    ? g
+    : mirrorGrip(g, holdPlace(c), side)
+}
+
+/**
+ * A grip set on `side` as the class's own side keeps it (what to store when
+ * a grip is adjusted on the other side).
+ */
+export function ownSideGrip(
+  name: string,
+  g: HoldGrip,
+  side: 'r' | 'l',
   classes: Record<string, HoldClass> = HOLD_CLASSES
 ): HoldGrip {
   const c = holdClassOf(name, classes)
-  return { ...HOLD_GRIPS[c], ...(adjusted[c] ?? {}) }
+  const own = holdSide(c)
+  return side === own ? g : mirrorGrip(g, holdPlace(c), own)
 }

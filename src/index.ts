@@ -1195,6 +1195,9 @@ export {
   holdClassOf,
   holdGrip,
   holdMount,
+  holdPlace,
+  holdSide,
+  ownSideGrip,
   stowGrip,
   STOW_MOUNT,
   STOW_GRIPS,
@@ -1850,6 +1853,8 @@ export {
   spawnProjectile,
   spawnMissile,
   handSocket,
+  forearmSocket,
+  mountNode,
   deriveGrip,
   heldGrip,
 } from './b3d-launcher.js'
