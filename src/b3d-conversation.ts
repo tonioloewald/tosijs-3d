@@ -81,6 +81,15 @@ class Balloon {
     rows: [],
   }
   private hover: string | null = null
+  /*
+  THE PAD'S FOCUS is its own, apart from the pointer's hover: a mouse
+  wandering over the balloon (or leaving it) must not move or clear what the
+  D-pad chose. Drawn as the ring every panel's focus wears, once the pad is
+  in use; it starts on the first reply.
+  */
+  private focus: string | null = null
+  /** The pad is being used: its ring shows. A pointer move hides it. */
+  padActive = false
   private pressed: string | null = null
   private caption = ''
   private replies: ConversationReply[] = []
@@ -100,6 +109,10 @@ class Balloon {
         if (id != null && id === this.pressed) this.pick(id)
         this.pressed = null
       } else if (kind === 'leave') this.pressed = null
+      if (kind === 'move' && this.padActive) {
+        this.padActive = false
+        this.draw()
+      }
       if (id !== this.hover || kind === 'leave') {
         this.hover = kind === 'leave' ? null : id
         this.draw()
@@ -113,6 +126,7 @@ class Balloon {
     this.caption = caption
     this.replies = replies
     this.hover = null
+    this.focus = replies[0]?.id ?? null
     this.draw()
   }
 
@@ -128,18 +142,25 @@ class Balloon {
   /** A pad's D-pad: step the highlighted reply (the first press lands on the first). */
   focusMove(_dx: number, dy: number): void {
     if (this.replies.length === 0 || dy === 0) return
-    const i = this.replies.findIndex((r) => r.id === this.hover)
+    const n = this.replies.length
+    const i = this.replies.findIndex((r) => r.id === this.focus)
+    // The first press only shows where the focus is; then up and down cycle.
     const next =
-      i < 0
-        ? 0
-        : Math.max(0, Math.min(this.replies.length - 1, i + Math.sign(dy)))
-    this.hover = this.replies[next].id
+      !this.padActive || i < 0 ? Math.max(0, i) : (i + Math.sign(dy) + n) % n
+    this.focus = this.replies[next].id
+    this.padActive = true
     this.draw()
   }
 
-  /** A pad's click: pick the highlighted reply. */
+  /** A pad's click: pick the focused reply (a first press only shows it). */
   focusActivate(): void {
-    if (this.hover != null) this.pick(this.hover)
+    if (this.focus == null) return
+    if (!this.padActive) {
+      this.padActive = true
+      this.draw()
+      return
+    }
+    this.pick(this.focus)
   }
 
   private draw(): void {
@@ -182,6 +203,9 @@ class Balloon {
               height: row.h,
               rx: 8,
               fill: row.id === this.hover ? t.buttonHover : t.buttonBg,
+              ...(this.padActive && row.id === this.focus
+                ? { stroke: '#ffd25a', 'stroke-width': 3 }
+                : {}),
             }),
             text(
               {
@@ -288,7 +312,11 @@ export class B3dConversation extends B3dChild {
     */
     const pad = new HardwareGamepadSource()
     const showing = () =>
-      this._mine.choosing ? this._mine : this._theirs.choosing ? this._theirs : null
+      this._mine.choosing
+        ? this._mine
+        : this._theirs.choosing
+        ? this._theirs
+        : null
     this._stopPad = gamepadFocus({
       poll: () => pad.poll(),
       target: {

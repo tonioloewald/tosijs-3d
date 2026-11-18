@@ -804,17 +804,23 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
   same thing. The box shows it as focused (info, a slot lighting) and the
   scene draws the ring.
   */
-  let pads: { child: BoxChild; path: string; name: string; item?: string }[] =
-    []
+  let pads: {
+    child: BoxChild
+    path: string
+    name: string
+    item?: string
+    into?: CarryTarget<string>
+  }[] = []
   let kids: BoxChild[] = []
   let padPath: string | null = null
   const pad = <C extends BoxChild>(
     child: C,
     path: string,
     name: string,
-    item?: string
+    item?: string,
+    into?: CarryTarget<string>
   ): C => {
-    pads.push({ child, path: `${holder}/${path}`, name, item })
+    pads.push({ child, path: `${holder}/${path}`, name, item, into })
     return child
   }
   const padFocus = () => {
@@ -1065,7 +1071,13 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
         const row = { width: inner, height: 34 }
         for (const id of c.holds)
           children.push(
-            pad(tile(id, at, row, into), `${cname}/item:${id}`, nameOf(id), id)
+            pad(
+              tile(id, at, row, into),
+              `${cname}/item:${id}`,
+              nameOf(id),
+              id,
+              into
+            )
           )
       } else {
         // A grid wants its picture (a schematic); here it is listed.
@@ -1126,6 +1138,21 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
   const controls = (): InventoryControl[] => {
     const b = current
     if (b == null) return []
+    /*
+    CARRYING, a place that will not take it is not a stop: the D-pad goes
+    past a head slot with a sword in hand rather than landing there to say
+    no. What is carried stays reachable (a press puts it back).
+    */
+    const held = carry.state.thing
+    const from = held != null ? inv.where(held) : null
+    const home =
+      from?.slot != null ? `${holder}/${from.container}/${from.slot}` : ''
+    const refuses = (p: (typeof pads)[number]) => {
+      if (held == null || p.item === held || p.path === home) return false
+      const t =
+        (p.child as { carryTarget?: CarryTarget<string> }).carryTarget ?? p.into
+      return t == null || !carry.verdictFor(t)?.ok
+    }
     return pads.map((p) => {
       const i = kids.indexOf(p.child)
       const r = b.visibleRect(i)
@@ -1134,6 +1161,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
         name: p.name,
         path: p.path,
         interactive: true,
+        disabled: refuses(p),
         item: p.item,
         box: r ? { x: r.x, y: r.y, w: r.width, h: r.height } : undefined,
         activate: () => {
