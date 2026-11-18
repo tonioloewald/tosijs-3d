@@ -12,6 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Fixed:** a manipulator grabs only with its own handles, and none while hidden: with two on a page (the character builder's item and hair handles), a press to orbit the view could start a move of the hidden one, whose invisible handles stayed at the scene's middle.
 - **Changed:** things stowed on the back sit as they should: a long gun is slung barrel up over the right shoulder, flat against the back (it pointed forward through the chest); a spear rides point up (it hung point down), a bow upright. The spear has its own hold class, `pole` (it was `melee2h`): a character's `melee2h` grip adjustment no longer applies to it.
 - **Fixed:** inventory dock: a drop whose swap is refused sends what it displaced to the list (a shield moved from the off hand onto a back holding a two-handed spear, with a sword in the other hand). `inventoryPanel` takes `spill`.
 - **Fixed:** the character builder's JSON export of an unnamed character is `character.json` (it was `character.character.json`).

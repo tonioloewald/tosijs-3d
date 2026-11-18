@@ -656,7 +656,14 @@ export function createHandles(scene: BABYLON.Scene, scale = 1): HandlesView {
     }
   }
 
+  /*
+  ONLY ITS OWN HANDLES. Every manipulator tags its meshes the same way, and a
+  pick predicate replaces Babylon's visibility test, so a hidden manipulator's
+  handles (the character builder's hair handle, parked at the origin) took
+  presses meant for the camera, as drags of the wrong one.
+  */
   const gripOf = (mesh: unknown): Grip | null => {
+    if (!handles.some((h) => h.mesh === mesh)) return null
     const meta = (mesh as { metadata?: Record<string, Grip> } | null)?.metadata
     return meta?.[HANDLE_TAG] ?? null
   }
@@ -664,7 +671,9 @@ export function createHandles(scene: BABYLON.Scene, scale = 1): HandlesView {
   const isDrawn = (mesh: unknown): boolean =>
     (mesh as { metadata?: Record<string, unknown> } | null)?.metadata?.[
       DRAWN_TAG
-    ] === true
+    ] === true && handles.some((h) => h.mesh === mesh)
+  /** Hidden, it grabs nothing (its pick targets stay where they were). */
+  let shown = true
 
   build()
 
@@ -708,12 +717,14 @@ export function createHandles(scene: BABYLON.Scene, scale = 1): HandlesView {
       place()
     },
     setVisible(visible) {
+      shown = visible
       // Pick targets stay at visibility 0 either way; only the drawn ones toggle.
       for (const { mesh } of handles) {
         if (mesh.visibility !== 0) mesh.isVisible = visible
       }
     },
     nearestGrip(hand) {
+      if (!shown) return null
       let best: Grip | null = null
       /*
       A hand is a fixed size; the handles are not, since they track the camera
@@ -737,7 +748,7 @@ export function createHandles(scene: BABYLON.Scene, scale = 1): HandlesView {
       return best
     },
     gripAt(ray) {
-      if (handles.length === 0) return null
+      if (handles.length === 0 || !shown) return null
       const r = new Ray(
         new Vector3(ray.origin.x, ray.origin.y, ray.origin.z),
         new Vector3(ray.direction.x, ray.direction.y, ray.direction.z)
