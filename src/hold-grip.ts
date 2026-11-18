@@ -35,7 +35,12 @@ forearm have a socket made from the arm's anatomy ([[hand-socket]]), and a
 grip set for one side holds the same way on the other:
 `holdGrip(name, adjusted, classes, 'l')` mirrors it (`mirrorGrip`), so a
 dagger in the off hand or a watch on the right wrist needs no numbers of its
-own. `holdMount(class, side)` names the bone. Put away on the back
+own. Where a class rides is a default: a character can wear a class
+elsewhere (a buckler gripped in the fist, a blade strapped to the forearm),
+kept as `place:<class>` among its adjustments (`placeIn`), and a grip for a
+place that is not the class's own is kept apart from it (`gripKey`), starting
+from that place's default (`PLACE_GRIPS`). `holdMount(class, side, place)`
+names the bone. Put away on the back
 (a rifle, a two-handed sword, a quiver), it rides across the shoulders on
 `STOW_MOUNT` (the upper spine) at `stowGrip(name)`. An item not in the table is
 held as a `pistol`; pass your own table as `classes` to name a library's. Only the
@@ -134,6 +139,33 @@ export function holdPlace(c: HoldClass): Mount {
   return c === 'shield' || c === 'wrist' ? 'forearm' : 'hand'
 }
 
+/** Where class `c` rides for a character whose adjustments are `kept` (`place:<class>`), else its own place. */
+export function placeIn(
+  name: string,
+  kept: Record<string, unknown> = {},
+  classes: Record<string, HoldClass> = HOLD_CLASSES
+): Mount {
+  const c = holdClassOf(name, classes)
+  const p = kept[`place:${c}`]
+  return p === 'hand' || p === 'forearm' ? p : holdPlace(c)
+}
+
+/** A place's own starting grip, for a class worn somewhere not its own: upright in the fist; along the forearm. */
+export const PLACE_GRIPS: Record<Mount, HoldGrip> = {
+  hand: BLADE,
+  forearm: SHIELD,
+}
+
+/** Where `name`'s adjustment for `place` is kept: its class, or `<place>:<class>` when that is not the class's own place. */
+export function gripKey(
+  name: string,
+  place?: Mount,
+  classes: Record<string, HoldClass> = HOLD_CLASSES
+): string {
+  const c = holdClassOf(name, classes)
+  return place == null || place === holdPlace(c) ? c : `${place}:${c}`
+}
+
 /**
  * The side a class goes on unless told, and the side its grip is SET for:
  * the right, but a bow's left hand and a shield's or a watch's left forearm.
@@ -157,12 +189,13 @@ export interface HoldMount {
   side?: 'r' | 'l'
 }
 
-/** Where class `c` rides on `side` (default its own, `holdSide`). */
+/** Where class `c` rides on `side` (default its own, `holdSide`), in `place` (default its own). */
 export function holdMount(
   c: HoldClass,
-  side: 'r' | 'l' = holdSide(c)
+  side: 'r' | 'l' = holdSide(c),
+  place: Mount = holdPlace(c)
 ): HoldMount {
-  const mount = holdPlace(c)
+  const mount = place
   return {
     bone: mount === 'forearm' ? `lowerarm_${side}` : `hand_${side}`,
     frame: 'socket',
@@ -291,13 +324,14 @@ export function holdGrip(
   name: string,
   adjusted: Partial<Record<string, Partial<HoldGrip>>> = {},
   classes: Record<string, HoldClass> = HOLD_CLASSES,
-  side?: 'r' | 'l'
+  side?: 'r' | 'l',
+  place?: Mount
 ): HoldGrip {
   const c = holdClassOf(name, classes)
-  const g = { ...HOLD_GRIPS[c], ...(adjusted[c] ?? {}) }
-  return side == null || side === holdSide(c)
-    ? g
-    : mirrorGrip(g, holdPlace(c), side)
+  const at = place ?? holdPlace(c)
+  const base = at === holdPlace(c) ? HOLD_GRIPS[c] : PLACE_GRIPS[at]
+  const g = { ...base, ...(adjusted[gripKey(name, at, classes)] ?? {}) }
+  return side == null || side === holdSide(c) ? g : mirrorGrip(g, at, side)
 }
 
 /**
@@ -308,9 +342,10 @@ export function ownSideGrip(
   name: string,
   g: HoldGrip,
   side: 'r' | 'l',
-  classes: Record<string, HoldClass> = HOLD_CLASSES
+  classes: Record<string, HoldClass> = HOLD_CLASSES,
+  place?: Mount
 ): HoldGrip {
   const c = holdClassOf(name, classes)
   const own = holdSide(c)
-  return side === own ? g : mirrorGrip(g, holdPlace(c), own)
+  return side === own ? g : mirrorGrip(g, place ?? holdPlace(c), own)
 }

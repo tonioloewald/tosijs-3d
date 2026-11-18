@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, retargetSourceClip, readBvh, clipStore, clipKind, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, tailorPanel, garmentStore, barMenu, fitPanel, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, holdMount, holdPlace, holdSide, ownSideGrip, mountNode, stowGrip, STOW_MOUNT, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, retargetSourceClip, readBvh, clipStore, clipKind, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, tailorPanel, garmentStore, barMenu, fitPanel, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, holdMount, holdPlace, holdSide, ownSideGrip, placeIn, gripKey, mountNode, stowGrip, STOW_MOUNT, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 import { exportBodyRows } from 'tosijs-3d/body-export'
@@ -219,22 +219,26 @@ const heldSideOf = (name) => {
   const v = walker.heldSide.value
   return v === 'right' ? 'r' : v === 'left' ? 'l' : holdSide(holdClassOf(name))
 }
+// In the hand or on the forearm: the class's own place, unless this
+// character wears that class elsewhere (`place:<class>` among its grips).
+const heldPlaceOf = (name) => placeIn(name, gripsKept())
 const gripOf = (name, slot = 'held') => {
   const kept = gripsKept()
   // On the back: per class too, kept under `stow:<class>`.
   if (slot === 'stowed') return stowGrip(name, kept)
   // A character saved before grips were per class kept them per item.
-  const own = kept[holdClassOf(name)] ?? kept[name]
+  const c = holdClassOf(name)
+  const own = kept[c] ?? kept[name]
   // Kept for the class's own side; on the other it is mirrored.
-  return holdGrip(name, own ? { [holdClassOf(name)]: own } : {}, undefined, heldSideOf(name))
+  return holdGrip(name, own ? { ...kept, [c]: own } : kept, undefined, heldSideOf(name), heldPlaceOf(name))
 }
 const setGrip = (patch, slot = 'held') => {
   const name = walker[slot].value
   const kept = gripsKept()
-  const key = slot === 'stowed' ? `stow:${holdClassOf(name)}` : holdClassOf(name)
+  const key = slot === 'stowed' ? `stow:${holdClassOf(name)}` : gripKey(name, heldPlaceOf(name))
   if (slot === 'held') delete kept[name]
   const g = { ...gripOf(name, slot), ...patch }
-  walker.grips.value = { ...kept, [key]: slot === 'held' ? ownSideGrip(name, g, heldSideOf(name)) : g }
+  walker.grips.value = { ...kept, [key]: slot === 'held' ? ownSideGrip(name, g, heldSideOf(name), undefined, heldPlaceOf(name)) : g }
   applyGrip()
 }
 // Export: the body on show as a GLB that plays UAL's clips by name (its
@@ -277,7 +281,7 @@ const exportRows = () =>
         clip: playingClip(shown.recipe),
         // What the right hand holds goes out with it, where it is held.
         held:
-          walker.held.value === 'none' || holdMount(holdClassOf(walker.held.value), heldSideOf(walker.held.value)).bone !== 'hand_r'
+          walker.held.value === 'none' || holdMount(holdClassOf(walker.held.value), heldSideOf(walker.held.value), heldPlaceOf(walker.held.value)).bone !== 'hand_r'
             ? null
             : {
                 grip: gripOf(walker.held.value),
@@ -306,7 +310,7 @@ const itemRows = (slot) => {
   const where =
     slot === 'stowed'
       ? `on the back, for all ${HOLD_CLASS_LABELS[c]}: from the upper spine (metres)`
-      : holdPlace(c) === 'forearm'
+      : heldPlaceOf(name) === 'forearm'
       ? `on the ${sideWord} forearm, for all ${HOLD_CLASS_LABELS[c]}: from the forearm (metres)`
       : `grip for all ${HOLD_CLASS_LABELS[c]}, in the ${sideWord} hand: from the hand (metres)`
   const handles = slot === 'stowed' ? stowHandles : gripHandles
@@ -316,7 +320,25 @@ const itemRows = (slot) => {
     ...(name === 'none'
       ? []
       : [
-          ...(slot === 'held' ? [select3d({ label: 'side', value: walker.heldSide, options: ['auto', 'right', 'left'] })] : []),
+          ...(slot === 'held'
+            ? [
+                select3d({ label: 'side', value: walker.heldSide, options: ['auto', 'right', 'left'] }),
+                // For the whole class, kept with this character's grips.
+                select3d({
+                  label: 'worn',
+                  value: heldPlaceOf(name),
+                  options: ['hand', 'forearm'],
+                  handleChange: (v) => {
+                    const kept = gripsKept()
+                    if (v === holdPlace(c)) delete kept[`place:${c}`]
+                    else kept[`place:${c}`] = v
+                    walker.grips.value = kept
+                    applyGrip()
+                    refreshPanel()
+                  },
+                }),
+              ]
+            : []),
           toggle3d({
             label: 'manipulator',
             value: handles,
@@ -338,7 +360,7 @@ const itemRows = (slot) => {
               if (slot === 'stowed') delete all[`stow:${c}`]
               else {
                 delete all[name]
-                delete all[c]
+                delete all[gripKey(name, heldPlaceOf(name))]
               }
               walker.grips.value = all
               applyGrip()
@@ -689,7 +711,7 @@ preview.append(
         // Two slots: the right hand (a shield on the left forearm) and the back.
         const items = { held: null, stowed: null }
         const holdingSkeleton = () => (rigging ? rigging.api.skeleton : ch?.shown?.built?.skeleton) ?? null
-        const mountFor = (slot, name) => (slot === 'stowed' ? STOW_MOUNT : holdMount(holdClassOf(name), heldSideOf(name)))
+        const mountFor = (slot, name) => (slot === 'stowed' ? STOW_MOUNT : holdMount(holdClassOf(name), heldSideOf(name), heldPlaceOf(name)))
         // Whose handles are up (one manipulator for both).
         const handlesSlot = () => (gripHandles ? 'held' : stowHandles ? 'stowed' : null)
         const placeSlot = (slot) => {

@@ -6,7 +6,7 @@ arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dBox, b3dChest, b3dDeath, b3dDoor, b3dPanel, createCarry, tradePanel, b3dInteractive, b3dLauncher, b3dLibrary, b3dNpc, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, holdMount, holdClassOf, stowGrip, STOW_MOUNT, heldGrip, mountNode, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, AIM_CLIPS, b3dConversation, WORKING_CHARACTER } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dBox, b3dChest, b3dDeath, b3dDoor, b3dPanel, createCarry, tradePanel, b3dInteractive, b3dLauncher, b3dLibrary, b3dNpc, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, holdMount, holdClassOf, placeIn, stowGrip, STOW_MOUNT, heldGrip, mountNode, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, AIM_CLIPS, b3dConversation, WORKING_CHARACTER } from 'tosijs-3d'
 import { tosi, svgElements } from 'tosijs'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
@@ -454,7 +454,10 @@ const wearGear = (h) => {
   }
   // The left hand's thing on its LEFT mount (a shield strapped to the
   // forearm, a dagger in the hand), its grip mirrored if set for the right.
-  if (left) mount(left, holdMount(holdClassOf(left), 'l'), holdGrip(left, keptFor(left), undefined, 'l'))
+  // In the hand or on the forearm: the class's own place unless the
+  // character wears it elsewhere (a buckler in the fist).
+  const place = left && placeIn(left, gripsKept())
+  if (left) mount(left, holdMount(holdClassOf(left), 'l', place), holdGrip(left, keptFor(left), undefined, 'l', place))
   if (back) mount(back, STOW_MOUNT, stowGrip(back, gripsKept()))
 }
 // Each gun keeps what is in its magazine while it is put away.
