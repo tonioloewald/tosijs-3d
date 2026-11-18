@@ -97,12 +97,17 @@ export function createFocusPulse(
     activate?: (keyof VirtualGamepad)[]
     /** The buttons that back out. Default `buttonB`; `[]` for none. */
     back?: (keyof VirtualGamepad)[]
+    /** The directions that repeat while held. Default all four. */
+    repeat?: ('dpadLeft' | 'dpadRight' | 'dpadUp' | 'dpadDown')[]
   } = {}
 ) {
   const DELAY = opts.repeatDelayMs ?? 400
   const RATE = opts.repeatRateMs ?? 90
   const ACT = opts.activate ?? ['menu', 'buttonA']
   const BACK = opts.back ?? ['buttonB']
+  const REPEAT = new Set<string>(
+    opts.repeat ?? ['dpadLeft', 'dpadRight', 'dpadUp', 'dpadDown']
+  )
   const any = (pad: VirtualGamepad, keys: (keyof VirtualGamepad)[]) =>
     keys.some((k) => Boolean(pad[k]))
   // Per-direction: when it went down, and when it last fired.
@@ -123,7 +128,11 @@ export function createFocusPulse(
         // Edge: fire immediately, then wait out the delay before repeating.
         held.set(d.key, { since: now, last: now })
         moves.push({ dx: d.dx, dy: d.dy })
-      } else if (now - h.since >= DELAY && now - h.last >= RATE) {
+      } else if (
+        REPEAT.has(d.key) &&
+        now - h.since >= DELAY &&
+        now - h.last >= RATE
+      ) {
         h.last = now
         moves.push({ dx: d.dx, dy: d.dy })
       }

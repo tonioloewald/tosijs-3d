@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { padNavigator, padTargets } from './pad-ui'
+import { asDefault, padNavigator, padTargets } from './pad-ui'
 import type { ControlNode } from './widget-semantics'
 
 const node = (
@@ -17,17 +17,91 @@ const node = (
 })
 
 describe('padNavigator', () => {
-  test('steps down through the controls and off the end', () => {
-    const tree = [node('a', 'button', 0), node('b', 'button', 40)]
+  test('up and down cycle, and Tab does the same', () => {
+    const tree = [node('a', 'button', 0), node('b', 'button', 40), node('c', 'button', 80)]
     const nav = padNavigator(() => tree)
-    expect(nav.move(0, 1)).toBe(true)
+    nav.focusDefault()
     expect(nav.focused?.name).toBe('a')
-    expect(nav.move(0, 1)).toBe(true)
-    expect(nav.focused?.name).toBe('b')
-    expect(nav.move(0, 1)).toBe(false)
-    expect(nav.move(0, -1)).toBe(true)
+    nav.move(0, -1)
+    expect(nav.focused?.name).toBe('c')
+    nav.move(0, 1)
     expect(nav.focused?.name).toBe('a')
-    expect(nav.move(0, -1)).toBe(false)
+    nav.tab(1)
+    nav.tab(1)
+    nav.tab(1)
+    expect(nav.focused?.name).toBe('a')
+    nav.tab(-1)
+    expect(nav.focused?.name).toBe('c')
+  })
+
+  test('a panel opens on its default control, else the first', () => {
+    const tree = [node('cancel', 'button', 0), node('ok', 'button', 40, { isDefault: true })]
+    const nav = padNavigator(() => tree)
+    nav.focusDefault()
+    expect(nav.focused?.name).toBe('ok')
+    const plain = padNavigator(() => [node('x', 'button', 0), node('y', 'button', 40)])
+    plain.focusDefault()
+    expect(plain.focused?.name).toBe('x')
+  })
+
+  test('asDefault marks any widget', () => {
+    const w = asDefault({ semantics: () => ({ role: 'slider' as const, name: 's' }) })
+    expect((w.semantics() as { isDefault?: boolean }).isDefault).toBe(true)
+  })
+
+  test('left and right go beside a control that has no sideways of its own', () => {
+    const tree = [
+      { ...node('l', 'button', 0), box: { x: 0, y: 0, w: 40, h: 40 } },
+      { ...node('r', 'button', 0), box: { x: 50, y: 0, w: 40, h: 40 } },
+      node('below', 'button', 60),
+    ]
+    const nav = padNavigator(() => tree)
+    nav.focusDefault()
+    nav.move(1, 0)
+    expect(nav.focused?.name).toBe('r')
+    nav.move(1, 0)
+    expect(nav.focused?.name).toBe('r')
+  })
+
+  test('a text box takes left and right as its caret', () => {
+    let caret = 0
+    const nav = padNavigator(() => [node('t', 'textbox', 0, { set: () => {}, nudge: (d) => (caret += d) })])
+    nav.focusDefault()
+    nav.move(1, 0)
+    nav.move(1, 0)
+    nav.move(-1, 0)
+    expect(caret).toBe(1)
+  })
+
+  test('a popup takes the focus, cycles alone, and gives it back', () => {
+    let open = false
+    const tree = () => [
+      node('pick', 'select', 0),
+      node('other', 'button', 40),
+      ...(open
+        ? [
+            {
+              ...node('pick', 'popup', 0),
+              interactive: false,
+              children: [
+                { ...node('one', 'option', 10), path: 'pick/one' },
+                { ...node('two', 'option', 20), path: 'pick/two' },
+              ],
+            },
+          ]
+        : []),
+    ]
+    const nav = padNavigator(tree)
+    nav.focusDefault()
+    open = true
+    nav.sync()
+    expect(nav.focused?.path).toBe('pick/one')
+    nav.move(0, 1)
+    nav.move(0, 1)
+    expect(nav.focused?.path).toBe('pick/one')
+    open = false
+    nav.sync()
+    expect(nav.focused?.path).toBe('pick')
   })
 
   test('skips labels, disabled and undrawn controls', () => {
@@ -59,7 +133,7 @@ describe('padNavigator', () => {
       node('t', 'toggle', 120, { value: on, set: (x) => (on = !!x) }),
     ]
     const nav = padNavigator(tree)
-    nav.move(0, 1)
+    nav.focusDefault()
     nav.move(1, 0)
     expect(v).toBeCloseTo(0.55)
     nav.move(0, 1)
@@ -76,7 +150,7 @@ describe('padNavigator', () => {
   test('keeps focus by path across a rebuild', () => {
     let tree = [node('a', 'button', 0), node('b', 'button', 40)]
     const nav = padNavigator(() => tree)
-    nav.move(0, 1)
+    nav.focusDefault()
     nav.move(0, 1)
     tree = [node('new', 'button', 0), ...tree.map((n) => ({ ...n }))]
     expect(nav.focused?.name).toBe('b')

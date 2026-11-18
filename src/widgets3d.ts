@@ -1861,6 +1861,12 @@ export function button3d(config: {
    * asked every time (see `menu`), so it cannot go stale.
    */
   disabled?: Dynamic<boolean>
+  /**
+   * The panel's default button: what a gamepad or the keyboard focuses when
+   * the panel opens (without one, the first control). Any widget can be made
+   * the default with `asDefault(widget)`.
+   */
+  default?: boolean
 }): Widget3d {
   const off = () => resolveDynamic(config.disabled, false) === true
   const bg = rect({
@@ -1959,6 +1965,7 @@ export function button3d(config: {
       role: 'button',
       name: config.title ?? config.label,
       ...(off() ? { disabled: true } : {}),
+      ...(config.default ? { isDefault: true } : {}),
       ...(config.menu
         ? {
             options: config.menu.map((m) => m.label),

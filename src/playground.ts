@@ -750,9 +750,11 @@ respawn at the start.
 the actions are on the right hand: **A** attacks, **B** uses (doors, chests,
 the lift, picking up, talking; with the weapon up it ducks instead),
 clicking the **right stick** jumps, and clicking the left stick sneaks.
-**Hold D-pad up** to reach the system bar with the pad: the D-pad steps along
-it and into the panel **B** opens, **B** presses, and holding up again goes
-back to playing.
+**Hold D-pad up** to reach the system bar with the pad: left and right step
+along it, **B** opens a panel, up and down cycle through its controls, left
+and right move sliders, **B** presses. Hold up in a panel to go back to the
+bar, and on the bar to go back to playing. On the keyboard, **Tab** steps
+through an open panel.
 
 **Play as a character of your own.** Make one in the
 [character builder](/character-builder/) (or press **make your own

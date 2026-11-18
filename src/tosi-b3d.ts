@@ -2934,26 +2934,48 @@ export class B3d extends Component {
   */
   private _sceneBar: SystemBar | null = null
   /*
-  GAMEPAD UI MODE. A pad has no pointer, so holding D-pad up puts its focus
-  on the system bar: the D-pad steps along it, B presses (a click, so a
-  non-aggressive button never fires anything), and down goes into the open
-  panel, whose named controls (`controls()`) the D-pad walks. Up off the top
-  of a panel is the bar again; holding up again goes back to playing. While
-  it is on the UI owns the D-pad and B (`padUiOwns`), so a press that moves
-  the focus does not also reload or use. Flat only: a headset points.
+  FOCUS IN PANELS, for a gamepad and the keyboard. When a panel opens, its
+  default control takes the focus (`button3d({ default: true })`, else the
+  first). Up and down (Tab and shift-Tab) step through its controls and
+  cycle; left and right move a slider, a choice or a caret (`pad-ui`). The
+  ring shows only for a pad or the keyboard: a mouse press hides it.
+
+  GAMEPAD UI MODE. A pad has no pointer. Holding D-pad up puts its focus on
+  the system bar: left and right step along it, B presses (a click, so a
+  non-aggressive button never fires anything), down goes into the open panel.
+  Holding up in a panel goes back to the bar, and on the bar back to playing.
+  A panel that pops up while the pad is what you last used (a chest you
+  opened with B) takes the pad straight away, and gives it back when it
+  closes. While the mode is on the UI owns the D-pad and B (`padUiOwns`), so
+  a press that moves the focus does not also reload or use. Flat only: a
+  headset points.
   */
   private _padUi: {
     zone: 'bar' | 'panel'
-    nav: PadNavigator | null
-    panel: Element | null
-    /** B pressed a bar button: go into what it opens. */
-    follow: boolean
+    /** Turned on by a panel popping up: off again when it closes. */
+    auto: boolean
+  } | null = null
+  /** The open panel's focus, by a key that survives its rebuilds. */
+  private _panelNav: {
+    key: unknown
+    root: SVGSVGElement
+    nav: PadNavigator
   } | null = null
   private _padSrc: HardwareGamepadSource | null = null
-  private _padPulse = createFocusPulse({ activate: ['buttonB'], back: [] })
+  private _padPulse = createFocusPulse({
+    activate: ['buttonB'],
+    back: [],
+    // Up and down cycle, so they need no repeat (and up is held to leave).
+    repeat: ['dpadLeft', 'dpadRight'],
+  })
   private _padUpSince = -1
   private _padUpFired = false
   private _padRing: SVGRectElement | null = null
+  /** The pad, not the mouse or keys, was the last thing used. */
+  private _padLastUsed = false
+  /** Tab moved the focus (the ring shows until the mouse is used). */
+  private _keyNav = false
+  private _offPadKeys: (() => void) | null = null
   /** Is the gamepad UI mode on (D-pad and B drive the bar and panels)? */
   get padUiActive(): boolean {
     return this._padUi != null
@@ -2963,37 +2985,51 @@ export class B3d extends Component {
     if (on === (this._padUi != null)) return
     const owned = ['dpadUp', 'dpadDown', 'dpadLeft', 'dpadRight', 'buttonB'] as const
     if (on) {
-      this._padUi = { zone: 'bar', nav: null, panel: null, follow: false }
+      this._padUi = { zone: 'bar', auto: false }
       for (const k of owned) padUiOwns.add(k)
       this._sceneBar?.setPadFocus(0)
     } else {
       this._padUi = null
       for (const k of owned) padUiOwns.delete(k)
       this._sceneBar?.setPadFocus(-1)
-      this._padRingAt(null, null)
     }
   }
-  /** The panel the D-pad can go into, and its controls. */
+  /** The panel focus can go into: a stable key, where to draw, its controls. */
   private _padPanel(): {
-    el: Element
+    key: unknown
     root: SVGSVGElement
     controls: () => ControlNode[]
   } | null {
     const live = this._livePanel() as
       | (SVGSVGElement & { controls?: () => ControlNode[] })
       | null
+    // The settings panel is rebuilt as its sections open: one key for it.
     if (live?.controls != null)
-      return { el: live, root: live, controls: () => live.controls!() }
-    for (const p of this._sysPanels.values()) {
+      return {
+        key: 'settings',
+        root: live,
+        controls: () =>
+          (this._livePanel() as unknown as {
+            controls?: () => ControlNode[]
+          } | null)?.controls?.() ?? [],
+      }
+    for (const [key, p] of this._sysPanels) {
       const c = p.content as SVGSVGElement & {
         controls?: () => ControlNode[]
       }
       if (c.controls != null)
-        return { el: c, root: c, controls: () => c.controls!() }
+        return {
+          key,
+          root: c,
+          controls: () =>
+            (this._sysPanels.get(key)?.content as unknown as {
+              controls?: () => ControlNode[]
+            })?.controls?.() ?? [],
+        }
     }
     return null
   }
-  /** Draw the gamepad's focus ring round `box` in `root` (null: none). */
+  /** Draw the focus ring round `box` in `root` (null: none). */
   private _padRingAt(
     root: SVGSVGElement | null,
     box: { x: number; y: number; w: number; h: number } | null | undefined
@@ -3024,74 +3060,130 @@ export class B3d extends Component {
     set('width', box.w + 4)
     set('height', box.h + 4)
   }
-  /** Once a frame: the hold that toggles the mode, then the mode's moves. */
+  /** Tab, shift-Tab and Enter on an open panel; a mouse press hides the ring. */
+  private _listenPadKeys(): void {
+    if (this._offPadKeys != null || typeof window === 'undefined') return
+    const onKey = (e: KeyboardEvent) => {
+      this._padLastUsed = false
+      const pn = this._panelNav
+      // Only the scene being used, and never under a screen reader (Tab is
+      // how it walks the mirrored controls).
+      if (pn == null || !this.isActiveScene || this.assistive) return
+      const field = pn.nav.focused?.role === 'textbox'
+      if (e.key === 'Tab') {
+        pn.nav.tab(e.shiftKey ? -1 : 1)
+        this._keyNav = true
+        e.preventDefault()
+      } else if (!this._keyNav) return
+      else if ((e.key === 'Enter' || e.key === ' ') && !field) {
+        pn.nav.activate()
+        e.preventDefault()
+      } else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !field) {
+        pn.nav.move(e.key === 'ArrowLeft' ? -1 : 1, 0)
+        e.preventDefault()
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        pn.nav.move(0, e.key === 'ArrowUp' ? -1 : 1)
+        e.preventDefault()
+      } else if (e.key === 'Escape') this._keyNav = false
+    }
+    const onDown = () => {
+      this._padLastUsed = false
+      this._keyNav = false
+    }
+    window.addEventListener('keydown', onKey, true)
+    window.addEventListener('pointerdown', onDown, true)
+    this._offPadKeys = () => {
+      window.removeEventListener('keydown', onKey, true)
+      window.removeEventListener('pointerdown', onDown, true)
+    }
+  }
+  /** Once a frame: which panel has the focus, the pad's hold, its moves. */
   private _padUiTick(): void {
-    if (this.xrActive || typeof navigator === 'undefined') return
+    if (this.xrActive || typeof window === 'undefined') return
+    this._listenPadKeys()
+    const bar = this._sceneBar
+    // A panel opened: its default control takes the focus.
+    const target = this._padPanel()
+    if (target?.key !== this._panelNav?.key) {
+      this._panelNav =
+        target == null
+          ? null
+          : { key: target.key, root: target.root, nav: padNavigator(target.controls) }
+      this._panelNav?.nav.focusDefault()
+      const ui = this._padUi
+      if (target != null && ui == null && this._padLastUsed && bar != null) {
+        this.setPadUi(true)
+        this._padUi!.auto = true
+      }
+      if (this._padUi != null && bar != null) {
+        if (target != null) {
+          this._padUi.zone = 'panel'
+          bar.setPadFocus(-1)
+        } else if (this._padUi.auto) this.setPadUi(false)
+        else {
+          this._padUi.zone = 'bar'
+          if (bar.padFocus < 0) bar.setPadFocus(0)
+        }
+      }
+    }
+    if (target != null && this._panelNav != null) this._panelNav.root = target.root
+    this._panelNav?.nav.sync()
+    this._padTick(bar)
+    const ui = this._padUi
+    const pn = this._panelNav
+    const ringed = pn != null && (ui?.zone === 'panel' || this._keyNav)
+    this._padRingAt(ringed ? pn.root : null, ringed ? pn.nav.focused?.box : null)
+  }
+  /** The pad's part: the hold on up, then its moves in the mode. */
+  private _padTick(bar: SystemBar | null): void {
+    if (typeof navigator === 'undefined') return
     if (typeof navigator.getGamepads !== 'function') return
     if (!this.hasInputFocus) return
     const src = (this._padSrc ??= new HardwareGamepadSource())
     const pad = src.poll(true)
     const now = realNow()
+    const touched = Object.values(pad).some(
+      (v) => typeof v === 'number' && Math.abs(v) > 0.5
+    )
+    if (touched) this._padLastUsed = true
+    // Always run (it keeps the edges), apply only in the mode.
+    const pulse = this._padPulse(pad, now)
     if (pad.dpadUp) {
       if (this._padUpSince < 0) this._padUpSince = now
       else if (!this._padUpFired && now - this._padUpSince >= PAD_UI_HOLD_MS) {
         this._padUpFired = true
-        this.setPadUi(this._padUi == null)
+        const ui = this._padUi
+        // Off: the bar. In a panel: the bar. On the bar: playing.
+        if (ui == null) this.setPadUi(true)
+        else if (ui.zone === 'panel') {
+          ui.zone = 'bar'
+          ui.auto = false
+          bar?.setPadFocus(0)
+        } else this.setPadUi(false)
+        return
       }
     } else {
       this._padUpSince = -1
       this._padUpFired = false
     }
-    // Always run (it keeps the edges), apply only in the mode.
-    const pulse = this._padPulse(pad, now)
     const ui = this._padUi
-    const bar = this._sceneBar
     if (ui == null) return
     if (bar == null) return this.setPadUi(false)
-    const target = this._padPanel()
-    if (ui.zone === 'panel' && (target == null || target.el !== ui.panel)) {
-      // Its panel closed (or another took its place): back to the bar.
-      ui.zone = 'bar'
-      ui.nav = null
-      ui.panel = null
-      if (bar.padFocus < 0) bar.setPadFocus(0)
-    }
-    const enter = () => {
-      if (target == null) return false
-      ui.zone = 'panel'
-      ui.panel = target.el
-      ui.nav = padNavigator(target.controls)
-      if (!ui.nav.move(0, 1)) {
-        ui.zone = 'bar'
-        ui.nav = null
-        ui.panel = null
-        return false
-      }
-      bar.setPadFocus(-1)
-      return true
-    }
+    const nav = this._panelNav?.nav
     for (const m of pulse.moves) {
       if (ui.zone === 'bar') {
         if (m.dx !== 0) bar.padMove(m.dx)
-        else if (m.dy > 0) enter()
-      } else if (!ui.nav!.move(m.dx, m.dy) && m.dy < 0) {
-        ui.zone = 'bar'
-        ui.nav = null
-        ui.panel = null
-        bar.setPadFocus(Math.max(0, bar.padFocus))
-      }
+        else if (m.dy > 0 && nav != null) {
+          ui.zone = 'panel'
+          if (nav.focused == null) nav.focusDefault()
+          bar.setPadFocus(-1)
+        }
+      } else nav?.move(m.dx, m.dy)
     }
-    if (ui.follow && ui.zone === 'bar' && target != null) enter()
-    ui.follow = false
     if (pulse.activate) {
-      if (ui.zone === 'bar') {
-        bar.padActivate()
-        // What it opens (next frame) is where the D-pad goes.
-        ui.follow = true
-      } else ui.nav!.activate()
+      if (ui.zone === 'bar') bar.padActivate()
+      else nav?.activate()
     }
-    const t2 = ui.zone === 'panel' ? this._padPanel() : null
-    this._padRingAt(t2?.root ?? null, t2 ? ui.nav?.focused?.box : null)
   }
   private _sceneBarButtons: HTMLButtonElement[] = []
   private _sceneBarVersion = 0
@@ -9420,6 +9512,10 @@ export class B3d extends Component {
   }
   private _audioUnmute: (() => void) | null = null
   private _teardown(): void {
+    this._offPadKeys?.()
+    this._offPadKeys = null
+    this.setPadUi(false)
+    this._panelNav = null
     this._releaseAudio()
     // Both presentations' widgets, not just the visible one — an XR panel's
     // rows outlive the session that built them otherwise.

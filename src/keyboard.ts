@@ -1529,6 +1529,11 @@ export function inputField(config: InputFieldOptions = {}): InputField {
         change(edit(String(v ?? '')))
         commitField()
       },
+      // Left and right move the caret (a gamepad's D-pad).
+      nudge: (dir: number) => {
+        activate()
+        change(editMoveCaret(state, dir > 0 ? 1 : -1))
+      },
       // Enter, from a screen reader's copy or an agent.
       activate: () => api.action('enter'),
     }),

@@ -94,6 +94,13 @@ export interface WidgetSemantics {
   set?(value: unknown): void
   /** Press it (a button, a section header, a list item). */
   activate?(): void
+  /**
+   * The control a panel focuses when it opens (its default button). Without
+   * one the first control takes the focus.
+   */
+  isDefault?: boolean
+  /** One step left or right that is not a value (a text box's caret). */
+  nudge?(dir: number): void
   /** Controls inside it (a row, a toolbar, a list). */
   children?: SemanticSource[]
   /**
@@ -134,6 +141,8 @@ export interface ControlNode {
   box?: ControlBox
   set?(value: unknown): void
   activate?(): void
+  isDefault?: boolean
+  nudge?(dir: number): void
   children?: ControlNode[]
 }
 
@@ -252,6 +261,8 @@ export function controlTree(
     if (s.open !== undefined) node.open = s.open
     if (s.set) node.set = s.set
     if (s.activate) node.activate = s.activate
+    if (s.isDefault) node.isDefault = true
+    if (s.nudge) node.nudge = s.nudge
     if (box != null) node.box = box
     if (CONTAINERS.has(s.role) && s.children) {
       const boxes = childBoxes(s.children, box, s.role === 'list', s.childBoxes)
