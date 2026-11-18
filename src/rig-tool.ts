@@ -960,6 +960,17 @@ export function mountRigTool(
     whole hand or foot as it stands (the fit's fingers too, not only the
     ones moved by hand), so a placed hand is not undone by moving its wrist.
     */
+    /*
+    ALONE: the fit lays out what is below a marker from it, so the joints
+    under a marker moved alone are kept where they are drawn (by hand).
+    */
+    if (how.alone && shown != null) {
+      const movedJoints = carry.map((k) => MARKER_JOINT[k])
+      for (const [n, p] of shown) {
+        if (markerJoints.has(n)) continue
+        if (movedJoints.some((j) => hangsFrom(n, j))) joints[n] = { ...p }
+      }
+    }
     const carried = new Set(how.alone ? [] : carry.map((k) => MARKER_JOINT[k]))
     if (carried.size && shown != null)
       for (const [n, p] of shown) {
@@ -3231,6 +3242,9 @@ export function mountRigTool(
       twin mirrored. Not the groin: the whole body hangs from the pelvis.
       */
       const carries = ui.joints && !tailKey && key !== 'groin'
+      // Set to move the joint alone: nothing comes, and what hangs from it
+      // stays where it is drawn.
+      const alone = carries && ui.jointDrag === 'alone'
       const below = (k: string | null) => {
         const j = k != null ? MARKER_JOINT[k] : undefined
         if (j == null) return []
@@ -3239,8 +3253,8 @@ export function mountRigTool(
           return n != null && n !== j && hangsFrom(n, j)
         })
       }
-      const followers = carries ? below(key) : []
-      const twinFollowers = carries && symmetry ? below(other) : []
+      const followers = carries && !alone ? below(key) : []
+      const twinFollowers = carries && !alone && symmetry ? below(other) : []
       const from0 = handle.position.clone()
       const starts = new Map(
         [...followers, ...twinFollowers].map((d) => [d, d.position.clone()])
@@ -3309,7 +3323,7 @@ export function mountRigTool(
         handle.position.copyFrom(toScene(x, f.y, depth(key, handle)))
         if (symmetry && other != null && twin != null)
           twin.position.copyFrom(toScene(-x, f.y, depth(other, twin)))
-        if (carries) {
+        if (carries && !alone) {
           // In the file's frame, so the twin's move is the mirror (x flips).
           const d0 = toFile(from0)
           const d1 = toFile(handle.position)
@@ -3345,7 +3359,8 @@ export function mountRigTool(
           carries
             ? [key, ...(symmetry && other != null ? [other] : []), ...carried]
             : [],
-          depths
+          depths,
+          { alone }
         )
       }
       window.addEventListener('pointermove', move, true)
