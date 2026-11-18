@@ -678,9 +678,7 @@ function xrSeatFor(
   hangs from the bar.
   */
   const frac = (v: unknown) =>
-    typeof v === 'string' && v.trim().endsWith('%')
-      ? parseFloat(v) / 100
-      : null
+    typeof v === 'string' && v.trim().endsWith('%') ? parseFloat(v) / 100 : null
   const fr = frac(pin?.right)
   const fb = frac(pin?.bottom)
   const fx = frac(pin?.left) ?? (fr != null ? 1 - fr : null)
@@ -2983,7 +2981,13 @@ export class B3d extends Component {
   /** Turn the gamepad UI mode on (focus on the bar) or off. */
   setPadUi(on: boolean): void {
     if (on === (this._padUi != null)) return
-    const owned = ['dpadUp', 'dpadDown', 'dpadLeft', 'dpadRight', 'buttonB'] as const
+    const owned = [
+      'dpadUp',
+      'dpadDown',
+      'dpadLeft',
+      'dpadRight',
+      'buttonB',
+    ] as const
     if (on) {
       this._padUi = { zone: 'bar', auto: false }
       for (const k of owned) padUiOwns.add(k)
@@ -3009,9 +3013,11 @@ export class B3d extends Component {
         key: 'settings',
         root: live,
         controls: () =>
-          (this._livePanel() as unknown as {
-            controls?: () => ControlNode[]
-          } | null)?.controls?.() ?? [],
+          (
+            this._livePanel() as unknown as {
+              controls?: () => ControlNode[]
+            } | null
+          )?.controls?.() ?? [],
       }
     for (const [key, p] of this._sysPanels) {
       const c = p.content as SVGSVGElement & {
@@ -3022,9 +3028,11 @@ export class B3d extends Component {
           key,
           root: c,
           controls: () =>
-            (this._sysPanels.get(key)?.content as unknown as {
-              controls?: () => ControlNode[]
-            })?.controls?.() ?? [],
+            (
+              this._sysPanels.get(key)?.content as unknown as {
+                controls?: () => ControlNode[]
+              }
+            )?.controls?.() ?? [],
         }
     }
     return null
@@ -3105,10 +3113,16 @@ export class B3d extends Component {
     // A panel opened: its default control takes the focus.
     const target = this._padPanel()
     if (target?.key !== this._panelNav?.key) {
+      // The old panel's focused control hears it lost the focus.
+      this._panelNav?.nav.clear()
       this._panelNav =
         target == null
           ? null
-          : { key: target.key, root: target.root, nav: padNavigator(target.controls) }
+          : {
+              key: target.key,
+              root: target.root,
+              nav: padNavigator(target.controls),
+            }
       this._panelNav?.nav.focusDefault()
       const ui = this._padUi
       if (target != null && ui == null && this._padLastUsed && bar != null) {
@@ -3126,13 +3140,17 @@ export class B3d extends Component {
         }
       }
     }
-    if (target != null && this._panelNav != null) this._panelNav.root = target.root
+    if (target != null && this._panelNav != null)
+      this._panelNav.root = target.root
     this._panelNav?.nav.sync()
     this._padTick(bar)
     const ui = this._padUi
     const pn = this._panelNav
     const ringed = pn != null && (ui?.zone === 'panel' || this._keyNav)
-    this._padRingAt(ringed ? pn.root : null, ringed ? pn.nav.focused?.box : null)
+    this._padRingAt(
+      ringed ? pn.root : null,
+      ringed ? pn.nav.focused?.box : null
+    )
   }
   /** The pad's part: the hold on up, then its moves in the mode. */
   private _padTick(bar: SystemBar | null): void {
@@ -6367,7 +6385,8 @@ export class B3d extends Component {
     const rig = this._xrRig
     if (base == null || rig == null || !this.xrActive) return
     const sm = base.sessionManager
-    if (this._xrFrameObs != null) sm.onXRFrameObservable.remove(this._xrFrameObs)
+    if (this._xrFrameObs != null)
+      sm.onXRFrameObservable.remove(this._xrFrameObs)
     // A changed scale reaches the head a frame late, so settle over a few.
     let frames = 0
     const at = { x: centre.x, y: centre.y, z: centre.z }
@@ -6503,7 +6522,10 @@ export class B3d extends Component {
       const build = source.getWorldPointerRayToRef.bind(source)
       source.getWorldPointerRayToRef = (ray, grip) => {
         build(ray, grip)
-        ray.length *= Math.max(1, xr.baseExperience.sessionManager.worldScalingFactor)
+        ray.length *= Math.max(
+          1,
+          xr.baseExperience.sessionManager.worldScalingFactor
+        )
       }
     }
     for (const c of xr.input.controllers) stretchRay(c)
@@ -7046,10 +7068,17 @@ export class B3d extends Component {
       const next =
         hands.length === 1
           ? grabOne(viewer, held[hands[0]]!, room(hands[0]))
-          : grabTwo(viewer, held.left!, held.right!, room('left'), room('right'), {
-              minScale: 0.01,
-              maxScale: 1e7,
-            })
+          : grabTwo(
+              viewer,
+              held.left!,
+              held.right!,
+              room('left'),
+              room('right'),
+              {
+                minScale: 0.01,
+                maxScale: 1e7,
+              }
+            )
       applyViewer(rig, sm, next)
     }
     /** A real head pose this frame? Before one arrives the camera's rotation is stale. */

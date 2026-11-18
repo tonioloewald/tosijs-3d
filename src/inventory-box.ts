@@ -16,7 +16,10 @@ is a 44-unit target. Lists are scrolling lists.
 ## Equip a person
 
 The art is an SVG with a `Sockets` group; each socket's id is a slot. Drag
-from the bag onto the body, or tap, then tap. The rifle needs both hands
+from the bag onto the body, or tap, then tap (a gamepad's B, or Enter after
+Tab, is the tap: `controls()` lists every thing and place for the scene's
+[panel focus](/pad-ui/), and a focused slot lights when what is carried
+fits). The rifle needs both hands
 (and shows, faded, in the other one), a helm only goes on a head, and
 anything worn can be dragged back off.
 
@@ -408,6 +411,7 @@ import type { Carry, CarryTarget } from './carry.js'
 import type { InventoryApi, Item, ItemKind, Move, Place } from './inventory.js'
 import { panelRim } from './panel-rim.js'
 import { currencyFor, formatMoney, type Currency } from './currency.js'
+import type { ControlNode } from './widget-semantics.js'
 
 export interface InventoryPanelOptions {
   inv: InventoryApi
@@ -490,7 +494,21 @@ export interface InventoryPanelOptions {
 export interface InventoryPanel {
   /** Pointer input in the host's own coordinates (a plane feeds it this way). */
   handlePointer: (kind: PointerKind, x: number, y: number) => void
+  /**
+   * Its things and places as named controls, in the host's coordinates (also
+   * on the host as `host.controls`), so a D-pad or Tab reaches them: a press
+   * on a thing picks it up, a press on a place puts it down there (the
+   * two-tap path); a focused thing shows its info, a focused place whether
+   * what is carried fits.
+   */
+  controls: () => InventoryControl[]
   dispose: () => void
+}
+
+/** A control in an inventory panel: a thing (`item`) or a place it can go. */
+export interface InventoryControl extends ControlNode {
+  /** The item a thing's row shows (not set on a place). */
+  item?: string
 }
 
 /** Where a schematic's sockets are, in its viewBox. */
@@ -780,6 +798,30 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
     },
   })
 
+  /*
+  WHAT A D-PAD REACHES: each thing and place drawn, by a path that survives a
+  rebuild (the panel is rebuilt on every move), so the focus stays on the
+  same thing. The box shows it as focused (info, a slot lighting) and the
+  scene draws the ring.
+  */
+  let pads: { child: BoxChild; path: string; name: string; item?: string }[] =
+    []
+  let kids: BoxChild[] = []
+  let padPath: string | null = null
+  const pad = <C extends BoxChild>(
+    child: C,
+    path: string,
+    name: string,
+    item?: string
+  ): C => {
+    pads.push({ child, path: `${holder}/${path}`, name, item })
+    return child
+  }
+  const padFocus = () => {
+    const p = pads.find((q) => q.path === padPath)
+    current?.focusTo(p ? kids.indexOf(p.child) : -1, { ring: false })
+  }
+
   const tile = (
     id: string,
     at: Place,
@@ -811,6 +853,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
     if (!h) return
     for (const d of disposers) d()
     disposers = []
+    pads = []
     const children: BoxChild[] = []
     const lists: { target: CarryTarget<string>; from: string }[] = []
     let shown = 0
@@ -879,7 +922,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
         inline,
       })
       disposers.push(socket.dispose)
-      return socket
+      return pad(socket, 'drop', 'drop')
     }
     for (const [cname, c] of Object.entries(h.containers)) {
       if (opts.only && !opts.only.includes(cname)) continue
@@ -906,6 +949,12 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
             if (c.slots[o] && !c.slots[o].holds)
               echoes.set(o, { id: slot.holds, at })
           }
+        }
+        // A place is named for itself and what is in it ("right hand: Pistol").
+        const slotName = (s: string, label: string) => {
+          const id = c.slots[s].holds
+          const it = id != null ? inv.doc.items[id] : null
+          return it ? `${label}: ${kinds[it.kind]?.name ?? it.kind}` : label
         }
         const holdingOf = (
           s: string,
@@ -954,7 +1003,13 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
             })
             socket.at = fit.at(sk.x, sk.y)
             disposers.push(socket.dispose)
-            children.push(socket)
+            children.push(
+              pad(
+                socket,
+                `${cname}/${sk.slot}`,
+                slotName(sk.slot, sk.slot.replace(/_/g, ' '))
+              )
+            )
           }
         }
         for (const s of Object.keys(c.slots)) {
@@ -968,7 +1023,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
             ...holdingOf(s, at),
           })
           disposers.push(socket.dispose)
-          children.push(socket)
+          children.push(pad(socket, `${cname}/${s}`, slotName(s, s)))
         }
       } else if (c.type === 'list') {
         // (A box keeps only a LEADING run sticky, so a list below a
@@ -999,7 +1054,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
         })
         disposers.push(socket.dispose)
         socket.sticky = !!opts.height
-        children.push(socket)
+        children.push(pad(socket, cname, opts.putLabel ?? `put in ${cname}`))
         if (withDrop) {
           const drop = dropSocket(half, true)
           drop.sticky = !!opts.height
@@ -1008,12 +1063,20 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
         lists.push({ target: into, from: enc(at) })
         // Full width: a row is a button you can hit anywhere along it.
         const row = { width: inner, height: 34 }
-        for (const id of c.holds) children.push(tile(id, at, row, into))
+        for (const id of c.holds)
+          children.push(
+            pad(tile(id, at, row, into), `${cname}/item:${id}`, nameOf(id), id)
+          )
       } else {
         // A grid wants its picture (a schematic); here it is listed.
         for (const e of c.holds)
           children.push(
-            tile(e.item, { holder, container: cname, x: e.x, y: e.y })
+            pad(
+              tile(e.item, { holder, container: cname, x: e.x, y: e.y }),
+              `${cname}/item:${e.item}`,
+              nameOf(e.item),
+              e.item
+            )
           )
       }
     }
@@ -1043,6 +1106,8 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
     host.setAttribute('height', String(tall))
     host.setAttribute('viewBox', `0 0 ${width} ${tall}`)
     current = b
+    kids = children
+    if (padPath != null) padFocus()
     whole = lists.length === 1 && shown === 1 ? lists[0] : null
     glow.setAttribute('width', String(width - 3))
     glow.setAttribute('height', String(tall - 3))
@@ -1051,8 +1116,39 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
     panel?.dispose()
     panel = carryPanel(b, carry, { fallback: whole?.target, ghost: false })
   }
+  const nameOf = (id: string) => {
+    const it = inv.doc.items[id]
+    const name = kinds[it?.kind]?.name ?? it?.kind ?? id
+    return (it?.qty ?? 1) > 1 ? `${name} ×${it!.qty}` : name
+  }
   build()
   const stop = inv.subscribe(() => build())
+  const controls = (): InventoryControl[] => {
+    const b = current
+    if (b == null) return []
+    return pads.map((p) => {
+      const i = kids.indexOf(p.child)
+      const r = b.visibleRect(i)
+      return {
+        role: 'button',
+        name: p.name,
+        path: p.path,
+        interactive: true,
+        item: p.item,
+        box: r ? { x: r.x, y: r.y, w: r.width, h: r.height } : undefined,
+        activate: () => {
+          b.focusTo(i, { ring: false })
+          b.focusActivate()
+        },
+        focus: (on: boolean) => {
+          if (on) padPath = p.path
+          else if (padPath === p.path) padPath = null
+          padFocus()
+        },
+      }
+    })
+  }
+  ;(host as unknown as { controls: typeof controls }).controls = controls
 
   const at = (e: PointerEvent): [number, number] => {
     const p = svgPoint(host, e.clientX, e.clientY)
@@ -1091,6 +1187,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
     handlePointer(kind, x, y) {
       panel?.handlePointer(kind, x, y)
     },
+    controls,
     dispose() {
       stop()
       stopGlow()
@@ -1147,6 +1244,8 @@ export interface InventoryDock {
   setOpen: (open: boolean) => void
   /** Pointer input in the dock's viewBox coordinates (what a plane routes). */
   handlePointer: (kind: PointerKind, x: number, y: number) => void
+  /** Its controls in its own coordinates (also `svg.controls`): closed, one that opens it. */
+  controls: () => InventoryControl[]
   dispose: () => void
 }
 
@@ -1364,6 +1463,38 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
   // `handlePointer`, as it does for a panel3d.
   ;(root as unknown as { handlePointer: typeof handlePointer }).handlePointer =
     handlePointer
+  const controls = (): InventoryControl[] => {
+    if (!open)
+      return [
+        {
+          role: 'button',
+          name: `open ${opts.title ?? 'inventory'}`,
+          path: 'open',
+          interactive: true,
+          box: { x: 0, y: 0, w: size.width, h: size.height },
+          activate: () => setOpen(true),
+        },
+      ]
+    const shift = (n: InventoryControl, dx: number): InventoryControl =>
+      n.box ? { ...n, box: { ...n.box, x: n.box.x + dx } } : n
+    return [
+      ...main.controls(),
+      ...(list ? list.controls().map((n) => shift(n, W + GAP)) : []),
+      ...(framed
+        ? []
+        : [
+            {
+              role: 'button' as const,
+              name: 'close',
+              path: 'close',
+              interactive: true,
+              box: { x: size.width - 36, y: 8, w: 28, h: 28 },
+              activate: () => setOpen(false),
+            },
+          ]),
+    ]
+  }
+  ;(root as unknown as { controls: typeof controls }).controls = controls
   return {
     svg: root,
     get open() {
@@ -1371,6 +1502,7 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
     },
     setOpen,
     handlePointer,
+    controls,
     dispose() {
       stop()
       ghosts.dispose()

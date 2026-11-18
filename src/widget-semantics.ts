@@ -143,6 +143,12 @@ export interface ControlNode {
   activate?(): void
   isDefault?: boolean
   nudge?(dir: number): void
+  /**
+   * Told when a D-pad or Tab gives it the focus (true) and takes it away
+   * (false), for what a hover would show: a thing's info, whether a carried
+   * thing fits a slot.
+   */
+  focus?(on: boolean): void
   children?: ControlNode[]
 }
 

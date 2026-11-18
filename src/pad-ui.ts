@@ -19,6 +19,13 @@ Mark the default with `button3d({ label: 'OK', default: true })`, or any
 widget with `asDefault(widget)`. A popup opened inside the panel (a select's
 list, a confirm) takes the focus the same way and gives it back when it closes.
 
+A control can also hear that it gained or lost the focus (`focus(on)` in its
+semantics), to show what a hover would: a thing's info, whether a carried thing
+fits a slot. When the focused control leaves the list (a thing taken across in
+a trade), the one now in its place takes the focus, so taking one thing after
+another is one press each. The [inventory](/inventory-box/) and
+[trade](/inventory-trade/) panels give their things and places as controls.
+
 `<tosi-b3d>` uses it on its open panel. The keyboard: **Tab** and shift-Tab
 cycle, then Enter or space presses and the arrow keys move as the D-pad
 does, until the mouse is used. A gamepad: hold D-pad up to reach the system
@@ -119,7 +126,9 @@ export function pressControl(n: ControlNode): void {
  * panel opens). `button3d({ default: true })` is the same for a button.
  */
 export function asDefault<
-  W extends { semantics?: () => import('./widget-semantics.js').WidgetSemantics }
+  W extends {
+    semantics?: () => import('./widget-semantics.js').WidgetSemantics
+  }
 >(widget: W): W {
   const own = widget.semantics
   if (own != null) widget.semantics = () => ({ ...own(), isDefault: true })
@@ -169,6 +178,9 @@ export interface PadNavigator {
 export function padNavigator(read: () => ControlNode[]): PadNavigator {
   let path: string | null = null
   let popups = new Set<string>()
+  /** The control last told it has the focus, and its place in the cycle. */
+  let shown: ControlNode | null = null
+  let lastAt = -1
   /** Where the focus was when each popup opened. */
   const before = new Map<string, string | null>()
   const current = () => {
@@ -199,36 +211,27 @@ export function padNavigator(read: () => ControlNode[]): PadNavigator {
     path = ring[next].path
     return true
   }
+  /** Tell a control it gained or lost the focus (what a hover would show). */
+  const settle = <R>(r: R): R => {
+    const { tree, all, i } = current()
+    const now = i >= 0 ? all[i] : null
+    if (now?.path !== shown?.path) {
+      shown?.focus?.(false)
+      now?.focus?.(true)
+    }
+    shown = now
+    if (now != null) lastAt = scope(tree, all).indexOf(now)
+    return r
+  }
   const nav: PadNavigator = {
     get focused() {
       const { all, i } = current()
       return i >= 0 ? all[i] : null
     },
     move(dx, dy) {
-      if (dy !== 0) return step(dy > 0 ? 1 : -1)
-      const { tree, all, i } = current()
-      if (i < 0) return step(dx)
-      if (stepControl(all[i], dx)) return true
-      // Beside it (a row of icon buttons).
-      const ring = scope(tree, all)
-      const at = ring.indexOf(all[i])
-      const boxes = ring.map((n) => ({
-        x: n.box!.x,
-        y: n.box!.y,
-        width: n.box!.w,
-        height: n.box!.h,
-      }))
-      const fy = boxes[at].y + boxes[at].height / 2
-      const next = nearestInDirection(
-        boxes,
-        at,
-        { dx, dy: 0 },
-        (k) => Math.abs(boxes[k].y + boxes[k].height / 2 - fy) < boxes[at].height / 2
-      )
-      if (next != null) path = ring[next].path
-      return true
+      return settle(moveBy(dx, dy))
     },
-    tab: step,
+    tab: (dir) => settle(step(dir)),
     activate() {
       const { all, i } = current()
       if (i >= 0) pressControl(all[i])
@@ -238,7 +241,7 @@ export function padNavigator(read: () => ControlNode[]): PadNavigator {
       const first = defaultTarget(scope(tree, all))
       path = first?.path ?? null
       popups = new Set(popupsOf(tree).map((n) => n.path))
-      return first != null
+      return settle(first != null)
     },
     sync() {
       const { tree, all, i } = current()
@@ -247,7 +250,9 @@ export function padNavigator(read: () => ControlNode[]): PadNavigator {
       for (const p of open)
         if (!popups.has(p)) {
           before.set(p, path)
-          const first = defaultTarget(all.filter((n) => n.path.startsWith(p + '/')))
+          const first = defaultTarget(
+            all.filter((n) => n.path.startsWith(p + '/'))
+          )
           if (first != null) path = first.path
         }
       for (const p of popups)
@@ -259,15 +264,47 @@ export function padNavigator(read: () => ControlNode[]): PadNavigator {
         }
       popups = now
       if (path != null && !all.some((n) => n.path === path)) {
-        const back = defaultTarget(scope(tree, all))
-        path = back?.path ?? null
+        // It went (a thing moved out of the list): the control now in its
+        // place, so taking one after another is one press each.
+        const ring = scope(tree, all)
+        const at = Math.min(lastAt, ring.length - 1)
+        path = (at >= 0 ? ring[at] : defaultTarget(ring))?.path ?? null
       }
+      settle(null)
     },
     clear() {
+      shown?.focus?.(false)
+      shown = null
+      lastAt = -1
       path = null
       popups = new Set()
       before.clear()
     },
+  }
+  function moveBy(dx: number, dy: number): boolean {
+    if (dy !== 0) return step(dy > 0 ? 1 : -1)
+    const { tree, all, i } = current()
+    if (i < 0) return step(dx)
+    if (stepControl(all[i], dx)) return true
+    // Beside it (a row of icon buttons).
+    const ring = scope(tree, all)
+    const at = ring.indexOf(all[i])
+    const boxes = ring.map((n) => ({
+      x: n.box!.x,
+      y: n.box!.y,
+      width: n.box!.w,
+      height: n.box!.h,
+    }))
+    const fy = boxes[at].y + boxes[at].height / 2
+    const next = nearestInDirection(
+      boxes,
+      at,
+      { dx, dy: 0 },
+      (k) =>
+        Math.abs(boxes[k].y + boxes[k].height / 2 - fy) < boxes[at].height / 2
+    )
+    if (next != null) path = ring[next].path
+    return true
   }
   return nav
 }

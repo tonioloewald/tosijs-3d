@@ -18,7 +18,11 @@ const node = (
 
 describe('padNavigator', () => {
   test('up and down cycle, and Tab does the same', () => {
-    const tree = [node('a', 'button', 0), node('b', 'button', 40), node('c', 'button', 80)]
+    const tree = [
+      node('a', 'button', 0),
+      node('b', 'button', 40),
+      node('c', 'button', 80),
+    ]
     const nav = padNavigator(() => tree)
     nav.focusDefault()
     expect(nav.focused?.name).toBe('a')
@@ -35,17 +39,25 @@ describe('padNavigator', () => {
   })
 
   test('a panel opens on its default control, else the first', () => {
-    const tree = [node('cancel', 'button', 0), node('ok', 'button', 40, { isDefault: true })]
+    const tree = [
+      node('cancel', 'button', 0),
+      node('ok', 'button', 40, { isDefault: true }),
+    ]
     const nav = padNavigator(() => tree)
     nav.focusDefault()
     expect(nav.focused?.name).toBe('ok')
-    const plain = padNavigator(() => [node('x', 'button', 0), node('y', 'button', 40)])
+    const plain = padNavigator(() => [
+      node('x', 'button', 0),
+      node('y', 'button', 40),
+    ])
     plain.focusDefault()
     expect(plain.focused?.name).toBe('x')
   })
 
   test('asDefault marks any widget', () => {
-    const w = asDefault({ semantics: () => ({ role: 'slider' as const, name: 's' }) })
+    const w = asDefault({
+      semantics: () => ({ role: 'slider' as const, name: 's' }),
+    })
     expect((w.semantics() as { isDefault?: boolean }).isDefault).toBe(true)
   })
 
@@ -65,7 +77,9 @@ describe('padNavigator', () => {
 
   test('a text box takes left and right as its caret', () => {
     let caret = 0
-    const nav = padNavigator(() => [node('t', 'textbox', 0, { set: () => {}, nudge: (d) => (caret += d) })])
+    const nav = padNavigator(() => [
+      node('t', 'textbox', 0, { set: () => {}, nudge: (d) => (caret += d) }),
+    ])
     nav.focusDefault()
     nav.move(1, 0)
     nav.move(1, 0)
@@ -145,6 +159,36 @@ describe('padNavigator', () => {
     nav.move(0, 1)
     nav.activate()
     expect(on).toBe(true)
+  })
+
+  test('a control hears when it gains and loses the focus', () => {
+    const heard: string[] = []
+    const tell = (name: string) => (on: boolean) => heard.push(`${name} ${on}`)
+    const tree = [
+      node('a', 'button', 0, { focus: tell('a') }),
+      node('b', 'button', 40, { focus: tell('b') }),
+    ]
+    const nav = padNavigator(() => tree)
+    nav.focusDefault()
+    nav.move(0, 1)
+    nav.sync()
+    nav.clear()
+    expect(heard).toEqual(['a true', 'a false', 'b true', 'b false'])
+  })
+
+  test('when the focused control goes, the one in its place takes it', () => {
+    let tree = [
+      node('a', 'button', 0),
+      node('b', 'button', 40),
+      node('c', 'button', 80),
+    ]
+    const nav = padNavigator(() => tree)
+    nav.focusDefault()
+    nav.move(0, 1)
+    // b moved out of the list (taken across in a trade).
+    tree = [tree[0], tree[2]]
+    nav.sync()
+    expect(nav.focused?.name).toBe('c')
   })
 
   test('keeps focus by path across a rebuild', () => {

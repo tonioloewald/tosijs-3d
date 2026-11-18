@@ -436,6 +436,13 @@ export interface Box {
   focusBack: () => void
   /** The focused child's index, or -1. */
   focusIndex: () => number
+  /**
+   * Focus child `i` (-1 clears), scrolled into view. `ring: false` leaves the
+   * ring to the host (a scene draws one ring across all its panels).
+   */
+  focusTo: (i: number, opts?: { ring?: boolean }) => void
+  /** Child `i`'s rect as drawn now, scroll applied (it may be out of sight: `focusTo` brings it in). */
+  visibleRect: (i: number) => FlowBox | null
 }
 
 let boxSeq = 0
@@ -513,6 +520,8 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
 
   let laidBoxes: FlowBox[] = []
   let focused = -1
+  // Focus given by `focusTo(i, { ring: false })`: the host draws the ring.
+  let quietRing = false
   let downTarget = -1
   let hoverIdx = -1
   let pressedIdx = -1
@@ -678,7 +687,7 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
     const b = laidBoxes[focused]
     // A child with inner focus draws its own indicator — a box ring around the
     // whole child (an entire keyboard!) reads as noise, not focus.
-    if (focused < 0 || !b || children[focused].focusMove) {
+    if (focused < 0 || !b || children[focused].focusMove || quietRing) {
       focusRing.setAttribute('visibility', 'hidden')
       return
     }
@@ -911,6 +920,7 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
       return hitTest(x, y) >= 0
     },
     focusMove(dx: number, dy: number) {
+      quietRing = false
       const old = focused
       // A focused child with inner traversal gets the move first; only when it
       // says the focus ESCAPED (returns false) does the box's own focus move on.
@@ -959,6 +969,23 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
     },
     focusIndex() {
       return focused
+    },
+    focusTo(i: number, o: { ring?: boolean } = {}) {
+      const next = isFocusable(i) ? i : -1
+      quietRing = o.ring === false
+      const old = focused
+      focused = next
+      if (old !== next && old >= 0) children[old].focusClear?.()
+      if (next >= 0) ensureVisible(next)
+      positionRing()
+      if (old !== next) applyState(old)
+      applyState(next)
+    },
+    visibleRect(i: number) {
+      const b = laidBoxes[i]
+      if (!b) return null
+      const y = padding + b.y - (isSticky(i) ? 0 : scroll)
+      return { x: padding + b.x, y, width: b.width, height: b.height }
     },
   }
 }

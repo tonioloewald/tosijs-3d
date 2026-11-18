@@ -16,6 +16,11 @@ what it will hold; the [trade](/trade/) remembers where everything started.
   enough gold` comes back as the reason and nothing changes) or take what
   they can pay; **cancel** puts everything back.
 
+**With a gamepad or the keyboard** (the scene's [panel focus](/pad-ui/)), a
+chest opens on take all; up and down step through both lists and the buttons,
+left and right go across, and the press moves the focused thing straight to
+the other side (it has nowhere else to go), leaving the focus on the next.
+
 One SVG, so it goes on a plane: give `svg` to a
 [`<tosi-b3d-panel>`](/b3d-panel/) (`bar-button="off"`, opened with `show()`)
 and it works flat and in a headset. The Biped Playground opens one when a
@@ -60,7 +65,11 @@ import type { PointerKind } from './box.js'
 import { carryGhostLayer } from './carry-box.js'
 import type { CarryDecorations } from './carry-box.js'
 import type { Carry } from './carry.js'
-import { inventoryPanel, type InventoryPanel } from './inventory-box.js'
+import {
+  inventoryPanel,
+  type InventoryControl,
+  type InventoryPanel,
+} from './inventory-box.js'
 import type { InventoryApi, Item, ItemKind, Move, Place } from './inventory.js'
 import { panelRim } from './panel-rim.js'
 import { beginTrade, type Trade } from './trade.js'
@@ -94,6 +103,12 @@ export interface TradePanel {
   begin: () => void
   readonly trade: Trade | null
   handlePointer: (kind: PointerKind, x: number, y: number) => void
+  /**
+   * The things on both sides, then the buttons, as named controls (also
+   * `svg.controls`): a press on a thing moves it straight across (it has
+   * only one place to go); a chest's default is take all.
+   */
+  controls: () => InventoryControl[]
   dispose: () => void
 }
 
@@ -293,7 +308,9 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
         pay > 0
           ? `you'll pay ${money(pay)}`
           : pay < 0
-          ? `you'll receive ${money(-pay)}${short ? ` (all ${they} can offer)` : ''}`
+          ? `you'll receive ${money(-pay)}${
+              short ? ` (all ${they} can offer)` : ''
+            }`
           : short
           ? `${they} can't pay anything`
           : 'even'
@@ -356,6 +373,43 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
   ;(root as unknown as { handlePointer: typeof handlePointer }).handlePointer =
     handlePointer
 
+  // A thing in a trade has one place to go, so a press moves it there.
+  const across = (item: string, to: Place) => {
+    carry.cancel()
+    const r = inv.move(
+      opts.moveFor?.(item, inv.where(item), to) ?? { item, to }
+    )
+    if (!r.ok) {
+      said = r.reasons[0] ?? 'refused'
+      draw()
+    }
+  }
+  const controls = (): InventoryControl[] => {
+    const side = (p: InventoryPanel, x: number, to: Place) =>
+      p
+        .controls()
+        .filter((n) => n.item != null)
+        .map((n) => ({
+          ...n,
+          box: n.box && { ...n.box, x: n.box.x + x },
+          activate: () => across(n.item!, to),
+        }))
+    return [
+      ...side(theirPanel, 0, mine),
+      ...side(myPanel, W + GAP, theirs),
+      ...buttons.map((b) => ({
+        role: 'button' as const,
+        name: b.label,
+        path: `button:${b.label}`,
+        interactive: true,
+        isDefault: b.label === 'take all',
+        box: { x: b.x, y: BY, w: b.w, h: BH },
+        activate: b.act,
+      })),
+    ]
+  }
+  ;(root as unknown as { controls: typeof controls }).controls = controls
+
   return {
     svg: root,
     begin() {
@@ -368,6 +422,7 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
       return trade
     },
     handlePointer,
+    controls,
     dispose() {
       stop()
       ghosts.dispose()
