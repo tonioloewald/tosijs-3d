@@ -64,6 +64,14 @@ export interface SystemBar {
   svg: SVGSVGElement
   /** How many buttons it is showing (0: nothing to show). */
   readonly count: number
+  /** The button a gamepad has focus on (-1: none). */
+  readonly padFocus: number
+  /** Give the gamepad's focus to button `i` (-1 clears it). */
+  setPadFocus: (i: number) => void
+  /** Step the gamepad's focus along the bar; false off either end. */
+  padMove: (dx: number) => boolean
+  /** Press the focused button, as a click. */
+  padActivate: () => void
   dispose: () => void
 }
 
@@ -76,6 +84,7 @@ export function systemBar(buttons: HTMLButtonElement[]): SystemBar {
   let shown: HTMLButtonElement[] = []
   let pressed = -1
   let hover = -1
+  let padFocus = -1
 
   const indexAt = (x: number, y: number) => {
     if (y < PAD || y > PAD + SIZE) return -1
@@ -113,6 +122,7 @@ export function systemBar(buttons: HTMLButtonElement[]): SystemBar {
     shown.forEach((b, i) => {
       const x = PAD + i * (SIZE + GAP)
       const lit = !b.disabled && (i === pressed || i === hover)
+      const ringed = i === padFocus
       // A toggle that is on (its panel showing): lit until it is off.
       const on = !b.disabled && b.getAttribute('aria-pressed') === 'true'
       const icon = b.querySelector('svg')?.cloneNode(true) as SVGSVGElement
@@ -147,7 +157,22 @@ export function systemBar(buttons: HTMLButtonElement[]): SystemBar {
               ? 'rgba(74,158,255,0.35)'
               : 'rgba(255,255,255,0.06)',
           }),
-          ...(icon ? [icon] : [])
+          ...(icon ? [icon] : []),
+          // The gamepad's focus: a ring, so it reads apart from a hover.
+          ...(ringed
+            ? [
+                rect({
+                  x: x + 1.5,
+                  y: PAD + 1.5,
+                  width: SIZE - 3,
+                  height: SIZE - 3,
+                  rx: SIZE / 2 - 1.5,
+                  fill: 'none',
+                  stroke: '#ffd25a',
+                  'stroke-width': 3,
+                }),
+              ]
+            : [])
         )
       )
     })
@@ -218,6 +243,30 @@ export function systemBar(buttons: HTMLButtonElement[]): SystemBar {
     svg: root,
     get count() {
       return shown.length
+    },
+    get padFocus() {
+      return padFocus
+    },
+    setPadFocus(i) {
+      const next = i < 0 ? -1 : Math.min(i, shown.length - 1)
+      if (next !== padFocus) {
+        padFocus = next
+        build()
+      }
+    },
+    padMove(dx) {
+      if (shown.length === 0) return false
+      let i = padFocus < 0 ? (dx < 0 ? shown.length : -1) : padFocus
+      do i += dx
+      while (i >= 0 && i < shown.length && shown[i].disabled)
+      if (i < 0 || i >= shown.length) return false
+      padFocus = i
+      build()
+      return true
+    },
+    padActivate() {
+      const b = shown[padFocus]
+      if (b != null && !b.disabled) b.click()
     },
     dispose() {
       stopHold()

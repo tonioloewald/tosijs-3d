@@ -592,6 +592,7 @@ an accessible name in the markup (an SVG `<title>`, or the mirrored button's
 | `src/b3d-controllable.ts` | Base class for input-driven entities (biped, car, aircraft) |
 | `src/b3d-controller.ts` | `<tosi-b3d-controller>` / `b3dController()` — casual bodyless controllable; self-wires the full input stack, hands merged input to a `drive(input, dt)` callback |
 | `src/gamepad-focus.ts` | `gamepadFocus` — D-pad/menu → `focusMove`/`focusActivate` on a box/surface (edge-triggered + typematic repeat, pure `createFocusPulse`); `claim` scopes one pad to the last-touched UI |
+| `src/pad-ui.ts` | `padNavigator(read)` — a D-pad over a panel's named controls (`controls()`): nearest control by direction, left/right step a slider or choice, B presses; focus kept by path across rebuilds. `<tosi-b3d>`'s gamepad UI mode (hold D-pad up) drives the system bar and the open panel with it, owning the D-pad and B while on (`padUiOwns`) |
 | `src/b3d-input-focus.ts` | Input routing and vehicle enter/exit mechanics |
 | `src/virtual-gamepad.ts` | `VirtualGamepad` — unified gamepad abstraction (sticks, buttons, triggers) |
 | `src/keyboard-gamepad.ts` | Keyboard/mouse → VirtualGamepad mapping |

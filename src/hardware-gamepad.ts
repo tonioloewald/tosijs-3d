@@ -27,6 +27,13 @@ export function applyDeadzone(value: number, deadzone: number): number {
   return sign * ((Math.abs(value) - deadzone) / (1 - deadzone))
 }
 
+/**
+ * Buttons the page's UI holds for itself (a scene's gamepad UI mode): every
+ * source reads them as up, so a press that moves the UI's focus does not also
+ * reload or use. `poll(true)` reads them anyway (the UI itself).
+ */
+export const padUiOwns = new Set<keyof VirtualGamepad>()
+
 export class HardwareGamepadSource implements GamepadSource {
   readonly kind = 'hardware'
 
@@ -38,7 +45,14 @@ export class HardwareGamepadSource implements GamepadSource {
     this.gamepadIndex = options.gamepadIndex ?? -1 // -1 = first connected
   }
 
-  poll(): VirtualGamepad {
+  poll(raw = false): VirtualGamepad {
+    const pad = this._read()
+    if (!raw)
+      for (const k of padUiOwns) (pad as unknown as Record<string, number>)[k] = 0
+    return pad
+  }
+
+  private _read(): VirtualGamepad {
     const pad = emptyGamepad()
     const gamepads = navigator.getGamepads()
     if (!gamepads) return pad
