@@ -21,8 +21,22 @@ const weapons = b3dLibrary({
 // Where the hand holds each one: the character builder's defaults, placed
 // with its manipulator in the hand's socket frame (x/y/z is the grip).
 // One grip per class of item (hold-grip): every one-handed blade alike.
-const gripFor = (name) => {
-  const { scale, ...grip } = holdGrip(name)
+// The character file the hero is made from (null: the mannequin), for a
+// respawn and for its placements.
+let heroDoc = null
+// A character from the builder brings its own placements (one per class,
+// set with the builder's manipulator); the mannequin uses the defaults.
+const gripsKept = () => heroDoc?.settings?.grips ?? {}
+// Adjustments for `name`'s class (a character from before grips were per
+// class kept them per item).
+const keptFor = (name) => {
+  const kept = gripsKept()
+  const c = holdClassOf(name)
+  const own = kept[c] ?? kept[name]
+  return own ? { ...kept, [c]: own } : kept
+}
+const gripFor = (name, side) => {
+  const { scale, ...grip } = holdGrip(name, keptFor(name), undefined, side)
   return grip
 }
 // What each one is in the inventory (slot tags, mass, its picture), and for the
@@ -440,8 +454,8 @@ const wearGear = (h) => {
   }
   // The left hand's thing on its LEFT mount (a shield strapped to the
   // forearm, a dagger in the hand), its grip mirrored if set for the right.
-  if (left) mount(left, holdMount(holdClassOf(left), 'l'), holdGrip(left, {}, undefined, 'l'))
-  if (back) mount(back, STOW_MOUNT, stowGrip(back))
+  if (left) mount(left, holdMount(holdClassOf(left), 'l'), holdGrip(left, keptFor(left), undefined, 'l'))
+  if (back) mount(back, STOW_MOUNT, stowGrip(back, gripsKept()))
 }
 // Each gun keeps what is in its magazine while it is put away.
 const magazines = {}
@@ -456,8 +470,9 @@ const hold = (h) => {
     if (inHand && WEAPONS[kindOf(inHand)]?.fire) magazines[inHand] = gun.loaded
     inHand = id
     // A bow rides the LEFT hand's socket (hold-grip's mount for its class).
-    const socket = holdMount(holdClassOf(kind)).bone === 'hand_l' ? 'left-hand' : 'right-hand'
-    Object.assign(gun, gripFor(kind), w.fire ?? {}, { meshName: kind, socket })
+    const side = holdMount(holdClassOf(kind)).side
+    const socket = side === 'l' ? 'left-hand' : 'right-hand'
+    Object.assign(gun, gripFor(kind, side), w.fire ?? {}, { meshName: kind, socket })
     if (w.fire) gun.loaded = magazines[id] ?? w.fire.ammo
     gun.reloadModel()
   }
@@ -484,8 +499,6 @@ const listSaved = (host) =>
     host?.refreshScenePanel?.()
   }).catch(() => {})
 listSaved()
-// The character file the hero is made from (null: the mannequin), for a respawn.
-let heroDoc = null
 const useCharacter = async (name) => {
   const doc = name === MANNEQUIN ? null : await store.get(stored(name)).catch(() => null)
   // Gone (forgotten, or another browser's): the menu says who you are.
@@ -499,6 +512,10 @@ const useCharacter = async (name) => {
   const next = wire(makeHero(doc, at))
   hero.replaceWith(next)
   hero = next
+  // Its own placements: the thing in hand is gripped again.
+  if (inHand && WEAPONS[kindOf(inHand)]?.fire) magazines[inHand] = gun.loaded
+  inHand = null
+  gear.key = ''
   hold(next)
   playChar.pick.value = name
   try { localStorage.setItem('playground-character', name) } catch {}
