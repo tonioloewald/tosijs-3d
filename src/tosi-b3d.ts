@@ -3004,6 +3004,17 @@ export class B3d extends Component {
     root: SVGSVGElement
     controls: () => ControlNode[]
   } | null {
+    // A modal (the pause, a respawn) blocks everything behind it: the
+    // newest one has the focus, or B presses what it covers.
+    const modal = [...this._modals].pop()?.svg as
+      | (SVGSVGElement & { controls?: () => ControlNode[] })
+      | undefined
+    if (modal?.controls != null)
+      return {
+        key: modal,
+        root: modal,
+        controls: () => modal.controls!(),
+      }
     const live = this._livePanel() as
       | (SVGSVGElement & { controls?: () => ControlNode[] })
       | null
@@ -3132,6 +3143,8 @@ export class B3d extends Component {
       if (this._padUi != null && bar != null) {
         if (target != null) {
           this._padUi.zone = 'panel'
+          // Where to come back to on the bar when it closes.
+          if (bar.padFocus >= 0) this._padBarFrom = bar.padFocus
           bar.setPadFocus(-1)
         } else if (this._padUi.auto) this.setPadUi(false)
         else {
@@ -3153,6 +3166,8 @@ export class B3d extends Component {
     )
   }
   /** The pad's part: the hold on up, then its moves in the mode. */
+  /** The bar button focus left to go into a panel (-1: none). */
+  private _padBarFrom = -1
   private _padTick(bar: SystemBar | null): void {
     if (typeof navigator === 'undefined') return
     if (typeof navigator.getGamepads !== 'function') return
@@ -3171,12 +3186,20 @@ export class B3d extends Component {
       else if (!this._padUpFired && now - this._padUpSince >= PAD_UI_HOLD_MS) {
         this._padUpFired = true
         const ui = this._padUi
-        // Off: the bar. In a panel: the bar. On the bar: playing.
+        // Off: the bar. In a panel: close it, back to its button on the
+        // bar (a panel that popped up by itself: back to playing). On the
+        // bar: playing. A modal stays until it is answered.
         if (ui == null) this.setPadUi(true)
         else if (ui.zone === 'panel') {
-          ui.zone = 'bar'
-          ui.auto = false
-          bar?.setPadFocus(0)
+          const key = this._panelNav?.key
+          if (key != null && this._modals.size === 0) {
+            if (!ui.auto) {
+              ui.zone = 'bar'
+              bar?.setPadFocus(Math.max(0, this._padBarFrom))
+            }
+            if (key === 'settings') this._closeScenePanel()
+            else this._closeSystemPanel(key as Element)
+          }
         } else this.setPadUi(false)
         return
       }
@@ -3193,6 +3216,7 @@ export class B3d extends Component {
         if (m.dx !== 0) bar.padMove(m.dx)
         else if (m.dy > 0 && nav != null) {
           ui.zone = 'panel'
+          this._padBarFrom = bar.padFocus
           if (nav.focused == null) nav.focusDefault()
           bar.setPadFocus(-1)
         }

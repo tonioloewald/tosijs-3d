@@ -752,8 +752,9 @@ the lift, picking up, talking; with the weapon up it ducks instead),
 clicking the **right stick** jumps, and clicking the left stick sneaks.
 **Hold D-pad up** to reach the system bar with the pad: left and right step
 along it, **B** opens a panel, up and down cycle through its controls, left
-and right move sliders, **B** presses. Hold up in a panel to go back to the
-bar, and on the bar to go back to playing. On the keyboard, **Tab** steps
+and right move sliders, **B** presses. Hold up in a panel to close it, and on
+the bar to go back to playing; a chest's panel closes straight back to
+playing. On the keyboard, **Tab** steps
 through an open panel.
 
 **Play as a character of your own.** Make one in the

@@ -30,8 +30,11 @@ another is one press each. The [inventory](/inventory-box/) and
 cycle, then Enter or space presses and the arrow keys move as the D-pad
 does, until the mouse is used. A gamepad: hold D-pad up to reach the system
 bar, step along it, **B** opens a panel and presses its controls; hold up in
-a panel to go back to the bar, and on the bar to go back to playing. A panel
-that pops up while the pad is what you last used takes the pad at once.
+a panel to close it (back to its button on the bar), and on the bar to go
+back to playing. A panel that pops up while the pad is what you last used
+takes the pad at once, and hold up closes it straight back to playing. A
+modal (the pause, a respawn) takes the focus from whatever it covers, on
+its first button.
 
 ```javascript
 import { padNavigator } from 'tosijs-3d/pad-ui'
