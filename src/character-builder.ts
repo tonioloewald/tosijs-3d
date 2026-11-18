@@ -1429,8 +1429,11 @@ preview.append(
           listSaved()
         }
         character.exportJson = () => {
-          const name = walker.characterName.value.trim() || 'character'
-          save(JSON.stringify(snapshot(name), null, 1), `${name.replace(/[^\w-]/g, '_')}.character.json`, 'application/json')
+          const given = walker.characterName.value.trim()
+          const name = given || 'character'
+          // Unnamed, plain character.json (not character.character.json).
+          const file = given ? `${given.replace(/[^\w-]/g, '_')}.character.json` : 'character.json'
+          save(JSON.stringify(snapshot(name), null, 1), file, 'application/json')
         }
         character.importJson = () => {
           chooseFile('.json,application/json').then(async (file) => {

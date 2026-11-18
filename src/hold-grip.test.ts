@@ -10,7 +10,7 @@ describe('hold grips', () => {
     const adjusted = { melee1h: { ry: 170 } }
     expect(holdGrip('Dagger', adjusted).ry).toBe(170)
     expect(holdGrip('Long Sword', adjusted).ry).toBe(170)
-    expect(holdGrip('Spear', adjusted).ry).toBe(HOLD_GRIPS.melee2h.ry)
+    expect(holdGrip('Hand and a Half', adjusted).ry).toBe(HOLD_GRIPS.melee2h.ry)
   })
   test('an unknown item is held as a pistol', () => {
     expect(holdClassOf('Banana')).toBe('pistol')

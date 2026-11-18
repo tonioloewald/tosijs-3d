@@ -12,7 +12,8 @@ one-handed blade follows.
 | `rifle` | a long gun, two hands | Assault Rifle |
 | `heavy` | on the shoulder | Rocket Launcher |
 | `melee1h` | a blade, one hand | Dagger, Short Sword, Long Sword, Plasma Blade |
-| `melee2h` | a long blade or a pole, two hands | Hand and a Half, Spear |
+| `melee2h` | a long blade, two hands | Hand and a Half |
+| `pole` | a spear or staff, two hands | Spear |
 | `bow` | a bow, in the LEFT hand | Bow |
 | `shield` | strapped to the left forearm | Buckler, Kite Shield |
 
@@ -46,6 +47,7 @@ export type HoldClass =
   | 'heavy'
   | 'melee1h'
   | 'melee2h'
+  | 'pole'
   | 'bow'
   | 'shield'
 
@@ -111,6 +113,7 @@ export const HOLD_GRIPS: Record<HoldClass, HoldGrip> = {
   heavy: GUN,
   melee1h: BLADE,
   melee2h: BLADE,
+  pole: BLADE,
   bow: BOW,
   shield: SHIELD,
 }
@@ -139,6 +142,7 @@ export const HOLD_CLASS_LABELS: Record<HoldClass, string> = {
   heavy: 'heavy weapons',
   melee1h: 'one-handed blades',
   melee2h: 'two-handed blades',
+  pole: 'spears and staves',
   bow: 'bows',
   shield: 'shields',
 }
@@ -154,7 +158,7 @@ export const HOLD_CLASSES: Record<string, HoldClass> = {
   'Long Sword': 'melee1h',
   'Plasma Blade': 'melee1h',
   'Hand and a Half': 'melee2h',
-  Spear: 'melee2h',
+  Spear: 'pole',
   Buckler: 'shield',
   'Kite Shield': 'shield',
   Bow: 'bow',
@@ -176,11 +180,33 @@ export function holdClassOf(
  */
 export const STOW_MOUNT: HoldMount = { bone: 'spine_03', frame: 'bone' }
 
-// Behind the shoulders, slanted: first placements, set with the manipulator.
-// A long gun is slung barrel up; a blade rides hilt up by the shoulder.
+// Behind the shoulders, slanted, in the upper spine's frame (X to the
+// left, Y up, Z forward): placed by measuring Tonio's models on UAL, to be
+// set with the manipulator. A long gun (barrel along its +Z) is slung barrel
+// up over the right shoulder, flat against the back; a blade (along +Y) rides
+// hilt up by that shoulder; a pole, point up over it; a bow upright.
 const SLUNG: HoldGrip = {
+  x: 0.05,
+  y: -0.05,
+  z: -0.18,
+  rx: -55,
+  ry: -90,
+  rz: 0,
+  scale: 1,
+}
+// A bow (along +Y, like a blade) upright across the back, leaning left.
+const BOW_SLUNG: HoldGrip = {
   x: 0,
-  y: 0.1,
+  y: 0.05,
+  z: -0.2,
+  rx: 0,
+  ry: 0,
+  rz: -30,
+  scale: 1,
+}
+const POLE: HoldGrip = {
+  x: 0.13,
+  y: -0.09,
   z: -0.18,
   rx: 0,
   ry: 0,
@@ -202,7 +228,8 @@ export const STOW_GRIPS: Record<HoldClass, HoldGrip> = {
   heavy: SLUNG,
   melee1h: SHEATHED,
   melee2h: SHEATHED,
-  bow: SLUNG,
+  pole: POLE,
+  bow: BOW_SLUNG,
   shield: { x: 0, y: 0.05, z: -0.2, rx: 0, ry: 0, rz: 0, scale: 1 },
 }
 
