@@ -446,13 +446,15 @@ const hold = (h) => {
   const id = inRight()
   const kind = kindOf(id)
   const w = kind ? WEAPONS[kind] : null
-  if (w?.fire && id !== inHand) {
+  // Any weapon in hand is the launcher's model, a sword too (it is shown, not
+  // fired); only a gun has a magazine to keep.
+  if (w && id !== inHand) {
     if (inHand && WEAPONS[kindOf(inHand)]?.fire) magazines[inHand] = gun.loaded
     inHand = id
     // A bow rides the LEFT hand's socket (hold-grip's mount for its class).
     const socket = holdMount(holdClassOf(kind)).bone === 'hand_l' ? 'left-hand' : 'right-hand'
-    Object.assign(gun, gripFor(kind), w.fire, { meshName: kind, socket })
-    gun.loaded = magazines[id] ?? w.fire.ammo
+    Object.assign(gun, gripFor(kind), w.fire ?? {}, { meshName: kind, socket })
+    if (w.fire) gun.loaded = magazines[id] ?? w.fire.ammo
     gun.reloadModel()
   }
   // The clips the raised weapon plays (a new hero, after a respawn, too).
