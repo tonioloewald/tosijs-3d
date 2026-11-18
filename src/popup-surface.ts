@@ -240,6 +240,13 @@ export interface PopupSurfaceOptions {
    * a headset you cannot take someone's view away without making them ill.
    */
   modal?: boolean
+  /**
+   * A TIP: a tooltip or an info card. Drawn beside what it is about and in
+   * front of it, so nothing clips it, but it is not a window: no chrome, no
+   * drag, never picked (a ray or a click passes through to what is under it),
+   * and outside the popup stack (it neither raises nor dismisses anything).
+   */
+  tip?: boolean
 }
 
 export interface PopupSurface {
@@ -782,13 +789,15 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     resolution = 512,
     offset = {},
     lift = 0.02,
-    draggable = true,
     modal = false,
     gripHeight = 0.2,
-    chrome = true,
     handleClosed,
     dismissOutside = false,
+    tip = false,
   } = opts
+  // A tip is never a window: no handles, no drag.
+  const chrome = tip ? false : opts.chrome ?? true
+  const draggable = tip ? false : opts.draggable ?? true
 
   const vb = svg.viewBox?.baseVal
   const aspect = vb && vb.width > 0 ? vb.height / vb.width : 1
@@ -877,7 +886,7 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     materialChannel: 'emissive',
     // The plane routes its own picks to the SVG's `handlePointer`; a popup with
     // no interactive content still wants this so it doesn't swallow the ray.
-    pointerEvents: 'on',
+    pointerEvents: tip ? 'off' : 'on',
     // Its opener's layer: a popup from a ui panel is drawn and picked with it
     // (and can hang from it, which a mesh in another scene could not).
     layer: panelLayerOf(opener),
@@ -1017,6 +1026,15 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
   owner.appendChild(plane as unknown as Node)
   whenMesh(() => {
     place()
+    if (tip) {
+      // Never in the way of what it describes, and over every panel and
+      // popup (a later rendering group starts with a clear depth buffer).
+      plane.mesh!.isPickable = false
+      plane.mesh!.renderingGroupId = 3
+      mounted = true
+      for (const fn of pending.splice(0)) fn()
+      return
+    }
     // Take a place in the stack now. Without this, two popups opened one
     // after the other sat at the same depth until one of them was clicked.
     // Deferred: on a live scene this runs before `api` exists.
@@ -1287,6 +1305,7 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
   }
 
   self = api
+  if (tip) return api
   // Newest on top, which is what "it just opened" should mean.
   const list = openPopups.get(owner) ?? []
   list.unshift(api)

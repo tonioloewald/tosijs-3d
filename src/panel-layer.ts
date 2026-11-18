@@ -13,6 +13,17 @@ is terrible."*
 On a plane a popup is bounded by nothing and sits genuinely IN FRONT, which is
 what depth is for.
 
+## Tips are surfaces too
+
+A tooltip or an info card drawn inside its panel is clipped by it the same
+way: the top row's card ran under the title bar, an edge icon's tip off the
+plane. `showTipSurface(root, sheet, anchor, side)` shows one as its own
+surface, under the anchor (`'below'`, a tooltip, above it when the screen
+runs out) or beside it (`'right'`, an info card), drawn over every panel and
+popup and never picked, so a ray or a click goes through it to what it is
+about. Panels' tooltips and the inventory's info cards use it; a panel only
+on the page has no presentation that holds tips, and draws them in itself.
+
 ## Why this is its own module
 
 It was written once, inside `panelScene`, and the in-scene `<tosi-b3d>` settings
@@ -25,6 +36,54 @@ panel-sizing formula lived at three sites and was fixed at one).
 `popup-surface` imports `b3d-svg-plane`, so a direct dependency either way round
 is a cycle.
 */
+
+/**
+ * Let any panel SVG carry layer hosts (`addLayerHost`), the list a popup or a
+ * tip is mounted through. A `panel3d` has it already; a panel drawn by other
+ * code (the trade panel, the inventory dock) gets it here.
+ */
+export function layerHostable(svg: SVGSVGElement): void {
+  const el = svg as unknown as {
+    addLayerHost?: (fn: unknown) => () => void
+    __layerHosts?: unknown[]
+  }
+  if (typeof el.addLayerHost === 'function') return
+  el.addLayerHost = (fn) => {
+    const list = (el.__layerHosts ??= [])
+    list.push(fn)
+    return () => {
+      const i = list.indexOf(fn)
+      if (i >= 0) list.splice(i, 1)
+    }
+  }
+}
+
+/** Where a tip goes against its anchor: under it (a tooltip) or beside it (an info card). */
+export type TipSide = 'below' | 'right'
+
+/**
+ * Show `sheet` as a TIP (a tooltip, an info card) for `anchor` in `root`'s
+ * own units: its own surface, beside or under the anchor and in front of the
+ * panel, so the panel's edge cannot clip it, and never picked. Mounted by
+ * every presentation of the panel that can hold one. Null when none can (a
+ * panel only on the page): draw it in the panel as before.
+ */
+export function showTipSurface(
+  root: SVGSVGElement,
+  sheet: SVGSVGElement,
+  anchor: { x: number; y: number; width: number; height: number },
+  side: TipSide = 'below'
+): { close: () => void } | null {
+  type Host = ((s: SVGSVGElement, c: object) => { close: () => void }) & {
+    tips?: boolean
+  }
+  const hosts = (
+    (root as unknown as { __layerHosts?: Host[] }).__layerHosts ?? []
+  ).filter((h) => h.tips)
+  if (hosts.length === 0) return null
+  const opened = hosts.map((h) => h(sheet, { anchor, tip: side }))
+  return { close: () => opened.forEach((o) => o.close()) }
+}
 
 /** The bit of `B3d` a layer needs — duck-typed, to stay out of the cycle. */
 export interface PopupOwner {
@@ -72,8 +131,10 @@ export function attachSceneLayer(opts: {
    */
   inFrame?: () => { svg: SVGSVGElement; top: number }
 }): boolean {
-  const panelEl = opts.svg as unknown as LayerHostTarget
   const owner = opts.owner
+  // Any panel SVG can hold one (the trade panel, the inventory dock).
+  if (owner.openPopup) layerHostable(opts.svg)
+  const panelEl = opts.svg as unknown as LayerHostTarget
   if (typeof panelEl.addLayerHost !== 'function' || !owner.openPopup) {
     return false
   }
@@ -92,8 +153,11 @@ export function attachSceneLayer(opts: {
       handleClosed?: () => void
       chromeBand?: number
       dismissOutside?: boolean
+      /** A tip, under or beside the anchor (see `showTipSurface`). */
+      tip?: TipSide
     }
   ) => {
+    if (config.tip != null) return tip(sheet, config.anchor, config.tip)
     /*
       Place it against the panel's EDGE, from measured sizes.
 
@@ -233,6 +297,51 @@ export function attachSceneLayer(opts: {
     })
     return { close: () => pop.close() }
   }
+  /*
+  A TIP: one viewBox unit to one, like a popup, but placed against the
+  anchor itself rather than the panel's edge, nearer than any popup, and
+  kept on the screen when there is one.
+  */
+  const tip = (
+    sheet: SVGSVGElement,
+    a: { x: number; y: number; width: number; height: number },
+    side: TipSide
+  ) => {
+    const frame = opts.inFrame?.()
+    const vb = (frame?.svg ?? opts.svg).viewBox?.baseVal
+    const frameTop = frame?.top ?? 0
+    const popW = Number(sheet.getAttribute('width')) || 120
+    const popH = Number(sheet.getAttribute('height')) || 24
+    const panelW = vb && vb.width > 0 ? vb.width : popW
+    const panelH = vb && vb.height > 0 ? vb.height : popH
+    const worldW = width * (popW / panelW)
+    const worldH = worldW * (popH / popW)
+    const GAP = side === 'right' ? 8 : 3
+    let left =
+      side === 'right' ? a.x + a.width + GAP : a.x + a.width / 2 - popW / 2
+    let top = frameTop + (side === 'right' ? a.y : a.y + a.height + GAP)
+    const room = opts.screenRoom?.() ?? null
+    if (room != null) {
+      // Under it unless that runs off the screen: then above it.
+      if (side === 'below' && top + popH > room.bottom - 4)
+        top = frameTop + a.y - GAP - popH
+      top = Math.max(room.top + 4, Math.min(top, room.bottom - 4 - popH))
+    }
+    left = Math.max(-popW, left)
+    const pop = owner.openPopup!({
+      tip: true,
+      svg: sheet,
+      opener: openerMesh,
+      width: worldW,
+      offset: {
+        x: ((left + popW / 2) / panelW - 0.5) * width,
+        y: (0.5 - top / panelH) * planeH - worldH / 2,
+        z: room != null ? -0.02 : -0.1,
+      },
+    })
+    return { close: () => pop.close() }
+  }
+  ;(host as unknown as { tips?: boolean }).tips = true
   ;(host as unknown as { drawsChrome?: boolean }).drawsChrome = true
   // How tall a popup can be here: the screen's height, less margins.
   if (opts.screenRoom != null) {

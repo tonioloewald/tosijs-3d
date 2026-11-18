@@ -1171,3 +1171,21 @@ is the same feel at arm's length and across a field.
 The lesson is about where to test, not about zoom: the best input hardware
 smooths over defaults that are genuinely bad. Try a control on a mediocre
 mouse and a PC trackpad before calling its feel done.
+
+## Tips are surfaces, not windows (2026-11-18)
+
+Tonio: "We need tooltips and info cards to work properly as actual spawned
+windows." A tooltip or an info card drawn inside its panel is clipped by the
+panel, the same failure popups had: the inventory's card for the top row ran
+under the title bar. So a tip is a popup surface of its own (`showTipSurface`),
+placed against what it describes (under it for a tooltip, beside it for a
+card).
+
+It is NOT a window, though. A window you can grab and close; a tip has no
+chrome, no drag, joins no popup stack and is never picked, so it never takes a
+press meant for the thing under it. It draws in a later rendering group, so it
+sits over every panel and popup without a depth to tune (a rendering group
+changes what is drawn, not what is picked, and that is exactly right for
+something that must not be picked).
+
+Focus shows it as hover does: a D-pad focus on a thing opens its card.

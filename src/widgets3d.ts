@@ -528,6 +528,7 @@ import { w3dTheme } from './w3d-theme.js'
 import { iconGlyph } from './svg-icons.js'
 import { chromeLayout } from './popup-chrome.js'
 import { panelRim } from './panel-rim.js'
+import { showTipSurface } from './panel-layer.js'
 import {
   controlTree,
   type ControlBox,
@@ -2005,6 +2006,26 @@ Under its anchor, centred, kept inside `width` (less `inset` each side); above i
 room below `height`.
 */
 const TIP_FONT = 11
+/** A tooltip as a sheet of its own, for `showTipSurface`. */
+function tipSheet(title: string): SVGSVGElement {
+  const d = tipDrawer()
+  const w =
+    measureTextWidth(title, {
+      size: TIP_FONT,
+      family: TH.FONT_FAMILY,
+      weight: TH.TEXT_WEIGHT,
+    }) + 12
+  const h = TIP_FONT + 10
+  const sheet = svg({
+    xmlns: 'http://www.w3.org/2000/svg',
+    viewBox: `0 0 ${w} ${h}`,
+    width: w,
+    height: h,
+  }) as unknown as SVGSVGElement
+  sheet.append(d.el)
+  d.show(title, { x: 0, y: -3, width: w, height: 0 }, w)
+  return sheet
+}
 function tipDrawer(): {
   el: SVGElement
   show: (
@@ -4180,6 +4201,8 @@ function buildPanel3d(
 
   // The panel's one tooltip, over its body and outside the clip (#112).
   const tips = tipDrawer()
+  // The tooltip on its own surface, when a presentation can hold one.
+  let tipOut: { key: string; close: () => void } | null = null
   /*
   OPEN POPUPS, by opener, so `controls()` lists what is on screen: a form
   an agent filled is the same popup a hand would have.
@@ -4488,20 +4511,30 @@ function buildPanel3d(
     },
     relayout: () => baseHost.relayout(),
     showTip(t, anchor) {
+      const at = {
+        ...anchor,
+        x: anchor.x + padding,
+        y: anchor.y + paddingTop + rowY(index, inHeader),
+      }
+      // On a plane it is its own surface, so the panel's edge cannot cut it.
+      const key = `${t}|${at.x}|${at.y}`
+      if (tipOut?.key === key) return
+      tipOut?.close()
+      tipOut = null
+      const shown = showTipSurface(root, tipSheet(t), at, 'below')
+      if (shown != null) {
+        tipOut = { key, close: shown.close }
+        tips.hide()
+        return
+      }
       root.appendChild(tips.el) // over anything appended since
-      tips.show(
-        t,
-        {
-          ...anchor,
-          x: anchor.x + padding,
-          y: anchor.y + paddingTop + rowY(index, inHeader),
-        },
-        width,
-        height,
-        padding
-      )
+      tips.show(t, at, width, height, padding)
     },
-    hideTip: () => tips.hide(),
+    hideTip: () => {
+      tipOut?.close()
+      tipOut = null
+      tips.hide()
+    },
     showLayer(config, ...items) {
       /*
       FAN OUT TO EVERY PRESENTATION.

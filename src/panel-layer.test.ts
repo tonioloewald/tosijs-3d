@@ -1,5 +1,9 @@
 import { describe, test, expect } from 'bun:test'
-import { attachSceneLayer } from './panel-layer.js'
+import {
+  attachSceneLayer,
+  layerHostable,
+  showTipSurface,
+} from './panel-layer.js'
 
 /*
 The scene layer is what makes a popup from a panel-on-a-plane a real popup
@@ -123,7 +127,45 @@ describe('attachSceneLayer', () => {
   test('is a NO-OP, not a throw, when it cannot attach', () => {
     // So a caller can wire it unconditionally — which is the point of returning
     // a boolean rather than making every call site test the preconditions.
-    expect(attach(rig({ canRegister: false }))).toBe(false)
     expect(attach(rig({ canPopup: false }))).toBe(false)
+  })
+
+  test('an SVG that is not a panel3d is given a host list', () => {
+    const r = rig({ canRegister: false })
+    expect(attach(r)).toBe(true)
+    expect(r.svg.__layerHosts).toHaveLength(1)
+  })
+})
+
+describe('showTipSurface', () => {
+  test('a tip opens on its own surface, unpickable, beside its anchor', () => {
+    const r = rig()
+    attach(r)
+    r.svg.__layerHosts = r.registered
+    const sheet: any = {
+      getAttribute: (k: string) => (k === 'width' ? '100' : '40'),
+    }
+    const tip = showTipSurface(
+      r.svg,
+      sheet,
+      { x: 10, y: 20, width: 50, height: 30 },
+      'right'
+    )
+    expect(tip).not.toBeNull()
+    expect(r.opened).toHaveLength(1)
+    expect(r.opened[0].tip).toBe(true)
+    expect(r.opened[0].svg).toBe(sheet)
+    // Right of the anchor: its left edge at 10 + 50 + 8 of the panel's 320.
+    const off = r.opened[0].offset as { x: number }
+    expect(off.x).toBeCloseTo(((68 + 50) / 320 - 0.5) * 1)
+  })
+
+  test('null when no presentation holds tips (draw it in the panel)', () => {
+    const svg: any = {}
+    layerHostable(svg)
+    svg.addLayerHost(() => ({ close: () => {} }))
+    expect(
+      showTipSurface(svg, {} as any, { x: 0, y: 0, width: 1, height: 1 })
+    ).toBeNull()
   })
 })
