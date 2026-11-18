@@ -380,6 +380,7 @@ what it adds (`info` replaces that).
 | `host` | the `<svg>` it draws into (it listens for the pointer there) |
 | `decorations(item, kind)` | what a thing shows: a bar, an outline, a badge |
 | `moveFor(item, from, to)` | the move to make for a drop (by default a slot takes one from a stack, with a swap) |
+| `spill` | where a thing it displaces goes when it cannot go back where the newcomer came from (the dock's list: a shield moved from the off hand to a back holding a two-handed spear puts the spear in the bag) |
 | `refuse(item, from, to)` | reasons this panel will not take a move, on top of the model's rules |
 | `schematics` | art per container: `{ body: svgText }`; its sockets are the slots (`data-slot`, or ids in a `Sockets` group) |
 | `only`, `hide` | which containers this panel draws (one holder can be split over panels) |
@@ -424,6 +425,8 @@ export interface InventoryPanelOptions {
     kind: ItemKind | undefined
   ) => CarryDecorations | undefined
   moveFor?: (item: string, from: Place | null, to: Place) => Move
+  /** Where a displaced thing goes when it cannot swap back: see `spill`. */
+  spill?: Place
   /**
    * Reasons this panel will not take a move, on top of the model's rules: a
    * view's own policy (a shop's goods go to the counter, not into your bag).
@@ -786,14 +789,25 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
         : {}),
     }
 
+  // The swap, else (with `spill`) what is there goes to the spill first.
+  const movesTo = (item: string, to: Place): Move[] => {
+    const m = moveTo(item, to)
+    if (!opts.spill || !m.swap || !inv.check(m).length) return [m]
+    const c = inv.doc.holders[to.holder]?.containers[to.container]
+    const there =
+      c?.type === 'slots' && to.slot != null ? c.slots[to.slot]?.holds : null
+    if (!there || there === item) return [m]
+    const spilled: Move[] = [{ item: there, to: opts.spill }, m]
+    return inv.check(...spilled).length ? [m] : spilled
+  }
   const target = (to: Place, id: string): CarryTarget<string> => ({
     id,
     accepts: (item) => {
       const own = opts.refuse?.(item, inv.where(item), to) ?? []
-      return own.length ? own : inv.check(moveTo(item, to))
+      return own.length ? own : inv.check(...movesTo(item, to))
     },
     receive: (item) => {
-      const r = inv.move(moveTo(item, to))
+      const r = inv.move(...movesTo(item, to))
       return r.ok ? [] : r.reasons
     },
   })
@@ -1320,6 +1334,10 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
     alsoIn: opts.alsoIn,
     info: opts.info,
     overlay: false,
+    // What a drop displaces and cannot swap back goes in the list.
+    spill: opts.list
+      ? { holder: opts.holder, container: opts.list }
+      : undefined,
   }
   const mainHeight = () => Number(mainHost.getAttribute('height')) || 400
   const main = inventoryPanel({
