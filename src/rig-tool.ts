@@ -3043,6 +3043,25 @@ export function mountRigTool(
         .map((n) => ({ n, d: dotOf(n) }))
         .filter((g): g is { n: string; d: BABYLON.Mesh } => g.d != null)
       const start = new Map(group.map((g) => [g.n, g.d.position.clone()]))
+      // With symmetry the other side's joints follow as you drag, as they
+      // will on release, rather than staying put until then.
+      const inGroup = new Set(group.map((g) => g.n))
+      const twins = symmetry
+        ? group
+            .map((g) => ({
+              g,
+              t: g.n.replace(/_([lr])$/, (_, s) => (s === 'l' ? '_r' : '_l')),
+            }))
+            .filter(({ g, t }) => t !== g.n && !inGroup.has(t))
+            .map(({ g, t }) => ({ g, d: dotOf(t) }))
+            .filter((m): m is { g: typeof m.g; d: BABYLON.Mesh } => m.d != null)
+        : []
+      const mirror = () => {
+        for (const { g, d } of twins) {
+          const f = toFile(g.d.position)
+          d.position.copyFrom(toScene(-f.x, f.y, f.z))
+        }
+      }
       const turn = ui.jointDrag === 'turn'
       const pivot = handle.position.clone()
       const axis = cam.getForwardRay().direction.normalize()
@@ -3070,6 +3089,7 @@ export function mountRigTool(
           const delta = at.subtract(from)
           for (const g of group)
             g.d.position.copyFrom(start.get(g.n)!.add(delta))
+          mirror()
           return
         }
         // The angle from where the press began to here, about the joint.
@@ -3086,6 +3106,7 @@ export function mountRigTool(
           const off = start.get(g.n)!.subtract(pivot)
           g.d.position.copyFrom(pivot.add(off.applyRotationQuaternion(q)))
         }
+        mirror()
       }
       const up = () => {
         window.removeEventListener('pointermove', move, true)

@@ -328,20 +328,41 @@ try {
     // REAL clicks: a script that leaves `window.__clicks = [[x, y], …]` (page
     // coordinates) gets each as a mouse press and release from Chrome itself,
     // which synthetic DOM events are not, and `window.__afterClick(i)` read
-    // after each.
+    // after each. `[x, y, x2, y2]` is a DRAG: pressed at the first point,
+    // moved to the second, screenshot `drag{i}` and `window.__duringDrag(i)`
+    // taken before the release.
     const clicks = (await evaluate('JSON.stringify(window.__clicks || [])')) as string
-    for (const [i, [x, y]] of (JSON.parse(clicks) as number[][]).entries()) {
-      for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased']) {
-        await send('Input.dispatchMouseEvent', {
+    for (const [i, [x, y, x2, y2]] of (JSON.parse(clicks) as number[][]).entries()) {
+      const mouse = (type: string, at: [number, number], buttons: number) =>
+        send('Input.dispatchMouseEvent', {
           type,
-          x,
-          y,
-          button: type === 'mouseMoved' ? 'none' : 'left',
-          buttons: type === 'mousePressed' ? 1 : 0,
+          x: at[0],
+          y: at[1],
+          button: type === 'mouseMoved' && buttons === 0 ? 'none' : 'left',
+          buttons,
           clickCount: 1,
         })
-        await Bun.sleep(120)
+      await mouse('mouseMoved', [x, y], 0)
+      await Bun.sleep(120)
+      await mouse('mousePressed', [x, y], 1)
+      await Bun.sleep(120)
+      let end: [number, number] = [x, y]
+      if (x2 != null && y2 != null) {
+        for (let k = 1; k <= 10; k++) {
+          end = [x + ((x2 - x) * k) / 10, y + ((y2 - y) * k) / 10]
+          await mouse('mouseMoved', end, 1)
+          await Bun.sleep(50)
+        }
+        await Bun.sleep(400)
+        await shot(`drag${i}`)
+        console.log(
+          `during drag ${i}:`,
+          JSON.stringify(
+            await evaluate(`window.__duringDrag ? window.__duringDrag(${i}) : null`)
+          )
+        )
       }
+      await mouse('mouseReleased', end, 0)
       await Bun.sleep(800)
       console.log(
         `click ${i} (${x}, ${y}):`,
