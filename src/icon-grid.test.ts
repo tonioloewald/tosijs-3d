@@ -267,4 +267,28 @@ describe('titles are tooltips, drawn by the panel (#112)', () => {
     panel.handlePointer('leave', 0, 0)
     expect(tip()!.getAttribute('visibility')).toBe('hidden')
   })
+
+  test('a long title wraps instead of running off as one line', async () => {
+    const w3d = await import('./widgets3d.js')
+    const long =
+      'passes: a verdict or a comment given in the scene shows in the page at once'
+    const grid = mod.iconGrid3d({ items: [{ icon: 'close', title: long }] })
+    const panel = w3d.panel3d({ width: 240 }, grid)
+    const tip = () => panel.querySelector('[data-w3d-tip]')
+    let shown: Element | null = null
+    for (let y = 0; y < 120 && shown == null; y += 4) {
+      panel.handlePointer('move', 30, y)
+      const t = tip()
+      if (t?.getAttribute('visibility') === 'visible') shown = t
+    }
+    expect(shown).not.toBeNull()
+    const lines = [...shown!.querySelectorAll('tspan')].map(
+      (l) => l.textContent
+    )
+    expect(lines.length).toBeGreaterThan(1)
+    expect(lines.join(' ')).toBe(long)
+    expect(
+      Number(shown!.querySelector('rect')!.getAttribute('width'))
+    ).toBeLessThanOrEqual(232)
+  })
 })

@@ -537,7 +537,7 @@ import {
   type WidgetSemantics,
 } from './widget-semantics.js'
 
-const { svg, g, rect, text, circle, clipPath } = svgElements
+const { svg, g, rect, text, circle, clipPath, tspan } = svgElements
 
 // --- Theme (configurable later) --------------------------------------------
 
@@ -2006,16 +2006,35 @@ Under its anchor, centred, kept inside `width` (less `inset` each side); above i
 room below `height`.
 */
 const TIP_FONT = 11
-/** A tooltip as a sheet of its own, for `showTipSurface`. */
-function tipSheet(title: string): SVGSVGElement {
-  const d = tipDrawer()
-  const w =
-    measureTextWidth(title, {
+const TIP_LINE = Math.round(TIP_FONT * 1.35)
+/** A tip's widest line: past it the text wraps (a sentence on one line ran several panels wide). */
+const TIP_MAX = 220
+/** A tip's lines, wrapped at spaces to fit `TIP_MAX`, and the widest one's width. */
+function tipLines(title: string): { lines: string[]; width: number } {
+  const measure = (t: string) =>
+    measureTextWidth(t, {
       size: TIP_FONT,
       family: TH.FONT_FAMILY,
       weight: TH.TEXT_WEIGHT,
-    }) + 12
-  const h = TIP_FONT + 10
+    })
+  const lines: string[] = []
+  let line = ''
+  for (const word of title.split(/\s+/).filter(Boolean)) {
+    const next = line ? `${line} ${word}` : word
+    if (line && measure(next) > TIP_MAX) {
+      lines.push(line)
+      line = word
+    } else line = next
+  }
+  if (line || lines.length === 0) lines.push(line)
+  return { lines, width: Math.max(...lines.map(measure)) }
+}
+/** A tooltip as a sheet of its own, for `showTipSurface`. */
+function tipSheet(title: string): SVGSVGElement {
+  const d = tipDrawer()
+  const { lines, width } = tipLines(title)
+  const w = width + 12
+  const h = TIP_LINE * lines.length + 10 - (TIP_LINE - TIP_FONT)
   const sheet = svg({
     xmlns: 'http://www.w3.org/2000/svg',
     viewBox: `0 0 ${w} ${h}`,
@@ -2065,13 +2084,9 @@ function tipDrawer(): {
   return {
     el,
     show(title, at, width, height = Infinity, inset = 0) {
-      const w =
-        measureTextWidth(title, {
-          size: TIP_FONT,
-          family: TH.FONT_FAMILY,
-          weight: TH.TEXT_WEIGHT,
-        }) + 12
-      const h = TIP_FONT + 10
+      const { lines, width: textW } = tipLines(title)
+      const w = textW + 12
+      const h = TIP_LINE * lines.length + 10 - (TIP_LINE - TIP_FONT)
       // Inside the panel's padding: past it, a plane's edge cuts the tip off.
       const x = Math.max(
         inset,
@@ -2085,9 +2100,13 @@ function tipDrawer(): {
       tipBg.setAttribute('x', String(x))
       tipBg.setAttribute('y', String(y))
       tipBg.setAttribute('width', String(w))
-      tipText.setAttribute('x', String(x + 6))
-      tipText.setAttribute('y', String(y + h / 2 + 0.5))
-      tipText.textContent = title
+      tipBg.setAttribute('height', String(h))
+      tipText.textContent = ''
+      lines.forEach((l, i) => {
+        tipText.append(
+          tspan({ x: x + 6, y: y + 5 + TIP_FONT / 2 + 0.5 + i * TIP_LINE }, l)
+        )
+      })
       el.setAttribute('visibility', 'visible')
     },
     hide() {
