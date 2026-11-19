@@ -420,6 +420,8 @@ export interface RigToolApi {
   view: RigView
   /** Play a clip (the current one if none is named); `null` stands it at rest. */
   play(clip?: string | null): void
+  /** The clip held still where it is, in the same view (not at rest); playing again or a new clip lets it go. */
+  frozen: boolean
   /** The clip it plays: set it to change clips (playing on if it was). */
   clip: string
   /** UAL's mannequin beside the character, to compare. */
@@ -1227,6 +1229,8 @@ export function mountRigTool(
     idle = setTimeout(commitNow, 800)
   }
 
+  // The clip held where it is (`api.frozen`); a new start lets it go.
+  let frozen = false
   // The live tool, once the scene is up.
   let tool: {
     rebuild(clipsToo: boolean): void
@@ -1235,6 +1239,8 @@ export function mountRigTool(
     /** Add a file's clips (any humanoid rig) to the clip list. */
     loadClips(f: File | string): Promise<void>
     play(): void
+    /** Hold the clip where it is (springs too), or let it go on. */
+    freeze(on: boolean): void
     compare(on: boolean): void
     bones(on: boolean): void
     view(v: RigView): void
@@ -2448,6 +2454,7 @@ export function mountRigTool(
     }
     const play = () => {
       stop()
+      frozen = false
       stand.position.y = floor
       // Standing still: a held face (the one last used); moving: orbit.
       inspect.face = ui.pose === 'rest' ? restFace : 'free'
@@ -3624,6 +3631,13 @@ export function mountRigTool(
       rebind,
       loadClips,
       play,
+      freeze(on) {
+        for (const g of playing) {
+          if (on) g.pause()
+          else g.play(true)
+        }
+        for (const sp of applied?.springs ?? []) sp.bones.paused = on || ui.pose === 'rest'
+      },
       compare(on) {
         ualNode.setEnabled(on)
         frame()
@@ -3689,6 +3703,14 @@ export function mountRigTool(
       ui.view = v
       tool?.view(v)
       refresh()
+    },
+    get frozen() {
+      return frozen && ui.pose === 'animate'
+    },
+    set frozen(v: boolean) {
+      if (ui.pose !== 'animate' || v === frozen) return
+      frozen = v
+      tool?.freeze(v)
     },
     play(clip?: string | null) {
       if (clip != null) ui.clip = clip

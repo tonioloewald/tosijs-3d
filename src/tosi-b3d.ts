@@ -291,6 +291,7 @@ document.body.append(
 | `panelTitle` | `''` | The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row) |
 | `agent` | `''` | What an agent may do with this scene through its tools (`b3d_<scene>_…` on WebMCP and `window.b3dAgent`; see [agents](/b3d-agent/)). `''` follows the page (`enableSceneAgents`; closed by default), `'read'` offers the read tools, `'on'` everything, `'off'` nothing |
 | `panelSections` | `'fold'` | How collapsible sections in the settings panel present: `'fold'` (headers you open and close, one open at a time: opening one closes the others), `'folds'` (several may be open) or `'tabs'` (file tabs, one section at a time). A `label3d({ collapsible: true, level: 2 })` is a sub-section that folds inside its section or tab |
+| `panelPause` | `'on'` | The Pause button on the settings panel's icon bar; `'off'` leaves it out, for a page whose own play and pause (a clip's) it would be confused with. The pause panel and `pause()` still work |
 | `stats` | `false` | Add a Perf Stats section to the settings panel, flat and in a headset. `#perf` or `#debug` (or `?perf`, `?debug`) in the page URL, or calling `showB3dStats()`, shows it on every scene |
 | `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = the default layout (everything but the d-pad); a value like `"a,b,left_stick"` selects controls, and naming `view` or `menu` also puts them on the headset's system bar. A plain property, read once at setup |
 | `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
@@ -864,6 +865,9 @@ export class B3d extends Component {
     /** How collapsible sections present: 'fold' (headers you open and close,
      * one open at a time), 'folds' (several open) or 'tabs' (file tabs). */
     panelSections: 'fold' as 'fold' | 'folds' | 'tabs',
+    /** The Pause button on the settings panel's icon bar: 'off' leaves it
+     * out (a tool page whose own play and pause would be confused with it). */
+    panelPause: 'on' as 'on' | 'off',
     /** What an agent may do with this scene (see [agents](/b3d-agent/)):
      * '' follows the page (`enableSceneAgents`, closed by default), 'read'
      * offers the read tools, 'on' everything, 'off' nothing. */
@@ -1695,6 +1699,7 @@ export class B3d extends Component {
   declare panelTitle: string
   declare panelIcon: string
   declare panelSections: 'fold' | 'folds' | 'tabs'
+  declare panelPause: 'on' | 'off'
   /**
    * The on-screen "glass" gamepad. Absent/`false` = none; `true` or an empty
    * string = the full default layout; any other string selects and positions
@@ -5407,7 +5412,7 @@ export class B3d extends Component {
     this is a manual act, and conflating them would make backgrounding the tab
     look like the user pressed something.
     */
-    out.push({
+    if (!isOff(this.panelPause)) out.push({
       id: '__pause',
       name: this.paused ? 'Resume' : 'Pause',
       /*
@@ -8228,7 +8233,7 @@ export class B3d extends Component {
       })
     }
     // Reveal the gear when the panel has anything in it: the scenePanel hook's
-    // rows, or its icon bar (Pause is always there). Rows alone hid the owl on a
+    // rows, or its icon bar (Pause, unless `panelPause` is off). Rows alone hid the owl on a
     // page with no settings of its own, which the headset still showed.
     // (Enter VR is a SEPARATE button grouped next to the gear — see the toolbar —
     // so XR availability no longer gates the gear.)

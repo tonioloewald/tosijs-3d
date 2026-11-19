@@ -645,6 +645,8 @@ export const SCENE_OMITTED: Record<string, string[]> = {
     // presentation, not part of a scene.
     'flatUi',
     'panelSections',
+    // Whether the panel offers a scene Pause: the page's chrome, not the scene.
+    'panelPause',
     // The settings panel's name and button icon: the app's chrome, not the scene.
     'panelTitle',
     'panelIcon',

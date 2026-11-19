@@ -201,6 +201,12 @@ const playbackRow = () =>
 // A manipulator on the held item's grip, to drag rather than type. Off until
 // asked for; turning it on pauses the clip, so the hand holds still.
 let gripHandles = false
+// Whichever clip is playing holds still: the builder's, or the rig tool's
+// (held where it is, not stood at rest).
+const holdStill = () => {
+  if (rigging) rigging.api.frozen = true
+  else if (!walker.paused.value) walker.paused.value = true
+}
 let showGripHandles = (on) => { gripHandles = on }
 // The same for what is stowed on the back (one manipulator: one at a time).
 let stowHandles = false
@@ -343,7 +349,7 @@ const itemRows = (slot) => {
             label: 'manipulator',
             value: handles,
             handleChange: (v) => {
-              if (v && !walker.paused.value) walker.paused.value = true
+              if (v) holdStill()
               show(v)
               refreshPanel()
             },
@@ -386,6 +392,9 @@ preview.append(
       panelIcon: 'body',
       // A tab per section, each its icon.
       panelSections: 'tabs',
+      // The clip has its own play and pause (Animation, on the bar); a scene
+      // pause beside them read as the clip's.
+      panelPause: 'off',
       // Undo and redo, every change to the character as it settles: on the
       // panel's icon bar, at its right end.
       panelActions: () => [
@@ -446,7 +455,7 @@ preview.append(
           label: 'manipulator',
           value: hairHandles,
           handleChange: (v) => {
-            if (v && !walker.paused.value) walker.paused.value = true
+            if (v) holdStill()
             showHairHandles(v)
           },
         }),
@@ -643,15 +652,21 @@ preview.append(
           title: 'Animation',
           layout: 'list',
           options: () => [
-            // While rigging the view is the pose: play goes to perspective,
-            // pause back to the face it was held to last.
-            rigging
+            // While rigging: pause holds the clip where it is, in perspective;
+            // the rest pose (where markers move) is its own item, back to the
+            // face it was held to last.
+            ...(rigging
               ? rigging.api.view === 'free'
-                ? { label: 'Pause', icon: 'pause', handleSelect: () => rigging?.api.play(null) }
-                : { label: 'Play', icon: 'play', handleSelect: () => { showGripHandles(false); showStowHandles(false); showHairHandles(false); rigging?.api.play() } }
-              : walker.paused.value
+                ? [
+                    rigging.api.frozen
+                      ? { label: 'Play', icon: 'play', handleSelect: () => { if (rigging) rigging.api.frozen = false } }
+                      : { label: 'Pause', icon: 'pause', handleSelect: () => { if (rigging) rigging.api.frozen = true } },
+                    { label: 'Rest pose', icon: 'personStanding', handleSelect: () => { showGripHandles(false); showStowHandles(false); showHairHandles(false); rigging?.api.play(null) } },
+                  ]
+                : [{ label: 'Play', icon: 'play', handleSelect: () => { showGripHandles(false); showStowHandles(false); showHairHandles(false); rigging?.api.play() } }]
+              : [walker.paused.value
               ? { label: 'Play', icon: 'play', handleSelect: () => { walker.paused.value = false } }
-              : { label: 'Pause', icon: 'pause', handleSelect: () => { walker.paused.value = true } },
+              : { label: 'Pause', icon: 'pause', handleSelect: () => { walker.paused.value = true } }]),
             { label: 'Playback controls', icon: 'playCircle', checked: playbackPanel.isOpen, handleSelect: () => playbackPanel.toggle?.() },
             // Left to right: a right-handed throw played left-handed.
             { label: 'Mirrored', checked: walker.mirror.value, handleSelect: () => { walker.mirror.value = !walker.mirror.value } },
@@ -1566,6 +1581,11 @@ everyday clips, a file's, then the rest of the library grouped by kind.
 own small panel. **Mirrored** plays the clip left to right (a right-handed
 throw thrown left-handed), and an exported clip carries it, named
 "<clip> (mirrored)".
+While rigging, **Pause** holds the clip where it is, in the same view, and
+**Rest pose** stands the body at rest in the view it was held to last, where
+markers and joints move. Turning on a manipulator pauses whichever clip is
+playing. The settings panel has no scene Pause here: the clip's is the one
+that matters.
 
 **Hold** puts an item from Tonio's textured weapons
 (`tonio/weapons-classic/weapons.glb`, CC0: guns, blades, a plasma
