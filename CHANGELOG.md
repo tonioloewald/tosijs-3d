@@ -12,6 +12,9 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Added:** the dev server's test checklist (tosijs-ui ≥ 1.19, `tosijs-checklist post`) on every scene's system bar, so it can be answered in a headset: one item at a time, 👍 / 👎 and a comment by the scene keyboard, saved through the same endpoint as the page's panel. Nothing runs off the dev server. `checklistPanel` builds the content alone (`b3d-checklist`).
+- **Added:** `pager3d`, one page at a time: ‹ ›, a dot per page (tap to jump, `dotColor` per page), `3 / 20` past `maxDots`. For a panel that would otherwise scroll.
+- **Changed:** tosijs-ui ^1.19.1 (dev dependency): the dev server serves the checklist endpoints.
 - **Added:** `playback3d` has a backwards button at the end of its row (the character builder's clip transport): the speed's sign is the direction, so backwards at ×0.5 is `handleSpeed(-0.5)`, and a negative speed from `read()` lights it.
 - **Fixed:** a menu in a scene panel (any select) could not be chosen from while the camera was more than 10 km away, as the rig tool's orthographic views put it: every press on the menu counted as outside it and closed it. A select's menu now ticks the current option.
 - **Changed:** the rig tool's `move joints` toggle and its drag select are one icon picker, **drag**: markers, joints (with what hangs from them), alone, turn.

@@ -380,6 +380,7 @@ import { createFocusPulse } from './gamepad-focus.js'
 import { HardwareGamepadSource, padUiOwns } from './hardware-gamepad.js'
 import { ariaMirror, type AriaMirror } from './aria-mirror.js'
 import { describeScene } from './scene-description.js'
+import { watchSceneChecklist } from './b3d-checklist.js'
 import { panelFitWidth } from './widgets3d-layout.js'
 import { w3dTheme } from './w3d-theme.js'
 import type { Medium } from './medium.js'
@@ -5412,10 +5413,11 @@ export class B3d extends Component {
     this is a manual act, and conflating them would make backgrounding the tab
     look like the user pressed something.
     */
-    if (!isOff(this.panelPause)) out.push({
-      id: '__pause',
-      name: this.paused ? 'Resume' : 'Pause',
-      /*
+    if (!isOff(this.panelPause))
+      out.push({
+        id: '__pause',
+        name: this.paused ? 'Resume' : 'Pause',
+        /*
       `play` when paused (what pressing it DOES), `pause` when running — a
       transport control shows its action, not its state.
 
@@ -5423,14 +5425,14 @@ export class B3d extends Component {
       existed. (The solid-white-box bug was never about which variant — the
       names simply weren't in our generated icon set; see icon-names.test.ts.)
       */
-      icon: this.paused ? 'play' : 'pause',
-      active: this.paused,
-      handleClick: () => {
-        if (this.paused) this.resume()
-        else this.pause('user')
-        this._repaintPanels()
-      },
-    })
+        icon: this.paused ? 'play' : 'pause',
+        active: this.paused,
+        handleClick: () => {
+          if (this.paused) this.resume()
+          else this.pause('user')
+          this._repaintPanels()
+        },
+      })
     const pad = this.querySelector('tosi-b3d-gamepad') as unknown as {
       hidden?: boolean
       setFade?: (on: boolean) => void
@@ -6002,6 +6004,8 @@ export class B3d extends Component {
     // Reconnected after teardown already ran, or connected for the first time.
     // Joins the page's agent registry: a Set add, nothing runs until a call.
     this._agentOff = registerAgentScene(this)
+    // The dev server's test checklist on the bar; a no-op off the dev server.
+    this._checklistOff = watchSceneChecklist(this)
     // Described on demand only (see the canvas in `content`).
     this.shadowRoot?.addEventListener('focusin', this._wakeOnFocus)
     this.addEventListener('pointerdown', this._notePointer, true)
@@ -8765,6 +8769,7 @@ export class B3d extends Component {
   */
   declare agent: '' | 'off' | 'read' | 'on'
   private _agentOff: (() => void) | null = null
+  private _checklistOff: (() => void) | null = null
   /** The scene in words, into the canvas's description; `aloud` also speaks it. */
   private _describe(aloud: boolean): void {
     const desc = this.parts?.sceneDescription as HTMLElement | undefined
@@ -9440,7 +9445,11 @@ export class B3d extends Component {
         // A full-length copy: the XR pointer's ray is cut to the distance of
         // the occluder it hit, so re-casting it can never reach a panel behind.
         const p2 = scene.pickWithRay(
-          new BABYLON.Ray(pick.ray.origin, pick.ray.direction, Number.MAX_VALUE),
+          new BABYLON.Ray(
+            pick.ray.origin,
+            pick.ray.direction,
+            Number.MAX_VALUE
+          ),
           (m) => m === plane
         )
         if (p2?.hit) uv = p2.getTextureCoordinates()
@@ -9583,6 +9592,8 @@ export class B3d extends Component {
     this._disposeAriaMirror()
     this._agentOff?.()
     this._agentOff = null
+    this._checklistOff?.()
+    this._checklistOff = null
     this._originOffset = { x: 0, z: 0 }
     this._errorCaptureOff?.()
     this._errorCaptureOff = null

@@ -1187,6 +1187,7 @@ export type { Curve3dOptions, CurveField, CurveMarkers } from './curve-field.js'
 // module so it tree-shakes, and top-level like the other `*3d` widgets.
 export { vector3d, euler3d, wrapDegrees } from './vector-field.js'
 export { playback3d } from './playback-field.js'
+export { pager3d } from './pager-field.js'
 export { undoHistory } from './undo-history.js'
 export {
   HOLD_CLASSES,
@@ -1875,6 +1876,7 @@ export type {
   PlaybackField,
   PlaybackState,
 } from './playback-field.js'
+export type { Pager3dOptions } from './pager-field.js'
 export type { UndoHistory } from './undo-history.js'
 export type { HoldClass, HoldGrip, HoldMount } from './hold-grip.js'
 export type { Makers, MakeOptions, MakeOwner } from './make-mesh.js'
