@@ -549,6 +549,11 @@ export interface InputFieldOptions {
   name?: string
   fontSize?: number
   height?: number
+  /**
+   * Wrap and grow: up to this many lines tall as text is typed, then it keeps
+   * the caret's line in view. Default 1 (one line, no wrapping).
+   */
+  lines?: number
   handleChange?: (value: string) => void
   handleEnter?: (value: string) => void
   /** The field became the receiver (tap, D-pad arrival, or `setActive(true)`)
@@ -1089,14 +1094,20 @@ export function inputField(config: InputFieldOptions = {}): InputField {
    * points, so the index has to be converted — the same emoji/accent hazard as
    * everywhere else in this pair of files.
    */
-  const advanceTo = (n: number): number => {
-    const before = Array.from(state.text).slice(0, n).join('')
+  const advanceTo = (line: number, n: number): number => {
+    const before = Array.from(state.text)
+      .slice(runs[line], runs[line] + n)
+      .join('')
     if (before.length === 0) return 0
     // Not rendered yet, or no SVG text metrics (happy-dom in tests) — fall back to
     // the canvas measurer, which is close enough to lay out with and exact enough
     // for a test that only checks ordering.
-    const el = label as unknown as SVGTextContentElement
-    if (typeof el.getSubStringLength !== 'function')
+    const el = lineEls[line - top] as unknown as SVGTextContentElement
+    if (
+      el == null ||
+      typeof el.getSubStringLength !== 'function' ||
+      !(el.textContent ?? '').startsWith(before)
+    )
       return measureTextWidth(before, font)
     try {
       return el.getSubStringLength(0, before.length)
@@ -1105,12 +1116,87 @@ export function inputField(config: InputFieldOptions = {}): InputField {
     }
   }
 
-  const caretX = (): number => TEXT_X + advanceTo(state.caret)
+  /*
+  WRAPPING (`lines` > 1). Lines break at the last space that fits, or mid-word
+  for a word wider than the field; `runs` holds each line's first code point,
+  and the lines cover the text with no gaps, so a caret is on the last line
+  starting at or before it. Laid out with the canvas measurer (a line has to
+  be chosen before it is drawn); the caret on a line is measured on the drawn
+  text, as a single line's is.
+  */
+  const MAX_LINES = Math.max(1, Math.floor(config.lines ?? 1))
+  const LINE_H = Math.round(SIZE * 1.35)
+  const lineEls: SVGTextElement[] = [label as unknown as SVGTextElement]
+  if (MAX_LINES > 1) label.setAttribute('style', 'white-space:pre')
+  let runs: number[] = [0]
+  let top = 0
+  let height = H
+  let laying = false
+
+  const wrapStarts = (chars: string[], avail: number): number[] => {
+    const starts = [0]
+    if (MAX_LINES === 1 || avail <= 0) return starts
+    let start = 0
+    let lastSpace = -1
+    for (let i = 0; i < chars.length; i++) {
+      if (chars[i] === ' ') {
+        lastSpace = i
+        continue
+      }
+      if (
+        i > start &&
+        measureTextWidth(chars.slice(start, i + 1).join(''), font) > avail
+      ) {
+        start = lastSpace >= start ? lastSpace + 1 : i
+        starts.push(start)
+        lastSpace = -1
+      }
+    }
+    return starts
+  }
+  const lineOf = (index: number): number => {
+    let line = 0
+    while (line + 1 < runs.length && runs[line + 1] <= index) line++
+    return line
+  }
+
+  const caretX = (): number =>
+    TEXT_X + advanceTo(lineOf(state.caret), state.caret - runs[lineOf(state.caret)])
 
   const paint = (): void => {
-    const empty = state.text.length === 0
-    label.textContent = empty ? config.placeholder ?? '' : state.text
-    label.setAttribute('fill', empty ? TH.PLACEHOLDER : TH.TEXT)
+    const chars = Array.from(state.text)
+    const empty = chars.length === 0
+    runs = empty
+      ? [0]
+      : wrapStarts(chars, width - TEXT_X - (kbGlyph ? KB_ZONE : PAD))
+    const shown = Math.min(runs.length, MAX_LINES)
+    const caretLine = lineOf(state.caret)
+    top = Math.max(
+      0,
+      Math.min(runs.length - shown, Math.max(top, caretLine - shown + 1), caretLine)
+    )
+    while (lineEls.length < shown) {
+      const t = label.cloneNode() as SVGTextElement
+      lineEls.push(t)
+      el.insertBefore(t, caret)
+    }
+    while (lineEls.length > shown) lineEls.pop()!.remove()
+    lineEls.forEach((t, i) => {
+      const line = top + i
+      t.textContent = empty
+        ? config.placeholder ?? ''
+        : chars.slice(runs[line], runs[line + 1] ?? chars.length).join('')
+      t.setAttribute('fill', empty ? TH.PLACEHOLDER : TH.TEXT)
+      t.setAttribute('y', String(H / 2 + i * LINE_H))
+    })
+    caret.setAttribute('y', String(8 + (caretLine - top) * LINE_H))
+    const next = H + (shown - 1) * LINE_H
+    if (next !== height) {
+      height = next
+      bg.setAttribute('height', String(height))
+      // A field that grew asks the panel to make room (not while it is laying out).
+      if (!laying) host?.relayout()
+    }
     caret.setAttribute('x', String(caretX()))
     // Always visible, DIM when unfocused: with two fields on a panel the caret
     // is the focus indicator, and a vanished caret reads as "focus is lost and
@@ -1154,13 +1240,19 @@ export function inputField(config: InputFieldOptions = {}): InputField {
   }
 
   /** Nearest caret index to an x offset — a click places the caret between glyphs. */
-  const indexAtX = (x: number): number => {
+  const indexAt = (x: number, y: number): number => {
     const chars = Array.from(state.text)
-    let best = 0
+    const row = Math.floor((y - (H - LINE_H) / 2) / LINE_H)
+    const line = top + Math.max(0, Math.min(lineEls.length - 1, row))
+    const start = runs[line] ?? 0
+    // A line that wraps ends where the next begins, and a caret there is drawn
+    // on the next line, so a tap on this one stops just before it.
+    const end = line + 1 < runs.length ? runs[line + 1] - 1 : chars.length
+    let best = start
     let bestD = Infinity
-    for (let i = 0; i <= chars.length; i++) {
+    for (let i = start; i <= end; i++) {
       // Same measurer as the caret uses, so a tap lands where the caret then draws.
-      const d = Math.abs(TEXT_X + advanceTo(i) - x)
+      const d = Math.abs(TEXT_X + advanceTo(line, i - start) - x)
       if (d < bestD) {
         bestD = d
         best = i
@@ -1301,7 +1393,7 @@ export function inputField(config: InputFieldOptions = {}): InputField {
     A REAL layer has no bounds to run out of, so the refusal only applies to the
     fallback. Checking regardless would decline in exactly the case that works.
     */
-    const roomBelow = host.bounds.height - host.top - H
+    const roomBelow = host.bounds.height - host.top - height
     if (!host.hasLayer && roomBelow < KB_MIN_HEIGHT) return
     /*
     `mine` FIRST, and `opened` mutable, because the two refer to each other.
@@ -1333,7 +1425,7 @@ export function inputField(config: InputFieldOptions = {}): InputField {
 
     opened = host.showLayer(
       {
-        anchor: { x: 0, y: 0, width, height: H },
+        anchor: { x: 0, y: 0, width, height },
         side: 'below',
         /*
         THE × MEANS "PUT THE KEYBOARD AWAY", not "close this panel".
@@ -1397,10 +1489,15 @@ export function inputField(config: InputFieldOptions = {}): InputField {
         'transform',
         `translate(${Math.round(w - KB_ZONE + 4)}, 0)`
       )
-      paint()
-      return H
+      laying = true
+      try {
+        paint()
+      } finally {
+        laying = false
+      }
+      return height
     },
-    handle(kind: PointerKind, x: number) {
+    handle(kind: PointerKind, x: number, y = H / 2) {
       /*
       DRAG TO SCRUB, TAP TO TYPE — and the difference is a threshold, not a mode.
 
@@ -1441,7 +1538,7 @@ export function inputField(config: InputFieldOptions = {}): InputField {
         scrubBase = Number(state.text)
         scrubbing = false
         activate()
-        change(moveTo(state, indexAtX(x)))
+        change(moveTo(state, indexAt(x, y)))
         return
       }
       const canScrub = (config.scrub ?? 0) > 0 && Number.isFinite(scrubBase)
@@ -1539,6 +1636,8 @@ export function inputField(config: InputFieldOptions = {}): InputField {
     }),
     commit: commitField,
     setValue(v: string) {
+      // The same text is no change: the caret and selection stay where they are.
+      if (v === state.text) return
       change(edit(v))
     },
     moveCaret(delta: number) {

@@ -92,6 +92,12 @@ describe('b3d-checklist', () => {
       verdict: 'fail',
       changed: 'verdict',
     })
+    // An answer given elsewhere goes in place, and is not reported back.
+    const before = changes.length
+    svg.setAnswers({ 's1-2': { verdict: 'pass', comment: 'fine now' } })
+    expect(changes.length).toBe(before)
+    expect(named('passes: wraps').value).toBe(true)
+    expect(named('comment on: wraps').value).toBe('fine now')
     named('next').activate()
     expect(named('comment on: scrolls')).toBeDefined()
     named('previous').activate()

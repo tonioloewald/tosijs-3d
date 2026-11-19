@@ -305,6 +305,32 @@ describe('inputField', () => {
     expect(seen).toEqual(['hi!'])
   })
 
+  test('setValue with the same text keeps the caret and reports nothing', () => {
+    const seen: string[] = []
+    const f = K.inputField({ value: 'abc', handleChange: (v) => seen.push(v) })
+    f.layout(200)
+    f.moveCaret(-2)
+    f.setValue('abc')
+    f.insert('X')
+    expect(f.value).toBe('aXbc')
+    expect(seen).toEqual(['aXbc'])
+  })
+
+  test('lines: a long text wraps and the field grows, up to its lines', () => {
+    const f = K.inputField({ value: '', lines: 3 })
+    const one = f.layout(200)
+    f.setValue('word '.repeat(12).trim())
+    const grown = f.layout(200)
+    expect(grown).toBeGreaterThan(one)
+    f.setValue('word '.repeat(80).trim())
+    // Three lines at most (a line is 1.35 × the font size), the caret's in view.
+    expect(f.layout(200)).toBe(one + 2 * Math.round(16 * 1.35))
+    expect(f.el.querySelectorAll('text').length).toBe(3)
+    // One line stays one line.
+    const single = K.inputField({ value: 'word '.repeat(40) })
+    expect(single.layout(200)).toBe(one)
+  })
+
   test('backspace deletes a whole accented character', () => {
     const f = K.inputField({ value: 'schö' })
     f.layout(200)

@@ -4163,9 +4163,9 @@ function buildPanel3d(
     bodyW = innerW - RAIL_W
     m = measure(bodyW)
   }
-  const heights = m.hs
-  const { offsets, total } = m
-  const height = panelHeight(
+  let heights = m.hs
+  let { offsets, total } = m
+  let height = panelHeight(
     total + headerH,
     paddingTop,
     padding,
@@ -4175,7 +4175,7 @@ function buildPanel3d(
   // The SCROLLING viewport excludes the pinned block — otherwise the body is
   // laid out against a taller area than it actually gets, and the last row is
   // unreachable by exactly `headerH`.
-  const viewport = height - paddingTop - padding - headerH
+  let viewport = height - paddingTop - padding - headerH
   // The title bar's glyphs, laid out as a popup's are (one vocabulary).
   const bar = hasBar
     ? chromeLayout(width, height, paddingTop / height, !!config.grip)
@@ -4221,15 +4221,13 @@ function buildPanel3d(
   }
   const popups = new Set<OpenPopup>()
   const clipId = `w3d-clip-${clipSeq++}`
-  const clip = clipPath(
-    { id: clipId },
-    rect({
-      x: padding,
-      y: paddingTop + headerH,
-      width: innerW,
-      height: viewport,
-    })
-  )
+  const clipRect = rect({
+    x: padding,
+    y: paddingTop + headerH,
+    width: innerW,
+    height: viewport,
+  })
+  const clip = clipPath({ id: clipId }, clipRect)
   // The clip lives on a NON-transformed wrapper, so its rect is in viewBox space —
   // unambiguous in both the live DOM and the SVG→texture rasterizer. Clipping the
   // TRANSLATED `content` group directly makes the two renderers disagree: the VR
@@ -4300,10 +4298,12 @@ function buildPanel3d(
   const THUMB_W = 6
   // Flush with the right inset, not centred in a column of its own.
   const thumbX = width - padding - THUMB_W
-  const thumbH = Math.max(
-    24,
-    Math.round(viewport * Math.min(1, viewport / Math.max(1, total)))
-  )
+  const thumbFor = () =>
+    Math.max(
+      24,
+      Math.round(viewport * Math.min(1, viewport / Math.max(1, total)))
+    )
+  let thumbH = thumbFor()
   const railTrack = rect({
     x: thumbX,
     y: railTop,
@@ -4513,7 +4513,10 @@ function buildPanel3d(
       slot.__anchored = undefined
       baseHost.closePopup()
     },
-    relayout: () => baseHost.relayout(),
+    relayout: () => {
+      relayoutBody()
+      baseHost.relayout()
+    },
     showTip(t, anchor) {
       const at = {
         ...anchor,
@@ -5584,7 +5587,49 @@ function buildPanel3d(
       ...titleBarParts(bar, config.title, handleClose != null, width, padding)
     )
   }
-  root.appendChild(panelRim(width, height, w3dTheme.roundedRadius * 2))
+  let rim = panelRim(width, height, w3dTheme.roundedRadius * 2)
+  root.appendChild(rim)
+  /*
+  A ROW THAT CHANGED HEIGHT (a field that wraps as it is typed in) asks for
+  this through its host's `relayout`: the rows are measured again and the
+  panel takes its new height in place, so a frame panel's plane grows with
+  its viewBox. A panel that would start or stop scrolling keeps its layout
+  (the rail is built once); its host rebuilds it.
+  */
+  function relayoutBody() {
+    const next = measure(bodyW)
+    if (next.hs.every((h, i) => h === heights[i])) return
+    const nextHeight = panelHeight(
+      next.total + headerH,
+      paddingTop,
+      padding,
+      config.height ?? 'fit',
+      config.maxHeight
+    )
+    const nextViewport = nextHeight - paddingTop - padding - headerH
+    if (next.total > nextViewport !== scrollable) return
+    heights = next.hs
+    offsets = next.offsets
+    total = next.total
+    height = nextHeight
+    viewport = nextViewport
+    rows.forEach((r, i) => {
+      r.top = offsets[i]
+      r.height = heights[i]
+      r.w.el.setAttribute('transform', `translate(0, ${offsets[i]})`)
+    })
+    root.setAttribute('viewBox', `0 0 ${width} ${height}`)
+    root.setAttribute('height', String(height))
+    bg.setAttribute('height', String(height))
+    clipRect.setAttribute('height', String(viewport))
+    railTrack.setAttribute('height', String(viewport))
+    thumbH = thumbFor()
+    railThumb.setAttribute('height', String(thumbH))
+    const nextRim = panelRim(width, height, w3dTheme.roundedRadius * 2)
+    rim.replaceWith(nextRim)
+    rim = nextRim
+    applyScroll()
+  }
   if (scrollable) {
     root.appendChild(railTrack)
     root.appendChild(railThumb)

@@ -126,7 +126,9 @@ const sitePath = (url?: string) =>
  * 👍 / 👎 and a comment. It opens on the first item still to check.
  * `handleAnswer` gets every change; the panel keeps its own answers as they
  * are given, and turning a page rebuilds it in place (`handleReplace`, as a
- * panel's folding does).
+ * panel's folding does). Answers given elsewhere go in with the returned
+ * element's `setAnswers(answers)`, which updates what is shown in place (a
+ * comment being typed keeps its caret) and reports nothing.
  */
 export function checklistPanel(
   state: { list: ListShape; answers: Record<string, ChecklistAnswer> },
@@ -137,8 +139,18 @@ export function checklistPanel(
     /** The item shown changed (to keep it across a rebuild). */
     handlePage?: (page: number) => void
   } = {}
-): SVGSVGElement {
+): SVGSVGElement & {
+  setAnswers: (answers: Record<string, ChecklistAnswer>) => void
+} {
   const answers: Record<string, ChecklistAnswer> = { ...state.answers }
+  // What the page shown is drawing, for `setAnswers`.
+  let shown: {
+    summary: ReturnType<typeof textBlock3d>
+    pager: ReturnType<typeof pager3d>
+    verdicts?: ReturnType<typeof iconGrid3d>
+    comment?: ReturnType<typeof inputField>
+  }
+  let applying = false
   const answerOf = (id: string): ChecklistAnswer =>
     answers[id] ?? { verdict: null, comment: '' }
   const items = checklistSections(state.list).flatMap((section) =>
@@ -149,7 +161,8 @@ export function checklistPanel(
   // The host keeps it, so a rebuild for answers given elsewhere stays here.
   options.handlePage?.(page)
 
-  const build = (): SVGSVGElement => {
+  type Shown = SVGSVGElement & { setAnswers: typeof setAnswers }
+  const build = (): Shown => {
     const summary = textBlock3d({
       lines: [summaryOf(checklistCounts(state.list, answers))],
       muted: true,
@@ -178,12 +191,13 @@ export function checklistPanel(
       answers[id] = next
       summary.update([summaryOf(checklistCounts(state.list, answers))])
       pager.refresh()
-      handleAnswer({ itemId: id, ...next, changed })
+      if (!applying) handleAnswer({ itemId: id, ...next, changed })
     }
     const widgets: Widget3d[] = [
       label3d({ text: state.list?.title ?? 'Test checklist', bold: true }),
       summary,
     ]
+    shown = { summary, pager }
     const item = items[page]
     if (item != null) {
       widgets.push(pager)
@@ -235,20 +249,42 @@ export function checklistPanel(
             )
           : verdicts
       )
-      widgets.push(
-        inputField({
-          value: answerOf(item.id).comment,
-          placeholder: 'comment (optional)',
-          name: `comment on: ${item.text}`,
-          handleChange: (comment) =>
-            set(item.id, { ...answerOf(item.id), comment }, 'comment'),
-        })
-      )
+      const comment = inputField({
+        value: answerOf(item.id).comment,
+        placeholder: 'comment (optional)',
+        name: `comment on: ${item.text}`,
+        lines: 4,
+        handleChange: (text) =>
+          set(item.id, { ...answerOf(item.id), comment: text }, 'comment'),
+      })
+      widgets.push(comment)
+      shown.verdicts = verdicts
+      shown.comment = comment
     }
-    return panel3d(
+    const svg = panel3d(
       { width: options.width ?? 360 },
       ...widgets
-    ) as unknown as SVGSVGElement
+    ) as unknown as Shown
+    svg.setAnswers = setAnswers
+    return svg
+  }
+  const setAnswers = (next: Record<string, ChecklistAnswer>) => {
+    for (const id of Object.keys(next)) answers[id] = next[id]
+    shown.summary.update([summaryOf(checklistCounts(state.list, answers))])
+    shown.pager.refresh()
+    const item = items[page]
+    if (item == null) return
+    const { verdict, comment } = answerOf(item.id)
+    const selection = verdict === 'pass' ? [0] : verdict === 'fail' ? [1] : []
+    if (shown.verdicts?.selection.join() !== selection.join())
+      shown.verdicts?.setSelection(selection)
+    // An unchanged comment is left alone, caret and all.
+    applying = true
+    try {
+      shown.comment?.setValue(comment)
+    } finally {
+      applying = false
+    }
   }
   let current = build()
   return current
@@ -305,13 +341,20 @@ export function watchSceneChecklist(host: ChecklistHost): () => void {
   let panel: B3dPanel | null = null
   let shownId: string | null = null
   let shownAnswers = ''
+  let content: ReturnType<typeof checklistPanel> | null = null
   let page: number | undefined
   // Comments wait out a pause in typing; a verdict goes at once.
   const typing = new Map<string, ReturnType<typeof setTimeout>>()
+  /*
+  Answers given here and not yet seen saved win over the server's copy (the
+  rule the page's panel keeps), so a poll that left before a change was sent
+  cannot put the old answer back.
+  */
+  const unsaved = new Map<string, ChecklistAnswer>()
   let sending: Promise<unknown> = Promise.resolve()
   const send = (listId: string, change: ChecklistAnswerChange) => {
-    sending = sending.then(() =>
-      sendChecklistAnswer({
+    sending = sending.then(async () => {
+      await sendChecklistAnswer({
         listId,
         itemId: change.itemId,
         verdict: change.verdict,
@@ -321,12 +364,22 @@ export function watchSceneChecklist(host: ChecklistHost): () => void {
           ? { schematic: sceneSchematic(!!host.xrActive) }
           : {}),
       })
-    )
+      const kept = unsaved.get(change.itemId)
+      if (
+        !typing.has(change.itemId) &&
+        kept?.verdict === change.verdict &&
+        kept?.comment === change.comment
+      )
+        unsaved.delete(change.itemId)
+    })
   }
   const show = (state: ChecklistState) => {
     const list = state.list!
-    if (shownId !== list.id) page = undefined
-    const content = checklistPanel(
+    if (shownId !== list.id) {
+      page = undefined
+      unsaved.clear()
+    }
+    content = checklistPanel(
       state,
       (change) => {
         // Ours from now on: the next poll need not rebuild for it.
@@ -335,8 +388,16 @@ export function watchSceneChecklist(host: ChecklistHost): () => void {
           [change.itemId]: { verdict: change.verdict, comment: change.comment },
         }
         shownAnswers = answersKey(state.answers)
+        unsaved.set(change.itemId, {
+          verdict: change.verdict,
+          comment: change.comment,
+        })
         // The page's panel shows it at once (it would wait for its own poll).
-        for (const el of pageChecklists())
+        // It never overwrites a comment box with focus, and whoever is
+        // answering here is not typing there.
+        for (const el of pageChecklists()) {
+          const active = el.shadowRoot?.activeElement as HTMLElement | null
+          if (active?.localName === 'textarea') active.blur()
           el.answers = {
             ...el.answers,
             [change.itemId]: {
@@ -344,6 +405,7 @@ export function watchSceneChecklist(host: ChecklistHost): () => void {
               comment: change.comment,
             },
           }
+        }
         clearTimeout(typing.get(change.itemId))
         if (change.changed === 'verdict') send(list.id, change)
         else
@@ -359,9 +421,9 @@ export function watchSceneChecklist(host: ChecklistHost): () => void {
     )
     if (panel == null) {
       panel = b3dPanel({ icon: 'checkSquare', title: 'Test checklist' })
-      panel.svg = content
+      panel.svg = content!
       host.append(panel)
-    } else panel.svg = content
+    } else panel.svg = content!
     if (shownId !== list.id) panel.attention?.()
     shownId = list.id
     shownAnswers = answersKey(state.answers)
@@ -375,13 +437,17 @@ export function watchSceneChecklist(host: ChecklistHost): () => void {
       shownId = null
       return
     }
-    // Rebuilt only for a new list or answers given elsewhere (the page's
-    // panel, another device), and never while a comment is being typed.
-    if (
-      state.list.id !== shownId ||
-      (answersKey(state.answers) !== shownAnswers && typing.size === 0)
-    )
+    // Built for a new list; answers given elsewhere (the page's panel,
+    // another device) go into the one shown, in place.
+    if (state.list.id !== shownId || content == null) {
       show(state)
+      return
+    }
+    const answers = { ...state.answers, ...Object.fromEntries(unsaved) }
+    const key = answersKey(answers)
+    if (key === shownAnswers) return
+    shownAnswers = key
+    content.setAnswers(answers)
   }
   void refresh()
   // Every 3 s while the scene's panel is open, every 15 s otherwise.
