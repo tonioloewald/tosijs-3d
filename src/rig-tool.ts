@@ -47,12 +47,13 @@ The panel has these sections, its job first.
   joint at the middle of the body's thickness (the pelvis behind the
   thighs, as the mannequin's is); from the side view, drag a marker forward
   or back to set its depth. The depth is kept as an offset from the fit, so
-  it stays when the marker moves again from the front. `move joints` shows every
-  joint (blue) to drag by hand from the view that suits: shoulders from the
-  front, fingers and thumbs from the top, feet from the side. What hangs from
-  a joint comes with it (`drag moves` joint + descendants); `joint alone` moves
-  just the joint (a shoulder, leaving the elbow and wrist where they are) and
-  `turns descendants` turns what hangs from it (a hand or foot at an angle). Each finger's and thumb's tip (orange) pulls
+  it stays when the marker moves again from the front. `drag` picks what a
+  drag moves: `markers` only, or every joint (blue), dragged by hand from the
+  view that suits (shoulders from the front, fingers and thumbs from the top,
+  feet from the side). `joints` brings what hangs from a joint with it;
+  `alone` moves just the joint (a shoulder, leaving the elbow and wrist where
+  they are); `turn` keeps the joint where it is and swings what hangs from it
+  round it, in the view's plane (a hand or foot at an angle). Each finger's and thumb's tip (orange) pulls
   its finger: the joints after its first turn and stretch about the first,
   so the finger keeps its curl and reaches where you drop the tip. Markers
   and moved joints are saved in the
@@ -189,6 +190,7 @@ import {
   type Widget3d,
 } from './widgets3d.js'
 import { vector3d } from './vector-field.js'
+import { iconGrid3d } from './icon-grid.js'
 import { undoHistory } from './undo-history.js'
 import { pointerClaimedByPanel } from './frame-panel.js'
 import { touchOrbit } from './touch-orbit.js'
@@ -1451,31 +1453,37 @@ export function mountRigTool(
           handleChange: (v) =>
             setHands(v === 'as found' ? undefined : (v as HandMode)),
         }),
-        toggle3d({
-          label: 'move joints',
-          value: ui.joints,
-          handleChange: (v) => {
-            ui.joints = v
+        // What a drag does, as four modes: markers only, then a joint with
+        // what hangs from it, the joint alone, or a turn of what hangs from it.
+        label3d({ text: 'drag', muted: true, compact: true }),
+        iconGrid3d({
+          mode: 'radio',
+          selected: ui.joints
+            ? 1 + ['move', 'alone', 'turn'].indexOf(ui.jointDrag)
+            : 0,
+          items: [
+            { icon: 'rigMarkers', label: 'markers', title: 'markers only' },
+            {
+              icon: 'rigMove',
+              label: 'joints',
+              title: 'a joint and what hangs from it',
+            },
+            { icon: 'rigAlone', label: 'alone', title: 'a joint alone' },
+            {
+              icon: 'rigTurn',
+              label: 'turn',
+              title: 'turn what hangs from a joint',
+            },
+          ],
+          handleSelect: ([i]) => {
+            ui.joints = i > 0
+            if (i > 0) ui.jointDrag = (['move', 'alone', 'turn'] as const)[i - 1]
             tool?.targets()
             refresh()
           },
         }),
         ...(ui.joints
           ? [
-              select3d({
-                label: 'drag moves',
-                value: ui.jointDrag,
-                options: [
-                  { label: 'joint + descendants', value: 'move' },
-                  // A shoulder moved without its elbow and wrist.
-                  { label: 'joint alone', value: 'alone' },
-                  { label: 'turns descendants', value: 'turn' },
-                ],
-                handleChange: (v) => {
-                  ui.jointDrag = v as 'move' | 'alone' | 'turn'
-                  refresh()
-                },
-              }),
               label3d({
                 text: "joints wear their marker's colour: fingers from the top view, feet from the side",
                 muted: true,

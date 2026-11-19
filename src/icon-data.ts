@@ -167,6 +167,14 @@ export default {
     '<svg class="stroked" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> ',
   resize:
     '<svg class="stroked" version="1.1" viewBox="0, 0, 24, 24"><g><path d="M9,3 L3,3 L3,9"/><path d="M15,21 L21,21 L21,15"/><path d="M3,3 L10,10"/><path d="M21,21 L14,14"/></g></svg> ',
+  rigAlone:
+    '<svg class="stroked" viewBox="0 0 24 24"><circle cx="6" cy="4.5" r="2.5"/><circle cx="17" cy="12" r="2.5"/><circle cx="6" cy="19.5" r="2.5"/><line x1="8" y1="6" x2="15" y2="10.5"/><line x1="15" y1="13.5" x2="8" y2="18"/></svg> ',
+  rigMarkers:
+    '<svg class="stroked" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg> ',
+  rigMove:
+    '<svg class="stroked" viewBox="0 0 24 24"><circle cx="7" cy="4.5" r="2.5"/><circle cx="7" cy="12" r="2.5"/><circle cx="7" cy="19.5" r="2.5"/><line x1="7" y1="7" x2="7" y2="9.5"/><line x1="7" y1="14.5" x2="7" y2="17"/><line x1="13" y1="12" x2="22" y2="12"/><polyline points="19 9 22 12 19 15"/></svg> ',
+  rigTurn:
+    '<svg class="stroked" viewBox="0 0 24 24"><circle cx="5" cy="5" r="2.5"/><circle cx="11" cy="15" r="2.5"/><circle cx="19" cy="19" r="2.5"/><line x1="6.3" y1="7.2" x2="9.7" y2="12.8"/><line x1="13.3" y1="16.2" x2="16.7" y2="17.8"/><path d="M12 3a10 10 0 0 1 8 7"/><polyline points="21 6.5 20 10 16.5 9"/></svg> ',
   rotateCcw: 'rotateCw0f ',
   rotateCw:
     '<svg class="stroked" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg> ',
