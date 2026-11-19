@@ -146,6 +146,8 @@ export function checklistPanel(
   )
   const firstOpen = items.findIndex((i) => answerOf(i.id).verdict == null)
   let page = options.page ?? Math.max(0, firstOpen)
+  // The host keeps it, so a rebuild for answers given elsewhere stays here.
+  options.handlePage?.(page)
 
   const build = (): SVGSVGElement => {
     const summary = textBlock3d({
@@ -269,7 +271,26 @@ interface ChecklistHost extends HTMLElement {
 }
 
 const POLL_MS = 15_000
+/** While the scene's panel is open: answers from another device show soon. */
+const OPEN_POLL_MS = 3_000
 const COMMENT_PAUSE_MS = 600
+
+/** Answers as the panel reads them: a verdict and a comment, nothing else. */
+const answersKey = (answers: Record<string, ChecklistAnswer>): string =>
+  JSON.stringify(
+    Object.keys(answers)
+      .sort()
+      .map((id) => [
+        id,
+        answers[id]?.verdict ?? null,
+        answers[id]?.comment ?? '',
+      ])
+  )
+
+/** The page's own checklist panels (tosijs-ui's `<tosi-checklist>`). */
+const pageChecklists = (): (HTMLElement & {
+  answers: Record<string, ChecklistAnswer>
+})[] => [...document.querySelectorAll('tosi-checklist')] as any
 
 /**
  * Watch for a test checklist and keep a system-bar button for it on `host`
@@ -313,7 +334,16 @@ export function watchSceneChecklist(host: ChecklistHost): () => void {
           ...state.answers,
           [change.itemId]: { verdict: change.verdict, comment: change.comment },
         }
-        shownAnswers = JSON.stringify(state.answers)
+        shownAnswers = answersKey(state.answers)
+        // The page's panel shows it at once (it would wait for its own poll).
+        for (const el of pageChecklists())
+          el.answers = {
+            ...el.answers,
+            [change.itemId]: {
+              verdict: change.verdict,
+              comment: change.comment,
+            },
+          }
         clearTimeout(typing.get(change.itemId))
         if (change.changed === 'verdict') send(list.id, change)
         else
@@ -334,7 +364,7 @@ export function watchSceneChecklist(host: ChecklistHost): () => void {
     } else panel.svg = content
     if (shownId !== list.id) panel.attention?.()
     shownId = list.id
-    shownAnswers = JSON.stringify(state.answers)
+    shownAnswers = answersKey(state.answers)
   }
   const refresh = async () => {
     const state = await fetchChecklist()
@@ -349,17 +379,34 @@ export function watchSceneChecklist(host: ChecklistHost): () => void {
     // panel, another device), and never while a comment is being typed.
     if (
       state.list.id !== shownId ||
-      (JSON.stringify(state.answers) !== shownAnswers && typing.size === 0)
+      (answersKey(state.answers) !== shownAnswers && typing.size === 0)
     )
       show(state)
   }
   void refresh()
+  // Every 3 s while the scene's panel is open, every 15 s otherwise.
+  let since = 0
   const timer = setInterval(() => {
-    if (document.visibilityState === 'visible') void refresh()
-  }, POLL_MS)
+    since += OPEN_POLL_MS
+    if (document.visibilityState !== 'visible') return
+    if (panel?.isOpen || since >= POLL_MS) {
+      since = 0
+      void refresh()
+    }
+  }, OPEN_POLL_MS)
+  // An answer in the page's panel: read it back once it has been sent.
+  let soon: ReturnType<typeof setTimeout> | undefined
+  const pageAnswered = (event: Event) => {
+    if ((event.target as Element | null)?.localName !== 'tosi-checklist') return
+    clearTimeout(soon)
+    soon = setTimeout(() => void refresh(), 900)
+  }
+  document.addEventListener('change', pageAnswered)
   return () => {
     stopped = true
     clearInterval(timer)
+    clearTimeout(soon)
+    document.removeEventListener('change', pageAnswered)
     for (const t of typing.values()) clearTimeout(t)
     panel?.remove()
     panel = null
