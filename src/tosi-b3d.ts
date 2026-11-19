@@ -9440,7 +9440,7 @@ export class B3d extends Component {
         // A full-length copy: the XR pointer's ray is cut to the distance of
         // the occluder it hit, so re-casting it can never reach a panel behind.
         const p2 = scene.pickWithRay(
-          new BABYLON.Ray(pick.ray.origin, pick.ray.direction, 1e4),
+          new BABYLON.Ray(pick.ray.origin, pick.ray.direction, Number.MAX_VALUE),
           (m) => m === plane
         )
         if (p2?.hit) uv = p2.getTextureCoordinates()

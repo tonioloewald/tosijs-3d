@@ -3116,7 +3116,11 @@ export function select3d(config: {
         ),
       },
       list3d({
-        items: opts.map((o) => ({ label: String(o.label) })),
+        // The current option carries a check, as a bar menu's does.
+        items: opts.map((o, i) => ({
+          label: String(o.label),
+          icon: i === indexOf() ? 'check' : undefined,
+        })),
         handleSelect: (_item, i) => {
           bound.set(opts[i].value)
           reflect()

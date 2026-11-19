@@ -325,6 +325,32 @@ try {
   if (has('flat') && script != null) {
     console.log('script:', JSON.stringify(await evaluate(script), null, 1))
     scriptFailed = lastThrew
+    // REAL clicks: a script that leaves `window.__clicks = [[x, y], …]` (page
+    // coordinates) gets each as a mouse press and release from Chrome itself,
+    // which synthetic DOM events are not, and `window.__afterClick(i)` read
+    // after each.
+    const clicks = (await evaluate('JSON.stringify(window.__clicks || [])')) as string
+    for (const [i, [x, y]] of (JSON.parse(clicks) as number[][]).entries()) {
+      for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased']) {
+        await send('Input.dispatchMouseEvent', {
+          type,
+          x,
+          y,
+          button: type === 'mouseMoved' ? 'none' : 'left',
+          buttons: type === 'mousePressed' ? 1 : 0,
+          clickCount: 1,
+        })
+        await Bun.sleep(120)
+      }
+      await Bun.sleep(800)
+      console.log(
+        `click ${i} (${x}, ${y}):`,
+        JSON.stringify(
+          await evaluate(`window.__afterClick ? window.__afterClick(${i}) : null`)
+        )
+      )
+      await shot(`click${i}`)
+    }
     await Bun.sleep(500)
     await shot('after')
   }

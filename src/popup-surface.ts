@@ -565,6 +565,11 @@ function wirePointer(owner: B3d): void {
     of the surface it just found and reports a miss. Measured in an emulated
     session: length 1.4968695 against a hit at 1.4968695, no hit; the same
     origin and direction at full length, hit.
+
+    FULL LENGTH MEANS UNBOUNDED, not a guess at how far a popup can be. It
+    was 1e4, and the rig tool's orthographic views put the camera (which the
+    panel layers draw with) 10 km back: every press on a menu then fell short
+    of it, counted as outside, and closed the menu instead of choosing.
     */
     /*
     IN EACH POPUP'S OWN SCENE, layers first. A popup opened from a panel in
@@ -575,7 +580,7 @@ function wirePointer(owner: B3d): void {
     */
     const ray =
       pressRay != null
-        ? new BABYLON.Ray(pressRay.origin, pressRay.direction, 1e4)
+        ? new BABYLON.Ray(pressRay.origin, pressRay.direction, Number.MAX_VALUE)
         : scene.activeCamera != null
         ? scene.createPickingRay(
             scene.pointerX,
