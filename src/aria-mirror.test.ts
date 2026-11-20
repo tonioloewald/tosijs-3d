@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, test } from 'bun:test'
 import { Window } from 'happy-dom'
-import { ariaMirror } from './aria-mirror.js'
+import { ariaMirror, modalFocusTarget } from './aria-mirror.js'
 import { controlTree } from './widget-semantics.js'
 
 let W: typeof import('./widgets3d.js')
@@ -317,5 +317,19 @@ describe('a text field in the mirror', () => {
     t.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter' }))
     expect(entered as unknown).toBe('zom')
     m.dispose()
+  })
+})
+
+describe('a modal takes focus', () => {
+  test('on its first control that is not a text field, or on itself', () => {
+    const doc = (globalThis as any).document as Document
+    const root = doc.createElement('div')
+    root.innerHTML =
+      '<input type="text" data-key="name"><button data-key="save">save</button>'
+    expect(modalFocusTarget(root).dataset.key).toBe('save')
+    const bare = doc.createElement('div')
+    bare.innerHTML = '<input type="text"><textarea></textarea>'
+    expect(modalFocusTarget(bare)).toBe(bare)
+    expect(bare.getAttribute('tabindex')).toBe('-1')
   })
 })

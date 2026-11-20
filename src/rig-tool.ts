@@ -233,6 +233,7 @@ import {
 } from './rig-build.js'
 import { bodyFromMarkers, type RiggedBody } from './rigged-body.js'
 import { exportBodyRows } from './body-export.js'
+import { readGlbRigRecipe } from './rigged-body-glb.js'
 import type { Vec3 } from './spatial-transform.js'
 import { applyRigRecipe, type AppliedRig } from './rig-recipe-babylon.js'
 import {
@@ -1477,7 +1478,8 @@ export function mountRigTool(
           ],
           handleSelect: ([i]) => {
             ui.joints = i > 0
-            if (i > 0) ui.jointDrag = (['move', 'alone', 'turn'] as const)[i - 1]
+            if (i > 0)
+              ui.jointDrag = (['move', 'alone', 'turn'] as const)[i - 1]
             tool?.targets()
             refresh()
           },
@@ -1888,10 +1890,18 @@ export function mountRigTool(
         button3d({
           label: 'load',
           handleClick: () =>
-            void chooseFile('.json').then(async (f) => {
+            void chooseFile('.json,.glb').then(async (f) => {
               if (f == null) return
               try {
-                const r = JSON.parse(await f.text())
+                // A recipe, or a GLB this tool exported (it carries one).
+                const r = /\.glb$/i.test(f.name)
+                  ? readGlbRigRecipe(new Uint8Array(await f.arrayBuffer()))
+                  : JSON.parse(await f.text())
+                if (r == null) {
+                  ui.status = 'that GLB carries no rig recipe'
+                  refresh()
+                  return
+                }
                 const problems = validateRigRecipe(r)
                 if (problems.length) {
                   ui.status = `not a recipe: ${problems[0]}`
@@ -3665,7 +3675,8 @@ export function mountRigTool(
           if (on) g.pause()
           else g.play(true)
         }
-        for (const sp of applied?.springs ?? []) sp.bones.paused = on || ui.pose === 'rest'
+        for (const sp of applied?.springs ?? [])
+          sp.bones.paused = on || ui.pose === 'rest'
       },
       compare(on) {
         ualNode.setEnabled(on)

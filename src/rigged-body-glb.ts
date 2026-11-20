@@ -77,6 +77,10 @@ What the file is (Dramatis's `export-format`, version 1):
   the mesh, as its file has it.
 - **`asset.extras`** is passed through as given (Dramatis's licence block
   goes there), with `generator` and `copyright`.
+- **The rig recipe** itself, when given, in `asset.extras.tosijsRigRecipe`:
+  the markers and hand-moved joints are in the body's own frame, which a
+  T-posed file cannot give back. `readGlbRigRecipe(bytes)` reads it, and the
+  rig tool's load takes the GLB.
 
 Weights are the body's own, four per vertex, renormalised.
 */
@@ -90,6 +94,7 @@ import {
   type GlbMesh,
   type GlbPrimitive,
 } from './skinned-glb.js'
+import { readGlb } from './glb-chunks.js'
 import { UAL_REST } from './ual-rest.js'
 import type { BodyTriangles, RiggedBody } from './rigged-body.js'
 import type { GarmentProxy, GarmentProxyMaterial } from './garment-proxy.js'
@@ -146,7 +151,8 @@ export interface RiggedBodyGlbOptions {
   /**
    * The rig recipe, for its springs: bone chains swing, strands are baked
    * into joints and a tube mesh, colliders go on their bones; written as
-   * `VRMC_springBone` and `TOSIJS_spring_chains` (see spring-vrm).
+   * `VRMC_springBone` and `TOSIJS_spring_chains` (see spring-vrm). Also
+   * written whole in `asset.extras.tosijsRigRecipe` (`readGlbRigRecipe`).
    */
   recipe?: Partial<RigRecipe>
   /** A held item, or only its socket: see "A held item" above. */
@@ -1406,7 +1412,20 @@ export function riggedBodyGlb(
     asset: {
       generator: options.generator ?? 'tosijs-3d',
       ...(options.copyright ? { copyright: options.copyright } : {}),
-      ...(options.extras ? { extras: options.extras } : {}),
+      ...(options.extras || options.recipe
+        ? {
+            extras: {
+              ...(options.extras ?? {}),
+              ...(options.recipe
+                ? {
+                    [RIG_RECIPE_EXTRA]: JSON.parse(
+                      JSON.stringify(options.recipe)
+                    ),
+                  }
+                : {}),
+            },
+          }
+        : {}),
     },
     joints: glbJoints,
     skinName: 'skeleton',
@@ -1666,4 +1685,16 @@ function springChains(
     })
   })
   return out
+}
+
+/** Where an export keeps its rig recipe: a key of `asset.extras`. */
+export const RIG_RECIPE_EXTRA = 'tosijsRigRecipe'
+
+/**
+ * The rig recipe a GLB was exported with (`riggedBodyGlb`'s `recipe`), or
+ * null when it has none. Throws when the bytes are not a GLB.
+ */
+export function readGlbRigRecipe(bytes: Uint8Array): Partial<RigRecipe> | null {
+  const r = readGlb(bytes).json?.asset?.extras?.[RIG_RECIPE_EXTRA]
+  return r != null && typeof r === 'object' ? (r as Partial<RigRecipe>) : null
 }

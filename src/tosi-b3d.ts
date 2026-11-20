@@ -378,7 +378,7 @@ import { controlTree, type ControlNode } from './widget-semantics.js'
 import { padNavigator, type PadNavigator } from './pad-ui.js'
 import { createFocusPulse } from './gamepad-focus.js'
 import { HardwareGamepadSource, padUiOwns } from './hardware-gamepad.js'
-import { ariaMirror, type AriaMirror } from './aria-mirror.js'
+import { ariaMirror, modalFocusTarget, type AriaMirror } from './aria-mirror.js'
 import { describeScene } from './scene-description.js'
 import { watchSceneChecklist } from './b3d-checklist.js'
 import { panelFitWidth } from './widgets3d-layout.js'
@@ -2183,9 +2183,7 @@ export class B3d extends Component {
     }
     // Our own focus moves are not someone using a screen reader: they must
     // not wake the scene (every sighted pause would).
-    this._quietFocus(
-      mirror.root.querySelector<HTMLElement>('button, input, select')
-    )
+    this._quietFocus(modalFocusTarget(mirror.root))
     return () => {
       this._modalMirrors.delete(mirror)
       mirror.dispose()

@@ -585,3 +585,24 @@ export function ariaMirror(
     },
   }
 }
+
+/*
+WHERE A MODAL'S COPY TAKES FOCUS: its first control, but never a text
+field. A focused text input brings up a phone's own keyboard, and on an
+iPhone that keyboard blurred the page, which paused the scene and took the
+focus (and the keyboard) away again; the scene's own keyboard types into
+the drawn field. A dialog with no other control takes focus itself.
+*/
+export function modalFocusTarget(root: HTMLElement): HTMLElement {
+  const typed = /^(text|search|email|url|tel|password|number)$/
+  for (const el of root.querySelectorAll<HTMLElement>(
+    'button, select, input, textarea'
+  )) {
+    if (el.tagName === 'TEXTAREA') continue
+    if (el.tagName === 'INPUT' && typed.test((el as HTMLInputElement).type))
+      continue
+    return el
+  }
+  if (!root.hasAttribute('tabindex')) root.setAttribute('tabindex', '-1')
+  return root
+}

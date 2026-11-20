@@ -5,7 +5,11 @@ import { validateBytes } from 'gltf-validator'
 import { readGlb, accessorValues, readVec3 } from './glb-chunks.js'
 import { glbRigTriangles } from './glb-rig.js'
 import { bodyFromMarkers, type RiggedBody } from './rigged-body.js'
-import { riggedBodyGlb, MIXAMO_JOINT_NAMES } from './rigged-body-glb.js'
+import {
+  riggedBodyGlb,
+  readGlbRigRecipe,
+  MIXAMO_JOINT_NAMES,
+} from './rigged-body-glb.js'
 import { UAL_REST } from './ual-rest.js'
 import { objTriangles } from './rig-fit.js'
 
@@ -269,6 +273,13 @@ describe.skipIf(!existsSync(WEASEL))('springs: the weasel’s tail', () => {
     }
     return readGlb(bytes)
   }
+
+  test('the recipe goes out whole, so the rig can be read back from a T-posed file', () => {
+    get()
+    const r = readGlbRigRecipe(bytes!)
+    expect(r?.version).toBe(1)
+    expect(r?.springs?.map((s) => s.name)).toEqual(['tail', 'antenna'])
+  })
 
   test('the tail goes out as a VRMC_springBone spring, with colliders', () => {
     const { json } = get()
