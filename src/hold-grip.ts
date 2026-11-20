@@ -43,10 +43,10 @@ from that place's default (`PLACE_GRIPS`). `holdMount(class, side, place)`
 names the bone. Put away on the back
 (a rifle, a two-handed sword, a quiver), it rides across the shoulders on
 `STOW_MOUNT` (the upper spine) at `stowGrip(name)`. An item not in the table is
-held as a `pistol`; pass your own table as `classes` to name a library's. Only the
-`pistol` and `melee1h` defaults were placed by hand and the `bow` measured on
-UAL's bow aim; the others start from the nearest of those until someone places
-them.
+held as a `pistol`; pass your own table as `classes` to name a library's. The `pistol`,
+`melee1h` and `shield` grips and the bow and shield on the back were placed
+by hand in the character builder, and the `bow` measured on UAL's bow aim;
+the others start from the nearest of those until someone places them.
 
 Pure: no DOM, no Babylon.
 */
@@ -108,24 +108,44 @@ const BOW: HoldGrip = {
   scale: 1,
 }
 
-// On the forearm, in the bone's frame: a first placement, to be set with the
-// manipulator on an asymmetric (kite) shield.
+// On the forearm, in the bone's frame: placed by Tonio on the Buckler.
 const SHIELD: HoldGrip = {
-  x: 0,
+  x: -0.018,
   y: 0.14,
-  z: 0,
+  z: 0.018,
   rx: 0,
-  ry: 0,
+  ry: -55.2,
   rz: 0,
+  scale: 1,
+}
+
+// Placed by Tonio in the character builder (2026-11-20), on the Long Sword,
+// the Buckler and a pistol.
+const BLADE_1H: HoldGrip = {
+  x: -0.037,
+  y: 0.039,
+  z: 0.015,
+  rx: -63.1,
+  ry: 147.4,
+  rz: -11.6,
+  scale: 0.8,
+}
+const PISTOL: HoldGrip = {
+  x: -0.012,
+  y: -0.004,
+  z: 0,
+  rx: -69.1,
+  ry: 120.8,
+  rz: 14.8,
   scale: 1,
 }
 
 /** Each class's default grip. */
 export const HOLD_GRIPS: Record<HoldClass, HoldGrip> = {
-  pistol: GUN,
+  pistol: PISTOL,
   rifle: GUN,
   heavy: GUN,
-  melee1h: BLADE,
+  melee1h: BLADE_1H,
   melee2h: BLADE,
   pole: BLADE,
   bow: BOW,
@@ -264,14 +284,14 @@ const SLUNG: HoldGrip = {
   rz: 0,
   scale: 1,
 }
-// A bow (along +Y, like a blade) upright across the back, leaning left.
+// A bow (along +Y, like a blade) across the back: placed by Tonio.
 const BOW_SLUNG: HoldGrip = {
-  x: 0,
-  y: 0.05,
-  z: -0.2,
-  rx: 0,
-  ry: 0,
-  rz: -30,
+  x: 0.004,
+  y: 0.048,
+  z: -0.172,
+  rx: 29.6,
+  ry: 100.4,
+  rz: 5.2,
   scale: 1,
 }
 const POLE: HoldGrip = {
@@ -300,7 +320,16 @@ export const STOW_GRIPS: Record<HoldClass, HoldGrip> = {
   melee2h: SHEATHED,
   pole: POLE,
   bow: BOW_SLUNG,
-  shield: { x: 0, y: 0.05, z: -0.2, rx: 0, ry: 0, rz: 0, scale: 1 },
+  // Slung flat on the back, face out: placed by Tonio on the Kite Shield.
+  shield: {
+    x: 0.013,
+    y: -0.011,
+    z: -0.141,
+    rx: 6.1,
+    ry: -178.9,
+    rz: 0.5,
+    scale: 1,
+  },
   wrist: SLUNG,
 }
 

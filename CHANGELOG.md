@@ -12,6 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- **Changed:** default grips: one-handed blades, pistols and forearm shields, and a bow and a shield on the back, now sit where Tonio placed them in the character builder (rifles, two-handed blades and poles unchanged). A character's own adjustments still win.
 - **Added:** the dev server's test checklist (tosijs-ui ≥ 1.19, `tosijs-checklist post`) on every scene's system bar, so it can be answered in a headset: one item at a time, 👍 / 👎 and a comment by the scene keyboard, saved through the same endpoint as the page's panel. Nothing runs off the dev server. `checklistPanel` builds the content alone (`b3d-checklist`).
 - **Added:** `pager3d`, one page at a time: ‹ ›, a dot per page (tap to jump, `dotColor` per page), `3 / 20` past `maxDots`. For a panel that would otherwise scroll.
 - **Added:** `inputField({ lines })`: the field wraps and grows as text is typed, up to that many lines, then keeps the caret's line in view. `setValue` with the text the field already holds changes nothing (the caret stays). A `panel3d`'s host `relayout` now re-measures its rows and takes the new height in place (it did nothing), so a row that changes height grows the panel and its plane.
