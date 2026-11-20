@@ -17,8 +17,9 @@ For the file, the model it came from is read again from its bytes
 pictures. A model that is not a GLB (an OBJ) goes out in plain grey.
 
 **Pictures** scales the file's textures down to a longest side (2048, 1024
-or 512; see [glb textures](/glb-textures/)); one already within the limit
-is left exactly as made.
+or 512), and **compress pictures** turns opaque PNGs into JPEGs at its
+**quality** ([glb textures](/glb-textures/)). With neither, every picture
+goes out exactly as made.
 
 ```javascript
 import { exportBodyRows } from 'tosijs-3d/body-export'
@@ -32,7 +33,14 @@ its Character menu.
 */
 /*{ "parent": "rigged-body-glb", "order": 2 }*/
 
-import { button3d, label3d, select3d, type Widget3d } from './widgets3d.js'
+import {
+  button3d,
+  label3d,
+  select3d,
+  slider3d,
+  toggle3d,
+  type Widget3d,
+} from './widgets3d.js'
 import { glbNodePosition, glbRigTriangles } from './glb-rig.js'
 import type { Grip } from './hand-socket.js'
 import type { GarmentProxy } from './garment-proxy.js'
@@ -46,7 +54,12 @@ import type { RiggedBody } from './rigged-body.js'
 import type { RigRecipe } from './rig-recipe.js'
 import { readGlbClips, type GlbClipSource } from './glb-clips.js'
 import { readBvh } from './bvh.js'
-import { compactGlbTextures, type TextureLevel } from './glb-textures.js'
+import {
+  changesPictures,
+  compactGlbTextures,
+  type PictureOptions,
+  type TextureLevel,
+} from './glb-textures.js'
 import { inputField } from './keyboard.js'
 import { bakeClothLook } from './cloth-bake.js'
 import type { ClipOut } from './rigged-body-glb.js'
@@ -107,8 +120,12 @@ export interface BodyExportSettings {
   height: number
   /** Whether the clip playing goes in (default not). */
   animation?: 'none' | 'playing'
-  /** How far its pictures are shrunk (see glb-textures; default as made). */
+  /** The longest side its pictures may have (see glb-textures; default as made). */
   textures?: TextureLevel
+  /** Opaque PNGs become JPEGs at `quality` (default off). */
+  compressPictures?: boolean
+  /** JPEG quality, 0 to 1 (default 0.85). */
+  pictureQuality?: number
 }
 
 const HEIGHTS = [
@@ -236,16 +253,15 @@ export async function exportBody(
     ...(target.extras ? { extras: target.extras } : {}),
     generator: 'tosijs-3d',
   })
-  const level = settings.textures ?? 'as made'
-  const written =
-    level === 'as made'
-      ? out
-      : await compactGlbTextures(out, level).catch((e) => {
-          note = [note, `pictures kept as made: ${(e as Error).message}`]
-            .filter(Boolean)
-            .join('; ')
-          return out
-        })
+  const pictures = pictureOptions(settings)
+  const written = !changesPictures(pictures)
+    ? out
+    : await compactGlbTextures(out, pictures).catch((e) => {
+        note = [note, `pictures kept as made: ${(e as Error).message}`]
+          .filter(Boolean)
+          .join('; ')
+        return out
+      })
   return { bytes: written, note }
 }
 
@@ -284,6 +300,19 @@ const settings: BodyExportSettings = {
   height: 0,
   animation: 'none',
   textures: 'as made',
+  compressPictures: false,
+  pictureQuality: 0.85,
+}
+
+/** An export's settings as glb-textures' options. */
+export function pictureOptions(
+  s: Readonly<BodyExportSettings>
+): PictureOptions {
+  return {
+    size: s.textures ?? 'as made',
+    compress: s.compressPictures === true,
+    quality: s.pictureQuality ?? 0.85,
+  }
 }
 
 const TEXTURES: Record<TextureLevel, string> = {
@@ -293,7 +322,7 @@ const TEXTURES: Record<TextureLevel, string> = {
   '512': 'up to 512',
 }
 
-/** The GLB's options as rows: joint names, rest pose, height, animation, pictures. */
+/** The GLB's rig options as rows: joint names, rest pose, height, animation. */
 function glbOptionRows(): Widget3d[] {
   return [
     select3d({
@@ -329,6 +358,12 @@ function glbOptionRows(): Widget3d[] {
         settings.animation = v === 'none' ? 'none' : 'playing'
       },
     }),
+  ]
+}
+
+/** The pictures' options as rows: size limit, compress, quality. */
+function pictureRows(): Widget3d[] {
+  return [
     select3d({
       label: 'pictures',
       value: TEXTURES[settings.textures ?? 'as made'],
@@ -338,6 +373,23 @@ function glbOptionRows(): Widget3d[] {
           (Object.keys(TEXTURES) as TextureLevel[]).find(
             (k) => TEXTURES[k] === v
           ) ?? 'as made'
+      },
+    }),
+    toggle3d({
+      label: 'compress pictures',
+      value: settings.compressPictures === true,
+      handleChange: (v) => {
+        settings.compressPictures = v === true
+      },
+    }),
+    slider3d({
+      label: 'quality',
+      value: settings.pictureQuality ?? 0.85,
+      min: 0.5,
+      max: 1,
+      step: 0.05,
+      handleChange: (v) => {
+        settings.pictureQuality = Number(v)
       },
     }),
   ]
@@ -446,6 +498,7 @@ export function exportForm(
         ]
       : []),
     ...(format === 'GLB' ? glbOptionRows() : []),
+    ...pictureRows(),
     button3d({ label: 'export', default: true, handleClick: go }),
     button3d({ label: 'cancel', handleClick: () => pop.close() }),
   ]
@@ -464,6 +517,7 @@ export function exportBodyRows(
   return [
     label3d({ text: 'Export', icon: 'download', collapsible: true }),
     ...glbOptionRows(),
+    ...pictureRows(),
     button3d({
       label: 'export GLB',
       handleClick: () => {

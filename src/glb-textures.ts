@@ -1,35 +1,51 @@
 /*#
 # glb textures
 
-**A GLB's pictures scaled down, after it is written.** A character's export
-carries its skin, eyes, garments and their scans at the size they were made,
-which can be most of the file. `compactGlbTextures(bytes, level)` scales each
-picture whose longest side is over the limit (`2048`, `1024` or `512`; `as
-made` leaves them all) and writes it again: a JPEG (quality 0.9) where it is
-opaque, a PNG where any pixel is see-through (lashes, hair cards, a lace
-hem), since a JPEG has no alpha.
+**A GLB's pictures made smaller, after it is written.** A character's export
+carries its skin, eyes, garments and their scans as they were made, which
+can be most of the file. `compactGlbTextures(bytes, options)` does two
+separate things, each chosen on its own:
 
-A picture already within the limit is left exactly as it is: re-encoding it
-at the same size would only lose detail. The rest of the file is copied
-untouched; only the images' buffer views change, and the binary chunk is
-packed again around them.
+- **`size`** scales a picture whose longest side is over the limit (`2048`,
+  `1024` or `512`; `as made` scales none). A scaled picture keeps its format
+  unless it is compressed.
+- **`compress`** turns an opaque PNG (lossless) into a JPEG at `quality`
+  (0 to 1, default 0.85), kept only when that is smaller: its first lossy
+  step. A scaled JPEG is written at `quality` too.
+
+A JPEG within the limit is never re-encoded (it would only lose detail
+again), nor is a see-through PNG (lashes, hair cards, a lace hem: a JPEG has
+no alpha). The rest of the file is copied untouched; only the images' buffer
+views change, and the binary chunk is packed again around them.
 
 A character file (character-file) carries GLBs of its own (the garments you
 made, a body opened from a file) and the pictures you picked from disk;
-`compactCharacterTextures(doc, level)` scales those the same way, so a
-character saved as a file takes the same choice as its GLB.
+`compactCharacterTextures(doc, options)` treats those the same way, so a
+character saved as a file takes the same choices as its GLB.
 
 `replaceGlbImages(bytes, replace)` is the pure half (no DOM), which any
 other rewrite can use: `replace` gets each embedded image and returns new
-bytes and type, or null to keep it. The shrinking needs a browser
+bytes and type, or null to keep it. The rest needs a browser
 (`createImageBitmap` and a canvas).
 */
 /*{ "parent": "rigged-body-glb" }*/
 
 import { readGlb, writeGlb } from './glb-chunks.js'
 
-/** How far an export's pictures are shrunk. */
+/** The longest side an export's pictures may have. */
 export type TextureLevel = 'as made' | '2048' | '1024' | '512'
+
+/** What happens to an export's pictures (see the page). */
+export interface PictureOptions {
+  size?: TextureLevel
+  compress?: boolean
+  /** JPEG quality, 0 to 1 (default 0.85). */
+  quality?: number
+}
+
+/** Does `options` change anything at all? */
+export const changesPictures = (o: PictureOptions = {}): boolean =>
+  Number(o.size) > 0 || o.compress === true
 
 /** An image embedded in a GLB, as `replaceGlbImages` hands it over. */
 export interface GlbImage {
@@ -91,21 +107,23 @@ export async function replaceGlbImages(
   return writeGlb(json, packed)
 }
 
-/** The export with its pictures scaled to `level` (a browser is needed). */
+/** The export with its pictures scaled and compressed as asked (a browser is needed). */
 export async function compactGlbTextures(
   bytes: Uint8Array,
-  level: TextureLevel
+  options: PictureOptions
 ): Promise<Uint8Array> {
-  const size = Number(level)
-  if (!(size > 0)) return bytes
-  return replaceGlbImages(bytes, (image) => shrinkImage(image, size, 0.9))
+  if (!changesPictures(options)) return bytes
+  return replaceGlbImages(bytes, (image) => shrinkImage(image, options))
 }
 
 async function shrinkImage(
   image: GlbImage,
-  size: number,
-  quality: number
+  options: PictureOptions
 ): Promise<{ bytes: Uint8Array; mimeType: string } | null> {
+  const limit = Number(options.size) > 0 ? Number(options.size) : Infinity
+  const compress = options.compress === true
+  const quality = options.quality ?? 0.85
+  const png = image.mimeType === 'image/png'
   const blob = new Blob([image.bytes as BlobPart], { type: image.mimeType })
   let bitmap: ImageBitmap
   try {
@@ -113,9 +131,9 @@ async function shrinkImage(
   } catch {
     return null
   }
-  const k = size / Math.max(bitmap.width, bitmap.height)
-  // Within the limit: kept exactly as made, never re-encoded.
-  if (k >= 1) {
+  const k = Math.min(1, limit / Math.max(bitmap.width, bitmap.height))
+  // Unscaled, only a lossless picture being compressed changes.
+  if (k === 1 && !(compress && png)) {
     bitmap.close?.()
     return null
   }
@@ -129,19 +147,30 @@ async function shrinkImage(
   ctx.drawImage(bitmap, 0, 0, w, h)
   bitmap.close?.()
   // See-through anywhere: a PNG, or the alpha is lost.
-  const px = ctx.getImageData(0, 0, w, h).data
   let clear = false
-  for (let i = 3; i < px.length; i += 4)
-    if (px[i] < 255) {
-      clear = true
-      break
-    }
-  const type = clear ? 'image/png' : 'image/jpeg'
+  if (png) {
+    const px = ctx.getImageData(0, 0, w, h).data
+    for (let i = 3; i < px.length; i += 4)
+      if (px[i] < 255) {
+        clear = true
+        break
+      }
+  }
+  if (k === 1 && clear) return null
+  // A scaled PNG stays a PNG unless compressed; a JPEG stays a JPEG.
+  const type = png && (clear || !compress) ? 'image/png' : 'image/jpeg'
   const out = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, type, clear ? undefined : quality)
+    canvas.toBlob(
+      resolve,
+      type,
+      type === 'image/jpeg' ? (compress ? quality : 0.92) : undefined
+    )
   )
   if (out == null) return null
-  return { bytes: new Uint8Array(await out.arrayBuffer()), mimeType: type }
+  const next = new Uint8Array(await out.arrayBuffer())
+  // Kept only when it is smaller than what it replaces.
+  if (next.byteLength >= image.bytes.byteLength) return null
+  return { bytes: next, mimeType: type }
 }
 
 const b64 = {
@@ -165,8 +194,8 @@ const sniff = (bytes: Uint8Array): string =>
 
 /**
  * A character document (`writeCharacter`'s) with the GLBs and pictures it
- * carries scaled to `level`: garments, a body from a GLB file, and pictures
- * picked from disk. A copy; the document given is not changed.
+ * carries made smaller: garments, a body from a GLB file, and pictures
+ * picked from disk, as `options` say. A copy; the document given is not changed.
  */
 export async function compactCharacterTextures<
   D extends {
@@ -174,12 +203,11 @@ export async function compactCharacterTextures<
     bodies?: Record<string, { file?: string; data?: string }>
     pictures?: Record<string, string>
   }
->(doc: D, level: TextureLevel): Promise<D> {
-  const size = Number(level)
-  if (!(size > 0)) return doc
+>(doc: D, options: PictureOptions): Promise<D> {
+  if (!changesPictures(options)) return doc
   const out = JSON.parse(JSON.stringify(doc)) as D
   const glb = async (data: string) =>
-    b64.encode(await compactGlbTextures(b64.decode(data), level))
+    b64.encode(await compactGlbTextures(b64.decode(data), options))
   for (const [k, v] of Object.entries(out.garments ?? {}))
     out.garments![k] = await glb(v)
   for (const body of Object.values(out.bodies ?? {}))
@@ -189,8 +217,7 @@ export async function compactCharacterTextures<
     const bytes = b64.decode(v)
     const small = await shrinkImage(
       { index: 0, bytes, mimeType: sniff(bytes) },
-      size,
-      0.9
+      options
     )
     if (small != null) out.pictures![k] = b64.encode(small.bytes)
   }

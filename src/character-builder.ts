@@ -14,7 +14,7 @@ plays UAL's clips at any shape.
 import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, retargetSourceClip, readBvh, clipStore, clipKind, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, readGlbCharacter, tailorPanel, garmentStore, barMenu, fitPanel, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, holdMount, holdPlace, holdSide, ownSideGrip, placeIn, gripKey, mountNode, stowGrip, STOW_MOUNT, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
-import { exportForm } from 'tosijs-3d/body-export'
+import { exportForm, pictureOptions } from 'tosijs-3d/body-export'
 import { compactCharacterTextures } from 'tosijs-3d/glb-textures'
 
 // Everything the panel sets, as it starts: what a saved character is read against.
@@ -283,7 +283,7 @@ const exportTarget = async (name, settings) => {
         recipe: shown.recipe,
         // The whole character (settings with grips, cloth, garments, body,
         // pictures, clips), so the GLB is also a save.
-        extras: { tosijsCharacter: await compactCharacterTextures(characterSnapshot(walker.characterName.value || name), settings.textures ?? 'as made') },
+        extras: { tosijsCharacter: await compactCharacterTextures(characterSnapshot(walker.characterName.value || name), pictureOptions(settings)) },
         source: shown.source === 'MakeHuman' ? null : ch.sources[shown.source] ?? null,
         name,
         // What it wears: MakeHuman's clothes and garments of your own.
@@ -593,7 +593,7 @@ preview.append(
                   name: current || ch?.shown?.source || 'character',
                   target: exportTarget,
                   say: (m) => { character.note = m; el.refreshScenePanel?.() },
-                  formats: [{ label: 'character file', write: (name, settings) => character.exportJson(name, settings.textures) }],
+                  formats: [{ label: 'character file', write: (name, settings) => character.exportJson(name, pictureOptions(settings)) }],
                 })),
               },
               { label: 'Import…', handleSelect: () => character.importJson() },
@@ -1486,8 +1486,8 @@ preview.append(
         }
         // The character file, under the name given (its pictures scaled
         // as the export form says).
-        character.exportJson = async (file = walker.characterName.value.trim() || 'character', textures = 'as made') => {
-          const doc = await compactCharacterTextures(snapshot(walker.characterName.value || file), textures)
+        character.exportJson = async (file = walker.characterName.value.trim() || 'character', pictures = {}) => {
+          const doc = await compactCharacterTextures(snapshot(walker.characterName.value || file), pictures)
           save(JSON.stringify(doc, null, 1), `${file}.character.json`, 'application/json')
         }
         character.importJson = () => {
