@@ -128,7 +128,8 @@ const BLADE_1H: HoldGrip = {
   rx: -63.1,
   ry: 147.4,
   rz: -11.6,
-  scale: 0.8,
+  // Her 0.8 was for a slight build, so it stays with her character.
+  scale: 1,
 }
 const PISTOL: HoldGrip = {
   x: -0.012,
