@@ -280,6 +280,9 @@ const exportRows = () =>
         body: out?.body ?? shown.body,
         eyeTexture: out?.eyeTexture ?? null,
         recipe: shown.recipe,
+        // Its settings (grips, what it holds and wears on its back included),
+        // so an export says how the character was set up.
+        extras: { tosijsCharacterSettings: JSON.parse(JSON.stringify(Object.fromEntries(KEPT.map((k) => [k, walker[k].value])))) },
         source: shown.source === 'MakeHuman' ? null : ch.sources[shown.source] ?? null,
         name: String(name).replace(/\W+/g, '-').replace(/^-|-$/g, '') || 'character',
         // What it wears: MakeHuman's clothes and garments of your own.

@@ -66,6 +66,8 @@ export interface BodyExportTarget {
   clip?: ExportClip | null
   /** The eyes' picture (see riggedBodyGlb's `eyeTexture`). */
   eyeTexture?: { bytes: Uint8Array; mimeType: string } | null
+  /** Written into `asset.extras` (the builder puts its settings there). */
+  extras?: Record<string, unknown>
 }
 
 /** A clip as its file: a GLB's animation by name, or a BVH capture. */
@@ -218,6 +220,7 @@ export async function exportBody(
     restPose: settings.restPose,
     ...(settings.height > 0 ? { height: settings.height } : {}),
     ...(target.recipe ? { recipe: target.recipe } : {}),
+    ...(target.extras ? { extras: target.extras } : {}),
     generator: 'tosijs-3d',
   })
   return { bytes: out, note }
