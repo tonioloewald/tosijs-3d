@@ -24,7 +24,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=6db508795fdb" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=30d367805117" data-tosi-doc-system />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&amp;family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&amp;display=swap" />
   <title>test checklist in the scene — tosijs-3d</title>
   <meta name="description" content="The dev server&#39;s test checklist on a scene&#39;s system bar: answer an agent&#39;s list with 👍, 👎 and a comment, flat and in a headset." />
@@ -36,13 +36,13 @@
   <meta property="og:description" content="The dev server&#39;s test checklist on a scene&#39;s system bar: answer an agent&#39;s list with 👍, 👎 and a comment, flat and in a headset." />
   <meta property="og:url" content="https://3d.tosijs.net/b3d-checklist/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"test checklist in the scene","description":"The dev server's test checklist on a scene's system bar: answer an agent's list with 👍, 👎 and a comment, flat and in a headset.","url":"https://3d.tosijs.net/b3d-checklist/","inLanguage":"en","dateModified":"2026-11-19T19:36:53+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"test checklist in the scene","description":"The dev server's test checklist on a scene's system bar: answer an agent's list with 👍, 👎 and a comment, flat and in a headset.","url":"https://3d.tosijs.net/b3d-checklist/","inLanguage":"en","dateModified":"2026-11-20T06:24:46.801Z","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"UI","item":"https://3d.tosijs.net/ui/"},{"@type":"ListItem","position":2,"name":"test checklist in the scene","item":"https://3d.tosijs.net/b3d-checklist/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=9a98199a84ec" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=d94d6ccc6196" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="b3d-checklist.ts">
 <h1 id="test-checklist-in-the-scene">test checklist in the scene</h1>
 <p>When an agent asks a person to check something
@@ -56,8 +56,8 @@ page&#39;s panel uses, so the two stay in step.</p>
 <p>Nothing to wire. A <code>&lt;tosi-b3d&gt;</code> watches for a list only on a page served by a
 dev server with the checklist endpoint (tosijs-ui ≥ 1.19), so a deployed site
 does nothing and fetches nothing. In an app with its own server mounting
-<code>checklistHandler</code>, call <code>setChecklistEndpoint</code> (from tosijs-ui&#39;s checklist
-client) before the scene connects.</p>
+<code>checklistHandler</code>, call <code>setChecklistEndpoint</code> (exported here, as tosijs-ui&#39;s
+client does for the page&#39;s panel) before the scene connects.</p>
 <p>A verdict from the scene carries a schematic that says it was given in a scene,
 and in a headset if it was: the page&#39;s own schematic draws HTML, and a headset
 shows none of it.</p>
@@ -614,6 +614,6 @@ for a host that places it somewhere else.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-r5e83g3k.js"></script>
+  <script type="module" src="../hydrate-ezwjh1e8.js"></script>
 </body>
 </html>

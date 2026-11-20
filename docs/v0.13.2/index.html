@@ -24,7 +24,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=6db508795fdb" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=30d367805117" data-tosi-doc-system />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&amp;family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&amp;display=swap" />
   <title>0.13.2 — tosijs-3d</title>
   <meta name="description" content="The test checklist on every scene&#39;s system bar (answer it in a headset), one Export… for the character builder whose GLB also carries the whole character…" />
@@ -36,13 +36,13 @@
   <meta property="og:description" content="The test checklist on every scene&#39;s system bar (answer it in a headset), one Export… for the character builder whose GLB also carries the whole character…" />
   <meta property="og:url" content="https://3d.tosijs.net/v0.13.2/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"0.13.2","description":"The test checklist on every scene's system bar (answer it in a headset), one Export… for the character builder whose GLB also carries the whole character…","url":"https://3d.tosijs.net/v0.13.2/","inLanguage":"en","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"0.13.2","description":"The test checklist on every scene's system bar (answer it in a headset), one Export… for the character builder whose GLB also carries the whole character…","url":"https://3d.tosijs.net/v0.13.2/","inLanguage":"en","dateModified":"2026-11-20T06:25:02.108Z","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Upgrading","item":"https://3d.tosijs.net/upgrading/"},{"@type":"ListItem","position":2,"name":"Changelog","item":"https://3d.tosijs.net/CHANGELOG/"},{"@type":"ListItem","position":3,"name":"0.13.2","item":"https://3d.tosijs.net/v0.13.2/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=9a98199a84ec" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=d94d6ccc6196" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="v0.13.2.md">
 <h1 id="0132">0.13.2</h1>
 <!--{ "parent": "CHANGELOG", "order": 9986998 }-->
@@ -111,6 +111,7 @@
 </ul>
 <h3 id="fixed">Fixed</h3>
 <ul>
+<li>The scene checklist talks to the dev server through its own client: the library never imports tosijs-ui, a dev dependency, so an app without it still loads. An app with its own checklist server calls <code>setChecklistEndpoint</code> (from <code>tosijs-3d/b3d-checklist</code>).</li>
 <li>Opening a modal with a text field (the builder&#39;s save-as name) no longer focuses its hidden screen-reader input: on an iPhone that brought up the system keyboard, which blurred and paused the scene and vanished. Focus goes to its first button, and the scene&#39;s keyboard types into the drawn field.</li>
 <li>A long tooltip wraps at 220 units instead of running off as one line (in a scene it was a plane several panels wide, stretched and blurred).</li>
 <li>Scene checklist: answers given elsewhere update the scene&#39;s panel in place, so a comment being typed keeps its caret; answers not yet saved win over a poll&#39;s older copy; an answer in the scene shows in the page&#39;s panel even while its comment box has focus. Comments wrap to four lines.</li>
@@ -688,6 +689,6 @@
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-r5e83g3k.js"></script>
+  <script type="module" src="../hydrate-ezwjh1e8.js"></script>
 </body>
 </html>

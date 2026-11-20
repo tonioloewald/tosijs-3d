@@ -12,8 +12,8 @@ page's panel uses, so the two stay in step.
 Nothing to wire. A `<tosi-b3d>` watches for a list only on a page served by a
 dev server with the checklist endpoint (tosijs-ui ≥ 1.19), so a deployed site
 does nothing and fetches nothing. In an app with its own server mounting
-`checklistHandler`, call `setChecklistEndpoint` (from tosijs-ui's checklist
-client) before the scene connects.
+`checklistHandler`, call `setChecklistEndpoint` (exported here, as tosijs-ui's
+client does for the page's panel) before the scene connects.
 
 A verdict from the scene carries a schematic that says it was given in a scene,
 and in a headset if it was: the page's own schematic draws HTML, and a headset

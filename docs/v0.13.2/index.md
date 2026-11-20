@@ -68,6 +68,7 @@ Size: barrel (min, packages external) 1798.2 KB raw / 626.1 KB gz, up 90.7 KB / 
 
 ### Fixed
 
+- The scene checklist talks to the dev server through its own client: the library never imports tosijs-ui, a dev dependency, so an app without it still loads. An app with its own checklist server calls `setChecklistEndpoint` (from `tosijs-3d/b3d-checklist`).
 - Opening a modal with a text field (the builder's save-as name) no longer focuses its hidden screen-reader input: on an iPhone that brought up the system keyboard, which blurred and paused the scene and vanished. Focus goes to its first button, and the scene's keyboard types into the drawn field.
 - A long tooltip wraps at 220 units instead of running off as one line (in a scene it was a plane several panels wide, stretched and blurred).
 - Scene checklist: answers given elsewhere update the scene's panel in place, so a comment being typed keeps its caret; answers not yet saved win over a poll's older copy; an answer in the scene shows in the page's panel even while its comment box has focus. Comments wrap to four lines.

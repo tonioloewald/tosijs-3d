@@ -1,4 +1,5 @@
-import { type ChecklistState } from 'tosijs-ui/doc-system/checklist-client.js';
+import { type ChecklistState } from './checklist-client.js';
+export { setChecklistEndpoint } from './checklist-client.js';
 export type ChecklistVerdict = 'pass' | 'fail' | null;
 export interface ChecklistAnswer {
     verdict: ChecklistVerdict;
@@ -65,5 +66,4 @@ interface ChecklistHost extends HTMLElement {
  * frame (a test runner's), where nobody answers.
  */
 export declare function watchSceneChecklist(host: ChecklistHost): () => void;
-export {};
 //# sourceMappingURL=b3d-checklist.d.ts.map
