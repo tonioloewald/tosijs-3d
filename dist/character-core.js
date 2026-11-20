@@ -24,6 +24,7 @@ import { humanBodyMaker } from 'tosijs-3d/human-rig'
 | `rig-recipe` | a rig recipe as data |
 | [`retarget`](/retarget/) | clips from one skeleton played on another |
 | [`spatial-transform`](/spatial-transform/) | the vector and quaternion maths under them |
+| [`two-bone-ik`](/two-bone-ik/) | a two-bone limb reaching a point (the retargeter's legs) |
 | [`proxy-fit`](/proxy-fit/), [`proxy-rigid`](/proxy-rigid/) | clothes bound to a body (MakeHuman's `.mhclo`), and rigid parts in them |
 | [`hair-fit`](/hair-fit/) | a hairstyle warped onto a head |
 | [`garment-cut`](/garment-cut/), [`body-sweep`](/body-sweep/), [`tailor-recipe`](/tailor-recipe/), [`uv-unwrap`](/uv-unwrap/), [`garment-file`](/garment-file/) | the tailor: garments cut and swept from a body, unwrapped, saved as GLB or OBJ |

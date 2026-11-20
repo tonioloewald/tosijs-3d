@@ -1,7 +1,7 @@
 # Playback
 
 **A clip's transport on ONE row**: play or pause, a scrub bar you can drag to
-any moment, and the playback speed. A [[widgets3d|Widget3d]], so it sits in a
+any moment, the playback speed, and a button that plays it backwards. A [[widgets3d|Widget3d]], so it sits in a
 `panel3d` beside the rest of a panel and works the same flat, in a scene and in
 a headset.
 
@@ -16,7 +16,7 @@ const { div, pre } = elements
 const clip = { time: 0, duration: 4, playing: true, speed: 1 }
 const readout = pre({ style: 'margin:8px 16px;color:#8ea;font:12px ui-monospace,monospace' }, '')
 setInterval(() => {
-  if (clip.playing) clip.time = (clip.time + 0.05 * clip.speed) % clip.duration
+  if (clip.playing) clip.time = (clip.time + 0.05 * clip.speed + clip.duration) % clip.duration
   readout.textContent = `${clip.time.toFixed(2)} s of ${clip.duration} s  ·  ${clip.playing ? 'playing' : 'paused'}  ·  ×${clip.speed}`
 }, 50)
 
@@ -53,7 +53,8 @@ preview.append(
 ```
 
 Press the button to pause, drag the bar to any moment (it pauses there, so
-you can look), and pick a speed from the menu.
+you can look), pick a speed from the menu, and press the arrow at the end to
+play the clip backwards (does a walk still read as a walk in reverse?).
 
 ## The clip is the host's
 
@@ -66,4 +67,7 @@ the clip is driven, and a pause in the scene shows in the button.
 Scrubbing pauses the clip, since a moment you drag to is one you want to see
 held. Press play to carry on from there.
 
-`speeds` sets the menu (default 0.1, 0.25, 0.5, 0.75, 1, 1.5 and 2).
+`speeds` sets the menu (default 0.1, 0.25, 0.5, 0.75, 1, 1.5 and 2). The
+direction is the speed's SIGN: backwards at ×0.5 is `handleSpeed(-0.5)`, and a
+`read()` with a negative speed lights the arrow. Babylon's `speedRatio` takes
+it as it is.

@@ -150,5 +150,6 @@ reason. A widget of your own reads its callbacks the same way:
 - [Controls](/ui-controls/)
 - [Containers](/ui-containers/)
 - [In the scene and XR](/ui-in-scene/)
+- [test checklist in the scene](/b3d-checklist/)
 - [Theme and icons](/ui-theme/)
 <!-- /toc -->

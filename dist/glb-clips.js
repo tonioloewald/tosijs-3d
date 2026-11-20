@@ -326,6 +326,7 @@ export function bakeClip(source, clip, target, options = {}) {
         armSpaceDeg: options.armSpaceDeg,
         footTurnDeg: options.footTurnDeg,
         footIk: options.footIk,
+        mirror: options.mirror,
     });
     const fps = options.fps ?? 30;
     const frames = Math.max(1, Math.round((c.end - c.start) * fps));

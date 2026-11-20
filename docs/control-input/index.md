@@ -32,6 +32,7 @@ const input = { ...emptyInput(), forward: 1, turn: -0.5, shoot: 1 }
 | `interact` | 0..1 | Enter vehicle / pick up / use |
 | `aim` | 0..1 | Aim down sights |
 | `weapon` | 0..1 | Raise/lower the weapon — edge-detected by consumers, so it TOGGLES |
+| `reload` | 0..1 | Reload what is in hand — edge-detected |
 | `cameraZoom` | -1..1 | Camera zoom |
 | `lookMode` | 0..1 | Toggle (edge-detected) what the look stick's up and down do: a tank's gun, or its camera |
 | `sneak` | 0\|1 | Sneak toggle |

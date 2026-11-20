@@ -435,6 +435,11 @@ function wirePointer(owner) {
         of the surface it just found and reports a miss. Measured in an emulated
         session: length 1.4968695 against a hit at 1.4968695, no hit; the same
         origin and direction at full length, hit.
+    
+        FULL LENGTH MEANS UNBOUNDED, not a guess at how far a popup can be. It
+        was 1e4, and the rig tool's orthographic views put the camera (which the
+        panel layers draw with) 10 km back: every press on a menu then fell short
+        of it, counted as outside, and closed the menu instead of choosing.
         */
         /*
         IN EACH POPUP'S OWN SCENE, layers first. A popup opened from a panel in
@@ -444,7 +449,7 @@ function wirePointer(owner) {
         close it."). A layer is drawn over the world, so it is asked first.
         */
         const ray = pressRay != null
-            ? new BABYLON.Ray(pressRay.origin, pressRay.direction, 1e4)
+            ? new BABYLON.Ray(pressRay.origin, pressRay.direction, Number.MAX_VALUE)
             : scene.activeCamera != null
                 ? scene.createPickingRay(scene.pointerX, scene.pointerY, BABYLON.Matrix.Identity(), scene.activeCamera)
                 : null;
@@ -652,7 +657,10 @@ function intoView(mesh, reach = false) {
 /** Per owner: hear pointer events in a layer scene a popup was made in. */
 const layerListeners = new WeakMap();
 export function openPopup(owner, opts) {
-    const { svg, opener = null, width = 1, resolution = 512, offset = {}, lift = 0.02, draggable = true, modal = false, gripHeight = 0.2, chrome = true, handleClosed, dismissOutside = false, } = opts;
+    const { svg, opener = null, width = 1, resolution = 512, offset = {}, lift = 0.02, modal = false, gripHeight = 0.2, handleClosed, dismissOutside = false, tip = false, } = opts;
+    // A tip is never a window: no handles, no drag.
+    const chrome = tip ? false : opts.chrome ?? true;
+    const draggable = tip ? false : opts.draggable ?? true;
     const vb = svg.viewBox?.baseVal;
     const aspect = vb && vb.width > 0 ? vb.height / vb.width : 1;
     /*
@@ -729,7 +737,7 @@ export function openPopup(owner, opts) {
         materialChannel: 'emissive',
         // The plane routes its own picks to the SVG's `handlePointer`; a popup with
         // no interactive content still wants this so it doesn't swallow the ray.
-        pointerEvents: 'on',
+        pointerEvents: tip ? 'off' : 'on',
         // Its opener's layer: a popup from a ui panel is drawn and picked with it
         // (and can hang from it, which a mesh in another scene could not).
         layer: panelLayerOf(opener),
@@ -871,6 +879,16 @@ export function openPopup(owner, opts) {
     owner.appendChild(plane);
     whenMesh(() => {
         place();
+        if (tip) {
+            // Never in the way of what it describes, and over every panel and
+            // popup (a later rendering group starts with a clear depth buffer).
+            plane.mesh.isPickable = false;
+            plane.mesh.renderingGroupId = 3;
+            mounted = true;
+            for (const fn of pending.splice(0))
+                fn();
+            return;
+        }
         // Take a place in the stack now. Without this, two popups opened one
         // after the other sat at the same depth until one of them was clicked.
         // Deferred: on a live scene this runs before `api` exists.
@@ -1145,6 +1163,8 @@ export function openPopup(owner, opts) {
         },
     };
     self = api;
+    if (tip)
+        return api;
     // Newest on top, which is what "it just opened" should mean.
     const list = openPopups.get(owner) ?? [];
     list.unshift(api);

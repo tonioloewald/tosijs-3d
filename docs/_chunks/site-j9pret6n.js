@@ -1,0 +1,5 @@
+import{g}from"./site-4gwmbhmj.js";class N{}N.POINTERDOWN=1;N.POINTERUP=2;N.POINTERMOVE=4;N.POINTERWHEEL=8;N.POINTERPICK=16;N.POINTERTAP=32;N.POINTERDOUBLETAP=64;class cb{constructor(s,t){this.type=s,this.event=t}}class tf extends cb{constructor(s,t,i,e){super(s,t);this.ray=null,this.originalPickingInfo=null,this.skipOnPointerObservable=!1,this.localPosition=new g(i,e)}}class zs extends cb{get pickInfo(){if(!this._pickInfo)this._generatePickInfo();return this._pickInfo}constructor(s,t,i,e=null){super(s,t);this._pickInfo=i,this._inputManager=e}_generatePickInfo(){if(this._inputManager)this._pickInfo=this._inputManager._pickMove(this.event),this._inputManager._setRayOnPointerInfo(this._pickInfo,this.event),this._inputManager=null}}class Cr{}Cr.KEYDOWN=1;Cr.KEYUP=2;class Gc{constructor(s,t){this.type=s,this.event=t}}class qu extends Gc{get skipOnPointerObservable(){return this.skipOnKeyboardObservable}set skipOnPointerObservable(s){this.skipOnKeyboardObservable=s}constructor(s,t){super(s,t);this.type=s,this.event=t,this.skipOnKeyboardObservable=!1}}
+export{N,cb,tf,zs,Cr,Gc,qu};
+
+//# debugId=CAB428B93D73E16664756E2164756E21
+//# sourceMappingURL=site-j9pret6n.js.map

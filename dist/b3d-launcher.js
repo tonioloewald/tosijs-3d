@@ -217,17 +217,20 @@ that assumes one orients its effect off nothing.
 | `ammo` | `40` | Magazine capacity (a `Resource`) |
 | `reloadRate` | `8` | Ammo regenerated per second (0 = no reload) |
 | `reloadDelay` | `1` | Seconds after firing before reload resumes |
+| `reloadTime` | `0` | Seconds a reload takes. Set, the launcher has a MAGAZINE of `ammo` rounds instead of regenerating: `reload()` (a biped's reload button) fills it from `ammoSource` after this long, and pulling the trigger on an empty one starts a reload. See [magazine](/magazine/) |
 | `gravity` | `-9.81` | Vertical acceleration on the shell |
 | `drag` | `0.01` | Quadratic drag coefficient (0 = vacuum) |
 | `mass` | `1` | Shell mass (higher flies flatter/further under drag) |
 | `projRadius` | `0.12` | Shell visual radius |
 | `projColor` | `'#ffdd55'` | Shell emissive colour |
+| `sound` | `''` | The shot you hear on every `fire()`: `pistol`, `rifle`, `heavy` or `bow`, synthesised ([gun-sound](/gun-sound/)); `''` is silent |
 | `missileTrail` | `'off'` | `'on'` leaves a smoke ribbon behind each guided missile (`fireAt`); see [b3d-trail](/b3d-trail/). For your own rounds, pass `trail` to `spawnProjectile`/`spawnMissile` |
 | `maxLifetime` | `6` | Seconds before an un-impacted shell self-disposes |
 | `damage` | `20` | Warhead full damage (see [b3d-warhead](/b3d-warhead/)) |
 | `fullRadius` | `1` | Warhead full-damage radius |
 | `blastRadius` | `3` | Warhead falloff radius |
 | `los` | `'on'` | Warhead line-of-sight gating |
+| `directHit` | `'off'` | `'on'`: a round damages what it hits and says where (`Cause.at`), so a body can tell a head shot from a hand; `'off'` bursts as a warhead and hurts what is near |
 | `x`,`y`,`z` | `0` | Launcher position (muzzle offset forward from here) |
 
 ## Authoring a weapon mesh
@@ -328,7 +331,7 @@ import * as BABYLON from '@babylonjs/core';
 import { loadLibraryMesh } from './library-mesh.js';
 import { findMuzzle, findSuffixed } from './model-transform.js';
 import { BONE_SOCKETS, findBone } from './bone-mask.js';
-import { anatomyFrame, gripPoint, mat4Invert, mat4Multiply, socketInHand, } from './hand-socket.js';
+import { anatomyFrame, gripPoint, mat4Invert, mat4Multiply, socketInHand, socketInForearm, } from './hand-socket.js';
 /*
 A HAND HOLDS THE SAME WAY ON ANY RIG. A weapon's x/y/z and rotation are
 dialled in against a hand bone, and a bone's axes are the rig maker's choice:
@@ -437,6 +440,53 @@ export function handSocket(skeleton, hand, side, handNode) {
     node.position.copyFrom(p);
     return node;
 }
+/**
+ * A forearm's SOCKET: a node under the lower arm in the arm's anatomy frame
+ * (UAL's calibration, so on UAL it is the bone itself), for what is strapped
+ * or worn there (a shield, a watch) on either side. Made once and reused.
+ */
+export function forearmSocket(skeleton, side, foreNode) {
+    const name = `lowerarm_${side}-socket`;
+    const had = foreNode.getChildren((n) => n.name === name, true)[0];
+    if (had != null)
+        return had;
+    const f = restWorld(skeleton, `lowerarm_${side}`);
+    const hand = restWorld(skeleton, `hand_${side}`)?.getTranslation();
+    const thumb = restWorld(skeleton, `thumb_01_${side}`)?.getTranslation();
+    if (f == null || hand == null || thumb == null)
+        return null;
+    const m = socketInForearm(side, Array.from(f.m), hand, thumb);
+    if (m == null)
+        return null;
+    const node = new BABYLON.TransformNode(name, foreNode.getScene());
+    node.parent = foreNode;
+    const s = new BABYLON.Vector3();
+    const q = new BABYLON.Quaternion();
+    const p = new BABYLON.Vector3();
+    BABYLON.Matrix.FromArray(m).decompose(s, q, p);
+    node.scaling.copyFrom(s);
+    node.rotationQuaternion = q;
+    node.position.copyFrom(p);
+    return node;
+}
+/**
+ * The node a held or worn thing hangs from on a skeleton: a hand's or
+ * forearm's socket, or a bone itself (`frame: 'bone'`, the spine). Pass
+ * hold-grip's `holdMount(class, side)`. Null when the rig has no such bone.
+ */
+export function mountNode(skeleton, mount) {
+    const bone = skeleton.bones
+        .find((b) => b.name === mount.bone)
+        ?.getTransformNode();
+    if (bone == null)
+        return null;
+    if (mount.frame === 'bone')
+        return bone;
+    const side = mount.side ?? (/_l$/.test(mount.bone) ? 'l' : 'r');
+    return ((mount.mount === 'forearm'
+        ? forearmSocket(skeleton, side, bone)
+        : handSocket(skeleton, mount.bone, side, bone)) ?? bone);
+}
 import { AbstractMesh, isOff, sceneDelta, collidable, disposeMeshTree, semanticParent, } from './b3d-utils.js';
 /** A guided missile always cruises at least this much FASTER than the platform that
  * launched it — otherwise it crawls off the rail and trails a fast mover. Sized to feel
@@ -448,6 +498,9 @@ import { steerToward, interceptLead, boostAuthority, gNormalize, gSub, } from '.
 import { makeResource, drain, regenTick, isEmpty, } from './resource.js';
 import { detonateWarhead } from './b3d-warhead.js';
 import { destroyableAt } from './destroyable-behavior.js';
+import { makeNoise } from './noise.js';
+import { gunshot } from './gun-sound.js';
+import { beginReload, cancelReload, fireRound, makeMagazine, reloading, setCapacity, tickMagazine, } from './magazine.js';
 import { attachTrail } from './b3d-trail.js';
 /*
 One place that fires both callbacks, so the deprecated spelling cannot drift
@@ -474,6 +527,8 @@ const reportImpact = (opts, impact) => {
  */
 export function spawnProjectile(owner, opts) {
     const scene = owner.scene;
+    // A shot is heard 25 m off (see noise): an NPC goes to look.
+    makeNoise(scene, opts.origin, 25);
     const r = opts.radius ?? 0.12;
     // Scratch copy so a per-frame drag change never mutates the caller's params
     // (they are commonly a shared constant on a launcher).
@@ -596,9 +651,11 @@ export function spawnProjectile(owner, opts) {
             if (hit != null && hit.hit && hit.pickedPoint != null) {
                 if (opts.directHit === true) {
                     // What it went through, not what was near where it stopped.
+                    const p = hit.pickedPoint;
                     destroyableAt(hit.pickedMesh)?.damage(opts.warhead.damage, {
                         ...(opts.cause ?? {}),
                         kind: 'direct',
+                        at: { x: p.x, y: p.y, z: p.z },
                     });
                 }
                 else {
@@ -829,6 +886,7 @@ export class B3dLauncher extends AbstractMesh {
         ammo: 40, // magazine capacity
         reloadRate: 8, // ammo regenerated per second (0 = no reload)
         reloadDelay: 1, // seconds after firing before reload resumes
+        reloadTime: 0, // seconds a magazine reload takes; 0 = regenerate instead
         gravity: -9.81,
         drag: 0.01,
         mass: 1,
@@ -838,11 +896,19 @@ export class B3dLauncher extends AbstractMesh {
         /** `'on'` leaves a smoke ribbon behind each guided missile (`fireAt`). */
         missileTrail: 'off',
         projColor: '#ffdd55',
+        // The shot heard on fire(): '' | 'pistol' | 'rifle' | 'heavy' | 'bow'.
+        sound: '',
         maxLifetime: 6,
         damage: 20,
         fullRadius: 1,
         blastRadius: 3,
         los: 'on',
+        /**
+         * `'on'`: a round damages what it hits, all of it, and tells it where
+         * (a bullet: a head shot is not a leg shot). `'off'` (default): it bursts
+         * as a warhead and hurts what is near by distance (a shell).
+         */
+        directHit: 'off',
     };
     /*
     DEGREES ALONGSIDE RADIANS, rather than instead of.
@@ -897,7 +963,15 @@ export class B3dLauncher extends AbstractMesh {
         this._degMemo = { deg: v, rad };
         this.turnRate = rad;
     }
+    /**
+     * Where a magazine reload's rounds come from (`reloadTime` set): `count()`
+     * is how many there are, `take(n)` hands over up to n. The game's, usually
+     * an inventory. Unset: an endless supply.
+     */
+    ammoSource = null;
     _ammoPool;
+    _mag = null;
+    _dry = false;
     _cooldown = 0;
     _stopLoad = null;
     _muzzleNode = null;
@@ -918,7 +992,68 @@ export class B3dLauncher extends AbstractMesh {
     }
     /** Ammo currently in the magazine. */
     get ammoRemaining() {
+        if (this.reloadTime > 0)
+            return this._magazine().loaded;
         return this._ammoPool?.value ?? 0;
+    }
+    /** Rounds in the magazine (`reloadTime` set); setting it loads that many (a gun taken out of the bag keeps its own). */
+    get loaded() {
+        return this._magazine().loaded;
+    }
+    set loaded(n) {
+        const m = this._magazine();
+        cancelReload(m);
+        m.loaded = Math.max(0, Math.min(m.capacity, Math.round(n)));
+    }
+    /** A magazine reload is under way. */
+    get reloading() {
+        return this._mag != null && reloading(this._mag);
+    }
+    /** The magazine, sized to `ammo` (which changes when a hand takes another gun). */
+    _magazine() {
+        if (this._mag == null)
+            this._mag = makeMagazine(this.ammo);
+        else if (this._mag.capacity !== this.ammo)
+            setCapacity(this._mag, this.ammo);
+        return this._mag;
+    }
+    /**
+     * Reload (`reloadTime` set): after `reloadTime` the magazine fills from
+     * `ammoSource`. False when it is full, already reloading, or there is
+     * nothing to load. Dispatches `reloading`, then `reloaded`.
+     */
+    reload() {
+        if (!(this.reloadTime > 0))
+            return false;
+        const available = this.ammoSource ? this.ammoSource.count() : Infinity;
+        if (!beginReload(this._magazine(), this.reloadTime, available))
+            return false;
+        this._dry = false;
+        this.dispatchEvent(new CustomEvent('reloading', {
+            bubbles: true,
+            detail: { seconds: this.reloadTime },
+        }));
+        return true;
+    }
+    /** Spend a round, from the magazine or the regenerating pool. */
+    _spend() {
+        if (this.reloadTime > 0) {
+            const m = this._magazine();
+            if (fireRound(m)) {
+                this._dry = false;
+                return true;
+            }
+            // Empty: reload if there is anything to load; if not, say so (once, until something changes).
+            if (!reloading(m) && !this.reload() && !this._dry) {
+                this._dry = true;
+                this.dispatchEvent(new CustomEvent('empty', { bubbles: true }));
+            }
+            return false;
+        }
+        if (isEmpty(this._ammoPool))
+            return false;
+        drain(this._ammoPool, 1);
+        return true;
     }
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
@@ -953,6 +1088,16 @@ export class B3dLauncher extends AbstractMesh {
             if (this._cooldown > 0)
                 this._cooldown -= dt;
             regenTick(this._ammoPool, dt);
+            if (this._mag != null && this.reloadTime > 0) {
+                const done = tickMagazine(this._magazine(), dt, (n) => this.ammoSource ? this.ammoSource.take(n) : n);
+                if (done) {
+                    this._dry = false;
+                    this.dispatchEvent(new CustomEvent('reloaded', {
+                        bubbles: true,
+                        detail: { loaded: this._mag.loaded },
+                    }));
+                }
+            }
         });
         /*
         A LIBRARY MODEL REPLACES THE PLACEHOLDER BOX (#34).
@@ -1260,11 +1405,13 @@ export class B3dLauncher extends AbstractMesh {
      * when the launcher is re-parented — which `_rideHolder` does once.
      */
     _mountRoot() {
-        if (this._mount !== undefined)
-            return this._mount;
+        // Looked up each time: a launcher moves to a new body (a respawn hands
+        // the dead hero's gear to the next one), and a body can still be loading
+        // when first asked. Cached, the new holder was a target for its own gun.
         const holder = semanticParent(this);
-        this._mount = holder?.entries?.rootNodes?.[0] ?? holder?.mesh ?? null;
-        return this._mount;
+        const root = holder?.entries?.rootNodes?.[0] ?? holder?.mesh ?? null;
+        this._mount = root;
+        return root;
     }
     _mount = undefined;
     /**
@@ -1284,10 +1431,9 @@ export class B3dLauncher extends AbstractMesh {
      * it would put the muzzle through a wall the shooter is standing against.
      * Whoever holds the gun is not a target for it, at any distance.
      */
-    _selfHit(m) {
+    _selfHit(m, root = this._mountRoot()) {
         if (m === this.mesh)
             return true;
-        const root = this._mountRoot();
         if (root == null)
             return false;
         return (m === root || m.isDescendantOf(root));
@@ -1367,13 +1513,16 @@ export class B3dLauncher extends AbstractMesh {
     fire(direction, origin) {
         if (this.owner == null)
             return false;
-        if (this._cooldown > 0 || isEmpty(this._ammoPool))
+        if (this._cooldown > 0 || !this._spend())
             return false;
-        drain(this._ammoPool, 1);
         this._cooldown = this.fireRate > 0 ? 1 / this.fireRate : 0;
         const dir = (direction ?? this.forward()).normalizeToNew();
+        const from = origin ?? this.muzzle();
+        if (this.sound)
+            gunshot(this.owner.scene, from, this.sound);
+        const holder = this._mountRoot();
         spawnProjectile(this.owner, {
-            origin: origin ?? this.muzzle(),
+            origin: from,
             velocity: dir.scale(this.muzzleSpeed),
             warhead: this.warheadSpec,
             params: this.ballisticParams,
@@ -1381,8 +1530,9 @@ export class B3dLauncher extends AbstractMesh {
             color: this.projColor,
             maxLifetime: this.maxLifetime,
             useLos: !isOff(this.los),
+            directHit: this.directHit === 'on',
             // Our own barrel AND whoever is holding us — see `_selfHit`.
-            ignore: (m) => this._selfHit(m),
+            ignore: (m) => this._selfHit(m, holder),
         });
         return true;
     }
@@ -1394,10 +1544,10 @@ export class B3dLauncher extends AbstractMesh {
     fireAt(target, direction) {
         if (this.owner == null)
             return false;
-        if (this._cooldown > 0 || isEmpty(this._ammoPool))
+        if (this._cooldown > 0 || !this._spend())
             return false;
-        drain(this._ammoPool, 1);
         this._cooldown = this.fireRate > 0 ? 1 / this.fireRate : 0;
+        const holder = this._mountRoot();
         spawnMissile(this.owner, {
             origin: this.muzzle(),
             target,
@@ -1408,7 +1558,7 @@ export class B3dLauncher extends AbstractMesh {
             radius: this.projRadius,
             maxLifetime: this.maxLifetime + 4, // missiles loiter a bit longer
             useLos: !isOff(this.los),
-            ignore: (m) => this._selfHit(m),
+            ignore: (m) => this._selfHit(m, holder),
             trail: isOff(this.missileTrail)
                 ? undefined
                 : {

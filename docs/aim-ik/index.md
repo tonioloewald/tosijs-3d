@@ -23,3 +23,17 @@ aimSpine([spine01, spine02, spine03], gun, aimDirection, { weight: 1, maxDeg: 70
 It works on directions in each bone's parent's frame, so a glTF root's
 handedness mirror and a uniform scale make no difference. `<tosi-b3d-biped>`
 runs it on its spine while it holds a weapon in `gunplay`.
+
+## Reaching
+
+`reachLimb(upper, lower, end, goal, bend)` puts a two-bone limb's end on a
+point ([[two-bone-ik]] does the solving), the middle joint bending toward
+`bend`; `setWorldRotation(node, matrix)` then turns the end itself (a hand onto
+a grip). The biped shoulders a long gun with them: the stock on the right
+shoulder, the barrel along the aim, the left hand on the foregrip.
+
+```javascript
+import { reachLimb } from 'tosijs-3d'
+
+reachLimb(upperarm_l, lowerarm_l, hand_l, foregrip, new BABYLON.Vector3(0, -1, 0))
+```

@@ -31,7 +31,12 @@ import {
   inventoryDock,
   b3dPanel,
 } from '../src/index'
-import type { InventoryDock, B3dPanel, InventoryApi, Currency } from '../src/index'
+import type {
+  InventoryDock,
+  B3dPanel,
+  InventoryApi,
+  Currency,
+} from '../src/index'
 
 // The b3d element examples receive as `el` in sceneCreated — just the bits these helpers touch.
 type B3dEl = {
@@ -434,7 +439,13 @@ export function demoLoadout(
      */
     catalogue?: Record<
       string,
-      { tags: string[]; mass: number; art?: string; stack?: number; cost?: number }
+      {
+        tags: string[]
+        mass: number
+        art?: string
+        stack?: number
+        cost?: number
+      }
     >
     /**
      * An item dragged out of the loadout onto drop: it leaves the

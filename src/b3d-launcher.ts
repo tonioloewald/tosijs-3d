@@ -1835,10 +1835,7 @@ export class B3dLauncher extends AbstractMesh {
    * it would put the muzzle through a wall the shooter is standing against.
    * Whoever holds the gun is not a target for it, at any distance.
    */
-  private _selfHit(
-    m: BABYLON.AbstractMesh,
-    root = this._mountRoot()
-  ): boolean {
+  private _selfHit(m: BABYLON.AbstractMesh, root = this._mountRoot()): boolean {
     if (m === this.mesh) return true
     if (root == null) return false
     return (

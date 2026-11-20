@@ -44,3 +44,8 @@ AND THE CLIP IT PLAYS, when that is one of your own: `clips` carries the file
 it came from (a BVH capture or a GLB's animations, by file name, with its
 kind), so a page that has never seen the file reads it as the builder did
 ([clip-store](/clip-store/)).
+
+IN AN EXPORT TOO: the builder's GLB carries the whole document in
+`asset.extras.tosijsCharacter`, so the file that plays in another engine is
+also a save. `readGlbCharacter(bytes)` takes it out (null when it has none),
+and the builder's import opens such a GLB.

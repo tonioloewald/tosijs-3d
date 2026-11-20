@@ -492,7 +492,13 @@ export function createInventory(
           p.purse = p.purse ?? {}
           p.purse[m.pay.in] = (p.purse[m.pay.in] ?? 0) + m.amount
         }
-        events.push({ type: 'paid', from: m.pay.holder, to: m.payee ?? null, amount: m.amount, in: m.pay.in })
+        events.push({
+          type: 'paid',
+          from: m.pay.holder,
+          to: m.payee ?? null,
+          amount: m.amount,
+          in: m.pay.in,
+        })
         continue
       }
       if (id == null) {

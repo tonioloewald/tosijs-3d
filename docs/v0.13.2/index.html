@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    document.documentElement.classList.add('tosi-js')
+    document.addEventListener('click', function (e) {
+      if (customElements.get('tosi-doc-system')) return
+      var b = e.target.closest && e.target.closest('.doc-nav .nav-toggle')
+      if (!b) return
+      var open = b.closest('.nav-branch').classList.toggle('-open')
+      b.setAttribute('aria-expanded', String(open))
+    })
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+      if (p.style && /^[a-z-]+$/.test(p.style))
+        document.documentElement.classList.add('tosi-style-' + p.style)
+    } catch (e) {}
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css?v=6db508795fdb" data-tosi-doc-system />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&amp;family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&amp;display=swap" />
+  <title>0.13.2 — tosijs-3d</title>
+  <meta name="description" content="The test checklist on every scene&#39;s system bar (answer it in a headset), one Export… for the character builder whose GLB also carries the whole character…" />
+  <link rel="canonical" href="https://3d.tosijs.net/v0.13.2/" />
+  <link rel="alternate" type="text/markdown" href="index.md" title="0.13.2 — tosijs-3d (markdown)" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="0.13.2 — tosijs-3d" />
+  <meta property="og:description" content="The test checklist on every scene&#39;s system bar (answer it in a headset), one Export… for the character builder whose GLB also carries the whole character…" />
+  <meta property="og:url" content="https://3d.tosijs.net/v0.13.2/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"0.13.2","description":"The test checklist on every scene's system bar (answer it in a headset), one Export… for the character builder whose GLB also carries the whole character…","url":"https://3d.tosijs.net/v0.13.2/","inLanguage":"en","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Upgrading","item":"https://3d.tosijs.net/upgrading/"},{"@type":"ListItem","position":2,"name":"Changelog","item":"https://3d.tosijs.net/CHANGELOG/"},{"@type":"ListItem","position":3,"name":"0.13.2","item":"https://3d.tosijs.net/v0.13.2/"}]}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json?v=9a98199a84ec" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <article class="doc-content" data-doc="v0.13.2.md">
+<h1 id="0132">0.13.2</h1>
+<!--{ "parent": "CHANGELOG", "order": 9986998 }-->
+
+<p>The test checklist on every scene&#39;s system bar (answer it in a headset), one <strong>Export…</strong> for the character builder whose GLB also carries the whole character and its rig, smaller exported pictures, held things on either side or the forearm, gamepad and keyboard focus in panels, <code>pager3d</code>, and fields that wrap.</p>
+<p>Size: barrel (min, packages external) 1798.2 KB raw / 626.1 KB gz, up 90.7 KB / 32.1 KB gz (+5.3%) on 0.13.1: conversations, NPCs, doors, chests, pickups, trade and the checklist.</p>
+<h3 id="added">Added</h3>
+<ul>
+<li>The dev server&#39;s test checklist (tosijs-ui ≥ 1.19, <code>tosijs-checklist post</code>) on every scene&#39;s system bar, so it can be answered in a headset: one item at a time, 👍 / 👎 and a comment by the scene keyboard, saved through the same endpoint as the page&#39;s panel. Nothing runs off the dev server. <code>checklistPanel</code> builds the content alone (<code>b3d-checklist</code>).</li>
+<li><code>pager3d</code>, one page at a time: ‹ ›, a dot per page (tap to jump, <code>dotColor</code> per page), <code>3 / 20</code> past <code>maxDots</code>. For a panel that would otherwise scroll.</li>
+<li><code>inputField({ lines })</code>: the field wraps and grows as text is typed, up to that many lines, then keeps the caret&#39;s line in view. <code>setValue</code> with the text the field already holds changes nothing (the caret stays). A <code>panel3d</code>&#39;s host <code>relayout</code> now re-measures its rows and takes the new height in place (it did nothing), so a row that changes height grows the panel and its plane.</li>
+<li>Exports can make their pictures smaller, two choices: <strong>pictures</strong> scales to a longest side of 2048, 1024 or 512, and <strong>compress pictures</strong> (with <strong>quality</strong>) turns opaque PNGs into JPEGs when smaller; with neither, pictures go out exactly as made, and a JPEG within the limit is never re-encoded: <code>compactGlbTextures</code>, <code>replaceGlbImages</code> and <code>compactCharacterTextures</code> (<code>tosijs-3d/glb-textures</code>). <code>exportForm</code> is the export as a modal (name, format, the GLB&#39;s options).</li>
+<li>The character builder&#39;s export carries the whole character file (settings with grips, held and stowed items, cloth, tailor outlines, own garments, body source, pictures, clips) in <code>asset.extras.tosijsCharacter</code>, so the GLB is also a save: <code>readGlbCharacter(bytes)</code> reads it and the builder&#39;s import opens the GLB. <code>exportBody</code>&#39;s target takes <code>extras</code>.</li>
+<li><code>riggedBodyGlb</code> writes its <code>recipe</code> whole into <code>asset.extras.tosijsRigRecipe</code> and <code>readGlbRigRecipe(bytes)</code> reads it back, so a T-posed export still carries the hand-placed rig; the rig tool&#39;s load takes such a GLB as well as a recipe JSON.</li>
+<li><code>playback3d</code> has a backwards button at the end of its row (the character builder&#39;s clip transport): the speed&#39;s sign is the direction, so backwards at ×0.5 is <code>handleSpeed(-0.5)</code>, and a negative speed from <code>read()</code> lights it.</li>
+<li>A class can be worn somewhere other than its own place: the character builder&#39;s held item has <strong>worn</strong> (hand, forearm) beside <strong>side</strong>, kept per class with the character&#39;s grips (<code>place:&lt;class&gt;</code>), with a grip of its own for that place (<code>gripKey</code>, starting from <code>PLACE_GRIPS</code>). <code>placeIn(name, kept)</code>; <code>holdMount</code> and <code>holdGrip</code> take a <code>place</code>. The Biped Playground follows it for the left hand (a buckler gripped in the fist).</li>
+<li>Held things go on either side. A hold class rides in the hand or on the forearm (<code>holdPlace</code>), on its own side unless told (<code>holdSide</code>: the right hand; a bow&#39;s left hand; a shield&#39;s and the new <code>wrist</code> class&#39;s left forearm), and <code>holdGrip(name, adjusted, classes, side)</code> mirrors a grip set for one side to the other (<code>mirrorGrip</code> in <code>hand-socket</code>; <code>ownSideGrip</code> stores an adjustment made on the other side). Each forearm has an anatomical socket like the hands&#39; (<code>forearmSocket</code>; on UAL it is the lower arm bone, so a shield&#39;s numbers mean what they did); <code>mountNode(skeleton, holdMount(class, side))</code> gives the node to hang a thing from. The character builder&#39;s held item has a <strong>side</strong> (auto, right, left); the Biped Playground draws whatever is in the left hand (a dagger in the off hand, a shield on the forearm).</li>
+<li>Focus in panels, for a gamepad and the keyboard. When a panel opens its default control takes the focus (<code>button3d({ default: true })</code>, <code>asDefault(widget)</code> for any widget; else the first), and a popup inside it does the same. Up and down, and <strong>Tab</strong> / shift-Tab, step through the controls and cycle; left and right move a slider, change a choice, move a text box&#39;s caret, else go to the control beside it. The keyboard&#39;s ring shows from the first Tab until the mouse is used. Gamepad UI mode, flat: hold D-pad up to reach the system bar, left and right step along it, <strong>B</strong> presses, down goes into the open panel; hold up in a panel to close it (focus goes back to its button on the bar), and on the bar to go back to playing. A panel that pops up while the pad was the last thing used takes the pad, and gives it back when it closes (hold up closes it). A modal (the pause, a respawn panel) takes the focus from what it covers, on its first button, so <strong>B</strong> answers it. While the mode is on the D-pad and B belong to the UI (<code>padUiOwns</code>; <code>HardwareGamepadSource.poll(true)</code> reads them anyway). <code>b3d.padUiActive</code>, <code>b3d.setPadUi(on)</code>; pure in <code>pad-ui</code> (<code>padNavigator</code>); widget semantics gain <code>isDefault</code> and <code>nudge</code>; <code>createFocusPulse</code> takes <code>repeat</code>. The inventory and the trade panel are reachable too: in the inventory <strong>B</strong> picks a thing up and <strong>B</strong> on a slot or the bag puts it down (while you carry it the D-pad skips the places that will not take it; a focused thing shows its info); in a trade <strong>B</strong> moves the thing straight across, the next one takes the focus, and a chest opens on <strong>take all</strong>. <code>inventoryPanel</code>, <code>inventoryDock</code> and <code>tradePanel</code> gain <code>controls()</code>; widget semantics gain <code>focus(on)</code>; a box gains <code>focusTo(i, { ring })</code> and <code>visibleRect(i)</code>.</li>
+<li>A conversation&#39;s replies can be chosen on a gamepad: the D-pad steps through them (cycling), <strong>B</strong> picks. The pad&#39;s choice wears the panels&#39; focus ring and is its own, apart from the mouse&#39;s hover; it starts on the first reply, and a first press (D-pad or B) only shows it. <code>gamepadFocus</code> takes <code>activate</code> and <code>back</code> (which buttons confirm and back out; the defaults are unchanged).</li>
+<li>Aiming is finer and sticky. While a biped aims, the sticks follow a response curve (<code>aimCurve</code>, default 2), the aim slows as it crosses something that can be hurt (<code>aimAssist</code>, default 0.5; 0 turns all of this off), and a sweep near a target with the stick below <code>aimBreakout</code> (default 0.7) LOCKS onto it: the aim eases onto its body and follows it as it or you move, a lighter stick slides the aim slowly across it (onto the head), and a push past the breakout lets go. Targets behind something solid are not locked. Pure helpers in <code>aim-assist</code> (<code>stickCurve</code>, <code>aimFriction</code>, <code>stickyAim</code>).</li>
+<li><code>&lt;tosi-b3d-launcher sound=&quot;pistol|rifle|heavy|bow&quot;&gt;</code> plays a synthesised shot at the muzzle on every <code>fire()</code> (<code>gunshot(scene, at, kind)</code> in <code>gun-sound</code>; no files). The Biped Playground&#39;s guns have them.</li>
+<li><code>trade.offer(currency)</code> (what changes hands, and whether they are short) and <code>trade.deal(currency, { upTo: true })</code> (one payment of what it comes to, capped at what they have). An inventory move with <code>pay</code> and <code>amount</code> and no item is a payment alone; <code>pay.holder: &#39;&#39;</code> is money from outside the world (a reward, coins found).</li>
+<li>In the Biped Playground, a pile of 50 gold by the gate chest, and the shopkeeper says &quot;Please, take a look.&quot; before the shop opens, in the middle of the view.</li>
+<li>The default AR session (<code>xr-passthrough</code>) scales you to the scene: you arrive with what the flat view showed a step ahead, one grip drags the scene, both grips resize and turn it, and the sticks walk at your scale. <code>b3d.xrFrame(centre, radius)</code> puts any point in front of you at a chosen size; <code>b3d.xrSupport</code> says whether the device offers VR and AR. Pure maths in <code>xr-grab</code>. In the Solar System, <strong>look at</strong> brings a body in front of you, and the passthrough toggle shows only where AR exists, outside a session.</li>
+<li><code>&lt;tosi-b3d xr-passthrough=&quot;on&quot;&gt;</code>: Enter VR starts an AR session where the device has passthrough (a Quest): the room shows behind the scene, with no sky and no floor grid. Elsewhere it enters VR. The scene dispatches <code>xrenter</code> (<code>detail.passthrough</code>) and <code>xrexit</code>. The Solar System demo has a <strong>passthrough (AR)</strong> toggle: the system stands a metre and a half across in your room.</li>
+<li>The Biped Playground&#39;s shopkeeper speaks his lines (<code>speech/shopkeeper-*.mp3</code>, voiced locally with Qwen3-TTS, a direction per line; deploy static-assets first). Their manifest is <code>bin/speech-shopkeeper.json</code>.</li>
+<li><code>&lt;tosi-b3d-conversation&gt;</code>: nest it in a biped, give it a <code>script</code> and a <code>host</code> (the game&#39;s inventory), and <code>start(player)</code>. The speaker turns to face you and talks or gestures (<code>talk</code>, <code>yes</code>, <code>no</code>, <code>give</code>, <code>show</code>, <code>surprise</code>, <code>foldArms</code> in <code>ualAnimationStates</code>); its line and your replies are in a speech balloon over its head (click, a controller, or the reply&#39;s number key), your line in one over you; a line&#39;s <code>audio</code> plays; a <code>trade</code> effect opens the game&#39;s shop and the talk resumes when it closes; walking away ends it. <code>B3dBiped.perform(state, seconds)</code> holds a clip that long (a loop loops), and <code>endPerform()</code> stops it. In the Biped Playground, E at the counter talks to the shopkeeper: he sells, and pays rifle rounds for the potion in the gate chest. <code>UAL1_core.glb</code> carries the talking and gesture clips (10.9 MB, was 9.0) once static-assets is deployed.</li>
+<li><code>startConversation(script, host)</code>: a conversation as data and a clock. Nodes of lines (speaker, text, audio, gesture, interruptible) and replies (a label, the player&#39;s spoken line, a <code>when</code> on what they carry or flags, a <code>then</code> of effects: goto, end, give, take, trade, set a flag). Replies appear as the last line nears its end, a pick cuts an interruptible line, a trade pauses the talk until it closes, and every line goes in <code>transcript</code>. Effects go through the host (the game&#39;s inventory). Pure; the 3D staging comes next.</li>
+<li>A Bow and a Kite Shield in <code>tonio/weapons-classic</code> (library <code>?v=3</code>, once static-assets is deployed). A bow is held in the LEFT hand (<code>holdMount(&#39;bow&#39;)</code> is <code>hand_l</code>&#39;s socket; a launcher takes <code>socket: &#39;left-hand&#39;</code>), upright along the aim; the kite shield is a shield. The character builder holds a bow in the left hand (its row is now <strong>in hand</strong>). In the Biped Playground a bow lies by the start, arrows are in the gate chest and the shop, the shop sells the kite shield, and with the bow up the hero plays UAL&#39;s bow clips. The bow is untextured and its string does not draw yet.</li>
+<li>A biped in gunplay SHOULDERS a long gun (a <code>rifle</code> by <code>holdClassOf</code>, or a model with a <code>_foregrip</code> node): the shoulders blade, the stock goes to the right shoulder with the barrel along the aim, and the left palm cradles the foregrip. It plays the pistol aim corrected by arm IK, since no CC0 set has rifle clips; <code>_stock</code> and <code>_foregrip</code> nodes place it exactly, else it is read off the model&#39;s shape. New: <code>twoBoneIk</code> (pure; the retargeter&#39;s leg IK now uses it), and <code>reachLimb</code>, <code>setWorldRotation</code>, <code>turnAbout</code> in aim-ik.</li>
+<li><code>B3dBiped.setAimClips(AIM_CLIPS.bow)</code> switches the gunplay states (stance, aim up/level/down, shoot, reload) to UAL2&#39;s bow set; <code>AIM_CLIPS.pistol</code> is the default. <code>UAL1_core.glb</code> carries the bow clips once static-assets is deployed.</li>
+<li>Mounts beyond the right hand. A shield is strapped to the LEFT FOREARM (<code>holdMount(class)</code>: <code>lowerarm_l</code>, in the bone&#39;s frame), and anything stowed rides on the BACK across the shoulders (<code>STOW_MOUNT</code>, the upper spine; <code>stowGrip(name)</code>, blades hilt up, long guns barrel up). The character builder&#39;s Hold section has <strong>on the back</strong> beside <strong>right hand</strong>, each with its manipulator and per-class numbers (a character keeps stowed places as <code>stow:&lt;class&gt;</code> in <code>grips</code>, and a new <code>stowed</code> setting). In the Biped Playground the buckler goes in the left hand (not the right) and is drawn on the forearm, and whatever is on the back is drawn there.</li>
+<li>A shopkeeper in the Biped Playground: a stand-in mannequin behind a counter; E at the counter opens a priced trade (ammo by the box, buy at value, sell at half). <code>tradePanel</code> takes <code>moveFor</code>, and <code>trade</code> counts what crossed by kind and quantity, so stacks split and joined in a trade are paid for correctly (<code>TradeChange</code> is now <code>{ kind, qty, from, to }</code>).</li>
+<li>The rig tool&#39;s <code>dragging</code> has <strong>moves the joint alone</strong>: a shoulder moved without carrying its elbow and wrist. <code>RigToolApi.skeleton</code> is the model&#39;s skeleton now.</li>
+<li>Magazines and reloading. <code>&lt;tosi-b3d-launcher reload-time&gt;</code> gives a launcher a magazine of <code>ammo</code> rounds, refilled from <code>ammoSource</code> (<code>count()</code>, <code>take(n)</code>: the game&#39;s, an inventory) after <code>reloadTime</code> seconds; <code>reload()</code>, <code>loaded</code>, <code>reloading</code>, and <code>empty</code> / <code>reloading</code> / <code>reloaded</code> events. An empty gun reloads when the trigger is pulled. Without <code>reloadTime</code> a launcher regenerates as before. <code>magazine</code> is the pure model. <code>ControlInput.reload</code> (d-pad left, J on a keyboard) makes a biped reload what it holds.</li>
+<li><code>B3dBiped.heal(amount)</code>. <code>&lt;tosi-b3d-pickup&gt;</code> gains <code>qty</code> (a box of 30 rounds is one pickup) and <code>refuse(by)</code> (a reason it can&#39;t be taken now: a potion at full health), with <code>whenRefused</code> and a <code>refused</code> event.</li>
+<li><code>currency</code>: how money is written, <code>formatMoney(amount, { id, label, position })</code> (<code>€12</code>, <code>12 gold</code>, <code>12 gp</code>). An inventory takes <code>currencies</code>, and its panel&#39;s purse line, an item&#39;s value in the info floater and a trade&#39;s <code>you pay …</code> are written with them.</li>
+<li><code>&lt;tosi-b3d-door&gt;</code> and <code>&lt;tosi-b3d-chest&gt;</code>. A door swings open away from whoever opens it (interact or a click), is solid shut and blocks sight; a chest&#39;s lid lifts while the player plays <code>chestOpen</code> (UAL&#39;s <code>Chest_Open</code>). Either can have a <code>lock</code> (a key kind); <code>hasKey(key, by)</code> is the game&#39;s answer, a refusal comes back with its reason, a key unlocks it for good. <code>tradePanel</code> (inventory-trade) is the take-and-leave panel a chest opens, and a shop&#39;s: with a <code>price</code> it shows which way the money goes (<code>you pay 12 gold</code>, <code>you receive 6 gold</code>) and settles through the inventory&#39;s rules (<code>trade</code>, pure). The demo loadout takes extra <code>holders</code>, a <code>purse</code> and a <code>price</code>. The Biped Playground has a walled yard behind the start: the key is in the chest by its locked door, and the chest inside holds the rocket launcher.</li>
+<li>Hit locations. <code>&lt;tosi-b3d-launcher direct-hit=&quot;on&quot;&gt;</code> makes a round damage what it hits and say where (<code>Cause.at</code>); a biped places it with <code>hitRegion(point)</code> (head round the head bone, trunk near the hips-to-neck axis, limbs elsewhere, moving with a crouch) and scales it by <code>hitScale</code> (head 2.5, trunk 1, limb 0.5), playing <code>hitHead</code>, <code>hitChest</code>/<code>hitStomach</code> or <code>hitShoulderL</code>/<code>R</code>. <code>DestroyableBehavior.damageScale</code> is the hook. The Biped Playground&#39;s guns hit directly (the rocket launcher still bursts). <code>UAL1_core</code> also carries <code>Hit_Shoulder_L</code>/<code>R</code>.</li>
+<li><code>&lt;tosi-b3d-npc&gt;</code>: nest it in a biped and the biped is an enemy. It stands guard (or wanders, or walks a <code>patrol</code> route), oblivious until it notices the player: in front within 50 m with a clear line, behind within 10 m, a third of each when the player crouches; a noise sends it to look where the noise was. Then it chases (to where you were, between thoughts), attacks within reach, loses you, searches, and goes back. <code>npc-brain</code> (the decisions) and <code>sensorium</code> (the senses) are pure and seeded; <code>noise</code> (<code>makeNoise</code>) records shots, blasts and tossed things. <code>&lt;tosi-b3d-pickup&gt;</code> gains <code>toss(to)</code> and <code>noise</code>. A biped dispatches <code>hurt</code> when damaged and stands where its attributes say from its first frame. The Biped Playground has a guard and a patroller, and dropping an item throws it.</li>
+<li><code>&lt;tosi-b3d-pickup item&gt;</code>: a library model lying in the world that the player picks up with interact (or a click). The biped kneels for it, it leaves at the moment the hand reaches it, and <code>whenPickedUp({ item, by })</code> and a bubbling <code>pickedup</code> event hand it to the game. <code>B3dBiped.perform(state)</code> plays a one-off clip and holds still (pickups, chests, hits). The demo loadout&#39;s <code>handleDrop</code> puts a dropped item in the world. In the Biped Playground a rifle, a sword and a buckler lie by the start, and what you drop lands at your feet.</li>
+<li><code>&lt;tosi-b3d-biped health&gt;</code>: hit points (0, the default, means it can&#39;t be hurt). A hurt biped is a target for warheads like any destroyable; each hit plays a hit clip (chest, stomach and head in turn, a knockback for a blast) and holds it still; at 0 it plays <code>death</code> and dispatches <code>destroyed</code>, which <code>&lt;tosi-b3d-death&gt;</code> answers without exploding it. <code>healthRegen</code> heals after <code>healthRegenDelay</code>. <code>hp</code>, <code>damage()</code> and <code>aimTarget</code> (a chest-height node for turrets and AI). <code>DestroyableBehavior</code> gains <code>whenDamaged</code> and <code>flash: false</code>. The Biped Playground has a turret past the cover line and a health readout.</li>
+<li>Falls on <code>&lt;tosi-b3d-biped&gt;</code>. Walking off a ledge plays the air loop; a landing from more than <code>hardLanding</code> metres (auto: 1.5 body heights) plays <code>hardLand</code> (UAL&#39;s <code>Roll</code>) and holds you still; <code>lethalFall</code> (metres, off by default) kills on landing: the <code>death</code> clip where you land and a bubbling <code>crash</code> event (<code>detail: { cause: &#39;fall&#39;, drop }</code>). <code>&lt;tosi-b3d-death&gt;</code> answers it without an explosion for an entity that shows its own death (<code>diesInPlace</code>). The Biped Playground&#39;s tower kills, and Respawn puts you back at the start. <code>fall</code> holds the rules.</li>
+<li><code>mirror</code> on <code>bakeClip</code>, <code>retargetClip</code>, <code>retargetSourceClip</code> and retargeting: the clip played left to right, each bone moving as its partner on the other side did, reflected. In the character builder it is <strong>Mirrored</strong> in the Animation menu, and an exported clip carries it as &quot;<clip> (mirrored)&quot;.</li>
+</ul>
+<h3 id="changed">Changed</h3>
+<ul>
+<li>Default grips: one-handed blades, pistols and forearm shields, and a bow and a shield on the back, were placed by hand in the character builder (rifles, two-handed blades and poles unchanged). A character&#39;s own adjustments still win.</li>
+<li>Character builder: the panel&#39;s Export section is gone; <strong>Export…</strong> in the Character menu asks for the name and format (a GLB, which also carries the character, or the character file) and the GLB&#39;s options. <strong>Import…</strong> opens either.</li>
+<li>Tosijs-ui ^1.19.1 (dev dependency): the dev server serves the checklist endpoints.</li>
+<li>The rig tool&#39;s <code>move joints</code> toggle and its drag select are one icon picker, <strong>drag</strong>: markers, joints (with what hangs from them), alone, turn.</li>
+<li>Character builder: while rigging, <strong>Pause</strong> (Animation, on the bar) holds the clip where it is, in perspective; <strong>Rest pose</strong> is its own item (pause used to stand the body at rest in an orthographic view). A manipulator turned on while rigging pauses the rig tool&#39;s clip (it paused only the builder&#39;s). The builder&#39;s settings panel drops the scene Pause, which read as the clip&#39;s. <code>&lt;tosi-b3d panel-pause=&quot;off&quot;&gt;</code> leaves it out of any scene&#39;s panel; the rig tool&#39;s API has <code>frozen</code>.</li>
+<li>Things stowed on the back sit as they should: a long gun is slung barrel up over the right shoulder, flat against the back (it pointed forward through the chest); a spear rides point up (it hung point down), a bow upright. The spear has its own hold class, <code>pole</code> (it was <code>melee2h</code>): a character&#39;s <code>melee2h</code> grip adjustment no longer applies to it.</li>
+<li>Tooltips and info cards in a scene are their own surfaces: a panel&#39;s tooltip (an icon button&#39;s name) and the inventory&#39;s and trade panel&#39;s info card (shown on hover or D-pad focus) open in front of every panel and popup, beside or under what they describe, so the panel&#39;s edge no longer cuts them off, and they are never picked (a ray or click passes through). <code>showTipSurface(root, sheet, anchor, side)</code> in <code>panel-layer</code>; <code>openPopup({ tip: true })</code>. A panel only on the page draws them in itself, as before.</li>
+<li>⚠️ the D-pad no longer zooms the biped&#39;s camera (it is for UI navigation; XR controllers have none). The mouse wheel still zooms, through a new optional <code>VirtualGamepad.zoom</code> axis, not the d-pad.</li>
+<li>⚠️ the biped&#39;s gamepad layout. <strong>A</strong> attacks (fires with the weapon raised, the right trigger still does; swings a melee weapon), <strong>B</strong> uses (doors, chests, lifts, pickups, talking) and, with the weapon raised, ducks instead, so it can never fire; clicking the <strong>right stick</strong> jumps (it toggled the weapon; the right bumper still does); <strong>X</strong> is a use alias. In a car <strong>B</strong> gets out as well as X. The keyboard is unchanged (space jumps, E uses, F attacks): a mapping&#39;s <code>keyboard</code> transform moves the keys. Pure in <code>bipedMapping</code>; labels in <code>bipedMappingDescriptor</code>.</li>
+<li>A chest&#39;s trade panel closes itself 0.7 s after <strong>take all</strong> takes everything.</li>
+<li>Biped Playground: the HUD is smaller, at the bottom middle, translucent, and can be dragged anywhere. In a headset a <code>bottom</code>/<code>right</code> percentage pin places a system panel as <code>top</code>/<code>left</code> do.</li>
+<li>A shop&#39;s trade panel no longer shows their purse. Yours is under your list, and the line under both reads <code>you&#39;ll pay 12 gold</code>, <code>you&#39;ll receive 6 gold</code>, or, when they cannot pay what yours fetch, <code>you&#39;ll receive 200 gold (all he can offer)</code> with <code>he can&#39;t offer more than 200 gold</code>. Deal then takes all they have. New option <code>they</code> (how the other side is named in a sentence, default <code>&#39;they&#39;</code>).</li>
+<li>The Biped Playground shows health, ammo and messages in a panel at the top right (flat and in a headset) instead of a line of text under the scene; what each enemy is doing is in Perf Stats (<code>#debug</code>).</li>
+<li><code>UAL1_core.glb</code> is asked for as <code>?v=5</code> (the bow clips), so deploy static-assets before loading a page.</li>
+<li>The character builder&#39;s clips include UAL&#39;s zombie idle, walk, run, scratch and bite (once static-assets is deployed).</li>
+<li>In the character builder, the grip and hair manipulators turn off when the clip plays or changes, and the held item stays in hand while rigging (on the rig tool&#39;s body), so arm space can be judged with it.</li>
+<li>The Biped Playground&#39;s guns have magazines (pistol 12, SMG and rifle 30, rocket launcher 1) loaded from ammo in the bag; ammo boxes, a potion and a heart lie about; the hero has a purse and the weapons have values.</li>
+<li><code>quaternius/UAL1_core.glb</code> carries <code>Death01</code>, <code>Death02</code>, <code>Roll</code>, <code>Hit_Chest</code>, <code>Hit_Head</code>, <code>Hit_Stomach</code>, <code>PickUp_Kneeling</code>, <code>NinjaJump_Land</code>, <code>Hit_Knockback</code> and <code>Chest_Open</code> (8.0 MB, was 6.9); the library asks for it as <code>?v=4</code>.</li>
+</ul>
+<h3 id="fixed">Fixed</h3>
+<ul>
+<li>Opening a modal with a text field (the builder&#39;s save-as name) no longer focuses its hidden screen-reader input: on an iPhone that brought up the system keyboard, which blurred and paused the scene and vanished. Focus goes to its first button, and the scene&#39;s keyboard types into the drawn field.</li>
+<li>A long tooltip wraps at 220 units instead of running off as one line (in a scene it was a plane several panels wide, stretched and blurred).</li>
+<li>Scene checklist: answers given elsewhere update the scene&#39;s panel in place, so a comment being typed keeps its caret; answers not yet saved win over a poll&#39;s older copy; an answer in the scene shows in the page&#39;s panel even while its comment box has focus. Comments wrap to four lines.</li>
+<li>A menu in a scene panel (any select) could not be chosen from while the camera was more than 10 km away, as the rig tool&#39;s orthographic views put it: every press on the menu counted as outside it and closed it. A select&#39;s menu now ticks the current option.</li>
+<li>Biped Playground: a character from the builder holds and wears things where the builder placed them (its per-class grips, its shield and the places on its back); every hero used the defaults. The mannequin still does.</li>
+<li>A manipulator grabs only with its own handles, and none while hidden: with two on a page (the character builder&#39;s item and hair handles), a press to orbit the view could start a move of the hidden one, whose invisible handles stayed at the scene&#39;s middle.</li>
+<li>Inventory dock: a drop whose swap is refused sends what it displaced to the list (a shield moved from the off hand onto a back holding a two-handed spear, with a sword in the other hand). <code>inventoryPanel</code> takes <code>spill</code>.</li>
+<li>The character builder&#39;s JSON export of an unnamed character is <code>character.json</code> (it was <code>character.character.json</code>).</li>
+<li>City Drive&#39;s cars: some drew black and mangled, others as nothing but their lamps. Babylon&#39;s <code>Mesh.MergeMeshes</code> appends into the first part&#39;s index array in place, and the parts shared their geometry with the library&#39;s, so each merge grew the library&#39;s wheel and every car built after it was corrupt. <code>&lt;tosi-b3d-city&gt;</code> gives each part its own geometry before merging.</li>
+<li>A biped&#39;s nameplate is hidden while it is in a conversation (it sat behind the balloon).</li>
+<li>Rig tool: a marker joint (elbow, wrist, knee) dragged with <code>dragging</code> set to move the joint alone, by its joint dot or its marker, no longer carries what hangs from it (the joints below stay where they are drawn), and a joint drag that moves markers too (a collar carrying the elbow and wrist) is one undo step, not two.</li>
+<li>A launcher finds who is holding it at each shot (it cached the first answer, so after a respawn the new hero&#39;s own shots hit him).</li>
+<li>In a headset, a system panel pinned by a percentage of the screen (<code>left: &#39;50%&#39;</code>, <code>top: &#39;50%&#39;</code>, a centred <code>anchor</code>) goes that far across the view in front of you; it hung under the system bar, 66° up (the trade panel was in the sky). The biped&#39;s third-person camera in a headset stays this side of walls, as the flat one does.</li>
+<li><code>pickup.toss(to)</code> called before the pickup has joined the scene (just appended) waits for it instead of doing nothing (a dropped item hung in mid-air), and without a <code>to.y</code> it lands on whatever is under the spot, not at y 0.</li>
+<li>A tossed pickup stops at the foot of a wall in its way, and lands on what is under its arc, never on top of a wall higher than it flew. The Biped Playground throws a dropped item 3 m to the right front, low.</li>
+<li>The biped&#39;s follow camera in doorways and small rooms: its wall check runs from what it looks at to where the camera really sits (it ran from the waist, through the doorway, while the camera sat over the wall), ignores invisible hulls, and when a wall pulls it in, or stands between it and you, the camera goes straight there instead of easing through the wall.</li>
+<li>An open flat system panel follows a new active camera (it is opened again on it). One opened at scene start, before a biped&#39;s follow camera, was never drawn.</li>
+<li>A biped killed by damage or a fall stays down. When the death clip ended, the loop it died in stood the body back up. Killed with a gun up, its upper-body aim layer kept looping over the corpse; it is dropped too.</li>
+<li>In the Biped Playground, Respawn brings the hero back; before, it removed him and added nobody. The line under the scene now says how to draw and fire. The enemies see 25 m (was 50) and the guard stands beyond the cover line, so neither notices you at the start, the shop or the things lying about.</li>
+<li>In a scaled XR session a controller&#39;s ray reaches the system bar (it stopped 1000 units out).</li>
+<li>In a session with a WebXR <code>worldScalingFactor</code>, panels on the head-following frames (the system bar, the settings panel) keep their size (<code>XrFrames</code> takes <code>worldScale</code>).</li>
+<li>Closing the Biped Playground&#39;s chest or shop panel with its × ends the trade (a chest no longer stays open).</li>
+<li>Scene panels and modals work by touch on a phone. The screen-reader copies laid over them took every tap, so a menu opened Android&#39;s own picker instead of the drawn one. They now take touches only once a screen reader is in use (<code>ariaMirror</code>&#39;s new <code>touchable</code> option), and a long press no longer counts as a screen reader.</li>
+<li>A <code>barMenu</code> submenu (the character builder&#39;s Select and Delete, the Animation menu&#39;s groups) opens and stays open. The list it replaced still answered the panel&#39;s last <code>leave</code> and repainted itself over the new one, so a submenu flashed and vanished or never appeared.</li>
+<li>Typing in a text field on a scene modal (the character builder&#39;s save and rename prompts) shows each key as it is typed. The modal&#39;s screen-reader copy holds focus, and its typing reached the drawn field only on Enter or blur; it now passes every keystroke through, Enter is the field&#39;s Enter, and the old text is selected so a new name replaces it.</li>
+</ul>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../getting-started/">Getting started</a></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-demos" aria-label="Demos"></button><a class="doc-link" href="../demos/">Demos</a></div>
+    <ul id="tosi-nav-demos">
+      <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
+      <li><a class="doc-link" href="../solar-system/">Solar System</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-weapon-fit" aria-label="Weapon Fit"></button><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></div>
+      <ul id="tosi-nav-weapon-fit">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-hold-grip" aria-label="hold grips"></button><a class="doc-link" href="../hold-grip/">hold grips</a></div>
+        <ul id="tosi-nav-hold-grip">
+          <li><a class="doc-link" href="../hand-socket/">hand socket</a></li>
+        </ul></li>
+      </ul></li>
+      <li><a class="doc-link" href="../rig-tool/">Rig tool</a></li>
+      <li><a class="doc-link" href="../effect-tool/">Effect tool</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-builder" aria-label="Character Builder"></button><a class="doc-link" href="../character-builder/">Character Builder</a></div>
+      <ul id="tosi-nav-character-builder">
+        <li><a class="doc-link" href="../human-pack/">human-pack</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-file" aria-label="character-file"></button><a class="doc-link" href="../character-file/">character-file</a></div>
+        <ul id="tosi-nav-character-file">
+          <li><a class="doc-link" href="../character-store/">character-store</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="../human-morph/">human-morph</a></li>
+        <li><a class="doc-link" href="../human-rig/">human-rig</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-tailor-tool" aria-label="tailor tool"></button><a class="doc-link" href="../tailor-tool/">tailor tool</a></div>
+        <ul id="tosi-nav-tailor-tool">
+          <li><a class="doc-link" href="../tailor-recipe/">tailor-recipe</a></li>
+          <li><a class="doc-link" href="../tailor-panel/">tailor panel</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="../skin-tone/">skin-tone</a></li>
+        <li><a class="doc-link" href="../skin-shading/">skin-shading</a></li>
+        <li><a class="doc-link" href="../human-face/">human-face</a></li>
+        <li><a class="doc-link" href="../human-expression/">human-expression</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-human-hair" aria-label="human-hair"></button><a class="doc-link" href="../human-hair/">human-hair</a></div>
+        <ul id="tosi-nav-human-hair">
+          <li><a class="doc-link" href="../hair-shading/">hair-shading</a></li>
+          <li><a class="doc-link" href="../hair-fit/">hair-fit</a></li>
+        </ul></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-human-proxy" aria-label="human-proxy"></button><a class="doc-link" href="../human-proxy/">human-proxy</a></div>
+        <ul id="tosi-nav-human-proxy">
+          <li><a class="doc-link" href="../proxy-fit/">proxy-fit</a></li>
+          <li><a class="doc-link" href="../cloth-shading/">cloth-shading</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-garment-cut" aria-label="garment-cut"></button><a class="doc-link" href="../garment-cut/">garment-cut</a></div>
+          <ul id="tosi-nav-garment-cut">
+            <li><a class="doc-link" href="../outline-field/">outline field</a></li>
+            <li><a class="doc-link" href="../remesh/">remesh</a></li>
+            <li><a class="doc-link" href="../cloth-drape/">cloth drape</a></li>
+            <li><a class="doc-link" href="../body-sweep/">body-sweep</a></li>
+          </ul></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-garment-bind" aria-label="garment-bind"></button><a class="doc-link" href="../garment-bind/">garment-bind</a></div>
+          <ul id="tosi-nav-garment-bind">
+            <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-garment-file" aria-label="garment-file"></button><a class="doc-link" href="../garment-file/">garment-file</a></div>
+            <ul id="tosi-nav-garment-file">
+              <li><a class="doc-link" href="../uv-unwrap/">uv-unwrap</a></li>
+              <li><a class="doc-link" href="../garment-proxy/">garment proxy</a></li>
+            </ul></li>
+            <li><a class="doc-link" href="../proxy-rigid/">proxy-rigid</a></li>
+          </ul></li>
+        </ul></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character" aria-label="character"></button><a class="doc-link" href="../character/">character</a></div>
+        <ul id="tosi-nav-character">
+          <li><a class="doc-link" href="../character-sources/">character sources</a></li>
+        </ul></li>
+      </ul></li>
+      <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
+      <li><a class="doc-link" href="../land-and-sky/">Land and Sky</a></li>
+      <li><a class="doc-link" href="../city-drive/">City Drive</a></li>
+      <li><a class="doc-link" href="../cross-country/">Cross Country</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-core" aria-label="Core"></button><a class="doc-link" href="../core/">Core</a></div>
+    <ul id="tosi-nav-core">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-tosi-b3d" aria-label="b3d"></button><a class="doc-link" href="../tosi-b3d/">b3d</a></div>
+      <ul id="tosi-nav-tosi-b3d">
+        <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-loader" aria-label="b3d-loader"></button><a class="doc-link" href="../b3d-loader/">b3d-loader</a></div>
+      <ul id="tosi-nav-b3d-loader">
+        <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="../b3d-primitives/">Primitives: box, sphere, ground</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-library" aria-label="b3d-library"></button><a class="doc-link" href="../b3d-library/">b3d-library</a></div>
+      <ul id="tosi-nav-b3d-library">
+        <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-agent" aria-label="agents"></button><a class="doc-link" href="../b3d-agent/">agents</a></div>
+      <ul id="tosi-nav-b3d-agent">
+        <li><a class="doc-link" href="../agent-driver/">agent driver</a></li>
+        <li><a class="doc-link" href="../scene-description/">scene description</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-sky-and-light" aria-label="Sky and light"></button><a class="doc-link" href="../sky-and-light/">Sky and light</a></div>
+    <ul id="tosi-nav-sky-and-light">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-skybox" aria-label="b3d-skybox"></button><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></div>
+      <ul id="tosi-nav-b3d-skybox">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-moon" aria-label="b3d-moon"></button><a class="doc-link" href="../b3d-moon/">b3d-moon</a></div>
+        <ul id="tosi-nav-b3d-moon">
+          <li><a class="doc-link" href="../moon-light/">moon light</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="../light-pollution/">light pollution</a></li>
+      <li><a class="doc-link" href="../b3d-shadows/">Sun and shadows (b3d-shadows)</a></li>
+      <li><a class="doc-link" href="../b3d-light/">Ambient light (b3d-light)</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-lamp" aria-label="Lamps"></button><a class="doc-link" href="../b3d-lamp/">Lamps</a></div>
+      <ul id="tosi-nav-b3d-lamp">
+        <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
+        <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="../environment/">environment</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-weather-and-clouds" aria-label="Weather and clouds"></button><a class="doc-link" href="../weather-and-clouds/">Weather and clouds</a></div>
+    <ul id="tosi-nav-weather-and-clouds">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-cloud-deck" aria-label="b3d-cloud-deck"></button><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></div>
+      <ul id="tosi-nav-b3d-cloud-deck">
+        <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-weather-cell" aria-label="b3d-weather-cell"></button><a class="doc-link" href="../b3d-weather-cell/">b3d-weather-cell</a></div>
+      <ul id="tosi-nav-b3d-weather-cell">
+        <li><a class="doc-link" href="../weather/">weather</a></li>
+        <li><a class="doc-link" href="../wind/">wind</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-terrain" aria-label="Terrain"></button><a class="doc-link" href="../terrain/">Terrain</a></div>
+    <ul id="tosi-nav-terrain">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-terrain" aria-label="b3d-terrain"></button><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></div>
+      <ul id="tosi-nav-b3d-terrain">
+        <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+        <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+        <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-landform" aria-label="landform"></button><a class="doc-link" href="../landform/">landform</a></div>
+        <ul id="tosi-nav-landform">
+          <li><a class="doc-link" href="../landform-schemas/">landform schemas</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
+        <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
+        <li><a class="doc-link" href="../gradient-filter/">gradient-filter</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-decorator" aria-label="b3d-decorator"></button><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></div>
+      <ul id="tosi-nav-b3d-decorator">
+        <li><a class="doc-link" href="../scatter/">scatter</a></li>
+        <li><a class="doc-link" href="../procedural-rock/">procedural-rock</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-sdf-lattice" aria-label="Carved landforms"></button><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></div>
+      <ul id="tosi-nav-sdf-lattice">
+        <li><a class="doc-link" href="../carve/">carve</a></li>
+        <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="../city-layout/">city-layout</a></li>
+      <li><a class="doc-link" href="../b3d-city/">b3d-city</a></li>
+      <li><a class="doc-link" href="../city-traffic/">city-traffic</a></li>
+      <li><a class="doc-link" href="../window-lights/">window-lights</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-water" aria-label="Water"></button><a class="doc-link" href="../water/">Water</a></div>
+    <ul id="tosi-nav-water">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-water" aria-label="b3d-water"></button><a class="doc-link" href="../b3d-water/">b3d-water</a></div>
+      <ul id="tosi-nav-b3d-water">
+        <li><a class="doc-link" href="../medium/">medium</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-effects" aria-label="Effects"></button><a class="doc-link" href="../effects/">Effects</a></div>
+    <ul id="tosi-nav-effects">
+      <li><a class="doc-link" href="../b3d-effect/">b3d-effect</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-trail/">b3d-trail</a></li>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-characters-and-vehicles" aria-label="Characters and vehicles"></button><a class="doc-link" href="../characters-and-vehicles/">Characters and vehicles</a></div>
+    <ul id="tosi-nav-characters-and-vehicles">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-biped" aria-label="b3d-biped"></button><a class="doc-link" href="../b3d-biped/">b3d-biped</a></div>
+      <ul id="tosi-nav-b3d-biped">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-npc" aria-label="b3d-npc"></button><a class="doc-link" href="../b3d-npc/">b3d-npc</a></div>
+        <ul id="tosi-nav-b3d-npc">
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-conversation" aria-label="b3d-conversation"></button><a class="doc-link" href="../b3d-conversation/">b3d-conversation</a></div>
+          <ul id="tosi-nav-b3d-conversation">
+            <li><a class="doc-link" href="../balloon-layout/">balloon layout</a></li>
+          </ul></li>
+          <li><a class="doc-link" href="../conversation/">conversation</a></li>
+          <li><a class="doc-link" href="../noise/">noise</a></li>
+          <li><a class="doc-link" href="../npc-brain/">npc-brain</a></li>
+          <li><a class="doc-link" href="../sensorium/">sensorium</a></li>
+        </ul></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-aim" aria-label="aim"></button><a class="doc-link" href="../aim/">aim</a></div>
+        <ul id="tosi-nav-aim">
+          <li><a class="doc-link" href="../aim-ik/">aim IK</a></li>
+          <li><a class="doc-link" href="../aim-assist/">aim-assist</a></li>
+          <li><a class="doc-link" href="../two-bone-ik/">two-bone IK</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-core" aria-label="character core"></button><a class="doc-link" href="../character-core/">character core</a></div>
+        <ul id="tosi-nav-character-core">
+          <li><a class="doc-link" href="../character-settings/">character settings</a></li>
+          <li><a class="doc-link" href="../proxy-cover/">proxy-cover</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-skinned-glb" aria-label="skinned-glb"></button><a class="doc-link" href="../skinned-glb/">skinned-glb</a></div>
+          <ul id="tosi-nav-skinned-glb">
+            <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-rigged-body-glb" aria-label="rigged-body-glb"></button><a class="doc-link" href="../rigged-body-glb/">rigged-body-glb</a></div>
+            <ul id="tosi-nav-rigged-body-glb">
+              <li><a class="doc-link" href="../spring-vrm/">spring-vrm</a></li>
+              <li><a class="doc-link" href="../body-export/">body export</a></li>
+              <li><a class="doc-link" href="../glb-textures/">glb textures</a></li>
+            </ul></li>
+          </ul></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-chunks" aria-label="glb-chunks"></button><a class="doc-link" href="../glb-chunks/">glb-chunks</a></div>
+          <ul id="tosi-nav-glb-chunks">
+            <li><a class="doc-link" href="../glb-rig/">glb-rig</a></li>
+          </ul></li>
+          <li><a class="doc-link" href="../skin-paint/">skin paint</a></li>
+          <li><a class="doc-link" href="../cloth-bake/">cloth bake</a></li>
+          <li><a class="doc-link" href="../jpeg/">jpeg</a></li>
+          <li><a class="doc-link" href="../eye-art/">eye art</a></li>
+          <li><a class="doc-link" href="../hair-place/">hair place</a></li>
+          <li><a class="doc-link" href="../mesh-sdf/">mesh sdf</a></li>
+          <li><a class="doc-link" href="../fit-extremes/">fit extremes</a></li>
+        </ul></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-retarget" aria-label="retarget"></button><a class="doc-link" href="../retarget/">retarget</a></div>
+        <ul id="tosi-nav-retarget">
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-clips" aria-label="glb clips"></button><a class="doc-link" href="../glb-clips/">glb clips</a></div>
+          <ul id="tosi-nav-glb-clips">
+            <li><a class="doc-link" href="../bvh/">bvh</a></li>
+            <li><a class="doc-link" href="../clip-store/">clip-store</a></li>
+          </ul></li>
+        </ul></li>
+        <li><a class="doc-link" href="../rigged-body/">rigged-body</a></li>
+        <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-rig-build" aria-label="auto-rig"></button><a class="doc-link" href="../rig-build/">auto-rig</a></div>
+        <ul id="tosi-nav-rig-build">
+          <li><a class="doc-link" href="../rig-markers/">rig markers</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="../spring-chain-babylon/">spring bones</a></li>
+        <li><a class="doc-link" href="../fall/">fall</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-aircraft" aria-label="b3d-aircraft"></button><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></div>
+      <ul id="tosi-nav-b3d-aircraft">
+        <li><a class="doc-link" href="../fly-by-wire/">fly-by-wire</a></li>
+        <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="../ground-vehicle/">ground-vehicle</a></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+      <li><a class="doc-link" href="../b3d-tank/">b3d-tank</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-elevator" aria-label="b3d-elevator"></button><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></div>
+      <ul id="tosi-nav-b3d-elevator">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-spatial-transform" aria-label="spatial-transform"></button><a class="doc-link" href="../spatial-transform/">spatial-transform</a></div>
+        <ul id="tosi-nav-spatial-transform">
+          <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+        </ul></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-crowd" aria-label="b3d-crowd"></button><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></div>
+      <ul id="tosi-nav-b3d-crowd">
+        <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-input" aria-label="Input"></button><a class="doc-link" href="../input/">Input</a></div>
+    <ul id="tosi-nav-input">
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-inspect-view" aria-label="inspect-view"></button><a class="doc-link" href="../inspect-view/">inspect-view</a></div>
+      <ul id="tosi-nav-inspect-view">
+        <li><a class="doc-link" href="../seam-material/">seam-material</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-input-internals" aria-label="How input works"></button><a class="doc-link" href="../input-internals/">How input works</a></div>
+      <ul id="tosi-nav-input-internals">
+        <li><a class="doc-link" href="../control-input/">control-input</a></li>
+        <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+        <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+        <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-interacting" aria-label="Interacting with the world"></button><a class="doc-link" href="../interacting/">Interacting with the world</a></div>
+    <ul id="tosi-nav-interacting">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-interactive" aria-label="b3d-interactive"></button><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></div>
+      <ul id="tosi-nav-b3d-interactive">
+        <li><a class="doc-link" href="../interaction/">interaction</a></li>
+        <li><a class="doc-link" href="../b3d-pickup/">b3d-pickup</a></li>
+        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+        <li><a class="doc-link" href="../b3d-door/">b3d-door</a></li>
+        <li><a class="doc-link" href="../b3d-chest/">b3d-chest</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-combat" aria-label="Combat"></button><a class="doc-link" href="../combat/">Combat</a></div>
+    <ul id="tosi-nav-combat">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-destroyable" aria-label="b3d-destroyable"></button><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></div>
+      <ul id="tosi-nav-b3d-destroyable">
+        <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-launcher" aria-label="b3d-launcher"></button><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></div>
+      <ul id="tosi-nav-b3d-launcher">
+        <li><a class="doc-link" href="../ballistics/">ballistics</a></li>
+        <li><a class="doc-link" href="../guidance/">guidance</a></li>
+        <li><a class="doc-link" href="../gun-sound/">gun-sound</a></li>
+        <li><a class="doc-link" href="../magazine/">magazine</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-radar" aria-label="b3d-radar"></button><a class="doc-link" href="../b3d-radar/">b3d-radar</a></div>
+      <ul id="tosi-nav-b3d-radar">
+        <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-world-sim" aria-label="World Sim"></button><a class="doc-link" href="../world-sim/">World Sim</a></div>
+    <ul id="tosi-nav-world-sim">
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-inventory" aria-label="inventory"></button><a class="doc-link" href="../inventory/">inventory</a></div>
+      <ul id="tosi-nav-inventory">
+        <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
+        <li><a class="doc-link" href="../trade/">trade</a></li>
+        <li><a class="doc-link" href="../inventory-trade/">inventory-trade</a></li>
+        <li><a class="doc-link" href="../currency/">currency</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-spawner" aria-label="b3d-spawner"></button><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></div>
+      <ul id="tosi-nav-b3d-spawner">
+        <li><a class="doc-link" href="../formations/">formations</a></li>
+        <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui" aria-label="UI"></button><a class="doc-link" href="../ui/">UI</a></div>
+    <ul id="tosi-nav-ui">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widgets3d" aria-label="widgets3d"></button><a class="doc-link" href="../widgets3d/">widgets3d</a></div>
+      <ul id="tosi-nav-widgets3d">
+        <li><a class="doc-link" href="../playback-field/">Playback</a></li>
+        <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+        <li><a class="doc-link" href="../pager-field/">Pager</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widget-semantics" aria-label="widget semantics"></button><a class="doc-link" href="../widget-semantics/">widget semantics</a></div>
+        <ul id="tosi-nav-widget-semantics">
+          <li><a class="doc-link" href="../aria-mirror/">aria mirror</a></li>
+        </ul></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-carry" aria-label="carry"></button><a class="doc-link" href="../carry/">carry</a></div>
+      <ul id="tosi-nav-carry">
+        <li><a class="doc-link" href="../carry-box/">carry-box</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="../dials/">dials</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui-controls" aria-label="Controls"></button><a class="doc-link" href="../ui-controls/">Controls</a></div>
+      <ul id="tosi-nav-ui-controls">
+        <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
+        <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+        <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
+        <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+        <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-material-picker" aria-label="materialPicker3d"></button><a class="doc-link" href="../material-picker/">materialPicker3d</a></div>
+        <ul id="tosi-nav-material-picker">
+          <li><a class="doc-link" href="../fabric-textures/">fabric textures</a></li>
+          <li><a class="doc-link" href="../material-pictures/">material pictures</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="../material-recipe/">material-recipe</a></li>
+        <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-color-field" aria-label="color3d"></button><a class="doc-link" href="../color-field/">color3d</a></div>
+        <ul id="tosi-nav-color-field">
+          <li><a class="doc-link" href="../color/">color</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="../picker/">picker</a></li>
+        <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-table" aria-label="table"></button><a class="doc-link" href="../table/">table</a></div>
+        <ul id="tosi-nav-table">
+          <li><a class="doc-link" href="../selection/">selection</a></li>
+        </ul></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui-containers" aria-label="Containers"></button><a class="doc-link" href="../ui-containers/">Containers</a></div>
+      <ul id="tosi-nav-ui-containers">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-box" aria-label="box"></button><a class="doc-link" href="../box/">box</a></div>
+        <ul id="tosi-nav-box">
+          <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+          <li><a class="doc-link" href="../anchor-layout/">anchor-layout</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="../surface/">surface</a></li>
+        <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      </ul></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui-in-scene" aria-label="In the scene and XR"></button><a class="doc-link" href="../ui-in-scene/">In the scene and XR</a></div>
+      <ul id="tosi-nav-ui-in-scene">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-panel" aria-label="b3d-panel"></button><a class="doc-link" href="../b3d-panel/">b3d-panel</a></div>
+        <ul id="tosi-nav-b3d-panel">
+          <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-xr-frames" aria-label="xr-frames"></button><a class="doc-link" href="../xr-frames/">xr-frames</a></div>
+          <ul id="tosi-nav-xr-frames">
+            <li><a class="doc-link" href="../xr-grab/">xr-grab</a></li>
+          </ul></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-system-bar" aria-label="system-bar"></button><a class="doc-link" href="../system-bar/">system-bar</a></div>
+          <ul id="tosi-nav-system-bar">
+            <li><a class="doc-link" href="../bar-menu/">bar-menu</a></li>
+          </ul></li>
+        </ul></li>
+        <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+        <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-gamepad-focus" aria-label="gamepad-focus"></button><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></div>
+        <ul id="tosi-nav-gamepad-focus">
+          <li><a class="doc-link" href="../pad-ui/">pad-ui</a></li>
+        </ul></li>
+      </ul></li>
+      <li><a class="doc-link" href="../b3d-checklist/">test checklist in the scene</a></li>
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui-theme" aria-label="Theme and icons"></button><a class="doc-link" href="../ui-theme/">Theme and icons</a></div>
+      <ul id="tosi-nav-ui-theme">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-w3d-theme" aria-label="w3d-theme"></button><a class="doc-link" href="../w3d-theme/">w3d-theme</a></div>
+        <ul id="tosi-nav-w3d-theme">
+          <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
+        </ul></li>
+        <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-space" aria-label="Space"></button><a class="doc-link" href="../space/">Space</a></div>
+    <ul id="tosi-nav-space">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-galaxy" aria-label="b3d-galaxy"></button><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></div>
+      <ul id="tosi-nav-b3d-galaxy">
+        <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../gas-giant/">gas-giant</a></li>
+      <li><a class="doc-link" href="../rocky-world/">rocky-world</a></li>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../sphere-map/">sphere-map</a></li>
+      <li><a class="doc-link" href="../planet-map/">planet-map</a></li>
+      <li><a class="doc-link" href="../space-backdrop/">space-backdrop</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-performance" aria-label="Performance"></button><a class="doc-link" href="../performance/">Performance</a></div>
+    <ul id="tosi-nav-performance">
+      <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-probe" aria-label="b3d-probe"></button><a class="doc-link" href="../b3d-probe/">b3d-probe</a></div>
+      <ul id="tosi-nav-b3d-probe">
+        <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+        <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      </ul></li>
+      <li><a class="doc-link" href="../cost-sweep/">Cost sweep</a></li>
+      <li><a class="doc-link" href="../draw-order/">Draw order</a></li>
+      <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-utilities" aria-label="utilities"></button><a class="doc-link" href="../utilities/">utilities</a></div>
+    <ul id="tosi-nav-utilities">
+      <li><a class="doc-link" href="../clock/">clock</a></li>
+      <li><a class="doc-link" href="../undo-history/">undo history</a></li>
+    </ul></li>
+    <li class="nav-branch -open"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="true" aria-controls="tosi-nav-upgrading" aria-label="Upgrading"></button><a class="doc-link" href="../upgrading/">Upgrading</a></div>
+    <ul id="tosi-nav-upgrading">
+      <li><a class="doc-link" href="../Migration/">Migration</a></li>
+      <li class="nav-branch -open"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="true" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
+      <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link current" href="../v0.13.2/" aria-current="page">0.13.2</a></li>
+        <li><a class="doc-link" href="../v0.13.1/">0.13.1</a></li>
+        <li><a class="doc-link" href="../v0.13.0/">0.13.0</a></li>
+        <li><a class="doc-link" href="../v0.12.6/">0.12.6</a></li>
+        <li><a class="doc-link" href="../v0.12.5/">0.12.5</a></li>
+        <li><a class="doc-link" href="../v0.12.4/">0.12.4</a></li>
+        <li><a class="doc-link" href="../v0.12.3/">0.12.3</a></li>
+        <li><a class="doc-link" href="../v0.12.2/">0.12.2</a></li>
+        <li><a class="doc-link" href="../v0.12.1/">0.12.1</a></li>
+        <li><a class="doc-link" href="../v0.12.0/">0.12.0</a></li>
+        <li><a class="doc-link" href="../v0.11.6/">0.11.6</a></li>
+        <li><a class="doc-link" href="../v0.11.5/">0.11.5</a></li>
+        <li><a class="doc-link" href="../v0.11.4/">0.11.4</a></li>
+        <li><a class="doc-link" href="../v0.11.3/">0.11.3</a></li>
+        <li><a class="doc-link" href="../v0.11.2/">0.11.2</a></li>
+        <li><a class="doc-link" href="../v0.11.1/">0.11.1</a></li>
+        <li><a class="doc-link" href="../v0.11.0/">0.11.0</a></li>
+        <li><a class="doc-link" href="../v0.10.20/">0.10.20</a></li>
+        <li><a class="doc-link" href="../v0.10.19/">0.10.19</a></li>
+        <li><a class="doc-link" href="../v0.10.18/">0.10.18</a></li>
+        <li><a class="doc-link" href="../v0.10.17/">0.10.17</a></li>
+        <li><a class="doc-link" href="../v0.10.16/">0.10.16</a></li>
+        <li><a class="doc-link" href="../v0.10.15/">0.10.15</a></li>
+        <li><a class="doc-link" href="../v0.10.14/">0.10.14</a></li>
+        <li><a class="doc-link" href="../v0.10.13/">0.10.13</a></li>
+        <li><a class="doc-link" href="../v0.10.12/">0.10.12</a></li>
+        <li><a class="doc-link" href="../v0.10.11/">0.10.11</a></li>
+        <li><a class="doc-link" href="../v0.10.10/">0.10.10</a></li>
+        <li><a class="doc-link" href="../v0.10.9/">0.10.9</a></li>
+        <li><a class="doc-link" href="../v0.10.8/">0.10.8</a></li>
+        <li><a class="doc-link" href="../v0.10.7/">0.10.7</a></li>
+        <li><a class="doc-link" href="../v0.10.6/">0.10.6</a></li>
+        <li><a class="doc-link" href="../v0.10.5/">0.10.5</a></li>
+        <li><a class="doc-link" href="../v0.10.4/">0.10.4</a></li>
+        <li><a class="doc-link" href="../v0.10.3/">0.10.3</a></li>
+        <li><a class="doc-link" href="../v0.10.2/">0.10.2</a></li>
+        <li><a class="doc-link" href="../v0.10.1/">0.10.1</a></li>
+        <li><a class="doc-link" href="../v0.10.0/">0.10.0</a></li>
+        <li><a class="doc-link" href="../v0.9.0/">0.9.0</a></li>
+        <li><a class="doc-link" href="../v0.8.15/">0.8.15</a></li>
+        <li><a class="doc-link" href="../v0.8.14/">0.8.14</a></li>
+        <li><a class="doc-link" href="../v0.8.13/">0.8.13</a></li>
+        <li><a class="doc-link" href="../v0.8.12/">0.8.12</a></li>
+        <li><a class="doc-link" href="../v0.8.11/">0.8.11</a></li>
+        <li><a class="doc-link" href="../v0.8.10/">0.8.10</a></li>
+        <li><a class="doc-link" href="../v0.8.9/">0.8.9</a></li>
+        <li><a class="doc-link" href="../v0.8.8/">0.8.8</a></li>
+        <li><a class="doc-link" href="../v0.8.7/">0.8.7</a></li>
+        <li><a class="doc-link" href="../v0.8.6/">0.8.6</a></li>
+        <li><a class="doc-link" href="../v0.8.5/">0.8.5</a></li>
+        <li><a class="doc-link" href="../v0.8.4/">0.8.4</a></li>
+        <li><a class="doc-link" href="../v0.8.3/">0.8.3</a></li>
+        <li><a class="doc-link" href="../v0.8.2/">0.8.2</a></li>
+        <li><a class="doc-link" href="../v0.8.1/">0.8.1</a></li>
+        <li><a class="doc-link" href="../v0.8.0/">0.8.0</a></li>
+        <li><a class="doc-link" href="../v0.7.8/">0.7.8</a></li>
+        <li><a class="doc-link" href="../v0.7.7/">0.7.7</a></li>
+        <li><a class="doc-link" href="../v0.7.6/">0.7.6</a></li>
+        <li><a class="doc-link" href="../v0.7.5/">0.7.5</a></li>
+        <li><a class="doc-link" href="../v0.7.4/">0.7.4</a></li>
+        <li><a class="doc-link" href="../v0.7.3/">0.7.3</a></li>
+        <li><a class="doc-link" href="../v0.7.2/">0.7.2</a></li>
+        <li><a class="doc-link" href="../v0.7.1/">0.7.1</a></li>
+        <li><a class="doc-link" href="../v0.7.0/">0.7.0</a></li>
+        <li><a class="doc-link" href="../v0.7.0-rc.1/">0.7.0-rc.1</a></li>
+        <li><a class="doc-link" href="../v0.6.2/">0.6.2</a></li>
+        <li><a class="doc-link" href="../v0.6.1/">0.6.1</a></li>
+        <li><a class="doc-link" href="../v0.6.0/">0.6.0</a></li>
+        <li><a class="doc-link" href="../v0.5.2/">0.5.2</a></li>
+        <li><a class="doc-link" href="../v0.5.1/">0.5.1</a></li>
+        <li><a class="doc-link" href="../v0.5.0/">0.5.0</a></li>
+      </ul></li>
+    </ul></li>
+    <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-reference" aria-label="Reference"></button><a class="doc-link" href="../reference/">Reference</a></div>
+    <ul id="tosi-nav-reference">
+      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
+      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
+      <li><a class="doc-link" href="../noise-texture/">Noise texture</a></li>
+    </ul></li>
+    <li><a class="doc-link" href="../design-notes/">Design notes</a></li>
+    <li><a class="doc-link" href="../acknowledgements/">Acknowledgements</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate-r5e83g3k.js"></script>
+</body>
+</html>

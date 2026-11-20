@@ -81,6 +81,11 @@ export interface InputFieldOptions {
     name?: string;
     fontSize?: number;
     height?: number;
+    /**
+     * Wrap and grow: up to this many lines tall as text is typed, then it keeps
+     * the caret's line in view. Default 1 (one line, no wrapping).
+     */
+    lines?: number;
     handleChange?: (value: string) => void;
     handleEnter?: (value: string) => void;
     /** The field became the receiver (tap, D-pad arrival, or `setActive(true)`)

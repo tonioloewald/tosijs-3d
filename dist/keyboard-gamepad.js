@@ -34,7 +34,7 @@ import { keyboardGamepad } from 'tosijs-3d'
 | rightStickPress (R3) | V (GTA's camera key) |
 | dpadUp/Down/Left/Right | I / M / J / K |
 
-Mouse wheel adjusts the ZOOM axis (d-pad up/down), not the look stick.
+Mouse wheel adjusts the ZOOM axis (the pad's `zoom`), not the look stick or the d-pad.
 */
 import { Component } from 'tosijs';
 import { emptyGamepad } from './virtual-gamepad.js';
@@ -116,7 +116,8 @@ export class KeyboardGamepadSource extends Component {
             pad[btn.field] = this.buttonState[btn.field] ?? 0;
         }
         /*
-        MOUSE WHEEL → THE ZOOM AXIS, WHICH IS THE D-PAD.
+        MOUSE WHEEL → THE ZOOM AXIS (its own `zoom`; it was the d-pad, which is UI
+        navigation now).
     
         It used to feed `rightStickY`, and that was right while the right stick WAS
         zoom. The stick became LOOK, and the wheel came along with it — so a scroll
@@ -129,10 +130,8 @@ export class KeyboardGamepadSource extends Component {
         Merged with the keys via max-abs so both work.
         */
         const wheel = clamp(-1, this.wheelAccum, 1);
-        if (wheel > Math.abs(pad.dpadUp))
-            pad.dpadUp = wheel;
-        else if (-wheel > Math.abs(pad.dpadDown))
-            pad.dpadDown = -wheel;
+        if (Math.abs(wheel) > Math.abs(pad.zoom ?? 0))
+            pad.zoom = wheel;
         this.wheelAccum *= 0.8; // decay wheel toward 0
         return pad;
     }

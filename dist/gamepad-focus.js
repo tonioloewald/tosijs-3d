@@ -40,6 +40,10 @@ it's how you walk.
 | `menu` / `buttonA` | `focusActivate()` |
 | `buttonB` | `focusBack()` |
 
+`activate` and `back` choose other buttons: a scene's own UI confirms with
+**B**, the "use" button (`activate: ['buttonB'], back: []`), as the
+conversation balloon does.
+
 ## Edge-triggered, with a repeat
 
 A gamepad reports *held*, not *pressed*, so polling raw state would fire every frame and
@@ -67,6 +71,10 @@ const DIRS = [
 export function createFocusPulse(opts = {}) {
     const DELAY = opts.repeatDelayMs ?? 400;
     const RATE = opts.repeatRateMs ?? 90;
+    const ACT = opts.activate ?? ['menu', 'buttonA'];
+    const BACK = opts.back ?? ['buttonB'];
+    const REPEAT = new Set(opts.repeat ?? ['dpadLeft', 'dpadRight', 'dpadUp', 'dpadDown']);
+    const any = (pad, keys) => keys.some((k) => Boolean(pad[k]));
     // Per-direction: when it went down, and when it last fired.
     const held = new Map();
     let prevActivate = false;
@@ -85,15 +93,17 @@ export function createFocusPulse(opts = {}) {
                 held.set(d.key, { since: now, last: now });
                 moves.push({ dx: d.dx, dy: d.dy });
             }
-            else if (now - h.since >= DELAY && now - h.last >= RATE) {
+            else if (REPEAT.has(d.key) &&
+                now - h.since >= DELAY &&
+                now - h.last >= RATE) {
                 h.last = now;
                 moves.push({ dx: d.dx, dy: d.dy });
             }
         }
         // `menu` is the primary confirm (it's the button a VR set leaves spare); `a` is
         // accepted too because on a hardware pad that's where a thumb expects it.
-        const act = Boolean(pad.menu || pad.buttonA);
-        const bk = Boolean(pad.buttonB);
+        const act = any(pad, ACT);
+        const bk = any(pad, BACK);
         const pulse = {
             moves,
             activate: act && !prevActivate, // confirm does NOT repeat — one press, one action

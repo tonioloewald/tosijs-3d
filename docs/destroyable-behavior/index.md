@@ -12,8 +12,10 @@ target; the behavior owns everything combat. `B3dDestroyable` is this wrapped ar
 a placeholder cube, and `b3d-loader` and `b3d-aircraft` attach one the same way. The
 death outcomes (`explode`, `deathBlast`, the `whenDestroyed` hook and the bubbling
 `destroyed` event) are described on [b3d-destroyable](/b3d-destroyable/), which also
-has the live demos. One option is specific to the behavior: `meshOnDeath` is
-`'dispose'` (default), `'hide'` or `'keep'`, for a host that swaps in its own wreck.
+has the live demos. Two options are specific to the behavior: `meshOnDeath` is
+`'dispose'` (default), `'hide'` or `'keep'`, for a host that swaps in its own wreck,
+and `flash: false` leaves out the hit flash and red glow for a host that shows its
+own hits. `whenDamaged` runs on every hit that lands (`{ amount, hp, cause }`).
 
 ## Example
 

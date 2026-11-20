@@ -34,6 +34,27 @@ export declare function anatomyFrame(hand: Vec3, lowerarm: Vec3, thumb: Vec3): M
 export declare function socketWorld(side: 'r' | 'l', hand: Vec3, lowerarm: Vec3, thumb: Vec3): Mat4 | null;
 /** The socket as a child of the hand, whose world matrix is `handWorld`. */
 export declare function socketInHand(side: 'r' | 'l', handWorld: Mat4, lowerarm: Vec3, thumb: Vec3): Mat4 | null;
+export declare const FOREARM_IN_ANATOMY: Record<'r' | 'l', Mat4>;
+/** Where a held thing rides: in the hand or on the forearm. */
+export type Mount = 'hand' | 'forearm';
+/**
+ * The forearm's socket in the world: the hand's anatomy frame, at the lower
+ * arm's joint. Null when the hand cannot be read.
+ */
+export declare function forearmWorld(side: 'r' | 'l', hand: Vec3, lowerarm: Vec3, thumb: Vec3): Mat4 | null;
+/** The forearm's socket as a child of the lower arm, whose world matrix is `foreWorld`. */
+export declare function socketInForearm(side: 'r' | 'l', foreWorld: Mat4, hand: Vec3, thumb: Vec3): Mat4 | null;
+/** A rotation matrix's turn as Babylon's Euler angles, in degrees (the inverse of `eulerQuaternion`). */
+export declare function matrixEuler(m: Mat4): {
+    rx: number;
+    ry: number;
+    rz: number;
+};
+/**
+ * A grip for one side's hand or forearm as the same hold on the other side
+ * (`to`). `flip` is the item's own axis across its plane of symmetry.
+ */
+export declare function mirrorGrip<G extends Grip>(g: G, mount: Mount, to: 'r' | 'l', flip?: 'x' | 'y' | 'z'): G;
 export interface Grip {
     x: number;
     y: number;

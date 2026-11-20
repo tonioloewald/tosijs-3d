@@ -82,7 +82,7 @@ const gun = b3dLauncher({
 // on a figure half the intended size.
 const hero = b3dBiped(
   {
-    url: assetUrl('quaternius/UAL1_core.glb', 3),
+    url: assetUrl('quaternius/UAL1_core.glb', 5),
     animationStates: ualAnimationStates(),
     player: true, cameraType: 'follow', aiming: 'on', aimFreeYaw: 45,
   },
@@ -159,7 +159,7 @@ preview.append(
 .preview { height: 100%; }
 ```
 
-**WASD** to move, **mouse / right stick** to aim, **F or the trigger** to shoot
+**WASD** to move, **mouse / right stick** to aim, **F, the trigger or A** to shoot
 the cans off the wall. The white marker is where he is FACING; the orange one is
 where he is AIMING, and they are different things — which is the whole point of
 `aiming="on"`.
@@ -204,6 +204,9 @@ animation is doing with that hand.
 | `eyeForward` | `0.13` | How far in front of the head bone the first-person eye sits, metres |
 | `lookRate` | `120` | Degrees per second the right stick swings the view |
 | `maxLookPitch` | `70` | How far up or down the look goes, degrees |
+| `aimCurve` | `2` | While aiming, the sticks' response curve: 1 is linear, 2 turns at a quarter of the rate at half deflection (a nudge fine-tunes, full deflection is unchanged) |
+| `aimAssist` | `0.5` | While aiming, how much the aim slows as it crosses something that can be hurt (another biped with `health`, a `<tosi-b3d-destroyable>`): 0 is off, 1 stops it. Above 0 the aim also STICKS: sweep near a target with the stick below `aimBreakout` and it locks on, following the target as it or you move ([aim-assist](/aim-assist/)) |
+| `aimBreakout` | `0.7` | While locked onto a target, a stick pushed less than this slides the aim slowly across it (onto the head, say) and one pushed past it lets go and swings freely. 0 never locks |
 | `invertLookY` | `'off'` | `'on'` inverts the right stick's vertical (pushing up looks down, the aircraft mapping) |
 | `aiming` | `'off'` | `'on'` gives the character an aim separate from its facing (see [aim](/aim/)). Nesting a weapon turns it on |
 | `aimFreeYaw` | `0` | Twist the shoulders hold before the body turns, degrees. `0` keeps aim and body together |
@@ -213,6 +216,11 @@ animation is doing with that hand.
 | `strafing` | `'off'` | `'on'` sidesteps with the left stick; `'off'` turns with it |
 | `strafeSpeed` | `0.75` | Sidestep speed as a fraction of walking |
 | `climbReach` | `2.2` | Highest ledge the character can pull itself onto, metres (see Mantling, below) |
+| `hardLanding` | `0` (auto) | Metres of drop past which a landing is hard: the `hardLand` clip (UAL's `Roll`), standing still while it plays. Auto is 1.5 body heights. The drop is from the top of the flight, so a jump on flat ground is never hard ([fall](/fall/)) |
+| `lethalFall` | `0` (off) | Metres of drop that kill on landing: the `death` clip (`Death01`) where you land, then a bubbling `crash` event (`detail: { cause: 'fall', drop }`) that `<tosi-b3d-death>` answers without exploding you. Off by default, since a death needs an exit. Water breaks a fall |
+| `health` | `0` (can't be hurt) | Hit points. Above 0 the biped is a target like any destroyable: a hit plays a hit clip (`hitChest` / `hitStomach` / `hitHead` in turn, `hitKnockback` for a blast) and holds it still for the clip; at 0 it plays `death` where it stands and dispatches a bubbling `destroyed`, which `<tosi-b3d-death>` answers. `hp` reads what is left, `damage(amount, cause)` hurts it, `heal(amount)` mends it, `aimTarget` is a chest-height node for turrets and AI to track |
+| `hitScale` | head 2.5, trunk 1, limb 0.5 | (a property) What a hit does by where it lands. A round that says where it struck (a launcher with `direct-hit="on"`) is placed by `hitRegion(point)`: the head round the head bone, the trunk near the hips-to-neck axis, a limb anywhere else; a crouch moves them with the body. The head plays `hitHead`, the trunk `hitChest` and `hitStomach` in turn, a limb `hitShoulderL`/`R` by side. `hurt` events carry the `region` |
+| `healthRegen` | `0` | Hit points regained per second, from `healthRegenDelay` (5) seconds after the last hit |
 | `wadeDepth` | `0.45` | Water depth, as a fraction of standing height, where wading becomes swimming |
 | `buoyancy` | `0` | How high the figure rides in the water, metres. `0` puts the waterline at the head |
 
@@ -313,16 +321,21 @@ import { aimFromLook, clampAim, easeAim, aimTarget, surfaceAimLimit, } from './s
 import { iceSide } from './water-shore.js';
 import { fitChase } from './camera-fit.js';
 import { DEFAULT_AIM_LIMITS, aimDirection as aimToDirection, aimPoseWeights, bodyCatchUp, relaxAim, stepAim, wrapDeg, } from './aim.js';
-import { aimSpine } from './aim-ik.js';
+import { aimSpine, reachLimb, setWorldRotation, turnAbout } from './aim-ik.js';
+import { holdClassOf } from './hold-grip.js';
+import { findSuffixed } from './model-transform.js';
 import { xrControllers } from './gamepad.js';
 import { B3dControllable } from './b3d-controllable.js';
 import { CompositeInputProvider } from './control-input.js';
 import { bipedMapping, bipedMappingDescriptor, } from './virtual-gamepad.js';
 import { layerOnUpperBody } from './animation-layers.js';
 import { predictPath } from './ballistics.js';
+import { aimFriction, NO_LOCK, stickCurve, stickyAim, } from './aim-assist.js';
 import { XRInputProvider } from './xr-input-provider.js';
 import { forwardGait } from './gait.js';
 import { realNow } from './clock.js';
+import { FALL_START_DROP, fallRules, landingOutcome } from './fall.js';
+import { DestroyableBehavior } from './destroyable-behavior.js';
 const DEG_TO_RAD = Math.PI / 180;
 function lerp(a, b, t) {
     return a + (b - a) * t;
@@ -345,6 +358,29 @@ export class AnimState {
     }
 }
 /**
+ * UAL's gunplay sets, by the weapon they are for. The bow has no stance of
+ * its own, so standing it holds the level aim; its reload notches an arrow.
+ * `B3dBiped.setAimClips` switches between them.
+ */
+export const AIM_CLIPS = {
+    pistol: {
+        aimIdle: 'Pistol_Idle_Loop',
+        aimUp: 'Pistol_Aim_Up',
+        aimLevel: 'Pistol_Aim_Neutral',
+        aimDown: 'Pistol_Aim_Down',
+        shoot: 'Pistol_Shoot',
+        reload: 'Pistol_Reload',
+    },
+    bow: {
+        aimIdle: 'Bow_Aim_Neutral',
+        aimUp: 'Bow_Aim_Up',
+        aimLevel: 'Bow_Aim_Neutral',
+        aimDown: 'Bow_Aim_Down',
+        shoot: 'Bow_Shoot',
+        reload: 'Bow_Notch',
+    },
+};
+/**
  * **Animation states for a Quaternius UAL rig** (the Universal Animation
  * Library, on `cdn.tosijs.net/quaternius/`).
  *
@@ -354,7 +390,7 @@ export class AnimState {
  *
  * ```js
  * b3dBiped({
- *   url: assetUrl('quaternius/UAL1_core.glb', 3),
+ *   url: assetUrl('quaternius/UAL1_core.glb', 5),
  *   animationStates: ualAnimationStates(),
  * })
  * ```
@@ -401,6 +437,16 @@ export function ualAnimationStates(extra = []) {
         { name: 'jump', animation: 'Jump_Start', loop: false },
         { name: 'jumpLoop', animation: 'Jump_Loop', loop: true },
         { name: 'jumpLand', animation: 'Jump_Land', loop: false },
+        // A landing from high up (`hardLanding`), and a fall that kills (`lethalFall`).
+        { name: 'hardLand', animation: 'Roll', loop: false },
+        { name: 'death', animation: 'Death01', loop: false },
+        // Taking hits (`health`): three that take turns, and a blast's knockback.
+        { name: 'hitChest', animation: 'Hit_Chest', loop: false },
+        { name: 'hitStomach', animation: 'Hit_Stomach', loop: false },
+        { name: 'hitHead', animation: 'Hit_Head', loop: false },
+        { name: 'hitKnockback', animation: 'Hit_Knockback', loop: false },
+        { name: 'hitShoulderL', animation: 'Hit_Shoulder_L', loop: false },
+        { name: 'hitShoulderR', animation: 'Hit_Shoulder_R', loop: false },
         /*
         CLIMB clips are named for the HEIGHT they cover, not for the state that
         preceded them — which is why `mantle.mantleClip` picks one by measuring the
@@ -422,7 +468,20 @@ export function ualAnimationStates(extra = []) {
         { name: 'dance', animation: 'Dance_Loop', loop: true },
         { name: 'pilot', animation: 'Driving_Loop', loop: true },
         { name: 'pickup', animation: 'Interact', loop: false },
+        // Reaching down to the floor (a `<tosi-b3d-pickup>` lying low).
+        { name: 'pickupLow', animation: 'PickUp_Kneeling', loop: false },
+        // Kneeling to lift a lid (a `<tosi-b3d-chest>`).
+        { name: 'chestOpen', animation: 'Chest_Open', loop: false },
         { name: 'look', animation: 'Idle_Loop', loop: true },
+        // CONVERSATION (`<tosi-b3d-conversation>`): talking while a line plays,
+        // and gestures a line can ask for by name.
+        { name: 'talk', animation: 'Idle_Talking_Loop', loop: true },
+        { name: 'yes', animation: 'Yes', loop: false },
+        { name: 'no', animation: 'Idle_No_Loop', loop: false },
+        { name: 'give', animation: 'Counter_Give', loop: false },
+        { name: 'show', animation: 'Counter_Show', loop: false },
+        { name: 'surprise', animation: 'Surprise', loop: false },
+        { name: 'foldArms', animation: 'Idle_FoldArms_Loop', loop: true },
         /*
         THE GUNPLAY SET, and the three aim poses are not arbitrary — they are
         exactly the shape [[aim]]'s `aimPoseWeights` was written against: up, level,
@@ -442,12 +501,12 @@ export function ualAnimationStates(extra = []) {
         1.28 MB of its 6.28, the biggest single line in that subset, which is worth
         knowing before anyone trims it.
         */
-        { name: 'aimIdle', animation: 'Pistol_Idle_Loop', loop: true },
-        { name: 'aimUp', animation: 'Pistol_Aim_Up', loop: true },
-        { name: 'aimLevel', animation: 'Pistol_Aim_Neutral', loop: true },
-        { name: 'aimDown', animation: 'Pistol_Aim_Down', loop: true },
-        { name: 'shoot', animation: 'Pistol_Shoot', loop: false },
-        { name: 'reload', animation: 'Pistol_Reload', loop: false },
+        { name: 'aimIdle', animation: AIM_CLIPS.pistol.aimIdle, loop: true },
+        { name: 'aimUp', animation: AIM_CLIPS.pistol.aimUp, loop: true },
+        { name: 'aimLevel', animation: AIM_CLIPS.pistol.aimLevel, loop: true },
+        { name: 'aimDown', animation: AIM_CLIPS.pistol.aimDown, loop: true },
+        { name: 'shoot', animation: AIM_CLIPS.pistol.shoot, loop: false },
+        { name: 'reload', animation: AIM_CLIPS.pistol.reload, loop: false },
         // MELEE, with a weapon held but not raised (see `holdingWeapon`): standing
         // still on guard, and one swing per pull of the trigger.
         { name: 'meleeIdle', animation: 'Sword_Idle', loop: true },
@@ -599,6 +658,12 @@ export class B3dBiped extends B3dControllable {
         aimMaxYaw: 90,
         /** How far up/down the look can go, degrees. */
         maxLookPitch: 70,
+        /** While aiming: the sticks' response curve (1 linear, 2 fine near centre). */
+        aimCurve: 2,
+        /** While aiming: how much the aim slows on a target (0 off, 1 stops it). */
+        aimAssist: 0.5,
+        /** While aiming: stick deflection past which a locked aim lets go (0 = no locking). */
+        aimBreakout: 0.7,
         /*
         NOT INVERTED, which is a changed default and the direct cause of a bug
         report: "when I fire it just fires into my feet".
@@ -673,6 +738,34 @@ export class B3dBiped extends B3dControllable {
          * rather than painted onto it.
          */
         climbReach: 2.2,
+        /**
+         * **Metres of drop past which a landing is hard**: a heavy landing clip
+         * (`hardLand`) that holds you still while it plays. The drop is from the
+         * top of the flight to where you land, so a jump on flat ground is never
+         * hard. `0` (auto) is 1.5 body heights, 2.7 m for a 1.8 m person.
+         */
+        hardLanding: 0,
+        /**
+         * **Metres of drop that kill you on landing.** `0` (the default) means no
+         * fall kills: a death needs an exit, so a scene that has one
+         * (`<tosi-b3d-death>`) asks for it. A lethal landing plays `death` where
+         * you land, halts the biped and dispatches a bubbling `crash` event
+         * (`detail: { cause: 'fall', drop }`), which `<tosi-b3d-death>` answers.
+         * Water breaks a fall.
+         */
+        lethalFall: 0,
+        /**
+         * **Hit points.** `0` (the default) means nothing can hurt this biped.
+         * Above 0 it is a target for warheads and shots like any destroyable
+         * (`destroyable-behavior`): a hit plays a hit clip and holds it still for
+         * the clip's length; at 0 it plays `death` where it stands and dispatches
+         * a bubbling `destroyed` event, which `<tosi-b3d-death>` answers. Read
+         * what is left from `hp`.
+         */
+        health: 0,
+        /** Hit points regained per second, starting `healthRegenDelay` s after the last hit. */
+        healthRegen: 0,
+        healthRegenDelay: 5,
         /**
          * **How deep the water gets before you swim, as a fraction of standing
          * height.** Below this you wade — feet on the bottom, walking; above it
@@ -845,6 +938,7 @@ export class B3dBiped extends B3dControllable {
      */
     gunplay = false;
     weaponWasPressed = false;
+    _reloadWasPressed = false;
     /**
      * What the weapon button does, when a game decides (JS only). Called with
      * whether the button asks for the weapon UP; the game moves it (draw from
@@ -973,9 +1067,11 @@ export class B3dBiped extends B3dControllable {
      * (TS2611). An arrow field binds `this` and reads the mode live, which is all
      * the getter was for.
      */
-    inputMapping = (pad, dt) => 
+    inputMapping = Object.assign((pad, dt) => 
     // A melee weapon takes the trigger too: it swings rather than sprints.
-    bipedMapping(pad, dt, this.gunplay || this._holdingWeapon);
+    bipedMapping(pad, dt, this.gunplay || this._holdingWeapon), 
+    // The keyboard keeps its keys (see bipedMapping's `keyboard`).
+    { keyboard: bipedMapping.keyboard });
     inputLabels = bipedMappingDescriptor.labels;
     /**
      * Aiming right now.
@@ -1039,6 +1135,102 @@ export class B3dBiped extends B3dControllable {
         pos: { x: 0, y: 0, z: 0 },
         vel: { x: 0, y: 0, z: 0 },
     };
+    /** The aim's rate factor from what it is crossing (see aim-assist). */
+    /** What there is to aim at: other living bipeds that can be hurt, and destroyables. */
+    _aimCandidates() {
+        const out = [];
+        if (this.owner == null)
+            return out;
+        for (const el of this.owner.querySelectorAll('tosi-b3d-biped')) {
+            const b = el;
+            if (b === this || b.halted || b.destroyable == null)
+                continue;
+            const p = (b.aimTarget ?? b.mesh)?.getAbsolutePosition();
+            if (p)
+                out.push({
+                    at: p,
+                    radius: 0.35,
+                    id: el,
+                    root: b.entries?.rootNodes?.[0] ?? b.mesh ?? null,
+                });
+        }
+        for (const el of this.owner.querySelectorAll('tosi-b3d-destroyable')) {
+            const d = el;
+            if (d.mesh == null || d.dead)
+                continue;
+            out.push({
+                at: d.mesh.getAbsolutePosition(),
+                radius: d.mesh.getBoundingInfo().boundingSphere.radiusWorld || 0.5,
+                id: el,
+                root: d.mesh,
+            });
+        }
+        return out;
+    }
+    _aimFriction(strength) {
+        if (!(strength > 0) || this.owner == null)
+            return 1;
+        const targets = this._aimCandidates();
+        if (targets.length === 0)
+            return 1;
+        return aimFriction(this.aimOrigin, this.aimDirection, targets, strength);
+    }
+    _aimLock = { ...NO_LOCK };
+    /**
+     * Sticky aim's frame: the targets as angles from the aim's origin (within
+     * 60 m, and a line-of-sight test only for those near the aim), then
+     * `stickyAim`. Returns the world aim to use, or null to aim freely.
+     */
+    _stickyAim(stick, facingDeg, dt) {
+        const scene = this.owner?.scene;
+        const breakout = Number(this.aimBreakout);
+        if (scene == null ||
+            !(breakout > 0) ||
+            !(Number(this.aimAssist) > 0)) {
+            this._aimLock = { ...NO_LOCK };
+            return null;
+        }
+        const origin = this.aimOrigin;
+        const aim = {
+            yawDeg: wrapDeg(facingDeg + this._aim.yawDeg),
+            pitchDeg: this._aim.pitchDeg,
+        };
+        const self = this.entries?.rootNodes?.[0];
+        const targets = [];
+        for (const c of this._aimCandidates()) {
+            const dx = c.at.x - origin.x;
+            const dy = c.at.y - origin.y;
+            const dz = c.at.z - origin.z;
+            const flat = Math.hypot(dx, dz);
+            const dist = Math.hypot(flat, dy);
+            if (dist > 60 || dist < 0.5)
+                continue;
+            const t = {
+                id: c.id,
+                yawDeg: (Math.atan2(dx, dz) * 180) / Math.PI,
+                pitchDeg: (-Math.atan2(dy, flat) * 180) / Math.PI,
+                radiusDeg: (Math.atan2(c.radius, dist) * 180) / Math.PI,
+                // Only one near the aim is tested, and only those can be caught.
+                clear: c.id === this._aimLock.id,
+            };
+            const off = Math.hypot(wrapDeg(aim.yawDeg - t.yawDeg), aim.pitchDeg - t.pitchDeg);
+            if (off < 12 && c.id !== this._aimLock.id) {
+                // Nothing solid in the way (it, and we, don't count).
+                const dir = new BABYLON.Vector3(dx / dist, dy / dist, dz / dist);
+                const hit = scene.pickWithRay(new BABYLON.Ray(origin, dir, dist - c.radius), (m) => m.isPickable !== false &&
+                    m.isEnabled() &&
+                    m.isVisible &&
+                    m.getTotalVertices() > 0 &&
+                    !(self != null && m.isDescendantOf(self)) &&
+                    !(c.root != null && (m === c.root || m.isDescendantOf(c.root))));
+                t.clear = hit?.hit !== true;
+            }
+            targets.push(t);
+        }
+        const r = stickyAim(this._aimLock, { aim, stick, targets, dt }, { breakout });
+        this._aimLock = r.lock;
+        return r.aim;
+    }
     _updateReticle(scene) {
         const show = this.gunplay && this.player;
         if (!show) {
@@ -1212,11 +1404,14 @@ export class B3dBiped extends B3dControllable {
         const scene = this.owner?.scene;
         if (scene == null)
             return Infinity;
+        // From what the camera looks at to where it will be: the follow camera
+        // sits `height` above its target, not above the feet. Measured from the
+        // feet, the ray went through a doorway while the camera sat over the wall.
         const origin = node.absolutePosition.clone();
-        origin.y += Math.max(0.2, height * 0.5);
+        origin.y += this.cameraTargetHeight ?? 1.4;
         const back = node.forward.scale(-radius);
         const target = origin.add(back);
-        target.y = node.absolutePosition.y + height;
+        target.y = origin.y + height;
         const to = target.subtract(origin);
         const len = to.length();
         if (!(len > 0.01))
@@ -1232,9 +1427,33 @@ export class B3dBiped extends B3dControllable {
         const root = this.entries?.rootNodes?.[0];
         const hit = scene.pickWithRay(this._camRay, (m) => m.isPickable !== false &&
             m.isEnabled() &&
+            // A hull you can't see (a door's or a pickup's touch target) hides nothing.
+            m.isVisible &&
+            m.visibility > 0 &&
             m.getTotalVertices() > 0 &&
             !(root != null && m.isDescendantOf(root)));
         return hit?.hit === true ? hit.distance : Infinity;
+    }
+    _wallRay = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Forward(), 1);
+    /** Something you can see is between `from` (what the camera looks at) and the camera. */
+    _seenThroughWall(from, cam) {
+        const scene = this.owner?.scene;
+        if (scene == null)
+            return false;
+        const d = cam.subtract(from);
+        const len = d.length();
+        if (!(len > 0.3))
+            return false;
+        this._wallRay.origin.copyFrom(from);
+        this._wallRay.direction.copyFrom(d.scaleInPlace(1 / len));
+        this._wallRay.length = len;
+        const root = this.entries?.rootNodes?.[0];
+        return (scene.pickWithRay(this._wallRay, (m) => m.isPickable !== false &&
+            m.isEnabled() &&
+            m.isVisible &&
+            m.visibility > 0 &&
+            m.getTotalVertices() > 0 &&
+            !(root != null && m.isDescendantOf(root)))?.hit === true);
     }
     /**
      * The medium boundary the camera should not sit in, if there is one.
@@ -1308,7 +1527,192 @@ export class B3dBiped extends B3dControllable {
      * flight, which is what `speedRatio` retiming was compensating for.
      */
     _airPhase = null;
+    /** The highest the body has been since it left the ground (the drop is from here). */
+    _airTopY = 0;
+    /** The landing playing is a hard one: the `hardLand` clip, standing still. */
+    _hardLanding = false;
+    /** The one-off clip playing (a hit, a pickup), and how long it has left (it holds the biped still). */
+    _actionClip = '';
+    _actionLeft = 0;
+    _hits = 0;
+    /** Its health in the scene's combat world, when `health` is above 0. */
+    destroyable = null;
+    /**
+     * The point an enemy aims at: a node at chest height under the root, which
+     * stands at the feet. A turret or an AI tracks this.
+     */
+    aimTarget = null;
+    /** Hit points left (Infinity when `health` is 0, so nothing can hurt it). */
+    get hp() {
+        if (this.destroyable == null)
+            return Infinity;
+        return this.owner?.combat.get(this.destroyable.combatId)?.hp.value ?? 0;
+    }
+    /**
+     * What a hit does by where it lands: a head shot hurts more than a hand.
+     * Only hits that say where (a direct-hit round's `Cause.at`) are scaled; a
+     * blast or a blow is the trunk.
+     */
+    hitScale = { head: 2.5, trunk: 1, limb: 0.5 };
+    /**
+     * Which part of the body a world point is on: the HEAD (round the head
+     * bone), the TRUNK (close to the axis from the hips to the neck) or a LIMB
+     * (anything else: arms out from the trunk, legs below the hips). Measured
+     * from the head node, so a crouch moves the regions with it.
+     */
+    hitRegion(at) {
+        const root = this.mesh;
+        if (root == null)
+            return 'trunk';
+        const feet = root.getAbsolutePosition();
+        const head = this.headNode?.getAbsolutePosition() ??
+            feet.add(new BABYLON.Vector3(0, this.eyeHeight || 1.6, 0));
+        const tall = head.y - feet.y;
+        if (tall < 0.2)
+            return 'trunk';
+        // A person's head bone is about 1.6 m up; everything scales from that.
+        const s = tall / 1.6;
+        const skull = { x: head.x, y: head.y + 0.08 * s, z: head.z };
+        if (Math.hypot(at.x - skull.x, at.y - skull.y, at.z - skull.z) < 0.17 * s)
+            return 'head';
+        const t = (at.y - feet.y) / tall;
+        if (t < 0.5 || t > 1.05)
+            return 'limb';
+        // The axis from the hips (over the feet) to the neck (under the head).
+        const u = (t - 0.5) / 0.5;
+        const ax = feet.x + (head.x - feet.x) * u;
+        const az = feet.z + (head.z - feet.z) * u;
+        return Math.hypot(at.x - ax, at.z - az) < 0.2 * s ? 'trunk' : 'limb';
+    }
+    /** Heal it by `amount`, up to its `health` (a first-aid kit, a potion; nothing once dead). */
+    heal(amount) {
+        const d = this.destroyable;
+        if (d == null || this.halted)
+            return;
+        this.owner?.combat.heal(d.combatId, amount);
+    }
+    /** Hurt this biped (no effect when `health` is 0 or it is already dead). */
+    damage(amount, cause) {
+        this.destroyable?.damage(amount, cause);
+    }
     _phaseLeft = 0;
+    /**
+     * A fall that kills: the death clip where you landed, then halt (the clip
+     * plays on; nothing moves the body), then a bubbling `crash` for
+     * `<tosi-b3d-death>` or the game to answer.
+     */
+    _dieFromFall(drop) {
+        this._fallDead();
+        this.dispatchEvent(new CustomEvent('crash', {
+            bubbles: true,
+            detail: { cause: 'fall', drop },
+        }));
+    }
+    /** Down where it stands: the death clip, nothing more moves it. */
+    _fallDead() {
+        this._airPhase = null;
+        this._hardLanding = false;
+        this._actionLeft = 0;
+        this._fallVel = 0;
+        this.diesInPlace = this._hasState('death');
+        if (this.diesInPlace) {
+            // Nothing else plays under a corpse: a one-shot leaves the loop it
+            // started over running, and when the clip ended that loop stood the
+            // body back up. The aim layer too: it plays its own copies, looping,
+            // and a halted biped never updates it again.
+            this._aimLayer?.stop();
+            this._aimLayer?.dispose();
+            this._aimLayer = null;
+            this._aimLayerKey = '';
+            for (const g of this.entries?.animationGroups ?? [])
+                g.stop();
+            this.setAnimationState('death');
+        }
+        this.halt();
+    }
+    /**
+     * A hit that lands: a blast knocks back, other hits take turns between
+     * chest, stomach and head, so the same three hits never look alike. Not in
+     * the air, in water or mid-climb, where a full-body clip would fight the
+     * motion.
+     */
+    _onHit(cause) {
+        if (cause?.kind === 'blast' && this._hasState('hitKnockback')) {
+            this.perform('hitKnockback');
+            return;
+        }
+        const region = cause?.at ? this.hitRegion(cause.at) : 'trunk';
+        let clip = ['hitChest', 'hitStomach'][this._hits++ % 2];
+        if (region === 'head')
+            clip = 'hitHead';
+        else if (region === 'limb' && cause?.at && this.mesh) {
+            // Which side: the hit point against the body's right (facing +z, right is +x).
+            const f = this.mesh.forward;
+            const p = this.mesh.getAbsolutePosition();
+            const right = (cause.at.x - p.x) * f.z - (cause.at.z - p.z) * f.x;
+            clip = right > 0 ? 'hitShoulderR' : 'hitShoulderL';
+        }
+        this.perform(this._hasState(clip) ? clip : 'hitChest');
+    }
+    /**
+     * Play a one-off clip (picking something up, opening a chest, a hit) and
+     * stand still while it plays. Returns its length in seconds, or 0 when it
+     * cannot play: the rig lacks the clip, or the biped is in the air, in water,
+     * mid-climb or dead. For a game, an AI or a cutscene. `seconds` holds it
+     * that long instead of the clip's length (a looping clip loops: talking for
+     * as long as a line lasts).
+     */
+    perform(state, seconds) {
+        if (this.halted || this._swimming || this._airPhase != null)
+            return 0;
+        if (this._mantle != null)
+            return 0;
+        const clip = this._clipSeconds(state);
+        if (clip <= 0)
+            return 0;
+        seconds = seconds != null && seconds > 0 ? seconds : clip;
+        this._actionClip = state;
+        this._actionLeft = seconds;
+        return seconds;
+    }
+    /** Stop a `perform` early (a line cut short stops the talking). */
+    endPerform() {
+        this._actionLeft = 0;
+    }
+    /** Health in the combat world, a chest-height aim point, once the model is in. */
+    _attachHealth(owner, height) {
+        const attrs = this;
+        this.aimTarget?.dispose();
+        this.aimTarget = new BABYLON.TransformNode('biped-aim-target', owner.scene);
+        this.aimTarget.parent = this.mesh;
+        this.aimTarget.position.y = (height * 0.7) / (attrs.scale || 1);
+        this.destroyable?.dispose();
+        this.destroyable = null;
+        if (!(attrs.health > 0))
+            return;
+        // Set before anything can kill it: <tosi-b3d-death> reads it on `destroyed`.
+        this.diesInPlace = this._hasState('death');
+        const d = new DestroyableBehavior(owner, this, {
+            capacity: attrs.health,
+            regenRate: attrs.healthRegen || 0,
+            regenDelay: attrs.healthRegenDelay,
+            idBase: 'biped',
+        }, { meshOnDeath: 'keep', flash: false });
+        d.damageScale = (cause) => cause?.at ? this.hitScale[this.hitRegion(cause.at)] ?? 1 : 1;
+        d.whenDamaged = (info) => {
+            this._onHit(info.cause);
+            // For whoever drives it (an NPC brain turns on whoever hurt it).
+            const region = info.cause?.at ? this.hitRegion(info.cause.at) : 'trunk';
+            this.dispatchEvent(new CustomEvent('hurt', { detail: { ...info, region } }));
+        };
+        d.whenDestroyed = () => this._fallDead();
+        d.attach();
+        this.destroyable = d;
+    }
+    /** The rig has this state AND the clip it names is loaded. */
+    _hasState(name) {
+        return this._clipSeconds(name) > 0;
+    }
     /**
      * How long an animation clip runs, in seconds — `0` if there is no such clip.
      *
@@ -1677,7 +2081,7 @@ export class B3dBiped extends B3dControllable {
             return name;
         if (name !== 'idle')
             return name;
-        if (this._hasClip('Pistol_Idle_Loop'))
+        if (this._hasClip(this._clipOf('aimIdle')))
             return 'aimIdle';
         /*
         SAY SO, ONCE, rather than quietly standing there.
@@ -1695,9 +2099,37 @@ export class B3dBiped extends B3dControllable {
         the new asset and the ordinary browser did not.
         */
         this._warnOnce(`b3d-biped: weapon raised, but ${this.url || 'this rig'} has no ` +
-            `Pistol_Idle_Loop — the character will aim in its walking pose. ` +
+            `${this._clipOf('aimIdle')} — the character will aim in its walking pose. ` +
             `If the rig should have it, the asset is probably cached (hard-reload).`);
         return name;
+    }
+    /** The clip a state plays (its name when it has no state). */
+    _clipOf(state) {
+        return (this.animationStates.find((st) => st.name === state)?.animation ?? state);
+    }
+    /**
+     * Which clips the gunplay states play: `AIM_CLIPS.bow` for a bow, `.pistol`
+     * (the default) for a gun. JS only; a game calls it when what is in hand
+     * changes. A state whose clip the rig lacks is skipped as before.
+     */
+    setAimClips(clips) {
+        let changed = false;
+        for (const st of this.animationStates) {
+            const clip = clips[st.name];
+            if (clip != null && st.animation !== clip) {
+                st.animation = clip;
+                changed = true;
+            }
+        }
+        if (!changed)
+            return;
+        // The layer and the stance pick the new clips on their next look.
+        this._aimLayerKey = '\u0000';
+        const now = this.animationState?.name;
+        if (now != null && now in clips) {
+            this.animationState = undefined;
+            this.setAnimationState(now);
+        }
     }
     _warned = new Set();
     _warnOnce(message) {
@@ -1732,22 +2164,22 @@ export class B3dBiped extends B3dControllable {
         if (skeleton == null || scene == null)
             return;
         let layerClip = '';
+        const shot = this._clipOf('shoot');
         if (this._shootFor > 0) {
-            layerClip = 'Pistol_Shoot';
+            layerClip = shot;
         }
         else if (this.gunplay) {
             const w = aimPoseWeights(this._aim.pitchDeg);
-            layerClip =
-                w.up > w.level && w.up > w.down
-                    ? 'Pistol_Aim_Up'
-                    : w.down > w.level
-                        ? 'Pistol_Aim_Down'
-                        : 'Pistol_Aim_Neutral';
+            layerClip = this._clipOf(w.up > w.level && w.up > w.down
+                ? 'aimUp'
+                : w.down > w.level
+                    ? 'aimDown'
+                    : 'aimLevel');
         }
         const baseGroup = this.animationGroup;
         const baseClip = baseGroup?.name.replace(/^Clone of /, '') ?? '';
         // The gun-ready idle IS the pose; layering one over it fights itself.
-        if (layerClip !== 'Pistol_Shoot' && baseClip === 'Pistol_Idle_Loop') {
+        if (layerClip !== shot && baseClip === this._clipOf('aimIdle')) {
             layerClip = '';
         }
         const key = layerClip === '' ? '' : `${baseClip}|${layerClip}`;
@@ -1773,7 +2205,7 @@ export class B3dBiped extends B3dControllable {
         this._ease(layerGroup);
         baseGroup.stop();
         this._aimLayer = layerOnUpperBody(scene, skeleton, baseGroup, layerGroup);
-        this._aimLayer?.play(layerClip !== 'Pistol_Shoot');
+        this._aimLayer?.play(layerClip !== shot);
     }
     /*
     THE GUN POINTS WHERE THE AIM GOES, whatever the legs are doing. The aim
@@ -1818,6 +2250,232 @@ export class B3dBiped extends B3dControllable {
         aimSpine(this._aimIkChain, held, this.aimDirection, {
             weight: this._aimIkWeight,
         });
+        const weapon = this._weapons().find((w) => w.socketed === true);
+        this._shoulderGun(skeleton, held, weapon, this._aimIkWeight);
+    }
+    /*
+    A LONG GUN IS SHOULDERED. No CC0 set has rifle clips, so a rifle plays the
+    pistol's aim, which already holds the gun in both hands, and the arms are
+    corrected after it: the gun turns about its stock so the barrel lies along
+    the aim and the stock sits in the right shoulder's pocket, the right hand
+    follows the grip there, and the left hand reaches the foregrip. Each hand is
+    a two-bone reach (`reachLimb`). A long gun is a `rifle` by its class
+    (`holdClassOf(meshName)`) or a model with a `_foregrip` node; its `_stock`
+    and `_foregrip` nodes, when it has them, say where those are, else they are
+    read off its shape. While it reloads the left hand is the clip's.
+    */
+    _longGuns = new WeakMap();
+    _longGun(held, weapon) {
+        const meshName = String(weapon?.meshName ?? '');
+        // One launcher swaps its model in place (the playground's), so by name too.
+        const known = this._longGuns.get(held);
+        if (known?.model === meshName)
+            return known.gun;
+        const named = (sfx) => findSuffixed(held, [sfx]);
+        const fore = named('_foregrip');
+        let found = null;
+        if (fore != null || holdClassOf(meshName) === 'rifle') {
+            held.computeWorldMatrix(true);
+            const inv = held.getWorldMatrix().clone().invert();
+            const local = (n) => BABYLON.Vector3.TransformCoordinates(n.computeWorldMatrix(true).getTranslation(), inv);
+            const min = new BABYLON.Vector3(Infinity, Infinity, Infinity);
+            const max = min.scale(-1);
+            const meshes = held.getChildMeshes(false);
+            if (held instanceof BABYLON.AbstractMesh)
+                meshes.push(held);
+            for (const m of meshes) {
+                const box = m.getBoundingInfo().boundingBox;
+                const toHeld = m.computeWorldMatrix(true).multiply(inv);
+                for (const c of box.vectors) {
+                    const v = BABYLON.Vector3.TransformCoordinates(c, toHeld);
+                    min.minimizeInPlace(v);
+                    max.maximizeInPlace(v);
+                }
+            }
+            if (Number.isFinite(min.z)) {
+                const g = named('_grip');
+                const grip = g != null ? local(g) : BABYLON.Vector3.Zero();
+                const muzzle = named('_muzzle');
+                const bore = muzzle != null ? local(muzzle).y : (min.y + max.y) / 2;
+                const stock = named('_stock');
+                found = {
+                    stock: stock != null
+                        ? local(stock)
+                        : new BABYLON.Vector3((min.x + max.x) / 2, bore * 0.85 + grip.y * 0.15, min.z),
+                    foregrip: fore != null
+                        ? local(fore)
+                        : new BABYLON.Vector3((min.x + max.x) / 2, grip.y + (bore - grip.y) * 0.75, grip.z + (max.z - grip.z) * 0.45),
+                };
+            }
+        }
+        this._longGuns.set(held, { model: meshName, gun: found });
+        return found;
+    }
+    _armNodes = null;
+    _shoulderGun(skeleton, held, weapon, weight) {
+        const gun = this._longGun(held, weapon);
+        if (gun == null || weight <= 0)
+            return;
+        if (this._armNodes?.of !== skeleton) {
+            const node = (names) => skeleton.bones
+                .find((b) => names.includes(b.name))
+                ?.getTransformNode() ?? null;
+            const side = (ual, mixamo) => node([ual, `mixamorig:${mixamo}`, mixamo]);
+            this._armNodes = {
+                of: skeleton,
+                nodes: {
+                    upR: side('upperarm_r', 'RightArm'),
+                    loR: side('lowerarm_r', 'RightForeArm'),
+                    handR: side('hand_r', 'RightHand'),
+                    upL: side('upperarm_l', 'LeftArm'),
+                    loL: side('lowerarm_l', 'LeftForeArm'),
+                    handL: side('hand_l', 'LeftHand'),
+                    palmL: side('middle_01_l', 'LeftHandMiddle1'),
+                    thumbL: side('thumb_01_l', 'LeftHandThumb1'),
+                },
+            };
+        }
+        const { upR, loR, handR, upL, loL, handL, palmL } = this._armNodes.nodes;
+        if (upR == null || loR == null || handR == null)
+            return;
+        if (upL == null || loL == null || handL == null)
+            return;
+        const at = (n) => n.getAbsolutePosition().clone();
+        const aim = this.aimDirection.clone().normalize();
+        const level = new BABYLON.Vector3(aim.x, 0, aim.z);
+        if (level.lengthSquared() > 1e-9)
+            level.normalize();
+        /*
+        BLADED: the left shoulder leads, so the left hand reaches the foregrip.
+        The pistol's aim squares the shoulders to the target or turns the left one
+        back, which left a rifle's foregrip a forearm out of reach. The spine
+        turns about the vertical, a share each, until the shoulder line is
+        `BLADE` past square; the neck turns back so the head stays on the aim.
+        */
+        const chain = this._aimIkChain ?? [];
+        const line0 = at(upL).subtract(at(upR));
+        line0.y = 0;
+        if (chain.length > 0 &&
+            line0.lengthSquared() > 1e-9 &&
+            level.lengthSquared() > 0) {
+            line0.normalize();
+            const lateral = line0.subtract(level.scale(BABYLON.Vector3.Dot(line0, level)));
+            if (lateral.lengthSquared() > 1e-9) {
+                lateral.normalize();
+                const BLADE = (35 * Math.PI) / 180;
+                const want = lateral
+                    .scale(Math.cos(BLADE))
+                    .add(level.scale(Math.sin(BLADE)));
+                const cross = BABYLON.Vector3.Cross(line0, want);
+                const angle = Math.atan2(cross.y, BABYLON.Vector3.Dot(line0, want)) * weight;
+                for (const bone of chain)
+                    turnAbout(bone, BABYLON.Axis.Y, angle / chain.length);
+                const neck = skeleton.bones
+                    .find((b) => ['neck_01', 'mixamorig:Neck', 'Neck'].includes(b.name))
+                    ?.getTransformNode() ?? null;
+                if (neck != null)
+                    turnAbout(neck, BABYLON.Axis.Y, -angle);
+                const top = chain[0].parent;
+                top?.computeWorldMatrix(true);
+                for (const n of top?.getDescendants(false) ?? [])
+                    n.computeWorldMatrix?.(true);
+            }
+        }
+        const W = held.computeWorldMatrix(true).clone();
+        const shoulderR = at(upR);
+        const shoulderL = at(upL);
+        const across = shoulderL.subtract(shoulderR);
+        const width = across.length();
+        if (width < 1e-6)
+            return;
+        const right = across.scale(-1 / width);
+        // The shoulder's pocket: in from the joint, a little forward and down.
+        const pocket = shoulderR
+            .add(across.scale(0.22))
+            .add(level.scale(width * 0.2))
+            .add(new BABYLON.Vector3(0, -width * 0.05, 0));
+        // Turn the gun about its stock: the barrel along the aim, its top up.
+        const fwd = W.getRow(2).toVector3().normalize();
+        const q1 = new BABYLON.Quaternion();
+        BABYLON.Quaternion.FromUnitVectorsToRef(fwd, aim, q1);
+        const top = W.getRow(1).toVector3().normalize();
+        const topNow = top.applyRotationQuaternion(q1);
+        const flat = (v) => v.subtract(aim.scale(BABYLON.Vector3.Dot(v, aim)));
+        const a = flat(topNow);
+        const b = flat(BABYLON.Axis.Y);
+        const turn = new BABYLON.Matrix();
+        q1.toRotationMatrix(turn);
+        if (a.lengthSquared() > 1e-9 && b.lengthSquared() > 1e-9) {
+            const q2 = new BABYLON.Quaternion();
+            BABYLON.Quaternion.FromUnitVectorsToRef(a.normalize(), b.normalize(), q2);
+            const roll = new BABYLON.Matrix();
+            q2.toRotationMatrix(roll);
+            turn.multiplyToRef(roll, turn);
+        }
+        const stockW = BABYLON.Vector3.TransformCoordinates(gun.stock, W);
+        const W2 = W.multiply(BABYLON.Matrix.Translation(-stockW.x, -stockW.y, -stockW.z))
+            .multiply(turn)
+            .multiply(BABYLON.Matrix.Translation(pocket.x, pocket.y, pocket.z));
+        // The hand keeps its hold: the hand's place that puts the gun at W2.
+        const H = handR.computeWorldMatrix(true);
+        const H2 = H.multiply(W.clone().invert()).multiply(W2);
+        const down = new BABYLON.Vector3(0, -1, 0);
+        reachLimb(upR, loR, handR, H2.getTranslation(), down.add(right.scale(0.6)), {
+            weight,
+        });
+        setWorldRotation(handR, H2, weight);
+        for (const n of handR.getDescendants(false))
+            n.computeWorldMatrix?.(true);
+        if (weapon?.reloading === true)
+            return;
+        const G = held.getWorldMatrix();
+        const foregrip = BABYLON.Vector3.TransformCoordinates(gun.foregrip, G);
+        /*
+        THE LEFT PALM UNDER THE HANDGUARD, facing up into it, fingers across
+        toward the far side. The hand's own frame is read from the clip (fingers
+        from wrist to the middle knuckle, the palm's normal from the thumb), so
+        no rig's bone axes are assumed, and the turn is the one that takes that
+        frame onto the wanted one.
+        */
+        const thumbL = this._armNodes.nodes.thumbL;
+        const wrist = at(handL);
+        const H0 = handL.computeWorldMatrix(true).clone();
+        let turnL = null;
+        let palmAt = BABYLON.Vector3.Zero();
+        if (palmL != null && thumbL != null) {
+            const fingers = at(palmL).subtract(wrist);
+            const thumb = at(thumbL).subtract(wrist);
+            const n0 = BABYLON.Vector3.Cross(thumb, fingers).normalize();
+            const f0 = fingers.clone().normalize();
+            const up = G.getRow(1).toVector3().normalize();
+            const barrel = G.getRow(2).toVector3().normalize();
+            const across = right.subtract(barrel.scale(BABYLON.Vector3.Dot(right, barrel)));
+            const f1 = across.normalize().scale(0.8).add(barrel.scale(0.6));
+            f1.subtractInPlace(up.scale(BABYLON.Vector3.Dot(f1, up))).normalize();
+            const basis = (f, n) => {
+                const side = BABYLON.Vector3.Cross(n, f).normalize();
+                const m = BABYLON.Matrix.Identity();
+                BABYLON.Matrix.FromXYZAxesToRef(f, n, side, m);
+                return m;
+            };
+            // n × f's triple product is n's part square to f.
+            const from = basis(f0, BABYLON.Vector3.Cross(f0, BABYLON.Vector3.Cross(n0, f0)).normalize());
+            const to = basis(f1, BABYLON.Vector3.Cross(f1, BABYLON.Vector3.Cross(up, f1)).normalize());
+            turnL = from.clone().invert().multiply(to);
+            // The palm's middle, just off the bones on the palm side.
+            const palm = fingers.scale(0.5).add(n0.scale(width * 0.04));
+            palmAt = BABYLON.Vector3.TransformNormal(palm, turnL);
+        }
+        reachLimb(upL, loL, handL, foregrip.subtract(palmAt), down.add(right.scale(-0.3)), {
+            weight,
+        });
+        if (turnL != null) {
+            const p = H0.getTranslation();
+            const H1 = H0.multiply(BABYLON.Matrix.Translation(-p.x, -p.y, -p.z))
+                .multiply(turnL)
+                .multiply(BABYLON.Matrix.Translation(p.x, p.y, p.z));
+            setWorldRotation(handL, H1, weight);
+        }
     }
     /** Seconds left of the one-shot fire pose. */
     _shootFor = 0;
@@ -2132,7 +2790,11 @@ export class B3dBiped extends B3dControllable {
         this._sneakWas = sneakDown;
         this._stanceLeft = Math.max(0, this._stanceLeft - dt);
         this._paceBlends(dt);
-        const speed = input.forward;
+        // A hard landing holds you where you landed while it plays.
+        this._actionLeft = Math.max(0, this._actionLeft - dt);
+        const speed = (this._hardLanding && this._airPhase === 'land') || this._actionLeft > 0
+            ? 0
+            : input.forward;
         /*
         STRAFING IS OPTIONAL, AND OFF BY DEFAULT.
     
@@ -2216,10 +2878,14 @@ export class B3dBiped extends B3dControllable {
     
         Eased rather than snapped, because a hard cut to a narrow FOV is a flinch.
         */
+        // AIMING IS FINER: a nudge fine-tunes (the curve), and the sight drags
+        // across a target rather than skating off it (the friction).
+        const assist = this.gunplay ? this._aimFriction(Number(attrs.aimAssist)) : 1;
+        const aimStick = (v) => this.gunplay ? stickCurve(v, Number(attrs.aimCurve) || 1) * assist : v;
         const adsWant = this.gunplay && (input.aim ?? 0) > 0.3 ? 1 : 0;
         this._ads += (adsWant - this._ads) * Math.min(1, dt * 8);
         this._lookPitch = Math.max(-attrs.maxLookPitch, Math.min(attrs.maxLookPitch, this._lookPitch +
-            (input.lookY ?? 0) *
+            aimStick(input.lookY ?? 0) *
                 lookYSign *
                 attrs.lookRate *
                 // Slower with the sights up — the half of ADS you feel most.
@@ -2298,6 +2964,24 @@ export class B3dBiped extends B3dControllable {
             this._camFit = fit;
             this.camera.radius = fit.distance;
             this.camera.heightOffset = fit.height;
+            /*
+            SNAP IN MEANS THE CAMERA, not its goal. Babylon's follow camera eases
+            toward where it is told to be, so a wall arriving in a doorway left it
+            trailing through the wall, and a turn in a small room swung it round
+            outside the walls. Pulled in, or with a wall between it and you, it is
+            put where it should be.
+            */
+            const look = this.camera.lockedTarget;
+            if (look != null && camNode != null) {
+                const at = look.getAbsolutePosition();
+                const off = this.camera.position.subtract(at);
+                const flat = Math.hypot(off.x, off.z);
+                const pulledIn = fit.distance < desiredRadius - 0.05 && flat > fit.distance + 0.05;
+                if (pulledIn || this._seenThroughWall(at, this.camera.position)) {
+                    const back = camNode.forward.scale(-fit.distance);
+                    this.camera.position.set(at.x + back.x, at.y + fit.height, at.z + back.z);
+                }
+            }
             /*
             NOWHERE SAFE: GO FIRST PERSON. Tonio's call, and what every third-person
             camera that works does — the alternatives are a camera inside a wall
@@ -2413,10 +3097,20 @@ export class B3dBiped extends B3dControllable {
                 same thing every first-person game does.
                 */
                 const firstPerson = this.cameraView === 'fpv';
+                const facingDeg = (Math.atan2(node.forward.x, node.forward.z) * 180) / Math.PI;
+                // Locked onto a target: the aim is on it, wherever it goes, and the
+                // stick (below the breakout) only slides across it. See aim-assist.
+                const locked = this.player
+                    ? this._stickyAim({ x: rotation, y: (input.lookY ?? 0) * lookYSign }, facingDeg, dt)
+                    : null;
+                if (locked != null)
+                    this._lookPitch = Math.max(-attrs.maxLookPitch, Math.min(attrs.maxLookPitch, -locked.pitchDeg));
                 const want = {
                     yawDeg: firstPerson
                         ? 0
-                        : this._aim.yawDeg + rotation * dt * attrs.turnSpeed,
+                        : locked != null
+                            ? wrapDeg(locked.yawDeg - facingDeg)
+                            : this._aim.yawDeg + aimStick(rotation) * dt * attrs.turnSpeed,
                     pitchDeg: -this._lookPitch,
                 };
                 this._aim = stepAim(this._aim, want, dt, {
@@ -2433,7 +3127,10 @@ export class B3dBiped extends B3dControllable {
                     offset fixes. In first person the look IS the facing, so the turn
                     input goes straight to the body and the aim stays dead ahead of it.
                     */
-                    bodyTurnDeg = rotation * dt * attrs.turnSpeed;
+                    bodyTurnDeg =
+                        locked != null
+                            ? wrapDeg(locked.yawDeg - facingDeg)
+                            : aimStick(rotation) * dt * attrs.turnSpeed;
                 }
                 else {
                     const caught = bodyCatchUp(this._aim.yawDeg, dt, attrs.turnSpeed, limits);
@@ -2452,6 +3149,12 @@ export class B3dBiped extends B3dControllable {
             // holstered character who fires anyway is worse than one who cannot.
             if (this.gunplay && (input.shoot ?? 0) > 0.5)
                 this._fireWeapons();
+            // Reload, on the press (a launcher with a magazine; others ignore it).
+            const reloadDown = (input.reload ?? 0) > 0.5;
+            if (reloadDown && !this._reloadWasPressed)
+                for (const w of this._weapons())
+                    w.reload?.();
+            this._reloadWasPressed = reloadDown;
             // A melee weapon swings, once per swing: held, it swings again after.
             this._attackFor = Math.max(0, this._attackFor - dt);
             if (!this.gunplay &&
@@ -2892,6 +3595,33 @@ export class B3dBiped extends B3dControllable {
             if (submerged > 0)
                 this._inAir = false;
             /*
+            FALLS. The drop is measured from the highest point of the flight (the
+            top of a jump's arc, or the ledge walked off) to where you land, so a
+            jump on flat ground lands softly however high it went. Walking off a
+            ledge plays the air loop once it is clearly more than a step down.
+            */
+            if (this._inAir) {
+                this._airTopY = wasInAir
+                    ? Math.max(this._airTopY, node.position.y)
+                    : node.position.y;
+                if (this._airPhase == null &&
+                    this._airTopY - node.position.y > FALL_START_DROP)
+                    this._airPhase = 'loop';
+            }
+            else if (wasInAir && submerged <= 0) {
+                const drop = this._airTopY - node.position.y;
+                // Eye height is taken as 0.93 of the model's (see _modelReady).
+                const outcome = landingOutcome(drop, fallRules(standHeight / 0.93, {
+                    hardLanding: attrs.hardLanding,
+                    lethalFall: attrs.lethalFall,
+                }));
+                if (outcome === 'lethal') {
+                    this._dieFromFall(drop);
+                    return;
+                }
+                this._hardLanding = outcome === 'hard';
+            }
+            /*
             START → LOOP → LAND, each for as long as it is actually true.
       
             `Jump_Start` runs its own length; `Jump_Loop` then covers however long the
@@ -2904,19 +3634,23 @@ export class B3dBiped extends B3dControllable {
             */
             if (this._airPhase != null) {
                 this._phaseLeft -= dt;
+                const landClip = this._hardLanding && this._hasState('hardLand')
+                    ? 'hardLand'
+                    : 'jumpLand';
                 if (wasInAir && !this._inAir) {
                     this._airPhase = 'land';
-                    this._phaseLeft = this._clipSeconds('jumpLand') || 0.3;
+                    this._phaseLeft = this._clipSeconds(landClip) || 0.3;
                 }
                 else if (this._airPhase === 'start' && this._phaseLeft <= 0) {
                     this._airPhase = this._inAir ? 'loop' : null;
                 }
                 else if (this._airPhase === 'land' && this._phaseLeft <= 0) {
                     this._airPhase = null;
+                    this._hardLanding = false;
                 }
                 else if (this._airPhase === 'loop' && !this._inAir) {
                     this._airPhase = 'land';
-                    this._phaseLeft = this._clipSeconds('jumpLand') || 0.3;
+                    this._phaseLeft = this._clipSeconds(landClip) || 0.3;
                 }
             }
             /*
@@ -3068,9 +3802,14 @@ export class B3dBiped extends B3dControllable {
                     ? this._jumpClip
                     : this._airPhase === 'loop'
                         ? 'jumpLoop'
-                        : 'jumpLand';
+                        : this._hardLanding && this._hasState('hardLand')
+                            ? 'hardLand'
+                            : 'jumpLand';
                 const has = this.animationStates.some((st) => st.name === want);
                 this.setAnimationState(has ? want : this._jumpClip);
+            }
+            else if (this._actionLeft > 0) {
+                this.setAnimationState(this._actionClip);
             }
             else if (Math.abs(strafe) > 0.1 && Math.abs(strafe) > Math.abs(speed)) {
                 /*
@@ -3225,9 +3964,37 @@ export class B3dBiped extends B3dControllable {
             const lookLift = Math.max(-1.5, Math.min(6, Math.tan((-this._lookPitch * Math.PI) / 180) * backDist * 0.6));
             // Target position: behind and above the character
             const behind = node.forward.scale(-backDist);
-            const targetX = node.position.x + behind.x;
-            const targetY = node.position.y + upDist + lookLift;
-            const targetZ = node.position.z + behind.z;
+            let targetX = node.position.x + behind.x;
+            let targetY = node.position.y + upDist + lookLift;
+            let targetZ = node.position.z + behind.z;
+            // Walls, as the flat camera does them: pulled in to stay this side of
+            // one, and put there at once if one is between you and the view (eased,
+            // walking into a room left the view outside it).
+            const chest = node.position.clone();
+            chest.y += this.cameraTargetHeight ?? 1.4;
+            const want = new BABYLON.Vector3(targetX, targetY, targetZ);
+            const toWant = want.subtract(chest);
+            const wantLen = toWant.length();
+            if (wantLen > 0.01) {
+                this._wallRay.origin.copyFrom(chest);
+                this._wallRay.direction.copyFrom(toWant.scale(1 / wantLen));
+                this._wallRay.length = wantLen;
+                const root = this.entries.rootNodes[0];
+                const hit = this.owner?.scene.pickWithRay(this._wallRay, (m) => m.isPickable !== false &&
+                    m.isEnabled() &&
+                    m.isVisible &&
+                    m.visibility > 0 &&
+                    m.getTotalVertices() > 0 &&
+                    !m.isDescendantOf(root));
+                if (hit?.hit) {
+                    const k = Math.max(0.3, hit.distance - 0.35) / wantLen;
+                    targetX = chest.x + toWant.x * k;
+                    targetY = chest.y + toWant.y * k;
+                    targetZ = chest.z + toWant.z * k;
+                }
+                if (!firstFrame && this._seenThroughWall(chest, currentPos))
+                    currentPos.set(targetX, targetY, targetZ);
+            }
             // Target yaw: face same direction as character
             const fwd = node.forward;
             const targetYaw = Math.atan2(fwd.x, fwd.z);
@@ -3536,14 +4303,17 @@ export class B3dBiped extends B3dControllable {
             return;
         }
         // The clips the states name, from the library, retargeted and named as they were.
-        const library = await BABYLON.LoadAssetContainerAsync(attrs.animations || assetUrl('quaternius/UAL1_core.glb', 3), scene);
+        const library = await BABYLON.LoadAssetContainerAsync(attrs.animations || assetUrl('quaternius/UAL1_core.glb', 5), scene);
         library.addAllToScene();
         for (const g of library.animationGroups)
             g.stop();
         const libRoot = library.meshes.find((m) => m.name === '__root__') ??
             library.transformNodes[0];
         const from = readSkeleton(library.skeletons[0], libRoot);
-        const wanted = new Set(this.animationStates.map((st) => st.animation ?? st.name));
+        const wanted = new Set([
+            ...this.animationStates.map((st) => st.animation ?? st.name),
+            ...Object.values(AIM_CLIPS).flatMap((c) => Object.values(c)),
+        ]);
         const clips = [];
         for (const g of library.animationGroups) {
             if (!wanted.has(g.name))
@@ -3596,12 +4366,18 @@ export class B3dBiped extends B3dControllable {
         this.mesh = this.entries.rootNodes[0];
         if (attrs.scale !== 1)
             this.mesh.scaling.setAll(attrs.scale);
+        // Stand where the attributes say NOW. The render that syncs them is a
+        // frame away, and in that frame the body stood at the origin facing -z:
+        // a turret fired at it there, and an NPC facing the wrong way saw you.
+        this.mesh.position.set(attrs.x, attrs.y, attrs.z);
+        this.mesh.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll((this.yaw * Math.PI) / 180, (this.pitch * Math.PI) / 180, (this.roll * Math.PI) / 180);
         // Derive eye height from the model (after scaling, so it's the real size) so first-person sits at the head, not
         // the origin (the feet). ~0.93 of total height ≈ eye level. Used as a
         // fallback when there's no head node to anchor to.
         const bounds = this.mesh.getHierarchyBoundingVectors();
         const height = bounds.max.y - bounds.min.y;
         this.eyeHeight = height * 0.93;
+        this._attachHealth(owner, height);
         this.chaseHeight = height * 1.5;
         this.chaseDistance = height * 2.0;
         // Find the head BONE node (e.g. `mixamorig:Head`) so first-person anchors
@@ -3661,6 +4437,10 @@ export class B3dBiped extends B3dControllable {
         this.queueRender();
     }
     sceneDispose() {
+        this.destroyable?.dispose();
+        this.destroyable = null;
+        this.aimTarget?.dispose();
+        this.aimTarget = null;
         if (this._aimIkObs != null) {
             this.owner?.scene.onAfterAnimationsObservable.remove(this._aimIkObs);
             this._aimIkObs = null;

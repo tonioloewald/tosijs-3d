@@ -16,17 +16,29 @@ For the file, the model it came from is read again from its bytes
 ([glb-rig](/glb-rig/)), and its materials go out as glTF with their
 pictures. A model that is not a GLB (an OBJ) goes out in plain grey.
 
+**Pictures** scales the file's textures down to a longest side (2048, 1024
+or 512), and **compress pictures** turns opaque PNGs into JPEGs at its
+**quality** ([glb textures](/glb-textures/)). With neither, every picture
+goes out exactly as made.
+
 ```javascript
 import { exportBodyRows } from 'tosijs-3d/body-export'
 panel.push(...exportBodyRows(() => ({ body, recipe, source: { url } }), say))
 ```
+
+`exportForm(pop, { name, target, say, formats })` is the same as a modal: the
+file's name, its format (a GLB, or a format the host adds, such as a
+character file) and the GLB's options. The character builder opens it from
+its Character menu.
 */
 /*{ "parent": "rigged-body-glb", "order": 2 }*/
-import { button3d, label3d, select3d } from './widgets3d.js';
+import { button3d, label3d, select3d, slider3d, toggle3d, } from './widgets3d.js';
 import { glbNodePosition, glbRigTriangles } from './glb-rig.js';
 import { riggedBodyGlb, } from './rigged-body-glb.js';
 import { readGlbClips } from './glb-clips.js';
 import { readBvh } from './bvh.js';
+import { changesPictures, compactGlbTextures, } from './glb-textures.js';
+import { inputField } from './keyboard.js';
 import { bakeClothLook } from './cloth-bake.js';
 const HEIGHTS = [
     'as made',
@@ -74,7 +86,8 @@ export async function exportClip(c) {
     return {
         from,
         clip,
-        name: c.name,
+        name: c.mirror ? `${c.name} (mirrored)` : c.name,
+        ...(c.mirror ? { mirror: true } : {}),
         ...(c.armSpaceDeg ? { armSpaceDeg: c.armSpaceDeg } : {}),
         ...(c.footTurnDeg ? { footTurnDeg: c.footTurnDeg } : {}),
         ...(c.extras ? { extras: c.extras } : {}),
@@ -136,9 +149,19 @@ export async function exportBody(target, settings) {
         restPose: settings.restPose,
         ...(settings.height > 0 ? { height: settings.height } : {}),
         ...(target.recipe ? { recipe: target.recipe } : {}),
+        ...(target.extras ? { extras: target.extras } : {}),
         generator: 'tosijs-3d',
     });
-    return { bytes: out, note };
+    const pictures = pictureOptions(settings);
+    const written = !changesPictures(pictures)
+        ? out
+        : await compactGlbTextures(out, pictures).catch((e) => {
+            note = [note, `pictures kept as made: ${e.message}`]
+                .filter(Boolean)
+                .join('; ');
+            return out;
+        });
+    return { bytes: written, note };
 }
 /** A library model as riggedBodyGlb's `held`: its mesh and grip point, read from its file. */
 async function heldItem(h) {
@@ -165,15 +188,27 @@ const settings = {
     restPose: 't-pose',
     height: 0,
     animation: 'none',
+    textures: 'as made',
+    compressPictures: false,
+    pictureQuality: 0.85,
 };
-/**
- * An Export section: names, rest pose, height and the button. `target`
- * gives what to write when pressed (null: nothing to export, and why);
- * `say` reports what happened.
- */
-export function exportBodyRows(target, say) {
+/** An export's settings as glb-textures' options. */
+export function pictureOptions(s) {
+    return {
+        size: s.textures ?? 'as made',
+        compress: s.compressPictures === true,
+        quality: s.pictureQuality ?? 0.85,
+    };
+}
+const TEXTURES = {
+    'as made': 'as made',
+    '2048': 'up to 2048',
+    '1024': 'up to 1024',
+    '512': 'up to 512',
+};
+/** The GLB's rig options as rows: joint names, rest pose, height, animation. */
+function glbOptionRows() {
     return [
-        label3d({ text: 'Export', icon: 'download', collapsible: true }),
         select3d({
             label: 'joint names',
             value: settings.naming === 'ue' ? 'UE (UAL)' : 'Mixamo',
@@ -206,24 +241,132 @@ export function exportBodyRows(target, say) {
                 settings.animation = v === 'none' ? 'none' : 'playing';
             },
         }),
+    ];
+}
+/** The pictures' options as rows: size limit, compress, quality. */
+function pictureRows() {
+    return [
+        select3d({
+            label: 'pictures',
+            value: TEXTURES[settings.textures ?? 'as made'],
+            options: Object.values(TEXTURES),
+            handleChange: (v) => {
+                settings.textures =
+                    Object.keys(TEXTURES).find((k) => TEXTURES[k] === v) ?? 'as made';
+            },
+        }),
+        toggle3d({
+            label: 'compress pictures',
+            value: settings.compressPictures === true,
+            handleChange: (v) => {
+                settings.compressPictures = v === true;
+            },
+        }),
+        slider3d({
+            label: 'quality',
+            value: settings.pictureQuality ?? 0.85,
+            min: 0.5,
+            max: 1,
+            step: 0.05,
+            handleChange: (v) => {
+                settings.pictureQuality = Number(v);
+            },
+        }),
+    ];
+}
+/** Write a GLB of `t` with the current settings and download it. */
+async function exportAndSave(t, say) {
+    say(`exporting ${t.name}…`);
+    try {
+        const { bytes, note } = await exportBody(t, settings);
+        downloadBytes(`${t.name}.glb`, bytes);
+        say(`exported ${t.name}.glb (${(bytes.byteLength / 1e6).toFixed(1)} MB)${note ? `; ${note}` : ''}`);
+    }
+    catch (e) {
+        say(`could not export: ${e.message}`);
+    }
+}
+/**
+ * THE EXPORT AS A MODAL: the file's name, its format (`GLB`, then any
+ * `formats` the host adds) and, for a GLB, its options (joint names, rest
+ * pose, height, animation, pictures). `target(name, settings)` gives what to
+ * write (or why not); `say` reports what happened. A format's `write` gets
+ * the settings too, so a character file can scale its pictures the same way.
+ */
+export function exportForm(pop, options) {
+    let name = options.name;
+    let format = 'GLB';
+    const others = options.formats ?? [];
+    const clean = (n) => n
+        .trim()
+        .replace(/[^\w-]+/g, '-')
+        .replace(/^-|-$/g, '') || 'character';
+    const go = () => {
+        const file = clean(name);
+        pop.close();
+        const other = others.find((f) => f.label === format);
+        if (other != null) {
+            void other.write(file, { ...settings });
+            return;
+        }
+        void (async () => {
+            const t = await options.target(file, { ...settings });
+            if (typeof t === 'string')
+                return options.say(t);
+            await exportAndSave({ ...t, name: file }, options.say);
+        })();
+    };
+    const form = () => [
+        label3d({ text: 'Export', icon: 'download' }),
+        inputField({
+            value: name,
+            placeholder: 'file name',
+            handleChange: (v) => {
+                name = v;
+            },
+            handleEnter: (v) => {
+                name = v;
+                go();
+            },
+        }),
+        ...(others.length
+            ? [
+                select3d({
+                    label: 'format',
+                    value: format,
+                    options: ['GLB', ...others.map((f) => f.label)],
+                    handleChange: (v) => {
+                        format = String(v);
+                        pop.show(form());
+                    },
+                }),
+            ]
+            : []),
+        ...(format === 'GLB' ? glbOptionRows() : []),
+        ...pictureRows(),
+        button3d({ label: 'export', default: true, handleClick: go }),
+        button3d({ label: 'cancel', handleClick: () => pop.close() }),
+    ];
+    return form();
+}
+/**
+ * An Export section: names, rest pose, height and the button. `target`
+ * gives what to write when pressed (null: nothing to export, and why);
+ * `say` reports what happened.
+ */
+export function exportBodyRows(target, say) {
+    return [
+        label3d({ text: 'Export', icon: 'download', collapsible: true }),
+        ...glbOptionRows(),
+        ...pictureRows(),
         button3d({
             label: 'export GLB',
             handleClick: () => {
                 void (async () => {
                     const t = await target();
-                    if (typeof t === 'string') {
-                        say(t);
-                        return;
-                    }
-                    say(`exporting ${t.name}…`);
-                    try {
-                        const { bytes, note } = await exportBody(t, settings);
-                        downloadBytes(`${t.name}.glb`, bytes);
-                        say(`exported ${t.name}.glb (${(bytes.byteLength / 1e6).toFixed(1)} MB)${note ? `; ${note}` : ''}`);
-                    }
-                    catch (e) {
-                        say(`could not export: ${e.message}`);
-                    }
+                    if (typeof t === 'string')
+                        return say(t);
+                    await exportAndSave(t, say);
                 })();
             },
         }),

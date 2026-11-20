@@ -76,5 +76,9 @@ What the file is (Dramatis's `export-format`, version 1):
   the mesh, as its file has it.
 - **`asset.extras`** is passed through as given (Dramatis's licence block
   goes there), with `generator` and `copyright`.
+- **The rig recipe** itself, when given, in `asset.extras.tosijsRigRecipe`:
+  the markers and hand-moved joints are in the body's own frame, which a
+  T-posed file cannot give back. `readGlbRigRecipe(bytes)` reads it, and the
+  rig tool's load takes the GLB.
 
 Weights are the body's own, four per vertex, renormalised.

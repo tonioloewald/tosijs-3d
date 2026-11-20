@@ -132,14 +132,23 @@ describe('the other side', () => {
         z: 0,
       })
       const e = matrixEuler(m)
-      const back = compose({ x: 1, y: 1, z: 1 }, eulerQuaternion(e.rx, e.ry, e.rz), {
-        x: 0,
-        y: 0,
-        z: 0,
-      })
+      const back = compose(
+        { x: 1, y: 1, z: 1 },
+        eulerQuaternion(e.rx, e.ry, e.rz),
+        {
+          x: 0,
+          y: 0,
+          z: 0,
+        }
+      )
       close(back, m)
-      const b = BABYLON.Quaternion.FromRotationMatrix(BABYLON.Matrix.FromArray(m)).toEulerAngles()
-      close([e.rx, e.ry, e.rz].map((v) => (v * Math.PI) / 180), [b.x, b.y, b.z])
+      const b = BABYLON.Quaternion.FromRotationMatrix(
+        BABYLON.Matrix.FromArray(m)
+      ).toEulerAngles()
+      close(
+        [e.rx, e.ry, e.rz].map((v) => (v * Math.PI) / 180),
+        [b.x, b.y, b.z]
+      )
     }
   })
 
@@ -149,14 +158,40 @@ describe('the other side', () => {
   for (const mount of ['hand', 'forearm'] as const)
     test(`a ${mount} grip mirrored is the mirror image of the hold`, () => {
       for (let k = 0; k < 10; k++) {
-        const hand = { x: -0.5 + rand() * 0.2, y: 1.4 + rand() * 0.2, z: rand() * 0.2 }
-        const lowerarm = { x: hand.x + 0.25, y: hand.y + rand() * 0.1, z: hand.z + rand() * 0.1 }
-        const thumb = { x: hand.x - 0.03, y: hand.y + 0.02, z: hand.z + 0.04 + rand() * 0.02 }
-        const socket = (side: 'r' | 'l', h: typeof hand, l: typeof hand, t: typeof hand) =>
-          mount === 'hand' ? socketWorld(side, h, l, t)! : forearmWorld(side, h, l, t)!
+        const hand = {
+          x: -0.5 + rand() * 0.2,
+          y: 1.4 + rand() * 0.2,
+          z: rand() * 0.2,
+        }
+        const lowerarm = {
+          x: hand.x + 0.25,
+          y: hand.y + rand() * 0.1,
+          z: hand.z + rand() * 0.1,
+        }
+        const thumb = {
+          x: hand.x - 0.03,
+          y: hand.y + 0.02,
+          z: hand.z + 0.04 + rand() * 0.02,
+        }
+        const socket = (
+          side: 'r' | 'l',
+          h: typeof hand,
+          l: typeof hand,
+          t: typeof hand
+        ) =>
+          mount === 'hand'
+            ? socketWorld(side, h, l, t)!
+            : forearmWorld(side, h, l, t)!
         const right = socket('r', hand, lowerarm, thumb)
         const left = socket('l', mirror(hand), mirror(lowerarm), mirror(thumb))
-        const g = { x: rand() * 0.1, y: rand() * 0.1, z: rand() * 0.1, rx: rand() * 150, ry: rand() * 300, rz: rand() * 300 }
+        const g = {
+          x: rand() * 0.1,
+          y: rand() * 0.1,
+          z: rand() * 0.1,
+          rx: rand() * 150,
+          ry: rand() * 300,
+          rz: rand() * 300,
+        }
         const wr = mat4Multiply(gripMatrix(g), right)
         const wl = mat4Multiply(gripMatrix(mirrorGrip(g, mount, 'l')), left)
         // The item mirrored through its own x, then the world's.

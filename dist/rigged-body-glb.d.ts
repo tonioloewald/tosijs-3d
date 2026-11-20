@@ -24,7 +24,8 @@ export interface RiggedBodyGlbOptions {
     /**
      * The rig recipe, for its springs: bone chains swing, strands are baked
      * into joints and a tube mesh, colliders go on their bones; written as
-     * `VRMC_springBone` and `TOSIJS_spring_chains` (see spring-vrm).
+     * `VRMC_springBone` and `TOSIJS_spring_chains` (see spring-vrm). Also
+     * written whole in `asset.extras.tosijsRigRecipe` (`readGlbRigRecipe`).
      */
     recipe?: Partial<RigRecipe>;
     /** A held item, or only its socket: see "A held item" above. */
@@ -65,6 +66,8 @@ export interface ClipOut {
     armSpaceDeg?: number;
     /** Turn the feet (see retarget's `footTurnDeg`). */
     footTurnDeg?: number;
+    /** Left to right (see retarget's `mirror`). */
+    mirror?: boolean;
     /** The animation's `extras`: its licence. */
     extras?: Record<string, unknown>;
 }
@@ -140,5 +143,12 @@ export type ClothBaker = (picture: {
  * the file's materials and pictures. Pure; the GLB's bytes.
  */
 export declare function riggedBodyGlb(body: RiggedBody, options?: RiggedBodyGlbOptions): Uint8Array;
+/** Where an export keeps its rig recipe: a key of `asset.extras`. */
+export declare const RIG_RECIPE_EXTRA = "tosijsRigRecipe";
+/**
+ * The rig recipe a GLB was exported with (`riggedBodyGlb`'s `recipe`), or
+ * null when it has none. Throws when the bytes are not a GLB.
+ */
+export declare function readGlbRigRecipe(bytes: Uint8Array): Partial<RigRecipe> | null;
 export {};
 //# sourceMappingURL=rigged-body-glb.d.ts.map

@@ -172,7 +172,9 @@ export function beginTrade(
   const offer = (currency: string) => {
     const b = balance()
     const can = theirPurse(currency)
-    return b < 0 && -b > can ? { pay: -can, short: true } : { pay: b, short: false }
+    return b < 0 && -b > can
+      ? { pay: -can, short: true }
+      : { pay: b, short: false }
   }
 
   return {
@@ -195,8 +197,18 @@ export function beginTrade(
         }
         const r = inv.move(
           pay > 0
-            ? { to: null, pay: { holder: me, in: currency }, payee: them, amount: pay }
-            : { to: null, pay: { holder: them, in: currency }, payee: me, amount: -pay }
+            ? {
+                to: null,
+                pay: { holder: me, in: currency },
+                payee: them,
+                amount: pay,
+              }
+            : {
+                to: null,
+                pay: { holder: them, in: currency },
+                payee: me,
+                amount: -pay,
+              }
         )
         if (r.ok) started = tally(inv, sides.mine)
         return r

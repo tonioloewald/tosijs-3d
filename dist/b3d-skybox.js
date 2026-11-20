@@ -2007,9 +2007,11 @@ export class B3dSkybox extends AbstractMesh {
         frame (board #2865).
         */
         const viewer = sceneNow.activeCamera;
-        const seesSky = viewer == null ||
-            this.mesh == null ||
-            (this.mesh.layerMask & viewer.layerMask) !== 0;
+        // In passthrough the room is the backdrop: the clear stays transparent.
+        const seesSky = this.owner?.passthrough !== true &&
+            (viewer == null ||
+                this.mesh == null ||
+                (this.mesh.layerMask & viewer.layerMask) !== 0);
         if (seesSky) {
             if (this._clearBase == null) {
                 this._clearBase = sceneNow.clearColor.clone();

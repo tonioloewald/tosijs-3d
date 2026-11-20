@@ -44,7 +44,7 @@ preview.append(
           return c.skeletons.find((s) => s.bones.some((b) => { const t = b.getTransformNode(); return t && top && t.isDescendantOf(top) }))
         }
 
-        const ual = await load(assetUrl('quaternius/UAL1_core.glb', 3))
+        const ual = await load(assetUrl('quaternius/UAL1_core.glb', 5))
         const source = readSkeleton(ual.skeletons[0], rootOf(ual))
         const bodies = [{ root: rootOf(ual), skeleton: null, x: 2.4 }]
         const hero = await load(assetUrl('quaternius/libraries/characters-superhero-male.glb'))
@@ -122,6 +122,10 @@ Arm-Space") turns the upper arms out from the body, and the chibi takes 55°.
    the knee the way the clip bends it (toward the leg's front when the leg
    is nearly straight). A foot in the air keeps the copied angles.
    `footIk: false` turns it off.
+6. **Mirroring.** `mirror: true` plays a clip left to right: each bone turns
+   as its partner on the other side turned, reflected across the body's
+   centre plane, and the hips travel the other way sideways. A right-handed
+   throw becomes a left-handed one, on any source and any body.
 
 Babylon-free and deterministic (plain `{x, y, z, w}` quaternions), like
 `fly-by-wire`: the Babylon side (`retarget-babylon`) reads the skeletons and

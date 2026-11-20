@@ -1,3 +1,26 @@
+/**
+ * Let any panel SVG carry layer hosts (`addLayerHost`), the list a popup or a
+ * tip is mounted through. A `panel3d` has it already; a panel drawn by other
+ * code (the trade panel, the inventory dock) gets it here.
+ */
+export declare function layerHostable(svg: SVGSVGElement): void;
+/** Where a tip goes against its anchor: under it (a tooltip) or beside it (an info card). */
+export type TipSide = 'below' | 'right';
+/**
+ * Show `sheet` as a TIP (a tooltip, an info card) for `anchor` in `root`'s
+ * own units: its own surface, beside or under the anchor and in front of the
+ * panel, so the panel's edge cannot clip it, and never picked. Mounted by
+ * every presentation of the panel that can hold one. Null when none can (a
+ * panel only on the page): draw it in the panel as before.
+ */
+export declare function showTipSurface(root: SVGSVGElement, sheet: SVGSVGElement, anchor: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}, side?: TipSide): {
+    close: () => void;
+} | null;
 /** The bit of `B3d` a layer needs — duck-typed, to stay out of the cycle. */
 export interface PopupOwner {
     openPopup?: (o: Record<string, unknown>) => {

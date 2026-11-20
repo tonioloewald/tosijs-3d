@@ -143,6 +143,15 @@ export interface Box {
     focusBack: () => void;
     /** The focused child's index, or -1. */
     focusIndex: () => number;
+    /**
+     * Focus child `i` (-1 clears), scrolled into view. `ring: false` leaves the
+     * ring to the host (a scene draws one ring across all its panels).
+     */
+    focusTo: (i: number, opts?: {
+        ring?: boolean;
+    }) => void;
+    /** Child `i`'s rect as drawn now, scroll applied (it may be out of sight: `focusTo` brings it in). */
+    visibleRect: (i: number) => FlowBox | null;
 }
 export declare function box(opts: BoxOptions, ...children: BoxChild[]): Box;
 /**

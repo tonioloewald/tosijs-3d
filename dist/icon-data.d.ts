@@ -98,6 +98,10 @@ declare const _default: {
     refreshCcw: string;
     refreshCw: string;
     resize: string;
+    rigAlone: string;
+    rigMarkers: string;
+    rigMove: string;
+    rigTurn: string;
     rotateCcw: string;
     rotateCw: string;
     spring: string;

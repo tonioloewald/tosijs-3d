@@ -243,6 +243,7 @@ function retargetSampled(sample, seconds, source, target, options) {
         armSpaceDeg: options.armSpaceDeg,
         footTurnDeg: options.footTurnDeg,
         footIk: options.footIk,
+        mirror: options.mirror,
     });
     const fps = options.fps ?? 30;
     const frames = Math.max(1, Math.round(seconds * fps));

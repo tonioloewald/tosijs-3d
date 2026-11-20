@@ -259,9 +259,7 @@ export const FOREARM_IN_ANATOMY: Record<'r' | 'l', Mat4> = {
   r: [
     0, -0.56698, -0.82373, 0, 1, 0, 0, 0, 0, 0.82373, -0.56698, 0, 0, 0, 0, 1,
   ],
-  l: [
-    0, 0.56698, -0.82373, 0, 1, 0, 0, 0, 0, 0.82373, 0.56698, 0, 0, 0, 0, 1,
-  ],
+  l: [0, 0.56698, -0.82373, 0, 1, 0, 0, 0, 0, 0.82373, 0.56698, 0, 0, 0, 0, 1],
 }
 
 /** Where a held thing rides: in the hand or on the forearm. */
@@ -339,7 +337,7 @@ export function matrixEuler(m: Mat4): { rx: number; ry: number; rz: number } {
   const zAxisY = y * z - x * w
   if (Math.abs(zAxisY) > 0.4999999)
     return {
-      rx: (zAxisY < 0 ? 90 : -90),
+      rx: zAxisY < 0 ? 90 : -90,
       ry: 2 * Math.atan2(y, w) * deg,
       rz: 0,
     }

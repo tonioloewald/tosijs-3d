@@ -147,7 +147,11 @@ export class B3dPickup extends B3dProp {
     fromY = 50
   ): number {
     const hit = scene.pickWithRay(
-      new BABYLON.Ray(new BABYLON.Vector3(x, fromY, z), BABYLON.Vector3.Down(), fromY + 50),
+      new BABYLON.Ray(
+        new BABYLON.Vector3(x, fromY, z),
+        BABYLON.Vector3.Down(),
+        fromY + 50
+      ),
       this._solid()
     )
     return hit?.hit && hit.pickedPoint ? hit.pickedPoint.y : 0

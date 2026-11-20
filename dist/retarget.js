@@ -45,7 +45,7 @@ preview.append(
           return c.skeletons.find((s) => s.bones.some((b) => { const t = b.getTransformNode(); return t && top && t.isDescendantOf(top) }))
         }
 
-        const ual = await load(assetUrl('quaternius/UAL1_core.glb', 3))
+        const ual = await load(assetUrl('quaternius/UAL1_core.glb', 5))
         const source = readSkeleton(ual.skeletons[0], rootOf(ual))
         const bodies = [{ root: rootOf(ual), skeleton: null, x: 2.4 }]
         const hero = await load(assetUrl('quaternius/libraries/characters-superhero-male.glb'))
@@ -123,6 +123,10 @@ Arm-Space") turns the upper arms out from the body, and the chibi takes 55°.
    the knee the way the clip bends it (toward the leg's front when the leg
    is nearly straight). A foot in the air keeps the copied angles.
    `footIk: false` turns it off.
+6. **Mirroring.** `mirror: true` plays a clip left to right: each bone turns
+   as its partner on the other side turned, reflected across the body's
+   centre plane, and the hips travel the other way sideways. A right-handed
+   throw becomes a left-handed one, on any source and any body.
 
 Babylon-free and deterministic (plain `{x, y, z, w}` quaternions), like
 `fly-by-wire`: the Babylon side (`retarget-babylon`) reads the skeletons and
@@ -135,6 +139,7 @@ mesh, as Mixamo's auto-rigger does, and binds the mesh to it
 */
 /*{ "parent": "b3d-biped", "order": 70 }*/
 import { quatConjugate, quatMul, rotateVector, sub, } from './spatial-transform.js';
+import { rotationBetween, twoBoneIk } from './two-bone-ik.js';
 export const FINGERS = [
     'thumb',
     'index',
@@ -348,25 +353,7 @@ const normalize = (v) => {
         ? { x: v.x / l, y: v.y / l, z: v.z / l }
         : { x: 0, y: 0, z: 0 };
 };
-/** The shortest rotation taking unit vector `a` onto unit vector `b`. */
-export function rotationBetween(a, b) {
-    const d = a.x * b.x + a.y * b.y + a.z * b.z;
-    if (d < -0.999999) {
-        // Opposite: half a turn about any axis at right angles to `a`.
-        const axis = normalize(Math.abs(a.x) < 0.9
-            ? { x: 0, y: -a.z, z: a.y }
-            : { x: a.z, y: 0, z: -a.x });
-        return { x: axis.x, y: axis.y, z: axis.z, w: 0 };
-    }
-    const c = {
-        x: a.y * b.z - a.z * b.y,
-        y: a.z * b.x - a.x * b.z,
-        z: a.x * b.y - a.y * b.x,
-    };
-    const w = 1 + d;
-    const l = Math.hypot(c.x, c.y, c.z, w);
-    return { x: c.x / l, y: c.y / l, z: c.z / l, w: w / l };
-}
+export { rotationBetween };
 /*
 WHERE A ROLE POINTS: from its joint toward the next role down the limb (the
 elbow for an upper arm, the knee for a thigh), or toward its first child.
@@ -606,6 +593,47 @@ function hipHeight(sk, world) {
     }
     return hips.y - low;
 }
+/** A turn reflected across the body's centre plane (x → -x). */
+function reflectQuat(q) {
+    return { x: q.x, y: -q.y, z: -q.z, w: q.w };
+}
+const reflectVec = (v) => ({ x: -v.x, y: v.y, z: v.z });
+/** The role on the other side ('l-hand' ↔ 'r-hand'); a centre role is its own. */
+function mirrorRole(r) {
+    return (r.startsWith('l-')
+        ? `r-${r.slice(2)}`
+        : r.startsWith('r-')
+            ? `l-${r.slice(2)}`
+            : r);
+}
+/**
+ * A source pose seen in a mirror: each role bone moves as its partner on the
+ * other side did, reflected. Turns and travel are taken since rest, so a rig
+ * whose rest pose is a little lopsided keeps its own rest.
+ */
+function mirrorPose(source, rest, now) {
+    const rotation = new Map(now.rotation);
+    const position = new Map(now.position);
+    for (const r of ROLES) {
+        const n = source.roles[r];
+        if (n == null)
+            continue;
+        const m = source.roles[mirrorRole(r)] ?? n;
+        const rn = rest.rotation.get(n);
+        const rm = rest.rotation.get(m);
+        const qm = now.rotation.get(m);
+        if (rn && rm && qm)
+            rotation.set(n, quatMul(reflectQuat(quatMul(qm, quatConjugate(rm))), rn));
+        const pn = rest.position.get(n);
+        const pm = rest.position.get(m);
+        const am = now.position.get(m);
+        if (pn && pm && am) {
+            const t = reflectVec(sub(am, pm));
+            position.set(n, { x: pn.x + t.x, y: pn.y + t.y, z: pn.z + t.z });
+        }
+    }
+    return { rotation, position };
+}
 /** Two-bone IK on one leg, in place on the world rotations `tWorld`. */
 function solveLeg(hip, knee, ankle, goal, thighTurn, forward) {
     const a = Math.hypot(knee.x - hip.x, knee.y - hip.y, knee.z - hip.z);
@@ -621,7 +649,6 @@ function solveLeg(hip, knee, ankle, goal, thighTurn, forward) {
     if (d0 < 1e-6)
         return null;
     const u = normalize(toGoal);
-    const d = Math.min(a + b - 1e-5, Math.max(Math.abs(a - b) + 1e-5, d0));
     /*
     WHICH WAY THE KNEE BENDS: the clip's way where its knee is clearly bent,
     the leg's front where it is nearly straight. A straight leg's knee sits a
@@ -643,30 +670,13 @@ function solveLeg(hip, knee, ankle, goal, thighTurn, forward) {
     const t = frontLen < 1e-9 ? 1 : s * s * (3 - 2 * s);
     const cw = off > 1e-12 ? t / off : 0;
     const fw = frontLen > 1e-9 ? (1 - t) / frontLen : 0;
-    let v = {
+    const v = {
         x: clip.x * cw + front.x * fw,
         y: clip.y * cw + front.y * fw,
         z: clip.z * cw + front.z * fw,
     };
-    if (Math.hypot(v.x, v.y, v.z) < 1e-9)
-        return null;
-    v = normalize(v);
-    const cos = Math.min(1, Math.max(-1, (a * a + d * d - b * b) / (2 * a * d)));
-    const sin = Math.sqrt(1 - cos * cos);
-    const knee2 = {
-        x: hip.x + a * (u.x * cos + v.x * sin),
-        y: hip.y + a * (u.y * cos + v.y * sin),
-        z: hip.z + a * (u.z * cos + v.z * sin),
-    };
-    const ankle2 = {
-        x: hip.x + u.x * d,
-        y: hip.y + u.y * d,
-        z: hip.z + u.z * d,
-    };
-    const thigh = rotationBetween(normalize(sub(knee, hip)), normalize(sub(knee2, hip)));
-    const shinNow = rotateVector(thigh, sub(ankle, knee));
-    const shin = quatMul(rotationBetween(normalize(shinNow), normalize(sub(ankle2, knee2))), thigh);
-    return { thigh, shin };
+    const turn = twoBoneIk(hip, knee, ankle, goal, v);
+    return turn && { thigh: turn.first, shin: turn.second };
 }
 /**
  * Map `source`'s poses onto `target`. Both skeletons should face the same
@@ -819,7 +829,8 @@ export function retargeter(source, target, options = {}) {
         roles,
         scale,
         pose(rotations, hips) {
-            const sNow = toWorld(source.bones, rotations, hips != null && sHips != null ? new Map([[sHips, hips]]) : undefined);
+            const sPosed = toWorld(source.bones, rotations, hips != null && sHips != null ? new Map([[sHips, hips]]) : undefined);
+            const sNow = options.mirror ? mirrorPose(source, sRest, sPosed) : sPosed;
             const out = new Map();
             const tWorld = new Map();
             for (const b of tOrder) {

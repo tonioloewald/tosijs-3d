@@ -35,6 +35,8 @@ export declare function retargetClip(group: BABYLON.AnimationGroup, source: Read
     footTurnDeg?: number;
     /** See `RetargetOptions.footIk`: false copies the legs' angles only. */
     footIk?: boolean;
+    /** See `RetargetOptions.mirror`: the clip left to right. */
+    mirror?: boolean;
 }): BABYLON.AnimationGroup;
 /**
  * A clip held as data (a [BVH](/bvh/) read with `readBvh`, or a GLB's read
@@ -48,6 +50,7 @@ export declare function retargetSourceClip(source: GlbClipSource, clip: GlbClip,
     armSpaceDeg?: number;
     footTurnDeg?: number;
     footIk?: boolean;
+    mirror?: boolean;
 }): BABYLON.AnimationGroup;
 /** `retargetClip` for several groups, each named after its source. */
 export declare function retargetClips(groups: readonly BABYLON.AnimationGroup[], source: ReadSkeleton, target: ReadSkeleton, options?: {

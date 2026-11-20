@@ -158,6 +158,7 @@ the rays and draws the explosion. The amounts land on a
 */
 /*{ "parent": "combat", "order": 30 }*/
 import * as BABYLON from '@babylonjs/core';
+import { makeNoise } from './noise.js';
 import { AbstractMesh, isOff, sceneDelta, collidable } from './b3d-utils.js';
 import { resolveAoe } from './warhead.js';
 import { liveDestroyables } from './destroyable-behavior.js';
@@ -278,6 +279,8 @@ cause) {
             setTimeout(() => el.damage(amount, why), delayMs);
     }
     explosionFx(scene, center, blastRadius);
+    // A blast is heard a long way off (see noise).
+    makeNoise(scene, center, Math.max(40, blastRadius * 4));
 }
 // A target is visible unless a NON-destroyable pickable mesh (a wall/cover) sits
 // between the blast center and it — cubes don't shadow each other from a blast.

@@ -48,7 +48,8 @@ export class HardwareGamepadSource implements GamepadSource {
   poll(raw = false): VirtualGamepad {
     const pad = this._read()
     if (!raw)
-      for (const k of padUiOwns) (pad as unknown as Record<string, number>)[k] = 0
+      for (const k of padUiOwns)
+        (pad as unknown as Record<string, number>)[k] = 0
     return pad
   }
 

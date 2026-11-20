@@ -1,5 +1,14 @@
 import { describe, expect, test } from 'bun:test'
-import { HOLD_GRIPS, PLACE_GRIPS, gripKey, holdClassOf, holdGrip, holdMount, ownSideGrip, placeIn } from './hold-grip.js'
+import {
+  HOLD_GRIPS,
+  PLACE_GRIPS,
+  gripKey,
+  holdClassOf,
+  holdGrip,
+  holdMount,
+  ownSideGrip,
+  placeIn,
+} from './hold-grip.js'
 
 describe('hold grips', () => {
   test('items of a class share a grip', () => {
@@ -21,24 +30,36 @@ describe('hold grips', () => {
     expect(holdMount('bow').bone).toBe('hand_l')
     expect(holdMount('shield').bone).toBe('lowerarm_l')
     expect(holdMount('shield', 'r').bone).toBe('lowerarm_r')
-    expect(holdMount('melee1h', 'l')).toMatchObject({ bone: 'hand_l', mount: 'hand', side: 'l' })
+    expect(holdMount('melee1h', 'l')).toMatchObject({
+      bone: 'hand_l',
+      mount: 'hand',
+      side: 'l',
+    })
   })
   test('the other side is mirrored, and stored back as its own', () => {
     const right = holdGrip('Dagger')
     const left = holdGrip('Dagger', {}, undefined, 'l')
     expect(left).not.toEqual(right)
     const back = ownSideGrip('Dagger', left, 'l')
-    for (const k of ['x', 'y', 'z'] as const) expect(back[k]).toBeCloseTo(right[k], 5)
+    for (const k of ['x', 'y', 'z'] as const)
+      expect(back[k]).toBeCloseTo(right[k], 5)
     expect(holdGrip('Dagger', {}, undefined, 'r')).toEqual(right)
   })
   test('a class can be worn in a place not its own, with a grip of its own there', () => {
-    const kept = { 'place:shield': 'hand', 'hand:shield': { y: 0.02 }, shield: { y: 0.3 } }
+    const kept = {
+      'place:shield': 'hand',
+      'hand:shield': { y: 0.02 },
+      shield: { y: 0.3 },
+    }
     expect(placeIn('Buckler', kept)).toBe('hand')
     expect(placeIn('Buckler')).toBe('forearm')
     expect(gripKey('Buckler', 'hand')).toBe('hand:shield')
     expect(gripKey('Buckler', 'forearm')).toBe('shield')
     expect(holdMount('shield', 'l', 'hand').bone).toBe('hand_l')
-    expect(holdGrip('Buckler', kept as any, undefined, 'l', 'hand')).toEqual({ ...PLACE_GRIPS.hand, y: 0.02 })
+    expect(holdGrip('Buckler', kept as any, undefined, 'l', 'hand')).toEqual({
+      ...PLACE_GRIPS.hand,
+      y: 0.02,
+    })
     expect(holdGrip('Buckler', kept as any, undefined, 'l').y).toBe(0.3)
   })
 })

@@ -64,6 +64,7 @@ export function systemBar(buttons) {
     let shown = [];
     let pressed = -1;
     let hover = -1;
+    let padFocus = -1;
     const indexAt = (x, y) => {
         if (y < PAD || y > PAD + SIZE)
             return -1;
@@ -97,6 +98,7 @@ export function systemBar(buttons) {
         shown.forEach((b, i) => {
             const x = PAD + i * (SIZE + GAP);
             const lit = !b.disabled && (i === pressed || i === hover);
+            const ringed = i === padFocus;
             // A toggle that is on (its panel showing): lit until it is off.
             const on = !b.disabled && b.getAttribute('aria-pressed') === 'true';
             const icon = b.querySelector('svg')?.cloneNode(true);
@@ -126,7 +128,22 @@ export function systemBar(buttons) {
                         : on
                             ? 'rgba(74,158,255,0.35)'
                             : 'rgba(255,255,255,0.06)',
-            }), ...(icon ? [icon] : [])));
+            }), ...(icon ? [icon] : []), 
+            // The gamepad's focus: a ring, so it reads apart from a hover.
+            ...(ringed
+                ? [
+                    rect({
+                        x: x + 1.5,
+                        y: PAD + 1.5,
+                        width: SIZE - 3,
+                        height: SIZE - 3,
+                        rx: SIZE / 2 - 1.5,
+                        fill: 'none',
+                        stroke: '#ffd25a',
+                        'stroke-width': 3,
+                    }),
+                ]
+                : [])));
         });
     };
     /*
@@ -199,6 +216,34 @@ export function systemBar(buttons) {
         svg: root,
         get count() {
             return shown.length;
+        },
+        get padFocus() {
+            return padFocus;
+        },
+        setPadFocus(i) {
+            const next = i < 0 ? -1 : Math.min(i, shown.length - 1);
+            if (next !== padFocus) {
+                padFocus = next;
+                build();
+            }
+        },
+        padMove(dx) {
+            if (shown.length === 0)
+                return false;
+            let i = padFocus < 0 ? (dx < 0 ? shown.length : -1) : padFocus;
+            do
+                i += dx;
+            while (i >= 0 && i < shown.length && shown[i].disabled);
+            if (i < 0 || i >= shown.length)
+                return false;
+            padFocus = i;
+            build();
+            return true;
+        },
+        padActivate() {
+            const b = shown[padFocus];
+            if (b != null && !b.disabled)
+                b.click();
         },
         dispose() {
             stopHold();

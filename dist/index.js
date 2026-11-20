@@ -121,6 +121,9 @@ export { createCarry, DRAG_THRESHOLD } from './carry.js';
 export { carryTile, carrySocket, carryPanel, carryOverlay, carryGhostLayer, } from './carry-box.js';
 export { createInventory } from './inventory.js';
 export { inventoryPanel, inventoryDock, readSchematic, schematicFit, } from './inventory-box.js';
+export { tradePanel, } from './inventory-trade.js';
+export { beginTrade, } from './trade.js';
+export { formatMoney, currencyFor } from './currency.js';
 export { layoutSystem } from './system-layout.js';
 export { decodeGray16Png, mapSurface, loadPlanetMap, } from './planet-map.js';
 export { createMappedPlanetMaterial } from './planet-map-material.js';
@@ -137,7 +140,7 @@ export { ProjectedAoController } from './b3d-ssao-projected.js';
 // Character & input
 export { B3dBiped, b3dBiped, AnimState } from './b3d-biped.js';
 // Clip-name map for Quaternius UAL rigs — see b3d-biped.
-export { ualAnimationStates } from './b3d-biped.js';
+export { ualAnimationStates, AIM_CLIPS } from './b3d-biped.js';
 export { GameController, gameController } from './game-controller.js';
 export { B3dInputFocus, inputFocus } from './b3d-input-focus.js';
 export { gamepadState, gamepadText, xrControllers, xrControllersText, } from './gamepad.js';
@@ -221,7 +224,10 @@ export { bakeSkyboxCube, bakeSkyPair, starsFromGalaxy, starsFromVoxelGalaxy, fac
 export { SurroundingsProbe, makeProbeScratch, readSurroundings, } from './surroundings-probe.js';
 export { DEFAULT_HEIGHTS, bearingIndex, exposure, inShelter, makeSurroundings, muzzleClearance, peekSide, sampleAt, setSample, shelterFrom, shuffleToward, stanceFor, } from './surroundings.js';
 export { DEFAULT_AIM_LIMITS, aimAuthority, aimDirection, aimPoseWeights, aimToward, aimWobble, bodyCatchUp, clampAim2, relaxAim, stepAim, wrapDeg, } from './aim.js';
-export { aimSpine } from './aim-ik.js';
+export { aimSpine, reachLimb, setWorldRotation, } from './aim-ik.js';
+export { twoBoneIk } from './two-bone-ik.js';
+export { startConversation, speakingSeconds, repliesDueAt, } from './conversation.js';
+export { B3dConversation, b3dConversation } from './b3d-conversation.js';
 export { B3dCrowd, b3dCrowd, VatPlugin, buildBenchFigure, writeVatTextures, } from './b3d-crowd.js';
 /*
 Vertex-animation substrate — the crowd/fauna primitive. Pure layout and phase
@@ -256,8 +262,9 @@ export { footprint3d } from './footprint-field.js';
 // module so it tree-shakes, and top-level like the other `*3d` widgets.
 export { vector3d, euler3d, wrapDegrees } from './vector-field.js';
 export { playback3d } from './playback-field.js';
+export { pager3d } from './pager-field.js';
 export { undoHistory } from './undo-history.js';
-export { HOLD_CLASSES, HOLD_CLASS_LABELS, HOLD_GRIPS, holdClassOf, holdGrip, } from './hold-grip.js';
+export { HOLD_CLASSES, HOLD_CLASS_LABELS, HOLD_GRIPS, holdClassOf, holdGrip, holdMount, holdPlace, holdSide, ownSideGrip, placeIn, gripKey, PLACE_GRIPS, stowGrip, STOW_MOUNT, STOW_GRIPS, } from './hold-grip.js';
 export { FABRIC_TEXTURES, fabricTextureRecipe, fabricTexturePresets, } from './fabric-textures.js';
 export { addPicture, isPictureKey, pictureData, picturesIn, pictureUrl, registerPicture, } from './material-pictures.js';
 export { pictureTexture } from './material-apply.js';
@@ -454,10 +461,18 @@ export { makeResource, drain, refill, regenTick, isEmpty, isFull, fraction, } fr
 export { CombatWorld, DEFAULT_CHAIN_DELAY } from './destroyable.js';
 export { B3dDestroyable, b3dDestroyable } from './b3d-destroyable.js';
 export { B3dProp, b3dProp } from './b3d-prop.js';
+export { B3dPickup, b3dPickup } from './b3d-pickup.js';
+export { B3dDoor, b3dDoor, B3dOpenable } from './b3d-door.js';
+export { B3dChest, b3dChest } from './b3d-chest.js';
+export { B3dNpc, b3dNpc } from './b3d-npc.js';
+export { npcBrain } from './npc-brain.js';
+export { notices, hears, inFront, STEALTH, DEFAULT_SENSORIUM, } from './sensorium.js';
+export { makeNoise, noisesSince } from './noise.js';
 export { loadLibraryMesh } from './library-mesh.js';
 export { DestroyableBehavior } from './destroyable-behavior.js';
 export { B3dWarhead, b3dWarhead, detonateWarhead, explosionFx, } from './b3d-warhead.js';
-export { B3dLauncher, b3dLauncher, spawnProjectile, spawnMissile, handSocket, deriveGrip, heldGrip, } from './b3d-launcher.js';
+export { B3dLauncher, b3dLauncher, spawnProjectile, spawnMissile, handSocket, forearmSocket, mountNode, deriveGrip, heldGrip, } from './b3d-launcher.js';
+export { gunshot } from './gun-sound.js';
 export { createMakers } from './make-mesh.js';
 export { roundedRectGeometry, signedArea } from './rounded-rect.js';
 export { openPopup } from './popup-surface.js';
@@ -512,7 +527,7 @@ export { outlineField3d } from './outline-field.js';
 export { bindGarment, closestOnTriangle } from './garment-bind.js';
 export { writeGarmentGlb, writeGarmentObj, readGarment, garmentRigidity, referenceName, metaFromName, unwrapGarment, } from './garment-file.js';
 export { unwrapUvs, carryUnwrapped } from './uv-unwrap.js';
-export { writeCharacter, readCharacter, CHARACTER_FORMAT, CHARACTER_VERSION, } from './character-file.js';
+export { writeCharacter, readCharacter, readGlbCharacter, CHARACTER_FORMAT, CHARACTER_VERSION, } from './character-file.js';
 export { characterStore, splitBlobs, joinBlobs, CHARACTER_DB, WORKING_CHARACTER, nameCharacter, } from './character-store.js';
 export { rigidGroups, similarityFit, applyRigid, rigidWeights, rigidDelta, } from './proxy-rigid.js';
 export { clothShading, clothRecipe, FABRICS } from './cloth-shading.js';

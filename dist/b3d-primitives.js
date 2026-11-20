@@ -89,7 +89,7 @@ const MIN_SOLID_HEIGHT = 0.7;
  * Returns the proxy, or `null` when the mesh is already tall enough to be
  * noticed on its own. See the long note on `solid`.
  */
-function addSolidProxy(mesh, scene) {
+export function addSolidProxy(mesh, scene) {
     const box = mesh.getBoundingInfo().boundingBox;
     const size = box.maximum.subtract(box.minimum);
     if (size.y >= MIN_SOLID_HEIGHT)

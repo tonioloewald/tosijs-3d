@@ -24,9 +24,24 @@ aimSpine([spine01, spine02, spine03], gun, aimDirection, { weight: 1, maxDeg: 70
 It works on directions in each bone's parent's frame, so a glTF root's
 handedness mirror and a uniform scale make no difference. `<tosi-b3d-biped>`
 runs it on its spine while it holds a weapon in `gunplay`.
+
+## Reaching
+
+`reachLimb(upper, lower, end, goal, bend)` puts a two-bone limb's end on a
+point ([[two-bone-ik]] does the solving), the middle joint bending toward
+`bend`; `setWorldRotation(node, matrix)` then turns the end itself (a hand onto
+a grip). The biped shoulders a long gun with them: the stock on the right
+shoulder, the barrel along the aim, the left hand on the foregrip.
+
+```javascript
+import { reachLimb } from 'tosijs-3d'
+
+reachLimb(upperarm_l, lowerarm_l, hand_l, foregrip, new BABYLON.Vector3(0, -1, 0))
+```
 */
 /*{ "parent": "aim" }*/
 import * as BABYLON from '@babylonjs/core';
+import { twoBoneIk } from './two-bone-ik.js';
 /** The nodes from `node` up to (not including) `top`, top first. */
 function pathBelow(top, node) {
     const path = [];
@@ -107,5 +122,90 @@ export function aimSpine(chain, held, target, options = {}) {
         : (Math.acos(Math.max(-1, Math.min(1, BABYLON.Vector3.Dot(after, want)))) *
             180) /
             Math.PI;
+}
+const vec = (v) => ({ x: v.x, y: v.y, z: v.z });
+/*
+A TURN IN THE PARENT'S FRAME, never a world quaternion: the glTF root's
+mirror makes a world rotation the wrong way round under it, while a direction
+carried into the parent's frame and turned there is right whatever sits above.
+*/
+function turnToward(bone, from, to) {
+    const parent = bone.parent;
+    if (parent == null || bone.rotationQuaternion == null)
+        return;
+    const inv = parent.getWorldMatrix().clone().invert();
+    const a = unit(BABYLON.Vector3.TransformNormal(from, inv));
+    const b = unit(BABYLON.Vector3.TransformNormal(to, inv));
+    if (a == null || b == null)
+        return;
+    const axis = unit(BABYLON.Vector3.Cross(a, b));
+    const angle = Math.acos(Math.max(-1, Math.min(1, BABYLON.Vector3.Dot(a, b))));
+    if (axis == null || angle < 1e-6)
+        return;
+    let turn = BABYLON.Matrix.RotationAxis(axis, angle);
+    if (BABYLON.Vector3.Dot(BABYLON.Vector3.TransformNormal(a, turn), b) < 0.999)
+        turn = BABYLON.Matrix.RotationAxis(axis, -angle);
+    const local = new BABYLON.Matrix();
+    bone.rotationQuaternion.toRotationMatrix(local);
+    BABYLON.Quaternion.FromRotationMatrixToRef(local.multiply(turn), bone.rotationQuaternion);
+}
+/**
+ * Turn `bone` by `angle` (radians) about the world direction `axis`, through
+ * its parent's frame. Its descendants' world matrices are left stale.
+ */
+export function turnAbout(bone, axis, angle) {
+    if (Math.abs(angle) < 1e-6)
+        return;
+    const n = unit(axis);
+    if (n == null)
+        return;
+    // Any direction square to the axis, and where the turn takes it.
+    const side = unit(BABYLON.Vector3.Cross(n, Math.abs(n.y) < 0.9 ? BABYLON.Axis.Y : BABYLON.Axis.X));
+    const q = BABYLON.Quaternion.RotationAxis(n, angle);
+    turnToward(bone, side, side.applyRotationQuaternion(q));
+}
+/**
+ * Turn `upper` and `lower` so `end` reaches `goal` (world), the middle joint
+ * bending toward `bend`. `weight` 0..1 reaches part of the way. Returns how
+ * far the end is from the goal afterwards (0 when it got there).
+ */
+export function reachLimb(upper, lower, end, goal, bend, options = {}) {
+    const weight = Math.max(0, Math.min(1, options.weight ?? 1));
+    const top = upper.parent;
+    const below = top != null ? pathBelow(top, end) : null;
+    if (top == null || below == null)
+        return 0;
+    const all = [top, ...below];
+    refresh(all);
+    const at = (n) => n.getAbsolutePosition().clone();
+    const p0 = at(upper);
+    const p1 = at(lower);
+    const p2 = at(end);
+    const want = BABYLON.Vector3.Lerp(p2, goal, weight);
+    const s = twoBoneIk(vec(p0), vec(p1), vec(p2), vec(want), vec(bend));
+    if (s != null) {
+        const mid = new BABYLON.Vector3(s.mid.x, s.mid.y, s.mid.z);
+        const tip = new BABYLON.Vector3(s.end.x, s.end.y, s.end.z);
+        turnToward(upper, p1.subtract(p0), mid.subtract(p0));
+        refresh(all.slice(all.indexOf(upper)));
+        const q1 = at(lower);
+        turnToward(lower, at(end).subtract(q1), tip.subtract(q1));
+        refresh(all.slice(all.indexOf(lower)));
+    }
+    return BABYLON.Vector3.Distance(at(end), goal);
+}
+/**
+ * Turn `node` so its world matrix's rotation is `world`'s (position and
+ * scale kept), eased by `weight`.
+ */
+export function setWorldRotation(node, world, weight = 1) {
+    const parent = node.parent;
+    if (parent == null || node.rotationQuaternion == null)
+        return;
+    const local = world.multiply(parent.getWorldMatrix().clone().invert());
+    const q = new BABYLON.Quaternion();
+    local.decompose(undefined, q);
+    BABYLON.Quaternion.SlerpToRef(node.rotationQuaternion, q, Math.max(0, Math.min(1, weight)), node.rotationQuaternion);
+    node.computeWorldMatrix(true);
 }
 //# sourceMappingURL=aim-ik.js.map

@@ -16,7 +16,10 @@ is a 44-unit target. Lists are scrolling lists.
 ## Equip a person
 
 The art is an SVG with a `Sockets` group; each socket's id is a slot. Drag
-from the bag onto the body, or tap, then tap. The rifle needs both hands
+from the bag onto the body, or tap, then tap (a gamepad's B, or Enter after
+Tab, is the tap: `controls()` lists every thing and place for the scene's
+[panel focus](/pad-ui/), and a focused slot lights when what is carried
+fits). The rifle needs both hands
 (and shows, faded, in the other one), a helm only goes on a head, and
 anything worn can be dragged back off.
 
@@ -377,11 +380,12 @@ what it adds (`info` replaces that).
 | `host` | the `<svg>` it draws into (it listens for the pointer there) |
 | `decorations(item, kind)` | what a thing shows: a bar, an outline, a badge |
 | `moveFor(item, from, to)` | the move to make for a drop (by default a slot takes one from a stack, with a swap) |
+| `spill` | where a thing it displaces goes when it cannot go back where the newcomer came from (the dock's list: a shield moved from the off hand to a back holding a two-handed spear puts the spear in the bag) |
 | `refuse(item, from, to)` | reasons this panel will not take a move, on top of the model's rules |
 | `schematics` | art per container: `{ body: svgText }`; its sockets are the slots (`data-slot`, or ids in a `Sockets` group) |
 | `only`, `hide` | which containers this panel draws (one holder can be split over panels) |
 | `height` | a fixed height that scrolls, instead of growing to fit |
-| `totals` | show the holder's purse and totals under its title (default on) |
+| `totals` | show the holder's purse and totals under its title (default on); money is written in the inventory's `currencies` ([currency](/currency/)) |
 | `handleDrop` | `(item, kind, from)`: adds a **drop** target at the top of the list; return reasons to refuse, else it leaves the inventory (put it in the world yourself) |
 | `alsoIn(item, kind, at)` | other slots an item takes up, where it is drawn faded (a two-handed weapon in both hands) |
 | `overlay` | draw the drag's ghost in a page overlay above every panel (default); off inside a 3D plane |
@@ -396,6 +400,7 @@ import { svgElements } from 'tosijs';
 import { box, textBlock, svgPoint } from './box.js';
 import { carryGhostLayer, carryOverlay, carryPanel, carrySocket, carryTile, } from './carry-box.js';
 import { panelRim } from './panel-rim.js';
+import { currencyFor, formatMoney } from './currency.js';
 const schematicCache = new Map();
 /** A box around an element's coordinates when it cannot be measured (no layout). */
 function roughBox(el) {
@@ -562,7 +567,7 @@ function artChild(s, avail) {
 }
 /** Places are passed through the carry as strings. */
 const enc = (p) => JSON.stringify(p);
-const defaultInfo = (item, kind) => {
+const defaultInfo = (item, kind, currencies = []) => {
     const lines = [
         `${kind?.name ?? item.kind}${item.qty > 1 ? ` ×${item.qty}` : ''}`,
     ];
@@ -570,6 +575,11 @@ const defaultInfo = (item, kind) => {
         lines.push(kind.description);
     if (kind?.mass != null)
         lines.push(`mass ${kind.mass}`);
+    // What it is worth, in the game's first currency.
+    if (kind?.cost)
+        lines.push(`value ${currencies[0]
+            ? formatMoney(kind.cost * item.qty, currencies[0])
+            : kind.cost * item.qty}`);
     for (const [k, v] of Object.entries(kind?.contributes ?? {}))
         lines.push(`${k} ${v > 0 ? '+' : ''}${v}`);
     if (item.damaged)
@@ -623,17 +633,46 @@ export function inventoryPanel(opts) {
             ? { qty: 1 }
             : {}),
     };
+    // The swap, else (with `spill`) what is there goes to the spill first.
+    const movesTo = (item, to) => {
+        const m = moveTo(item, to);
+        if (!opts.spill || !m.swap || !inv.check(m).length)
+            return [m];
+        const c = inv.doc.holders[to.holder]?.containers[to.container];
+        const there = c?.type === 'slots' && to.slot != null ? c.slots[to.slot]?.holds : null;
+        if (!there || there === item)
+            return [m];
+        const spilled = [{ item: there, to: opts.spill }, m];
+        return inv.check(...spilled).length ? [m] : spilled;
+    };
     const target = (to, id) => ({
         id,
         accepts: (item) => {
             const own = opts.refuse?.(item, inv.where(item), to) ?? [];
-            return own.length ? own : inv.check(moveTo(item, to));
+            return own.length ? own : inv.check(...movesTo(item, to));
         },
         receive: (item) => {
-            const r = inv.move(moveTo(item, to));
+            const r = inv.move(...movesTo(item, to));
             return r.ok ? [] : r.reasons;
         },
     });
+    /*
+    WHAT A D-PAD REACHES: each thing and place drawn, by a path that survives a
+    rebuild (the panel is rebuilt on every move), so the focus stays on the
+    same thing. The box shows it as focused (info, a slot lighting) and the
+    scene draws the ring.
+    */
+    let pads = [];
+    let kids = [];
+    let padPath = null;
+    const pad = (child, path, name, item, into) => {
+        pads.push({ child, path: `${holder}/${path}`, name, item, into });
+        return child;
+    };
+    const padFocus = () => {
+        const p = pads.find((q) => q.path === padPath);
+        current?.focusTo(p ? kids.indexOf(p.child) : -1, { ring: false });
+    };
     const tile = (id, at, size, into) => {
         const item = inv.doc.items[id];
         const kind = kinds[item.kind];
@@ -643,7 +682,9 @@ export function inventoryPanel(opts) {
             from: enc(at),
             label: kind?.name ?? item.kind,
             icon: kind?.icon,
-            info: () => (opts.info ?? defaultInfo)(item, kind),
+            info: () => opts.info
+                ? opts.info(item, kind)
+                : defaultInfo(item, kind, inv.currencies),
             decorations: () => opts.decorations?.(item, kind),
             target: into,
             ...size,
@@ -658,6 +699,7 @@ export function inventoryPanel(opts) {
         for (const d of disposers)
             d();
         disposers = [];
+        pads = [];
         const children = [];
         const lists = [];
         let shown = 0;
@@ -680,10 +722,15 @@ export function inventoryPanel(opts) {
                 color: '#e8e8e8',
             }));
         if (opts.totals !== false) {
-            const t = { ...h.purse, ...inv.totals(holder) };
-            const line = Object.entries(t)
-                .map(([k, v]) => `${k} ${Math.round(v * 10) / 10}`)
-                .join(' · ');
+            // Money as the game writes it (`€12`, `12 gold`), then the totals.
+            const line = [
+                ...Object.entries(h.purse ?? {}).map(([k, v]) => formatMoney(v, currencyFor(inv.currencies, k))),
+                ...Object.entries(inv.totals(holder)).map(([k, v]) => 
+                // `cost` is money too: in the game's first currency.
+                k === 'cost' && inv.currencies[0]
+                    ? `${k} ${formatMoney(v, inv.currencies[0])}`
+                    : `${k} ${Math.round(v * 10) / 10}`),
+            ].join(' · ');
             // Always there, empty or not, so the first thing worn does not push
             // everything under it down.
             head.push(textBlock(line || '\u00a0', { font: { size: 11 }, color: '#8a96ad' }));
@@ -716,7 +763,7 @@ export function inventoryPanel(opts) {
                 inline,
             });
             disposers.push(socket.dispose);
-            return socket;
+            return pad(socket, 'drop', 'drop');
         };
         for (const [cname, c] of Object.entries(h.containers)) {
             if (opts.only && !opts.only.includes(cname))
@@ -748,6 +795,12 @@ export function inventoryPanel(opts) {
                             echoes.set(o, { id: slot.holds, at });
                     }
                 }
+                // A place is named for itself and what is in it ("right hand: Pistol").
+                const slotName = (s, label) => {
+                    const id = c.slots[s].holds;
+                    const it = id != null ? inv.doc.items[id] : null;
+                    return it ? `${label}: ${kinds[it.kind]?.name ?? it.kind}` : label;
+                };
                 const holdingOf = (s, at, size) => {
                     const here = c.slots[s].holds;
                     if (here)
@@ -793,7 +846,7 @@ export function inventoryPanel(opts) {
                         });
                         socket.at = fit.at(sk.x, sk.y);
                         disposers.push(socket.dispose);
-                        children.push(socket);
+                        children.push(pad(socket, `${cname}/${sk.slot}`, slotName(sk.slot, sk.slot.replace(/_/g, ' '))));
                     }
                 }
                 for (const s of Object.keys(c.slots)) {
@@ -808,7 +861,7 @@ export function inventoryPanel(opts) {
                         ...holdingOf(s, at),
                     });
                     disposers.push(socket.dispose);
-                    children.push(socket);
+                    children.push(pad(socket, `${cname}/${s}`, slotName(s, s)));
                 }
             }
             else if (c.type === 'list') {
@@ -840,7 +893,7 @@ export function inventoryPanel(opts) {
                 });
                 disposers.push(socket.dispose);
                 socket.sticky = !!opts.height;
-                children.push(socket);
+                children.push(pad(socket, cname, opts.putLabel ?? `put in ${cname}`));
                 if (withDrop) {
                     const drop = dropSocket(half, true);
                     drop.sticky = !!opts.height;
@@ -850,12 +903,12 @@ export function inventoryPanel(opts) {
                 // Full width: a row is a button you can hit anywhere along it.
                 const row = { width: inner, height: 34 };
                 for (const id of c.holds)
-                    children.push(tile(id, at, row, into));
+                    children.push(pad(tile(id, at, row, into), `${cname}/item:${id}`, nameOf(id), id, into));
             }
             else {
                 // A grid wants its picture (a schematic); here it is listed.
                 for (const e of c.holds)
-                    children.push(tile(e.item, { holder, container: cname, x: e.x, y: e.y }));
+                    children.push(pad(tile(e.item, { holder, container: cname, x: e.x, y: e.y }), `${cname}/item:${e.item}`, nameOf(e.item), e.item));
             }
         }
         flushHead();
@@ -878,6 +931,9 @@ export function inventoryPanel(opts) {
         host.setAttribute('height', String(tall));
         host.setAttribute('viewBox', `0 0 ${width} ${tall}`);
         current = b;
+        kids = children;
+        if (padPath != null)
+            padFocus();
         whole = lists.length === 1 && shown === 1 ? lists[0] : null;
         glow.setAttribute('width', String(width - 3));
         glow.setAttribute('height', String(tall - 3));
@@ -886,8 +942,57 @@ export function inventoryPanel(opts) {
         panel?.dispose();
         panel = carryPanel(b, carry, { fallback: whole?.target, ghost: false });
     };
+    const nameOf = (id) => {
+        const it = inv.doc.items[id];
+        const name = kinds[it?.kind]?.name ?? it?.kind ?? id;
+        return (it?.qty ?? 1) > 1 ? `${name} ×${it.qty}` : name;
+    };
     build();
     const stop = inv.subscribe(() => build());
+    const controls = () => {
+        const b = current;
+        if (b == null)
+            return [];
+        /*
+        CARRYING, a place that will not take it is not a stop: the D-pad goes
+        past a head slot with a sword in hand rather than landing there to say
+        no. What is carried stays reachable (a press puts it back).
+        */
+        const held = carry.state.thing;
+        const from = held != null ? inv.where(held) : null;
+        const home = from?.slot != null ? `${holder}/${from.container}/${from.slot}` : '';
+        const refuses = (p) => {
+            if (held == null || p.item === held || p.path === home)
+                return false;
+            const t = p.child.carryTarget ?? p.into;
+            return t == null || !carry.verdictFor(t)?.ok;
+        };
+        return pads.map((p) => {
+            const i = kids.indexOf(p.child);
+            const r = b.visibleRect(i);
+            return {
+                role: 'button',
+                name: p.name,
+                path: p.path,
+                interactive: true,
+                disabled: refuses(p),
+                item: p.item,
+                box: r ? { x: r.x, y: r.y, w: r.width, h: r.height } : undefined,
+                activate: () => {
+                    b.focusTo(i, { ring: false });
+                    b.focusActivate();
+                },
+                focus: (on) => {
+                    if (on)
+                        padPath = p.path;
+                    else if (padPath === p.path)
+                        padPath = null;
+                    padFocus();
+                },
+            };
+        });
+    };
+    host.controls = controls;
     const at = (e) => {
         const p = svgPoint(host, e.clientX, e.clientY);
         return [p.x, p.y];
@@ -920,6 +1025,7 @@ export function inventoryPanel(opts) {
         handlePointer(kind, x, y) {
             panel?.handlePointer(kind, x, y);
         },
+        controls,
         dispose() {
             stop();
             stopGlow();
@@ -975,6 +1081,10 @@ export function inventoryDock(opts) {
         alsoIn: opts.alsoIn,
         info: opts.info,
         overlay: false,
+        // What a drop displaces and cannot swap back goes in the list.
+        spill: opts.list
+            ? { holder: opts.holder, container: opts.list }
+            : undefined,
     };
     const mainHeight = () => Number(mainHost.getAttribute('height')) || 400;
     const main = inventoryPanel({
@@ -1143,6 +1253,37 @@ export function inventoryDock(opts) {
     };
     root.handlePointer =
         handlePointer;
+    const controls = () => {
+        if (!open)
+            return [
+                {
+                    role: 'button',
+                    name: `open ${opts.title ?? 'inventory'}`,
+                    path: 'open',
+                    interactive: true,
+                    box: { x: 0, y: 0, w: size.width, h: size.height },
+                    activate: () => setOpen(true),
+                },
+            ];
+        const shift = (n, dx) => n.box ? { ...n, box: { ...n.box, x: n.box.x + dx } } : n;
+        return [
+            ...main.controls(),
+            ...(list ? list.controls().map((n) => shift(n, W + GAP)) : []),
+            ...(framed
+                ? []
+                : [
+                    {
+                        role: 'button',
+                        name: 'close',
+                        path: 'close',
+                        interactive: true,
+                        box: { x: size.width - 36, y: 8, w: 28, h: 28 },
+                        activate: () => setOpen(false),
+                    },
+                ]),
+        ];
+    };
+    root.controls = controls;
     return {
         svg: root,
         get open() {
@@ -1150,6 +1291,7 @@ export function inventoryDock(opts) {
         },
         setOpen,
         handlePointer,
+        controls,
         dispose() {
             stop();
             ghosts.dispose();

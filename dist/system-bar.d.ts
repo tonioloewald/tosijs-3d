@@ -15,6 +15,14 @@ export interface SystemBar {
     svg: SVGSVGElement;
     /** How many buttons it is showing (0: nothing to show). */
     readonly count: number;
+    /** The button a gamepad has focus on (-1: none). */
+    readonly padFocus: number;
+    /** Give the gamepad's focus to button `i` (-1 clears it). */
+    setPadFocus: (i: number) => void;
+    /** Step the gamepad's focus along the bar; false off either end. */
+    padMove: (dx: number) => boolean;
+    /** Press the focused button, as a click. */
+    padActivate: () => void;
     dispose: () => void;
 }
 /** Mirror `buttons` as an SVG toolbar: what shows, what is enabled, and a press is their click. */

@@ -1,0 +1,230 @@
+/*#
+# b3d-pickup
+
+**A thing lying in the world that you can pick up.** Walk up to it and press
+**E** (interact): the player bends down for it (kneels for something on the
+floor), it leaves the world, and a bubbling `pickedup` event says what was
+taken and by whom. Putting it in an inventory is the game's move, made in
+`whenPickedUp` or on the event, because only the game knows where it goes.
+
+It is a [prop](/b3d-prop/) (a library model, placed) that is also
+[interactive](/b3d-interactive/): it lights up when the pointer is on it, and
+`interact` reaches the nearest one in reach. A pickup can be clicked as well.
+
+```javascript
+import { b3dPickup } from 'tosijs-3d'
+
+scene.append(
+  b3dPickup({
+    library: 'weapons', meshName: 'Long Sword', item: 'Long Sword',
+    x: 2, y: 0.05, z: -3, rz: 90, // lying on its side
+    whenPickedUp: ({ item }) => inv.move({ kind: item, to: bag }),
+  })
+)
+```
+
+Dropping is the same in reverse: take the item out of the inventory and put a
+new pickup in the world where it fell. `toss(to)` throws it there in an arc,
+and where it lands it makes a [noise](/noise/): an NPC goes to look, which is
+how you lure one away. The Biped Playground does both: a
+rifle, a sword and a buckler lie by the start, and anything dragged out of
+the loadout lands at your feet.
+
+## Attributes
+
+Everything [b3d-prop](/b3d-prop/) takes, plus:
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `item` | `''` | What this is: the inventory kind it becomes (`meshName` when empty) |
+| `reach` | `1.8` | Metres from the player within which it can be picked up |
+| `noise` | `15` | Metres the noise carries when it lands after `toss` (0: silent) |
+| `qty` | `1` | How many it is (a box of 30 rounds is one pickup, `qty` 30) |
+
+## Callbacks and events
+
+| | |
+|---|---|
+| `whenPickedUp({ item, qty, by })` | Taken: `item` as above, `by` the biped (or whoever `pickUp(by)` names) |
+| `pickedup` event | The same, bubbling, `detail: { item, qty, by }` |
+| `refuse(by)` | (a property) A reason it cannot be taken now, or nothing: a health potion at full health. A refusal leaves it lying there, with `whenRefused({ reason, by })` and a bubbling `refused` event |
+
+`pickUp(by?)` picks it up from code (an AI, a cutscene): with a biped, the
+biped plays `pickupLow` (UAL's `PickUp_Kneeling`) or `pickup` and the item
+goes at the moment the hand reaches it.
+*/
+/*{ "parent": "b3d-interactive", "order": 20 }*/
+import * as BABYLON from '@babylonjs/core';
+import { B3dProp } from './b3d-prop.js';
+import { InteractiveBehavior } from './interactive-behavior.js';
+import { sceneDelta } from './b3d-utils.js';
+import { makeNoise } from './noise.js';
+/** Below this height above the picker's feet, it kneels for it. */
+const LOW = 0.7;
+/** The hand reaches the item this far through the clip. */
+const GRAB_AT = 0.45;
+export class B3dPickup extends B3dProp {
+    static preferredTagName = 'tosi-b3d-pickup';
+    static initAttributes = {
+        ...B3dProp.initAttributes,
+        item: '',
+        reach: 1.8,
+        noise: 15,
+        qty: 1,
+    };
+    /** Taken: what, and by whom. Not `onPickedUp`: on* props become DOM listeners. */
+    whenPickedUp = null;
+    /** A reason it cannot be taken now (full health), or nothing. */
+    refuse = null;
+    whenRefused = null;
+    _use = null;
+    _taking = false;
+    _wait = null;
+    _flight = null;
+    sceneReady(owner) {
+        super.sceneReady(owner);
+        this._use = new InteractiveBehavior(owner, this, {
+            meshes: () => this.mesh != null && !this._taking
+                ? [
+                    ...(this.mesh instanceof BABYLON.AbstractMesh ? [this.mesh] : []),
+                    ...this.mesh.getChildMeshes(),
+                ]
+                : [],
+            reach: () => this.reach,
+            reachFrom: () => {
+                const p = this._player()?.getCameraTarget?.()?.getAbsolutePosition();
+                return p == null ? null : { x: p.x, y: p.y, z: p.z };
+            },
+            enabled: () => !this._taking && this._flight == null,
+            highlight: () => '#ffd45e',
+        });
+        this._use.whenActivated = () => this.pickUp();
+        this._use.attach();
+        // A toss asked for before it was in the scene (it was just appended).
+        const pending = this._pendingToss;
+        this._pendingToss = null;
+        if (pending)
+            this.toss(pending.to, pending.options);
+    }
+    _pendingToss = null;
+    /** The top of whatever is under (x, z), or 0. */
+    _solid() {
+        const own = new Set([this.mesh, ...(this.mesh?.getChildMeshes() ?? [])]);
+        return (m) => m.isPickable && m.isEnabled() && m.isVisible && !own.has(m);
+    }
+    /** The top of what is under (x, z), looking down from `fromY`. */
+    _groundAt(scene, x, z, fromY = 50) {
+        const hit = scene.pickWithRay(new BABYLON.Ray(new BABYLON.Vector3(x, fromY, z), BABYLON.Vector3.Down(), fromY + 50), this._solid());
+        return hit?.hit && hit.pickedPoint ? hit.pickedPoint.y : 0;
+    }
+    /** The player, when a focus manager is driving one. */
+    _player() {
+        const focus = this.owner?.querySelector('tosi-b3d-input-focus');
+        return focus?.focused ?? null;
+    }
+    /**
+     * Throw it from where it is to `to` in an arc (`height` metres above the
+     * straight line, over `seconds`, in scene time). Where it lands it makes a
+     * noise that carries `noise` metres: an NPC goes to look.
+     */
+    toss(to, options = {}) {
+        const scene = this.owner?.scene;
+        if (scene == null) {
+            this._pendingToss = { to, options };
+            return;
+        }
+        const attrs = this;
+        const from = { x: attrs.x, y: attrs.y, z: attrs.z };
+        const height = options.height ?? 1.2;
+        // A wall in the way stops it short, at its foot.
+        const dx = to.x - from.x;
+        const dz = to.z - from.z;
+        const far = Math.hypot(dx, dz);
+        if (to.y == null && far > 0.01) {
+            const wall = scene.pickWithRay(new BABYLON.Ray(new BABYLON.Vector3(from.x, from.y, from.z), new BABYLON.Vector3(dx / far, 0, dz / far), far), this._solid());
+            if (wall?.hit && wall.distance < far) {
+                const k = Math.max(0, wall.distance - 0.3) / far;
+                to = { x: from.x + dx * k, z: from.z + dz * k };
+            }
+        }
+        // Unless told, it lands on what is there under its arc (a crate, the
+        // catwalk, the floor), never on top of a wall higher than it flew.
+        const top = Math.max(from.y, from.y + height);
+        const end = {
+            x: to.x,
+            y: to.y ?? this._groundAt(scene, to.x, to.z, top) + 0.08,
+            z: to.z,
+        };
+        const seconds = options.seconds ?? 0.6;
+        let t = 0;
+        if (this._flight != null)
+            scene.onBeforeRenderObservable.remove(this._flight);
+        this._flight = scene.onBeforeRenderObservable.add(() => {
+            t = Math.min(1, t + sceneDelta(scene) / seconds);
+            attrs.x = from.x + (end.x - from.x) * t;
+            attrs.z = from.z + (end.z - from.z) * t;
+            attrs.y = from.y + (end.y - from.y) * t + height * 4 * t * (1 - t);
+            if (t < 1)
+                return;
+            scene.onBeforeRenderObservable.remove(this._flight);
+            this._flight = null;
+            if (this.noise > 0)
+                makeNoise(scene, end, this.noise);
+        });
+    }
+    /** Pick it up: by `by`, else the player. Does nothing if already being taken. */
+    pickUp(by = this._player()) {
+        if (this._taking || this.owner == null)
+            return;
+        const reason = this.refuse?.(by);
+        if (reason) {
+            const info = { reason, by };
+            this.dispatchEvent(new CustomEvent('refused', { bubbles: true, detail: info }));
+            this.whenRefused?.(info);
+            return;
+        }
+        this._taking = true;
+        const item = String(this.item || this.meshName || '');
+        const qty = this.qty > 0 ? this.qty : 1;
+        const feet = by?.getCameraTarget?.()?.getAbsolutePosition();
+        const at = this.mesh?.getAbsolutePosition();
+        const low = feet == null || at == null || at.y - feet.y < LOW;
+        const seconds = (low ? by?.perform?.('pickupLow') : 0) || by?.perform?.('pickup') || 0;
+        const take = () => {
+            this.dispatchEvent(new CustomEvent('pickedup', {
+                bubbles: true,
+                detail: { item, qty, by },
+            }));
+            this.whenPickedUp?.({ item, qty, by });
+            this.remove();
+        };
+        if (seconds <= 0) {
+            take();
+            return;
+        }
+        // In scene time: a paused scene does not finish the reach.
+        const scene = this.owner.scene;
+        let left = seconds * GRAB_AT;
+        this._wait = scene.onBeforeRenderObservable.add(() => {
+            left -= sceneDelta(scene);
+            if (left > 0)
+                return;
+            scene.onBeforeRenderObservable.remove(this._wait);
+            this._wait = null;
+            take();
+        });
+    }
+    sceneDispose() {
+        if (this._wait != null)
+            this.owner?.scene.onBeforeRenderObservable.remove(this._wait);
+        this._wait = null;
+        if (this._flight != null)
+            this.owner?.scene.onBeforeRenderObservable.remove(this._flight);
+        this._flight = null;
+        this._use?.dispose();
+        this._use = null;
+        super.sceneDispose();
+    }
+}
+export const b3dPickup = B3dPickup.elementCreator();
+//# sourceMappingURL=b3d-pickup.js.map

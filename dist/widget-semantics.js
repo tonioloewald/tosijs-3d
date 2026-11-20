@@ -143,6 +143,10 @@ boxOf) {
             node.set = s.set;
         if (s.activate)
             node.activate = s.activate;
+        if (s.isDefault)
+            node.isDefault = true;
+        if (s.nudge)
+            node.nudge = s.nudge;
         if (box != null)
             node.box = box;
         if (CONTAINERS.has(s.role) && s.children) {

@@ -47,11 +47,13 @@ The panel has these sections, its job first.
   joint at the middle of the body's thickness (the pelvis behind the
   thighs, as the mannequin's is); from the side view, drag a marker forward
   or back to set its depth. The depth is kept as an offset from the fit, so
-  it stays when the marker moves again from the front. `move joints` shows every
-  joint (blue) to drag by hand from the view that suits: shoulders from the
-  front, fingers and thumbs from the top, feet from the side. What hangs from
-  a joint comes with it; set `dragging` to turn what hangs from it instead
-  (a hand or foot at an angle). Each finger's and thumb's tip (orange) pulls
+  it stays when the marker moves again from the front. `drag` picks what a
+  drag moves: `markers` only, or every joint (blue), dragged by hand from the
+  view that suits (shoulders from the front, fingers and thumbs from the top,
+  feet from the side). `joints` brings what hangs from a joint with it;
+  `alone` moves just the joint (a shoulder, leaving the elbow and wrist where
+  they are); `turn` keeps the joint where it is and swings what hangs from it
+  round it, in the view's plane (a hand or foot at an angle). Each finger's and thumb's tip (orange) pulls
   its finger: the joints after its first turn and stretch about the first,
   so the finger keeps its curl and reaches where you drop the tip. Markers
   and moved joints are saved in the
@@ -176,6 +178,7 @@ import { b3dSun } from './b3d-shadows.js';
 import { assetUrl } from './asset-url.js';
 import { button3d, foldSections, iconBar3d, label3d, panel3d, row3d, select3d, slider3d, toggle3d, } from './widgets3d.js';
 import { vector3d } from './vector-field.js';
+import { iconGrid3d } from './icon-grid.js';
 import { undoHistory } from './undo-history.js';
 import { pointerClaimedByPanel } from './frame-panel.js';
 import { touchOrbit } from './touch-orbit.js';
@@ -188,6 +191,7 @@ import { fitSkeleton, guessMarkers, meshQuery, objTriangles, rigSilhouette, spre
 import { buildBody, gatherTriangles as gather, keepMaterials, surfaceMaterial, soleVertices, lowestOf, } from './rig-build.js';
 import { bodyFromMarkers } from './rigged-body.js';
 import { exportBodyRows } from './body-export.js';
+import { readGlbRigRecipe } from './rigged-body-glb.js';
 import { applyRigRecipe } from './rig-recipe-babylon.js';
 import { RIG_RECIPE_VERSION, STRAND_DEFAULTS, validateRigRecipe, strandPath, setStrandPath, pathLength, } from './rig-recipe.js';
 /** Mixamo's eight front-view markers, given for the left and mirrored. */
@@ -283,7 +287,7 @@ export function rigToolModels() {
             scale: 3,
             recipe: { armSpaceDeg: 55 },
         },
-        { label: 'UAL mannequin', url: assetUrl('quaternius/UAL1_core.glb', 3) },
+        { label: 'UAL mannequin', url: assetUrl('quaternius/UAL1_core.glb', 5) },
     ];
 }
 const COLORS = {
@@ -533,7 +537,7 @@ export function mountRigTool(owner, options = {}) {
         view: 'front',
         /** Show every joint of a mesh bound from markers, to move by hand. */
         joints: false,
-        /** Dragging a joint moves it (and what hangs from it) or turns what hangs from it. */
+        /** Dragging a joint moves it (and what hangs from it), moves it alone, or turns what hangs from it. */
         jointDrag: 'move',
     };
     let recipe = fresh(given ?? {});
@@ -621,7 +625,13 @@ export function mountRigTool(owner, options = {}) {
     /** Markers dragged carrying their joints: every joint below them comes. */
     carry = [], 
     /** Depth set by hand per marker (a drag in a side view). */
-    depths = bound?.depths) {
+    depths = bound?.depths, 
+    /**
+     * `alone`: what hangs from the markers stays where it is (a drag set to
+     * move the joint alone). `commit: false`: the caller commits, after a
+     * second change in the same gesture, so one drag is one undo step.
+     */
+    how = {}) {
         /*
         What hangs from a marker comes with it: a joint moved by hand below one
         (a finger under the wrist) moves as far as the marker's joint did, and a
@@ -640,7 +650,20 @@ export function mountRigTool(owner, options = {}) {
         whole hand or foot as it stands (the fit's fingers too, not only the
         ones moved by hand), so a placed hand is not undone by moving its wrist.
         */
-        const carried = new Set(carry.map((k) => MARKER_JOINT[k]));
+        /*
+        ALONE: the fit lays out what is below a marker from it, so the joints
+        under a marker moved alone are kept where they are drawn (by hand).
+        */
+        if (how.alone && shown != null) {
+            const movedJoints = carry.map((k) => MARKER_JOINT[k]);
+            for (const [n, p] of shown) {
+                if (markerJoints.has(n))
+                    continue;
+                if (movedJoints.some((j) => hangsFrom(n, j)))
+                    joints[n] = { ...p };
+            }
+        }
+        const carried = new Set(how.alone ? [] : carry.map((k) => MARKER_JOINT[k]));
         if (carried.size && shown != null)
             for (const [n, p] of shown) {
                 if (markerJoints.has(n))
@@ -662,7 +685,7 @@ export function mountRigTool(owner, options = {}) {
                 continue;
             if (markerJoints.has(n))
                 continue;
-            const m = markerAbove(n);
+            const m = how.alone ? null : markerAbove(n);
             const a = m != null ? before?.get(m) : undefined;
             const b = m != null ? after?.get(m) : undefined;
             joints[n] =
@@ -687,7 +710,8 @@ export function mountRigTool(owner, options = {}) {
         stale = true;
         ui.status = 'bound again when you animate or press done';
         edited();
-        commitNow();
+        if (how.commit !== false)
+            commitNow();
         refresh();
         tool?.targets();
     }
@@ -893,6 +917,8 @@ export function mountRigTool(owner, options = {}) {
             clearTimeout(idle);
         idle = setTimeout(commitNow, 800);
     }
+    // The clip held where it is (`api.frozen`); a new start lets it go.
+    let frozen = false;
     // The live tool, once the scene is up.
     let tool = null;
     const changed = (clipsToo = false) => {
@@ -1074,28 +1100,37 @@ export function mountRigTool(owner, options = {}) {
                     { label: 'none: the hand alone', value: 'none' },
                 ],
                 handleChange: (v) => setHands(v === 'as found' ? undefined : v),
-            }), toggle3d({
-                label: 'move joints',
-                value: ui.joints,
-                handleChange: (v) => {
-                    ui.joints = v;
+            }), 
+            // What a drag does, as four modes: markers only, then a joint with
+            // what hangs from it, the joint alone, or a turn of what hangs from it.
+            label3d({ text: 'drag', muted: true, compact: true }), iconGrid3d({
+                mode: 'radio',
+                selected: ui.joints
+                    ? 1 + ['move', 'alone', 'turn'].indexOf(ui.jointDrag)
+                    : 0,
+                items: [
+                    { icon: 'rigMarkers', label: 'markers', title: 'markers only' },
+                    {
+                        icon: 'rigMove',
+                        label: 'joints',
+                        title: 'a joint and what hangs from it',
+                    },
+                    { icon: 'rigAlone', label: 'alone', title: 'a joint alone' },
+                    {
+                        icon: 'rigTurn',
+                        label: 'turn',
+                        title: 'turn what hangs from a joint',
+                    },
+                ],
+                handleSelect: ([i]) => {
+                    ui.joints = i > 0;
+                    if (i > 0)
+                        ui.jointDrag = ['move', 'alone', 'turn'][i - 1];
                     tool?.targets();
                     refresh();
                 },
             }), ...(ui.joints
                 ? [
-                    select3d({
-                        label: 'dragging',
-                        value: ui.jointDrag,
-                        options: [
-                            { label: 'moves the joint', value: 'move' },
-                            { label: 'turns what hangs from it', value: 'turn' },
-                        ],
-                        handleChange: (v) => {
-                            ui.jointDrag = v;
-                            refresh();
-                        },
-                    }),
                     label3d({
                         text: "joints wear their marker's colour: fingers from the top view, feet from the side",
                         muted: true,
@@ -1462,11 +1497,19 @@ export function mountRigTool(owner, options = {}) {
                     .replace(/\W+/g, '-')}.rig.json`, JSON.stringify(recipe, null, 2)),
             }), button3d({
                 label: 'load',
-                handleClick: () => void chooseFile('.json').then(async (f) => {
+                handleClick: () => void chooseFile('.json,.glb').then(async (f) => {
                     if (f == null)
                         return;
                     try {
-                        const r = JSON.parse(await f.text());
+                        // A recipe, or a GLB this tool exported (it carries one).
+                        const r = /\.glb$/i.test(f.name)
+                            ? readGlbRigRecipe(new Uint8Array(await f.arrayBuffer()))
+                            : JSON.parse(await f.text());
+                        if (r == null) {
+                            ui.status = 'that GLB carries no rig recipe';
+                            refresh();
+                            return;
+                        }
                         const problems = validateRigRecipe(r);
                         if (problems.length) {
                             ui.status = `not a recipe: ${problems[0]}`;
@@ -2016,6 +2059,7 @@ export function mountRigTool(owner, options = {}) {
         };
         const play = () => {
             stop();
+            frozen = false;
             stand.position.y = floor;
             // Standing still: a held face (the one last used); moving: orbit.
             inspect.face = ui.pose === 'rest' ? restFace : 'free';
@@ -2547,10 +2591,30 @@ export function mountRigTool(owner, options = {}) {
             // A marker below comes too (the elbow under a shoulder): it is drawn
             // as a marker, not a joint dot, so it is found by its joint.
             const dotOf = (n) => dots.find((d) => jointOfDot(d) === n);
-            const group = [name, ...below]
+            // Alone: only this joint; what hangs from it stays where it is.
+            const group = (ui.jointDrag === 'alone' ? [name] : [name, ...below])
                 .map((n) => ({ n, d: dotOf(n) }))
                 .filter((g) => g.d != null);
             const start = new Map(group.map((g) => [g.n, g.d.position.clone()]));
+            // With symmetry the other side's joints follow as you drag, as they
+            // will on release, rather than staying put until then.
+            const inGroup = new Set(group.map((g) => g.n));
+            const twins = symmetry
+                ? group
+                    .map((g) => ({
+                    g,
+                    t: g.n.replace(/_([lr])$/, (_, s) => (s === 'l' ? '_r' : '_l')),
+                }))
+                    .filter(({ g, t }) => t !== g.n && !inGroup.has(t))
+                    .map(({ g, t }) => ({ g, d: dotOf(t) }))
+                    .filter((m) => m.d != null)
+                : [];
+            const mirror = () => {
+                for (const { g, d } of twins) {
+                    const f = toFile(g.d.position);
+                    d.position.copyFrom(toScene(-f.x, f.y, f.z));
+                }
+            };
             const turn = ui.jointDrag === 'turn';
             const pivot = handle.position.clone();
             const axis = cam.getForwardRay().direction.normalize();
@@ -2574,6 +2638,7 @@ export function mountRigTool(owner, options = {}) {
                     const delta = at.subtract(from);
                     for (const g of group)
                         g.d.position.copyFrom(start.get(g.n).add(delta));
+                    mirror();
                     return;
                 }
                 // The angle from where the press began to here, about the joint.
@@ -2589,6 +2654,7 @@ export function mountRigTool(owner, options = {}) {
                     const off = start.get(g.n).subtract(pivot);
                     g.d.position.copyFrom(pivot.add(off.applyRotationQuaternion(q)));
                 }
+                mirror();
             };
             const up = () => {
                 window.removeEventListener('pointermove', move, true);
@@ -2607,6 +2673,21 @@ export function mountRigTool(owner, options = {}) {
                         !/^tail/.test(g.d.metadata.marker))
                     : [];
                 const carriedJoints = new Set(markerMoves.map((g) => g.n));
+                const alone = ui.jointDrag === 'alone';
+                const moved = {};
+                for (const g of group) {
+                    if (carriedJoints.has(g.n))
+                        continue;
+                    const m = markerAbove(g.n);
+                    if (m != null && carriedJoints.has(m))
+                        continue;
+                    const f = toFile(g.d.position);
+                    moved[g.n] = { x: f.x, y: f.y, z: f.z };
+                    // Its mirror follows, as the markers' do (the left is on +X).
+                    if (symmetry && /_[lr]$/.test(g.n))
+                        moved[g.n.replace(/_([lr])$/, (_, s) => (s === 'l' ? '_r' : '_l'))] = { x: -f.x, y: f.y, z: f.z };
+                }
+                const both = Object.keys(moved).length > 0;
                 if (b && markerMoves.length) {
                     const markers = JSON.parse(JSON.stringify(b.markers));
                     const keys = [];
@@ -2623,22 +2704,10 @@ export function mountRigTool(owner, options = {}) {
                             keys.push(twin);
                         }
                     }
-                    setMarkers(markers, b.tail ?? null, b.tail != null ? b.tailBase ?? null : null, keys);
+                    // One gesture, one undo step: the joints below commit it.
+                    setMarkers(markers, b.tail ?? null, b.tail != null ? b.tailBase ?? null : null, keys, bound?.depths, { alone, commit: !both });
                 }
-                const moved = {};
-                for (const g of group) {
-                    if (carriedJoints.has(g.n))
-                        continue;
-                    const m = markerAbove(g.n);
-                    if (m != null && carriedJoints.has(m))
-                        continue;
-                    const f = toFile(g.d.position);
-                    moved[g.n] = { x: f.x, y: f.y, z: f.z };
-                    // Its mirror follows, as the markers' do (the left is on +X).
-                    if (symmetry && /_[lr]$/.test(g.n))
-                        moved[g.n.replace(/_([lr])$/, (_, s) => (s === 'l' ? '_r' : '_l'))] = { x: -f.x, y: f.y, z: f.z };
-                }
-                if (Object.keys(moved).length)
+                if (both)
                     setJoints(name, moved);
             };
             window.addEventListener('pointermove', move, true);
@@ -2733,6 +2802,9 @@ export function mountRigTool(owner, options = {}) {
             twin mirrored. Not the groin: the whole body hangs from the pelvis.
             */
             const carries = ui.joints && !tailKey && key !== 'groin';
+            // Set to move the joint alone: nothing comes, and what hangs from it
+            // stays where it is drawn.
+            const alone = carries && ui.jointDrag === 'alone';
             const below = (k) => {
                 const j = k != null ? MARKER_JOINT[k] : undefined;
                 if (j == null)
@@ -2742,8 +2814,8 @@ export function mountRigTool(owner, options = {}) {
                     return n != null && n !== j && hangsFrom(n, j);
                 });
             };
-            const followers = carries ? below(key) : [];
-            const twinFollowers = carries && symmetry ? below(other) : [];
+            const followers = carries && !alone ? below(key) : [];
+            const twinFollowers = carries && !alone && symmetry ? below(other) : [];
             const from0 = handle.position.clone();
             const starts = new Map([...followers, ...twinFollowers].map((d) => [d, d.position.clone()]));
             cam.detachControl();
@@ -2806,7 +2878,7 @@ export function mountRigTool(owner, options = {}) {
                 handle.position.copyFrom(toScene(x, f.y, depth(key, handle)));
                 if (symmetry && other != null && twin != null)
                     twin.position.copyFrom(toScene(-x, f.y, depth(other, twin)));
-                if (carries) {
+                if (carries && !alone) {
                     // In the file's frame, so the twin's move is the mirror (x flips).
                     const d0 = toFile(from0);
                     const d1 = toFile(handle.position);
@@ -2838,7 +2910,7 @@ export function mountRigTool(owner, options = {}) {
                 }
                 setMarkers(markers, tail, tail != null ? tailBase : null, carries
                     ? [key, ...(symmetry && other != null ? [other] : []), ...carried]
-                    : [], depths);
+                    : [], depths, { alone });
             };
             window.addEventListener('pointermove', move, true);
             window.addEventListener('pointerup', up, true);
@@ -3084,6 +3156,16 @@ export function mountRigTool(owner, options = {}) {
             rebind,
             loadClips,
             play,
+            freeze(on) {
+                for (const g of playing) {
+                    if (on)
+                        g.pause();
+                    else
+                        g.play(true);
+                }
+                for (const sp of applied?.springs ?? [])
+                    sp.bones.paused = on || ui.pose === 'rest';
+            },
             compare(on) {
                 ualNode.setEnabled(on);
                 frame();
@@ -3091,6 +3173,7 @@ export function mountRigTool(owner, options = {}) {
             bones: showBones,
             view: snapView,
             targets,
+            skeleton: () => model?.skeleton ?? null,
         };
         cleanups.push(() => {
             tool = null;
@@ -3150,6 +3233,15 @@ export function mountRigTool(owner, options = {}) {
             tool?.view(v);
             refresh();
         },
+        get frozen() {
+            return frozen && ui.pose === 'animate';
+        },
+        set frozen(v) {
+            if (ui.pose !== 'animate' || v === frozen)
+                return;
+            frozen = v;
+            tool?.freeze(v);
+        },
         play(clip) {
             if (clip != null)
                 ui.clip = clip;
@@ -3181,6 +3273,9 @@ export function mountRigTool(owner, options = {}) {
         set bones(v) {
             tool?.bones((ui.bones = v));
             refresh();
+        },
+        get skeleton() {
+            return tool?.skeleton() ?? null;
         },
         load: (m) => tool?.load(m),
         loadClips: (f) => tool?.loadClips(f),

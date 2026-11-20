@@ -18,33 +18,35 @@
       if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
         document.documentElement.classList.add('darkmode')
       if (p.highContrast) document.documentElement.classList.add('high-contrast')
+      if (p.style && /^[a-z-]+$/.test(p.style))
+        document.documentElement.classList.add('tosi-style-' + p.style)
     } catch (e) {}
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=200b40e99a0e" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=6db508795fdb" data-tosi-doc-system />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&amp;family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&amp;display=swap" />
   <title>Playback — tosijs-3d</title>
-  <meta name="description" content="A clip&#39;s transport on ONE row: play or pause, a scrub bar you can drag to any moment, and the playback speed. A Widget3d, so it sits in a" />
+  <meta name="description" content="A clip&#39;s transport on ONE row: play or pause, a scrub bar you can drag to any moment, the playback speed, and a button that plays it backwards." />
   <link rel="canonical" href="https://3d.tosijs.net/playback-field/" />
   <link rel="alternate" type="text/markdown" href="index.md" title="Playback — tosijs-3d (markdown)" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
   <meta property="og:title" content="Playback — tosijs-3d" />
-  <meta property="og:description" content="A clip&#39;s transport on ONE row: play or pause, a scrub bar you can drag to any moment, and the playback speed. A Widget3d, so it sits in a" />
+  <meta property="og:description" content="A clip&#39;s transport on ONE row: play or pause, a scrub bar you can drag to any moment, the playback speed, and a button that plays it backwards." />
   <meta property="og:url" content="https://3d.tosijs.net/playback-field/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Playback","description":"A clip's transport on ONE row: play or pause, a scrub bar you can drag to any moment, and the playback speed. A Widget3d, so it sits in a","url":"https://3d.tosijs.net/playback-field/","inLanguage":"en","dateModified":"2026-11-07T23:25:25+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Playback","description":"A clip's transport on ONE row: play or pause, a scrub bar you can drag to any moment, the playback speed, and a button that plays it backwards.","url":"https://3d.tosijs.net/playback-field/","inLanguage":"en","dateModified":"2026-11-19T15:43:58.834Z","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"UI","item":"https://3d.tosijs.net/ui/"},{"@type":"ListItem","position":2,"name":"widgets3d","item":"https://3d.tosijs.net/widgets3d/"},{"@type":"ListItem","position":3,"name":"Playback","item":"https://3d.tosijs.net/playback-field/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=41191e253fb7" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=9a98199a84ec" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="playback-field.ts">
 <h1 id="playback">Playback</h1>
 <p><strong>A clip&#39;s transport on ONE row</strong>: play or pause, a scrub bar you can drag to
-any moment, and the playback speed. A <a href="/widgets3d/" class="wikilink">Widget3d</a>, so it sits in a
+any moment, the playback speed, and a button that plays it backwards. A <a href="/widgets3d/" class="wikilink">Widget3d</a>, so it sits in a
 <code>panel3d</code> beside the rest of a panel and works the same flat, in a scene and in
 a headset.</p>
 <h2 id="demo">Demo</h2>
@@ -56,7 +58,7 @@ const { div, pre } = elements
 const clip = { time: 0, duration: 4, playing: true, speed: 1 }
 const readout = pre({ style: &#39;margin:8px 16px;color:#8ea;font:12px ui-monospace,monospace&#39; }, &#39;&#39;)
 setInterval(() =&gt; {
-  if (clip.playing) clip.time = (clip.time + 0.05 * clip.speed) % clip.duration
+  if (clip.playing) clip.time = (clip.time + 0.05 * clip.speed + clip.duration) % clip.duration
   readout.textContent = `${clip.time.toFixed(2)} s of ${clip.duration} s  ·  ${clip.playing ? &#39;playing&#39; : &#39;paused&#39;}  ·  ×${clip.speed}`
 }, 50)
 
@@ -91,7 +93,8 @@ preview.append(
 }
 </code></pre>
 <p>Press the button to pause, drag the bar to any moment (it pauses there, so
-you can look), and pick a speed from the menu.</p>
+you can look), pick a speed from the menu, and press the arrow at the end to
+play the clip backwards (does a walk still read as a walk in reverse?).</p>
 <h2 id="the-clip-is-the-hosts">The clip is the host&#39;s</h2>
 <p>The widget holds no clock. It asks <code>read()</code> what the clip is doing (its
 <code>time</code> and <code>duration</code> in seconds, whether it is <code>playing</code>, its <code>speed</code>) a few
@@ -100,7 +103,10 @@ times a second while it is on screen, and reports what a hand does through
 the clip is driven, and a pause in the scene shows in the button.</p>
 <p>Scrubbing pauses the clip, since a moment you drag to is one you want to see
 held. Press play to carry on from there.</p>
-<p><code>speeds</code> sets the menu (default 0.1, 0.25, 0.5, 0.75, 1, 1.5 and 2).</p>
+<p><code>speeds</code> sets the menu (default 0.1, 0.25, 0.5, 0.75, 1, 1.5 and 2). The
+direction is the speed&#39;s SIGN: backwards at ×0.5 is <code>handleSpeed(-0.5)</code>, and a
+<code>read()</code> with a negative speed lights the arrow. Babylon&#39;s <code>speedRatio</code> takes
+it as it is.</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -288,9 +294,22 @@ held. Press play to carry on from there.</p>
     <ul id="tosi-nav-characters-and-vehicles">
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-biped" aria-label="b3d-biped"></button><a class="doc-link" href="../b3d-biped/">b3d-biped</a></div>
       <ul id="tosi-nav-b3d-biped">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-npc" aria-label="b3d-npc"></button><a class="doc-link" href="../b3d-npc/">b3d-npc</a></div>
+        <ul id="tosi-nav-b3d-npc">
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-conversation" aria-label="b3d-conversation"></button><a class="doc-link" href="../b3d-conversation/">b3d-conversation</a></div>
+          <ul id="tosi-nav-b3d-conversation">
+            <li><a class="doc-link" href="../balloon-layout/">balloon layout</a></li>
+          </ul></li>
+          <li><a class="doc-link" href="../conversation/">conversation</a></li>
+          <li><a class="doc-link" href="../noise/">noise</a></li>
+          <li><a class="doc-link" href="../npc-brain/">npc-brain</a></li>
+          <li><a class="doc-link" href="../sensorium/">sensorium</a></li>
+        </ul></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-aim" aria-label="aim"></button><a class="doc-link" href="../aim/">aim</a></div>
         <ul id="tosi-nav-aim">
           <li><a class="doc-link" href="../aim-ik/">aim IK</a></li>
+          <li><a class="doc-link" href="../aim-assist/">aim-assist</a></li>
+          <li><a class="doc-link" href="../two-bone-ik/">two-bone IK</a></li>
         </ul></li>
         <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-core" aria-label="character core"></button><a class="doc-link" href="../character-core/">character core</a></div>
@@ -303,6 +322,7 @@ held. Press play to carry on from there.</p>
             <ul id="tosi-nav-rigged-body-glb">
               <li><a class="doc-link" href="../spring-vrm/">spring-vrm</a></li>
               <li><a class="doc-link" href="../body-export/">body export</a></li>
+              <li><a class="doc-link" href="../glb-textures/">glb textures</a></li>
             </ul></li>
           </ul></li>
           <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-chunks" aria-label="glb-chunks"></button><a class="doc-link" href="../glb-chunks/">glb-chunks</a></div>
@@ -332,6 +352,7 @@ held. Press play to carry on from there.</p>
           <li><a class="doc-link" href="../rig-markers/">rig markers</a></li>
         </ul></li>
         <li><a class="doc-link" href="../spring-chain-babylon/">spring bones</a></li>
+        <li><a class="doc-link" href="../fall/">fall</a></li>
       </ul></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-aircraft" aria-label="b3d-aircraft"></button><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></div>
       <ul id="tosi-nav-b3d-aircraft">
@@ -377,7 +398,10 @@ held. Press play to carry on from there.</p>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-interactive" aria-label="b3d-interactive"></button><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></div>
       <ul id="tosi-nav-b3d-interactive">
         <li><a class="doc-link" href="../interaction/">interaction</a></li>
+        <li><a class="doc-link" href="../b3d-pickup/">b3d-pickup</a></li>
         <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+        <li><a class="doc-link" href="../b3d-door/">b3d-door</a></li>
+        <li><a class="doc-link" href="../b3d-chest/">b3d-chest</a></li>
       </ul></li>
       <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
@@ -395,6 +419,8 @@ held. Press play to carry on from there.</p>
       <ul id="tosi-nav-b3d-launcher">
         <li><a class="doc-link" href="../ballistics/">ballistics</a></li>
         <li><a class="doc-link" href="../guidance/">guidance</a></li>
+        <li><a class="doc-link" href="../gun-sound/">gun-sound</a></li>
+        <li><a class="doc-link" href="../magazine/">magazine</a></li>
       </ul></li>
       <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
       <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
@@ -411,6 +437,9 @@ held. Press play to carry on from there.</p>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-inventory" aria-label="inventory"></button><a class="doc-link" href="../inventory/">inventory</a></div>
       <ul id="tosi-nav-inventory">
         <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
+        <li><a class="doc-link" href="../trade/">trade</a></li>
+        <li><a class="doc-link" href="../inventory-trade/">inventory-trade</a></li>
+        <li><a class="doc-link" href="../currency/">currency</a></li>
       </ul></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-spawner" aria-label="b3d-spawner"></button><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></div>
@@ -426,6 +455,7 @@ held. Press play to carry on from there.</p>
       <ul id="tosi-nav-widgets3d">
         <li><a class="doc-link current" href="../playback-field/" aria-current="page">Playback</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+        <li><a class="doc-link" href="../pager-field/">Pager</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widget-semantics" aria-label="widget semantics"></button><a class="doc-link" href="../widget-semantics/">widget semantics</a></div>
         <ul id="tosi-nav-widget-semantics">
           <li><a class="doc-link" href="../aria-mirror/">aria mirror</a></li>
@@ -476,7 +506,10 @@ held. Press play to carry on from there.</p>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-panel" aria-label="b3d-panel"></button><a class="doc-link" href="../b3d-panel/">b3d-panel</a></div>
         <ul id="tosi-nav-b3d-panel">
           <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
-          <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-xr-frames" aria-label="xr-frames"></button><a class="doc-link" href="../xr-frames/">xr-frames</a></div>
+          <ul id="tosi-nav-xr-frames">
+            <li><a class="doc-link" href="../xr-grab/">xr-grab</a></li>
+          </ul></li>
           <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-system-bar" aria-label="system-bar"></button><a class="doc-link" href="../system-bar/">system-bar</a></div>
           <ul id="tosi-nav-system-bar">
             <li><a class="doc-link" href="../bar-menu/">bar-menu</a></li>
@@ -484,8 +517,12 @@ held. Press play to carry on from there.</p>
         </ul></li>
         <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
         <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
-        <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-gamepad-focus" aria-label="gamepad-focus"></button><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></div>
+        <ul id="tosi-nav-gamepad-focus">
+          <li><a class="doc-link" href="../pad-ui/">pad-ui</a></li>
+        </ul></li>
       </ul></li>
+      <li><a class="doc-link" href="../b3d-checklist/">test checklist in the scene</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui-theme" aria-label="Theme and icons"></button><a class="doc-link" href="../ui-theme/">Theme and icons</a></div>
       <ul id="tosi-nav-ui-theme">
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-w3d-theme" aria-label="w3d-theme"></button><a class="doc-link" href="../w3d-theme/">w3d-theme</a></div>
@@ -532,6 +569,7 @@ held. Press play to carry on from there.</p>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.13.2/">0.13.2</a></li>
         <li><a class="doc-link" href="../v0.13.1/">0.13.1</a></li>
         <li><a class="doc-link" href="../v0.13.0/">0.13.0</a></li>
         <li><a class="doc-link" href="../v0.12.6/">0.12.6</a></li>
@@ -620,6 +658,6 @@ held. Press play to carry on from there.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-8gnd2qzs.js"></script>
+  <script type="module" src="../hydrate-r5e83g3k.js"></script>
 </body>
 </html>

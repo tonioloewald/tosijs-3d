@@ -18,11 +18,13 @@
       if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
         document.documentElement.classList.add('darkmode')
       if (p.highContrast) document.documentElement.classList.add('high-contrast')
+      if (p.style && /^[a-z-]+$/.test(p.style))
+        document.documentElement.classList.add('tosi-style-' + p.style)
     } catch (e) {}
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=200b40e99a0e" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=6db508795fdb" data-tosi-doc-system />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&amp;family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&amp;display=swap" />
   <title>Character Builder — tosijs-3d</title>
   <meta name="description" content="Make a person, and watch them walk. The first steps of the character creator (CHARACTER-DESIGN.md): MakeHuman&#39;s CC0 body (human-pack), reshaped by sliders…" />
@@ -34,13 +36,13 @@
   <meta property="og:description" content="Make a person, and watch them walk. The first steps of the character creator (CHARACTER-DESIGN.md): MakeHuman&#39;s CC0 body (human-pack), reshaped by sliders…" />
   <meta property="og:url" content="https://3d.tosijs.net/character-builder/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Character Builder","description":"Make a person, and watch them walk. The first steps of the character creator (CHARACTER-DESIGN.md): MakeHuman's CC0 body (human-pack), reshaped by sliders…","url":"https://3d.tosijs.net/character-builder/","inLanguage":"en","dateModified":"2026-11-13T22:23:09+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Character Builder","description":"Make a person, and watch them walk. The first steps of the character creator (CHARACTER-DESIGN.md): MakeHuman's CC0 body (human-pack), reshaped by sliders…","url":"https://3d.tosijs.net/character-builder/","inLanguage":"en","dateModified":"2026-11-20T07:58:06+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Demos","item":"https://3d.tosijs.net/demos/"},{"@type":"ListItem","position":2,"name":"Character Builder","item":"https://3d.tosijs.net/character-builder/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=41191e253fb7" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=9a98199a84ec" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="character-builder.ts">
 <h1 id="character-builder">Character Builder</h1>
 <p><strong>Make a person, and watch them walk.</strong> The first steps of the character
@@ -50,13 +52,14 @@ weight, height and ancestry (<a href="/human-morph/">human-morph</a>), with UAL&
 skeleton placed from its own joint cubes (<a href="/human-rig/">human-rig</a>) so it
 plays UAL&#39;s clips at any shape.</p>
 <h2 id="demo">Demo</h2>
-<pre><code class="language-js">import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, retargetSourceClip, readBvh, clipStore, clipKind, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, tailorPanel, garmentStore, barMenu, fitPanel, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, retargetSourceClip, readBvh, clipStore, clipKind, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, readGlbCharacter, tailorPanel, garmentStore, barMenu, fitPanel, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, holdMount, holdPlace, holdSide, ownSideGrip, placeIn, gripKey, mountNode, stowGrip, STOW_MOUNT, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from &#39;tosijs-3d&#39;
 import { tosi } from &#39;tosijs&#39;
 import { mountRigTool } from &#39;tosijs-3d/rig-tool&#39;
-import { exportBodyRows } from &#39;tosijs-3d/body-export&#39;
+import { exportForm, pictureOptions } from &#39;tosijs-3d/body-export&#39;
+import { compactCharacterTextures } from &#39;tosijs-3d/glb-textures&#39;
 
 // Everything the panel sets, as it starts: what a saved character is read against.
-const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: &#39;Walk_Loop&#39;, tone: 0.3, redness: 0.5, iris: 0.2, irisColour: &#39;#5a3519&#39;, eyeStyle: &#39;basic&#39;, hair: &#39;short02&#39;, beard: &#39;none&#39;, moustache: &#39;none&#39;, brows: &#39;eyebrow001&#39;, hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: &#39;male_casualsuit02&#39;, bodysuit: &#39;none&#39;, armour: &#39;none&#39;, top: &#39;none&#39;, bottom: &#39;none&#39;, shoes: &#39;shoes01&#39;, hat: &#39;none&#39;, glasses: &#39;none&#39;, gloves: &#39;none&#39;, mask: &#39;none&#39;, paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorDrape: false, tailorMesh: &#39;body&#39;, tailorLook: clothRecipe({ fabric: &#39;cotton&#39;, colour: &#39;#3b5b8a&#39;, recolour: 1 }), tailorAlone: false, tailorName: &#39;&#39;, tailorSlot: &#39;top&#39;, exportBody: true, rigs: {}, surfaces: {}, held: &#39;none&#39;, grips: {}, source: &#39;MakeHuman&#39;, bodyDetail: &#39;medium&#39;, characterName: &#39;&#39; }
+const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: &#39;Walk_Loop&#39;, mirror: false, tone: 0.3, redness: 0.5, iris: 0.2, irisColour: &#39;#5a3519&#39;, eyeStyle: &#39;basic&#39;, hair: &#39;short02&#39;, beard: &#39;none&#39;, moustache: &#39;none&#39;, brows: &#39;eyebrow001&#39;, hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: &#39;male_casualsuit02&#39;, bodysuit: &#39;none&#39;, armour: &#39;none&#39;, top: &#39;none&#39;, bottom: &#39;none&#39;, shoes: &#39;shoes01&#39;, hat: &#39;none&#39;, glasses: &#39;none&#39;, gloves: &#39;none&#39;, mask: &#39;none&#39;, paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorDrape: false, tailorMesh: &#39;body&#39;, tailorLook: clothRecipe({ fabric: &#39;cotton&#39;, colour: &#39;#3b5b8a&#39;, recolour: 1 }), tailorAlone: false, tailorName: &#39;&#39;, tailorSlot: &#39;top&#39;, exportBody: true, rigs: {}, surfaces: {}, held: &#39;none&#39;, heldSide: &#39;auto&#39;, stowed: &#39;none&#39;, grips: {}, source: &#39;MakeHuman&#39;, bodyDetail: &#39;medium&#39;, characterName: &#39;&#39; }
 const { walker } = tosi({ walker: structuredClone(START) })
 // What a character file keeps: not the editor&#39;s view of one slot (that is in
 // cloth), the microphone (it would ask on load), or the save controls.
@@ -90,6 +93,9 @@ const namePopup = (pop, { prompt, initial, current, verb, act }) =&gt; {
 }
 // The character (character.ts): what the panel sets, made in the scene.
 let ch = null
+// The character as its file (character-file), once the builder is up: the
+// export carries it whole, so the GLB is also a save.
+let characterSnapshot = (name) =&gt; null
 // The pack&#39;s proxies, once it has loaded (the panel lists an outfit&#39;s looks).
 let packProxies = {}
 // What can be worn, one of each at a time; the pack says which slot each garment fills.
@@ -240,7 +246,16 @@ const playbackRow = () =&gt;
 // A manipulator on the held item&#39;s grip, to drag rather than type. Off until
 // asked for; turning it on pauses the clip, so the hand holds still.
 let gripHandles = false
+// Whichever clip is playing holds still: the builder&#39;s, or the rig tool&#39;s
+// (held where it is, not stood at rest).
+const holdStill = () =&gt; {
+  if (rigging) rigging.api.frozen = true
+  else if (!walker.paused.value) walker.paused.value = true
+}
 let showGripHandles = (on) =&gt; { gripHandles = on }
+// The same for what is stowed on the back (one manipulator: one at a time).
+let stowHandles = false
+let showStowHandles = (on) =&gt; { stowHandles = on }
 // The same for the hair, on the head.
 let hairHandles = false
 let showHairHandles = (on) =&gt; { hairHandles = on }
@@ -249,17 +264,32 @@ let showHairHandles = (on) =&gt; { hairHandles = on }
 // (hold-grip: pistols, rifles, one- and two-handed blades…): placing it on
 // one sword places every one-handed blade.
 const gripsKept = () =&gt; JSON.parse(JSON.stringify(walker.grips.value))
-const gripOf = (name) =&gt; {
-  const kept = gripsKept()
-  // A character saved before grips were per class kept them per item.
-  const own = kept[holdClassOf(name)] ?? kept[name]
-  return holdGrip(name, own ? { [holdClassOf(name)]: own } : {})
+// Which side the held thing is on: its class&#39;s own (`auto`: the right hand,
+// a bow&#39;s left, a shield&#39;s left forearm) or the one picked.
+const heldSideOf = (name) =&gt; {
+  const v = walker.heldSide.value
+  return v === &#39;right&#39; ? &#39;r&#39; : v === &#39;left&#39; ? &#39;l&#39; : holdSide(holdClassOf(name))
 }
-const setGrip = (patch) =&gt; {
-  const name = walker.held.value
+// In the hand or on the forearm: the class&#39;s own place, unless this
+// character wears that class elsewhere (`place:&lt;class&gt;` among its grips).
+const heldPlaceOf = (name) =&gt; placeIn(name, gripsKept())
+const gripOf = (name, slot = &#39;held&#39;) =&gt; {
   const kept = gripsKept()
-  delete kept[name]
-  walker.grips.value = { ...kept, [holdClassOf(name)]: { ...gripOf(name), ...patch } }
+  // On the back: per class too, kept under `stow:&lt;class&gt;`.
+  if (slot === &#39;stowed&#39;) return stowGrip(name, kept)
+  // A character saved before grips were per class kept them per item.
+  const c = holdClassOf(name)
+  const own = kept[c] ?? kept[name]
+  // Kept for the class&#39;s own side; on the other it is mirrored.
+  return holdGrip(name, own ? { ...kept, [c]: own } : kept, undefined, heldSideOf(name), heldPlaceOf(name))
+}
+const setGrip = (patch, slot = &#39;held&#39;) =&gt; {
+  const name = walker[slot].value
+  const kept = gripsKept()
+  const key = slot === &#39;stowed&#39; ? `stow:${holdClassOf(name)}` : gripKey(name, heldPlaceOf(name))
+  if (slot === &#39;held&#39;) delete kept[name]
+  const g = { ...gripOf(name, slot), ...patch }
+  walker.grips.value = { ...kept, [key]: slot === &#39;held&#39; ? ownSideGrip(name, g, heldSideOf(name), undefined, heldPlaceOf(name)) : g }
   applyGrip()
 }
 // Export: the body on show as a GLB that plays UAL&#39;s clips by name (its
@@ -272,80 +302,112 @@ const playingClip = (recipe) =&gt; {
   const kept = file != null ? clipBytes.get(file) : null
   const armSpaceDeg = recipe?.armSpaceDeg
   const footTurnDeg = recipe?.footTurnDeg
-  if (kept) return { name, kind: kept.kind, bytes: kept.bytes, armSpaceDeg, footTurnDeg }
+  const mirror = walker.mirror.value || undefined
+  if (kept) return { name, kind: kept.kind, bytes: kept.bytes, armSpaceDeg, footTurnDeg, mirror }
   return {
     name,
     kind: &#39;glb&#39;,
     url: assetUrl(&#39;quaternius/UAL_builder.glb&#39;),
     armSpaceDeg,
     footTurnDeg,
+    mirror,
     extras: { credit: &#39;Quaternius&#39;, license: &#39;CC0 (https://creativecommons.org/publicdomain/zero/1.0/)&#39;, source: &#39;quaternius/UAL_builder.glb&#39; },
   }
 }
-const exportRows = () =&gt;
-  exportBodyRows(
-    async () =&gt; {
+const exportTarget = async (name, settings) =&gt; {
       const shown = ch?.shown
       if (shown == null) return &#39;nothing to export yet&#39;
-      const name = walker.characterName.value || shown.source
       const out = await ch.exportCharacter()
       return {
         body: out?.body ?? shown.body,
         eyeTexture: out?.eyeTexture ?? null,
         recipe: shown.recipe,
+        // The whole character (settings with grips, cloth, garments, body,
+        // pictures, clips), so the GLB is also a save.
+        extras: { tosijsCharacter: await compactCharacterTextures(characterSnapshot(walker.characterName.value || name), pictureOptions(settings)) },
         source: shown.source === &#39;MakeHuman&#39; ? null : ch.sources[shown.source] ?? null,
-        name: String(name).replace(/\W+/g, &#39;-&#39;).replace(/^-|-$/g, &#39;&#39;) || &#39;character&#39;,
+        name,
         // What it wears: MakeHuman&#39;s clothes and garments of your own.
         garments: out?.garments ?? [],
         clip: playingClip(shown.recipe),
         // What the right hand holds goes out with it, where it is held.
         held:
-          walker.held.value === &#39;none&#39;
+          walker.held.value === &#39;none&#39; || holdMount(holdClassOf(walker.held.value), heldSideOf(walker.held.value), heldPlaceOf(walker.held.value)).bone !== &#39;hand_r&#39;
             ? null
             : {
                 grip: gripOf(walker.held.value),
-                url: assetUrl(&#39;tonio/weapons-classic/weapons.glb&#39;, 2),
+                url: assetUrl(&#39;tonio/weapons-classic/weapons.glb&#39;, 3),
                 model: `${walker.held.value}.model`,
                 gripNode: `${walker.held.value}_grip`,
                 // As static-assets&#39; metadata for the library says it.
-                extras: { credit: &#39;Tonio Loewald&#39;, license: &#39;CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)&#39;, source: &#39;tonio/weapons-classic/weapons.glb&#39; },
+                extras: { credit: &#39;Tonio Loewald&#39;, license: &#39;CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/)&#39;, source: &#39;tonio/weapons-classic/weapons.glb&#39; },
               },
       }
-    },
-    (message) =&gt; {
-      importError = message
-      refreshPanel()
-    }
-  )
+}
 
-const holdRows = () =&gt; {
-  const name = walker.held.value
-  const g = gripOf(name)
+// One item slot&#39;s rows: what it is, its manipulator, and its grip for the
+// whole class. `held` is in a hand or on a forearm (`side`: the class&#39;s own,
+// or the one picked); `stowed` rides on the back, across the shoulders.
+const itemRows = (slot) =&gt; {
+  const name = walker[slot].value
+  const g = gripOf(name, slot)
+  const c = holdClassOf(name)
+  const sideWord = heldSideOf(name) === &#39;l&#39; ? &#39;left&#39; : &#39;right&#39;
+  const where =
+    slot === &#39;stowed&#39;
+      ? `on the back, for all ${HOLD_CLASS_LABELS[c]}: from the upper spine (metres)`
+      : heldPlaceOf(name) === &#39;forearm&#39;
+      ? `on the ${sideWord} forearm, for all ${HOLD_CLASS_LABELS[c]}: from the forearm (metres)`
+      : `grip for all ${HOLD_CLASS_LABELS[c]}, in the ${sideWord} hand: from the hand (metres)`
+  const handles = slot === &#39;stowed&#39; ? stowHandles : gripHandles
+  const show = slot === &#39;stowed&#39; ? showStowHandles : showGripHandles
   return [
-    label3d({ text: &#39;Hold&#39;, icon: &#39;bipedHandgun&#39;, collapsible: true }),
-    select3d({ label: &#39;right hand&#39;, value: walker.held, options: heldNames, stayOpen: true }),
+    select3d({ label: slot === &#39;stowed&#39; ? &#39;on the back&#39; : &#39;held&#39;, value: walker[slot], options: heldNames, stayOpen: true }),
     ...(name === &#39;none&#39;
       ? []
       : [
+          ...(slot === &#39;held&#39;
+            ? [
+                select3d({ label: &#39;side&#39;, value: walker.heldSide, options: [&#39;auto&#39;, &#39;right&#39;, &#39;left&#39;] }),
+                // For the whole class, kept with this character&#39;s grips.
+                select3d({
+                  label: &#39;worn&#39;,
+                  value: heldPlaceOf(name),
+                  options: [&#39;hand&#39;, &#39;forearm&#39;],
+                  handleChange: (v) =&gt; {
+                    const kept = gripsKept()
+                    if (v === holdPlace(c)) delete kept[`place:${c}`]
+                    else kept[`place:${c}`] = v
+                    walker.grips.value = kept
+                    applyGrip()
+                    refreshPanel()
+                  },
+                }),
+              ]
+            : []),
           toggle3d({
             label: &#39;manipulator&#39;,
-            value: gripHandles,
+            value: handles,
             handleChange: (v) =&gt; {
-              if (v &amp;&amp; !walker.paused.value) walker.paused.value = true
-              showGripHandles(v)
+              if (v) holdStill()
+              show(v)
+              refreshPanel()
             },
           }),
-          label3d({ text: `grip for all ${HOLD_CLASS_LABELS[holdClassOf(name)]}: from the hand (metres)`, muted: true }),
-          vector3d({ value: { x: g.x, y: g.y, z: g.z }, step: 0.01, scrub: 0.002, handleChange: (v) =&gt; setGrip({ x: v.x, y: v.y, z: v.z }) }),
+          label3d({ text: where, muted: true }),
+          vector3d({ value: { x: g.x, y: g.y, z: g.z }, step: 0.01, scrub: 0.002, handleChange: (v) =&gt; setGrip({ x: v.x, y: v.y, z: v.z }, slot) }),
           label3d({ text: &#39;turned (degrees)&#39;, muted: true }),
-          euler3d({ value: { x: g.rx, y: g.ry, z: g.rz }, step: 5, scrub: 0.5, handleChange: (v) =&gt; setGrip({ rx: v.x, ry: v.y, rz: v.z }) }),
-          slider3d({ label: &#39;scale&#39;, value: g.scale, min: 0.4, max: 1.6, step: 0.01, handleChange: (v) =&gt; setGrip({ scale: v }) }),
+          euler3d({ value: { x: g.rx, y: g.ry, z: g.rz }, step: 5, scrub: 0.5, handleChange: (v) =&gt; setGrip({ rx: v.x, ry: v.y, rz: v.z }, slot) }),
+          slider3d({ label: &#39;scale&#39;, value: g.scale, min: 0.4, max: 1.6, step: 0.01, handleChange: (v) =&gt; setGrip({ scale: v }, slot) }),
           button3d({
-            label: &#39;reset grip&#39;,
+            label: slot === &#39;stowed&#39; ? &#39;reset stowed place&#39; : &#39;reset grip&#39;,
             handleClick: () =&gt; {
               const all = gripsKept()
-              delete all[name]
-              delete all[holdClassOf(name)]
+              if (slot === &#39;stowed&#39;) delete all[`stow:${c}`]
+              else {
+                delete all[name]
+                delete all[gripKey(name, heldPlaceOf(name))]
+              }
               walker.grips.value = all
               applyGrip()
             },
@@ -353,6 +415,11 @@ const holdRows = () =&gt; {
         ]),
   ]
 }
+const holdRows = () =&gt; [
+  label3d({ text: &#39;Hold&#39;, icon: &#39;bipedHandgun&#39;, collapsible: true }),
+  ...itemRows(&#39;held&#39;),
+  ...itemRows(&#39;stowed&#39;),
+]
 const slider = (label, key) =&gt;
   slider3d({ label, value: walker[key], min: 0, max: 1, step: 0.01 })
 
@@ -365,6 +432,9 @@ preview.append(
       panelIcon: &#39;body&#39;,
       // A tab per section, each its icon.
       panelSections: &#39;tabs&#39;,
+      // The clip has its own play and pause (Animation, on the bar); a scene
+      // pause beside them read as the clip&#39;s.
+      panelPause: &#39;off&#39;,
       // Undo and redo, every change to the character as it settles: on the
       // panel&#39;s icon bar, at its right end.
       panelActions: () =&gt; [
@@ -425,7 +495,7 @@ preview.append(
           label: &#39;manipulator&#39;,
           value: hairHandles,
           handleChange: (v) =&gt; {
-            if (v &amp;&amp; !walker.paused.value) walker.paused.value = true
+            if (v) holdStill()
             showHairHandles(v)
           },
         }),
@@ -440,7 +510,6 @@ preview.append(
         playbackRow(),
         button3d({ label: &#39;clips from a file…&#39;, handleClick: () =&gt; openClips() }),
         ...(clipFiles.has(walker.clip.value) ? [button3d({ label: `forget ${walker.clip.value}`, handleClick: () =&gt; forgetClip() })] : []),
-        ...exportRows(),
       ] : [
         // A body of anyone&#39;s: what MakeHuman&#39;s carries (shape, face, hair,
         // clothes) is not there; the clips and the skin are.
@@ -467,7 +536,6 @@ preview.append(
         playbackRow(),
         button3d({ label: &#39;clips from a file…&#39;, handleClick: () =&gt; openClips() }),
         ...(clipFiles.has(walker.clip.value) ? [button3d({ label: `forget ${walker.clip.value}`, handleClick: () =&gt; forgetClip() })] : []),
-        ...exportRows(),
       ],
       async sceneCreated(el, BABYLON) {
         const scene = el.scene
@@ -558,8 +626,18 @@ preview.append(
               { separator: true },
               { label: &#39;Open mesh…&#39;, handleSelect: () =&gt; openMesh() },
               { separator: true },
-              { label: &#39;Export JSON&#39;, handleSelect: () =&gt; character.exportJson() },
-              { label: &#39;Load JSON…&#39;, handleSelect: () =&gt; character.importJson() },
+              // One export: the name, the format (a GLB, which is also a save,
+              // or the character file) and the GLB&#39;s options.
+              {
+                label: &#39;Export…&#39;,
+                handleSelect: () =&gt; modal((pop) =&gt; exportForm(pop, {
+                  name: current || ch?.shown?.source || &#39;character&#39;,
+                  target: exportTarget,
+                  say: (m) =&gt; { character.note = m; el.refreshScenePanel?.() },
+                  formats: [{ label: &#39;character file&#39;, write: (name, settings) =&gt; character.exportJson(name, pictureOptions(settings)) }],
+                })),
+              },
+              { label: &#39;Import…&#39;, handleSelect: () =&gt; character.importJson() },
               { separator: true },
               { label: &#39;Go to Playground&#39;, handleSelect: () =&gt; character.play() },
               ...(character.note ? [{ separator: true }, { label: character.note, disabled: true }] : []),
@@ -622,16 +700,24 @@ preview.append(
           title: &#39;Animation&#39;,
           layout: &#39;list&#39;,
           options: () =&gt; [
-            // While rigging the view is the pose: play goes to perspective,
-            // pause back to the face it was held to last.
-            rigging
+            // While rigging: pause holds the clip where it is, in perspective;
+            // the rest pose (where markers move) is its own item, back to the
+            // face it was held to last.
+            ...(rigging
               ? rigging.api.view === &#39;free&#39;
-                ? { label: &#39;Pause&#39;, icon: &#39;pause&#39;, handleSelect: () =&gt; rigging?.api.play(null) }
-                : { label: &#39;Play&#39;, icon: &#39;play&#39;, handleSelect: () =&gt; rigging?.api.play() }
-              : walker.paused.value
+                ? [
+                    rigging.api.frozen
+                      ? { label: &#39;Play&#39;, icon: &#39;play&#39;, handleSelect: () =&gt; { if (rigging) rigging.api.frozen = false } }
+                      : { label: &#39;Pause&#39;, icon: &#39;pause&#39;, handleSelect: () =&gt; { if (rigging) rigging.api.frozen = true } },
+                    { label: &#39;Rest pose&#39;, icon: &#39;personStanding&#39;, handleSelect: () =&gt; { showGripHandles(false); showStowHandles(false); showHairHandles(false); rigging?.api.play(null) } },
+                  ]
+                : [{ label: &#39;Play&#39;, icon: &#39;play&#39;, handleSelect: () =&gt; { showGripHandles(false); showStowHandles(false); showHairHandles(false); rigging?.api.play() } }]
+              : [walker.paused.value
               ? { label: &#39;Play&#39;, icon: &#39;play&#39;, handleSelect: () =&gt; { walker.paused.value = false } }
-              : { label: &#39;Pause&#39;, icon: &#39;pause&#39;, handleSelect: () =&gt; { walker.paused.value = true } },
+              : { label: &#39;Pause&#39;, icon: &#39;pause&#39;, handleSelect: () =&gt; { walker.paused.value = true } }]),
             { label: &#39;Playback controls&#39;, icon: &#39;playCircle&#39;, checked: playbackPanel.isOpen, handleSelect: () =&gt; playbackPanel.toggle?.() },
+            // Left to right: a right-handed throw played left-handed.
+            { label: &#39;Mirrored&#39;, checked: walker.mirror.value, handleSelect: () =&gt; { walker.mirror.value = !walker.mirror.value } },
             { separator: true },
             ...EVERYDAY.map(clipOption),
             ...(fileClips.size ? [{ separator: true }, ...[...fileClips.keys()].map(clipOption)] : []),
@@ -682,46 +768,63 @@ preview.append(
         ualRoot.setEnabled(false)
         // THE HELD ITEM: an instance of the library&#39;s model on the shown
         // body&#39;s right-hand socket, made again when the item or body changes.
+        // While rigging it is on the rig tool&#39;s body, so arm space and the
+        // arms&#39; roles can be judged with it in hand.
         const weapons = el.querySelector(&#39;tosi-b3d-library&#39;)
-        let held = null
-        applyGrip = () =&gt; {
-          const name = walker.held.value
-          const shown = ch?.shown
-          if (held &amp;&amp; (held.name !== name || held.shown !== shown || rigging)) {
-            held.node.dispose()
-            held = null
-            gizmo.node = null
+        // Two slots: the right hand (a shield on the left forearm) and the back.
+        const items = { held: null, stowed: null }
+        const holdingSkeleton = () =&gt; (rigging ? rigging.api.skeleton : ch?.shown?.built?.skeleton) ?? null
+        const mountFor = (slot, name) =&gt; (slot === &#39;stowed&#39; ? STOW_MOUNT : holdMount(holdClassOf(name), heldSideOf(name), heldPlaceOf(name)))
+        // Whose handles are up (one manipulator for both).
+        const handlesSlot = () =&gt; (gripHandles ? &#39;held&#39; : stowHandles ? &#39;stowed&#39; : null)
+        const placeSlot = (slot) =&gt; {
+          const name = walker[slot].value
+          const skeleton = holdingSkeleton()
+          let it = items[slot]
+          const mount = mountFor(slot, name)
+          if (it &amp;&amp; (it.name !== name || it.skeleton !== skeleton || it.bone !== mount.bone)) {
+            it.node.dispose()
+            it = items[slot] = null
+            if (handlesSlot() === slot) gizmo.node = null
           }
-          if (name === &#39;none&#39; || !shown || rigging) return
-          if (!held) {
-            const skeleton = shown.built?.skeleton
-            const hand = skeleton?.bones.find((b) =&gt; b.name === &#39;hand_r&#39;)?.getTransformNode()
-            const node = hand &amp;&amp; weapons?.instantiate?.(name, { canonical: true })
+          if (name === &#39;none&#39; || !skeleton) return
+          if (!it) {
+            // A hand&#39;s or forearm&#39;s anatomical socket, or the spine itself.
+            const at = mountNode(skeleton, mount)
+            const node = at &amp;&amp; weapons?.instantiate?.(name, { canonical: true })
             if (!node) return
-            node.parent = handSocket(skeleton, &#39;hand_r&#39;, &#39;r&#39;, hand) ?? hand
+            node.parent = at
             // Its grip (a pistol&#39;s handle), measured once: that point, not
             // its origin, goes where the numbers say, as on a launcher.
-            held = { node, name, shown, grip: heldGrip(node) ?? BABYLON.Vector3.Zero() }
+            it = items[slot] = { node, name, skeleton, bone: mount.bone, grip: heldGrip(node) ?? BABYLON.Vector3.Zero() }
           }
-          placeHeld(gripOf(name))
+          placeItem(slot, gripOf(name, slot))
         }
-        // The item at a grip: that point and turn in the hand&#39;s socket frame.
-        const placeHeld = (g, handle = true) =&gt; {
+        applyGrip = () =&gt; {
+          placeSlot(&#39;held&#39;)
+          placeSlot(&#39;stowed&#39;)
+          if (!handlesSlot() || !items[handlesSlot()]) gizmo.node = null
+        }
+        // The item at a grip: that point and turn in its mount&#39;s frame.
+        const placeItem = (slot, g, handle = true) =&gt; {
+          const it = items[slot]
+          if (!it) return
           const d = Math.PI / 180
           const turn = BABYLON.Quaternion.FromEulerAngles(g.rx * d, g.ry * d, g.rz * d)
           // Scaled with the item, so its grip point stays on the grip.
-          const spun = held.grip.scale(g.scale).applyRotationQuaternion(turn)
-          held.node.position.set(g.x - spun.x, g.y - spun.y, g.z - spun.z)
-          held.node.rotationQuaternion = turn
-          held.node.scaling.setAll(g.scale)
+          const spun = it.grip.scale(g.scale).applyRotationQuaternion(turn)
+          it.node.position.set(g.x - spun.x, g.y - spun.y, g.z - spun.z)
+          it.node.rotationQuaternion = turn
+          it.node.scaling.setAll(g.scale)
+          if (handlesSlot() !== slot) return
           // THE GRIP&#39;S HANDLES: a node at the grip, in the same frame, for
           // the manipulator to drag; the item follows it.
-          gripNode.parent = held.node.parent
+          gripNode.parent = it.node.parent
           if (handle) {
             gripNode.position.set(g.x, g.y, g.z)
             gripNode.rotationQuaternion = turn.clone()
           }
-          gizmo.node = gripHandles ? gripNode : null
+          gizmo.node = gripNode
         }
         const gripNode = new BABYLON.TransformNode(&#39;grip-handle&#39;, el.scene)
         const fromHandle = () =&gt; {
@@ -736,17 +839,35 @@ preview.append(
           turn: &#39;on&#39;,
           size: 0.09,
           // Live: the item follows; kept (and the numbers shown) on release.
-          whenChange: () =&gt; held &amp;&amp; placeHeld({ ...gripOf(held.name), ...fromHandle() }, false),
+          whenChange: () =&gt; {
+            const slot = handlesSlot()
+            const it = slot &amp;&amp; items[slot]
+            if (it) placeItem(slot, { ...gripOf(it.name, slot), ...fromHandle() }, false)
+          },
           whenCommit: () =&gt; {
-            setGrip(fromHandle())
+            setGrip(fromHandle(), handlesSlot() ?? &#39;held&#39;)
             el.refreshScenePanel?.()
           },
         })
         el.append(gizmo)
         showGripHandles = (on) =&gt; {
           gripHandles = on
-          gizmo.node = on &amp;&amp; held ? gripNode : null
+          if (on) stowHandles = false
+          applyGrip()
         }
+        showStowHandles = (on) =&gt; {
+          stowHandles = on
+          if (on) gripHandles = false
+          applyGrip()
+        }
+        // The rig tool binds again (a marker moved): a new skeleton, so the
+        // items go on its bones.
+        scene.onBeforeRenderObservable.add(() =&gt; {
+          if (!rigging) return
+          const sk = holdingSkeleton()
+          for (const slot of [&#39;held&#39;, &#39;stowed&#39;])
+            if (walker[slot].value !== &#39;none&#39; &amp;&amp; (items[slot]?.skeleton ?? null) !== sk) return applyGrip()
+        })
         // THE HAIR&#39;S HANDLE: a node on the Head bone at the skull&#39;s middle plus
         // the adjustment. Dragging moves the hair&#39;s meshes as they are; the
         // adjustment is kept, and the hair placed again, on release.
@@ -792,6 +913,17 @@ preview.append(
           hairHandles = on
           placeHairHandle()
         }
+        // Back to the animation (play, or another clip): the handles go, as a
+        // manipulator holds a pose still and the clip no longer does.
+        const handlesOff = () =&gt; {
+          if (!gripHandles &amp;&amp; !stowHandles &amp;&amp; !hairHandles) return
+          showGripHandles(false)
+          showStowHandles(false)
+          showHairHandles(false)
+          el.refreshScenePanel?.()
+        }
+        walker.paused.observe(() =&gt; { if (!walker.paused.value) handlesOff() })
+        walker.clip.observe(handlesOff)
         // Undo, a loaded character or a new body puts the handle back.
         walker.hairUp.observe(() =&gt; placeHairHandle())
         walker.hairForward.observe(() =&gt; placeHairHandle())
@@ -801,6 +933,14 @@ preview.append(
           el.refreshScenePanel?.()
         })
         walker.held.observe(() =&gt; {
+          applyGrip()
+          el.refreshScenePanel?.()
+        })
+        walker.heldSide.observe(() =&gt; {
+          applyGrip()
+          el.refreshScenePanel?.()
+        })
+        walker.stowed.observe(() =&gt; {
           applyGrip()
           el.refreshScenePanel?.()
         })
@@ -898,8 +1038,8 @@ preview.append(
           const own = fileClips.get(walker.clip.value)
           const clip = own?.group ?? ual.animationGroups.find((g) =&gt; g.name === walker.clip.value) ?? ual.animationGroups.find((g) =&gt; g.name === &#39;Walk_Loop&#39;)
           playing = own?.source
-            ? retargetSourceClip(own.source, own.clip, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg, footTurnDeg: ch.recipe?.footTurnDeg })
-            : clip ? retargetClip(clip, own?.from ?? source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg, footTurnDeg: ch.recipe?.footTurnDeg }) : null
+            ? retargetSourceClip(own.source, own.clip, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg, footTurnDeg: ch.recipe?.footTurnDeg, mirror: walker.mirror.value })
+            : clip ? retargetClip(clip, own?.from ?? source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg, footTurnDeg: ch.recipe?.footTurnDeg, mirror: walker.mirror.value }) : null
           playing?.start(true, clipSpeed)
           ch.groundFor(playing)
           if (walker.paused.value) playing?.pause()
@@ -1159,7 +1299,7 @@ preview.append(
           })
           // It plays the clip the Animation menu has.
           rigging.api.clip = walker.clip.value
-          // The item goes while the rig tool has the body.
+          // The item moves to the rig tool&#39;s body.
           applyGrip()
           el.refreshScenePanel?.()
         }
@@ -1385,15 +1525,22 @@ preview.append(
           character.changed()
           listSaved()
         }
-        character.exportJson = () =&gt; {
-          const name = walker.characterName.value.trim() || &#39;character&#39;
-          save(JSON.stringify(snapshot(name), null, 1), `${name.replace(/[^\w-]/g, &#39;_&#39;)}.character.json`, &#39;application/json&#39;)
+        // The character file, under the name given (its pictures scaled
+        // as the export form says).
+        character.exportJson = async (file = walker.characterName.value.trim() || &#39;character&#39;, pictures = {}) =&gt; {
+          const doc = await compactCharacterTextures(snapshot(walker.characterName.value || file), pictures)
+          save(JSON.stringify(doc, null, 1), `${file}.character.json`, &#39;application/json&#39;)
         }
         character.importJson = () =&gt; {
-          chooseFile(&#39;.json,application/json&#39;).then(async (file) =&gt; {
+          chooseFile(&#39;.json,application/json,.glb&#39;).then(async (file) =&gt; {
             if (!file) return
             try {
-              await apply(await file.text())
+              // A character file, or a GLB this builder exported (it carries one).
+              if (/\.glb$/i.test(file.name)) {
+                const doc = readGlbCharacter(new Uint8Array(await file.arrayBuffer()))
+                if (doc == null) return tell(`${file.name}: carries no character`)
+                await apply(doc)
+              } else await apply(await file.text())
               character.changed()
             } catch (e) {
               tell(`${file.name}: ${String(e?.message ?? e).replace(/^character-file: /, &#39;&#39;)}`)
@@ -1411,7 +1558,8 @@ preview.append(
           }
           location.href = `/playground/?character=${encodeURIComponent(WORKING)}`
         }
-        el.builder.character = { snapshot, apply, store }
+        el.builder.character = { snapshot, apply, store, exportTarget }
+        characterSnapshot = snapshot
         // The figure you were working on, as you left it.
         const working = await store.get(WORKING).catch(() =&gt; null)
         if (working) await apply(working).catch((e) =&gt; console.warn(&#39;character builder: the working figure would not load&#39;, e))
@@ -1422,11 +1570,12 @@ preview.append(
         play()
         el.refreshScenePanel?.()
         walker.clip.observe(play)
+        walker.mirror.observe(play)
         walker.paused.observe(() =&gt; (walker.paused.value ? playing?.pause() : playing?.play(true)))
       },
     },
     // Things to hold: Tonio&#39;s weapons (CC BY 4.0), each with its grip at its origin.
-    b3dLibrary({ url: assetUrl(&#39;tonio/weapons-classic/weapons.glb&#39;, 2), type: &#39;weapons&#39; }),
+    b3dLibrary({ url: assetUrl(&#39;tonio/weapons-classic/weapons.glb&#39;, 3), type: &#39;weapons&#39; }),
     b3dSun({ timeOfDay: 16.5, shadowTextureSize: 2048, shadowMaxZ: 20, shadowNormalBias: 0.008 }),
     b3dLight({ intensity: 0.5 })
   )
@@ -1475,10 +1624,18 @@ camera is your head.</p>
 <p><strong>Animation</strong> (on the bar) plays or pauses the clip and picks it: the
 everyday clips, a file&#39;s, then the rest of the library grouped by kind.
 <strong>Playback controls</strong> in that menu opens the transport (scrub, speed) as its
-own small panel.</p>
+own small panel. <strong>Mirrored</strong> plays the clip left to right (a right-handed
+throw thrown left-handed), and an exported clip carries it, named
+&quot;<clip> (mirrored)&quot;.
+While rigging, <strong>Pause</strong> holds the clip where it is, in the same view, and
+<strong>Rest pose</strong> stands the body at rest in the view it was held to last, where
+markers and joints move. Turning on a manipulator pauses whichever clip is
+playing. The settings panel has no scene Pause here: the clip&#39;s is the one
+that matters.</p>
 <p><strong>Hold</strong> puts an item from Tonio&#39;s textured weapons
-(<code>tonio/weapons-classic/weapons.glb</code>, CC BY 4.0: guns, blades, a plasma
-blade, a spear, a buckler) in the right hand, on the hand&#39;s
+(<code>tonio/weapons-classic/weapons.glb</code>, CC0: guns, blades, a plasma
+blade, a spear, a bow, a buckler and a kite shield) in the right hand (a bow
+in the left), on the hand&#39;s
 socket (a frame normalised to the hand&#39;s anatomy, so one grip fits any
 body&#39;s hand). Every item is made the same way, its origin at its grip (a
 <code>_grip</code> node), +Y up the grip and +Z forward, at its real size, so one grip
@@ -1495,10 +1652,12 @@ you change it and comes back when you open the page again. <strong>Save</strong>
 under its name, asking for one the first time; <strong>Save as…</strong> under another
 (asking first before replacing a saved character); <strong>Rename…</strong> renames it.
 <strong>Select ▸</strong> lists the saved characters (the one on screen ticked): pick one
-and it loads. <strong>Delete ▸</strong> picks one, then asks again. <strong>Export JSON</strong> takes
-it elsewhere and <strong>Load JSON…</strong> brings one in: a file carries everything the
-panel sets, and the garments of your own the character wears travel inside
-it (<a href="/character-file/">character-file</a>). <strong>Go to Playground</strong> plays it in the
+and it loads. <strong>Delete ▸</strong> picks one, then asks again. <strong>Export…</strong> asks for
+the file&#39;s name and format: a <strong>GLB</strong> (rigged for other engines, with its
+joint names, rest pose, height, the clip playing and how far to scale its
+pictures) that also carries the whole character, or the <strong>character file</strong>
+alone (<a href="/character-file/">character-file</a>). <strong>Import…</strong> opens either: the
+settings, grips, garments of your own, body and clips all come back. <strong>Go to Playground</strong> plays it in the
 biped playground.</p>
 <p>Open the panel (the body button): the body sliders reshape it
 while it walks, since every body carries its own joints. The skin weights are
@@ -1737,9 +1896,22 @@ body&#39;s triangles.</p>
     <ul id="tosi-nav-characters-and-vehicles">
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-biped" aria-label="b3d-biped"></button><a class="doc-link" href="../b3d-biped/">b3d-biped</a></div>
       <ul id="tosi-nav-b3d-biped">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-npc" aria-label="b3d-npc"></button><a class="doc-link" href="../b3d-npc/">b3d-npc</a></div>
+        <ul id="tosi-nav-b3d-npc">
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-conversation" aria-label="b3d-conversation"></button><a class="doc-link" href="../b3d-conversation/">b3d-conversation</a></div>
+          <ul id="tosi-nav-b3d-conversation">
+            <li><a class="doc-link" href="../balloon-layout/">balloon layout</a></li>
+          </ul></li>
+          <li><a class="doc-link" href="../conversation/">conversation</a></li>
+          <li><a class="doc-link" href="../noise/">noise</a></li>
+          <li><a class="doc-link" href="../npc-brain/">npc-brain</a></li>
+          <li><a class="doc-link" href="../sensorium/">sensorium</a></li>
+        </ul></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-aim" aria-label="aim"></button><a class="doc-link" href="../aim/">aim</a></div>
         <ul id="tosi-nav-aim">
           <li><a class="doc-link" href="../aim-ik/">aim IK</a></li>
+          <li><a class="doc-link" href="../aim-assist/">aim-assist</a></li>
+          <li><a class="doc-link" href="../two-bone-ik/">two-bone IK</a></li>
         </ul></li>
         <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-core" aria-label="character core"></button><a class="doc-link" href="../character-core/">character core</a></div>
@@ -1752,6 +1924,7 @@ body&#39;s triangles.</p>
             <ul id="tosi-nav-rigged-body-glb">
               <li><a class="doc-link" href="../spring-vrm/">spring-vrm</a></li>
               <li><a class="doc-link" href="../body-export/">body export</a></li>
+              <li><a class="doc-link" href="../glb-textures/">glb textures</a></li>
             </ul></li>
           </ul></li>
           <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-chunks" aria-label="glb-chunks"></button><a class="doc-link" href="../glb-chunks/">glb-chunks</a></div>
@@ -1781,6 +1954,7 @@ body&#39;s triangles.</p>
           <li><a class="doc-link" href="../rig-markers/">rig markers</a></li>
         </ul></li>
         <li><a class="doc-link" href="../spring-chain-babylon/">spring bones</a></li>
+        <li><a class="doc-link" href="../fall/">fall</a></li>
       </ul></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-aircraft" aria-label="b3d-aircraft"></button><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></div>
       <ul id="tosi-nav-b3d-aircraft">
@@ -1826,7 +2000,10 @@ body&#39;s triangles.</p>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-interactive" aria-label="b3d-interactive"></button><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></div>
       <ul id="tosi-nav-b3d-interactive">
         <li><a class="doc-link" href="../interaction/">interaction</a></li>
+        <li><a class="doc-link" href="../b3d-pickup/">b3d-pickup</a></li>
         <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+        <li><a class="doc-link" href="../b3d-door/">b3d-door</a></li>
+        <li><a class="doc-link" href="../b3d-chest/">b3d-chest</a></li>
       </ul></li>
       <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
@@ -1844,6 +2021,8 @@ body&#39;s triangles.</p>
       <ul id="tosi-nav-b3d-launcher">
         <li><a class="doc-link" href="../ballistics/">ballistics</a></li>
         <li><a class="doc-link" href="../guidance/">guidance</a></li>
+        <li><a class="doc-link" href="../gun-sound/">gun-sound</a></li>
+        <li><a class="doc-link" href="../magazine/">magazine</a></li>
       </ul></li>
       <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
       <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
@@ -1860,6 +2039,9 @@ body&#39;s triangles.</p>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-inventory" aria-label="inventory"></button><a class="doc-link" href="../inventory/">inventory</a></div>
       <ul id="tosi-nav-inventory">
         <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
+        <li><a class="doc-link" href="../trade/">trade</a></li>
+        <li><a class="doc-link" href="../inventory-trade/">inventory-trade</a></li>
+        <li><a class="doc-link" href="../currency/">currency</a></li>
       </ul></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-spawner" aria-label="b3d-spawner"></button><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></div>
@@ -1875,6 +2057,7 @@ body&#39;s triangles.</p>
       <ul id="tosi-nav-widgets3d">
         <li><a class="doc-link" href="../playback-field/">Playback</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+        <li><a class="doc-link" href="../pager-field/">Pager</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widget-semantics" aria-label="widget semantics"></button><a class="doc-link" href="../widget-semantics/">widget semantics</a></div>
         <ul id="tosi-nav-widget-semantics">
           <li><a class="doc-link" href="../aria-mirror/">aria mirror</a></li>
@@ -1925,7 +2108,10 @@ body&#39;s triangles.</p>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-panel" aria-label="b3d-panel"></button><a class="doc-link" href="../b3d-panel/">b3d-panel</a></div>
         <ul id="tosi-nav-b3d-panel">
           <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
-          <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-xr-frames" aria-label="xr-frames"></button><a class="doc-link" href="../xr-frames/">xr-frames</a></div>
+          <ul id="tosi-nav-xr-frames">
+            <li><a class="doc-link" href="../xr-grab/">xr-grab</a></li>
+          </ul></li>
           <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-system-bar" aria-label="system-bar"></button><a class="doc-link" href="../system-bar/">system-bar</a></div>
           <ul id="tosi-nav-system-bar">
             <li><a class="doc-link" href="../bar-menu/">bar-menu</a></li>
@@ -1933,8 +2119,12 @@ body&#39;s triangles.</p>
         </ul></li>
         <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
         <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
-        <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-gamepad-focus" aria-label="gamepad-focus"></button><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></div>
+        <ul id="tosi-nav-gamepad-focus">
+          <li><a class="doc-link" href="../pad-ui/">pad-ui</a></li>
+        </ul></li>
       </ul></li>
+      <li><a class="doc-link" href="../b3d-checklist/">test checklist in the scene</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui-theme" aria-label="Theme and icons"></button><a class="doc-link" href="../ui-theme/">Theme and icons</a></div>
       <ul id="tosi-nav-ui-theme">
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-w3d-theme" aria-label="w3d-theme"></button><a class="doc-link" href="../w3d-theme/">w3d-theme</a></div>
@@ -1981,6 +2171,7 @@ body&#39;s triangles.</p>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.13.2/">0.13.2</a></li>
         <li><a class="doc-link" href="../v0.13.1/">0.13.1</a></li>
         <li><a class="doc-link" href="../v0.13.0/">0.13.0</a></li>
         <li><a class="doc-link" href="../v0.12.6/">0.12.6</a></li>
@@ -2069,6 +2260,6 @@ body&#39;s triangles.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-8gnd2qzs.js"></script>
+  <script type="module" src="../hydrate-r5e83g3k.js"></script>
 </body>
 </html>

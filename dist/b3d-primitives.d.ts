@@ -2,6 +2,13 @@ import * as BABYLON from '@babylonjs/core';
 import { AbstractMesh } from './b3d-utils.js';
 import type { B3d } from './tosi-b3d.js';
 /**
+ * Give a short solid mesh an invisible box to collide with.
+ *
+ * Returns the proxy, or `null` when the mesh is already tall enough to be
+ * noticed on its own. See the long note on `solid`.
+ */
+export declare function addSolidProxy(mesh: BABYLON.Mesh, scene: BABYLON.Scene): BABYLON.Mesh | null;
+/**
  * The material a primitive gets, from its attributes.
  *
  * `mirror` picks a polished PBR metal, everything else a StandardMaterial —

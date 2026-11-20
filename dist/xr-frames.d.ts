@@ -36,6 +36,12 @@ export interface XrFramesOptions {
     flat?: boolean;
     /** Flat only: how far below the camera the floor (the `body` frame) sits. */
     eyeHeight?: number;
+    /**
+     * The session's world scale (WebXR's `worldScalingFactor`): world units per
+     * real metre. The head-following frames are scaled by it, so a panel stays
+     * the size it was made for when the viewer is a giant (a tabletop view).
+     */
+    worldScale?: () => number;
 }
 /**
  * Maintains a `TransformNode` per reference frame. Construct once an XR session
@@ -84,6 +90,7 @@ export declare class XrFrames {
     private bodyYawRate;
     private bodyYawDeadband;
     private neckOffset;
+    private worldScale;
     private _q;
     private _m;
     private _fwd;

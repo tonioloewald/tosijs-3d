@@ -57,12 +57,16 @@ export interface RigToolApi {
     view: RigView;
     /** Play a clip (the current one if none is named); `null` stands it at rest. */
     play(clip?: string | null): void;
+    /** The clip held still where it is, in the same view (not at rest); playing again or a new clip lets it go. */
+    frozen: boolean;
     /** The clip it plays: set it to change clips (playing on if it was). */
     clip: string;
     /** UAL's mannequin beside the character, to compare. */
     mannequin: boolean;
     /** The skeleton drawn over the character. */
     bones: boolean;
+    /** The model's skeleton now (a host hangs a held item on its hand); a rebind replaces it. */
+    readonly skeleton: BABYLON.Skeleton | null;
     load(model: RigModel | File): Promise<void> | undefined;
     /**
      * Add the clips in a GLB made on another rig (Mixamo, mocap, another

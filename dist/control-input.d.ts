@@ -26,6 +26,8 @@ export interface ControlInput {
      * not aiming, but a character who is not aiming may still be armed.
      */
     weapon: number;
+    /** Reload what is in hand — edge-detected. */
+    reload: number;
     cameraZoom: number;
     sneak: number;
     view: number;

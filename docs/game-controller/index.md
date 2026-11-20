@@ -27,9 +27,10 @@ For standalone keyboard-only or hardware-only sources, see
 | leftTrigger | Q |
 | rightTrigger | R |
 | dpadDown | G (toggle) |
+| dpadLeft | J (a biped reloads) |
 
-The mouse wheel is ZOOM: it drives the d-pad up/down axis, not the right
-stick. Mouse buttons count only when the press starts on a scene canvas.
+The mouse wheel is ZOOM: it drives the pad's `zoom` axis, not the right
+stick or the d-pad (the d-pad is UI navigation). Mouse buttons count only when the press starts on a scene canvas.
 
 ## Attributes
 

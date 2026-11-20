@@ -6,6 +6,10 @@ import type { GameController } from './game-controller.js';
 import { B3dControllable } from './b3d-controllable.js';
 import type { ControlInput } from './control-input.js';
 import { type VirtualGamepad } from './virtual-gamepad.js';
+import { DestroyableBehavior } from './destroyable-behavior.js';
+import type { Cause } from './destroyable.js';
+/** Where a hit lands on a body. */
+export type HitRegion = 'head' | 'trunk' | 'limb';
 export type AnimStateSpec = {
     animation: string;
     name?: string;
@@ -22,6 +26,21 @@ export declare class AnimState {
     constructor(spec: AnimStateSpec);
     static buildList(...specs: AnimStateSpec[]): AnimState[];
 }
+/** The clips a weapon's gunplay states play: a stance, three aim poses, a shot, a reload. */
+export interface AimClips {
+    aimIdle: string;
+    aimUp: string;
+    aimLevel: string;
+    aimDown: string;
+    shoot: string;
+    reload: string;
+}
+/**
+ * UAL's gunplay sets, by the weapon they are for. The bow has no stance of
+ * its own, so standing it holds the level aim; its reload notches an arrow.
+ * `B3dBiped.setAimClips` switches between them.
+ */
+export declare const AIM_CLIPS: Record<'pistol' | 'bow', AimClips>;
 export declare function ualAnimationStates(extra?: AnimStateSpec[]): AnimState[];
 export declare class B3dBiped extends B3dControllable {
     static preferredTagName: string;
@@ -76,6 +95,12 @@ export declare class B3dBiped extends B3dControllable {
         aimMaxYaw: number;
         /** How far up/down the look can go, degrees. */
         maxLookPitch: number;
+        /** While aiming: the sticks' response curve (1 linear, 2 fine near centre). */
+        aimCurve: number;
+        /** While aiming: how much the aim slows on a target (0 off, 1 stops it). */
+        aimAssist: number;
+        /** While aiming: stick deflection past which a locked aim lets go (0 = no locking). */
+        aimBreakout: number;
         /**
          * How far in FRONT of the head bone the first-person eye sits, in metres.
          *
@@ -135,6 +160,34 @@ export declare class B3dBiped extends B3dControllable {
          * rather than painted onto it.
          */
         climbReach: number;
+        /**
+         * **Metres of drop past which a landing is hard**: a heavy landing clip
+         * (`hardLand`) that holds you still while it plays. The drop is from the
+         * top of the flight to where you land, so a jump on flat ground is never
+         * hard. `0` (auto) is 1.5 body heights, 2.7 m for a 1.8 m person.
+         */
+        hardLanding: number;
+        /**
+         * **Metres of drop that kill you on landing.** `0` (the default) means no
+         * fall kills: a death needs an exit, so a scene that has one
+         * (`<tosi-b3d-death>`) asks for it. A lethal landing plays `death` where
+         * you land, halts the biped and dispatches a bubbling `crash` event
+         * (`detail: { cause: 'fall', drop }`), which `<tosi-b3d-death>` answers.
+         * Water breaks a fall.
+         */
+        lethalFall: number;
+        /**
+         * **Hit points.** `0` (the default) means nothing can hurt this biped.
+         * Above 0 it is a target for warheads and shots like any destroyable
+         * (`destroyable-behavior`): a hit plays a hit clip and holds it still for
+         * the clip's length; at 0 it plays `death` where it stands and dispatches
+         * a bubbling `destroyed` event, which `<tosi-b3d-death>` answers. Read
+         * what is left from `hp`.
+         */
+        health: number;
+        /** Hit points regained per second, starting `healthRegenDelay` s after the last hit. */
+        healthRegen: number;
+        healthRegenDelay: number;
         /**
          * **How deep the water gets before you swim, as a fraction of standing
          * height.** Below this you wade — feet on the bottom, walking; above it
@@ -292,6 +345,7 @@ export declare class B3dBiped extends B3dControllable {
      */
     gunplay: boolean;
     private weaponWasPressed;
+    private _reloadWasPressed;
     /**
      * What the weapon button does, when a game decides (JS only). Called with
      * whether the button asks for the weapon UP; the game moves it (draw from
@@ -366,7 +420,9 @@ export declare class B3dBiped extends B3dControllable {
      * (TS2611). An arrow field binds `this` and reads the mode live, which is all
      * the getter was for.
      */
-    inputMapping: (pad: VirtualGamepad, dt: number) => ControlInput;
+    inputMapping: ((pad: VirtualGamepad, dt: number) => ControlInput) & {
+        keyboard: ((pad: VirtualGamepad) => VirtualGamepad) | undefined;
+    };
     inputLabels: Partial<Record<keyof VirtualGamepad, string>>;
     /**
      * Aiming right now.
@@ -407,6 +463,17 @@ export declare class B3dBiped extends B3dControllable {
      */
     private _reticle;
     private _reticleScratch;
+    /** The aim's rate factor from what it is crossing (see aim-assist). */
+    /** What there is to aim at: other living bipeds that can be hurt, and destroyables. */
+    private _aimCandidates;
+    private _aimFriction;
+    private _aimLock;
+    /**
+     * Sticky aim's frame: the targets as angles from the aim's origin (within
+     * 60 m, and a line-of-sight test only for those near the aim), then
+     * `stickyAim`. Returns the world aim to use, or null to aim freely.
+     */
+    private _stickyAim;
     private _updateReticle;
     private _aimRay;
     private _aimHit;
@@ -449,6 +516,9 @@ export declare class B3dBiped extends B3dControllable {
      * "sit where you were asked to".
      */
     private _cameraObstruction;
+    private _wallRay;
+    /** Something you can see is between `from` (what the camera looks at) and the camera. */
+    private _seenThroughWall;
     /**
      * The medium boundary the camera should not sit in, if there is one.
      *
@@ -495,7 +565,75 @@ export declare class B3dBiped extends B3dControllable {
      * flight, which is what `speedRatio` retiming was compensating for.
      */
     private _airPhase;
+    /** The highest the body has been since it left the ground (the drop is from here). */
+    private _airTopY;
+    /** The landing playing is a hard one: the `hardLand` clip, standing still. */
+    private _hardLanding;
+    /** The one-off clip playing (a hit, a pickup), and how long it has left (it holds the biped still). */
+    private _actionClip;
+    private _actionLeft;
+    private _hits;
+    /** Its health in the scene's combat world, when `health` is above 0. */
+    destroyable: DestroyableBehavior | null;
+    /**
+     * The point an enemy aims at: a node at chest height under the root, which
+     * stands at the feet. A turret or an AI tracks this.
+     */
+    aimTarget: BABYLON.TransformNode | null;
+    /** Hit points left (Infinity when `health` is 0, so nothing can hurt it). */
+    get hp(): number;
+    /**
+     * What a hit does by where it lands: a head shot hurts more than a hand.
+     * Only hits that say where (a direct-hit round's `Cause.at`) are scaled; a
+     * blast or a blow is the trunk.
+     */
+    hitScale: Record<HitRegion, number>;
+    /**
+     * Which part of the body a world point is on: the HEAD (round the head
+     * bone), the TRUNK (close to the axis from the hips to the neck) or a LIMB
+     * (anything else: arms out from the trunk, legs below the hips). Measured
+     * from the head node, so a crouch moves the regions with it.
+     */
+    hitRegion(at: {
+        x: number;
+        y: number;
+        z: number;
+    }): HitRegion;
+    /** Heal it by `amount`, up to its `health` (a first-aid kit, a potion; nothing once dead). */
+    heal(amount: number): void;
+    /** Hurt this biped (no effect when `health` is 0 or it is already dead). */
+    damage(amount: number, cause?: Cause): void;
     private _phaseLeft;
+    /**
+     * A fall that kills: the death clip where you landed, then halt (the clip
+     * plays on; nothing moves the body), then a bubbling `crash` for
+     * `<tosi-b3d-death>` or the game to answer.
+     */
+    private _dieFromFall;
+    /** Down where it stands: the death clip, nothing more moves it. */
+    private _fallDead;
+    /**
+     * A hit that lands: a blast knocks back, other hits take turns between
+     * chest, stomach and head, so the same three hits never look alike. Not in
+     * the air, in water or mid-climb, where a full-body clip would fight the
+     * motion.
+     */
+    private _onHit;
+    /**
+     * Play a one-off clip (picking something up, opening a chest, a hit) and
+     * stand still while it plays. Returns its length in seconds, or 0 when it
+     * cannot play: the rig lacks the clip, or the biped is in the air, in water,
+     * mid-climb or dead. For a game, an AI or a cutscene. `seconds` holds it
+     * that long instead of the clip's length (a looping clip loops: talking for
+     * as long as a line lasts).
+     */
+    perform(state: string, seconds?: number): number;
+    /** Stop a `perform` early (a line cut short stops the talking). */
+    endPerform(): void;
+    /** Health in the combat world, a chest-height aim point, once the model is in. */
+    private _attachHealth;
+    /** The rig has this state AND the clip it names is loaded. */
+    private _hasState;
     /**
      * How long an animation clip runs, in seconds — `0` if there is no such clip.
      *
@@ -635,6 +773,14 @@ export declare class B3dBiped extends B3dControllable {
      * layer instead, because a walk cycle is still a walk cycle.
      */
     private _gunplayState;
+    /** The clip a state plays (its name when it has no state). */
+    private _clipOf;
+    /**
+     * Which clips the gunplay states play: `AIM_CLIPS.bow` for a bow, `.pistol`
+     * (the default) for a gun. JS only; a game calls it when what is in hand
+     * changes. A state whose clip the rig lacks is skipped as before.
+     */
+    setAimClips(clips: AimClips): void;
     private _warned;
     private _warnOnce;
     private _hasClip;
@@ -660,6 +806,10 @@ export declare class B3dBiped extends B3dControllable {
     private _aimIkChain;
     private _aimIkOf;
     private _aimIk;
+    private _longGuns;
+    private _longGun;
+    private _armNodes;
+    private _shoulderGun;
     /** Seconds left of the one-shot fire pose. */
     private _shootFor;
     private _eased;

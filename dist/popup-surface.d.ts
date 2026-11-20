@@ -70,6 +70,13 @@ export interface PopupSurfaceOptions {
      * a headset you cannot take someone's view away without making them ill.
      */
     modal?: boolean;
+    /**
+     * A TIP: a tooltip or an info card. Drawn beside what it is about and in
+     * front of it, so nothing clips it, but it is not a window: no chrome, no
+     * drag, never picked (a ray or a click passes through to what is under it),
+     * and outside the popup stack (it neither raises nor dismisses anything).
+     */
+    tip?: boolean;
 }
 export interface PopupSurface {
     /** The plane element (an `AbstractMesh`, so it has x/y/z and rx/ry/rz). */

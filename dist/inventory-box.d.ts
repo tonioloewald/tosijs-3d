@@ -2,6 +2,7 @@ import type { PointerKind } from './box.js';
 import { type CarryDecorations } from './carry-box.js';
 import type { Carry } from './carry.js';
 import type { InventoryApi, Item, ItemKind, Move, Place } from './inventory.js';
+import type { ControlNode } from './widget-semantics.js';
 export interface InventoryPanelOptions {
     inv: InventoryApi;
     carry: Carry<string>;
@@ -10,6 +11,8 @@ export interface InventoryPanelOptions {
     title?: string;
     decorations?: (item: Item, kind: ItemKind | undefined) => CarryDecorations | undefined;
     moveFor?: (item: string, from: Place | null, to: Place) => Move;
+    /** Where a displaced thing goes when it cannot swap back: see `spill`. */
+    spill?: Place;
     /**
      * Reasons this panel will not take a move, on top of the model's rules: a
      * view's own policy (a shop's goods go to the counter, not into your bag).
@@ -75,7 +78,20 @@ export interface InventoryPanelOptions {
 export interface InventoryPanel {
     /** Pointer input in the host's own coordinates (a plane feeds it this way). */
     handlePointer: (kind: PointerKind, x: number, y: number) => void;
+    /**
+     * Its things and places as named controls, in the host's coordinates (also
+     * on the host as `host.controls`), so a D-pad or Tab reaches them: a press
+     * on a thing picks it up, a press on a place puts it down there (the
+     * two-tap path); a focused thing shows its info, a focused place whether
+     * what is carried fits.
+     */
+    controls: () => InventoryControl[];
     dispose: () => void;
+}
+/** A control in an inventory panel: a thing (`item`) or a place it can go. */
+export interface InventoryControl extends ControlNode {
+    /** The item a thing's row shows (not set on a place). */
+    item?: string;
 }
 /** Where a schematic's sockets are, in its viewBox. */
 export interface SchematicSocket {
@@ -145,6 +161,8 @@ export interface InventoryDock {
     setOpen: (open: boolean) => void;
     /** Pointer input in the dock's viewBox coordinates (what a plane routes). */
     handlePointer: (kind: PointerKind, x: number, y: number) => void;
+    /** Its controls in its own coordinates (also `svg.controls`): closed, one that opens it. */
+    controls: () => InventoryControl[];
     dispose: () => void;
 }
 export declare function inventoryDock(opts: InventoryDockOptions): InventoryDock;

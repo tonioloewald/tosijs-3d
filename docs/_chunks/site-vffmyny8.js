@@ -1,0 +1,5 @@
+import{$e}from"./site-x0v5x8t1.js";import{w,V,Ks}from"./site-5stwdw2k.js";import{zl}from"./site-sn706rn8.js";import{o}from"./site-4gwmbhmj.js";class _g extends $e{constructor(t){super(t);this.config=t,this._easingFunctions={},this.mode=this.registerDataInput("mode",V,0),this.controlPoint1=this.registerDataInput("controlPoint1",Ks),this.controlPoint2=this.registerDataInput("controlPoint2",Ks),this.easingFunction=this.registerDataOutput("easingFunction",w)}_updateOutputs(t){let r=this.mode.getValue(t),e=this.controlPoint1.getValue(t),i=this.controlPoint2.getValue(t);if(r===void 0)return;let s=`${r}-${e.x}-${e.y}-${i.x}-${i.y}`;if(!this._easingFunctions[s]){let n=new zl(e.x,e.y,i.x,i.y);n.setEasingMode(r),this._easingFunctions[s]=n}this.easingFunction.setValue(this._easingFunctions[s],t)}getClassName(){return"FlowGraphBezierCurveEasing"}}var a=!1;function xg(){if(a)return;a=!0,o("FlowGraphBezierCurveEasing",_g)}xg();
+export{_g,xg};
+
+//# debugId=83834005CC41CCC464756E2164756E21
+//# sourceMappingURL=site-vffmyny8.js.map

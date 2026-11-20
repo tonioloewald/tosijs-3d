@@ -24,6 +24,12 @@ export function applyDeadzone(value, deadzone) {
     const sign = Math.sign(value);
     return sign * ((Math.abs(value) - deadzone) / (1 - deadzone));
 }
+/**
+ * Buttons the page's UI holds for itself (a scene's gamepad UI mode): every
+ * source reads them as up, so a press that moves the UI's focus does not also
+ * reload or use. `poll(true)` reads them anyway (the UI itself).
+ */
+export const padUiOwns = new Set();
 export class HardwareGamepadSource {
     kind = 'hardware';
     deadzone;
@@ -32,7 +38,14 @@ export class HardwareGamepadSource {
         this.deadzone = options.deadzone ?? 0.15;
         this.gamepadIndex = options.gamepadIndex ?? -1; // -1 = first connected
     }
-    poll() {
+    poll(raw = false) {
+        const pad = this._read();
+        if (!raw)
+            for (const k of padUiOwns)
+                pad[k] = 0;
+        return pad;
+    }
+    _read() {
         const pad = emptyGamepad();
         const gamepads = navigator.getGamepads();
         if (!gamepads)

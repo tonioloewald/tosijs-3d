@@ -260,6 +260,33 @@ export function createInventory(initial, plugins) {
         for (const m of moves) {
             let id = m.item ?? null;
             let from = null;
+            // Money alone.
+            if (id == null && m.kind == null && m.pay && m.amount != null) {
+                const payer = m.pay.holder === '' ? null : d.holders[m.pay.holder];
+                if (m.pay.holder !== '' && !payer) {
+                    reasons.push(`no such holder: ${m.pay.holder}`);
+                    continue;
+                }
+                if (payer) {
+                    payer.purse = payer.purse ?? {};
+                    payer.purse[m.pay.in] = (payer.purse[m.pay.in] ?? 0) - m.amount;
+                    if (payer.purse[m.pay.in] < 0)
+                        reasons.push(`not enough ${m.pay.in}`);
+                }
+                const p = m.payee ? d.holders[m.payee] : null;
+                if (p) {
+                    p.purse = p.purse ?? {};
+                    p.purse[m.pay.in] = (p.purse[m.pay.in] ?? 0) + m.amount;
+                }
+                events.push({
+                    type: 'paid',
+                    from: m.pay.holder,
+                    to: m.payee ?? null,
+                    amount: m.amount,
+                    in: m.pay.in,
+                });
+                continue;
+            }
             if (id == null) {
                 if (!m.kind || !kinds[m.kind]) {
                     reasons.push(`no such kind: ${m.kind}`);
@@ -364,6 +391,7 @@ export function createInventory(initial, plugins) {
             return doc;
         },
         kinds,
+        currencies: plugins.currencies ?? [],
         where: (item) => findItem(doc, item),
         check: (...moves) => apply(doc, moves).reasons,
         move: (...moves) => commit(moves),

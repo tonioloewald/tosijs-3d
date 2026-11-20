@@ -579,6 +579,8 @@ export const SCENE_OMITTED = {
         // presentation, not part of a scene.
         'flatUi',
         'panelSections',
+        // Whether the panel offers a scene Pause: the page's chrome, not the scene.
+        'panelPause',
         // The settings panel's name and button icon: the app's chrome, not the scene.
         'panelTitle',
         'panelIcon',
@@ -1282,6 +1284,10 @@ export function b3dSchema(extra = {}) {
             ...choice('off', ['on', 'off']),
             description: 'Experimental, not working: both eyes in one pass in a headset. On a Quest 3 it gave a blank view.',
         },
+        xrPassthrough: {
+            ...choice('off', ['on', 'off']),
+            description: 'In a headset with passthrough: Enter VR starts an AR session, your room behind the scene with no sky. Elsewhere it enters VR.',
+        },
         groundDetail: {
             ...choice('auto', ['auto', 'full', 'lite']),
             description: 'The ground shader: `full`, `lite` (fewer noise samples a pixel, for a weak GPU), or `auto` (from the device tier).',
@@ -1325,7 +1331,12 @@ export function b3dSchema(extra = {}) {
             },
             {
                 title: 'Headset',
-                keys: ['xrRenderScale', 'xrFoveation', 'xrMultiview'],
+                keys: [
+                    'xrRenderScale',
+                    'xrFoveation',
+                    'xrMultiview',
+                    'xrPassthrough',
+                ],
             },
             { title: 'Ground', keys: ['groundDetail'] },
             { title: 'Wind', keys: ['windSpeed', 'windBearingDeg', 'windGust'] },

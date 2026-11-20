@@ -30,7 +30,7 @@ const scene = '/test-3.glb'
 // A Quaternius UAL rig — 1.83 m, feet at the origin, 27 curated clips off the
 // CDN (the full library is 120 clips and 20 MB). A person is 1.8 m here, and
 // the movement constants are tuned for one.
-const person = assetUrl('quaternius/UAL1_core.glb', 3)
+const person = assetUrl('quaternius/UAL1_core.glb', 5)
 
 // Your loadout: a button on the system bar opens it under the bar, with your
 // bag beside it (see inventory-box).
@@ -279,6 +279,7 @@ document.body.append(
 | `enterXrOnResume` | `'off'` | `'on'`: resuming enters immersive VR where the device supports it. The Continue tap is the user gesture `enterXRAsync` requires |
 | `reseatFreeze` | `'on'` | Freeze the clock while the re-seat dialog is up. Set `'off'` for a networked world, which cannot stop the other players; the dialog still gates your own input |
 | `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
+| `xrPassthrough` | `'off'` | `'on'`: Enter VR starts an AR session where the device has one (passthrough: your room behind the scene, no sky, no floor grid, transparent clear colour); elsewhere it enters VR. In AR you are scaled to the scene: you arrive with what the flat view showed a step ahead (`xrFrame(centre, radius)` frames something else), one grip drags the scene, both resize and turn it, and the sticks walk at your scale. `passthrough` is true during such a session, `xrSupport` says which sessions the device offers, and the scene dispatches `xrenter` (`detail.passthrough`) and `xrexit` around every session. Read on entering |
 | `xrMultiview` | `'off'` | ⚠️ Experimental, not working: `'on'` asks for both eyes in one pass (WebXR layers). On a Quest 3 it gave a blank view, and water and sky do not handle multiview |
 | `xrRenderScale` | `0` | In a headset: the fraction of each eye's width and height drawn. `0` is auto (from the device tier: 0.67 on the low tier). Engine hardware scaling does not reach a headset; this does. Read on entering a session |
 | `xrFoveation` | `-1` | In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session |
@@ -290,6 +291,7 @@ document.body.append(
 | `panelTitle` | `''` | The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row) |
 | `agent` | `''` | What an agent may do with this scene through its tools (`b3d_<scene>_…` on WebMCP and `window.b3dAgent`; see [agents](/b3d-agent/)). `''` follows the page (`enableSceneAgents`; closed by default), `'read'` offers the read tools, `'on'` everything, `'off'` nothing |
 | `panelSections` | `'fold'` | How collapsible sections in the settings panel present: `'fold'` (headers you open and close, one open at a time: opening one closes the others), `'folds'` (several may be open) or `'tabs'` (file tabs, one section at a time). A `label3d({ collapsible: true, level: 2 })` is a sub-section that folds inside its section or tab |
+| `panelPause` | `'on'` | The Pause button on the settings panel's icon bar; `'off'` leaves it out, for a page whose own play and pause (a clip's) it would be confused with. The pause panel and `pause()` still work |
 | `stats` | `false` | Add a Perf Stats section to the settings panel, flat and in a headset. `#perf` or `#debug` (or `?perf`, `?debug`) in the page URL, or calling `showB3dStats()`, shows it on every scene |
 | `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = the default layout (everything but the d-pad); a value like `"a,b,left_stick"` selects controls, and naming `view` or `menu` also puts them on the headset's system bar. A plain property, read once at setup |
 | `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
@@ -351,8 +353,12 @@ import { fitPanel, panel3d, titled3d, button3d, iconBar3d, label3d, textBlock3d,
 import { handlerOf } from './handler-of.js';
 import { controlTools, panelTools, sceneTools, registerAgentScene, sceneEntities, syncAgents, } from './b3d-agent.js';
 import { controlTree } from './widget-semantics.js';
-import { ariaMirror } from './aria-mirror.js';
+import { padNavigator } from './pad-ui.js';
+import { createFocusPulse } from './gamepad-focus.js';
+import { HardwareGamepadSource, padUiOwns } from './hardware-gamepad.js';
+import { ariaMirror, modalFocusTarget } from './aria-mirror.js';
 import { describeScene } from './scene-description.js';
+import { watchSceneChecklist } from './b3d-checklist.js';
 import { panelFitWidth } from './widgets3d-layout.js';
 import { w3dTheme } from './w3d-theme.js';
 import { SvgTexture, svgTextureCost } from './svg-texture.js';
@@ -382,6 +388,7 @@ import { ProjectedAoController } from './b3d-ssao-projected.js';
 import { reticleSvg } from './dial-art.js';
 import { costSweep, formatRuns, formatSweep, recordRun, } from './cost-sweep.js';
 import { nearFirst } from './draw-order.js';
+import { frameViewer, grabOne, grabTwo, worldToRoom, } from './xr-grab.js';
 import { setBiomeLite, biomeLite, setBiomeComputedNoise, biomeComputedNoise, } from './biome-plugin.js';
 const SWEEP_KEY = 'tosi-b3d-cost-sweep';
 import { allocateAmbient, ratchetPool, recoverPool, } from './ambient-budget.js';
@@ -420,6 +427,8 @@ const noopRefresh = () => { };
 const babylonAudio = () => BABYLON.AbstractEngine.audioEngine;
 const muteBabylonAudio = sharedMute(() => babylonAudio()?.getGlobalVolume() ?? 1, (v) => babylonAudio()?.setGlobalVolume(v));
 const XR_BAR_ELEVATION = 66;
+/** How long D-pad up is held to turn the gamepad UI mode on or off (ms). */
+const PAD_UI_HOLD_MS = 600;
 /** Flat, where a panel opened from the system bar starts: under the bar. */
 const UNDER_BAR = 8 + BAR_HEIGHT + 8;
 const XR_BAR_DISTANCE = 1.4;
@@ -433,6 +442,20 @@ it is under the bar, centred. So an app's two columns stay two columns.
 */
 function xrSeatFor(pin, width, halfHeightDeg, K) {
     const deg = (m) => (Math.atan2(m, XR_BAR_DISTANCE) * 180) / Math.PI;
+    /*
+    A FRACTION OF THE SCREEN IS A DIRECTION IN FRONT OF YOU. `top: '50%'` on a
+    monitor is the middle of the view; under the bar it was 66° up, in the sky
+    over your head. So a percentage pin maps onto a comfortable cone ahead
+    (±30° across, eye level a little below the middle), and only a pixel pin
+    hangs from the bar.
+    */
+    const frac = (v) => typeof v === 'string' && v.trim().endsWith('%') ? parseFloat(v) / 100 : null;
+    const fr = frac(pin?.right);
+    const fb = frac(pin?.bottom);
+    const fx = frac(pin?.left) ?? (fr != null ? 1 - fr : null);
+    const fy = frac(pin?.top) ?? (fb != null ? 1 - fb : null);
+    const ax = pin?.anchor === 'center' ? 0.5 : pin?.anchorX ?? 0;
+    const ay = pin?.anchor === 'center' ? 0.5 : pin?.anchorY ?? 0;
     const side = pin?.left != null && pin.right == null
         ? -1
         : pin?.right != null && pin.left == null
@@ -440,8 +463,12 @@ function xrSeatFor(pin, width, halfHeightDeg, K) {
             : 0;
     const down = typeof pin?.top === 'number' ? Math.max(0, pin.top - UNDER_BAR) * K : 0;
     return {
-        azimuthDeg: side * (8 + deg(width / 2)),
-        elevationDeg: XR_BAR_ELEVATION - 5 - halfHeightDeg - deg(down),
+        azimuthDeg: fx != null
+            ? (fx - 0.5) * 60 + (0.5 - ax) * 2 * deg(width / 2)
+            : side * (8 + deg(width / 2)),
+        elevationDeg: fy != null
+            ? (0.5 - fy) * 60 - 10 + (ay - 0.5) * 2 * halfHeightDeg
+            : XR_BAR_ELEVATION - 5 - halfHeightDeg - deg(down),
         distance: XR_BAR_DISTANCE,
     };
 }
@@ -463,6 +490,24 @@ ray to the hit distance and the press re-casts it (an exact-length ray can
 fall just short of the plane). Other picks (a biped's ground probe, in
 onBeforeRender) are outside the window and untouched.
 */
+/** The free XR rig as xr-grab's viewer. */
+function rigViewer(rig, scale) {
+    const yaw = rig.rotationQuaternion != null
+        ? rig.rotationQuaternion.toEulerAngles().y
+        : rig.rotation.y;
+    return {
+        position: { x: rig.position.x, y: rig.position.y, z: rig.position.z },
+        yaw,
+        scale,
+    };
+}
+/** Put the free XR rig (and the session's scale) where xr-grab says. */
+function applyViewer(rig, sm, v) {
+    rig.rotationQuaternion = null;
+    rig.rotation.set(0, v.yaw, 0);
+    rig.position.set(v.position.x, v.position.y, v.position.z);
+    sm.worldScalingFactor = v.scale;
+}
 function pickLayersFirst(xr, scene) {
     const frames = xr.baseExperience?.sessionManager.onXRFrameObservable;
     if (frames == null)
@@ -558,6 +603,9 @@ export class B3d extends Component {
         /** How collapsible sections present: 'fold' (headers you open and close,
          * one open at a time), 'folds' (several open) or 'tabs' (file tabs). */
         panelSections: 'fold',
+        /** The Pause button on the settings panel's icon bar: 'off' leaves it
+         * out (a tool page whose own play and pause would be confused with it). */
+        panelPause: 'on',
         /** What an agent may do with this scene (see [agents](/b3d-agent/)):
          * '' follows the page (`enableSceneAgents`, closed by default), 'read'
          * offers the read tools, 'on' everything, 'off' nothing. */
@@ -613,6 +661,13 @@ export class B3d extends Component {
         Read on entering a session.
         */
         xrMultiview: 'off',
+        /*
+        PASSTHROUGH. 'on' makes Enter VR start an immersive-ar session where the
+        device offers one (a Quest's passthrough): the room shows behind the
+        scene, the sky and the floor grid are left out and the clear colour is
+        transparent. Elsewhere it enters VR as before. Read on entering.
+        */
+        xrPassthrough: 'off',
         // The ground (biome) shader's form. `auto` is the device tier's: the
         // cheap one on the low tier, and in a headset on the medium tier.
         groundDetail: 'auto',
@@ -1174,6 +1229,15 @@ export class B3d extends Component {
     xrHelper;
     _unpickLayers = null;
     xrActive = false;
+    /** True during an immersive-ar (passthrough) session. */
+    passthrough = false;
+    _arSupported = false;
+    _vrSupported = false;
+    /** Which immersive sessions this device offers (known once XR is set up). */
+    get xrSupport() {
+        return { vr: this._vrSupported, ar: this._arSupported };
+    }
+    _xrFrameObs = null;
     /** True from ENTERING_XR to the end of EXITING_XR: wider than `xrActive`. */
     _xrPresenting = false;
     /** Whether a page is holding the spinner up (`setLoading`). */
@@ -1530,7 +1594,7 @@ export class B3d extends Component {
                 // compositor — a render queued at the moment of entry is stranded for
                 // the whole session (see _installXrRafPump).
                 void updates()
-                    .then(() => base.enterXRAsync('immersive-vr', 'local-floor'))
+                    .then(() => base.enterXRAsync(this._xrSessionMode(), 'local-floor'))
                     .catch(() => {
                     /* no headset, or the user declined — staying flat is fine */
                 });
@@ -1755,7 +1819,9 @@ export class B3d extends Component {
             role: 'dialog',
             label: () => first,
             place: (box) => this._panelToHost(svg, box),
+            touchable: () => this._assistive,
         });
+        this._modalMirrors.add(mirror);
         mirror.update();
         first = mirror.root.querySelector('p')?.textContent ?? '';
         if (first) {
@@ -1769,8 +1835,9 @@ export class B3d extends Component {
         }
         // Our own focus moves are not someone using a screen reader: they must
         // not wake the scene (every sighted pause would).
-        this._quietFocus(mirror.root.querySelector('button, input, select'));
+        this._quietFocus(modalFocusTarget(mirror.root));
         return () => {
+            this._modalMirrors.delete(mirror);
             mirror.dispose();
             // Back where it was, or to the scene when that is gone (a panel closed).
             this._quietFocus(before?.isConnected
@@ -1778,6 +1845,8 @@ export class B3d extends Component {
                 : this.parts?.canvas);
         };
     }
+    /** Open modals' mirrors: placed again (now touchable) when the scene goes assistive. */
+    _modalMirrors = new Set();
     _focusQuiet = false;
     _quietFocus(el) {
         if (el == null)
@@ -2448,6 +2517,304 @@ export class B3d extends Component {
     lozenge is hidden while this is up; `flat-ui="dom"` keeps it instead.
     */
     _sceneBar = null;
+    /*
+    FOCUS IN PANELS, for a gamepad and the keyboard. When a panel opens, its
+    default control takes the focus (`button3d({ default: true })`, else the
+    first). Up and down (Tab and shift-Tab) step through its controls and
+    cycle; left and right move a slider, a choice or a caret (`pad-ui`). The
+    ring shows only for a pad or the keyboard: a mouse press hides it.
+  
+    GAMEPAD UI MODE. A pad has no pointer. Holding D-pad up puts its focus on
+    the system bar: left and right step along it, B presses (a click, so a
+    non-aggressive button never fires anything), down goes into the open panel.
+    Holding up in a panel goes back to the bar, and on the bar back to playing.
+    A panel that pops up while the pad is what you last used (a chest you
+    opened with B) takes the pad straight away, and gives it back when it
+    closes. While the mode is on the UI owns the D-pad and B (`padUiOwns`), so
+    a press that moves the focus does not also reload or use. Flat only: a
+    headset points.
+    */
+    _padUi = null;
+    /** The open panel's focus, by a key that survives its rebuilds. */
+    _panelNav = null;
+    _padSrc = null;
+    _padPulse = createFocusPulse({
+        activate: ['buttonB'],
+        back: [],
+        // Up and down cycle, so they need no repeat (and up is held to leave).
+        repeat: ['dpadLeft', 'dpadRight'],
+    });
+    _padUpSince = -1;
+    _padUpFired = false;
+    _padRing = null;
+    /** The pad, not the mouse or keys, was the last thing used. */
+    _padLastUsed = false;
+    /** Tab moved the focus (the ring shows until the mouse is used). */
+    _keyNav = false;
+    _offPadKeys = null;
+    /** Is the gamepad UI mode on (D-pad and B drive the bar and panels)? */
+    get padUiActive() {
+        return this._padUi != null;
+    }
+    /** Turn the gamepad UI mode on (focus on the bar) or off. */
+    setPadUi(on) {
+        if (on === (this._padUi != null))
+            return;
+        const owned = [
+            'dpadUp',
+            'dpadDown',
+            'dpadLeft',
+            'dpadRight',
+            'buttonB',
+        ];
+        if (on) {
+            this._padUi = { zone: 'bar', auto: false };
+            for (const k of owned)
+                padUiOwns.add(k);
+            this._sceneBar?.setPadFocus(0);
+        }
+        else {
+            this._padUi = null;
+            for (const k of owned)
+                padUiOwns.delete(k);
+            this._sceneBar?.setPadFocus(-1);
+        }
+    }
+    /** The panel focus can go into: a stable key, where to draw, its controls. */
+    _padPanel() {
+        // A modal (the pause, a respawn) blocks everything behind it: the
+        // newest one has the focus, or B presses what it covers.
+        const modal = [...this._modals].pop()?.svg;
+        if (modal?.controls != null)
+            return {
+                key: modal,
+                root: modal,
+                controls: () => modal.controls(),
+            };
+        const live = this._livePanel();
+        // The settings panel is rebuilt as its sections open: one key for it.
+        if (live?.controls != null)
+            return {
+                key: 'settings',
+                root: live,
+                controls: () => this._livePanel()?.controls?.() ?? [],
+            };
+        for (const [key, p] of this._sysPanels) {
+            const c = p.content;
+            if (c.controls != null)
+                return {
+                    key,
+                    root: c,
+                    controls: () => this._sysPanels.get(key)?.content?.controls?.() ?? [],
+                };
+        }
+        return null;
+    }
+    /** Draw the focus ring round `box` in `root` (null: none). */
+    _padRingAt(root, box) {
+        if (root == null || box == null) {
+            this._padRing?.remove();
+            this._padRing = null;
+            return;
+        }
+        let ring = this._padRing;
+        if (ring == null) {
+            ring = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            ring.setAttribute('fill', 'none');
+            ring.setAttribute('stroke', '#ffd25a');
+            ring.setAttribute('stroke-width', '3');
+            ring.setAttribute('rx', '6');
+            ring.setAttribute('pointer-events', 'none');
+            this._padRing = ring;
+        }
+        // A panel that rebuilt itself dropped it: put it back on top.
+        if (ring.parentNode !== root || root.lastChild !== ring)
+            root.append(ring);
+        const set = (k, v) => {
+            const t = String(Math.round(v * 10) / 10);
+            if (ring.getAttribute(k) !== t)
+                ring.setAttribute(k, t);
+        };
+        set('x', box.x - 2);
+        set('y', box.y - 2);
+        set('width', box.w + 4);
+        set('height', box.h + 4);
+    }
+    /** Tab, shift-Tab and Enter on an open panel; a mouse press hides the ring. */
+    _listenPadKeys() {
+        if (this._offPadKeys != null || typeof window === 'undefined')
+            return;
+        const onKey = (e) => {
+            this._padLastUsed = false;
+            const pn = this._panelNav;
+            // Only the scene being used, and never under a screen reader (Tab is
+            // how it walks the mirrored controls).
+            if (pn == null || !this.isActiveScene || this.assistive)
+                return;
+            const field = pn.nav.focused?.role === 'textbox';
+            if (e.key === 'Tab') {
+                pn.nav.tab(e.shiftKey ? -1 : 1);
+                this._keyNav = true;
+                e.preventDefault();
+            }
+            else if (!this._keyNav)
+                return;
+            else if ((e.key === 'Enter' || e.key === ' ') && !field) {
+                pn.nav.activate();
+                e.preventDefault();
+            }
+            else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !field) {
+                pn.nav.move(e.key === 'ArrowLeft' ? -1 : 1, 0);
+                e.preventDefault();
+            }
+            else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                pn.nav.move(0, e.key === 'ArrowUp' ? -1 : 1);
+                e.preventDefault();
+            }
+            else if (e.key === 'Escape')
+                this._keyNav = false;
+        };
+        const onDown = () => {
+            this._padLastUsed = false;
+            this._keyNav = false;
+        };
+        window.addEventListener('keydown', onKey, true);
+        window.addEventListener('pointerdown', onDown, true);
+        this._offPadKeys = () => {
+            window.removeEventListener('keydown', onKey, true);
+            window.removeEventListener('pointerdown', onDown, true);
+        };
+    }
+    /** Once a frame: which panel has the focus, the pad's hold, its moves. */
+    _padUiTick() {
+        if (this.xrActive || typeof window === 'undefined')
+            return;
+        this._listenPadKeys();
+        const bar = this._sceneBar;
+        // A panel opened: its default control takes the focus.
+        const target = this._padPanel();
+        if (target?.key !== this._panelNav?.key) {
+            // The old panel's focused control hears it lost the focus.
+            this._panelNav?.nav.clear();
+            this._panelNav =
+                target == null
+                    ? null
+                    : {
+                        key: target.key,
+                        root: target.root,
+                        nav: padNavigator(target.controls),
+                    };
+            this._panelNav?.nav.focusDefault();
+            const ui = this._padUi;
+            if (target != null && ui == null && this._padLastUsed && bar != null) {
+                this.setPadUi(true);
+                this._padUi.auto = true;
+            }
+            if (this._padUi != null && bar != null) {
+                if (target != null) {
+                    this._padUi.zone = 'panel';
+                    // Where to come back to on the bar when it closes.
+                    if (bar.padFocus >= 0)
+                        this._padBarFrom = bar.padFocus;
+                    bar.setPadFocus(-1);
+                }
+                else if (this._padUi.auto)
+                    this.setPadUi(false);
+                else {
+                    this._padUi.zone = 'bar';
+                    if (bar.padFocus < 0)
+                        bar.setPadFocus(0);
+                }
+            }
+        }
+        if (target != null && this._panelNav != null)
+            this._panelNav.root = target.root;
+        this._panelNav?.nav.sync();
+        this._padTick(bar);
+        const ui = this._padUi;
+        const pn = this._panelNav;
+        const ringed = pn != null && (ui?.zone === 'panel' || this._keyNav);
+        this._padRingAt(ringed ? pn.root : null, ringed ? pn.nav.focused?.box : null);
+    }
+    /** The pad's part: the hold on up, then its moves in the mode. */
+    /** The bar button focus left to go into a panel (-1: none). */
+    _padBarFrom = -1;
+    _padTick(bar) {
+        if (typeof navigator === 'undefined')
+            return;
+        if (typeof navigator.getGamepads !== 'function')
+            return;
+        if (!this.hasInputFocus)
+            return;
+        const src = (this._padSrc ??= new HardwareGamepadSource());
+        const pad = src.poll(true);
+        const now = realNow();
+        const touched = Object.values(pad).some((v) => typeof v === 'number' && Math.abs(v) > 0.5);
+        if (touched)
+            this._padLastUsed = true;
+        // Always run (it keeps the edges), apply only in the mode.
+        const pulse = this._padPulse(pad, now);
+        if (pad.dpadUp) {
+            if (this._padUpSince < 0)
+                this._padUpSince = now;
+            else if (!this._padUpFired && now - this._padUpSince >= PAD_UI_HOLD_MS) {
+                this._padUpFired = true;
+                const ui = this._padUi;
+                // Off: the bar. In a panel: close it, back to its button on the
+                // bar (a panel that popped up by itself: back to playing). On the
+                // bar: playing. A modal stays until it is answered.
+                if (ui == null)
+                    this.setPadUi(true);
+                else if (ui.zone === 'panel') {
+                    const key = this._panelNav?.key;
+                    if (key != null && this._modals.size === 0) {
+                        if (!ui.auto) {
+                            ui.zone = 'bar';
+                            bar?.setPadFocus(Math.max(0, this._padBarFrom));
+                        }
+                        if (key === 'settings')
+                            this._closeScenePanel();
+                        else
+                            this._closeSystemPanel(key);
+                    }
+                }
+                else
+                    this.setPadUi(false);
+                return;
+            }
+        }
+        else {
+            this._padUpSince = -1;
+            this._padUpFired = false;
+        }
+        const ui = this._padUi;
+        if (ui == null)
+            return;
+        if (bar == null)
+            return this.setPadUi(false);
+        const nav = this._panelNav?.nav;
+        for (const m of pulse.moves) {
+            if (ui.zone === 'bar') {
+                if (m.dx !== 0)
+                    bar.padMove(m.dx);
+                else if (m.dy > 0 && nav != null) {
+                    ui.zone = 'panel';
+                    this._padBarFrom = bar.padFocus;
+                    if (nav.focused == null)
+                        nav.focusDefault();
+                    bar.setPadFocus(-1);
+                }
+            }
+            else
+                nav?.move(m.dx, m.dy);
+        }
+        if (pulse.activate) {
+            if (ui.zone === 'bar')
+                bar.padActivate();
+            else
+                nav?.activate();
+        }
+    }
     _sceneBarButtons = [];
     _sceneBarVersion = 0;
     /*
@@ -2712,6 +3079,7 @@ export class B3d extends Component {
         let shown = svg;
         let panel;
         let reanchored;
+        let offCamera = noop;
         let frames = null;
         let obs = null;
         const xrCam = this.xrHelper?.baseExperience?.camera;
@@ -2795,6 +3163,22 @@ export class B3d extends Component {
                 f.update(0);
                 p.update();
             });
+            // The panel rides this camera's frames. When another flat camera
+            // takes over (a biped's follow camera arriving after an early open,
+            // a death camera), open it again on that one, quietly: to the page
+            // nothing opened or closed.
+            const recam = scene.onBeforeRenderObservable.add(() => {
+                const now = scene.activeCamera;
+                const open = this._sysPanels.get(key);
+                if (now == null || now === cam || this.xrActive || open == null)
+                    return;
+                const held = this._holdPanelEvents;
+                this._holdPanelEvents = true;
+                this._closeSystemPanel(key);
+                this._openSystemPanel(key, open.byUser);
+                this._holdPanelEvents = held;
+            });
+            offCamera = () => scene.onBeforeRenderObservable.remove(recam);
         }
         /*
         POPUPS ARE POPUPS here too: a select in a system panel (the builder's
@@ -2868,6 +3252,7 @@ export class B3d extends Component {
             off: () => {
                 entry.content.removeEventListener('panelfocus', onFocus);
                 titled?.dispose();
+                offCamera();
             },
         };
         this._sysPanels.set(key, entry);
@@ -3193,6 +3578,7 @@ export class B3d extends Component {
                 advances nothing.
                 */
                 this._updateFlatPanels();
+                this._padUiTick();
                 if (this.scene.activeCamera != null)
                     this.scene.render();
             }
@@ -3208,6 +3594,7 @@ export class B3d extends Component {
                 this._updateFog(dt);
             this._ambientWatchdog();
             this._updateFlatPanels();
+            this._padUiTick();
             if (this.update !== noop) {
                 this.update(this, BABYLON);
             }
@@ -4460,27 +4847,28 @@ export class B3d extends Component {
         this is a manual act, and conflating them would make backgrounding the tab
         look like the user pressed something.
         */
-        out.push({
-            id: '__pause',
-            name: this.paused ? 'Resume' : 'Pause',
-            /*
-            `play` when paused (what pressing it DOES), `pause` when running — a
-            transport control shows its action, not its state.
-      
-            The BARE glyphs, not `playCircle`/`pauseCircle`: Tonio's call once both
-            existed. (The solid-white-box bug was never about which variant — the
-            names simply weren't in our generated icon set; see icon-names.test.ts.)
-            */
-            icon: this.paused ? 'play' : 'pause',
-            active: this.paused,
-            handleClick: () => {
-                if (this.paused)
-                    this.resume();
-                else
-                    this.pause('user');
-                this._repaintPanels();
-            },
-        });
+        if (!isOff(this.panelPause))
+            out.push({
+                id: '__pause',
+                name: this.paused ? 'Resume' : 'Pause',
+                /*
+              `play` when paused (what pressing it DOES), `pause` when running — a
+              transport control shows its action, not its state.
+        
+              The BARE glyphs, not `playCircle`/`pauseCircle`: Tonio's call once both
+              existed. (The solid-white-box bug was never about which variant — the
+              names simply weren't in our generated icon set; see icon-names.test.ts.)
+              */
+                icon: this.paused ? 'play' : 'pause',
+                active: this.paused,
+                handleClick: () => {
+                    if (this.paused)
+                        this.resume();
+                    else
+                        this.pause('user');
+                    this._repaintPanels();
+                },
+            });
         const pad = this.querySelector('tosi-b3d-gamepad');
         if (pad?.setFade != null) {
             const forced = String(pad.fade) === 'off';
@@ -5028,9 +5416,12 @@ export class B3d extends Component {
         // Reconnected after teardown already ran, or connected for the first time.
         // Joins the page's agent registry: a Set add, nothing runs until a call.
         this._agentOff = registerAgentScene(this);
+        // The dev server's test checklist on the bar; a no-op off the dev server.
+        this._checklistOff = watchSceneChecklist(this);
         // Described on demand only (see the canvas in `content`).
         this.shadowRoot?.addEventListener('focusin', this._wakeOnFocus);
         this.addEventListener('pointerdown', this._notePointer, true);
+        this.addEventListener('pointerup', this._notePointer, true);
         this.addEventListener('wheel', this._holdSideways, {
             capture: true,
             passive: false,
@@ -5408,6 +5799,69 @@ export class B3d extends Component {
             ? 'ON (both eyes in one pass)'
             : 'requested, not available here';
     }
+    /**
+     * In a session, show `centre` a step ahead of you at chest height, `radius`
+     * world units as `across` metres (default 0.75: something a metre and a half
+     * wide), by moving and scaling the VIEWER (WebXR's worldScalingFactor). The
+     * scene is untouched. The default AR session frames what the flat view was
+     * looking at; call it again (on `xrenter`, or from a "look at") to choose.
+     */
+    xrFrame(centre, radius, opts = {}) {
+        const base = this.xrHelper?.baseExperience;
+        const rig = this._xrRig;
+        if (base == null || rig == null || !this.xrActive)
+            return;
+        const sm = base.sessionManager;
+        if (this._xrFrameObs != null)
+            sm.onXRFrameObservable.remove(this._xrFrameObs);
+        // A changed scale reaches the head a frame late, so settle over a few.
+        let frames = 0;
+        const at = { x: centre.x, y: centre.y, z: centre.z };
+        this._xrFrameObs = sm.onXRFrameObservable.add(() => {
+            if (++frames > 10 && this._xrFrameObs != null) {
+                sm.onXRFrameObservable.remove(this._xrFrameObs);
+                this._xrFrameObs = null;
+            }
+            if (rig.parent != null)
+                return;
+            const viewer = rigViewer(rig, sm.worldScalingFactor);
+            const cam = base.camera;
+            const eye = worldToRoom(viewer, cam.globalPosition);
+            const look = cam.getDirection(BABYLON.Axis.Z);
+            const facing = Math.atan2(look.x, look.z) - viewer.yaw;
+            applyViewer(rig, sm, frameViewer(viewer, at, radius, eye, facing, opts));
+        });
+    }
+    /** The session Enter VR starts: AR where passthrough is asked for and offered. */
+    _xrSessionMode() {
+        if (this.xrPassthrough === 'on' && this._arSupported)
+            return 'immersive-ar';
+        return this._vrSupported ? 'immersive-vr' : 'immersive-ar';
+    }
+    /**
+     * Passthrough: the room is the backdrop. The clear colour goes transparent
+     * and every sky mesh (they are `infiniteDistance`) is hidden for the session;
+     * the skybox stops writing the clear colour while `passthrough` is set.
+     */
+    _enterPassthrough() {
+        const scene = this.scene;
+        this.passthrough = true;
+        const clear = scene.clearColor.clone();
+        const hidden = scene.meshes.filter((m) => m.infiniteDistance && m.isEnabled());
+        for (const m of hidden)
+            m.setEnabled(false);
+        const keepClear = scene.onBeforeRenderObservable.add(() => {
+            scene.clearColor.set(0, 0, 0, 0);
+        });
+        return () => {
+            this.passthrough = false;
+            scene.onBeforeRenderObservable.remove(keepClear);
+            scene.clearColor.copyFrom(clear);
+            for (const m of hidden)
+                if (!m.isDisposed())
+                    m.setEnabled(true);
+        };
+    }
     async _setupXR() {
         if (this.noXr)
             return;
@@ -5417,13 +5871,19 @@ export class B3d extends Component {
         }
         if (navigator.xr == null)
             return;
-        let supported;
-        try {
-            supported = await navigator.xr.isSessionSupported('immersive-vr');
-        }
-        catch {
-            supported = false;
-        }
+        const offers = async (mode) => {
+            try {
+                return (await navigator.xr?.isSessionSupported(mode)) === true;
+            }
+            catch {
+                return false;
+            }
+        };
+        this._vrSupported = await offers('immersive-vr');
+        this._arSupported = await offers('immersive-ar');
+        // A panel may offer AR only where it exists.
+        this.refreshScenePanel?.();
+        const supported = this._vrSupported || (this._arSupported && this.xrPassthrough === 'on');
         if (!supported || this.xrHelper != null)
             return;
         // Creating the default experience can steal scene.activeCamera (switching
@@ -5477,6 +5937,27 @@ export class B3d extends Component {
                 m.metadata?.b3dRayProxy !== true &&
                 !insideCarrier(m, this._xrRig);
         }
+        /*
+        A CONTROLLER'S RAY IS 1000 UNITS LONG, in scene units. With the viewer
+        scaled up (WebXR's worldScalingFactor: a tabletop view), the panels a metre
+        off are a thousand units away and the ray stopped short of them: seen, never
+        pressed. Every ray is built here (Babylon's pointer and our presses), so it
+        is stretched here, by the scale.
+        */
+        const scaled = new WeakSet();
+        const stretchRay = (source) => {
+            if (scaled.has(source))
+                return;
+            scaled.add(source);
+            const build = source.getWorldPointerRayToRef.bind(source);
+            source.getWorldPointerRayToRef = (ray, grip) => {
+                build(ray, grip);
+                ray.length *= Math.max(1, xr.baseExperience.sessionManager.worldScalingFactor);
+            };
+        };
+        for (const c of xr.input.controllers)
+            stretchRay(c);
+        xr.input.onControllerAddedObservable.add(stretchRay);
         if (xr.pointerSelection != null)
             pressWithEitherHand(xr, this.scene);
         this._unpickLayers?.();
@@ -5521,7 +6002,7 @@ export class B3d extends Component {
                     // another render in-session and its reactive bindings freeze — the
                     // "time-of-day slider dead on first XR entry" bug.
                     await updates();
-                    await base.enterXRAsync('immersive-vr', 'local-floor');
+                    await base.enterXRAsync(this._xrSessionMode(), 'local-floor');
                 }
             }
             catch (err) {
@@ -5558,6 +6039,7 @@ export class B3d extends Component {
         // locomotion; on exit we tear it down.
         let xrSession;
         let restoreRaf;
+        let endPassthrough;
         base.onStateChangedObservable.add((state) => {
             this.xrActive = state === BABYLON.WebXRState.IN_XR;
             // SSAO must be gone BEFORE the headset camera becomes active, which
@@ -5567,7 +6049,14 @@ export class B3d extends Component {
             // Keep the xrColor icon as the button face; the title carries the state
             // (the flat button isn't visible in-session anyway). Setting textContent
             // here would wipe the icon.
-            vrButton.title = this.xrActive ? 'Exit VR' : 'Enter VR';
+            const ar = this.xrPassthrough === 'on' && this._arSupported;
+            vrButton.title = this.xrActive
+                ? this.passthrough || ar
+                    ? 'Exit AR'
+                    : 'Exit VR'
+                : ar
+                    ? 'Enter AR'
+                    : 'Enter VR';
             if (state === BABYLON.WebXRState.IN_XR) {
                 /*
                 ENTERING VR UNPAUSES. Putting the headset on IS the resume.
@@ -5618,9 +6107,14 @@ export class B3d extends Component {
                 this._ambientBadSamples = 0;
                 // Keep tosijs's rAF-batched reactive bindings flushing while in-session.
                 restoreRaf ??= this._installXrRafPump(base);
+                if (base.sessionManager.sessionMode === 'immersive-ar')
+                    endPassthrough ??= this._enterPassthrough();
                 xrSession ??= this._startDefaultXrExperience(base, controllers);
                 // A modal open on the monitor comes into the headset with you.
                 this._representModals();
+                this.dispatchEvent(new CustomEvent('xrenter', {
+                    detail: { passthrough: this.passthrough },
+                }));
             }
             else if (state === BABYLON.WebXRState.NOT_IN_XR) {
                 // Restore the orbit camera Babylon has just carried the (low) headset
@@ -5644,6 +6138,9 @@ export class B3d extends Component {
                 this._reallocAmbient();
                 xrSession?.dispose();
                 xrSession = undefined;
+                endPassthrough?.();
+                endPassthrough = undefined;
+                this.dispatchEvent(new CustomEvent('xrexit'));
                 restoreRaf?.();
                 restoreRaf = undefined;
                 /*
@@ -5715,7 +6212,9 @@ export class B3d extends Component {
         cam.parent = rig;
         // Reference frames for spatial UI (body/neck/face follow the head; rig/world
         // are locomotion/play-space). Updated each XR frame below; UI parents to one.
-        const frames = new XrFrames(scene, rig, cam);
+        const frames = new XrFrames(scene, rig, cam, {
+            worldScale: () => base.sessionManager.worldScalingFactor,
+        });
         frames.attachInput(this.xrHelper?.input); // hand/wrist frames follow the grips
         this.xrFrames = frames;
         // Body-anchored panels (inventory over the shoulders, quick-access at the
@@ -5804,7 +6303,8 @@ export class B3d extends Component {
         // `"off"` always hides it. (A custom setupXr never reaches this code at all.)
         const focus = this.querySelector('tosi-b3d-input-focus');
         const playerDriven = focus?.focused != null;
-        const showGrid = this.xrGrid === 'on' || (this.xrGrid === 'auto' && !playerDriven);
+        const showGrid = !this.passthrough &&
+            (this.xrGrid === 'on' || (this.xrGrid === 'auto' && !playerDriven));
         let ground;
         let grid;
         if (showGrid) {
@@ -5905,6 +6405,45 @@ export class B3d extends Component {
         // you are looking. Cockpit already does this with `cockpitYawOffset`.
         let freeYawOffset = 0;
         const sm = base.sessionManager;
+        /*
+        AR: THE GRIPS GRAB THE WORLD. One grip drags it, both resize and turn it
+        (xr-grab). Altitude on the grips means nothing in your own room.
+        */
+        const held = {};
+        const gripWorld = (h) => {
+            const source = this.xrHelper?.input.controllers.find((c) => c.inputSource.handedness === h);
+            const node = source?.grip ?? source?.pointer;
+            if (node == null)
+                return null;
+            node.computeWorldMatrix(true);
+            return node.absolutePosition;
+        };
+        const arGrab = (gripping) => {
+            const viewer = rigViewer(rig, sm.worldScalingFactor);
+            const hands = ['left', 'right'].filter((h) => gripping(h) && gripWorld(h) != null);
+            // A grip pressed or let go: everything held is taken afresh, no jump.
+            const same = hands.length === Object.keys(held).length &&
+                hands.every((h) => held[h] != null);
+            if (!same) {
+                delete held.left;
+                delete held.right;
+                for (const h of hands) {
+                    const w = gripWorld(h);
+                    held[h] = { x: w.x, y: w.y, z: w.z };
+                }
+                return;
+            }
+            if (hands.length === 0)
+                return;
+            const room = (h) => worldToRoom(viewer, gripWorld(h));
+            const next = hands.length === 1
+                ? grabOne(viewer, held[hands[0]], room(hands[0]))
+                : grabTwo(viewer, held.left, held.right, room('left'), room('right'), {
+                    minScale: 0.01,
+                    maxScale: 1e7,
+                });
+            applyViewer(rig, sm, next);
+        };
         /** A real head pose this frame? Before one arrives the camera's rotation is stale. */
         const hasViewerPose = () => {
             const f = sm.currentFrame;
@@ -6513,7 +7052,10 @@ export class B3d extends Component {
                 cam.getDirectionToRef(XR_RIGHT, side);
                 side.y = 0;
                 side.normalize();
-                const step = HORIZ_SPEED * dt;
+                // In AR you walk at your own scale: a giant takes giant steps.
+                const step = HORIZ_SPEED *
+                    dt *
+                    (this.passthrough ? sm.worldScalingFactor / MOVE_SCALE : 1);
                 fwd.scaleToRef(-left.y * step, tmp);
                 rig.position.addInPlace(tmp);
                 side.scaleToRef(left.x * step, tmp);
@@ -6538,7 +7080,10 @@ export class B3d extends Component {
             already knows it loses it.
             */
             const squeeze = (h) => controllers[h]?.['xr-standard-squeeze']?.value ?? 0;
-            const lift = squeeze('right') - squeeze('left');
+            const ar = this.passthrough && rig.parent == null;
+            if (ar)
+                arGrab((h) => squeeze(h) > 0.5);
+            const lift = ar ? 0 : squeeze('right') - squeeze('left');
             if (Math.abs(lift) > DEAD)
                 rig.position.y += lift * VERT_SPEED * dt;
             if (right != null && !rightScroll && Math.abs(right.y) > DEAD) {
@@ -6556,9 +7101,28 @@ export class B3d extends Component {
                 rig.position.z += head.z - cam.globalPosition.z;
             }
         });
+        /*
+        AR ARRIVES LOOKING AT WHAT THE FLAT VIEW SHOWED: the orbit camera's target
+        a step ahead, as big as it looked from the orbit (the camera's distance
+        becomes 1.2 m). A page frames something else with `xrFrame` on `xrenter`.
+        */
+        const flatOrbit = this.camera;
+        if (this.passthrough &&
+            !playerDriven &&
+            flatOrbit instanceof BABYLON.ArcRotateCamera) {
+            const radius = (this._flatOrbitState?.radius ?? flatOrbit.radius) * 0.625;
+            const t = this._flatOrbitState?.target ?? flatOrbit.target;
+            this.xrFrame(t, radius);
+        }
         return {
             dispose: () => {
                 base.sessionManager.onXRFrameObservable.remove(frame);
+                if (this._xrFrameObs != null) {
+                    base.sessionManager.onXRFrameObservable.remove(this._xrFrameObs);
+                    this._xrFrameObs = null;
+                }
+                // The next session starts life-size.
+                base.sessionManager.worldScalingFactor = 1;
                 clearReseatPrompt();
                 xrInputDbgOff();
                 sm.onXRReferenceSpaceChanged.remove(refSpaceObs);
@@ -6650,9 +7214,18 @@ export class B3d extends Component {
                 this._nameplateScan = 30;
                 this._scanNameplates(cam);
             }
-            for (let i = 0; i < this._nameplateList.length; i++) {
-                this._nameplateList[i].ef.update(cam);
-                this._nameplateList[i].panel.update();
+            for (const [el, n] of this._nameplates) {
+                // Talking to you, they need no name over their head: the balloon is
+                // there (and the plate sat behind it).
+                const talk = el.querySelector('tosi-b3d-conversation')?.talk;
+                const talking = talk != null && !talk.ended;
+                n.panel.mesh.setEnabled(!talking);
+                if (n.panel.drawn !== n.panel.mesh)
+                    n.panel.drawn.setEnabled(!talking);
+                if (talking)
+                    continue;
+                n.ef.update(cam);
+                n.panel.update();
             }
         });
     }
@@ -6924,7 +7497,7 @@ export class B3d extends Component {
             });
         }
         // Reveal the gear when the panel has anything in it: the scenePanel hook's
-        // rows, or its icon bar (Pause is always there). Rows alone hid the owl on a
+        // rows, or its icon bar (Pause, unless `panelPause` is off). Rows alone hid the owl on a
         // page with no settings of its own, which the headset still showed.
         // (Enter VR is a SEPARATE button grouped next to the gear — see the toolbar —
         // so XR availability no longer gates the gear.)
@@ -7146,13 +7719,19 @@ export class B3d extends Component {
         this._describe(false);
         for (const m of this._modals)
             m.unmirror ??= this._mirrorModal(m.svg);
+        for (const mirror of this._modalMirrors)
+            mirror.update();
         this.querySelector('tosi-b3d-input-focus')?.labelPad?.();
     };
     /*
     FOCUS FROM A PRESS IS NOT A SCREEN READER. The canvas is focusable, so a
     mouse press on the scene focuses it, and that woke everything for every
     mouse user: the copies then lay over the panel and took its clicks. Focus
-    within a second of a press in this scene is the press's, and is ignored.
+    within a second of a press or its release in this scene is the press's,
+    and is ignored (a touch focuses on release, so a held drag's focus came
+    long after its press). Until then the placed copies take no touches either,
+    or a sighted tap on a phone reached a real `<select>` and Android opened its
+    own picker.
     VoiceOver selecting a control sends no press before its focus (read off an
     iPhone), and a press on the hidden bar buttons still wakes it through
     `_wakeOnClick`.
@@ -7273,6 +7852,7 @@ export class B3d extends Component {
         this._ariaMirror ??= ariaMirror(host, () => this._livePanel()?.controls?.() ?? null, {
             label: () => `${this.panelTitle || 'Scene'} settings`,
             place: (box) => this._panelToHost(this._livePanel(), box),
+            touchable: () => this._assistive,
         });
         this._ariaMirror.update();
         this._syncModalInert();
@@ -7374,6 +7954,7 @@ export class B3d extends Component {
         }
     }
     _agentOff = null;
+    _checklistOff = null;
     /** The scene in words, into the canvas's description; `aloud` also speaks it. */
     _describe(aloud) {
         const desc = this.parts?.sceneDescription;
@@ -7974,7 +8555,7 @@ export class B3d extends Component {
             if (!uv && !blockedByUi && pick?.ray) {
                 // A full-length copy: the XR pointer's ray is cut to the distance of
                 // the occluder it hit, so re-casting it can never reach a panel behind.
-                const p2 = scene.pickWithRay(new BABYLON.Ray(pick.ray.origin, pick.ray.direction, 1e4), (m) => m === plane);
+                const p2 = scene.pickWithRay(new BABYLON.Ray(pick.ray.origin, pick.ray.direction, Number.MAX_VALUE), (m) => m === plane);
                 if (p2?.hit)
                     uv = p2.getTextureCoordinates();
                 if (kind)
@@ -8108,6 +8689,10 @@ export class B3d extends Component {
     }
     _audioUnmute = null;
     _teardown() {
+        this._offPadKeys?.();
+        this._offPadKeys = null;
+        this.setPadUi(false);
+        this._panelNav = null;
         this._releaseAudio();
         // Both presentations' widgets, not just the visible one — an XR panel's
         // rows outlive the session that built them otherwise.
@@ -8117,6 +8702,8 @@ export class B3d extends Component {
         this._disposeAriaMirror();
         this._agentOff?.();
         this._agentOff = null;
+        this._checklistOff?.();
+        this._checklistOff = null;
         this._originOffset = { x: 0, z: 0 };
         this._errorCaptureOff?.();
         this._errorCaptureOff = null;

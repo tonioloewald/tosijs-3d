@@ -6,8 +6,8 @@ arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, button3d, characterStore, holdGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
-import { tosi } from 'tosijs'
+import { assetUrl, b3d, b3dBiped, b3dBox, b3dChest, b3dDeath, b3dDoor, b3dPanel, createCarry, tradePanel, b3dInteractive, b3dLauncher, b3dLibrary, b3dNpc, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, holdMount, holdClassOf, placeIn, stowGrip, STOW_MOUNT, heldGrip, mountNode, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, AIM_CLIPS, b3dConversation, WORKING_CHARACTER } from 'tosijs-3d'
+import { tosi, svgElements } from 'tosijs'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
 // TONIO'S WEAPONS (CC BY 4.0), the character builder's: every one is made
@@ -15,33 +15,66 @@ import { demoLoadout } from 'tosijs-3d/demo-utils'
 // one grip holds them all, and the blades another. (Line comments in this
 // demo: a block comment inside a fence would close the enclosing doc comment.)
 const weapons = b3dLibrary({
-  url: assetUrl('tonio/weapons-classic/weapons.glb', 2),
+  url: assetUrl('tonio/weapons-classic/weapons.glb', 3),
   type: 'weapons',
 })
 // Where the hand holds each one: the character builder's defaults, placed
 // with its manipulator in the hand's socket frame (x/y/z is the grip).
 // One grip per class of item (hold-grip): every one-handed blade alike.
-const gripFor = (name) => {
-  const { scale, ...grip } = holdGrip(name)
+// The character file the hero is made from (null: the mannequin), for a
+// respawn and for its placements.
+let heroDoc = null
+// A character from the builder brings its own placements (one per class,
+// set with the builder's manipulator); the mannequin uses the defaults.
+const gripsKept = () => heroDoc?.settings?.grips ?? {}
+// Adjustments for `name`'s class (a character from before grips were per
+// class kept them per item).
+const keptFor = (name) => {
+  const kept = gripsKept()
+  const c = holdClassOf(name)
+  const own = kept[c] ?? kept[name]
+  return own ? { ...kept, [c]: own } : kept
+}
+const gripFor = (name, side) => {
+  const { scale, ...grip } = holdGrip(name, keptFor(name), undefined, side)
   return grip
 }
 // What each one is in the inventory (slot tags, mass, its picture), and for the
-// guns how it fires. Only guns are raised: UAL's ranged clips are Pistol_*,
-// so the rifles are fired from a one-handed stance. Anything else is a melee
-// weapon (`holdingWeapon`): on guard, and the trigger swings it.
+// guns how it fires. Guns and the bow are raised: a gun plays UAL's Pistol_*
+// clips (a rifle shouldered by arm IK on top), the bow UAL's Bow_* clips in
+// the left hand. Anything else is a melee weapon (`holdingWeapon`): on guard,
+// and the trigger swings it.
 const WEAPONS = {
-  Pistol: { tags: ['side', 'hand'], mass: 1, art: 'pistol', fire: { fireRate: 6, muzzleSpeed: 45, damage: 25, projRadius: 0.08, gravity: -2 } },
-  SMG: { tags: ['side', 'hand'], mass: 2.5, art: 'pistol', fire: { fireRate: 14, muzzleSpeed: 50, damage: 12, projRadius: 0.06, gravity: -2 } },
-  'Assault Rifle': { tags: ['back', 'hand', 'two-handed'], mass: 3.5, art: 'rifle', fire: { fireRate: 9, muzzleSpeed: 80, damage: 20, projRadius: 0.06, gravity: -1 } },
-  'Rocket Launcher': { tags: ['back', 'hand', 'two-handed'], mass: 7, art: 'rifle', fire: { fireRate: 0.8, muzzleSpeed: 25, damage: 120, projRadius: 0.16, gravity: -1 } },
+  // A gun's magazine is `ammo` rounds, reloaded in `reloadTime` seconds from
+  // what it `loads` in your bag.
+  Pistol: { tags: ['side', 'hand'], mass: 1, art: 'pistol', loads: 'Pistol Ammo', fire: { sound: 'pistol', fireRate: 6, muzzleSpeed: 45, damage: 25, projRadius: 0.08, gravity: -2, directHit: 'on', ammo: 12, reloadTime: 1.2 } },
+  SMG: { tags: ['side', 'hand'], mass: 2.5, art: 'pistol', loads: 'Pistol Ammo', fire: { sound: 'pistol', fireRate: 14, muzzleSpeed: 50, damage: 12, projRadius: 0.06, gravity: -2, directHit: 'on', ammo: 30, reloadTime: 1.6 } },
+  'Assault Rifle': { tags: ['back', 'hand', 'two-handed'], mass: 3.5, art: 'rifle', loads: 'Rifle Ammo', fire: { sound: 'rifle', fireRate: 9, muzzleSpeed: 80, damage: 20, projRadius: 0.06, gravity: -1, directHit: 'on', ammo: 30, reloadTime: 2 } },
+  'Rocket Launcher': { tags: ['back', 'hand', 'two-handed'], mass: 7, art: 'rifle', loads: 'Rockets', fire: { sound: 'heavy', fireRate: 0.8, muzzleSpeed: 25, damage: 120, projRadius: 0.16, gravity: -1, directHit: 'off', ammo: 1, reloadTime: 2.5 } },
   Dagger: { tags: ['side', 'hand'], mass: 0.4, art: 'knife' },
   'Short Sword': { tags: ['side', 'hand'], mass: 1, art: 'sword' },
   'Long Sword': { tags: ['side', 'hand'], mass: 1.5, art: 'sword' },
   'Hand and a Half': { tags: ['back', 'hand', 'two-handed'], mass: 2, art: 'sword' },
   'Plasma Blade': { tags: ['side', 'hand'], mass: 1, art: 'sword' },
   Spear: { tags: ['back', 'hand', 'two-handed'], mass: 2, art: 'sword' },
-  Buckler: { tags: ['back', 'hand'], mass: 2.5, art: 'shield' },
+  // One arrow at a time: each shot is a reload (UAL's notch), and arrows drop.
+  Bow: { tags: ['back', 'hand', 'two-handed'], mass: 1, art: 'rifle', loads: 'Arrows', fire: { sound: 'bow', fireRate: 1, muzzleSpeed: 40, damage: 45, projRadius: 0.03, gravity: -9.8, directHit: 'on', ammo: 1, reloadTime: 0.8 } },
+  // A shield goes in the LEFT hand (strapped to the forearm) or on the back.
+  Buckler: { tags: ['back', 'shield'], mass: 2.5, art: 'shield' },
+  'Kite Shield': { tags: ['back', 'shield'], mass: 4, art: 'shield' },
+  // Kept, not drunk: the shopkeeper wants one (see THE SHOPKEEPER).
+  Potion: { tags: ['bag'], mass: 0.3, art: 'potion' },
+  // Not a weapon: it lives in the bag, and opens the yard's door.
+  'Iron Key': { tags: ['key'], mass: 0.1, art: 'key' },
+  // Rounds, in stacks.
+  'Pistol Ammo': { tags: ['ammo'], mass: 0.01, art: 'ammo', stack: 200 },
+  'Rifle Ammo': { tags: ['ammo'], mass: 0.015, art: 'ammo', stack: 200 },
+  Rockets: { tags: ['ammo'], mass: 1.5, art: 'rocket', stack: 10 },
+  Arrows: { tags: ['ammo'], mass: 0.03, art: 'ammo', stack: 60 },
 }
+// What things are worth (the info floater shows it, in the purse's currency).
+const COST = { Pistol: 40, SMG: 90, 'Assault Rifle': 160, 'Rocket Launcher': 300, Dagger: 8, 'Short Sword': 20, 'Long Sword': 35, 'Hand and a Half': 60, 'Plasma Blade': 120, Spear: 15, Bow: 50, Buckler: 12, 'Kite Shield': 30, 'Pistol Ammo': 0.5, 'Rifle Ammo': 1, Rockets: 25, Arrows: 0.5, Potion: 10 }
+for (const [kind, cost] of Object.entries(COST)) WEAPONS[kind].cost = cost
 
 // ONE LAUNCHER, carrying whatever is in your right hand. `socket` parents it
 // to the hand BONE, so it follows the animation, and with a socket x/y/z/rx/
@@ -51,7 +84,7 @@ const gun = b3dLauncher({
   socket: 'right-hand',
   ...gripFor('Pistol'),
   ...WEAPONS.Pistol.fire,
-  ammo: 999, reloadRate: 40, projColor: '#ffdd66',
+  projColor: '#ffdd66',
 })
 
 // A QUATERNIUS UAL RIG, not omnidude, and the arena is the reason rather than
@@ -69,9 +102,11 @@ const gun = b3dLauncher({
 // character builder saved in this browser, and picking one swaps the hero for
 // a biped made from it (`characterDoc`), carrying what you hold across.
 const MANNEQUIN = 'UAL mannequin'
+// A shop sells at an item's value and buys back at half.
+const shopPrice = (item, from) => (WEAPONS[item.kind]?.cost ?? 0) * item.qty * (from?.holder === 'shop' ? 1 : 0.5)
 const makeHero = (doc, at) => b3dBiped(
   {
-    ...(doc ? { characterDoc: doc } : { url: assetUrl('quaternius/UAL1_core.glb', 3) }),
+    ...(doc ? { characterDoc: doc } : { url: assetUrl('quaternius/UAL1_core.glb', 5) }),
     animationStates: ualAnimationStates(),
     // WHERE THE ARENA IS IN FRONT OF YOU. Spawning at the origin put `pillar-b`
     // (0, -12.3) literally touching your muzzle line, so every shot from the
@@ -81,6 +116,12 @@ const makeHero = (doc, at) => b3dBiped(
     // built around, and there is room to see a round travel.
     x: at.x, z: at.z, ry: at.ry ?? 0,
     player: true, cameraType: 'follow',
+    // Walk off the 6 m tower and you die where you land; jump off the
+    // catwalk and you land hard.
+    lethalFall: 5,
+    // A turret's shell takes a quarter; out of its sight you heal.
+    health: 100,
+    healthRegen: 10,
   },
   gun
 )
@@ -91,7 +132,277 @@ let hero = makeHero(null, { x: -4, z: 10 })
 // your right hand is what the launcher carries; a gun in hand is up (aim and
 // fire), anything else is held with the weapon down. The weapon button draws
 // from the hip or back, or puts away what is in hand; dragging works too.
-const loadout = demoLoadout({ catalogue: WEAPONS, equip: { right_side: 'Pistol' } })
+//
+// AND SOME OF IT IS LYING ON THE GROUND. Walk up and press E (interact) to
+// pick a thing up into your bag; drag anything out of the loadout onto drop
+// and it lands at your feet. A world item is a KIND: picking it up makes an
+// item of that kind, so items are looked up by kind, never by id.
+const loadout = demoLoadout({
+  catalogue: WEAPONS,
+  equip: { right_side: 'Pistol' },
+  // The yard's two chests are holders in the same inventory.
+  holders: { 'gate chest': {}, 'yard chest': {}, shop: { purse: { gold: 200 } } },
+  price: (item, from) => shopPrice(item, from),
+  // Money, written as the game writes it: `12 gold` (a label after the
+  // amount; `€` or `$` would go before it).
+  purse: { gold: 25 },
+  currencies: [{ id: 'gold', label: 'gold' }],
+  // Dropped is THROWN: 3 m off to the right front, low, and where it lands it
+  // makes a noise, so it is how you lure the enemy away.
+  handleDrop: (item) => {
+    const node = hero.entries?.rootNodes[0]
+    if (!node) return
+    const f = node.forward
+    // 45 degrees right of facing.
+    const d = { x: (f.x + f.z) / Math.SQRT2, z: (f.z - f.x) / Math.SQRT2 }
+    const p = node.position
+    const thrown = pickup(item.kind, p.x + d.x * 0.4, p.z + d.z * 0.4)
+    thrown.y = 1.1
+    hero.owner?.append(thrown)
+    requestAnimationFrame(() =>
+      thrown.toss({ x: p.x + d.x * 3, z: p.z + d.z * 3 }, { height: 0.3, seconds: 0.45 })
+    )
+  },
+})
+const BAG = { holder: 'hero', container: 'bag' }
+const stock = (holder) => ({ holder, container: 'stock' })
+// AMMO: what your guns load is in the bag, in stacks. Start with 36 pistol
+// rounds and nothing else; more lies around (and rockets are in the yard).
+const AMMO = ['Pistol Ammo', 'Rifle Ammo', 'Rockets', 'Arrows']
+for (const kind of AMMO) loadout.inv.move({ item: kind, to: null })
+loadout.inv.move({ kind: 'Pistol Ammo', qty: 36, to: BAG })
+const heroItems = () => Object.values(loadout.inv.doc.items).filter((i) => loadout.inv.where(i.id)?.holder === 'hero')
+const rounds = (kind) => heroItems().filter((i) => i.kind === kind).reduce((n, i) => n + i.qty, 0)
+const useRounds = (kind, n) => {
+  let got = 0
+  for (const i of heroItems().filter((i) => i.kind === kind)) {
+    const take = Math.min(n - got, i.qty)
+    if (take <= 0) break
+    loadout.inv.move({ item: i.id, qty: take, to: null })
+    got += take
+  }
+  return got
+}
+// The gun reloads from the bag: whatever the gun in hand loads.
+const loads = () => WEAPONS[kindOf(inRight())]?.loads
+gun.ammoSource = {
+  count: () => (loads() ? rounds(loads()) : 0),
+  take: (n) => (loads() ? useRounds(loads(), n) : 0),
+}
+// Lying on its side (the weapons stand on their grips, blade or barrel up +Y).
+const pickup = (kind, x, z) => b3dPickup({
+  library: 'weapons', meshName: kind, item: kind,
+  x, y: 0.08, z, rz: 90,
+  whenPickedUp: ({ item }) => loadout.inv.move({ kind: item, to: BAG }),
+})
+// AMMO AND HEALTH lying about (Kenney's ammo boxes, a potion and a heart),
+// scaled up to be seen: Kenney's ammo is a real cartridge's size.
+// Ammo goes in the bag; health is taken at once, and left lying while you
+// are at full health.
+const kenney = b3dLibrary({ url: assetUrl('kenney/libraries/weapon-pack.glb'), type: 'kenney-weapons' })
+const survival = b3dLibrary({ url: assetUrl('kenney/libraries/survival-kit.glb'), type: 'survival' })
+const platformer = b3dLibrary({ url: assetUrl('kenney/libraries/platformer-kit.glb'), type: 'platformer' })
+const ammoBox = (kind, meshName, qty, x, z) => b3dPickup({
+  library: 'kenney-weapons', meshName, item: kind, qty, x, y: 0.05, z, scale: 6,
+  whenPickedUp: ({ item, qty }) => { loadout.inv.move({ kind: item, qty, to: BAG }); say(`${qty} ${item}`) },
+})
+const healer = (library, meshName, heals, x, z, scale = 1) => b3dPickup({
+  library, meshName, item: meshName, x, y: 0.05, z, scale,
+  refuse: () => (hero.hp >= 100 ? 'You are at full health.' : null),
+  whenRefused: ({ reason }) => say(reason),
+  whenPickedUp: () => { hero.heal(heals); say(`+${heals} health`) },
+})
+// THE SHOPKEEPER: a stand-in mannequin behind a counter by the start. E at
+// the counter opens the shop: its stock beside your bag, priced; deal or
+// cancel. It sells ammo by the box and buys anything at half its value.
+loadout.inv.move({ item: 'SMG', to: stock('shop') }, { item: 'Plasma Blade', to: stock('shop') })
+loadout.inv.move({ kind: 'Pistol Ammo', qty: 120, to: stock('shop') })
+loadout.inv.move({ kind: 'Rifle Ammo', qty: 120, to: stock('shop') })
+loadout.inv.move({ kind: 'Rockets', qty: 4, to: stock('shop') })
+loadout.inv.move({ item: 'Kite Shield', to: stock('shop') })
+loadout.inv.move({ kind: 'Arrows', qty: 40, to: stock('shop') })
+const SHOP_AT = { x: 7.2, z: 9 }
+// TALKING TO HIM: E at the counter starts a conversation (b3d-conversation).
+// He talks and gestures, his lines and your replies are in a balloon over his
+// head (click one, or press its number), "What do you sell?" opens the shop
+// and the talk picks up when it closes, and his errand takes the potion from
+// the gate chest out of your bag and pays you in rifle rounds.
+// Voiced locally by Qwen3-TTS from bin/speech-shopkeeper.json (a direction per line).
+const voice = (id) => assetUrl(`speech/shopkeeper-${id}.mp3`, 2)
+const SHOP_TALK = {
+  start: 'hello',
+  nodes: {
+    hello: {
+      lines: [{ speaker: 'shopkeeper', text: 'Welcome, welcome. Looking for something?', audio: voice('hello'), gesture: 'show' }],
+      replies: [
+        { id: 'shop', label: 'What do you sell?', then: [{ goto: 'browse' }] },
+        {
+          id: 'work', label: 'Need anything?', line: 'Need a hand with anything?',
+          when: { not: 'asked' },
+          then: [{ set: 'asked' }, { goto: 'errand' }],
+        },
+        {
+          id: 'potion', label: 'Your potion.', line: "Here's that potion I promised you.",
+          when: [{ flag: 'asked' }, { not: 'paid' }, { has: 'Potion' }],
+          then: [{ take: 'Potion' }, { give: 'Rifle Ammo', qty: 30 }, { set: 'paid' }, { goto: 'thanks' }],
+        },
+        { id: 'bye', label: 'Bye.', then: [{ goto: 'bye' }] },
+      ],
+    },
+    errand: {
+      lines: [
+        { speaker: 'shopkeeper', text: 'My knees are not what they were.', audio: voice('knees'), gesture: 'no' },
+        { speaker: 'shopkeeper', text: "Bring me a potion and I'll make it worth your while.", audio: voice('potion') },
+      ],
+      then: [{ goto: 'more' }],
+    },
+    thanks: {
+      lines: [
+        { speaker: 'shopkeeper', text: 'You remembered!', audio: voice('remembered'), gesture: 'surprise' },
+        { speaker: 'shopkeeper', text: 'Here, thirty rounds, on the house.', audio: voice('rounds'), gesture: 'give' },
+      ],
+      then: [{ goto: 'more' }],
+    },
+    // He invites you to look, then the shop opens.
+    browse: {
+      lines: [{ speaker: 'shopkeeper', text: 'Please, take a look.', gesture: 'show' }],
+      then: [{ trade: true }, { goto: 'after' }],
+    },
+    after: { lines: [{ speaker: 'shopkeeper', text: 'Pleasure doing business.', audio: voice('after'), gesture: 'yes' }], then: [{ goto: 'more' }] },
+    more: {
+      lines: [{ speaker: 'shopkeeper', text: 'Anything else?', audio: voice('more') }],
+      replies: [], // filled from hello's, below
+    },
+    bye: { lines: [{ speaker: 'shopkeeper', text: 'Mind how you go.', audio: voice('bye') }], then: [{ end: true }] },
+  },
+}
+SHOP_TALK.nodes.more.replies = SHOP_TALK.nodes.hello.replies
+const shopTalk = b3dConversation()
+shopTalk.script = SHOP_TALK
+const heroCount = (kind) => heroItems().filter((i) => i.kind === kind).reduce((n, i) => n + (i.qty ?? 1), 0)
+shopTalk.host = {
+  has: (kind, qty) => heroCount(kind) >= qty,
+  give: (kind, qty) => {
+    const r = loadout.inv.move({ kind, qty, to: BAG })
+    if (r.ok) say(`${qty} ${kind}`)
+    return r.ok ? null : r.reasons.join(', ')
+  },
+  take: (kind, qty) => {
+    const it = heroItems().find((i) => i.kind === kind)
+    if (!it) return `no ${kind}`
+    const r = loadout.inv.move({ item: it.id, qty, to: null })
+    return r.ok ? null : r.reasons.join(', ')
+  },
+  trade: (done) => openTrade('shop', { title: 'Shop', at: () => counter.mesh?.position, price: shopPrice, done }),
+}
+const shopkeeper = b3dBiped({
+  url: assetUrl('quaternius/UAL1_core.glb', 5),
+  animationStates: ualAnimationStates(),
+  id: 'Shopkeeper',
+  ...SHOP_AT, ry: 90, // facing the start (-x)
+}, shopTalk)
+const counter = b3dBox({ meshName: 'shop-counter', x: 6.2, y: 0.5, z: 9, width: 0.6, height: 1, depth: 2.4, color: '#8a6a44', solid: 'on' })
+const shop = b3dInteractive({
+  target: 'shop-counter', reach: 2.5,
+  whenActivated: () => {
+    if (!shopTalk.talk || shopTalk.talk.ended) shopTalk.start(hero)
+  },
+})
+// MONEY lying about: a pile of gold by the gate chest, into your purse.
+const gold = (qty, x, z) => b3dPickup({
+  library: 'platformer', meshName: 'coin-gold', item: 'gold', qty, x, y: 0.05, z, scale: 1.5,
+  whenPickedUp: ({ qty }) => {
+    loadout.inv.move({ to: null, pay: { holder: '', in: 'gold' }, payee: 'hero', amount: qty })
+    say(`+${qty} gold`)
+  },
+})
+const LYING_ABOUT = [
+  gold(50, -5, 21.5),
+  shopkeeper, counter, shop,
+  ammoBox('Pistol Ammo', 'ammo_uzi', 24, 1, 7),
+  ammoBox('Rifle Ammo', 'ammo_machinegun', 30, -9, -6),
+  ammoBox('Pistol Ammo', 'ammo_uzi', 24, 12, 12),
+  healer('survival', 'bottle', 30, 3, 6.5, 2.5),
+  healer('platformer', 'heart', 60, -14, -8),
+]
+const ON_THE_GROUND = [['Assault Rifle', -2, 6.5], ['Long Sword', -4.5, 6], ['Buckler', -7, 6.5], ['Bow', -9.5, 6]]
+for (const [kind] of ON_THE_GROUND) loadout.inv.move({ item: kind, to: null })
+// THE YARD, behind you: a walled pen (too high to climb) whose door is
+// locked. The key is in the chest by the door; inside is a chest with the
+// rocket launcher and the big sword in it. Having the key is having an item
+// of its kind.
+loadout.inv.move({ item: 'Iron Key', to: stock('gate chest') })
+loadout.inv.move({ item: 'Rocket Launcher', to: stock('yard chest') }, { item: 'Hand and a Half', to: stock('yard chest') })
+loadout.inv.move({ kind: 'Rockets', qty: 4, to: stock('yard chest') })
+loadout.inv.move({ kind: 'Arrows', qty: 12, to: stock('gate chest') })
+loadout.inv.move({ item: 'Potion', to: stock('gate chest') })
+const has = (kind) => Object.values(loadout.inv.doc.items).some((i) => i.kind === kind)
+// OPENING A CHEST opens a trade: its contents beside your bag, take what you
+// take and leave the rest. One panel (no button on the system bar), one
+// trade per chest, made the first time it opens. Walk off and it closes.
+const tradeBox = b3dPanel({ title: 'Chest', icon: 'lucideBackpack', barButton: 'off' })
+// In front of you, in the middle of the view.
+tradeBox.screenAnchor = { left: '50%', top: '50%', anchor: 'center' }
+const trades = {}
+let trading = null
+const endTrade = () => {
+  if (!trading) return
+  const { chest, done } = trading
+  trading = null
+  tradeBox.hide()
+  if (chest) chest.open = false
+  // A trade opened from a conversation hands back to it.
+  done?.()
+}
+// Closed with its own ×, it ends the same way.
+tradeBox.addEventListener('paneltoggle', (e) => {
+  if (!e.detail.open) endTrade()
+})
+// One trade per holder, made the first time; a shop's has prices.
+const openTrade = (holder, { chest = null, title = 'Chest', at, price, done } = {}) => {
+  trades[holder] ??= tradePanel({
+    inv: loadout.inv, carry: createCarry(),
+    mine: BAG, theirs: stock(holder),
+    titles: { mine: 'you', theirs: holder },
+    // The shopkeeper, in a sentence ("he can't offer more than 200 gold").
+    they: holder === 'shop' ? 'he' : undefined,
+    price,
+    // How many, on a stack.
+    decorations: (it) => (it.qty > 1 ? { badge: `×${it.qty}` } : undefined),
+    // Ammo goes a box (24 rounds) at a time, not the whole stack.
+    moveFor: (item, from, to) => {
+      const it = loadout.inv.doc.items[item]
+      return AMMO.includes(it?.kind) ? { item, qty: Math.min(24, it.qty), to } : { item, to }
+    },
+    handleDone: endTrade,
+  })
+  trades[holder].begin()
+  tradeBox.title = title
+  tradeBox.svg = trades[holder].svg
+  tradeBox.show()
+  trading = { chest, at: at ?? (() => chest?.mesh?.position), done }
+}
+const chest = (holder, at) => {
+  const el = b3dChest({ ...at, whenOpened: () => openTrade(holder, { chest: el }), whenClosed: () => trading?.chest === el && endTrade() })
+  return el
+}
+// Walls 2.8 m: a mantle reaches 2.2.
+const wall = (x, z, width, depth, height = 2.8, y = 0) =>
+  b3dBox({ x, y: y + height / 2, z, width, height, depth, color: '#9a9284', solid: 'on' })
+const YARD = [
+  wall(-2.4, 24, 3.4, 0.2), wall(2.4, 24, 3.4, 0.2), // the front, either side of the door
+  wall(0, 24, 1.4, 0.2, 0.5, 2.3), // over the door
+  wall(0, 30, 8.2, 0.2), wall(-4, 27, 0.2, 6), wall(4, 27, 0.2, 6),
+  b3dDoor({
+    x: 0, z: 24, lock: 'Iron Key',
+    hasKey: (key) => has(key),
+    whenRefused: ({ key }) => say(`Locked. It needs the ${key}.`),
+  }),
+  chest('gate chest', { x: -2.5, z: 22.8 }),
+  chest('yard chest', { x: 0, z: 28.9 }),
+  tradeBox,
+]
+const kindOf = (id) => (id ? loadout.inv.doc.items[id]?.kind ?? null : null)
 const body = (slot) => ({ holder: 'hero', container: 'body', slot })
 const slotsNow = () => loadout.inv.doc.holders.hero.containers.body.slots
 const inRight = () => slotsNow().hand_right.holds
@@ -106,18 +417,70 @@ const wire = (h) => {
       return
     }
     // Draw: what is on the right hip, then the left, then the back.
-    const from = away.map((s) => slotsNow()[s].holds).find(Boolean)
+    const from = away.map((s) => slotsNow()[s].holds).find((id) => id && !loadout.inv.check({ item: id, to: body('hand_right') }).length)
     if (from) loadout.inv.move({ item: from, to: body('hand_right'), swap: true })
   }
   return h
 }
+// WHAT IS WORN, drawn on the body: what is in the left hand is held there
+// (a shield strapped to the forearm, a dagger in the hand, each class's grip
+// mirrored from the right if it is set for the right), and whatever is on the
+// back rides across the shoulders (hold-grip's mounts). Only the right hand is
+// a launcher; these are models.
+let gear = { key: '', nodes: [] }
+// Babylon, from sceneCreated (lowercase: see the doc transpiler's all-caps rule).
+let babylon = null
+const wearGear = (h) => {
+  if (!babylon) return
+  const skeleton = h.entries?.skeletons?.[0]
+  const left = kindOf(slotsNow().hand_left.holds)
+  const back = kindOf(slotsNow().back.holds)
+  const key = `${skeleton?.uniqueId}|${left}|${back}`
+  if (!skeleton || key === gear.key) return
+  for (const n of gear.nodes) n.dispose()
+  gear = { key, nodes: [] }
+  const mount = (kind, where, g) => {
+    const at = mountNode(skeleton, where)
+    const node = at && weapons.instantiate?.(kind, { canonical: true })
+    if (!node) return
+    node.parent = at
+    const d = Math.PI / 180
+    const turn = babylon.Quaternion.FromEulerAngles(g.rx * d, g.ry * d, g.rz * d)
+    const grip = (heldGrip(node) ?? babylon.Vector3.Zero()).scale(g.scale).applyRotationQuaternion(turn)
+    node.position.set(g.x - grip.x, g.y - grip.y, g.z - grip.z)
+    node.rotationQuaternion = turn
+    node.scaling.setAll(g.scale)
+    gear.nodes.push(node)
+  }
+  // The left hand's thing on its LEFT mount (a shield strapped to the
+  // forearm, a dagger in the hand), its grip mirrored if set for the right.
+  // In the hand or on the forearm: the class's own place unless the
+  // character wears it elsewhere (a buckler in the fist).
+  const place = left && placeIn(left, gripsKept())
+  if (left) mount(left, holdMount(holdClassOf(left), 'l', place), holdGrip(left, keptFor(left), undefined, 'l', place))
+  if (back) mount(back, STOW_MOUNT, stowGrip(back, gripsKept()))
+}
+// Each gun keeps what is in its magazine while it is put away.
+const magazines = {}
+let inHand = null
 const hold = (h) => {
   const id = inRight()
-  const w = id ? WEAPONS[id] : null
-  if (w && gun.meshName !== id) {
-    Object.assign(gun, gripFor(id), w.fire ?? {}, { meshName: id })
+  const kind = kindOf(id)
+  const w = kind ? WEAPONS[kind] : null
+  // Any weapon in hand is the launcher's model, a sword too (it is shown, not
+  // fired); only a gun has a magazine to keep.
+  if (w && id !== inHand) {
+    if (inHand && WEAPONS[kindOf(inHand)]?.fire) magazines[inHand] = gun.loaded
+    inHand = id
+    // A bow rides the LEFT hand's socket (hold-grip's mount for its class).
+    const side = holdMount(holdClassOf(kind)).side
+    const socket = side === 'l' ? 'left-hand' : 'right-hand'
+    Object.assign(gun, gripFor(kind, side), w.fire ?? {}, { meshName: kind, socket })
+    if (w.fire) gun.loaded = magazines[id] ?? w.fire.ammo
     gun.reloadModel()
   }
+  // The clips the raised weapon plays (a new hero, after a respawn, too).
+  if (w?.fire) h.setAimClips(holdClassOf(kind) === 'bow' ? AIM_CLIPS.bow : AIM_CLIPS.pistol)
   h.holdingWeapon = w != null && w.fire == null
   h.setGunplay(w?.fire != null)
 }
@@ -143,6 +506,7 @@ const useCharacter = async (name) => {
   const doc = name === MANNEQUIN ? null : await store.get(stored(name)).catch(() => null)
   // Gone (forgotten, or another browser's): the menu says who you are.
   if (name !== MANNEQUIN && !doc) { playChar.pick.value = MANNEQUIN; return }
+  heroDoc = doc
   // Where the hero is now and which way he faces, so the new one takes over there.
   const was = hero.entries?.rootNodes[0]
   const p = was?.position
@@ -151,6 +515,10 @@ const useCharacter = async (name) => {
   const next = wire(makeHero(doc, at))
   hero.replaceWith(next)
   hero = next
+  // Its own placements: the thing in hand is gripped again.
+  if (inHand && WEAPONS[kindOf(inHand)]?.fire) magazines[inHand] = gun.loaded
+  inHand = null
+  gear.key = ''
   hold(next)
   playChar.pick.value = name
   try { localStorage.setItem('playground-character', name) } catch {}
@@ -164,14 +532,116 @@ const start = asked ? (asked === WORKING_CHARACTER ? BUILDER : asked) : last
 if (start && start !== MANNEQUIN) useCharacter(start)
 else playChar.pick.value = MANNEQUIN
 
+// SOMETHING SHOOTS BACK: a turret past the cover line, slow enough to dodge,
+// aiming at the hero's chest. Cover is cover now.
+const turret = b3dTurret({ x: 0, z: -30, range: 35, fireRate: 0.5, muzzleSpeed: 25, smart: 1, damage: 25, blastRadius: 2 })
+// ENEMIES ON FOOT (the mannequin, a sword swing for a blow): one stands
+// guard with its back to where you start, one walks a loop past the cover
+// line. Oblivious until they notice you; three pistol shots
+// put one down, and a new one takes its place a little later.
+const ENEMIES = [
+  // (A biped's ry 0 faces -z; -35 faces away from the start, toward +x -z.)
+  // Beyond the cover line, over 25 m (its sight) from the start, the shop and
+  // everything lying about, so they are safe to play with.
+  { x: 12, z: -22, ry: -35 },
+  { x: -10, z: -20, patrol: [{ x: -10, z: -20 }, { x: 7, z: -20 }, { x: 7, z: -27 }, { x: -10, z: -27 }] },
+]
+const makeEnemy = ({ patrol, ...at }, i) => b3dBiped(
+  {
+    url: assetUrl('quaternius/UAL1_core.glb', 5),
+    animationStates: ualAnimationStates([{ name: 'attack', animation: 'Sword_Attack', loop: false }]),
+    ...at,
+    health: 60,
+  },
+  // Sight 25 m: the start is out of reach of both, so you can learn the
+  // controls before anything comes for you.
+  b3dNpc({ skill: 0.1, attackDamage: 20, seed: i + 1, patrol: patrol ?? null, sightRange: 25 })
+)
+const enemies = ENEMIES.map(makeEnemy)
+const focus = inputFocus(hero)
+// A fresh one where it began: after it is put down, and when you respawn (or
+// it would be waiting where you start).
+const newEnemy = (i) => {
+  const next = makeEnemy(ENEMIES[i], i)
+  next.addEventListener('destroyed', () => setTimeout(() => newEnemy(i), 8000))
+  enemies[i].replaceWith(next)
+  enemies[i] = next
+}
+enemies.forEach((e, i) => e.addEventListener('destroyed', () => setTimeout(() => newEnemy(i), 8000)))
+const enemyText = (e) => {
+  const d = e.querySelector('tosi-b3d-npc')?.debugState
+  if (!d) return ''
+  if (e.halted) return 'down'
+  return d.mode + (d.sees ? ', sees you' : d.senses ? ', senses you' : d.heard ? ', heard something' : '')
+}
+
+// THE HUD: health, what the gun holds and what just happened (a locked
+// door, what a pickup gave), small, at the bottom middle of the view (where there is least to see), and in a
+// headset with the other panels. A system panel with no button, open from the
+// start; drag it anywhere (it is all grip), and it stays there.
+const { svg: hudSvgEl, rect, text } = svgElements
+const HUD_W = 180
+const HUD_H = 40
+const BAR_W = HUD_W - 16
+const hudFont = { 'font-family': 'system-ui, sans-serif', 'font-size': 12 }
+const hudBar = rect({ x: 8, y: 8, width: BAR_W, height: 7, rx: 3.5, fill: '#e04848' })
+const hudAmmo = text({ x: 8, y: 31, fill: '#e8eef8', ...hudFont })
+const hudSaid = text({ x: HUD_W - 8, y: 31, fill: '#ffd966', 'text-anchor': 'end', ...hudFont })
+const hud = b3dPanel({ icon: 'heart', title: 'Status', barButton: 'off', exclusive: 'off', chrome: 'none', open: true })
+// Its height stated: a system panel otherwise fits its height to the room,
+// at least 80 px, twice this.
+hud.screenAnchor = { left: '50%', anchorX: 0.5, bottom: '2%', anchorY: 1, height: HUD_H }
+hud.svg = hudSvgEl(
+  { viewBox: `0 0 ${HUD_W} ${HUD_H}`, width: HUD_W, height: HUD_H },
+  rect({ x: 0, y: 0, width: HUD_W, height: HUD_H, rx: 8, fill: '#1b2230', 'fill-opacity': 0.45 }),
+  rect({ x: 8, y: 8, width: BAR_W, height: 7, rx: 3.5, fill: '#3a4252', 'fill-opacity': 0.8 }),
+  hudBar, hudAmmo, hudSaid
+)
+// All of it is a handle: a press anywhere drags it (it has no controls).
+hud.svg.handlePointer = () => {}
+hud.svg.gripHit = () => true
+const shown = { hp: -1, ammo: null, said: null }
+const showHud = () => {
+  const hp = hero.halted ? 0 : Math.max(0, Math.round(hero.hp))
+  if (hp !== shown.hp) hudBar.setAttribute('width', String((BAR_W * (shown.hp = hp)) / 100))
+  const ammo = hero.gunplay && loads() ? `${loads()}: ${gun.reloading ? 'reloading' : gun.loaded} / ${rounds(loads())}` : ''
+  if (ammo !== shown.ammo) hudAmmo.textContent = shown.ammo = ammo
+  if (said !== shown.said) hudSaid.textContent = shown.said = said
+}
+// What just happened, for a few seconds.
+let said = ''
+let saidTimer = 0
+const say = (text) => {
+  said = text
+  clearTimeout(saidTimer)
+  saidTimer = setTimeout(() => { said = '' }, 4000)
+}
+
 preview.append(
   b3d(
     {
-      style: 'width:100%;height:100%',
+      style: 'flex: 1; min-height: 0',
       // Something for the weapons' metal to reflect: without it a PBR metal
       // has nothing to show and renders nearly black.
-      sceneCreated(el) {
+      sceneCreated(el, b) {
+        babylon = b
+        // For the console: the inventory (move things, read the purse).
+        el.inventory = loadout.inv
         studioEnvironment(el.scene, { sky: '#7d9cc4', horizon: '#e8e4da', ground: '#55604a' })
+        el.scene.onBeforeRenderObservable.add(() => {
+          wearGear(hero)
+          // Walked away from an open chest: the trade closes.
+          const chestAt = trading?.at()
+          if (chestAt && hero.mesh && hero.mesh.position.subtract(chestAt).length() > 3) endTrade()
+          if (hero.aimTarget && !hero.halted) turret.track(hero.aimTarget)
+          else turret.clearTarget()
+          showHud()
+        })
+        // What each enemy is doing, in Perf Stats (a diagnostic, not the game's).
+        el.addDebugSource({
+          name: 'enemies',
+          lines: () => [`guard: ${enemyText(enemies[0])}`, `patrol: ${enemyText(enemies[1])}`],
+        })
       },
       // The glass pad shows only what this demo USES. These are control names,
       // not a mapping name (`gamepad: 'biped'` names nothing and draws nothing).
@@ -198,22 +668,44 @@ preview.append(
       },
     },
     weapons,
+    kenney, survival, platformer,
+    turret,
+    ...LYING_ABOUT,
+    ...ON_THE_GROUND.map(([kind, x, z]) => pickup(kind, x, z)),
+    ...YARD,
+    ...enemies,
     ...playground(),
     ...loadout.panels(),
-    inputFocus(hero)
+    hud,
+    // Death's exit: the panel, and a new hero back at the start.
+    b3dDeath({
+      title: 'DEAD',
+      // A person, not an aircraft: watch from close by.
+      orbitRadius: 5,
+      orbitHeight: 2.5,
+      respawn() {
+        // The dead hero is already gone (death removes it), so the new one
+        // goes into the focus manager, which takes it.
+        const next = wire(makeHero(heroDoc, { x: -4, z: 10 }))
+        focus.append(next)
+        hero = next
+        hold(next)
+        enemies.forEach((_, i) => newEnemy(i))
+      },
+    }),
+    focus
   )
 )
 ```
 ```css
-.preview { height: 100%; }
+.preview { height: 100%; display: flex; flex-direction: column; }
 ```
 
-**Two modes, and the right bumper (or clicking the right stick) is the
-switch.** You start with a pistol on your hip and the rest of
+**Two modes, and the right bumper is the switch.** You start with a pistol on your hip and the rest of
 [Tonio's weapons](/character-builder/) in the bag: open the loadout from its
 button on the system bar and drag any of them onto a hip, your back or your
 right hand. With the weapon down you are walking: **R** sprints. Press **right
-bumper** and you draw what is on your hip (or back), and if it is a gun it
+shift** (middle click, or the right bumper on a pad) and you draw what is on your hip (or back), and if it is a gun it
 comes up: now **R** fires, **Q** aims down the sights, and a ring shows where
 the round will actually land, sinking as the range grows because it is the
 real ballistic arc rather than a dot in the middle of the screen. You cannot
@@ -223,9 +715,73 @@ A blade, the spear or the buckler takes a guard (UAL's `Sword_Idle`) and **R**
 swings it (`Sword_Attack`, played through; held, it swings again). Press the
 bumper again to put away what is in your hand. Only the right hand is drawn.
 
+**Ammo.** A gun holds a magazine (the pistol 12, the SMG and rifle 30, the
+rocket launcher one) and reloads from what is in your bag: **J** (d-pad
+left) reloads, and an empty gun reloads itself when you pull the trigger.
+The panel at the bottom of the view shows your health, what is loaded and what is left; drag it wherever you like. You start
+with 36 pistol rounds; ammo boxes lie about, and each gun keeps its own
+magazine while it is put away.
+
+**Health.** A potion (30) and a heart (60) lie about: walk up and press
+**E**. At full health they stay where they are.
+
+**A shop, and someone to talk to.** The mannequin behind the counter to your
+right is a shopkeeper: press **E** at the counter and he talks. His lines and
+your replies appear in a balloon over his head; click a reply or press its
+number. Ask what he sells and his stock opens beside your bag, with prices;
+when you close it he carries on. Ask whether he needs anything, then bring
+him the potion from the gate chest. Walk away and the conversation ends.
+In the shop, drag things across either way (ammo goes a box of 24 at a time); the line
+under the lists says whether you pay or receive and how much. **Deal**
+settles, **cancel** puts it all back. It sells at an item's value and buys
+at half. You have 25 gold.
+
+**Things to pick up.** A rifle, a sword and a buckler lie in front of you:
+walk up and press **E** to pick one up (you kneel for it), and it goes in your
+bag. Drag anything from the loadout onto **drop** and you throw it: it lands
+6 m ahead with a clatter the enemy hears.
+
+**A locked yard.** Behind the start is a walled yard with a locked door.
+The key is in the chest beside it: press **E** and the chest opens with
+what is inside next to your bag; take what you want and leave the rest. The
+key opens the door, and the chest inside holds the rocket launcher, the big
+sword and rockets.
+
+**Something hunts you.** Two enemies: one stands guard
+beyond the cover line with its back to you, one walks a loop near it. Neither
+can see the start, the shop or the things lying about, so you can try those in
+peace; the fight starts when you cross toward the cover line.
+Each is oblivious until it notices you: anywhere in front of it within 25 m
+(cover hides you; where you start, neither can see you), or within 10 m behind it. Crouch (left shift) and those
+drop to a third, so you can creep to 3 m behind one. A shot is heard 25 m
+off. Noticed, it chases and swings when it reaches you; lose it and it
+searches where it last saw you, then goes back to its post or its route.
+Throw something (drop it from the loadout) and it goes to look where it
+landed. It is deliberately dumb: it runs to where you WERE, so a sidestep
+beats it. Bullets hit where they land: a head shot does two and a half
+times the damage, a limb half: one pistol round to the head puts one down,
+three to the body, five to the arms and legs. Add `#debug` to the
+page's address and Perf Stats, in the settings panel, says what each is doing.
+
+**Something shoots back.** A turret past the cover line fires slow shells at
+you (four hits kill); each hit staggers you, and out of its sight you heal.
+Crouch behind the low wall or duck behind a pillar.
+
+**Falls hurt.** Jump off the catwalk and you land hard (a roll that holds you a
+moment); walk off the top of the tower and you die where you land, then
+respawn at the start.
+
 **WASD** moves, **arrow keys** look, **space** jumps, **left shift** sneaks,
-**E** interacts, **Y** switches between third and first person. On a pad,
-clicking the left stick sneaks.
+**E** interacts, **Y** switches between third and first person. On a pad
+the actions are on the right hand: **A** attacks, **B** uses (doors, chests,
+the lift, picking up, talking; with the weapon up it ducks instead),
+clicking the **right stick** jumps, and clicking the left stick sneaks.
+**Hold D-pad up** to reach the system bar with the pad: left and right step
+along it, **B** opens a panel, up and down cycle through its controls, left
+and right move sliders, **B** presses. Hold up in a panel to close it, and on
+the bar to go back to playing; a chest's panel closes straight back to
+playing. On the keyboard, **Tab** steps
+through an open panel.
 
 **Play as a character of your own.** Make one in the
 [character builder](/character-builder/) (or press **make your own
@@ -234,7 +790,7 @@ character…** in this page's settings panel, the goggles on the bar) and press
 here. It takes the hero's place where he stands, holding what you held. Characters
 belong to the browser that made them.
 
-Things to try: put the pistol in the bag and try to raise it (nothing to raise), drag the rifle into your hand (it comes up, and both hands are taken); carry a sword on your hip and draw it; swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
+Things to try: put the pistol in the bag and try to raise it (nothing to raise), pick up the rifle and drag it into your hand (it comes up, and both hands are taken); carry a sword on your hip and draw it; swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
 and watch the ring disappear behind it until you stand; walk the cover line and
 compare the railing with the wall beside it.
 
@@ -262,7 +818,7 @@ arrangement is a test you walk around in rather than one you read.
 | the **bunker** (an L) | cover from a threat the wall does not face, which is why `shelterFrom` searches an arc |
 | the **railing** | cover that ISN'T. Same height, same distance, gap underneath. The one everybody's first implementation gets wrong |
 | the **crate steps** (0.4 / 0.9 / 1.6m) | the band between a step and a wall — `mantle` |
-| the **catwalk** | verticality, a firing position, and something to fall off |
+| the **catwalk** | verticality, a firing position, and something to fall off (a hard landing) |
 | the **targets** | something to murder |
 | the **pool** | swimming, diving (aim down and swim), surfacing, and a shelving ramp to walk in on slowly |
 

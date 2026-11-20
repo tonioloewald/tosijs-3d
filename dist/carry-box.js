@@ -125,6 +125,7 @@ import { svgElements } from 'tosijs';
 import { DRAG_THRESHOLD } from './carry.js';
 import { iconGlyph } from './svg-icons.js';
 import { realNow } from './clock.js';
+import { showTipSurface } from './panel-layer.js';
 const OUTLINES = {
     damaged: '#e0a030',
     broken: '#e04838',
@@ -614,6 +615,8 @@ export function carryGhostLayer(carry, layer) {
 function infoFloater(layer) {
     const box = g({ 'pointer-events': 'none' });
     let about = null;
+    // On a plane: the card is a tip, its own surface beside the thing.
+    let spawned = null;
     const toLayer = (x, y) => {
         const m = layer.getScreenCTM?.();
         if (!m)
@@ -653,6 +656,21 @@ function infoFloater(layer) {
                 'font-family': 'system-ui, sans-serif',
                 'font-size': '11',
             }, l)));
+            spawned?.close();
+            spawned = null;
+            if (layer instanceof SVGSVGElement && !layer.isConnected) {
+                const sheet = svgElements.svg({
+                    xmlns: 'http://www.w3.org/2000/svg',
+                    viewBox: `0 0 ${width} ${height}`,
+                    width,
+                    height,
+                });
+                sheet.append(box);
+                spawned = showTipSurface(layer, sheet, offsetIn(over, layer), 'right');
+                if (spawned != null)
+                    return;
+                box.remove();
+            }
             const r = over.getBoundingClientRect();
             const a = toLayer(r.right + 8, r.top);
             const b = toLayer(r.left - 8, r.top);
@@ -666,8 +684,37 @@ function infoFloater(layer) {
             if (over && over !== about)
                 return;
             about = null;
+            spawned?.close();
+            spawned = null;
             box.remove();
         },
+    };
+}
+/**
+ * Where `el` is drawn in `root`'s own units, read from the transforms and
+ * nested SVGs' positions between them (no layout needed: a panel on a plane
+ * is never in the page). Its size is its first rect's.
+ */
+function offsetIn(el, root) {
+    let x = 0;
+    let y = 0;
+    for (let n = el; n != null && n !== root; n = n.parentElement) {
+        const t = n.transform?.baseVal?.consolidate();
+        if (t != null) {
+            x += t.matrix.e;
+            y += t.matrix.f;
+        }
+        if (n instanceof SVGSVGElement) {
+            x += Number(n.getAttribute('x')) || 0;
+            y += Number(n.getAttribute('y')) || 0;
+        }
+    }
+    const r = el.querySelector('rect');
+    return {
+        x,
+        y,
+        width: Number(r?.getAttribute('width')) || 0,
+        height: Number(r?.getAttribute('height')) || 0,
     };
 }
 const overlays = new WeakMap();

@@ -15,7 +15,10 @@ is a 44-unit target. Lists are scrolling lists.
 ## Equip a person
 
 The art is an SVG with a `Sockets` group; each socket's id is a slot. Drag
-from the bag onto the body, or tap, then tap. The rifle needs both hands
+from the bag onto the body, or tap, then tap (a gamepad's B, or Enter after
+Tab, is the tap: `controls()` lists every thing and place for the scene's
+[panel focus](/pad-ui/), and a focused slot lights when what is carried
+fits). The rifle needs both hands
 (and shows, faded, in the other one), a helm only goes on a head, and
 anything worn can be dragged back off.
 
@@ -376,11 +379,12 @@ what it adds (`info` replaces that).
 | `host` | the `<svg>` it draws into (it listens for the pointer there) |
 | `decorations(item, kind)` | what a thing shows: a bar, an outline, a badge |
 | `moveFor(item, from, to)` | the move to make for a drop (by default a slot takes one from a stack, with a swap) |
+| `spill` | where a thing it displaces goes when it cannot go back where the newcomer came from (the dock's list: a shield moved from the off hand to a back holding a two-handed spear puts the spear in the bag) |
 | `refuse(item, from, to)` | reasons this panel will not take a move, on top of the model's rules |
 | `schematics` | art per container: `{ body: svgText }`; its sockets are the slots (`data-slot`, or ids in a `Sockets` group) |
 | `only`, `hide` | which containers this panel draws (one holder can be split over panels) |
 | `height` | a fixed height that scrolls, instead of growing to fit |
-| `totals` | show the holder's purse and totals under its title (default on) |
+| `totals` | show the holder's purse and totals under its title (default on); money is written in the inventory's `currencies` ([currency](/currency/)) |
 | `handleDrop` | `(item, kind, from)`: adds a **drop** target at the top of the list; return reasons to refuse, else it leaves the inventory (put it in the world yourself) |
 | `alsoIn(item, kind, at)` | other slots an item takes up, where it is drawn faded (a two-handed weapon in both hands) |
 | `overlay` | draw the drag's ghost in a page overlay above every panel (default); off inside a 3D plane |

@@ -15,7 +15,17 @@ For the file, the model it came from is read again from its bytes
 ([glb-rig](/glb-rig/)), and its materials go out as glTF with their
 pictures. A model that is not a GLB (an OBJ) goes out in plain grey.
 
+**Pictures** scales the file's textures down to a longest side (2048, 1024
+or 512), and **compress pictures** turns opaque PNGs into JPEGs at its
+**quality** ([glb textures](/glb-textures/)). With neither, every picture
+goes out exactly as made.
+
 ```javascript
 import { exportBodyRows } from 'tosijs-3d/body-export'
 panel.push(...exportBodyRows(() => ({ body, recipe, source: { url } }), say))
 ```
+
+`exportForm(pop, { name, target, say, formats })` is the same as a modal: the
+file's name, its format (a GLB, or a format the host adds, such as a
+character file) and the GLB's options. The character builder opens it from
+its Character menu.

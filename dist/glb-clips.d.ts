@@ -63,6 +63,8 @@ export declare function bakeClip(source: GlbClipSource, clip: GlbClip | string, 
     footTurnDeg?: number;
     /** See `RetargetOptions.footIk`: false copies the legs' angles only. */
     footIk?: boolean;
+    /** See `RetargetOptions.mirror`: the clip left to right. */
+    mirror?: boolean;
     name?: string;
 }): BakedClip;
 //# sourceMappingURL=glb-clips.d.ts.map

@@ -85,4 +85,11 @@ export declare function readCharacter(input: string | unknown, defaults: {
     settings: Record<string, unknown>;
     slots?: Record<string, SlotLook>;
 }): ReadCharacter;
+/** Where an export keeps its character: a key of `asset.extras`. */
+export declare const CHARACTER_EXTRA = "tosijsCharacter";
+/**
+ * The character document a GLB was exported with (the builder puts it in
+ * `asset.extras.tosijsCharacter`), or null. Throws when the bytes are not a GLB.
+ */
+export declare function readGlbCharacter(bytes: Uint8Array): unknown | null;
 //# sourceMappingURL=character-file.d.ts.map

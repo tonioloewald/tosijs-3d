@@ -331,8 +331,12 @@ try {
     // after each. `[x, y, x2, y2]` is a DRAG: pressed at the first point,
     // moved to the second, screenshot `drag{i}` and `window.__duringDrag(i)`
     // taken before the release.
-    const clicks = (await evaluate('JSON.stringify(window.__clicks || [])')) as string
-    for (const [i, [x, y, x2, y2]] of (JSON.parse(clicks) as number[][]).entries()) {
+    const clicks = (await evaluate(
+      'JSON.stringify(window.__clicks || [])'
+    )) as string
+    for (const [i, [x, y, x2, y2]] of (
+      JSON.parse(clicks) as number[][]
+    ).entries()) {
       const mouse = (type: string, at: [number, number], buttons: number) =>
         send('Input.dispatchMouseEvent', {
           type,
@@ -358,7 +362,9 @@ try {
         console.log(
           `during drag ${i}:`,
           JSON.stringify(
-            await evaluate(`window.__duringDrag ? window.__duringDrag(${i}) : null`)
+            await evaluate(
+              `window.__duringDrag ? window.__duringDrag(${i}) : null`
+            )
           )
         )
       }
@@ -367,7 +373,9 @@ try {
       console.log(
         `click ${i} (${x}, ${y}):`,
         JSON.stringify(
-          await evaluate(`window.__afterClick ? window.__afterClick(${i}) : null`)
+          await evaluate(
+            `window.__afterClick ? window.__afterClick(${i}) : null`
+          )
         )
       )
       await shot(`click${i}`)

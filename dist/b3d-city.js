@@ -339,6 +339,16 @@ export class B3dCity extends B3dChild {
         */
         let merged = null;
         if (meshes.length > 1) {
+            /*
+            EACH PART ITS OWN GEOMETRY FIRST. The parts share theirs with the
+            library's (a copy of a wheel shares the library's wheel), and
+            MergeMeshes appends into the first part's index array in place: every
+            merge grew the library's wheel (996 indices, then 11196, 32586,
+            95748…), and every car built after it from that library came out
+            black and mangled, or as nothing but its lamps.
+            */
+            for (const m of meshes)
+                m.makeGeometryUnique();
             try {
                 merged = BABYLON.Mesh.MergeMeshes(meshes, true, true, undefined, false, true);
             }

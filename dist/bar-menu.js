@@ -90,7 +90,14 @@ export function barMenu(config) {
     /** The hovered and the pressed row, as `[column, row]`. */
     let hover = null;
     let pressed = null;
-    let root;
+    /*
+    The SVG on show. Each level is its own SVG with its own handler, and the
+    panel sends the one it swaps out a last `leave`: a handler that is not the
+    current one's must do nothing, or it repaints over the new level (its draw
+    had reached the new SVG through a shared variable, so a submenu opened and
+    was painted over at once, or a stale release closed it).
+    */
+    let current = null;
     const same = (a, b) => a != null && b != null && a[0] === b[0] && a[1] === b[1];
     const rowsOf = (opts) => {
         const rows = [];
@@ -138,7 +145,7 @@ export function barMenu(config) {
         }
         const WIDTH = x - COL_GAP;
         const height = Math.max(...laid.map((c) => c.y + c.h));
-        root = svg({
+        const root = svg({
             xmlns: 'http://www.w3.org/2000/svg',
             viewBox: `0 0 ${WIDTH} ${height}`,
             width: WIDTH,
@@ -270,6 +277,8 @@ export function barMenu(config) {
             return null;
         };
         const handlePointer = (kind, px, py) => {
+            if (root !== current)
+                return;
             const at = kind === 'leave' ? null : indexAt(px, py);
             if (kind === 'down')
                 pressed = at;
@@ -323,6 +332,7 @@ export function barMenu(config) {
         hover = null;
         pressed = null;
         const made = make();
+        current = made.root;
         drawNow = made.draw;
         el.svg = made.root;
     };

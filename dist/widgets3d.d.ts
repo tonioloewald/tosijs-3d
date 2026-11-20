@@ -518,6 +518,12 @@ export declare function button3d(config: {
      * asked every time (see `menu`), so it cannot go stale.
      */
     disabled?: Dynamic<boolean>;
+    /**
+     * The panel's default button: what a gamepad or the keyboard focuses when
+     * the panel opens (without one, the first control). Any widget can be made
+     * the default with `asDefault(widget)`.
+     */
+    default?: boolean;
 }): Widget3d;
 /**
  * A horizontal strip of icon toggle-buttons — a compact toolbar for a panel

@@ -203,7 +203,13 @@ export function stickyAim(
   )
   if (Math.hypot(offYaw, offPitch) > release) return free
   return {
-    lock: { target: i, id: t.id, offYawDeg: offYaw, offPitchDeg: offPitch, settling },
+    lock: {
+      target: i,
+      id: t.id,
+      offYawDeg: offYaw,
+      offPitchDeg: offPitch,
+      settling,
+    },
     aim: { yawDeg: wrap(t.yawDeg + offYaw), pitchDeg: t.pitchDeg + offPitch },
   }
 }

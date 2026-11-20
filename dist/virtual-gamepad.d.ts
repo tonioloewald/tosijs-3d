@@ -24,6 +24,11 @@ export interface VirtualGamepad {
     leftStickPress: number;
     /** Pressing the right stick in (R3). */
     rightStickPress: number;
+    /**
+     * Camera zoom, -1…1 (positive zooms out): the mouse wheel. Not a pad
+     * control: the D-pad belongs to UI navigation.
+     */
+    zoom?: number;
 }
 export declare function emptyGamepad(): VirtualGamepad;
 export declare function mergeGamepads(a: VirtualGamepad, b: VirtualGamepad): VirtualGamepad;

@@ -18,11 +18,13 @@
       if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
         document.documentElement.classList.add('darkmode')
       if (p.highContrast) document.documentElement.classList.add('high-contrast')
+      if (p.style && /^[a-z-]+$/.test(p.style))
+        document.documentElement.classList.add('tosi-style-' + p.style)
     } catch (e) {}
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="doc-system.css?v=200b40e99a0e" data-tosi-doc-system />
+  <link rel="stylesheet" href="doc-system.css?v=6db508795fdb" data-tosi-doc-system />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&amp;family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&amp;display=swap" />
   <title>Biped Playground — tosijs-3d</title>
   <meta name="description" content="A place to run around and murder things in. One call returns a whole arena — ground, light, cover, crates, a catwalk and something to shoot — as ordinary…" />
@@ -34,20 +36,20 @@
   <meta property="og:description" content="A place to run around and murder things in. One call returns a whole arena — ground, light, cover, crates, a catwalk and something to shoot — as ordinary…" />
   <meta property="og:url" content="https://3d.tosijs.net/playground/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Biped Playground","description":"A place to run around and murder things in. One call returns a whole arena — ground, light, cover, crates, a catwalk and something to shoot — as ordinary…","url":"https://3d.tosijs.net/playground/","inLanguage":"en","dateModified":"2026-11-13T09:55:19+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Biped Playground","description":"A place to run around and murder things in. One call returns a whole arena — ground, light, cover, crates, a catwalk and something to shoot — as ordinary…","url":"https://3d.tosijs.net/playground/","inLanguage":"en","dateModified":"2026-11-18T22:21:41+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Demos","item":"https://3d.tosijs.net/demos/"},{"@type":"ListItem","position":2,"name":"Biped Playground","item":"https://3d.tosijs.net/playground/"}]}</script>
   <link rel="icon" href="favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="docs.json?v=41191e253fb7" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="docs.json?v=9a98199a84ec" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="playground.ts">
 <h1 id="biped-playground">Biped Playground</h1>
 <p><strong>A place to run around and murder things in.</strong> One call returns a whole
 arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.</p>
-<pre><code class="language-js">import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, button3d, characterStore, holdGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, WORKING_CHARACTER } from &#39;tosijs-3d&#39;
-import { tosi } from &#39;tosijs&#39;
+<pre><code class="language-js">import { assetUrl, b3d, b3dBiped, b3dBox, b3dChest, b3dDeath, b3dDoor, b3dPanel, createCarry, tradePanel, b3dInteractive, b3dLauncher, b3dLibrary, b3dNpc, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, holdMount, holdClassOf, placeIn, stowGrip, STOW_MOUNT, heldGrip, mountNode, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, AIM_CLIPS, b3dConversation, WORKING_CHARACTER } from &#39;tosijs-3d&#39;
+import { tosi, svgElements } from &#39;tosijs&#39;
 import { demoLoadout } from &#39;tosijs-3d/demo-utils&#39;
 
 // TONIO&#39;S WEAPONS (CC BY 4.0), the character builder&#39;s: every one is made
@@ -55,33 +57,66 @@ import { demoLoadout } from &#39;tosijs-3d/demo-utils&#39;
 // one grip holds them all, and the blades another. (Line comments in this
 // demo: a block comment inside a fence would close the enclosing doc comment.)
 const weapons = b3dLibrary({
-  url: assetUrl(&#39;tonio/weapons-classic/weapons.glb&#39;, 2),
+  url: assetUrl(&#39;tonio/weapons-classic/weapons.glb&#39;, 3),
   type: &#39;weapons&#39;,
 })
 // Where the hand holds each one: the character builder&#39;s defaults, placed
 // with its manipulator in the hand&#39;s socket frame (x/y/z is the grip).
 // One grip per class of item (hold-grip): every one-handed blade alike.
-const gripFor = (name) =&gt; {
-  const { scale, ...grip } = holdGrip(name)
+// The character file the hero is made from (null: the mannequin), for a
+// respawn and for its placements.
+let heroDoc = null
+// A character from the builder brings its own placements (one per class,
+// set with the builder&#39;s manipulator); the mannequin uses the defaults.
+const gripsKept = () =&gt; heroDoc?.settings?.grips ?? {}
+// Adjustments for `name`&#39;s class (a character from before grips were per
+// class kept them per item).
+const keptFor = (name) =&gt; {
+  const kept = gripsKept()
+  const c = holdClassOf(name)
+  const own = kept[c] ?? kept[name]
+  return own ? { ...kept, [c]: own } : kept
+}
+const gripFor = (name, side) =&gt; {
+  const { scale, ...grip } = holdGrip(name, keptFor(name), undefined, side)
   return grip
 }
 // What each one is in the inventory (slot tags, mass, its picture), and for the
-// guns how it fires. Only guns are raised: UAL&#39;s ranged clips are Pistol_*,
-// so the rifles are fired from a one-handed stance. Anything else is a melee
-// weapon (`holdingWeapon`): on guard, and the trigger swings it.
+// guns how it fires. Guns and the bow are raised: a gun plays UAL&#39;s Pistol_*
+// clips (a rifle shouldered by arm IK on top), the bow UAL&#39;s Bow_* clips in
+// the left hand. Anything else is a melee weapon (`holdingWeapon`): on guard,
+// and the trigger swings it.
 const WEAPONS = {
-  Pistol: { tags: [&#39;side&#39;, &#39;hand&#39;], mass: 1, art: &#39;pistol&#39;, fire: { fireRate: 6, muzzleSpeed: 45, damage: 25, projRadius: 0.08, gravity: -2 } },
-  SMG: { tags: [&#39;side&#39;, &#39;hand&#39;], mass: 2.5, art: &#39;pistol&#39;, fire: { fireRate: 14, muzzleSpeed: 50, damage: 12, projRadius: 0.06, gravity: -2 } },
-  &#39;Assault Rifle&#39;: { tags: [&#39;back&#39;, &#39;hand&#39;, &#39;two-handed&#39;], mass: 3.5, art: &#39;rifle&#39;, fire: { fireRate: 9, muzzleSpeed: 80, damage: 20, projRadius: 0.06, gravity: -1 } },
-  &#39;Rocket Launcher&#39;: { tags: [&#39;back&#39;, &#39;hand&#39;, &#39;two-handed&#39;], mass: 7, art: &#39;rifle&#39;, fire: { fireRate: 0.8, muzzleSpeed: 25, damage: 120, projRadius: 0.16, gravity: -1 } },
+  // A gun&#39;s magazine is `ammo` rounds, reloaded in `reloadTime` seconds from
+  // what it `loads` in your bag.
+  Pistol: { tags: [&#39;side&#39;, &#39;hand&#39;], mass: 1, art: &#39;pistol&#39;, loads: &#39;Pistol Ammo&#39;, fire: { sound: &#39;pistol&#39;, fireRate: 6, muzzleSpeed: 45, damage: 25, projRadius: 0.08, gravity: -2, directHit: &#39;on&#39;, ammo: 12, reloadTime: 1.2 } },
+  SMG: { tags: [&#39;side&#39;, &#39;hand&#39;], mass: 2.5, art: &#39;pistol&#39;, loads: &#39;Pistol Ammo&#39;, fire: { sound: &#39;pistol&#39;, fireRate: 14, muzzleSpeed: 50, damage: 12, projRadius: 0.06, gravity: -2, directHit: &#39;on&#39;, ammo: 30, reloadTime: 1.6 } },
+  &#39;Assault Rifle&#39;: { tags: [&#39;back&#39;, &#39;hand&#39;, &#39;two-handed&#39;], mass: 3.5, art: &#39;rifle&#39;, loads: &#39;Rifle Ammo&#39;, fire: { sound: &#39;rifle&#39;, fireRate: 9, muzzleSpeed: 80, damage: 20, projRadius: 0.06, gravity: -1, directHit: &#39;on&#39;, ammo: 30, reloadTime: 2 } },
+  &#39;Rocket Launcher&#39;: { tags: [&#39;back&#39;, &#39;hand&#39;, &#39;two-handed&#39;], mass: 7, art: &#39;rifle&#39;, loads: &#39;Rockets&#39;, fire: { sound: &#39;heavy&#39;, fireRate: 0.8, muzzleSpeed: 25, damage: 120, projRadius: 0.16, gravity: -1, directHit: &#39;off&#39;, ammo: 1, reloadTime: 2.5 } },
   Dagger: { tags: [&#39;side&#39;, &#39;hand&#39;], mass: 0.4, art: &#39;knife&#39; },
   &#39;Short Sword&#39;: { tags: [&#39;side&#39;, &#39;hand&#39;], mass: 1, art: &#39;sword&#39; },
   &#39;Long Sword&#39;: { tags: [&#39;side&#39;, &#39;hand&#39;], mass: 1.5, art: &#39;sword&#39; },
   &#39;Hand and a Half&#39;: { tags: [&#39;back&#39;, &#39;hand&#39;, &#39;two-handed&#39;], mass: 2, art: &#39;sword&#39; },
   &#39;Plasma Blade&#39;: { tags: [&#39;side&#39;, &#39;hand&#39;], mass: 1, art: &#39;sword&#39; },
   Spear: { tags: [&#39;back&#39;, &#39;hand&#39;, &#39;two-handed&#39;], mass: 2, art: &#39;sword&#39; },
-  Buckler: { tags: [&#39;back&#39;, &#39;hand&#39;], mass: 2.5, art: &#39;shield&#39; },
+  // One arrow at a time: each shot is a reload (UAL&#39;s notch), and arrows drop.
+  Bow: { tags: [&#39;back&#39;, &#39;hand&#39;, &#39;two-handed&#39;], mass: 1, art: &#39;rifle&#39;, loads: &#39;Arrows&#39;, fire: { sound: &#39;bow&#39;, fireRate: 1, muzzleSpeed: 40, damage: 45, projRadius: 0.03, gravity: -9.8, directHit: &#39;on&#39;, ammo: 1, reloadTime: 0.8 } },
+  // A shield goes in the LEFT hand (strapped to the forearm) or on the back.
+  Buckler: { tags: [&#39;back&#39;, &#39;shield&#39;], mass: 2.5, art: &#39;shield&#39; },
+  &#39;Kite Shield&#39;: { tags: [&#39;back&#39;, &#39;shield&#39;], mass: 4, art: &#39;shield&#39; },
+  // Kept, not drunk: the shopkeeper wants one (see THE SHOPKEEPER).
+  Potion: { tags: [&#39;bag&#39;], mass: 0.3, art: &#39;potion&#39; },
+  // Not a weapon: it lives in the bag, and opens the yard&#39;s door.
+  &#39;Iron Key&#39;: { tags: [&#39;key&#39;], mass: 0.1, art: &#39;key&#39; },
+  // Rounds, in stacks.
+  &#39;Pistol Ammo&#39;: { tags: [&#39;ammo&#39;], mass: 0.01, art: &#39;ammo&#39;, stack: 200 },
+  &#39;Rifle Ammo&#39;: { tags: [&#39;ammo&#39;], mass: 0.015, art: &#39;ammo&#39;, stack: 200 },
+  Rockets: { tags: [&#39;ammo&#39;], mass: 1.5, art: &#39;rocket&#39;, stack: 10 },
+  Arrows: { tags: [&#39;ammo&#39;], mass: 0.03, art: &#39;ammo&#39;, stack: 60 },
 }
+// What things are worth (the info floater shows it, in the purse&#39;s currency).
+const COST = { Pistol: 40, SMG: 90, &#39;Assault Rifle&#39;: 160, &#39;Rocket Launcher&#39;: 300, Dagger: 8, &#39;Short Sword&#39;: 20, &#39;Long Sword&#39;: 35, &#39;Hand and a Half&#39;: 60, &#39;Plasma Blade&#39;: 120, Spear: 15, Bow: 50, Buckler: 12, &#39;Kite Shield&#39;: 30, &#39;Pistol Ammo&#39;: 0.5, &#39;Rifle Ammo&#39;: 1, Rockets: 25, Arrows: 0.5, Potion: 10 }
+for (const [kind, cost] of Object.entries(COST)) WEAPONS[kind].cost = cost
 
 // ONE LAUNCHER, carrying whatever is in your right hand. `socket` parents it
 // to the hand BONE, so it follows the animation, and with a socket x/y/z/rx/
@@ -91,7 +126,7 @@ const gun = b3dLauncher({
   socket: &#39;right-hand&#39;,
   ...gripFor(&#39;Pistol&#39;),
   ...WEAPONS.Pistol.fire,
-  ammo: 999, reloadRate: 40, projColor: &#39;#ffdd66&#39;,
+  projColor: &#39;#ffdd66&#39;,
 })
 
 // A QUATERNIUS UAL RIG, not omnidude, and the arena is the reason rather than
@@ -109,9 +144,11 @@ const gun = b3dLauncher({
 // character builder saved in this browser, and picking one swaps the hero for
 // a biped made from it (`characterDoc`), carrying what you hold across.
 const MANNEQUIN = &#39;UAL mannequin&#39;
+// A shop sells at an item&#39;s value and buys back at half.
+const shopPrice = (item, from) =&gt; (WEAPONS[item.kind]?.cost ?? 0) * item.qty * (from?.holder === &#39;shop&#39; ? 1 : 0.5)
 const makeHero = (doc, at) =&gt; b3dBiped(
   {
-    ...(doc ? { characterDoc: doc } : { url: assetUrl(&#39;quaternius/UAL1_core.glb&#39;, 3) }),
+    ...(doc ? { characterDoc: doc } : { url: assetUrl(&#39;quaternius/UAL1_core.glb&#39;, 5) }),
     animationStates: ualAnimationStates(),
     // WHERE THE ARENA IS IN FRONT OF YOU. Spawning at the origin put `pillar-b`
     // (0, -12.3) literally touching your muzzle line, so every shot from the
@@ -121,6 +158,12 @@ const makeHero = (doc, at) =&gt; b3dBiped(
     // built around, and there is room to see a round travel.
     x: at.x, z: at.z, ry: at.ry ?? 0,
     player: true, cameraType: &#39;follow&#39;,
+    // Walk off the 6 m tower and you die where you land; jump off the
+    // catwalk and you land hard.
+    lethalFall: 5,
+    // A turret&#39;s shell takes a quarter; out of its sight you heal.
+    health: 100,
+    healthRegen: 10,
   },
   gun
 )
@@ -131,7 +174,277 @@ let hero = makeHero(null, { x: -4, z: 10 })
 // your right hand is what the launcher carries; a gun in hand is up (aim and
 // fire), anything else is held with the weapon down. The weapon button draws
 // from the hip or back, or puts away what is in hand; dragging works too.
-const loadout = demoLoadout({ catalogue: WEAPONS, equip: { right_side: &#39;Pistol&#39; } })
+//
+// AND SOME OF IT IS LYING ON THE GROUND. Walk up and press E (interact) to
+// pick a thing up into your bag; drag anything out of the loadout onto drop
+// and it lands at your feet. A world item is a KIND: picking it up makes an
+// item of that kind, so items are looked up by kind, never by id.
+const loadout = demoLoadout({
+  catalogue: WEAPONS,
+  equip: { right_side: &#39;Pistol&#39; },
+  // The yard&#39;s two chests are holders in the same inventory.
+  holders: { &#39;gate chest&#39;: {}, &#39;yard chest&#39;: {}, shop: { purse: { gold: 200 } } },
+  price: (item, from) =&gt; shopPrice(item, from),
+  // Money, written as the game writes it: `12 gold` (a label after the
+  // amount; `€` or `$` would go before it).
+  purse: { gold: 25 },
+  currencies: [{ id: &#39;gold&#39;, label: &#39;gold&#39; }],
+  // Dropped is THROWN: 3 m off to the right front, low, and where it lands it
+  // makes a noise, so it is how you lure the enemy away.
+  handleDrop: (item) =&gt; {
+    const node = hero.entries?.rootNodes[0]
+    if (!node) return
+    const f = node.forward
+    // 45 degrees right of facing.
+    const d = { x: (f.x + f.z) / Math.SQRT2, z: (f.z - f.x) / Math.SQRT2 }
+    const p = node.position
+    const thrown = pickup(item.kind, p.x + d.x * 0.4, p.z + d.z * 0.4)
+    thrown.y = 1.1
+    hero.owner?.append(thrown)
+    requestAnimationFrame(() =&gt;
+      thrown.toss({ x: p.x + d.x * 3, z: p.z + d.z * 3 }, { height: 0.3, seconds: 0.45 })
+    )
+  },
+})
+const BAG = { holder: &#39;hero&#39;, container: &#39;bag&#39; }
+const stock = (holder) =&gt; ({ holder, container: &#39;stock&#39; })
+// AMMO: what your guns load is in the bag, in stacks. Start with 36 pistol
+// rounds and nothing else; more lies around (and rockets are in the yard).
+const AMMO = [&#39;Pistol Ammo&#39;, &#39;Rifle Ammo&#39;, &#39;Rockets&#39;, &#39;Arrows&#39;]
+for (const kind of AMMO) loadout.inv.move({ item: kind, to: null })
+loadout.inv.move({ kind: &#39;Pistol Ammo&#39;, qty: 36, to: BAG })
+const heroItems = () =&gt; Object.values(loadout.inv.doc.items).filter((i) =&gt; loadout.inv.where(i.id)?.holder === &#39;hero&#39;)
+const rounds = (kind) =&gt; heroItems().filter((i) =&gt; i.kind === kind).reduce((n, i) =&gt; n + i.qty, 0)
+const useRounds = (kind, n) =&gt; {
+  let got = 0
+  for (const i of heroItems().filter((i) =&gt; i.kind === kind)) {
+    const take = Math.min(n - got, i.qty)
+    if (take &lt;= 0) break
+    loadout.inv.move({ item: i.id, qty: take, to: null })
+    got += take
+  }
+  return got
+}
+// The gun reloads from the bag: whatever the gun in hand loads.
+const loads = () =&gt; WEAPONS[kindOf(inRight())]?.loads
+gun.ammoSource = {
+  count: () =&gt; (loads() ? rounds(loads()) : 0),
+  take: (n) =&gt; (loads() ? useRounds(loads(), n) : 0),
+}
+// Lying on its side (the weapons stand on their grips, blade or barrel up +Y).
+const pickup = (kind, x, z) =&gt; b3dPickup({
+  library: &#39;weapons&#39;, meshName: kind, item: kind,
+  x, y: 0.08, z, rz: 90,
+  whenPickedUp: ({ item }) =&gt; loadout.inv.move({ kind: item, to: BAG }),
+})
+// AMMO AND HEALTH lying about (Kenney&#39;s ammo boxes, a potion and a heart),
+// scaled up to be seen: Kenney&#39;s ammo is a real cartridge&#39;s size.
+// Ammo goes in the bag; health is taken at once, and left lying while you
+// are at full health.
+const kenney = b3dLibrary({ url: assetUrl(&#39;kenney/libraries/weapon-pack.glb&#39;), type: &#39;kenney-weapons&#39; })
+const survival = b3dLibrary({ url: assetUrl(&#39;kenney/libraries/survival-kit.glb&#39;), type: &#39;survival&#39; })
+const platformer = b3dLibrary({ url: assetUrl(&#39;kenney/libraries/platformer-kit.glb&#39;), type: &#39;platformer&#39; })
+const ammoBox = (kind, meshName, qty, x, z) =&gt; b3dPickup({
+  library: &#39;kenney-weapons&#39;, meshName, item: kind, qty, x, y: 0.05, z, scale: 6,
+  whenPickedUp: ({ item, qty }) =&gt; { loadout.inv.move({ kind: item, qty, to: BAG }); say(`${qty} ${item}`) },
+})
+const healer = (library, meshName, heals, x, z, scale = 1) =&gt; b3dPickup({
+  library, meshName, item: meshName, x, y: 0.05, z, scale,
+  refuse: () =&gt; (hero.hp &gt;= 100 ? &#39;You are at full health.&#39; : null),
+  whenRefused: ({ reason }) =&gt; say(reason),
+  whenPickedUp: () =&gt; { hero.heal(heals); say(`+${heals} health`) },
+})
+// THE SHOPKEEPER: a stand-in mannequin behind a counter by the start. E at
+// the counter opens the shop: its stock beside your bag, priced; deal or
+// cancel. It sells ammo by the box and buys anything at half its value.
+loadout.inv.move({ item: &#39;SMG&#39;, to: stock(&#39;shop&#39;) }, { item: &#39;Plasma Blade&#39;, to: stock(&#39;shop&#39;) })
+loadout.inv.move({ kind: &#39;Pistol Ammo&#39;, qty: 120, to: stock(&#39;shop&#39;) })
+loadout.inv.move({ kind: &#39;Rifle Ammo&#39;, qty: 120, to: stock(&#39;shop&#39;) })
+loadout.inv.move({ kind: &#39;Rockets&#39;, qty: 4, to: stock(&#39;shop&#39;) })
+loadout.inv.move({ item: &#39;Kite Shield&#39;, to: stock(&#39;shop&#39;) })
+loadout.inv.move({ kind: &#39;Arrows&#39;, qty: 40, to: stock(&#39;shop&#39;) })
+const SHOP_AT = { x: 7.2, z: 9 }
+// TALKING TO HIM: E at the counter starts a conversation (b3d-conversation).
+// He talks and gestures, his lines and your replies are in a balloon over his
+// head (click one, or press its number), &quot;What do you sell?&quot; opens the shop
+// and the talk picks up when it closes, and his errand takes the potion from
+// the gate chest out of your bag and pays you in rifle rounds.
+// Voiced locally by Qwen3-TTS from bin/speech-shopkeeper.json (a direction per line).
+const voice = (id) =&gt; assetUrl(`speech/shopkeeper-${id}.mp3`, 2)
+const SHOP_TALK = {
+  start: &#39;hello&#39;,
+  nodes: {
+    hello: {
+      lines: [{ speaker: &#39;shopkeeper&#39;, text: &#39;Welcome, welcome. Looking for something?&#39;, audio: voice(&#39;hello&#39;), gesture: &#39;show&#39; }],
+      replies: [
+        { id: &#39;shop&#39;, label: &#39;What do you sell?&#39;, then: [{ goto: &#39;browse&#39; }] },
+        {
+          id: &#39;work&#39;, label: &#39;Need anything?&#39;, line: &#39;Need a hand with anything?&#39;,
+          when: { not: &#39;asked&#39; },
+          then: [{ set: &#39;asked&#39; }, { goto: &#39;errand&#39; }],
+        },
+        {
+          id: &#39;potion&#39;, label: &#39;Your potion.&#39;, line: &quot;Here&#39;s that potion I promised you.&quot;,
+          when: [{ flag: &#39;asked&#39; }, { not: &#39;paid&#39; }, { has: &#39;Potion&#39; }],
+          then: [{ take: &#39;Potion&#39; }, { give: &#39;Rifle Ammo&#39;, qty: 30 }, { set: &#39;paid&#39; }, { goto: &#39;thanks&#39; }],
+        },
+        { id: &#39;bye&#39;, label: &#39;Bye.&#39;, then: [{ goto: &#39;bye&#39; }] },
+      ],
+    },
+    errand: {
+      lines: [
+        { speaker: &#39;shopkeeper&#39;, text: &#39;My knees are not what they were.&#39;, audio: voice(&#39;knees&#39;), gesture: &#39;no&#39; },
+        { speaker: &#39;shopkeeper&#39;, text: &quot;Bring me a potion and I&#39;ll make it worth your while.&quot;, audio: voice(&#39;potion&#39;) },
+      ],
+      then: [{ goto: &#39;more&#39; }],
+    },
+    thanks: {
+      lines: [
+        { speaker: &#39;shopkeeper&#39;, text: &#39;You remembered!&#39;, audio: voice(&#39;remembered&#39;), gesture: &#39;surprise&#39; },
+        { speaker: &#39;shopkeeper&#39;, text: &#39;Here, thirty rounds, on the house.&#39;, audio: voice(&#39;rounds&#39;), gesture: &#39;give&#39; },
+      ],
+      then: [{ goto: &#39;more&#39; }],
+    },
+    // He invites you to look, then the shop opens.
+    browse: {
+      lines: [{ speaker: &#39;shopkeeper&#39;, text: &#39;Please, take a look.&#39;, gesture: &#39;show&#39; }],
+      then: [{ trade: true }, { goto: &#39;after&#39; }],
+    },
+    after: { lines: [{ speaker: &#39;shopkeeper&#39;, text: &#39;Pleasure doing business.&#39;, audio: voice(&#39;after&#39;), gesture: &#39;yes&#39; }], then: [{ goto: &#39;more&#39; }] },
+    more: {
+      lines: [{ speaker: &#39;shopkeeper&#39;, text: &#39;Anything else?&#39;, audio: voice(&#39;more&#39;) }],
+      replies: [], // filled from hello&#39;s, below
+    },
+    bye: { lines: [{ speaker: &#39;shopkeeper&#39;, text: &#39;Mind how you go.&#39;, audio: voice(&#39;bye&#39;) }], then: [{ end: true }] },
+  },
+}
+SHOP_TALK.nodes.more.replies = SHOP_TALK.nodes.hello.replies
+const shopTalk = b3dConversation()
+shopTalk.script = SHOP_TALK
+const heroCount = (kind) =&gt; heroItems().filter((i) =&gt; i.kind === kind).reduce((n, i) =&gt; n + (i.qty ?? 1), 0)
+shopTalk.host = {
+  has: (kind, qty) =&gt; heroCount(kind) &gt;= qty,
+  give: (kind, qty) =&gt; {
+    const r = loadout.inv.move({ kind, qty, to: BAG })
+    if (r.ok) say(`${qty} ${kind}`)
+    return r.ok ? null : r.reasons.join(&#39;, &#39;)
+  },
+  take: (kind, qty) =&gt; {
+    const it = heroItems().find((i) =&gt; i.kind === kind)
+    if (!it) return `no ${kind}`
+    const r = loadout.inv.move({ item: it.id, qty, to: null })
+    return r.ok ? null : r.reasons.join(&#39;, &#39;)
+  },
+  trade: (done) =&gt; openTrade(&#39;shop&#39;, { title: &#39;Shop&#39;, at: () =&gt; counter.mesh?.position, price: shopPrice, done }),
+}
+const shopkeeper = b3dBiped({
+  url: assetUrl(&#39;quaternius/UAL1_core.glb&#39;, 5),
+  animationStates: ualAnimationStates(),
+  id: &#39;Shopkeeper&#39;,
+  ...SHOP_AT, ry: 90, // facing the start (-x)
+}, shopTalk)
+const counter = b3dBox({ meshName: &#39;shop-counter&#39;, x: 6.2, y: 0.5, z: 9, width: 0.6, height: 1, depth: 2.4, color: &#39;#8a6a44&#39;, solid: &#39;on&#39; })
+const shop = b3dInteractive({
+  target: &#39;shop-counter&#39;, reach: 2.5,
+  whenActivated: () =&gt; {
+    if (!shopTalk.talk || shopTalk.talk.ended) shopTalk.start(hero)
+  },
+})
+// MONEY lying about: a pile of gold by the gate chest, into your purse.
+const gold = (qty, x, z) =&gt; b3dPickup({
+  library: &#39;platformer&#39;, meshName: &#39;coin-gold&#39;, item: &#39;gold&#39;, qty, x, y: 0.05, z, scale: 1.5,
+  whenPickedUp: ({ qty }) =&gt; {
+    loadout.inv.move({ to: null, pay: { holder: &#39;&#39;, in: &#39;gold&#39; }, payee: &#39;hero&#39;, amount: qty })
+    say(`+${qty} gold`)
+  },
+})
+const LYING_ABOUT = [
+  gold(50, -5, 21.5),
+  shopkeeper, counter, shop,
+  ammoBox(&#39;Pistol Ammo&#39;, &#39;ammo_uzi&#39;, 24, 1, 7),
+  ammoBox(&#39;Rifle Ammo&#39;, &#39;ammo_machinegun&#39;, 30, -9, -6),
+  ammoBox(&#39;Pistol Ammo&#39;, &#39;ammo_uzi&#39;, 24, 12, 12),
+  healer(&#39;survival&#39;, &#39;bottle&#39;, 30, 3, 6.5, 2.5),
+  healer(&#39;platformer&#39;, &#39;heart&#39;, 60, -14, -8),
+]
+const ON_THE_GROUND = [[&#39;Assault Rifle&#39;, -2, 6.5], [&#39;Long Sword&#39;, -4.5, 6], [&#39;Buckler&#39;, -7, 6.5], [&#39;Bow&#39;, -9.5, 6]]
+for (const [kind] of ON_THE_GROUND) loadout.inv.move({ item: kind, to: null })
+// THE YARD, behind you: a walled pen (too high to climb) whose door is
+// locked. The key is in the chest by the door; inside is a chest with the
+// rocket launcher and the big sword in it. Having the key is having an item
+// of its kind.
+loadout.inv.move({ item: &#39;Iron Key&#39;, to: stock(&#39;gate chest&#39;) })
+loadout.inv.move({ item: &#39;Rocket Launcher&#39;, to: stock(&#39;yard chest&#39;) }, { item: &#39;Hand and a Half&#39;, to: stock(&#39;yard chest&#39;) })
+loadout.inv.move({ kind: &#39;Rockets&#39;, qty: 4, to: stock(&#39;yard chest&#39;) })
+loadout.inv.move({ kind: &#39;Arrows&#39;, qty: 12, to: stock(&#39;gate chest&#39;) })
+loadout.inv.move({ item: &#39;Potion&#39;, to: stock(&#39;gate chest&#39;) })
+const has = (kind) =&gt; Object.values(loadout.inv.doc.items).some((i) =&gt; i.kind === kind)
+// OPENING A CHEST opens a trade: its contents beside your bag, take what you
+// take and leave the rest. One panel (no button on the system bar), one
+// trade per chest, made the first time it opens. Walk off and it closes.
+const tradeBox = b3dPanel({ title: &#39;Chest&#39;, icon: &#39;lucideBackpack&#39;, barButton: &#39;off&#39; })
+// In front of you, in the middle of the view.
+tradeBox.screenAnchor = { left: &#39;50%&#39;, top: &#39;50%&#39;, anchor: &#39;center&#39; }
+const trades = {}
+let trading = null
+const endTrade = () =&gt; {
+  if (!trading) return
+  const { chest, done } = trading
+  trading = null
+  tradeBox.hide()
+  if (chest) chest.open = false
+  // A trade opened from a conversation hands back to it.
+  done?.()
+}
+// Closed with its own ×, it ends the same way.
+tradeBox.addEventListener(&#39;paneltoggle&#39;, (e) =&gt; {
+  if (!e.detail.open) endTrade()
+})
+// One trade per holder, made the first time; a shop&#39;s has prices.
+const openTrade = (holder, { chest = null, title = &#39;Chest&#39;, at, price, done } = {}) =&gt; {
+  trades[holder] ??= tradePanel({
+    inv: loadout.inv, carry: createCarry(),
+    mine: BAG, theirs: stock(holder),
+    titles: { mine: &#39;you&#39;, theirs: holder },
+    // The shopkeeper, in a sentence (&quot;he can&#39;t offer more than 200 gold&quot;).
+    they: holder === &#39;shop&#39; ? &#39;he&#39; : undefined,
+    price,
+    // How many, on a stack.
+    decorations: (it) =&gt; (it.qty &gt; 1 ? { badge: `×${it.qty}` } : undefined),
+    // Ammo goes a box (24 rounds) at a time, not the whole stack.
+    moveFor: (item, from, to) =&gt; {
+      const it = loadout.inv.doc.items[item]
+      return AMMO.includes(it?.kind) ? { item, qty: Math.min(24, it.qty), to } : { item, to }
+    },
+    handleDone: endTrade,
+  })
+  trades[holder].begin()
+  tradeBox.title = title
+  tradeBox.svg = trades[holder].svg
+  tradeBox.show()
+  trading = { chest, at: at ?? (() =&gt; chest?.mesh?.position), done }
+}
+const chest = (holder, at) =&gt; {
+  const el = b3dChest({ ...at, whenOpened: () =&gt; openTrade(holder, { chest: el }), whenClosed: () =&gt; trading?.chest === el &amp;&amp; endTrade() })
+  return el
+}
+// Walls 2.8 m: a mantle reaches 2.2.
+const wall = (x, z, width, depth, height = 2.8, y = 0) =&gt;
+  b3dBox({ x, y: y + height / 2, z, width, height, depth, color: &#39;#9a9284&#39;, solid: &#39;on&#39; })
+const YARD = [
+  wall(-2.4, 24, 3.4, 0.2), wall(2.4, 24, 3.4, 0.2), // the front, either side of the door
+  wall(0, 24, 1.4, 0.2, 0.5, 2.3), // over the door
+  wall(0, 30, 8.2, 0.2), wall(-4, 27, 0.2, 6), wall(4, 27, 0.2, 6),
+  b3dDoor({
+    x: 0, z: 24, lock: &#39;Iron Key&#39;,
+    hasKey: (key) =&gt; has(key),
+    whenRefused: ({ key }) =&gt; say(`Locked. It needs the ${key}.`),
+  }),
+  chest(&#39;gate chest&#39;, { x: -2.5, z: 22.8 }),
+  chest(&#39;yard chest&#39;, { x: 0, z: 28.9 }),
+  tradeBox,
+]
+const kindOf = (id) =&gt; (id ? loadout.inv.doc.items[id]?.kind ?? null : null)
 const body = (slot) =&gt; ({ holder: &#39;hero&#39;, container: &#39;body&#39;, slot })
 const slotsNow = () =&gt; loadout.inv.doc.holders.hero.containers.body.slots
 const inRight = () =&gt; slotsNow().hand_right.holds
@@ -146,18 +459,70 @@ const wire = (h) =&gt; {
       return
     }
     // Draw: what is on the right hip, then the left, then the back.
-    const from = away.map((s) =&gt; slotsNow()[s].holds).find(Boolean)
+    const from = away.map((s) =&gt; slotsNow()[s].holds).find((id) =&gt; id &amp;&amp; !loadout.inv.check({ item: id, to: body(&#39;hand_right&#39;) }).length)
     if (from) loadout.inv.move({ item: from, to: body(&#39;hand_right&#39;), swap: true })
   }
   return h
 }
+// WHAT IS WORN, drawn on the body: what is in the left hand is held there
+// (a shield strapped to the forearm, a dagger in the hand, each class&#39;s grip
+// mirrored from the right if it is set for the right), and whatever is on the
+// back rides across the shoulders (hold-grip&#39;s mounts). Only the right hand is
+// a launcher; these are models.
+let gear = { key: &#39;&#39;, nodes: [] }
+// Babylon, from sceneCreated (lowercase: see the doc transpiler&#39;s all-caps rule).
+let babylon = null
+const wearGear = (h) =&gt; {
+  if (!babylon) return
+  const skeleton = h.entries?.skeletons?.[0]
+  const left = kindOf(slotsNow().hand_left.holds)
+  const back = kindOf(slotsNow().back.holds)
+  const key = `${skeleton?.uniqueId}|${left}|${back}`
+  if (!skeleton || key === gear.key) return
+  for (const n of gear.nodes) n.dispose()
+  gear = { key, nodes: [] }
+  const mount = (kind, where, g) =&gt; {
+    const at = mountNode(skeleton, where)
+    const node = at &amp;&amp; weapons.instantiate?.(kind, { canonical: true })
+    if (!node) return
+    node.parent = at
+    const d = Math.PI / 180
+    const turn = babylon.Quaternion.FromEulerAngles(g.rx * d, g.ry * d, g.rz * d)
+    const grip = (heldGrip(node) ?? babylon.Vector3.Zero()).scale(g.scale).applyRotationQuaternion(turn)
+    node.position.set(g.x - grip.x, g.y - grip.y, g.z - grip.z)
+    node.rotationQuaternion = turn
+    node.scaling.setAll(g.scale)
+    gear.nodes.push(node)
+  }
+  // The left hand&#39;s thing on its LEFT mount (a shield strapped to the
+  // forearm, a dagger in the hand), its grip mirrored if set for the right.
+  // In the hand or on the forearm: the class&#39;s own place unless the
+  // character wears it elsewhere (a buckler in the fist).
+  const place = left &amp;&amp; placeIn(left, gripsKept())
+  if (left) mount(left, holdMount(holdClassOf(left), &#39;l&#39;, place), holdGrip(left, keptFor(left), undefined, &#39;l&#39;, place))
+  if (back) mount(back, STOW_MOUNT, stowGrip(back, gripsKept()))
+}
+// Each gun keeps what is in its magazine while it is put away.
+const magazines = {}
+let inHand = null
 const hold = (h) =&gt; {
   const id = inRight()
-  const w = id ? WEAPONS[id] : null
-  if (w &amp;&amp; gun.meshName !== id) {
-    Object.assign(gun, gripFor(id), w.fire ?? {}, { meshName: id })
+  const kind = kindOf(id)
+  const w = kind ? WEAPONS[kind] : null
+  // Any weapon in hand is the launcher&#39;s model, a sword too (it is shown, not
+  // fired); only a gun has a magazine to keep.
+  if (w &amp;&amp; id !== inHand) {
+    if (inHand &amp;&amp; WEAPONS[kindOf(inHand)]?.fire) magazines[inHand] = gun.loaded
+    inHand = id
+    // A bow rides the LEFT hand&#39;s socket (hold-grip&#39;s mount for its class).
+    const side = holdMount(holdClassOf(kind)).side
+    const socket = side === &#39;l&#39; ? &#39;left-hand&#39; : &#39;right-hand&#39;
+    Object.assign(gun, gripFor(kind, side), w.fire ?? {}, { meshName: kind, socket })
+    if (w.fire) gun.loaded = magazines[id] ?? w.fire.ammo
     gun.reloadModel()
   }
+  // The clips the raised weapon plays (a new hero, after a respawn, too).
+  if (w?.fire) h.setAimClips(holdClassOf(kind) === &#39;bow&#39; ? AIM_CLIPS.bow : AIM_CLIPS.pistol)
   h.holdingWeapon = w != null &amp;&amp; w.fire == null
   h.setGunplay(w?.fire != null)
 }
@@ -183,6 +548,7 @@ const useCharacter = async (name) =&gt; {
   const doc = name === MANNEQUIN ? null : await store.get(stored(name)).catch(() =&gt; null)
   // Gone (forgotten, or another browser&#39;s): the menu says who you are.
   if (name !== MANNEQUIN &amp;&amp; !doc) { playChar.pick.value = MANNEQUIN; return }
+  heroDoc = doc
   // Where the hero is now and which way he faces, so the new one takes over there.
   const was = hero.entries?.rootNodes[0]
   const p = was?.position
@@ -191,6 +557,10 @@ const useCharacter = async (name) =&gt; {
   const next = wire(makeHero(doc, at))
   hero.replaceWith(next)
   hero = next
+  // Its own placements: the thing in hand is gripped again.
+  if (inHand &amp;&amp; WEAPONS[kindOf(inHand)]?.fire) magazines[inHand] = gun.loaded
+  inHand = null
+  gear.key = &#39;&#39;
   hold(next)
   playChar.pick.value = name
   try { localStorage.setItem(&#39;playground-character&#39;, name) } catch {}
@@ -204,14 +574,116 @@ const start = asked ? (asked === WORKING_CHARACTER ? BUILDER : asked) : last
 if (start &amp;&amp; start !== MANNEQUIN) useCharacter(start)
 else playChar.pick.value = MANNEQUIN
 
+// SOMETHING SHOOTS BACK: a turret past the cover line, slow enough to dodge,
+// aiming at the hero&#39;s chest. Cover is cover now.
+const turret = b3dTurret({ x: 0, z: -30, range: 35, fireRate: 0.5, muzzleSpeed: 25, smart: 1, damage: 25, blastRadius: 2 })
+// ENEMIES ON FOOT (the mannequin, a sword swing for a blow): one stands
+// guard with its back to where you start, one walks a loop past the cover
+// line. Oblivious until they notice you; three pistol shots
+// put one down, and a new one takes its place a little later.
+const ENEMIES = [
+  // (A biped&#39;s ry 0 faces -z; -35 faces away from the start, toward +x -z.)
+  // Beyond the cover line, over 25 m (its sight) from the start, the shop and
+  // everything lying about, so they are safe to play with.
+  { x: 12, z: -22, ry: -35 },
+  { x: -10, z: -20, patrol: [{ x: -10, z: -20 }, { x: 7, z: -20 }, { x: 7, z: -27 }, { x: -10, z: -27 }] },
+]
+const makeEnemy = ({ patrol, ...at }, i) =&gt; b3dBiped(
+  {
+    url: assetUrl(&#39;quaternius/UAL1_core.glb&#39;, 5),
+    animationStates: ualAnimationStates([{ name: &#39;attack&#39;, animation: &#39;Sword_Attack&#39;, loop: false }]),
+    ...at,
+    health: 60,
+  },
+  // Sight 25 m: the start is out of reach of both, so you can learn the
+  // controls before anything comes for you.
+  b3dNpc({ skill: 0.1, attackDamage: 20, seed: i + 1, patrol: patrol ?? null, sightRange: 25 })
+)
+const enemies = ENEMIES.map(makeEnemy)
+const focus = inputFocus(hero)
+// A fresh one where it began: after it is put down, and when you respawn (or
+// it would be waiting where you start).
+const newEnemy = (i) =&gt; {
+  const next = makeEnemy(ENEMIES[i], i)
+  next.addEventListener(&#39;destroyed&#39;, () =&gt; setTimeout(() =&gt; newEnemy(i), 8000))
+  enemies[i].replaceWith(next)
+  enemies[i] = next
+}
+enemies.forEach((e, i) =&gt; e.addEventListener(&#39;destroyed&#39;, () =&gt; setTimeout(() =&gt; newEnemy(i), 8000)))
+const enemyText = (e) =&gt; {
+  const d = e.querySelector(&#39;tosi-b3d-npc&#39;)?.debugState
+  if (!d) return &#39;&#39;
+  if (e.halted) return &#39;down&#39;
+  return d.mode + (d.sees ? &#39;, sees you&#39; : d.senses ? &#39;, senses you&#39; : d.heard ? &#39;, heard something&#39; : &#39;&#39;)
+}
+
+// THE HUD: health, what the gun holds and what just happened (a locked
+// door, what a pickup gave), small, at the bottom middle of the view (where there is least to see), and in a
+// headset with the other panels. A system panel with no button, open from the
+// start; drag it anywhere (it is all grip), and it stays there.
+const { svg: hudSvgEl, rect, text } = svgElements
+const HUD_W = 180
+const HUD_H = 40
+const BAR_W = HUD_W - 16
+const hudFont = { &#39;font-family&#39;: &#39;system-ui, sans-serif&#39;, &#39;font-size&#39;: 12 }
+const hudBar = rect({ x: 8, y: 8, width: BAR_W, height: 7, rx: 3.5, fill: &#39;#e04848&#39; })
+const hudAmmo = text({ x: 8, y: 31, fill: &#39;#e8eef8&#39;, ...hudFont })
+const hudSaid = text({ x: HUD_W - 8, y: 31, fill: &#39;#ffd966&#39;, &#39;text-anchor&#39;: &#39;end&#39;, ...hudFont })
+const hud = b3dPanel({ icon: &#39;heart&#39;, title: &#39;Status&#39;, barButton: &#39;off&#39;, exclusive: &#39;off&#39;, chrome: &#39;none&#39;, open: true })
+// Its height stated: a system panel otherwise fits its height to the room,
+// at least 80 px, twice this.
+hud.screenAnchor = { left: &#39;50%&#39;, anchorX: 0.5, bottom: &#39;2%&#39;, anchorY: 1, height: HUD_H }
+hud.svg = hudSvgEl(
+  { viewBox: `0 0 ${HUD_W} ${HUD_H}`, width: HUD_W, height: HUD_H },
+  rect({ x: 0, y: 0, width: HUD_W, height: HUD_H, rx: 8, fill: &#39;#1b2230&#39;, &#39;fill-opacity&#39;: 0.45 }),
+  rect({ x: 8, y: 8, width: BAR_W, height: 7, rx: 3.5, fill: &#39;#3a4252&#39;, &#39;fill-opacity&#39;: 0.8 }),
+  hudBar, hudAmmo, hudSaid
+)
+// All of it is a handle: a press anywhere drags it (it has no controls).
+hud.svg.handlePointer = () =&gt; {}
+hud.svg.gripHit = () =&gt; true
+const shown = { hp: -1, ammo: null, said: null }
+const showHud = () =&gt; {
+  const hp = hero.halted ? 0 : Math.max(0, Math.round(hero.hp))
+  if (hp !== shown.hp) hudBar.setAttribute(&#39;width&#39;, String((BAR_W * (shown.hp = hp)) / 100))
+  const ammo = hero.gunplay &amp;&amp; loads() ? `${loads()}: ${gun.reloading ? &#39;reloading&#39; : gun.loaded} / ${rounds(loads())}` : &#39;&#39;
+  if (ammo !== shown.ammo) hudAmmo.textContent = shown.ammo = ammo
+  if (said !== shown.said) hudSaid.textContent = shown.said = said
+}
+// What just happened, for a few seconds.
+let said = &#39;&#39;
+let saidTimer = 0
+const say = (text) =&gt; {
+  said = text
+  clearTimeout(saidTimer)
+  saidTimer = setTimeout(() =&gt; { said = &#39;&#39; }, 4000)
+}
+
 preview.append(
   b3d(
     {
-      style: &#39;width:100%;height:100%&#39;,
+      style: &#39;flex: 1; min-height: 0&#39;,
       // Something for the weapons&#39; metal to reflect: without it a PBR metal
       // has nothing to show and renders nearly black.
-      sceneCreated(el) {
+      sceneCreated(el, b) {
+        babylon = b
+        // For the console: the inventory (move things, read the purse).
+        el.inventory = loadout.inv
         studioEnvironment(el.scene, { sky: &#39;#7d9cc4&#39;, horizon: &#39;#e8e4da&#39;, ground: &#39;#55604a&#39; })
+        el.scene.onBeforeRenderObservable.add(() =&gt; {
+          wearGear(hero)
+          // Walked away from an open chest: the trade closes.
+          const chestAt = trading?.at()
+          if (chestAt &amp;&amp; hero.mesh &amp;&amp; hero.mesh.position.subtract(chestAt).length() &gt; 3) endTrade()
+          if (hero.aimTarget &amp;&amp; !hero.halted) turret.track(hero.aimTarget)
+          else turret.clearTarget()
+          showHud()
+        })
+        // What each enemy is doing, in Perf Stats (a diagnostic, not the game&#39;s).
+        el.addDebugSource({
+          name: &#39;enemies&#39;,
+          lines: () =&gt; [`guard: ${enemyText(enemies[0])}`, `patrol: ${enemyText(enemies[1])}`],
+        })
       },
       // The glass pad shows only what this demo USES. These are control names,
       // not a mapping name (`gamepad: &#39;biped&#39;` names nothing and draws nothing).
@@ -238,20 +710,42 @@ preview.append(
       },
     },
     weapons,
+    kenney, survival, platformer,
+    turret,
+    ...LYING_ABOUT,
+    ...ON_THE_GROUND.map(([kind, x, z]) =&gt; pickup(kind, x, z)),
+    ...YARD,
+    ...enemies,
     ...playground(),
     ...loadout.panels(),
-    inputFocus(hero)
+    hud,
+    // Death&#39;s exit: the panel, and a new hero back at the start.
+    b3dDeath({
+      title: &#39;DEAD&#39;,
+      // A person, not an aircraft: watch from close by.
+      orbitRadius: 5,
+      orbitHeight: 2.5,
+      respawn() {
+        // The dead hero is already gone (death removes it), so the new one
+        // goes into the focus manager, which takes it.
+        const next = wire(makeHero(heroDoc, { x: -4, z: 10 }))
+        focus.append(next)
+        hero = next
+        hold(next)
+        enemies.forEach((_, i) =&gt; newEnemy(i))
+      },
+    }),
+    focus
   )
 )
 </code></pre>
-<pre><code class="language-css">.preview { height: 100%; }
+<pre><code class="language-css">.preview { height: 100%; display: flex; flex-direction: column; }
 </code></pre>
-<p><strong>Two modes, and the right bumper (or clicking the right stick) is the
-switch.</strong> You start with a pistol on your hip and the rest of
+<p><strong>Two modes, and the right bumper is the switch.</strong> You start with a pistol on your hip and the rest of
 <a href="/character-builder/">Tonio&#39;s weapons</a> in the bag: open the loadout from its
 button on the system bar and drag any of them onto a hip, your back or your
 right hand. With the weapon down you are walking: <strong>R</strong> sprints. Press <strong>right
-bumper</strong> and you draw what is on your hip (or back), and if it is a gun it
+shift</strong> (middle click, or the right bumper on a pad) and you draw what is on your hip (or back), and if it is a gun it
 comes up: now <strong>R</strong> fires, <strong>Q</strong> aims down the sights, and a ring shows where
 the round will actually land, sinking as the range grows because it is the
 real ballistic arc rather than a dot in the middle of the screen. You cannot
@@ -260,16 +754,72 @@ Each gun fires its own way (the SMG fast, the rocket launcher slow and heavy).
 A blade, the spear or the buckler takes a guard (UAL&#39;s <code>Sword_Idle</code>) and <strong>R</strong>
 swings it (<code>Sword_Attack</code>, played through; held, it swings again). Press the
 bumper again to put away what is in your hand. Only the right hand is drawn.</p>
+<p><strong>Ammo.</strong> A gun holds a magazine (the pistol 12, the SMG and rifle 30, the
+rocket launcher one) and reloads from what is in your bag: <strong>J</strong> (d-pad
+left) reloads, and an empty gun reloads itself when you pull the trigger.
+The panel at the bottom of the view shows your health, what is loaded and what is left; drag it wherever you like. You start
+with 36 pistol rounds; ammo boxes lie about, and each gun keeps its own
+magazine while it is put away.</p>
+<p><strong>Health.</strong> A potion (30) and a heart (60) lie about: walk up and press
+<strong>E</strong>. At full health they stay where they are.</p>
+<p><strong>A shop, and someone to talk to.</strong> The mannequin behind the counter to your
+right is a shopkeeper: press <strong>E</strong> at the counter and he talks. His lines and
+your replies appear in a balloon over his head; click a reply or press its
+number. Ask what he sells and his stock opens beside your bag, with prices;
+when you close it he carries on. Ask whether he needs anything, then bring
+him the potion from the gate chest. Walk away and the conversation ends.
+In the shop, drag things across either way (ammo goes a box of 24 at a time); the line
+under the lists says whether you pay or receive and how much. <strong>Deal</strong>
+settles, <strong>cancel</strong> puts it all back. It sells at an item&#39;s value and buys
+at half. You have 25 gold.</p>
+<p><strong>Things to pick up.</strong> A rifle, a sword and a buckler lie in front of you:
+walk up and press <strong>E</strong> to pick one up (you kneel for it), and it goes in your
+bag. Drag anything from the loadout onto <strong>drop</strong> and you throw it: it lands
+6 m ahead with a clatter the enemy hears.</p>
+<p><strong>A locked yard.</strong> Behind the start is a walled yard with a locked door.
+The key is in the chest beside it: press <strong>E</strong> and the chest opens with
+what is inside next to your bag; take what you want and leave the rest. The
+key opens the door, and the chest inside holds the rocket launcher, the big
+sword and rockets.</p>
+<p><strong>Something hunts you.</strong> Two enemies: one stands guard
+beyond the cover line with its back to you, one walks a loop near it. Neither
+can see the start, the shop or the things lying about, so you can try those in
+peace; the fight starts when you cross toward the cover line.
+Each is oblivious until it notices you: anywhere in front of it within 25 m
+(cover hides you; where you start, neither can see you), or within 10 m behind it. Crouch (left shift) and those
+drop to a third, so you can creep to 3 m behind one. A shot is heard 25 m
+off. Noticed, it chases and swings when it reaches you; lose it and it
+searches where it last saw you, then goes back to its post or its route.
+Throw something (drop it from the loadout) and it goes to look where it
+landed. It is deliberately dumb: it runs to where you WERE, so a sidestep
+beats it. Bullets hit where they land: a head shot does two and a half
+times the damage, a limb half: one pistol round to the head puts one down,
+three to the body, five to the arms and legs. Add <code>#debug</code> to the
+page&#39;s address and Perf Stats, in the settings panel, says what each is doing.</p>
+<p><strong>Something shoots back.</strong> A turret past the cover line fires slow shells at
+you (four hits kill); each hit staggers you, and out of its sight you heal.
+Crouch behind the low wall or duck behind a pillar.</p>
+<p><strong>Falls hurt.</strong> Jump off the catwalk and you land hard (a roll that holds you a
+moment); walk off the top of the tower and you die where you land, then
+respawn at the start.</p>
 <p><strong>WASD</strong> moves, <strong>arrow keys</strong> look, <strong>space</strong> jumps, <strong>left shift</strong> sneaks,
-<strong>E</strong> interacts, <strong>Y</strong> switches between third and first person. On a pad,
-clicking the left stick sneaks.</p>
+<strong>E</strong> interacts, <strong>Y</strong> switches between third and first person. On a pad
+the actions are on the right hand: <strong>A</strong> attacks, <strong>B</strong> uses (doors, chests,
+the lift, picking up, talking; with the weapon up it ducks instead),
+clicking the <strong>right stick</strong> jumps, and clicking the left stick sneaks.
+<strong>Hold D-pad up</strong> to reach the system bar with the pad: left and right step
+along it, <strong>B</strong> opens a panel, up and down cycle through its controls, left
+and right move sliders, <strong>B</strong> presses. Hold up in a panel to close it, and on
+the bar to go back to playing; a chest&#39;s panel closes straight back to
+playing. On the keyboard, <strong>Tab</strong> steps
+through an open panel.</p>
 <p><strong>Play as a character of your own.</strong> Make one in the
 <a href="/character-builder/">character builder</a> (or press <strong>make your own
 character…</strong> in this page&#39;s settings panel, the goggles on the bar) and press
 <strong>play in Biped Playground</strong> there, or save it and pick it from <strong>character</strong>
 here. It takes the hero&#39;s place where he stands, holding what you held. Characters
 belong to the browser that made them.</p>
-<p>Things to try: put the pistol in the bag and try to raise it (nothing to raise), drag the rifle into your hand (it comes up, and both hands are taken); carry a sword on your hip and draw it; swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
+<p>Things to try: put the pistol in the bag and try to raise it (nothing to raise), pick up the rifle and drag it into your hand (it comes up, and both hands are taken); carry a sword on your hip and draw it; swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
 and watch the ring disappear behind it until you stand; walk the cover line and
 compare the railing with the wall beside it.</p>
 <h2 id="using-it">Using it</h2>
@@ -312,7 +862,7 @@ arrangement is a test you walk around in rather than one you read.</p>
 </tr>
 <tr>
 <td>the <strong>catwalk</strong></td>
-<td>verticality, a firing position, and something to fall off</td>
+<td>verticality, a firing position, and something to fall off (a hard landing)</td>
 </tr>
 <tr>
 <td>the <strong>targets</strong></td>
@@ -516,9 +1066,22 @@ showing you&quot;</em> can be one line of data.</p>
     <ul id="tosi-nav-characters-and-vehicles">
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-biped" aria-label="b3d-biped"></button><a class="doc-link" href="b3d-biped/">b3d-biped</a></div>
       <ul id="tosi-nav-b3d-biped">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-npc" aria-label="b3d-npc"></button><a class="doc-link" href="b3d-npc/">b3d-npc</a></div>
+        <ul id="tosi-nav-b3d-npc">
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-conversation" aria-label="b3d-conversation"></button><a class="doc-link" href="b3d-conversation/">b3d-conversation</a></div>
+          <ul id="tosi-nav-b3d-conversation">
+            <li><a class="doc-link" href="balloon-layout/">balloon layout</a></li>
+          </ul></li>
+          <li><a class="doc-link" href="conversation/">conversation</a></li>
+          <li><a class="doc-link" href="noise/">noise</a></li>
+          <li><a class="doc-link" href="npc-brain/">npc-brain</a></li>
+          <li><a class="doc-link" href="sensorium/">sensorium</a></li>
+        </ul></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-aim" aria-label="aim"></button><a class="doc-link" href="aim/">aim</a></div>
         <ul id="tosi-nav-aim">
           <li><a class="doc-link" href="aim-ik/">aim IK</a></li>
+          <li><a class="doc-link" href="aim-assist/">aim-assist</a></li>
+          <li><a class="doc-link" href="two-bone-ik/">two-bone IK</a></li>
         </ul></li>
         <li><a class="doc-link" href="animation-layers/">animation-layers</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-core" aria-label="character core"></button><a class="doc-link" href="character-core/">character core</a></div>
@@ -531,6 +1094,7 @@ showing you&quot;</em> can be one line of data.</p>
             <ul id="tosi-nav-rigged-body-glb">
               <li><a class="doc-link" href="spring-vrm/">spring-vrm</a></li>
               <li><a class="doc-link" href="body-export/">body export</a></li>
+              <li><a class="doc-link" href="glb-textures/">glb textures</a></li>
             </ul></li>
           </ul></li>
           <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-chunks" aria-label="glb-chunks"></button><a class="doc-link" href="glb-chunks/">glb-chunks</a></div>
@@ -560,6 +1124,7 @@ showing you&quot;</em> can be one line of data.</p>
           <li><a class="doc-link" href="rig-markers/">rig markers</a></li>
         </ul></li>
         <li><a class="doc-link" href="spring-chain-babylon/">spring bones</a></li>
+        <li><a class="doc-link" href="fall/">fall</a></li>
       </ul></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-aircraft" aria-label="b3d-aircraft"></button><a class="doc-link" href="b3d-aircraft/">b3d-aircraft</a></div>
       <ul id="tosi-nav-b3d-aircraft">
@@ -605,7 +1170,10 @@ showing you&quot;</em> can be one line of data.</p>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-interactive" aria-label="b3d-interactive"></button><a class="doc-link" href="b3d-interactive/">b3d-interactive</a></div>
       <ul id="tosi-nav-b3d-interactive">
         <li><a class="doc-link" href="interaction/">interaction</a></li>
+        <li><a class="doc-link" href="b3d-pickup/">b3d-pickup</a></li>
         <li><a class="doc-link" href="interactive-behavior/">interactive-behavior</a></li>
+        <li><a class="doc-link" href="b3d-door/">b3d-door</a></li>
+        <li><a class="doc-link" href="b3d-chest/">b3d-chest</a></li>
       </ul></li>
       <li><a class="doc-link" href="b3d-trigger/">b3d-trigger</a></li>
       <li><a class="doc-link" href="b3d-collisions/">b3d-collisions</a></li>
@@ -623,6 +1191,8 @@ showing you&quot;</em> can be one line of data.</p>
       <ul id="tosi-nav-b3d-launcher">
         <li><a class="doc-link" href="ballistics/">ballistics</a></li>
         <li><a class="doc-link" href="guidance/">guidance</a></li>
+        <li><a class="doc-link" href="gun-sound/">gun-sound</a></li>
+        <li><a class="doc-link" href="magazine/">magazine</a></li>
       </ul></li>
       <li><a class="doc-link" href="b3d-warhead/">b3d-warhead</a></li>
       <li><a class="doc-link" href="b3d-turret/">b3d-turret</a></li>
@@ -639,6 +1209,9 @@ showing you&quot;</em> can be one line of data.</p>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-inventory" aria-label="inventory"></button><a class="doc-link" href="inventory/">inventory</a></div>
       <ul id="tosi-nav-inventory">
         <li><a class="doc-link" href="inventory-box/">inventory-box</a></li>
+        <li><a class="doc-link" href="trade/">trade</a></li>
+        <li><a class="doc-link" href="inventory-trade/">inventory-trade</a></li>
+        <li><a class="doc-link" href="currency/">currency</a></li>
       </ul></li>
       <li><a class="doc-link" href="min-sim-conformance/">min-sim-conformance</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-spawner" aria-label="b3d-spawner"></button><a class="doc-link" href="b3d-spawner/">b3d-spawner</a></div>
@@ -654,6 +1227,7 @@ showing you&quot;</em> can be one line of data.</p>
       <ul id="tosi-nav-widgets3d">
         <li><a class="doc-link" href="playback-field/">Playback</a></li>
         <li><a class="doc-link" href="widget-box/">widget-box</a></li>
+        <li><a class="doc-link" href="pager-field/">Pager</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widget-semantics" aria-label="widget semantics"></button><a class="doc-link" href="widget-semantics/">widget semantics</a></div>
         <ul id="tosi-nav-widget-semantics">
           <li><a class="doc-link" href="aria-mirror/">aria mirror</a></li>
@@ -704,7 +1278,10 @@ showing you&quot;</em> can be one line of data.</p>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-panel" aria-label="b3d-panel"></button><a class="doc-link" href="b3d-panel/">b3d-panel</a></div>
         <ul id="tosi-nav-b3d-panel">
           <li><a class="doc-link" href="frame-panel/">frame-panel</a></li>
-          <li><a class="doc-link" href="xr-frames/">xr-frames</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-xr-frames" aria-label="xr-frames"></button><a class="doc-link" href="xr-frames/">xr-frames</a></div>
+          <ul id="tosi-nav-xr-frames">
+            <li><a class="doc-link" href="xr-grab/">xr-grab</a></li>
+          </ul></li>
           <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-system-bar" aria-label="system-bar"></button><a class="doc-link" href="system-bar/">system-bar</a></div>
           <ul id="tosi-nav-system-bar">
             <li><a class="doc-link" href="bar-menu/">bar-menu</a></li>
@@ -712,8 +1289,12 @@ showing you&quot;</em> can be one line of data.</p>
         </ul></li>
         <li><a class="doc-link" href="b3d-svg-plane/">b3d-svg-plane</a></li>
         <li><a class="doc-link" href="svg-texture/">svg-texture</a></li>
-        <li><a class="doc-link" href="gamepad-focus/">gamepad-focus</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-gamepad-focus" aria-label="gamepad-focus"></button><a class="doc-link" href="gamepad-focus/">gamepad-focus</a></div>
+        <ul id="tosi-nav-gamepad-focus">
+          <li><a class="doc-link" href="pad-ui/">pad-ui</a></li>
+        </ul></li>
       </ul></li>
+      <li><a class="doc-link" href="b3d-checklist/">test checklist in the scene</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui-theme" aria-label="Theme and icons"></button><a class="doc-link" href="ui-theme/">Theme and icons</a></div>
       <ul id="tosi-nav-ui-theme">
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-w3d-theme" aria-label="w3d-theme"></button><a class="doc-link" href="w3d-theme/">w3d-theme</a></div>
@@ -760,6 +1341,7 @@ showing you&quot;</em> can be one line of data.</p>
       <li><a class="doc-link" href="Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="v0.13.2/">0.13.2</a></li>
         <li><a class="doc-link" href="v0.13.1/">0.13.1</a></li>
         <li><a class="doc-link" href="v0.13.0/">0.13.0</a></li>
         <li><a class="doc-link" href="v0.12.6/">0.12.6</a></li>
@@ -848,6 +1430,6 @@ showing you&quot;</em> can be one line of data.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="hydrate-8gnd2qzs.js"></script>
+  <script type="module" src="hydrate-r5e83g3k.js"></script>
 </body>
 </html>

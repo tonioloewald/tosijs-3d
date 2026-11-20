@@ -12,6 +12,12 @@ Pick a body under **look at** and the camera follows it round its orbit.
 Switch on **real maps** and the Earth, the Moon and Mars are drawn from NASA's
 and NOAA's own height and colour maps instead of being made up.
 
+In a headset with passthrough (a Quest), switch on **passthrough (AR)** before
+entering: the system sits a metre and a half across, in front of you in your
+own room. Walk round it; hold a grip to drag it, both grips to make it bigger
+or smaller and turn it, and pick a body under **look at** to bring it in
+front of you.
+
 ## Demo
 
 ```js
@@ -19,7 +25,7 @@ import { b3d, b3dLight, b3dStarSystem, spaceBackdrop, SOL, label3d, slider3d, to
 import { tosi } from 'tosijs'
 
 const { sol } = tosi({
-  sol: { maps: false, focus: 'Earth', animate: true, showOrbits: true, belt: 1500, time: 3600 },
+  sol: { maps: false, focus: 'Earth', animate: true, showOrbits: true, belt: 1500, time: 3600, ar: false },
 })
 
 const system = b3dStarSystem({ scale: 5, orbitScale: 3, animate: 'on', showOrbits: 'on', maps: 'off', beltCount: sol.belt.value, timeScale: sol.time })
@@ -60,7 +66,7 @@ preview.append(
       clearColor: '#000000',
       scenePanelOpen: true,
       panelTitle: 'Solar System',
-      scenePanel: () => [
+      scenePanel: (host) => [
         select3d({ label: 'look at', value: sol.focus, options: names }),
         toggle3d({ label: 'real maps (Earth, Moon, Mars)', value: sol.maps }),
         toggle3d({ label: 'orbit', value: sol.animate }),
@@ -68,6 +74,8 @@ preview.append(
         slider3d({ label: 'time', value: sol.time, min: 1, max: 3.16e6, scale: 'log', format: perSecond }),
         toggle3d({ label: 'show orbits', value: sol.showOrbits }),
         slider3d({ label: 'belt rocks', value: sol.belt, min: 0, max: 6000, step: 250 }),
+        // Only where AR exists, and not in a session: it takes effect on entering.
+        ...(host.xrSupport.ar && !host.xrActive ? [toggle3d({ label: 'passthrough (AR)', value: sol.ar })] : []),
       ],
       sceneCreated(el, BABYLON) {
         const camera = new BABYLON.ArcRotateCamera('sol', -Math.PI / 2, Math.PI / 2.6, 40, BABYLON.Vector3.Zero(), el.scene)
@@ -78,6 +86,20 @@ preview.append(
         camera.wheelDeltaPercentage = 0.02
         camera.attachControl(el.querySelector('canvas'), true)
         el.setActiveCamera(camera)
+        sol.ar.observe(() => (el.xrPassthrough = sol.ar.value ? 'on' : 'off'))
+        // IN YOUR ROOM: the whole system a metre and a half across, a step
+        // ahead; 'look at' brings a body in front of you instead. (Grips grab:
+        // one drags, both resize and turn.)
+        const centre = () => new BABYLON.Vector3(system.x, system.y, system.z)
+        el.addEventListener('xrenter', (event) => {
+          if (!event.detail.passthrough) return
+          const c = centre()
+          el.xrFrame(c, Math.max(1, ...system.bodies.map((b) => BABYLON.Vector3.Distance(b.node.getAbsolutePosition(), c))))
+        })
+        sol.focus.observe(() => {
+          const body = system.bodies.find((b) => b.name === sol.focus.value)
+          if (el.passthrough && body != null) el.xrFrame(body.node.getAbsolutePosition(), Math.max(body.radius * 3, 0.5))
+        })
         // FOLLOW THE CHOSEN BODY: ease onto it every frame, and on choosing,
         // pull in to a few of its radii.
         let following = ''

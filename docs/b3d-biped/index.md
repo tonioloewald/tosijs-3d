@@ -81,7 +81,7 @@ const gun = b3dLauncher({
 // on a figure half the intended size.
 const hero = b3dBiped(
   {
-    url: assetUrl('quaternius/UAL1_core.glb', 3),
+    url: assetUrl('quaternius/UAL1_core.glb', 5),
     animationStates: ualAnimationStates(),
     player: true, cameraType: 'follow', aiming: 'on', aimFreeYaw: 45,
   },
@@ -158,7 +158,7 @@ preview.append(
 .preview { height: 100%; }
 ```
 
-**WASD** to move, **mouse / right stick** to aim, **F or the trigger** to shoot
+**WASD** to move, **mouse / right stick** to aim, **F, the trigger or A** to shoot
 the cans off the wall. The white marker is where he is FACING; the orange one is
 where he is AIMING, and they are different things — which is the whole point of
 `aiming="on"`.
@@ -203,6 +203,9 @@ animation is doing with that hand.
 | `eyeForward` | `0.13` | How far in front of the head bone the first-person eye sits, metres |
 | `lookRate` | `120` | Degrees per second the right stick swings the view |
 | `maxLookPitch` | `70` | How far up or down the look goes, degrees |
+| `aimCurve` | `2` | While aiming, the sticks' response curve: 1 is linear, 2 turns at a quarter of the rate at half deflection (a nudge fine-tunes, full deflection is unchanged) |
+| `aimAssist` | `0.5` | While aiming, how much the aim slows as it crosses something that can be hurt (another biped with `health`, a `<tosi-b3d-destroyable>`): 0 is off, 1 stops it. Above 0 the aim also STICKS: sweep near a target with the stick below `aimBreakout` and it locks on, following the target as it or you move ([aim-assist](/aim-assist/)) |
+| `aimBreakout` | `0.7` | While locked onto a target, a stick pushed less than this slides the aim slowly across it (onto the head, say) and one pushed past it lets go and swings freely. 0 never locks |
 | `invertLookY` | `'off'` | `'on'` inverts the right stick's vertical (pushing up looks down, the aircraft mapping) |
 | `aiming` | `'off'` | `'on'` gives the character an aim separate from its facing (see [aim](/aim/)). Nesting a weapon turns it on |
 | `aimFreeYaw` | `0` | Twist the shoulders hold before the body turns, degrees. `0` keeps aim and body together |
@@ -212,6 +215,11 @@ animation is doing with that hand.
 | `strafing` | `'off'` | `'on'` sidesteps with the left stick; `'off'` turns with it |
 | `strafeSpeed` | `0.75` | Sidestep speed as a fraction of walking |
 | `climbReach` | `2.2` | Highest ledge the character can pull itself onto, metres (see Mantling, below) |
+| `hardLanding` | `0` (auto) | Metres of drop past which a landing is hard: the `hardLand` clip (UAL's `Roll`), standing still while it plays. Auto is 1.5 body heights. The drop is from the top of the flight, so a jump on flat ground is never hard ([fall](/fall/)) |
+| `lethalFall` | `0` (off) | Metres of drop that kill on landing: the `death` clip (`Death01`) where you land, then a bubbling `crash` event (`detail: { cause: 'fall', drop }`) that `<tosi-b3d-death>` answers without exploding you. Off by default, since a death needs an exit. Water breaks a fall |
+| `health` | `0` (can't be hurt) | Hit points. Above 0 the biped is a target like any destroyable: a hit plays a hit clip (`hitChest` / `hitStomach` / `hitHead` in turn, `hitKnockback` for a blast) and holds it still for the clip; at 0 it plays `death` where it stands and dispatches a bubbling `destroyed`, which `<tosi-b3d-death>` answers. `hp` reads what is left, `damage(amount, cause)` hurts it, `heal(amount)` mends it, `aimTarget` is a chest-height node for turrets and AI to track |
+| `hitScale` | head 2.5, trunk 1, limb 0.5 | (a property) What a hit does by where it lands. A round that says where it struck (a launcher with `direct-hit="on"`) is placed by `hitRegion(point)`: the head round the head bone, the trunk near the hips-to-neck axis, a limb anywhere else; a crouch moves them with the body. The head plays `hitHead`, the trunk `hitChest` and `hitStomach` in turn, a limb `hitShoulderL`/`R` by side. `hurt` events carry the `region` |
+| `healthRegen` | `0` | Hit points regained per second, from `healthRegenDelay` (5) seconds after the last hit |
 | `wadeDepth` | `0.45` | Water depth, as a fraction of standing height, where wading becomes swimming |
 | `buoyancy` | `0` | How high the figure rides in the water, metres. `0` puts the waterline at the head |
 

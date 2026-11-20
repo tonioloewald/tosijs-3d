@@ -126,6 +126,9 @@ export declare class B3d extends Component {
         /** How collapsible sections present: 'fold' (headers you open and close,
          * one open at a time), 'folds' (several open) or 'tabs' (file tabs). */
         panelSections: "fold" | "folds" | "tabs";
+        /** The Pause button on the settings panel's icon bar: 'off' leaves it
+         * out (a tool page whose own play and pause would be confused with it). */
+        panelPause: "on" | "off";
         /** What an agent may do with this scene (see [agents](/b3d-agent/)):
          * '' follows the page (`enableSceneAgents`, closed by default), 'read'
          * offers the read tools, 'on' everything, 'off' nothing. */
@@ -143,6 +146,7 @@ export declare class B3d extends Component {
         xrRenderScale: number;
         xrFoveation: number;
         xrMultiview: "on" | "off";
+        xrPassthrough: "on" | "off";
         groundDetail: "auto" | "full" | "lite";
         pixelRatio: number;
         stats: boolean;
@@ -507,6 +511,16 @@ export declare class B3d extends Component {
     xrHelper?: BABYLON.WebXRDefaultExperience;
     private _unpickLayers;
     xrActive: boolean;
+    /** True during an immersive-ar (passthrough) session. */
+    passthrough: boolean;
+    private _arSupported;
+    private _vrSupported;
+    /** Which immersive sessions this device offers (known once XR is set up). */
+    get xrSupport(): {
+        vr: boolean;
+        ar: boolean;
+    };
+    private _xrFrameObs;
     /** True from ENTERING_XR to the end of EXITING_XR: wider than `xrActive`. */
     private _xrPresenting;
     /** Whether a page is holding the spinner up (`setLoading`). */
@@ -577,12 +591,14 @@ export declare class B3d extends Component {
     maxDistance: number;
     noXr: boolean;
     xrMultiview: 'on' | 'off';
+    xrPassthrough: 'on' | 'off';
     xrGrid: 'on' | 'off' | 'auto';
     xrReticle: 'on' | 'off';
     scenePanelOpen: boolean;
     panelTitle: string;
     panelIcon: string;
     panelSections: 'fold' | 'folds' | 'tabs';
+    panelPause: 'on' | 'off';
     /**
      * The on-screen "glass" gamepad. Absent/`false` = none; `true` or an empty
      * string = the full default layout; any other string selects and positions
@@ -726,6 +742,8 @@ export declare class B3d extends Component {
      */
     showModal(svg: SVGSVGElement, height: number, fallback?: () => (() => void) | null): (() => void) | null;
     private _mirrorModal;
+    /** Open modals' mirrors: placed again (now touchable) when the scene goes assistive. */
+    private _modalMirrors;
     private _focusQuiet;
     private _quietFocus;
     private _syncModalInert;
@@ -956,6 +974,35 @@ export declare class B3d extends Component {
     private _flatHandWarned;
     private _flatPoseObs;
     private _sceneBar;
+    private _padUi;
+    /** The open panel's focus, by a key that survives its rebuilds. */
+    private _panelNav;
+    private _padSrc;
+    private _padPulse;
+    private _padUpSince;
+    private _padUpFired;
+    private _padRing;
+    /** The pad, not the mouse or keys, was the last thing used. */
+    private _padLastUsed;
+    /** Tab moved the focus (the ring shows until the mouse is used). */
+    private _keyNav;
+    private _offPadKeys;
+    /** Is the gamepad UI mode on (D-pad and B drive the bar and panels)? */
+    get padUiActive(): boolean;
+    /** Turn the gamepad UI mode on (focus on the bar) or off. */
+    setPadUi(on: boolean): void;
+    /** The panel focus can go into: a stable key, where to draw, its controls. */
+    private _padPanel;
+    /** Draw the focus ring round `box` in `root` (null: none). */
+    private _padRingAt;
+    /** Tab, shift-Tab and Enter on an open panel; a mouse press hides the ring. */
+    private _listenPadKeys;
+    /** Once a frame: which panel has the focus, the pad's hold, its moves. */
+    private _padUiTick;
+    /** The pad's part: the hold on up, then its moves in the mode. */
+    /** The bar button focus left to go into a panel (-1: none). */
+    private _padBarFrom;
+    private _padTick;
     private _sceneBarButtons;
     private _sceneBarVersion;
     private _systemEntries;
@@ -1403,6 +1450,30 @@ export declare class B3d extends Component {
     private _applyXrMultiview;
     /** What multiview is doing: off, asked for, or drawing. */
     private _multiviewState;
+    /**
+     * In a session, show `centre` a step ahead of you at chest height, `radius`
+     * world units as `across` metres (default 0.75: something a metre and a half
+     * wide), by moving and scaling the VIEWER (WebXR's worldScalingFactor). The
+     * scene is untouched. The default AR session frames what the flat view was
+     * looking at; call it again (on `xrenter`, or from a "look at") to choose.
+     */
+    xrFrame(centre: {
+        x: number;
+        y: number;
+        z: number;
+    }, radius: number, opts?: {
+        across?: number;
+        distance?: number;
+        above?: number;
+    }): void;
+    /** The session Enter VR starts: AR where passthrough is asked for and offered. */
+    private _xrSessionMode;
+    /**
+     * Passthrough: the room is the backdrop. The clear colour goes transparent
+     * and every sky mesh (they are `infiniteDistance`) is hidden for the session;
+     * the skybox stops writing the clear colour while `passthrough` is set.
+     */
+    private _enterPassthrough;
     private _setupXR;
     private _startDefaultXrExperience;
     private _makePanel;
@@ -1461,6 +1532,7 @@ export declare class B3d extends Component {
     private _closeScenePanel;
     agent: '' | 'off' | 'read' | 'on';
     private _agentOff;
+    private _checklistOff;
     /** The scene in words, into the canvas's description; `aloud` also speaks it. */
     private _describe;
     private _describeAloud;

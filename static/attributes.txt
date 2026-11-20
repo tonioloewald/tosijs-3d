@@ -189,6 +189,9 @@ b3d-biped
   aimFreeYaw  = 0  — Twist the shoulders hold before the body turns, degrees. `0` keeps aim and body together
   aimMaxYaw  = 90  — The spine's limit, degrees. Past it the body is dragged round
   maxLookPitch  = 70  — How far up or down the look goes, degrees
+  aimCurve  = 2  — While aiming, the sticks' response curve: 1 is linear, 2 turns at a quarter of the rate at half deflection (a nudge fine-tunes, full deflection is unchanged)
+  aimAssist  = 0.5  — While aiming, how much the aim slows as it crosses something that can be hurt (another biped with `health`, a `<tosi-b3d-destroyable>`): 0 is off, 1 stops it. Above 0 the aim also STICKS: sweep near a target with the stick below `aimBreakout` and it locks on, following the target as it or you move ([aim-assist](/aim-assist/))
+  aimBreakout  = 0.7  — While locked onto a target, a stick pushed less than this slides the aim slowly across it (onto the head, say) and one pushed past it lets go and swings freely. 0 never locks
   eyeForward  = 0.13  — How far in front of the head bone the first-person eye sits, metres
   invertLookY  = 'off'  — `'on'` inverts the right stick's vertical (pushing up looks down, the aircraft mapping)
   cameraMinHeight  = 0.5  — Lowest the follow camera goes above the feet, metres (looking up lowers the camera; this keeps it above ground)
@@ -668,6 +671,7 @@ b3d-launcher
   projRadius  = 0.12  — Shell visual radius
   missileTrail  = 'off'  — `'on'` leaves a smoke ribbon behind each guided missile (`fireAt`); see [b3d-trail](/b3d-trail/). For your own rounds, pass `trail` to `spawnProjectile`/`spawnMissile`
   projColor  = '#ffdd55'  — Shell emissive colour
+  sound  = ''  — The shot you hear on every `fire()`: `pistol`, `rifle`, `heavy` or `bow`, synthesised ([gun-sound](/gun-sound/)); `''` is silent
   maxLifetime  = 6  — Seconds before an un-impacted shell self-disposes
   damage  = 20  — Warhead full damage (see [b3d-warhead](/b3d-warhead/))
   fullRadius  = 1  — Warhead full-damage radius
@@ -1505,6 +1509,12 @@ glass-gamepad (b3dGamepad)
   width
   height
 
+## gun-sound
+gun-sound
+
+  pistol  = a sharp crack, little body
+  heavy  = a launch: a soft boom and a long whoosh
+
 ## hold-grip
 hold grips
 
@@ -1512,9 +1522,11 @@ hold grips
   rifle  = a long gun, two hands  — Assault Rifle
   heavy  = on the shoulder  — Rocket Launcher
   melee1h  = a blade, one hand  — Dagger, Short Sword, Long Sword, Plasma Blade
-  melee2h  = a long blade or a pole, two hands  — Hand and a Half, Spear
+  melee2h  = a long blade, two hands  — Hand and a Half
+  pole  = a spear or staff, two hands  — Spear
   bow  = a bow, in the LEFT hand  — Bow
   shield  = strapped to the left forearm  — Buckler, Kite Shield
+  wrist  = worn on the left forearm (a watch, a wrist computer)
 
 ## inventory-box
 inventory-box
@@ -1522,9 +1534,9 @@ inventory-box
   inv  = the model and the carry (share both between panels)
   carry  = the model and the carry (share both between panels)
   host  = <svg>
-  schematics  = art per container: `{ body: svgText }`; its sockets are the slots (`data-slot`, or ids in a `Sockets` group)
-  height  = a fixed height that scrolls, instead of growing to fit
-  handleDrop  = (item, kind, from)
+  only  = which containers this panel draws (one holder can be split over panels)
+  hide  = which containers this panel draws (one holder can be split over panels)
+  totals  = currencies
 
 ## inventory-trade
 inventory-trade
@@ -1532,10 +1544,9 @@ inventory-trade
   inv  = The inventory and a carry (`createCarry()`)
   carry  = The inventory and a carry (`createCarry()`)
   titles  = { mine, theirs }
-  currency  = The purse key a shop pays in (default: the inventory's first currency, else `gold`), written as the inventory's `currencies` say (`€12`, `12 gp`)
-  decorations  = As [inventoryPanel](/inventory-box/)'s (`moveFor` sells a box of rounds off a stack, not the whole stack)
-  info  = As [inventoryPanel](/inventory-box/)'s (`moveFor` sells a box of rounds off a stack, not the whole stack)
-  moveFor  = As [inventoryPanel](/inventory-box/)'s (`moveFor` sells a box of rounds off a stack, not the whole stack)
+  price  = (item, from, to) => number
+  width  = Each list's size (220 × 280)
+  height  = Each list's size (220 × 280)
 
 ## inventory
 inventory
@@ -1680,6 +1691,7 @@ b3d
   panelTitle  = ''  — The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row)
   panelIcon  = ''  — The settings button's icon on the system bar (an `svgIcons` name), named by `panelTitle`; `''` is the owl. For a page whose panel is its main tool (the character builder's body)
   panelSections  = 'fold'  — How collapsible sections in the settings panel present: `'fold'` (headers you open and close, one open at a time: opening one closes the others), `'folds'` (several may be open) or `'tabs'` (file tabs, one section at a time). A `label3d({ collapsible: true, level: 2 })` is a sub-section that folds inside its section or tab
+  panelPause  = 'on'  — The Pause button on the settings panel's icon bar; `'off'` leaves it out, for a page whose own play and pause (a clip's) it would be confused with. The pause panel and `pause()` still work
   agent  = ''  — What an agent may do with this scene through its tools (`b3d_<scene>_…` on WebMCP and `window.b3dAgent`; see [agents](/b3d-agent/)). `''` follows the page (`enableSceneAgents`; closed by default), `'read'` offers the read tools, `'on'` everything, `'off'` nothing
   gamepadScale  = 1  — Scale factor for the glass gamepad clusters
   gamepadFade  = 'on'  — `'off'` keeps the glass gamepad visible instead of fading it once a key is pressed or a hardware pad is used (the pointer never fades it)
@@ -1692,7 +1704,7 @@ b3d
   xrRenderScale  = 0  — In a headset: the fraction of each eye's width and height drawn. `0` is auto (from the device tier: 0.67 on the low tier). Engine hardware scaling does not reach a headset; this does. Read on entering a session
   xrFoveation  = -1  — In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session
   xrMultiview  = 'off'  — ⚠️ Experimental, not working: `'on'` asks for both eyes in one pass (WebXR layers). On a Quest 3 it gave a blank view, and water and sky do not handle multiview
-  xrPassthrough  = 'off'  — `'on'`: Enter VR starts an AR session where the device has one (passthrough: your room behind the scene, no sky, no floor grid, transparent clear colour); elsewhere it enters VR. `passthrough` is true during such a session, and the scene dispatches `xrenter` (`detail.passthrough`) and `xrexit` around every session. Read on entering
+  xrPassthrough  = 'off'  — `'on'`: Enter VR starts an AR session where the device has one (passthrough: your room behind the scene, no sky, no floor grid, transparent clear colour); elsewhere it enters VR. In AR you are scaled to the scene: you arrive with what the flat view showed a step ahead (`xrFrame(centre, radius)` frames something else), one grip drags the scene, both resize and turn it, and the sticks walk at your scale. `passthrough` is true during such a session, `xrSupport` says which sessions the device offers, and the scene dispatches `xrenter` (`detail.passthrough`) and `xrexit` around every session. Read on entering
   groundDetail  = 'auto'  — The ground shader's form: `full`, `lite` (three noise samples a pixel for eight, for a GPU that cannot afford the full one), or `auto` (from the device tier: lite on the low tier, and in a headset on the medium one)
   pixelRatio  = 0  — Device pixels per CSS pixel, flat. `0` is auto: the display's own ratio, capped by the device tier (high 2, medium 1.5, low 1). A positive value is an explicit cap and wins: `1` renders at CSS resolution, `2` full Retina, `0.75` below CSS for speed. Ignored in a headset
   stats  = false  — Add a Perf Stats section to the settings panel, flat and in a headset. `#perf` or `#debug` (or `?perf`, `?debug`) in the page URL, or calling `showB3dStats()`, shows it on every scene

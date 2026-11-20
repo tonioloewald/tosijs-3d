@@ -507,8 +507,9 @@ import { w3dTheme } from './w3d-theme.js';
 import { iconGlyph } from './svg-icons.js';
 import { chromeLayout } from './popup-chrome.js';
 import { panelRim } from './panel-rim.js';
+import { showTipSurface } from './panel-layer.js';
 import { controlTree, } from './widget-semantics.js';
-const { svg, g, rect, text, circle, clipPath } = svgElements;
+const { svg, g, rect, text, circle, clipPath, tspan } = svgElements;
 // --- Theme (configurable later) --------------------------------------------
 /*
 ROW AND PAD_X ARE DERIVED, not fixed.
@@ -1395,6 +1396,7 @@ export function button3d(config) {
             role: 'button',
             name: config.title ?? config.label,
             ...(off() ? { disabled: true } : {}),
+            ...(config.default ? { isDefault: true } : {}),
             ...(config.menu
                 ? {
                     options: config.menu.map((m) => m.label),
@@ -1432,6 +1434,47 @@ Under its anchor, centred, kept inside `width` (less `inset` each side); above i
 room below `height`.
 */
 const TIP_FONT = 11;
+const TIP_LINE = Math.round(TIP_FONT * 1.35);
+/** A tip's widest line: past it the text wraps (a sentence on one line ran several panels wide). */
+const TIP_MAX = 220;
+/** A tip's lines, wrapped at spaces to fit `TIP_MAX`, and the widest one's width. */
+function tipLines(title) {
+    const measure = (t) => measureTextWidth(t, {
+        size: TIP_FONT,
+        family: TH.FONT_FAMILY,
+        weight: TH.TEXT_WEIGHT,
+    });
+    const lines = [];
+    let line = '';
+    for (const word of title.split(/\s+/).filter(Boolean)) {
+        const next = line ? `${line} ${word}` : word;
+        if (line && measure(next) > TIP_MAX) {
+            lines.push(line);
+            line = word;
+        }
+        else
+            line = next;
+    }
+    if (line || lines.length === 0)
+        lines.push(line);
+    return { lines, width: Math.max(...lines.map(measure)) };
+}
+/** A tooltip as a sheet of its own, for `showTipSurface`. */
+function tipSheet(title) {
+    const d = tipDrawer();
+    const { lines, width } = tipLines(title);
+    const w = width + 12;
+    const h = TIP_LINE * lines.length + 10 - (TIP_LINE - TIP_FONT);
+    const sheet = svg({
+        xmlns: 'http://www.w3.org/2000/svg',
+        viewBox: `0 0 ${w} ${h}`,
+        width: w,
+        height: h,
+    });
+    sheet.append(d.el);
+    d.show(title, { x: 0, y: -3, width: w, height: 0 }, w);
+    return sheet;
+}
 function tipDrawer() {
     const tipText = css(text({
         'dominant-baseline': 'middle',
@@ -1452,12 +1495,9 @@ function tipDrawer() {
     return {
         el,
         show(title, at, width, height = Infinity, inset = 0) {
-            const w = measureTextWidth(title, {
-                size: TIP_FONT,
-                family: TH.FONT_FAMILY,
-                weight: TH.TEXT_WEIGHT,
-            }) + 12;
-            const h = TIP_FONT + 10;
+            const { lines, width: textW } = tipLines(title);
+            const w = textW + 12;
+            const h = TIP_LINE * lines.length + 10 - (TIP_LINE - TIP_FONT);
             // Inside the panel's padding: past it, a plane's edge cuts the tip off.
             const x = Math.max(inset, Math.min(at.x + at.width / 2 - w / 2, Math.max(inset, width - inset - w)));
             const below = at.y + at.height + 3;
@@ -1465,9 +1505,11 @@ function tipDrawer() {
             tipBg.setAttribute('x', String(x));
             tipBg.setAttribute('y', String(y));
             tipBg.setAttribute('width', String(w));
-            tipText.setAttribute('x', String(x + 6));
-            tipText.setAttribute('y', String(y + h / 2 + 0.5));
-            tipText.textContent = title;
+            tipBg.setAttribute('height', String(h));
+            tipText.textContent = '';
+            lines.forEach((l, i) => {
+                tipText.append(tspan({ x: x + 6, y: y + 5 + TIP_FONT / 2 + 0.5 + i * TIP_LINE }, l));
+            });
             el.setAttribute('visibility', 'visible');
         },
         hide() {
@@ -2225,7 +2267,11 @@ export function select3d(config) {
             width: Math.max(clusterW, 220, Math.min(420, Math.max(...opts.map((o) => measureTextWidth(String(o.label), TH.TEXT_FONT))) +
                 TH.PAD_X * 3)),
         }, list3d({
-            items: opts.map((o) => ({ label: String(o.label) })),
+            // The current option carries a check, as a bar menu's does.
+            items: opts.map((o, i) => ({
+                label: String(o.label),
+                icon: i === indexOf() ? 'check' : undefined,
+            })),
             handleSelect: (_item, i) => {
                 bound.set(opts[i].value);
                 reflect();
@@ -3001,13 +3047,13 @@ function buildPanel3d(config, ...widgets) {
         bodyW = innerW - RAIL_W;
         m = measure(bodyW);
     }
-    const heights = m.hs;
-    const { offsets, total } = m;
-    const height = panelHeight(total + headerH, paddingTop, padding, config.height ?? 'fit', config.maxHeight);
+    let heights = m.hs;
+    let { offsets, total } = m;
+    let height = panelHeight(total + headerH, paddingTop, padding, config.height ?? 'fit', config.maxHeight);
     // The SCROLLING viewport excludes the pinned block — otherwise the body is
     // laid out against a taller area than it actually gets, and the last row is
     // unreachable by exactly `headerH`.
-    const viewport = height - paddingTop - padding - headerH;
+    let viewport = height - paddingTop - padding - headerH;
     // The title bar's glyphs, laid out as a popup's are (one vocabulary).
     const bar = hasBar
         ? chromeLayout(width, height, paddingTop / height, !!config.grip)
@@ -3032,14 +3078,17 @@ function buildPanel3d(config, ...widgets) {
     });
     // The panel's one tooltip, over its body and outside the clip (#112).
     const tips = tipDrawer();
+    // The tooltip on its own surface, when a presentation can hold one.
+    let tipOut = null;
     const popups = new Set();
     const clipId = `w3d-clip-${clipSeq++}`;
-    const clip = clipPath({ id: clipId }, rect({
+    const clipRect = rect({
         x: padding,
         y: paddingTop + headerH,
         width: innerW,
         height: viewport,
-    }));
+    });
+    const clip = clipPath({ id: clipId }, clipRect);
     // The clip lives on a NON-transformed wrapper, so its rect is in viewBox space —
     // unambiguous in both the live DOM and the SVG→texture rasterizer. Clipping the
     // TRANSLATED `content` group directly makes the two renderers disagree: the VR
@@ -3107,7 +3156,8 @@ function buildPanel3d(config, ...widgets) {
     const THUMB_W = 6;
     // Flush with the right inset, not centred in a column of its own.
     const thumbX = width - padding - THUMB_W;
-    const thumbH = Math.max(24, Math.round(viewport * Math.min(1, viewport / Math.max(1, total))));
+    const thumbFor = () => Math.max(24, Math.round(viewport * Math.min(1, viewport / Math.max(1, total))));
+    let thumbH = thumbFor();
     const railTrack = rect({
         x: thumbX,
         y: railTop,
@@ -3291,16 +3341,36 @@ function buildPanel3d(config, ...widgets) {
             slot.__anchored = undefined;
             baseHost.closePopup();
         },
-        relayout: () => baseHost.relayout(),
+        relayout: () => {
+            relayoutBody();
+            baseHost.relayout();
+        },
         showTip(t, anchor) {
-            root.appendChild(tips.el); // over anything appended since
-            tips.show(t, {
+            const at = {
                 ...anchor,
                 x: anchor.x + padding,
                 y: anchor.y + paddingTop + rowY(index, inHeader),
-            }, width, height, padding);
+            };
+            // On a plane it is its own surface, so the panel's edge cannot cut it.
+            const key = `${t}|${at.x}|${at.y}`;
+            if (tipOut?.key === key)
+                return;
+            tipOut?.close();
+            tipOut = null;
+            const shown = showTipSurface(root, tipSheet(t), at, 'below');
+            if (shown != null) {
+                tipOut = { key, close: shown.close };
+                tips.hide();
+                return;
+            }
+            root.appendChild(tips.el); // over anything appended since
+            tips.show(t, at, width, height, padding);
         },
-        hideTip: () => tips.hide(),
+        hideTip: () => {
+            tipOut?.close();
+            tipOut = null;
+            tips.hide();
+        },
         showLayer(config, ...items) {
             /*
             FAN OUT TO EVERY PRESENTATION.
@@ -4165,7 +4235,45 @@ function buildPanel3d(config, ...widgets) {
         */
         root.append(...titleBarParts(bar, config.title, handleClose != null, width, padding));
     }
-    root.appendChild(panelRim(width, height, w3dTheme.roundedRadius * 2));
+    let rim = panelRim(width, height, w3dTheme.roundedRadius * 2);
+    root.appendChild(rim);
+    /*
+    A ROW THAT CHANGED HEIGHT (a field that wraps as it is typed in) asks for
+    this through its host's `relayout`: the rows are measured again and the
+    panel takes its new height in place, so a frame panel's plane grows with
+    its viewBox. A panel that would start or stop scrolling keeps its layout
+    (the rail is built once); its host rebuilds it.
+    */
+    function relayoutBody() {
+        const next = measure(bodyW);
+        if (next.hs.every((h, i) => h === heights[i]))
+            return;
+        const nextHeight = panelHeight(next.total + headerH, paddingTop, padding, config.height ?? 'fit', config.maxHeight);
+        const nextViewport = nextHeight - paddingTop - padding - headerH;
+        if (next.total > nextViewport !== scrollable)
+            return;
+        heights = next.hs;
+        offsets = next.offsets;
+        total = next.total;
+        height = nextHeight;
+        viewport = nextViewport;
+        rows.forEach((r, i) => {
+            r.top = offsets[i];
+            r.height = heights[i];
+            r.w.el.setAttribute('transform', `translate(0, ${offsets[i]})`);
+        });
+        root.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        root.setAttribute('height', String(height));
+        bg.setAttribute('height', String(height));
+        clipRect.setAttribute('height', String(viewport));
+        railTrack.setAttribute('height', String(viewport));
+        thumbH = thumbFor();
+        railThumb.setAttribute('height', String(thumbH));
+        const nextRim = panelRim(width, height, w3dTheme.roundedRadius * 2);
+        rim.replaceWith(nextRim);
+        rim = nextRim;
+        applyScroll();
+    }
     if (scrollable) {
         root.appendChild(railTrack);
         root.appendChild(railThumb);

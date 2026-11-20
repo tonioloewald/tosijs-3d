@@ -772,6 +772,21 @@
         "description": "How far up or down the look goes, degrees"
       },
       {
+        "name": "aimCurve",
+        "default": "2",
+        "description": "While aiming, the sticks' response curve: 1 is linear, 2 turns at a quarter of the rate at half deflection (a nudge fine-tunes, full deflection is unchanged)"
+      },
+      {
+        "name": "aimAssist",
+        "default": "0.5",
+        "description": "While aiming, how much the aim slows as it crosses something that can be hurt (another biped with `health`, a `<tosi-b3d-destroyable>`): 0 is off, 1 stops it. Above 0 the aim also STICKS: sweep near a target with the stick below `aimBreakout` and it locks on, following the target as it or you move ([aim-assist](/aim-assist/))"
+      },
+      {
+        "name": "aimBreakout",
+        "default": "0.7",
+        "description": "While locked onto a target, a stick pushed less than this slides the aim slowly across it (onto the head, say) and one pushed past it lets go and swings freely. 0 never locks"
+      },
+      {
         "name": "eyeForward",
         "default": "0.13",
         "description": "How far in front of the head bone the first-person eye sits, metres"
@@ -2699,6 +2714,11 @@
         "name": "projColor",
         "default": "'#ffdd55'",
         "description": "Shell emissive colour"
+      },
+      {
+        "name": "sound",
+        "default": "''",
+        "description": "The shot you hear on every `fire()`: `pistol`, `rifle`, `heavy` or `bow`, synthesised ([gun-sound](/gun-sound/)); `''` is silent"
       },
       {
         "name": "maxLifetime",
@@ -6059,6 +6079,20 @@
     ]
   },
   {
+    "module": "gun-sound",
+    "summary": "gun-sound",
+    "attributes": [
+      {
+        "name": "pistol",
+        "default": "a sharp crack, little body"
+      },
+      {
+        "name": "heavy",
+        "default": "a launch: a soft boom and a long whoosh"
+      }
+    ]
+  },
+  {
     "module": "hold-grip",
     "summary": "hold grips",
     "attributes": [
@@ -6084,8 +6118,13 @@
       },
       {
         "name": "melee2h",
-        "default": "a long blade or a pole, two hands",
-        "description": "Hand and a Half, Spear"
+        "default": "a long blade, two hands",
+        "description": "Hand and a Half"
+      },
+      {
+        "name": "pole",
+        "default": "a spear or staff, two hands",
+        "description": "Spear"
       },
       {
         "name": "bow",
@@ -6096,6 +6135,10 @@
         "name": "shield",
         "default": "strapped to the left forearm",
         "description": "Buckler, Kite Shield"
+      },
+      {
+        "name": "wrist",
+        "default": "worn on the left forearm (a watch, a wrist computer)"
       }
     ]
   },
@@ -6116,16 +6159,16 @@
         "default": "<svg>"
       },
       {
-        "name": "schematics",
-        "default": "art per container: `{ body: svgText }`; its sockets are the slots (`data-slot`, or ids in a `Sockets` group)"
+        "name": "only",
+        "default": "which containers this panel draws (one holder can be split over panels)"
       },
       {
-        "name": "height",
-        "default": "a fixed height that scrolls, instead of growing to fit"
+        "name": "hide",
+        "default": "which containers this panel draws (one holder can be split over panels)"
       },
       {
-        "name": "handleDrop",
-        "default": "(item, kind, from)"
+        "name": "totals",
+        "default": "currencies"
       }
     ]
   },
@@ -6146,20 +6189,16 @@
         "default": "{ mine, theirs }"
       },
       {
-        "name": "currency",
-        "default": "The purse key a shop pays in (default: the inventory's first currency, else `gold`), written as the inventory's `currencies` say (`€12`, `12 gp`)"
+        "name": "price",
+        "default": "(item, from, to) => number"
       },
       {
-        "name": "decorations",
-        "default": "As [inventoryPanel](/inventory-box/)'s (`moveFor` sells a box of rounds off a stack, not the whole stack)"
+        "name": "width",
+        "default": "Each list's size (220 × 280)"
       },
       {
-        "name": "info",
-        "default": "As [inventoryPanel](/inventory-box/)'s (`moveFor` sells a box of rounds off a stack, not the whole stack)"
-      },
-      {
-        "name": "moveFor",
-        "default": "As [inventoryPanel](/inventory-box/)'s (`moveFor` sells a box of rounds off a stack, not the whole stack)"
+        "name": "height",
+        "default": "Each list's size (220 × 280)"
       }
     ]
   },
@@ -6640,6 +6679,11 @@
         "description": "How collapsible sections in the settings panel present: `'fold'` (headers you open and close, one open at a time: opening one closes the others), `'folds'` (several may be open) or `'tabs'` (file tabs, one section at a time). A `label3d({ collapsible: true, level: 2 })` is a sub-section that folds inside its section or tab"
       },
       {
+        "name": "panelPause",
+        "default": "'on'",
+        "description": "The Pause button on the settings panel's icon bar; `'off'` leaves it out, for a page whose own play and pause (a clip's) it would be confused with. The pause panel and `pause()` still work"
+      },
+      {
         "name": "agent",
         "default": "''",
         "description": "What an agent may do with this scene through its tools (`b3d_<scene>_…` on WebMCP and `window.b3dAgent`; see [agents](/b3d-agent/)). `''` follows the page (`enableSceneAgents`; closed by default), `'read'` offers the read tools, `'on'` everything, `'off'` nothing"
@@ -6702,7 +6746,7 @@
       {
         "name": "xrPassthrough",
         "default": "'off'",
-        "description": "`'on'`: Enter VR starts an AR session where the device has one (passthrough: your room behind the scene, no sky, no floor grid, transparent clear colour); elsewhere it enters VR. `passthrough` is true during such a session, and the scene dispatches `xrenter` (`detail.passthrough`) and `xrexit` around every session. Read on entering"
+        "description": "`'on'`: Enter VR starts an AR session where the device has one (passthrough: your room behind the scene, no sky, no floor grid, transparent clear colour); elsewhere it enters VR. In AR you are scaled to the scene: you arrive with what the flat view showed a step ahead (`xrFrame(centre, radius)` frames something else), one grip drags the scene, both resize and turn it, and the sticks walk at your scale. `passthrough` is true during such a session, `xrSupport` says which sessions the device offers, and the scene dispatches `xrenter` (`detail.passthrough`) and `xrexit` around every session. Read on entering"
       },
       {
         "name": "groundDetail",

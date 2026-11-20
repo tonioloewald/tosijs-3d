@@ -139,6 +139,7 @@ export class XrFrames {
     bodyYawRate;
     bodyYawDeadband;
     neckOffset;
+    worldScale;
     // Scratch — never allocate per frame.
     _q = new BABYLON.Quaternion();
     _m = new BABYLON.Matrix();
@@ -152,6 +153,7 @@ export class XrFrames {
         this.neckOffset = opts.neckOffset ?? new BABYLON.Vector3(0, -0.12, -0.1);
         this.flatMode = opts.flat === true;
         this.eyeHeight = opts.eyeHeight ?? 1.6;
+        this.worldScale = opts.worldScale ?? (() => 1);
         // world: fixed at the play-space origin (scene root, no parent).
         this.world = new BABYLON.TransformNode('xr-frame-world', scene);
         // body / neck: ride the rig (so locomotion carries them) and are updated
@@ -274,6 +276,11 @@ export class XrFrames {
         }
         const cam = this.cam;
         const headYaw = this.headLocalYaw();
+        const k = this.worldScale();
+        for (const f of [this.body, this.neck, this.eye])
+            f.scaling.setAll(k);
+        // The face rides the camera, which carries no scale of its own.
+        this.face.scaling.setAll(k);
         // Body: floor under the head, but RIG yaw — identity local rotation inherits
         // the rig's facing via parenting. So body-pinned panels stay put when you
         // glance to look at them and only swing when you actually turn (locomote),
@@ -290,7 +297,7 @@ export class XrFrames {
         const q = cam.rotationQuaternion ?? BABYLON.Quaternion.Identity();
         BABYLON.Matrix.FromQuaternionToRef(q, this._m);
         BABYLON.Vector3.TransformCoordinatesToRef(this.neckOffset, this._m, this._v);
-        this.neck.position.set(cam.position.x + this._v.x, cam.position.y + this._v.y, cam.position.z + this._v.z);
+        this.neck.position.set(cam.position.x + this._v.x * k, cam.position.y + this._v.y * k, cam.position.z + this._v.z * k);
         BABYLON.Quaternion.RotationYawPitchRollToRef(headYaw, 0, 0, this.neck.rotationQuaternion);
     }
     dispose() {

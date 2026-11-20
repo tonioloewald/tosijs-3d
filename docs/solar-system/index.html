@@ -18,11 +18,13 @@
       if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
         document.documentElement.classList.add('darkmode')
       if (p.highContrast) document.documentElement.classList.add('high-contrast')
+      if (p.style && /^[a-z-]+$/.test(p.style))
+        document.documentElement.classList.add('tosi-style-' + p.style)
     } catch (e) {}
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=200b40e99a0e" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=6db508795fdb" data-tosi-doc-system />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,100..900;1,100..900&amp;family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&amp;display=swap" />
   <title>Solar System — tosijs-3d</title>
   <meta name="description" content="Our own solar system, built from the parts the rest of this site documents: every planet and moon a planet, the giants banded and ringed (gas-giant), the…" />
@@ -34,13 +36,13 @@
   <meta property="og:description" content="Our own solar system, built from the parts the rest of this site documents: every planet and moon a planet, the giants banded and ringed (gas-giant), the…" />
   <meta property="og:url" content="https://3d.tosijs.net/solar-system/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Solar System","description":"Our own solar system, built from the parts the rest of this site documents: every planet and moon a planet, the giants banded and ringed (gas-giant), the…","url":"https://3d.tosijs.net/solar-system/","inLanguage":"en","dateModified":"2026-10-21T14:02:07+03:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Solar System","description":"Our own solar system, built from the parts the rest of this site documents: every planet and moon a planet, the giants banded and ringed (gas-giant), the…","url":"https://3d.tosijs.net/solar-system/","inLanguage":"en","dateModified":"2026-11-17T12:34:43+02:00","author":{"@type":"Person","name":"Tonio Loewald"},"isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net/"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Demos","item":"https://3d.tosijs.net/demos/"},{"@type":"ListItem","position":2,"name":"Solar System","item":"https://3d.tosijs.net/solar-system/"}]}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=41191e253fb7" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=9a98199a84ec" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="solar-system.ts">
 <h1 id="solar-system">Solar System</h1>
 <p>Our own solar system, built from the parts the rest of this site documents:
@@ -52,12 +54,17 @@ asteroid belt between Mars and Jupiter.</p>
 <p>Pick a body under <strong>look at</strong> and the camera follows it round its orbit.
 Switch on <strong>real maps</strong> and the Earth, the Moon and Mars are drawn from NASA&#39;s
 and NOAA&#39;s own height and colour maps instead of being made up.</p>
+<p>In a headset with passthrough (a Quest), switch on <strong>passthrough (AR)</strong> before
+entering: the system sits a metre and a half across, in front of you in your
+own room. Walk round it; hold a grip to drag it, both grips to make it bigger
+or smaller and turn it, and pick a body under <strong>look at</strong> to bring it in
+front of you.</p>
 <h2 id="demo">Demo</h2>
 <pre><code class="language-js">import { b3d, b3dLight, b3dStarSystem, spaceBackdrop, SOL, label3d, slider3d, toggle3d, select3d } from &#39;tosijs-3d&#39;
 import { tosi } from &#39;tosijs&#39;
 
 const { sol } = tosi({
-  sol: { maps: false, focus: &#39;Earth&#39;, animate: true, showOrbits: true, belt: 1500, time: 3600 },
+  sol: { maps: false, focus: &#39;Earth&#39;, animate: true, showOrbits: true, belt: 1500, time: 3600, ar: false },
 })
 
 const system = b3dStarSystem({ scale: 5, orbitScale: 3, animate: &#39;on&#39;, showOrbits: &#39;on&#39;, maps: &#39;off&#39;, beltCount: sol.belt.value, timeScale: sol.time })
@@ -98,7 +105,7 @@ preview.append(
       clearColor: &#39;#000000&#39;,
       scenePanelOpen: true,
       panelTitle: &#39;Solar System&#39;,
-      scenePanel: () =&gt; [
+      scenePanel: (host) =&gt; [
         select3d({ label: &#39;look at&#39;, value: sol.focus, options: names }),
         toggle3d({ label: &#39;real maps (Earth, Moon, Mars)&#39;, value: sol.maps }),
         toggle3d({ label: &#39;orbit&#39;, value: sol.animate }),
@@ -106,6 +113,8 @@ preview.append(
         slider3d({ label: &#39;time&#39;, value: sol.time, min: 1, max: 3.16e6, scale: &#39;log&#39;, format: perSecond }),
         toggle3d({ label: &#39;show orbits&#39;, value: sol.showOrbits }),
         slider3d({ label: &#39;belt rocks&#39;, value: sol.belt, min: 0, max: 6000, step: 250 }),
+        // Only where AR exists, and not in a session: it takes effect on entering.
+        ...(host.xrSupport.ar &amp;&amp; !host.xrActive ? [toggle3d({ label: &#39;passthrough (AR)&#39;, value: sol.ar })] : []),
       ],
       sceneCreated(el, BABYLON) {
         const camera = new BABYLON.ArcRotateCamera(&#39;sol&#39;, -Math.PI / 2, Math.PI / 2.6, 40, BABYLON.Vector3.Zero(), el.scene)
@@ -116,6 +125,20 @@ preview.append(
         camera.wheelDeltaPercentage = 0.02
         camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
         el.setActiveCamera(camera)
+        sol.ar.observe(() =&gt; (el.xrPassthrough = sol.ar.value ? &#39;on&#39; : &#39;off&#39;))
+        // IN YOUR ROOM: the whole system a metre and a half across, a step
+        // ahead; &#39;look at&#39; brings a body in front of you instead. (Grips grab:
+        // one drags, both resize and turn.)
+        const centre = () =&gt; new BABYLON.Vector3(system.x, system.y, system.z)
+        el.addEventListener(&#39;xrenter&#39;, (event) =&gt; {
+          if (!event.detail.passthrough) return
+          const c = centre()
+          el.xrFrame(c, Math.max(1, ...system.bodies.map((b) =&gt; BABYLON.Vector3.Distance(b.node.getAbsolutePosition(), c))))
+        })
+        sol.focus.observe(() =&gt; {
+          const body = system.bodies.find((b) =&gt; b.name === sol.focus.value)
+          if (el.passthrough &amp;&amp; body != null) el.xrFrame(body.node.getAbsolutePosition(), Math.max(body.radius * 3, 0.5))
+        })
         // FOLLOW THE CHOSEN BODY: ease onto it every frame, and on choosing,
         // pull in to a few of its radii.
         let following = &#39;&#39;
@@ -367,9 +390,22 @@ inside it you would see nothing.</li>
     <ul id="tosi-nav-characters-and-vehicles">
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-biped" aria-label="b3d-biped"></button><a class="doc-link" href="../b3d-biped/">b3d-biped</a></div>
       <ul id="tosi-nav-b3d-biped">
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-npc" aria-label="b3d-npc"></button><a class="doc-link" href="../b3d-npc/">b3d-npc</a></div>
+        <ul id="tosi-nav-b3d-npc">
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-conversation" aria-label="b3d-conversation"></button><a class="doc-link" href="../b3d-conversation/">b3d-conversation</a></div>
+          <ul id="tosi-nav-b3d-conversation">
+            <li><a class="doc-link" href="../balloon-layout/">balloon layout</a></li>
+          </ul></li>
+          <li><a class="doc-link" href="../conversation/">conversation</a></li>
+          <li><a class="doc-link" href="../noise/">noise</a></li>
+          <li><a class="doc-link" href="../npc-brain/">npc-brain</a></li>
+          <li><a class="doc-link" href="../sensorium/">sensorium</a></li>
+        </ul></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-aim" aria-label="aim"></button><a class="doc-link" href="../aim/">aim</a></div>
         <ul id="tosi-nav-aim">
           <li><a class="doc-link" href="../aim-ik/">aim IK</a></li>
+          <li><a class="doc-link" href="../aim-assist/">aim-assist</a></li>
+          <li><a class="doc-link" href="../two-bone-ik/">two-bone IK</a></li>
         </ul></li>
         <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-character-core" aria-label="character core"></button><a class="doc-link" href="../character-core/">character core</a></div>
@@ -382,6 +418,7 @@ inside it you would see nothing.</li>
             <ul id="tosi-nav-rigged-body-glb">
               <li><a class="doc-link" href="../spring-vrm/">spring-vrm</a></li>
               <li><a class="doc-link" href="../body-export/">body export</a></li>
+              <li><a class="doc-link" href="../glb-textures/">glb textures</a></li>
             </ul></li>
           </ul></li>
           <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-glb-chunks" aria-label="glb-chunks"></button><a class="doc-link" href="../glb-chunks/">glb-chunks</a></div>
@@ -411,6 +448,7 @@ inside it you would see nothing.</li>
           <li><a class="doc-link" href="../rig-markers/">rig markers</a></li>
         </ul></li>
         <li><a class="doc-link" href="../spring-chain-babylon/">spring bones</a></li>
+        <li><a class="doc-link" href="../fall/">fall</a></li>
       </ul></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-aircraft" aria-label="b3d-aircraft"></button><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></div>
       <ul id="tosi-nav-b3d-aircraft">
@@ -456,7 +494,10 @@ inside it you would see nothing.</li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-interactive" aria-label="b3d-interactive"></button><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></div>
       <ul id="tosi-nav-b3d-interactive">
         <li><a class="doc-link" href="../interaction/">interaction</a></li>
+        <li><a class="doc-link" href="../b3d-pickup/">b3d-pickup</a></li>
         <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+        <li><a class="doc-link" href="../b3d-door/">b3d-door</a></li>
+        <li><a class="doc-link" href="../b3d-chest/">b3d-chest</a></li>
       </ul></li>
       <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
@@ -474,6 +515,8 @@ inside it you would see nothing.</li>
       <ul id="tosi-nav-b3d-launcher">
         <li><a class="doc-link" href="../ballistics/">ballistics</a></li>
         <li><a class="doc-link" href="../guidance/">guidance</a></li>
+        <li><a class="doc-link" href="../gun-sound/">gun-sound</a></li>
+        <li><a class="doc-link" href="../magazine/">magazine</a></li>
       </ul></li>
       <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
       <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
@@ -490,6 +533,9 @@ inside it you would see nothing.</li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-inventory" aria-label="inventory"></button><a class="doc-link" href="../inventory/">inventory</a></div>
       <ul id="tosi-nav-inventory">
         <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
+        <li><a class="doc-link" href="../trade/">trade</a></li>
+        <li><a class="doc-link" href="../inventory-trade/">inventory-trade</a></li>
+        <li><a class="doc-link" href="../currency/">currency</a></li>
       </ul></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-spawner" aria-label="b3d-spawner"></button><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></div>
@@ -505,6 +551,7 @@ inside it you would see nothing.</li>
       <ul id="tosi-nav-widgets3d">
         <li><a class="doc-link" href="../playback-field/">Playback</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+        <li><a class="doc-link" href="../pager-field/">Pager</a></li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-widget-semantics" aria-label="widget semantics"></button><a class="doc-link" href="../widget-semantics/">widget semantics</a></div>
         <ul id="tosi-nav-widget-semantics">
           <li><a class="doc-link" href="../aria-mirror/">aria mirror</a></li>
@@ -555,7 +602,10 @@ inside it you would see nothing.</li>
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-b3d-panel" aria-label="b3d-panel"></button><a class="doc-link" href="../b3d-panel/">b3d-panel</a></div>
         <ul id="tosi-nav-b3d-panel">
           <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
-          <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+          <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-xr-frames" aria-label="xr-frames"></button><a class="doc-link" href="../xr-frames/">xr-frames</a></div>
+          <ul id="tosi-nav-xr-frames">
+            <li><a class="doc-link" href="../xr-grab/">xr-grab</a></li>
+          </ul></li>
           <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-system-bar" aria-label="system-bar"></button><a class="doc-link" href="../system-bar/">system-bar</a></div>
           <ul id="tosi-nav-system-bar">
             <li><a class="doc-link" href="../bar-menu/">bar-menu</a></li>
@@ -563,8 +613,12 @@ inside it you would see nothing.</li>
         </ul></li>
         <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
         <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
-        <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+        <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-gamepad-focus" aria-label="gamepad-focus"></button><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></div>
+        <ul id="tosi-nav-gamepad-focus">
+          <li><a class="doc-link" href="../pad-ui/">pad-ui</a></li>
+        </ul></li>
       </ul></li>
+      <li><a class="doc-link" href="../b3d-checklist/">test checklist in the scene</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-ui-theme" aria-label="Theme and icons"></button><a class="doc-link" href="../ui-theme/">Theme and icons</a></div>
       <ul id="tosi-nav-ui-theme">
         <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-w3d-theme" aria-label="w3d-theme"></button><a class="doc-link" href="../w3d-theme/">w3d-theme</a></div>
@@ -611,6 +665,7 @@ inside it you would see nothing.</li>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
       <li class="nav-branch"><div class="nav-branch-head"><button type="button" class="nav-toggle" aria-expanded="false" aria-controls="tosi-nav-CHANGELOG" aria-label="Changelog"></button><a class="doc-link" href="../CHANGELOG/">Changelog</a></div>
       <ul id="tosi-nav-CHANGELOG">
+        <li><a class="doc-link" href="../v0.13.2/">0.13.2</a></li>
         <li><a class="doc-link" href="../v0.13.1/">0.13.1</a></li>
         <li><a class="doc-link" href="../v0.13.0/">0.13.0</a></li>
         <li><a class="doc-link" href="../v0.12.6/">0.12.6</a></li>
@@ -699,6 +754,6 @@ inside it you would see nothing.</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-8gnd2qzs.js"></script>
+  <script type="module" src="../hydrate-r5e83g3k.js"></script>
 </body>
 </html>

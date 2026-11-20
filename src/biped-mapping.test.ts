@@ -73,7 +73,7 @@ describe('bipedMapping: the right stick is LOOK', () => {
     expect(i.cameraZoom).toBe(0)
   })
 
-  test('zoom is the wheel (the pad\'s zoom axis), SIGNED; the d-pad does not zoom', () => {
+  test("zoom is the wheel (the pad's zoom axis), SIGNED; the d-pad does not zoom", () => {
     // The d-pad zoomed once; it is UI navigation now (it is the gap a gamepad
     // has that XR controllers do not). Signed: down the wheel zooms in.
     expect(bipedMapping(pad({ zoom: 1 }), 1 / 60).cameraZoom).toBe(1)
@@ -143,7 +143,11 @@ describe('bipedMapping: bumpers carry the vertical verbs', () => {
   })
 
   test('the keyboard keeps its keys: space jumps, E uses, F attacks', () => {
-    const kb = (bipedMapping as unknown as { keyboard: (p: ReturnType<typeof pad>) => ReturnType<typeof pad> }).keyboard
+    const kb = (
+      bipedMapping as unknown as {
+        keyboard: (p: ReturnType<typeof pad>) => ReturnType<typeof pad>
+      }
+    ).keyboard
     expect(bipedMapping(kb(pad({ buttonA: 1 })), 1 / 60).jump).toBe(1)
     expect(bipedMapping(kb(pad({ buttonX: 1 })), 1 / 60).interact).toBe(1)
     expect(bipedMapping(kb(pad({ buttonB: 1 })), 1 / 60, true).shoot).toBe(1)

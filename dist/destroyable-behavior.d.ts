@@ -19,6 +19,11 @@ export interface DeathOutcome {
      * `'keep'` so it can manage the mesh itself). Ignored when `explode` fires.
      */
     meshOnDeath?: 'dispose' | 'hide' | 'keep';
+    /**
+     * Flash white on a hit and glow red as health falls (default true). A host
+     * that shows its own hits (a biped's hit clips) passes false.
+     */
+    flash?: boolean;
 }
 export interface DestroyableHost {
     /**
@@ -57,6 +62,17 @@ export declare class DestroyableBehavior {
     readonly combatId: string;
     /** On-destruction direct-transfer chain links (see destroyable.ts). */
     chain: ChainLink[];
+    /**
+     * Scales a hit before it lands: a body takes more from a head shot than a
+     * hand (see the cause's `at`). Default 1.
+     */
+    damageScale?: (cause?: Cause) => number;
+    /** Code hook run on every hit that lands: how much, health left, and who. */
+    whenDamaged?: (info: {
+        amount: number;
+        hp: number;
+        cause?: Cause;
+    }) => void;
     /** Code hook run once on death, before the visual outcome. */
     whenDestroyed?: (info: {
         id: string;

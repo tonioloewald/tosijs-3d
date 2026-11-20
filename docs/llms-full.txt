@@ -361,8 +361,8 @@ arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, button3d, characterStore, holdGrip, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, WORKING_CHARACTER } from 'tosijs-3d'
-import { tosi } from 'tosijs'
+import { assetUrl, b3d, b3dBiped, b3dBox, b3dChest, b3dDeath, b3dDoor, b3dPanel, createCarry, tradePanel, b3dInteractive, b3dLauncher, b3dLibrary, b3dNpc, b3dPickup, b3dTurret, button3d, characterStore, holdGrip, holdMount, holdClassOf, placeIn, stowGrip, STOW_MOUNT, heldGrip, mountNode, inputFocus, playground, select3d, studioEnvironment, ualAnimationStates, AIM_CLIPS, b3dConversation, WORKING_CHARACTER } from 'tosijs-3d'
+import { tosi, svgElements } from 'tosijs'
 import { demoLoadout } from 'tosijs-3d/demo-utils'
 
 // TONIO'S WEAPONS (CC BY 4.0), the character builder's: every one is made
@@ -370,33 +370,66 @@ import { demoLoadout } from 'tosijs-3d/demo-utils'
 // one grip holds them all, and the blades another. (Line comments in this
 // demo: a block comment inside a fence would close the enclosing doc comment.)
 const weapons = b3dLibrary({
-  url: assetUrl('tonio/weapons-classic/weapons.glb', 2),
+  url: assetUrl('tonio/weapons-classic/weapons.glb', 3),
   type: 'weapons',
 })
 // Where the hand holds each one: the character builder's defaults, placed
 // with its manipulator in the hand's socket frame (x/y/z is the grip).
 // One grip per class of item (hold-grip): every one-handed blade alike.
-const gripFor = (name) => {
-  const { scale, ...grip } = holdGrip(name)
+// The character file the hero is made from (null: the mannequin), for a
+// respawn and for its placements.
+let heroDoc = null
+// A character from the builder brings its own placements (one per class,
+// set with the builder's manipulator); the mannequin uses the defaults.
+const gripsKept = () => heroDoc?.settings?.grips ?? {}
+// Adjustments for `name`'s class (a character from before grips were per
+// class kept them per item).
+const keptFor = (name) => {
+  const kept = gripsKept()
+  const c = holdClassOf(name)
+  const own = kept[c] ?? kept[name]
+  return own ? { ...kept, [c]: own } : kept
+}
+const gripFor = (name, side) => {
+  const { scale, ...grip } = holdGrip(name, keptFor(name), undefined, side)
   return grip
 }
 // What each one is in the inventory (slot tags, mass, its picture), and for the
-// guns how it fires. Only guns are raised: UAL's ranged clips are Pistol_*,
-// so the rifles are fired from a one-handed stance. Anything else is a melee
-// weapon (`holdingWeapon`): on guard, and the trigger swings it.
+// guns how it fires. Guns and the bow are raised: a gun plays UAL's Pistol_*
+// clips (a rifle shouldered by arm IK on top), the bow UAL's Bow_* clips in
+// the left hand. Anything else is a melee weapon (`holdingWeapon`): on guard,
+// and the trigger swings it.
 const WEAPONS = {
-  Pistol: { tags: ['side', 'hand'], mass: 1, art: 'pistol', fire: { fireRate: 6, muzzleSpeed: 45, damage: 25, projRadius: 0.08, gravity: -2 } },
-  SMG: { tags: ['side', 'hand'], mass: 2.5, art: 'pistol', fire: { fireRate: 14, muzzleSpeed: 50, damage: 12, projRadius: 0.06, gravity: -2 } },
-  'Assault Rifle': { tags: ['back', 'hand', 'two-handed'], mass: 3.5, art: 'rifle', fire: { fireRate: 9, muzzleSpeed: 80, damage: 20, projRadius: 0.06, gravity: -1 } },
-  'Rocket Launcher': { tags: ['back', 'hand', 'two-handed'], mass: 7, art: 'rifle', fire: { fireRate: 0.8, muzzleSpeed: 25, damage: 120, projRadius: 0.16, gravity: -1 } },
+  // A gun's magazine is `ammo` rounds, reloaded in `reloadTime` seconds from
+  // what it `loads` in your bag.
+  Pistol: { tags: ['side', 'hand'], mass: 1, art: 'pistol', loads: 'Pistol Ammo', fire: { sound: 'pistol', fireRate: 6, muzzleSpeed: 45, damage: 25, projRadius: 0.08, gravity: -2, directHit: 'on', ammo: 12, reloadTime: 1.2 } },
+  SMG: { tags: ['side', 'hand'], mass: 2.5, art: 'pistol', loads: 'Pistol Ammo', fire: { sound: 'pistol', fireRate: 14, muzzleSpeed: 50, damage: 12, projRadius: 0.06, gravity: -2, directHit: 'on', ammo: 30, reloadTime: 1.6 } },
+  'Assault Rifle': { tags: ['back', 'hand', 'two-handed'], mass: 3.5, art: 'rifle', loads: 'Rifle Ammo', fire: { sound: 'rifle', fireRate: 9, muzzleSpeed: 80, damage: 20, projRadius: 0.06, gravity: -1, directHit: 'on', ammo: 30, reloadTime: 2 } },
+  'Rocket Launcher': { tags: ['back', 'hand', 'two-handed'], mass: 7, art: 'rifle', loads: 'Rockets', fire: { sound: 'heavy', fireRate: 0.8, muzzleSpeed: 25, damage: 120, projRadius: 0.16, gravity: -1, directHit: 'off', ammo: 1, reloadTime: 2.5 } },
   Dagger: { tags: ['side', 'hand'], mass: 0.4, art: 'knife' },
   'Short Sword': { tags: ['side', 'hand'], mass: 1, art: 'sword' },
   'Long Sword': { tags: ['side', 'hand'], mass: 1.5, art: 'sword' },
   'Hand and a Half': { tags: ['back', 'hand', 'two-handed'], mass: 2, art: 'sword' },
   'Plasma Blade': { tags: ['side', 'hand'], mass: 1, art: 'sword' },
   Spear: { tags: ['back', 'hand', 'two-handed'], mass: 2, art: 'sword' },
-  Buckler: { tags: ['back', 'hand'], mass: 2.5, art: 'shield' },
+  // One arrow at a time: each shot is a reload (UAL's notch), and arrows drop.
+  Bow: { tags: ['back', 'hand', 'two-handed'], mass: 1, art: 'rifle', loads: 'Arrows', fire: { sound: 'bow', fireRate: 1, muzzleSpeed: 40, damage: 45, projRadius: 0.03, gravity: -9.8, directHit: 'on', ammo: 1, reloadTime: 0.8 } },
+  // A shield goes in the LEFT hand (strapped to the forearm) or on the back.
+  Buckler: { tags: ['back', 'shield'], mass: 2.5, art: 'shield' },
+  'Kite Shield': { tags: ['back', 'shield'], mass: 4, art: 'shield' },
+  // Kept, not drunk: the shopkeeper wants one (see THE SHOPKEEPER).
+  Potion: { tags: ['bag'], mass: 0.3, art: 'potion' },
+  // Not a weapon: it lives in the bag, and opens the yard's door.
+  'Iron Key': { tags: ['key'], mass: 0.1, art: 'key' },
+  // Rounds, in stacks.
+  'Pistol Ammo': { tags: ['ammo'], mass: 0.01, art: 'ammo', stack: 200 },
+  'Rifle Ammo': { tags: ['ammo'], mass: 0.015, art: 'ammo', stack: 200 },
+  Rockets: { tags: ['ammo'], mass: 1.5, art: 'rocket', stack: 10 },
+  Arrows: { tags: ['ammo'], mass: 0.03, art: 'ammo', stack: 60 },
 }
+// What things are worth (the info floater shows it, in the purse's currency).
+const COST = { Pistol: 40, SMG: 90, 'Assault Rifle': 160, 'Rocket Launcher': 300, Dagger: 8, 'Short Sword': 20, 'Long Sword': 35, 'Hand and a Half': 60, 'Plasma Blade': 120, Spear: 15, Bow: 50, Buckler: 12, 'Kite Shield': 30, 'Pistol Ammo': 0.5, 'Rifle Ammo': 1, Rockets: 25, Arrows: 0.5, Potion: 10 }
+for (const [kind, cost] of Object.entries(COST)) WEAPONS[kind].cost = cost
 
 // ONE LAUNCHER, carrying whatever is in your right hand. `socket` parents it
 // to the hand BONE, so it follows the animation, and with a socket x/y/z/rx/
@@ -406,7 +439,7 @@ const gun = b3dLauncher({
   socket: 'right-hand',
   ...gripFor('Pistol'),
   ...WEAPONS.Pistol.fire,
-  ammo: 999, reloadRate: 40, projColor: '#ffdd66',
+  projColor: '#ffdd66',
 })
 
 // A QUATERNIUS UAL RIG, not omnidude, and the arena is the reason rather than
@@ -424,9 +457,11 @@ const gun = b3dLauncher({
 // character builder saved in this browser, and picking one swaps the hero for
 // a biped made from it (`characterDoc`), carrying what you hold across.
 const MANNEQUIN = 'UAL mannequin'
+// A shop sells at an item's value and buys back at half.
+const shopPrice = (item, from) => (WEAPONS[item.kind]?.cost ?? 0) * item.qty * (from?.holder === 'shop' ? 1 : 0.5)
 const makeHero = (doc, at) => b3dBiped(
   {
-    ...(doc ? { characterDoc: doc } : { url: assetUrl('quaternius/UAL1_core.glb', 3) }),
+    ...(doc ? { characterDoc: doc } : { url: assetUrl('quaternius/UAL1_core.glb', 5) }),
     animationStates: ualAnimationStates(),
     // WHERE THE ARENA IS IN FRONT OF YOU. Spawning at the origin put `pillar-b`
     // (0, -12.3) literally touching your muzzle line, so every shot from the
@@ -436,6 +471,12 @@ const makeHero = (doc, at) => b3dBiped(
     // built around, and there is room to see a round travel.
     x: at.x, z: at.z, ry: at.ry ?? 0,
     player: true, cameraType: 'follow',
+    // Walk off the 6 m tower and you die where you land; jump off the
+    // catwalk and you land hard.
+    lethalFall: 5,
+    // A turret's shell takes a quarter; out of its sight you heal.
+    health: 100,
+    healthRegen: 10,
   },
   gun
 )
@@ -446,7 +487,277 @@ let hero = makeHero(null, { x: -4, z: 10 })
 // your right hand is what the launcher carries; a gun in hand is up (aim and
 // fire), anything else is held with the weapon down. The weapon button draws
 // from the hip or back, or puts away what is in hand; dragging works too.
-const loadout = demoLoadout({ catalogue: WEAPONS, equip: { right_side: 'Pistol' } })
+//
+// AND SOME OF IT IS LYING ON THE GROUND. Walk up and press E (interact) to
+// pick a thing up into your bag; drag anything out of the loadout onto drop
+// and it lands at your feet. A world item is a KIND: picking it up makes an
+// item of that kind, so items are looked up by kind, never by id.
+const loadout = demoLoadout({
+  catalogue: WEAPONS,
+  equip: { right_side: 'Pistol' },
+  // The yard's two chests are holders in the same inventory.
+  holders: { 'gate chest': {}, 'yard chest': {}, shop: { purse: { gold: 200 } } },
+  price: (item, from) => shopPrice(item, from),
+  // Money, written as the game writes it: `12 gold` (a label after the
+  // amount; `€` or `$` would go before it).
+  purse: { gold: 25 },
+  currencies: [{ id: 'gold', label: 'gold' }],
+  // Dropped is THROWN: 3 m off to the right front, low, and where it lands it
+  // makes a noise, so it is how you lure the enemy away.
+  handleDrop: (item) => {
+    const node = hero.entries?.rootNodes[0]
+    if (!node) return
+    const f = node.forward
+    // 45 degrees right of facing.
+    const d = { x: (f.x + f.z) / Math.SQRT2, z: (f.z - f.x) / Math.SQRT2 }
+    const p = node.position
+    const thrown = pickup(item.kind, p.x + d.x * 0.4, p.z + d.z * 0.4)
+    thrown.y = 1.1
+    hero.owner?.append(thrown)
+    requestAnimationFrame(() =>
+      thrown.toss({ x: p.x + d.x * 3, z: p.z + d.z * 3 }, { height: 0.3, seconds: 0.45 })
+    )
+  },
+})
+const BAG = { holder: 'hero', container: 'bag' }
+const stock = (holder) => ({ holder, container: 'stock' })
+// AMMO: what your guns load is in the bag, in stacks. Start with 36 pistol
+// rounds and nothing else; more lies around (and rockets are in the yard).
+const AMMO = ['Pistol Ammo', 'Rifle Ammo', 'Rockets', 'Arrows']
+for (const kind of AMMO) loadout.inv.move({ item: kind, to: null })
+loadout.inv.move({ kind: 'Pistol Ammo', qty: 36, to: BAG })
+const heroItems = () => Object.values(loadout.inv.doc.items).filter((i) => loadout.inv.where(i.id)?.holder === 'hero')
+const rounds = (kind) => heroItems().filter((i) => i.kind === kind).reduce((n, i) => n + i.qty, 0)
+const useRounds = (kind, n) => {
+  let got = 0
+  for (const i of heroItems().filter((i) => i.kind === kind)) {
+    const take = Math.min(n - got, i.qty)
+    if (take <= 0) break
+    loadout.inv.move({ item: i.id, qty: take, to: null })
+    got += take
+  }
+  return got
+}
+// The gun reloads from the bag: whatever the gun in hand loads.
+const loads = () => WEAPONS[kindOf(inRight())]?.loads
+gun.ammoSource = {
+  count: () => (loads() ? rounds(loads()) : 0),
+  take: (n) => (loads() ? useRounds(loads(), n) : 0),
+}
+// Lying on its side (the weapons stand on their grips, blade or barrel up +Y).
+const pickup = (kind, x, z) => b3dPickup({
+  library: 'weapons', meshName: kind, item: kind,
+  x, y: 0.08, z, rz: 90,
+  whenPickedUp: ({ item }) => loadout.inv.move({ kind: item, to: BAG }),
+})
+// AMMO AND HEALTH lying about (Kenney's ammo boxes, a potion and a heart),
+// scaled up to be seen: Kenney's ammo is a real cartridge's size.
+// Ammo goes in the bag; health is taken at once, and left lying while you
+// are at full health.
+const kenney = b3dLibrary({ url: assetUrl('kenney/libraries/weapon-pack.glb'), type: 'kenney-weapons' })
+const survival = b3dLibrary({ url: assetUrl('kenney/libraries/survival-kit.glb'), type: 'survival' })
+const platformer = b3dLibrary({ url: assetUrl('kenney/libraries/platformer-kit.glb'), type: 'platformer' })
+const ammoBox = (kind, meshName, qty, x, z) => b3dPickup({
+  library: 'kenney-weapons', meshName, item: kind, qty, x, y: 0.05, z, scale: 6,
+  whenPickedUp: ({ item, qty }) => { loadout.inv.move({ kind: item, qty, to: BAG }); say(`${qty} ${item}`) },
+})
+const healer = (library, meshName, heals, x, z, scale = 1) => b3dPickup({
+  library, meshName, item: meshName, x, y: 0.05, z, scale,
+  refuse: () => (hero.hp >= 100 ? 'You are at full health.' : null),
+  whenRefused: ({ reason }) => say(reason),
+  whenPickedUp: () => { hero.heal(heals); say(`+${heals} health`) },
+})
+// THE SHOPKEEPER: a stand-in mannequin behind a counter by the start. E at
+// the counter opens the shop: its stock beside your bag, priced; deal or
+// cancel. It sells ammo by the box and buys anything at half its value.
+loadout.inv.move({ item: 'SMG', to: stock('shop') }, { item: 'Plasma Blade', to: stock('shop') })
+loadout.inv.move({ kind: 'Pistol Ammo', qty: 120, to: stock('shop') })
+loadout.inv.move({ kind: 'Rifle Ammo', qty: 120, to: stock('shop') })
+loadout.inv.move({ kind: 'Rockets', qty: 4, to: stock('shop') })
+loadout.inv.move({ item: 'Kite Shield', to: stock('shop') })
+loadout.inv.move({ kind: 'Arrows', qty: 40, to: stock('shop') })
+const SHOP_AT = { x: 7.2, z: 9 }
+// TALKING TO HIM: E at the counter starts a conversation (b3d-conversation).
+// He talks and gestures, his lines and your replies are in a balloon over his
+// head (click one, or press its number), "What do you sell?" opens the shop
+// and the talk picks up when it closes, and his errand takes the potion from
+// the gate chest out of your bag and pays you in rifle rounds.
+// Voiced locally by Qwen3-TTS from bin/speech-shopkeeper.json (a direction per line).
+const voice = (id) => assetUrl(`speech/shopkeeper-${id}.mp3`, 2)
+const SHOP_TALK = {
+  start: 'hello',
+  nodes: {
+    hello: {
+      lines: [{ speaker: 'shopkeeper', text: 'Welcome, welcome. Looking for something?', audio: voice('hello'), gesture: 'show' }],
+      replies: [
+        { id: 'shop', label: 'What do you sell?', then: [{ goto: 'browse' }] },
+        {
+          id: 'work', label: 'Need anything?', line: 'Need a hand with anything?',
+          when: { not: 'asked' },
+          then: [{ set: 'asked' }, { goto: 'errand' }],
+        },
+        {
+          id: 'potion', label: 'Your potion.', line: "Here's that potion I promised you.",
+          when: [{ flag: 'asked' }, { not: 'paid' }, { has: 'Potion' }],
+          then: [{ take: 'Potion' }, { give: 'Rifle Ammo', qty: 30 }, { set: 'paid' }, { goto: 'thanks' }],
+        },
+        { id: 'bye', label: 'Bye.', then: [{ goto: 'bye' }] },
+      ],
+    },
+    errand: {
+      lines: [
+        { speaker: 'shopkeeper', text: 'My knees are not what they were.', audio: voice('knees'), gesture: 'no' },
+        { speaker: 'shopkeeper', text: "Bring me a potion and I'll make it worth your while.", audio: voice('potion') },
+      ],
+      then: [{ goto: 'more' }],
+    },
+    thanks: {
+      lines: [
+        { speaker: 'shopkeeper', text: 'You remembered!', audio: voice('remembered'), gesture: 'surprise' },
+        { speaker: 'shopkeeper', text: 'Here, thirty rounds, on the house.', audio: voice('rounds'), gesture: 'give' },
+      ],
+      then: [{ goto: 'more' }],
+    },
+    // He invites you to look, then the shop opens.
+    browse: {
+      lines: [{ speaker: 'shopkeeper', text: 'Please, take a look.', gesture: 'show' }],
+      then: [{ trade: true }, { goto: 'after' }],
+    },
+    after: { lines: [{ speaker: 'shopkeeper', text: 'Pleasure doing business.', audio: voice('after'), gesture: 'yes' }], then: [{ goto: 'more' }] },
+    more: {
+      lines: [{ speaker: 'shopkeeper', text: 'Anything else?', audio: voice('more') }],
+      replies: [], // filled from hello's, below
+    },
+    bye: { lines: [{ speaker: 'shopkeeper', text: 'Mind how you go.', audio: voice('bye') }], then: [{ end: true }] },
+  },
+}
+SHOP_TALK.nodes.more.replies = SHOP_TALK.nodes.hello.replies
+const shopTalk = b3dConversation()
+shopTalk.script = SHOP_TALK
+const heroCount = (kind) => heroItems().filter((i) => i.kind === kind).reduce((n, i) => n + (i.qty ?? 1), 0)
+shopTalk.host = {
+  has: (kind, qty) => heroCount(kind) >= qty,
+  give: (kind, qty) => {
+    const r = loadout.inv.move({ kind, qty, to: BAG })
+    if (r.ok) say(`${qty} ${kind}`)
+    return r.ok ? null : r.reasons.join(', ')
+  },
+  take: (kind, qty) => {
+    const it = heroItems().find((i) => i.kind === kind)
+    if (!it) return `no ${kind}`
+    const r = loadout.inv.move({ item: it.id, qty, to: null })
+    return r.ok ? null : r.reasons.join(', ')
+  },
+  trade: (done) => openTrade('shop', { title: 'Shop', at: () => counter.mesh?.position, price: shopPrice, done }),
+}
+const shopkeeper = b3dBiped({
+  url: assetUrl('quaternius/UAL1_core.glb', 5),
+  animationStates: ualAnimationStates(),
+  id: 'Shopkeeper',
+  ...SHOP_AT, ry: 90, // facing the start (-x)
+}, shopTalk)
+const counter = b3dBox({ meshName: 'shop-counter', x: 6.2, y: 0.5, z: 9, width: 0.6, height: 1, depth: 2.4, color: '#8a6a44', solid: 'on' })
+const shop = b3dInteractive({
+  target: 'shop-counter', reach: 2.5,
+  whenActivated: () => {
+    if (!shopTalk.talk || shopTalk.talk.ended) shopTalk.start(hero)
+  },
+})
+// MONEY lying about: a pile of gold by the gate chest, into your purse.
+const gold = (qty, x, z) => b3dPickup({
+  library: 'platformer', meshName: 'coin-gold', item: 'gold', qty, x, y: 0.05, z, scale: 1.5,
+  whenPickedUp: ({ qty }) => {
+    loadout.inv.move({ to: null, pay: { holder: '', in: 'gold' }, payee: 'hero', amount: qty })
+    say(`+${qty} gold`)
+  },
+})
+const LYING_ABOUT = [
+  gold(50, -5, 21.5),
+  shopkeeper, counter, shop,
+  ammoBox('Pistol Ammo', 'ammo_uzi', 24, 1, 7),
+  ammoBox('Rifle Ammo', 'ammo_machinegun', 30, -9, -6),
+  ammoBox('Pistol Ammo', 'ammo_uzi', 24, 12, 12),
+  healer('survival', 'bottle', 30, 3, 6.5, 2.5),
+  healer('platformer', 'heart', 60, -14, -8),
+]
+const ON_THE_GROUND = [['Assault Rifle', -2, 6.5], ['Long Sword', -4.5, 6], ['Buckler', -7, 6.5], ['Bow', -9.5, 6]]
+for (const [kind] of ON_THE_GROUND) loadout.inv.move({ item: kind, to: null })
+// THE YARD, behind you: a walled pen (too high to climb) whose door is
+// locked. The key is in the chest by the door; inside is a chest with the
+// rocket launcher and the big sword in it. Having the key is having an item
+// of its kind.
+loadout.inv.move({ item: 'Iron Key', to: stock('gate chest') })
+loadout.inv.move({ item: 'Rocket Launcher', to: stock('yard chest') }, { item: 'Hand and a Half', to: stock('yard chest') })
+loadout.inv.move({ kind: 'Rockets', qty: 4, to: stock('yard chest') })
+loadout.inv.move({ kind: 'Arrows', qty: 12, to: stock('gate chest') })
+loadout.inv.move({ item: 'Potion', to: stock('gate chest') })
+const has = (kind) => Object.values(loadout.inv.doc.items).some((i) => i.kind === kind)
+// OPENING A CHEST opens a trade: its contents beside your bag, take what you
+// take and leave the rest. One panel (no button on the system bar), one
+// trade per chest, made the first time it opens. Walk off and it closes.
+const tradeBox = b3dPanel({ title: 'Chest', icon: 'lucideBackpack', barButton: 'off' })
+// In front of you, in the middle of the view.
+tradeBox.screenAnchor = { left: '50%', top: '50%', anchor: 'center' }
+const trades = {}
+let trading = null
+const endTrade = () => {
+  if (!trading) return
+  const { chest, done } = trading
+  trading = null
+  tradeBox.hide()
+  if (chest) chest.open = false
+  // A trade opened from a conversation hands back to it.
+  done?.()
+}
+// Closed with its own ×, it ends the same way.
+tradeBox.addEventListener('paneltoggle', (e) => {
+  if (!e.detail.open) endTrade()
+})
+// One trade per holder, made the first time; a shop's has prices.
+const openTrade = (holder, { chest = null, title = 'Chest', at, price, done } = {}) => {
+  trades[holder] ??= tradePanel({
+    inv: loadout.inv, carry: createCarry(),
+    mine: BAG, theirs: stock(holder),
+    titles: { mine: 'you', theirs: holder },
+    // The shopkeeper, in a sentence ("he can't offer more than 200 gold").
+    they: holder === 'shop' ? 'he' : undefined,
+    price,
+    // How many, on a stack.
+    decorations: (it) => (it.qty > 1 ? { badge: `×${it.qty}` } : undefined),
+    // Ammo goes a box (24 rounds) at a time, not the whole stack.
+    moveFor: (item, from, to) => {
+      const it = loadout.inv.doc.items[item]
+      return AMMO.includes(it?.kind) ? { item, qty: Math.min(24, it.qty), to } : { item, to }
+    },
+    handleDone: endTrade,
+  })
+  trades[holder].begin()
+  tradeBox.title = title
+  tradeBox.svg = trades[holder].svg
+  tradeBox.show()
+  trading = { chest, at: at ?? (() => chest?.mesh?.position), done }
+}
+const chest = (holder, at) => {
+  const el = b3dChest({ ...at, whenOpened: () => openTrade(holder, { chest: el }), whenClosed: () => trading?.chest === el && endTrade() })
+  return el
+}
+// Walls 2.8 m: a mantle reaches 2.2.
+const wall = (x, z, width, depth, height = 2.8, y = 0) =>
+  b3dBox({ x, y: y + height / 2, z, width, height, depth, color: '#9a9284', solid: 'on' })
+const YARD = [
+  wall(-2.4, 24, 3.4, 0.2), wall(2.4, 24, 3.4, 0.2), // the front, either side of the door
+  wall(0, 24, 1.4, 0.2, 0.5, 2.3), // over the door
+  wall(0, 30, 8.2, 0.2), wall(-4, 27, 0.2, 6), wall(4, 27, 0.2, 6),
+  b3dDoor({
+    x: 0, z: 24, lock: 'Iron Key',
+    hasKey: (key) => has(key),
+    whenRefused: ({ key }) => say(`Locked. It needs the ${key}.`),
+  }),
+  chest('gate chest', { x: -2.5, z: 22.8 }),
+  chest('yard chest', { x: 0, z: 28.9 }),
+  tradeBox,
+]
+const kindOf = (id) => (id ? loadout.inv.doc.items[id]?.kind ?? null : null)
 const body = (slot) => ({ holder: 'hero', container: 'body', slot })
 const slotsNow = () => loadout.inv.doc.holders.hero.containers.body.slots
 const inRight = () => slotsNow().hand_right.holds
@@ -461,18 +772,70 @@ const wire = (h) => {
       return
     }
     // Draw: what is on the right hip, then the left, then the back.
-    const from = away.map((s) => slotsNow()[s].holds).find(Boolean)
+    const from = away.map((s) => slotsNow()[s].holds).find((id) => id && !loadout.inv.check({ item: id, to: body('hand_right') }).length)
     if (from) loadout.inv.move({ item: from, to: body('hand_right'), swap: true })
   }
   return h
 }
+// WHAT IS WORN, drawn on the body: what is in the left hand is held there
+// (a shield strapped to the forearm, a dagger in the hand, each class's grip
+// mirrored from the right if it is set for the right), and whatever is on the
+// back rides across the shoulders (hold-grip's mounts). Only the right hand is
+// a launcher; these are models.
+let gear = { key: '', nodes: [] }
+// Babylon, from sceneCreated (lowercase: see the doc transpiler's all-caps rule).
+let babylon = null
+const wearGear = (h) => {
+  if (!babylon) return
+  const skeleton = h.entries?.skeletons?.[0]
+  const left = kindOf(slotsNow().hand_left.holds)
+  const back = kindOf(slotsNow().back.holds)
+  const key = `${skeleton?.uniqueId}|${left}|${back}`
+  if (!skeleton || key === gear.key) return
+  for (const n of gear.nodes) n.dispose()
+  gear = { key, nodes: [] }
+  const mount = (kind, where, g) => {
+    const at = mountNode(skeleton, where)
+    const node = at && weapons.instantiate?.(kind, { canonical: true })
+    if (!node) return
+    node.parent = at
+    const d = Math.PI / 180
+    const turn = babylon.Quaternion.FromEulerAngles(g.rx * d, g.ry * d, g.rz * d)
+    const grip = (heldGrip(node) ?? babylon.Vector3.Zero()).scale(g.scale).applyRotationQuaternion(turn)
+    node.position.set(g.x - grip.x, g.y - grip.y, g.z - grip.z)
+    node.rotationQuaternion = turn
+    node.scaling.setAll(g.scale)
+    gear.nodes.push(node)
+  }
+  // The left hand's thing on its LEFT mount (a shield strapped to the
+  // forearm, a dagger in the hand), its grip mirrored if set for the right.
+  // In the hand or on the forearm: the class's own place unless the
+  // character wears it elsewhere (a buckler in the fist).
+  const place = left && placeIn(left, gripsKept())
+  if (left) mount(left, holdMount(holdClassOf(left), 'l', place), holdGrip(left, keptFor(left), undefined, 'l', place))
+  if (back) mount(back, STOW_MOUNT, stowGrip(back, gripsKept()))
+}
+// Each gun keeps what is in its magazine while it is put away.
+const magazines = {}
+let inHand = null
 const hold = (h) => {
   const id = inRight()
-  const w = id ? WEAPONS[id] : null
-  if (w && gun.meshName !== id) {
-    Object.assign(gun, gripFor(id), w.fire ?? {}, { meshName: id })
+  const kind = kindOf(id)
+  const w = kind ? WEAPONS[kind] : null
+  // Any weapon in hand is the launcher's model, a sword too (it is shown, not
+  // fired); only a gun has a magazine to keep.
+  if (w && id !== inHand) {
+    if (inHand && WEAPONS[kindOf(inHand)]?.fire) magazines[inHand] = gun.loaded
+    inHand = id
+    // A bow rides the LEFT hand's socket (hold-grip's mount for its class).
+    const side = holdMount(holdClassOf(kind)).side
+    const socket = side === 'l' ? 'left-hand' : 'right-hand'
+    Object.assign(gun, gripFor(kind, side), w.fire ?? {}, { meshName: kind, socket })
+    if (w.fire) gun.loaded = magazines[id] ?? w.fire.ammo
     gun.reloadModel()
   }
+  // The clips the raised weapon plays (a new hero, after a respawn, too).
+  if (w?.fire) h.setAimClips(holdClassOf(kind) === 'bow' ? AIM_CLIPS.bow : AIM_CLIPS.pistol)
   h.holdingWeapon = w != null && w.fire == null
   h.setGunplay(w?.fire != null)
 }
@@ -498,6 +861,7 @@ const useCharacter = async (name) => {
   const doc = name === MANNEQUIN ? null : await store.get(stored(name)).catch(() => null)
   // Gone (forgotten, or another browser's): the menu says who you are.
   if (name !== MANNEQUIN && !doc) { playChar.pick.value = MANNEQUIN; return }
+  heroDoc = doc
   // Where the hero is now and which way he faces, so the new one takes over there.
   const was = hero.entries?.rootNodes[0]
   const p = was?.position
@@ -506,6 +870,10 @@ const useCharacter = async (name) => {
   const next = wire(makeHero(doc, at))
   hero.replaceWith(next)
   hero = next
+  // Its own placements: the thing in hand is gripped again.
+  if (inHand && WEAPONS[kindOf(inHand)]?.fire) magazines[inHand] = gun.loaded
+  inHand = null
+  gear.key = ''
   hold(next)
   playChar.pick.value = name
   try { localStorage.setItem('playground-character', name) } catch {}
@@ -519,14 +887,116 @@ const start = asked ? (asked === WORKING_CHARACTER ? BUILDER : asked) : last
 if (start && start !== MANNEQUIN) useCharacter(start)
 else playChar.pick.value = MANNEQUIN
 
+// SOMETHING SHOOTS BACK: a turret past the cover line, slow enough to dodge,
+// aiming at the hero's chest. Cover is cover now.
+const turret = b3dTurret({ x: 0, z: -30, range: 35, fireRate: 0.5, muzzleSpeed: 25, smart: 1, damage: 25, blastRadius: 2 })
+// ENEMIES ON FOOT (the mannequin, a sword swing for a blow): one stands
+// guard with its back to where you start, one walks a loop past the cover
+// line. Oblivious until they notice you; three pistol shots
+// put one down, and a new one takes its place a little later.
+const ENEMIES = [
+  // (A biped's ry 0 faces -z; -35 faces away from the start, toward +x -z.)
+  // Beyond the cover line, over 25 m (its sight) from the start, the shop and
+  // everything lying about, so they are safe to play with.
+  { x: 12, z: -22, ry: -35 },
+  { x: -10, z: -20, patrol: [{ x: -10, z: -20 }, { x: 7, z: -20 }, { x: 7, z: -27 }, { x: -10, z: -27 }] },
+]
+const makeEnemy = ({ patrol, ...at }, i) => b3dBiped(
+  {
+    url: assetUrl('quaternius/UAL1_core.glb', 5),
+    animationStates: ualAnimationStates([{ name: 'attack', animation: 'Sword_Attack', loop: false }]),
+    ...at,
+    health: 60,
+  },
+  // Sight 25 m: the start is out of reach of both, so you can learn the
+  // controls before anything comes for you.
+  b3dNpc({ skill: 0.1, attackDamage: 20, seed: i + 1, patrol: patrol ?? null, sightRange: 25 })
+)
+const enemies = ENEMIES.map(makeEnemy)
+const focus = inputFocus(hero)
+// A fresh one where it began: after it is put down, and when you respawn (or
+// it would be waiting where you start).
+const newEnemy = (i) => {
+  const next = makeEnemy(ENEMIES[i], i)
+  next.addEventListener('destroyed', () => setTimeout(() => newEnemy(i), 8000))
+  enemies[i].replaceWith(next)
+  enemies[i] = next
+}
+enemies.forEach((e, i) => e.addEventListener('destroyed', () => setTimeout(() => newEnemy(i), 8000)))
+const enemyText = (e) => {
+  const d = e.querySelector('tosi-b3d-npc')?.debugState
+  if (!d) return ''
+  if (e.halted) return 'down'
+  return d.mode + (d.sees ? ', sees you' : d.senses ? ', senses you' : d.heard ? ', heard something' : '')
+}
+
+// THE HUD: health, what the gun holds and what just happened (a locked
+// door, what a pickup gave), small, at the bottom middle of the view (where there is least to see), and in a
+// headset with the other panels. A system panel with no button, open from the
+// start; drag it anywhere (it is all grip), and it stays there.
+const { svg: hudSvgEl, rect, text } = svgElements
+const HUD_W = 180
+const HUD_H = 40
+const BAR_W = HUD_W - 16
+const hudFont = { 'font-family': 'system-ui, sans-serif', 'font-size': 12 }
+const hudBar = rect({ x: 8, y: 8, width: BAR_W, height: 7, rx: 3.5, fill: '#e04848' })
+const hudAmmo = text({ x: 8, y: 31, fill: '#e8eef8', ...hudFont })
+const hudSaid = text({ x: HUD_W - 8, y: 31, fill: '#ffd966', 'text-anchor': 'end', ...hudFont })
+const hud = b3dPanel({ icon: 'heart', title: 'Status', barButton: 'off', exclusive: 'off', chrome: 'none', open: true })
+// Its height stated: a system panel otherwise fits its height to the room,
+// at least 80 px, twice this.
+hud.screenAnchor = { left: '50%', anchorX: 0.5, bottom: '2%', anchorY: 1, height: HUD_H }
+hud.svg = hudSvgEl(
+  { viewBox: `0 0 ${HUD_W} ${HUD_H}`, width: HUD_W, height: HUD_H },
+  rect({ x: 0, y: 0, width: HUD_W, height: HUD_H, rx: 8, fill: '#1b2230', 'fill-opacity': 0.45 }),
+  rect({ x: 8, y: 8, width: BAR_W, height: 7, rx: 3.5, fill: '#3a4252', 'fill-opacity': 0.8 }),
+  hudBar, hudAmmo, hudSaid
+)
+// All of it is a handle: a press anywhere drags it (it has no controls).
+hud.svg.handlePointer = () => {}
+hud.svg.gripHit = () => true
+const shown = { hp: -1, ammo: null, said: null }
+const showHud = () => {
+  const hp = hero.halted ? 0 : Math.max(0, Math.round(hero.hp))
+  if (hp !== shown.hp) hudBar.setAttribute('width', String((BAR_W * (shown.hp = hp)) / 100))
+  const ammo = hero.gunplay && loads() ? `${loads()}: ${gun.reloading ? 'reloading' : gun.loaded} / ${rounds(loads())}` : ''
+  if (ammo !== shown.ammo) hudAmmo.textContent = shown.ammo = ammo
+  if (said !== shown.said) hudSaid.textContent = shown.said = said
+}
+// What just happened, for a few seconds.
+let said = ''
+let saidTimer = 0
+const say = (text) => {
+  said = text
+  clearTimeout(saidTimer)
+  saidTimer = setTimeout(() => { said = '' }, 4000)
+}
+
 preview.append(
   b3d(
     {
-      style: 'width:100%;height:100%',
+      style: 'flex: 1; min-height: 0',
       // Something for the weapons' metal to reflect: without it a PBR metal
       // has nothing to show and renders nearly black.
-      sceneCreated(el) {
+      sceneCreated(el, b) {
+        babylon = b
+        // For the console: the inventory (move things, read the purse).
+        el.inventory = loadout.inv
         studioEnvironment(el.scene, { sky: '#7d9cc4', horizon: '#e8e4da', ground: '#55604a' })
+        el.scene.onBeforeRenderObservable.add(() => {
+          wearGear(hero)
+          // Walked away from an open chest: the trade closes.
+          const chestAt = trading?.at()
+          if (chestAt && hero.mesh && hero.mesh.position.subtract(chestAt).length() > 3) endTrade()
+          if (hero.aimTarget && !hero.halted) turret.track(hero.aimTarget)
+          else turret.clearTarget()
+          showHud()
+        })
+        // What each enemy is doing, in Perf Stats (a diagnostic, not the game's).
+        el.addDebugSource({
+          name: 'enemies',
+          lines: () => [`guard: ${enemyText(enemies[0])}`, `patrol: ${enemyText(enemies[1])}`],
+        })
       },
       // The glass pad shows only what this demo USES. These are control names,
       // not a mapping name (`gamepad: 'biped'` names nothing and draws nothing).
@@ -553,22 +1023,44 @@ preview.append(
       },
     },
     weapons,
+    kenney, survival, platformer,
+    turret,
+    ...LYING_ABOUT,
+    ...ON_THE_GROUND.map(([kind, x, z]) => pickup(kind, x, z)),
+    ...YARD,
+    ...enemies,
     ...playground(),
     ...loadout.panels(),
-    inputFocus(hero)
+    hud,
+    // Death's exit: the panel, and a new hero back at the start.
+    b3dDeath({
+      title: 'DEAD',
+      // A person, not an aircraft: watch from close by.
+      orbitRadius: 5,
+      orbitHeight: 2.5,
+      respawn() {
+        // The dead hero is already gone (death removes it), so the new one
+        // goes into the focus manager, which takes it.
+        const next = wire(makeHero(heroDoc, { x: -4, z: 10 }))
+        focus.append(next)
+        hero = next
+        hold(next)
+        enemies.forEach((_, i) => newEnemy(i))
+      },
+    }),
+    focus
   )
 )
 ```
 ```css
-.preview { height: 100%; }
+.preview { height: 100%; display: flex; flex-direction: column; }
 ```
 
-**Two modes, and the right bumper (or clicking the right stick) is the
-switch.** You start with a pistol on your hip and the rest of
+**Two modes, and the right bumper is the switch.** You start with a pistol on your hip and the rest of
 [Tonio's weapons](/character-builder/) in the bag: open the loadout from its
 button on the system bar and drag any of them onto a hip, your back or your
 right hand. With the weapon down you are walking: **R** sprints. Press **right
-bumper** and you draw what is on your hip (or back), and if it is a gun it
+shift** (middle click, or the right bumper on a pad) and you draw what is on your hip (or back), and if it is a gun it
 comes up: now **R** fires, **Q** aims down the sights, and a ring shows where
 the round will actually land, sinking as the range grows because it is the
 real ballistic arc rather than a dot in the middle of the screen. You cannot
@@ -578,9 +1070,73 @@ A blade, the spear or the buckler takes a guard (UAL's `Sword_Idle`) and **R**
 swings it (`Sword_Attack`, played through; held, it swings again). Press the
 bumper again to put away what is in your hand. Only the right hand is drawn.
 
+**Ammo.** A gun holds a magazine (the pistol 12, the SMG and rifle 30, the
+rocket launcher one) and reloads from what is in your bag: **J** (d-pad
+left) reloads, and an empty gun reloads itself when you pull the trigger.
+The panel at the bottom of the view shows your health, what is loaded and what is left; drag it wherever you like. You start
+with 36 pistol rounds; ammo boxes lie about, and each gun keeps its own
+magazine while it is put away.
+
+**Health.** A potion (30) and a heart (60) lie about: walk up and press
+**E**. At full health they stay where they are.
+
+**A shop, and someone to talk to.** The mannequin behind the counter to your
+right is a shopkeeper: press **E** at the counter and he talks. His lines and
+your replies appear in a balloon over his head; click a reply or press its
+number. Ask what he sells and his stock opens beside your bag, with prices;
+when you close it he carries on. Ask whether he needs anything, then bring
+him the potion from the gate chest. Walk away and the conversation ends.
+In the shop, drag things across either way (ammo goes a box of 24 at a time); the line
+under the lists says whether you pay or receive and how much. **Deal**
+settles, **cancel** puts it all back. It sells at an item's value and buys
+at half. You have 25 gold.
+
+**Things to pick up.** A rifle, a sword and a buckler lie in front of you:
+walk up and press **E** to pick one up (you kneel for it), and it goes in your
+bag. Drag anything from the loadout onto **drop** and you throw it: it lands
+6 m ahead with a clatter the enemy hears.
+
+**A locked yard.** Behind the start is a walled yard with a locked door.
+The key is in the chest beside it: press **E** and the chest opens with
+what is inside next to your bag; take what you want and leave the rest. The
+key opens the door, and the chest inside holds the rocket launcher, the big
+sword and rockets.
+
+**Something hunts you.** Two enemies: one stands guard
+beyond the cover line with its back to you, one walks a loop near it. Neither
+can see the start, the shop or the things lying about, so you can try those in
+peace; the fight starts when you cross toward the cover line.
+Each is oblivious until it notices you: anywhere in front of it within 25 m
+(cover hides you; where you start, neither can see you), or within 10 m behind it. Crouch (left shift) and those
+drop to a third, so you can creep to 3 m behind one. A shot is heard 25 m
+off. Noticed, it chases and swings when it reaches you; lose it and it
+searches where it last saw you, then goes back to its post or its route.
+Throw something (drop it from the loadout) and it goes to look where it
+landed. It is deliberately dumb: it runs to where you WERE, so a sidestep
+beats it. Bullets hit where they land: a head shot does two and a half
+times the damage, a limb half: one pistol round to the head puts one down,
+three to the body, five to the arms and legs. Add `#debug` to the
+page's address and Perf Stats, in the settings panel, says what each is doing.
+
+**Something shoots back.** A turret past the cover line fires slow shells at
+you (four hits kill); each hit staggers you, and out of its sight you heal.
+Crouch behind the low wall or duck behind a pillar.
+
+**Falls hurt.** Jump off the catwalk and you land hard (a roll that holds you a
+moment); walk off the top of the tower and you die where you land, then
+respawn at the start.
+
 **WASD** moves, **arrow keys** look, **space** jumps, **left shift** sneaks,
-**E** interacts, **Y** switches between third and first person. On a pad,
-clicking the left stick sneaks.
+**E** interacts, **Y** switches between third and first person. On a pad
+the actions are on the right hand: **A** attacks, **B** uses (doors, chests,
+the lift, picking up, talking; with the weapon up it ducks instead),
+clicking the **right stick** jumps, and clicking the left stick sneaks.
+**Hold D-pad up** to reach the system bar with the pad: left and right step
+along it, **B** opens a panel, up and down cycle through its controls, left
+and right move sliders, **B** presses. Hold up in a panel to close it, and on
+the bar to go back to playing; a chest's panel closes straight back to
+playing. On the keyboard, **Tab** steps
+through an open panel.
 
 **Play as a character of your own.** Make one in the
 [character builder](/character-builder/) (or press **make your own
@@ -589,7 +1145,7 @@ character…** in this page's settings panel, the goggles on the bar) and press
 here. It takes the hero's place where he stands, holding what you held. Characters
 belong to the browser that made them.
 
-Things to try: put the pistol in the bag and try to raise it (nothing to raise), drag the rifle into your hand (it comes up, and both hands are taken); carry a sword on your hip and draw it; swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
+Things to try: put the pistol in the bag and try to raise it (nothing to raise), pick up the rifle and drag it into your hand (it comes up, and both hands are taken); carry a sword on your hip and draw it; swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
 and watch the ring disappear behind it until you stand; walk the cover line and
 compare the railing with the wall beside it.
 
@@ -617,7 +1173,7 @@ arrangement is a test you walk around in rather than one you read.
 | the **bunker** (an L) | cover from a threat the wall does not face, which is why `shelterFrom` searches an arc |
 | the **railing** | cover that ISN'T. Same height, same distance, gap underneath. The one everybody's first implementation gets wrong |
 | the **crate steps** (0.4 / 0.9 / 1.6m) | the band between a step and a wall — `mantle` |
-| the **catwalk** | verticality, a firing position, and something to fall off |
+| the **catwalk** | verticality, a firing position, and something to fall off (a hard landing) |
 | the **targets** | something to murder |
 | the **pool** | swimming, diving (aim down and swim), surfacing, and a shelving ramp to walk in on slowly |
 
@@ -646,6 +1202,12 @@ Pick a body under **look at** and the camera follows it round its orbit.
 Switch on **real maps** and the Earth, the Moon and Mars are drawn from NASA's
 and NOAA's own height and colour maps instead of being made up.
 
+In a headset with passthrough (a Quest), switch on **passthrough (AR)** before
+entering: the system sits a metre and a half across, in front of you in your
+own room. Walk round it; hold a grip to drag it, both grips to make it bigger
+or smaller and turn it, and pick a body under **look at** to bring it in
+front of you.
+
 ## Demo
 
 ```js
@@ -653,7 +1215,7 @@ import { b3d, b3dLight, b3dStarSystem, spaceBackdrop, SOL, label3d, slider3d, to
 import { tosi } from 'tosijs'
 
 const { sol } = tosi({
-  sol: { maps: false, focus: 'Earth', animate: true, showOrbits: true, belt: 1500, time: 3600 },
+  sol: { maps: false, focus: 'Earth', animate: true, showOrbits: true, belt: 1500, time: 3600, ar: false },
 })
 
 const system = b3dStarSystem({ scale: 5, orbitScale: 3, animate: 'on', showOrbits: 'on', maps: 'off', beltCount: sol.belt.value, timeScale: sol.time })
@@ -694,7 +1256,7 @@ preview.append(
       clearColor: '#000000',
       scenePanelOpen: true,
       panelTitle: 'Solar System',
-      scenePanel: () => [
+      scenePanel: (host) => [
         select3d({ label: 'look at', value: sol.focus, options: names }),
         toggle3d({ label: 'real maps (Earth, Moon, Mars)', value: sol.maps }),
         toggle3d({ label: 'orbit', value: sol.animate }),
@@ -702,6 +1264,8 @@ preview.append(
         slider3d({ label: 'time', value: sol.time, min: 1, max: 3.16e6, scale: 'log', format: perSecond }),
         toggle3d({ label: 'show orbits', value: sol.showOrbits }),
         slider3d({ label: 'belt rocks', value: sol.belt, min: 0, max: 6000, step: 250 }),
+        // Only where AR exists, and not in a session: it takes effect on entering.
+        ...(host.xrSupport.ar && !host.xrActive ? [toggle3d({ label: 'passthrough (AR)', value: sol.ar })] : []),
       ],
       sceneCreated(el, BABYLON) {
         const camera = new BABYLON.ArcRotateCamera('sol', -Math.PI / 2, Math.PI / 2.6, 40, BABYLON.Vector3.Zero(), el.scene)
@@ -712,6 +1276,20 @@ preview.append(
         camera.wheelDeltaPercentage = 0.02
         camera.attachControl(el.querySelector('canvas'), true)
         el.setActiveCamera(camera)
+        sol.ar.observe(() => (el.xrPassthrough = sol.ar.value ? 'on' : 'off'))
+        // IN YOUR ROOM: the whole system a metre and a half across, a step
+        // ahead; 'look at' brings a body in front of you instead. (Grips grab:
+        // one drags, both resize and turn.)
+        const centre = () => new BABYLON.Vector3(system.x, system.y, system.z)
+        el.addEventListener('xrenter', (event) => {
+          if (!event.detail.passthrough) return
+          const c = centre()
+          el.xrFrame(c, Math.max(1, ...system.bodies.map((b) => BABYLON.Vector3.Distance(b.node.getAbsolutePosition(), c))))
+        })
+        sol.focus.observe(() => {
+          const body = system.bodies.find((b) => b.name === sol.focus.value)
+          if (el.passthrough && body != null) el.xrFrame(body.node.getAbsolutePosition(), Math.max(body.radius * 3, 0.5))
+        })
         // FOLLOW THE CHOSEN BODY: ease onto it every frame, and on choosing,
         // pull in to a few of its radii.
         let following = ''
@@ -808,7 +1386,7 @@ const gun = b3dLauncher({
 })
 
 const hero = b3dBiped({
-  url: assetUrl('quaternius/UAL1_core.glb', 3),
+  url: assetUrl('quaternius/UAL1_core.glb', 5),
   animationStates: ualAnimationStates(),
   player: true, cameraType: 'none',
 })
@@ -1001,9 +1579,11 @@ one-handed blade follows.
 | `rifle` | a long gun, two hands | Assault Rifle |
 | `heavy` | on the shoulder | Rocket Launcher |
 | `melee1h` | a blade, one hand | Dagger, Short Sword, Long Sword, Plasma Blade |
-| `melee2h` | a long blade or a pole, two hands | Hand and a Half, Spear |
-| `bow` | a bow | |
-| `shield` | on the forearm | Buckler |
+| `melee2h` | a long blade, two hands | Hand and a Half |
+| `pole` | a spear or staff, two hands | Spear |
+| `bow` | a bow, in the LEFT hand | Bow |
+| `shield` | strapped to the left forearm | Buckler, Kite Shield |
+| `wrist` | worn on the left forearm (a watch, a wrist computer) | |
 
 ```javascript
 import { holdClassOf, holdGrip } from 'tosijs-3d'
@@ -1013,11 +1593,27 @@ holdGrip('Long Sword') // { x, y, z, rx, ry, rz, scale }: the class's default
 holdGrip('Long Sword', { melee1h: { ry: 170 } }) // with your adjustment
 ```
 
-A grip is the item's grip point and turn in the hand's socket frame (metres
-and degrees; see [[character-builder]]'s Hold). An item not in the table is
-held as a `pistol`; pass your own table as `classes` to name a library's. Only the
-`pistol` and `melee1h` defaults were placed by hand; the others start from the
-nearest of those two until someone places them.
+A grip is the item's grip point and turn in its MOUNT's frame (metres and
+degrees; see [[character-builder]]'s Hold). A class says WHERE a thing rides,
+in the hand or on the forearm (`holdPlace`), and which side it goes on unless
+told (`holdSide`: the right hand, but a bow's left hand, where UAL's bow clips
+hold it, and a shield's or a watch's left forearm). Either side's hand and
+forearm have a socket made from the arm's anatomy ([[hand-socket]]), and a
+grip set for one side holds the same way on the other:
+`holdGrip(name, adjusted, classes, 'l')` mirrors it (`mirrorGrip`), so a
+dagger in the off hand or a watch on the right wrist needs no numbers of its
+own. Where a class rides is a default: a character can wear a class
+elsewhere (a buckler gripped in the fist, a blade strapped to the forearm),
+kept as `place:<class>` among its adjustments (`placeIn`), and a grip for a
+place that is not the class's own is kept apart from it (`gripKey`), starting
+from that place's default (`PLACE_GRIPS`). `holdMount(class, side, place)`
+names the bone. Put away on the back
+(a rifle, a two-handed sword, a quiver), it rides across the shoulders on
+`STOW_MOUNT` (the upper spine) at `stowGrip(name)`. An item not in the table is
+held as a `pistol`; pass your own table as `classes` to name a library's. The `pistol`,
+`melee1h` and `shield` grips and the bow and shield on the back were placed
+by hand in the character builder, and the `bow` measured on UAL's bow aim;
+the others start from the nearest of those until someone places them.
 
 Pure: no DOM, no Babylon.
 
@@ -1108,11 +1704,13 @@ The panel has these sections, its job first.
   joint at the middle of the body's thickness (the pelvis behind the
   thighs, as the mannequin's is); from the side view, drag a marker forward
   or back to set its depth. The depth is kept as an offset from the fit, so
-  it stays when the marker moves again from the front. `move joints` shows every
-  joint (blue) to drag by hand from the view that suits: shoulders from the
-  front, fingers and thumbs from the top, feet from the side. What hangs from
-  a joint comes with it; set `dragging` to turn what hangs from it instead
-  (a hand or foot at an angle). Each finger's and thumb's tip (orange) pulls
+  it stays when the marker moves again from the front. `drag` picks what a
+  drag moves: `markers` only, or every joint (blue), dragged by hand from the
+  view that suits (shoulders from the front, fingers and thumbs from the top,
+  feet from the side). `joints` brings what hangs from a joint with it;
+  `alone` moves just the joint (a shoulder, leaving the elbow and wrist where
+  they are); `turn` keeps the joint where it is and swings what hangs from it
+  round it, in the view's plane (a hand or foot at an angle). Each finger's and thumb's tip (orange) pulls
   its finger: the joints after its first turn and stretch about the first,
   so the finger keeps its curl and reaches where you drop the tip. Markers
   and moved joints are saved in the
@@ -1309,13 +1907,14 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, retargetSourceClip, readBvh, clipStore, clipKind, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, tailorPanel, garmentStore, barMenu, fitPanel, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, retargetSourceClip, readBvh, clipStore, clipKind, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, readGlbCharacter, tailorPanel, garmentStore, barMenu, fitPanel, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, holdMount, holdPlace, holdSide, ownSideGrip, placeIn, gripKey, mountNode, stowGrip, STOW_MOUNT, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
-import { exportBodyRows } from 'tosijs-3d/body-export'
+import { exportForm, pictureOptions } from 'tosijs-3d/body-export'
+import { compactCharacterTextures } from 'tosijs-3d/glb-textures'
 
 // Everything the panel sets, as it starts: what a saved character is read against.
-const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorDrape: false, tailorMesh: 'body', tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, held: 'none', grips: {}, source: 'MakeHuman', bodyDetail: 'medium', characterName: '' }
+const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', mirror: false, tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorDrape: false, tailorMesh: 'body', tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, held: 'none', heldSide: 'auto', stowed: 'none', grips: {}, source: 'MakeHuman', bodyDetail: 'medium', characterName: '' }
 const { walker } = tosi({ walker: structuredClone(START) })
 // What a character file keeps: not the editor's view of one slot (that is in
 // cloth), the microphone (it would ask on load), or the save controls.
@@ -1349,6 +1948,9 @@ const namePopup = (pop, { prompt, initial, current, verb, act }) => {
 }
 // The character (character.ts): what the panel sets, made in the scene.
 let ch = null
+// The character as its file (character-file), once the builder is up: the
+// export carries it whole, so the GLB is also a save.
+let characterSnapshot = (name) => null
 // The pack's proxies, once it has loaded (the panel lists an outfit's looks).
 let packProxies = {}
 // What can be worn, one of each at a time; the pack says which slot each garment fills.
@@ -1499,7 +2101,16 @@ const playbackRow = () =>
 // A manipulator on the held item's grip, to drag rather than type. Off until
 // asked for; turning it on pauses the clip, so the hand holds still.
 let gripHandles = false
+// Whichever clip is playing holds still: the builder's, or the rig tool's
+// (held where it is, not stood at rest).
+const holdStill = () => {
+  if (rigging) rigging.api.frozen = true
+  else if (!walker.paused.value) walker.paused.value = true
+}
 let showGripHandles = (on) => { gripHandles = on }
+// The same for what is stowed on the back (one manipulator: one at a time).
+let stowHandles = false
+let showStowHandles = (on) => { stowHandles = on }
 // The same for the hair, on the head.
 let hairHandles = false
 let showHairHandles = (on) => { hairHandles = on }
@@ -1508,17 +2119,32 @@ let showHairHandles = (on) => { hairHandles = on }
 // (hold-grip: pistols, rifles, one- and two-handed blades…): placing it on
 // one sword places every one-handed blade.
 const gripsKept = () => JSON.parse(JSON.stringify(walker.grips.value))
-const gripOf = (name) => {
-  const kept = gripsKept()
-  // A character saved before grips were per class kept them per item.
-  const own = kept[holdClassOf(name)] ?? kept[name]
-  return holdGrip(name, own ? { [holdClassOf(name)]: own } : {})
+// Which side the held thing is on: its class's own (`auto`: the right hand,
+// a bow's left, a shield's left forearm) or the one picked.
+const heldSideOf = (name) => {
+  const v = walker.heldSide.value
+  return v === 'right' ? 'r' : v === 'left' ? 'l' : holdSide(holdClassOf(name))
 }
-const setGrip = (patch) => {
-  const name = walker.held.value
+// In the hand or on the forearm: the class's own place, unless this
+// character wears that class elsewhere (`place:<class>` among its grips).
+const heldPlaceOf = (name) => placeIn(name, gripsKept())
+const gripOf = (name, slot = 'held') => {
   const kept = gripsKept()
-  delete kept[name]
-  walker.grips.value = { ...kept, [holdClassOf(name)]: { ...gripOf(name), ...patch } }
+  // On the back: per class too, kept under `stow:<class>`.
+  if (slot === 'stowed') return stowGrip(name, kept)
+  // A character saved before grips were per class kept them per item.
+  const c = holdClassOf(name)
+  const own = kept[c] ?? kept[name]
+  // Kept for the class's own side; on the other it is mirrored.
+  return holdGrip(name, own ? { ...kept, [c]: own } : kept, undefined, heldSideOf(name), heldPlaceOf(name))
+}
+const setGrip = (patch, slot = 'held') => {
+  const name = walker[slot].value
+  const kept = gripsKept()
+  const key = slot === 'stowed' ? `stow:${holdClassOf(name)}` : gripKey(name, heldPlaceOf(name))
+  if (slot === 'held') delete kept[name]
+  const g = { ...gripOf(name, slot), ...patch }
+  walker.grips.value = { ...kept, [key]: slot === 'held' ? ownSideGrip(name, g, heldSideOf(name), undefined, heldPlaceOf(name)) : g }
   applyGrip()
 }
 // Export: the body on show as a GLB that plays UAL's clips by name (its
@@ -1531,80 +2157,112 @@ const playingClip = (recipe) => {
   const kept = file != null ? clipBytes.get(file) : null
   const armSpaceDeg = recipe?.armSpaceDeg
   const footTurnDeg = recipe?.footTurnDeg
-  if (kept) return { name, kind: kept.kind, bytes: kept.bytes, armSpaceDeg, footTurnDeg }
+  const mirror = walker.mirror.value || undefined
+  if (kept) return { name, kind: kept.kind, bytes: kept.bytes, armSpaceDeg, footTurnDeg, mirror }
   return {
     name,
     kind: 'glb',
     url: assetUrl('quaternius/UAL_builder.glb'),
     armSpaceDeg,
     footTurnDeg,
+    mirror,
     extras: { credit: 'Quaternius', license: 'CC0 (https://creativecommons.org/publicdomain/zero/1.0/)', source: 'quaternius/UAL_builder.glb' },
   }
 }
-const exportRows = () =>
-  exportBodyRows(
-    async () => {
+const exportTarget = async (name, settings) => {
       const shown = ch?.shown
       if (shown == null) return 'nothing to export yet'
-      const name = walker.characterName.value || shown.source
       const out = await ch.exportCharacter()
       return {
         body: out?.body ?? shown.body,
         eyeTexture: out?.eyeTexture ?? null,
         recipe: shown.recipe,
+        // The whole character (settings with grips, cloth, garments, body,
+        // pictures, clips), so the GLB is also a save.
+        extras: { tosijsCharacter: await compactCharacterTextures(characterSnapshot(walker.characterName.value || name), pictureOptions(settings)) },
         source: shown.source === 'MakeHuman' ? null : ch.sources[shown.source] ?? null,
-        name: String(name).replace(/\W+/g, '-').replace(/^-|-$/g, '') || 'character',
+        name,
         // What it wears: MakeHuman's clothes and garments of your own.
         garments: out?.garments ?? [],
         clip: playingClip(shown.recipe),
         // What the right hand holds goes out with it, where it is held.
         held:
-          walker.held.value === 'none'
+          walker.held.value === 'none' || holdMount(holdClassOf(walker.held.value), heldSideOf(walker.held.value), heldPlaceOf(walker.held.value)).bone !== 'hand_r'
             ? null
             : {
                 grip: gripOf(walker.held.value),
-                url: assetUrl('tonio/weapons-classic/weapons.glb', 2),
+                url: assetUrl('tonio/weapons-classic/weapons.glb', 3),
                 model: `${walker.held.value}.model`,
                 gripNode: `${walker.held.value}_grip`,
                 // As static-assets' metadata for the library says it.
-                extras: { credit: 'Tonio Loewald', license: 'CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)', source: 'tonio/weapons-classic/weapons.glb' },
+                extras: { credit: 'Tonio Loewald', license: 'CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/)', source: 'tonio/weapons-classic/weapons.glb' },
               },
       }
-    },
-    (message) => {
-      importError = message
-      refreshPanel()
-    }
-  )
+}
 
-const holdRows = () => {
-  const name = walker.held.value
-  const g = gripOf(name)
+// One item slot's rows: what it is, its manipulator, and its grip for the
+// whole class. `held` is in a hand or on a forearm (`side`: the class's own,
+// or the one picked); `stowed` rides on the back, across the shoulders.
+const itemRows = (slot) => {
+  const name = walker[slot].value
+  const g = gripOf(name, slot)
+  const c = holdClassOf(name)
+  const sideWord = heldSideOf(name) === 'l' ? 'left' : 'right'
+  const where =
+    slot === 'stowed'
+      ? `on the back, for all ${HOLD_CLASS_LABELS[c]}: from the upper spine (metres)`
+      : heldPlaceOf(name) === 'forearm'
+      ? `on the ${sideWord} forearm, for all ${HOLD_CLASS_LABELS[c]}: from the forearm (metres)`
+      : `grip for all ${HOLD_CLASS_LABELS[c]}, in the ${sideWord} hand: from the hand (metres)`
+  const handles = slot === 'stowed' ? stowHandles : gripHandles
+  const show = slot === 'stowed' ? showStowHandles : showGripHandles
   return [
-    label3d({ text: 'Hold', icon: 'bipedHandgun', collapsible: true }),
-    select3d({ label: 'right hand', value: walker.held, options: heldNames, stayOpen: true }),
+    select3d({ label: slot === 'stowed' ? 'on the back' : 'held', value: walker[slot], options: heldNames, stayOpen: true }),
     ...(name === 'none'
       ? []
       : [
+          ...(slot === 'held'
+            ? [
+                select3d({ label: 'side', value: walker.heldSide, options: ['auto', 'right', 'left'] }),
+                // For the whole class, kept with this character's grips.
+                select3d({
+                  label: 'worn',
+                  value: heldPlaceOf(name),
+                  options: ['hand', 'forearm'],
+                  handleChange: (v) => {
+                    const kept = gripsKept()
+                    if (v === holdPlace(c)) delete kept[`place:${c}`]
+                    else kept[`place:${c}`] = v
+                    walker.grips.value = kept
+                    applyGrip()
+                    refreshPanel()
+                  },
+                }),
+              ]
+            : []),
           toggle3d({
             label: 'manipulator',
-            value: gripHandles,
+            value: handles,
             handleChange: (v) => {
-              if (v && !walker.paused.value) walker.paused.value = true
-              showGripHandles(v)
+              if (v) holdStill()
+              show(v)
+              refreshPanel()
             },
           }),
-          label3d({ text: `grip for all ${HOLD_CLASS_LABELS[holdClassOf(name)]}: from the hand (metres)`, muted: true }),
-          vector3d({ value: { x: g.x, y: g.y, z: g.z }, step: 0.01, scrub: 0.002, handleChange: (v) => setGrip({ x: v.x, y: v.y, z: v.z }) }),
+          label3d({ text: where, muted: true }),
+          vector3d({ value: { x: g.x, y: g.y, z: g.z }, step: 0.01, scrub: 0.002, handleChange: (v) => setGrip({ x: v.x, y: v.y, z: v.z }, slot) }),
           label3d({ text: 'turned (degrees)', muted: true }),
-          euler3d({ value: { x: g.rx, y: g.ry, z: g.rz }, step: 5, scrub: 0.5, handleChange: (v) => setGrip({ rx: v.x, ry: v.y, rz: v.z }) }),
-          slider3d({ label: 'scale', value: g.scale, min: 0.4, max: 1.6, step: 0.01, handleChange: (v) => setGrip({ scale: v }) }),
+          euler3d({ value: { x: g.rx, y: g.ry, z: g.rz }, step: 5, scrub: 0.5, handleChange: (v) => setGrip({ rx: v.x, ry: v.y, rz: v.z }, slot) }),
+          slider3d({ label: 'scale', value: g.scale, min: 0.4, max: 1.6, step: 0.01, handleChange: (v) => setGrip({ scale: v }, slot) }),
           button3d({
-            label: 'reset grip',
+            label: slot === 'stowed' ? 'reset stowed place' : 'reset grip',
             handleClick: () => {
               const all = gripsKept()
-              delete all[name]
-              delete all[holdClassOf(name)]
+              if (slot === 'stowed') delete all[`stow:${c}`]
+              else {
+                delete all[name]
+                delete all[gripKey(name, heldPlaceOf(name))]
+              }
               walker.grips.value = all
               applyGrip()
             },
@@ -1612,6 +2270,11 @@ const holdRows = () => {
         ]),
   ]
 }
+const holdRows = () => [
+  label3d({ text: 'Hold', icon: 'bipedHandgun', collapsible: true }),
+  ...itemRows('held'),
+  ...itemRows('stowed'),
+]
 const slider = (label, key) =>
   slider3d({ label, value: walker[key], min: 0, max: 1, step: 0.01 })
 
@@ -1624,6 +2287,9 @@ preview.append(
       panelIcon: 'body',
       // A tab per section, each its icon.
       panelSections: 'tabs',
+      // The clip has its own play and pause (Animation, on the bar); a scene
+      // pause beside them read as the clip's.
+      panelPause: 'off',
       // Undo and redo, every change to the character as it settles: on the
       // panel's icon bar, at its right end.
       panelActions: () => [
@@ -1684,7 +2350,7 @@ preview.append(
           label: 'manipulator',
           value: hairHandles,
           handleChange: (v) => {
-            if (v && !walker.paused.value) walker.paused.value = true
+            if (v) holdStill()
             showHairHandles(v)
           },
         }),
@@ -1699,7 +2365,6 @@ preview.append(
         playbackRow(),
         button3d({ label: 'clips from a file…', handleClick: () => openClips() }),
         ...(clipFiles.has(walker.clip.value) ? [button3d({ label: `forget ${walker.clip.value}`, handleClick: () => forgetClip() })] : []),
-        ...exportRows(),
       ] : [
         // A body of anyone's: what MakeHuman's carries (shape, face, hair,
         // clothes) is not there; the clips and the skin are.
@@ -1726,7 +2391,6 @@ preview.append(
         playbackRow(),
         button3d({ label: 'clips from a file…', handleClick: () => openClips() }),
         ...(clipFiles.has(walker.clip.value) ? [button3d({ label: `forget ${walker.clip.value}`, handleClick: () => forgetClip() })] : []),
-        ...exportRows(),
       ],
       async sceneCreated(el, BABYLON) {
         const scene = el.scene
@@ -1817,8 +2481,18 @@ preview.append(
               { separator: true },
               { label: 'Open mesh…', handleSelect: () => openMesh() },
               { separator: true },
-              { label: 'Export JSON', handleSelect: () => character.exportJson() },
-              { label: 'Load JSON…', handleSelect: () => character.importJson() },
+              // One export: the name, the format (a GLB, which is also a save,
+              // or the character file) and the GLB's options.
+              {
+                label: 'Export…',
+                handleSelect: () => modal((pop) => exportForm(pop, {
+                  name: current || ch?.shown?.source || 'character',
+                  target: exportTarget,
+                  say: (m) => { character.note = m; el.refreshScenePanel?.() },
+                  formats: [{ label: 'character file', write: (name, settings) => character.exportJson(name, pictureOptions(settings)) }],
+                })),
+              },
+              { label: 'Import…', handleSelect: () => character.importJson() },
               { separator: true },
               { label: 'Go to Playground', handleSelect: () => character.play() },
               ...(character.note ? [{ separator: true }, { label: character.note, disabled: true }] : []),
@@ -1881,16 +2555,24 @@ preview.append(
           title: 'Animation',
           layout: 'list',
           options: () => [
-            // While rigging the view is the pose: play goes to perspective,
-            // pause back to the face it was held to last.
-            rigging
+            // While rigging: pause holds the clip where it is, in perspective;
+            // the rest pose (where markers move) is its own item, back to the
+            // face it was held to last.
+            ...(rigging
               ? rigging.api.view === 'free'
-                ? { label: 'Pause', icon: 'pause', handleSelect: () => rigging?.api.play(null) }
-                : { label: 'Play', icon: 'play', handleSelect: () => rigging?.api.play() }
-              : walker.paused.value
+                ? [
+                    rigging.api.frozen
+                      ? { label: 'Play', icon: 'play', handleSelect: () => { if (rigging) rigging.api.frozen = false } }
+                      : { label: 'Pause', icon: 'pause', handleSelect: () => { if (rigging) rigging.api.frozen = true } },
+                    { label: 'Rest pose', icon: 'personStanding', handleSelect: () => { showGripHandles(false); showStowHandles(false); showHairHandles(false); rigging?.api.play(null) } },
+                  ]
+                : [{ label: 'Play', icon: 'play', handleSelect: () => { showGripHandles(false); showStowHandles(false); showHairHandles(false); rigging?.api.play() } }]
+              : [walker.paused.value
               ? { label: 'Play', icon: 'play', handleSelect: () => { walker.paused.value = false } }
-              : { label: 'Pause', icon: 'pause', handleSelect: () => { walker.paused.value = true } },
+              : { label: 'Pause', icon: 'pause', handleSelect: () => { walker.paused.value = true } }]),
             { label: 'Playback controls', icon: 'playCircle', checked: playbackPanel.isOpen, handleSelect: () => playbackPanel.toggle?.() },
+            // Left to right: a right-handed throw played left-handed.
+            { label: 'Mirrored', checked: walker.mirror.value, handleSelect: () => { walker.mirror.value = !walker.mirror.value } },
             { separator: true },
             ...EVERYDAY.map(clipOption),
             ...(fileClips.size ? [{ separator: true }, ...[...fileClips.keys()].map(clipOption)] : []),
@@ -1941,46 +2623,63 @@ preview.append(
         ualRoot.setEnabled(false)
         // THE HELD ITEM: an instance of the library's model on the shown
         // body's right-hand socket, made again when the item or body changes.
+        // While rigging it is on the rig tool's body, so arm space and the
+        // arms' roles can be judged with it in hand.
         const weapons = el.querySelector('tosi-b3d-library')
-        let held = null
-        applyGrip = () => {
-          const name = walker.held.value
-          const shown = ch?.shown
-          if (held && (held.name !== name || held.shown !== shown || rigging)) {
-            held.node.dispose()
-            held = null
-            gizmo.node = null
+        // Two slots: the right hand (a shield on the left forearm) and the back.
+        const items = { held: null, stowed: null }
+        const holdingSkeleton = () => (rigging ? rigging.api.skeleton : ch?.shown?.built?.skeleton) ?? null
+        const mountFor = (slot, name) => (slot === 'stowed' ? STOW_MOUNT : holdMount(holdClassOf(name), heldSideOf(name), heldPlaceOf(name)))
+        // Whose handles are up (one manipulator for both).
+        const handlesSlot = () => (gripHandles ? 'held' : stowHandles ? 'stowed' : null)
+        const placeSlot = (slot) => {
+          const name = walker[slot].value
+          const skeleton = holdingSkeleton()
+          let it = items[slot]
+          const mount = mountFor(slot, name)
+          if (it && (it.name !== name || it.skeleton !== skeleton || it.bone !== mount.bone)) {
+            it.node.dispose()
+            it = items[slot] = null
+            if (handlesSlot() === slot) gizmo.node = null
           }
-          if (name === 'none' || !shown || rigging) return
-          if (!held) {
-            const skeleton = shown.built?.skeleton
-            const hand = skeleton?.bones.find((b) => b.name === 'hand_r')?.getTransformNode()
-            const node = hand && weapons?.instantiate?.(name, { canonical: true })
+          if (name === 'none' || !skeleton) return
+          if (!it) {
+            // A hand's or forearm's anatomical socket, or the spine itself.
+            const at = mountNode(skeleton, mount)
+            const node = at && weapons?.instantiate?.(name, { canonical: true })
             if (!node) return
-            node.parent = handSocket(skeleton, 'hand_r', 'r', hand) ?? hand
+            node.parent = at
             // Its grip (a pistol's handle), measured once: that point, not
             // its origin, goes where the numbers say, as on a launcher.
-            held = { node, name, shown, grip: heldGrip(node) ?? BABYLON.Vector3.Zero() }
+            it = items[slot] = { node, name, skeleton, bone: mount.bone, grip: heldGrip(node) ?? BABYLON.Vector3.Zero() }
           }
-          placeHeld(gripOf(name))
+          placeItem(slot, gripOf(name, slot))
         }
-        // The item at a grip: that point and turn in the hand's socket frame.
-        const placeHeld = (g, handle = true) => {
+        applyGrip = () => {
+          placeSlot('held')
+          placeSlot('stowed')
+          if (!handlesSlot() || !items[handlesSlot()]) gizmo.node = null
+        }
+        // The item at a grip: that point and turn in its mount's frame.
+        const placeItem = (slot, g, handle = true) => {
+          const it = items[slot]
+          if (!it) return
           const d = Math.PI / 180
           const turn = BABYLON.Quaternion.FromEulerAngles(g.rx * d, g.ry * d, g.rz * d)
           // Scaled with the item, so its grip point stays on the grip.
-          const spun = held.grip.scale(g.scale).applyRotationQuaternion(turn)
-          held.node.position.set(g.x - spun.x, g.y - spun.y, g.z - spun.z)
-          held.node.rotationQuaternion = turn
-          held.node.scaling.setAll(g.scale)
+          const spun = it.grip.scale(g.scale).applyRotationQuaternion(turn)
+          it.node.position.set(g.x - spun.x, g.y - spun.y, g.z - spun.z)
+          it.node.rotationQuaternion = turn
+          it.node.scaling.setAll(g.scale)
+          if (handlesSlot() !== slot) return
           // THE GRIP'S HANDLES: a node at the grip, in the same frame, for
           // the manipulator to drag; the item follows it.
-          gripNode.parent = held.node.parent
+          gripNode.parent = it.node.parent
           if (handle) {
             gripNode.position.set(g.x, g.y, g.z)
             gripNode.rotationQuaternion = turn.clone()
           }
-          gizmo.node = gripHandles ? gripNode : null
+          gizmo.node = gripNode
         }
         const gripNode = new BABYLON.TransformNode('grip-handle', el.scene)
         const fromHandle = () => {
@@ -1995,17 +2694,35 @@ preview.append(
           turn: 'on',
           size: 0.09,
           // Live: the item follows; kept (and the numbers shown) on release.
-          whenChange: () => held && placeHeld({ ...gripOf(held.name), ...fromHandle() }, false),
+          whenChange: () => {
+            const slot = handlesSlot()
+            const it = slot && items[slot]
+            if (it) placeItem(slot, { ...gripOf(it.name, slot), ...fromHandle() }, false)
+          },
           whenCommit: () => {
-            setGrip(fromHandle())
+            setGrip(fromHandle(), handlesSlot() ?? 'held')
             el.refreshScenePanel?.()
           },
         })
         el.append(gizmo)
         showGripHandles = (on) => {
           gripHandles = on
-          gizmo.node = on && held ? gripNode : null
+          if (on) stowHandles = false
+          applyGrip()
         }
+        showStowHandles = (on) => {
+          stowHandles = on
+          if (on) gripHandles = false
+          applyGrip()
+        }
+        // The rig tool binds again (a marker moved): a new skeleton, so the
+        // items go on its bones.
+        scene.onBeforeRenderObservable.add(() => {
+          if (!rigging) return
+          const sk = holdingSkeleton()
+          for (const slot of ['held', 'stowed'])
+            if (walker[slot].value !== 'none' && (items[slot]?.skeleton ?? null) !== sk) return applyGrip()
+        })
         // THE HAIR'S HANDLE: a node on the Head bone at the skull's middle plus
         // the adjustment. Dragging moves the hair's meshes as they are; the
         // adjustment is kept, and the hair placed again, on release.
@@ -2051,6 +2768,17 @@ preview.append(
           hairHandles = on
           placeHairHandle()
         }
+        // Back to the animation (play, or another clip): the handles go, as a
+        // manipulator holds a pose still and the clip no longer does.
+        const handlesOff = () => {
+          if (!gripHandles && !stowHandles && !hairHandles) return
+          showGripHandles(false)
+          showStowHandles(false)
+          showHairHandles(false)
+          el.refreshScenePanel?.()
+        }
+        walker.paused.observe(() => { if (!walker.paused.value) handlesOff() })
+        walker.clip.observe(handlesOff)
         // Undo, a loaded character or a new body puts the handle back.
         walker.hairUp.observe(() => placeHairHandle())
         walker.hairForward.observe(() => placeHairHandle())
@@ -2060,6 +2788,14 @@ preview.append(
           el.refreshScenePanel?.()
         })
         walker.held.observe(() => {
+          applyGrip()
+          el.refreshScenePanel?.()
+        })
+        walker.heldSide.observe(() => {
+          applyGrip()
+          el.refreshScenePanel?.()
+        })
+        walker.stowed.observe(() => {
           applyGrip()
           el.refreshScenePanel?.()
         })
@@ -2157,8 +2893,8 @@ preview.append(
           const own = fileClips.get(walker.clip.value)
           const clip = own?.group ?? ual.animationGroups.find((g) => g.name === walker.clip.value) ?? ual.animationGroups.find((g) => g.name === 'Walk_Loop')
           playing = own?.source
-            ? retargetSourceClip(own.source, own.clip, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg, footTurnDeg: ch.recipe?.footTurnDeg })
-            : clip ? retargetClip(clip, own?.from ?? source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg, footTurnDeg: ch.recipe?.footTurnDeg }) : null
+            ? retargetSourceClip(own.source, own.clip, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg, footTurnDeg: ch.recipe?.footTurnDeg, mirror: walker.mirror.value })
+            : clip ? retargetClip(clip, own?.from ?? source, ch.skeleton, { scene, armSpaceDeg: ch.recipe?.armSpaceDeg, footTurnDeg: ch.recipe?.footTurnDeg, mirror: walker.mirror.value }) : null
           playing?.start(true, clipSpeed)
           ch.groundFor(playing)
           if (walker.paused.value) playing?.pause()
@@ -2418,7 +3154,7 @@ preview.append(
           })
           // It plays the clip the Animation menu has.
           rigging.api.clip = walker.clip.value
-          // The item goes while the rig tool has the body.
+          // The item moves to the rig tool's body.
           applyGrip()
           el.refreshScenePanel?.()
         }
@@ -2644,15 +3380,22 @@ preview.append(
           character.changed()
           listSaved()
         }
-        character.exportJson = () => {
-          const name = walker.characterName.value.trim() || 'character'
-          save(JSON.stringify(snapshot(name), null, 1), `${name.replace(/[^\w-]/g, '_')}.character.json`, 'application/json')
+        // The character file, under the name given (its pictures scaled
+        // as the export form says).
+        character.exportJson = async (file = walker.characterName.value.trim() || 'character', pictures = {}) => {
+          const doc = await compactCharacterTextures(snapshot(walker.characterName.value || file), pictures)
+          save(JSON.stringify(doc, null, 1), `${file}.character.json`, 'application/json')
         }
         character.importJson = () => {
-          chooseFile('.json,application/json').then(async (file) => {
+          chooseFile('.json,application/json,.glb').then(async (file) => {
             if (!file) return
             try {
-              await apply(await file.text())
+              // A character file, or a GLB this builder exported (it carries one).
+              if (/\.glb$/i.test(file.name)) {
+                const doc = readGlbCharacter(new Uint8Array(await file.arrayBuffer()))
+                if (doc == null) return tell(`${file.name}: carries no character`)
+                await apply(doc)
+              } else await apply(await file.text())
               character.changed()
             } catch (e) {
               tell(`${file.name}: ${String(e?.message ?? e).replace(/^character-file: /, '')}`)
@@ -2670,7 +3413,8 @@ preview.append(
           }
           location.href = `/playground/?character=${encodeURIComponent(WORKING)}`
         }
-        el.builder.character = { snapshot, apply, store }
+        el.builder.character = { snapshot, apply, store, exportTarget }
+        characterSnapshot = snapshot
         // The figure you were working on, as you left it.
         const working = await store.get(WORKING).catch(() => null)
         if (working) await apply(working).catch((e) => console.warn('character builder: the working figure would not load', e))
@@ -2681,11 +3425,12 @@ preview.append(
         play()
         el.refreshScenePanel?.()
         walker.clip.observe(play)
+        walker.mirror.observe(play)
         walker.paused.observe(() => (walker.paused.value ? playing?.pause() : playing?.play(true)))
       },
     },
     // Things to hold: Tonio's weapons (CC BY 4.0), each with its grip at its origin.
-    b3dLibrary({ url: assetUrl('tonio/weapons-classic/weapons.glb', 2), type: 'weapons' }),
+    b3dLibrary({ url: assetUrl('tonio/weapons-classic/weapons.glb', 3), type: 'weapons' }),
     b3dSun({ timeOfDay: 16.5, shadowTextureSize: 2048, shadowMaxZ: 20, shadowNormalBias: 0.008 }),
     b3dLight({ intensity: 0.5 })
   )
@@ -2741,11 +3486,19 @@ camera is your head.
 **Animation** (on the bar) plays or pauses the clip and picks it: the
 everyday clips, a file's, then the rest of the library grouped by kind.
 **Playback controls** in that menu opens the transport (scrub, speed) as its
-own small panel.
+own small panel. **Mirrored** plays the clip left to right (a right-handed
+throw thrown left-handed), and an exported clip carries it, named
+"<clip> (mirrored)".
+While rigging, **Pause** holds the clip where it is, in the same view, and
+**Rest pose** stands the body at rest in the view it was held to last, where
+markers and joints move. Turning on a manipulator pauses whichever clip is
+playing. The settings panel has no scene Pause here: the clip's is the one
+that matters.
 
 **Hold** puts an item from Tonio's textured weapons
-(`tonio/weapons-classic/weapons.glb`, CC BY 4.0: guns, blades, a plasma
-blade, a spear, a buckler) in the right hand, on the hand's
+(`tonio/weapons-classic/weapons.glb`, CC0: guns, blades, a plasma
+blade, a spear, a bow, a buckler and a kite shield) in the right hand (a bow
+in the left), on the hand's
 socket (a frame normalised to the hand's anatomy, so one grip fits any
 body's hand). Every item is made the same way, its origin at its grip (a
 `_grip` node), +Y up the grip and +Z forward, at its real size, so one grip
@@ -2764,10 +3517,12 @@ you change it and comes back when you open the page again. **Save** keeps it
 under its name, asking for one the first time; **Save as…** under another
 (asking first before replacing a saved character); **Rename…** renames it.
 **Select ▸** lists the saved characters (the one on screen ticked): pick one
-and it loads. **Delete ▸** picks one, then asks again. **Export JSON** takes
-it elsewhere and **Load JSON…** brings one in: a file carries everything the
-panel sets, and the garments of your own the character wears travel inside
-it ([character-file](/character-file/)). **Go to Playground** plays it in the
+and it loads. **Delete ▸** picks one, then asks again. **Export…** asks for
+the file's name and format: a **GLB** (rigged for other engines, with its
+joint names, rest pose, height, the clip playing and how far to scale its
+pictures) that also carries the whole character, or the **character file**
+alone ([character-file](/character-file/)). **Import…** opens either: the
+settings, grips, garments of your own, body and clips all come back. **Go to Playground** plays it in the
 biped playground.
 
 Open the panel (the body button): the body sliders reshape it
@@ -2912,6 +3667,11 @@ AND THE CLIP IT PLAYS, when that is one of your own: `clips` carries the file
 it came from (a BVH capture or a GLB's animations, by file name, with its
 kind), so a page that has never seen the file reads it as the builder did
 ([clip-store](/clip-store/)).
+
+IN AN EXPORT TOO: the builder's GLB carries the whole document in
+`asset.extras.tosijsCharacter`, so the file that plays in another engine is
+also a save. `readGlbCharacter(bytes)` takes it out (null when it has none),
+and the builder's import opens such a GLB.
 
 Source: https://3d.tosijs.net/character-file/
 
@@ -5355,7 +6115,7 @@ const scene = '/test-3.glb'
 // A Quaternius UAL rig — 1.83 m, feet at the origin, 27 curated clips off the
 // CDN (the full library is 120 clips and 20 MB). A person is 1.8 m here, and
 // the movement constants are tuned for one.
-const person = assetUrl('quaternius/UAL1_core.glb', 3)
+const person = assetUrl('quaternius/UAL1_core.glb', 5)
 
 // Your loadout: a button on the system bar opens it under the bar, with your
 // bag beside it (see inventory-box).
@@ -5604,6 +6364,7 @@ document.body.append(
 | `enterXrOnResume` | `'off'` | `'on'`: resuming enters immersive VR where the device supports it. The Continue tap is the user gesture `enterXRAsync` requires |
 | `reseatFreeze` | `'on'` | Freeze the clock while the re-seat dialog is up. Set `'off'` for a networked world, which cannot stop the other players; the dialog still gates your own input |
 | `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
+| `xrPassthrough` | `'off'` | `'on'`: Enter VR starts an AR session where the device has one (passthrough: your room behind the scene, no sky, no floor grid, transparent clear colour); elsewhere it enters VR. In AR you are scaled to the scene: you arrive with what the flat view showed a step ahead (`xrFrame(centre, radius)` frames something else), one grip drags the scene, both resize and turn it, and the sticks walk at your scale. `passthrough` is true during such a session, `xrSupport` says which sessions the device offers, and the scene dispatches `xrenter` (`detail.passthrough`) and `xrexit` around every session. Read on entering |
 | `xrMultiview` | `'off'` | ⚠️ Experimental, not working: `'on'` asks for both eyes in one pass (WebXR layers). On a Quest 3 it gave a blank view, and water and sky do not handle multiview |
 | `xrRenderScale` | `0` | In a headset: the fraction of each eye's width and height drawn. `0` is auto (from the device tier: 0.67 on the low tier). Engine hardware scaling does not reach a headset; this does. Read on entering a session |
 | `xrFoveation` | `-1` | In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session |
@@ -5615,6 +6376,7 @@ document.body.append(
 | `panelTitle` | `''` | The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row) |
 | `agent` | `''` | What an agent may do with this scene through its tools (`b3d_<scene>_…` on WebMCP and `window.b3dAgent`; see [agents](/b3d-agent/)). `''` follows the page (`enableSceneAgents`; closed by default), `'read'` offers the read tools, `'on'` everything, `'off'` nothing |
 | `panelSections` | `'fold'` | How collapsible sections in the settings panel present: `'fold'` (headers you open and close, one open at a time: opening one closes the others), `'folds'` (several may be open) or `'tabs'` (file tabs, one section at a time). A `label3d({ collapsible: true, level: 2 })` is a sub-section that folds inside its section or tab |
+| `panelPause` | `'on'` | The Pause button on the settings panel's icon bar; `'off'` leaves it out, for a page whose own play and pause (a clip's) it would be confused with. The pause panel and `pause()` still work |
 | `stats` | `false` | Add a Perf Stats section to the settings panel, flat and in a headset. `#perf` or `#debug` (or `?perf`, `?debug`) in the page URL, or calling `showB3dStats()`, shows it on every scene |
 | `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = the default layout (everything but the d-pad); a value like `"a,b,left_stick"` selects controls, and naming `view` or `menu` also puts them on the headset's system bar. A plain property, read once at setup |
 | `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
@@ -12388,7 +13150,7 @@ const gun = b3dLauncher({
 // on a figure half the intended size.
 const hero = b3dBiped(
   {
-    url: assetUrl('quaternius/UAL1_core.glb', 3),
+    url: assetUrl('quaternius/UAL1_core.glb', 5),
     animationStates: ualAnimationStates(),
     player: true, cameraType: 'follow', aiming: 'on', aimFreeYaw: 45,
   },
@@ -12465,7 +13227,7 @@ preview.append(
 .preview { height: 100%; }
 ```
 
-**WASD** to move, **mouse / right stick** to aim, **F or the trigger** to shoot
+**WASD** to move, **mouse / right stick** to aim, **F, the trigger or A** to shoot
 the cans off the wall. The white marker is where he is FACING; the orange one is
 where he is AIMING, and they are different things — which is the whole point of
 `aiming="on"`.
@@ -12510,6 +13272,9 @@ animation is doing with that hand.
 | `eyeForward` | `0.13` | How far in front of the head bone the first-person eye sits, metres |
 | `lookRate` | `120` | Degrees per second the right stick swings the view |
 | `maxLookPitch` | `70` | How far up or down the look goes, degrees |
+| `aimCurve` | `2` | While aiming, the sticks' response curve: 1 is linear, 2 turns at a quarter of the rate at half deflection (a nudge fine-tunes, full deflection is unchanged) |
+| `aimAssist` | `0.5` | While aiming, how much the aim slows as it crosses something that can be hurt (another biped with `health`, a `<tosi-b3d-destroyable>`): 0 is off, 1 stops it. Above 0 the aim also STICKS: sweep near a target with the stick below `aimBreakout` and it locks on, following the target as it or you move ([aim-assist](/aim-assist/)) |
+| `aimBreakout` | `0.7` | While locked onto a target, a stick pushed less than this slides the aim slowly across it (onto the head, say) and one pushed past it lets go and swings freely. 0 never locks |
 | `invertLookY` | `'off'` | `'on'` inverts the right stick's vertical (pushing up looks down, the aircraft mapping) |
 | `aiming` | `'off'` | `'on'` gives the character an aim separate from its facing (see [aim](/aim/)). Nesting a weapon turns it on |
 | `aimFreeYaw` | `0` | Twist the shoulders hold before the body turns, degrees. `0` keeps aim and body together |
@@ -12519,6 +13284,11 @@ animation is doing with that hand.
 | `strafing` | `'off'` | `'on'` sidesteps with the left stick; `'off'` turns with it |
 | `strafeSpeed` | `0.75` | Sidestep speed as a fraction of walking |
 | `climbReach` | `2.2` | Highest ledge the character can pull itself onto, metres (see Mantling, below) |
+| `hardLanding` | `0` (auto) | Metres of drop past which a landing is hard: the `hardLand` clip (UAL's `Roll`), standing still while it plays. Auto is 1.5 body heights. The drop is from the top of the flight, so a jump on flat ground is never hard ([fall](/fall/)) |
+| `lethalFall` | `0` (off) | Metres of drop that kill on landing: the `death` clip (`Death01`) where you land, then a bubbling `crash` event (`detail: { cause: 'fall', drop }`) that `<tosi-b3d-death>` answers without exploding you. Off by default, since a death needs an exit. Water breaks a fall |
+| `health` | `0` (can't be hurt) | Hit points. Above 0 the biped is a target like any destroyable: a hit plays a hit clip (`hitChest` / `hitStomach` / `hitHead` in turn, `hitKnockback` for a blast) and holds it still for the clip; at 0 it plays `death` where it stands and dispatches a bubbling `destroyed`, which `<tosi-b3d-death>` answers. `hp` reads what is left, `damage(amount, cause)` hurts it, `heal(amount)` mends it, `aimTarget` is a chest-height node for turrets and AI to track |
+| `hitScale` | head 2.5, trunk 1, limb 0.5 | (a property) What a hit does by where it lands. A round that says where it struck (a launcher with `direct-hit="on"`) is placed by `hitRegion(point)`: the head round the head bone, the trunk near the hips-to-neck axis, a limb anywhere else; a crouch moves them with the body. The head plays `hitHead`, the trunk `hitChest` and `hitStomach` in turn, a limb `hitShoulderL`/`R` by side. `hurt` events carry the `region` |
+| `healthRegen` | `0` | Hit points regained per second, from `healthRegenDelay` (5) seconds after the last hit |
 | `wadeDepth` | `0.45` | Water depth, as a fraction of standing height, where wading becomes swimming |
 | `buoyancy` | `0` | How high the figure rides in the water, metres. `0` puts the waterline at the head |
 
@@ -12611,6 +13381,341 @@ frame would need to be underwater. It goes to whichever side the character is
 on: under when you swim under, above otherwise.
 
 Source: https://3d.tosijs.net/b3d-biped/
+
+---
+
+# b3d-npc
+
+**Puts a mind in a biped.** Nest it in a `<tosi-b3d-biped>` and the biped
+stands guard (or wanders), is oblivious until it notices the player, then
+chases and attacks within reach; it loses them, searches, and goes back. A
+noise sends it to look. It drives the biped exactly as a player does, with
+the same `ControlInput` (AI-DESIGN: an AI is an input provider), so anything
+a player's biped can do, an NPC's can.
+
+The decisions are [npc-brain](/npc-brain/)'s and the senses
+[sensorium](/sensorium/)'s, both pure and seeded. This element gives them a
+body:
+
+- **Sight**: in front (180°) out to 50 m, along a ray from its chest to the
+  target's (`aimTarget`), so cover hides you.
+- **Close behind**: within 10 m, ray or not.
+- **Stealth**: a crouching target is noticed at `stealth` (0.33) of each
+  distance, so you can creep to 3.3 m behind it.
+- **Noise** ([noise](/noise/)): gunfire carries 25 m, a blast farther, a
+  thrown thing where it lands; it goes to look at where the noise WAS.
+- **Pain** wakes it: hurt, it knows where you are.
+- **Its attack** plays `attackState` and, at the moment the blow lands, hurts
+  the target if it is still within reach and in front of it.
+
+Give the biped `health` and it can be killed: it plays its death and stops.
+
+```javascript
+import { b3dBiped, b3dNpc, ualAnimationStates, assetUrl } from 'tosijs-3d'
+
+b3dBiped(
+  {
+    url: assetUrl('quaternius/UAL1_core.glb', 5),
+    animationStates: ualAnimationStates([{ name: 'attack', animation: 'Sword_Attack', loop: false }]),
+    x: 10, z: -10, ry: -35, health: 60,
+  },
+  b3dNpc({ attackDamage: 20 })
+)
+```
+
+The Biped Playground has one standing guard past the crates.
+
+## Attributes
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `target` | `'player'` | Who it is after: the player (the input focus's biped) |
+| `skill` | `0` | 0..1: how often it thinks again, so how fast it reacts and how fresh its idea of where you are (dumb is the default) |
+| `sightRange` | `50` | Metres it notices you in front |
+| `sightDeg` | `180` | How wide "in front" is |
+| `nearRange` | `10` | Metres it notices you behind it |
+| `stealth` | `0.33` | What crouching multiplies those by |
+| `hearing` | `1` | Multiplies how far a noise carries to it |
+| `wanderRadius` | `0` | Metres it wanders from where it started; 0 stands guard |
+| `memory` | `6` | Seconds it remembers you after losing you |
+| `attackRange` | `1.4` | Metres it attacks from |
+| `attackDamage` | `20` | What a blow does |
+| `attackCooldown` | `1.6` | Seconds between attacks |
+| `attackState` | `'attack'` | The biped state its attack plays |
+| `walkPace` | `0.3` | Forward input while walking (0..1) |
+| `runPace` | `0.7` | Forward input while chasing |
+| `seed` | `1` | Its wandering and timing: the same seed, the same behaviour |
+
+`patrol` (a property, not an attribute: `b3dNpc({ patrol: [{ x, z }, …] })`)
+is a route it walks in a loop, pausing at each point.
+
+`debugState` reads what it is doing: `{ mode, alertness, sees, senses, heard }`.
+
+Source: https://3d.tosijs.net/b3d-npc/
+
+---
+
+# b3d-conversation
+
+**Talk to someone in the scene.** Nest it in a `<tosi-b3d-biped>` and give it
+a [[conversation]] script; `start(player)` begins the talk. The speaker turns
+to face you and talks (UAL's talking loop) or gestures while a line plays,
+the line appears in a speech balloon over its head, your replies appear in the
+balloon as its line nears its end, and your character's own line goes in a
+balloon over you. Pick a reply with the pointer (flat or a controller in a
+headset), its number key, or on a gamepad the D-pad and **B**. Walk away and the talk ends: you are never held
+in place.
+
+```javascript
+import { b3dBiped, b3dConversation, ualAnimationStates } from 'tosijs-3d'
+
+const talk = b3dConversation()
+talk.script = shopScript // see [[conversation]]
+talk.host = {
+  has: (kind, qty) => count(kind) >= qty,
+  give: (kind, qty) => addToBag(kind, qty), // null, or why not
+  take: (kind, qty) => takeFromBag(kind, qty),
+  trade: (done) => openShop(done), // the talk resumes when it closes
+}
+const keeper = b3dBiped({ url, animationStates: ualAnimationStates() }, talk)
+// when the player presses interact at the counter:
+talk.start(hero)
+```
+
+A line's `gesture` is one of the biped's states (`yes`, `no`, `give`, `show`,
+`surprise`, `foldArms` in `ualAnimationStates`), or any state you add; without
+one the speaker talks for the line's length. A line with `audio` plays it (a
+URL) and lasts as long as it. While a trade is open the balloons are hidden.
+
+| Attribute | Default | Description |
+| --- | --- | --- |
+| `reach` | `4` | Metres: walk further than this from the speaker and the talk ends |
+| `balloonWidth` | `1.2` | The balloon's width in metres |
+
+`whenEvent(event, talk)` sees every [[conversation]] event; `whenEnded(talk)`
+is called when it ends. `talk` (the property) is the running conversation.
+
+Source: https://3d.tosijs.net/b3d-conversation/
+
+---
+
+# balloon layout
+
+Where a speech balloon's caption and replies go ([[b3d-conversation]]): the
+caption wrapped to the balloon's width, the replies as numbered rows under
+it, the balloon standing on the bottom of its drawing so its tail meets the
+speaker's head, and which row a point is on. A caption too long for the room
+the replies leave is cut with an ellipsis. Pure.
+
+Source: https://3d.tosijs.net/balloon-layout/
+
+---
+
+# conversation
+
+**Talking to someone, as data and a clock.** A script is a set of nodes: each
+says some lines and may offer the player replies. A reply can depend on what
+the player carries or has done, and can do things: give or take an item, open
+a trade, set a flag, go to another node, end the talk. The playback machine
+plays the lines in time, offers the replies before the last line has quite
+finished, and lets a pick cut a line short, which is what keeps a conversation
+from being a wait, then a read, then a pick (see CONVERSATION-DESIGN.md).
+
+```javascript
+import { startConversation } from 'tosijs-3d'
+
+const talk = startConversation(script, {
+  has: (kind, qty) => countOf(kind) >= qty,
+  give: (kind, qty) => putInBag(kind, qty), // null, or why not
+  take: (kind, qty) => takeFromBag(kind, qty),
+  trade: (done) => openShop(done),
+  handleEvent: (e) => stage(e), // lines, replies, cuts, effects, the end
+})
+// each frame, in scene time:
+talk.tick(dt)
+// when the player picks:
+talk.pick('potion')
+```
+
+## A script
+
+```javascript
+const script = {
+  start: 'hello',
+  nodes: {
+    hello: {
+      lines: [{ speaker: 'shopkeeper', text: 'Back again?', gesture: 'wave' }],
+      replies: [
+        { id: 'shop', label: 'What do you sell?', then: [{ trade: true }, { goto: 'after' }] },
+        {
+          id: 'potion', label: 'Your potion.', line: "Here's that potion I promised you.",
+          when: { has: 'Potion' },
+          then: [{ take: 'Potion' }, { give: 'gold', qty: 20 }, { set: 'potion-delivered' }, { goto: 'thanks' }],
+        },
+        { id: 'bye', label: 'Bye.', then: [{ end: true }] },
+      ],
+    },
+    thanks: { lines: [{ speaker: 'shopkeeper', text: 'You remembered!' }], then: [{ goto: 'hello' }] },
+    after: { lines: [{ speaker: 'shopkeeper', text: 'Anything else?' }], then: [{ goto: 'hello' }] },
+  },
+}
+```
+
+- A **line** is `{ speaker, text, audio?, seconds?, gesture?, interruptible? }`.
+  Its length is `seconds`, else the audio's (`duration(audio)` from the host),
+  else read off its words. A line is interruptible unless it says
+  `interruptible: false` (a punchline, a reveal): a pick waits for it.
+- A **reply** is `{ id, label, line?, when?, then }`: `label` is what you
+  pick, `line` what your character says (a string, or a line with its own
+  audio; none, and nothing is said). A reply whose `when` fails is not
+  offered.
+- A **condition** is `{ has, qty? }`, `{ lacks }`, `{ flag }`, `{ not }`
+  (a flag unset), or a list of them, all of which must hold.
+- An **effect** is `{ goto }`, `{ end: true }`, `{ give, qty? }` (to the
+  player), `{ take, qty? }` (from the player), `{ trade: true }` (pauses until
+  the host says the trade is done), or `{ set, value? }` (a flag). A node with
+  no replies runs its own `then` after its lines; with neither, the talk ends.
+  A refused give or take (a full bag) is an event the staging can show, and
+  the effects after it still run.
+
+The replies appear once the last line is "somewhat complete": at 75% of it,
+or 0.7 s before its end if that is later. Every line said goes in
+`transcript`. Pure: no DOM, no Babylon, no clock but `tick(dt)`.
+
+Source: https://3d.tosijs.net/conversation/
+
+---
+
+# noise
+
+**Noises in a scene**, for whatever listens. A shot, an explosion, a thrown
+thing landing: `makeNoise(scene, at, carries)` records where it was and how
+far it carries, and a listener asks for the noises it can hear since it last
+asked. An NPC ([b3d-npc](/b3d-npc/)) goes to see what a noise was, which is
+how you lure one: throw something where you want it to look.
+
+A noise tells a listener where the NOISE was, not who made it: a guard who
+hears a bottle break goes to the bottle.
+
+```javascript
+import { makeNoise, noisesSince } from 'tosijs-3d/noise'
+import { sceneSeconds } from 'tosijs-3d/b3d-utils'
+
+makeNoise(scene, { x: 4, y: 0, z: -6 }, 15) // a can lands
+// in a listener, each frame:
+for (const n of noisesSince(scene, lastHeard)) console.log('heard', n.x, n.z)
+lastHeard = sceneSeconds(scene)
+```
+
+Gunfire (`spawnProjectile`, so launchers and turrets) carries 25 m and a
+warhead's blast four times its radius (at least 40 m). Times are scene
+seconds, so a paused scene makes no new noise and old ones keep.
+
+Source: https://3d.tosijs.net/noise/
+
+---
+
+# npc-brain
+
+What an NPC decides, as pure rules: it stands guard or wanders, notices you,
+chases, attacks when it can reach you, loses you, searches where it last knew
+you were, and goes back. A noise sends it to look. Deterministic and seeded,
+so the same scene plays the same way twice and a test can pin it down.
+[b3d-npc](/b3d-npc/) puts it in a biped.
+
+It follows [AI-DESIGN](https://github.com/tonioloewald/tosijs-3d/blob/main/AI-DESIGN.md):
+what it perceives ([sensorium](/sensorium/): in front out to 50 m with a clear
+line, behind within 10 m, a third of each when you crouch, noises in any
+direction) drives its ALERTNESS, which decays when nothing feeds it; SKILL
+multiplies how often it thinks again. The low end of the skill dial is where
+the design effort goes, because believable mistakes are what make an enemy
+fun:
+
+- **It is oblivious until it notices you**, and then it is on you.
+- **It thinks on a clock.** Between thoughts it keeps going where it last
+  decided, so a dumb one runs to where you WERE, and a sidestep beats it. The
+  clock is also how long it takes to react. Skill shortens it.
+- **A noise is a place, not a person.** Hearing one, it goes to look at where
+  the noise was: throw something and it looks there.
+- **It forgets.** Out of sight and reach for `memory` seconds, it searches
+  the last place it knew you were, then goes back.
+- **It gets stuck, and knows it.** Making no progress for a second and a half,
+  it steps off to one side for a moment and tries again.
+
+```javascript
+import { npcBrain } from 'tosijs-3d/npc-brain'
+
+const brain = npcBrain({ home: { x: 0, z: 0 }, seed: 7, skill: 0.2 })
+// every frame:
+const intent = brain.step({
+  self: { x, z, heading },
+  target: { x: tx, z: tz, clearLine: true, conspicuity: 1 },
+  noises: [{ x: nx, z: nz, carries: 25 }],
+}, dt)
+// intent.moveTo, intent.pace ('stop' | 'walk' | 'run'), intent.attack, intent.mode
+```
+
+`wanderRadius` 0 makes a guard: it stands where it was put, facing the way
+it was facing, until something gets its attention. `patrol` (a list of
+points) makes it walk a route in a loop instead.
+
+Source: https://3d.tosijs.net/npc-brain/
+
+---
+
+# sensorium
+
+What a creature can perceive, as pure rules: its SENSORIUM (how far it sees,
+in front and behind, and how well it hears) against a DETECTABLE (where a
+thing is, how conspicuous it is, and whether a clear line reaches it) and
+the NOISES around it. AI-DESIGN's sensorium, first version; the NPC brain
+([npc-brain](/npc-brain/)) turns what is perceived into alertness.
+
+The rules:
+
+- **In front** (within `sightDeg`, 180° by default) it notices you out to
+  `sightRange` (50 m), if a clear line reaches you: cover hides you.
+- **Behind** it notices you within `nearRange` (10 m), line or not: it hears
+  your footsteps or feels you there.
+- **Crouching** multiplies both by your `conspicuity`: `STEALTH` (0.33) when
+  sneaking, so you can creep to 3.3 m behind someone.
+- **A noise** (a shot, an explosion) is heard from any direction within the
+  distance it carries, times the listener's `hearing`.
+
+```javascript
+import { notices, hears, STEALTH } from 'tosijs-3d/sensorium'
+
+const guard = { x: 0, z: 0, heading: 0 } // facing +z
+notices(guard, {}, { x: 0, z: 40, clearLine: true }) // 'seen'
+notices(guard, {}, { x: 0, z: -8, clearLine: false }) // 'sensed': behind, close
+notices(guard, {}, { x: 0, z: -8, clearLine: false, conspicuity: STEALTH }) // null
+hears(guard, {}, { x: 20, z: 0, carries: 25 }) // true
+```
+
+Headings are degrees, 0 = +z, 90 = +x, as in [agent-driver](/agent-driver/).
+
+## The senses
+
+A sense is a CHANNEL: arcs around the creature, each with its own
+sensitivity; a way the signal travels; and what makes a thing show up on it.
+Two are built (sight, as `notices`, and hearing, as `hears`); the rest are
+slots, named here so the shapes agree when they come.
+
+| Channel | Arcs | Travels | A thing shows up by |
+|---|---|---|---|
+| `vision` ✅ | front cone far, behind near (a step now; a falloff with the angle later) | line of sight, cut by cover; light and fog | being conspicuous (crouching: `STEALTH`), light, movement |
+| `hearing` ✅ | all round | spreads, fades with distance; walls muffle | noise: shots, blasts, footsteps, things landing |
+| `smell` | all round, best downwind | carried by the wind; lingers as a trail | scent, and the trail it leaves |
+| `vibration` | all round | through the ground | mass and footfall; vehicles |
+| `echolocation` | a forward cone | line of sight, short | shape (works in the dark) |
+| `ir` | a cone | line of sight; cut by glass and cover | heat: bodies, engines, fire |
+| `radar` | a cone or a sweep | line of sight, long | radar cross-section ([b3d-radar](/b3d-radar/)'s `profile`) |
+| `rdf` | all round, a bearing only | radio | transmitting (direction, not range) |
+
+Each creature's sensorium will carry a sensitivity per channel and arc, and
+each thing a profile per channel (conspicuity, noise, scent, heat, …).
+
+Source: https://3d.tosijs.net/sensorium/
 
 ---
 
@@ -12831,7 +13936,77 @@ It works on directions in each bone's parent's frame, so a glTF root's
 handedness mirror and a uniform scale make no difference. `<tosi-b3d-biped>`
 runs it on its spine while it holds a weapon in `gunplay`.
 
+## Reaching
+
+`reachLimb(upper, lower, end, goal, bend)` puts a two-bone limb's end on a
+point ([[two-bone-ik]] does the solving), the middle joint bending toward
+`bend`; `setWorldRotation(node, matrix)` then turns the end itself (a hand onto
+a grip). The biped shoulders a long gun with them: the stock on the right
+shoulder, the barrel along the aim, the left hand on the foregrip.
+
+```javascript
+import { reachLimb } from 'tosijs-3d'
+
+reachLimb(upperarm_l, lowerarm_l, hand_l, foregrip, new BABYLON.Vector3(0, -1, 0))
+```
+
 Source: https://3d.tosijs.net/aim-ik/
+
+---
+
+# aim-assist
+
+**Aiming a stick at a person**, two helpers. Pure: plain `{x, y, z}`.
+
+- `stickCurve(v, expo)`: a stick's deflection shaped so small movements are
+  small. `expo` 1 is linear; 2 (the biped's default while aiming) turns at a
+  quarter of the rate at half deflection and the same rate at full, so a
+  nudge fine-tunes and a shove still swings round.
+- `aimFriction(origin, dir, targets, strength)`: how much to slow the aim, as
+  a factor on its rate (1 is no change). It is `1 - strength` while the aim
+  line passes within a target's radius, easing back to 1 at three times that,
+  so the sight drags across a person rather than skating off them. It never
+  moves the aim: that is the player's.
+
+- `stickyAim(lock, input)`: the aim STICKS to a target. Sweeping near one
+  (within `capture`) with the stick below `breakout` locks onto it: from
+  then the aim follows the target as it, or you, move, and the stick slides
+  the aim slowly across it (`fineDegPerSec`, to put it on the head). Push the
+  stick past `breakout` and it lets go and swings freely; slide past
+  `release` and it lets go too. A fresh lock caught near the edge eases onto
+  the body (no snap); touching the stick stops that, so an aim you put on
+  the head stays there.
+
+The biped uses them in gunplay (`aimCurve`, `aimAssist`, `aimBreakout`).
+
+Source: https://3d.tosijs.net/aim-assist/
+
+---
+
+# two-bone IK
+
+**A limb of two bones reaches a point**: a leg puts its ankle on the floor, an
+arm puts its hand on a rifle's foregrip. Given the three joints (shoulder,
+elbow, wrist), where the end should go and which way the middle joint bends,
+it returns the turn for each bone. A goal out of reach is reached for in a
+straight line; a goal closer than the bones allow folds the limb as far as it
+goes.
+
+```javascript
+import { twoBoneIk } from 'tosijs-3d'
+
+const turn = twoBoneIk(shoulder, elbow, wrist, foregrip, { x: 0, y: -1, z: 0 })
+// turn.first: the upper bone's world turn; turn.second: the lower bone's,
+// the first included. turn.mid and turn.end: where the joints end up.
+```
+
+The turns are in world space and take each bone's direction the shortest way,
+so the limb keeps the clip's twist. The retargeter's leg IK and the biped's
+rifle hold ([[aim-ik]]'s `reachLimb`) both use it.
+
+Pure: no Babylon.
+
+Source: https://3d.tosijs.net/two-bone-ik/
 
 ---
 
@@ -13031,6 +14206,7 @@ import { humanBodyMaker } from 'tosijs-3d/human-rig'
 | `rig-recipe` | a rig recipe as data |
 | [`retarget`](/retarget/) | clips from one skeleton played on another |
 | [`spatial-transform`](/spatial-transform/) | the vector and quaternion maths under them |
+| [`two-bone-ik`](/two-bone-ik/) | a two-bone limb reaching a point (the retargeter's legs) |
 | [`proxy-fit`](/proxy-fit/), [`proxy-rigid`](/proxy-rigid/) | clothes bound to a body (MakeHuman's `.mhclo`), and rigid parts in them |
 | [`hair-fit`](/hair-fit/) | a hairstyle warped onto a head |
 | [`garment-cut`](/garment-cut/), [`body-sweep`](/body-sweep/), [`tailor-recipe`](/tailor-recipe/), [`uv-unwrap`](/uv-unwrap/), [`garment-file`](/garment-file/) | the tailor: garments cut and swept from a body, unwrapped, saved as GLB or OBJ |
@@ -13227,6 +14403,10 @@ What the file is (Dramatis's `export-format`, version 1):
   the mesh, as its file has it.
 - **`asset.extras`** is passed through as given (Dramatis's licence block
   goes there), with `generator` and `copyright`.
+- **The rig recipe** itself, when given, in `asset.extras.tosijsRigRecipe`:
+  the markers and hand-moved joints are in the body's own frame, which a
+  T-posed file cannot give back. `readGlbRigRecipe(bytes)` reads it, and the
+  rig tool's load takes the GLB.
 
 Weights are the body's own, four per vertex, renormalised.
 
@@ -13300,12 +14480,55 @@ For the file, the model it came from is read again from its bytes
 ([glb-rig](/glb-rig/)), and its materials go out as glTF with their
 pictures. A model that is not a GLB (an OBJ) goes out in plain grey.
 
+**Pictures** scales the file's textures down to a longest side (2048, 1024
+or 512), and **compress pictures** turns opaque PNGs into JPEGs at its
+**quality** ([glb textures](/glb-textures/)). With neither, every picture
+goes out exactly as made.
+
 ```javascript
 import { exportBodyRows } from 'tosijs-3d/body-export'
 panel.push(...exportBodyRows(() => ({ body, recipe, source: { url } }), say))
 ```
 
+`exportForm(pop, { name, target, say, formats })` is the same as a modal: the
+file's name, its format (a GLB, or a format the host adds, such as a
+character file) and the GLB's options. The character builder opens it from
+its Character menu.
+
 Source: https://3d.tosijs.net/body-export/
+
+---
+
+# glb textures
+
+**A GLB's pictures made smaller, after it is written.** A character's export
+carries its skin, eyes, garments and their scans as they were made, which
+can be most of the file. `compactGlbTextures(bytes, options)` does two
+separate things, each chosen on its own:
+
+- **`size`** scales a picture whose longest side is over the limit (`2048`,
+  `1024` or `512`; `as made` scales none). A scaled picture keeps its format
+  unless it is compressed.
+- **`compress`** turns an opaque PNG (lossless) into a JPEG at `quality`
+  (0 to 1, default 0.85), kept only when that is smaller: its first lossy
+  step. A scaled JPEG is written at `quality` too.
+
+A JPEG within the limit is never re-encoded (it would only lose detail
+again), nor is a see-through PNG (lashes, hair cards, a lace hem: a JPEG has
+no alpha). The rest of the file is copied untouched; only the images' buffer
+views change, and the binary chunk is packed again around them.
+
+A character file (character-file) carries GLBs of its own (the garments you
+made, a body opened from a file) and the pictures you picked from disk;
+`compactCharacterTextures(doc, options)` treats those the same way, so a
+character saved as a file takes the same choices as its GLB.
+
+`replaceGlbImages(bytes, replace)` is the pure half (no DOM), which any
+other rewrite can use: `replace` gets each embedded image and returns new
+bytes and type, or null to keep it. The rest needs a browser
+(`createImageBitmap` and a canvas).
+
+Source: https://3d.tosijs.net/glb-textures/
 
 ---
 
@@ -13675,7 +14898,7 @@ preview.append(
           return c.skeletons.find((s) => s.bones.some((b) => { const t = b.getTransformNode(); return t && top && t.isDescendantOf(top) }))
         }
 
-        const ual = await load(assetUrl('quaternius/UAL1_core.glb', 3))
+        const ual = await load(assetUrl('quaternius/UAL1_core.glb', 5))
         const source = readSkeleton(ual.skeletons[0], rootOf(ual))
         const bodies = [{ root: rootOf(ual), skeleton: null, x: 2.4 }]
         const hero = await load(assetUrl('quaternius/libraries/characters-superhero-male.glb'))
@@ -13753,6 +14976,10 @@ Arm-Space") turns the upper arms out from the body, and the chibi takes 55°.
    the knee the way the clip bends it (toward the leg's front when the leg
    is nearly straight). A foot in the air keeps the copied angles.
    `footIk: false` turns it off.
+6. **Mirroring.** `mirror: true` plays a clip left to right: each bone turns
+   as its partner on the other side turned, reflected across the body's
+   centre plane, and the hips travel the other way sideways. A right-handed
+   throw becomes a left-handed one, on any source and any body.
 
 Babylon-free and deterministic (plain `{x, y, z, w}` quaternions), like
 `fly-by-wire`: the Babylon side (`retarget-babylon`) reads the skeletons and
@@ -14335,7 +15562,7 @@ preview.append(
         el.setActiveCamera(cam)
         BABYLON.MeshBuilder.CreateGround('g', { width: 12, height: 12 }, scene)
 
-        const ual = await BABYLON.LoadAssetContainerAsync(assetUrl('quaternius/UAL1_core.glb', 3), scene)
+        const ual = await BABYLON.LoadAssetContainerAsync(assetUrl('quaternius/UAL1_core.glb', 5), scene)
         ual.addAllToScene()
         for (const g of ual.animationGroups) g.stop()
         const root = ual.meshes.find((m) => m.name === '__root__')
@@ -14428,6 +15655,35 @@ step, lengths solved from the root with Müller's follow-the-leader damping
 (otherwise the tip cracks like a whip for seconds).
 
 Source: https://3d.tosijs.net/spring-chain-babylon/
+
+---
+
+# fall
+
+What a fall does to a body, as pure rules: how far it drops before it reads as
+falling rather than stepping down, and what the landing is.
+
+```javascript
+import { landingOutcome, fallRules } from 'tosijs-3d/fall'
+
+const rules = fallRules(1.8, { lethalFall: 6 })
+landingOutcome(1, rules)   // 'soft': the jump's own landing
+landingOutcome(3, rules)   // 'hard': a heavy landing that holds you a moment
+landingOutcome(7, rules)   // 'lethal': you die where you land
+```
+
+Heights are the DROP: from the highest point of the flight (the top of a
+jump's arc, or the ledge you walked off) to where you land. A jump on flat
+ground drops only as far as it rose, so it lands softly however it was made.
+
+Defaults scale with the body, because a fall is a fact about the body: a
+hard landing from 1.5 body heights (2.7 m for a 1.8 m person). A lethal fall
+is OFF unless asked for (`lethalFall`, metres): a death needs an exit, and
+only a scene with one (`<tosi-b3d-death>`) should kill.
+
+The biped uses these (`hardLanding`, `lethalFall`); see [b3d-biped](/b3d-biped/).
+
+Source: https://3d.tosijs.net/fall/
 
 ---
 
@@ -15091,7 +16347,7 @@ import { assetUrl, b3d, b3dBiped, b3dCar, b3dTank, b3dLibrary, inputFocus, playg
 
 const cars = b3dLibrary({ url: assetUrl('tonio/vehicles/cars.glb'), type: 'cars' })
 const hero = b3dBiped({
-  url: assetUrl('quaternius/UAL1_core.glb', 3),
+  url: assetUrl('quaternius/UAL1_core.glb', 5),
   animationStates: ualAnimationStates(),
   x: -4, z: 10, player: true, cameraType: 'follow',
 })
@@ -16323,9 +17579,10 @@ For standalone keyboard-only or hardware-only sources, see
 | leftTrigger | Q |
 | rightTrigger | R |
 | dpadDown | G (toggle) |
+| dpadLeft | J (a biped reloads) |
 
-The mouse wheel is ZOOM: it drives the d-pad up/down axis, not the right
-stick. Mouse buttons count only when the press starts on a scene canvas.
+The mouse wheel is ZOOM: it drives the pad's `zoom` axis, not the right
+stick or the d-pad (the d-pad is UI navigation). Mouse buttons count only when the press starts on a scene canvas.
 
 ## Attributes
 
@@ -16400,6 +17657,7 @@ const input = { ...emptyInput(), forward: 1, turn: -0.5, shoot: 1 }
 | `interact` | 0..1 | Enter vehicle / pick up / use |
 | `aim` | 0..1 | Aim down sights |
 | `weapon` | 0..1 | Raise/lower the weapon — edge-detected by consumers, so it TOGGLES |
+| `reload` | 0..1 | Reload what is in hand — edge-detected |
 | `cameraZoom` | -1..1 | Camera zoom |
 | `lookMode` | 0..1 | Toggle (edge-detected) what the look stick's up and down do: a tank's gun, or its camera |
 | `sneak` | 0\|1 | Sneak toggle |
@@ -16654,7 +17912,7 @@ the mapping function with human-readable labels for UI visualizers:
 
 ```typescript
 bipedMappingDescriptor.labels
-// { leftStickY: 'move', buttonA: 'jump', leftBumper: 'sneak', rightTrigger: 'sprint / fire', ... }
+// { leftStickY: 'move', buttonA: 'attack', buttonB: 'use / duck', rightStickPress: 'jump', ... }
 ```
 
 ## MappedInputProvider
@@ -17168,6 +18426,64 @@ Source: https://3d.tosijs.net/interaction/
 
 ---
 
+# b3d-pickup
+
+**A thing lying in the world that you can pick up.** Walk up to it and press
+**E** (interact): the player bends down for it (kneels for something on the
+floor), it leaves the world, and a bubbling `pickedup` event says what was
+taken and by whom. Putting it in an inventory is the game's move, made in
+`whenPickedUp` or on the event, because only the game knows where it goes.
+
+It is a [prop](/b3d-prop/) (a library model, placed) that is also
+[interactive](/b3d-interactive/): it lights up when the pointer is on it, and
+`interact` reaches the nearest one in reach. A pickup can be clicked as well.
+
+```javascript
+import { b3dPickup } from 'tosijs-3d'
+
+scene.append(
+  b3dPickup({
+    library: 'weapons', meshName: 'Long Sword', item: 'Long Sword',
+    x: 2, y: 0.05, z: -3, rz: 90, // lying on its side
+    whenPickedUp: ({ item }) => inv.move({ kind: item, to: bag }),
+  })
+)
+```
+
+Dropping is the same in reverse: take the item out of the inventory and put a
+new pickup in the world where it fell. `toss(to)` throws it there in an arc,
+and where it lands it makes a [noise](/noise/): an NPC goes to look, which is
+how you lure one away. The Biped Playground does both: a
+rifle, a sword and a buckler lie by the start, and anything dragged out of
+the loadout lands at your feet.
+
+## Attributes
+
+Everything [b3d-prop](/b3d-prop/) takes, plus:
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `item` | `''` | What this is: the inventory kind it becomes (`meshName` when empty) |
+| `reach` | `1.8` | Metres from the player within which it can be picked up |
+| `noise` | `15` | Metres the noise carries when it lands after `toss` (0: silent) |
+| `qty` | `1` | How many it is (a box of 30 rounds is one pickup, `qty` 30) |
+
+## Callbacks and events
+
+| | |
+|---|---|
+| `whenPickedUp({ item, qty, by })` | Taken: `item` as above, `by` the biped (or whoever `pickUp(by)` names) |
+| `pickedup` event | The same, bubbling, `detail: { item, qty, by }` |
+| `refuse(by)` | (a property) A reason it cannot be taken now, or nothing: a health potion at full health. A refusal leaves it lying there, with `whenRefused({ reason, by })` and a bubbling `refused` event |
+
+`pickUp(by?)` picks it up from code (an AI, a cutscene): with a biped, the
+biped plays `pickupLow` (UAL's `PickUp_Kneeling`) or `pickup` and the item
+goes at the moment the hand reaches it.
+
+Source: https://3d.tosijs.net/b3d-pickup/
+
+---
+
 # interactive-behavior
 
 The **attachable** interactive — the scene-side bridge over the pure rules in
@@ -17202,6 +18518,129 @@ one; `interactive` never learns what a lock is. Vetoes are consulted at
 activation, not at hover; [interaction](/interaction/) explains why.
 
 Source: https://3d.tosijs.net/interactive-behavior/
+
+---
+
+# b3d-door
+
+**A door that opens, closes, locks and unlocks.** Walk up and press **E**
+(interact), or click it: it swings open away from you, and again shuts it.
+Closed, it is solid and it blocks sight, so an enemy on the far side cannot
+see you.
+
+A door with a `lock` needs a key. `hasKey(key, by)` is the game's answer to
+"does this person have one", because only the game knows where its keys are
+(an inventory, usually: `inv.find`, a kind in the bag). Without one the door
+refuses, with the reason (`locked`) on `whenRefused` and a bubbling `refused`
+event; with one it unlocks for good (`unlocked` event) and opens.
+
+```javascript
+import { b3dDoor } from 'tosijs-3d'
+
+scene.append(
+  b3dDoor({
+    x: -20, z: 18, // the middle of the doorway, on the floor
+    lock: 'Iron Key',
+    hasKey: (key) => Object.values(inv.doc.items).some((i) => i.kind === key),
+    whenRefused: ({ key }) => say(`Locked. It needs the ${key}.`),
+  })
+)
+```
+
+The door draws itself from boxes (a slab, a handle, and a frame unless
+`frame="off"`), hinged on its left edge as you face its front (local -z).
+The walls either side are the scene's. The Biped Playground has a walled yard
+behind the start with a locked door; its key is in the chest beside it.
+
+## Attributes
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `width` | `1.2` | Metres |
+| `height` | `2.2` | Metres |
+| `thickness` | `0.08` | Metres |
+| `color` | `'#7a5236'` | The slab |
+| `trim` | `'#c9a24a'` | The handle (and a chest's lock plate) |
+| `frame` | `'on'` | Draw a frame (two posts and a lintel), solid |
+| `swing` | `100` | Degrees it opens, always away from whoever opens it |
+| `seconds` | `0.6` | How long it takes to open or close |
+| `open` | `false` | Open now (set it to open or close it from code) |
+| `lock` | `''` | The key kind it needs; empty is unlocked |
+| `reach` | `2` | Metres from the player within which it can be used |
+
+## Callbacks and events
+
+| | |
+|---|---|
+| `hasKey(key, by)` | Whether `by` (the player, unless an NPC says otherwise) has the key. Unset: nobody has |
+| `whenOpened({ by })` / `opened` | It opened |
+| `whenClosed({ by })` / `closed` | It closed |
+| `whenRefused({ reason, key, by })` / `refused` | Locked and no key |
+| `unlocked` event | A key unlocked it (`detail: { key, by }`) |
+
+`use(by)` does what pressing E does, for an NPC or a script.
+
+Source: https://3d.tosijs.net/b3d-door/
+
+---
+
+# b3d-chest
+
+**A chest with things in it.** Walk up and press **E**: the player kneels
+and lifts the lid (UAL's `Chest_Open`, as the biped state `chestOpen`), and
+what was inside is handed over: `whenOpened({ contents, by })` and a
+bubbling `opened` event carry the item kinds, and the chest is then empty.
+Putting them in an inventory is the game's move (`inv.move({ kind, to })`
+for each), because only the game knows where they go. E again shuts the lid.
+
+With an inventory, make the chest a HOLDER and open a
+[trade](/inventory-trade/) from `whenOpened` instead: its contents beside
+your bag, take what you take and leave the rest. The Biped Playground's
+chests do that; `contents` is for a game with no inventory panel.
+
+It locks like a [door](/b3d-door/): `lock` names the key kind and
+`hasKey(key, by)` is the game's answer.
+
+```javascript
+import { b3dChest } from 'tosijs-3d'
+
+scene.append(
+  b3dChest({
+    x: -14, z: 17, ry: 180,
+    contents: ['Iron Key'],
+    whenOpened: ({ contents }) => {
+      for (const kind of contents) inv.move({ kind, to: bag })
+    },
+  })
+)
+```
+
+It draws itself from boxes, its front facing local -z. The Biped
+Playground's yard has two: one by the gate with the key in it, one inside
+behind the locked door.
+
+## Attributes
+
+Everything [b3d-door](/b3d-door/) takes for its lock and look (`color`,
+`trim`, `seconds`, `open`, `lock`, `reach`), plus:
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `width` | `0.9` | Metres |
+| `depth` | `0.55` | Metres |
+| `height` | `0.6` | Metres, lid shut |
+
+`contents` (a property: item kinds) is what is inside.
+
+## Callbacks and events
+
+| | |
+|---|---|
+| `whenOpened({ contents, by })` / `opened` | The lid is up; `contents` is what was in it (then it is empty) |
+| `whenClosed({ by })` / `closed` | Shut |
+| `whenRefused({ reason, key, by })` / `refused` | Locked and no key |
+
+Source: https://3d.tosijs.net/b3d-chest/
 
 ---
 
@@ -18358,8 +19797,10 @@ target; the behavior owns everything combat. `B3dDestroyable` is this wrapped ar
 a placeholder cube, and `b3d-loader` and `b3d-aircraft` attach one the same way. The
 death outcomes (`explode`, `deathBlast`, the `whenDestroyed` hook and the bubbling
 `destroyed` event) are described on [b3d-destroyable](/b3d-destroyable/), which also
-has the live demos. One option is specific to the behavior: `meshOnDeath` is
-`'dispose'` (default), `'hide'` or `'keep'`, for a host that swaps in its own wreck.
+has the live demos. Two options are specific to the behavior: `meshOnDeath` is
+`'dispose'` (default), `'hide'` or `'keep'`, for a host that swaps in its own wreck,
+and `flash: false` leaves out the hit flash and red glow for a host that shows its
+own hits. `whenDamaged` runs on every hit that lands (`{ amount, hp, cause }`).
 
 ## Example
 
@@ -18604,17 +20045,20 @@ that assumes one orients its effect off nothing.
 | `ammo` | `40` | Magazine capacity (a `Resource`) |
 | `reloadRate` | `8` | Ammo regenerated per second (0 = no reload) |
 | `reloadDelay` | `1` | Seconds after firing before reload resumes |
+| `reloadTime` | `0` | Seconds a reload takes. Set, the launcher has a MAGAZINE of `ammo` rounds instead of regenerating: `reload()` (a biped's reload button) fills it from `ammoSource` after this long, and pulling the trigger on an empty one starts a reload. See [magazine](/magazine/) |
 | `gravity` | `-9.81` | Vertical acceleration on the shell |
 | `drag` | `0.01` | Quadratic drag coefficient (0 = vacuum) |
 | `mass` | `1` | Shell mass (higher flies flatter/further under drag) |
 | `projRadius` | `0.12` | Shell visual radius |
 | `projColor` | `'#ffdd55'` | Shell emissive colour |
+| `sound` | `''` | The shot you hear on every `fire()`: `pistol`, `rifle`, `heavy` or `bow`, synthesised ([gun-sound](/gun-sound/)); `''` is silent |
 | `missileTrail` | `'off'` | `'on'` leaves a smoke ribbon behind each guided missile (`fireAt`); see [b3d-trail](/b3d-trail/). For your own rounds, pass `trail` to `spawnProjectile`/`spawnMissile` |
 | `maxLifetime` | `6` | Seconds before an un-impacted shell self-disposes |
 | `damage` | `20` | Warhead full damage (see [b3d-warhead](/b3d-warhead/)) |
 | `fullRadius` | `1` | Warhead full-damage radius |
 | `blastRadius` | `3` | Warhead falloff radius |
 | `los` | `'on'` | Warhead line-of-sight gating |
+| `directHit` | `'off'` | `'on'`: a round damages what it hits and says where (`Cause.at`), so a body can tell a head shot from a hand; `'off'` bursts as a warhead and hurts what is near |
 | `x`,`y`,`z` | `0` | Launcher position (muzzle offset forward from here) |
 
 ## Authoring a weapon mesh
@@ -18776,6 +20220,52 @@ straight at the target and using these: 0 is a dumb round, 1 is a full
 solution. Unguided flight is [[ballistics]].
 
 Source: https://3d.tosijs.net/guidance/
+
+---
+
+# gun-sound
+
+**A shot you hear**, synthesised: no files. `gunshot(scene, at, kind)` plays
+one at a world position: a crack of filtered noise and a low thump, each
+falling away fast, through a panner placed at the muzzle (the listener is
+put where the camera is first). `kind` picks a profile:
+
+| kind | sounds like |
+|---|---|
+| `pistol` | a sharp crack, little body |
+| `rifle` | louder, longer, with a deep thump and a tail |
+| `heavy` | a launch: a soft boom and a long whoosh |
+| `bow` | a twang: a plucked string, no noise |
+
+`<tosi-b3d-launcher sound="rifle">` plays one on every `fire()`. Like every
+effect voice, nothing plays until the page has had a user gesture.
+
+Source: https://3d.tosijs.net/gun-sound/
+
+---
+
+# magazine
+
+**Rounds in the gun, and reloading**, pure. A magazine holds `capacity`
+rounds; firing spends one; a reload takes `seconds` and then fills it from a
+reserve (`take(n)` hands over up to n rounds, from the bag, say). Nothing in
+the reserve, no reload. [b3d-launcher](/b3d-launcher/) uses it when its
+`reloadTime` is set; without one a launcher's ammo regenerates instead
+(`resource`), which suits an energy weapon or a turret.
+
+```javascript
+import { makeMagazine, fireRound, beginReload, tickMagazine } from 'tosijs-3d/magazine'
+
+const mag = makeMagazine(12)
+fireRound(mag) // true: 11 left
+beginReload(mag, 1.2, 40) // 40 rounds in the bag
+tickMagazine(mag, 1.2, (n) => n) // 'reloaded': 12 again (1 round taken)
+```
+
+A reload in progress blocks firing, and `cancelReload` (switching weapons)
+leaves the magazine as it was.
+
+Source: https://3d.tosijs.net/magazine/
 
 ---
 
@@ -19606,7 +21096,10 @@ is a 44-unit target. Lists are scrolling lists.
 ## Equip a person
 
 The art is an SVG with a `Sockets` group; each socket's id is a slot. Drag
-from the bag onto the body, or tap, then tap. The rifle needs both hands
+from the bag onto the body, or tap, then tap (a gamepad's B, or Enter after
+Tab, is the tap: `controls()` lists every thing and place for the scene's
+[panel focus](/pad-ui/), and a focused slot lights when what is carried
+fits). The rifle needs both hands
 (and shows, faded, in the other one), a helm only goes on a head, and
 anything worn can be dragged back off.
 
@@ -19967,11 +21460,12 @@ what it adds (`info` replaces that).
 | `host` | the `<svg>` it draws into (it listens for the pointer there) |
 | `decorations(item, kind)` | what a thing shows: a bar, an outline, a badge |
 | `moveFor(item, from, to)` | the move to make for a drop (by default a slot takes one from a stack, with a swap) |
+| `spill` | where a thing it displaces goes when it cannot go back where the newcomer came from (the dock's list: a shield moved from the off hand to a back holding a two-handed spear puts the spear in the bag) |
 | `refuse(item, from, to)` | reasons this panel will not take a move, on top of the model's rules |
 | `schematics` | art per container: `{ body: svgText }`; its sockets are the slots (`data-slot`, or ids in a `Sockets` group) |
 | `only`, `hide` | which containers this panel draws (one holder can be split over panels) |
 | `height` | a fixed height that scrolls, instead of growing to fit |
-| `totals` | show the holder's purse and totals under its title (default on) |
+| `totals` | show the holder's purse and totals under its title (default on); money is written in the inventory's `currencies` ([currency](/currency/)) |
 | `handleDrop` | `(item, kind, from)`: adds a **drop** target at the top of the list; return reasons to refuse, else it leaves the inventory (put it in the world yourself) |
 | `alsoIn(item, kind, at)` | other slots an item takes up, where it is drawn faded (a two-handed weapon in both hands) |
 | `overlay` | draw the drag's ghost in a page overlay above every panel (default); off inside a 3D plane |
@@ -19982,6 +21476,144 @@ art }`, `list` (the container shown beside it when open, or none), `width`,
 `svg` (for the plane), `open`, `setOpen` and `handlePointer`.
 
 Source: https://3d.tosijs.net/inventory-box/
+
+---
+
+# trade
+
+**A transaction between two places in one inventory**, pure: your bag and a
+chest, your bag and a shop's stock. Things move freely while it is open (so
+the panels show it as it would be); the trade remembers which side each
+thing started on, so it can say what changed, what that comes to, and undo
+it.
+
+- `changed()`: what crossed, by kind and how many, and from where (stacks
+  split and join, so it counts, rather than following ids).
+- `balance()`: what you pay (negative: what you receive), by the inventory's
+  own price rule, buying from them and selling to them.
+- `revert()`: everything goes back.
+- `deal(currency)`: settles. It puts things back, then makes the same moves
+  PAID (sales first, so what yours fetch pays for what you buy), so the
+  inventory's rules decide (`not enough gold`). Refused, the trade is left as
+  it was.
+
+A chest has no price: nothing to settle, you simply take what you take.
+[inventory-trade](/inventory-trade/) draws one.
+
+```javascript
+import { createInventory } from 'tosijs-3d/inventory'
+import { beginTrade } from 'tosijs-3d/trade'
+
+const BAG = { holder: 'me', container: 'bag' }
+const STOCK = { holder: 'shop', container: 'stock' }
+const price = (item, from) => (from?.holder === 'shop' ? 10 : 5) // buy 10, sell 5
+const inv = createInventory(
+  {
+    items: { rope: { id: 'rope', kind: 'rope', qty: 1 }, pelt: { id: 'pelt', kind: 'pelt', qty: 1 } },
+    holders: {
+      me: { id: 'me', containers: { bag: { type: 'list', holds: ['pelt'] } }, purse: { gold: 20 } },
+      shop: { id: 'shop', containers: { stock: { type: 'list', holds: ['rope'] } }, purse: { gold: 100 } },
+    },
+  },
+  { kinds: { rope: { id: 'rope' }, pelt: { id: 'pelt' } }, price }
+)
+const trade = beginTrade(inv, { mine: BAG, theirs: STOCK }, price)
+inv.move({ item: 'rope', to: BAG }, { item: 'pelt', to: STOCK })
+trade.balance() // 5: you pay 10 for the rope and get 5 for the pelt
+trade.deal('gold') // me: 15 gold
+```
+
+Source: https://3d.tosijs.net/trade/
+
+---
+
+# inventory-trade
+
+**Take and leave, buy and sell.** Two containers side by side (theirs on the
+left, yours on the right) with the deal under them. Drag a thing across (or
+tap it, then tap the other side) and it moves at once, so each side shows
+what it will hold; the [trade](/trade/) remembers where everything started.
+
+- **A chest** (no `price`): **take all** (it closes itself a moment
+  later), or move what you want, then **done**. Whatever you left stays in it.
+- **A shop** (`price`): your money is under your list, and the line under
+  both says which way it goes: `you'll pay 12 gold`, `you'll receive 6 gold`,
+  or, when they cannot pay what yours fetch, `you'll receive 200 gold (all
+  they can offer)` and `he can't offer more than 200 gold` (their purse is
+  never shown otherwise). **Deal** settles: you pay what it comes to (`not
+  enough gold` comes back as the reason and nothing changes) or take what
+  they can pay; **cancel** puts everything back.
+
+**With a gamepad or the keyboard** (the scene's [panel focus](/pad-ui/)), a
+chest opens on take all; up and down step through both lists and the buttons,
+left and right go across, and the press moves the focused thing straight to
+the other side (it has nowhere else to go), leaving the focus on the next.
+
+One SVG, so it goes on a plane: give `svg` to a
+[`<tosi-b3d-panel>`](/b3d-panel/) (`bar-button="off"`, opened with `show()`)
+and it works flat and in a headset. The Biped Playground opens one when a
+chest opens.
+
+```javascript
+import { b3dPanel, tradePanel, createCarry } from 'tosijs-3d'
+
+const trade = tradePanel({
+  inv, carry: createCarry(),
+  mine: { holder: 'hero', container: 'bag' },
+  theirs: { holder: 'chest-1', container: 'stock' },
+  titles: { mine: 'you', theirs: 'chest' },
+  handleDone: () => panel.hide(),
+})
+const panel = b3dPanel({ title: 'Chest', icon: 'lucideBackpack', barButton: 'off' })
+panel.svg = trade.svg
+// When the chest opens:
+trade.begin()
+panel.show()
+```
+
+| Option | |
+|---|---|
+| `inv`, `carry` | The inventory and a carry (`createCarry()`) |
+| `mine`, `theirs` | The two containers |
+| `titles` | `{ mine, theirs }` over each list |
+| `they` | How the other side is named in a sentence (`'he'`, `'the smith'`; default `'they'`) |
+| `price` | The inventory's own price rule, `(item, from, to) => number`: makes it a shop |
+| `currency` | The purse key a shop pays in (default: the inventory's first currency, else `gold`), written as the inventory's `currencies` say (`€12`, `12 gp`) |
+| `width`, `height` | Each list's size (220 × 280) |
+| `decorations`, `info`, `moveFor` | As [inventoryPanel](/inventory-box/)'s (`moveFor` sells a box of rounds off a stack, not the whole stack) |
+| `handleDone({ dealt })` | Closed: done, a deal, or cancelled (`dealt: false`) |
+
+`begin()` starts a fresh trade (call it each time it opens); `trade` is the
+current [trade](/trade/).
+
+Source: https://3d.tosijs.net/inventory-trade/
+
+---
+
+# currency
+
+**How money is written.** A currency is the purse key it lives under
+(`gold`), what it is called (`gold`, `gp`, `€`, `$`, `USD`) and which side
+of the amount that goes: `€12` and `$12` put it first, `12 gold`, `12 gp`
+and `12 USD` after. The euro is written both ways, so it is a choice, not a
+rule.
+
+```javascript
+import { formatMoney } from 'tosijs-3d/currency'
+
+formatMoney(12, { id: 'gold' }) // '12 gold'
+formatMoney(12, { id: 'gold', label: 'gp' }) // '12 gp'
+formatMoney(12.5, { id: 'eur', label: '€', position: 'prefix', decimals: 2 }) // '€12.50'
+formatMoney(12, { id: 'eur', label: '€', position: 'suffix' }) // '12 €'
+formatMoney(-3, { id: 'usd', label: '$', position: 'prefix' }) // '-$3'
+```
+
+Give an inventory its currencies (`createInventory(doc, { kinds, currencies })`)
+and every view writes money with them: a panel's purse line, the value in an
+item's info floater, a trade's `you pay …`. A purse key with no currency is
+written as `12 <key>`.
+
+Source: https://3d.tosijs.net/currency/
 
 ---
 
@@ -20346,7 +21978,7 @@ should really emit a death and really emit a spawn, because that's the stream a 
 | `orbitHeight` | `6` | Camera height above the wreck |
 | `orbitSpeed` | `6` | Degrees/sec — slow. This is a moment, not a ride |
 | `spectate` | `'orbit'` | `orbit` circles the wreck; `chase` freezes the third-person shot you died in (static). Flat only |
-| `wreckage` | `'on'` | Explode + leave burning wreckage (`'off'` = just the panel) |
+| `wreckage` | `'on'` | Explode + leave burning wreckage (`'off'` = just the panel). An entity that shows its own death (`diesInPlace`, a biped with a death clip) never explodes |
 | `blastRadius` | `6` | Size of the fireball |
 
 ## Callbacks
@@ -20531,6 +22163,7 @@ reason. A widget of your own reads its callbacks the same way:
 - [Controls](/ui-controls/)
 - [Containers](/ui-containers/)
 - [In the scene and XR](/ui-in-scene/)
+- [test checklist in the scene](/b3d-checklist/)
 - [Theme and icons](/ui-theme/)
 <!-- /toc -->
 
@@ -21044,7 +22677,7 @@ Source: https://3d.tosijs.net/widgets3d/
 # Playback
 
 **A clip's transport on ONE row**: play or pause, a scrub bar you can drag to
-any moment, and the playback speed. A [[widgets3d|Widget3d]], so it sits in a
+any moment, the playback speed, and a button that plays it backwards. A [[widgets3d|Widget3d]], so it sits in a
 `panel3d` beside the rest of a panel and works the same flat, in a scene and in
 a headset.
 
@@ -21059,7 +22692,7 @@ const { div, pre } = elements
 const clip = { time: 0, duration: 4, playing: true, speed: 1 }
 const readout = pre({ style: 'margin:8px 16px;color:#8ea;font:12px ui-monospace,monospace' }, '')
 setInterval(() => {
-  if (clip.playing) clip.time = (clip.time + 0.05 * clip.speed) % clip.duration
+  if (clip.playing) clip.time = (clip.time + 0.05 * clip.speed + clip.duration) % clip.duration
   readout.textContent = `${clip.time.toFixed(2)} s of ${clip.duration} s  ·  ${clip.playing ? 'playing' : 'paused'}  ·  ×${clip.speed}`
 }, 50)
 
@@ -21096,7 +22729,8 @@ preview.append(
 ```
 
 Press the button to pause, drag the bar to any moment (it pauses there, so
-you can look), and pick a speed from the menu.
+you can look), pick a speed from the menu, and press the arrow at the end to
+play the clip backwards (does a walk still read as a walk in reverse?).
 
 ## The clip is the host's
 
@@ -21109,7 +22743,10 @@ the clip is driven, and a pause in the scene shows in the button.
 Scrubbing pauses the clip, since a moment you drag to is one you want to see
 held. Press play to carry on from there.
 
-`speeds` sets the menu (default 0.1, 0.25, 0.5, 0.75, 1, 1.5 and 2).
+`speeds` sets the menu (default 0.1, 0.25, 0.5, 0.75, 1, 1.5 and 2). The
+direction is the speed's SIGN: backwards at ×0.5 is `handleSpeed(-0.5)`, and a
+`read()` with a negative speed lights the arrow. Babylon's `speedRatio` takes
+it as it is.
 
 Source: https://3d.tosijs.net/playback-field/
 
@@ -21227,6 +22864,72 @@ covers that: `box` hands a raw child the whole gesture and keeps routing to it u
 `up`, and `widgetBox` is the translation.
 
 Source: https://3d.tosijs.net/widget-box/
+
+---
+
+# Pager
+
+**One page at a time**: ‹ and › step through, a dot per page shows where you
+are, and a tap on a dot goes straight to it. A [[widgets3d|Widget3d]], so it works the same flat,
+in a scene and in a headset. Use it where a panel would otherwise scroll, since
+scrolling a panel with a controller ray is much harder than scrolling a page.
+
+## Demo
+
+```js
+import { b3d, b3dLight, panelScene, panel3d, textBlock3d, pager3d } from 'tosijs-3d'
+import { elements } from 'tosijs'
+const { div } = elements
+
+const pages = ['Check the menu opens', 'Check the list scrolls', 'Check the dialog closes', 'Check the keyboard types']
+const done = new Set([1])
+
+const page = textBlock3d({ lines: [pages[0]] })
+const panel = panel3d(
+  { width: 300 },
+  page,
+  pager3d({
+    count: pages.length,
+    index: 0,
+    // A dot can wear a colour: here, pages already done are green.
+    dotColor: (i) => (done.has(i) ? '#30d158' : undefined),
+    handleChange: (i) => page.update([pages[i]]),
+  })
+)
+
+// One panel, shown twice: as DOM, and on a plane in a scene.
+const { plane, sceneCreated } = panelScene({ svg: panel, target: panel, width: 2.4, camera: { radius: 3.2 } })
+const scene = b3d({ style: 'border-radius:8px;overflow:hidden', sceneCreated }, b3dLight({ intensity: 1 }), plane)
+
+preview.append(
+  div(
+    { style: 'display:flex;gap:24px;height:100%;padding:16px;background:#0c0e14;box-sizing:border-box' },
+    div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, 'DOM', panel),
+    div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, '3D texture', scene)
+  )
+)
+```
+```css
+.preview {
+  height: 100%;
+}
+```
+
+Press › and ‹, or tap a dot.
+
+## The page is the host's
+
+The pager holds which page is shown and reports a turn through
+`handleChange(index)`; the pages are the host's. Update the content in place,
+as the demo does, or rebuild the panel when pages differ in size (a rebuild is
+how a panel takes a new size). `setIndex(i)` moves it without reporting. `dotColor(i)` colours a dot, so a
+glance shows which pages are done; `undefined` leaves it the theme's.
+
+More than `maxDots` pages (default 12) show as `3 / 20` between the arrows
+instead of dots. A screen reader and an agent see a `previous` and a `next`
+button, and the page as a choice they can set.
+
+Source: https://3d.tosijs.net/pager-field/
 
 ---
 
@@ -24893,6 +26596,27 @@ Source: https://3d.tosijs.net/xr-frames/
 
 ---
 
+# xr-grab
+
+Grabbing the world in a headset, the AR way: hold a grip and drag, and the
+scene comes with your hand; hold both and pull apart, and it grows, twist and
+it turns. Nothing in the scene moves: the VIEWER does (its position, its turn
+about the vertical, and its scale, WebXR's `worldScalingFactor`), so every
+model, shader and simulation keeps its own units.
+
+The rule is that what you grabbed stays in your hand. At the grab, each hand's
+WORLD point is kept; every frame after, the viewer is placed so those world
+points are where the hands are now. One hand moves you; two hands also set
+your scale (their spread then, against their spread now) and your turn (the
+line between them, seen from above).
+
+`<tosi-b3d>`'s default AR session uses it on the grips (`xr-passthrough`).
+Pure: plain `{x, y, z}`, no Babylon.
+
+Source: https://3d.tosijs.net/xr-grab/
+
+---
+
 # system-bar
 
 **The scene's system bar: one row of buttons, flat and in a headset.** Flat it
@@ -25522,6 +27246,10 @@ it's how you walk.
 | `menu` / `buttonA` | `focusActivate()` |
 | `buttonB` | `focusBack()` |
 
+`activate` and `back` choose other buttons: a scene's own UI confirms with
+**B**, the "use" button (`activate: ['buttonB'], back: []`), as the
+conversation balloon does.
+
 ## Edge-triggered, with a repeat
 
 A gamepad reports *held*, not *pressed*, so polling raw state would fire every frame and
@@ -25533,6 +27261,86 @@ The timing is passed in as `now` rather than read from a clock, so the ramp is
 deterministic and testable — same discipline as the rest of the pure models here.
 
 Source: https://3d.tosijs.net/gamepad-focus/
+
+---
+
+# pad-ui
+
+**Reaching a panel's controls with a gamepad.** A panel already describes
+itself as named controls (its [widget semantics](/widget-semantics/): role,
+value, where it is drawn, `set` and `activate`). `padNavigator` walks those
+with a D-pad: up and down (or any direction) step to the nearest control that
+way, left and right change a slider or a choice, and the click button presses
+a button, flips a toggle or opens a section. It works through each control's
+own path, as an agent or a screen reader does, so nothing here knows a widget.
+
+Up and down (and **Tab** / shift-Tab) step through the controls in order and
+CYCLE, so the last is one press from the first. Left and right do what the
+control does sideways: a slider moves, a choice changes, a text box's caret
+moves; anything else goes to the control beside it (a row of icons).
+
+When a panel opens, its DEFAULT control takes the focus, else its first.
+Mark the default with `button3d({ label: 'OK', default: true })`, or any
+widget with `asDefault(widget)`. A popup opened inside the panel (a select's
+list, a confirm) takes the focus the same way and gives it back when it closes.
+
+A control can also hear that it gained or lost the focus (`focus(on)` in its
+semantics), to show what a hover would: a thing's info, whether a carried thing
+fits a slot. When the focused control leaves the list (a thing taken across in
+a trade), the one now in its place takes the focus, so taking one thing after
+another is one press each. The [inventory](/inventory-box/) and
+[trade](/inventory-trade/) panels give their things and places as controls.
+
+`<tosi-b3d>` uses it on its open panel. The keyboard: **Tab** and shift-Tab
+cycle, then Enter or space presses and the arrow keys move as the D-pad
+does, until the mouse is used. A gamepad: hold D-pad up to reach the system
+bar, step along it, **B** opens a panel and presses its controls; hold up in
+a panel to close it (back to its button on the bar), and on the bar to go
+back to playing. A panel that pops up while the pad is what you last used
+takes the pad at once, and hold up closes it straight back to playing. A
+modal (the pause, a respawn) takes the focus from whatever it covers, on
+its first button.
+
+```javascript
+import { padNavigator } from 'tosijs-3d/pad-ui'
+
+const nav = padNavigator(() => panel.controls())
+nav.focusDefault() // the panel opened: its default button, else the first
+nav.move(0, 1)     // the next control (the last cycles to the first)
+nav.move(1, 0)     // a slider up a step, a caret right
+nav.activate()     // press it
+nav.focused        // the control with focus, its box to draw a ring round
+```
+
+Source: https://3d.tosijs.net/pad-ui/
+
+---
+
+# test checklist in the scene
+
+When an agent asks a person to check something
+(`tosijs-checklist post checks.json`, from tosijs-ui), every page the dev
+server serves shows a badge and a panel to answer it in. That panel is HTML, so
+in a headset it is gone. This module puts the same list on a `<tosi-b3d>`'s
+system bar: a ✓ button that blinks when a list arrives. It opens a panel with a
+👍 and 👎 and a comment field (the scene keyboard) for each item, flat and in a
+headset. Each answer is saved as it is given, through the same endpoint the
+page's panel uses, so the two stay in step.
+
+Nothing to wire. A `<tosi-b3d>` watches for a list only on a page served by a
+dev server with the checklist endpoint (tosijs-ui ≥ 1.19), so a deployed site
+does nothing and fetches nothing. In an app with its own server mounting
+`checklistHandler`, call `setChecklistEndpoint` (from tosijs-ui's checklist
+client) before the scene connects.
+
+A verdict from the scene carries a schematic that says it was given in a scene,
+and in a headset if it was: the page's own schematic draws HTML, and a headset
+shows none of it.
+
+`checklistPanel(state, handleAnswer)` builds the panel's content on its own,
+for a host that places it somewhere else.
+
+Source: https://3d.tosijs.net/b3d-checklist/
 
 ---
 
@@ -28556,13 +30364,14 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-## 0.13.1
+## 0.13.2
 
-The latest release. Retargeted legs that hold still and walk cleanly, a foot-turn dial for splay-footed bodies, fingertip handles in the rig tool, and a character builder whose rig panel follows the bar's menus. See [0.13.1](/v0.13.1/).
+The latest release. The test checklist on every scene's system bar (answer it in a headset), one **Export…** for the character builder whose GLB also carries the whole character and its rig, smaller exported pictures, held things on either side or the forearm, gamepad and keyboard focus in panels, `pager3d`, and fields that wrap. See [0.13.2](/v0.13.2/).
 
 ## Every version
 
 <!-- toc -->
+- [0.13.2](/v0.13.2/)
 - [0.13.1](/v0.13.1/)
 - [0.13.0](/v0.13.0/)
 - [0.12.6](/v0.12.6/)
@@ -28636,6 +30445,104 @@ The latest release. Retargeted legs that hold still and walk cleanly, a foot-tur
 <!-- /toc -->
 
 Source: https://3d.tosijs.net/CHANGELOG/
+
+---
+
+# 0.13.2
+
+The test checklist on every scene's system bar (answer it in a headset), one **Export…** for the character builder whose GLB also carries the whole character and its rig, smaller exported pictures, held things on either side or the forearm, gamepad and keyboard focus in panels, `pager3d`, and fields that wrap.
+
+Size: barrel (min, packages external) 1798.2 KB raw / 626.1 KB gz, up 90.7 KB / 32.1 KB gz (+5.3%) on 0.13.1: conversations, NPCs, doors, chests, pickups, trade and the checklist.
+
+### Added
+
+- The dev server's test checklist (tosijs-ui ≥ 1.19, `tosijs-checklist post`) on every scene's system bar, so it can be answered in a headset: one item at a time, 👍 / 👎 and a comment by the scene keyboard, saved through the same endpoint as the page's panel. Nothing runs off the dev server. `checklistPanel` builds the content alone (`b3d-checklist`).
+- `pager3d`, one page at a time: ‹ ›, a dot per page (tap to jump, `dotColor` per page), `3 / 20` past `maxDots`. For a panel that would otherwise scroll.
+- `inputField({ lines })`: the field wraps and grows as text is typed, up to that many lines, then keeps the caret's line in view. `setValue` with the text the field already holds changes nothing (the caret stays). A `panel3d`'s host `relayout` now re-measures its rows and takes the new height in place (it did nothing), so a row that changes height grows the panel and its plane.
+- Exports can make their pictures smaller, two choices: **pictures** scales to a longest side of 2048, 1024 or 512, and **compress pictures** (with **quality**) turns opaque PNGs into JPEGs when smaller; with neither, pictures go out exactly as made, and a JPEG within the limit is never re-encoded: `compactGlbTextures`, `replaceGlbImages` and `compactCharacterTextures` (`tosijs-3d/glb-textures`). `exportForm` is the export as a modal (name, format, the GLB's options).
+- The character builder's export carries the whole character file (settings with grips, held and stowed items, cloth, tailor outlines, own garments, body source, pictures, clips) in `asset.extras.tosijsCharacter`, so the GLB is also a save: `readGlbCharacter(bytes)` reads it and the builder's import opens the GLB. `exportBody`'s target takes `extras`.
+- `riggedBodyGlb` writes its `recipe` whole into `asset.extras.tosijsRigRecipe` and `readGlbRigRecipe(bytes)` reads it back, so a T-posed export still carries the hand-placed rig; the rig tool's load takes such a GLB as well as a recipe JSON.
+- `playback3d` has a backwards button at the end of its row (the character builder's clip transport): the speed's sign is the direction, so backwards at ×0.5 is `handleSpeed(-0.5)`, and a negative speed from `read()` lights it.
+- A class can be worn somewhere other than its own place: the character builder's held item has **worn** (hand, forearm) beside **side**, kept per class with the character's grips (`place:<class>`), with a grip of its own for that place (`gripKey`, starting from `PLACE_GRIPS`). `placeIn(name, kept)`; `holdMount` and `holdGrip` take a `place`. The Biped Playground follows it for the left hand (a buckler gripped in the fist).
+- Held things go on either side. A hold class rides in the hand or on the forearm (`holdPlace`), on its own side unless told (`holdSide`: the right hand; a bow's left hand; a shield's and the new `wrist` class's left forearm), and `holdGrip(name, adjusted, classes, side)` mirrors a grip set for one side to the other (`mirrorGrip` in `hand-socket`; `ownSideGrip` stores an adjustment made on the other side). Each forearm has an anatomical socket like the hands' (`forearmSocket`; on UAL it is the lower arm bone, so a shield's numbers mean what they did); `mountNode(skeleton, holdMount(class, side))` gives the node to hang a thing from. The character builder's held item has a **side** (auto, right, left); the Biped Playground draws whatever is in the left hand (a dagger in the off hand, a shield on the forearm).
+- Focus in panels, for a gamepad and the keyboard. When a panel opens its default control takes the focus (`button3d({ default: true })`, `asDefault(widget)` for any widget; else the first), and a popup inside it does the same. Up and down, and **Tab** / shift-Tab, step through the controls and cycle; left and right move a slider, change a choice, move a text box's caret, else go to the control beside it. The keyboard's ring shows from the first Tab until the mouse is used. Gamepad UI mode, flat: hold D-pad up to reach the system bar, left and right step along it, **B** presses, down goes into the open panel; hold up in a panel to close it (focus goes back to its button on the bar), and on the bar to go back to playing. A panel that pops up while the pad was the last thing used takes the pad, and gives it back when it closes (hold up closes it). A modal (the pause, a respawn panel) takes the focus from what it covers, on its first button, so **B** answers it. While the mode is on the D-pad and B belong to the UI (`padUiOwns`; `HardwareGamepadSource.poll(true)` reads them anyway). `b3d.padUiActive`, `b3d.setPadUi(on)`; pure in `pad-ui` (`padNavigator`); widget semantics gain `isDefault` and `nudge`; `createFocusPulse` takes `repeat`. The inventory and the trade panel are reachable too: in the inventory **B** picks a thing up and **B** on a slot or the bag puts it down (while you carry it the D-pad skips the places that will not take it; a focused thing shows its info); in a trade **B** moves the thing straight across, the next one takes the focus, and a chest opens on **take all**. `inventoryPanel`, `inventoryDock` and `tradePanel` gain `controls()`; widget semantics gain `focus(on)`; a box gains `focusTo(i, { ring })` and `visibleRect(i)`.
+- A conversation's replies can be chosen on a gamepad: the D-pad steps through them (cycling), **B** picks. The pad's choice wears the panels' focus ring and is its own, apart from the mouse's hover; it starts on the first reply, and a first press (D-pad or B) only shows it. `gamepadFocus` takes `activate` and `back` (which buttons confirm and back out; the defaults are unchanged).
+- Aiming is finer and sticky. While a biped aims, the sticks follow a response curve (`aimCurve`, default 2), the aim slows as it crosses something that can be hurt (`aimAssist`, default 0.5; 0 turns all of this off), and a sweep near a target with the stick below `aimBreakout` (default 0.7) LOCKS onto it: the aim eases onto its body and follows it as it or you move, a lighter stick slides the aim slowly across it (onto the head), and a push past the breakout lets go. Targets behind something solid are not locked. Pure helpers in `aim-assist` (`stickCurve`, `aimFriction`, `stickyAim`).
+- `<tosi-b3d-launcher sound="pistol|rifle|heavy|bow">` plays a synthesised shot at the muzzle on every `fire()` (`gunshot(scene, at, kind)` in `gun-sound`; no files). The Biped Playground's guns have them.
+- `trade.offer(currency)` (what changes hands, and whether they are short) and `trade.deal(currency, { upTo: true })` (one payment of what it comes to, capped at what they have). An inventory move with `pay` and `amount` and no item is a payment alone; `pay.holder: ''` is money from outside the world (a reward, coins found).
+- In the Biped Playground, a pile of 50 gold by the gate chest, and the shopkeeper says "Please, take a look." before the shop opens, in the middle of the view.
+- The default AR session (`xr-passthrough`) scales you to the scene: you arrive with what the flat view showed a step ahead, one grip drags the scene, both grips resize and turn it, and the sticks walk at your scale. `b3d.xrFrame(centre, radius)` puts any point in front of you at a chosen size; `b3d.xrSupport` says whether the device offers VR and AR. Pure maths in `xr-grab`. In the Solar System, **look at** brings a body in front of you, and the passthrough toggle shows only where AR exists, outside a session.
+- `<tosi-b3d xr-passthrough="on">`: Enter VR starts an AR session where the device has passthrough (a Quest): the room shows behind the scene, with no sky and no floor grid. Elsewhere it enters VR. The scene dispatches `xrenter` (`detail.passthrough`) and `xrexit`. The Solar System demo has a **passthrough (AR)** toggle: the system stands a metre and a half across in your room.
+- The Biped Playground's shopkeeper speaks his lines (`speech/shopkeeper-*.mp3`, voiced locally with Qwen3-TTS, a direction per line; deploy static-assets first). Their manifest is `bin/speech-shopkeeper.json`.
+- `<tosi-b3d-conversation>`: nest it in a biped, give it a `script` and a `host` (the game's inventory), and `start(player)`. The speaker turns to face you and talks or gestures (`talk`, `yes`, `no`, `give`, `show`, `surprise`, `foldArms` in `ualAnimationStates`); its line and your replies are in a speech balloon over its head (click, a controller, or the reply's number key), your line in one over you; a line's `audio` plays; a `trade` effect opens the game's shop and the talk resumes when it closes; walking away ends it. `B3dBiped.perform(state, seconds)` holds a clip that long (a loop loops), and `endPerform()` stops it. In the Biped Playground, E at the counter talks to the shopkeeper: he sells, and pays rifle rounds for the potion in the gate chest. `UAL1_core.glb` carries the talking and gesture clips (10.9 MB, was 9.0) once static-assets is deployed.
+- `startConversation(script, host)`: a conversation as data and a clock. Nodes of lines (speaker, text, audio, gesture, interruptible) and replies (a label, the player's spoken line, a `when` on what they carry or flags, a `then` of effects: goto, end, give, take, trade, set a flag). Replies appear as the last line nears its end, a pick cuts an interruptible line, a trade pauses the talk until it closes, and every line goes in `transcript`. Effects go through the host (the game's inventory). Pure; the 3D staging comes next.
+- A Bow and a Kite Shield in `tonio/weapons-classic` (library `?v=3`, once static-assets is deployed). A bow is held in the LEFT hand (`holdMount('bow')` is `hand_l`'s socket; a launcher takes `socket: 'left-hand'`), upright along the aim; the kite shield is a shield. The character builder holds a bow in the left hand (its row is now **in hand**). In the Biped Playground a bow lies by the start, arrows are in the gate chest and the shop, the shop sells the kite shield, and with the bow up the hero plays UAL's bow clips. The bow is untextured and its string does not draw yet.
+- A biped in gunplay SHOULDERS a long gun (a `rifle` by `holdClassOf`, or a model with a `_foregrip` node): the shoulders blade, the stock goes to the right shoulder with the barrel along the aim, and the left palm cradles the foregrip. It plays the pistol aim corrected by arm IK, since no CC0 set has rifle clips; `_stock` and `_foregrip` nodes place it exactly, else it is read off the model's shape. New: `twoBoneIk` (pure; the retargeter's leg IK now uses it), and `reachLimb`, `setWorldRotation`, `turnAbout` in aim-ik.
+- `B3dBiped.setAimClips(AIM_CLIPS.bow)` switches the gunplay states (stance, aim up/level/down, shoot, reload) to UAL2's bow set; `AIM_CLIPS.pistol` is the default. `UAL1_core.glb` carries the bow clips once static-assets is deployed.
+- Mounts beyond the right hand. A shield is strapped to the LEFT FOREARM (`holdMount(class)`: `lowerarm_l`, in the bone's frame), and anything stowed rides on the BACK across the shoulders (`STOW_MOUNT`, the upper spine; `stowGrip(name)`, blades hilt up, long guns barrel up). The character builder's Hold section has **on the back** beside **right hand**, each with its manipulator and per-class numbers (a character keeps stowed places as `stow:<class>` in `grips`, and a new `stowed` setting). In the Biped Playground the buckler goes in the left hand (not the right) and is drawn on the forearm, and whatever is on the back is drawn there.
+- A shopkeeper in the Biped Playground: a stand-in mannequin behind a counter; E at the counter opens a priced trade (ammo by the box, buy at value, sell at half). `tradePanel` takes `moveFor`, and `trade` counts what crossed by kind and quantity, so stacks split and joined in a trade are paid for correctly (`TradeChange` is now `{ kind, qty, from, to }`).
+- The rig tool's `dragging` has **moves the joint alone**: a shoulder moved without carrying its elbow and wrist. `RigToolApi.skeleton` is the model's skeleton now.
+- Magazines and reloading. `<tosi-b3d-launcher reload-time>` gives a launcher a magazine of `ammo` rounds, refilled from `ammoSource` (`count()`, `take(n)`: the game's, an inventory) after `reloadTime` seconds; `reload()`, `loaded`, `reloading`, and `empty` / `reloading` / `reloaded` events. An empty gun reloads when the trigger is pulled. Without `reloadTime` a launcher regenerates as before. `magazine` is the pure model. `ControlInput.reload` (d-pad left, J on a keyboard) makes a biped reload what it holds.
+- `B3dBiped.heal(amount)`. `<tosi-b3d-pickup>` gains `qty` (a box of 30 rounds is one pickup) and `refuse(by)` (a reason it can't be taken now: a potion at full health), with `whenRefused` and a `refused` event.
+- `currency`: how money is written, `formatMoney(amount, { id, label, position })` (`€12`, `12 gold`, `12 gp`). An inventory takes `currencies`, and its panel's purse line, an item's value in the info floater and a trade's `you pay …` are written with them.
+- `<tosi-b3d-door>` and `<tosi-b3d-chest>`. A door swings open away from whoever opens it (interact or a click), is solid shut and blocks sight; a chest's lid lifts while the player plays `chestOpen` (UAL's `Chest_Open`). Either can have a `lock` (a key kind); `hasKey(key, by)` is the game's answer, a refusal comes back with its reason, a key unlocks it for good. `tradePanel` (inventory-trade) is the take-and-leave panel a chest opens, and a shop's: with a `price` it shows which way the money goes (`you pay 12 gold`, `you receive 6 gold`) and settles through the inventory's rules (`trade`, pure). The demo loadout takes extra `holders`, a `purse` and a `price`. The Biped Playground has a walled yard behind the start: the key is in the chest by its locked door, and the chest inside holds the rocket launcher.
+- Hit locations. `<tosi-b3d-launcher direct-hit="on">` makes a round damage what it hits and say where (`Cause.at`); a biped places it with `hitRegion(point)` (head round the head bone, trunk near the hips-to-neck axis, limbs elsewhere, moving with a crouch) and scales it by `hitScale` (head 2.5, trunk 1, limb 0.5), playing `hitHead`, `hitChest`/`hitStomach` or `hitShoulderL`/`R`. `DestroyableBehavior.damageScale` is the hook. The Biped Playground's guns hit directly (the rocket launcher still bursts). `UAL1_core` also carries `Hit_Shoulder_L`/`R`.
+- `<tosi-b3d-npc>`: nest it in a biped and the biped is an enemy. It stands guard (or wanders, or walks a `patrol` route), oblivious until it notices the player: in front within 50 m with a clear line, behind within 10 m, a third of each when the player crouches; a noise sends it to look where the noise was. Then it chases (to where you were, between thoughts), attacks within reach, loses you, searches, and goes back. `npc-brain` (the decisions) and `sensorium` (the senses) are pure and seeded; `noise` (`makeNoise`) records shots, blasts and tossed things. `<tosi-b3d-pickup>` gains `toss(to)` and `noise`. A biped dispatches `hurt` when damaged and stands where its attributes say from its first frame. The Biped Playground has a guard and a patroller, and dropping an item throws it.
+- `<tosi-b3d-pickup item>`: a library model lying in the world that the player picks up with interact (or a click). The biped kneels for it, it leaves at the moment the hand reaches it, and `whenPickedUp({ item, by })` and a bubbling `pickedup` event hand it to the game. `B3dBiped.perform(state)` plays a one-off clip and holds still (pickups, chests, hits). The demo loadout's `handleDrop` puts a dropped item in the world. In the Biped Playground a rifle, a sword and a buckler lie by the start, and what you drop lands at your feet.
+- `<tosi-b3d-biped health>`: hit points (0, the default, means it can't be hurt). A hurt biped is a target for warheads like any destroyable; each hit plays a hit clip (chest, stomach and head in turn, a knockback for a blast) and holds it still; at 0 it plays `death` and dispatches `destroyed`, which `<tosi-b3d-death>` answers without exploding it. `healthRegen` heals after `healthRegenDelay`. `hp`, `damage()` and `aimTarget` (a chest-height node for turrets and AI). `DestroyableBehavior` gains `whenDamaged` and `flash: false`. The Biped Playground has a turret past the cover line and a health readout.
+- Falls on `<tosi-b3d-biped>`. Walking off a ledge plays the air loop; a landing from more than `hardLanding` metres (auto: 1.5 body heights) plays `hardLand` (UAL's `Roll`) and holds you still; `lethalFall` (metres, off by default) kills on landing: the `death` clip where you land and a bubbling `crash` event (`detail: { cause: 'fall', drop }`). `<tosi-b3d-death>` answers it without an explosion for an entity that shows its own death (`diesInPlace`). The Biped Playground's tower kills, and Respawn puts you back at the start. `fall` holds the rules.
+- `mirror` on `bakeClip`, `retargetClip`, `retargetSourceClip` and retargeting: the clip played left to right, each bone moving as its partner on the other side did, reflected. In the character builder it is **Mirrored** in the Animation menu, and an exported clip carries it as "<clip> (mirrored)".
+
+### Changed
+
+- Default grips: one-handed blades, pistols and forearm shields, and a bow and a shield on the back, were placed by hand in the character builder (rifles, two-handed blades and poles unchanged). A character's own adjustments still win.
+- Character builder: the panel's Export section is gone; **Export…** in the Character menu asks for the name and format (a GLB, which also carries the character, or the character file) and the GLB's options. **Import…** opens either.
+- Tosijs-ui ^1.19.1 (dev dependency): the dev server serves the checklist endpoints.
+- The rig tool's `move joints` toggle and its drag select are one icon picker, **drag**: markers, joints (with what hangs from them), alone, turn.
+- Character builder: while rigging, **Pause** (Animation, on the bar) holds the clip where it is, in perspective; **Rest pose** is its own item (pause used to stand the body at rest in an orthographic view). A manipulator turned on while rigging pauses the rig tool's clip (it paused only the builder's). The builder's settings panel drops the scene Pause, which read as the clip's. `<tosi-b3d panel-pause="off">` leaves it out of any scene's panel; the rig tool's API has `frozen`.
+- Things stowed on the back sit as they should: a long gun is slung barrel up over the right shoulder, flat against the back (it pointed forward through the chest); a spear rides point up (it hung point down), a bow upright. The spear has its own hold class, `pole` (it was `melee2h`): a character's `melee2h` grip adjustment no longer applies to it.
+- Tooltips and info cards in a scene are their own surfaces: a panel's tooltip (an icon button's name) and the inventory's and trade panel's info card (shown on hover or D-pad focus) open in front of every panel and popup, beside or under what they describe, so the panel's edge no longer cuts them off, and they are never picked (a ray or click passes through). `showTipSurface(root, sheet, anchor, side)` in `panel-layer`; `openPopup({ tip: true })`. A panel only on the page draws them in itself, as before.
+- ⚠️ the D-pad no longer zooms the biped's camera (it is for UI navigation; XR controllers have none). The mouse wheel still zooms, through a new optional `VirtualGamepad.zoom` axis, not the d-pad.
+- ⚠️ the biped's gamepad layout. **A** attacks (fires with the weapon raised, the right trigger still does; swings a melee weapon), **B** uses (doors, chests, lifts, pickups, talking) and, with the weapon raised, ducks instead, so it can never fire; clicking the **right stick** jumps (it toggled the weapon; the right bumper still does); **X** is a use alias. In a car **B** gets out as well as X. The keyboard is unchanged (space jumps, E uses, F attacks): a mapping's `keyboard` transform moves the keys. Pure in `bipedMapping`; labels in `bipedMappingDescriptor`.
+- A chest's trade panel closes itself 0.7 s after **take all** takes everything.
+- Biped Playground: the HUD is smaller, at the bottom middle, translucent, and can be dragged anywhere. In a headset a `bottom`/`right` percentage pin places a system panel as `top`/`left` do.
+- A shop's trade panel no longer shows their purse. Yours is under your list, and the line under both reads `you'll pay 12 gold`, `you'll receive 6 gold`, or, when they cannot pay what yours fetch, `you'll receive 200 gold (all he can offer)` with `he can't offer more than 200 gold`. Deal then takes all they have. New option `they` (how the other side is named in a sentence, default `'they'`).
+- The Biped Playground shows health, ammo and messages in a panel at the top right (flat and in a headset) instead of a line of text under the scene; what each enemy is doing is in Perf Stats (`#debug`).
+- `UAL1_core.glb` is asked for as `?v=5` (the bow clips), so deploy static-assets before loading a page.
+- The character builder's clips include UAL's zombie idle, walk, run, scratch and bite (once static-assets is deployed).
+- In the character builder, the grip and hair manipulators turn off when the clip plays or changes, and the held item stays in hand while rigging (on the rig tool's body), so arm space can be judged with it.
+- The Biped Playground's guns have magazines (pistol 12, SMG and rifle 30, rocket launcher 1) loaded from ammo in the bag; ammo boxes, a potion and a heart lie about; the hero has a purse and the weapons have values.
+- `quaternius/UAL1_core.glb` carries `Death01`, `Death02`, `Roll`, `Hit_Chest`, `Hit_Head`, `Hit_Stomach`, `PickUp_Kneeling`, `NinjaJump_Land`, `Hit_Knockback` and `Chest_Open` (8.0 MB, was 6.9); the library asks for it as `?v=4`.
+
+### Fixed
+
+- Opening a modal with a text field (the builder's save-as name) no longer focuses its hidden screen-reader input: on an iPhone that brought up the system keyboard, which blurred and paused the scene and vanished. Focus goes to its first button, and the scene's keyboard types into the drawn field.
+- A long tooltip wraps at 220 units instead of running off as one line (in a scene it was a plane several panels wide, stretched and blurred).
+- Scene checklist: answers given elsewhere update the scene's panel in place, so a comment being typed keeps its caret; answers not yet saved win over a poll's older copy; an answer in the scene shows in the page's panel even while its comment box has focus. Comments wrap to four lines.
+- A menu in a scene panel (any select) could not be chosen from while the camera was more than 10 km away, as the rig tool's orthographic views put it: every press on the menu counted as outside it and closed it. A select's menu now ticks the current option.
+- Biped Playground: a character from the builder holds and wears things where the builder placed them (its per-class grips, its shield and the places on its back); every hero used the defaults. The mannequin still does.
+- A manipulator grabs only with its own handles, and none while hidden: with two on a page (the character builder's item and hair handles), a press to orbit the view could start a move of the hidden one, whose invisible handles stayed at the scene's middle.
+- Inventory dock: a drop whose swap is refused sends what it displaced to the list (a shield moved from the off hand onto a back holding a two-handed spear, with a sword in the other hand). `inventoryPanel` takes `spill`.
+- The character builder's JSON export of an unnamed character is `character.json` (it was `character.character.json`).
+- City Drive's cars: some drew black and mangled, others as nothing but their lamps. Babylon's `Mesh.MergeMeshes` appends into the first part's index array in place, and the parts shared their geometry with the library's, so each merge grew the library's wheel and every car built after it was corrupt. `<tosi-b3d-city>` gives each part its own geometry before merging.
+- A biped's nameplate is hidden while it is in a conversation (it sat behind the balloon).
+- Rig tool: a marker joint (elbow, wrist, knee) dragged with `dragging` set to move the joint alone, by its joint dot or its marker, no longer carries what hangs from it (the joints below stay where they are drawn), and a joint drag that moves markers too (a collar carrying the elbow and wrist) is one undo step, not two.
+- A launcher finds who is holding it at each shot (it cached the first answer, so after a respawn the new hero's own shots hit him).
+- In a headset, a system panel pinned by a percentage of the screen (`left: '50%'`, `top: '50%'`, a centred `anchor`) goes that far across the view in front of you; it hung under the system bar, 66° up (the trade panel was in the sky). The biped's third-person camera in a headset stays this side of walls, as the flat one does.
+- `pickup.toss(to)` called before the pickup has joined the scene (just appended) waits for it instead of doing nothing (a dropped item hung in mid-air), and without a `to.y` it lands on whatever is under the spot, not at y 0.
+- A tossed pickup stops at the foot of a wall in its way, and lands on what is under its arc, never on top of a wall higher than it flew. The Biped Playground throws a dropped item 3 m to the right front, low.
+- The biped's follow camera in doorways and small rooms: its wall check runs from what it looks at to where the camera really sits (it ran from the waist, through the doorway, while the camera sat over the wall), ignores invisible hulls, and when a wall pulls it in, or stands between it and you, the camera goes straight there instead of easing through the wall.
+- An open flat system panel follows a new active camera (it is opened again on it). One opened at scene start, before a biped's follow camera, was never drawn.
+- A biped killed by damage or a fall stays down. When the death clip ended, the loop it died in stood the body back up. Killed with a gun up, its upper-body aim layer kept looping over the corpse; it is dropped too.
+- In the Biped Playground, Respawn brings the hero back; before, it removed him and added nobody. The line under the scene now says how to draw and fire. The enemies see 25 m (was 50) and the guard stands beyond the cover line, so neither notices you at the start, the shop or the things lying about.
+- In a scaled XR session a controller's ray reaches the system bar (it stopped 1000 units out).
+- In a session with a WebXR `worldScalingFactor`, panels on the head-following frames (the system bar, the settings panel) keep their size (`XrFrames` takes `worldScale`).
+- Closing the Biped Playground's chest or shop panel with its × ends the trade (a chest no longer stays open).
+- Scene panels and modals work by touch on a phone. The screen-reader copies laid over them took every tap, so a menu opened Android's own picker instead of the drawn one. They now take touches only once a screen reader is in use (`ariaMirror`'s new `touchable` option), and a long press no longer counts as a screen reader.
+- A `barMenu` submenu (the character builder's Select and Delete, the Animation menu's groups) opens and stays open. The list it replaced still answered the panel's last `leave` and repainted itself over the new one, so a submenu flashed and vanished or never appeared.
+- Typing in a text field on a scene modal (the character builder's save and rename prompts) shows each key as it is typed. The modal's screen-reader copy holds focus, and its typing reached the drawn field only on Enter or blur; it now passes every keystroke through, Enter is the field's Enter, and the old text is selected so a new name replaces it.
+
+Source: https://3d.tosijs.net/v0.13.2/
 
 ---
 
@@ -35218,6 +37125,9 @@ headers, so a file found on its own still says where it came from.
 
 - **Tonio Loewald**: the hum the sound demo plays, made with
   [Suno](https://suno.com).
+- **[Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS)** (Alibaba's Qwen team):
+  the shopkeeper's voice in the biped playground, generated on our own
+  machine. Apache 2.0.
 
 ## Maps and measurements
 

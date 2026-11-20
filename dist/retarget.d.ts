@@ -1,4 +1,5 @@
 import { type Quat, type Vec3 } from './spatial-transform.js';
+import { rotationBetween } from './two-bone-ik.js';
 export type Side = 'l' | 'r';
 export type Limb = 'clavicle' | 'upperArm' | 'lowerArm' | 'hand' | 'upperLeg' | 'lowerLeg' | 'foot' | 'toes';
 export type Finger = 'thumb' | 'index' | 'middle' | 'ring' | 'pinky';
@@ -39,8 +40,7 @@ export interface Skeleton {
     bones: readonly RestBone[];
     roles: Partial<Record<Role, string>>;
 }
-/** The shortest rotation taking unit vector `a` onto unit vector `b`. */
-export declare function rotationBetween(a: Vec3, b: Vec3): Quat;
+export { rotationBetween };
 /** A prepared mapping from one skeleton to another; reuse it every frame. */
 export interface Retargeter {
     /** The roles both skeletons have, which are the ones that move. */
@@ -91,6 +91,13 @@ export interface RetargetOptions {
      * clip; a negative turn brings them in. Default 0.
      */
     footTurnDeg?: number;
+    /**
+     * MIRROR the clip left to right: each left bone takes what the right one
+     * did in the clip, reflected across the body's centre plane, and the hips
+     * travel the other way sideways. A right-handed throw becomes a
+     * left-handed one. Default false.
+     */
+    mirror?: boolean;
 }
 /**
  * Map `source`'s poses onto `target`. Both skeletons should face the same

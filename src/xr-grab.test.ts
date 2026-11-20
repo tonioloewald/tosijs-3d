@@ -70,7 +70,14 @@ describe('xr-grab', () => {
   test('scale limits hold', () => {
     const heldA = { x: 0, y: 0, z: 0 }
     const heldB = { x: 1000, y: 0, z: 0 }
-    const v = grabTwo(viewer, heldA, heldB, { x: 0, y: 1, z: 0 }, { x: 0.1, y: 1, z: 0 }, { maxScale: 50 })
+    const v = grabTwo(
+      viewer,
+      heldA,
+      heldB,
+      { x: 0, y: 1, z: 0 },
+      { x: 0.1, y: 1, z: 0 },
+      { maxScale: 50 }
+    )
     expect(v.scale).toBe(50)
   })
 

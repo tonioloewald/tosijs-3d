@@ -1289,17 +1289,29 @@ export class B3dBiped extends B3dControllable {
 
   /** The aim's rate factor from what it is crossing (see aim-assist). */
   /** What there is to aim at: other living bipeds that can be hurt, and destroyables. */
-  private _aimCandidates(): (AimTarget & { id: Element; root: BABYLON.Node | null })[] {
+  private _aimCandidates(): (AimTarget & {
+    id: Element
+    root: BABYLON.Node | null
+  })[] {
     const out: (AimTarget & { id: Element; root: BABYLON.Node | null })[] = []
     if (this.owner == null) return out
     for (const el of this.owner.querySelectorAll('tosi-b3d-biped')) {
       const b = el as unknown as B3dBiped
       if (b === this || b.halted || b.destroyable == null) continue
       const p = (b.aimTarget ?? b.mesh)?.getAbsolutePosition()
-      if (p) out.push({ at: p, radius: 0.35, id: el, root: b.entries?.rootNodes?.[0] ?? b.mesh ?? null })
+      if (p)
+        out.push({
+          at: p,
+          radius: 0.35,
+          id: el,
+          root: b.entries?.rootNodes?.[0] ?? b.mesh ?? null,
+        })
     }
     for (const el of this.owner.querySelectorAll('tosi-b3d-destroyable')) {
-      const d = el as unknown as { mesh?: BABYLON.AbstractMesh | null; dead?: boolean }
+      const d = el as unknown as {
+        mesh?: BABYLON.AbstractMesh | null
+        dead?: boolean
+      }
       if (d.mesh == null || d.dead) continue
       out.push({
         at: d.mesh.getAbsolutePosition(),
@@ -1332,12 +1344,19 @@ export class B3dBiped extends B3dControllable {
   ): { yawDeg: number; pitchDeg: number } | null {
     const scene = this.owner?.scene
     const breakout = Number((this as any).aimBreakout)
-    if (scene == null || !(breakout > 0) || !(Number((this as any).aimAssist) > 0)) {
+    if (
+      scene == null ||
+      !(breakout > 0) ||
+      !(Number((this as any).aimAssist) > 0)
+    ) {
       this._aimLock = { ...NO_LOCK }
       return null
     }
     const origin = this.aimOrigin
-    const aim = { yawDeg: wrapDeg(facingDeg + this._aim.yawDeg), pitchDeg: this._aim.pitchDeg }
+    const aim = {
+      yawDeg: wrapDeg(facingDeg + this._aim.yawDeg),
+      pitchDeg: this._aim.pitchDeg,
+    }
     const self = this.entries?.rootNodes?.[0]
     const targets: (AngularTarget & { id: unknown })[] = []
     for (const c of this._aimCandidates()) {
@@ -1355,7 +1374,10 @@ export class B3dBiped extends B3dControllable {
         // Only one near the aim is tested, and only those can be caught.
         clear: c.id === this._aimLock.id,
       }
-      const off = Math.hypot(wrapDeg(aim.yawDeg - t.yawDeg), aim.pitchDeg - t.pitchDeg)
+      const off = Math.hypot(
+        wrapDeg(aim.yawDeg - t.yawDeg),
+        aim.pitchDeg - t.pitchDeg
+      )
       if (off < 12 && c.id !== this._aimLock.id) {
         // Nothing solid in the way (it, and we, don't count).
         const dir = new BABYLON.Vector3(dx / dist, dy / dist, dz / dist)
@@ -1373,7 +1395,11 @@ export class B3dBiped extends B3dControllable {
       }
       targets.push(t)
     }
-    const r = stickyAim(this._aimLock, { aim, stick, targets, dt }, { breakout })
+    const r = stickyAim(
+      this._aimLock,
+      { aim, stick, targets, dt },
+      { breakout }
+    )
     this._aimLock = r.lock
     return r.aim
   }
@@ -1613,9 +1639,16 @@ export class B3dBiped extends B3dControllable {
     return hit?.hit === true ? hit.distance : Infinity
   }
 
-  private _wallRay = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Forward(), 1)
+  private _wallRay = new BABYLON.Ray(
+    BABYLON.Vector3.Zero(),
+    BABYLON.Vector3.Forward(),
+    1
+  )
   /** Something you can see is between `from` (what the camera looks at) and the camera. */
-  private _seenThroughWall(from: BABYLON.Vector3, cam: BABYLON.Vector3): boolean {
+  private _seenThroughWall(
+    from: BABYLON.Vector3,
+    cam: BABYLON.Vector3
+  ): boolean {
     const scene = this.owner?.scene
     if (scene == null) return false
     const d = cam.subtract(from)

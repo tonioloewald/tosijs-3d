@@ -189,6 +189,9 @@ b3d-biped
   aimFreeYaw  = 0  — Twist the shoulders hold before the body turns, degrees. `0` keeps aim and body together
   aimMaxYaw  = 90  — The spine's limit, degrees. Past it the body is dragged round
   maxLookPitch  = 70  — How far up or down the look goes, degrees
+  aimCurve  = 2  — While aiming, the sticks' response curve: 1 is linear, 2 turns at a quarter of the rate at half deflection (a nudge fine-tunes, full deflection is unchanged)
+  aimAssist  = 0.5  — While aiming, how much the aim slows as it crosses something that can be hurt (another biped with `health`, a `<tosi-b3d-destroyable>`): 0 is off, 1 stops it. Above 0 the aim also STICKS: sweep near a target with the stick below `aimBreakout` and it locks on, following the target as it or you move ([aim-assist](/aim-assist/))
+  aimBreakout  = 0.7  — While locked onto a target, a stick pushed less than this slides the aim slowly across it (onto the head, say) and one pushed past it lets go and swings freely. 0 never locks
   eyeForward  = 0.13  — How far in front of the head bone the first-person eye sits, metres
   invertLookY  = 'off'  — `'on'` inverts the right stick's vertical (pushing up looks down, the aircraft mapping)
   cameraMinHeight  = 0.5  — Lowest the follow camera goes above the feet, metres (looking up lowers the camera; this keeps it above ground)
@@ -196,6 +199,11 @@ b3d-biped
   sneakSpeed  = 0.4  — Fraction of walking speed while sneaking
   strafeSpeed  = 0.75  — Sidestep speed as a fraction of walking
   climbReach  = 2.2  — Highest ledge the character can pull itself onto, metres (see Mantling, below)
+  hardLanding  = 0  — Metres of drop past which a landing is hard: the `hardLand` clip (UAL's `Roll`), standing still while it plays. Auto is 1.5 body heights. The drop is from the top of the flight, so a jump on flat ground is never hard ([fall](/fall/))
+  lethalFall  = 0  — Metres of drop that kill on landing: the `death` clip (`Death01`) where you land, then a bubbling `crash` event (`detail: { cause: 'fall', drop }`) that `<tosi-b3d-death>` answers without exploding you. Off by default, since a death needs an exit. Water breaks a fall
+  health  = 0  — Hit points. Above 0 the biped is a target like any destroyable: a hit plays a hit clip (`hitChest` / `hitStomach` / `hitHead` in turn, `hitKnockback` for a blast) and holds it still for the clip; at 0 it plays `death` where it stands and dispatches a bubbling `destroyed`, which `<tosi-b3d-death>` answers. `hp` reads what is left, `damage(amount, cause)` hurts it, `heal(amount)` mends it, `aimTarget` is a chest-height node for turrets and AI to track
+  healthRegen  = 0  — Hit points regained per second, from `healthRegenDelay` (5) seconds after the last hit
+  healthRegenDelay
   wadeDepth  = 0.45  — Water depth, as a fraction of standing height, where wading becomes swimming
   strafing  = 'off'  — `'on'` sidesteps with the left stick; `'off'` turns with it
   buoyancy  = 0  — How high the figure rides in the water, metres. `0` puts the waterline at the head
@@ -249,6 +257,26 @@ b3d-car
   sound  = 'on'  — `'off'` silences its engine
   steerDeg  = 35  — Full lock, degrees; at speed, no more than the tyres can hold
   drive  = 'rear'  — Driven wheels: `rear`, `front` or `all`
+
+## b3d-chest — <tosi-b3d-chest>
+b3d-chest
+
+  x
+  y
+  z
+  rx
+  ry
+  rz
+  axes
+  color
+  trim
+  seconds
+  open
+  lock
+  reach
+  width  = 0.9  — Metres
+  depth  = 0.55  — Metres
+  height  = 0.6  — Metres, lid shut
 
 ## b3d-city — <tosi-b3d-city>
 b3d-city
@@ -354,6 +382,12 @@ b3d-controller
   mapping  = 'biped'  — Which control scheme maps the gamepad to `ControlInput`: `'biped'`, `'car'`, or `'aircraft'`
   player  = false  — Set it when the controller is nested in an `inputFocus` and you want that manager, not its own wiring, to drive it
 
+## b3d-conversation — <tosi-b3d-conversation>
+b3d-conversation
+
+  reach  = 4  — Metres: walk further than this from the speaker and the talk ends
+  balloonWidth  = 1.2  — The balloon's width in metres
+
 ## b3d-crowd — <tosi-b3d-crowd>
 b3d-crowd
 
@@ -376,7 +410,7 @@ b3d-death
   orbitHeight  = 6  — Camera height above the wreck
   orbitSpeed  = 6  — Degrees/sec — slow. This is a moment, not a ride
   spectate  = 'orbit'  — `orbit` circles the wreck; `chase` freezes the third-person shot you died in (static). Flat only
-  wreckage  = 'on'  — Explode + leave burning wreckage (`'off'` = just the panel)
+  wreckage  = 'on'  — Explode + leave burning wreckage (`'off'` = just the panel). An entity that shows its own death (`diesInPlace`, a biped with a death clip) never explodes
   blastRadius  = 6  — Size of the fireball
 
 ## b3d-decorator — <tosi-b3d-decorator>
@@ -432,6 +466,28 @@ b3d-destroyable
   blastFullRadius  = 1  — Death blast full-damage radius
   blastRadius  = 4  — Death blast falloff radius
   blastDelay  = 0.1  — Seconds after death before the blast fires
+
+## b3d-door — <tosi-b3d-door>
+b3d-door
+
+  x
+  y
+  z
+  rx
+  ry
+  rz
+  axes
+  color  = '#7a5236'  — The slab
+  trim  = '#c9a24a'  — The handle (and a chest's lock plate)
+  seconds  = 0.6  — How long it takes to open or close
+  open  = false  — Open now (set it to open or close it from code)
+  lock  = ''  — The key kind it needs; empty is unlocked
+  reach  = 2  — Metres from the player within which it can be used
+  width  = 1.2  — Metres
+  height  = 2.2  — Metres
+  thickness  = 0.08  — Metres
+  frame  = 'on'  — Draw a frame (two posts and a lintel), solid
+  swing  = 100  — Degrees it opens, always away from whoever opens it
 
 ## b3d-effect — <tosi-b3d-effect>
 b3d-effect
@@ -606,6 +662,7 @@ b3d-launcher
   ammo  = 40  — Magazine capacity (a `Resource`)
   reloadRate  = 8  — Ammo regenerated per second (0 = no reload)
   reloadDelay  = 1  — Seconds after firing before reload resumes
+  reloadTime  = 0  — Seconds a reload takes. Set, the launcher has a MAGAZINE of `ammo` rounds instead of regenerating: `reload()` (a biped's reload button) fills it from `ammoSource` after this long, and pulling the trigger on an empty one starts a reload. See [magazine](/magazine/)
   gravity  = -9.81  — Vertical acceleration on the shell
   drag  = 0.01  — Quadratic drag coefficient (0 = vacuum)
   mass  = 1  — Shell mass (higher flies flatter/further under drag)
@@ -614,11 +671,13 @@ b3d-launcher
   projRadius  = 0.12  — Shell visual radius
   missileTrail  = 'off'  — `'on'` leaves a smoke ribbon behind each guided missile (`fireAt`); see [b3d-trail](/b3d-trail/). For your own rounds, pass `trail` to `spawnProjectile`/`spawnMissile`
   projColor  = '#ffdd55'  — Shell emissive colour
+  sound  = ''  — The shot you hear on every `fire()`: `pistol`, `rifle`, `heavy` or `bow`, synthesised ([gun-sound](/gun-sound/)); `''` is silent
   maxLifetime  = 6  — Seconds before an un-impacted shell self-disposes
   damage  = 20  — Warhead full damage (see [b3d-warhead](/b3d-warhead/))
   fullRadius  = 1  — Warhead full-damage radius
   blastRadius  = 3  — Warhead falloff radius
   los  = 'on'  — Warhead line-of-sight gating
+  directHit  = 'off'  — `'on'`: a round damages what it hits and says where (`Cause.at`), so a body can tell a head shot from a hand; `'off'` bursts as a warhead and hurts what is near
 
 ## b3d-library — <tosi-b3d-library>
 b3d-library
@@ -719,6 +778,26 @@ b3d-moon
   spin  = 1  — Gas giant: how fast its clouds run. `0` freezes them
   seed  = 0  — Gas giant: a different planet with the same look. `0` = the preset's
 
+## b3d-npc — <tosi-b3d-npc>
+b3d-npc
+
+  target  = 'player'  — Who it is after: the player (the input focus's biped)
+  skill  = 0  — 0..1: how often it thinks again, so how fast it reacts and how fresh its idea of where you are (dumb is the default)
+  sightRange  = 50  — Metres it notices you in front
+  sightDeg  = 180  — How wide "in front" is
+  nearRange  = 10  — Metres it notices you behind it
+  stealth  = 0.33  — What crouching multiplies those by
+  hearing  = 1  — Multiplies how far a noise carries to it
+  wanderRadius  = 0  — Metres it wanders from where it started; 0 stands guard
+  memory  = 6  — Seconds it remembers you after losing you
+  attackRange  = 1.4  — Metres it attacks from
+  attackDamage  = 20  — What a blow does
+  attackCooldown  = 1.6  — Seconds between attacks
+  attackState  = 'attack'  — The biped state its attack plays
+  walkPace  = 0.3  — Forward input while walking (0..1)
+  runPace  = 0.7  — Forward input while chasing
+  seed  = 1  — Its wandering and timing: the same seed, the same behaviour
+
 ## b3d-panel — <tosi-b3d-panel>
 b3d-panel
 
@@ -786,6 +865,25 @@ b3d-physics
   gravityZ  = 0  — Gravity Z component
   debug  = false  — Show wireframe physics collider shapes
   wasmUrl  = ''  — Where to load Jolt's `.wasm` from, when it is not beside the loader script
+
+## b3d-pickup — <tosi-b3d-pickup>
+b3d-pickup
+
+  x
+  y
+  z
+  rx
+  ry
+  rz
+  axes
+  library
+  libraryUrl
+  meshName
+  scale
+  item  = ''  — What this is: the inventory kind it becomes (`meshName` when empty)
+  reach  = 1.8  — Metres from the player within which it can be picked up
+  noise  = 15  — Metres the noise carries when it lands after `toss` (0: silent)
+  qty  = 1  — How many it is (a box of 30 rounds is one pickup, `qty` 30)
 
 ## b3d-planet — <tosi-b3d-planet>
 b3d-planet
@@ -1369,6 +1467,7 @@ control-input
   interact  = 0..1  — Enter vehicle / pick up / use
   aim  = 0..1  — Aim down sights
   weapon  = 0..1  — Raise/lower the weapon — edge-detected by consumers, so it TOGGLES
+  reload  = 0..1  — Reload what is in hand — edge-detected
   cameraZoom  = -1..1  — Camera zoom
   lookMode  = 0..1  — Toggle (edge-detected) what the look stick's up and down do: a tank's gun, or its camera
   sneak  = 0\  — 1
@@ -1410,6 +1509,12 @@ glass-gamepad (b3dGamepad)
   width
   height
 
+## gun-sound
+gun-sound
+
+  pistol  = a sharp crack, little body
+  heavy  = a launch: a soft boom and a long whoosh
+
 ## hold-grip
 hold grips
 
@@ -1417,9 +1522,11 @@ hold grips
   rifle  = a long gun, two hands  — Assault Rifle
   heavy  = on the shoulder  — Rocket Launcher
   melee1h  = a blade, one hand  — Dagger, Short Sword, Long Sword, Plasma Blade
-  melee2h  = a long blade or a pole, two hands  — Hand and a Half, Spear
-  bow  = a bow
-  shield  = on the forearm  — Buckler
+  melee2h  = a long blade, two hands  — Hand and a Half
+  pole  = a spear or staff, two hands  — Spear
+  bow  = a bow, in the LEFT hand  — Bow
+  shield  = strapped to the left forearm  — Buckler, Kite Shield
+  wrist  = worn on the left forearm (a watch, a wrist computer)
 
 ## inventory-box
 inventory-box
@@ -1427,9 +1534,19 @@ inventory-box
   inv  = the model and the carry (share both between panels)
   carry  = the model and the carry (share both between panels)
   host  = <svg>
-  schematics  = art per container: `{ body: svgText }`; its sockets are the slots (`data-slot`, or ids in a `Sockets` group)
-  height  = a fixed height that scrolls, instead of growing to fit
-  handleDrop  = (item, kind, from)
+  only  = which containers this panel draws (one holder can be split over panels)
+  hide  = which containers this panel draws (one holder can be split over panels)
+  totals  = currencies
+
+## inventory-trade
+inventory-trade
+
+  inv  = The inventory and a carry (`createCarry()`)
+  carry  = The inventory and a carry (`createCarry()`)
+  titles  = { mine, theirs }
+  price  = (item, from, to) => number
+  width  = Each list's size (220 × 280)
+  height  = Each list's size (220 × 280)
 
 ## inventory
 inventory
@@ -1522,6 +1639,16 @@ seam-material
   lineWidth  = 1.25  — their width, in pixels
   shade  = 0.45  — how much light shapes it and shadows darken it (0: perfectly flat, and no shadow shows)
 
+## sensorium
+sensorium
+
+  smell  = all round, best downwind  — carried by the wind; lingers as a trail
+  vibration  = all round  — through the ground
+  echolocation  = a forward cone  — line of sight, short
+  ir  = a cone  — line of sight; cut by glass and cover
+  radar  = a cone or a sweep  — line of sight, long
+  rdf  = all round, a bearing only  — radio
+
 ## slope-profile
 slope-profile
 
@@ -1564,6 +1691,7 @@ b3d
   panelTitle  = ''  — The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row)
   panelIcon  = ''  — The settings button's icon on the system bar (an `svgIcons` name), named by `panelTitle`; `''` is the owl. For a page whose panel is its main tool (the character builder's body)
   panelSections  = 'fold'  — How collapsible sections in the settings panel present: `'fold'` (headers you open and close, one open at a time: opening one closes the others), `'folds'` (several may be open) or `'tabs'` (file tabs, one section at a time). A `label3d({ collapsible: true, level: 2 })` is a sub-section that folds inside its section or tab
+  panelPause  = 'on'  — The Pause button on the settings panel's icon bar; `'off'` leaves it out, for a page whose own play and pause (a clip's) it would be confused with. The pause panel and `pause()` still work
   agent  = ''  — What an agent may do with this scene through its tools (`b3d_<scene>_…` on WebMCP and `window.b3dAgent`; see [agents](/b3d-agent/)). `''` follows the page (`enableSceneAgents`; closed by default), `'read'` offers the read tools, `'on'` everything, `'off'` nothing
   gamepadScale  = 1  — Scale factor for the glass gamepad clusters
   gamepadFade  = 'on'  — `'off'` keeps the glass gamepad visible instead of fading it once a key is pressed or a hardware pad is used (the pointer never fades it)
@@ -1576,6 +1704,7 @@ b3d
   xrRenderScale  = 0  — In a headset: the fraction of each eye's width and height drawn. `0` is auto (from the device tier: 0.67 on the low tier). Engine hardware scaling does not reach a headset; this does. Read on entering a session
   xrFoveation  = -1  — In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session
   xrMultiview  = 'off'  — ⚠️ Experimental, not working: `'on'` asks for both eyes in one pass (WebXR layers). On a Quest 3 it gave a blank view, and water and sky do not handle multiview
+  xrPassthrough  = 'off'  — `'on'`: Enter VR starts an AR session where the device has one (passthrough: your room behind the scene, no sky, no floor grid, transparent clear colour); elsewhere it enters VR. In AR you are scaled to the scene: you arrive with what the flat view showed a step ahead (`xrFrame(centre, radius)` frames something else), one grip drags the scene, both resize and turn it, and the sticks walk at your scale. `passthrough` is true during such a session, `xrSupport` says which sessions the device offers, and the scene dispatches `xrenter` (`detail.passthrough`) and `xrexit` around every session. Read on entering
   groundDetail  = 'auto'  — The ground shader's form: `full`, `lite` (three noise samples a pixel for eight, for a GPU that cannot afford the full one), or `auto` (from the device tier: lite on the low tier, and in a headset on the medium one)
   pixelRatio  = 0  — Device pixels per CSS pixel, flat. `0` is auto: the display's own ratio, capped by the device tier (high 2, medium 1.5, low 1). A positive value is an explicit cap and wins: `1` renders at CSS resolution, `2` full Retina, `0.75` below CSS for speed. Ignored in a headset
   stats  = false  — Add a Perf Stats section to the settings panel, flat and in a headset. `#perf` or `#debug` (or `?perf`, `?debug`) in the page URL, or calling `showB3dStats()`, shows it on every scene

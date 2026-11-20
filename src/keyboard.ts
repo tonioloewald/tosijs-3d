@@ -1161,7 +1161,8 @@ export function inputField(config: InputFieldOptions = {}): InputField {
   }
 
   const caretX = (): number =>
-    TEXT_X + advanceTo(lineOf(state.caret), state.caret - runs[lineOf(state.caret)])
+    TEXT_X +
+    advanceTo(lineOf(state.caret), state.caret - runs[lineOf(state.caret)])
 
   const paint = (): void => {
     const chars = Array.from(state.text)
@@ -1173,7 +1174,11 @@ export function inputField(config: InputFieldOptions = {}): InputField {
     const caretLine = lineOf(state.caret)
     top = Math.max(
       0,
-      Math.min(runs.length - shown, Math.max(top, caretLine - shown + 1), caretLine)
+      Math.min(
+        runs.length - shown,
+        Math.max(top, caretLine - shown + 1),
+        caretLine
+      )
     )
     while (lineEls.length < shown) {
       const t = label.cloneNode() as SVGTextElement

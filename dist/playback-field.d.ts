@@ -6,7 +6,7 @@ export interface PlaybackState {
     /** Its length, in seconds. */
     duration: number;
     playing: boolean;
-    /** Its playback speed, 1 = as made. */
+    /** Its playback speed, 1 = as made; negative plays it backwards. */
     speed: number;
 }
 export interface Playback3dOptions {
@@ -18,7 +18,7 @@ export interface Playback3dOptions {
     handlePlay?: (playing: boolean) => void;
     /** Go to this time, in seconds, from the scrub bar. The clip is paused first. */
     handleSeek?: (time: number) => void;
-    /** A speed from the menu. */
+    /** A speed from the menu, or the direction flipped: negative is backwards. */
     handleSpeed?: (speed: number) => void;
     /** The speeds offered. */
     speeds?: number[];

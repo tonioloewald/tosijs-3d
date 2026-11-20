@@ -39,6 +39,10 @@ it's how you walk.
 | `menu` / `buttonA` | `focusActivate()` |
 | `buttonB` | `focusBack()` |
 
+`activate` and `back` choose other buttons: a scene's own UI confirms with
+**B**, the "use" button (`activate: ['buttonB'], back: []`), as the
+conversation balloon does.
+
 ## Edge-triggered, with a repeat
 
 A gamepad reports *held*, not *pressed*, so polling raw state would fire every frame and

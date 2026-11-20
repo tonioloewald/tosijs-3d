@@ -468,11 +468,21 @@ export function createHandles(scene, scale = 1) {
             mesh.computeWorldMatrix(true);
         }
     };
+    /*
+    ONLY ITS OWN HANDLES. Every manipulator tags its meshes the same way, and a
+    pick predicate replaces Babylon's visibility test, so a hidden manipulator's
+    handles (the character builder's hair handle, parked at the origin) took
+    presses meant for the camera, as drags of the wrong one.
+    */
     const gripOf = (mesh) => {
+        if (!handles.some((h) => h.mesh === mesh))
+            return null;
         const meta = mesh?.metadata;
         return meta?.[HANDLE_TAG] ?? null;
     };
-    const isDrawn = (mesh) => mesh?.metadata?.[DRAWN_TAG] === true;
+    const isDrawn = (mesh) => mesh?.metadata?.[DRAWN_TAG] === true && handles.some((h) => h.mesh === mesh);
+    /** Hidden, it grabs nothing (its pick targets stay where they were). */
+    let shown = true;
     build();
     return {
         setTransforms(next) {
@@ -512,6 +522,7 @@ export function createHandles(scene, scale = 1) {
             place();
         },
         setVisible(visible) {
+            shown = visible;
             // Pick targets stay at visibility 0 either way; only the drawn ones toggle.
             for (const { mesh } of handles) {
                 if (mesh.visibility !== 0)
@@ -519,6 +530,8 @@ export function createHandles(scene, scale = 1) {
             }
         },
         nearestGrip(hand) {
+            if (!shown)
+                return null;
             let best = null;
             /*
             A hand is a fixed size; the handles are not, since they track the camera
@@ -538,7 +551,7 @@ export function createHandles(scene, scale = 1) {
             return best;
         },
         gripAt(ray) {
-            if (handles.length === 0)
+            if (handles.length === 0 || !shown)
                 return null;
             const r = new Ray(new Vector3(ray.origin.x, ray.origin.y, ray.origin.z), new Vector3(ray.direction.x, ray.direction.y, ray.direction.z));
             // Pass one: what you AIMED at. A hit on drawn geometry is unambiguous.

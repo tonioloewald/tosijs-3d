@@ -39,6 +39,13 @@ export interface WidgetSemantics {
     set?(value: unknown): void;
     /** Press it (a button, a section header, a list item). */
     activate?(): void;
+    /**
+     * The control a panel focuses when it opens (its default button). Without
+     * one the first control takes the focus.
+     */
+    isDefault?: boolean;
+    /** One step left or right that is not a value (a text box's caret). */
+    nudge?(dir: number): void;
     /** Controls inside it (a row, a toolbar, a list). */
     children?: SemanticSource[];
     /**
@@ -77,6 +84,14 @@ export interface ControlNode {
     box?: ControlBox;
     set?(value: unknown): void;
     activate?(): void;
+    isDefault?: boolean;
+    nudge?(dir: number): void;
+    /**
+     * Told when a D-pad or Tab gives it the focus (true) and takes it away
+     * (false), for what a hover would show: a thing's info, whether a carried
+     * thing fits a slot.
+     */
+    focus?(on: boolean): void;
     children?: ControlNode[];
 }
 /**

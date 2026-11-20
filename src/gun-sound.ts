@@ -36,9 +36,33 @@ interface Profile {
 }
 
 const PROFILES: Record<Exclude<GunSound, 'bow'>, Profile> = {
-  pistol: { crack: 0.9, band: 2400, crackDecay: 0.09, thump: 0.5, from: 160, to: 60, thumpDecay: 0.08 },
-  rifle: { crack: 1, band: 1600, crackDecay: 0.22, thump: 0.9, from: 120, to: 40, thumpDecay: 0.18 },
-  heavy: { crack: 0.5, band: 700, crackDecay: 0.7, thump: 1, from: 80, to: 30, thumpDecay: 0.4 },
+  pistol: {
+    crack: 0.9,
+    band: 2400,
+    crackDecay: 0.09,
+    thump: 0.5,
+    from: 160,
+    to: 60,
+    thumpDecay: 0.08,
+  },
+  rifle: {
+    crack: 1,
+    band: 1600,
+    crackDecay: 0.22,
+    thump: 0.9,
+    from: 120,
+    to: 40,
+    thumpDecay: 0.18,
+  },
+  heavy: {
+    crack: 0.5,
+    band: 700,
+    crackDecay: 0.7,
+    thump: 1,
+    from: 80,
+    to: 30,
+    thumpDecay: 0.4,
+  },
 }
 
 let noise: AudioBuffer | null = null
@@ -57,7 +81,12 @@ function noiseBuffer(ac: AudioContext): AudioBuffer {
 }
 
 /** A gain node that rises to `peak` at once and falls to silence over `decay`. */
-function burst(ac: AudioContext, t: number, peak: number, decay: number): GainNode {
+function burst(
+  ac: AudioContext,
+  t: number,
+  peak: number,
+  decay: number
+): GainNode {
   const g = ac.createGain()
   g.gain.setValueAtTime(0.0001, t)
   g.gain.exponentialRampToValueAtTime(peak, t + 0.003)

@@ -8,12 +8,30 @@ export declare function heldGrip(root: BABYLON.TransformNode): BABYLON.Vector3 |
  * once per hand and reused. Null when the rig's hand cannot be read.
  */
 export declare function handSocket(skeleton: BABYLON.Skeleton, hand: string, side: 'r' | 'l', handNode: BABYLON.TransformNode): BABYLON.TransformNode | null;
+/**
+ * A forearm's SOCKET: a node under the lower arm in the arm's anatomy frame
+ * (UAL's calibration, so on UAL it is the bone itself), for what is strapped
+ * or worn there (a shield, a watch) on either side. Made once and reused.
+ */
+export declare function forearmSocket(skeleton: BABYLON.Skeleton, side: 'r' | 'l', foreNode: BABYLON.TransformNode): BABYLON.TransformNode | null;
+/**
+ * The node a held or worn thing hangs from on a skeleton: a hand's or
+ * forearm's socket, or a bone itself (`frame: 'bone'`, the spine). Pass
+ * hold-grip's `holdMount(class, side)`. Null when the rig has no such bone.
+ */
+export declare function mountNode(skeleton: BABYLON.Skeleton, mount: {
+    bone: string;
+    frame: 'socket' | 'bone';
+    mount?: 'hand' | 'forearm';
+    side?: 'r' | 'l';
+}): BABYLON.TransformNode | null;
 import { AbstractMesh } from './b3d-utils.js';
 import type { B3d, RadarFaction } from './tosi-b3d.js';
 import { type BallisticParams, type Vec3 } from './ballistics.js';
 import { type Medium, type MediumCrossing } from './medium.js';
 import type { WarheadSpec } from './warhead.js';
 import type { Cause } from './destroyable.js';
+import { type GunSound } from './gun-sound.js';
 import { type TrailOptions } from './b3d-trail.js';
 /**
  * WHERE a round stopped, and what it stopped against.
@@ -256,6 +274,7 @@ export declare class B3dLauncher extends AbstractMesh {
         ammo: number;
         reloadRate: number;
         reloadDelay: number;
+        reloadTime: number;
         gravity: number;
         drag: number;
         mass: number;
@@ -265,11 +284,18 @@ export declare class B3dLauncher extends AbstractMesh {
         /** `'on'` leaves a smoke ribbon behind each guided missile (`fireAt`). */
         missileTrail: "on" | "off";
         projColor: string;
+        sound: string;
         maxLifetime: number;
         damage: number;
         fullRadius: number;
         blastRadius: number;
         los: string;
+        /**
+         * `'on'`: a round damages what it hits, all of it, and tells it where
+         * (a bullet: a head shot is not a leg shot). `'off'` (default): it bursts
+         * as a warhead and hurts what is near by distance (a shell).
+         */
+        directHit: "on" | "off";
         x: number;
         y: number;
         z: number;
@@ -312,12 +338,26 @@ export declare class B3dLauncher extends AbstractMesh {
     projRadius: number;
     missileTrail: 'on' | 'off';
     projColor: string;
+    sound: '' | GunSound;
     maxLifetime: number;
     damage: number;
     fullRadius: number;
     blastRadius: number;
     los: string;
+    directHit: 'on' | 'off';
+    reloadTime: number;
+    /**
+     * Where a magazine reload's rounds come from (`reloadTime` set): `count()`
+     * is how many there are, `take(n)` hands over up to n. The game's, usually
+     * an inventory. Unset: an endless supply.
+     */
+    ammoSource: {
+        count: () => number;
+        take: (n: number) => number;
+    } | null;
     private _ammoPool;
+    private _mag;
+    private _dry;
     private _cooldown;
     private _stopLoad;
     private _muzzleNode;
@@ -326,6 +366,21 @@ export declare class B3dLauncher extends AbstractMesh {
     get ballisticParams(): BallisticParams;
     /** Ammo currently in the magazine. */
     get ammoRemaining(): number;
+    /** Rounds in the magazine (`reloadTime` set); setting it loads that many (a gun taken out of the bag keeps its own). */
+    get loaded(): number;
+    set loaded(n: number);
+    /** A magazine reload is under way. */
+    get reloading(): boolean;
+    /** The magazine, sized to `ammo` (which changes when a hand takes another gun). */
+    private _magazine;
+    /**
+     * Reload (`reloadTime` set): after `reloadTime` the magazine fills from
+     * `ammoSource`. False when it is full, already reloading, or there is
+     * nothing to load. Dispatches `reloading`, then `reloaded`.
+     */
+    reload(): boolean;
+    /** Spend a round, from the magazine or the regenerating pool. */
+    private _spend;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     /**
      * Shift the model so its GRIP lands on `x`/`y`/`z`, not its origin.

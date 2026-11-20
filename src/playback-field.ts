@@ -198,7 +198,12 @@ export function playback3d(config: Playback3dOptions): PlaybackField {
   button.append(glyph)
   // Backwards: an arrow pointing left, in the accent colour while on.
   const reverse = g()
-  const arrow = path({ fill: 'none', 'stroke-width': 2.2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+  const arrow = path({
+    fill: 'none',
+    'stroke-width': 2.2,
+    'stroke-linecap': 'round',
+    'stroke-linejoin': 'round',
+  })
   reverse.append(arrow)
   const scrubWrap = g()
   scrubWrap.appendChild(scrub.el)

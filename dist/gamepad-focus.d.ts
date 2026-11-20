@@ -26,6 +26,12 @@ export declare function createFocusPulse(opts?: {
     repeatDelayMs?: number;
     /** ms between repeats once started. Default 90. */
     repeatRateMs?: number;
+    /** The buttons that confirm. Default `menu` and `buttonA`. */
+    activate?: (keyof VirtualGamepad)[];
+    /** The buttons that back out. Default `buttonB`; `[]` for none. */
+    back?: (keyof VirtualGamepad)[];
+    /** The directions that repeat while held. Default all four. */
+    repeat?: ('dpadLeft' | 'dpadRight' | 'dpadUp' | 'dpadDown')[];
 }): (pad: VirtualGamepad, now: number) => FocusPulse;
 /**
  * Poll a gamepad each animation frame and drive `target`'s focus. Returns a stop
@@ -42,6 +48,10 @@ export interface GamepadFocusOptions {
     claim?: Element;
     repeatDelayMs?: number;
     repeatRateMs?: number;
+    /** The buttons that confirm (default `menu`, `buttonA`). */
+    activate?: (keyof VirtualGamepad)[];
+    /** The buttons that back out (default `buttonB`). */
+    back?: (keyof VirtualGamepad)[];
     /** Override the frame pump (tests, or an XR session's own rAF). */
     raf?: (cb: () => void) => number;
     cancel?: (id: number) => void;

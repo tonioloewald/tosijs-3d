@@ -216,17 +216,20 @@ that assumes one orients its effect off nothing.
 | `ammo` | `40` | Magazine capacity (a `Resource`) |
 | `reloadRate` | `8` | Ammo regenerated per second (0 = no reload) |
 | `reloadDelay` | `1` | Seconds after firing before reload resumes |
+| `reloadTime` | `0` | Seconds a reload takes. Set, the launcher has a MAGAZINE of `ammo` rounds instead of regenerating: `reload()` (a biped's reload button) fills it from `ammoSource` after this long, and pulling the trigger on an empty one starts a reload. See [magazine](/magazine/) |
 | `gravity` | `-9.81` | Vertical acceleration on the shell |
 | `drag` | `0.01` | Quadratic drag coefficient (0 = vacuum) |
 | `mass` | `1` | Shell mass (higher flies flatter/further under drag) |
 | `projRadius` | `0.12` | Shell visual radius |
 | `projColor` | `'#ffdd55'` | Shell emissive colour |
+| `sound` | `''` | The shot you hear on every `fire()`: `pistol`, `rifle`, `heavy` or `bow`, synthesised ([gun-sound](/gun-sound/)); `''` is silent |
 | `missileTrail` | `'off'` | `'on'` leaves a smoke ribbon behind each guided missile (`fireAt`); see [b3d-trail](/b3d-trail/). For your own rounds, pass `trail` to `spawnProjectile`/`spawnMissile` |
 | `maxLifetime` | `6` | Seconds before an un-impacted shell self-disposes |
 | `damage` | `20` | Warhead full damage (see [b3d-warhead](/b3d-warhead/)) |
 | `fullRadius` | `1` | Warhead full-damage radius |
 | `blastRadius` | `3` | Warhead falloff radius |
 | `los` | `'on'` | Warhead line-of-sight gating |
+| `directHit` | `'off'` | `'on'`: a round damages what it hits and says where (`Cause.at`), so a body can tell a head shot from a hand; `'off'` bursts as a warhead and hurts what is near |
 | `x`,`y`,`z` | `0` | Launcher position (muzzle offset forward from here) |
 
 ## Authoring a weapon mesh
