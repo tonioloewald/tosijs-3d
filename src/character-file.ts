@@ -45,8 +45,15 @@ AND THE CLIP IT PLAYS, when that is one of your own: `clips` carries the file
 it came from (a BVH capture or a GLB's animations, by file name, with its
 kind), so a page that has never seen the file reads it as the builder did
 ([clip-store](/clip-store/)).
+
+IN AN EXPORT TOO: the builder's GLB carries the whole document in
+`asset.extras.tosijsCharacter`, so the file that plays in another engine is
+also a save. `readGlbCharacter(bytes)` takes it out (null when it has none),
+and the builder's import opens such a GLB.
 */
 /*{ "parent": "character-builder", "order": 20 }*/
+
+import { readGlb } from './glb-chunks.js'
 
 export const CHARACTER_FORMAT = 'tosijs-character'
 /** The layout this module writes. */
@@ -377,4 +384,16 @@ function fromBase64(b64: string): Uint8Array {
   const out = new Uint8Array(s.length)
   for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i)
   return out
+}
+
+/** Where an export keeps its character: a key of `asset.extras`. */
+export const CHARACTER_EXTRA = 'tosijsCharacter'
+
+/**
+ * The character document a GLB was exported with (the builder puts it in
+ * `asset.extras.tosijsCharacter`), or null. Throws when the bytes are not a GLB.
+ */
+export function readGlbCharacter(bytes: Uint8Array): unknown | null {
+  const doc = readGlb(bytes).json?.asset?.extras?.[CHARACTER_EXTRA]
+  return doc != null && typeof doc === 'object' ? doc : null
 }

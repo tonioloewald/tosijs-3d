@@ -2192,6 +2192,7 @@ export { unwrapUvs, carryUnwrapped } from './uv-unwrap.js'
 export {
   writeCharacter,
   readCharacter,
+  readGlbCharacter,
   CHARACTER_FORMAT,
   CHARACTER_VERSION,
 } from './character-file.js'

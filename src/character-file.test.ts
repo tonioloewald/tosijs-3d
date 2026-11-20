@@ -2,9 +2,11 @@ import { describe, test, expect } from 'bun:test'
 import {
   writeCharacter,
   readCharacter,
+  readGlbCharacter,
   CHARACTER_FORMAT,
   CHARACTER_VERSION,
 } from './character-file.js'
+import { writeGlb } from './glb-chunks.js'
 
 const settings = {
   gender: 0.5,
@@ -174,5 +176,23 @@ describe('character-file', () => {
     expect(character.garments.cape).toBeDefined()
     expect(character.garments.bad).toBeUndefined()
     expect(warnings.some((w) => w.includes('bad'))).toBe(true)
+  })
+})
+
+describe('in an export', () => {
+  test('a GLB carrying the document gives it back; one without gives null', () => {
+    const doc = {
+      format: CHARACTER_FORMAT,
+      version: CHARACTER_VERSION,
+      name: 'Ada',
+    }
+    const glb = writeGlb(
+      { asset: { version: '2.0', extras: { tosijsCharacter: doc } } },
+      null
+    )
+    expect(readGlbCharacter(glb)).toEqual(doc)
+    expect(
+      readGlbCharacter(writeGlb({ asset: { version: '2.0' } }, null))
+    ).toBeNull()
   })
 })

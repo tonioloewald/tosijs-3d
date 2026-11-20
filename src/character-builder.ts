@@ -11,7 +11,7 @@ plays UAL's clips at any shape.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, retargetSourceClip, readBvh, clipStore, clipKind, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, tailorPanel, garmentStore, barMenu, fitPanel, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, holdMount, holdPlace, holdSide, ownSideGrip, placeIn, gripKey, mountNode, stowGrip, STOW_MOUNT, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, retargetSourceClip, readBvh, clipStore, clipKind, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, readGlbCharacter, tailorPanel, garmentStore, barMenu, fitPanel, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, holdMount, holdPlace, holdSide, ownSideGrip, placeIn, gripKey, mountNode, stowGrip, STOW_MOUNT, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
 import { exportBodyRows } from 'tosijs-3d/body-export'
@@ -51,6 +51,9 @@ const namePopup = (pop, { prompt, initial, current, verb, act }) => {
 }
 // The character (character.ts): what the panel sets, made in the scene.
 let ch = null
+// The character as its file (character-file), once the builder is up: the
+// export carries it whole, so the GLB is also a save.
+let characterSnapshot = (name) => null
 // The pack's proxies, once it has loaded (the panel lists an outfit's looks).
 let packProxies = {}
 // What can be worn, one of each at a time; the pack says which slot each garment fills.
@@ -282,7 +285,7 @@ const exportRows = () =>
         recipe: shown.recipe,
         // Its settings (grips, what it holds and wears on its back included),
         // so an export says how the character was set up.
-        extras: { tosijsCharacterSettings: JSON.parse(JSON.stringify(Object.fromEntries(KEPT.map((k) => [k, walker[k].value])))) },
+        extras: { tosijsCharacter: characterSnapshot(String(name)) },
         source: shown.source === 'MakeHuman' ? null : ch.sources[shown.source] ?? null,
         name: String(name).replace(/\W+/g, '-').replace(/^-|-$/g, '') || 'character',
         // What it wears: MakeHuman's clothes and garments of your own.
@@ -1488,10 +1491,15 @@ preview.append(
           save(JSON.stringify(snapshot(name), null, 1), file, 'application/json')
         }
         character.importJson = () => {
-          chooseFile('.json,application/json').then(async (file) => {
+          chooseFile('.json,application/json,.glb').then(async (file) => {
             if (!file) return
             try {
-              await apply(await file.text())
+              // A character file, or a GLB this builder exported (it carries one).
+              if (/\.glb$/i.test(file.name)) {
+                const doc = readGlbCharacter(new Uint8Array(await file.arrayBuffer()))
+                if (doc == null) return tell(`${file.name}: carries no character`)
+                await apply(doc)
+              } else await apply(await file.text())
               character.changed()
             } catch (e) {
               tell(`${file.name}: ${String(e?.message ?? e).replace(/^character-file: /, '')}`)
@@ -1510,6 +1518,7 @@ preview.append(
           location.href = `/playground/?character=${encodeURIComponent(WORKING)}`
         }
         el.builder.character = { snapshot, apply, store }
+        characterSnapshot = snapshot
         // The figure you were working on, as you left it.
         const working = await store.get(WORKING).catch(() => null)
         if (working) await apply(working).catch((e) => console.warn('character builder: the working figure would not load', e))
