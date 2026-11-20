@@ -122,12 +122,18 @@ try {
   )
   // ~2.1 MB packed at 0.8.4 (791 files). The ceiling is there to notice the
   // next site bundle or asset that slips into `files`, not to police growth.
+  /*
+  A TRIPWIRE FOR STRAYS, not a size goal: an asset, a tarball or a scratch
+  file packed by accident adds megabytes, where a release's own growth adds
+  kilobytes. Raised from 4 MB at 0.13.2 (4.01 MB: conversations, NPCs, doors,
+  chests, pickups and trade). `bun run sizes` is where size is watched.
+  */
   const bytes = Bun.file(tarball).size
   check(
-    `tarball under 4 MB (is ${(bytes / 1e6).toFixed(2)} MB, ${
+    `tarball under 5 MB (is ${(bytes / 1e6).toFixed(2)} MB, ${
       listing.length
     } files)`,
-    bytes < 4_000_000
+    bytes < 5_000_000
   )
 
   // ── a consumer project ───────────────────────────────────────────────────
