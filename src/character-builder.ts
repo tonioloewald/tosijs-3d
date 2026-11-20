@@ -14,7 +14,8 @@ plays UAL's clips at any shape.
 import { b3d, b3dSun, b3dLight, row3d, slider3d, select3d, toggle3d, label3d, text3d, assetUrl, DEFAULT_HUMAN_BODY, HAIR_COLOURS, colorPicker3d, clothRecipe, materialPicker3d, studioEnvironment, irisColor, lipSync, readSkeleton, retargetClip, retargetSourceClip, readBvh, clipStore, clipKind, button3d, ui, writeGarmentGlb, writeGarmentObj, readGarment, writeCharacter, readCharacter, readGlbCharacter, tailorPanel, garmentStore, barMenu, fitPanel, chooseFile, b3dPanel, panel3d, makeCharacter, loadCharacterAssets, undoHistory, holdGrip, holdClassOf, holdMount, holdPlace, holdSide, ownSideGrip, placeIn, gripKey, mountNode, stowGrip, STOW_MOUNT, HOLD_CLASS_LABELS, picturesIn, pictureData, registerPicture, DEFAULT_CHARACTER, CHARACTER_SLOTS, CHARACTER_SOURCES, AI_CHARACTER_SOURCES, characterStore, WORKING_CHARACTER, nameCharacter, inspectView, viewMenu, b3dLibrary, handSocket, heldGrip, vector3d, euler3d, b3dManipulator, playback3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 import { mountRigTool } from 'tosijs-3d/rig-tool'
-import { exportBodyRows } from 'tosijs-3d/body-export'
+import { exportForm } from 'tosijs-3d/body-export'
+import { compactCharacterTextures } from 'tosijs-3d/glb-textures'
 
 // Everything the panel sets, as it starts: what a saved character is read against.
 const START = { ...DEFAULT_HUMAN_BODY, gender: 1, clip: 'Walk_Loop', mirror: false, tone: 0.3, redness: 0.5, iris: 0.2, irisColour: '#5a3519', eyeStyle: 'basic', hair: 'short02', beard: 'none', moustache: 'none', brows: 'eyebrow001', hairBase: HAIR_COLOURS.brown.base, hairHighlight: HAIR_COLOURS.brown.highlight, hairUp: 0, hairForward: 0, hairSize: 1, outfit: 'male_casualsuit02', bodysuit: 'none', armour: 'none', top: 'none', bottom: 'none', shoes: 'shoes01', hat: 'none', glasses: 'none', gloves: 'none', mask: 'none', paused: false, stubble: 0, blink: true, talk: false, mic: false, smile: 0, browsUp: 0, frown: 0, tailorThickness: 0.005, tailorSkirt: false, tailorDrape: false, tailorMesh: 'body', tailorLook: clothRecipe({ fabric: 'cotton', colour: '#3b5b8a', recolour: 1 }), tailorAlone: false, tailorName: '', tailorSlot: 'top', exportBody: true, rigs: {}, surfaces: {}, held: 'none', heldSide: 'auto', stowed: 'none', grips: {}, source: 'MakeHuman', bodyDetail: 'medium', characterName: '' }
@@ -272,22 +273,19 @@ const playingClip = (recipe) => {
     extras: { credit: 'Quaternius', license: 'CC0 (https://creativecommons.org/publicdomain/zero/1.0/)', source: 'quaternius/UAL_builder.glb' },
   }
 }
-const exportRows = () =>
-  exportBodyRows(
-    async () => {
+const exportTarget = async (name, settings) => {
       const shown = ch?.shown
       if (shown == null) return 'nothing to export yet'
-      const name = walker.characterName.value || shown.source
       const out = await ch.exportCharacter()
       return {
         body: out?.body ?? shown.body,
         eyeTexture: out?.eyeTexture ?? null,
         recipe: shown.recipe,
-        // Its settings (grips, what it holds and wears on its back included),
-        // so an export says how the character was set up.
-        extras: { tosijsCharacter: characterSnapshot(String(name)) },
+        // The whole character (settings with grips, cloth, garments, body,
+        // pictures, clips), so the GLB is also a save.
+        extras: { tosijsCharacter: await compactCharacterTextures(characterSnapshot(walker.characterName.value || name), settings.textures ?? 'as made') },
         source: shown.source === 'MakeHuman' ? null : ch.sources[shown.source] ?? null,
-        name: String(name).replace(/\W+/g, '-').replace(/^-|-$/g, '') || 'character',
+        name,
         // What it wears: MakeHuman's clothes and garments of your own.
         garments: out?.garments ?? [],
         clip: playingClip(shown.recipe),
@@ -304,12 +302,7 @@ const exportRows = () =>
                 extras: { credit: 'Tonio Loewald', license: 'CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/)', source: 'tonio/weapons-classic/weapons.glb' },
               },
       }
-    },
-    (message) => {
-      importError = message
-      refreshPanel()
-    }
-  )
+}
 
 // One item slot's rows: what it is, its manipulator, and its grip for the
 // whole class. `held` is in a hand or on a forearm (`side`: the class's own,
@@ -476,7 +469,6 @@ preview.append(
         playbackRow(),
         button3d({ label: 'clips from a file…', handleClick: () => openClips() }),
         ...(clipFiles.has(walker.clip.value) ? [button3d({ label: `forget ${walker.clip.value}`, handleClick: () => forgetClip() })] : []),
-        ...exportRows(),
       ] : [
         // A body of anyone's: what MakeHuman's carries (shape, face, hair,
         // clothes) is not there; the clips and the skin are.
@@ -503,7 +495,6 @@ preview.append(
         playbackRow(),
         button3d({ label: 'clips from a file…', handleClick: () => openClips() }),
         ...(clipFiles.has(walker.clip.value) ? [button3d({ label: `forget ${walker.clip.value}`, handleClick: () => forgetClip() })] : []),
-        ...exportRows(),
       ],
       async sceneCreated(el, BABYLON) {
         const scene = el.scene
@@ -594,8 +585,18 @@ preview.append(
               { separator: true },
               { label: 'Open mesh…', handleSelect: () => openMesh() },
               { separator: true },
-              { label: 'Export JSON', handleSelect: () => character.exportJson() },
-              { label: 'Load JSON…', handleSelect: () => character.importJson() },
+              // One export: the name, the format (a GLB, which is also a save,
+              // or the character file) and the GLB's options.
+              {
+                label: 'Export…',
+                handleSelect: () => modal((pop) => exportForm(pop, {
+                  name: current || ch?.shown?.source || 'character',
+                  target: exportTarget,
+                  say: (m) => { character.note = m; el.refreshScenePanel?.() },
+                  formats: [{ label: 'character file', write: (name, settings) => character.exportJson(name, settings.textures) }],
+                })),
+              },
+              { label: 'Import…', handleSelect: () => character.importJson() },
               { separator: true },
               { label: 'Go to Playground', handleSelect: () => character.play() },
               ...(character.note ? [{ separator: true }, { label: character.note, disabled: true }] : []),
@@ -1483,12 +1484,11 @@ preview.append(
           character.changed()
           listSaved()
         }
-        character.exportJson = () => {
-          const given = walker.characterName.value.trim()
-          const name = given || 'character'
-          // Unnamed, plain character.json (not character.character.json).
-          const file = given ? `${given.replace(/[^\w-]/g, '_')}.character.json` : 'character.json'
-          save(JSON.stringify(snapshot(name), null, 1), file, 'application/json')
+        // The character file, under the name given (its pictures scaled
+        // as the export form says).
+        character.exportJson = async (file = walker.characterName.value.trim() || 'character', textures = 'as made') => {
+          const doc = await compactCharacterTextures(snapshot(walker.characterName.value || file), textures)
+          save(JSON.stringify(doc, null, 1), `${file}.character.json`, 'application/json')
         }
         character.importJson = () => {
           chooseFile('.json,application/json,.glb').then(async (file) => {
@@ -1517,7 +1517,7 @@ preview.append(
           }
           location.href = `/playground/?character=${encodeURIComponent(WORKING)}`
         }
-        el.builder.character = { snapshot, apply, store }
+        el.builder.character = { snapshot, apply, store, exportTarget }
         characterSnapshot = snapshot
         // The figure you were working on, as you left it.
         const working = await store.get(WORKING).catch(() => null)
@@ -1621,10 +1621,12 @@ you change it and comes back when you open the page again. **Save** keeps it
 under its name, asking for one the first time; **Save as…** under another
 (asking first before replacing a saved character); **Rename…** renames it.
 **Select ▸** lists the saved characters (the one on screen ticked): pick one
-and it loads. **Delete ▸** picks one, then asks again. **Export JSON** takes
-it elsewhere and **Load JSON…** brings one in: a file carries everything the
-panel sets, and the garments of your own the character wears travel inside
-it ([character-file](/character-file/)). **Go to Playground** plays it in the
+and it loads. **Delete ▸** picks one, then asks again. **Export…** asks for
+the file's name and format: a **GLB** (rigged for other engines, with its
+joint names, rest pose, height, the clip playing and how far to scale its
+pictures) that also carries the whole character, or the **character file**
+alone ([character-file](/character-file/)). **Import…** opens either: the
+settings, grips, garments of your own, body and clips all come back. **Go to Playground** plays it in the
 biped playground.
 
 Open the panel (the body button): the body sliders reshape it

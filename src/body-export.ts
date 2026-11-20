@@ -16,10 +16,19 @@ For the file, the model it came from is read again from its bytes
 ([glb-rig](/glb-rig/)), and its materials go out as glTF with their
 pictures. A model that is not a GLB (an OBJ) goes out in plain grey.
 
+**Pictures** scales the file's textures down to a longest side (2048, 1024
+or 512; see [glb textures](/glb-textures/)); one already within the limit
+is left exactly as made.
+
 ```javascript
 import { exportBodyRows } from 'tosijs-3d/body-export'
 panel.push(...exportBodyRows(() => ({ body, recipe, source: { url } }), say))
 ```
+
+`exportForm(pop, { name, target, say, formats })` is the same as a modal: the
+file's name, its format (a GLB, or a format the host adds, such as a
+character file) and the GLB's options. The character builder opens it from
+its Character menu.
 */
 /*{ "parent": "rigged-body-glb", "order": 2 }*/
 
@@ -37,6 +46,8 @@ import type { RiggedBody } from './rigged-body.js'
 import type { RigRecipe } from './rig-recipe.js'
 import { readGlbClips, type GlbClipSource } from './glb-clips.js'
 import { readBvh } from './bvh.js'
+import { compactGlbTextures, type TextureLevel } from './glb-textures.js'
+import { inputField } from './keyboard.js'
 import { bakeClothLook } from './cloth-bake.js'
 import type { ClipOut } from './rigged-body-glb.js'
 
@@ -96,6 +107,8 @@ export interface BodyExportSettings {
   height: number
   /** Whether the clip playing goes in (default not). */
   animation?: 'none' | 'playing'
+  /** How far its pictures are shrunk (see glb-textures; default as made). */
+  textures?: TextureLevel
 }
 
 const HEIGHTS = [
@@ -223,7 +236,17 @@ export async function exportBody(
     ...(target.extras ? { extras: target.extras } : {}),
     generator: 'tosijs-3d',
   })
-  return { bytes: out, note }
+  const level = settings.textures ?? 'as made'
+  const written =
+    level === 'as made'
+      ? out
+      : await compactGlbTextures(out, level).catch((e) => {
+          note = [note, `pictures kept as made: ${(e as Error).message}`]
+            .filter(Boolean)
+            .join('; ')
+          return out
+        })
+  return { bytes: written, note }
 }
 
 /** A library model as riggedBodyGlb's `held`: its mesh and grip point, read from its file. */
@@ -260,19 +283,19 @@ const settings: BodyExportSettings = {
   restPose: 't-pose',
   height: 0,
   animation: 'none',
+  textures: 'as made',
 }
 
-/**
- * An Export section: names, rest pose, height and the button. `target`
- * gives what to write when pressed (null: nothing to export, and why);
- * `say` reports what happened.
- */
-export function exportBodyRows(
-  target: () => Promise<BodyExportTarget | string> | BodyExportTarget | string,
-  say: (message: string) => void
-): Widget3d[] {
+const TEXTURES: Record<TextureLevel, string> = {
+  'as made': 'as made',
+  '2048': 'up to 2048',
+  '1024': 'up to 1024',
+  '512': 'up to 512',
+}
+
+/** The GLB's options as rows: joint names, rest pose, height, animation, pictures. */
+function glbOptionRows(): Widget3d[] {
   return [
-    label3d({ text: 'Export', icon: 'download', collapsible: true }),
     select3d({
       label: 'joint names',
       value: settings.naming === 'ue' ? 'UE (UAL)' : 'Mixamo',
@@ -306,27 +329,148 @@ export function exportBodyRows(
         settings.animation = v === 'none' ? 'none' : 'playing'
       },
     }),
+    select3d({
+      label: 'pictures',
+      value: TEXTURES[settings.textures ?? 'as made'],
+      options: Object.values(TEXTURES),
+      handleChange: (v) => {
+        settings.textures =
+          (Object.keys(TEXTURES) as TextureLevel[]).find(
+            (k) => TEXTURES[k] === v
+          ) ?? 'as made'
+      },
+    }),
+  ]
+}
+
+/** Write a GLB of `t` with the current settings and download it. */
+async function exportAndSave(
+  t: BodyExportTarget,
+  say: (message: string) => void
+): Promise<void> {
+  say(`exporting ${t.name}…`)
+  try {
+    const { bytes, note } = await exportBody(t, settings)
+    downloadBytes(`${t.name}.glb`, bytes)
+    say(
+      `exported ${t.name}.glb (${(bytes.byteLength / 1e6).toFixed(1)} MB)${
+        note ? `; ${note}` : ''
+      }`
+    )
+  } catch (e) {
+    say(`could not export: ${(e as Error).message}`)
+  }
+}
+
+/** Where an export form is shown: a modal's `show` and `close`. */
+export interface ExportPop {
+  show(widgets: Widget3d[]): void
+  close(): void
+}
+
+/** A format an export form offers besides the GLB (a character file, say). */
+export interface ExportFormat {
+  label: string
+  /** Writes it under `name` with the form's settings (it closes first). */
+  write: (
+    name: string,
+    settings: Readonly<BodyExportSettings>
+  ) => void | Promise<void>
+}
+
+/**
+ * THE EXPORT AS A MODAL: the file's name, its format (`GLB`, then any
+ * `formats` the host adds) and, for a GLB, its options (joint names, rest
+ * pose, height, animation, pictures). `target(name, settings)` gives what to
+ * write (or why not); `say` reports what happened. A format's `write` gets
+ * the settings too, so a character file can scale its pictures the same way.
+ */
+export function exportForm(
+  pop: ExportPop,
+  options: {
+    name: string
+    target: (
+      name: string,
+      settings: Readonly<BodyExportSettings>
+    ) => Promise<BodyExportTarget | string> | BodyExportTarget | string
+    say: (message: string) => void
+    formats?: ExportFormat[]
+  }
+): Widget3d[] {
+  let name = options.name
+  let format = 'GLB'
+  const others = options.formats ?? []
+  const clean = (n: string) =>
+    n
+      .trim()
+      .replace(/[^\w-]+/g, '-')
+      .replace(/^-|-$/g, '') || 'character'
+  const go = () => {
+    const file = clean(name)
+    pop.close()
+    const other = others.find((f) => f.label === format)
+    if (other != null) {
+      void other.write(file, { ...settings })
+      return
+    }
+    void (async () => {
+      const t = await options.target(file, { ...settings })
+      if (typeof t === 'string') return options.say(t)
+      await exportAndSave({ ...t, name: file }, options.say)
+    })()
+  }
+  const form = (): Widget3d[] => [
+    label3d({ text: 'Export', icon: 'download' }),
+    inputField({
+      value: name,
+      placeholder: 'file name',
+      handleChange: (v) => {
+        name = v
+      },
+      handleEnter: (v) => {
+        name = v
+        go()
+      },
+    }),
+    ...(others.length
+      ? [
+          select3d({
+            label: 'format',
+            value: format,
+            options: ['GLB', ...others.map((f) => f.label)],
+            handleChange: (v) => {
+              format = String(v)
+              pop.show(form())
+            },
+          }),
+        ]
+      : []),
+    ...(format === 'GLB' ? glbOptionRows() : []),
+    button3d({ label: 'export', default: true, handleClick: go }),
+    button3d({ label: 'cancel', handleClick: () => pop.close() }),
+  ]
+  return form()
+}
+
+/**
+ * An Export section: names, rest pose, height and the button. `target`
+ * gives what to write when pressed (null: nothing to export, and why);
+ * `say` reports what happened.
+ */
+export function exportBodyRows(
+  target: () => Promise<BodyExportTarget | string> | BodyExportTarget | string,
+  say: (message: string) => void
+): Widget3d[] {
+  return [
+    label3d({ text: 'Export', icon: 'download', collapsible: true }),
+    ...glbOptionRows(),
     button3d({
       label: 'export GLB',
       handleClick: () => {
         void (async () => {
           const t = await target()
-          if (typeof t === 'string') {
-            say(t)
-            return
-          }
-          say(`exporting ${t.name}…`)
-          try {
-            const { bytes, note } = await exportBody(t, settings)
-            downloadBytes(`${t.name}.glb`, bytes)
-            say(
-              `exported ${t.name}.glb (${(bytes.byteLength / 1e6).toFixed(
-                1
-              )} MB)${note ? `; ${note}` : ''}`
-            )
-          } catch (e) {
-            say(`could not export: ${(e as Error).message}`)
-          }
+          if (typeof t === 'string') return say(t)
+          await exportAndSave(t, say)
         })()
       },
     }),
