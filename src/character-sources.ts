@@ -128,7 +128,7 @@ export const AI_CHARACTER_SOURCES: Record<string, CharacterSource> = {
         [0, 0.6107],
         [0, -0.1016],
         [0.4565, 0.0243],
-        [0.3338, 0.206],
+        [0.2974, 0.255],
         [0.1177, -0.4334],
       ],
       {
