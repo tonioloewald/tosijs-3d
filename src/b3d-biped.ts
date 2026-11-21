@@ -220,6 +220,10 @@ animation is doing with that hand.
 | `lethalFall` | `0` (off) | Metres of drop that kill on landing: the `death` clip (`Death01`) where you land, then a bubbling `crash` event (`detail: { cause: 'fall', drop }`) that `<tosi-b3d-death>` answers without exploding you. Off by default, since a death needs an exit. Water breaks a fall |
 | `health` | `0` (can't be hurt) | Hit points. Above 0 the biped is a target like any destroyable: a hit plays a hit clip (`hitChest` / `hitStomach` / `hitHead` in turn, `hitKnockback` for a blast) and holds it still for the clip; at 0 it plays `death` where it stands and dispatches a bubbling `destroyed`, which `<tosi-b3d-death>` answers. `hp` reads what is left, `damage(amount, cause)` hurts it, `heal(amount)` mends it, `aimTarget` is a chest-height node for turrets and AI to track |
 | `hitScale` | head 2.5, trunk 1, limb 0.5 | (a property) What a hit does by where it lands. A round that says where it struck (a launcher with `direct-hit="on"`) is placed by `hitRegion(point)`: the head round the head bone, the trunk near the hips-to-neck axis, a limb anywhere else; a crouch moves them with the body. The head plays `hitHead`, the trunk `hitChest` and `hitStomach` in turn, a limb `hitShoulderL`/`R` by side. `hurt` events carry the `region` |
+| `meleeDamage` | `25` | What a sword stroke does to each destroyable it reaches (with a melee weapon held and gunplay off, the right trigger swings) |
+| `meleeReach` | `1.8` | Metres a stroke reaches |
+| `meleeArc` | `120` | Degrees a stroke sweeps, centred on the way you face |
+| `strokeRules` | restart before 0.1, queue from 0.8, chain from 0.9, hit at 0.4 | (a property) Where in a stroke a press restarts it, queues a follow-up or chains at once, and when the blow lands ([melee stroke](/melee-stroke/)); a held trigger chains at the chain mark |
 | `healthRegen` | `0` | Hit points regained per second, from `healthRegenDelay` (5) seconds after the last hit |
 | `wadeDepth` | `0.45` | Water depth, as a fraction of standing height, where wading becomes swimming |
 | `buoyancy` | `0` | How high the figure rides in the water, metres. `0` puts the waterline at the head |
@@ -389,7 +393,18 @@ import { XRInputProvider } from './xr-input-provider.js'
 import { forwardGait } from './gait.js'
 import { realNow } from './clock.js'
 import { FALL_START_DROP, fallRules, landingOutcome } from './fall.js'
-import { DestroyableBehavior } from './destroyable-behavior.js'
+import {
+  DestroyableBehavior,
+  liveDestroyables,
+} from './destroyable-behavior.js'
+import {
+  STROKE_RULES,
+  idleStroke,
+  meleeTargets,
+  strokeStep,
+  type StrokeRules,
+  type StrokeState,
+} from './melee-stroke.js'
 import type { Cause } from './destroyable.js'
 
 /** Where a hit lands on a body. */
@@ -860,6 +875,12 @@ export class B3dBiped extends B3dControllable {
      * what is left from `hp`.
      */
     health: 0,
+    /** What a sword stroke does to each thing it reaches (see `strokeRules`). */
+    meleeDamage: 25,
+    /** How far a sword stroke reaches, metres from the swinger's centre. */
+    meleeReach: 1.8,
+    /** The arc a sword stroke sweeps, degrees, centred on the way you face. */
+    meleeArc: 120,
     /** Hit points regained per second, starting `healthRegenDelay` s after the last hit. */
     healthRegen: 0,
     healthRegenDelay: 5,
@@ -1775,6 +1796,13 @@ export class B3dBiped extends B3dControllable {
    * blast or a blow is the trunk.
    */
   hitScale: Record<HitRegion, number> = { head: 2.5, trunk: 1, limb: 0.5 }
+
+  /**
+   * When a press during a sword stroke restarts it, queues a follow-up or
+   * chains at once, and when the blow lands, as fractions of the stroke
+   * ([melee stroke](/melee-stroke/)).
+   */
+  strokeRules: StrokeRules = { ...STROKE_RULES }
 
   /**
    * Which part of the body a world point is on: the HEAD (round the head
@@ -2899,21 +2927,66 @@ export class B3dBiped extends B3dControllable {
    * still is on guard. A rig without the clips keeps its own states.
    */
   private _meleeState(name: string): string {
-    if (this._attackFor > 0 && MELEE_GROUND.has(name)) return 'meleeAttack'
+    if (this._stroke.t != null && MELEE_GROUND.has(name)) return 'meleeAttack'
     if (name === 'idle' && this._hasClip('Sword_Idle')) return 'meleeIdle'
     return name
   }
-  /** Seconds left of the swing playing now. */
-  private _attackFor = 0
-  private _swing(): void {
-    if (!this._hasClip('Sword_Attack')) {
+  /** The sword stroke's clock (melee-stroke). */
+  private _stroke: StrokeState = idleStroke()
+  private _swing(input: ControlInput, dt: number): void {
+    const trigger =
+      !this.gunplay && this._holdingWeapon && (input.shoot ?? 0) > 0.5
+    if (trigger && !this._hasClip('Sword_Attack')) {
       this._warnOnce(
         `b3d-biped: melee attack, but ${this.url || 'this rig'} has no ` +
           `Sword_Attack clip. If it should, the asset is probably cached.`
       )
       return
     }
-    this._attackFor = this._clipSeconds('Sword_Attack') || 1
+    const { state, start, hit } = strokeStep(
+      this._stroke,
+      { trigger, dt, duration: this._clipSeconds('Sword_Attack') || 1 },
+      this.strokeRules
+    )
+    this._stroke = state
+    // A stroke started over one in progress plays again from its start,
+    // blended from the pose it was in rather than jumping.
+    if (start && this.animationState?.name === 'meleeAttack') {
+      const group = this.animationGroup
+      if (group != null) {
+        group.stop()
+        group.start(false, 1, group.from, group.to)
+      }
+    }
+    if (hit) this._strike()
+  }
+
+  /** The blow lands: hurt what is in reach and in front. */
+  private _strike(): void {
+    const mesh = this.mesh
+    const scene = this.owner?.scene
+    if (mesh == null || scene == null) return
+    const me = mesh.getAbsolutePosition()
+    const own = this.destroyable
+    const candidates = liveDestroyables(scene)
+      .filter(({ behavior }) => behavior !== own)
+      .map(({ behavior, mesh: m }) => {
+        const at = m.getAbsolutePosition()
+        return { item: { behavior, at }, x: at.x, z: at.z }
+      })
+      .filter(({ item }) => Math.abs(item.at.y - me.y) < 2)
+    const f = mesh.forward
+    const heading = (Math.atan2(f.x, f.z) * 180) / Math.PI
+    const hits = meleeTargets(me, heading, candidates, {
+      reach: Number((this as any).meleeReach) || 1.8,
+      arc: Number((this as any).meleeArc) || 120,
+    })
+    for (const { behavior } of hits)
+      behavior.damage(Number((this as any).meleeDamage) || 0, {
+        by: this.id || 'player',
+        // No point given: a blow is a trunk hit (see hitScale).
+        kind: 'direct',
+      })
   }
 
   setAnimationState(name: string, speed = 1) {
@@ -3625,15 +3698,8 @@ export class B3dBiped extends B3dControllable {
         for (const w of this._weapons())
           (w as { reload?: () => boolean }).reload?.()
       this._reloadWasPressed = reloadDown
-      // A melee weapon swings, once per swing: held, it swings again after.
-      this._attackFor = Math.max(0, this._attackFor - dt)
-      if (
-        !this.gunplay &&
-        this._holdingWeapon &&
-        this._attackFor === 0 &&
-        (input.shoot ?? 0) > 0.5
-      )
-        this._swing()
+      // A melee weapon swings; presses mid-stroke restart, queue or chain.
+      this._swing(input, dt)
       // After the shot, so the ring sits where THIS frame's aim points rather
       // than lagging it by one.
       if (this.owner != null) this._updateReticle(this.owner.scene)

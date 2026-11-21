@@ -12,6 +12,9 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Fixed: the player's sword strokes now hurt what they reach (`meleeDamage`, `meleeReach`, `meleeArc` on the biped); before, the swing was only an animation.
+- Added: sword strokes chain. A press early in a stroke restarts it, a late one queues or starts the next, and a held trigger skips the follow-through. Tune it with `strokeRules` ([melee stroke](/melee-stroke/)).
+
 ## 0.13.2
 
 The latest release. The test checklist on every scene's system bar (answer it in a headset), one **Export…** for the character builder whose GLB also carries the whole character and its rig, smaller exported pictures, held things on either side or the forearm, gamepad and keyboard focus in panels, `pager3d`, and fields that wrap. See [0.13.2](/v0.13.2/).
