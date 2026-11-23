@@ -53,14 +53,24 @@ describe('strokeStep', () => {
   })
 
   test('a mid-stroke press is ignored', () => {
-    const frames = [true, ...Array(9).fill(false), true, ...Array(20).fill(false)]
+    const frames = [
+      true,
+      ...Array(9).fill(false),
+      true,
+      ...Array(20).fill(false),
+    ]
     const { out } = run(idleStroke(), frames)
     expect(out.filter((f) => f.start).length).toBe(1)
   })
 
   test('a late press queues a follow-up at the chain mark', () => {
     // Press at 0.85 s: queued, then starts at 0.9.
-    const frames = [true, ...Array(16).fill(false), true, ...Array(5).fill(false)]
+    const frames = [
+      true,
+      ...Array(16).fill(false),
+      true,
+      ...Array(5).fill(false),
+    ]
     const { out } = run(idleStroke(), frames)
     const starts = out.flatMap((f, i) => (f.start ? [i] : []))
     expect(starts).toEqual([0, 18])
@@ -85,16 +95,27 @@ describe('meleeTargets', () => {
     const hits = meleeTargets(
       { x: 0, z: 0 },
       0,
-      [c('far', 0, 3), c('behind', 0, -1), c('front', 0.3, 1.2), c('near', 0, 0.6), c('side', 1.5, 0.2)],
+      [
+        c('far', 0, 3),
+        c('behind', 0, -1),
+        c('front', 0.3, 1.2),
+        c('near', 0, 0.6),
+        c('side', 1.5, 0.2),
+      ],
       { reach: 1.8, arc: 120 }
     )
     expect(hits).toEqual(['near', 'front'])
   })
   test('heading turns the arc', () => {
-    const hits = meleeTargets({ x: 0, z: 0 }, 90, [c('east', 1, 0), c('north', 0, 1)], {
-      reach: 1.8,
-      arc: 120,
-    })
+    const hits = meleeTargets(
+      { x: 0, z: 0 },
+      90,
+      [c('east', 1, 0), c('north', 0, 1)],
+      {
+        reach: 1.8,
+        arc: 120,
+      }
+    )
     expect(hits).toEqual(['east'])
   })
 })
