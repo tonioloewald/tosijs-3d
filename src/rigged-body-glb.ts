@@ -101,6 +101,7 @@ import type { GarmentProxy, GarmentProxyMaterial } from './garment-proxy.js'
 import type { HumanProxy } from './human-pack.js'
 import { drawnPositions, fitProxy, proxyWeights } from './proxy-fit.js'
 import { coverSkin } from './proxy-cover.js'
+import { strandSkin } from './strand-skin.js'
 import { vertexNormals } from './hair-fit.js'
 import { bakeClip, type GlbClip, type GlbClipSource } from './glb-clips.js'
 import { humanoidRoles } from './retarget.js'
@@ -1006,7 +1007,22 @@ export function riggedBodyGlb(
   const joints = new Uint16Array(nVerts * 4)
   for (let i = 0; i < joints.length; i++)
     joints[i] = Math.max(0, sk.from[body.weights.indices[i]] ?? 0)
-  const weights = body.weights.weights
+  let weights: ArrayLike<number> = body.weights.weights
+  // A strand with a reach takes the body's own vertices near it (a rag).
+  let skinJoints: ArrayLike<number> = joints
+  for (const st of strands) {
+    if (!(st.recipe.reach! > 0)) continue
+    const r = strandSkin(
+      body.positions,
+      skinJoints,
+      weights,
+      { points: st.joints.map((j) => sk.rest[j]), joints: st.joints },
+      { reach: st.recipe.reach! }
+    )
+    skinJoints = r.joints
+    weights = r.weights
+  }
+  joints.set(skinJoints)
 
   // Garments fitted on the body at rest, and the skin they cover tucked.
   const worn = (options.garments ?? []).map((g) => {
@@ -1089,13 +1105,15 @@ export function riggedBodyGlb(
     )
   })
 
-  const tubes = strands.map((st) => {
-    const t = strandTube(st, sk.rest)
-    return {
-      ...t,
-      posed: skinTo(t.positions, t.joints, t.weights, sk.rest, pose),
-    }
-  })
+  const tubes = strands
+    .filter((st) => !(st.recipe.reach! > 0))
+    .map((st) => {
+      const t = strandTube(st, sk.rest)
+      return {
+        ...t,
+        posed: skinTo(t.positions, t.joints, t.weights, sk.rest, pose),
+      }
+    })
 
   // Scaled to height, the soles on the floor, the pelvis over the origin.
   let lo = Infinity
@@ -1685,6 +1703,30 @@ function springChains(
     })
   })
   return out
+}
+
+/**
+ * The springs of a GLB `riggedBodyGlb` wrote, as they run on the loaded
+ * file: each strand was baked into joints (`<name>_<n>_01`, …), so it comes
+ * back as a `bones` spring from its first joint, with its own settings.
+ * Pass the result to `applyRigRecipe`; bone springs pass through.
+ */
+export function bakedSprings(recipe: Partial<RigRecipe>): RigRecipe {
+  return {
+    version: recipe.version ?? 1,
+    roles: recipe.roles,
+    springs: (recipe.springs ?? []).map((s, i) =>
+      s.kind === 'strand'
+        ? {
+            kind: 'bones' as const,
+            name: s.name,
+            root: `${strandName({ ...STRAND_DEFAULTS, ...s }, i)}_01`,
+            params: { ...STRAND_DEFAULTS.params, ...s.params },
+            colliders: s.colliders,
+          }
+        : s
+    ),
+  }
 }
 
 /** Where an export keeps its rig recipe: a key of `asset.extras`. */

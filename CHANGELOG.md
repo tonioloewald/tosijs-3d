@@ -14,6 +14,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 - Fixed: the player's sword strokes now hurt what they reach (`meleeDamage`, `meleeReach`, `meleeArc` on the biped); before, the swing was only an animation.
 - Added: sword strokes chain. A press early in a stroke restarts it, a late one queues or starts the next, and a held trigger skips the follow-through. Tune it with `strokeRules` ([melee stroke](/melee-stroke/)).
+- Added: a strand spring with `reach` draws no tube; it takes the model's own vertices near it instead, so a rag or hem that is part of the mesh swings ([strand skin](/strand-skin/)). `riggedBodyGlb` applies it on export.
+- Added: a biped loaded from a GLB runs the springs the file carries (`springs`, default `'on'`), as the rig tool or `riggedBodyGlb` wrote them. `bakedSprings(recipe)` turns an exported recipe into the bone springs `applyRigRecipe` runs on the loaded file.
 
 ## 0.13.2
 

@@ -10,7 +10,8 @@ Spring chains come in two kinds:
 - `bones`: a chain the model already has (a tail, a braid), named by its
   first bone; the chain runs down first children to the tip.
 - `strand`: a new chain hung from a bone, with a tube skinned to it (a
-  ponytail the model was not made with).
+  ponytail the model was not made with), or, with `reach`, taking the
+  model's own vertices near it (a rag that is part of the mesh).
 
 Lengths are metres, angles degrees. A strand's `offset` and direction are in
 the CHARACTER's frame (its placement, not glTF's mirrored `__root__`), with
@@ -81,6 +82,13 @@ export interface StrandSpringRecipe extends SpringCommon {
    * tool keeps them so). At least two points.
    */
   path?: Vec3[]
+  /**
+   * Metres. When set, no tube is drawn: the model's own vertices this near
+   * the strand go onto its joints instead (a rag, a hem, a loose bandage
+   * that is part of the mesh), fading in from its root. See `strand-skin`.
+   * Applied when the body is exported (`riggedBodyGlb`).
+   */
+  reach?: number
   /** The tube's radius at the root and the tip. */
   radius: number
   tipRadius?: number
@@ -343,6 +351,8 @@ export function validateRigRecipe(doc: unknown): string[] {
         out.push(`${at}.segments is not 1 to 64`)
       if (isNum(s.length) && s.length <= 0)
         out.push(`${at}.length is not positive`)
+      if (s.reach != null && (!isNum(s.reach) || s.reach <= 0))
+        out.push(`${at}.reach is not a positive number`)
       if (s.path != null) {
         if (!Array.isArray(s.path) || s.path.length < 2)
           out.push(`${at}.path is not a list of two or more points`)
@@ -586,6 +596,13 @@ export function rigRecipeSchema(): Record<string, unknown> {
                     'The line it follows at rest, root first, each point from the anchor in metres. When given, the chain is laid along it.',
                   minItems: 2,
                   items: vec3('A point, from the anchor, in metres.'),
+                },
+                reach: {
+                  type: 'number',
+                  exclusiveMinimum: 0,
+                  description:
+                    "The model's own vertices this near the strand go onto it, and no tube is drawn (a rag that is part of the mesh).",
+                  ...M,
                 },
                 radius: { type: 'number', minimum: 0, default: 0.035, ...M },
                 tipRadius: { type: 'number', minimum: 0, default: 0.012, ...M },

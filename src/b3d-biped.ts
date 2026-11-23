@@ -223,6 +223,7 @@ animation is doing with that hand.
 | `meleeDamage` | `25` | What a sword stroke does to each destroyable it reaches (with a melee weapon held and gunplay off, the right trigger swings) |
 | `meleeReach` | `1.8` | Metres a stroke reaches |
 | `meleeArc` | `120` | Degrees a stroke sweeps, centred on the way you face |
+| `springs` | `'on'` | Run the spring chains a GLB carries (hair, a tail, rags), as the rig tool or `riggedBodyGlb` wrote them; `'off'` leaves them still |
 | `strokeRules` | restart before 0.1, queue from 0.8, chain from 0.9, hit at 0.4 | (a property) Where in a stroke a press restarts it, queues a follow-up or chains at once, and when the blow lands ([melee stroke](/melee-stroke/)); a held trigger chains at the chain mark |
 | `healthRegen` | `0` | Hit points regained per second, from `healthRegenDelay` (5) seconds after the last hit |
 | `wadeDepth` | `0.45` | Water depth, as a fraction of standing height, where wading becomes swimming |
@@ -881,6 +882,7 @@ export class B3dBiped extends B3dControllable {
     meleeReach: 1.8,
     /** The arc a sword stroke sweeps, degrees, centred on the way you face. */
     meleeArc: 120,
+    springs: 'on',
     /** Hit points regained per second, starting `healthRegenDelay` s after the last hit. */
     healthRegen: 0,
     healthRegenDelay: 5,
@@ -5098,12 +5100,86 @@ export class B3dBiped extends B3dControllable {
       }
     }
 
+    if (/\.glb(\?|#|$)/i.test(attrs.url) && !isOff(attrs.springs))
+      void this._fileSprings(owner, scene, attrs.url)
+
     this.lastUpdate = realNow()
     scene.registerBeforeRender(this._update)
     this.queueRender()
   }
 
+  private _springs: {
+    springs: { bones: { reset(): void } }[]
+    dispose(): void
+  } | null = null
+  private _springsOrigin: ((dx: number, dz: number) => void) | null = null
+
+  /*
+  A GLB's own springs: the rig recipe its exporter wrote into it, the strands
+  already baked into joints, so they run as bone chains. Read from the file's
+  bytes (the browser has them cached from the load).
+  */
+  private async _fileSprings(owner: B3d, scene: BABYLON.Scene, url: string) {
+    const entries = this.entries
+    try {
+      const [{ readGlbRigRecipe, bakedSprings }, { applyRigRecipe }] =
+        await Promise.all([
+          import('./rigged-body-glb.js'),
+          import('./rig-recipe-babylon.js'),
+        ])
+      const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer())
+      const recipe = readGlbRigRecipe(bytes)
+      const skeleton = entries?.skeletons?.[0]
+      if (
+        !recipe?.springs?.length ||
+        entries == null ||
+        skeleton == null ||
+        this.entries !== entries
+      )
+        return
+      // The model is instantiated, so its nodes are `Clone of <bone>`, and
+      // the springs are found by node name.
+      const nodeName = (bone: string) =>
+        skeleton.bones.find((b) => b.name === bone)?.getTransformNode()
+          ?.name ?? bone
+      const baked = bakedSprings(recipe)
+      baked.springs = baked.springs?.map((s) => ({
+        ...s,
+        ...(s.kind === 'bones' ? { root: nodeName(s.root) } : {}),
+        ...(Array.isArray(s.colliders)
+          ? {
+              colliders: s.colliders.map((c) => ({
+                ...c,
+                bone: nodeName(c.bone),
+              })),
+            }
+          : {}),
+      }))
+      const applied = applyRigRecipe(
+        scene,
+        entries.rootNodes[0] as BABYLON.TransformNode,
+        skeleton,
+        baked
+      )
+      if (applied.problems.length)
+        console.warn('<tosi-b3d-biped> springs:', applied.problems.join('; '))
+      this._springs = applied
+      // A big jump of the whole world would fling them: start again instead.
+      this._springsOrigin = () => {
+        for (const s of applied.springs) s.bones.reset()
+      }
+      owner.addOriginListener(this._springsOrigin)
+    } catch (e) {
+      console.warn('<tosi-b3d-biped>: could not read the springs of', url, e)
+    }
+  }
+
   sceneDispose() {
+    if (this._springsOrigin)
+      this.owner?.removeOriginListener(this._springsOrigin)
+    this._springsOrigin = null
+    this._springs?.dispose()
+    this._springs = null
     this.destroyable?.dispose()
     this.destroyable = null
     this.aimTarget?.dispose()

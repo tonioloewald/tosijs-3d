@@ -58,6 +58,7 @@ export const CHARACTER_CORE = [
   'rigged-body-glb',
   'ual-rest',
   'spring-vrm',
+  'strand-skin',
   'spring-chain',
   'eye-art',
   'png',
