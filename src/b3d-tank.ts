@@ -215,9 +215,9 @@ export class B3dTank extends B3dGroundVehicle {
     if (mode > 0.5 && this.modeWas <= 0.5) {
       this.stickMode = this.stickMode === 'gun' ? 'camera' : 'gun'
       const owner = this.owner as any
-      owner?.haptic?.(0.6, 40)
+      owner?.rumble?.({ strong: 0, weak: 0.6, ms: 40 })
       if (this.stickMode === 'camera')
-        setTimeout(() => owner?.haptic?.(0.6, 40), 120)
+        setTimeout(() => owner?.rumble?.({ strong: 0, weak: 0.6, ms: 40 }), 120)
     }
     this.modeWas = mode
     super.applyInput(input, dt)

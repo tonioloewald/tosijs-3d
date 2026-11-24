@@ -657,6 +657,7 @@ export const SCENE_OMITTED: Record<string, string[]> = {
     'quality',
     'pixelRatio',
     'stats',
+    'rumbleStrength',
     'pauseWhenHidden',
     'startPaused',
     'reseatFreeze',

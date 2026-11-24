@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Added: rumble. `b3d.rumble('hit')` (or `{ strong, weak, ms }`) buzzes the player's gamepad and a headset's controllers; the player's biped rumbles when hurt, landing hard, firing and landing a blow, a driven vehicle when it hits something, and the pad's UI focus ticks as it moves. `rumble-strength` scales it (0 is off) ([rumble](/rumble/)).
+- Added: radial menus. `b3d.setDpad(direction, { tap, menu, handleSelect })` gives a D-pad direction a tap and a ring of choices on a hold, picked by pointing a stick or the mouse; `b3d.openRadialMenu(...)` opens one from code; `radialMenuSvg` is the drawing ([radial menu](/radial-menu/)).
 - Changed: clicking the left stick (C on a keyboard) cycles a biped's pace through walk, jog and run, and pushing forward then moves at that pace (`pace`, `ControlInput.gait`). The right trigger still sprints. The left stick no longer sneaks; the left bumper still does.
 - Fixed: the player's sword strokes now hurt what they reach (`meleeDamage`, `meleeReach`, `meleeArc` on the biped); before, the swing was only an animation.
 - Added: sword strokes chain. A press early in a stroke restarts it, a late one queues or starts the next, and a held trigger skips the follow-through. Tune it with `strokeRules` ([melee stroke](/melee-stroke/)).

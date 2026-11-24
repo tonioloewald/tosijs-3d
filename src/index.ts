@@ -437,6 +437,34 @@ export {
   type ViewMenuOptions,
   type ViewMenuExtra,
 } from './bar-menu.js'
+export {
+  radialMenuSvg,
+  RADIAL_SIZE,
+  type RadialItem,
+  type RadialMenuSvg,
+} from './radial-menu.js'
+export {
+  radialPick,
+  radialSlot,
+  radialSlice,
+  pressStep,
+  pressState,
+  DPAD_HOLD_MS,
+  type PressState,
+  type RadialDirection,
+} from './radial-layout.js'
+export type {
+  DpadAction,
+  DpadDirection,
+  RadialMenuOptions,
+} from './radial-host.js'
+export {
+  RUMBLE,
+  rumbleEffect,
+  rumblePads,
+  type RumbleEffect,
+  type RumbleName,
+} from './rumble.js'
 export { B3dMoon, b3dMoon } from './b3d-moon.js'
 export {
   GAS_GIANTS,

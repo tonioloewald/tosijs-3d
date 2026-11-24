@@ -41,7 +41,7 @@ import {
   type VirtualGamepad,
   emptyGamepad,
 } from './virtual-gamepad.js'
-import { applyDeadzone } from './hardware-gamepad.js'
+import { applyDeadzone, releaseMenuOwned } from './hardware-gamepad.js'
 
 const DEADZONE = 0.15
 
@@ -82,6 +82,6 @@ export class XrGamepadSource implements GamepadSource {
       pad.rightStickPress = right['xr-standard-thumbstick']?.pressed ? 1 : 0
     }
 
-    return pad
+    return releaseMenuOwned(pad)
   }
 }

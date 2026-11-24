@@ -393,6 +393,7 @@ import {
 } from './aim-assist.js'
 import { XRInputProvider } from './xr-input-provider.js'
 import { forwardGait, nextPace, paceShare } from './gait.js'
+import type { RumbleName } from './rumble.js'
 import { realNow } from './clock.js'
 import { FALL_START_DROP, fallRules, landingOutcome } from './fall.js'
 import {
@@ -1585,7 +1586,10 @@ export class B3dBiped extends B3dControllable {
     held trigger would animate a weapon that is not firing — which looks exactly
     like a jammed one.
     */
-    if (fired) this._shootFor = 0.18
+    if (fired) {
+      this._shootFor = 0.18
+      this._rumble('shot')
+    }
   }
 
   /**
@@ -1858,12 +1862,18 @@ export class B3dBiped extends B3dControllable {
    */
   private _dieFromFall(drop: number): void {
     this._fallDead()
+    this._rumble('crash')
     this.dispatchEvent(
       new CustomEvent('crash', {
         bubbles: true,
         detail: { cause: 'fall', drop },
       })
     )
+  }
+
+  /** A buzz in the player's hands, when this biped is the player. */
+  private _rumble(effect: RumbleName): void {
+    if ((this as any).player) (this.owner as any)?.rumble?.(effect)
   }
 
   /** Down where it stands: the death clip, nothing more moves it. */
@@ -1963,6 +1973,7 @@ export class B3dBiped extends B3dControllable {
       cause?.at ? this.hitScale[this.hitRegion(cause.at)] ?? 1 : 1
     d.whenDamaged = (info) => {
       this._onHit(info.cause)
+      this._rumble('hit')
       // For whoever drives it (an NPC brain turns on whoever hurt it).
       const region = info.cause?.at ? this.hitRegion(info.cause.at) : 'trunk'
       this.dispatchEvent(
@@ -2987,6 +2998,7 @@ export class B3dBiped extends B3dControllable {
       reach: Number((this as any).meleeReach) || 1.8,
       arc: Number((this as any).meleeArc) || 120,
     })
+    if (hits.length) this._rumble('blow')
     for (const { behavior } of hits)
       behavior.damage(Number((this as any).meleeDamage) || 0, {
         by: this.id || 'player',
@@ -4205,6 +4217,7 @@ export class B3dBiped extends B3dControllable {
           return
         }
         this._hardLanding = outcome === 'hard'
+        if (this._hardLanding) this._rumble('landing')
       }
 
       /*
@@ -5150,8 +5163,8 @@ export class B3dBiped extends B3dControllable {
       // The model is instantiated, so its nodes are `Clone of <bone>`, and
       // the springs are found by node name.
       const nodeName = (bone: string) =>
-        skeleton.bones.find((b) => b.name === bone)?.getTransformNode()
-          ?.name ?? bone
+        skeleton.bones.find((b) => b.name === bone)?.getTransformNode()?.name ??
+        bone
       const baked = bakedSprings(recipe)
       baked.springs = baked.springs?.map((s) => ({
         ...s,

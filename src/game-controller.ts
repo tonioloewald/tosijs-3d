@@ -63,7 +63,7 @@ import {
   MappedInputProvider,
   bipedMapping,
 } from './virtual-gamepad.js'
-import { HardwareGamepadSource } from './hardware-gamepad.js'
+import { HardwareGamepadSource, releaseMenuOwned } from './hardware-gamepad.js'
 import { realNow } from './clock.js'
 import { isTextEntry } from './text-entry.js'
 
@@ -281,7 +281,7 @@ export class GameController extends Component implements GamepadSource {
       this._lookDx = 0
       this._lookDy = 0
     }
-    return pad
+    return releaseMenuOwned(pad)
   }
 
   /** Returns a MappedInputProvider that merges keyboard + hardware gamepad. */

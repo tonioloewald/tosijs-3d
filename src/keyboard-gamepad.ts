@@ -41,6 +41,7 @@ Mouse wheel adjusts the ZOOM axis (the pad's `zoom`), not the look stick or the 
 import { Component } from 'tosijs'
 import type { VirtualGamepad, GamepadSource } from './virtual-gamepad.js'
 import { emptyGamepad } from './virtual-gamepad.js'
+import { releaseMenuOwned } from './hardware-gamepad.js'
 import { isTextEntry } from './text-entry.js'
 import { realNow } from './clock.js'
 
@@ -163,7 +164,7 @@ export class KeyboardGamepadSource extends Component implements GamepadSource {
     if (Math.abs(wheel) > Math.abs(pad.zoom ?? 0)) pad.zoom = wheel
     this.wheelAccum *= 0.8 // decay wheel toward 0
 
-    return pad
+    return releaseMenuOwned(pad)
   }
 
   private _isMappedKey(code: string): boolean {

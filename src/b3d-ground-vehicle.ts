@@ -944,6 +944,13 @@ export abstract class B3dGroundVehicle extends B3dControllable {
     state.position.x += n.x * push
     state.position.z += n.z * push
     const intoV = state.velocity.x * n.x + state.velocity.z * n.z
+    // A knock you feel when driving it: harder the faster you hit (10 m/s is all of it).
+    if (intoV < -1.5 && this.inputProvider != null)
+      (this.owner as any)?.rumble?.({
+        strong: Math.min(1, -intoV / 10),
+        weak: Math.min(1, -intoV / 15),
+        ms: 120 + Math.min(230, -intoV * 25),
+      })
     if (intoV < 0) {
       state.velocity.x -= n.x * intoV * 1.2
       state.velocity.z -= n.z * intoV * 1.2

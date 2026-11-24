@@ -34,6 +34,18 @@ export function applyDeadzone(value: number, deadzone: number): number {
  */
 export const padUiOwns = new Set<keyof VirtualGamepad>()
 
+/**
+ * Controls an open radial menu (or a D-pad direction given to one) holds for
+ * itself: every source, keyboard and headset included, reads them as up.
+ */
+export const padMenuOwns = new Set<keyof VirtualGamepad>()
+
+/** Zero what a radial menu holds, in place (every source calls it). */
+export function releaseMenuOwned(pad: VirtualGamepad): VirtualGamepad {
+  for (const k of padMenuOwns) (pad as unknown as Record<string, number>)[k] = 0
+  return pad
+}
+
 export class HardwareGamepadSource implements GamepadSource {
   readonly kind = 'hardware'
 
@@ -47,9 +59,11 @@ export class HardwareGamepadSource implements GamepadSource {
 
   poll(raw = false): VirtualGamepad {
     const pad = this._read()
-    if (!raw)
+    if (!raw) {
       for (const k of padUiOwns)
         (pad as unknown as Record<string, number>)[k] = 0
+      releaseMenuOwned(pad)
+    }
     return pad
   }
 

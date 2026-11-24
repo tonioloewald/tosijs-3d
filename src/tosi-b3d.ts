@@ -266,6 +266,7 @@ document.body.append(
 | `quality` | `'auto'` | Device tier. `'auto'` follows the measured or cached device profile (and probes in the background on a first visit); `'low'`, `'medium'` or `'high'` force one. Drives the `auto` defaults of shadows, reflections, terrain and render scaling. See [[b3d-quality]] |
 | `pixelRatio` | `0` | Device pixels per CSS pixel, flat. `0` is auto: the display's own ratio, capped by the device tier (high 2, medium 1.5, low 1). A positive value is an explicit cap and wins: `1` renders at CSS resolution, `2` full Retina, `0.75` below CSS for speed. Ignored in a headset |
 | `groundDetail` | `'auto'` | The ground shader's form: `full`, `lite` (three noise samples a pixel for eight, for a GPU that cannot afford the full one), or `auto` (from the device tier: lite on the low tier, and in a headset on the medium one) |
+| `rumbleStrength` | `1` | How hard the player's pad or controllers buzz (`rumble()`); `0` is off. See [rumble](/rumble/) |
 | `ssao` | `'off'` | Ambient occlusion: `'off'`, `'auto'` (follows the device tier, and stays off in a headset) or `'on'`. Off by default because it is a cost a scene should choose. See [[b3d-ssao]] |
 | `ssaoMethod` | `'projected'` | `'projected'` computes occlusion once and every material looks it up by world position, so it works flat and in a headset. `'screen'` is Babylon's post-process, flat only |
 | `ssaoStrength` | `1` | How dark a fully occluded crease gets |
@@ -350,6 +351,19 @@ import { GridMaterial } from '@babylonjs/materials'
 import '@babylonjs/loaders'
 import { touchOrbit } from './touch-orbit.js'
 import { xrControllers, type TosiXRControllerMap } from './gamepad.js'
+import {
+  RadialHost,
+  type DpadAction,
+  type DpadDirection,
+  type RadialMenuOptions,
+} from './radial-host.js'
+import {
+  oneMotor,
+  rumbleEffect,
+  rumblePads,
+  type RumbleEffect,
+  type RumbleName,
+} from './rumble.js'
 import {
   fitPanel,
   panel3d,
@@ -892,6 +906,8 @@ export class B3d extends Component {
     scene and samples it per pixel, which is a cost a scene should choose.
     */
     ssao: 'off' as SsaoSetting,
+    /** How hard `rumble()` buzzes: 0 off, 1 as the effect says. */
+    rumbleStrength: 1,
     // How dark a fully occluded crease gets.
     ssaoStrength: 1,
     // Metres a surface looks for something occluding it.
@@ -3226,6 +3242,8 @@ export class B3d extends Component {
         }
       } else nav?.move(m.dx, m.dy)
     }
+    // A small tick in the hands for each step the focus takes.
+    if (pulse.moves.length > 0) this.rumble('tick')
     if (pulse.activate) {
       if (ui.zone === 'bar') bar.padActivate()
       else nav?.activate()
@@ -4044,6 +4062,7 @@ export class B3d extends Component {
         */
         this._updateFlatPanels()
         this._padUiTick()
+        this._radial?.tick()
         if (this.scene.activeCamera != null) this.scene.render()
       }
       return
@@ -4057,6 +4076,7 @@ export class B3d extends Component {
       this._ambientWatchdog()
       this._updateFlatPanels()
       this._padUiTick()
+      this._radial?.tick()
       if (this.update !== noop) {
         this.update(this, BABYLON)
       }
@@ -5159,6 +5179,62 @@ export class B3d extends Component {
       if (hand !== 'both' && side !== hand) continue
       void c.motionController?.pulse(strength, ms).catch(() => false)
     }
+  }
+
+  /**
+   * A buzz in the player's hands: a named effect (`'hit'`, `'shot'`, …) or
+   * `{ strong, weak, ms }`, on every gamepad that can and on the headset's
+   * controllers (`hand`). Scaled by `rumbleStrength`; a scene another demo
+   * has the input focus of stays still.
+   */
+  rumble(
+    effect: RumbleName | RumbleEffect,
+    hand: 'left' | 'right' | 'both' = 'both'
+  ): void {
+    if (!this.hasInputFocus) return
+    const e = rumbleEffect(effect, (this as any).rumbleStrength ?? 1)
+    if (e == null) return
+    rumblePads(e)
+    if (this.xrHelper) this.haptic(oneMotor(e), e.ms, hand)
+  }
+
+  private _radial: RadialHost | null = null
+  private _radialHost(): RadialHost {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const self = this
+    return (this._radial ??= new RadialHost({
+      get hasInputFocus() {
+        return self.hasInputFocus
+      },
+      get xrActive() {
+        return self.xrActive
+      },
+      present: (svg, height) => this._presentModal(svg, height, 0),
+      canvas: () => (this.parts?.canvas as HTMLCanvasElement) ?? null,
+      xrGamepads: () =>
+        (this.xrHelper?.input?.controllers ?? [])
+          .map((c: any) => c.inputSource?.gamepad as Gamepad | undefined)
+          .filter((g): g is Gamepad => g != null),
+      rumble: (name) => this.rumble(name),
+    }))
+  }
+
+  /**
+   * Give a D-pad direction (`'down'`, `'left'` or `'right'`) a quick press
+   * (`tap`) and a ring of choices on a hold (`menu`, read each time it opens,
+   * picked by pointing a stick or the mouse and letting go). While set, the
+   * game reads that button as up. Returns its undo. See [radial menu](/radial-menu/).
+   */
+  setDpad(direction: DpadDirection, action: DpadAction): () => void {
+    return this._radialHost().setDpad(direction, action)
+  }
+
+  /**
+   * Open a radial menu now: point a stick (a thumbstick in a headset) or the
+   * mouse, and a click or A picks. Returns its close.
+   */
+  openRadialMenu(options: RadialMenuOptions): () => void {
+    return this._radialHost().openMenu(options)
   }
 
   addDebugSource(source: DebugPanelSource): () => void {
@@ -9577,6 +9653,8 @@ export class B3d extends Component {
   }
   private _audioUnmute: (() => void) | null = null
   private _teardown(): void {
+    this._radial?.dispose()
+    this._radial = null
     this._offPadKeys?.()
     this._offPadKeys = null
     this.setPadUi(false)

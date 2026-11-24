@@ -1628,6 +1628,16 @@ rocky-world
   detailAmplitude  = Relief, in the planet's own units (its radius is 50 in the demos)
   sea  = { shallow, deep }
 
+## rumble
+rumble
+
+  tick  = 0  — 0.25
+  shot  = 0.3  — 0.6
+  blow  = 0.5  — 0.4
+  hit  = 0.7  — 0.5
+  landing  = 0.8  — 0.3
+  crash  = 1  — 0.8
+
 ## scatter
 scatter
 
@@ -1703,6 +1713,7 @@ b3d
   gamepadFade  = 'on'  — `'off'` keeps the glass gamepad visible instead of fading it once a key is pressed or a hardware pad is used (the pointer never fades it)
   quality  = 'auto'  — Device tier. `'auto'` follows the measured or cached device profile (and probes in the background on a first visit); `'low'`, `'medium'` or `'high'` force one. Drives the `auto` defaults of shadows, reflections, terrain and render scaling. See [[b3d-quality]]
   ssao  = 'off'  — Ambient occlusion: `'off'`, `'auto'` (follows the device tier, and stays off in a headset) or `'on'`. Off by default because it is a cost a scene should choose. See [[b3d-ssao]]
+  rumbleStrength  = 1  — How hard the player's pad or controllers buzz (`rumble()`); `0` is off. See [rumble](/rumble/)
   ssaoStrength  = 1  — How dark a fully occluded crease gets
   ssaoRadius  = 2  — Metres a surface looks for something occluding it
   ssaoMethod  = 'projected'  — `'projected'` computes occlusion once and every material looks it up by world position, so it works flat and in a headset. `'screen'` is Babylon's post-process, flat only

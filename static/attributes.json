@@ -6461,6 +6461,42 @@
     ]
   },
   {
+    "module": "rumble",
+    "summary": "rumble",
+    "attributes": [
+      {
+        "name": "tick",
+        "default": "0",
+        "description": "0.25"
+      },
+      {
+        "name": "shot",
+        "default": "0.3",
+        "description": "0.6"
+      },
+      {
+        "name": "blow",
+        "default": "0.5",
+        "description": "0.4"
+      },
+      {
+        "name": "hit",
+        "default": "0.7",
+        "description": "0.5"
+      },
+      {
+        "name": "landing",
+        "default": "0.8",
+        "description": "0.3"
+      },
+      {
+        "name": "crash",
+        "default": "1",
+        "description": "0.8"
+      }
+    ]
+  },
+  {
     "module": "scatter",
     "summary": "scatter",
     "attributes": [
@@ -6737,6 +6773,11 @@
         "name": "ssao",
         "default": "'off'",
         "description": "Ambient occlusion: `'off'`, `'auto'` (follows the device tier, and stays off in a headset) or `'on'`. Off by default because it is a cost a scene should choose. See [[b3d-ssao]]"
+      },
+      {
+        "name": "rumbleStrength",
+        "default": "1",
+        "description": "How hard the player's pad or controllers buzz (`rumble()`); `0` is off. See [rumble](/rumble/)"
       },
       {
         "name": "ssaoStrength",
