@@ -197,11 +197,16 @@ b3d-biped
   cameraMinHeight  = 0.5  — Lowest the follow camera goes above the feet, metres (looking up lowers the camera; this keeps it above ground)
   jumpSpeed  = 4.5  — Upward speed at take-off, m/s
   sneakSpeed  = 0.4  — Fraction of walking speed while sneaking
+  pace  = 'walk'  — What pushing forward does: `'walk'`, `'jog'` or `'run'`. Clicking the left stick (C on a keyboard) cycles it; the right trigger still sprints over it
   strafeSpeed  = 0.75  — Sidestep speed as a fraction of walking
   climbReach  = 2.2  — Highest ledge the character can pull itself onto, metres (see Mantling, below)
   hardLanding  = 0  — Metres of drop past which a landing is hard: the `hardLand` clip (UAL's `Roll`), standing still while it plays. Auto is 1.5 body heights. The drop is from the top of the flight, so a jump on flat ground is never hard ([fall](/fall/))
   lethalFall  = 0  — Metres of drop that kill on landing: the `death` clip (`Death01`) where you land, then a bubbling `crash` event (`detail: { cause: 'fall', drop }`) that `<tosi-b3d-death>` answers without exploding you. Off by default, since a death needs an exit. Water breaks a fall
   health  = 0  — Hit points. Above 0 the biped is a target like any destroyable: a hit plays a hit clip (`hitChest` / `hitStomach` / `hitHead` in turn, `hitKnockback` for a blast) and holds it still for the clip; at 0 it plays `death` where it stands and dispatches a bubbling `destroyed`, which `<tosi-b3d-death>` answers. `hp` reads what is left, `damage(amount, cause)` hurts it, `heal(amount)` mends it, `aimTarget` is a chest-height node for turrets and AI to track
+  meleeDamage  = 25  — What a sword stroke does to each destroyable it reaches (with a melee weapon held and gunplay off, the right trigger swings)
+  meleeReach  = 1.8  — Metres a stroke reaches
+  meleeArc  = 120  — Degrees a stroke sweeps, centred on the way you face
+  springs  = 'on'  — Run the spring chains a GLB carries (hair, a tail, rags), as the rig tool or `riggedBodyGlb` wrote them; `'off'` leaves them still
   healthRegen  = 0  — Hit points regained per second, from `healthRegenDelay` (5) seconds after the last hit
   healthRegenDelay
   wadeDepth  = 0.45  — Water depth, as a fraction of standing height, where wading becomes swimming
@@ -1471,6 +1476,7 @@ control-input
   cameraZoom  = -1..1  — Camera zoom
   lookMode  = 0..1  — Toggle (edge-detected) what the look stick's up and down do: a tank's gun, or its camera
   sneak  = 0\  — 1
+  gait  = 0\  — 1
 
 ## fabric-textures
 fabric textures

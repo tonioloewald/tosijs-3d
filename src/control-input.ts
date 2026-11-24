@@ -37,6 +37,7 @@ const input = { ...emptyInput(), forward: 1, turn: -0.5, shoot: 1 }
 | `cameraZoom` | -1..1 | Camera zoom |
 | `lookMode` | 0..1 | Toggle (edge-detected) what the look stick's up and down do: a tank's gun, or its camera |
 | `sneak` | 0\|1 | Sneak toggle |
+| `gait` | 0\|1 | Cycle the walking pace (walk, jog, run) — edge-detected; the stick then moves you at that pace |
 
 ## InputProvider
 
@@ -87,6 +88,12 @@ export interface ControlInput {
   reload: number // 0..1
   cameraZoom: number // -1..1 (negative = zoom in, positive = zoom out)
   sneak: number // 0|1
+  /**
+   * Cycle the pace pushing forward moves you at (walk, jog, run) — a
+   * press, edge-detected by whoever consumes it. Optional, so an input
+   * object written before it still type-checks.
+   */
+  gait?: number // 0..1
   view: number // 0..1 (cycle camera/view — edge-detected by consumers)
   cameraPeek: number // -1..1 (temporary look left/right; snaps back to centre)
   /**
@@ -121,6 +128,7 @@ export function emptyInput(): ControlInput {
     reload: 0,
     cameraZoom: 0,
     sneak: 0,
+    gait: 0,
     view: 0,
     cameraPeek: 0,
     lookMode: 0,
@@ -174,6 +182,7 @@ export class CompositeInputProvider implements InputProvider {
       result.weapon = Math.max(result.weapon, input.weapon)
       result.reload = Math.max(result.reload, input.reload ?? 0)
       result.sneak = Math.max(result.sneak, input.sneak)
+      result.gait = Math.max(result.gait ?? 0, input.gait ?? 0)
       result.view = Math.max(result.view, input.view)
       result.cameraPeek = maxAbs(result.cameraPeek, input.cameraPeek)
       result.lookMode = Math.max(result.lookMode, input.lookMode)

@@ -213,6 +213,7 @@ animation is doing with that hand.
 | `aimMaxYaw` | `90` | The spine's limit, degrees. Past it the body is dragged round |
 | `jumpSpeed` | `4.5` | Upward speed at take-off, m/s |
 | `sneakSpeed` | `0.4` | Fraction of walking speed while sneaking |
+| `pace` | `'walk'` | What pushing forward does: `'walk'`, `'jog'` or `'run'`. Clicking the left stick (C on a keyboard) cycles it; the right trigger still sprints over it |
 | `strafing` | `'off'` | `'on'` sidesteps with the left stick; `'off'` turns with it |
 | `strafeSpeed` | `0.75` | Sidestep speed as a fraction of walking |
 | `climbReach` | `2.2` | Highest ledge the character can pull itself onto, metres (see Mantling, below) |
@@ -391,7 +392,7 @@ import {
   type AngularTarget,
 } from './aim-assist.js'
 import { XRInputProvider } from './xr-input-provider.js'
-import { forwardGait } from './gait.js'
+import { forwardGait, nextPace, paceShare } from './gait.js'
 import { realNow } from './clock.js'
 import { FALL_START_DROP, fallRules, landingOutcome } from './fall.js'
 import {
@@ -826,6 +827,8 @@ export class B3dBiped extends B3dControllable {
 
     /** Fraction of walking speed while sneaking. */
     sneakSpeed: 0.4,
+    /** What pushing forward does: walk, jog or run (the left stick's click cycles it). */
+    pace: 'walk',
     /** Sidestep speed as a fraction of walking. Slower than forward on purpose. */
     strafeSpeed: 0.75,
     /**
@@ -2005,6 +2008,7 @@ export class B3dBiped extends B3dControllable {
     return (g.to - g.from) / fps / ratio
   }
   private _sneakWas = false
+  private _paceWas = false
   /** The stance-change clip playing (`sneakEnter`/`sneakExit`), and its seconds left. */
   private _stanceClip = ''
   private _stanceLeft = 0
@@ -3278,6 +3282,10 @@ export class B3dBiped extends B3dControllable {
         : 0
     }
     this._sneakWas = sneakDown
+    // THE PACE: a left-stick click cycles walk, jog, run (GTA VI's way).
+    const paceDown = (input.gait ?? 0) > 0.5
+    if (paceDown && !this._paceWas) attrs.pace = nextPace(attrs.pace)
+    this._paceWas = paceDown
     this._stanceLeft = Math.max(0, this._stanceLeft - dt)
     this._paceBlends(dt)
 
@@ -3306,7 +3314,9 @@ export class B3dBiped extends B3dControllable {
     const rotation = strafeIsTurn
       ? Math.max(-1, Math.min(1, (input.turn ?? 0) + (input.strafe ?? 0)))
       : input.turn
-    const sprint = this._sneaking ? 0 : input.sprint
+    const sprint = this._sneaking
+      ? 0
+      : Math.max(input.sprint, paceShare(attrs.pace))
     const sprintSpeed = speed * sprint
     const walk = this._sneaking
       ? attrs.forwardSpeed * attrs.sneakSpeed

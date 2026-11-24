@@ -88,8 +88,10 @@ describe('bipedMapping: bumpers carry the vertical verbs', () => {
     expect(bipedMapping(pad({ leftBumper: 1 }), 1 / 60).sneak).toBe(1)
   })
 
-  test('so is clicking the left stick (L3, as in GTA V)', () => {
-    expect(bipedMapping(pad({ leftStickPress: 1 }), 1 / 60).sneak).toBe(1)
+  test('clicking the left stick (L3) cycles the pace, as in GTA VI, and does not sneak', () => {
+    const input = bipedMapping(pad({ leftStickPress: 1 }), 1 / 60)
+    expect(input.gait).toBe(1)
+    expect(input.sneak).toBe(0)
   })
 
   test('clicking the right stick (R3) jumps, and does not toggle the weapon', () => {

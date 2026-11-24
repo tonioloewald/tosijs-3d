@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { forwardGait } from './gait.js'
+import { forwardGait, nextPace, paceShare } from './gait.js'
 
 describe('forwardGait', () => {
   test('walks, runs, then sprints as the speed rises', () => {
@@ -26,5 +26,20 @@ describe('forwardGait', () => {
     expect(g.state).toBe('run')
     expect(g.sprinting).toBe(false)
     expect(forwardGait(1, 1, true, false).state).toBe('run')
+  })
+})
+
+describe('paces', () => {
+  test('cycle walk, jog, run and back', () => {
+    expect(nextPace('walk')).toBe('jog')
+    expect(nextPace('jog')).toBe('run')
+    expect(nextPace('run')).toBe('walk')
+    expect(nextPace('nonsense')).toBe('walk')
+  })
+
+  test('jog runs, run sprints, at full stick', () => {
+    expect(forwardGait(1, paceShare('walk'), false, true).state).toBe('walk')
+    expect(forwardGait(1, paceShare('jog'), false, true).state).toBe('run')
+    expect(forwardGait(1, paceShare('run'), false, true).state).toBe('sprint')
   })
 })

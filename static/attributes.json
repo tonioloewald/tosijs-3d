@@ -812,6 +812,11 @@
         "description": "Fraction of walking speed while sneaking"
       },
       {
+        "name": "pace",
+        "default": "'walk'",
+        "description": "What pushing forward does: `'walk'`, `'jog'` or `'run'`. Clicking the left stick (C on a keyboard) cycles it; the right trigger still sprints over it"
+      },
+      {
         "name": "strafeSpeed",
         "default": "0.75",
         "description": "Sidestep speed as a fraction of walking"
@@ -835,6 +840,26 @@
         "name": "health",
         "default": "0",
         "description": "Hit points. Above 0 the biped is a target like any destroyable: a hit plays a hit clip (`hitChest` / `hitStomach` / `hitHead` in turn, `hitKnockback` for a blast) and holds it still for the clip; at 0 it plays `death` where it stands and dispatches a bubbling `destroyed`, which `<tosi-b3d-death>` answers. `hp` reads what is left, `damage(amount, cause)` hurts it, `heal(amount)` mends it, `aimTarget` is a chest-height node for turrets and AI to track"
+      },
+      {
+        "name": "meleeDamage",
+        "default": "25",
+        "description": "What a sword stroke does to each destroyable it reaches (with a melee weapon held and gunplay off, the right trigger swings)"
+      },
+      {
+        "name": "meleeReach",
+        "default": "1.8",
+        "description": "Metres a stroke reaches"
+      },
+      {
+        "name": "meleeArc",
+        "default": "120",
+        "description": "Degrees a stroke sweeps, centred on the way you face"
+      },
+      {
+        "name": "springs",
+        "default": "'on'",
+        "description": "Run the spring chains a GLB carries (hair, a tail, rags), as the rig tool or `riggedBodyGlb` wrote them; `'off'` leaves them still"
       },
       {
         "name": "healthRegen",
@@ -5958,6 +5983,11 @@
       },
       {
         "name": "sneak",
+        "default": "0\\",
+        "description": "1"
+      },
+      {
+        "name": "gait",
         "default": "0\\",
         "description": "1"
       }

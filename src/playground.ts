@@ -646,7 +646,7 @@ preview.append(
       // The glass pad shows only what this demo USES. These are control names,
       // not a mapping name (`gamepad: 'biped'` names nothing and draws nothing).
       // Move, aim, shoot, jump, sneak, sprint; `Y` switches first/third person.
-      // Clicking the left stick sneaks, the right one raises the weapon.
+      // Clicking the left stick cycles walk, jog and run; the right one jumps.
       gamepad:
         'left_stick,right_stick,left_stick_click,right_stick_click,A,B,X,Y,right_bumper,left_bumper,left_trigger,right_trigger',
       // Not armed on load. Right bumper (or the on-screen RB) raises and lowers
@@ -775,7 +775,8 @@ respawn at the start.
 **E** interacts, **Y** switches between third and first person. On a pad
 the actions are on the right hand: **A** attacks, **B** uses (doors, chests,
 the lift, picking up, talking; with the weapon up it ducks instead),
-clicking the **right stick** jumps, and clicking the left stick sneaks.
+clicking the **right stick** jumps, and clicking the **left stick** (or **C**)
+cycles walk, jog and run: pushing forward then moves at that pace.
 **Hold D-pad up** to reach the system bar with the pad: left and right step
 along it, **B** opens a panel, up and down cycle through its controls, left
 and right move sliders, **B** presses. Hold up in a panel to close it, and on

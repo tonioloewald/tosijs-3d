@@ -6,7 +6,24 @@ the hysteresis is testable (0.11 gate, #3422).
 running (`speed * sprint input`). The jog is the run up to near full speed;
 past it the rig's own sprint, if it has one, held until the speed drops back
 a little, so an analog trigger near the line does not flicker between them.
+
+`PACES` are what clicking the left stick cycles (GTA VI's walk, jog, run):
+the share of running pushing forward gives with no trigger held.
 */
+
+export type Pace = 'walk' | 'jog' | 'run'
+export const PACES: readonly Pace[] = ['walk', 'jog', 'run']
+
+/** The share of running a pace gives: walk none, jog half, run all. */
+export function paceShare(pace: string): number {
+  return pace === 'run' ? 1 : pace === 'jog' ? 0.5 : 0
+}
+
+/** The pace after this one (run goes back to walk). */
+export function nextPace(pace: string): Pace {
+  const i = PACES.indexOf(pace as Pace)
+  return PACES[(i + 1) % PACES.length]
+}
 
 /** Start sprinting above this share of full speed… */
 export const SPRINT_ENTER = 0.8

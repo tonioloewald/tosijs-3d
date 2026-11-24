@@ -27,6 +27,7 @@ import { keyboardGamepad } from 'tosijs-3d'
 | buttonB | F |
 | buttonX | E |
 | leftBumper | ShiftLeft |
+| leftStickPress (L3) | C (walk, jog, run) |
 | leftTrigger | Q |
 | rightTrigger | R |
 | buttonY | Y |
@@ -103,6 +104,7 @@ const DEFAULT_BUTTONS: ButtonDef[] = [
   { field: 'buttonB', keys: ['F'], attack: 5, decay: 10 },
   { field: 'buttonX', keys: ['E'], attack: 5, decay: 10 },
   { field: 'leftBumper', keys: ['ShiftLeft'], attack: 5, decay: 10 },
+  { field: 'leftStickPress', keys: ['C'], attack: 5, decay: 10 },
   { field: 'leftTrigger', keys: ['Q'], attack: 5, decay: 10 },
   { field: 'rightTrigger', keys: ['R'], attack: 5, decay: 10 },
   { field: 'buttonY', keys: ['Y'], attack: 5, decay: 10 },

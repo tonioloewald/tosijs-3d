@@ -571,12 +571,14 @@ export function bipedMapping(
   jump on the left controller in VR"), and A and B are taken by attack and use.
   */
   input.jump = pad.rightStickPress
-  // Clicking the left stick sneaks too, as L3 does in GTA V; B ducks in combat.
-  input.sneak = Math.max(
-    pad.leftBumper,
-    pad.leftStickPress,
-    gunplay ? pad.buttonB : 0
-  )
+  /*
+  CLICKING THE LEFT STICK CYCLES THE PACE: walk, jog, run, as GTA VI does.
+  It locks nothing in: pushing forward moves you at that pace, and the right
+  trigger still sprints over it. It used to sneak, as L3 does in GTA V; the
+  left bumper still does. B ducks in combat.
+  */
+  input.gait = pad.leftStickPress
+  input.sneak = Math.max(pad.leftBumper, gunplay ? pad.buttonB : 0)
   // Camera toggle: glass-gamepad view button, or Y (reachable on a controller).
   input.view = Math.max(pad.view, pad.buttonY)
   return input
@@ -604,7 +606,7 @@ export const bipedMappingDescriptor: InputMappingDescriptor = {
     rightStickPress: 'jump',
     buttonA: 'attack',
     leftBumper: 'sneak',
-    leftStickPress: 'sneak',
+    leftStickPress: 'walk / jog / run',
     // The trigger's label is mode-dependent and a descriptor is not, so it
     // names both rather than picking the half that happens to be true now.
     rightTrigger: 'sprint / fire',

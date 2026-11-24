@@ -24,6 +24,7 @@ For standalone keyboard-only or hardware-only sources, see
 | buttonB | F, right mouse button |
 | buttonX | E |
 | leftBumper | ShiftLeft |
+| leftStickPress (L3) | C (walk, jog, run) |
 | rightBumper | ShiftRight, middle mouse button |
 | leftTrigger | Q |
 | rightTrigger | R |
@@ -143,6 +144,7 @@ const DEFAULT_BUTTONS: ButtonDef[] = [
   { field: 'buttonB', keys: ['F', 'Mouse2'], attack: 5, decay: 10 },
   { field: 'buttonX', keys: ['E'], attack: 5, decay: 10 },
   { field: 'leftBumper', keys: ['ShiftLeft'], attack: 5, decay: 10 },
+  { field: 'leftStickPress', keys: ['C'], attack: 5, decay: 10 },
   {
     field: 'rightBumper',
     keys: ['ShiftRight', 'Mouse1'],
