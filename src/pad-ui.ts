@@ -19,6 +19,11 @@ Mark the default with `button3d({ label: 'OK', default: true })`, or any
 widget with `asDefault(widget)`. A popup opened inside the panel (a select's
 list, a confirm) takes the focus the same way and gives it back when it closes.
 
+A control can offer a ring of choices for a press and HOLD (`menu()` in its
+semantics): `<tosi-b3d>` opens it as a [radial menu](/radial-menu/) when B is
+held on it, picked with the right stick. A thing in the inventory offers the
+places it can go.
+
 A control can also hear that it gained or lost the focus (`focus(on)` in its
 semantics), to show what a hover would: a thing's info, whether a carried thing
 fits a slot. When the focused control leaves the list (a thing taken across in

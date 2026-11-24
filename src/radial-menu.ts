@@ -62,8 +62,8 @@ button { margin: 4px 8px; align-self: start; }
 ```
 
 Tap the D-pad right (K on a keyboard) and the box takes the next colour.
-Hold it and the ring opens: point a stick (or the mouse) at a slice and let
-go to paint it. Let go without pointing and nothing changes. So one button
+Hold it and the ring opens: point the right stick (or the mouse) at a slice
+and let go to paint it. Let go without pointing and nothing changes. So one button
 does its everyday job on a tap and offers the menu on a hold, as GTA VI does
 with its D-pad. The button opens the same ring from code: point and click.
 
@@ -75,13 +75,23 @@ a ring: `menu()` is read each time it opens, so it lists what is true now.
 It returns its undo. While a direction has one, a game does not see that
 button (a biped's reload on the left stops, for instance).
 
-`b3d.openRadialMenu({ title, items, handleSelect, value })` opens one from
-code: a stick or the mouse points, a click or a press of A or B picks, and
-moving the mouse back to the middle and clicking cancels. It returns its close.
-In a headset it hangs ahead of you, and a thumbstick points.
+Any button can do the same: `b3d.holdMenu('leftBumper', { tap, menu, key,
+handleSelect })` is GTA V's weapon wheel (`key` is a keyboard key that does
+the same, a `KeyboardEvent.code`).
 
-While a ring is open it owns both sticks, so the character stands still
-rather than walking off in the direction you are pointing.
+`b3d.openRadialMenu({ title, items, handleSelect })` opens one from code: the
+right stick or the mouse points, a click or a press of A or B picks, and
+moving the mouse back to the middle and clicking cancels. It returns its close.
+In a headset it hangs ahead of you, and the right thumbstick points.
+
+The ring is always picked with the RIGHT stick, so the left stick keeps
+moving you while you choose.
+
+**In a panel**, a control can offer a ring for a press and hold
+(`menu()` in its semantics): holding B on it with the pad opens the ring, the
+right stick points, letting go picks; a quick press still presses it. The
+[inventory](/inventory-box/) does this: hold B on a thing and the ring is the
+places it can go.
 
 An item is `{ label, icon?, disabled?, checked? }` (any other fields are
 yours: `handleSelect` gets the item back). `icon` is an icon name. Up to

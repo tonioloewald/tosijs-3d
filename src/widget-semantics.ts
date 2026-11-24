@@ -149,7 +149,19 @@ export interface ControlNode {
    * thing fits a slot.
    */
   focus?(on: boolean): void
+  /**
+   * What a press and HOLD offers, as a radial menu (a thing's places to go,
+   * say): read when the hold fires. A quick press still `activate`s.
+   */
+  menu?(): ControlMenu | null
   children?: ControlNode[]
+}
+
+/** A control's radial menu: its choices and what picking one does. */
+export interface ControlMenu {
+  title?: string
+  items: { label: string; icon?: string; disabled?: boolean; checked?: boolean }[]
+  handleSelect(index: number): void
 }
 
 const CONTAINERS = new Set<WidgetRole>(['group', 'toolbar', 'list', 'popup'])

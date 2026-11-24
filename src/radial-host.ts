@@ -37,12 +37,23 @@ export interface DpadAction {
   handleSelect?: (item: RadialItem, index: number) => void
 }
 
+export interface HoldAction extends DpadAction {
+  /** A keyboard key (a `KeyboardEvent.code`) that does the same. */
+  key?: string
+}
+
 export interface RadialMenuOptions {
   items: RadialItem[]
   title?: string
   handleSelect?: (item: RadialItem, index: number) => void
   /** Told when it closes, picked or not. */
   handleClose?: () => void
+}
+
+/** What holds a ring open: letting go of it picks. */
+export interface RadialHold {
+  button?: keyof VirtualGamepad
+  key?: string
 }
 
 /** What the host needs from its scene. */
@@ -53,7 +64,7 @@ export interface RadialScene {
   present(svg: SVGSVGElement, height: number): (() => void) | null
   /** The canvas (pointer picking, flat). */
   canvas(): HTMLCanvasElement | null
-  /** The headset's controllers' gamepads, if any. */
+  /** The headset's RIGHT controller's gamepad, if any. */
   xrGamepads(): Gamepad[]
   rumble(name: 'tick'): void
 }
@@ -63,15 +74,17 @@ const PAD_KEY: Record<DpadDirection, keyof VirtualGamepad> = {
   left: 'dpadLeft',
   right: 'dpadRight',
 }
-const KEY_DIR: Record<string, DpadDirection> = {
-  KeyM: 'down',
-  KeyJ: 'left',
-  KeyK: 'right',
+const DIR_KEY: Record<DpadDirection, string> = {
+  down: 'KeyM',
+  left: 'KeyJ',
+  right: 'KeyK',
 }
-/** What an open ring holds: both sticks and the buttons that pick or cancel. */
+/*
+WHAT AN OPEN RING HOLDS: the RIGHT stick, which points, and the buttons that
+pick. The left stick stays the player's, so you can keep walking while you
+choose.
+*/
 const OPEN_OWNS: (keyof VirtualGamepad)[] = [
-  'leftStickX',
-  'leftStickY',
   'rightStickX',
   'rightStickY',
   'buttonA',
@@ -82,26 +95,44 @@ interface Open {
   svg: RadialMenuSvg
   close: (() => void) | null
   opts: RadialMenuOptions
-  /** Held open by this D-pad direction (let go to pick), or null (click or A to pick). */
-  heldBy: DpadDirection | null
+  /** What holds it open (let go to pick), or null (a click or A picks). */
+  heldBy: RadialHold | null
   /** A and B must be let go of before they pick (the press that opened it). */
   armed: boolean
 }
 
+interface Hold {
+  button: keyof VirtualGamepad
+  action: HoldAction
+  press: PressState
+}
+
 export class RadialHost {
-  private actions = new Map<DpadDirection, DpadAction>()
-  private presses: Record<DpadDirection, PressState> = {
-    down: pressState(),
-    left: pressState(),
-    right: pressState(),
-  }
-  private keys = new Set<DpadDirection>()
+  private holds: Hold[] = []
+  private keys = new Set<string>()
   private src: HardwareGamepadSource | null = null
   private open: Open | null = null
   private pointer: { x: number; y: number } | null = null
   private offWindow: (() => void) | null = null
 
   constructor(private scene: RadialScene) {}
+
+  /**
+   * Give `button` a tap and, on a hold, a ring (`menu`). While set, the game
+   * reads the button as up. Returns its undo.
+   */
+  setHold(button: keyof VirtualGamepad, action: HoldAction): () => void {
+    this.holds = this.holds.filter((h) => h.button !== button)
+    const hold: Hold = { button, action, press: pressState() }
+    this.holds.push(hold)
+    padMenuOwns.add(button)
+    this.listen()
+    return () => {
+      if (!this.holds.includes(hold)) return
+      this.holds = this.holds.filter((h) => h !== hold)
+      padMenuOwns.delete(button)
+    }
+  }
 
   setDpad(dir: DpadDirection, action: DpadAction): () => void {
     if (!(dir in PAD_KEY)) {
@@ -110,17 +141,10 @@ export class RadialHost {
       )
       return () => {}
     }
-    this.actions.set(dir, action)
-    padMenuOwns.add(PAD_KEY[dir])
-    this.listen()
-    return () => {
-      if (this.actions.get(dir) !== action) return
-      this.actions.delete(dir)
-      padMenuOwns.delete(PAD_KEY[dir])
-    }
+    return this.setHold(PAD_KEY[dir], { key: DIR_KEY[dir], ...action })
   }
 
-  openMenu(opts: RadialMenuOptions, heldBy: DpadDirection | null = null) {
+  openMenu(opts: RadialMenuOptions, heldBy: RadialHold | null = null) {
     this.close()
     if (opts.items.length === 0) return () => {}
     this.listen()
@@ -140,13 +164,19 @@ export class RadialHost {
     }
   }
 
-  /** Close the ring without picking. */
+  /** Is a ring open? */
+  get isOpen(): boolean {
+    return this.open != null
+  }
+
+  /** Close the ring, picking item `pick` (-1: nothing). */
   close(pick = -1): void {
     const open = this.open
     if (open == null) return
     this.open = null
     open.close?.()
-    for (const k of OPEN_OWNS) padMenuOwns.delete(k)
+    for (const k of OPEN_OWNS)
+      if (!this.holds.some((h) => h.button === k)) padMenuOwns.delete(k)
     const item = open.opts.items[pick]
     if (item != null && !item.disabled) open.opts.handleSelect?.(item, pick)
     open.opts.handleClose?.()
@@ -157,12 +187,17 @@ export class RadialHost {
     if (!this.scene.hasInputFocus) return
     const pad = this.readPad()
     const now = realNow()
+    const isDown = (h: RadialHold) =>
+      (h.button != null && (pad?.[h.button] ?? 0) > 0.5) ||
+      (h.key != null && this.keys.has(h.key))
     if (!this.scene.xrActive)
-      for (const dir of Object.keys(PAD_KEY) as DpadDirection[]) {
-        const action = this.actions.get(dir)
-        const down = (pad?.[PAD_KEY[dir]] ?? 0) > 0.5 || this.keys.has(dir)
-        const ev = pressStep(this.presses[dir], down, now)
-        if (action == null) continue
+      for (const hold of this.holds) {
+        const { action } = hold
+        const ev = pressStep(
+          hold.press,
+          isDown({ button: hold.button, key: action.key }),
+          now
+        )
         if (ev === 'tap') action.tap?.()
         else if (ev === 'hold') {
           const items = action.menu?.() ?? []
@@ -174,21 +209,21 @@ export class RadialHost {
                 title: action.title,
                 handleSelect: action.handleSelect,
               },
-              dir
+              { button: hold.button, key: action.key }
             )
-        } else if (ev === 'release' && this.open?.heldBy === dir)
-          this.close(this.open.svg.lit)
+        }
       }
     const open = this.open
     if (open == null) return
+    // Let go of what held it open: pick what is lit.
+    if (open.heldBy != null && !isDown(open.heldBy))
+      return this.close(open.svg.lit)
     const n = open.opts.items.length
-    // The stick pushed furthest points; else the mouse, from the middle.
+    // The right stick points (the right thumbstick in a headset); else the
+    // mouse, from the middle.
     let pick = -1
-    const sticks = this.sticks(pad)
-    const best = sticks.sort(
-      (a, b) => Math.hypot(b.x, b.y) - Math.hypot(a.x, a.y)
-    )[0]
-    if (best != null) pick = radialPick(best, n, { deadzone: 0.5 })
+    const stick = this.stick(pad)
+    if (stick != null) pick = radialPick(stick, n, { deadzone: 0.5 })
     if (pick < 0 && this.pointer != null)
       pick = radialPick(this.pointer, n, { deadzone: 30 })
     // At rest the last pointed-at slice stays lit (a stick springs back).
@@ -196,16 +231,17 @@ export class RadialHost {
       open.svg.highlight(pick)
       if (open.svg.lit === pick) this.scene.rumble('tick')
     }
-    // A or B: pick (not when held open by the D-pad: letting go picks there).
+    // A or B picks when nothing holds it open.
+    if (open.heldBy != null) return
     const press = Math.max(pad?.buttonA ?? 0, pad?.buttonB ?? 0) > 0.5
     if (!press) open.armed = true
-    else if (open.armed && open.heldBy == null) this.close(open.svg.lit)
+    else if (open.armed) this.close(open.svg.lit)
   }
 
   dispose(): void {
     this.close()
-    for (const dir of this.actions.keys()) padMenuOwns.delete(PAD_KEY[dir])
-    this.actions.clear()
+    for (const h of this.holds) padMenuOwns.delete(h.button)
+    this.holds = []
     this.offWindow?.()
     this.offWindow = null
   }
@@ -216,21 +252,16 @@ export class RadialHost {
     return this.src.poll(true)
   }
 
-  /** Each stick as a screen direction (+y down). */
-  private sticks(pad: VirtualGamepad | null): { x: number; y: number }[] {
-    const out: { x: number; y: number }[] = []
-    if (pad != null) {
-      out.push({ x: pad.leftStickX, y: -pad.leftStickY })
-      out.push({ x: pad.rightStickX, y: -pad.rightStickY })
-    }
+  /** The pointing stick as a screen direction (+y down), the one pushed furthest. */
+  private stick(pad: VirtualGamepad | null): { x: number; y: number } | null {
+    const all: { x: number; y: number }[] = []
+    if (pad != null) all.push({ x: pad.rightStickX, y: -pad.rightStickY })
     if (this.scene.xrActive)
-      for (const gp of this.scene.xrGamepads()) {
+      for (const gp of this.scene.xrGamepads())
         // xr-standard: the thumbstick is axes 2 and 3 (+y is down already).
-        const x = gp.axes[2] ?? 0
-        const y = gp.axes[3] ?? 0
-        out.push({ x, y })
-      }
-    return out
+        all.push({ x: gp.axes[2] ?? 0, y: gp.axes[3] ?? 0 })
+    all.sort((a, b) => Math.hypot(b.x, b.y) - Math.hypot(a.x, a.y))
+    return all[0] ?? null
   }
 
   private listen(): void {
@@ -243,15 +274,10 @@ export class RadialHost {
       )
     }
     const down = (e: KeyboardEvent) => {
-      const dir = KEY_DIR[e.code]
-      if (dir == null || typing(e) || !this.actions.has(dir)) return
-      if (!this.scene.hasInputFocus) return
-      this.keys.add(dir)
+      if (typing(e) || !this.scene.hasInputFocus) return
+      if (this.holds.some((h) => h.action.key === e.code)) this.keys.add(e.code)
     }
-    const up = (e: KeyboardEvent) => {
-      const dir = KEY_DIR[e.code]
-      if (dir != null) this.keys.delete(dir)
-    }
+    const up = (e: KeyboardEvent) => this.keys.delete(e.code)
     const move = (e: PointerEvent) => {
       if (this.open == null) return
       const c = this.scene.canvas()

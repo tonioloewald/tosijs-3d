@@ -351,10 +351,13 @@ import { GridMaterial } from '@babylonjs/materials'
 import '@babylonjs/loaders'
 import { touchOrbit } from './touch-orbit.js'
 import { xrControllers, type TosiXRControllerMap } from './gamepad.js'
+import { pressState, pressStep } from './radial-layout.js'
+import type { VirtualGamepad } from './virtual-gamepad.js'
 import {
   RadialHost,
   type DpadAction,
   type DpadDirection,
+  type HoldAction,
   type RadialMenuOptions,
 } from './radial-host.js'
 import {
@@ -2988,6 +2991,8 @@ export class B3d extends Component {
   })
   private _padUpSince = -1
   private _padUpFired = false
+  /** B's tap or hold, on a control that has a menu. */
+  private _padHold = pressState()
   private _padRing: SVGRectElement | null = null
   /** The pad, not the mouse or keys, was the last thing used. */
   private _padLastUsed = false
@@ -3244,9 +3249,32 @@ export class B3d extends Component {
     }
     // A small tick in the hands for each step the focus takes.
     if (pulse.moves.length > 0) this.rumble('tick')
-    if (pulse.activate) {
+    /*
+    B PRESSES, AND HOLDING IT ON A CONTROL WITH A MENU OPENS THE RING (a
+    thing's places to go): the right stick points, letting go picks. On such
+    a control a quick press acts on release, since a press cannot know yet
+    whether it is a hold; everywhere else it acts at once.
+    */
+    const focused = ui.zone === 'panel' ? nav?.focused : null
+    const ev = pressStep(this._padHold, pad.buttonB > 0.5, now)
+    if (pulse.activate && focused?.menu == null) {
       if (ui.zone === 'bar') bar.padActivate()
       else nav?.activate()
+    } else if (focused?.menu != null) {
+      if (ev === 'tap') nav?.activate()
+      else if (ev === 'hold') {
+        const m = focused.menu()
+        if (m == null || m.items.length === 0) nav?.activate()
+        else
+          this._radialHost().openMenu(
+            {
+              title: m.title,
+              items: m.items,
+              handleSelect: (_item, i) => m.handleSelect(i),
+            },
+            { button: 'buttonB' }
+          )
+      }
     }
   }
   private _sceneBarButtons: HTMLButtonElement[] = []
@@ -5213,6 +5241,7 @@ export class B3d extends Component {
       canvas: () => (this.parts?.canvas as HTMLCanvasElement) ?? null,
       xrGamepads: () =>
         (this.xrHelper?.input?.controllers ?? [])
+          .filter((c: any) => c.inputSource?.handedness === 'right')
           .map((c: any) => c.inputSource?.gamepad as Gamepad | undefined)
           .filter((g): g is Gamepad => g != null),
       rumble: (name) => this.rumble(name),
@@ -5227,6 +5256,15 @@ export class B3d extends Component {
    */
   setDpad(direction: DpadDirection, action: DpadAction): () => void {
     return this._radialHost().setDpad(direction, action)
+  }
+
+  /**
+   * Give any pad button a tap and a ring of choices on a hold, as `setDpad`
+   * does for the D-pad (`key`: a keyboard key that does the same). GTA V's
+   * weapon wheel is `holdMenu('leftBumper', …)`. Returns its undo.
+   */
+  holdMenu(button: keyof VirtualGamepad, action: HoldAction): () => void {
+    return this._radialHost().setHold(button, action)
   }
 
   /**

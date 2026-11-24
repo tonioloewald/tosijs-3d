@@ -505,7 +505,27 @@ export interface InventoryPanel {
    * what is carried fits.
    */
   controls: () => InventoryControl[]
+  /** The places in this panel `item` can go now, each with its move. */
+  places: (item: string) => InventoryPlace[]
   dispose: () => void
+}
+
+/** A place a thing can go (a press and hold's ring), and moving it there. */
+export interface InventoryPlace {
+  label: string
+  go: () => void
+}
+
+/** A thing's ring of places, from every panel it can reach. */
+function placesMenu(
+  title: string,
+  places: InventoryPlace[]
+): NonNullable<ReturnType<NonNullable<ControlNode['menu']>>> {
+  return {
+    title,
+    items: places.map((p) => ({ label: p.label })),
+    handleSelect: (i) => places[i]?.go(),
+  }
 }
 
 /** A control in an inventory panel: a thing (`item`) or a place it can go. */
@@ -1187,8 +1207,33 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
           else if (padPath === p.path) padPath = null
           padFocus()
         },
+        // Held, a thing offers the places it can go, as a radial menu.
+        menu:
+          p.item != null && held == null
+            ? () => placesMenu(nameOf(p.item!), placesFor(p.item!))
+            : undefined,
       }
     })
+  }
+  /** The places `item` can go now, and moving it there. */
+  const placesFor = (item: string): InventoryPlace[] => {
+    const where = inv.where(item)
+    const home =
+      where != null
+        ? `${holder}/${where.container}${where.slot != null ? '/' + where.slot : ''}`
+        : ''
+    const from = where != null ? enc(where as Place) : null
+    const seen = new Set<string>()
+    const out: InventoryPlace[] = []
+    for (const p of pads) {
+      if (p.item != null || p.path === home) continue
+      const t =
+        (p.child as { carryTarget?: CarryTarget<string> }).carryTarget ?? p.into
+      if (t == null || seen.has(t.id) || t.accepts(item, from).length) continue
+      seen.add(t.id)
+      out.push({ label: p.name, go: () => void t.receive(item, from) })
+    }
+    return out
   }
   ;(host as unknown as { controls: typeof controls }).controls = controls
 
@@ -1230,6 +1275,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
       panel?.handlePointer(kind, x, y)
     },
     controls,
+    places: placesFor,
     dispose() {
       stop()
       stopGlow()
@@ -1523,9 +1569,28 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
       ]
     const shift = (n: InventoryControl, dx: number): InventoryControl =>
       n.box ? { ...n, box: { ...n.box, x: n.box.x + dx } } : n
+    // A thing's ring lists the places in both halves (worn and carried).
+    const both = (n: InventoryControl): InventoryControl =>
+      n.item != null && n.menu != null
+        ? {
+            ...n,
+            menu: () => {
+              const own = n.menu!()
+              const all = [
+                ...main.places(n.item!),
+                ...(list ? list.places(n.item!) : []),
+              ]
+              // Drop goes last, whichever half drew it.
+              all.sort(
+                (a, b) => Number(a.label === 'drop') - Number(b.label === 'drop')
+              )
+              return own ? { ...own, ...placesMenu(own.title ?? '', all) } : null
+            },
+          }
+        : n
     return [
-      ...main.controls(),
-      ...(list ? list.controls().map((n) => shift(n, W + GAP)) : []),
+      ...main.controls().map(both),
+      ...(list ? list.controls().map((n) => both(shift(n, W + GAP))) : []),
       ...(framed
         ? []
         : [

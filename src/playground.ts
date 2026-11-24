@@ -752,11 +752,11 @@ swings it (`Sword_Attack`, played through; held, it swings again). Press the
 bumper again to put away what is in your hand. Only the right hand is drawn.
 
 **The D-pad.** Tap **right** (**K**) to take the next weapon you carry into
-your hand; hold it and the weapon wheel opens: point a stick (or the mouse) at
-one and let go. Tap **down** (**M**) to open the loadout, and move things
-with the D-pad instead of dragging: up and down step through what you carry
-and where it can go, **B** picks a thing up, step to where it should go and
-**B** again puts it there (a place it cannot go says why). Hold **up** to
+your hand; hold it and the weapon wheel opens: point the right stick (or the
+mouse) at one and let go. Tap **down** (**M**) to open the loadout. There,
+step to a thing with the D-pad and **hold B**: a ring of the places it can
+go opens; point the right stick at one and let go, and it goes there. (A
+quick **B** picks it up instead, to put down with another.) Hold **up** to
 close it.
 
 **Ammo.** A gun holds a magazine (the pistol 12, the SMG and rifle 30, the
