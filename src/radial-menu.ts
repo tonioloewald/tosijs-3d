@@ -135,6 +135,38 @@ function wedge(from: number, to: number): string {
   )
 }
 
+/** A label in a slice: one line, or two split at the middle space. */
+function labelText(label: string, cx: number, cy: number, ink: string) {
+  const { text, tspan } = svgElements
+  const words = label.split(' ')
+  let lines = [label]
+  if (label.length > 8 && words.length > 1) {
+    let best = 1
+    for (let k = 1; k < words.length; k++) {
+      const a = words.slice(0, k).join(' ').length
+      const b = words.slice(k).join(' ').length
+      const was = Math.abs(
+        words.slice(0, best).join(' ').length -
+          words.slice(best).join(' ').length
+      )
+      if (Math.abs(a - b) < was) best = k
+    }
+    lines = [words.slice(0, best).join(' '), words.slice(best).join(' ')]
+  }
+  const size = Math.max(...lines.map((l) => l.length)) > 9 ? 17 : 21
+  const top = cy - ((lines.length - 1) * size * 1.1) / 2 + size * 0.35
+  return text(
+    {
+      'text-anchor': 'middle',
+      'font-size': size,
+      'font-family': w3dTheme.fontFamily,
+      'font-weight': w3dTheme.headingWeight,
+      fill: ink,
+    },
+    ...lines.map((l, i) => tspan({ x: cx, y: top + i * size * 1.1 }, l))
+  )
+}
+
 /**
  * A radial menu as an SVG: a ring of slices with each item's icon (or the
  * start of its label), the lit one's label and the title in the middle.
@@ -172,18 +204,7 @@ export function radialMenuSvg(
           x: cx - 20,
           y: cy - 20,
         }) as unknown as SVGElement)
-      : (text(
-          {
-            x: cx,
-            y: cy + 9,
-            'text-anchor': 'middle',
-            'font-size': 26,
-            'font-family': theme.fontFamily,
-            'font-weight': theme.headingWeight,
-            fill: ink,
-          },
-          item.label.slice(0, 6)
-        ) as unknown as SVGElement)
+      : (labelText(item.label, cx, cy, ink) as unknown as SVGElement)
     inks.push(mark)
     ring.append(mark)
     if (item.checked)

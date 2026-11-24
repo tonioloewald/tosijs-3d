@@ -487,6 +487,35 @@ const hold = (h) => {
 wire(hero)
 loadout.inv.subscribe(() => hold(hero))
 
+// THE D-PAD, as GTA VI uses it: a tap does the everyday thing, a hold opens a
+// ring you point at. Right: a tap takes the next weapon you carry into your
+// hand, a hold opens the weapon wheel. Down: the loadout.
+const carried = () => {
+  const seen = new Set()
+  return heroItems().filter((i) => {
+    if (!WEAPONS[i.kind]?.tags.includes('hand') || seen.has(i.kind)) return false
+    seen.add(i.kind)
+    return true
+  })
+}
+const takeUp = (id) => {
+  const held = inRight()
+  if (id === held) return
+  // Nothing: put away what is in hand (the weapon button's own way).
+  if (id == null) return hero.whenWeapon?.()
+  const why = loadout.inv.check({ item: id, to: body('hand_right'), swap: true })
+  if (why.length) return say(why[0])
+  loadout.inv.move({ item: id, to: body('hand_right'), swap: true })
+}
+const wheel = () => [
+  { label: 'Unarmed', id: null, checked: !inRight() },
+  ...carried().map((i) => ({ label: i.kind, id: i.id, checked: i.id === inRight() })),
+]
+const nextWeapon = () => {
+  const ids = [null, ...carried().map((i) => i.id)]
+  takeUp(ids[(ids.indexOf(inRight() ?? null) + 1) % ids.length])
+}
+
 // The characters saved in this browser, and swapping the hero for one. The
 // figure open in the character builder is one of them, under its own label.
 const store = characterStore()
@@ -627,6 +656,13 @@ preview.append(
         babylon = b
         // For the console: the inventory (move things, read the purse).
         el.inventory = loadout.inv
+        el.setDpad('right', {
+          title: 'Weapon',
+          tap: nextWeapon,
+          menu: wheel,
+          handleSelect: (item) => takeUp(item.id),
+        })
+        el.setDpad('down', { tap: () => loadout.panels()[0].toggle() })
         studioEnvironment(el.scene, { sky: '#7d9cc4', horizon: '#e8e4da', ground: '#55604a' })
         el.scene.onBeforeRenderObservable.add(() => {
           wearGear(hero)
@@ -648,7 +684,7 @@ preview.append(
       // Move, aim, shoot, jump, sneak, sprint; `Y` switches first/third person.
       // Clicking the left stick cycles walk, jog and run; the right one jumps.
       gamepad:
-        'left_stick,right_stick,left_stick_click,right_stick_click,A,B,X,Y,right_bumper,left_bumper,left_trigger,right_trigger',
+        'left_stick,right_stick,left_stick_click,right_stick_click,A,B,X,Y,right_bumper,left_bumper,left_trigger,right_trigger,dpad',
       // Not armed on load. Right bumper (or the on-screen RB) raises and lowers
       // the weapon.
       scenePanel: (host) => {
@@ -714,6 +750,14 @@ Each gun fires its own way (the SMG fast, the rocket launcher slow and heavy).
 A blade, the spear or the buckler takes a guard (UAL's `Sword_Idle`) and **R**
 swings it (`Sword_Attack`, played through; held, it swings again). Press the
 bumper again to put away what is in your hand. Only the right hand is drawn.
+
+**The D-pad.** Tap **right** (**K**) to take the next weapon you carry into
+your hand; hold it and the weapon wheel opens: point a stick (or the mouse) at
+one and let go. Tap **down** (**M**) to open the loadout, and move things
+with the D-pad instead of dragging: up and down step through what you carry
+and where it can go, **B** picks a thing up, step to where it should go and
+**B** again puts it there (a place it cannot go says why). Hold **up** to
+close it.
 
 **Ammo.** A gun holds a magazine (the pistol 12, the SMG and rifle 30, the
 rocket launcher one) and reloads from what is in your bag: **J** (d-pad
