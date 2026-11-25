@@ -441,10 +441,12 @@ export function keyLayout(mode: KeyboardMode, shift = false): KeyDef[][] {
     letters('asdfghjkl'),
     [SHIFT, ...letters('zxcvbnm'), BACK],
   ]
+  // A full stop beside the spacebar, as on a phone; hold it for punctuation.
+  const STOP: KeyDef = { label: '.', value: '.' }
   if (mode === 'alphanumeric') {
-    return [row('1234567890'), ...alphaRows, [toSymbols, SPACE, ENTER]]
+    return [row('1234567890'), ...alphaRows, [toSymbols, SPACE, STOP, ENTER]]
   }
-  return [...alphaRows, [toSymbols, SPACE, ENTER]]
+  return [...alphaRows, [toSymbols, SPACE, STOP, ENTER]]
 }
 
 /**
@@ -462,6 +464,8 @@ const ACCENTS: Record<string, string> = {
   u: 'ùúûü',
   y: 'ÿý',
   z: 'žź',
+  // Holding the full stop: common punctuation.
+  '.': ',?!\'":;-…',
 }
 
 /** The long-press alternatives for a key, or `[]` if it has none. */

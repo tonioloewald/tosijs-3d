@@ -117,9 +117,11 @@ goes" are different facts, so the receiver stays lit even while you tap keys.
 
 Tap the keys. `?123` switches to symbols, `⇧` shifts.
 
-**Hold `o`** (or `a e i n s u y z c`) for the accents. Two ways to take one, because
-touch and pointer want different things: **slide onto it and release**, or **lift your
-finger**, and the strip stays up so you can tap the one you want.
+**Hold `o`** (or `a e i n s u y z c`) for the accents, and **hold `.`** for
+punctuation (`, ? ! ' " : ; - …`): they open as a ring round the key. Two ways to
+take one, because touch and pointer want different things: **slide toward it and
+release** (the direction picks, however far you go), or **lift your finger**, and the
+ring stays up so you can tap the one you want. Tapping the key itself types it plain.
 
 **Hold the spacebar and slide** to drag the caret through the text. The drag continues
 outside the key and outside the keyboard entirely (as iOS does), because a
@@ -230,13 +232,16 @@ gamepadFocus({ poll: () => pad.poll(), target: panel, claim: wrap })
 
 ## Long-press for accents
 
-Holding a letter that has alternatives (`a c e i n o s u y z`) pops them up; **slide
-onto one and release** to insert it, or release on the key itself for the plain
-character. The whole press is one gesture, the phone convention.
+Holding a key that has alternatives (`a c e i n o s u y z`, and `.` for
+punctuation) opens them as a [radial menu](/radial-menu/) round the key; **slide
+toward one and release** to insert it. A slide counts once it has left the key, and
+then only its direction matters, so it is a flick, not an aim. Near the board's edge
+the ring moves in to stay inside it. The whole press is one gesture, the phone
+convention.
 
-That gesture is why `BoxChild.handlePointer` **captures**: the popup opens *above* the
-key, so by the time you have slid onto `ö` the pointer is far outside the key's own
-rect, and a hit-test-per-event model would lose the gesture at the first move.
+That gesture is why `BoxChild.handlePointer` **captures**: by the time you have slid
+toward `ö` the pointer is outside the key's own rect, and a hit-test-per-event model
+would lose the gesture at the first move.
 
 ## Layouts
 
@@ -416,6 +421,24 @@ import { iconGlyph } from './svg-icons.js'
 import { handlerOf } from './handler-of.js'
 import { formatColor, parseColor } from './color.js'
 import { w3dTheme } from './w3d-theme.js'
+import {
+  radialMenuSvg,
+  RADIAL_HUB,
+  RADIAL_SIZE,
+  type RadialItem,
+  type RadialMenuSvg,
+} from './radial-menu.js'
+import { radialPick } from './radial-layout.js'
+
+/** The accent ring on show: its drawing and where it is (keyboard units). */
+interface AccentRing {
+  svg: RadialMenuSvg
+  cx: number
+  cy: number
+  hub: number
+  out: number
+  items: RadialItem[]
+}
 
 const { g, rect, text } = svgElements
 
@@ -1856,7 +1879,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
   let sticky: {
     rect: KeyRect
     accents: string[]
-    cells: SVGRectElement[]
+    ring: AccentRing | null
   } | null = null
 
   /** Live spacebar-as-trackpad gesture: where it last was, and sub-step travel. */
@@ -1919,7 +1942,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
     timer: ReturnType<typeof setTimeout> | null
     accents: string[]
     pick: number
-    cells: SVGRectElement[]
+    ring: AccentRing | null
     /** The hold engaged caps lock, so the release must not also fire the key. */
     caps: boolean
   } | null = null
@@ -2016,108 +2039,76 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
     popupLayer.replaceChildren()
     if (press) {
       press.accents = []
-      press.cells = []
+      press.ring = null
     }
   }
 
-  /** Open the accent popup above the held key. */
+  /*
+  THE ACCENTS ARE A RING round the held key (a radial menu, drawn small):
+  slide toward one and let go, or lift and tap it. Direction is what picks,
+  so a slide anywhere that way takes it; the ring's middle is the key itself
+  (a tap there types the plain character). The ring stays INSIDE the
+  keyboard's own rect: the host routes pointers by child rect, so a popup
+  poking over the text field above fed its taps to the field. Near an edge
+  its centre moves in; the middle then sits beside the key, not on it.
+  */
   const openPopup = (r: KeyRect, accents: string[]): void => {
-    const CW = 32
-    const CH = 36
-    const w = accents.length * CW + 8
-    // Keep it on-surface: centre over the key, then clamp into the keyboard width.
-    let x = r.x + r.width / 2 - w / 2
-    x = Math.max(0, Math.min(width - w, x))
-    /*
-    The strip must stay INSIDE the keyboard's own rect. It renders fine outside
-    (the layers aren't clipped) but the host box routes pointers by child rect —
-    so a strip that pokes above the keyboard is drawn over the NEIGHBOURING
-    widget, and tapping it feeds the tap to that widget instead. Concretely: the
-    top row is qwertyuiop — every vowel — and its strip landed on the text
-    field, which ate the tap. So: above the key, clamped to the top edge; and if
-    clamping would sit the strip on the pressed key itself (top row), open
-    below the key instead.
-    */
-    let y = Math.max(0, r.y - CH - 10)
-    if (y + CH + 8 > r.y + r.height / 2) y = r.y + r.height + 10
-    const cells: SVGRectElement[] = []
-    const kids: SVGElement[] = [
-      rect({
-        x,
-        y,
-        width: w,
-        height: CH + 8,
-        rx: 8,
-        fill: TH.PANEL_BG,
-        stroke: TH.KEY_DOWN,
-      }),
-    ]
-    accents.forEach((c, i) => {
-      const cx = x + 4 + i * CW
-      const cell = rect({
-        x: cx,
-        y: y + 4,
-        width: CW - 2,
-        height: CH,
-        rx: 5,
-        fill: TH.KEY_BG,
-      })
-      cells.push(cell as SVGRectElement)
-      const lbl = text({
-        x: cx + (CW - 2) / 2,
-        y: y + 4 + CH / 2,
-        'text-anchor': 'middle',
-        'dominant-baseline': 'middle',
-        'font-size': 17,
-        'font-family': TH.FONT_FAMILY,
-        fill: TH.TEXT,
-      })
-      lbl.textContent = c
-      kids.push(cell, lbl)
-    })
-    popupLayer.replaceChildren(...kids)
+    const kbH = keyboardHeight(keyLayout(mode, shift).length, KH, GAP)
+    const size = Math.min(200, kbH * 1.05, width * 0.9)
+    const scale = size / RADIAL_SIZE
+    const out = 190 * scale
+    const hub = RADIAL_HUB * scale
+    const cx = Math.max(out, Math.min(width - out, r.x + r.width / 2))
+    const cy = Math.max(out, Math.min(kbH - out, r.y + r.height / 2))
+    const items: RadialItem[] = accents.map((c) => ({ label: c }))
+    const svg = radialMenuSvg(items, { title: r.key.label ?? '' })
+    svg.setAttribute('x', String(cx - size / 2))
+    svg.setAttribute('y', String(cy - size / 2))
+    svg.setAttribute('width', String(size))
+    svg.setAttribute('height', String(size))
+    svg.setAttribute('pointer-events', 'none')
+    popupLayer.replaceChildren(svg)
     if (press) {
       press.accents = accents
-      press.cells = cells
+      press.ring = { svg, cx, cy, hub, out, items }
       press.pick = -1
     }
   }
 
-  /** Highlight the accent under the pointer (the drag half of press-hold-drag). */
   /*
-  The accent-strip hit mapping, in ONE place — band-with-slack + x index, not
-  strict cell containment (2px cell gaps + edge pixels let visually-on-strip
-  taps fall through to the key behind; a VR ray hits this constantly). The
-  review caught two drifted copies of this claiming to be "the same mapping"
-  (SLACK 8 vs 10) — the slack is now one constant, generous side.
+  The accent ring's hit mapping, in ONE place. A slide picks by DIRECTION
+  past the middle, however far (`bounded` false: Fitts' unbounded targets);
+  a tap after the finger lifted must land on the ring (plus slack), or it is
+  a tap elsewhere that dismisses.
   */
   const ACCENT_SLACK = 10
   const accentIndexAt = (
-    cells: SVGRectElement[],
-    count: number,
+    ring: AccentRing | null,
     x: number,
-    y: number
+    y: number,
+    bounded: boolean
   ): number => {
-    if (cells.length === 0) return -1
-    const CW = 32
-    const x0 = Number(cells[0].getAttribute('x'))
-    const y0 = Number(cells[0].getAttribute('y'))
-    const ch = Number(cells[0].getAttribute('height'))
-    if (y < y0 - ACCENT_SLACK || y > y0 + ch + ACCENT_SLACK) return -1
-    const i = Math.floor((x - x0) / CW)
-    return i >= 0 && i < count ? i : -1
+    if (ring == null) return -1
+    const p = { x: x - ring.cx, y: y - ring.cy }
+    const d = Math.hypot(p.x, p.y)
+    if (d < ring.hub) return -1
+    if (bounded && d > ring.out + ACCENT_SLACK) return -1
+    return radialPick(p, ring.items, { deadzone: 0 })
   }
 
   const trackPopup = (x: number, y: number): void => {
     if (!press || press.accents.length === 0) return
-    // In-the-strip only (band + slack): an x-only test read "hovering the HELD
-    // KEY" as a pick, so ray jitter picked accents you never chose.
-    const pick = accentIndexAt(press.cells, press.accents.length, x, y)
+    // A slide counts once it has left the key by the hub's size: a ray's
+    // drift on the held key (whose ring may sit off it, near an edge) is not a pick.
+    const r = press.rect
+    const ring = press.ring
+    const away =
+      ring != null &&
+      Math.hypot(x - (r.x + r.width / 2), y - (r.y + r.height / 2)) > ring.hub
+    const pick = away ? accentIndexAt(ring, x, y, false) : -1
     if (pick === press.pick) return
     press.pick = pick
-    press.cells.forEach((c, j) =>
-      c.setAttribute('fill', j === pick ? TH.ACCENT : TH.KEY_BG)
-    )
+    press.ring?.svg.highlight(pick)
   }
 
   const fireKey = (r: KeyRect): void => {
@@ -2198,18 +2189,15 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
           closePopup()
           press = null
         }
-        // A strip left open by a lifted finger takes the next tap, before any key
+        // A ring left open by a lifted finger takes the next tap, before any key
         // does — otherwise the accents would be sitting there un-tappable, with the
-        // keys behind them stealing the press.
+        // keys behind them stealing the press. A tap on the ring picks by
+        // direction (slice gaps included), so a ray's tap on ö is never the key behind.
         if (sticky) {
-          /*
-          Same GENEROUS mapping as the slide gesture (band + x index), not
-          strict cell containment: the strip's cells have 2px gaps and edge
-          pixels, and a strict test let a tap that was visually ON the strip
-          fall through to the KEY BEHIND it — routine with a ray, where a
-          "click on ö" registering as the key under the strip reads as madness.
-          */
-          const i = accentIndexAt(sticky.cells, sticky.accents.length, x, y)
+          // The held key itself always means its plain character (the ring
+          // may cover it near an edge); anywhere else on the ring, an accent.
+          const onKey = keyAt(rects, x, y) === sticky.rect
+          const i = onKey ? -1 : accentIndexAt(sticky.ring, x, y, true)
           if (i >= 0) {
             kb$<(t: string) => void>('handleKey', 'onKey')?.(sticky.accents[i])
           } else {
@@ -2239,7 +2227,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
           timer: null,
           accents: [],
           pick: -1,
-          cells: [],
+          ring: null,
           caps: false,
         }
         pressedVis = rects.indexOf(r)
@@ -2361,7 +2349,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
             sticky = {
               rect: press.rect,
               accents: press.accents,
-              cells: press.cells,
+              ring: press.ring,
             }
           }
         } else if (press.caps) {

@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeAll } from 'bun:test'
+import { radialSlot } from './radial-layout.js'
 
 let K: typeof import('./keyboard.js')
 let L: typeof import('./key-layout.js')
@@ -48,6 +49,16 @@ const mk = (holdMs = 5) => {
 }
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/** Where accent `i` of `n` sits on the open ring (keyboard units). */
+const accentAt = (kb: any, i: number, n: number) => {
+  const ring = kb.el.querySelector('[data-kb="popup"] svg') as SVGSVGElement
+  const size = Number(ring.getAttribute('width'))
+  const cx = Number(ring.getAttribute('x')) + size / 2
+  const cy = Number(ring.getAttribute('y')) + size / 2
+  const s = radialSlot(i, n)
+  return { x: cx + s.x * size * 0.33, y: cy + s.y * size * 0.33 }
+}
 
 describe('keyboard — tapping', () => {
   test('a tap inserts the key', () => {
@@ -146,12 +157,7 @@ describe('keyboard — press-hold-drag accents', () => {
     await wait(20)
     kb.handle!('up', o.x, o.y) // lift → sticky
     const strip = kb.el.querySelector('[data-kb="popup"]') as SVGGElement
-    const cells = Array.from(strip.querySelectorAll('rect')).slice(1)
-    const cell = cells[3] as SVGRectElement // ö
-    const cx =
-      Number(cell.getAttribute('x')) + Number(cell.getAttribute('width')) / 2
-    const cy =
-      Number(cell.getAttribute('y')) + Number(cell.getAttribute('height')) / 2
+    const { x: cx, y: cy } = accentAt(kb, 3, 7) // ö
     kb.handle!('down', cx, cy)
     expect(keys).toEqual(['ö'])
     expect(strip.childNodes.length).toBe(0) // and closes
@@ -176,13 +182,8 @@ describe('keyboard — press-hold-drag accents', () => {
     const o = centre('alpha', false, 'o')
     kb.handle!('down', o.x, o.y)
     await wait(20)
-    // The popup is centred over the key, 32px cells: ò ó ô ö õ ø œ. Aim at index 3 (ö).
-    const strip = kb.el.querySelector('[data-kb="popup"]') as SVGGElement
-    const cells = Array.from(strip.querySelectorAll('rect')).slice(1) // [0] is the backdrop
-    const cell = cells[3] as SVGRectElement
-    const cx =
-      Number(cell.getAttribute('x')) + Number(cell.getAttribute('width')) / 2
-    const cy = Number(cell.getAttribute('y')) + 10
+    // A ring round the key: ò ó ô ö õ ø œ. Slide toward index 3 (ö).
+    const { x: cx, y: cy } = accentAt(kb, 3, 7)
     kb.handle!('move', cx, cy)
     kb.handle!('up', cx, cy)
     expect(keys).toEqual(['ö'])
@@ -391,30 +392,35 @@ describe('keyboard — the accent strip stays inside the keyboard rect', () => {
   // The strip renders fine outside the keyboard's rect, but the HOST routes
   // pointers by child rect — a strip poking above the keyboard lands on the
   // neighbouring widget (the text field), which then eats the tap.
-  test('a TOP-row key (all the vowels!) opens its strip BELOW the key', async () => {
-    const { kb } = mk(5)
-    const o = centre('alpha', false, 'o')
-    kb.handle!('down', o.x, o.y)
-    await wait(20)
-    const strip = kb.el.querySelector('[data-kb="popup"]') as SVGGElement
-    const backdrop = strip.querySelector('rect')!
-    expect(Number(backdrop.getAttribute('y'))).toBeGreaterThanOrEqual(
-      o.rect.y + o.rect.height
-    )
-    kb.handle!('up', o.x, o.y)
-  })
+  for (const key of ['o', 'a', 'z', '.'])
+    test(`the ring for '${key}' stays inside the keyboard`, async () => {
+      const { kb } = mk(5)
+      const k = centre('alpha', false, key)
+      kb.handle!('down', k.x, k.y)
+      await wait(20)
+      const ring = kb.el.querySelector(
+        '[data-kb="popup"] svg'
+      ) as SVGSVGElement
+      const x = Number(ring.getAttribute('x'))
+      const y = Number(ring.getAttribute('y'))
+      const size = Number(ring.getAttribute('width'))
+      // The ring's drawn circle (radius 190 of 400) is inside the board.
+      const pad = size * (1 - 380 / 400) / 2
+      expect(x + pad).toBeGreaterThanOrEqual(-0.01)
+      expect(y + pad).toBeGreaterThanOrEqual(-0.01)
+      expect(x + size - pad).toBeLessThanOrEqual(W + 0.01)
+      kb.handle!('up', k.x, k.y)
+    })
 
-  test('a second-row key keeps its strip above, clamped to y ≥ 0', async () => {
-    const { kb } = mk(5)
-    const a = centre('alpha', false, 'a')
-    kb.handle!('down', a.x, a.y)
+  test('holding the full stop offers punctuation', async () => {
+    const { kb, keys } = mk(5)
+    const k = centre('alpha', false, '.')
+    kb.handle!('down', k.x, k.y)
     await wait(20)
-    const strip = kb.el.querySelector('[data-kb="popup"]') as SVGGElement
-    const backdrop = strip.querySelector('rect')!
-    const by = Number(backdrop.getAttribute('y'))
-    expect(by).toBeGreaterThanOrEqual(0)
-    expect(by).toBeLessThan(a.rect.y) // above the key, not over it
-    kb.handle!('up', a.x, a.y)
+    const p = accentAt(kb, 1, 9) // , ? ! ...
+    kb.handle!('move', p.x, p.y)
+    kb.handle!('up', p.x, p.y)
+    expect(keys).toEqual(['?'])
   })
 
   test('tapping the ORIGIN key of a sticky strip types the plain letter', async () => {
@@ -530,10 +536,10 @@ describe('keyboard — a ray’s micro-moves must not pick an accent', () => {
 })
 
 describe('keyboard — hold-capable keys carry a discoverability hint', () => {
-  test('every accent-capable key gets a faint ▾ (a c e i n o s u y z)', () => {
+  test('every key with a ring gets a faint ▾ (a c e i n o s u y z, and .)', () => {
     const { kb } = mk()
     const hints = Array.from(kb.el.querySelectorAll('[data-kb-hint="▾"]'))
-    expect(hints.length).toBe(10)
+    expect(hints.length).toBe(11)
   })
 
   test('the spacebar hints ↔ only when the caret drag is actually wired', () => {
