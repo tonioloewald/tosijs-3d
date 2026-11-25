@@ -38,6 +38,13 @@ export interface RadialShape {
    * does not turn the ring. See `gatedPick`.
    */
   gated?: boolean
+  /**
+   * Empty space, never drawn or picked: with `toward`, a ring that fans its
+   * items over part of the circle (a ring near an edge, round a key).
+   */
+  spacer?: boolean
+  /** Turn the ring so this item's middle points here (radians clockwise from up). */
+  toward?: number
 }
 
 /** Each side of an `apart` item, as a share of an ordinary slice. */
@@ -82,9 +89,16 @@ export function radialLayout(
     if (spaced(s)) at += RADIAL_APART_GAP * unit
     return { from, to, mid: (from + to) / 2 }
   })
-  // Turn the ring: the first item set apart points down, else item 0 up.
+  // Turn the ring: an item with `toward` points there, else the first item
+  // set apart points down, else item 0 up.
+  const t = shapes.findIndex((s) => s.toward != null)
   const k = shapes.findIndex((s) => s.apart)
-  const turn = k >= 0 ? Math.PI - arcs[k].mid : -arcs[0].mid
+  const turn =
+    t >= 0
+      ? shapes[t].toward! - arcs[t].mid
+      : k >= 0
+      ? Math.PI - arcs[k].mid
+      : -arcs[0].mid
   return arcs.map((a) => ({
     from: a.from + turn,
     to: a.to + turn,
@@ -111,7 +125,10 @@ export function radialPick(
   for (let i = 0; i < arcs.length; i++) {
     const { from, to } = arcs[i]
     const d = (((a - from) % TAU) + TAU) % TAU
-    if (d < to - from) return i
+    if (d < to - from) {
+      const s = typeof items === 'number' ? null : items[i]
+      return s?.spacer ? -1 : i
+    }
   }
   return -1
 }

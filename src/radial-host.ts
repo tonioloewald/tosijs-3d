@@ -496,11 +496,13 @@ export class RadialHost {
     const pick = at.pick
     // Pushed straight at a gated slice: nothing lit, so letting go picks nothing.
     if (at.blocked) open.svg.highlight(-1, at.armed)
-    // At rest the last pointed-at slice stays lit (a stick springs back).
     else if (pick >= 0 && pick !== open.svg.lit) {
       open.svg.highlight(pick)
       if (open.svg.lit === pick) this.scene.rumble('tick')
     }
+    // Back in the middle (a stick let go): nothing lit, so letting go of the
+    // hold picks nothing. That is the way out, and out of a gate too.
+    else if (pick < 0 && open.svg.lit >= 0) open.svg.highlight(-1)
     // A picks when nothing holds it open; B goes back (at the top, dismisses).
     if (open.heldBy != null) return
     const a = (pad?.buttonA ?? 0) > 0.5

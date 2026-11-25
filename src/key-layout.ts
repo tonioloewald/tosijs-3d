@@ -218,6 +218,16 @@ export type KeyAction =
   | 'enter'
   | 'done'
   | 'mode'
+  /** Delete the character after the caret. */
+  | 'deleteForward'
+  /** Empty the field. */
+  | 'clear'
+  /** The field's content to the clipboard. */
+  | 'copy'
+  /** The field's content to the clipboard, and empty it. */
+  | 'cut'
+  /** The clipboard in place of the field's content. */
+  | 'paste'
 
 /** One key. `value` inserts; `action` does something else. */
 export interface KeyDef {
@@ -481,6 +491,43 @@ export function accentsFor(char: string): string[] {
 /** Does this key offer a long-press popup? */
 export function hasAccents(key: KeyDef): boolean {
   return key.value !== undefined && accentsFor(key.value).length > 0
+}
+
+/** One choice on a held key's ring: text to type, an action, or a sub-ring. */
+export interface KeyChoice {
+  label: string
+  text?: string
+  action?: KeyAction
+  items?: KeyChoice[]
+}
+
+const SYMBOL_CHOICES = Array.from('#$%&*+=/()@!').map((c) => ({
+  label: c,
+  text: c,
+}))
+
+/*
+WHAT A HOLD OFFERS, as a ring round the key: a letter's accents, the full
+stop's punctuation, the digits (with the symbols one level down) on the key
+to symbols, and editing on backspace. Shift's hold is caps lock, at once.
+*/
+export function holdChoices(key: KeyDef): KeyChoice[] {
+  if (key.value !== undefined)
+    return accentsFor(key.value).map((c) => ({ label: c, text: c }))
+  if (key.action === 'backspace')
+    return [
+      { label: '⌦', action: 'deleteForward' },
+      { label: 'clear', action: 'clear' },
+      { label: 'copy', action: 'copy' },
+      { label: 'cut', action: 'cut' },
+      { label: 'paste', action: 'paste' },
+    ]
+  if (key.action === 'mode' && key.mode === 'symbols')
+    return [
+      ...Array.from('0123456789').map((c) => ({ label: c, text: c })),
+      { label: '#$%', items: SYMBOL_CHOICES },
+    ]
+  return []
 }
 
 /**

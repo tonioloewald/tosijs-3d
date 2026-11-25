@@ -52,11 +52,13 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /** Where accent `i` of `n` sits on the open ring (keyboard units). */
 const accentAt = (kb: any, i: number, n: number) => {
-  const ring = kb.el.querySelector('[data-kb="popup"] svg') as SVGSVGElement
+  const ring = kb.el.querySelector('[data-kb="popup"] svg') as any
   const size = Number(ring.getAttribute('width'))
   const cx = Number(ring.getAttribute('x')) + size / 2
   const cy = Number(ring.getAttribute('y')) + size / 2
-  const s = radialSlot(i, n)
+  // The ring's own items: near an edge it fans (a spacer after the choices).
+  expect(ring.items.filter((x: any) => !x.spacer).length).toBe(n)
+  const s = radialSlot(i, ring.items)
   return { x: cx + s.x * size * 0.33, y: cy + s.y * size * 0.33 }
 }
 
@@ -388,27 +390,30 @@ describe('inputField', () => {
   })
 })
 
-describe('keyboard — the accent strip stays inside the keyboard rect', () => {
+describe('keyboard — the accent ring', () => {
   // The strip renders fine outside the keyboard's rect, but the HOST routes
   // pointers by child rect — a strip poking above the keyboard lands on the
   // neighbouring widget (the text field), which then eats the tap.
   for (const key of ['o', 'a', 'z', '.'])
-    test(`the ring for '${key}' stays inside the keyboard`, async () => {
+    test(`the ring for '${key}' is centred on its key`, async () => {
       const { kb } = mk(5)
       const k = centre('alpha', false, key)
       kb.handle!('down', k.x, k.y)
       await wait(20)
-      const ring = kb.el.querySelector(
-        '[data-kb="popup"] svg'
-      ) as SVGSVGElement
-      const x = Number(ring.getAttribute('x'))
-      const y = Number(ring.getAttribute('y'))
+      const ring = kb.el.querySelector('[data-kb="popup"] svg') as any
       const size = Number(ring.getAttribute('width'))
-      // The ring's drawn circle (radius 190 of 400) is inside the board.
-      const pad = size * (1 - 380 / 400) / 2
-      expect(x + pad).toBeGreaterThanOrEqual(-0.01)
-      expect(y + pad).toBeGreaterThanOrEqual(-0.01)
-      expect(x + size - pad).toBeLessThanOrEqual(W + 0.01)
+      expect(Number(ring.getAttribute('x')) + size / 2).toBeCloseTo(k.x, 6)
+      expect(Number(ring.getAttribute('y')) + size / 2).toBeCloseTo(k.y, 6)
+      // Every choice is drawn on the board (a ring near an edge fans).
+      for (let i = 0; i < ring.items.length; i++) {
+        if (ring.items[i].spacer) continue
+        const s = radialSlot(i, ring.items)
+        const px = k.x + s.x * size * 0.33
+        const py = k.y + s.y * size * 0.33
+        expect(px).toBeGreaterThan(0)
+        expect(px).toBeLessThan(W)
+        expect(py).toBeGreaterThan(0)
+      }
       kb.handle!('up', k.x, k.y)
     })
 
@@ -535,11 +540,54 @@ describe('keyboard — a ray’s micro-moves must not pick an accent', () => {
   })
 })
 
+describe('keyboard — rings on ?123 and backspace', () => {
+  test('?123 offers the digits, and the symbols one level down', async () => {
+    const { kb, keys } = mk(5)
+    const k = centre('alpha', false, '?123')
+    kb.handle!('down', k.x, k.y)
+    await wait(20)
+    const ring = kb.el.querySelector('[data-kb="popup"] svg') as any
+    const labels = ring.items.filter((x: any) => !x.spacer).map((x: any) => x.label)
+    expect(labels).toEqual([...'0123456789', '#$%'])
+    // Slide to the symbols: a sub-ring opens round the key, waiting for a tap.
+    const p = accentAt(kb, 10, 11)
+    kb.handle!('move', p.x, p.y)
+    kb.handle!('up', p.x, p.y)
+    const sub = kb.el.querySelector('[data-kb="popup"] svg') as any
+    expect(sub.items.find((x: any) => !x.spacer).label).toBe('#')
+    const q = accentAt(kb, 0, 12)
+    kb.handle!('down', q.x, q.y)
+    expect(keys).toEqual(['#'])
+  })
+
+  test('backspace offers forward delete, clear, copy, cut and paste', async () => {
+    const { kb, actions } = mk(5)
+    const k = centre('alpha', false, '⌫')
+    kb.handle!('down', k.x, k.y)
+    await wait(20)
+    const p = accentAt(kb, 3, 5) // cut
+    kb.handle!('move', p.x, p.y)
+    kb.handle!('up', p.x, p.y)
+    expect(actions).toEqual(['cut'])
+  })
+
+  test('a field cuts, pastes, clears and deletes forward', async () => {
+    const f = K.inputField({ value: 'hello' })
+    f.action('cut')
+    expect(f.value).toBe('')
+    f.action('paste')
+    await wait(1100)
+    expect(f.value).toBe('hello')
+    f.action('clear')
+    expect(f.value).toBe('')
+  })
+})
+
 describe('keyboard — hold-capable keys carry a discoverability hint', () => {
   test('every key with a ring gets a faint ▾ (a c e i n o s u y z, and .)', () => {
     const { kb } = mk()
     const hints = Array.from(kb.el.querySelectorAll('[data-kb-hint="▾"]'))
-    expect(hints.length).toBe(11)
+    expect(hints.length).toBe(13) // + ?123 and backspace
   })
 
   test('the spacebar hints ↔ only when the caret drag is actually wired', () => {

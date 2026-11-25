@@ -122,6 +122,10 @@ punctuation (`, ? ! ' " : ; - …`): they open as a ring round the key. Two ways
 take one, because touch and pointer want different things: **slide toward it and
 release** (the direction picks, however far you go), or **lift your finger**, and the
 ring stays up so you can tap the one you want. Tapping the key itself types it plain.
+**Hold `?123`** for the digits, with the symbols one level down (`#$%`), and **hold
+⌫** for forward delete, clear, copy, cut and paste (copy and cut take the whole
+field, paste replaces it). **Hold ⇧** for caps lock. Near the board's edge a ring
+fans its choices over the side that stays on the board, still centred on the key.
 
 **Hold the spacebar and slide** to drag the caret through the text. The drag continues
 outside the key and outside the keyboard entirely (as iOS does), because a
@@ -394,8 +398,9 @@ import {
   keyLayout,
   keyRects,
   keyAt,
-  accentsFor,
+  holdChoices,
   keyboardHeight,
+  type KeyChoice,
   type KeyboardMode,
   type KeyAction,
   type KeyRect,
@@ -409,6 +414,7 @@ import {
   edit,
   insert as editInsert,
   backspace as editBackspace,
+  deleteForward as editDeleteForward,
   moveCaret as editMoveCaret,
   moveTo,
   selectAll as editSelectAll,
@@ -429,6 +435,38 @@ import {
   type RadialMenuSvg,
 } from './radial-menu.js'
 import { radialPick } from './radial-layout.js'
+
+/*
+THE CLIPBOARD for a field's copy, cut and paste (backspace's ring). The
+system clipboard when the browser allows it, and always a copy of our own,
+since a headset's browser may refuse or never answer. Copy and cut take the
+WHOLE field and paste replaces it: selecting text with a ray is hard, so the
+field is the unit.
+*/
+let ownClipboard: string | null = null
+function clipboardWrite(text: string): void {
+  ownClipboard = text
+  try {
+    void navigator.clipboard?.writeText(text).catch(() => {})
+  } catch {
+    // No clipboard here: ours is enough.
+  }
+}
+async function clipboardRead(): Promise<string | null> {
+  try {
+    const read = navigator.clipboard?.readText()
+    if (read != null) {
+      const text = await Promise.race([
+        read,
+        new Promise<null>((done) => setTimeout(() => done(null), 1000)),
+      ])
+      if (text != null) return text
+    }
+  } catch {
+    // Refused: fall back to ours.
+  }
+  return ownClipboard
+}
 
 /** The accent ring on show: its drawing and where it is (keyboard units). */
 interface AccentRing {
@@ -1622,6 +1660,16 @@ export function inputField(config: InputFieldOptions = {}): InputField {
     action(a: KeyAction) {
       activate()
       if (a === 'backspace') change(editBackspace(state))
+      else if (a === 'deleteForward') change(editDeleteForward(state))
+      else if (a === 'clear') change(edit(''))
+      else if (a === 'copy') clipboardWrite(state.text)
+      else if (a === 'cut') {
+        clipboardWrite(state.text)
+        change(edit(''))
+      } else if (a === 'paste')
+        void clipboardRead().then((text) => {
+          if (text != null) change(edit(text))
+        })
       else if (a === 'space') change(editInsert(state, ' '))
       else if (a === 'enter') {
         // Settle BEFORE reporting: a handler receiving `1.` or `-` from a
@@ -1878,7 +1926,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
    */
   let sticky: {
     rect: KeyRect
-    accents: string[]
+    accents: KeyChoice[]
     ring: AccentRing | null
   } | null = null
 
@@ -1940,7 +1988,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
   let press: {
     rect: KeyRect
     timer: ReturnType<typeof setTimeout> | null
-    accents: string[]
+    accents: KeyChoice[]
     pick: number
     ring: AccentRing | null
     /** The hold engaged caps lock, so the release must not also fire the key. */
@@ -1999,7 +2047,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
       is ACTIVE is separate — this is the invitation, that's the confirmation.)
       */
       const hint =
-        r.key.value && accentsFor(r.key.value).length > 0
+        holdChoices(r.key).length > 0
           ? '▾'
           : r.key.action === 'space' && kb$('handleCaretMove', 'onCaretMove')
           ? '↔'
@@ -2044,23 +2092,72 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
   }
 
   /*
-  THE ACCENTS ARE A RING round the held key (a radial menu, drawn small):
-  slide toward one and let go, or lift and tap it. Direction is what picks,
-  so a slide anywhere that way takes it; the ring's middle is the key itself
-  (a tap there types the plain character). The ring stays INSIDE the
-  keyboard's own rect: the host routes pointers by child rect, so a popup
-  poking over the text field above fed its taps to the field. Near an edge
-  its centre moves in; the middle then sits beside the key, not on it.
+  THE ACCENTS ARE A RING centred on the held key (a radial menu, drawn
+  small): slide toward one and let go, or lift and tap it. Direction is what
+  picks, so a slide anywhere that way takes it; the ring's middle is the key
+  itself (a tap there types the plain character). Near an edge the ring
+  reaches past the keyboard: the slide is captured, so it still works, but a
+  lifted-finger tap on a part outside the board goes to whatever is there.
   */
-  const openPopup = (r: KeyRect, accents: string[]): void => {
+  const openPopup = (r: KeyRect, accents: KeyChoice[]): AccentRing => {
+    const cx = r.x + r.width / 2
+    const cy = r.y + r.height / 2
+    const items: RadialItem[] = accents.map((c) => ({
+      label: c.label,
+      ...(c.items ? { items: [] } : {}),
+    }))
+    /*
+    NEAR AN EDGE THE RING FANS: still centred on the key, its choices spread
+    over the arc that stays on the board, with empty space (a `spacer`)
+    pointing off it. Where the board ends the drawing is cropped, so a
+    choice there could not be seen.
+    */
     const kbH = keyboardHeight(keyLayout(mode, shift).length, KH, GAP)
-    const size = Math.min(200, kbH * 1.05, width * 0.9)
+    /*
+    The hub just covers the key; the slices round it are a key or so deep.
+    A ring with many choices, or fanned into a corner, grows until each
+    choice has about a key's width of arc.
+    */
+    const fan = (size: number) => {
+      const rItem = 132 * (size / RADIAL_SIZE)
+      const STEPS = 72
+      let offX = 0
+      let offY = 0
+      let off = 0
+      for (let k = 0; k < STEPS; k++) {
+        const a = (k / STEPS) * Math.PI * 2
+        const px = cx + Math.sin(a) * rItem
+        const py = cy - Math.cos(a) * rItem
+        if (px < 6 || px > width - 6 || py < 6 || py > kbH - 6) {
+          off++
+          offX += Math.sin(a)
+          offY += -Math.cos(a)
+        }
+      }
+      const f = off > 0 ? Math.min(0.85, off / STEPS + 0.08) : 0
+      const arc = (2 * Math.PI * rItem * (1 - f)) / accents.length
+      return { off, offX, offY, f, arc }
+    }
+    let size =
+      Math.max(r.height, r.width) * 1.35 * (RADIAL_SIZE / (2 * RADIAL_HUB))
+    let shape = fan(size)
+    const minArc = Math.min(r.width, r.height) * 0.75
+    for (let n = 0; n < 8 && shape.arc < minArc; n++) {
+      size *= 1.15
+      shape = fan(size)
+    }
     const scale = size / RADIAL_SIZE
     const out = 190 * scale
     const hub = RADIAL_HUB * scale
-    const cx = Math.max(out, Math.min(width - out, r.x + r.width / 2))
-    const cy = Math.max(out, Math.min(kbH - out, r.y + r.height / 2))
-    const items: RadialItem[] = accents.map((c) => ({ label: c }))
+    const { off, offX, offY, f } = shape
+    if (off > 0) {
+      items.push({
+        label: '',
+        spacer: true,
+        weight: (items.length * f) / (1 - f),
+        toward: Math.atan2(offX, -offY),
+      })
+    }
     const svg = radialMenuSvg(items, { title: r.key.label ?? '' })
     svg.setAttribute('x', String(cx - size / 2))
     svg.setAttribute('y', String(cy - size / 2))
@@ -2068,11 +2165,30 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
     svg.setAttribute('height', String(size))
     svg.setAttribute('pointer-events', 'none')
     popupLayer.replaceChildren(svg)
+    const ring = { svg, cx, cy, hub, out, items }
     if (press) {
       press.accents = accents
-      press.ring = { svg, cx, cy, hub, out, items }
+      press.ring = ring
       press.pick = -1
     }
+    return ring
+  }
+
+  /*
+  A CHOICE TAKEN from a held key's ring: text is typed, an action is the
+  keyboard's `handleAction`, and a sub-ring (the symbols under ?123) opens in
+  its place round the same key, waiting for a tap. True when it opened one.
+  */
+  const choose = (r: KeyRect, c: KeyChoice): boolean => {
+    if (c.items) {
+      const ring = openPopup(r, c.items)
+      sticky = { rect: r, accents: c.items, ring }
+      return true
+    }
+    if (c.text != null) kb$<(t: string) => void>('handleKey', 'onKey')?.(c.text)
+    else if (c.action)
+      kb$<(a: KeyAction) => void>('handleAction', 'onAction')?.(c.action)
+    return false
   }
 
   /*
@@ -2199,7 +2315,8 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
           const onKey = keyAt(rects, x, y) === sticky.rect
           const i = onKey ? -1 : accentIndexAt(sticky.ring, x, y, true)
           if (i >= 0) {
-            kb$<(t: string) => void>('handleKey', 'onKey')?.(sticky.accents[i])
+            const was = sticky
+            if (choose(was.rect, was.accents[i])) return
           } else {
             // Tapping the key that OPENED the strip types its plain character —
             // you held for the alternatives, changed your mind, and asked for
@@ -2232,7 +2349,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         }
         pressedVis = rects.indexOf(r)
         pressVis(pressedVis, true)
-        const alts = r.key.value ? accentsFor(r.key.value) : []
+        const alts = holdChoices(r.key)
         if (alts.length > 0) {
           press.timer = setTimeout(() => {
             if (press) openPopup(r, alts)
@@ -2326,11 +2443,12 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         if (press.accents.length > 0) {
           if (press.pick >= 0) {
             // Slid onto an accent and released — the mouse/VR-ray gesture.
-            kb$<(t: string) => void>(
-              'handleKey',
-              'onKey'
-            )?.(press.accents[press.pick])
-            closePopup()
+            const opened = choose(press.rect, press.accents[press.pick])
+            if (!opened) closePopup()
+            else {
+              press = null
+              return
+            }
           } else {
             /*
             Released WITHOUT having slid onto one — so the popup STAYS OPEN and the

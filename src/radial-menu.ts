@@ -102,8 +102,10 @@ button { margin: 4px 8px; align-self: start; }
 Tap the D-pad right (K on a keyboard) and the box takes the next colour.
 Hold it and the ring opens: point either stick (or the mouse) at a slice
 and let go to paint it. **Hide** is gated: push straight out into it (it
-half lights, and the middle says "hide ↔"), then move sideways either way to
-confirm. **Custom**, small at the bottom, opens a colour picker. Let go without pointing and nothing changes. So one button
+half lights), then move sideways either way to confirm. **Custom**, small at
+the bottom, opens a colour picker. To get out without choosing, let the
+stick go back to the middle (or move the mouse there) and let go: nothing is
+lit in the middle, and that undoes an armed or confirmed gate too. So one button
 does its everyday job on a tap and offers the menu on a hold, as GTA VI does
 with its D-pad.
 
@@ -213,6 +215,10 @@ export interface RadialItem {
   color?: string
   /** A SUB-RING: picking this item opens these in its place (read when it opens). */
   items?: RadialItem[] | (() => RadialItem[])
+  /** Empty space, never drawn or picked (with `toward`: a ring fanned to one side). */
+  spacer?: boolean
+  /** Turn the ring so this item points here (radians clockwise from up). */
+  toward?: number
   /** Called when this item is picked (beside the ring's own `handleSelect`). */
   handleSelect?: () => void
   [key: string]: unknown
@@ -499,6 +505,8 @@ export function radialMenuSvg(
       'stroke-linecap': 'round',
       // A gated slice's edge is dashed: there is a way in, but not straight.
       ...(item.gated ? { 'stroke-dasharray': '4 7' } : {}),
+      // A spacer is empty space (a ring fanned to one side).
+      ...(item.spacer ? { display: 'none' } : {}),
     }) as unknown as SVGPathElement
     slices.push(s)
     ring.append(s)
@@ -507,8 +515,23 @@ export function radialMenuSvg(
     const cx = at.x * rMark
     const cy = at.y * rMark
     const ink = item.disabled ? theme.muted : fills[i].ink ?? theme.text
+    // An icon carries its name under it, on the slice: the centre does not
+    // change while you choose.
     const glyph = item.icon
-      ? mark(item.icon, { color: ink, size: 40, x: cx - 20, y: cy - 20 })
+      ? (g(
+          mark(item.icon, { color: ink, size: 36, x: cx - 18, y: cy - 26 }),
+          text(
+            {
+              x: cx,
+              y: cy + 24,
+              'text-anchor': 'middle',
+              'font-size': 14,
+              'font-family': theme.fontFamily,
+              fill: ink,
+            },
+            item.label
+          )
+        ) as unknown as SVGElement)
       : (labelText(item.label, cx, cy, ink) as unknown as SVGElement)
     inks.push(glyph)
     ring.append(glyph)
@@ -564,11 +587,10 @@ export function radialMenuSvg(
     ''
   )
   /*
-  The hub shows what is lit: its label, in its colour when it has one, and its
-  icon above the label (in place of the title) when it has one.
+  The hub shows the title and does not change while you choose: each slice
+  carries its own name (under its icon, when it has one).
   */
   const hub = circle({ cx: 0, cy: 0, r: RADIAL_HUB, fill: theme.panelBg })
-  const hubMark = g()
   /*
   A SUB-RING'S HUB is split: the top half goes back up a level, the bottom
   half dismisses. Each half lights under the pointer; the stick has B.
@@ -593,7 +615,7 @@ export function radialMenuSvg(
   )
   ring.append(hub)
   if (options.back) ring.append(upper, lower, hubKeys)
-  ring.append(hubMark, title, label)
+  ring.append(title, label)
   const el = svg(
     {
       xmlns: 'http://www.w3.org/2000/svg',
@@ -627,21 +649,6 @@ export function radialMenuSvg(
       )
       s.setAttribute('stroke-width', k === lit && items[k].color ? '4' : '2')
     })
-    const item = lit >= 0 ? items[lit] : null
-    const coloured = item?.color != null && fills[lit].litInk != null
-    const ink = coloured ? fills[lit].litInk! : theme.text
-    hub.setAttribute('fill', coloured ? fills[lit].lit : theme.panelBg)
-    // An armed gate names itself in the middle, dimmed: it waits for the sideways move.
-    const waiting = item == null && armed >= 0 ? items[armed] : null
-    label.textContent = item?.label ?? (waiting ? `${waiting.label} ↔` : '')
-    label.setAttribute('fill', waiting ? theme.muted : ink)
-    hubKeys.style.display = item ? 'none' : ''
-    title.setAttribute('fill', coloured ? ink : theme.muted)
-    title.setAttribute('opacity', coloured ? '0.7' : '1')
-    hubMark.replaceChildren()
-    title.style.display = item?.icon ? 'none' : ''
-    if (item?.icon)
-      hubMark.append(mark(item.icon, { color: ink, size: 32, x: -16, y: -42 }))
   }
   let zoneNow: RadialHubZone = null
   const hubLit = (zone: RadialHubZone) => {
@@ -651,7 +658,7 @@ export function radialMenuSvg(
     upper.setAttribute('fill', zone === 'back' ? theme.accent : 'none')
     lower.setAttribute('fill', zone === 'close' ? theme.accent : 'none')
     if (!options.back) hub.setAttribute('fill', zone ? halfAccent : theme.panelBg)
-    if (lit < 0) label.textContent = zone ?? ''
+    label.textContent = zone ?? ''
   }
   Object.defineProperties(el, {
     hubLit: { value: hubLit },
