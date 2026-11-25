@@ -122,6 +122,8 @@ const OPEN_OWNS: (keyof VirtualGamepad)[] = [
   'buttonB',
 ]
 const LEFT_OWNS: (keyof VirtualGamepad)[] = ['leftStickX', 'leftStickY']
+/** How long resting on a sub-ring item opens it (or on the hub's top half goes back), ms. */
+export const RADIAL_DWELL_MS = 500
 
 interface Open {
   svg: RadialMenuSvg
@@ -141,6 +143,10 @@ interface Open {
   /** Gates, for the stick and the mouse each. */
   stickGate: GateState
   pointerGate: GateState
+  /** What has been pointed at, and since when (a hold on it opens or goes back). */
+  dwell: { target: number | 'back'; since: number } | null
+  /** Opened or left by a hold: nothing lights until the pointing comes back to the middle. */
+  needCentre: boolean
 }
 
 interface Hold {
@@ -268,6 +274,8 @@ export class RadialHost {
       armed: false,
       stickGate: gateState(),
       pointerGate: gateState(),
+      dwell: null,
+      needCentre: false,
     }
     this.show(open)
     this.open = open
@@ -291,7 +299,7 @@ export class RadialHost {
     open.stickGate = gateState()
     open.pointerGate = gateState()
     open.armed = false
-    this.pointer = null
+    open.dwell = null
   }
 
   /*
@@ -300,15 +308,24 @@ export class RadialHost {
   ring open has been let go to pick the item. Its hub is split, the top half
   back up a level and the bottom half dismissing; B does the same (back, or
   dismiss at the top).
+
+  A HOLD does it too, as a marking menu does: rest on a sub-ring item for
+  `RADIAL_DWELL_MS` and it opens, with whatever held the ring still holding
+  it; rest the pointer on the hub's top half and it goes back up. After a
+  hold opens a level, nothing lights until the pointing comes back to the
+  middle, so the push that opened it does not also pick in the new ring.
   */
-  private descend(open: Open, item: RadialItem): void {
+  private descend(open: Open, item: RadialItem, byHold = false): void {
     const items = typeof item.items === 'function' ? item.items() : item.items
     if (items == null || items.length === 0) return this.close()
     open.trail.push({ items: open.items, title: open.title })
     open.items = items
     open.title = item.label
-    open.heldBy = null
-    this.origin = null
+    if (!byHold) {
+      open.heldBy = null
+      this.origin = null
+    }
+    open.needCentre = byHold
     this.show(open)
     this.scene.rumble('tick')
   }
@@ -321,7 +338,10 @@ export class RadialHost {
     if (up == null) return this.close()
     open.items = up.items
     open.title = up.title
+    open.needCentre = true
     this.show(open)
+    // Still resting on the back half: one level per rest, not one per DWELL.
+    open.dwell = { target: 'back', since: Infinity }
     this.scene.rumble('tick')
   }
 
@@ -444,11 +464,35 @@ export class RadialHost {
     const dz = open.heldBy?.pointer ? 30 : RADIAL_HUB
     if (at.pick < 0 && !at.blocked && this.pointer != null)
       at = gatedPick(open.pointerGate, this.pointer, items, { deadzone: dz })
-    open.svg.hubLit(
-      open.heldBy == null && at.pick < 0 && !at.blocked
-        ? this.hubZone(open)
+    if (open.needCentre) {
+      const centred =
+        (stick == null || Math.hypot(stick.x, stick.y) < 0.5) &&
+        (this.pointer == null ||
+          Math.hypot(this.pointer.x, this.pointer.y) < dz)
+      if (centred) open.needCentre = false
+      else at = { pick: -1, blocked: false, armed: -1 }
+    }
+    const zone =
+      (open.heldBy == null || open.heldBy.pointer) && at.pick < 0 && !at.blocked
+        ? this.hubZone(open, dz)
         : null
-    )
+    open.svg.hubLit(zone)
+    // Resting on a sub-ring item opens it; on the hub's top half, goes back.
+    const litItem = items[open.svg.lit]
+    const target =
+      litItem?.items != null && !litItem.disabled
+        ? open.svg.lit
+        : zone === 'back'
+        ? 'back'
+        : null
+    if (target !== (open.dwell?.target ?? null))
+      open.dwell = target == null ? null : { target, since: now }
+    else if (open.dwell != null && now - open.dwell.since >= RADIAL_DWELL_MS) {
+      open.dwell = null
+      if (target === 'back') return this.back()
+      if (typeof target === 'number')
+        return this.descend(open, items[target], true)
+    }
     const pick = at.pick
     // Pushed straight at a gated slice: nothing lit, so letting go picks nothing.
     if (at.blocked) open.svg.highlight(-1, at.armed)
@@ -468,10 +512,10 @@ export class RadialHost {
     }
   }
 
-  /** Which half of the hub the pointer is over (clicked rings only). */
-  private hubZone(open: Open): RadialHubZone {
+  /** Which half of the hub the pointer is over (within `radius` of the middle). */
+  private hubZone(open: Open, radius = RADIAL_HUB): RadialHubZone {
     const p = this.pointer
-    if (p == null || Math.hypot(p.x, p.y) >= RADIAL_HUB) return null
+    if (p == null || Math.hypot(p.x, p.y) >= radius) return null
     return open.trail.length > 0 && p.y < 0 ? 'back' : 'close'
   }
 

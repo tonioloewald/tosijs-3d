@@ -171,6 +171,14 @@ stays open to click or to point at and press A. Its middle is split: the top
 half goes back up a level, the bottom half dismisses; B goes back too. An
 item's own `handleSelect` is called when it is picked, as well as the ring's.
 
+**Resting opens a level, as in a marking menu.** Rest on a sub-ring item for
+half a second (`RADIAL_DWELL_MS`) and it opens, still held by whatever was
+holding the ring, so one continuous drag (or one held button and a stick)
+can go down several levels and let go on the choice. Come back to the middle
+before pointing in the new level: nothing lights until you do, so the push
+that opened it does not pick in it. Rest the pointer on the middle's top half
+and it goes back up a level, once per rest.
+
 **The system bar as a ring.** Holding D-pad up opens the scene's system bar
 as a ring, each button a slice with its own icon, and a [bar menu](/bar-menu/)
 a sub-ring. `b3d.openSystemRing()` opens it from code. That is how a scene

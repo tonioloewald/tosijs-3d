@@ -12,7 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
-- Added: sub-rings. A radial menu item with `items` opens them in its place; the sub-ring's middle is split, top half back up a level, bottom half dismiss, and B goes back. An item's own `handleSelect` is called when it is picked.
+- Added: sub-rings. A radial menu item with `items` opens them in its place; the sub-ring's middle is split, top half back up a level, bottom half dismiss, and B goes back. An item's own `handleSelect` is called when it is picked. Resting on a sub-ring item for half a second opens it without letting go (one drag can go down several levels), and resting the pointer on the middle's top half goes back up.
 - Changed: holding D-pad up opens the system bar as a radial ring (its buttons as slices, a bar menu as a sub-ring) instead of putting the focus on the bar; `b3d.openSystemRing()` opens it from code. In a ring that stays open, A picks and B goes back or dismisses (B used to pick).
 
 - Added: the inventory dock's rings carry a gated **close** at the top (drop is at the bottom), so the pad can put the loadout away from inside it. A framed dock asks its system panel to close with `panelfocus` (`focus: false`).

@@ -1226,6 +1226,16 @@ dismisses. B does the same on a pad, so the centre is never something a
 stick must reach. Recognition over recall: every level shows its choices
 with their icons; nothing has to be remembered as a chord.
 
-Still open: whether descending should also happen on a dwell while the hold
-is kept (a marking menu: one continuous stroke through the levels), and how
-a ring is held with hands only (no controllers, visionOS).
+**Resting discloses** (Tonio: yes to disclose on holding on an item, and to
+popping on a hold too). Rest on a sub-ring item and it opens with the hold
+kept, a marking menu: one stroke through the levels. Rest on the centre's
+back half and it pops a level. After a level opens by a rest, nothing lights
+until the pointing returns to the middle.
+
+**Other platforms' gestures are the open question.** Vision Pro (eyes and
+pinch, no controllers), Android XR, Meta's glasses and Quest 3 hand tracking
+each offer a different, small set of gestures, and we do not yet know which
+map onto hold, point and let go. Vision Pro cannot be tried here for now
+(the nearest place to try one is Germany). The working bet: the radial ring
+and the system bar convention cover a lot of these situations, since all
+they need is a way to open, a direction, and a release.
