@@ -37,6 +37,11 @@ function styledAway(b: HTMLElement): boolean {
   return getComputedStyle(b).display === 'none'
 }
 
+/** Does the bar show `b` (not hidden by its attribute or a style)? */
+export function barShows(b: HTMLElement): boolean {
+  return !b.hidden && !styledAway(b)
+}
+
 /*
 A button, the space between two, and the space between the outline and the
 buttons: the same space, so the row reads as one even strip. Tonio: "halve
@@ -96,7 +101,7 @@ export function systemBar(buttons: HTMLButtonElement[]): SystemBar {
   const build = () => {
     // Hidden by the attribute, or by the page's own styling (a
     // `::part(enterVrButton) { display: none }` should hide it here too).
-    shown = buttons.filter((b) => !b.hidden && !styledAway(b))
+    shown = buttons.filter(barShows)
     const w = shown.length
       ? PAD * 2 + shown.length * SIZE + (shown.length - 1) * GAP
       : 1

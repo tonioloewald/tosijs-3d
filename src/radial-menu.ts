@@ -124,9 +124,9 @@ Any button can do the same: `b3d.holdMenu('leftBumper', { tap, menu, key,
 handleSelect })` is GTA V's weapon wheel (`key` is a keyboard key that does
 the same, a `KeyboardEvent.code`).
 
-`b3d.openRadialMenu({ title, items, handleSelect })` opens one from code: the
-either stick or the mouse points, a click or a press of A or B picks, and
-moving the mouse back to the middle and clicking cancels. It returns its close.
+`b3d.openRadialMenu({ title, items, handleSelect })` opens one from code:
+either stick or the mouse points, a click or A picks, and B or a click in the
+middle dismisses. It returns its close.
 In a headset it hangs ahead of you, and either thumbstick points. Given
 `pointer` (a press's client x, y, from a `pointerdown` handler), it is drawn
 there and the press holds it open: the drag from that point lights a slice and letting go picks.
@@ -165,6 +165,17 @@ along the rim each way. The inventory's drop and close are gated; so would be a 
 junk" or "repair all". `icon` is an icon name. Up to
 eight read well.
 
+**Sub-rings.** An item with `items` (a list, or a function read when it
+opens) opens them in its place, marked by a chevron at its rim. A sub-ring
+stays open to click or to point at and press A. Its middle is split: the top
+half goes back up a level, the bottom half dismisses; B goes back too. An
+item's own `handleSelect` is called when it is picked, as well as the ring's.
+
+**The system bar as a ring.** Holding D-pad up opens the scene's system bar
+as a ring, each button a slice with its own icon, and a [bar menu](/bar-menu/)
+a sub-ring. `b3d.openSystemRing()` opens it from code. That is how a scene
+with no visible UI still has all of it a hold away.
+
 `radialMenuSvg(items, options)` is the drawing alone (a `highlight(i)` on
 it moves the lit slice in place); `radialPick` (radial-layout) is the pick.
 */
@@ -178,8 +189,8 @@ import { contrastInk, formatColor, parseColor, type Rgba } from './color.js'
 
 export interface RadialItem {
   label: string
-  /** An icon name (`svgIcons`). */
-  icon?: string
+  /** An icon name (`svgIcons`), or an SVG element (cloned: a button's own icon). */
+  icon?: string | SVGElement
   /** Shown, never picked. */
   disabled?: boolean
   /** Marked as the current one. */
@@ -192,7 +203,35 @@ export interface RadialItem {
   gated?: boolean
   /** Its slice's colour (any CSS colour): toned down at rest, full when lit. */
   color?: string
+  /** A SUB-RING: picking this item opens these in its place (read when it opens). */
+  items?: RadialItem[] | (() => RadialItem[])
+  /** Called when this item is picked (beside the ring's own `handleSelect`). */
+  handleSelect?: () => void
   [key: string]: unknown
+}
+
+/** The hub's halves, in a sub-ring: back up a level, or dismiss. */
+export type RadialHubZone = 'back' | 'close' | null
+
+/** The hub's radius (drawing units): a click inside it is the hub's, not a slice's. */
+export const RADIAL_HUB = 64
+
+/** An item's icon, sized and placed (a name or an element). */
+function mark(
+  icon: string | SVGElement,
+  opts: { color: string; size: number; x: number; y: number }
+): SVGElement {
+  if (typeof icon === 'string')
+    return iconGlyph(icon, opts) as unknown as SVGElement
+  const el = icon.cloneNode(true) as SVGElement
+  el.setAttribute('x', String(opts.x))
+  el.setAttribute('y', String(opts.y))
+  el.setAttribute('width', String(opts.size))
+  el.setAttribute('height', String(opts.size))
+  el.setAttribute('color', opts.color)
+  el.style.removeProperty('height')
+  el.style.removeProperty('width')
+  return el
 }
 
 export interface RadialMenuSvg extends SVGSVGElement {
@@ -203,6 +242,8 @@ export interface RadialMenuSvg extends SVGSVGElement {
   highlight(i: number, armed?: number): void
   /** The lit item, -1 for none. */
   readonly lit: number
+  /** Light a half of the hub (a sub-ring's back and dismiss), or neither. */
+  hubLit(zone: RadialHubZone): void
   readonly items: readonly RadialItem[]
 }
 
@@ -387,7 +428,11 @@ function armReach(item: RadialItem, from: number, to: number): number {
  */
 export function radialMenuSvg(
   items: readonly RadialItem[],
-  options: { title?: string } = {}
+  options: {
+    title?: string
+    /** A sub-ring: the hub's top half goes back up, its bottom half dismisses. */
+    back?: boolean
+  } = {}
 ): RadialMenuSvg {
   const { path, text, g, svg, circle } = svgElements
   const n = Math.max(1, items.length)
@@ -454,16 +499,29 @@ export function radialMenuSvg(
     const cx = at.x * rMark
     const cy = at.y * rMark
     const ink = item.disabled ? theme.muted : fills[i].ink ?? theme.text
-    const mark = item.icon
-      ? (iconGlyph(item.icon, {
-          color: ink,
-          size: 40,
-          x: cx - 20,
-          y: cy - 20,
-        }) as unknown as SVGElement)
+    const glyph = item.icon
+      ? mark(item.icon, { color: ink, size: 40, x: cx - 20, y: cy - 20 })
       : (labelText(item.label, cx, cy, ink) as unknown as SVGElement)
-    inks.push(mark)
-    ring.append(mark)
+    inks.push(glyph)
+    ring.append(glyph)
+    // A sub-ring: a chevron at the rim says there is more beyond.
+    if (item.items != null)
+      ring.append(
+        path({
+          d: (() => {
+            const a = Math.atan2(at.x, -at.y)
+            const tip = pt(a, R_OUT - 8)
+            const l = pt(a - 0.07, R_OUT - 20)
+            const r = pt(a + 0.07, R_OUT - 20)
+            return `M ${fmt(l)} L ${fmt(tip)} L ${fmt(r)}`
+          })(),
+          fill: 'none',
+          stroke: ink,
+          'stroke-width': 3,
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+        })
+      )
     if (item.checked)
       ring.append(
         circle({
@@ -501,9 +559,33 @@ export function radialMenuSvg(
   The hub shows what is lit: its label, in its colour when it has one, and its
   icon above the label (in place of the title) when it has one.
   */
-  const hub = circle({ cx: 0, cy: 0, r: R_IN - 6, fill: theme.panelBg })
+  const hub = circle({ cx: 0, cy: 0, r: RADIAL_HUB, fill: theme.panelBg })
   const hubMark = g()
-  ring.append(hub, hubMark, title, label)
+  /*
+  A SUB-RING'S HUB is split: the top half goes back up a level, the bottom
+  half dismisses. Each half lights under the pointer; the stick has B.
+  */
+  const R = RADIAL_HUB
+  const upper = path({
+    d: `M ${-R} 0 A ${R} ${R} 0 0 1 ${R} 0 Z`,
+    fill: 'none',
+  })
+  const lower = path({
+    d: `M ${R} 0 A ${R} ${R} 0 0 1 ${-R} 0 Z`,
+    fill: 'none',
+  })
+  const hubKeys = g(
+    path({
+      d: `M ${-R + 10} 0 L ${R - 10} 0`,
+      stroke: 'rgba(255,255,255,0.2)',
+      'stroke-width': 2,
+    }),
+    mark('cornerUpLeft', { color: theme.muted, size: 20, x: -10, y: -54 }),
+    mark('close', { color: theme.muted, size: 20, x: -10, y: 34 })
+  )
+  ring.append(hub)
+  if (options.back) ring.append(upper, lower, hubKeys)
+  ring.append(hubMark, title, label)
   const el = svg(
     {
       xmlns: 'http://www.w3.org/2000/svg',
@@ -545,16 +627,26 @@ export function radialMenuSvg(
     const waiting = item == null && armed >= 0 ? items[armed] : null
     label.textContent = item?.label ?? (waiting ? `${waiting.label} ↔` : '')
     label.setAttribute('fill', waiting ? theme.muted : ink)
+    hubKeys.style.display = item ? 'none' : ''
     title.setAttribute('fill', coloured ? ink : theme.muted)
     title.setAttribute('opacity', coloured ? '0.7' : '1')
     hubMark.replaceChildren()
     title.style.display = item?.icon ? 'none' : ''
     if (item?.icon)
-      hubMark.append(
-        iconGlyph(item.icon, { color: ink, size: 32, x: -16, y: -42 })
-      )
+      hubMark.append(mark(item.icon, { color: ink, size: 32, x: -16, y: -42 }))
+  }
+  let zoneNow: RadialHubZone = null
+  const hubLit = (zone: RadialHubZone) => {
+    if (zone === zoneNow) return
+    zoneNow = zone
+    if (zone != null) highlight(-1)
+    upper.setAttribute('fill', zone === 'back' ? theme.accent : 'none')
+    lower.setAttribute('fill', zone === 'close' ? theme.accent : 'none')
+    if (!options.back) hub.setAttribute('fill', zone ? halfAccent : theme.panelBg)
+    if (lit < 0) label.textContent = zone ?? ''
   }
   Object.defineProperties(el, {
+    hubLit: { value: hubLit },
     highlight: { value: highlight },
     lit: { get: () => lit },
     items: { value: items },

@@ -12,6 +12,9 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Added: sub-rings. A radial menu item with `items` opens them in its place; the sub-ring's middle is split, top half back up a level, bottom half dismiss, and B goes back. An item's own `handleSelect` is called when it is picked.
+- Changed: holding D-pad up opens the system bar as a radial ring (its buttons as slices, a bar menu as a sub-ring) instead of putting the focus on the bar; `b3d.openSystemRing()` opens it from code. In a ring that stays open, A picks and B goes back or dismisses (B used to pick).
+
 - Added: the inventory dock's rings carry a gated **close** at the top (drop is at the bottom), so the pad can put the loadout away from inside it. A framed dock asks its system panel to close with `panelfocus` (`focus: false`).
 - Added: radial menus by pointer. `b3d.meshMenu(mesh, { tap, menu, handleSelect })` opens a ring on a press and hold on a mesh; `openRadialMenu({ …, pointer })` from a `pointerdown` is held by that press (drag toward a slice, let go; let go without dragging and it stays open to click); in a headset, a press and hold on a scene panel control with a `menu()` (an inventory thing) opens its ring. Items take a `color`; the ring's centre shows the lit item's label in its colour, with its icon. The radial menu demo's box opens its ring this way.
 - Changed: a shot's rumble is stronger (it was too faint to feel through the trigger).

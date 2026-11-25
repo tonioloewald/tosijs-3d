@@ -360,6 +360,7 @@ import {
   type DpadDirection,
   type HoldAction,
   type MeshHoldAction,
+  type RadialHold,
   type RadialMenuOptions,
 } from './radial-host.js'
 import {
@@ -451,8 +452,10 @@ import {
   BAR_GAP,
   BAR_PAD,
   ATTENTION_FILL,
+  barShows,
   type SystemBar,
 } from './system-bar.js'
+import type { RadialItem } from './radial-menu.js'
 import { CombatWorld } from './destroyable.js'
 import { b3dGamepad } from './glass-gamepad.js'
 import { XrGamepadSource } from './xr-gamepad.js'
@@ -2976,10 +2979,11 @@ export class B3d extends Component {
   cycle; left and right move a slider, a choice or a caret (`pad-ui`). The
   ring shows only for a pad or the keyboard: a mouse press hides it.
 
-  GAMEPAD UI MODE. A pad has no pointer. Holding D-pad up puts its focus on
-  the system bar: left and right step along it, B presses (a click, so a
-  non-aggressive button never fires anything), down goes into the open panel.
-  Holding up in a panel goes back to the bar, and on the bar back to playing.
+  GAMEPAD UI MODE. A pad has no pointer. Holding D-pad up opens the system
+  bar as a ring (`openSystemRing`): point a stick, let go to press. Holding up
+  in a panel closes it and opens the ring again. `setPadUi(true)` still puts
+  the focus on the bar itself: left and right step, B presses, down goes into
+  the open panel.
   A panel that pops up while the pad is what you last used (a chest you
   opened with B) takes the pad straight away, and gives it back when it
   closes. While the mode is on the UI owns the D-pad and B (`padUiOwns`), so
@@ -3226,21 +3230,16 @@ export class B3d extends Component {
       else if (!this._padUpFired && now - this._padUpSince >= PAD_UI_HOLD_MS) {
         this._padUpFired = true
         const ui = this._padUi
-        // Off: the bar. In a panel: close it, back to its button on the
-        // bar (a panel that popped up by itself: back to playing). On the
-        // bar: playing. A modal stays until it is answered.
-        if (ui == null) this.setPadUi(true)
-        else if (ui.zone === 'panel') {
+        // The system bar as a RING, held by up: point a stick, let go to
+        // pick. In a panel, it closes first. A modal stays until answered.
+        if (this._modals.size > 0) return
+        if (ui?.zone === 'panel') {
           const key = this._panelNav?.key
-          if (key != null && this._modals.size === 0) {
-            if (!ui.auto) {
-              ui.zone = 'bar'
-              bar?.setPadFocus(Math.max(0, this._padBarFrom))
-            }
-            if (key === 'settings') this._closeScenePanel()
-            else this._closeSystemPanel(key as Element)
-          }
-        } else this.setPadUi(false)
+          if (key === 'settings') this._closeScenePanel()
+          else if (key != null) this._closeSystemPanel(key as Element)
+        }
+        this.setPadUi(false)
+        this.openSystemRing({ button: 'dpadUp' })
         return
       }
     } else {
@@ -3251,7 +3250,9 @@ export class B3d extends Component {
     if (ui == null) return
     if (bar == null) return this.setPadUi(false)
     const nav = this._panelNav?.nav
-    for (const m of pulse.moves) {
+    // An open ring has the pad: the panel behind it does not move or press.
+    const ringOpen = this._radial?.isOpen === true
+    for (const m of ringOpen ? [] : pulse.moves) {
       if (ui.zone === 'bar') {
         if (m.dx !== 0) bar.padMove(m.dx)
         else if (m.dy > 0 && nav != null) {
@@ -3272,6 +3273,7 @@ export class B3d extends Component {
     */
     const focused = ui.zone === 'panel' ? nav?.focused : null
     const ev = pressStep(this._padHold, pad.buttonB > 0.5, now)
+    if (ringOpen) return
     if (pulse.activate && focused?.menu == null) {
       if (ui.zone === 'bar') bar.padActivate()
       else nav?.activate()
@@ -5276,6 +5278,52 @@ export class B3d extends Component {
           .filter((g): g is Gamepad => g != null),
       rumble: (name) => this.rumble(name),
     }))
+  }
+
+  /*
+  THE SYSTEM BAR AS A RING: every button the bar shows, as a slice (its icon,
+  its name; a panel showing is ticked). A bar menu (`barMenu`) is a sub-ring,
+  and so are its submenus. Picking a button is its own click, as on the bar.
+  */
+  private _systemRingItems(): RadialItem[] {
+    const part = (p: string) => this.parts[p] as HTMLButtonElement | undefined
+    const panelOf = new Map<HTMLButtonElement, Element>()
+    for (const { el } of this._systemEntries()) {
+      const b = this._systemButtonOf.get(el)
+      if (b != null) panelOf.set(b, el)
+    }
+    const buttons = [
+      part('scenePanelGear'),
+      ...this._systemButtons(),
+      part('enterVrButton'),
+      part('fullscreenButton'),
+    ].filter((b): b is HTMLButtonElement => b != null && barShows(b))
+    return buttons.map((b) => {
+      const menu = panelOf.get(b) as
+        | { radialItems?: () => RadialItem[] }
+        | undefined
+      const icon = b.querySelector('svg') as SVGElement | null
+      return {
+        label: b.title || b.getAttribute('aria-label') || '',
+        ...(icon != null ? { icon } : {}),
+        disabled: b.disabled,
+        checked: b.getAttribute('aria-pressed') === 'true',
+        ...(menu?.radialItems != null
+          ? { items: () => menu.radialItems!() }
+          : { handleSelect: () => b.click() }),
+      }
+    })
+  }
+
+  /**
+   * Open the system bar as a ring: its buttons as slices, a bar menu as a
+   * sub-ring. Held by D-pad up on a gamepad; `heldBy` is what holds it open
+   * (let go to pick), else it stays open to click. Returns its close.
+   */
+  openSystemRing(heldBy: RadialHold | null = null): () => void {
+    const items = this._systemRingItems()
+    if (items.length === 0) return () => {}
+    return this._radialHost().openMenu({ items }, heldBy)
   }
 
   /**

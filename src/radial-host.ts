@@ -24,7 +24,9 @@ import {
 } from './radial-layout.js'
 import {
   radialMenuSvg,
+  RADIAL_HUB,
   RADIAL_SIZE,
+  type RadialHubZone,
   type RadialItem,
   type RadialMenuSvg,
 } from './radial-menu.js'
@@ -125,6 +127,11 @@ interface Open {
   svg: RadialMenuSvg
   close: (() => void) | null
   opts: RadialMenuOptions
+  /** The level on show: the ring's items, or a sub-ring's. */
+  items: RadialItem[]
+  /** The levels above it, top first (empty at the top). */
+  trail: { items: RadialItem[]; title?: string }[]
+  title?: string
   /** What holds it open (let go to pick), or null (a click or A picks). */
   heldBy: RadialHold | null
   /** A and B must be let go of before they pick (the press that opened it). */
@@ -249,18 +256,20 @@ export class RadialHost {
     }
     this.origin = heldBy?.pointer ? at : null
     const centre = this.scene.xrActive ? null : at
-    const svg = radialMenuSvg(opts.items, { title: opts.title })
     const open: Open = {
-      svg,
+      svg: null as unknown as RadialMenuSvg,
       centre,
-      close:
-        this.scene.present(svg, RADIAL_SIZE, centre) ?? this.domFallback(svg),
+      close: null,
       opts,
+      items: opts.items,
+      trail: [],
+      title: opts.title,
       heldBy,
       armed: false,
       stickGate: gateState(),
       pointerGate: gateState(),
     }
+    this.show(open)
     this.open = open
     for (const k of OPEN_OWNS) padMenuOwns.add(k)
     this.pointer = null
@@ -269,21 +278,72 @@ export class RadialHost {
     }
   }
 
+  /** Draw `open`'s level (in place of what showed), where it was. */
+  private show(open: Open): void {
+    open.close?.()
+    const svg = radialMenuSvg(open.items, {
+      title: open.title,
+      back: open.trail.length > 0,
+    })
+    open.svg = svg
+    open.close =
+      this.scene.present(svg, RADIAL_SIZE, open.centre) ?? this.domFallback(svg)
+    open.stickGate = gateState()
+    open.pointerGate = gateState()
+    open.armed = false
+    this.pointer = null
+  }
+
+  /*
+  HIERARCHY: an item with `items` opens them in its place, a SUB-RING. It
+  stays open to be clicked (or pointed at, with A to pick): whatever held the
+  ring open has been let go to pick the item. Its hub is split, the top half
+  back up a level and the bottom half dismissing; B does the same (back, or
+  dismiss at the top).
+  */
+  private descend(open: Open, item: RadialItem): void {
+    const items = typeof item.items === 'function' ? item.items() : item.items
+    if (items == null || items.length === 0) return this.close()
+    open.trail.push({ items: open.items, title: open.title })
+    open.items = items
+    open.title = item.label
+    open.heldBy = null
+    this.origin = null
+    this.show(open)
+    this.scene.rumble('tick')
+  }
+
+  /** Back up a level (at the top: dismiss). */
+  back(): void {
+    const open = this.open
+    if (open == null) return
+    const up = open.trail.pop()
+    if (up == null) return this.close()
+    open.items = up.items
+    open.title = up.title
+    this.show(open)
+    this.scene.rumble('tick')
+  }
+
   /** Is a ring open? */
   get isOpen(): boolean {
     return this.open != null
   }
 
-  /** Close the ring, picking item `pick` (-1: nothing). */
+  /** Close the ring, picking item `pick` (-1: nothing) of the level on show. */
   close(pick = -1): void {
     const open = this.open
     if (open == null) return
+    const item = open.items[pick]
+    if (item?.items != null && !item.disabled) return this.descend(open, item)
     this.open = null
     open.close?.()
     for (const k of [...OPEN_OWNS, ...LEFT_OWNS])
       if (!this.holds.some((h) => h.button === k)) padMenuOwns.delete(k)
-    const item = open.opts.items[pick]
-    if (item != null && !item.disabled) open.opts.handleSelect?.(item, pick)
+    if (item != null && !item.disabled) {
+      item.handleSelect?.()
+      open.opts.handleSelect?.(item, pick)
+    }
     open.opts.handleClose?.()
   }
 
@@ -375,13 +435,20 @@ export class RadialHost {
     }
     // Either stick points (either thumbstick in a headset); else the
     // mouse, from the middle.
-    const items = open.opts.items
+    const items = open.items
     let at: GatedPickResult = { pick: -1, blocked: false, armed: -1 }
     const stick = this.stick(pad)
     if (stick != null)
       at = gatedPick(open.stickGate, stick, items, { deadzone: 0.5 })
+    // Clicked rather than dragged, the hub is a target: the deadzone is its size.
+    const dz = open.heldBy?.pointer ? 30 : RADIAL_HUB
     if (at.pick < 0 && !at.blocked && this.pointer != null)
-      at = gatedPick(open.pointerGate, this.pointer, items, { deadzone: 30 })
+      at = gatedPick(open.pointerGate, this.pointer, items, { deadzone: dz })
+    open.svg.hubLit(
+      open.heldBy == null && at.pick < 0 && !at.blocked
+        ? this.hubZone(open)
+        : null
+    )
     const pick = at.pick
     // Pushed straight at a gated slice: nothing lit, so letting go picks nothing.
     if (at.blocked) open.svg.highlight(-1, at.armed)
@@ -390,11 +457,22 @@ export class RadialHost {
       open.svg.highlight(pick)
       if (open.svg.lit === pick) this.scene.rumble('tick')
     }
-    // A or B picks when nothing holds it open.
+    // A picks when nothing holds it open; B goes back (at the top, dismisses).
     if (open.heldBy != null) return
-    const press = Math.max(pad?.buttonA ?? 0, pad?.buttonB ?? 0) > 0.5
-    if (!press) open.armed = true
-    else if (open.armed) this.close(open.svg.lit)
+    const a = (pad?.buttonA ?? 0) > 0.5
+    const b = (pad?.buttonB ?? 0) > 0.5
+    if (!a && !b) open.armed = true
+    else if (open.armed) {
+      if (a) this.close(open.svg.lit)
+      else this.back()
+    }
+  }
+
+  /** Which half of the hub the pointer is over (clicked rings only). */
+  private hubZone(open: Open): RadialHubZone {
+    const p = this.pointer
+    if (p == null || Math.hypot(p.x, p.y) >= RADIAL_HUB) return null
+    return open.trail.length > 0 && p.y < 0 ? 'back' : 'close'
   }
 
   dispose(): void {
@@ -484,14 +562,18 @@ export class RadialHost {
       const open = this.open
       if (open == null || open.heldBy != null) return
       move(e)
+      e.stopPropagation()
+      e.preventDefault()
+      // The hub: back up a level (its top half, in a sub-ring), else dismiss.
+      const zone = this.hubZone(open)
+      if (zone === 'back') return this.back()
+      if (zone === 'close') return this.close()
       const at =
         this.pointer == null
           ? -1
-          : radialPick(this.pointer, open.opts.items, { deadzone: 30 })
-      e.stopPropagation()
-      e.preventDefault()
+          : radialPick(this.pointer, open.items, { deadzone: RADIAL_HUB })
       // A gated slice is picked only once lit (out into it, then sideways).
-      if (open.opts.items[at]?.gated && open.svg.lit !== at) return
+      if (open.items[at]?.gated && open.svg.lit !== at) return
       this.close(at)
     }
     const blur = () => this.keys.clear()

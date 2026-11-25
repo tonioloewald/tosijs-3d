@@ -824,11 +824,10 @@ the actions are on the right hand: **A** attacks, **B** uses (doors, chests,
 the lift, picking up, talking; with the weapon up it ducks instead),
 clicking the **right stick** jumps, and clicking the **left stick** (or **C**)
 cycles walk, jog and run: pushing forward then moves at that pace.
-**Hold D-pad up** to reach the system bar with the pad: left and right step
-along it, **B** opens a panel, up and down cycle through its controls, left
-and right move sliders, **B** presses. Hold up in a panel to close it, and on
-the bar to go back to playing; a chest's panel closes straight back to
-playing. On the keyboard, **Tab** steps
+**Hold D-pad up** and the system bar opens as a ring: point the right stick
+at a button and let go. In the panel that opens, up and down cycle through
+its controls, left and right move sliders, **B** presses. Hold up in a panel
+to close it. On the keyboard, **Tab** steps
 through an open panel.
 
 **Play as a character of your own.** Make one in the

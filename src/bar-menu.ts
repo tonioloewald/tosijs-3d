@@ -64,6 +64,7 @@ default a menu whose options all have icons is a toolbar of icons instead.
 /*{ "parent": "system-bar", "order": 10 }*/
 import { svgElements } from 'tosijs'
 import type { PointerKind } from './box.js'
+import type { RadialItem } from './radial-menu.js'
 import { panelRim } from './panel-rim.js'
 import { iconGlyph } from './svg-icons.js'
 import { b3dPanel, type B3dPanel } from './b3d-panel.js'
@@ -111,7 +112,11 @@ export interface BarMenuConfig {
   layout?: 'list' | 'toolbar'
 }
 
-export type BarMenu = B3dPanel & { value: string }
+export type BarMenu = B3dPanel & {
+  value: string
+  /** Its options as a ring's items (sub-rings for submenus). */
+  radialItems: () => RadialItem[]
+}
 
 const ROW = 36
 const RULE = 11
@@ -461,6 +466,37 @@ export function barMenu(config: BarMenuConfig): BarMenu {
     cols = [{ options: read(config.options), open: -1 }]
     show()
   }
+  /*
+  AS A RING: the system bar's ring (hold D-pad up) shows this menu as a
+  sub-ring, its submenus as sub-rings of that. Picking does what a press on
+  the row does.
+  */
+  const asRadial = (opts: Opt[]): RadialItem[] =>
+    opts
+      .filter((o) => !o.separator)
+      .map((o) => ({
+        label: o.label,
+        icon: o.icon,
+        disabled: o.disabled,
+        checked:
+          o.checked ??
+          (o.handleSelect == null &&
+            o.items == null &&
+            (o.value ?? o.label) === value),
+        ...(o.items != null
+          ? { items: () => asRadial(read(o.items)) }
+          : {
+              handleSelect: () => {
+                if (o.handleSelect) return o.handleSelect()
+                value = o.value ?? o.label
+                config.handleChange?.(value)
+                drawNow()
+              },
+            }),
+      }))
+  Object.defineProperty(el, 'radialItems', {
+    value: () => asRadial(read(config.options)),
+  })
   el.addEventListener('paneltoggle', (e: Event) => {
     if ((e as CustomEvent).detail?.open) reset()
   })

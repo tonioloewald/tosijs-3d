@@ -1189,3 +1189,43 @@ changes what is drawn, not what is picked, and that is exactly right for
 something that must not be picked).
 
 Focus shows it as hover does: a D-pad focus on a thing opens its card.
+
+## Interface guidelines: immersion levels and the radial system bar (2026-11-25)
+
+The aims, in Tonio's list: **discoverability, forgiveness, progressive
+disclosure, recognition over recall, direct manipulation.** Radial menus are
+a new tool for all five, and they let a scene decide how much UI it shows
+without taking any of it away.
+
+**Radial menus and Fitts' law.** A slice runs out to the edge of the screen,
+so its target has no far edge to miss: a flick picks it. That is why a ring
+is the fastest menu on a pad and one of the few with no aiming in 3D. Used
+backwards, the same law makes danger expensive: `apart` makes a choice small
+and lonely, and `gated` asks for a deliberate two-part gesture (straight out,
+then sideways, like reverse gear). Forgiveness is built in: letting go
+without pointing does nothing.
+
+**Immersion levels** (planned, not built). How much chrome shows by default
+is a scene's choice, from full (the system bar and panels visible) down to
+none at maximum immersion. Nothing is lost at any level, because the system
+bar is always one hold away as a ring:
+
+- **D-pad up, held:** the system bar as a ring (built: `openSystemRing`). It
+  replaced putting the pad's focus on the bar, which made you step along a
+  row you might not even see. A ring is cleaner and more direct.
+- **Either trigger, held**, at maximum immersion only (planned): the same
+  ring, where the triggers are not needed for anything else.
+- **A wrist affordance** in a headset (planned): look straight at your wrist
+  and the system bar's ring discloses itself there. Progressive disclosure
+  by gaze; nothing floats in view until you ask.
+
+**Hierarchy.** Picking an item can open a sub-ring in its place (built: an
+item's `items`; a bar menu becomes a sub-ring of the system ring). The
+centre splits: the top half goes back up a level, the bottom half
+dismisses. B does the same on a pad, so the centre is never something a
+stick must reach. Recognition over recall: every level shows its choices
+with their icons; nothing has to be remembered as a chord.
+
+Still open: whether descending should also happen on a dwell while the hold
+is kept (a marking menu: one continuous stroke through the levels), and how
+a ring is held with hands only (no controllers, visionOS).
