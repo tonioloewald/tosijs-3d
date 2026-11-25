@@ -367,6 +367,7 @@ import {
   type RumbleEffect,
   type RumbleName,
 } from './rumble.js'
+import { setKeyboardHeadset } from './keyboard.js'
 import {
   fitPanel,
   panel3d,
@@ -6757,6 +6758,7 @@ export class B3d extends Component {
     let endPassthrough: (() => void) | undefined
     base.onStateChangedObservable.add((state) => {
       this.xrActive = state === BABYLON.WebXRState.IN_XR
+      setKeyboardHeadset(this.xrActive)
       // SSAO must be gone BEFORE the headset camera becomes active, which
       // happens during ENTERING_XR, ahead of IN_XR.
       this._xrPresenting = state !== BABYLON.WebXRState.NOT_IN_XR

@@ -814,7 +814,7 @@
       {
         "name": "pace",
         "default": "'walk'",
-        "description": "What pushing forward does: `'walk'`, `'jog'` or `'run'`. Clicking the left stick (C on a keyboard) cycles it; the right trigger still sprints over it"
+        "description": "What pushing forward does: `'walk'`, `'jog'` or `'run'`. The starting pace: clicking the left stick (C on a keyboard) cycles it (`currentPace` reads it); the right trigger still sprints over it"
       },
       {
         "name": "strafeSpeed",

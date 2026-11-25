@@ -197,7 +197,7 @@ b3d-biped
   cameraMinHeight  = 0.5  — Lowest the follow camera goes above the feet, metres (looking up lowers the camera; this keeps it above ground)
   jumpSpeed  = 4.5  — Upward speed at take-off, m/s
   sneakSpeed  = 0.4  — Fraction of walking speed while sneaking
-  pace  = 'walk'  — What pushing forward does: `'walk'`, `'jog'` or `'run'`. Clicking the left stick (C on a keyboard) cycles it; the right trigger still sprints over it
+  pace  = 'walk'  — What pushing forward does: `'walk'`, `'jog'` or `'run'`. The starting pace: clicking the left stick (C on a keyboard) cycles it (`currentPace` reads it); the right trigger still sprints over it
   strafeSpeed  = 0.75  — Sidestep speed as a fraction of walking
   climbReach  = 2.2  — Highest ledge the character can pull itself onto, metres (see Mantling, below)
   hardLanding  = 0  — Metres of drop past which a landing is hard: the `hardLand` clip (UAL's `Roll`), standing still while it plays. Auto is 1.5 body heights. The drop is from the top of the flight, so a jump on flat ground is never hard ([fall](/fall/))

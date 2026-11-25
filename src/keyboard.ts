@@ -1740,12 +1740,27 @@ export interface KeyboardOptions {
   handleCaretMove?: (delta: number) => void
 }
 
+/*
+A HEADSET'S TRIGGER is a slow tap: an ordinary press often outlasts 350 ms, so
+on a letter with accents it opened the strip instead of typing, which read as
+a lost key. In a session the hold is longer. \`<tosi-b3d>\` sets this on
+entering and leaving a headset session.
+*/
+let headsetTiming = false
+/** Longer holds for a headset's trigger (set by \`<tosi-b3d>\` in a session). */
+export function setKeyboardHeadset(on: boolean): void {
+  headsetTiming = on
+}
+
+/** How much a pressed key grows (drawn in front, and where its release still counts). */
+const PRESS_GROW = 1.35
+
 export function keyboard(config: KeyboardOptions = {}): Keyboard {
   const kb$ = <T>(h: string, o: string): T | undefined =>
     handlerOf<T>(config as unknown as Record<string, unknown>, h, o)
   const KH = config.keyHeight ?? 38
   const GAP = config.gap ?? 5
-  const HOLD = config.holdMs ?? 350
+  const holdMs = () => config.holdMs ?? (headsetTiming ? 600 : 350)
   const CARET_STEP = config.caretStepPx ?? 12
 
   let mode: KeyboardMode = config.mode ?? 'alpha'
@@ -1779,13 +1794,32 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
     visibility: 'hidden',
   }) as SVGRectElement
   const focusLayer = g({ 'data-kb': 'focus' }, focusRing) as SVGGElement
+  /*
+  THE PRESSED KEY GROWS: a copy PRESS_GROW times its size, drawn over its
+  neighbours, and its release counts anywhere on that copy. A ray drifts as
+  the trigger is pulled, and a release a few pixels off the key used to type
+  nothing; now what you see under the pointer is what you get.
+  */
+  const pressLayer = g({ 'data-kb': 'press' }) as SVGGElement
   const popupLayer = g({ 'data-kb': 'popup' }) as SVGGElement
   const el = g(
     { 'data-w3d': 'keyboard' },
     keysLayer,
     focusLayer,
+    pressLayer,
     popupLayer
   ) as SVGGElement
+  /** Is (x, y) on the pressed key as drawn, grown? */
+  const onGrown = (r: KeyRect, x: number, y: number): boolean => {
+    const gx = ((PRESS_GROW - 1) * r.width) / 2
+    const gy = ((PRESS_GROW - 1) * r.height) / 2
+    return (
+      x >= r.x - gx &&
+      x <= r.x + r.width + gx &&
+      y >= r.y - gy &&
+      y <= r.y + r.height + gy
+    )
+  }
 
   /** Index into `rects` of the D-pad-focused key; -1 = no key focus. */
   let focusIdx = -1
@@ -1849,8 +1883,22 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
     if (r && bg) bg.setAttribute('fill', fill ?? keyFill(r))
   }
 
-  const pressVis = (i: number, on: boolean): void =>
+  const pressVis = (i: number, on: boolean): void => {
     setKeyFill(i, on ? TH.KEY_DOWN : null)
+    pressLayer.replaceChildren()
+    const r = rects[i]
+    const cell = keysLayer.children[i] as SVGGElement | undefined
+    if (!on || !r || !cell) return
+    const grown = cell.cloneNode(true) as SVGGElement
+    const cx = r.x + r.width / 2
+    const cy = r.y + r.height / 2
+    grown.setAttribute(
+      'transform',
+      `translate(${cx} ${cy}) scale(${PRESS_GROW}) translate(${-cx} ${-cy})`
+    )
+    grown.setAttribute('pointer-events', 'none')
+    pressLayer.append(grown)
+  }
 
   const endPressVis = (): void => {
     if (pressedVis >= 0) {
@@ -2200,7 +2248,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         if (alts.length > 0) {
           press.timer = setTimeout(() => {
             if (press) openPopup(r, alts)
-          }, HOLD)
+          }, holdMs())
         } else if (r.key.action === 'shift') {
           press.timer = setTimeout(() => {
             if (!press) return
@@ -2210,7 +2258,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
             // read the lock as a tap and turn it straight back off.
             press.caps = true
             relayout()
-          }, HOLD)
+          }, holdMs())
         } else if (
           r.key.action === 'space' &&
           kb$('handleCaretMove', 'onCaretMove')
@@ -2238,7 +2286,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
               caretDrag = { lastX: x, accum: 0, moved: false }
               spaceHint(true)
             }
-          }, HOLD)
+          }, holdMs())
         }
         return
       }
@@ -2260,7 +2308,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         if (press.accents.length > 0) trackPopup(x, y)
         // Sliding off the key before the popup opens cancels the hold — otherwise a
         // scroll-ish drag would pop an accent picker you didn't ask for.
-        else if (keyAt(rects, x, y) !== press.rect) clearTimer()
+        else if (!onGrown(press.rect, x, y)) clearTimer()
         return
       }
       if (kind === 'up' || kind === 'leave') keyTint(press.rect, false)
@@ -2276,8 +2324,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         (space appearing only sometimes, reported from device). No movement, no
         drag — the space types.
         */
-        const wasTap =
-          !caretDrag.moved && press && keyAt(rects, x, y) === press.rect
+        const wasTap = !caretDrag.moved && press && onGrown(press.rect, x, y)
         caretDrag = null
         if (wasTap && press) fireKey(press.rect)
         press = null
@@ -2319,7 +2366,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
           }
         } else if (press.caps) {
           // The hold already did the work; releasing is not also a tap.
-        } else if (keyAt(rects, x, y) === press.rect) {
+        } else if (onGrown(press.rect, x, y)) {
           // A tap RELOCATES focus that is already active, so switching pointer →
           // D-pad resumes from what you touched. It does NOT summon the ring when
           // focus is absent: typing is a stream of taps, and a ring chasing every

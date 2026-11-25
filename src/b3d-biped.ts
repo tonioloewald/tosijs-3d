@@ -213,7 +213,7 @@ animation is doing with that hand.
 | `aimMaxYaw` | `90` | The spine's limit, degrees. Past it the body is dragged round |
 | `jumpSpeed` | `4.5` | Upward speed at take-off, m/s |
 | `sneakSpeed` | `0.4` | Fraction of walking speed while sneaking |
-| `pace` | `'walk'` | What pushing forward does: `'walk'`, `'jog'` or `'run'`. Clicking the left stick (C on a keyboard) cycles it; the right trigger still sprints over it |
+| `pace` | `'walk'` | What pushing forward does: `'walk'`, `'jog'` or `'run'`. The starting pace: clicking the left stick (C on a keyboard) cycles it (`currentPace` reads it); the right trigger still sprints over it |
 | `strafing` | `'off'` | `'on'` sidesteps with the left stick; `'off'` turns with it |
 | `strafeSpeed` | `0.75` | Sidestep speed as a fraction of walking |
 | `climbReach` | `2.2` | Highest ledge the character can pull itself onto, metres (see Mantling, below) |
@@ -392,7 +392,7 @@ import {
   type AngularTarget,
 } from './aim-assist.js'
 import { XRInputProvider } from './xr-input-provider.js'
-import { forwardGait, nextPace, paceShare } from './gait.js'
+import { forwardGait, nextPace, paceShare, type Pace } from './gait.js'
 import type { RumbleName } from './rumble.js'
 import { realNow } from './clock.js'
 import { FALL_START_DROP, fallRules, landingOutcome } from './fall.js'
@@ -2020,6 +2020,18 @@ export class B3dBiped extends B3dControllable {
   }
   private _sneakWas = false
   private _paceWas = false
+  /*
+  The pace now. Not written back to the \`pace\` attribute: setting an attribute
+  re-renders the element, and an AbstractMesh's render puts the mesh back at
+  its authored x, y, z (every click teleported you home). The attribute is the
+  starting pace; a later change to it still applies.
+  */
+  private _pace: Pace = 'walk'
+  private _paceAttr: Pace | null = null
+  /** What pushing forward does now: 'walk', 'jog' or 'run'. */
+  get currentPace(): Pace {
+    return this._pace
+  }
   /** The stance-change clip playing (`sneakEnter`/`sneakExit`), and its seconds left. */
   private _stanceClip = ''
   private _stanceLeft = 0
@@ -3296,7 +3308,11 @@ export class B3dBiped extends B3dControllable {
     this._sneakWas = sneakDown
     // THE PACE: a left-stick click cycles walk, jog, run (GTA VI's way).
     const paceDown = (input.gait ?? 0) > 0.5
-    if (paceDown && !this._paceWas) attrs.pace = nextPace(attrs.pace)
+    if (attrs.pace !== this._paceAttr) {
+      this._paceAttr = attrs.pace
+      this._pace = attrs.pace
+    }
+    if (paceDown && !this._paceWas) this._pace = nextPace(this._pace)
     this._paceWas = paceDown
     this._stanceLeft = Math.max(0, this._stanceLeft - dt)
     this._paceBlends(dt)
@@ -3328,7 +3344,7 @@ export class B3dBiped extends B3dControllable {
       : input.turn
     const sprint = this._sneaking
       ? 0
-      : Math.max(input.sprint, paceShare(attrs.pace))
+      : Math.max(input.sprint, paceShare(this._pace))
     const sprintSpeed = speed * sprint
     const walk = this._sneaking
       ? attrs.forwardSpeed * attrs.sneakSpeed

@@ -66,6 +66,23 @@ describe('keyboard — tapping', () => {
     expect(keys).toEqual([])
   })
 
+  test('the pressed key grows: a release just off it (a drifting ray) still types it', () => {
+    const { kb, keys } = mk(10000)
+    const p = centre('alpha', false, 'w')
+    kb.handle!('down', p.x, p.y)
+    // Past its edge, onto its neighbour, but inside the grown key.
+    kb.handle!('up', p.x + p.rect.width * 0.6, p.y + p.rect.height * 0.6)
+    expect(keys).toEqual(['w'])
+  })
+
+  test('a release past the grown key types nothing', () => {
+    const { kb, keys } = mk(10000)
+    const p = centre('alpha', false, 'w')
+    kb.handle!('down', p.x, p.y)
+    kb.handle!('up', p.x + p.rect.width * 0.75, p.y)
+    expect(keys).toEqual([])
+  })
+
   test('an action key reports its action, not text', () => {
     const { kb, keys, actions } = mk()
     const p = centre('alpha', false, '⌫')

@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Fixed: clicking the left stick to change pace no longer teleports a biped back to where it started (the pace is kept inside the biped; the `pace` attribute is the starting pace, `currentPace` reads it).
+- Changed: the on-screen keyboard's pressed key grows and comes to the front, and a release anywhere on the grown key types it (a ray drifting off the key as the trigger is pulled lost the key). In a headset the hold before accents, caps lock or the spacebar trackpad is 600 ms (350 elsewhere).
 - Added: a radial menu item can take a `weight` (its share of the ring) and be set `apart`: narrower, pointing down opposite the rest, with dead space either side, for a choice you should not make by accident. A `gated` item is reached like reverse gear: pushing straight out at it lights nothing, so you go out to a neighbour and sweep round the rim into it (drawn as that path: no inner part, an arm along the rim each way). An inventory thing's ring sets drop apart and gated.
 - Changed: a radial menu is picked with the right stick only, so the left stick keeps moving you. `b3d.holdMenu(button, …)` gives any pad button a tap and a ring on a hold. In a panel, holding B on a control with a `menu()` opens its ring; a thing in the inventory offers the places it can go ([radial menu](/radial-menu/)).
 - Added: rumble. `b3d.rumble('hit')` (or `{ strong, weak, ms }`) buzzes the player's gamepad and a headset's controllers; the player's biped rumbles when hurt, landing hard, firing and landing a blow, a driven vehicle when it hits something, and the pad's UI focus ticks as it moves. `rumble-strength` scales it (0 is off) ([rumble](/rumble/)).
