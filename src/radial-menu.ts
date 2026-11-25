@@ -383,11 +383,17 @@ export function radialMenuSvg(
     const c = item.color ? parseColor(item.color) : null
     const bg = parseColor(theme.buttonBg)
     if (c == null || bg == null)
-      return { rest: theme.buttonBg, lit: theme.accent, ink: null }
+      return {
+        rest: theme.buttonBg,
+        lit: theme.accent,
+        ink: null,
+        litInk: null,
+      }
     return {
       rest: formatColor(mix(c, bg, 0.45)),
       lit: formatColor({ ...c, a: 1 }),
       ink: contrastInk(mix(c, bg, 0.2)),
+      litInk: contrastInk({ ...c, a: 1 }),
     }
   })
   items.forEach((item, i) => {
@@ -457,11 +463,13 @@ export function radialMenuSvg(
     },
     ''
   )
-  ring.append(
-    circle({ cx: 0, cy: 0, r: R_IN - 6, fill: theme.panelBg }),
-    title,
-    label
-  )
+  /*
+  The hub shows what is lit: its label, in its colour when it has one, and its
+  icon above the label (in place of the title) when it has one.
+  */
+  const hub = circle({ cx: 0, cy: 0, r: R_IN - 6, fill: theme.panelBg })
+  const hubMark = g()
+  ring.append(hub, hubMark, title, label)
   const el = svg(
     {
       xmlns: 'http://www.w3.org/2000/svg',
@@ -485,7 +493,20 @@ export function radialMenuSvg(
       )
       s.setAttribute('stroke-width', k === lit && items[k].color ? '4' : '2')
     })
-    label.textContent = lit >= 0 ? items[lit].label : ''
+    const item = lit >= 0 ? items[lit] : null
+    const coloured = item?.color != null && fills[lit].litInk != null
+    const ink = coloured ? fills[lit].litInk! : theme.text
+    hub.setAttribute('fill', coloured ? fills[lit].lit : theme.panelBg)
+    label.textContent = item?.label ?? ''
+    label.setAttribute('fill', ink)
+    title.setAttribute('fill', coloured ? ink : theme.muted)
+    title.setAttribute('opacity', coloured ? '0.7' : '1')
+    hubMark.replaceChildren()
+    title.style.display = item?.icon ? 'none' : ''
+    if (item?.icon)
+      hubMark.append(
+        iconGlyph(item.icon, { color: ink, size: 32, x: -16, y: -42 })
+      )
   }
   Object.defineProperties(el, {
     highlight: { value: highlight },
