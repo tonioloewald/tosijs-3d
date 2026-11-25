@@ -516,6 +516,11 @@ export interface InventoryPlace {
   go: () => void
   /** Set apart in the ring (drop: small, opposite the rest). */
   apart?: boolean
+  /**
+   * Where it is drawn, from its panel's middle (-1…1 across, +y down): the
+   * ring puts it the same way round, so the ring matches the picture.
+   */
+  at?: { x: number; y: number }
 }
 
 /** A thing's ring of places, from every panel it can reach. */
@@ -523,6 +528,13 @@ function placesMenu(
   title: string,
   places: InventoryPlace[]
 ): NonNullable<ReturnType<NonNullable<ControlNode['menu']>>> {
+  // Round the ring as on the panel: clockwise from the bottom (where drop is,
+  // set apart), so what is drawn on the left is on the ring's left.
+  const round = (p: InventoryPlace) =>
+    p.at ? (Math.atan2(p.at.x, -p.at.y) + Math.PI * 3) % (Math.PI * 2) : Math.PI // no picture: the top
+  places = [...places].sort(
+    (a, b) => Number(!!a.apart) - Number(!!b.apart) || round(a) - round(b)
+  )
   return {
     title,
     items: places.map((p) =>
@@ -853,6 +865,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
   }[] = []
   let kids: BoxChild[] = []
   let padPath: string | null = null
+  let dropChild: BoxChild | null = null
   const pad = <C extends BoxChild>(
     child: C,
     path: string,
@@ -968,6 +981,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
         inline,
       })
       disposers.push(socket.dispose)
+      dropChild = socket
       return pad(socket, 'drop', 'drop')
     }
     for (const [cname, c] of Object.entries(h.containers)) {
@@ -1233,7 +1247,22 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
     const from = where != null ? enc(where as Place) : null
     const seen = new Set<string>()
     const out: InventoryPlace[] = []
-    for (const p of pads) {
+    // Where each pad is drawn, for the ring's order (see InventoryPlace.at).
+    const rects = pads.map((p) => current?.visibleRect(kids.indexOf(p.child)))
+    const drawn = rects.filter((r) => r != null)
+    const x0 = Math.min(...drawn.map((r) => r.x))
+    const x1 = Math.max(...drawn.map((r) => r.x + r.width))
+    const y0 = Math.min(...drawn.map((r) => r.y))
+    const y1 = Math.max(...drawn.map((r) => r.y + r.height))
+    const atOf = (i: number) => {
+      const r = rects[i]
+      if (r == null || !(x1 > x0) || !(y1 > y0)) return undefined
+      return {
+        x: ((r.x + r.width / 2 - x0) / (x1 - x0)) * 2 - 1,
+        y: ((r.y + r.height / 2 - y0) / (y1 - y0)) * 2 - 1,
+      }
+    }
+    for (const [i, p] of pads.entries()) {
       if (p.item != null || p.path === home) continue
       const t =
         (p.child as { carryTarget?: CarryTarget<string> }).carryTarget ?? p.into
@@ -1242,7 +1271,8 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
       out.push({
         label: p.name,
         go: () => void t.receive(item, from),
-        apart: p.path === 'drop' || undefined,
+        apart: p.child === dropChild || undefined,
+        at: atOf(i),
       })
     }
     return out
@@ -1592,8 +1622,6 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
                 ...main.places(n.item!),
                 ...(list ? list.places(n.item!) : []),
               ]
-              // Drop goes last, whichever half drew it (set apart, it points down).
-              all.sort((a, b) => Number(!!a.apart) - Number(!!b.apart))
               return own
                 ? { ...own, ...placesMenu(own.title ?? '', all) }
                 : null

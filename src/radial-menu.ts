@@ -100,8 +100,10 @@ share of the ring. `apart` is for the choice you should not make by accident
 space either side that picks nothing. A big target is easy to hit, so a
 dangerous one is made small and lonely: Fitts' law, used backwards. `gated`
 goes further, like a car's reverse gear: pushing straight out at it lights
-nothing, so you go out to a neighbour and sweep round the rim into it (its
-edge is dashed). The inventory's drop is both. `icon` is an icon name. Up to
+nothing, so you go out to a neighbour and sweep round the rim into it. It is
+drawn as that path: no inner part, and an arm along the rim each way toward
+its neighbours. The inventory's drop is both; so would be a shop's "sell all
+junk" or "repair all". `icon` is an icon name. Up to
 eight read well.
 
 `radialMenuSvg(items, options)` is the drawing alone (a `highlight(i)` on
@@ -110,7 +112,7 @@ it moves the lit slice in place); `radialPick` (radial-layout) is the pick.
 /*{ "parent": "ui" }*/
 
 import { svgElements } from 'tosijs'
-import { radialSlice, radialSlot } from './radial-layout.js'
+import { RADIAL_APART_GAP, radialSlice, radialSlot } from './radial-layout.js'
 import { iconGlyph } from './svg-icons.js'
 import { w3dTheme } from './w3d-theme.js'
 
@@ -170,55 +172,115 @@ function fullRing(): string {
   )
 }
 
+/** A corner of an outline (polar), and how it joins the next: straight or round the middle. */
+interface Corner {
+  a: number
+  r: number
+  next: 'line' | 'arc'
+}
+
 /*
-A slice from angle `from` to `to` (clockwise from up, +y down) with rounded
-corners. Its sides are not radii: each runs parallel to the slice's own edge
-line, GAP/2 inside it, so the gap between two slices is GAP wide at the hub and
-at the rim alike. A side GAP/2 from the line at angle θ meets a circle of
-radius r at θ + asin(GAP/2 / r): pulled in more at the hub, less at the rim.
-Each corner is a quadratic curve with the sharp corner as its control point.
+An outline of straight lines and arcs about the middle, every corner rounded:
+each side is trimmed by `c` at both ends (an arc by c / r of angle) and a
+quadratic curve with the sharp corner as its control point joins them.
 */
-function wedge(from: number, to: number): string {
-  const h = GAP / 2
-  const inset = (r: number) => Math.asin(Math.min(1, h / r))
-  const aIn = from + inset(R_IN)
-  const aOut = from + inset(R_OUT)
-  const bIn = to - inset(R_IN)
-  const bOut = to - inset(R_OUT)
-  // Narrow slices get smaller corners (never more than a third of a side).
-  const c = Math.max(
-    0,
-    Math.min(CORNER, ((bIn - aIn) * R_IN) / 3, (R_OUT - R_IN) / 3)
-  )
-  const toward = (
-    p: { x: number; y: number },
-    q: { x: number; y: number },
-    d: number
-  ) => {
-    const len = Math.hypot(q.x - p.x, q.y - p.y) || 1
+function rounded(corners: Corner[], c: number): string {
+  const n = corners.length
+  const xy = (k: Corner) => pt(k.a, k.r)
+  // The point `d` along a side (`kind`) from corner i toward corner j.
+  const along = (i: number, j: number, d: number, kind: Corner['next']) => {
+    const p = corners[i]
+    const q = corners[j]
+    if (kind === 'arc') return pt(p.a + (Math.sign(q.a - p.a) * d) / p.r, p.r)
+    const P = xy(p)
+    const Q = xy(q)
+    const len = Math.hypot(Q.x - P.x, Q.y - P.y) || 1
     return {
-      x: p.x + ((q.x - p.x) * d) / len,
-      y: p.y + ((q.y - p.y) * d) / len,
+      x: P.x + ((Q.x - P.x) * d) / len,
+      y: P.y + ((Q.y - P.y) * d) / len,
     }
   }
-  const Ai = pt(aIn, R_IN)
-  const Ao = pt(aOut, R_OUT)
-  const Bo = pt(bOut, R_OUT)
-  const Bi = pt(bIn, R_IN)
-  const outFrom = aOut + c / R_OUT
-  const outTo = bOut - c / R_OUT
-  const inFrom = bIn - c / R_IN
-  const inTo = aIn + c / R_IN
-  const bigOut = outTo - outFrom > Math.PI ? 1 : 0
-  const bigIn = inFrom - inTo > Math.PI ? 1 : 0
-  return (
-    `M ${fmt(toward(Ai, Ao, c))} L ${fmt(toward(Ao, Ai, c))} ` +
-    `Q ${fmt(Ao)} ${fmt(pt(outFrom, R_OUT))} ` +
-    `A ${R_OUT} ${R_OUT} 0 ${bigOut} 1 ${fmt(pt(outTo, R_OUT))} ` +
-    `Q ${fmt(Bo)} ${fmt(toward(Bo, Bi, c))} L ${fmt(toward(Bi, Bo, c))} ` +
-    `Q ${fmt(Bi)} ${fmt(pt(inFrom, R_IN))} ` +
-    `A ${R_IN} ${R_IN} 0 ${bigIn} 0 ${fmt(pt(inTo, R_IN))} ` +
-    `Q ${fmt(Ai)} ${fmt(toward(Ai, Ao, c))} Z`
+  let d = ''
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n
+    const kind = corners[i].next
+    const start = along(i, j, c, kind)
+    const end = along(j, i, c, kind)
+    d += i === 0 ? `M ${fmt(start)} ` : `${fmt(start)} `
+    if (corners[i].next === 'arc') {
+      const span = corners[j].a - corners[i].a
+      const big = Math.abs(span) - (2 * c) / corners[i].r > Math.PI ? 1 : 0
+      const r = corners[i].r
+      d += `A ${r} ${r} 0 ${big} ${span > 0 ? 1 : 0} ${fmt(end)} `
+    } else d += `L ${fmt(end)} `
+    d += `Q ${fmt(xy(corners[j]))} `
+  }
+  // The last curve ends where the outline began.
+  return d + `${fmt(along(0, 1, c, corners[0].next))} Z`
+}
+
+/** A side GAP/2 inside the line at angle θ meets a circle of radius r this far in. */
+const inset = (r: number) => Math.asin(Math.min(1, GAP / 2 / r))
+
+/*
+A slice from angle `from` to `to` (clockwise from up, +y down). Its sides are
+not radii: each runs parallel to the slice's own edge line, GAP/2 inside it,
+so the gap between two slices is GAP wide at the hub and at the rim alike. A
+side GAP/2 from the line at angle θ meets a circle of radius r at
+θ + asin(GAP/2 / r): pulled in more at the hub, less at the rim.
+*/
+function wedge(from: number, to: number): string {
+  const c = Math.max(
+    0,
+    Math.min(CORNER, ((to - from) * R_IN) / 3, (R_OUT - R_IN) / 3)
+  )
+  return rounded(
+    [
+      { a: from + inset(R_IN), r: R_IN, next: 'line' },
+      { a: from + inset(R_OUT), r: R_OUT, next: 'arc' },
+      { a: to - inset(R_OUT), r: R_OUT, next: 'line' },
+      { a: to - inset(R_IN), r: R_IN, next: 'arc' },
+    ],
+    c
+  )
+}
+
+/** Where a gated slice starts: its inner part is not there (you cannot come from the middle). */
+const R_GATE = R_IN + (R_OUT - R_IN) * 0.42
+/** How thick a gated slice's arms are, along the rim. */
+const ARM = 24
+
+/*
+A GATED slice draws its path: no inner part (straight out from the middle
+lights nothing), and an arm along the rim each way, across the dead gap toward
+its neighbours, which is the way in: out to a neighbour, then round. Two Ls
+back to back. `reach` is how far (radians) the arms go beyond the slice.
+*/
+function gatedWedge(from: number, to: number, reach: number): string {
+  if (!(reach > 0.01)) {
+    return rounded(
+      [
+        { a: from + inset(R_GATE), r: R_GATE, next: 'line' },
+        { a: from + inset(R_OUT), r: R_OUT, next: 'arc' },
+        { a: to - inset(R_OUT), r: R_OUT, next: 'line' },
+        { a: to - inset(R_GATE), r: R_GATE, next: 'arc' },
+      ],
+      CORNER * 0.6
+    )
+  }
+  const rArm = R_OUT - ARM
+  return rounded(
+    [
+      { a: from + inset(R_GATE), r: R_GATE, next: 'line' },
+      { a: from + inset(rArm), r: rArm, next: 'arc' },
+      { a: from - reach, r: rArm, next: 'line' },
+      { a: from - reach, r: R_OUT, next: 'arc' },
+      { a: to + reach, r: R_OUT, next: 'line' },
+      { a: to + reach, r: rArm, next: 'arc' },
+      { a: to - inset(rArm), r: rArm, next: 'line' },
+      { a: to - inset(R_GATE), r: R_GATE, next: 'arc' },
+    ],
+    CORNER * 0.6
   )
 }
 
@@ -254,6 +316,17 @@ function labelText(label: string, cx: number, cy: number, ink: string) {
   )
 }
 
+/*
+How far a gated slice's arms reach past it: across its dead gap (an item set
+apart has one each side, RADIAL_APART_GAP of an ordinary slice), stopping a
+GAP short of the neighbour. No gap, no arms.
+*/
+function armReach(item: RadialItem, from: number, to: number): number {
+  if (!item.apart) return 0
+  const unit = (to - from) / Math.max(0.01, item.weight ?? 1)
+  return RADIAL_APART_GAP * unit - (GAP * 1.5) / R_OUT
+}
+
 /**
  * A radial menu as an SVG: a ring of slices with each item's icon (or the
  * start of its label), the lit one's label and the title in the middle.
@@ -272,7 +345,11 @@ export function radialMenuSvg(
   items.forEach((item, i) => {
     const { from, to } = radialSlice(i, items)
     const s = path({
-      d: n === 1 && !item.apart ? fullRing() : wedge(from, to),
+      d: item.gated
+        ? gatedWedge(from, to, armReach(item, from, to))
+        : n === 1 && !item.apart
+        ? fullRing()
+        : wedge(from, to),
       fill: theme.buttonBg,
       stroke: 'rgba(255,255,255,0.25)',
       'stroke-width': 2,
@@ -285,8 +362,9 @@ export function radialMenuSvg(
     slices.push(s)
     ring.append(s)
     const at = radialSlot(i, items)
-    const cx = at.x * R_ICON
-    const cy = at.y * R_ICON
+    const rMark = item.gated ? (R_GATE + R_OUT) / 2 : R_ICON
+    const cx = at.x * rMark
+    const cy = at.y * rMark
     const ink = item.disabled ? theme.muted : theme.text
     const mark = item.icon
       ? (iconGlyph(item.icon, {
