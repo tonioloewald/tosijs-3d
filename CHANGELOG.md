@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Changed: holding D-pad up no longer closes the panel you are in; in the system ring a showing panel is ticked (picking it closes it) and **close all** appears at the bottom. A radial menu's centre shows the current (checked) item on its colour. A slice the stick lit a moment before springing back to the middle still picks when the button is let go.
+
 - Changed: in a radial menu, the stick back in the middle (or the mouse) lights nothing, so letting go there picks nothing: the way out without choosing, and out of an armed or confirmed gate. The centre keeps the title while you choose, and a slice with an icon carries its name under it. The keyboard's alternatives ring is centred on its key.
 
 - Changed: the on-screen keyboard's long-press alternatives open as a ring centred on the key (slide toward one, or lift and tap; near an edge it fans over the side on the board); the alpha layout has a full stop beside the spacebar, and holding it offers punctuation (`, ? ! ' " : ; - …`). Holding `?123` gives the digits with the symbols as a sub-ring; holding ⌫ gives forward delete, clear, copy, cut and paste (new `KeyAction`s, which `inputField` handles: copy and cut take the whole field, paste replaces it). `holdChoices(key)` (key-layout) is what a hold offers.

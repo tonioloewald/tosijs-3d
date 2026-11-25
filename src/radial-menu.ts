@@ -183,7 +183,9 @@ and it goes back up a level, once per rest.
 
 **The system bar as a ring.** Holding D-pad up opens the scene's system bar
 as a ring, each button a slice with its own icon, and a [bar menu](/bar-menu/)
-a sub-ring. `b3d.openSystemRing()` opens it from code. That is how a scene
+a sub-ring. A panel that is showing is ticked, and picking it closes it;
+with any showing, **close all** sits apart at the bottom. Holding up never
+closes anything by itself. `b3d.openSystemRing()` opens it from code. That is how a scene
 with no visible UI still has all of it a hold away.
 
 `radialMenuSvg(items, options)` is the drawing alone (a `highlight(i)` on
@@ -519,13 +521,13 @@ export function radialMenuSvg(
     // change while you choose.
     const glyph = item.icon
       ? (g(
-          mark(item.icon, { color: ink, size: 36, x: cx - 18, y: cy - 26 }),
+          mark(item.icon, { color: ink, size: 34, x: cx - 17, y: cy - 30 }),
           text(
             {
               x: cx,
               y: cy + 24,
               'text-anchor': 'middle',
-              'font-size': 14,
+              'font-size': 19,
               'font-family': theme.fontFamily,
               fill: ink,
             },
@@ -587,8 +589,8 @@ export function radialMenuSvg(
     ''
   )
   /*
-  The hub shows the title and does not change while you choose: each slice
-  carries its own name (under its icon, when it has one).
+  The hub shows the title and what is current (below), and does not follow
+  the pointer: each slice carries its own name (under its icon, when it has one).
   */
   const hub = circle({ cx: 0, cy: 0, r: RADIAL_HUB, fill: theme.panelBg })
   /*
@@ -616,6 +618,26 @@ export function radialMenuSvg(
   ring.append(hub)
   if (options.back) ring.append(upper, lower, hubKeys)
   ring.append(title, label)
+  /*
+  THE CENTRE SHOWS WHAT IS CURRENT: the checked item (its name, on its
+  colour), since that is what letting go in the middle leaves in place. It
+  does not follow the pointer.
+  */
+  const current = items.findIndex((it) => it.checked && !it.spacer)
+  const hubFill =
+    current >= 0 && items[current].color ? fills[current].lit : theme.panelBg
+  const hubInk =
+    current >= 0 && items[current].color
+      ? fills[current].litInk ?? theme.text
+      : theme.text
+  const currentLabel = current >= 0 ? items[current].label : ''
+  hub.setAttribute('fill', hubFill)
+  label.textContent = currentLabel
+  label.setAttribute('fill', hubInk)
+  if (hubFill !== theme.panelBg) {
+    title.setAttribute('fill', hubInk)
+    title.setAttribute('opacity', '0.7')
+  }
   const el = svg(
     {
       xmlns: 'http://www.w3.org/2000/svg',
@@ -657,8 +679,9 @@ export function radialMenuSvg(
     if (zone != null) highlight(-1)
     upper.setAttribute('fill', zone === 'back' ? theme.accent : 'none')
     lower.setAttribute('fill', zone === 'close' ? theme.accent : 'none')
-    if (!options.back) hub.setAttribute('fill', zone ? halfAccent : theme.panelBg)
-    label.textContent = zone ?? ''
+    if (!options.back) hub.setAttribute('fill', zone ? halfAccent : hubFill)
+    label.textContent = zone ?? currentLabel
+    label.setAttribute('fill', zone ? theme.text : hubInk)
   }
   Object.defineProperties(el, {
     hubLit: { value: hubLit },

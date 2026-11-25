@@ -124,6 +124,8 @@ const OPEN_OWNS: (keyof VirtualGamepad)[] = [
 const LEFT_OWNS: (keyof VirtualGamepad)[] = ['leftStickX', 'leftStickY']
 /** How long resting on a sub-ring item opens it (or on the hub's top half goes back), ms. */
 export const RADIAL_DWELL_MS = 500
+/** A slice unlit by the stick springing back this recently still picks on release, ms. */
+const RELEASE_GRACE_MS = 150
 
 interface Open {
   svg: RadialMenuSvg
@@ -145,6 +147,9 @@ interface Open {
   pointerGate: GateState
   /** What has been pointed at, and since when (a hold on it opens or goes back). */
   dwell: { target: number | 'back'; since: number } | null
+  /** The slice lit until the pointing came back to the middle, and when (release grace). */
+  lastLit: number
+  unlitAt: number
   /** Opened or left by a hold: nothing lights until the pointing comes back to the middle. */
   needCentre: boolean
 }
@@ -276,6 +281,8 @@ export class RadialHost {
       pointerGate: gateState(),
       dwell: null,
       needCentre: false,
+      lastLit: -1,
+      unlitAt: -Infinity,
     }
     this.show(open)
     this.open = open
@@ -300,6 +307,8 @@ export class RadialHost {
     open.pointerGate = gateState()
     open.armed = false
     open.dwell = null
+    open.lastLit = -1
+    open.unlitAt = -Infinity
   }
 
   /*
@@ -446,8 +455,15 @@ export class RadialHost {
     // Let go of what held it open: pick what is lit. A pointer let go with
     // nothing lit (a click, not a drag) leaves it open, to click a slice.
     if (open.heldBy != null && !isDown(open.heldBy)) {
-      if (!(open.heldBy.pointer && open.svg.lit < 0))
-        return this.close(open.svg.lit)
+      // A stick springing back reaches the middle a moment before the button
+      // is let go: what was lit just now still counts.
+      const lit =
+        open.svg.lit >= 0
+          ? open.svg.lit
+          : now - open.unlitAt < RELEASE_GRACE_MS
+          ? open.lastLit
+          : -1
+      if (!(open.heldBy.pointer && lit < 0)) return this.close(lit)
       open.heldBy = null
       this.origin = null
       this.pointer = null
@@ -502,7 +518,11 @@ export class RadialHost {
     }
     // Back in the middle (a stick let go): nothing lit, so letting go of the
     // hold picks nothing. That is the way out, and out of a gate too.
-    else if (pick < 0 && open.svg.lit >= 0) open.svg.highlight(-1)
+    else if (pick < 0 && open.svg.lit >= 0) {
+      open.lastLit = open.svg.lit
+      open.unlitAt = now
+      open.svg.highlight(-1)
+    }
     // A picks when nothing holds it open; B goes back (at the top, dismisses).
     if (open.heldBy != null) return
     const a = (pad?.buttonA ?? 0) > 0.5

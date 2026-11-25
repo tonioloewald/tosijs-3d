@@ -37,8 +37,9 @@ does, until the mouse is used. A gamepad: hold D-pad up and the system bar
 opens as a [radial menu](/radial-menu/): point a stick at a button and let go
 to press it (a bar menu is a ring of its own). A panel opened that way, or
 one that pops up while the pad is what you last used, takes the pad: up and
-down step through its controls and **B** presses them. Hold up in a panel to
-close it (the bar's ring opens again; let go without pointing to play). A
+down step through its controls and **B** presses them. Holding up again
+leaves open panels open: in the ring a showing panel is ticked and picking it
+closes it, and **close all** (at the bottom) closes every one. A
 modal (the pause, a respawn) takes the focus from whatever it covers, on
 its first button.
 

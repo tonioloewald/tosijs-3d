@@ -2980,8 +2980,9 @@ export class B3d extends Component {
   ring shows only for a pad or the keyboard: a mouse press hides it.
 
   GAMEPAD UI MODE. A pad has no pointer. Holding D-pad up opens the system
-  bar as a ring (`openSystemRing`): point a stick, let go to press. Holding up
-  in a panel closes it and opens the ring again. `setPadUi(true)` still puts
+  bar as a ring (`openSystemRing`): point a stick, let go to press. Open
+  panels stay open: their slices are ticked and picking one closes it, and
+  `close all` (at the bottom) closes them all. `setPadUi(true)` still puts
   the focus on the bar itself: left and right step, B presses, down goes into
   the open panel.
   A panel that pops up while the pad is what you last used (a chest you
@@ -3229,16 +3230,10 @@ export class B3d extends Component {
       if (this._padUpSince < 0) this._padUpSince = now
       else if (!this._padUpFired && now - this._padUpSince >= PAD_UI_HOLD_MS) {
         this._padUpFired = true
-        const ui = this._padUi
         // The system bar as a RING, held by up: point a stick, let go to
-        // pick. In a panel, it closes first. A modal stays until answered.
+        // pick. Open panels stay open (the ring ticks them and closes them,
+        // one by one or all). A modal stays until answered.
         if (this._modals.size > 0) return
-        if (ui?.zone === 'panel') {
-          const key = this._panelNav?.key
-          if (key === 'settings') this._closeScenePanel()
-          else if (key != null) this._closeSystemPanel(key as Element)
-        }
-        this.setPadUi(false)
         this.openSystemRing({ button: 'dpadUp' })
         return
       }
@@ -5298,7 +5293,7 @@ export class B3d extends Component {
       part('enterVrButton'),
       part('fullscreenButton'),
     ].filter((b): b is HTMLButtonElement => b != null && barShows(b))
-    return buttons.map((b) => {
+    const items: RadialItem[] = buttons.map((b) => {
       const menu = panelOf.get(b) as
         | { radialItems?: () => RadialItem[] }
         | undefined
@@ -5307,12 +5302,28 @@ export class B3d extends Component {
         label: b.title || b.getAttribute('aria-label') || '',
         ...(icon != null ? { icon } : {}),
         disabled: b.disabled,
-        checked: b.getAttribute('aria-pressed') === 'true',
+        // Its panel showing: ticked, and picking it closes it (its click toggles).
+        checked:
+          b.getAttribute('aria-pressed') === 'true' ||
+          b.getAttribute('aria-expanded') === 'true',
         ...(menu?.radialItems != null
           ? { items: () => menu.radialItems!() }
           : { handleSelect: () => b.click() }),
       }
     })
+    // With a panel showing, one more: close them all (set apart, at the bottom).
+    const open = [...this._sysPanels.keys()]
+    if (open.length > 0 || this._scenePanelOpen())
+      items.push({
+        label: 'close all',
+        icon: 'close',
+        apart: true,
+        handleSelect: () => {
+          if (this._scenePanelOpen()) this._closeScenePanel()
+          for (const el of open) this._closeSystemPanel(el)
+        },
+      })
+    return items
   }
 
   /**
