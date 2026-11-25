@@ -93,8 +93,12 @@ right stick points, letting go picks; a quick press still presses it. The
 [inventory](/inventory-box/) does this: hold B on a thing and the ring is the
 places it can go.
 
-An item is `{ label, icon?, disabled?, checked? }` (any other fields are
-yours: `handleSelect` gets the item back). `icon` is an icon name. Up to
+An item is `{ label, icon?, disabled?, checked?, weight?, apart? }` (any
+other fields are yours: `handleSelect` gets the item back). `weight` is its
+share of the ring. `apart` is for the choice you should not make by accident
+(drop, delete): it points straight down, opposite the rest, narrower, with dead
+space either side that picks nothing. A big target is easy to hit, so a
+dangerous one is made small and lonely: Fitts' law, used backwards. `icon` is an icon name. Up to
 eight read well.
 
 `radialMenuSvg(items, options)` is the drawing alone (a `highlight(i)` on
@@ -115,6 +119,10 @@ export interface RadialItem {
   disabled?: boolean
   /** Marked as the current one. */
   checked?: boolean
+  /** Its share of the ring (default 1). */
+  weight?: number
+  /** Set apart: narrower, dead space either side, pointing down (drop, delete). */
+  apart?: boolean
   [key: string]: unknown
 }
 
@@ -193,17 +201,20 @@ export function radialMenuSvg(
   const inks: SVGElement[] = []
   const ring = g({ transform: `translate(${half} ${half})` })
   items.forEach((item, i) => {
-    const { from, to } = radialSlice(i, n)
+    const { from, to } = radialSlice(i, items)
     const gap = n > 1 ? 0.025 : 0
     const s = path({
-      d: n === 1 ? wedge(0, Math.PI * 2 - 0.0001) : wedge(from + gap, to - gap),
+      d:
+        n === 1 && !item.apart
+          ? wedge(0, Math.PI * 2 - 0.0001)
+          : wedge(from + gap, to - gap),
       fill: theme.buttonBg,
       stroke: 'rgba(255,255,255,0.25)',
       'stroke-width': 2,
     }) as unknown as SVGPathElement
     slices.push(s)
     ring.append(s)
-    const at = radialSlot(i, n)
+    const at = radialSlot(i, items)
     const cx = at.x * R_ICON
     const cy = at.y * R_ICON
     const ink = item.disabled ? theme.muted : theme.text

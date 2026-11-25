@@ -44,6 +44,34 @@ describe('radialPick', () => {
   })
 })
 
+describe('items set apart', () => {
+  const down = { x: 0, y: 1 }
+  test('points down, narrower, with dead space either side', () => {
+    const items = [{}, {}, {}, {}, { weight: 0.5, apart: true }]
+    expect(radialPick(down, items)).toBe(4)
+    const { from, to } = radialSlice(4, items)
+    const plain = radialSlice(0, items)
+    expect(to - from).toBeCloseTo((plain.to - plain.from) / 2, 9)
+    // Just past its edge is the gap: nothing.
+    const edge = to + 0.05
+    expect(radialPick({ x: Math.sin(edge), y: -Math.cos(edge) }, items)).toBe(
+      -1
+    )
+    // The rest sit round the top, in order, clockwise from lower left.
+    expect(radialSlot(0, items).x).toBeLessThan(0)
+    expect(radialSlot(3, items).x).toBeGreaterThan(0)
+    expect(radialSlot(1, items).y).toBeLessThan(0)
+  })
+
+  test('each slot picks itself, weights or not', () => {
+    const items = [{ weight: 2 }, {}, { apart: true, weight: 0.4 }, {}]
+    for (let i = 0; i < items.length; i++) {
+      const s = radialSlot(i, items)
+      expect(radialPick(s, items)).toBe(i)
+    }
+  })
+})
+
 describe('pressStep', () => {
   test('a quick press is a tap', () => {
     const s = pressState()

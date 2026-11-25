@@ -218,14 +218,14 @@ export class RadialHost {
     // Let go of what held it open: pick what is lit.
     if (open.heldBy != null && !isDown(open.heldBy))
       return this.close(open.svg.lit)
-    const n = open.opts.items.length
     // The right stick points (the right thumbstick in a headset); else the
     // mouse, from the middle.
     let pick = -1
     const stick = this.stick(pad)
-    if (stick != null) pick = radialPick(stick, n, { deadzone: 0.5 })
+    if (stick != null)
+      pick = radialPick(stick, open.opts.items, { deadzone: 0.5 })
     if (pick < 0 && this.pointer != null)
-      pick = radialPick(this.pointer, n, { deadzone: 30 })
+      pick = radialPick(this.pointer, open.opts.items, { deadzone: 30 })
     // At rest the last pointed-at slice stays lit (a stick springs back).
     if (pick >= 0 && pick !== open.svg.lit) {
       open.svg.highlight(pick)
@@ -257,8 +257,8 @@ export class RadialHost {
     const all: { x: number; y: number }[] = []
     if (pad != null) all.push({ x: pad.rightStickX, y: -pad.rightStickY })
     if (this.scene.xrActive)
+      // xr-standard: the thumbstick is axes 2 and 3 (+y is down already).
       for (const gp of this.scene.xrGamepads())
-        // xr-standard: the thumbstick is axes 2 and 3 (+y is down already).
         all.push({ x: gp.axes[2] ?? 0, y: gp.axes[3] ?? 0 })
     all.sort((a, b) => Math.hypot(b.x, b.y) - Math.hypot(a.x, a.y))
     return all[0] ?? null
@@ -292,11 +292,10 @@ export class RadialHost {
       const open = this.open
       if (open == null || open.heldBy != null) return
       move(e)
-      const n = open.opts.items.length
       const at =
         this.pointer == null
           ? -1
-          : radialPick(this.pointer, n, { deadzone: 30 })
+          : radialPick(this.pointer, open.opts.items, { deadzone: 30 })
       e.stopPropagation()
       e.preventDefault()
       this.close(at)

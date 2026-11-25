@@ -160,7 +160,16 @@ export interface ControlNode {
 /** A control's radial menu: its choices and what picking one does. */
 export interface ControlMenu {
   title?: string
-  items: { label: string; icon?: string; disabled?: boolean; checked?: boolean }[]
+  items: {
+    label: string
+    icon?: string
+    disabled?: boolean
+    checked?: boolean
+    /** Share of the ring (default 1). */
+    weight?: number
+    /** Set apart, opposite the rest (drop). */
+    apart?: boolean
+  }[]
   handleSelect(index: number): void
 }
 

@@ -514,6 +514,8 @@ export interface InventoryPanel {
 export interface InventoryPlace {
   label: string
   go: () => void
+  /** Set apart in the ring (drop: small, opposite the rest). */
+  apart?: boolean
 }
 
 /** A thing's ring of places, from every panel it can reach. */
@@ -523,7 +525,11 @@ function placesMenu(
 ): NonNullable<ReturnType<NonNullable<ControlNode['menu']>>> {
   return {
     title,
-    items: places.map((p) => ({ label: p.label })),
+    items: places.map((p) =>
+      p.apart
+        ? { label: p.label, apart: true, weight: 0.6 }
+        : { label: p.label }
+    ),
     handleSelect: (i) => places[i]?.go(),
   }
 }
@@ -1220,7 +1226,9 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
     const where = inv.where(item)
     const home =
       where != null
-        ? `${holder}/${where.container}${where.slot != null ? '/' + where.slot : ''}`
+        ? `${holder}/${where.container}${
+            where.slot != null ? '/' + where.slot : ''
+          }`
         : ''
     const from = where != null ? enc(where as Place) : null
     const seen = new Set<string>()
@@ -1231,7 +1239,11 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
         (p.child as { carryTarget?: CarryTarget<string> }).carryTarget ?? p.into
       if (t == null || seen.has(t.id) || t.accepts(item, from).length) continue
       seen.add(t.id)
-      out.push({ label: p.name, go: () => void t.receive(item, from) })
+      out.push({
+        label: p.name,
+        go: () => void t.receive(item, from),
+        apart: p.path === 'drop' || undefined,
+      })
     }
     return out
   }
@@ -1580,11 +1592,11 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
                 ...main.places(n.item!),
                 ...(list ? list.places(n.item!) : []),
               ]
-              // Drop goes last, whichever half drew it.
-              all.sort(
-                (a, b) => Number(a.label === 'drop') - Number(b.label === 'drop')
-              )
-              return own ? { ...own, ...placesMenu(own.title ?? '', all) } : null
+              // Drop goes last, whichever half drew it (set apart, it points down).
+              all.sort((a, b) => Number(!!a.apart) - Number(!!b.apart))
+              return own
+                ? { ...own, ...placesMenu(own.title ?? '', all) }
+                : null
             },
           }
         : n
