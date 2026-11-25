@@ -47,7 +47,7 @@ export interface RumbleEffect {
 
 export const RUMBLE = {
   tick: { strong: 0, weak: 0.25, ms: 25 },
-  shot: { strong: 0.3, weak: 0.6, ms: 60 },
+  shot: { strong: 0.5, weak: 0.8, ms: 90 },
   blow: { strong: 0.5, weak: 0.4, ms: 80 },
   hit: { strong: 0.7, weak: 0.5, ms: 150 },
   landing: { strong: 0.8, weak: 0.3, ms: 180 },

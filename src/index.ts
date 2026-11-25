@@ -463,6 +463,8 @@ export {
 export type {
   DpadAction,
   DpadDirection,
+  HoldAction,
+  MeshHoldAction,
   RadialMenuOptions,
 } from './radial-host.js'
 export {

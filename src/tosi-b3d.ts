@@ -353,11 +353,13 @@ import { touchOrbit } from './touch-orbit.js'
 import { xrControllers, type TosiXRControllerMap } from './gamepad.js'
 import { pressState, pressStep } from './radial-layout.js'
 import type { VirtualGamepad } from './virtual-gamepad.js'
+import { holdMenusOn } from './hold-menus.js'
 import {
   RadialHost,
   type DpadAction,
   type DpadDirection,
   type HoldAction,
+  type MeshHoldAction,
   type RadialMenuOptions,
 } from './radial-host.js'
 import {
@@ -3546,6 +3548,15 @@ export class B3d extends Component {
     draws its own close and outline (the dock) to leave them to the frame.
     */
     const framed = spec?.chrome !== 'none'
+    // A press and hold on a control with a menu() opens its ring.
+    holdMenusOn(content, (menu) => {
+      this._radialPointer()
+      this._radialHost().openAtPointer({
+        title: menu.title,
+        items: menu.items,
+        handleSelect: (_item, i) => menu.handleSelect(i),
+      })
+    })
     // Open the content FIRST, so it is placed at the size it will be.
     content.dispatchEvent(
       new CustomEvent('panelopen', {
@@ -5272,10 +5283,61 @@ export class B3d extends Component {
 
   /**
    * Open a radial menu now: point a stick (a thumbstick in a headset) or the
-   * mouse, and a click or A picks. Returns its close.
+   * mouse, and a click or A picks. Given `pointer` (a press's client x, y),
+   * it is held by that press instead: drag toward a slice and let go. Returns
+   * its close.
    */
   openRadialMenu(options: RadialMenuOptions): () => void {
     return this._radialHost().openMenu(options)
+  }
+
+  /**
+   * A press and hold on `target` (a mesh, which counts its children, or a
+   * test on the mesh pressed) opens a ring held by the press: drag toward a
+   * slice and let go (in a headset, the right thumbstick points). A quick
+   * press is `tap`; a press that moves first turns the view as usual.
+   * Returns its undo.
+   */
+  meshMenu(
+    target: BABYLON.Node | ((mesh: BABYLON.AbstractMesh) => boolean),
+    action: MeshHoldAction
+  ): () => void {
+    const test =
+      typeof target === 'function'
+        ? (m: unknown) => target(m as BABYLON.AbstractMesh)
+        : (m: unknown) => {
+            for (let n = m as BABYLON.Node | null; n; n = n.parent)
+              if (n === target) return true
+            return false
+          }
+    this._radialPointer()
+    return this._radialHost().setMeshHold(test, action)
+  }
+
+  private _radialPointerOn = false
+  /** The scene's presses and releases, to the radial host (flat and headset alike). */
+  private _radialPointer(): void {
+    if (this._radialPointerOn) return
+    this._radialPointerOn = true
+    this.whenReady(() => {
+      const scene = this.scene
+      if (scene == null) return
+      scene.onPointerObservable.add((info) => {
+        const host = this._radial
+        if (host == null) return
+        if (info.type === BABYLON.PointerEventTypes.POINTERDOWN) {
+          const e = info.event as PointerEvent
+          host.scenePointer(
+            'down',
+            info.pickInfo?.pickedMesh ?? null,
+            !this.xrActive && typeof e?.clientX === 'number'
+              ? { x: e.clientX, y: e.clientY }
+              : null
+          )
+        } else if (info.type === BABYLON.PointerEventTypes.POINTERUP)
+          host.scenePointer('up')
+      })
+    })
   }
 
   addDebugSource(source: DebugPanelSource): () => void {
@@ -9697,6 +9759,7 @@ export class B3d extends Component {
   private _teardown(): void {
     this._radial?.dispose()
     this._radial = null
+    this._radialPointerOn = false
     this._offPadKeys?.()
     this._offPadKeys = null
     this.setPadUi(false)

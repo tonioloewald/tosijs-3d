@@ -26,30 +26,37 @@ const paint = (i) => {
   say.textContent = `The box is ${COLOURS[i].label}.`
 }
 const say = document.createElement('p')
+// Each slice wears its colour (\`color\` on an item).
+const wheel = () => COLOURS.map((c, i) => ({ ...c, checked: i === at }))
+const pick = (item) => paint(COLOURS.findIndex((c) => c.label === item.label))
+const painting = {
+  title: 'Paint',
+  tap: () => paint((at + 1) % COLOURS.length),
+  menu: wheel,
+  handleSelect: pick,
+}
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
       babylon = BABYLON
       box = el.make.box({ size: 1.5, y: 0.75, color: COLOURS[0].color })
+      // Press and hold the box: drag toward a colour and let go.
+      el.meshMenu(box, painting)
     },
   },
   b3dLight({ intensity: 1 }),
   b3dGround({ width: 20, height: 20, texture: 'checker', textureTiles: 10 })
 )
-const wheel = () => COLOURS.map((c, i) => ({ ...c, checked: i === at }))
-scene.setDpad('right', {
-  title: 'Paint',
-  tap: () => paint((at + 1) % COLOURS.length),
-  menu: wheel,
-  handleSelect: (item) => paint(COLOURS.findIndex((c) => c.label === item.label)),
-})
+scene.setDpad('right', painting)
 const open = document.createElement('button')
 open.textContent = 'Open the ring'
-open.onclick = () =>
+// Press and drag off the button to pick; or click, then click a slice.
+open.onpointerdown = (e) =>
   scene.openRadialMenu({
     title: 'Paint',
     items: wheel(),
-    handleSelect: (item) => paint(COLOURS.findIndex((c) => c.label === item.label)),
+    handleSelect: pick,
+    pointer: { x: e.clientX, y: e.clientY },
   })
 say.textContent = 'The box is red.'
 preview.append(scene, say, open)
@@ -65,7 +72,12 @@ Tap the D-pad right (K on a keyboard) and the box takes the next colour.
 Hold it and the ring opens: point the right stick (or the mouse) at a slice
 and let go to paint it. Let go without pointing and nothing changes. So one button
 does its everyday job on a tap and offers the menu on a hold, as GTA VI does
-with its D-pad. The button opens the same ring from code: point and click.
+with its D-pad.
+
+**With the mouse** (or a finger, or a headset's trigger), press and hold the
+box: the ring opens, drag toward a colour and let go. A quick click on the box
+is the tap. The button does the same from code: press it and drag off toward a
+slice, or just click it and then click a slice.
 
 ## Using it
 
@@ -82,20 +94,31 @@ the same, a `KeyboardEvent.code`).
 `b3d.openRadialMenu({ title, items, handleSelect })` opens one from code: the
 right stick or the mouse points, a click or a press of A or B picks, and
 moving the mouse back to the middle and clicking cancels. It returns its close.
-In a headset it hangs ahead of you, and the right thumbstick points.
+In a headset it hangs ahead of you, and the right thumbstick points. Given
+`pointer` (a press's client x, y, from a `pointerdown` handler), the press
+holds it open: the drag from that point lights a slice and letting go picks.
+Let go without dragging and it stays open, to click.
+
+`b3d.meshMenu(mesh, { tap, menu, title, handleSelect })` puts a ring on a
+press and hold on a mesh (or its children; or pass a test on the mesh pressed).
+A quick press is `tap`, and a press that moves before the hold turns the view
+as usual, so it costs the camera nothing.
 
 The ring is always picked with the RIGHT stick, so the left stick keeps
 moving you while you choose.
 
 **In a panel**, a control can offer a ring for a press and hold
 (`menu()` in its semantics): holding B on it with the pad opens the ring, the
-right stick points, letting go picks; a quick press still presses it. The
+right stick points, letting go picks; a quick press still presses it. With the
+mouse (a finger, a headset's trigger) a press and hold on it does the same:
+drag toward a slice and let go. A press that moves first is still a drag. The
 [inventory](/inventory-box/) does this: hold B on a thing and the ring is the
 places it can go.
 
-An item is `{ label, icon?, disabled?, checked?, weight?, apart? }` (any
+An item is `{ label, icon?, color?, disabled?, checked?, weight?, apart?, gated? }` (any
 other fields are yours: `handleSelect` gets the item back). `weight` is its
-share of the ring. `apart` is for the choice you should not make by accident
+share of the ring. `color` (any CSS colour) is its slice's colour, toned down
+at rest and full when lit, with ink that reads on it. `apart` is for the choice you should not make by accident
 (drop, delete): it points straight down, opposite the rest, narrower, with dead
 space either side that picks nothing. A big target is easy to hit, so a
 dangerous one is made small and lonely: Fitts' law, used backwards. `gated`
@@ -115,6 +138,7 @@ import { svgElements } from 'tosijs'
 import { RADIAL_APART_GAP, radialSlice, radialSlot } from './radial-layout.js'
 import { iconGlyph } from './svg-icons.js'
 import { w3dTheme } from './w3d-theme.js'
+import { contrastInk, formatColor, parseColor, type Rgba } from './color.js'
 
 export interface RadialItem {
   label: string
@@ -130,6 +154,8 @@ export interface RadialItem {
   apart?: boolean
   /** Gated: reached by sweeping round the rim into it, not straight out. */
   gated?: boolean
+  /** Its slice's colour (any CSS colour): toned down at rest, full when lit. */
+  color?: string
   [key: string]: unknown
 }
 
@@ -342,6 +368,28 @@ export function radialMenuSvg(
   const slices: SVGPathElement[] = []
   const inks: SVGElement[] = []
   const ring = g({ transform: `translate(${half} ${half})` })
+  /*
+  A slice's two fills, at rest and lit. A coloured item is its colour mixed
+  45% toward the theme's button at rest and the colour itself when lit, with
+  black or white ink, whichever reads on it.
+  */
+  const mix = (a: Rgba, b: Rgba, t: number): Rgba => ({
+    r: a.r + (b.r - a.r) * t,
+    g: a.g + (b.g - a.g) * t,
+    b: a.b + (b.b - a.b) * t,
+    a: 1,
+  })
+  const fills = items.map((item) => {
+    const c = item.color ? parseColor(item.color) : null
+    const bg = parseColor(theme.buttonBg)
+    if (c == null || bg == null)
+      return { rest: theme.buttonBg, lit: theme.accent, ink: null }
+    return {
+      rest: formatColor(mix(c, bg, 0.45)),
+      lit: formatColor({ ...c, a: 1 }),
+      ink: contrastInk(mix(c, bg, 0.2)),
+    }
+  })
   items.forEach((item, i) => {
     const { from, to } = radialSlice(i, items)
     const s = path({
@@ -350,7 +398,7 @@ export function radialMenuSvg(
         : n === 1 && !item.apart
         ? fullRing()
         : wedge(from, to),
-      fill: theme.buttonBg,
+      fill: fills[i].rest,
       stroke: 'rgba(255,255,255,0.25)',
       'stroke-width': 2,
       'fill-rule': 'evenodd',
@@ -365,7 +413,7 @@ export function radialMenuSvg(
     const rMark = item.gated ? (R_GATE + R_OUT) / 2 : R_ICON
     const cx = at.x * rMark
     const cy = at.y * rMark
-    const ink = item.disabled ? theme.muted : theme.text
+    const ink = item.disabled ? theme.muted : fills[i].ink ?? theme.text
     const mark = item.icon
       ? (iconGlyph(item.icon, {
           color: ink,
@@ -428,9 +476,15 @@ export function radialMenuSvg(
     const next = i >= 0 && i < items.length && !items[i].disabled ? i : -1
     if (next === lit) return
     lit = next
-    slices.forEach((s, k) =>
-      s.setAttribute('fill', k === lit ? theme.accent : theme.buttonBg)
-    )
+    slices.forEach((s, k) => {
+      s.setAttribute('fill', k === lit ? fills[k].lit : fills[k].rest)
+      // A coloured slice is lit by its own colour, so it also takes a rim.
+      s.setAttribute(
+        'stroke',
+        k === lit && items[k].color ? theme.text : 'rgba(255,255,255,0.25)'
+      )
+      s.setAttribute('stroke-width', k === lit && items[k].color ? '4' : '2')
+    })
     label.textContent = lit >= 0 ? items[lit].label : ''
   }
   Object.defineProperties(el, {

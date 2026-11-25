@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Added: radial menus by pointer. `b3d.meshMenu(mesh, { tap, menu, handleSelect })` opens a ring on a press and hold on a mesh; `openRadialMenu({ …, pointer })` from a `pointerdown` is held by that press (drag toward a slice, let go; let go without dragging and it stays open to click); a press and hold on a scene panel control with a `menu()` (an inventory thing) opens its ring. Items take a `color`. The radial menu demo's box opens its ring this way.
+- Changed: a shot's rumble is stronger (it was too faint to feel through the trigger).
 - Fixed: a D-pad or B hold (`setDpad`, `holdMenu`) waits while the panels' gamepad UI has the pad, so D-pad right in the loadout moves the focus instead of cycling weapons.
 - Fixed: primitives (`el.make.*`, `b3dBox`, `b3dSphere`) take any colour `parseColor` reads; a short hex like `'#d33'` drew black (Babylon reads only `#rrggbb`).
 - Fixed: clicking the left stick to change pace no longer teleports a biped back to where it started (the pace is kept inside the biped; the `pace` attribute is the starting pace, `currentPace` reads it).
