@@ -8102,8 +8102,19 @@ export class B3d extends Component {
           base.sessionManager.onXRFrameObservable.remove(this._xrFrameObs)
           this._xrFrameObs = null
         }
-        // The next session starts life-size.
-        base.sessionManager.worldScalingFactor = 1
+        /*
+        The next session starts life-size. This runs as the session ENDS:
+        Babylon's setter stores the value, then tells the depth range, which
+        calls updateRenderState on the ended session and throws. Uncaught,
+        that aborted the rest of this teardown and Babylon's own exit (back
+        to the flat camera): a black canvas after Exit VR.
+        */
+        if (base.sessionManager.worldScalingFactor !== 1)
+          try {
+            base.sessionManager.worldScalingFactor = 1
+          } catch {
+            // Stored before the throw; the ended session needed nothing.
+          }
         clearReseatPrompt()
         xrInputDbgOff()
         sm.onXRReferenceSpaceChanged.remove(refSpaceObs)

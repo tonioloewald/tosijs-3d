@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Fixed: leaving VR left a black canvas. The session teardown reset the world scale after the session had ended, which threw inside Babylon's exit and stopped it returning to the flat view.
+
 - Changed: holding D-pad up no longer closes the panel you are in; in the system ring a showing panel is ticked (picking it closes it) and **close all** appears at the bottom. A radial menu's centre shows the current (checked) item on its colour. A slice the stick lit a moment before springing back to the middle still picks when the button is let go.
 
 - Changed: in a radial menu, the stick back in the middle (or the mouse) lights nothing, so letting go there picks nothing: the way out without choosing, and out of an armed or confirmed gate. The centre keeps the title while you choose, and a slice with an icon carries its name under it. The keyboard's alternatives ring is centred on its key.
