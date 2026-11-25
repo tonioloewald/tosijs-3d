@@ -146,15 +146,79 @@ const R_OUT = 190
 const R_IN = 70
 const R_ICON = 132
 
-function wedge(from: number, to: number): string {
-  // Angles clockwise from up; points with +y down.
-  const p = (a: number, r: number) =>
-    `${(Math.sin(a) * r).toFixed(2)} ${(-Math.cos(a) * r).toFixed(2)}`
-  const big = to - from > Math.PI ? 1 : 0
+/** The gap between two slices, the same width all the way out (drawing units). */
+const GAP = 8
+/** How round a slice's corners are. */
+const CORNER = 10
+
+const pt = (a: number, r: number) => ({
+  x: Math.sin(a) * r,
+  y: -Math.cos(a) * r,
+})
+const fmt = (p: { x: number; y: number }) =>
+  `${p.x.toFixed(2)} ${p.y.toFixed(2)}`
+
+/** A whole ring (one item alone). */
+function fullRing(): string {
+  const half = (r: number, sweep: number) =>
+    `A ${r} ${r} 0 1 ${sweep} ${fmt(
+      pt(Math.PI, r)
+    )} A ${r} ${r} 0 1 ${sweep} ${fmt(pt(0, r))}`
   return (
-    `M ${p(from, R_IN)} L ${p(from, R_OUT)} ` +
-    `A ${R_OUT} ${R_OUT} 0 ${big} 1 ${p(to, R_OUT)} ` +
-    `L ${p(to, R_IN)} A ${R_IN} ${R_IN} 0 ${big} 0 ${p(from, R_IN)} Z`
+    `M ${fmt(pt(0, R_OUT))} ${half(R_OUT, 1)} ` +
+    `M ${fmt(pt(0, R_IN))} ${half(R_IN, 0)} Z`
+  )
+}
+
+/*
+A slice from angle `from` to `to` (clockwise from up, +y down) with rounded
+corners. Its sides are not radii: each runs parallel to the slice's own edge
+line, GAP/2 inside it, so the gap between two slices is GAP wide at the hub and
+at the rim alike. A side GAP/2 from the line at angle θ meets a circle of
+radius r at θ + asin(GAP/2 / r): pulled in more at the hub, less at the rim.
+Each corner is a quadratic curve with the sharp corner as its control point.
+*/
+function wedge(from: number, to: number): string {
+  const h = GAP / 2
+  const inset = (r: number) => Math.asin(Math.min(1, h / r))
+  const aIn = from + inset(R_IN)
+  const aOut = from + inset(R_OUT)
+  const bIn = to - inset(R_IN)
+  const bOut = to - inset(R_OUT)
+  // Narrow slices get smaller corners (never more than a third of a side).
+  const c = Math.max(
+    0,
+    Math.min(CORNER, ((bIn - aIn) * R_IN) / 3, (R_OUT - R_IN) / 3)
+  )
+  const toward = (
+    p: { x: number; y: number },
+    q: { x: number; y: number },
+    d: number
+  ) => {
+    const len = Math.hypot(q.x - p.x, q.y - p.y) || 1
+    return {
+      x: p.x + ((q.x - p.x) * d) / len,
+      y: p.y + ((q.y - p.y) * d) / len,
+    }
+  }
+  const Ai = pt(aIn, R_IN)
+  const Ao = pt(aOut, R_OUT)
+  const Bo = pt(bOut, R_OUT)
+  const Bi = pt(bIn, R_IN)
+  const outFrom = aOut + c / R_OUT
+  const outTo = bOut - c / R_OUT
+  const inFrom = bIn - c / R_IN
+  const inTo = aIn + c / R_IN
+  const bigOut = outTo - outFrom > Math.PI ? 1 : 0
+  const bigIn = inFrom - inTo > Math.PI ? 1 : 0
+  return (
+    `M ${fmt(toward(Ai, Ao, c))} L ${fmt(toward(Ao, Ai, c))} ` +
+    `Q ${fmt(Ao)} ${fmt(pt(outFrom, R_OUT))} ` +
+    `A ${R_OUT} ${R_OUT} 0 ${bigOut} 1 ${fmt(pt(outTo, R_OUT))} ` +
+    `Q ${fmt(Bo)} ${fmt(toward(Bo, Bi, c))} L ${fmt(toward(Bi, Bo, c))} ` +
+    `Q ${fmt(Bi)} ${fmt(pt(inFrom, R_IN))} ` +
+    `A ${R_IN} ${R_IN} 0 ${bigIn} 0 ${fmt(pt(inTo, R_IN))} ` +
+    `Q ${fmt(Ai)} ${fmt(toward(Ai, Ao, c))} Z`
   )
 }
 
@@ -207,17 +271,16 @@ export function radialMenuSvg(
   const ring = g({ transform: `translate(${half} ${half})` })
   items.forEach((item, i) => {
     const { from, to } = radialSlice(i, items)
-    const gap = n > 1 ? 0.025 : 0
     const s = path({
-      d:
-        n === 1 && !item.apart
-          ? wedge(0, Math.PI * 2 - 0.0001)
-          : wedge(from + gap, to - gap),
+      d: n === 1 && !item.apart ? fullRing() : wedge(from, to),
       fill: theme.buttonBg,
       stroke: 'rgba(255,255,255,0.25)',
       'stroke-width': 2,
+      'fill-rule': 'evenodd',
+      'stroke-linejoin': 'round',
+      'stroke-linecap': 'round',
       // A gated slice's edge is dashed: there is a way in, but not straight.
-      ...(item.gated ? { 'stroke-dasharray': '6 5' } : {}),
+      ...(item.gated ? { 'stroke-dasharray': '4 7' } : {}),
     }) as unknown as SVGPathElement
     slices.push(s)
     ring.append(s)
