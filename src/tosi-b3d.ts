@@ -5238,6 +5238,8 @@ export class B3d extends Component {
       get xrActive() {
         return self.xrActive
       },
+      // Gamepad UI mode owns the D-pad and B: a hold on one waits.
+      uiOwns: (button) => self._padUi != null && padUiOwns.has(button),
       present: (svg, height) => this._presentModal(svg, height, 0),
       canvas: () => (this.parts?.canvas as HTMLCanvasElement) ?? null,
       xrGamepads: () =>

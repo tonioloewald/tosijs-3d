@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Fixed: a D-pad or B hold (`setDpad`, `holdMenu`) waits while the panels' gamepad UI has the pad, so D-pad right in the loadout moves the focus instead of cycling weapons.
+- Fixed: primitives (`el.make.*`, `b3dBox`, `b3dSphere`) take any colour `parseColor` reads; a short hex like `'#d33'` drew black (Babylon reads only `#rrggbb`).
 - Fixed: clicking the left stick to change pace no longer teleports a biped back to where it started (the pace is kept inside the biped; the `pace` attribute is the starting pace, `currentPace` reads it).
 - Changed: the on-screen keyboard's pressed key grows and comes to the front, and a release anywhere on the grown key types it (a ray drifting off the key as the trigger is pulled lost the key). In a headset the hold before accents, caps lock or the spacebar trackpad is 600 ms (350 elsewhere).
 - Added: a radial menu item can take a `weight` (its share of the ring) and be set `apart`: narrower, pointing down opposite the rest, with dead space either side, for a choice you should not make by accident. A `gated` item is reached like reverse gear: pushing straight out at it lights nothing, so you go out to a neighbour and sweep round the rim into it (drawn as that path: no inner part, an arm along the rim each way). An inventory thing's ring sets drop apart and gated.

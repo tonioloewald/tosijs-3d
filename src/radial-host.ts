@@ -63,6 +63,11 @@ export interface RadialHold {
 export interface RadialScene {
   readonly hasInputFocus: boolean
   readonly xrActive: boolean
+  /**
+   * Does the panels' gamepad UI own this button now? Then a hold on it waits:
+   * the D-pad moves the focus in a panel, and must not also cycle weapons.
+   */
+  uiOwns(button: keyof VirtualGamepad): boolean
   /** Show an SVG over the scene; returns its close. */
   present(svg: SVGSVGElement, height: number): (() => void) | null
   /** The canvas (pointer picking, flat). */
@@ -201,9 +206,21 @@ export class RadialHost {
     if (!this.scene.xrActive)
       for (const hold of this.holds) {
         const { action } = hold
+        // The panels own the pad's button: only its keyboard key still counts.
+        const owned = this.scene.uiOwns(hold.button)
+        // A press the panels took over mid-way is dropped, not read as a tap
+        // (the D-pad down that opened the loadout would close it again).
+        if (
+          owned &&
+          hold.press.since >= 0 &&
+          !(action.key && this.keys.has(action.key))
+        ) {
+          hold.press = pressState()
+          continue
+        }
         const ev = pressStep(
           hold.press,
-          isDown({ button: hold.button, key: action.key }),
+          isDown({ button: owned ? undefined : hold.button, key: action.key }),
           now
         )
         if (ev === 'tap') action.tap?.()

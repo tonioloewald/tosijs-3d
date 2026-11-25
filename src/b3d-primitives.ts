@@ -76,6 +76,7 @@ import * as BABYLON from '@babylonjs/core'
 import { AbstractMesh, fetchedUrl, isOff } from './b3d-utils.js'
 import { PerlinNoise } from './perlin-noise.js'
 import type { B3d } from './tosi-b3d.js'
+import { parseColor } from './color.js'
 
 /**
  * The shortest collider Babylon's swept ellipsoid reliably notices.
@@ -232,6 +233,16 @@ function makeNoiseTexture(
  * BLEED past the silhouette; the two are separate, and a glow with no glow
  * layer is a common "why isn't this glowing" (it is, it just isn't blooming).
  */
+/*
+A colour as Babylon takes it, from anything \`parseColor\` reads. Babylon's own
+\`Color3.FromHexString\` reads only '#rrggbb' and turns anything else ('#d33',
+'red') into black, with no warning.
+*/
+const color3 = (s: string): BABYLON.Color3 => {
+  const c = parseColor(s)
+  return c ? new BABYLON.Color3(c.r, c.g, c.b) : BABYLON.Color3.FromHexString(s)
+}
+
 export const primitiveMaterial = (
   meshName: string,
   scene: BABYLON.Scene,
@@ -244,18 +255,16 @@ export const primitiveMaterial = (
 ): BABYLON.Material => {
   if (attrs.mirror) {
     const material = new BABYLON.PBRMaterial(meshName + '-mat', scene)
-    material.albedoColor = BABYLON.Color3.FromHexString(attrs.color)
+    material.albedoColor = color3(attrs.color)
     material.metallic = 1
     material.roughness = 0.05
     return material
   }
   const material = new BABYLON.StandardMaterial(meshName + '-mat', scene)
-  material.diffuseColor = BABYLON.Color3.FromHexString(attrs.color)
+  material.diffuseColor = color3(attrs.color)
   const g = Math.max(0, Math.min(1, attrs.glow ?? 0))
   if (g > 0) {
-    material.emissiveColor = BABYLON.Color3.FromHexString(
-      attrs.glowColor || attrs.color
-    ).scale(g)
+    material.emissiveColor = color3(attrs.glowColor || attrs.color).scale(g)
   }
   return material
 }

@@ -11,11 +11,11 @@ the targets have no edge to miss (Fitts' law with unbounded targets).
 import { b3d, b3dLight, b3dGround } from 'tosijs-3d'
 
 const COLOURS = [
-  { label: 'red', color: '#d33' },
-  { label: 'gold', color: '#db3' },
-  { label: 'green', color: '#3b5' },
-  { label: 'blue', color: '#37d' },
-  { label: 'violet', color: '#93c' },
+  { label: 'red', color: '#dd3333' },
+  { label: 'gold', color: '#ddbb33' },
+  { label: 'green', color: '#33bb55' },
+  { label: 'blue', color: '#3377dd' },
+  { label: 'violet', color: '#9933cc' },
 ]
 let box = null
 let babylon = null
