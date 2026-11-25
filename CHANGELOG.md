@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Fixed: in a headset, a ring opened by a press and hold (the loadout, a mesh) is drawn where the press landed, 30 cm wide, and the controller's ray points at it; it hung a metre ahead at modal size and only the thumbsticks reached it. In the loadout an empty slot offers what fits from both halves (it only looked at the slots), and a full slot offers a **swap** sub-ring. A keyboard ring left open lights what the pointer is over. A ring's `handleSelect` hears only its top level.
+
 - Fixed: leaving VR left a black canvas. The session teardown reset the world scale after the session had ended, which threw inside Babylon's exit and stopped it returning to the flat view.
 
 - Changed: holding D-pad up no longer closes the panel you are in; in the system ring a showing panel is ticked (picking it closes it) and **close all** appears at the bottom. A radial menu's centre shows the current (checked) item on its colour. A slice the stick lit a moment before springing back to the middle still picks when the button is let go.

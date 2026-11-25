@@ -507,6 +507,8 @@ export interface InventoryPanel {
   controls: () => InventoryControl[]
   /** The places in this panel `item` can go now, each with its move. */
   places: (item: string) => InventoryPlace[]
+  /** What a thing is called here (its kind's name, and how many). */
+  nameOf: (item: string) => string
   dispose: () => void
 }
 
@@ -523,6 +525,10 @@ export interface InventoryPlace {
    * ring puts it the same way round, so the ring matches the picture.
    */
   at?: { x: number; y: number }
+  /** The place's control path (which slot or list it is). */
+  path?: string
+  /** A sub-ring of further choices instead of a move (swap with…). */
+  items?: InventoryPlace[]
 }
 
 /** A thing's ring of places, from every panel it can reach. */
@@ -544,6 +550,11 @@ function placesMenu(
         ? { label: p.label, apart: true, gated: true, weight: 0.6 }
         : p.gated
         ? { label: p.label, gated: true }
+        : p.items
+        ? {
+            label: p.label,
+            items: p.items.map((q) => ({ label: q.label, handleSelect: q.go })),
+          }
         : { label: p.label }
     ),
     handleSelect: (i) => places[i]?.go(),
@@ -1319,6 +1330,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
         go: () => void t.receive(item, from),
         apart: p.child === dropChild || undefined,
         at: atOf(i),
+        path: p.path,
       })
     }
     return out
@@ -1364,6 +1376,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
     },
     controls,
     places: placesFor,
+    nameOf,
     dispose() {
       stop()
       stopGlow()
@@ -1664,20 +1677,44 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
             ...n,
             menu: () => {
               const own = n.menu!()
-              // A thing's places come from both halves; an empty slot's
-              // ring (what fits) is its own.
+              const halves = list ? [main, list] : [main]
+              const placesOf = (id: string) =>
+                halves.flatMap((h) => h.places(id))
+              /*
+              What could go INTO a slot, from both halves (worn and
+              carried): every thing whose places include it. Moving one
+              into a full slot swaps them.
+              */
+              const into = (path: string, except?: string): InventoryPlace[] => {
+                const ids = new Set<string>()
+                for (const h of halves)
+                  for (const c of h.controls())
+                    if ((c.thing ?? c.item) != null) ids.add((c.thing ?? c.item)!)
+                const out: InventoryPlace[] = []
+                for (const id of ids) {
+                  if (id === except || out.length >= 7) continue
+                  const p = placesOf(id).find((q) => q.path === path)
+                  if (p) out.push({ label: main.nameOf(id), go: p.go })
+                }
+                return out
+              }
+              /*
+              A thing: where it can go (from both halves). A FULL SLOT also
+              offers a swap: a sub-ring of what could take its place (the
+              pistol for the sword in your hand). An EMPTY SLOT: what could
+              go in it.
+              */
               const all: InventoryPlace[] =
                 n.thing != null
-                  ? [
-                      ...main.places(n.thing),
-                      ...(list ? list.places(n.thing) : []),
-                    ]
-                  : own == null
-                  ? []
-                  : own.items.map((it, i) => ({
-                      label: it.label,
-                      go: () => own.handleSelect(i),
-                    }))
+                  ? placesOf(n.thing)
+                  : n.path != null
+                  ? into(n.path)
+                  : []
+              if (n.thing != null && n.item == null && n.path != null) {
+                const swaps = into(n.path, n.thing)
+                if (swaps.length > 0)
+                  all.push({ label: 'swap', go: () => {}, items: swaps })
+              }
               /*
               CLOSE is in the ring too, gated (out into it, then sideways),
               so the pad can put the loadout away without leaving it: no

@@ -129,7 +129,12 @@ the same, a `KeyboardEvent.code`).
 `b3d.openRadialMenu({ title, items, handleSelect })` opens one from code:
 either stick or the mouse points, a click or A picks, and B or a click in the
 middle dismisses. It returns its close.
-In a headset it hangs ahead of you, and either thumbstick points. Given
+In a headset, opened from code it hangs ahead of you and either thumbstick
+points. Opened by a press and hold with the trigger (a mesh, a panel control),
+it is drawn where the press landed, a hand-span wide and turned to you, and
+the controller's ray points at it: aim at a slice and let go, or aim at the
+middle and let go to pick nothing. A sub-ring there waits for the next press:
+press, aim, let go. Given
 `pointer` (a press's client x, y, from a `pointerdown` handler), it is drawn
 there and the press holds it open: the drag from that point lights a slice and letting go picks.
 Let go without dragging and it stays open, to click.
@@ -149,7 +154,11 @@ either stick points, letting go picks; a quick press still presses it. In a
 headset a press and hold with the trigger does the same: aim toward a slice and
 let go. A mouse does not, since it can already drag. The
 [inventory](/inventory-box/) does this: hold B on a thing (in a list or a slot)
-and the ring is the places it can go; on an empty slot, the things that fit.
+and the ring is the places it can go. On an empty slot, the things that fit,
+from both halves of the loadout; on a full slot, where its thing can go and a
+**swap** sub-ring of what could take its place (the pistol for the sword in
+your hand: the two change places). A sub-ring's choices call their own
+`handleSelect`; the ring's `handleSelect` hears only its top level.
 
 An item is `{ label, icon?, color?, disabled?, checked?, weight?, apart?, gated? }` (any
 other fields are yours: `handleSelect` gets the item back). `weight` is its

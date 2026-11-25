@@ -455,13 +455,14 @@ import {
   barShows,
   type SystemBar,
 } from './system-bar.js'
-import type { RadialItem } from './radial-menu.js'
+import { RADIAL_SIZE, type RadialItem } from './radial-menu.js'
 import { CombatWorld } from './destroyable.js'
 import { b3dGamepad } from './glass-gamepad.js'
 import { XrGamepadSource } from './xr-gamepad.js'
 import { XrFrames, EntityFrame } from './xr-frames.js'
 import {
   attachFramePanel,
+  panelPresses,
   pickPanelLayers,
   pointerClaimedByPanel,
   presentationSpec,
@@ -5265,7 +5266,12 @@ export class B3d extends Component {
       },
       // Gamepad UI mode owns the D-pad and B: a hold on one waits.
       uiOwns: (button) => self._padUi != null && padUiOwns.has(button),
-      present: (svg, height, at) => this._presentModal(svg, height, 0, at),
+      present: (svg, height, at, xrAt) =>
+        this.xrActive && xrAt instanceof BABYLON.Vector3
+          ? this._presentRingAt(svg, xrAt)
+          : this._presentModal(svg, height, 0, at),
+      xrPressPoint: () => this._xrPressPoint(),
+      xrPointer: () => this._xrRingPointer(),
       canvas: () => (this.parts?.canvas as HTMLCanvasElement) ?? null,
       xrGamepads: () =>
         (this.xrHelper?.input?.controllers ?? [])
@@ -5389,6 +5395,85 @@ export class B3d extends Component {
     return this._radialHost().setMeshHold(test, action)
   }
 
+  /*
+  A RING IN A HEADSET is drawn where the press landed (a thing in the
+  loadout, the box), a hand-span wide and turned to you, and the pressing
+  controller's ray points at it. Hung a metre ahead, as a modal is, it was
+  too big, far from what it was for, and only the thumbsticks reached it.
+  */
+  private _xrPress: { point: BABYLON.Vector3; frame: number } | null = null
+  private _ringPanel: ReturnType<typeof attachFramePanel> | null = null
+  private _xrPressPoint(): BABYLON.Vector3 | null {
+    const scene = this.scene
+    if (scene == null) return null
+    // The most recent press: on a panel (its own pick), or in the scene.
+    const panel = panelPresses.get(scene)
+    const press =
+      panel != null && (this._xrPress == null || panel.frame >= this._xrPress.frame)
+        ? panel
+        : this._xrPress
+    if (press == null) return null
+    const cam = this.xrHelper?.baseExperience?.camera
+    if (cam == null) return press.point.clone()
+    // A little toward you, so it is in front of what was pressed.
+    const toward = cam.globalPosition.subtract(press.point)
+    const d = toward.length()
+    return press.point.add(toward.scale(Math.min(0.06, d * 0.2) / (d || 1)))
+  }
+  private _presentRingAt(
+    svg: SVGSVGElement,
+    at: BABYLON.Vector3
+  ): (() => void) | null {
+    const scene = this.scene
+    const xrFrames = this.xrFrames
+    const cam = this.xrHelper?.baseExperience?.camera
+    if (scene == null || xrFrames == null || cam == null) return null
+    const eye = cam.globalPosition
+    const panel = attachFramePanel(scene, cam, xrFrames.get('world'), {
+      frame: 'world',
+      anchor: {
+        position: [at.x, at.y, at.z],
+        focus: [eye.x, eye.y, eye.z],
+      },
+      presence: 'both',
+      reveal: 'always',
+      layer: 'modal',
+      svg,
+      width: 0.3,
+      resolution: 512,
+    })
+    this._ringPanel = panel
+    const obs = scene.onBeforeRenderObservable.add(() => panel.update())
+    return () => {
+      scene.onBeforeRenderObservable.remove(obs)
+      if (this._ringPanel === panel) this._ringPanel = null
+      panel.dispose()
+    }
+  }
+  private _xrRingPointer(): { x: number; y: number } | null {
+    const panel = this._ringPanel
+    if (panel == null) return null
+    const controllers = (this.xrHelper?.input?.controllers ?? []) as any[]
+    // The controller whose trigger is down, else any whose ray meets it.
+    const pressed = controllers.filter(
+      (c) => c.inputSource?.gamepad?.buttons?.[0]?.pressed
+    )
+    const mesh = panel.drawn
+    mesh.computeWorldMatrix(true)
+    const ray = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Forward(), 10)
+    for (const c of pressed.length ? pressed : controllers) {
+      c.getWorldPointerRayToRef?.(ray)
+      ray.length = 10
+      const hit = ray.intersectsMesh(mesh as BABYLON.AbstractMesh, false)
+      const uv = hit.hit ? hit.getTextureCoordinates() : null
+      if (uv)
+        return {
+          x: (uv.x - 0.5) * RADIAL_SIZE,
+          y: (0.5 - uv.y) * RADIAL_SIZE,
+        }
+    }
+    return null
+  }
   private _radialPointerOn = false
   /** The scene's presses and releases, to the radial host (flat and headset alike). */
   private _radialPointer(): void {
@@ -5401,6 +5486,16 @@ export class B3d extends Component {
         const host = this._radial
         if (host == null) return
         if (info.type === BABYLON.PointerEventTypes.POINTERDOWN) {
+          if (this.xrActive) {
+            const p = info.pickInfo
+            const point =
+              p?.hit && p.pickedPoint
+                ? p.pickedPoint.clone()
+                : p?.ray
+                ? p.ray.origin.add(p.ray.direction.scale(0.75))
+                : null
+            if (point) this._xrPress = { point, frame: scene.getFrameId() }
+          }
           const e = info.event as PointerEvent
           host.scenePointer(
             'down',

@@ -2395,7 +2395,16 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         }
         return
       }
-      if (!press) return
+      if (!press) {
+        // A ring left open by a lifted finger lights what the pointer is over.
+        if (kind === 'move' && sticky?.ring) {
+          const onKey = keyAt(rects, x, y) === sticky.rect
+          sticky.ring.svg.highlight(
+            onKey ? -1 : accentIndexAt(sticky.ring, x, y, true)
+          )
+        }
+        return
+      }
       if (kind === 'move' && caretDrag) {
         // Accumulate travel and emit whole steps, so slow movement still tracks
         // rather than being rounded away.

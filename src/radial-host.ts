@@ -90,8 +90,19 @@ export interface RadialScene {
   present(
     svg: SVGSVGElement,
     height: number,
-    at?: { x: number; y: number } | null
+    at?: { x: number; y: number } | null,
+    xrAt?: unknown
   ): (() => void) | null
+  /**
+   * In a headset: where the press that is opening a ring landed (opaque to
+   * the host, handed back to `present`), or null to hang it ahead.
+   */
+  xrPressPoint?(): unknown
+  /**
+   * In a headset, the pressing controller's ray where it meets the ring on
+   * show, in the ring's drawing units from its middle (+y down), or null.
+   */
+  xrPointer?(): { x: number; y: number } | null
   /** The canvas (pointer picking, flat). */
   canvas(): HTMLCanvasElement | null
   /** The headset's controllers' gamepads (either thumbstick points). */
@@ -142,6 +153,8 @@ interface Open {
   armed: boolean
   /** Where it is drawn (client x, y), or null: the middle of the canvas. */
   centre: { x: number; y: number } | null
+  /** In a headset, where the press landed (the ring is drawn there), or null. */
+  xrAt: unknown
   /** Gates, for the stick and the mouse each. */
   stickGate: GateState
   pointerGate: GateState
@@ -239,7 +252,14 @@ export class RadialHost {
       return
     }
     this.pointerHeld = true
-    if (this.open != null || mesh == null) return
+    // In a headset a ring waiting for a press (a sub-ring) is held again by
+    // this one: aim, let go to pick.
+    const open = this.open
+    if (open != null && open.heldBy == null && this.scene.xrActive) {
+      open.heldBy = { pointer: true }
+      return
+    }
+    if (open != null || mesh == null) return
     const hold = this.meshHolds.find((h) => h.test(mesh))
     if (hold) this.pending = { action: hold.action, since: realNow(), at }
   }
@@ -270,6 +290,10 @@ export class RadialHost {
     const open: Open = {
       svg: null as unknown as RadialMenuSvg,
       centre,
+      xrAt:
+        this.scene.xrActive && heldBy?.pointer
+          ? this.scene.xrPressPoint?.() ?? null
+          : null,
       close: null,
       opts,
       items: opts.items,
@@ -302,7 +326,8 @@ export class RadialHost {
     })
     open.svg = svg
     open.close =
-      this.scene.present(svg, RADIAL_SIZE, open.centre) ?? this.domFallback(svg)
+      this.scene.present(svg, RADIAL_SIZE, open.centre, open.xrAt) ??
+      this.domFallback(svg)
     open.stickGate = gateState()
     open.pointerGate = gateState()
     open.armed = false
@@ -369,9 +394,11 @@ export class RadialHost {
     open.close?.()
     for (const k of [...OPEN_OWNS, ...LEFT_OWNS])
       if (!this.holds.some((h) => h.button === k)) padMenuOwns.delete(k)
+    // The ring's own handleSelect hears its top level (the index is into its
+    // items); a sub-ring's choices call their own.
     if (item != null && !item.disabled) {
       item.handleSelect?.()
-      open.opts.handleSelect?.(item, pick)
+      if (open.trail.length === 0) open.opts.handleSelect?.(item, pick)
     }
     open.opts.handleClose?.()
   }
@@ -454,6 +481,11 @@ export class RadialHost {
     if (open == null) return
     // Let go of what held it open: pick what is lit. A pointer let go with
     // nothing lit (a click, not a drag) leaves it open, to click a slice.
+    // In a headset the pressing controller's ray, where it meets the ring.
+    if (this.scene.xrActive && open.xrAt != null) {
+      const p = this.scene.xrPointer?.()
+      if (p != null) this.pointer = p
+    }
     if (open.heldBy != null && !isDown(open.heldBy)) {
       // A stick springing back reaches the middle a moment before the button
       // is let go: what was lit just now still counts.
@@ -463,7 +495,10 @@ export class RadialHost {
           : now - open.unlitAt < RELEASE_GRACE_MS
           ? open.lastLit
           : -1
-      if (!(open.heldBy.pointer && lit < 0)) return this.close(lit)
+      // A pointer let go on nothing leaves the ring open to click, except in
+      // a headset, where letting go in the middle is the way out.
+      if (!(open.heldBy.pointer && lit < 0) || this.scene.xrActive)
+        return this.close(lit)
       open.heldBy = null
       this.origin = null
       this.pointer = null

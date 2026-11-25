@@ -668,6 +668,16 @@ export function presentationSpec(
  * Mount a panel on a frame node. Call `update()` each XR frame (drives the gaze
  * reveal from the camera) and `dispose()` to tear down. Returns those handles.
  */
+/**
+ * The last press on any frame panel of a scene: where it landed (world) and
+ * on which frame. A ring opened by a press and hold on a panel in a headset
+ * is drawn there.
+ */
+export const panelPresses = new WeakMap<
+  BABYLON.Scene,
+  { point: BABYLON.Vector3; frame: number }
+>()
+
 export function attachFramePanel(
   scene: BABYLON.Scene,
   cam: BABYLON.TargetCamera,
@@ -1305,6 +1315,11 @@ export function attachFramePanel(
       }
       if (kind === 'down') {
         if (!uv) return
+        if (pick?.pickedPoint)
+          panelPresses.set(scene, {
+            point: pick.pickedPoint.clone(),
+            frame: scene.getFrameId(),
+          })
         const ev = info.event as PointerEvent | undefined
         if (
           spec.screenAnchor != null &&
