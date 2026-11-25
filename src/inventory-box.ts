@@ -516,6 +516,8 @@ export interface InventoryPlace {
   go: () => void
   /** Set apart in the ring (drop: small, opposite the rest). */
   apart?: boolean
+  /** Gated in the ring: reached round the rim, not straight out (drop, close). */
+  gated?: boolean
   /**
    * Where it is drawn, from its panel's middle (-1…1 across, +y down): the
    * ring puts it the same way round, so the ring matches the picture.
@@ -540,6 +542,8 @@ function placesMenu(
     items: places.map((p) =>
       p.apart
         ? { label: p.label, apart: true, gated: true, weight: 0.6 }
+        : p.gated
+        ? { label: p.label, gated: true }
         : { label: p.label }
     ),
     handleSelect: (i) => places[i]?.go(),
@@ -1622,6 +1626,25 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
                 ...main.places(n.item!),
                 ...(list ? list.places(n.item!) : []),
               ]
+              /*
+              CLOSE is in the ring too, gated (sweep into it round the rim),
+              so the pad can put the loadout away without leaving it: no
+              position on the picture, so it sits at the top, opposite drop.
+              */
+              all.push({
+                label: 'close',
+                gated: true,
+                go: () => {
+                  // A framed dock is a system panel: ask its host to close it.
+                  if (framed)
+                    root.dispatchEvent(
+                      new CustomEvent('panelfocus', {
+                        detail: { focus: false },
+                      })
+                    )
+                  else setOpen(false)
+                },
+              })
               return own
                 ? { ...own, ...placesMenu(own.title ?? '', all) }
                 : null

@@ -755,9 +755,11 @@ bumper again to put away what is in your hand. Only the right hand is drawn.
 your hand; hold it and the weapon wheel opens: point the right stick (or the
 mouse) at one and let go. Tap **down** (**M**) to open the loadout. There,
 step to a thing with the D-pad and **hold B**: a ring of the places it can
-go opens; point the right stick at one and let go, and it goes there. (A
-quick **B** picks it up instead, to put down with another.) Hold **up** to
-close it.
+go opens; point the right stick at one and let go, and it goes there (with
+the mouse, press and hold the thing and drag). (A quick **B** picks it up
+instead, to put down with another.) **Drop** at the bottom of the ring and
+**close** at the top are gated, like reverse gear: push out beside one and
+sweep round the rim into it.
 
 **Ammo.** A gun holds a magazine (the pistol 12, the SMG and rifle 30, the
 rocket launcher one) and reloads from what is in your bag: **J** (d-pad
