@@ -103,6 +103,12 @@ export interface RadialScene {
    * show, in the ring's drawing units from its middle (+y down), or null.
    */
   xrPointer?(): { x: number; y: number } | null
+  /**
+   * In a headset, is a controller's trigger down? The press that opens a ring
+   * on a panel goes to the panel's layer, so the scene never hears its
+   * release: the trigger itself is the only reliable word.
+   */
+  xrTriggerHeld?(): boolean
   /** The canvas (pointer picking, flat). */
   canvas(): HTMLCanvasElement | null
   /** The headset's controllers' gamepads (either thumbstick points). */
@@ -403,11 +409,22 @@ export class RadialHost {
     open.opts.handleClose?.()
   }
 
+  /** Was a headset trigger down last frame (a new press re-holds a sub-ring)? */
+  private xrHeldBefore = false
+
   /** Once a frame. */
   tick(): void {
     if (!this.scene.hasInputFocus) return
     const pad = this.readPad()
     const now = realNow()
+    // In a headset the pointer is held while a trigger is.
+    const xrHeld =
+      this.scene.xrActive && this.scene.xrTriggerHeld != null
+        ? this.scene.xrTriggerHeld()
+        : null
+    if (xrHeld != null) this.pointerHeld = xrHeld
+    const xrPressed = xrHeld === true && !this.xrHeldBefore
+    this.xrHeldBefore = xrHeld === true
     const isDown = (h: RadialHold) =>
       (h.button != null && (pad?.[h.button] ?? 0) > 0.5) ||
       (h.key != null && this.keys.has(h.key)) ||
@@ -479,6 +496,9 @@ export class RadialHost {
       }
     const open = this.open
     if (open == null) return
+    // In a headset a ring waiting for a press (a sub-ring) is held again by
+    // a new trigger press: aim, let go to pick.
+    if (xrPressed && open.heldBy == null) open.heldBy = { pointer: true }
     // Let go of what held it open: pick what is lit. A pointer let go with
     // nothing lit (a click, not a drag) leaves it open, to click a slice.
     // In a headset the pressing controller's ray, where it meets the ring.

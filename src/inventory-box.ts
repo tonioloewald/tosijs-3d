@@ -1715,6 +1715,9 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
                 if (swaps.length > 0)
                   all.push({ label: 'swap', go: () => {}, items: swaps })
               }
+              // Nothing to offer (an empty slot nothing fits): no ring, not
+              // a ring of close alone. A hold is then just a press.
+              if (all.length === 0) return { title: n.name ?? '', items: [], handleSelect: () => {} }
               /*
               CLOSE is in the ring too, gated (out into it, then sideways),
               so the pad can put the loadout away without leaving it: no

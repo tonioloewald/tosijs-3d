@@ -27,7 +27,9 @@ already drag a thing where it goes. Idempotent.
 export function holdMenusOn(
   panel: unknown,
   open: (menu: ControlMenu) => void,
-  when: () => boolean = () => true
+  when: () => boolean = () => true,
+  /** How long a press is held before it is a ring (a trigger click runs longer than a tap). */
+  holdMs = DPAD_HOLD_MS
 ): void {
   const el = panel as HoldablePanel | null
   if (el == null || el.__holdMenus || typeof el.handlePointer !== 'function')
@@ -80,7 +82,7 @@ export function holdMenusOn(
           fired = true
           orig.call(el, 'leave', 0, 0)
           open(menu)
-        }, DPAD_HOLD_MS)
+        }, holdMs)
       }
       return orig.call(el, kind, x, y)
     }

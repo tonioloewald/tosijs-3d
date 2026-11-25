@@ -3570,7 +3570,9 @@ export class B3d extends Component {
           handleSelect: (_item, i) => menu.handleSelect(i),
         })
       },
-      () => this.xrActive
+      () => this.xrActive,
+      // A trigger click lasts longer than a tap: only a real hold is a ring.
+      500
     )
     // Open the content FIRST, so it is placed at the size it will be.
     content.dispatchEvent(
@@ -5272,6 +5274,10 @@ export class B3d extends Component {
           : this._presentModal(svg, height, 0, at),
       xrPressPoint: () => this._xrPressPoint(),
       xrPointer: () => this._xrRingPointer(),
+      xrTriggerHeld: () =>
+        ((this.xrHelper?.input?.controllers ?? []) as any[]).some(
+          (c) => c.inputSource?.gamepad?.buttons?.[0]?.pressed === true
+        ),
       canvas: () => (this.parts?.canvas as HTMLCanvasElement) ?? null,
       xrGamepads: () =>
         (this.xrHelper?.input?.controllers ?? [])
