@@ -3,6 +3,7 @@ import {
   gatedPick,
   gateState,
   pressState,
+  radialLayout,
   pressStep,
   radialPick,
   radialSlice,
@@ -80,30 +81,50 @@ describe('gated items', () => {
     x: Math.sin((deg * Math.PI) / 180),
     y: -Math.cos((deg * Math.PI) / 180),
   })
-  test('straight out at it is blocked', () => {
+  test('straight out arms it and picks nothing', () => {
     const s = gateState()
     expect(gatedPick(s, { x: 0, y: 0 }, items)).toEqual({
       pick: -1,
       blocked: false,
+      armed: -1,
     })
     expect(gatedPick(s, toward(180), items)).toEqual({
       pick: -1,
       blocked: true,
+      armed: 4,
     })
-    expect(gatedPick(s, toward(181), items).blocked).toBe(true)
+    expect(gatedPick(s, toward(181), items).pick).toBe(-1)
   })
-  test('round the rim from a neighbour reaches it, and it stays', () => {
+  test('then sideways either way confirms, however far, until the middle', () => {
+    for (const side of [120, 240]) {
+      const s = gateState()
+      gatedPick(s, toward(180), items)
+      expect(gatedPick(s, toward(side), items).pick).toBe(4)
+      // Back over it, or further round: still confirmed.
+      expect(gatedPick(s, toward(180), items).pick).toBe(4)
+      expect(gatedPick(s, toward(0), items).pick).toBe(4)
+      gatedPick(s, { x: 0, y: 0 }, items)
+      expect(gatedPick(s, toward(0), items).pick).toBe(
+        radialPick(toward(0), items)
+      )
+    }
+  })
+  test('arriving from another slice never arms it', () => {
     const s = gateState()
     gatedPick(s, toward(120), items)
-    expect(gatedPick(s, toward(150), items).blocked).toBe(false)
     expect(gatedPick(s, toward(180), items)).toEqual({
-      pick: 4,
-      blocked: false,
+      pick: -1,
+      blocked: true,
+      armed: -1,
     })
-    expect(gatedPick(s, toward(178), items).pick).toBe(4)
-    // Back to the middle and straight out again: blocked.
-    gatedPick(s, { x: 0, y: 0 }, items)
-    expect(gatedPick(s, toward(180), items).blocked).toBe(true)
+    expect(gatedPick(s, toward(120), items).pick).toBe(
+      radialPick(toward(120), items)
+    )
+  })
+  test('gated slices are narrow with a gap either side', () => {
+    const arcs = radialLayout([{}, {}, { gated: true }, {}])
+    expect(arcs[2].to - arcs[2].from).toBeLessThan(arcs[0].to - arcs[0].from)
+    expect(radialPick(toward(0), [{}, {}, { gated: true }, {}])).toBe(0)
   })
   test('ungated items pick as before', () => {
     const s = gateState()

@@ -516,7 +516,7 @@ export interface InventoryPlace {
   go: () => void
   /** Set apart in the ring (drop: small, opposite the rest). */
   apart?: boolean
-  /** Gated in the ring: reached round the rim, not straight out (drop, close). */
+  /** Gated in the ring: pull straight out into it, then sideways to confirm (drop, close). */
   gated?: boolean
   /**
    * Where it is drawn, from its panel's middle (-1…1 across, +y down): the
@@ -554,6 +554,8 @@ function placesMenu(
 export interface InventoryControl extends ControlNode {
   /** The item a thing's row shows (not set on a place). */
   item?: string
+  /** The thing its ring is for: a row's item, or what a slot holds. */
+  thing?: string
 }
 
 /** Where a schematic's sockets are, in its viewBox. */
@@ -866,6 +868,8 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
     name: string
     item?: string
     into?: CarryTarget<string>
+    /** A slot: what it holds (null when empty). */
+    slot?: { holds: string | null }
   }[] = []
   let kids: BoxChild[] = []
   let padPath: string | null = null
@@ -875,9 +879,10 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
     path: string,
     name: string,
     item?: string,
-    into?: CarryTarget<string>
+    into?: CarryTarget<string>,
+    slot?: { holds: string | null }
   ): C => {
-    pads.push({ child, path: `${holder}/${path}`, name, item, into })
+    pads.push({ child, path: `${holder}/${path}`, name, item, into, slot })
     return child
   }
   const padFocus = () => {
@@ -1071,7 +1076,10 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
               pad(
                 socket,
                 `${cname}/${sk.slot}`,
-                slotName(sk.slot, sk.slot.replace(/_/g, ' '))
+                slotName(sk.slot, sk.slot.replace(/_/g, ' ')),
+                undefined,
+                undefined,
+                { holds: c.slots[sk.slot].holds ?? null }
               )
             )
           }
@@ -1087,7 +1095,11 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
             ...holdingOf(s, at),
           })
           disposers.push(socket.dispose)
-          children.push(pad(socket, `${cname}/${s}`, slotName(s, s)))
+          children.push(
+            pad(socket, `${cname}/${s}`, slotName(s, s), undefined, undefined, {
+              holds: c.slots[s].holds ?? null,
+            })
+          )
         }
       } else if (c.type === 'list') {
         // (A box keeps only a LEADING run sticky, so a list below a
@@ -1207,6 +1219,8 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
       from?.slot != null ? `${holder}/${from.container}/${from.slot}` : ''
     const refuses = (p: (typeof pads)[number]) => {
       if (held == null || p.item === held || p.path === home) return false
+      // Carrying, the other things in a list are not where it goes.
+      if (p.item != null) return true
       const t =
         (p.child as { carryTarget?: CarryTarget<string> }).carryTarget ?? p.into
       return t == null || !carry.verdictFor(t)?.ok
@@ -1231,13 +1245,41 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
           else if (padPath === p.path) padPath = null
           padFocus()
         },
-        // Held, a thing offers the places it can go, as a radial menu.
+        thing: p.item ?? p.slot?.holds ?? undefined,
+        /*
+        Held, a thing offers the places it can go, as a radial menu: a thing
+        in a list or in a slot alike. An empty slot offers the things that
+        fit in it.
+        */
         menu:
-          p.item != null && held == null
-            ? () => placesMenu(nameOf(p.item!), placesFor(p.item!))
+          held != null
+            ? undefined
+            : (p.item ?? p.slot?.holds) != null
+            ? () => {
+                const id = (p.item ?? p.slot?.holds)!
+                return placesMenu(nameOf(id), placesFor(id))
+              }
+            : p.slot != null
+            ? () => placesMenu(p.name, fillsFor(p))
             : undefined,
       }
     })
+  }
+  /** The things in this panel's lists that fit in an empty slot, each with its move. */
+  const fillsFor = (p: (typeof pads)[number]): InventoryPlace[] => {
+    const t =
+      (p.child as { carryTarget?: CarryTarget<string> }).carryTarget ?? p.into
+    if (t == null) return []
+    const out: InventoryPlace[] = []
+    for (const q of pads) {
+      if (q.item == null || out.length >= 7) continue
+      const where = inv.where(q.item)
+      const from = where != null ? enc(where as Place) : null
+      if (t.accepts(q.item, from).length) continue
+      const id = q.item
+      out.push({ label: nameOf(id), go: () => void t.receive(id, from) })
+    }
+    return out
   }
   /** The places `item` can go now, and moving it there. */
   const placesFor = (item: string): InventoryPlace[] => {
@@ -1617,17 +1659,27 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
       n.box ? { ...n, box: { ...n.box, x: n.box.x + dx } } : n
     // A thing's ring lists the places in both halves (worn and carried).
     const both = (n: InventoryControl): InventoryControl =>
-      n.item != null && n.menu != null
+      n.menu != null
         ? {
             ...n,
             menu: () => {
               const own = n.menu!()
-              const all = [
-                ...main.places(n.item!),
-                ...(list ? list.places(n.item!) : []),
-              ]
+              // A thing's places come from both halves; an empty slot's
+              // ring (what fits) is its own.
+              const all: InventoryPlace[] =
+                n.thing != null
+                  ? [
+                      ...main.places(n.thing),
+                      ...(list ? list.places(n.thing) : []),
+                    ]
+                  : own == null
+                  ? []
+                  : own.items.map((it, i) => ({
+                      label: it.label,
+                      go: () => own.handleSelect(i),
+                    }))
               /*
-              CLOSE is in the ring too, gated (sweep into it round the rim),
+              CLOSE is in the ring too, gated (out into it, then sideways),
               so the pad can put the loadout away without leaving it: no
               position on the picture, so it sits at the top, opposite drop.
               */
@@ -1645,9 +1697,10 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
                   else setOpen(false)
                 },
               })
-              return own
-                ? { ...own, ...placesMenu(own.title ?? '', all) }
-                : null
+              return {
+                ...own,
+                ...placesMenu(own?.title ?? n.name ?? '', all),
+              }
             },
           }
         : n

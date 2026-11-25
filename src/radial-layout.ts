@@ -32,9 +32,10 @@ export interface RadialShape {
   weight?: number
   apart?: boolean
   /**
-   * Gated, like reverse gear: pushing straight out at it lights nothing; you
-   * reach it by going out to another slice and sweeping round the rim into it.
-   * See `gatedPick`.
+   * Gated, like reverse gear: pull straight out into it, then sideways (either
+   * way) to confirm; arriving from another slice never counts. Like `apart`, it
+   * has a narrow empty gap either side (the sideways move goes there), but it
+   * does not turn the ring. See `gatedPick`.
    */
   gated?: boolean
 }
@@ -51,6 +52,9 @@ export interface RadialArc {
 
 const TAU = Math.PI * 2
 
+/** Set apart or gated: an empty gap either side. */
+const spaced = (s: RadialShape) => !!(s.apart || s.gated)
+
 /**
  * Where each item's slice goes. A count is that many equal slices with item 0
  * at the top; shapes may differ in weight and be set apart (see `RadialShape`).
@@ -63,19 +67,19 @@ export function radialLayout(
       ? Array.from({ length: Math.max(0, items) }, () => ({}))
       : items
   if (shapes.length === 0) return []
-  const w = (s: RadialShape) => Math.max(0, s.weight ?? 1)
+  const w = (s: RadialShape) => Math.max(0, s.weight ?? (s.gated ? 0.6 : 1))
   const units = shapes.reduce(
-    (t, s) => t + w(s) + (s.apart ? RADIAL_APART_GAP * 2 : 0),
+    (t, s) => t + w(s) + (spaced(s) ? RADIAL_APART_GAP * 2 : 0),
     0
   )
   const unit = units > 0 ? TAU / units : 0
   let at = 0
   const arcs = shapes.map((s) => {
-    if (s.apart) at += RADIAL_APART_GAP * unit
+    if (spaced(s)) at += RADIAL_APART_GAP * unit
     const from = at
     at += w(s) * unit
     const to = at
-    if (s.apart) at += RADIAL_APART_GAP * unit
+    if (spaced(s)) at += RADIAL_APART_GAP * unit
     return { from, to, mid: (from + to) / 2 }
   })
   // Turn the ring: the first item set apart points down, else item 0 up.
@@ -116,43 +120,69 @@ export function radialPick(
 export interface GateState {
   /** Last frame's raw pick (-1 a gap), or null when the pointer was in the middle. */
   last: number | null
-  /** A gated item reached the right way, kept while the pointer stays on it. */
-  latched: number
+  /** The gated item pulled straight out into from the middle, else -1. */
+  armed: number
+  /** The armed item has had its sideways move. */
+  confirmed: boolean
 }
 
-export const gateState = (): GateState => ({ last: null, latched: -1 })
+export const gateState = (): GateState => ({
+  last: null,
+  armed: -1,
+  confirmed: false,
+})
+
+/** One frame of `gatedPick`. */
+export interface GatedPickResult {
+  /** The item to light and pick on release, -1 for none. */
+  pick: number
+  /** Pointing at a gated item that is not confirmed: light nothing. */
+  blocked: boolean
+  /** The gated item pulled into from the middle, waiting for its sideways move, else -1. */
+  armed: number
+}
 
 /**
- * `radialPick` with gates (one frame; mutates `state`). A gated item is picked
- * only when the pointer arrives on it ALONG THE RIM, from another slice or a
- * gap, never straight out from the middle: an L-shaped path, like a car's
- * reverse gear. Pushed straight at, it says `blocked` (light nothing, so a
- * release picks nothing).
+ * `radialPick` with gates (one frame; mutates `state`). A gated item is a
+ * two-part gesture, like a car's reverse gear: pull STRAIGHT OUT from the
+ * middle into it (that arms it, and still picks nothing), then move SIDEWAYS,
+ * either way, out past its edge to confirm (how far does not matter; it stays
+ * confirmed until the pointer goes back to the middle). Arriving on it from another slice
+ * never arms it, so no sweep round the ring can land on it by accident. Back
+ * to the middle starts again.
  */
 export function gatedPick(
   state: GateState,
   dir: RadialDirection,
   items: readonly RadialShape[],
   options: RadialPickOptions = {}
-): { pick: number; blocked: boolean } {
+): GatedPickResult {
   const len = Math.hypot(dir.x, dir.y)
   if (!(len > (options.deadzone ?? 0.5))) {
     state.last = null
-    state.latched = -1
-    return { pick: -1, blocked: false }
+    state.armed = -1
+    state.confirmed = false
+    return { pick: -1, blocked: false, armed: -1 }
   }
   const pick = radialPick(dir, items, options)
   const last = state.last
   state.last = pick
-  if (pick < 0 || !items[pick]?.gated) {
-    state.latched = -1
-    return { pick, blocked: false }
+  if (state.armed >= 0) {
+    const k = state.armed
+    // Sideways out of it, any distance, confirms; kept until the middle.
+    if (pick !== k || state.confirmed) {
+      state.confirmed = true
+      return { pick: k, blocked: false, armed: k }
+    }
+    return { pick: -1, blocked: true, armed: k }
   }
-  if (state.latched === pick || (last != null && last !== pick)) {
-    state.latched = pick
-    return { pick, blocked: false }
+  if (pick < 0 || !items[pick]?.gated)
+    return { pick, blocked: false, armed: -1 }
+  if (last == null) {
+    state.armed = pick
+    return { pick: -1, blocked: true, armed: pick }
   }
-  return { pick: -1, blocked: true }
+  return { pick: -1, blocked: true, armed: -1 }
 }
 
 /** Item `i`: its angle (radians clockwise from up) and unit position (+y down). */

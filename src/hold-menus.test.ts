@@ -5,7 +5,7 @@ import { DPAD_HOLD_MS } from './radial-layout.js'
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /** A panel with one control that has a ring, at 0,0 20×20. */
-const fakePanel = () => {
+const fakePanel = (when?: () => boolean) => {
   const heard: string[] = []
   const opened: string[] = []
   const panel = {
@@ -24,11 +24,20 @@ const fakePanel = () => {
       },
     ],
   }
-  holdMenusOn(panel, (m) => opened.push(m.title ?? ''))
+  holdMenusOn(panel, (m) => opened.push(m.title ?? ''), when)
   return { panel, heard, opened }
 }
 
 describe('holdMenusOn', () => {
+  test('when it says no (a mouse), a hold is the panel’s', async () => {
+    const { panel, heard, opened } = fakePanel(() => false)
+    panel.handlePointer('down', 10, 10)
+    await wait(DPAD_HOLD_MS + 40)
+    panel.handlePointer('up', 10, 10)
+    expect(opened).toEqual([])
+    expect(heard).toEqual(['down', 'up'])
+  })
+
   test('a still press and hold on a control with a menu opens it; the panel forgets the press', async () => {
     const { panel, heard, opened } = fakePanel()
     panel.handlePointer('down', 10, 10)

@@ -20,11 +20,14 @@ places) opens its ring, as holding B does with the pad. Wraps the panel's
 `handlePointer`: a press on such a control that stays still for the hold time
 tells the panel to forget the press (`leave`, so it does not also pick the
 thing up) and calls `open`; the rest of that press is the ring's. A press
-that moves first is the panel's as usual (a drag). Idempotent.
+that moves first is the panel's as usual (a drag). `when` says whether holds
+count at all: `<tosi-b3d>` counts them only in a headset, since a mouse can
+already drag a thing where it goes. Idempotent.
 */
 export function holdMenusOn(
   panel: unknown,
-  open: (menu: ControlMenu) => void
+  open: (menu: ControlMenu) => void,
+  when: () => boolean = () => true
 ): void {
   const el = panel as HoldablePanel | null
   if (el == null || el.__holdMenus || typeof el.handlePointer !== 'function')
@@ -67,7 +70,7 @@ export function holdMenusOn(
     if (kind === 'down') {
       clear()
       fired = false
-      const n = at(x, y)
+      const n = when() ? at(x, y) : null
       if (n) {
         start = { x, y }
         timer = setTimeout(() => {

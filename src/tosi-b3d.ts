@@ -468,6 +468,7 @@ import {
   opacityWeightedGlow,
   type FramePanelSpec,
   type ScreenAnchor,
+  type ScreenLength,
 } from './frame-panel.js'
 import { runProbe, hydrateProfileFromCache } from './b3d-probe.js'
 import {
@@ -2264,7 +2265,8 @@ export class B3d extends Component {
   private _presentModal(
     svg: SVGSVGElement,
     height: number,
-    stack: number
+    stack: number,
+    at: { x: number; y: number } | null = null
   ): (() => void) | null {
     // A later modal sits a little nearer than the one before, so two open
     // at once (dead, then the tab hidden) do not share a plane: the newer is
@@ -2312,6 +2314,16 @@ export class B3d extends Component {
     const frames = XrFrames.flat(scene, cam)
     const cnv = this.parts.canvas as HTMLCanvasElement
     const tall = Math.min(height, (cnv.clientHeight || 600) * 0.8)
+    // Centred on `at` (client x, y) when given, kept wholly on the canvas.
+    let left: ScreenLength = '50%'
+    let top: ScreenLength = '50%'
+    if (at != null) {
+      const r = cnv.getBoundingClientRect()
+      const keep = (v: number, size: number) =>
+        Math.max(tall / 2, Math.min(size - tall / 2, v))
+      left = keep(at.x - r.left, r.width)
+      top = keep(at.y - r.top, r.height)
+    }
     const panel = attachFramePanel(
       scene,
       cam as BABYLON.TargetCamera,
@@ -2326,8 +2338,8 @@ export class B3d extends Component {
         width: 0.3,
         resolution: 1024,
         screenAnchor: {
-          left: '50%',
-          top: '50%',
+          left,
+          top,
           anchor: 'center',
           height: tall,
           distance: nearer,
@@ -3254,7 +3266,7 @@ export class B3d extends Component {
     if (pulse.moves.length > 0) this.rumble('tick')
     /*
     B PRESSES, AND HOLDING IT ON A CONTROL WITH A MENU OPENS THE RING (a
-    thing's places to go): the right stick points, letting go picks. On such
+    thing's places to go): either stick points, letting go picks. On such
     a control a quick press acts on release, since a press cannot know yet
     whether it is a hold; everywhere else it acts at once.
     */
@@ -3548,15 +3560,20 @@ export class B3d extends Component {
     draws its own close and outline (the dock) to leave them to the frame.
     */
     const framed = spec?.chrome !== 'none'
-    // A press and hold on a control with a menu() opens its ring.
-    holdMenusOn(content, (menu) => {
-      this._radialPointer()
-      this._radialHost().openAtPointer({
-        title: menu.title,
-        items: menu.items,
-        handleSelect: (_item, i) => menu.handleSelect(i),
-      })
-    })
+    // In a headset, a press and hold on a control with a menu() opens its
+    // ring (a mouse drags the thing instead).
+    holdMenusOn(
+      content,
+      (menu) => {
+        this._radialPointer()
+        this._radialHost().openAtPointer({
+          title: menu.title,
+          items: menu.items,
+          handleSelect: (_item, i) => menu.handleSelect(i),
+        })
+      },
+      () => this.xrActive
+    )
     // Open the content FIRST, so it is placed at the size it will be.
     content.dispatchEvent(
       new CustomEvent('panelopen', {
@@ -5251,11 +5268,10 @@ export class B3d extends Component {
       },
       // Gamepad UI mode owns the D-pad and B: a hold on one waits.
       uiOwns: (button) => self._padUi != null && padUiOwns.has(button),
-      present: (svg, height) => this._presentModal(svg, height, 0),
+      present: (svg, height, at) => this._presentModal(svg, height, 0, at),
       canvas: () => (this.parts?.canvas as HTMLCanvasElement) ?? null,
       xrGamepads: () =>
         (this.xrHelper?.input?.controllers ?? [])
-          .filter((c: any) => c.inputSource?.handedness === 'right')
           .map((c: any) => c.inputSource?.gamepad as Gamepad | undefined)
           .filter((g): g is Gamepad => g != null),
       rumble: (name) => this.rumble(name),

@@ -15,6 +15,7 @@ import {
   pressState,
   gatedPick,
   gateState,
+  type GatedPickResult,
   pressStep,
   DPAD_HOLD_MS,
   radialPick,
@@ -80,11 +81,18 @@ export interface RadialScene {
    * the D-pad moves the focus in a panel, and must not also cycle weapons.
    */
   uiOwns(button: keyof VirtualGamepad): boolean
-  /** Show an SVG over the scene; returns its close. */
-  present(svg: SVGSVGElement, height: number): (() => void) | null
+  /**
+   * Show an SVG over the scene, centred on `at` (client x, y) when given, else
+   * in the middle; returns its close.
+   */
+  present(
+    svg: SVGSVGElement,
+    height: number,
+    at?: { x: number; y: number } | null
+  ): (() => void) | null
   /** The canvas (pointer picking, flat). */
   canvas(): HTMLCanvasElement | null
-  /** The headset's RIGHT controller's gamepad, if any. */
+  /** The headset's controllers' gamepads (either thumbstick points). */
   xrGamepads(): Gamepad[]
   rumble(name: 'tick'): void
 }
@@ -101,8 +109,9 @@ const DIR_KEY: Record<DpadDirection, string> = {
 }
 /*
 WHAT AN OPEN RING HOLDS: the RIGHT stick, which points, and the buttons that
-pick. The left stick stays the player's, so you can keep walking while you
-choose.
+pick. EITHER stick points (a ring held open by B leaves only the left thumb
+free); the left one stays the player's until it is pushed past the deadzone,
+then the ring takes it until it closes (`LEFT_OWNS`).
 */
 const OPEN_OWNS: (keyof VirtualGamepad)[] = [
   'rightStickX',
@@ -110,6 +119,7 @@ const OPEN_OWNS: (keyof VirtualGamepad)[] = [
   'buttonA',
   'buttonB',
 ]
+const LEFT_OWNS: (keyof VirtualGamepad)[] = ['leftStickX', 'leftStickY']
 
 interface Open {
   svg: RadialMenuSvg
@@ -119,6 +129,8 @@ interface Open {
   heldBy: RadialHold | null
   /** A and B must be let go of before they pick (the press that opened it). */
   armed: boolean
+  /** Where it is drawn (client x, y), or null: the middle of the canvas. */
+  centre: { x: number; y: number } | null
   /** Gates, for the stick and the mouse each. */
   stickGate: GateState
   pointerGate: GateState
@@ -216,25 +228,33 @@ export class RadialHost {
 
   /** Open a ring held by the pointer pressed now: it picks by the drag from here. */
   openAtPointer(opts: RadialMenuOptions): () => void {
-    const close = this.openMenu(opts, { pointer: true })
-    this.origin = this.client
+    const close = this.openMenu(opts, { pointer: true }, this.client)
     this.pointerHeld = true
     return close
   }
 
-  openMenu(opts: RadialMenuOptions, heldBy: RadialHold | null = null) {
+  /** Open a ring; `at` (client x, y) is where a pointer opened it: it is drawn there. */
+  openMenu(
+    opts: RadialMenuOptions,
+    heldBy: RadialHold | null = null,
+    at: { x: number; y: number } | null = null
+  ) {
     this.close()
     if (opts.items.length === 0) return () => {}
     this.listen()
     if (opts.pointer != null) {
       heldBy = { ...heldBy, pointer: true }
-      this.origin = { ...opts.pointer }
+      at = { ...opts.pointer }
       this.pointerHeld = true
-    } else if (!heldBy?.pointer) this.origin = null
+    }
+    this.origin = heldBy?.pointer ? at : null
+    const centre = this.scene.xrActive ? null : at
     const svg = radialMenuSvg(opts.items, { title: opts.title })
     const open: Open = {
       svg,
-      close: this.scene.present(svg, RADIAL_SIZE) ?? this.domFallback(svg),
+      centre,
+      close:
+        this.scene.present(svg, RADIAL_SIZE, centre) ?? this.domFallback(svg),
       opts,
       heldBy,
       armed: false,
@@ -260,7 +280,7 @@ export class RadialHost {
     if (open == null) return
     this.open = null
     open.close?.()
-    for (const k of OPEN_OWNS)
+    for (const k of [...OPEN_OWNS, ...LEFT_OWNS])
       if (!this.holds.some((h) => h.button === k)) padMenuOwns.delete(k)
     const item = open.opts.items[pick]
     if (item != null && !item.disabled) open.opts.handleSelect?.(item, pick)
@@ -300,9 +320,9 @@ export class RadialHost {
               title: pending.action.title,
               handleSelect: pending.action.handleSelect,
             },
-            { pointer: true }
+            { pointer: true },
+            pending.at
           )
-          this.origin = pending.at
         }
       }
     }
@@ -353,10 +373,10 @@ export class RadialHost {
       this.pointer = null
       open.armed = false
     }
-    // The right stick points (the right thumbstick in a headset); else the
+    // Either stick points (either thumbstick in a headset); else the
     // mouse, from the middle.
     const items = open.opts.items
-    let at = { pick: -1, blocked: false }
+    let at: GatedPickResult = { pick: -1, blocked: false, armed: -1 }
     const stick = this.stick(pad)
     if (stick != null)
       at = gatedPick(open.stickGate, stick, items, { deadzone: 0.5 })
@@ -364,7 +384,7 @@ export class RadialHost {
       at = gatedPick(open.pointerGate, this.pointer, items, { deadzone: 30 })
     const pick = at.pick
     // Pushed straight at a gated slice: nothing lit, so letting go picks nothing.
-    if (at.blocked) open.svg.highlight(-1)
+    if (at.blocked) open.svg.highlight(-1, at.armed)
     // At rest the last pointed-at slice stays lit (a stick springs back).
     else if (pick >= 0 && pick !== open.svg.lit) {
       open.svg.highlight(pick)
@@ -393,10 +413,16 @@ export class RadialHost {
     return this.src.poll(true)
   }
 
-  /** The pointing stick as a screen direction (+y down), the one pushed furthest. */
+  /** The pointing stick as a screen direction (+y down): either stick, the one pushed furthest. */
   private stick(pad: VirtualGamepad | null): { x: number; y: number } | null {
     const all: { x: number; y: number }[] = []
-    if (pad != null) all.push({ x: pad.rightStickX, y: -pad.rightStickY })
+    if (pad != null) {
+      all.push({ x: pad.rightStickX, y: -pad.rightStickY })
+      const left = { x: pad.leftStickX, y: -pad.leftStickY }
+      if (Math.hypot(left.x, left.y) > 0.5)
+        for (const k of LEFT_OWNS) padMenuOwns.add(k)
+      all.push(left)
+    }
     if (this.scene.xrActive)
       // xr-standard: the thumbstick is axes 2 and 3 (+y is down already).
       for (const gp of this.scene.xrGamepads())
@@ -433,6 +459,14 @@ export class RadialHost {
         }
         return
       }
+      // Else from the ring's middle: where it opened, or the canvas's.
+      if (open.centre != null) {
+        this.pointer = {
+          x: e.clientX - open.centre.x,
+          y: e.clientY - open.centre.y,
+        }
+        return
+      }
       const c = this.scene.canvas()
       if (c == null) return
       const r = c.getBoundingClientRect()
@@ -456,7 +490,7 @@ export class RadialHost {
           : radialPick(this.pointer, open.opts.items, { deadzone: 30 })
       e.stopPropagation()
       e.preventDefault()
-      // A gated slice is picked only once lit (reached round the rim).
+      // A gated slice is picked only once lit (out into it, then sideways).
       if (open.opts.items[at]?.gated && open.svg.lit !== at) return
       this.close(at)
     }

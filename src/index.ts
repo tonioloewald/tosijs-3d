@@ -451,6 +451,7 @@ export {
   gatedPick,
   gateState,
   type GateState,
+  type GatedPickResult,
   RADIAL_APART_GAP,
   type RadialShape,
   type RadialArc,

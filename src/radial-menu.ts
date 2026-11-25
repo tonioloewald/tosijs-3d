@@ -8,7 +8,7 @@ the fastest menu there is on a gamepad, and one of the few in a 3D view where
 the targets have no edge to miss (Fitts' law with unbounded targets).
 
 ```js
-import { b3d, b3dLight, b3dGround } from 'tosijs-3d'
+import { b3d, b3dLight, b3dGround, fitPanel, label3d, color3d, button3d } from 'tosijs-3d'
 
 const COLOURS = [
   { label: 'red', color: '#dd3333' },
@@ -17,25 +17,56 @@ const COLOURS = [
   { label: 'blue', color: '#3377dd' },
   { label: 'violet', color: '#9933cc' },
 ]
+let scene = null
 let box = null
 let babylon = null
 let at = 0
+let custom = '#ff8800'
+const say = document.createElement('p')
+const hidden = () => box.visibility < 1
+const tell = () => {
+  const what = at < 0 ? custom : COLOURS[at].label
+  say.textContent = hidden() ? 'The box is hidden.' : `The box is ${what}.`
+}
 const paint = (i) => {
   at = i
-  box.material.diffuseColor = babylon.Color3.FromHexString(COLOURS[i].color)
-  say.textContent = `The box is ${COLOURS[i].label}.`
+  box.visibility = 1
+  box.material.diffuseColor = babylon.Color3.FromHexString(i < 0 ? custom : COLOURS[i].color)
+  tell()
 }
-const say = document.createElement('p')
-// Each slice wears its colour (\`color\` on an item).
-const wheel = () => COLOURS.map((c, i) => ({ ...c, checked: i === at }))
-const pick = (item) => paint(COLOURS.findIndex((c) => c.label === item.label))
+// A colour of your own, picked in the scene's modal (so it works in a headset).
+const pickCustom = () => {
+  let close = null
+  const { svg, height } = fitPanel([
+    label3d({ text: 'Custom colour' }),
+    color3d({ value: custom, alpha: false, handleChange: (hex) => { custom = hex; paint(-1) } }),
+    button3d({ label: 'done', default: true, handleClick: () => close?.() }),
+  ], { width: 300 })
+  close = scene.showModal(svg, height)
+}
+// Each slice wears its colour (`color`). HIDE is gated: pull straight out
+// into it, then sideways either way to confirm. CUSTOM is set apart: small,
+// at the bottom, with empty space round it.
+const wheel = () => [
+  ...COLOURS.map((c, i) => ({ ...c, checked: i === at })),
+  { label: hidden() ? 'show' : 'hide', gated: !hidden() },
+  { label: 'custom', icon: 'colorPicker', color: custom, apart: true, checked: at < 0 },
+]
+const pick = (item) => {
+  if (item.label === 'hide' || item.label === 'show') {
+    // Hidden is a ghost, so it can still be pressed to bring it back.
+    box.visibility = hidden() ? 1 : 0.15
+    tell()
+  } else if (item.label === 'custom') pickCustom()
+  else paint(COLOURS.findIndex((c) => c.label === item.label))
+}
 const painting = {
   title: 'Paint',
-  tap: () => paint((at + 1) % COLOURS.length),
+  tap: () => paint((Math.max(0, at) + 1) % COLOURS.length),
   menu: wheel,
   handleSelect: pick,
 }
-const scene = b3d(
+scene = b3d(
   {
     sceneCreated(el, BABYLON) {
       babylon = BABYLON
@@ -69,13 +100,15 @@ button { margin: 4px 8px; align-self: start; }
 ```
 
 Tap the D-pad right (K on a keyboard) and the box takes the next colour.
-Hold it and the ring opens: point the right stick (or the mouse) at a slice
-and let go to paint it. Let go without pointing and nothing changes. So one button
+Hold it and the ring opens: point either stick (or the mouse) at a slice
+and let go to paint it. **Hide** is gated: push straight out into it (it
+half lights, and the middle says "hide ↔"), then move sideways either way to
+confirm. **Custom**, small at the bottom, opens a colour picker. Let go without pointing and nothing changes. So one button
 does its everyday job on a tap and offers the menu on a hold, as GTA VI does
 with its D-pad.
 
 **With the mouse** (or a finger, or a headset's trigger), press and hold the
-box: the ring opens, drag toward a colour and let go. A quick click on the box
+box: the ring opens where you pressed, drag toward a colour and let go. A quick click on the box
 is the tap. The button does the same from code: press it and drag off toward a
 slice, or just click it and then click a slice.
 
@@ -92,11 +125,11 @@ handleSelect })` is GTA V's weapon wheel (`key` is a keyboard key that does
 the same, a `KeyboardEvent.code`).
 
 `b3d.openRadialMenu({ title, items, handleSelect })` opens one from code: the
-right stick or the mouse points, a click or a press of A or B picks, and
+either stick or the mouse points, a click or a press of A or B picks, and
 moving the mouse back to the middle and clicking cancels. It returns its close.
-In a headset it hangs ahead of you, and the right thumbstick points. Given
-`pointer` (a press's client x, y, from a `pointerdown` handler), the press
-holds it open: the drag from that point lights a slice and letting go picks.
+In a headset it hangs ahead of you, and either thumbstick points. Given
+`pointer` (a press's client x, y, from a `pointerdown` handler), it is drawn
+there and the press holds it open: the drag from that point lights a slice and letting go picks.
 Let go without dragging and it stays open, to click.
 
 `b3d.meshMenu(mesh, { tap, menu, title, handleSelect })` puts a ring on a
@@ -104,16 +137,17 @@ press and hold on a mesh (or its children; or pass a test on the mesh pressed).
 A quick press is `tap`, and a press that moves before the hold turns the view
 as usual, so it costs the camera nothing.
 
-The ring is always picked with the RIGHT stick, so the left stick keeps
-moving you while you choose.
+Either stick picks, since a ring held open by B leaves only the left thumb
+free. The left stick keeps moving you until you push it past the middle of
+its travel; then it is the ring's until the ring closes.
 
 **In a panel**, a control can offer a ring for a press and hold
-(`menu()` in its semantics): holding B on it with the pad opens the ring, the
-right stick points, letting go picks; a quick press still presses it. With the
-mouse (a finger, a headset's trigger) a press and hold on it does the same:
-drag toward a slice and let go. A press that moves first is still a drag. The
-[inventory](/inventory-box/) does this: hold B on a thing and the ring is the
-places it can go.
+(`menu()` in its semantics): holding B on it with the pad opens the ring,
+either stick points, letting go picks; a quick press still presses it. In a
+headset a press and hold with the trigger does the same: aim toward a slice and
+let go. A mouse does not, since it can already drag. The
+[inventory](/inventory-box/) does this: hold B on a thing (in a list or a slot)
+and the ring is the places it can go; on an empty slot, the things that fit.
 
 An item is `{ label, icon?, color?, disabled?, checked?, weight?, apart?, gated? }` (any
 other fields are yours: `handleSelect` gets the item back). `weight` is its
@@ -122,10 +156,12 @@ at rest and full when lit, with ink that reads on it. `apart` is for the choice 
 (drop, delete): it points straight down, opposite the rest, narrower, with dead
 space either side that picks nothing. A big target is easy to hit, so a
 dangerous one is made small and lonely: Fitts' law, used backwards. `gated`
-goes further, like a car's reverse gear: pushing straight out at it lights
-nothing, so you go out to a neighbour and sweep round the rim into it. It is
-drawn as that path: no inner part, and an arm along the rim each way toward
-its neighbours. The inventory's drop is both; so would be a shop's "sell all
+goes further, like a car's reverse gear: pull straight out into it, which
+arms it and picks nothing yet, then move sideways, either way and however far,
+to confirm. Arriving on it from another slice never arms it, so no sweep
+round the ring lands there by accident. A gated slice is narrow, with empty
+space either side, and is drawn as a T: the stem from the middle out, an arm
+along the rim each way. The inventory's drop and close are gated; so would be a shop's "sell all
 junk" or "repair all". `icon` is an icon name. Up to
 eight read well.
 
@@ -152,7 +188,7 @@ export interface RadialItem {
   weight?: number
   /** Set apart: narrower, dead space either side, pointing down (drop, delete). */
   apart?: boolean
-  /** Gated: reached by sweeping round the rim into it, not straight out. */
+  /** Gated: pull straight out into it, then sideways to confirm (see `gatedPick`). */
   gated?: boolean
   /** Its slice's colour (any CSS colour): toned down at rest, full when lit. */
   color?: string
@@ -160,8 +196,11 @@ export interface RadialItem {
 }
 
 export interface RadialMenuSvg extends SVGSVGElement {
-  /** Light item `i` (-1: none), in place. */
-  highlight(i: number): void
+  /**
+   * Light item `i` (-1: none), in place. `armed` is a gated item pulled into
+   * and waiting for its sideways move: drawn half lit, its edge solid.
+   */
+  highlight(i: number, armed?: number): void
   /** The lit item, -1 for none. */
   readonly lit: number
   readonly items: readonly RadialItem[]
@@ -271,40 +310,28 @@ function wedge(from: number, to: number): string {
   )
 }
 
-/** Where a gated slice starts: its inner part is not there (you cannot come from the middle). */
-const R_GATE = R_IN + (R_OUT - R_IN) * 0.42
 /** How thick a gated slice's arms are, along the rim. */
 const ARM = 24
 
 /*
-A GATED slice draws its path: no inner part (straight out from the middle
-lights nothing), and an arm along the rim each way, across the dead gap toward
-its neighbours, which is the way in: out to a neighbour, then round. Two Ls
-back to back. `reach` is how far (radians) the arms go beyond the slice.
+A GATED slice draws its gesture as a T: the stem runs from the hub to the rim
+(pull straight out into it), and an arm along the rim each way, into the empty
+gap beside it (then sideways, either way, to confirm). `reach` is how far
+(radians) the arms go beyond the slice.
 */
 function gatedWedge(from: number, to: number, reach: number): string {
-  if (!(reach > 0.01)) {
-    return rounded(
-      [
-        { a: from + inset(R_GATE), r: R_GATE, next: 'line' },
-        { a: from + inset(R_OUT), r: R_OUT, next: 'arc' },
-        { a: to - inset(R_OUT), r: R_OUT, next: 'line' },
-        { a: to - inset(R_GATE), r: R_GATE, next: 'arc' },
-      ],
-      CORNER * 0.6
-    )
-  }
+  if (!(reach > 0.01)) return wedge(from, to)
   const rArm = R_OUT - ARM
   return rounded(
     [
-      { a: from + inset(R_GATE), r: R_GATE, next: 'line' },
+      { a: from + inset(R_IN), r: R_IN, next: 'line' },
       { a: from + inset(rArm), r: rArm, next: 'arc' },
       { a: from - reach, r: rArm, next: 'line' },
       { a: from - reach, r: R_OUT, next: 'arc' },
       { a: to + reach, r: R_OUT, next: 'line' },
       { a: to + reach, r: rArm, next: 'arc' },
       { a: to - inset(rArm), r: rArm, next: 'line' },
-      { a: to - inset(R_GATE), r: R_GATE, next: 'arc' },
+      { a: to - inset(R_IN), r: R_IN, next: 'arc' },
     ],
     CORNER * 0.6
   )
@@ -343,13 +370,14 @@ function labelText(label: string, cx: number, cy: number, ink: string) {
 }
 
 /*
-How far a gated slice's arms reach past it: across its dead gap (an item set
-apart has one each side, RADIAL_APART_GAP of an ordinary slice), stopping a
-GAP short of the neighbour. No gap, no arms.
+How far a gated slice's arms reach past it: across its empty gap (a gated or
+apart item has one each side, RADIAL_APART_GAP of an ordinary slice), stopping
+a GAP short of the neighbour.
 */
 function armReach(item: RadialItem, from: number, to: number): number {
-  if (!item.apart) return 0
-  const unit = (to - from) / Math.max(0.01, item.weight ?? 1)
+  if (!item.apart && !item.gated) return 0
+  const unit =
+    (to - from) / Math.max(0.01, item.weight ?? (item.gated ? 0.6 : 1))
   return RADIAL_APART_GAP * unit - (GAP * 1.5) / R_OUT
 }
 
@@ -379,6 +407,10 @@ export function radialMenuSvg(
     b: a.b + (b.b - a.b) * t,
     a: 1,
   })
+  const accent = parseColor(theme.accent)
+  const button = parseColor(theme.buttonBg)
+  const halfAccent =
+    accent && button ? formatColor(mix(accent, button, 0.55)) : theme.accent
   const fills = items.map((item) => {
     const c = item.color ? parseColor(item.color) : null
     const bg = parseColor(theme.buttonBg)
@@ -386,12 +418,14 @@ export function radialMenuSvg(
       return {
         rest: theme.buttonBg,
         lit: theme.accent,
+        half: halfAccent,
         ink: null,
         litInk: null,
       }
     return {
       rest: formatColor(mix(c, bg, 0.45)),
       lit: formatColor({ ...c, a: 1 }),
+      half: formatColor(mix(c, bg, 0.2)),
       ink: contrastInk(mix(c, bg, 0.2)),
       litInk: contrastInk({ ...c, a: 1 }),
     }
@@ -416,7 +450,7 @@ export function radialMenuSvg(
     slices.push(s)
     ring.append(s)
     const at = radialSlot(i, items)
-    const rMark = item.gated ? (R_GATE + R_OUT) / 2 : R_ICON
+    const rMark = item.gated ? (R_IN + R_OUT - ARM) / 2 : R_ICON
     const cx = at.x * rMark
     const cy = at.y * rMark
     const ink = item.disabled ? theme.muted : fills[i].ink ?? theme.text
@@ -480,12 +514,22 @@ export function radialMenuSvg(
     ring
   ) as unknown as RadialMenuSvg
   let lit = -1
-  const highlight = (i: number) => {
+  let armedNow = -1
+  const highlight = (i: number, armed = -1) => {
     const next = i >= 0 && i < items.length && !items[i].disabled ? i : -1
-    if (next === lit) return
+    if (next === lit && armed === armedNow) return
     lit = next
+    armedNow = armed
     slices.forEach((s, k) => {
-      s.setAttribute('fill', k === lit ? fills[k].lit : fills[k].rest)
+      s.setAttribute(
+        'fill',
+        k === lit ? fills[k].lit : k === armed ? fills[k].half : fills[k].rest
+      )
+      if (items[k].gated)
+        s.setAttribute(
+          'stroke-dasharray',
+          k === armed || k === lit ? '' : '4 7'
+        )
       // A coloured slice is lit by its own colour, so it also takes a rim.
       s.setAttribute(
         'stroke',
@@ -497,8 +541,10 @@ export function radialMenuSvg(
     const coloured = item?.color != null && fills[lit].litInk != null
     const ink = coloured ? fills[lit].litInk! : theme.text
     hub.setAttribute('fill', coloured ? fills[lit].lit : theme.panelBg)
-    label.textContent = item?.label ?? ''
-    label.setAttribute('fill', ink)
+    // An armed gate names itself in the middle, dimmed: it waits for the sideways move.
+    const waiting = item == null && armed >= 0 ? items[armed] : null
+    label.textContent = item?.label ?? (waiting ? `${waiting.label} ↔` : '')
+    label.setAttribute('fill', waiting ? theme.muted : ink)
     title.setAttribute('fill', coloured ? ink : theme.muted)
     title.setAttribute('opacity', coloured ? '0.7' : '1')
     hubMark.replaceChildren()
