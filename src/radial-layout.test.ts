@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import {
+  gatedPick,
+  gateState,
   pressState,
   pressStep,
   radialPick,
@@ -69,6 +71,45 @@ describe('items set apart', () => {
       const s = radialSlot(i, items)
       expect(radialPick(s, items)).toBe(i)
     }
+  })
+})
+
+describe('gated items', () => {
+  const items = [{}, {}, {}, {}, { apart: true, gated: true }]
+  const toward = (deg: number) => ({
+    x: Math.sin((deg * Math.PI) / 180),
+    y: -Math.cos((deg * Math.PI) / 180),
+  })
+  test('straight out at it is blocked', () => {
+    const s = gateState()
+    expect(gatedPick(s, { x: 0, y: 0 }, items)).toEqual({
+      pick: -1,
+      blocked: false,
+    })
+    expect(gatedPick(s, toward(180), items)).toEqual({
+      pick: -1,
+      blocked: true,
+    })
+    expect(gatedPick(s, toward(181), items).blocked).toBe(true)
+  })
+  test('round the rim from a neighbour reaches it, and it stays', () => {
+    const s = gateState()
+    gatedPick(s, toward(120), items)
+    expect(gatedPick(s, toward(150), items).blocked).toBe(false)
+    expect(gatedPick(s, toward(180), items)).toEqual({
+      pick: 4,
+      blocked: false,
+    })
+    expect(gatedPick(s, toward(178), items).pick).toBe(4)
+    // Back to the middle and straight out again: blocked.
+    gatedPick(s, { x: 0, y: 0 }, items)
+    expect(gatedPick(s, toward(180), items).blocked).toBe(true)
+  })
+  test('ungated items pick as before', () => {
+    const s = gateState()
+    expect(gatedPick(s, toward(0), items).pick).toBe(
+      radialPick(toward(0), items)
+    )
   })
 })
 

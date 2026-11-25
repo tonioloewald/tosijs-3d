@@ -527,7 +527,7 @@ function placesMenu(
     title,
     items: places.map((p) =>
       p.apart
-        ? { label: p.label, apart: true, weight: 0.6 }
+        ? { label: p.label, apart: true, gated: true, weight: 0.6 }
         : { label: p.label }
     ),
     handleSelect: (i) => places[i]?.go(),

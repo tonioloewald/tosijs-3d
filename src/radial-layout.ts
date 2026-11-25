@@ -31,6 +31,12 @@ export interface RadialPickOptions {
 export interface RadialShape {
   weight?: number
   apart?: boolean
+  /**
+   * Gated, like reverse gear: pushing straight out at it lights nothing; you
+   * reach it by going out to another slice and sweeping round the rim into it.
+   * See `gatedPick`.
+   */
+  gated?: boolean
 }
 
 /** Each side of an `apart` item, as a share of an ordinary slice. */
@@ -104,6 +110,49 @@ export function radialPick(
     if (d < to - from) return i
   }
   return -1
+}
+
+/** What `gatedPick` remembers between frames. */
+export interface GateState {
+  /** Last frame's raw pick (-1 a gap), or null when the pointer was in the middle. */
+  last: number | null
+  /** A gated item reached the right way, kept while the pointer stays on it. */
+  latched: number
+}
+
+export const gateState = (): GateState => ({ last: null, latched: -1 })
+
+/**
+ * `radialPick` with gates (one frame; mutates `state`). A gated item is picked
+ * only when the pointer arrives on it ALONG THE RIM, from another slice or a
+ * gap, never straight out from the middle: an L-shaped path, like a car's
+ * reverse gear. Pushed straight at, it says `blocked` (light nothing, so a
+ * release picks nothing).
+ */
+export function gatedPick(
+  state: GateState,
+  dir: RadialDirection,
+  items: readonly RadialShape[],
+  options: RadialPickOptions = {}
+): { pick: number; blocked: boolean } {
+  const len = Math.hypot(dir.x, dir.y)
+  if (!(len > (options.deadzone ?? 0.5))) {
+    state.last = null
+    state.latched = -1
+    return { pick: -1, blocked: false }
+  }
+  const pick = radialPick(dir, items, options)
+  const last = state.last
+  state.last = pick
+  if (pick < 0 || !items[pick]?.gated) {
+    state.latched = -1
+    return { pick, blocked: false }
+  }
+  if (state.latched === pick || (last != null && last !== pick)) {
+    state.latched = pick
+    return { pick, blocked: false }
+  }
+  return { pick: -1, blocked: true }
 }
 
 /** Item `i`: its angle (radians clockwise from up) and unit position (+y down). */

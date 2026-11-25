@@ -169,6 +169,8 @@ export interface ControlMenu {
     weight?: number
     /** Set apart, opposite the rest (drop). */
     apart?: boolean
+    /** Reached only round the rim, not straight out (drop). */
+    gated?: boolean
   }[]
   handleSelect(index: number): void
 }

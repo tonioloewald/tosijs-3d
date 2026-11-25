@@ -13,8 +13,11 @@ import { HardwareGamepadSource, padMenuOwns } from './hardware-gamepad.js'
 import { realNow } from './clock.js'
 import {
   pressState,
+  gatedPick,
+  gateState,
   pressStep,
   radialPick,
+  type GateState,
   type PressState,
 } from './radial-layout.js'
 import {
@@ -99,6 +102,9 @@ interface Open {
   heldBy: RadialHold | null
   /** A and B must be let go of before they pick (the press that opened it). */
   armed: boolean
+  /** Gates, for the stick and the mouse each. */
+  stickGate: GateState
+  pointerGate: GateState
 }
 
 interface Hold {
@@ -155,6 +161,8 @@ export class RadialHost {
       opts,
       heldBy,
       armed: false,
+      stickGate: gateState(),
+      pointerGate: gateState(),
     }
     this.open = open
     for (const k of OPEN_OWNS) padMenuOwns.add(k)
@@ -220,14 +228,18 @@ export class RadialHost {
       return this.close(open.svg.lit)
     // The right stick points (the right thumbstick in a headset); else the
     // mouse, from the middle.
-    let pick = -1
+    const items = open.opts.items
+    let at = { pick: -1, blocked: false }
     const stick = this.stick(pad)
     if (stick != null)
-      pick = radialPick(stick, open.opts.items, { deadzone: 0.5 })
-    if (pick < 0 && this.pointer != null)
-      pick = radialPick(this.pointer, open.opts.items, { deadzone: 30 })
+      at = gatedPick(open.stickGate, stick, items, { deadzone: 0.5 })
+    if (at.pick < 0 && !at.blocked && this.pointer != null)
+      at = gatedPick(open.pointerGate, this.pointer, items, { deadzone: 30 })
+    const pick = at.pick
+    // Pushed straight at a gated slice: nothing lit, so letting go picks nothing.
+    if (at.blocked) open.svg.highlight(-1)
     // At rest the last pointed-at slice stays lit (a stick springs back).
-    if (pick >= 0 && pick !== open.svg.lit) {
+    else if (pick >= 0 && pick !== open.svg.lit) {
       open.svg.highlight(pick)
       if (open.svg.lit === pick) this.scene.rumble('tick')
     }
@@ -298,6 +310,8 @@ export class RadialHost {
           : radialPick(this.pointer, open.opts.items, { deadzone: 30 })
       e.stopPropagation()
       e.preventDefault()
+      // A gated slice is picked only once lit (reached round the rim).
+      if (open.opts.items[at]?.gated && open.svg.lit !== at) return
       this.close(at)
     }
     const blur = () => this.keys.clear()

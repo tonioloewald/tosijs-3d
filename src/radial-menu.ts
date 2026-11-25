@@ -98,7 +98,10 @@ other fields are yours: `handleSelect` gets the item back). `weight` is its
 share of the ring. `apart` is for the choice you should not make by accident
 (drop, delete): it points straight down, opposite the rest, narrower, with dead
 space either side that picks nothing. A big target is easy to hit, so a
-dangerous one is made small and lonely: Fitts' law, used backwards. `icon` is an icon name. Up to
+dangerous one is made small and lonely: Fitts' law, used backwards. `gated`
+goes further, like a car's reverse gear: pushing straight out at it lights
+nothing, so you go out to a neighbour and sweep round the rim into it (its
+edge is dashed). The inventory's drop is both. `icon` is an icon name. Up to
 eight read well.
 
 `radialMenuSvg(items, options)` is the drawing alone (a `highlight(i)` on
@@ -123,6 +126,8 @@ export interface RadialItem {
   weight?: number
   /** Set apart: narrower, dead space either side, pointing down (drop, delete). */
   apart?: boolean
+  /** Gated: reached by sweeping round the rim into it, not straight out. */
+  gated?: boolean
   [key: string]: unknown
 }
 
@@ -211,6 +216,8 @@ export function radialMenuSvg(
       fill: theme.buttonBg,
       stroke: 'rgba(255,255,255,0.25)',
       'stroke-width': 2,
+      // A gated slice's edge is dashed: there is a way in, but not straight.
+      ...(item.gated ? { 'stroke-dasharray': '6 5' } : {}),
     }) as unknown as SVGPathElement
     slices.push(s)
     ring.append(s)
