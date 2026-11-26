@@ -1241,8 +1241,9 @@ does too, and a ring's centre names the checked item.
 **Resting discloses** (Tonio: yes to disclose on holding on an item, and to
 popping on a hold too). Rest on a sub-ring item and it opens with the hold
 kept, a marking menu: one stroke through the levels. Rest on back and it
-pops a level. After a level opens by a rest, nothing lights
-until the pointing returns to the middle.
+pops a level. After a level opens by a rest, the slice the
+pointing is on does not light until it moves off; waiting for the middle
+(the first rule) made reaching the next choice a detour through the centre.
 
 **Other platforms' gestures are the open question.** Vision Pro (eyes and
 pinch, no controllers), Android XR, Meta's glasses and Quest 3 hand tracking

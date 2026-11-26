@@ -12,6 +12,10 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Added: holding both bumpers (L1 and R1) for half a second opens the system ring, held by them (a stick points, letting go picks), unless the game has the bumpers (a driven player, or a hold given to one), as a headset's grips do. In a headset the grips chord no longer dies when a hand moves 3 cm (squeezing a grip moves the controller that much); only in passthrough, where both grips drag the room, must it stay within 6 cm.
+- Changed (headset): a ring no press opened (a hold, the grips, code) is drawn straight ahead of your eyes, not in front of the body frame (after a reseat that left the rig askew it opened off to the side). A ring keeps the same size in view wherever it is drawn (about 23° across); one opened on something far off is drawn no further than 2 m along the ray.
+- Changed: after a level opens by resting, the slice you are pointing at does not light until you move off it; any other choice is one move away (it waited for the pointing to come back to the middle).
+
 - Fixed: a radial menu's pick blink is seen. A panel redrew changes its content made by itself only on its 400 ms timer, so the whole blink (133 ms) passed unseen and a pick looked instant. Content dispatches `panelrepaint` on its SVG to be drawn on the next frame (a radial menu does on every highlight), and a redraw asked for while one is in flight follows it.
 - Changed: a keyboard ring's choices and middle are drawn at the keys' weight and a little smaller (`fontWeight` on `radialMenuSvg`). The inventory says "items", not "things" (an empty slot's info, a chest's count). `svgTextureCache.pictures` and `.bytes` say what is kept.
 

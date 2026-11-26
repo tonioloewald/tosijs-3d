@@ -195,9 +195,9 @@ called when it is picked, as well as the ring's.
 **Resting opens a level, as in a marking menu.** Rest on a sub-ring item for
 half a second (`RADIAL_DWELL_MS`) and it opens, still held by whatever was
 holding the ring, so one continuous drag (or one held button and a stick)
-can go down several levels and let go on the choice. Come back to the middle
-before pointing in the new level: nothing lights until you do, so the push
-that opened it does not pick in it. Rest on **back** and it goes back up a
+can go down several levels and let go on the choice. In the new level the
+slice you are pointing at does not light until you move off it, so the push
+that opened it does not pick in it; any other choice is one move away. Rest on **back** and it goes back up a
 level the same way.
 
 **The system bar as a ring.** Holding D-pad up opens the scene's system bar
@@ -205,8 +205,10 @@ as a ring, each button a slice with its own icon, and a [bar menu](/bar-menu/)
 a sub-ring (a menu of choices shows the current one on the bar and on its
 slice, and in its sub-ring's middle). A panel that is showing is ticked, and picking it closes it;
 with any showing, **close all** sits apart at the bottom. Holding up never
-closes anything by itself. In a headset, hold **both grips** still for half a
-second (unless a game has the bumpers); a thumbstick points. `b3d.openSystemRing()` opens it from code. That is how a scene
+closes anything by itself. Holding **both bumpers** (L1 and R1) for half a
+second opens it too, and in a headset **both grips**, unless a game has the
+bumpers; a stick points and letting go picks. In a headset a ring that a
+press did not open is drawn straight ahead of your eyes. `b3d.openSystemRing()` opens it from code. That is how a scene
 with no visible UI still has all of it a hold away.
 
 `radialMenuSvg(items, options)` is the drawing alone (a `highlight(i)` on

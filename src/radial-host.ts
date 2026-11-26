@@ -97,6 +97,12 @@ export interface RadialScene {
     xrAt?: unknown
   ): (() => void) | null
   /**
+   * In a headset: where a ring not opened by a press is drawn (a hold, a
+   * grips chord, code): straight ahead of the eyes as it opens, so it is in
+   * view however the rig is turned. Opaque to this module, like `xrAt`.
+   */
+  xrGazePoint?: () => unknown
+  /**
    * In a headset: where the press that is opening a ring landed (opaque to
    * the host, handed back to `present`), or null to hang it ahead.
    */
@@ -203,6 +209,8 @@ interface Open {
   centre: { x: number; y: number } | null
   /** In a headset, where the press landed (the ring is drawn there), or null. */
   xrAt: unknown
+  /** Where it is drawn in a headset: `xrAt`, else ahead of the eyes. */
+  xrPlace: unknown
   /** Gates, for the stick and the mouse each. */
   stickGate: GateState
   pointerGate: GateState
@@ -211,8 +219,12 @@ interface Open {
   /** The slice lit until the pointing came back to the middle, and when (release grace). */
   lastLit: number
   unlitAt: number
-  /** Opened or left by a hold: nothing lights until the pointing comes back to the middle. */
+  /**
+   * Opened or left by a rest: the slice the pointing is on as it opens does
+   * not light until the pointing moves off it (`skip`, read on the next tick).
+   */
   needCentre: boolean
+  skip: number | null
 }
 
 interface Hold {
@@ -335,13 +347,20 @@ export class RadialHost {
     }
     this.origin = heldBy?.pointer ? at : null
     const centre = this.scene.xrActive ? null : at
+    const xrAt =
+      this.scene.xrActive && heldBy?.pointer
+        ? this.scene.xrPressPoint?.() ?? null
+        : null
     const open: Open = {
       svg: null as unknown as RadialMenuSvg,
       centre,
-      xrAt:
-        this.scene.xrActive && heldBy?.pointer
-          ? this.scene.xrPressPoint?.() ?? null
-          : null,
+      xrAt,
+      // A ring a controller ray did not open is drawn where you look and
+      // pointed at with a stick: a resting ray must not light a slice that
+      // letting go would pick.
+      xrPlace:
+        xrAt ??
+        (this.scene.xrActive ? this.scene.xrGazePoint?.() ?? null : null),
       close: null,
       opts,
       items: opts.items,
@@ -357,6 +376,7 @@ export class RadialHost {
       pointerGate: gateState(),
       dwell: null,
       needCentre: false,
+      skip: null,
       lastLit: -1,
       unlitAt: -Infinity,
     }
@@ -375,7 +395,7 @@ export class RadialHost {
     const svg = radialMenuSvg(open.items, { title: open.title })
     open.svg = svg
     open.close =
-      this.scene.present(svg, RADIAL_SIZE, open.centre, open.xrAt) ??
+      this.scene.present(svg, RADIAL_SIZE, open.centre, open.xrPlace) ??
       this.domFallback(svg)
     open.stickGate = gateState()
     open.pointerGate = gateState()
@@ -393,9 +413,11 @@ export class RadialHost {
   marking menu: rest on a sub-ring item for `RADIAL_DWELL_MS` and it opens,
   still held; rest on back and it goes back up. Letting go picks the lit
   choice or closes (on a chevron or back too: they are not choices). A
-  stick click on a chevron opens it at once. After a level opens, nothing
-  lights until the pointing comes back to the middle, so the push that
-  opened it does not also pick in the new ring.
+  stick click on a chevron opens it at once. After a level opens, the slice
+  the pointing is on does not light until the pointing moves off it, so the
+  push that opened it does not also pick in the new ring, and the next
+  choice is one move away (it used to wait for the middle: Tonio had to pass
+  over the centre to reach the dagger).
 
   In a ring nothing holds (opened from code, or clicked), picking a chevron
   opens its sub-ring the same way; press what opened it again (or A),
@@ -641,13 +663,15 @@ export class RadialHost {
     const dz = open.heldBy?.pointer ? 30 : RADIAL_HUB
     if (at.pick < 0 && !at.blocked && this.pointer != null)
       at = gatedPick(open.pointerGate, this.pointer, items, { deadzone: dz })
+    // Just opened by a rest: what the pointing is on now waits for it to
+    // move off.
     if (open.needCentre) {
-      const centred =
-        (stick == null || Math.hypot(stick.x, stick.y) < 0.5) &&
-        (this.pointer == null ||
-          Math.hypot(this.pointer.x, this.pointer.y) < dz)
-      if (centred) open.needCentre = false
-      else at = { pick: -1, blocked: false, armed: -1 }
+      open.needCentre = false
+      open.skip = at.pick
+    }
+    if (open.skip != null) {
+      if (at.pick === open.skip) at = { pick: -1, blocked: false, armed: -1 }
+      else open.skip = null
     }
     // The middle lights (a click there dismisses) only when nothing holds
     // the ring: held, letting go there picks nothing, and the centre keeps

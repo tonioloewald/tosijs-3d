@@ -3032,6 +3032,24 @@ export class B3d extends Component {
   })
   private _padUpSince = -1
   private _padUpFired = false
+  /** Both bumpers down (L1 and R1): since when, and whether it opened the ring. */
+  private _padChordSince = -1
+  private _padChordFired = false
+  private _padBumpersDown = false
+  /**
+   * Does the game have the bumpers (a driven player, or a hold given to one)?
+   * Then both held together are the game's, not the system ring's.
+   */
+  private _gameHasBumpers(): boolean {
+    const focus = this.querySelector('tosi-b3d-input-focus') as {
+      focused?: unknown
+    } | null
+    return (
+      focus?.focused != null ||
+      this._radial?.claims('leftBumper') === true ||
+      this._radial?.claims('rightBumper') === true
+    )
+  }
   /** B's tap or hold, on a control that has a menu. */
   private _padHold = pressState()
   private _padRing: SVGRectElement | null = null
@@ -3275,6 +3293,30 @@ export class B3d extends Component {
     } else {
       this._padUpSince = -1
       this._padUpFired = false
+    }
+    /*
+    BOTH BUMPERS HELD (L1 and R1) for half a second open the system ring too,
+    held by them (a stick points, letting go picks), when the game does not
+    have the bumpers: the chord a headset makes with its grips.
+    */
+    this._padBumpersDown = pad.leftBumper > 0.5 && pad.rightBumper > 0.5
+    if (this._padBumpersDown && !this.xrActive) {
+      if (this._padChordSince < 0) {
+        this._padChordSince = now
+        this._padChordFired = this._radial?.isOpen === true
+      } else if (
+        !this._padChordFired &&
+        now - this._padChordSince >= RADIAL_DWELL_MS
+      ) {
+        this._padChordFired = true
+        if (this._modals.size === 0 && !this._gameHasBumpers()) {
+          this.openSystemRing({ test: () => this._padBumpersDown })
+          return
+        }
+      }
+    } else {
+      this._padChordSince = -1
+      this._padChordFired = false
     }
     const ui = this._padUi
     if (ui == null) return
@@ -5333,6 +5375,7 @@ export class B3d extends Component {
           ? this._presentRingAt(svg, xrAt)
           : this._presentModal(svg, height, 0, at),
       xrPressPoint: () => this._xrPressPoint(),
+      xrGazePoint: () => this._xrGazePoint(),
       xrPointer: () => this._xrRingPointer(),
       xrTriggerHeld: () =>
         ((this.xrHelper?.input?.controllers ?? []) as any[]).some(
@@ -5498,9 +5541,30 @@ export class B3d extends Component {
     if (presser?.getWorldPointerRayToRef != null) {
       const ray = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Forward(), 1)
       presser.getWorldPointerRayToRef(ray)
-      return press.point.subtract(ray.direction.normalize().scale(step))
+      const dir = ray.direction.normalize()
+      // No further than 2 m of the room along the ray: a press on something
+      // far off draws its ring within reach, still where the ray points.
+      const along = Math.min(
+        BABYLON.Vector3.Distance(ray.origin, press.point) - step,
+        2 * k
+      )
+      return ray.origin.add(dir.scale(Math.max(0, along)))
     }
     return press.point.add(toward.scale(step / (d || 1)))
+  }
+  /**
+   * Where a ring no press opened goes: 75 cm of the room straight ahead of
+   * the eyes, centred in view however the rig is turned (a reseat that left
+   * the rig askew put one under the system bar, off to the side).
+   */
+  private _xrGazePoint(): BABYLON.Vector3 | null {
+    const cam = this.xrHelper?.baseExperience?.camera
+    if (cam == null) return null
+    const k = this.xrHelper?.baseExperience?.sessionManager.worldScalingFactor ?? 1
+    const ahead = cam.getDirection(
+      new BABYLON.Vector3(0, 0, this.scene?.useRightHandedSystem ? -1 : 1)
+    )
+    return cam.globalPosition.add(ahead.scale(0.75 * k))
   }
   private _presentRingAt(
     svg: SVGSVGElement,
@@ -5521,11 +5585,13 @@ export class B3d extends Component {
       reveal: 'always',
       layer: 'modal',
       svg,
-      // 30 cm of the room, at whatever scale the viewer is (the world frame
-      // is in world units; a passthrough miniature is hundreds a metre).
-      width:
-        0.3 *
-        (this.xrHelper?.baseExperience?.sessionManager.worldScalingFactor ?? 1),
+      /*
+      UI SIZE: the same size in view wherever it is drawn, about 23° across
+      (0.4 of its distance; 30 cm at arm's length). A fixed 30 cm was tiny on
+      a box a few metres off. Distance is in world units, so a passthrough
+      miniature scales with the room.
+      */
+      width: 0.4 * BABYLON.Vector3.Distance(eye, at),
       resolution: 512,
     })
     this._ringPanel = panel
@@ -8438,25 +8504,31 @@ export class B3d extends Component {
       driven (the game has the bumpers) or a page has given a bumper a hold.
       */
       const gripsDown = () => squeeze('left') > 0.5 && squeeze('right') > 0.5
-      if (
-        gripsDown() &&
-        !ringUp &&
-        !playerDriven &&
-        this._radial?.claims('leftBumper') !== true &&
-        this._radial?.claims('rightBumper') !== true
-      ) {
+      if (gripsDown() && !ringUp && !this._gameHasBumpers()) {
         const l = gripWorld('left')
         const r = gripWorld('right')
         const k = 1 / Math.max(1e-6, sm.worldScalingFactor)
         if (gripChord == null && l != null && r != null)
           gripChord = { since: now, l: l.clone(), r: r.clone() }
         else if (gripChord != null && gripChord.since >= 0) {
-          // Moved more than 3 cm: a grab, not a hold.
+          /*
+          IN PASSTHROUGH both grips drag and scale the room, so there the
+          chord is a hold that stays put: moved more than 6 cm, it is a grab.
+          Squeezing a grip moves the controller a little, so it is measured
+          from a moment after both closed. Otherwise both grips do nothing
+          else, and a hand that drifts is still a hold (3 cm stopped a real
+          one).
+          */
+          if (ar && l != null && r != null && now - gripChord.since < 150) {
+            gripChord.l.copyFrom(l)
+            gripChord.r.copyFrom(r)
+          }
           const moved =
-            l == null ||
-            r == null ||
-            BABYLON.Vector3.Distance(l, gripChord.l) * k > 0.03 ||
-            BABYLON.Vector3.Distance(r, gripChord.r) * k > 0.03
+            ar &&
+            (l == null ||
+              r == null ||
+              BABYLON.Vector3.Distance(l, gripChord.l) * k > 0.06 ||
+              BABYLON.Vector3.Distance(r, gripChord.r) * k > 0.06)
           if (moved) gripChord.since = -1
           else if (now - gripChord.since >= RADIAL_DWELL_MS) {
             gripChord.since = -1
