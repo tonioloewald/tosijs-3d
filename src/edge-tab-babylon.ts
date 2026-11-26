@@ -170,6 +170,27 @@ function eyeBounds(
 }
 
 /**
+ * What `cam` shows, both eyes' shared view in a headset, as tangents along its
+ * own axes (so the same whichever way it looks). Null until a headset's eyes
+ * have their projections (its first frame), or when it shows nothing.
+ */
+export function headView(cam: BABYLON.Camera): TangentBounds | null {
+  const scene = cam.getScene()
+  const up = cam.getDirection(BABYLON.Axis.Y)
+  const right = cam.getDirection(BABYLON.Axis.X)
+  const fwd = cam.getDirection(scene.useRightHandedSystem ? BACK : FORWARD)
+  const eyes = cam.rigCameras.length > 0 ? cam.rigCameras : [cam]
+  const inv = new BABYLON.Matrix()
+  const a = new BABYLON.Vector3()
+  const b = new BABYLON.Vector3()
+  const v = tangentBounds(
+    eyes.map((e) => eyeBounds(e, right, up, fwd, inv, a, b))
+  )
+  const ok = [v.left, v.right, v.bottom, v.top].every(Number.isFinite)
+  return ok && v.right > v.left && v.top > v.bottom && v.top > 0 ? v : null
+}
+
+/**
  * A panel's header at the edge of the view while the panel is out of it. See
  * the edge-tab page.
  */

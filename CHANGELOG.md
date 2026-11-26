@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Changed (headset): the system bar sits in view, 15° above the horizon, or lower when the headset's view does not reach that high (measured from the headset on its first frame); it was 66° up, out of view even on a Quest. Panels opened from it and the settings panel hang under it, lifted to stay in view on a short display, never over the bar. Frame panels take `setAnchor`.
+
 - Added (headset): a panel that would go out of view is drawn as its header, a rounded tab at the edge of the view on the side it went; turn back and it opens where it was, tap the tab and it comes to where you are looking. System panels and the settings panel do it; any frame panel takes `edgeTab`.
 
 - Fixed (headset): tapping a text field opens the scene keyboard. It followed the shared preference, which a headset's browser does not seed (it is not a touch screen) and closing the keyboard with its × turns off, so in a session a tapped field did nothing.

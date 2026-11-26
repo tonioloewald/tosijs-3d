@@ -79,16 +79,9 @@ export interface Orbit {
 }
 
 /**
- * Furthest up a panel may be dragged — and it is the DEFAULT SEAT exactly.
- *
- * Not a round number picked for symmetry. The XR panel is seated 60° up the
- * sight-line, and from the headset: *"It starts about as high as it should be
- * allowed."* So the ceiling is the seat, which also means the panel can only
- * ever be dragged somewhere more comfortable than where it began.
- *
- * (`tosi-b3d`'s `ELEV` is the other half of that pair. A test pins them equal,
- * because a seat that drifts above its own ceiling would be clamped on the
- * first drag and appear to jump.)
+ * Furthest up a panel may be dragged. From the headset, of a panel seated
+ * this high: *"It starts about as high as it should be allowed."* Panels now
+ * start lower, under the system bar (`xrBarElevation`).
  */
 export const ORBIT_MAX_ELEVATION = 60
 /**
@@ -112,6 +105,63 @@ export const ORBIT_MAX_AZIMUTH = 110
  * panel can rest.
  */
 export const ORBIT_RUBBER_BAND = 18
+
+/**
+ * How high the system bar sits in a headset when the view allows it, in
+ * degrees above the horizon.
+ *
+ * Inside the view, and low enough to be noticed without looking for it. A
+ * natural gaze runs 10 to 15° below the horizon, and we notice things readily
+ * within about 30° of where we look, so 15° up is at the top of that, just
+ * above where content sits. (It was 66° up: out of view, even on a Quest.)
+ */
+export const XR_BAR_NOTICE_DEG = 15
+/** Room kept between a placed thing and the edge of the view, degrees. */
+export const XR_VIEW_MARGIN_DEG = 3
+
+/**
+ * Where the system bar goes: `XR_BAR_NOTICE_DEG`, or lower when the view's
+ * top (degrees above straight ahead, looking level) would not hold it with a
+ * margin, as on see-through glasses with a small window. Never below the
+ * horizon.
+ */
+export function xrBarElevation(viewTopDeg: number, barHalfDeg: number): number {
+  return Math.max(
+    0,
+    Math.min(XR_BAR_NOTICE_DEG, viewTopDeg - barHalfDeg - XR_VIEW_MARGIN_DEG)
+  )
+}
+
+/**
+ * The middle of a panel hung under the bar, its top at `topDeg`: lifted (up to
+ * `ceilingDeg`, the bar's lower edge) so its bottom stays `XR_VIEW_MARGIN_DEG`
+ * above the view's bottom, if it can. A panel taller than the room stays
+ * hung from the bar, never over it.
+ */
+export function hangUnder(
+  topDeg: number,
+  halfDeg: number,
+  viewBottomDeg: number,
+  ceilingDeg: number
+): number {
+  let centre = topDeg - halfDeg
+  const short = viewBottomDeg + XR_VIEW_MARGIN_DEG - (centre - halfDeg)
+  if (short > 0) centre += Math.min(short, Math.max(0, ceilingDeg - (centre + halfDeg)))
+  return centre
+}
+
+/**
+ * The seat elevation whose panel's middle is at `centreDeg` (the inverse of
+ * `orbitCentre`, which names an edge): above the horizon a seat is the top
+ * edge, below it the bottom, and every seat within half a panel of the
+ * horizon centres it there.
+ */
+export function seatForCentre(centreDeg: number, angularHeightDeg: number): number {
+  const half = angularHeightDeg / 2
+  if (centreDeg > 0) return centreDeg + half
+  if (centreDeg < 0) return centreDeg - half
+  return 0
+}
 
 const DEG = Math.PI / 180
 const clamp = (v: number, lo: number, hi: number) =>

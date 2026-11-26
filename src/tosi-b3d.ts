@@ -447,6 +447,10 @@ import {
   clampOrbit,
   orbitCentre,
   orbitFromAim,
+  seatForCentre,
+  hangUnder,
+  xrBarElevation,
+  XR_BAR_NOTICE_DEG,
   orbitPosition,
   type Orbit,
 } from './panel-orbit.js'
@@ -481,7 +485,7 @@ import {
   type ScreenAnchor,
   type ScreenLength,
 } from './frame-panel.js'
-import { attachEdgeTab } from './edge-tab-babylon.js'
+import { attachEdgeTab, headView } from './edge-tab-babylon.js'
 import { runProbe, hydrateProfileFromCache } from './b3d-probe.js'
 import {
   compositeFog,
@@ -671,8 +675,8 @@ type B3dCallback =
 
 const noop = () => {}
 const noopRefresh = () => {}
-// The system bar in a headset: up ahead, where the settings panel hung. Its
-// panels (settings, inventory) open under it.
+// The system bar in a headset: ahead, in view (panel-orbit's xrBarElevation).
+// Its panels (settings, inventory) open under it.
 // Babylon's audio engine is one per page: every loading scene shares one mute.
 const babylonAudio = () =>
   (BABYLON.AbstractEngine as any).audioEngine as
@@ -684,7 +688,6 @@ const muteBabylonAudio = sharedMute(
   (v) => babylonAudio()?.setGlobalVolume(v)
 )
 
-const XR_BAR_ELEVATION = 66
 /** How long D-pad up is held to turn the gamepad UI mode on or off (ms). */
 const PAD_UI_HOLD_MS = 600
 /** Flat, where a panel opened from the system bar starts: under the bar. */
@@ -703,13 +706,14 @@ function xrSeatFor(
   pin: ScreenAnchor | undefined,
   width: number,
   halfHeightDeg: number,
-  K: number
+  K: number,
+  bar: { elevationDeg: number; halfDeg: number; viewBottomDeg: number }
 ): { azimuthDeg: number; elevationDeg: number; distance: number } {
   const deg = (m: number) => (Math.atan2(m, XR_BAR_DISTANCE) * 180) / Math.PI
   /*
   A FRACTION OF THE SCREEN IS A DIRECTION IN FRONT OF YOU. `top: '50%'` on a
-  monitor is the middle of the view; under the bar it was 66° up, in the sky
-  over your head. So a percentage pin maps onto a comfortable cone ahead
+  monitor is the middle of the view, which hung from the bar is wherever the
+  bar is. So a percentage pin maps onto a comfortable cone ahead
   (±30° across, eye level a little below the middle), and only a pixel pin
   hangs from the bar.
   */
@@ -737,7 +741,12 @@ function xrSeatFor(
     elevationDeg:
       fy != null
         ? (0.5 - fy) * 60 - 10 + (ay - 0.5) * 2 * halfHeightDeg
-        : XR_BAR_ELEVATION - 5 - halfHeightDeg - deg(down),
+        : hangUnder(
+            bar.elevationDeg - 5 - deg(down),
+            halfHeightDeg,
+            bar.viewBottomDeg,
+            bar.elevationDeg - bar.halfDeg - 0.5
+          ),
     distance: XR_BAR_DISTANCE,
   }
 }
@@ -3651,7 +3660,17 @@ export class B3d extends Component {
       // it reopens where you left it (holding its button resets it).
       let seat = this._systemXrSpots.get(key)
       if (seat == null) {
-        seat = xrSeatFor(spec?.screenAnchor, (vb.width || 400) * K, half, K)
+        seat = xrSeatFor(
+          spec?.screenAnchor,
+          (vb.width || 400) * K,
+          half,
+          K,
+          {
+            elevationDeg: this._xrBarElev,
+            halfDeg: this._xrBarHalfDeg,
+            viewBottomDeg: this._xrViewBottomDeg,
+          }
+        )
         this._systemXrSpots.set(key, seat)
       }
       panel = attachFramePanel(scene, xrCam, this.xrFrames.get('eye'), {
@@ -9654,11 +9673,31 @@ export class B3d extends Component {
     let bar = makeBar()
     const vb = bar.svg.viewBox.baseVal
     const width = 0.0022 * (vb.width || 100)
+    /*
+    IN VIEW, WHERE IT IS NOTICED (panel-orbit's `xrBarElevation`): 15° up, or
+    lower when the headset's view does not reach that high with a margin, as
+    on see-through glasses with a small window. The view is known once the
+    eyes have their projections, on the first frame or so, and the bar moves
+    there then.
+    */
+    this._xrBarHalfDeg =
+      (Math.atan2((0.0022 * (vb.height || 40)) / 2, XR_BAR_DISTANCE) * 180) /
+      Math.PI
+    let measured = false
+    const measure = () => {
+      const view = headView(cam)
+      if (view == null) return
+      measured = true
+      const topDeg = (Math.atan(view.top) * 180) / Math.PI
+      this._xrViewBottomDeg = (Math.atan(view.bottom) * 180) / Math.PI
+      this._xrBarElev = xrBarElevation(topDeg, this._xrBarHalfDeg)
+      panel.setAnchor({ elevationDeg: this._xrBarElev })
+    }
     const panel = attachFramePanel(scene, cam, frames.eye, {
       frame: 'eye',
       anchor: {
         azimuthDeg: 0,
-        elevationDeg: XR_BAR_ELEVATION,
+        elevationDeg: this._xrBarElev,
         distance: XR_BAR_DISTANCE,
       },
       reveal: 'always',
@@ -9670,6 +9709,7 @@ export class B3d extends Component {
     let checkIn = 30
     return {
       update: () => {
+        if (!measured) measure()
         if (--checkIn <= 0) {
           checkIn = 30
           const now = this._systemButtons()
@@ -9695,6 +9735,11 @@ export class B3d extends Component {
   }
   /** The VR toolbar's SVG while a session has one (for tests and tools). */
   private _xrBarSvg: SVGSVGElement | null = null
+  /** Where the headset's system bar is (degrees up) and half its height. */
+  private _xrBarElev = XR_BAR_NOTICE_DEG
+  private _xrBarHalfDeg = 2
+  /** How far down the headset's view reaches, looking level (degrees). */
+  private _xrViewBottomDeg = -45
 
   private _attachXrPanel(
     base: BABYLON.WebXRExperienceHelper,
@@ -9783,14 +9828,12 @@ export class B3d extends Component {
     // rewrites the <text> nodes in place, which changes no structure and no closure.
     let vb = panelEl.viewBox.baseVal
 
-    // Anchored to the eye frame (origin = your head), 60° up the sight-line —
-    // and that 60° is also the CEILING a drag may reach, pinned equal to
-    // `ORBIT_MAX_ELEVATION` by a test. The position is derived through
+    // Anchored to the eye frame (origin = your head), under the system bar,
+    // as the other system panels are. The position is derived through
     // `panel-orbit` rather than written out here, so the seat you start at and
     // the seats you drag to cannot disagree.
     const PLANE_W = 1.0 // metres wide (height follows the panel's aspect)
     const D = 1.4 // distance (matches the other eye-frame panels)
-    const ELEV = (60 * Math.PI) / 180
 
     // Height in metres, kept because the orbit needs to know how tall the panel
     // LOOKS from the anchor in order to seat it by an edge rather than a centre.
@@ -9884,10 +9927,22 @@ export class B3d extends Component {
     It lives on the ELEMENT, not in this closure, because the closure is exactly
     what a rebuild throws away.
     */
-    this._xrPanelSeat ??= {
-      azimuthDeg: 0,
-      elevationDeg: (ELEV / Math.PI) * 180,
-      radius: D,
+    // First seat: its top just under the bar (a seat names an edge, so the
+    // seat is the one whose middle is half the panel below that).
+    if (this._xrPanelSeat == null) {
+      const tall = angularHeight(planeH, D)
+      const edge = this._xrBarElev - this._xrBarHalfDeg
+      const centre = hangUnder(
+        edge - 2,
+        tall / 2,
+        this._xrViewBottomDeg,
+        edge - 0.5
+      )
+      this._xrPanelSeat = clampOrbit({
+        azimuthDeg: 0,
+        elevationDeg: seatForCentre(centre, tall),
+        radius: D,
+      })
     }
     let wanted: Orbit = { ...this._xrPanelSeat }
 
@@ -9991,14 +10046,13 @@ export class B3d extends Component {
     const frame = base.sessionManager.onXRFrameObservable.add(() => {
       if (placed) return
       placed = true
-      // Seat ONCE 60° up in the eye frame (origin = head), facing back down at
-      // it. `faceViewer` aims the plane's VISIBLE face (local -Z) at your head;
+      // Seat ONCE under the bar in the eye frame (origin = head), facing your
+      // head. `faceViewer` aims the plane's VISIBLE face (local -Z) at your head;
       // this used to aim +Z and cancel the resulting mirror twice over — once on
       // the texture and once on every pick. See dialog-placement.faceViewer.
       // Through the ORBIT, so the seat you start at and the seats you drag to
       // are computed the same way — otherwise the first drag jumps by however
-      // much the two disagreed. `ELEV` is the ceiling, and `panel-orbit` pins
-      // that equal to `ORBIT_MAX_ELEVATION`.
+      // much the two disagreed.
       seatPanel(wanted)
       plane.visibility = 1
     })

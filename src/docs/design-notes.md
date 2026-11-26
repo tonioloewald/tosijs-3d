@@ -56,6 +56,10 @@ a line on what each one settled and a link to the page it shaped.
   rounded header at the edge of the visible frustum to avoid tunnel vision
   issues especially with 3d overlay passthrough."_ A panel out of view in a
   headset is its header at the edge of the view ([edge-tab](/edge-tab/)).
+- _"Placing the system bar safely within the view frustum is table stakes
+  though. And of course we probably want to keep it within natural peripheral
+  noticeability."_ The headset's bar sits 15° up, or lower when the view does
+  not reach that high ([system-bar](/system-bar/)).
 
 ## Curves and light
 

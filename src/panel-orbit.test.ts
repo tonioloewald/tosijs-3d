@@ -14,6 +14,11 @@ import {
   orbitOf,
   orbitPosition,
   angularHeight,
+  seatForCentre,
+  hangUnder,
+  xrBarElevation,
+  XR_BAR_NOTICE_DEG,
+  XR_VIEW_MARGIN_DEG,
   type Orbit,
 } from './panel-orbit.js'
 
@@ -205,20 +210,11 @@ describe('the clamps', () => {
     expect(clampOrbit(seat(0, 0, -5)).radius).toBeGreaterThan(0)
   })
 
-  test('the ceiling is the DEFAULT SEAT, and the floor is lower', () => {
-    /*
-    From the headset: "It starts about as high as it should be allowed." So the
-    panel can only ever be dragged somewhere more comfortable than where it
-    began — and the band is asymmetric on purpose, because looking down is
-    comfortable and looking up is not.
-
-    `tosi-b3d` seats the panel at 60° up the sight-line; if that drifted above
-    this ceiling the panel would be clamped on its first drag and appear to
-    jump, so the two are pinned together here.
-    */
+  test('the floor is lower than the ceiling', () => {
+    // Looking down is comfortable and looking up is not, so the band is
+    // asymmetric on purpose.
     expect(ORBIT_MAX_ELEVATION).toBe(60)
     expect(ORBIT_MIN_ELEVATION).toBeLessThan(-ORBIT_MAX_ELEVATION)
-    // The seat itself is not clamped — it is exactly at the limit, not past it.
     expect(orbitClampedBy(seat(0, 60))).toBe(0)
   })
 
@@ -328,25 +324,67 @@ describe('angularHeight bridges metres to degrees', () => {
   })
 })
 
-describe('the ceiling and the SEAT are one number', () => {
-  /*
-  `tosi-b3d` seats the XR panel `ELEV` up the sight-line and `panel-orbit`
-  clamps a drag at `ORBIT_MAX_ELEVATION`. If those drift apart the panel is
-  clamped on its first drag and appears to JUMP — a silent failure, because both
-  values look reasonable on their own and neither file mentions the other.
+describe('the system bar sits in view, where it is noticed', () => {
+  test('on a wide headset at the noticed height', () => {
+    // A Quest's view reaches about 40° up.
+    expect(xrBarElevation(40, 2)).toBe(XR_BAR_NOTICE_DEG)
+    expect(XR_BAR_NOTICE_DEG).toBeLessThan(30)
+  })
 
-  Read out of the source rather than restated, so this cannot pass against a
-  copy of the number it is checking.
-  */
-  test('tosi-b3d seats the panel exactly at ORBIT_MAX_ELEVATION', async () => {
-    const { readFileSync } = await import('node:fs')
-    const src = readFileSync(
-      new URL('./tosi-b3d.ts', import.meta.url).pathname,
-      'utf8'
-    )
-    const m = /const ELEV = \(([-\d.]+) \* Math\.PI\) \/ 180/.exec(src)
-    expect(m, 'ELEV not found — did the seat move or get renamed?').toBeTruthy()
-    expect(Number(m![1])).toBe(ORBIT_MAX_ELEVATION)
+  test('on narrow glasses, under the top of the view by the margin', () => {
+    // About 17° up on see-through glasses with a small window.
+    const e = xrBarElevation(17, 2)
+    expect(e + 2).toBeLessThanOrEqual(17 - XR_VIEW_MARGIN_DEG + 1e-9)
+    expect(e).toBeGreaterThan(0)
+  })
+
+  test('never below the horizon', () => {
+    expect(xrBarElevation(4, 2)).toBe(0)
+  })
+})
+
+describe('a panel hung under the bar', () => {
+  test('with room, it hangs from where it is put', () => {
+    expect(hangUnder(10, 10, -45, 12)).toBe(0)
+  })
+
+  test('lifted toward the bar to stay in a short view', () => {
+    // 27° tall, its top 2.5° under a bar whose lower edge is at 9.3°, in a
+    // view whose bottom is 17° down.
+    const c = hangUnder(6.8, 13.5, -17, 9.3)
+    // Lifted by the room there is, up to the bar's edge.
+    expect(c).toBeGreaterThan(6.8 - 13.5)
+    expect(c + 13.5).toBeCloseTo(9.3, 9)
+    // With room enough, only as far as it needs.
+    const d = hangUnder(6.8, 12, -17, 12)
+    expect(d - 12).toBeCloseTo(-17 + 3, 9)
+  })
+
+  test('never over the bar, however short the view', () => {
+    const c = hangUnder(6.8, 20, -15, 9.3)
+    expect(c + 20).toBeCloseTo(9.3, 9)
+  })
+})
+
+describe('a seat for where the middle should be', () => {
+  test('inverts orbitCentre above, below and at the horizon', () => {
+    for (const [c, tall] of [
+      [12, 20],
+      [-7, 30],
+      [0, 25],
+      [40, 10],
+    ]) {
+      const s = seatForCentre(c, tall)
+      expect(orbitCentre(seat(0, s), tall).elevationDeg).toBeCloseTo(c, 9)
+    }
+  })
+
+  test('a panel hung under the bar has its top there', () => {
+    const tall = 32
+    const top = 10
+    const s = seatForCentre(top - tall / 2, tall)
+    const c = orbitCentre(seat(0, s), tall).elevationDeg
+    expect(c + tall / 2).toBeCloseTo(top, 9)
   })
 })
 

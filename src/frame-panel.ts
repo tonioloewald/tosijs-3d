@@ -726,6 +726,11 @@ export function attachFramePanel(
    * in it. Null when it is not shown, or in a headset (no page to click).
    */
   toClient: (x: number, y: number) => { x: number; y: number } | null
+  /**
+   * Move it: the given fields go into its anchor (its own, not a named
+   * preset's) and it is placed there now.
+   */
+  setAnchor: (next: Partial<AnchorSpec>) => void
   /** Drawn as its header at the edge of the view (`edgeTab`), this frame. */
   readonly folded: boolean
   /** That header's plane (with `edgeTab`), shown while `folded`. */
@@ -1585,6 +1590,11 @@ export function attachFramePanel(
       return el
     },
     setSvg: swapSvg,
+    setAnchor(next: Partial<AnchorSpec>) {
+      if (typeof spec.anchor === 'string') return
+      Object.assign(anchor, next)
+      if (!focused) placeAt(anchor)
+    },
     get folded() {
       return tabbed
     },

@@ -1277,6 +1277,26 @@ fitted by its real corners: off the axis of a wide headset a tab covers
 nearly twice the tangent its size suggests, and the first version ran off
 the inner edge of one eye in the emulator.
 
-The system bar does not fold (it has no header); it still sits 66° up, out of
-a narrow display's view.
+The system bar does not fold (it has no header). It is placed in view
+instead (below).
+
+## The system bar is in view, where it is noticed (2026-11-26)
+
+Tonio: *"Placing the system bar safely within the view frustum is table
+stakes though. And of course we probably want to keep it within natural
+peripheral noticeability because the system bar is probably a bit too high on
+the quest to be noticeable."* It was 66° up: out of view even on a Quest.
+
+It now sits 15° above the horizon (`XR_BAR_NOTICE_DEG` in panel-orbit). A
+natural gaze runs 10 to 15° below the horizon and we notice things readily
+within about 30° of where we look, so 15° up is at the top of that, just above
+where content sits. On a display whose view does not reach that high with a
+3° margin, it goes lower (`xrBarElevation`), measured from the headset's own
+eye projections on its first frame, so see-through glasses with a small window
+get a bar inside it without a setting.
+
+Panels opened from it, and the settings panel, hang under it as before, and
+on a short display are lifted so their bottom stays in view (`hangUnder`), but
+never over the bar: a panel taller than the room overhangs the bottom and
+folds until you look down at it.
 

@@ -208,8 +208,8 @@ describe("A plane's visible face is local −Z (and its back MIRRORS)", () => {
         [0, 0, 0],
         [3, -6, 2],
       ],
-      // The XR settings panel's own seating: 60° up the sight-line, aimed back
-      // down at your head.
+      // A panel seated high, 60° up the sight-line, aimed back down at your
+      // head.
       [
         [0, 1.212, 0.7],
         [0, 0, 0],
