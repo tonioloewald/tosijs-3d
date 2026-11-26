@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Fixed (headset): tapping a text field opens the scene keyboard. It followed the shared preference, which a headset's browser does not seed (it is not a touch screen) and closing the keyboard with its × turns off, so in a session a tapped field did nothing.
+
 - Changed: a radial menu opened by a hold lasts as long as the hold: rest on a chevron to go down a level (still held), on back to go up; letting go picks the lit choice or closes, on a chevron or back too (it used to open the sub-ring to wait for another press). A stick click on a chevron opens it at once.
 - Changed: keyboard rings draw their choices larger, and their middle as the key itself (a key's colour, its character large), since a tap there types it. `radialMenuSvg` takes `fontScale` and `centre`; a one-character label is drawn larger.
 - Added: an empty loadout slot pointed at or focused says what could go in it (how many, and which), or that nothing you have fits (`slotInfo` on `inventoryPanel`, `info` on `carrySocket`).

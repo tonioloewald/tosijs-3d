@@ -659,7 +659,8 @@ export interface InputFieldOptions {
    * Should tapping this field summon an on-screen keyboard?
    *
    * - `auto` (default) — the AFFORDANCE is always drawn, and a tap auto-opens
-   *   only on a coarse pointer (touch). See below for why those differ.
+   *   on a coarse pointer (touch) and always in a headset. See below for why
+   *   those differ.
    * - `always` — auto-open on any pointer. What an XR panel wants.
    * - `never` — no affordance, no auto-open.
    *
@@ -1647,10 +1648,17 @@ export function inputField(config: InputFieldOptions = {}): InputField {
         Guarding on `liveKeyboard` instead would make focus unable to move it,
         which is the bug being fixed.
         */
+        /*
+        IN A HEADSET a tap always opens it: there is no other way to type
+        there, and the preference (seeded by a touch sniff a headset's
+        browser does not match, and turned off by closing the keyboard with
+        its ×) left a tapped field doing nothing.
+        */
         if (
           wasTap &&
           kbOpen == null &&
-          (kbMode === 'always' || (kbMode === 'auto' && autoKeyboardEnabled()))
+          (kbMode === 'always' ||
+            (kbMode === 'auto' && (headsetTiming || autoKeyboardEnabled())))
         ) {
           openKeyboard()
         }
