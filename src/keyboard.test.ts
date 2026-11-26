@@ -577,25 +577,25 @@ describe('keyboard — a ray’s micro-moves must not pick an accent', () => {
 })
 
 describe('keyboard — rings on ?123 and backspace', () => {
-  test('?123 offers the digits, and the symbols one level down', async () => {
+  test('?123 offers the digits, point and comma, and arithmetic and symbols one level down', async () => {
     const { kb, keys } = mk(5)
     const k = centre('alpha', false, '?123')
     kb.handle!('down', k.x, k.y)
     await wait(20)
     const ring = kb.el.querySelector('[data-kb="popup"] svg') as any
     const labels = ring.items.filter((x: any) => !x.spacer).map((x: any) => x.label)
-    expect(labels).toEqual([...'0123456789', '#$%'])
-    // Slide to the symbols: a sub-ring opens round the key, waiting for a tap.
-    const p = accentAt(kb, 10, 11)
+    expect(labels).toEqual([...'0123456789.,', '+−×÷', '@#?'])
+    // Slide to arithmetic: a sub-ring opens round the key, waiting for a tap.
+    const p = accentAt(kb, 12, 14)
     kb.handle!('move', p.x, p.y)
     kb.handle!('up', p.x, p.y)
     await wait(90)
     const sub = kb.el.querySelector('[data-kb="popup"] svg') as any
-    expect(sub.items.find((x: any) => !x.spacer).label).toBe('#')
-    const q = accentAt(kb, 0, 12)
+    expect(sub.items.filter((x: any) => !x.spacer).map((x: any) => x.label)).toEqual([...'+−×÷*/=%^()<>±'])
+    const q = accentAt(kb, 2, 14)
     kb.handle!('down', q.x, q.y)
     await wait(90)
-    expect(keys).toEqual(['#'])
+    expect(keys).toEqual(['×'])
   })
 
   test('backspace offers forward delete, clear, copy, cut and paste', async () => {
@@ -618,6 +618,20 @@ describe('keyboard — rings on ?123 and backspace', () => {
     await wait(1100)
     expect(f.value).toBe('hello')
     f.action('clear')
+    expect(f.value).toBe('')
+  })
+})
+
+describe('keyboard — a field edits a selection', () => {
+  test('select word, then cut takes only it; a held B offers the edits', async () => {
+    const f = K.inputField({ value: 'hello big world' })
+    f.moveCaret(-8) // into "big"
+    f.action('selectWord')
+    f.action('cut')
+    expect(f.value).toBe('hello  world')
+    const menu = f.semantics!().menu!()!
+    expect(menu.items.map((i) => i.label)).toEqual(['cut', 'copy', 'paste', 'clear', 'select word', 'select all'])
+    menu.handleSelect(3)
     expect(f.value).toBe('')
   })
 })

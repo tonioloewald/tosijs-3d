@@ -7,6 +7,7 @@ import {
   moveCaret,
   moveTo,
   selectAll,
+  selectWord,
   selectedText,
   hasSelection,
   length,
@@ -140,5 +141,15 @@ describe('selection', () => {
 
   test('length counts code points', () => {
     expect(length(edit('a😀b'))).toBe(3)
+  })
+
+  test("select word takes the word at the caret, just before it, or the next", () => {
+    const s = (text: string, caret: number) => selectedText(selectWord(edit(text, caret)))
+    expect(s("hello big world", 7)).toBe("big")
+    expect(s("hello big world", 5)).toBe("hello") // just after a word
+    expect(s("one  two", 4)).toBe("two") // in a gap: the next
+    expect(s("don't stop", 1)).toBe("don't")
+    expect(s("café au lait", 2)).toBe("café")
+    expect(hasSelection(selectWord(edit("   ", 1)))).toBe(false)
   })
 })

@@ -102,6 +102,10 @@ class Balloon {
   /** Where its tail points along its bottom (0 left, 1 right), and the side it last moved aside to. */
   private tail = 0.5
   side: -1 | 1 = 1
+  /** Where it sits from the head in view (eased, so it does not swim), and whether that is set. */
+  dx = 0
+  dy = 0
+  placed = false
 
   constructor() {
     this.svg = svg({
@@ -504,8 +508,8 @@ export class B3dConversation extends B3dChild {
       }
       if (them?.mesh) this._face(them.mesh, p, dt)
     }
-    this._place(this._theirs, them, !talk.trading)
-    this._place(this._mine, me, !talk.trading)
+    this._place(this._theirs, them, !talk.trading, dt)
+    this._place(this._mine, me, !talk.trading, dt)
   }
 
   // The speaker eases round to face whoever it is talking to.
@@ -541,12 +545,19 @@ export class B3dConversation extends B3dChild {
   }
 
   // A balloon hangs over its speaker's head, turned to the camera.
-  private _place(b: Balloon, who: Talker | null, show: boolean): void {
+  private _place(
+    b: Balloon,
+    who: Talker | null,
+    show: boolean,
+    dt: number
+  ): void {
     const mesh = b.plane?.mesh
     if (mesh == null) return
     const top = who != null ? this._headTop(who) : null
     const visible = show && top != null && !b.empty
     mesh.setEnabled(visible)
+    // Shown again, it starts where it belongs rather than gliding from where it was.
+    if (!visible) b.placed = false
     if (!visible || top == null) return
     mesh.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL
     const w = Number(this.balloonWidth) || 1.2
@@ -562,7 +573,8 @@ export class B3dConversation extends B3dChild {
         : 1
     mesh.scaling.set(s, s, 1)
     const h = (w * s * BALLOON_H) / BALLOON_W
-    const fitted = cam != null ? this._fitInView(b, cam, top, w * s, h) : null
+    const fitted =
+      cam != null ? this._fitInView(b, cam, top, w * s, h, dt) : null
     if (fitted != null) mesh.position.copyFrom(fitted)
     else {
       b.setTail(0.5)
@@ -580,7 +592,8 @@ export class B3dConversation extends B3dChild {
     cam: BABYLON.Camera,
     top: BABYLON.Vector3,
     width: number,
-    height: number
+    height: number,
+    dt: number
   ): BABYLON.Vector3 | null {
     const owner = this.owner as unknown as { xrActive?: boolean } | null
     if (owner?.xrActive || cam.mode !== BABYLON.Camera.PERSPECTIVE_CAMERA)
@@ -614,10 +627,19 @@ export class B3dConversation extends B3dChild {
       side: b.side,
     })
     b.side = fit.side
-    b.setTail(fit.tail)
+    /*
+    EASED, NOT SNAPPED: the head bobs as he talks and the camera follows you,
+    and the fit turns small moves near the top of the view into large ones
+    aside, so a balloon placed afresh each frame swam about.
+    */
+    const k = b.placed ? 1 - Math.exp(-Math.max(0, dt) / 0.25) : 1
+    b.dx += (fit.dx - b.dx) * k
+    b.dy += (fit.dy - b.dy) * k
+    b.placed = true
+    b.setTail(Math.max(0, Math.min(1, 0.5 - b.dx / width)))
     return top
-      .add(right.scale(fit.dx))
-      .add(up.scale(fit.dy + height / 2))
+      .add(right.scale(b.dx))
+      .add(up.scale(b.dy + height / 2))
   }
 
   private _headTop(who: Talker): BABYLON.Vector3 | null {

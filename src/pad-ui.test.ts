@@ -17,6 +17,28 @@ const node = (
 })
 
 describe('padNavigator', () => {
+  test('a control with its own D-pad (a keyboard) steps inside until it runs off', () => {
+    const steps: string[] = []
+    let inside = 2
+    const kb = node('keyboard', 'editor', 40, {
+      move: (dx, dy) => {
+        steps.push(`${dx},${dy}`)
+        return inside-- > 0
+      },
+    })
+    const tree = [node('field', 'textbox', 0), kb]
+    const nav = padNavigator(() => tree)
+    nav.focusDefault()
+    nav.move(0, 1)
+    expect(nav.focused?.name).toBe('keyboard')
+    nav.move(1, 0)
+    nav.move(0, 1)
+    expect(nav.focused?.name).toBe('keyboard') // both steps inside
+    nav.move(0, 1)
+    expect(nav.focused?.name).toBe('field') // ran off: on to the next
+    expect(steps).toEqual(['1,0', '0,1', '0,1'])
+  })
+
   test('up and down cycle, and Tab does the same', () => {
     const tree = [
       node('a', 'button', 0),

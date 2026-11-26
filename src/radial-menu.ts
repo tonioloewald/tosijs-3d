@@ -250,7 +250,8 @@ export interface RadialItem {
 }
 
 /** The hub under the pointer (a click there dismisses), or not. */
-export type RadialHubZone = 'close' | null
+/** What the pointer over the hub would do: close the ring, or pick the middle (a keyboard ring's key). */
+export type RadialHubZone = 'close' | 'pick' | null
 
 /** The hub's radius (drawing units): a click inside it is the hub's, not a slice's. */
 export const RADIAL_HUB = 64
@@ -281,7 +282,7 @@ export interface RadialMenuSvg extends SVGSVGElement {
   highlight(i: number, armed?: number): void
   /** The lit item, -1 for none. */
   readonly lit: number
-  /** Light the hub (the pointer is over it: a click dismisses), or not. */
+  /** Light the hub (the pointer is over it: a click dismisses, or picks the middle), or not. */
   hubLit(zone: RadialHubZone): void
   readonly items: readonly RadialItem[]
 }
@@ -741,7 +742,7 @@ export function radialMenuSvg(
     zoneNow = zone
     if (zone != null) highlight(-1)
     hub.setAttribute('fill', zone ? halfAccent : hubFill)
-    label.textContent = zone ?? currentLabel
+    label.textContent = zone === 'close' ? zone : currentLabel
     label.setAttribute('fill', zone ? theme.text : hubInk)
     askRepaint()
   }

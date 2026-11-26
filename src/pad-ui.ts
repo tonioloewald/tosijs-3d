@@ -293,6 +293,11 @@ export function padNavigator(read: () => ControlNode[]): PadNavigator {
     },
   }
   function moveBy(dx: number, dy: number): boolean {
+    // A control with a D-pad of its own (a keyboard) steps inside first.
+    {
+      const { all, i } = current()
+      if (i >= 0 && all[i].move?.(dx, dy) === true) return true
+    }
     if (dy !== 0) return step(dy > 0 ? 1 : -1)
     const { tree, all, i } = current()
     if (i < 0) return step(dx)

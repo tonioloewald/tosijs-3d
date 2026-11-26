@@ -127,5 +127,28 @@ export function selectAll(s: EditState): EditState {
   return { text: s.text, caret: length(s), anchor: 0 }
 }
 
+const WORD = /[\p{L}\p{N}_'’-]/u
+
+/**
+ * Select the word at the caret (letters, digits, apostrophes and hyphens
+ * inside it); a caret just after a word takes that word, one in a gap
+ * between words takes the next. Nothing to take, nothing changes.
+ */
+export function selectWord(s: EditState): EditState {
+  const chars = cp(s.text)
+  const isWord = (i: number) => i >= 0 && i < chars.length && WORD.test(chars[i])
+  let at = s.caret
+  if (!isWord(at) && isWord(at - 1)) at -= 1
+  if (!isWord(at)) {
+    while (at < chars.length && !isWord(at)) at++
+    if (at >= chars.length) return s
+  }
+  let a = at
+  let b = at
+  while (isWord(a - 1)) a--
+  while (isWord(b)) b++
+  return { text: s.text, caret: b, anchor: a }
+}
+
 // (No `setText` — it would ignore the state it was handed, which is just `edit(text)`
 // wearing a misleading signature. Replace a value with `edit(newText)`.)

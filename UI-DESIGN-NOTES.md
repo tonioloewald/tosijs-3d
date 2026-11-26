@@ -1378,3 +1378,30 @@ is walking, not a click on the world.
   the middle of the view, so the ring appeared down and right of the key and
   picks came from where it was not. Depth-writing with clear pixels dropped,
   2 mm (5 mm in a headset) draws on top with no visible parallax.
+
+
+## Pass 8: keyboard reach, a field's edits, panels open in view (2026-11-26)
+
+- **Every character is reachable from the ring that suggests it.** Tonio:
+  *"0123? can't reach ? But . radial can. No way to reach @ or hyphen. The
+  0123? should have . and , an arithmetic submenu with all the math symbols
+  including */ and multiply and division glyphs."* So `?123` held is the
+  digits, `.` and `,`, then arithmetic (both `*` `/` and `×` `÷`) and the
+  other symbols as sub-rings.
+- **A field's edits are a ring on the field.** Tonio: *"Pressing and holding
+  B in an input should get you options such as cut, copy, paste, clear,
+  select word."* Copy and cut act on the selection when there is one, as
+  everywhere else, and the selection is drawn (it was invisible, so select
+  word would have looked like nothing).
+- **A pad can type.** The keyboard has its own D-pad focus; it now offers it
+  to the pad navigator as a control with a D-pad of its own. It needs a way
+  out the D-pad can reach, so the letter boards gain a hide key (the spare
+  unit in the bottom row); a ×, in the corner of a popup, is not on the pad's
+  path.
+- **A ring centred on a key must stay on the key.** Kept on screen by the
+  popup system it slid off the key, and the slide and tap were read against
+  where it should have been: the ring fans away from the screen edge instead,
+  as it already did from the board's.
+- **A panel never opens out of view.** Opened from a ring after a skewed
+  reseat, it came up under the bar, off to the side, as a tab: it now opens
+  where you are looking. Placement after that is yours.

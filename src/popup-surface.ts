@@ -252,6 +252,71 @@ export interface PopupSurfaceOptions {
    * and outside the popup stack (it neither raises nor dismisses anything).
    */
   tip?: boolean
+  /**
+   * Where it was put, even partly off the screen: not moved back into view.
+   * For a drawing that means something where it is (a key's ring, centred on
+   * the key), whose owner fits it to the screen itself (`screenRoomOn`).
+   */
+  stay?: boolean
+}
+
+/**
+ * Where the screen is on a plane that faces it, as fractions of the plane
+ * (u across, v down; past 0 or 1 where the screen runs beyond it), less a
+ * margin in CSS pixels. Null with no flat screen (a headset), where nothing
+ * frames the view.
+ */
+export function screenRoomOn(
+  mesh: BABYLON.AbstractMesh,
+  margin = 8
+): { left: number; top: number; right: number; bottom: number } | null {
+  const scene = mesh.getScene()
+  const camera = scene.activeCamera
+  if (camera == null || camera.getClassName() === 'WebXRCamera') return null
+  const engine = scene.getEngine()
+  const k = engine.getHardwareScalingLevel()
+  const w = engine.getRenderWidth() * k
+  const h = engine.getRenderHeight() * k
+  if (!w || !h) return null
+  const world = mesh.computeWorldMatrix(true)
+  const inv = world.clone().invert()
+  const { minimum: lo, maximum: hi } = mesh.getBoundingInfo().boundingBox
+  if (hi.x - lo.x <= 0 || hi.y - lo.y <= 0) return null
+  const normal = BABYLON.Vector3.TransformNormal(
+    BABYLON.Axis.Z,
+    world
+  ).normalize()
+  const plane = BABYLON.Plane.FromPositionAndNormal(
+    mesh.getAbsolutePosition(),
+    normal
+  )
+  const at = (sx: number, sy: number) => {
+    const ray = scene.createPickingRay(
+      sx,
+      sy,
+      BABYLON.Matrix.Identity(),
+      camera
+    )
+    const d = ray.intersectsPlane(plane)
+    if (d == null) return null
+    const p = BABYLON.Vector3.TransformCoordinates(
+      ray.origin.add(ray.direction.scale(d)),
+      inv
+    )
+    return {
+      u: (p.x - lo.x) / (hi.x - lo.x),
+      v: (hi.y - p.y) / (hi.y - lo.y),
+    }
+  }
+  const a = at(margin, margin)
+  const b = at(w - margin, h - margin)
+  if (a == null || b == null) return null
+  return {
+    left: Math.min(a.u, b.u),
+    right: Math.max(a.u, b.u),
+    top: Math.min(a.v, b.v),
+    bottom: Math.max(a.v, b.v),
+  }
 }
 
 export interface PopupSurface {
@@ -814,6 +879,7 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     handleGone,
     dismissOutside = false,
     tip = false,
+    stay = false,
   } = opts
   // A tip is never a window: no handles, no drag.
   const chrome = tip ? false : opts.chrome ?? true
@@ -1022,7 +1088,7 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     // On a screen, keep it on the screen: shift it back into view by whatever
     // falls off an edge.
     // A few passes: in perspective one shift does not land exactly.
-    for (let pass = 0; pass < 4; pass++) {
+    for (let pass = 0; pass < 4 && !stay; pass++) {
       const shift = intoView(mesh)
       if (shift == null) break
       plane.x += shift.x

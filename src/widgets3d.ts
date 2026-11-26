@@ -528,7 +528,13 @@ import { w3dTheme } from './w3d-theme.js'
 import { iconGlyph } from './svg-icons.js'
 import { chromeLayout } from './popup-chrome.js'
 import { panelRim } from './panel-rim.js'
-import { showOverSurface, showTipSurface, type OverOptions } from './panel-layer.js'
+import {
+  overRoomOf,
+  showOverSurface,
+  showTipSurface,
+  type OverOptions,
+  type RoomRect,
+} from './panel-layer.js'
 import {
   controlTree,
   type ControlBox,
@@ -1356,6 +1362,20 @@ export function offsetHost(
               options
             )
           },
+    overRoom:
+      host.overRoom == null
+        ? undefined
+        : () => {
+            const r = host.overRoom!()
+            if (r == null) return null
+            const d = offsetOf()
+            return {
+              left: r.left - d.x,
+              right: r.right - d.x,
+              top: r.top - d.y,
+              bottom: r.bottom - d.y,
+            }
+          },
     showPopup(config, ...items) {
       const d = offsetOf()
       return host.showPopup(
@@ -1422,6 +1442,8 @@ export interface WidgetHost {
     anchor: { x: number; y: number; width: number; height: number },
     options?: OverOptions
   ) => { close: () => void } | null
+  /** Where the screen ends, in the widget's own units, for what `showOver` shows; null when nothing bounds it (a headset). */
+  overRoom?: () => RoomRect | null
   /** Ask the panel to re-run layout — a widget that changed height needs this. */
   relayout: () => void
   /**
@@ -4607,6 +4629,18 @@ function buildPanel3d(
         },
         options
       )
+    },
+    overRoom() {
+      const r = overRoomOf(root)
+      if (r == null) return null
+      const dx = padding
+      const dy = paddingTop + rowY(index, inHeader)
+      return {
+        left: r.left - dx,
+        right: r.right - dx,
+        top: r.top - dy,
+        bottom: r.bottom - dy,
+      }
     },
     showLayer(config, ...items) {
       /*

@@ -12,6 +12,13 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Changed: holding the keyboard's ?123 offers the digits, the point and the comma, with arithmetic (+ − × ÷ * / = % ^ ( ) < > ±) and the other symbols (@ # $ & _ - ? ! : ; ~ | \) as sub-rings. The letter boards gain a key that puts the keyboard away, and the symbols board's `done` does too (it did nothing).
+- Added: a text field's edits as a ring: hold a pad's B on it (or the trigger in a headset) for cut, copy, paste, clear, select word and select all (`menu` in widget semantics; `selectWord` in text-edit). Copy and cut take the selection when there is one, and paste goes in at the caret. A selection is drawn under the text.
+- Fixed: a pad could not use the on-screen keyboard: it opened, but the D-pad could not reach its keys or put it away. The pad now walks the keys and presses the one it is on (`move` and `focus` in widget semantics: a control with a D-pad of its own).
+- Fixed (flat): near the screen's edge a key's ring was pushed back on screen, off its key, so slides and taps were read against where it was not (a tap on the key typed an accent). It stays centred on the key and fans away from the edge (`overRoom` on a widget host, `stay` on a popup). Over the key, a waiting ring's middle lights, since a tap there types the key (`hubLit('pick')`).
+- Fixed (flat): a balloon placed beside the head no longer swims as the head bobs: it eases to its place.
+- Changed (headset): a panel that opens while its place is out of view (after a skewed reseat) opens where you are looking. The full-screen button leaves the system bar in a session.
+
 - Changed: a conversation leaves a short pause between lines (`pause` on the script, 0.4 s by default); a line after a pick still starts at once.
 - Fixed (flat): a speech balloon near the top of the view was cut off. It comes down beside the speaker's head instead, its tail turned to them (`fitBalloon` in balloon-layout).
 - Fixed: a text field kept the keys after you went back to the game, so walking typed into it. A press on the scene, or closing the field's panel, gives them back (`releaseTextFocus`, `activeTextField`).

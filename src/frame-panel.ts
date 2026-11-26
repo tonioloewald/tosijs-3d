@@ -1549,14 +1549,25 @@ export function attachFramePanel(
         })
       : null
   let tabbed = false
+  /*
+  A PANEL NEVER OPENS OUT OF VIEW. Opened while its place is off to the side
+  (from a ring summoned after a skewed reseat, say), it comes to where you
+  are looking instead of opening as a tab you then have to find.
+  */
+  let seenOpen = false
   const edgeCheck = () => {
     if (edge == null) return
     const c = scene.activeCamera as BABYLON.Camera | null
     const xr = c?.getClassName() === 'WebXRCamera'
     let now = false
-    if (xr && !focused && !gesture() && plane.visibility > 0.5)
+    if (xr && !focused && !gesture() && plane.visibility > 0.5) {
       now = edge.update(plane)
-    else edge.hide()
+      if (now && !seenOpen && aimable) {
+        bringHere()
+        now = edge.update(plane)
+      }
+      seenOpen = true
+    } else edge.hide()
     if (now !== tabbed) {
       tabbed = now
       shown.setEnabled(!now)

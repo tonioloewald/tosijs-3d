@@ -423,6 +423,7 @@ import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane.js'
 import { createMakers, type Makers } from './make-mesh.js'
 import {
   openPopup,
+  screenRoomOn,
   type PopupSurface,
   type PopupSurfaceOptions,
 } from './popup-surface.js'
@@ -1737,6 +1738,11 @@ export class B3d extends Component {
    */
   openPopup(opts: PopupSurfaceOptions): PopupSurface {
     return openPopup(this, opts)
+  }
+
+  /** Where the screen is on a plane facing it, as fractions of the plane; null in a headset (`popup-surface`). */
+  screenRoomOn(mesh: unknown): ReturnType<typeof screenRoomOn> {
+    return mesh instanceof BABYLON.AbstractMesh ? screenRoomOn(mesh) : null
   }
 
   declare minElevation: number
@@ -7283,6 +7289,12 @@ export class B3d extends Component {
     base.onStateChangedObservable.add((state) => {
       this.xrActive = state === BABYLON.WebXRState.IN_XR
       setKeyboardHeadset(this.xrActive)
+      // Full screen means nothing in a headset: its button leaves the bar.
+      const fullscreen = this.parts.fullscreenButton as
+        | HTMLButtonElement
+        | undefined
+      if (fullscreen != null && this._fullscreenWired)
+        fullscreen.hidden = this.xrActive
       // The menu of ways in is the Exit button again in a session.
       this._syncXrModeMenu()
       // SSAO must be gone BEFORE the headset camera becomes active, which
@@ -10304,11 +10316,16 @@ export class B3d extends Component {
       handleTap: seatAtGaze,
     })
     let folded = false
+    // Never opens out of view: off to the side, it comes to your gaze.
+    let seenOpen = false
     const edgeFrame = base.sessionManager.onXRFrameObservable.add(() => {
-      const now =
-        placed && !dragging && plane.visibility > 0.5
-          ? edge.update(plane)
-          : (edge.hide(), false)
+      const live = placed && !dragging && plane.visibility > 0.5
+      let now = live ? edge.update(plane) : (edge.hide(), false)
+      if (live && now && !seenOpen) {
+        seatAtGaze()
+        now = edge.update(plane)
+      }
+      if (live) seenOpen = true
       if (now !== folded) {
         folded = now
         if (now) panelEl.handlePointer?.('leave', 0, 0)

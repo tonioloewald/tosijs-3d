@@ -222,12 +222,16 @@ export type KeyAction =
   | 'deleteForward'
   /** Empty the field. */
   | 'clear'
-  /** The field's content to the clipboard. */
+  /** What is selected (else the whole field) to the clipboard. */
   | 'copy'
-  /** The field's content to the clipboard, and empty it. */
+  /** What is selected (else the whole field) to the clipboard, and gone. */
   | 'cut'
-  /** The clipboard in place of the field's content. */
+  /** The clipboard at the caret, in place of what is selected. */
   | 'paste'
+  /** Select the word at the caret. */
+  | 'selectWord'
+  /** Select everything. */
+  | 'selectAll'
 
 /** One key. `value` inserts; `action` does something else. */
 export interface KeyDef {
@@ -453,10 +457,16 @@ export function keyLayout(mode: KeyboardMode, shift = false): KeyDef[][] {
   ]
   // A full stop beside the spacebar, as on a phone; hold it for punctuation.
   const STOP: KeyDef = { label: '.', value: '.' }
+  // Put the keyboard away: a key a pad's D-pad can reach (its × cannot be).
+  const HIDE: KeyDef = { label: 'hide', icon: 'keyboard', action: 'done' }
   if (mode === 'alphanumeric') {
-    return [row('1234567890'), ...alphaRows, [toSymbols, SPACE, STOP, ENTER]]
+    return [
+      row('1234567890'),
+      ...alphaRows,
+      [toSymbols, SPACE, STOP, HIDE, ENTER],
+    ]
   }
-  return [...alphaRows, [toSymbols, SPACE, STOP, ENTER]]
+  return [...alphaRows, [toSymbols, SPACE, STOP, HIDE, ENTER]]
 }
 
 /**
@@ -501,15 +511,23 @@ export interface KeyChoice {
   items?: KeyChoice[]
 }
 
-const SYMBOL_CHOICES = Array.from('#$%&*+=/()@!').map((c) => ({
-  label: c,
-  text: c,
-}))
+const typed = (chars: string): KeyChoice[] =>
+  Array.from(chars).map((c) => ({ label: c, text: c }))
+
+/** Arithmetic, a sub-ring of the digits' key: × and ÷ as well as * and /. */
+const MATH_CHOICES: KeyChoice[] = [
+  { label: '+', text: '+' },
+  { label: '−', text: '-' },
+  ...typed('×÷*/=%^()<>±'),
+]
+/** The rest of the symbols, a sub-ring of the digits' key. */
+const SYMBOL_CHOICES = typed('@#$&_-?!:;~|\\')
 
 /*
 WHAT A HOLD OFFERS, as a ring round the key: a letter's accents, the full
-stop's punctuation, the digits (with the symbols one level down) on the key
-to symbols, and editing on backspace. Shift's hold is caps lock, at once.
+stop's punctuation, the digits with the point and comma (arithmetic and the
+other symbols one level down) on the key to symbols, and editing on
+backspace. Shift's hold is caps lock, at once.
 */
 export function holdChoices(key: KeyDef): KeyChoice[] {
   if (key.value !== undefined)
@@ -524,8 +542,9 @@ export function holdChoices(key: KeyDef): KeyChoice[] {
     ]
   if (key.action === 'mode' && key.mode === 'symbols')
     return [
-      ...Array.from('0123456789').map((c) => ({ label: c, text: c })),
-      { label: '#$%', items: SYMBOL_CHOICES },
+      ...typed('0123456789.,'),
+      { label: '+−×÷', items: MATH_CHOICES },
+      { label: '@#?', items: SYMBOL_CHOICES },
     ]
   return []
 }

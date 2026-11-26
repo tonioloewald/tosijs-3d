@@ -103,6 +103,15 @@ export interface WidgetSemantics {
   nudge?(dir: number): void
   /** Start typing in it, with no keyboard to hand: a text box opens its on-screen keyboard. A pad's press. */
   edit?(): void
+  /** What a press and HOLD offers, as a radial menu (a text box's cut, copy, paste). */
+  menu?(): ControlMenu | null
+  /**
+   * A control with a D-pad of its own (a keyboard's keys): one step inside
+   * it, false when the step would leave it.
+   */
+  move?(dx: number, dy: number): boolean
+  /** Told when a D-pad or Tab gives it the focus, and takes it away. */
+  focus?(on: boolean): void
   /** Controls inside it (a row, a toolbar, a list). */
   children?: SemanticSource[]
   /**
@@ -146,6 +155,7 @@ export interface ControlNode {
   isDefault?: boolean
   nudge?(dir: number): void
   edit?(): void
+  move?(dx: number, dy: number): boolean
   /**
    * Told when a D-pad or Tab gives it the focus (true) and takes it away
    * (false), for what a hover would show: a thing's info, whether a carried
@@ -296,6 +306,9 @@ export function controlTree(
     if (s.isDefault) node.isDefault = true
     if (s.nudge) node.nudge = s.nudge
     if (s.edit) node.edit = s.edit
+    if (s.menu) node.menu = s.menu
+    if (s.move) node.move = s.move
+    if (s.focus) node.focus = s.focus
     if (box != null) node.box = box
     if (CONTAINERS.has(s.role) && s.children) {
       const boxes = childBoxes(s.children, box, s.role === 'list', s.childBoxes)

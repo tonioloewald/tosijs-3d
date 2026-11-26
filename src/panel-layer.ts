@@ -102,6 +102,32 @@ export interface OverOptions {
   dismissOutside?: boolean
   /** Told when it goes, however it went. */
   handleClosed?: () => void
+  /** Leave it where it was put, even partly off the screen: its owner fitted it (`overRoomOf`). */
+  stay?: boolean
+}
+
+/** A rectangle by its edges, in a panel's (or a widget's) own units. */
+export interface RoomRect {
+  left: number
+  top: number
+  right: number
+  bottom: number
+}
+
+/**
+ * Where the screen ends, in the panel's own units, for a drawing an
+ * over-surface will show (so a ring can fan away from an edge instead of
+ * being pushed off its key). Null when nothing bounds it (a headset) or no
+ * presentation can say.
+ */
+export function overRoomOf(root: SVGSVGElement): RoomRect | null {
+  type Host = { overRoom?: () => RoomRect | null }
+  for (const h of (root as unknown as { __layerHosts?: Host[] })
+    .__layerHosts ?? []) {
+    const r = h.overRoom?.()
+    if (r != null) return r
+  }
+  return null
 }
 
 /*
@@ -132,6 +158,8 @@ export function showOverSurface(
 /** The bit of `B3d` a layer needs — duck-typed, to stay out of the cycle. */
 export interface PopupOwner {
   openPopup?: (o: Record<string, unknown>) => { close: () => void }
+  /** Where the screen is on a plane, as fractions of it (u across, v down). */
+  screenRoomOn?: (mesh: unknown) => RoomRect | null
 }
 
 /** The bit of a panel element a layer registers through. */
@@ -450,6 +478,7 @@ export function attachSceneLayer(opts: {
       draggable: false,
       dismissOutside: o.dismissOutside,
       handleClosed: o.handleClosed,
+      stay: o.stay,
       offset: {
         x: (cx / panelW - 0.5) * width,
         y: (0.5 - cy / panelH) * planeH,
@@ -465,6 +494,21 @@ export function attachSceneLayer(opts: {
       },
     })
     return { close: () => pop.close() }
+  }
+  // Where the screen is, in this panel's units (for an over-surface to fit).
+  ;(host as unknown as { overRoom: () => RoomRect | null }).overRoom = () => {
+    const f = owner.screenRoomOn?.(openerOf())
+    if (f == null) return null
+    const frame = opts.inFrame?.()
+    const vb = (frame?.svg ?? opts.svg).viewBox?.baseVal
+    if (vb == null || !(vb.width > 0) || !(vb.height > 0)) return null
+    const top = frame?.top ?? 0
+    return {
+      left: f.left * vb.width,
+      right: f.right * vb.width,
+      top: f.top * vb.height - top,
+      bottom: f.bottom * vb.height - top,
+    }
   }
   ;(host as unknown as { tips?: boolean }).tips = true
   ;(host as unknown as { over?: boolean }).over = true
