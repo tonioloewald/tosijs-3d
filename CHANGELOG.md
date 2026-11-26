@@ -12,6 +12,10 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Fixed (headset): the Sun's prominences were drawn double, and every shader shaded along the view ray (star surface and corona, black hole, gas giants, planet surfaces and atmospheres) used the other eye's position. A material's `onBind` runs after its uniforms are uploaded, so a camera position set there reached the next draw, the other eye's. `bindEyePosition(mat, name)` (b3d-utils) writes this draw's eye to the bound effect.
+- Fixed (headset): `xrFrame` glides (the Solar System's views) read the head's place and facing once, at the start, instead of every frame, where a scale change reaching the head a frame late made each reading wrong and the glide judder, and the world turned with your head until it settled.
+- Fixed: a star system's rebuild left its Sun's materials behind.
+
 - Fixed: a key's ring (and sometimes a keyboard) could stay up for good, flat and in a headset, two at once at worst. A system panel left a popup layer on its content each time it opened and never took it off, so after a few openings (or a headset session starting or ending) a field's keyboard and a key's ring opened once per layer, the copies hung from long-disposed planes, and a press on one copy closed the others and told the keyboard its ring was gone. A panel takes its layer off when it closes, a layer whose plane is disposed removes itself, and one drawing shown on several surfaces closes on all of them at once.
 
 - Changed: holding the keyboard's ?123 offers the digits, the point and the comma, with arithmetic (+ − × ÷ * / = % ^ ( ) < > ±) and the other symbols (@ # $ & _ - ? ! : ; ~ | \) as sub-rings. The letter boards gain a key that puts the keyboard away, and the symbols board's `done` does too (it did nothing).

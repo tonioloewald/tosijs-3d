@@ -155,6 +155,22 @@ export const sceneDelta = (scene: BABYLON.Scene): number => {
  * Falls back to a sane package for scenes `<tosi-b3d>` does not drive (tests,
  * standalone Babylon), where `dt` and `realDt` are simply the same number.
  */
+
+/*
+THE EYE, FOR THIS DRAW. A material's `onBind` runs after Babylon has
+uploaded the uniforms it keeps, so `mat.setVector3(name, eye)` there reaches
+the shader on the NEXT bind. Flat that is the same camera a frame late,
+which nobody sees; in a headset the eyes draw in turn, so each eye got the
+other's position, and whatever is shaded along the view ray was drawn twice
+(the Sun's prominences). Written to the bound effect, it is this draw's eye.
+Call it from `onBind`.
+*/
+export function bindEyePosition(mat: BABYLON.Material, name: string): void {
+  const cam = mat.getScene().activeCamera
+  if (cam == null) return
+  mat.getEffect()?.setVector3(name, cam.globalPosition)
+}
+
 /**
  * The clock for a shader's animation: the scene's SIM seconds, so weather and
  * waves stop when the world is paused and slow with `timeScale`. Wall-clock

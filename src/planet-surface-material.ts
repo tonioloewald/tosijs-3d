@@ -23,7 +23,7 @@ cloud shell, and keeps the night side dim, not black.
 import * as BABYLON from '@babylonjs/core'
 import { GAS_GIANT_GLSL } from './gas-giant.js'
 import { sceneLight } from './gas-giant-material.js'
-import { sceneSeconds } from './b3d-utils.js'
+import { bindEyePosition, sceneSeconds } from './b3d-utils.js'
 import {
   NOISE_TEXTURE_GLSL,
   NOISE_TEXTURE_SAMPLER,
@@ -407,8 +407,7 @@ export function createPlanetSurfaceMaterial(
       )
     sceneLight(scene, light)
     mat.setVector4('psLight', light)
-    const cam = scene.activeCamera
-    if (cam != null) mat.setVector3('psEye', cam.globalPosition)
+    bindEyePosition(mat, 'psEye')
     sea.set(
       options.sea ? 1 : 0,
       options.glint ?? 1,

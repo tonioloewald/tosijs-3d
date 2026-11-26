@@ -26,7 +26,7 @@ import {
   gasGiantRgb,
   type GasGiantLook,
 } from './gas-giant.js'
-import { sceneSeconds } from './b3d-utils.js'
+import { bindEyePosition, sceneSeconds } from './b3d-utils.js'
 
 export interface GasGiantMaterialOptions {
   /** How fast the clouds run. 1 is the default; 0 freezes them. */
@@ -171,8 +171,7 @@ export function createGasGiantMaterial(
   const ringAt = new BABYLON.Vector4()
   const ringN = new BABYLON.Vector3(0, 1, 0)
   mat.onBind = () => {
-    const cam = scene.activeCamera
-    if (cam != null) mat.setVector3('ggEye', cam.globalPosition)
+    bindEyePosition(mat, 'ggEye')
     const given = options.light?.()
     if (given != null) light.set(given.x, given.y, given.z, given.w)
     else sceneLight(scene, light)

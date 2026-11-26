@@ -20,7 +20,7 @@ Used by <tosi-b3d-star> and the star system's star.
 
 import * as BABYLON from '@babylonjs/core'
 import { GAS_GIANT_GLSL } from './gas-giant.js'
-import { sceneSeconds } from './b3d-utils.js'
+import { bindEyePosition, sceneSeconds } from './b3d-utils.js'
 
 /*
 THE ACTIVE REGIONS, shared by the surface and the corona: where each is (a
@@ -167,8 +167,7 @@ export function createStarMaterial(
   )
   mat.setFloat('starActivity', options.activity ?? 0.6)
   mat.onBind = () => {
-    const cam = scene.activeCamera
-    if (cam) mat.setVector3('cameraPosition', cam.globalPosition)
+    bindEyePosition(mat, 'cameraPosition')
     k.x = sceneSeconds(scene)
     mat.setVector4('starK', k)
   }
@@ -343,8 +342,7 @@ export function createCoronaMaterial(
   mat.alphaMode = BABYLON.Constants.ALPHA_ADD
   mat.disableDepthWrite = true
   mat.onBind = () => {
-    const cam = scene.activeCamera
-    if (cam) mat.setVector3('cameraPosition', cam.globalPosition)
+    bindEyePosition(mat, 'cameraPosition')
     k.z = sceneSeconds(scene)
     mat.setVector4('coronaK', k)
   }

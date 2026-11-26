@@ -192,7 +192,13 @@ Scroll to zoom, drag to orbit. The settings are in the scene panel (the owl).
 /*{ "parent": "space", "order": 40 }*/
 
 import { Color } from 'tosijs'
-import { isOff, B3dChild, sceneDelta, sceneSeconds } from './b3d-utils.js'
+import {
+  bindEyePosition,
+  isOff,
+  B3dChild,
+  sceneDelta,
+  sceneSeconds,
+} from './b3d-utils.js'
 import type { BiomePlugin } from './biome-plugin.js'
 import {
   GAS_GIANT_GLSL,
@@ -1122,8 +1128,7 @@ export class B3dPlanet extends B3dChild {
     mat.disableDepthWrite = true
     const light = new BABYLON.Vector4(0, 1, 0, 0)
     mat.onBind = () => {
-      const cam = this.owner!.scene.activeCamera
-      if (cam) mat.setVector3('cameraPosition', cam.globalPosition)
+      bindEyePosition(mat, 'cameraPosition')
       sceneLight(scene, light)
       mat.setVector4('atmoLight', light)
       mat.setFloat('time', sceneSeconds(scene))

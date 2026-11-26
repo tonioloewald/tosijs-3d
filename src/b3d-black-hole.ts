@@ -116,7 +116,7 @@ Scroll to zoom, drag to orbit. The settings are in the scene panel (the owl).
 */
 /*{ "parent": "space", "order": 50 }*/
 
-import { B3dChild, isOff, sceneDelta } from './b3d-utils.js'
+import { B3dChild, bindEyePosition, isOff, sceneDelta } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'
 
@@ -480,10 +480,7 @@ export class B3dBlackHole extends B3dChild {
     mat.disableDepthWrite = true
 
     mat.onBind = () => {
-      const cam = this.owner!.scene.activeCamera
-      if (cam) {
-        mat.setVector3('cameraPosition', cam.globalPosition)
-      }
+      bindEyePosition(mat, 'cameraPosition')
     }
 
     mesh.material = mat
@@ -594,10 +591,7 @@ export class B3dBlackHole extends B3dChild {
 
     mat.onBind = () => {
       mat.setFloat('time', this._time * attrs.rotationSpeed)
-      const cam = this.owner!.scene.activeCamera
-      if (cam) {
-        mat.setVector3('cameraPosition', cam.globalPosition)
-      }
+      bindEyePosition(mat, 'cameraPosition')
     }
 
     return mat
@@ -688,10 +682,7 @@ export class B3dBlackHole extends B3dChild {
     mat.disableDepthWrite = true
 
     mat.onBind = () => {
-      const cam = this.owner!.scene.activeCamera
-      if (cam) {
-        mat.setVector3('cameraPosition', cam.globalPosition)
-      }
+      bindEyePosition(mat, 'cameraPosition')
     }
 
     mesh.material = mat

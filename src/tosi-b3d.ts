@@ -7010,27 +7010,44 @@ export class B3d extends Component {
     size that fills it) to the target: the centre in a line, the size
     geometrically, so a trip from the whole system down to a moon is even.
     */
-    let from: { c: XrVec; r: number } | null = null
+    /*
+    WHERE YOU ARE AND WHICH WAY YOU FACE ARE READ ONCE, when it starts. Read
+    every frame they were wrong every frame: a changed scale reaches the
+    head camera a frame late, so each reading was off by the last step, and
+    the glide juddered (it was smooth flat, where nothing lags); and the
+    world turned with every movement of your head until it settled.
+    */
+    let from: {
+      c: XrVec
+      r: number
+      eye: XrVec
+      facing: number
+    } | null = null
     const started = realNow()
     this._xrFrameObs = sm.onXRFrameObservable.add(() => {
       if (rig.parent != null) return
       const viewer = rigViewer(rig, sm.worldScalingFactor)
-      const cam = base.camera
-      const eye = worldToRoom(viewer, cam.globalPosition)
-      const look = cam.getDirection(BABYLON.Axis.Z)
-      const facing = Math.atan2(look.x, look.z) - viewer.yaw
+      if (from == null) {
+        const cam = base.camera
+        const eye = worldToRoom(viewer, cam.globalPosition)
+        const look = cam.getDirection(BABYLON.Axis.Z)
+        const facing = Math.atan2(look.x, look.z) - viewer.yaw
+        from = {
+          c: roomToWorld(viewer, {
+            x: eye.x + Math.sin(facing) * distance,
+            y: eye.y - above,
+            z: eye.z + Math.cos(facing) * distance,
+          }),
+          r: viewer.scale * across,
+          eye,
+          facing,
+        }
+      }
+      const { eye, facing } = from
       const p = ms > 0 ? Math.min(1, (realNow() - started) / ms) : 1
       if (p >= 1 && ++frames > 10 && this._xrFrameObs != null) {
         sm.onXRFrameObservable.remove(this._xrFrameObs)
         this._xrFrameObs = null
-      }
-      from ??= {
-        c: roomToWorld(viewer, {
-          x: eye.x + Math.sin(facing) * distance,
-          y: eye.y - above,
-          z: eye.z + Math.cos(facing) * distance,
-        }),
-        r: viewer.scale * across,
       }
       const e = p * p * (3 - 2 * p)
       const c =

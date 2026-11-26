@@ -411,9 +411,10 @@ export class B3dStarSystem extends B3dChild {
   }
 
   private disposeMeshes() {
-    this.starMesh?.dispose()
+    // Their materials are their own (made per build): they go too.
+    this.starMesh?.dispose(false, true)
     this.starMesh = null
-    this.coronaMesh?.dispose()
+    this.coronaMesh?.dispose(false, true)
     this.coronaMesh = null
     this.starLight?.dispose()
     this.starLight = null
