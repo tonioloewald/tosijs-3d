@@ -60,6 +60,10 @@ a line on what each one settled and a link to the page it shaped.
   though. And of course we probably want to keep it within natural peripheral
   noticeability."_ The headset's bar sits 15° up, or lower when the view does
   not reach that high ([system-bar](/system-bar/)).
+- _"A person off in the distance in a comic book doesn't have tiny illegible
+  speech balloons."_ Nameplates, speech balloons and rings keep one size in
+  view at any distance ([frame-panel](/frame-panel/),
+  [b3d-conversation](/b3d-conversation/)).
 
 ## Curves and light
 

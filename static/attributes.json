@@ -1578,9 +1578,14 @@
         "description": "Metres: walk further than this from the speaker and the talk ends"
       },
       {
+        "name": "balloonWidthDeg",
+        "default": "26",
+        "description": "The balloon's width in view, in degrees, whatever the distance (UI size: a comic's balloons do not shrink with distance); `0` uses `balloonWidth`"
+      },
+      {
         "name": "balloonWidth",
         "default": "1.2",
-        "description": "The balloon's width in metres"
+        "description": "The balloon's width in metres, when `balloonWidthDeg` is 0"
       }
     ]
   },

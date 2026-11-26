@@ -205,6 +205,7 @@ export function attachSceneLayer(opts: {
       anchor: { x: number; y: number; width: number; height: number }
       side?: 'below' | 'above' | 'right' | 'left'
       handleClosed?: () => void
+      handleGone?: () => void
       chromeBand?: number
       dismissOutside?: boolean
       /** A tip, under or beside the anchor (see `showTipSurface`). */
@@ -300,6 +301,7 @@ export function attachSceneLayer(opts: {
       // presentation goes with it and the opener is not left believing it
       // still has one open. See `LayerHost.handleClosed`.
       handleClosed: config.handleClosed,
+      handleGone: config.handleGone,
       // A press outside it and outside its panel closes it (a menu).
       dismissOutside: config.dismissOutside,
       /*

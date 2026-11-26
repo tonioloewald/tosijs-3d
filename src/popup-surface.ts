@@ -204,6 +204,11 @@ export interface PopupSurfaceOptions {
    */
   draggable?: boolean
   /**
+   * Told when it goes because its opener went (Babylon disposes a child with
+   * its parent): closed, but nobody dismissed it, so `handleClosed` is not.
+   */
+  handleGone?: () => void
+  /**
    * Told whenever this popup closes — including from its OWN × glyph.
    *
    * A popup shown in two presentations is ONE popup wearing two faces, and only
@@ -258,6 +263,11 @@ export interface PopupSurface {
   readonly dismissOutside?: boolean
   /** Dispose it. Safe to call twice. */
   close(): void
+  /**
+   * Has it closed: closed, or gone with its opener (a panel that closed took
+   * its popups with it, and they close too, without `handleClosed`).
+   */
+  readonly closed: boolean
   /**
    * Promote to world space, preserving world pose: it stops being owned, stays
    * where it is, and becomes draggable. Idempotent.
@@ -801,6 +811,7 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     modal = false,
     gripHeight = 0.2,
     handleClosed,
+    handleGone,
     dismissOutside = false,
     tip = false,
   } = opts
@@ -905,6 +916,9 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
   let tornOff = false
   let closed = false
   let quiet = false
+  let openerGone: BABYLON.Nullable<
+    BABYLON.Observer<BABYLON.Node | BABYLON.TransformNode>
+  > = null
   let drag: BABYLON.PointerDragBehavior | null = null
   // The popup's own handle, once it exists: `place` runs before or after that.
   let self: PopupSurface | null = null
@@ -961,6 +975,22 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
       return
     }
     if (opener != null) mesh.parent = opener
+    /*
+    IT GOES WITH ITS OPENER. Babylon disposes a child with its parent, so a
+    panel that closed took this plane with it, and left the popup listed as
+    open, its pointer observer running and whoever opened it (an input
+    field's keyboard) believing it still showed. Closed quietly: nobody
+    dismissed it. Not once torn off: then it is nobody's.
+    */
+    if (opener != null && openerGone == null)
+      openerGone = opener.onDisposeObservable.addOnce(() => {
+        if (tornOff || closed) return
+        quiet = true
+        queueMicrotask(() => {
+          api.close()
+          handleGone?.()
+        })
+      })
     /*
     THE OPENER'S SIZE, NOT ITS STRETCH. A panel grows by scaling its plane, by
     different amounts across and down when its content changes shape, and a
@@ -1160,6 +1190,9 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     opener,
     dismissOutside,
     modal,
+    get closed() {
+      return closed
+    },
     // As the sheet is now (see `sheetAspect`), so a press lands where drawn.
     get vbWidth() {
       const v = svg.viewBox?.baseVal
@@ -1296,6 +1329,9 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     close() {
       if (closed) return
       closed = true
+      if (openerGone != null && opener != null && !opener.isDisposed())
+        opener.onDisposeObservable.remove(openerGone as any)
+      openerGone = null
       // Remove first, THEN re-evaluate: if this was the modal, whatever it was
       // blocking has to become reachable again.
       if (drag != null) plane.mesh?.removeBehavior(drag)

@@ -492,6 +492,15 @@ export interface FramePanelSpec {
   /** Panel width in metres (height follows the aspect). Default 0.26. */
   width?: number
   /**
+   * UI SIZE: drawn `widthDeg` wide in view at any distance, as text on a
+   * screen is, so a name over someone far off is as readable as one close
+   * by (a comic's speech balloons do not shrink with distance). Its anchor
+   * says where; `pin` which point of it sits there: `'centre'` (default) or
+   * `'bottom'` (it grows upward, clear of a head). `width` is then only the
+   * shape's starting size.
+   */
+  viewSize?: { widthDeg: number; pin?: 'centre' | 'bottom' }
+  /**
    * Content that grows or shrinks keeps its TOP edge where it was placed
    * (it grows downward), instead of growing about its centre. A panel under
    * a bar uses it, or growing content climbed over the bar.
@@ -914,6 +923,37 @@ export function attachFramePanel(
     if (spec.screenAnchor) return { position: [0, 0, d * pushed], flatOn: true }
     return pushed === 1 ? focusAnchor : { ...focusAnchor, distance: d * pushed }
   }
+  /*
+  UI SIZE (`viewSize`): the scale that makes it `widthDeg` wide seen from the
+  camera at its anchor, in its frame's units (a frame may be scaled: a
+  headset's frames take the session's world scale). Pinned by its bottom, it
+  moves up by half its height, so it grows away from what it labels.
+  */
+  const viewAt = new BABYLON.Vector3()
+  const viewK = (sy: number): number => {
+    const vs = spec.viewSize!
+    const c = (scene.activeCamera ?? cam) as BABYLON.Camera
+    const pw = frame.computeWorldMatrix(true)
+    BABYLON.Vector3.TransformCoordinatesToRef(placed!.pos, pw, viewAt)
+    const dist = BABYLON.Vector3.Distance(viewAt, c.globalPosition)
+    const frameScale =
+      BABYLON.Vector3.TransformNormal(BABYLON.Axis.X, pw).length() || 1
+    const want = 2 * dist * Math.tan((vs.widthDeg * DEG) / 2)
+    const k = want / (width * frameScale)
+    if (vs.pin === 'bottom' && plane.rotationQuaternion) {
+      const up = BABYLON.Vector3.TransformNormal(
+        BABYLON.Vector3.Up(),
+        BABYLON.Matrix.FromQuaternionToRef(
+          plane.rotationQuaternion,
+          BABYLON.Matrix.Identity()
+        )
+      )
+      plane.position
+        .copyFrom(placed!.pos)
+        .addInPlace(up.scale((k * sy * width * aspect) / 2))
+    }
+    return k
+  }
   // The focused scale, fitted once (see below); cleared on every focus change.
   let fitted: { key: string; k: number } | null = null
   const fit = () => {
@@ -957,6 +997,9 @@ export function attachFramePanel(
       const h = width * aspect * sy
       k = Math.min(k, tall / h, wide / w)
       fitted = { key: fitKey, k }
+    }
+    if (spec.viewSize != null && !focused && placed != null) {
+      k = viewK(sy)
     }
     plane.scaling.x = k * sx
     plane.scaling.y = k * sy

@@ -812,6 +812,11 @@ export type LayerHost = (
      */
     handleClosed?: () => void
     /**
+     * Call this if the popup went because what it hangs from went (its panel
+     * closed), so the opener can forget it without treating it as dismissed.
+     */
+    handleGone?: () => void
+    /**
      * Headroom reserved in the sheet for move/close glyphs, in viewBox units.
      *
      * `0` means the caller asked for NO chrome, and a host must then draw none:
@@ -1494,8 +1499,13 @@ export interface WidgetHost {
        * What a menu does; `showPopup` asks for it.
        */
       dismissOutside?: boolean
-      /** Called when it goes away, however it went. */
+      /** Called when it is closed (by its ×, a press outside, or code). */
       handleClose?: () => void
+      /**
+       * Called instead when it went because its panel went (closed or
+       * rebuilt): nobody dismissed it, so a preference it toggles stays.
+       */
+      handleGone?: () => void
     },
     ...items: Widget3d[]
   ) => { close: () => void }
@@ -4740,13 +4750,22 @@ function buildPanel3d(
         handlerOf<() => void>(config, 'handleClose', 'onClose')?.()
       }
       if (config.dismissOutside) entry.dismiss = closeAll
+      // Its panel went and took it along: closed everywhere, and the opener
+      // told `handleGone` (not `handleClose`: nobody dismissed it).
+      const handleGone = (): void => {
+        if (closing) return
+        closing = true
+        popups.delete(entry)
+        for (const o of opened) o.close()
+        handlerOf<() => void>(config, 'handleGone', 'onGone')?.()
+      }
       opened.push(
         // `chromeBand` travels with the popup: the sheet reserved it, so every
         // host has to agree about whether it exists. Computing it twice is how
         // glyphs end up drawn over content in one presentation and floating in
         // an empty strip in the other.
         ...hosts.map((h) =>
-          h(sheet, { ...placed, handleClosed: closeAll, chromeBand })
+          h(sheet, { ...placed, handleClosed: closeAll, handleGone, chromeBand })
         )
       )
       return { close: closeAll }

@@ -532,6 +532,8 @@ export class B3dSvgPlane extends AbstractMesh {
   > = null
   // Press state for the coordinate-based (panel3d) routing path.
   private _pressing = false
+  /** The pointer that is pressing (each hand in a headset has its own). */
+  private _pressId = 0
   /** The pointer is over the plane with nothing pressed (hover moves go to the SVG). */
   private _hovering = false
   private _lastSvgX = 0
@@ -1101,6 +1103,17 @@ export class B3dSvgPlane extends AbstractMesh {
       // so the same panel is interactive as a DOM overlay, on a flat canvas, and
       // in immersive VR — no DOM events, no elementFromPoint.
       if (handle) {
+        /*
+        TWO POINTERS (both hands at a keyboard): while one presses, the other's
+        moves and release are not that press's. Its own press ends the first
+        where it was, then starts, so overlapping keystrokes both type.
+        */
+        const id = (pointerInfo.event as PointerEvent | undefined)?.pointerId ?? 0
+        if (this._pressing && id !== this._pressId) {
+          if (kind !== 'down' || !uvs) return
+          handle('up', this._lastSvgX, this._lastSvgY)
+          this._pressing = false
+        }
         const at =
           uvs ??
           (this._pressing && kind !== 'down'
@@ -1115,6 +1128,7 @@ export class B3dSvgPlane extends AbstractMesh {
           if (!uvs) return
           this._hovering = false
           this._pressing = true
+          this._pressId = id
           handle('down', this._lastSvgX, this._lastSvgY)
         } else if (kind === 'move') {
           if (this._pressing) handle('move', this._lastSvgX, this._lastSvgY)

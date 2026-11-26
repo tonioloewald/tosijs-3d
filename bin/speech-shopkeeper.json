@@ -8,6 +8,7 @@
     { "id": "shopkeeper-potion", "voice": "shopkeeper", "text": "Bring me a potion and I'll make it worth your while.", "direction": "leaning in, conspiratorial, making a deal he thinks is generous" },
     { "id": "shopkeeper-remembered", "voice": "shopkeeper", "text": "You remembered!", "direction": "delighted and surprised, a little laugh of pleasure" },
     { "id": "shopkeeper-rounds", "voice": "shopkeeper", "text": "Here, thirty rounds, on the house.", "direction": "warm and generous, handing them over, pleased with himself" },
+    { "id": "shopkeeper-browse", "voice": "shopkeeper", "text": "Please, take a look.", "direction": "welcoming, gesturing at his wares with pride, eager to show them off" },
     { "id": "shopkeeper-after", "voice": "shopkeeper", "text": "Pleasure doing business.", "direction": "satisfied, a merchant counting his coins, brisk" },
     { "id": "shopkeeper-more", "voice": "shopkeeper", "text": "Anything else?", "direction": "patient and friendly, eyebrows raised" },
     { "id": "shopkeeper-bye", "voice": "shopkeeper", "text": "Mind how you go.", "direction": "fond and fatherly, a gentle warning, seeing a regular off" }

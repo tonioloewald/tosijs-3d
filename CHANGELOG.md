@@ -12,6 +12,11 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Changed: UI keeps its size in view at any distance. A frame panel takes `viewSize: { widthDeg, pin }` (pinned by its centre or its bottom, so a label grows away from what it labels); NPC nameplates are 12° wide over the head, conversation balloons 26° (`balloonWidthDeg` on `<tosi-b3d-conversation>`, 0 for the old `balloonWidth` metres), headset rings about 23°.
+- Added (headset): both controllers point while an input field's keyboard shows, so either hand types (`keyboardShowing()`). A plane keeps one press per pointer: the other hand's moves cannot slide a key's press, and its own press ends the first where it was.
+- Fixed: a popup whose panel closed or was rebuilt stayed listed as open, its pointer observer running, and an input field kept believing its keyboard showed. It closes with its panel, and the opener hears `handleGone` (not `handleClose`: nobody dismissed it, so the keyboard preference stays). `PopupSurface.closed` says whether one is gone.
+- Playground: clicking the shopkeeper talks to him, not only clicking his counter; his "Please, take a look." is voiced (`speech/shopkeeper-browse.mp3`; deploy static-assets).
+
 - Added: holding both bumpers (L1 and R1) for half a second opens the system ring, held by them (a stick points, letting go picks), unless the game has the bumpers (a driven player, or a hold given to one), as a headset's grips do. In a headset the grips chord no longer dies when a hand moves 3 cm (squeezing a grip moves the controller that much); only in passthrough, where both grips drag the room, must it stay within 6 cm.
 - Changed (headset): a ring no press opened (a hold, the grips, code) is drawn straight ahead of your eyes, not in front of the body frame (after a reseat that left the rig askew it opened off to the side). A ring keeps the same size in view wherever it is drawn (about 23° across); one opened on something far off is drawn no further than 2 m along the ray.
 - Changed: after a level opens by resting, the slice you are pointing at does not light until you move off it; any other choice is one move away (it waited for the pointing to come back to the middle).

@@ -34,7 +34,8 @@ URL) and lasts as long as it. While a trade is open the balloons are hidden.
 | Attribute | Default | Description |
 | --- | --- | --- |
 | `reach` | `4` | Metres: walk further than this from the speaker and the talk ends |
-| `balloonWidth` | `1.2` | The balloon's width in metres |
+| `balloonWidthDeg` | `26` | The balloon's width in view, in degrees, whatever the distance (UI size: a comic's balloons do not shrink with distance); `0` uses `balloonWidth` |
+| `balloonWidth` | `1.2` | The balloon's width in metres, when `balloonWidthDeg` is 0 |
 
 `whenEvent(event, talk)` sees every [[conversation]] event; `whenEnded(talk)`
 is called when it ends. `talk` (the property) is the running conversation.
@@ -245,10 +246,12 @@ export class B3dConversation extends B3dChild {
 
   static initAttributes = {
     reach: 4,
+    balloonWidthDeg: 26,
     balloonWidth: 1.2,
   }
 
   declare reach: number
+  declare balloonWidthDeg: number
   declare balloonWidth: number
 
   /** The script ([[conversation]]). */
@@ -524,7 +527,19 @@ export class B3dConversation extends B3dChild {
     mesh.setEnabled(visible)
     if (!visible || top == null) return
     mesh.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL
-    const h = ((Number(this.balloonWidth) || 1.2) * BALLOON_H) / BALLOON_W
+    const w = Number(this.balloonWidth) || 1.2
+    // UI size: as wide in view at any distance (its plane is built `w` wide).
+    const deg = Number(this.balloonWidthDeg) || 0
+    const cam = this.owner?.scene.activeCamera
+    const s =
+      deg > 0 && cam != null
+        ? (2 *
+            BABYLON.Vector3.Distance(top, cam.globalPosition) *
+            Math.tan((deg * Math.PI) / 360)) /
+          w
+        : 1
+    mesh.scaling.set(s, s, 1)
+    const h = (w * s * BALLOON_H) / BALLOON_W
     mesh.position.set(top.x, top.y + 0.1 + h / 2, top.z)
   }
 

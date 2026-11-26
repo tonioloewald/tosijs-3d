@@ -1429,6 +1429,7 @@ import {
   fieldGroup,
   autoKeyboardEnabled,
   setAutoKeyboard,
+  keyboardShowing,
 } from './keyboard.js'
 import {
   keyLayout,
@@ -1478,6 +1479,7 @@ export const ui = {
   // so an app can seed it, persist it, or drive it from its own settings.
   autoKeyboardEnabled,
   setAutoKeyboard,
+  keyboardShowing,
   keyLayout,
   accentsFor,
   hasAccents,

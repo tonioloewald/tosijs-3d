@@ -1305,3 +1305,20 @@ on a short display are lifted so their bottom stays in view (`hangUnder`), but
 never over the bar: a panel taller than the room overhangs the bottom and
 folds until you look down at it.
 
+## UI is UI-sized, pinned over its thing (2026-11-26)
+
+Tonio: *"Sizing should be fixed as optimal UI display. Pin point should be in
+screen space centered on the thing but UI elements should be legible. This
+also applies for example to the shopkeeper plaque which is usually too small
+to read and the dialog balloons which again should be UI sized (a person off
+in the distance in a comic book doesn't have tiny illegible speech
+balloons)."*
+
+So anything you read keeps one size in view, whatever its distance: a frame
+panel's `viewSize` (degrees wide; pinned by its centre, or by its bottom so a
+label grows up and away from the head it sits on). Nameplates are 12°, speech
+balloons 26°, rings about 23°. Where it is stays the thing's: the label is
+over the head, the ring where the ray met what it pressed. Distance still
+declutters (nameplates fade past a few metres), but never by shrinking text
+below legibility.
+

@@ -988,6 +988,14 @@ function ensureGlobalKeyListener(): void {
 }
 
 /** Is the on-screen keyboard set to appear on its own? */
+/**
+ * Is an input field's keyboard showing? In a headset the scene points with
+ * both hands while it is, so either can type.
+ */
+export function keyboardShowing(): boolean {
+  return liveKeyboard != null
+}
+
 export function autoKeyboardEnabled(): boolean {
   // Unset means "not decided yet", so fall back to the sniff — a touch device
   // should not need to be told.
@@ -1519,6 +1527,8 @@ export function inputField(config: InputFieldOptions = {}): InputField {
           forget()
           if (!keyboardTakeover) setAutoKeyboard(false)
         },
+        // Its panel closed and took it along: forget it, the preference stays.
+        handleGone: forget,
         // FIT THE HOST, don't ask for a nominal 360: a wider keyboard than the
         // panel is simply clipped at the right edge, so the last column of keys
         // — enter, backspace — becomes unreachable. Measured: 360 in a 320 panel

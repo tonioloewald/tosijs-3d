@@ -372,7 +372,7 @@ import {
   type RumbleEffect,
   type RumbleName,
 } from './rumble.js'
-import { setKeyboardHeadset } from './keyboard.js'
+import { keyboardShowing, setKeyboardHeadset } from './keyboard.js'
 import {
   fitPanel,
   panel3d,
@@ -5592,6 +5592,7 @@ export class B3d extends Component {
       miniature scales with the room.
       */
       width: 0.4 * BABYLON.Vector3.Distance(eye, at),
+      viewSize: { widthDeg: 22.6 },
       resolution: 512,
     })
     this._ringPanel = panel
@@ -7968,6 +7969,17 @@ export class B3d extends Component {
       */
       {
         const sel = this.xrHelper?.pointerSelection
+        /*
+        BOTH HANDS POINT WHILE A KEYBOARD SHOWS, so either can type. Babylon
+        reads this option every frame; a plane keeps one press per pointer
+        (b3d-svg-plane), so the other hand's ray cannot slide a key's press.
+        */
+        const both = keyboardShowing()
+        const opts = (sel as unknown as {
+          _options?: { enablePointerSelectionOnAllControllers?: boolean }
+        } | undefined)?._options
+        if (opts != null && !!opts.enablePointerSelectionOnAllControllers !== both)
+          opts.enablePointerSelectionOnAllControllers = both
         const attached = sel?.attachedControllerId ?? ''
         const inputs = this.xrHelper?.input.controllers ?? []
         const holding = inputs.some(
@@ -8749,7 +8761,11 @@ export class B3d extends Component {
         // Compact card (280×116 vs the default 320×200) — ~50% less padding
         // around the label so the plaque hugs the name and doesn't hang low.
         svg: placeholderPanelSvg((b.id as string) || '$6M biped', 280, 116),
-        width: 0.6, // 2× — readable at a glance
+        width: 0.6,
+        // UI size: the same size in view however far off they stand (a
+        // fixed 60 cm was too small to read at a few metres), sitting on the
+        // point over their head.
+        viewSize: { widthDeg: 12, pin: 'bottom' },
         // No distance gate: an earlier `maxDistance: 8` hid nameplates in VR
         // (the head is easily >8m from NPCs), while flat worked. The 26° gaze
         // cone already declutters — you only see the ones you look at.

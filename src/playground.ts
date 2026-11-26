@@ -265,7 +265,7 @@ const SHOP_TALK = {
     },
     // He invites you to look, then the shop opens.
     browse: {
-      lines: [{ speaker: 'shopkeeper', text: 'Please, take a look.', gesture: 'show' }],
+      lines: [{ speaker: 'shopkeeper', text: 'Please, take a look.', audio: voice('browse'), gesture: 'show' }],
       then: [{ trade: true }, { goto: 'after' }],
     },
     after: { lines: [{ speaker: 'shopkeeper', text: 'Pleasure doing business.', audio: voice('after'), gesture: 'yes' }], then: [{ goto: 'more' }] },
@@ -295,19 +295,21 @@ shopTalk.host = {
   },
   trade: (done) => openTrade('shop', { title: 'Shop', at: () => counter.mesh?.position, price: shopPrice, done }),
 }
+const talkToHim = () => {
+  if (!shopTalk.talk || shopTalk.talk.ended) shopTalk.start(hero)
+}
 const shopkeeper = b3dBiped({
   url: assetUrl('quaternius/UAL1_core.glb', 5),
   animationStates: ualAnimationStates(),
   id: 'Shopkeeper',
   ...SHOP_AT, ry: 90, // facing the start (-x)
-}, shopTalk)
+},
+  shopTalk,
+  // A click on him talks too, not only one on his counter.
+  b3dInteractive({ reach: 2.5, whenActivated: talkToHim })
+)
 const counter = b3dBox({ meshName: 'shop-counter', x: 6.2, y: 0.5, z: 9, width: 0.6, height: 1, depth: 2.4, color: '#8a6a44', solid: 'on' })
-const shop = b3dInteractive({
-  target: 'shop-counter', reach: 2.5,
-  whenActivated: () => {
-    if (!shopTalk.talk || shopTalk.talk.ended) shopTalk.start(hero)
-  },
-})
+const shop = b3dInteractive({ target: 'shop-counter', reach: 2.5, whenActivated: talkToHim })
 // MONEY lying about: a pile of gold by the gate chest, into your purse.
 const gold = (qty, x, z) => b3dPickup({
   library: 'platformer', meshName: 'coin-gold', item: 'gold', qty, x, y: 0.05, z, scale: 1.5,
@@ -773,7 +775,7 @@ magazine while it is put away.
 **E**. At full health they stay where they are.
 
 **A shop, and someone to talk to.** The mannequin behind the counter to your
-right is a shopkeeper: press **E** at the counter and he talks. His lines and
+right is a shopkeeper: press **E** at the counter, or click him or it, and he talks. His lines and
 your replies appear in a balloon over his head; click a reply or press its
 number. Ask what he sells and his stock opens beside your bag, with prices;
 when you close it he carries on. Ask whether he needs anything, then bring

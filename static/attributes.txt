@@ -391,7 +391,8 @@ b3d-controller
 b3d-conversation
 
   reach  = 4  — Metres: walk further than this from the speaker and the talk ends
-  balloonWidth  = 1.2  — The balloon's width in metres
+  balloonWidthDeg  = 26  — The balloon's width in view, in degrees, whatever the distance (UI size: a comic's balloons do not shrink with distance); `0` uses `balloonWidth`
+  balloonWidth  = 1.2  — The balloon's width in metres, when `balloonWidthDeg` is 0
 
 ## b3d-crowd — <tosi-b3d-crowd>
 b3d-crowd
