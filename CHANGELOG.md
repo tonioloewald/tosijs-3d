@@ -12,6 +12,9 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Fixed: a radial menu's pick blink is seen. A panel redrew changes its content made by itself only on its 400 ms timer, so the whole blink (133 ms) passed unseen and a pick looked instant. Content dispatches `panelrepaint` on its SVG to be drawn on the next frame (a radial menu does on every highlight), and a redraw asked for while one is in flight follows it.
+- Changed: a keyboard ring's choices and middle are drawn at the keys' weight and a little smaller (`fontWeight` on `radialMenuSvg`). The inventory says "items", not "things" (an empty slot's info, a chest's count). `svgTextureCache.pictures` and `.bytes` say what is kept.
+
 - Changed (headset): the system bar sits in view, 15° above the horizon, or lower when the headset's view does not reach that high (measured from the headset on its first frame); it was 66° up, out of view even on a Quest. Panels opened from it and the settings panel hang under it, lifted to stay in view on a short display, never over the bar. Frame panels take `setAnchor`.
 
 - Added (headset): a panel that would go out of view is drawn as its header, a rounded tab at the edge of the view on the side it went; turn back and it opens where it was, tap the tab and it comes to where you are looking. System panels and the settings panel do it; any frame panel takes `edgeTab`.

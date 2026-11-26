@@ -1526,7 +1526,7 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
     const names = ids.slice(0, 4).map((id) => main.nameOf(id))
     return [
       name,
-      `${ids.length} ${ids.length === 1 ? 'thing fits' : 'things fit'}`,
+      `${ids.length} ${ids.length === 1 ? 'item fits' : 'items fit'}`,
       names.join(', ') + (ids.length > 4 ? ', …' : ''),
     ]
   }

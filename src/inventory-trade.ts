@@ -322,7 +322,7 @@ export function tradePanel(opts: TradePanelOptions): TradePanel {
       const n = inContainer(inv, theirs).length
       const taken = trade?.changed().filter((c) => same(c.to, mine)).length ?? 0
       line.textContent =
-        n === 0 ? 'empty' : `${n} thing${n === 1 ? '' : 's'} left in it`
+        n === 0 ? 'empty' : `${n} item${n === 1 ? '' : 's'} left in it`
       note.textContent =
         said || (taken ? `taking ${taken}` : 'drag across, or take all')
     }

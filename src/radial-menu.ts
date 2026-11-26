@@ -421,7 +421,8 @@ function labelText(
   cx: number,
   cy: number,
   ink: string,
-  scale = 1
+  scale = 1,
+  weight: string = w3dTheme.headingWeight
 ) {
   const { text, tspan } = svgElements
   const words = label.split(' ')
@@ -449,7 +450,7 @@ function labelText(
       'text-anchor': 'middle',
       'font-size': size,
       'font-family': w3dTheme.fontFamily,
-      'font-weight': w3dTheme.headingWeight,
+      'font-weight': weight,
       fill: ink,
     },
     ...lines.map((l, i) => tspan({ x: cx, y: top + i * size * 1.1 }, l))
@@ -482,6 +483,11 @@ export function radialMenuSvg(
      */
     fontScale?: number
     /**
+     * The weight of the slices' names and of `centre` (default the theme's
+     * heading weight). The keyboard's ring uses its keys' (the text weight).
+     */
+    fontWeight?: string
+    /**
      * The middle is itself a choice, drawn as a key would be (the keyboard's
      * ring: a tap in the middle types the plain character): this, large, on
      * a button's colour, in place of the title.
@@ -490,6 +496,7 @@ export function radialMenuSvg(
   } = {}
 ): RadialMenuSvg {
   const fontScale = options.fontScale ?? 1
+  const fontWeight = options.fontWeight ?? w3dTheme.headingWeight
   const { path, text, g, svg, circle } = svgElements
   const n = Math.max(1, items.length)
   const half = RADIAL_SIZE / 2
@@ -574,7 +581,14 @@ export function radialMenuSvg(
             item.label
           )
         ) as unknown as SVGElement)
-      : (labelText(item.label, cx, cy, ink, fontScale) as unknown as SVGElement)
+      : (labelText(
+          item.label,
+          cx,
+          cy,
+          ink,
+          fontScale,
+          fontWeight
+        ) as unknown as SVGElement)
     inks.push(glyph)
     ring.append(glyph)
     // A sub-ring: a chevron at the rim says there is more beyond.
@@ -645,7 +659,7 @@ export function radialMenuSvg(
     title.textContent = options.centre
     title.setAttribute('y', String(size * 0.35))
     title.setAttribute('font-size', String(size))
-    title.setAttribute('font-weight', String(theme.headingWeight))
+    title.setAttribute('font-weight', String(fontWeight))
     title.setAttribute('fill', theme.text)
     hub.setAttribute('stroke', 'rgba(255,255,255,0.25)')
     hub.setAttribute('stroke-width', '2')
@@ -687,6 +701,13 @@ export function radialMenuSvg(
   ) as unknown as RadialMenuSvg
   let lit = -1
   let armedNow = -1
+  // An Event of the element's own window (a test's DOM has its own).
+  const askRepaint = () => {
+    const view = el.ownerDocument?.defaultView as
+      | (Window & { Event: typeof Event })
+      | null
+    el.dispatchEvent(new (view?.Event ?? Event)('panelrepaint'))
+  }
   const highlight = (i: number, armed = -1) => {
     const next = i >= 0 && i < items.length && !items[i].disabled ? i : -1
     if (next === lit && armed === armedNow) return
@@ -709,6 +730,8 @@ export function radialMenuSvg(
       )
       s.setAttribute('stroke-width', k === lit && items[k].color ? '4' : '2')
     })
+    // Drawn on the next frame, not on its panel's timer (a blink is 1/30 s).
+    askRepaint()
   }
   let zoneNow: RadialHubZone = null
   const hubLit = (zone: RadialHubZone) => {
@@ -718,6 +741,7 @@ export function radialMenuSvg(
     hub.setAttribute('fill', zone ? halfAccent : hubFill)
     label.textContent = zone ?? currentLabel
     label.setAttribute('fill', zone ? theme.text : hubInk)
+    askRepaint()
   }
   Object.defineProperties(el, {
     hubLit: { value: hubLit },

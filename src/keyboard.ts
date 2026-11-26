@@ -2141,9 +2141,11 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
     const oy = cy - size / 2
     // Larger names: a key's choices are single characters, drawn small.
     // The middle is the key itself: a tap there types its plain character.
+    // At the keys' own weight, not the menus' bold.
     const svg = radialMenuSvg(items, {
       centre: r.key.label ?? '',
-      fontScale: 1.6,
+      fontScale: 1.25,
+      fontWeight: w3dTheme.textWeight,
     })
     svg.setAttribute('width', String(size))
     svg.setAttribute('height', String(size))
@@ -2274,7 +2276,11 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         toward: Math.atan2(offX, -offY),
       })
     }
-    const svg = radialMenuSvg(items, { centre: r.key.label ?? '', fontScale: 1.3 })
+    const svg = radialMenuSvg(items, {
+      centre: r.key.label ?? '',
+      fontScale: 1.15,
+      fontWeight: w3dTheme.textWeight,
+    })
     svg.setAttribute('x', String(cx - size / 2))
     svg.setAttribute('y', String(cy - size / 2))
     svg.setAttribute('width', String(size))

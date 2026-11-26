@@ -28,6 +28,10 @@ screen's edges, placed by [anchor-layout](?anchor-layout.ts)), which is how
 system panels work. `setSvg` swaps the content on the same plane without a
 blink.
 
+A panel's texture is redrawn on a timer (400 ms) and at once on a press. Content
+that changes by itself, not through a press, dispatches `panelrepaint` on its
+SVG to be drawn on the next frame (a radial menu's highlight does).
+
 ## Which way a panel faces
 
 A plane's visible face is its local −Z, so a panel is aimed by pointing −Z at
@@ -1108,6 +1112,22 @@ export function attachFramePanel(
         url: spec.url,
         resolution: spec.resolution ?? 384,
       })
+  /*
+  CONTENT THAT CHANGES ITSELF asks to be drawn: a `panelrepaint` event on its
+  SVG draws it on the next frame instead of on the texture's 400 ms timer (a
+  press repaints at once anyway). A radial menu's highlight does, so its pick
+  blink, 1/30 s a step, is seen at all.
+  */
+  let repaintAsked = false
+  const onRepaintAsk = () => {
+    if (repaintAsked) return
+    repaintAsked = true
+    scene.onBeforeRenderObservable.addOnce(() => {
+      repaintAsked = false
+      tex.render()
+    })
+  }
+  el?.addEventListener('panelrepaint', onRepaintAsk)
   const mat = new BABYLON.StandardMaterial('frame-panel-mat', drawScene)
   mat.backFaceCulling = false
   mat.emissiveTexture = tex.texture
@@ -1573,7 +1593,9 @@ export function attachFramePanel(
     old.__anchored?.close()
     old.__anchored = undefined
     el.removeEventListener('panelfocus', onFocus)
+    el.removeEventListener('panelrepaint', onRepaintAsk)
     el = next
+    el.addEventListener('panelrepaint', onRepaintAsk)
     adopt(next)
     target = next as unknown as Target
     if (focusable) el.addEventListener('panelfocus', onFocus)
@@ -1643,6 +1665,7 @@ export function attachFramePanel(
       edge?.dispose()
       releaseCamera()
       el?.removeEventListener('panelfocus', onFocus)
+      el?.removeEventListener('panelrepaint', onRepaintAsk)
       if (pointerObs != null) drawScene.onPointerObservable.remove(pointerObs)
       stopWheel()
       const stack = screenStacks.get(stackKey)

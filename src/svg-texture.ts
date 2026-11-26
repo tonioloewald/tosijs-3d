@@ -187,6 +187,13 @@ export const svgTextureCache = {
   maxPictures: 32,
   /** And at most this many bytes of them (a picture is resolution² × 4). */
   maxBytes: 32 * 1024 * 1024,
+  /** How many pictures are kept now, and their bytes (read only). */
+  get pictures(): number {
+    return keptPictures.size
+  },
+  get bytes(): number {
+    return keptBytes
+  },
 }
 interface KeptPicture {
   canvas: HTMLCanvasElement
@@ -323,7 +330,13 @@ export class SvgTexture {
 
   /** Manually trigger a re-render from the live SVG element. */
   render(): void {
-    if (!this._element || this._rendering) return
+    if (!this._element) return
+    // One in flight: draw again after it, so the newer picture is not lost
+    // until the next tick.
+    if (this._rendering) {
+      this._again = true
+      return
+    }
     const dt = this.texture as BABYLON.DynamicTexture
     if (!dt?.getContext) return
     const began = realNow()
