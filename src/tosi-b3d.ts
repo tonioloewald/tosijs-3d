@@ -8005,6 +8005,16 @@ export class B3d extends Component {
       panel, or while a ring is open, the game reads it as up until it is
       let go, so pressing a loadout slot does not also fire the gun in your
       hand. Decided at the press, so a shot already going is not cut off.
+
+      The hand's OWN ray is cast, not Babylon's pick: the pointer moves to a
+      hand as its finger lands on the trigger and Babylon picks for it a frame
+      later, so a quick press with the other hand read as "not on the UI" and
+      fired (Tonio, pass 6).
+
+      AND A PRESS ON NOTHING DISMISSES: with the settings panel or a
+      one-at-a-time system panel open (an inventory, a chest, a shop), a
+      trigger pulled with its ray on no UI closes them, and is not the game's
+      either (it fired the gun).
       */
       for (const h of ['left', 'right'] as const) {
         const key = h === 'left' ? 'leftTrigger' : 'rightTrigger'
@@ -8017,18 +8027,36 @@ export class B3d extends Component {
           const c = this.xrHelper?.input.controllers.find(
             (x) => x.inputSource.handedness === h
           )
+          const isUi = (m: BABYLON.AbstractMesh | null | undefined) =>
+            m != null && (isNoCollide(m) || m.getScene() !== this.scene)
           const under =
             c != null
               ? this.xrHelper?.pointerSelection?.getMeshUnderPointer(
                   c.uniqueId
                 )
               : null
+          let rayOnUi = false
+          if (c != null) {
+            const k = sm.worldScalingFactor || 1
+            const ray = new BABYLON.Ray(
+              BABYLON.Vector3.Zero(),
+              BABYLON.Vector3.Forward(),
+              100 * k
+            )
+            c.getWorldPointerRayToRef(ray)
+            ray.length = 100 * k
+            // In the XR frame, so the panel layers are asked first.
+            const hit = scene.pickWithRay(
+              ray,
+              (m) => m.isPickable && m.isEnabled() && m.isVisible
+            )
+            rayOnUi = hit?.hit === true && isUi(hit.pickedMesh)
+          }
           const onUi =
-            this._radial?.isOpen === true ||
-            (under != null &&
-              (isNoCollide(under) || under.getScene() !== this.scene))
-          uiTrigger[h] = onUi
-          if (onUi) padMenuOwns.add(key)
+            this._radial?.isOpen === true || isUi(under) || rayOnUi
+          const dismissed = !onUi && this._dismissXrPanels()
+          uiTrigger[h] = onUi || dismissed
+          if (onUi || dismissed) padMenuOwns.add(key)
         } else if (v <= 0.02 && was != null) {
           uiTrigger[h] = null
           if (was && this._radial?.claims(key) !== true)
@@ -9823,6 +9851,25 @@ export class B3d extends Component {
   }
   /** The VR toolbar's SVG while a session has one (for tests and tools). */
   private _xrBarSvg: SVGSVGElement | null = null
+  /**
+   * In a headset, close the settings panel and the one-at-a-time system
+   * panels (a press on nothing while they show). True if any closed. A
+   * panel that stays beside others (`exclusive: false`, a HUD, a tool) stays.
+   */
+  private _dismissXrPanels(): boolean {
+    let any = false
+    for (const key of [...this._sysPanels.keys()]) {
+      const spec = this._systemEntries().find((x) => x.el === key)?.spec
+      if (spec?.exclusive === false) continue
+      this._closeSystemPanel(key)
+      any = true
+    }
+    if (this._xrPanelEl != null) {
+      this._closeXrSettings()
+      any = true
+    }
+    return any
+  }
   /** Where the headset's system bar is (degrees up) and half its height. */
   private _xrBarElev = XR_BAR_NOTICE_DEG
   private _xrBarHalfDeg = 2

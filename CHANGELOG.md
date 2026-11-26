@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Fixed (headset): a trigger pulled on a panel with the hand that was not pointing still reached the game (with a gun drawn it fired): whether a press is on the UI is now read from that hand's own ray, not from Babylon's pick, which follows the hand a frame late. And a trigger pulled with its ray on nothing, while the settings panel or a one-at-a-time system panel (an inventory, a chest, a shop) shows, closes them and does not reach the game; panels that stay beside others (a HUD) stay.
+
 - Changed: UI keeps its size in view at any distance. A frame panel takes `viewSize: { widthDeg, pin }` (pinned by its centre or its bottom, so a label grows away from what it labels); NPC nameplates are 12° wide over the head, conversation balloons 26° (`balloonWidthDeg` on `<tosi-b3d-conversation>`, 0 for the old `balloonWidth` metres), headset rings about 23°.
 - Added (headset): both controllers point while an input field's keyboard shows, so either hand types (`keyboardShowing()`). A plane keeps one press per pointer: the other hand's moves cannot slide a key's press, and its own press ends the first where it was.
 - Fixed: a popup whose panel closed or was rebuilt stayed listed as open, its pointer observer running, and an input field kept believing its keyboard showed. It closes with its panel, and the opener hears `handleGone` (not `handleClose`: nobody dismissed it, so the keyboard preference stays). `PopupSurface.closed` says whether one is gone.
