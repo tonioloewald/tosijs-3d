@@ -528,7 +528,7 @@ import { w3dTheme } from './w3d-theme.js'
 import { iconGlyph } from './svg-icons.js'
 import { chromeLayout } from './popup-chrome.js'
 import { panelRim } from './panel-rim.js'
-import { showTipSurface } from './panel-layer.js'
+import { showOverSurface, showTipSurface, type OverOptions } from './panel-layer.js'
 import {
   controlTree,
   type ControlBox,
@@ -1340,6 +1340,17 @@ export function offsetHost(
               y: anchor.y + d.y,
             })
           },
+    showOver:
+      host.showOver == null
+        ? undefined
+        : (sheet, anchor, options) => {
+            const d = offsetOf()
+            return host.showOver!(
+              sheet,
+              { ...anchor, x: anchor.x + d.x, y: anchor.y + d.y },
+              options
+            )
+          },
     showPopup(config, ...items) {
       const d = offsetOf()
       return host.showPopup(
@@ -1394,6 +1405,18 @@ export interface WidgetHost {
   ) => void
   /** Hide the tooltip. */
   hideTip?: () => void
+  /**
+   * Show `sheet` centred on `anchor` (widget-local), on its own surface in
+   * front of the panel, the panel's scale, with no chrome: a key's ring of
+   * choices, not cropped by its keyboard. `pickable` gives it the pointer
+   * (its SVG's `handlePointer`). Null when the panel has no presentation
+   * that can hold one: draw it in the widget.
+   */
+  showOver?: (
+    sheet: SVGSVGElement,
+    anchor: { x: number; y: number; width: number; height: number },
+    options?: OverOptions
+  ) => { close: () => void } | null
   /** Ask the panel to re-run layout — a widget that changed height needs this. */
   relayout: () => void
   /**
@@ -4560,6 +4583,18 @@ function buildPanel3d(
       tipOut?.close()
       tipOut = null
       tips.hide()
+    },
+    showOver(sheet, anchor, options) {
+      return showOverSurface(
+        root,
+        sheet,
+        {
+          ...anchor,
+          x: anchor.x + padding,
+          y: anchor.y + paddingTop + rowY(index, inHeader),
+        },
+        options
+      )
     },
     showLayer(config, ...items) {
       /*

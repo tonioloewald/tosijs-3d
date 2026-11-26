@@ -24,6 +24,15 @@ popup and never picked, so a ray or a click goes through it to what it is
 about. Panels' tooltips and the inventory's info cards use it; a panel only
 on the page has no presentation that holds tips, and draws them in itself.
 
+## Over-surfaces, and popups' own popups
+
+`showOverSurface(root, sheet, anchor, { pickable, dismissOutside })` shows a
+drawing centred on a point of the panel, on its own surface in front of it,
+at the panel's scale and with no chrome: the on-screen keyboard's rings,
+whole round their key instead of cropped by the board. A widget reaches it as
+`host.showOver`. A popup's sheet gets a layer of its own while it is up, so
+what a widget inside a popup opens (a ring, a tip, a menu) is a surface too.
+
 ## Why this is its own module
 
 It was written once, inside `panelScene`, and the in-scene `<tosi-b3d>` settings
@@ -85,6 +94,41 @@ export function showTipSurface(
   return { close: () => opened.forEach((o) => o.close()) }
 }
 
+/** How an over-surface behaves (see `showOverSurface`). */
+export interface OverOptions {
+  /** Takes the pointer (its SVG's `handlePointer`); else a ray goes through it. */
+  pickable?: boolean
+  /** A press on neither it nor its panel closes it. */
+  dismissOutside?: boolean
+  /** Told when it goes, however it went. */
+  handleClosed?: () => void
+}
+
+/*
+AN OVER-SURFACE: a drawing centred on a point of the panel, on its own
+surface in front of it, the panel's scale, with no chrome and no drag. A
+keyboard key's ring of choices is one: centred on the key, as big as it
+needs to be, and not cropped by the keyboard. Pickable or not; null when no
+presentation of the panel can hold one (a panel only on the page), and the
+caller draws it in the panel.
+*/
+export function showOverSurface(
+  root: SVGSVGElement,
+  sheet: SVGSVGElement,
+  anchor: { x: number; y: number; width: number; height: number },
+  options: OverOptions = {}
+): { close: () => void } | null {
+  type Host = ((s: SVGSVGElement, c: object) => { close: () => void }) & {
+    over?: boolean
+  }
+  const hosts = (
+    (root as unknown as { __layerHosts?: Host[] }).__layerHosts ?? []
+  ).filter((h) => h.over)
+  if (hosts.length === 0) return null
+  const opened = hosts.map((h) => h(sheet, { anchor, over: options }))
+  return { close: () => opened.forEach((o) => o.close()) }
+}
+
 /** The bit of `B3d` a layer needs — duck-typed, to stay out of the cycle. */
 export interface PopupOwner {
   openPopup?: (o: Record<string, unknown>) => { close: () => void }
@@ -112,7 +156,11 @@ export function attachSceneLayer(opts: {
   svg: SVGSVGElement
   /** Usually a `<tosi-b3d>`. */
   owner: PopupOwner
-  /** The panel's own mesh, so a popup can be owned by it. */
+  /**
+   * The panel's own mesh, so a popup can be owned by it; or a function that
+   * gives it when a popup opens (a popup's plane builds its mesh a moment
+   * after it is made).
+   */
   openerMesh: unknown
   /** The panel plane's world width and height. */
   planeW: number
@@ -130,6 +178,8 @@ export function attachSceneLayer(opts: {
    * frame, so anchors are moved down by `top` and measured against it.
    */
   inFrame?: () => { svg: SVGSVGElement; top: number }
+  /** Handed the way to take this layer off the panel again (a popup's own layer, on its close). */
+  detach?: (off: () => void) => void
 }): boolean {
   const owner = opts.owner
   // Any panel SVG can hold one (the trade panel, the inventory dock).
@@ -138,7 +188,11 @@ export function attachSceneLayer(opts: {
   if (typeof panelEl.addLayerHost !== 'function' || !owner.openPopup) {
     return false
   }
-  const { planeW: width, planeH, openerMesh } = opts
+  const { planeW: width, planeH } = opts
+  const openerOf = (): unknown =>
+    typeof opts.openerMesh === 'function'
+      ? (opts.openerMesh as () => unknown)()
+      : opts.openerMesh
   /*
   THIS host draws chrome — `popup-surface` puts move and close glyphs into the
   top of whatever SVG it is handed — so the sheet must keep a band clear for
@@ -155,9 +209,12 @@ export function attachSceneLayer(opts: {
       dismissOutside?: boolean
       /** A tip, under or beside the anchor (see `showTipSurface`). */
       tip?: TipSide
+      /** Centred on the anchor, in front (see `showOverSurface`). */
+      over?: OverOptions
     }
   ) => {
     if (config.tip != null) return tip(sheet, config.anchor, config.tip)
+    if (config.over != null) return over(sheet, config.anchor, config.over)
     /*
       Place it against the panel's EDGE, from measured sizes.
 
@@ -255,7 +312,7 @@ export function attachSceneLayer(opts: {
         ? { gripHeight: config.chromeBand / Math.max(1, popH) }
         : {}),
       svg: sheet,
-      opener: openerMesh,
+      opener: openerOf(),
       width: worldW,
       offset: {
         /*
@@ -295,7 +352,28 @@ export function attachSceneLayer(opts: {
         z: room != null ? -0.01 : -0.08,
       },
     })
-    return { close: () => pop.close() }
+    /*
+    A POPUP'S OWN POPUPS ARE SURFACES TOO: its sheet gets a layer of its
+    own, so a widget in it (the keyboard's rings, a select) opens in front
+    of it rather than cropped inside it. Taken off when it closes, since a
+    sheet can be shown again.
+    */
+    let offInner: (() => void) | null = null
+    attachSceneLayer({
+      svg: sheet,
+      owner,
+      openerMesh: () => (pop as { plane?: { mesh?: unknown } }).plane?.mesh,
+      planeW: worldW,
+      planeH: worldH,
+      detach: (off) => (offInner = off),
+    })
+    return {
+      close: () => {
+        offInner?.()
+        offInner = null
+        pop.close()
+      },
+    }
   }
   /*
   A TIP: one viewBox unit to one, like a popup, but placed against the
@@ -331,7 +409,7 @@ export function attachSceneLayer(opts: {
     const pop = owner.openPopup!({
       tip: true,
       svg: sheet,
-      opener: openerMesh,
+      opener: openerOf(),
       width: worldW,
       offset: {
         x: ((left + popW / 2) / panelW - 0.5) * width,
@@ -341,7 +419,45 @@ export function attachSceneLayer(opts: {
     })
     return { close: () => pop.close() }
   }
+  /*
+  OVER: centred on the anchor and in front, one viewBox unit to one, no
+  chrome, no drag (see `showOverSurface`).
+  */
+  const over = (
+    sheet: SVGSVGElement,
+    a: { x: number; y: number; width: number; height: number },
+    o: OverOptions
+  ) => {
+    const frame = opts.inFrame?.()
+    const vb = (frame?.svg ?? opts.svg).viewBox?.baseVal
+    const frameTop = frame?.top ?? 0
+    const popW = Number(sheet.getAttribute('width')) || 100
+    const popH = Number(sheet.getAttribute('height')) || 100
+    const panelW = vb && vb.width > 0 ? vb.width : popW
+    const panelH = vb && vb.height > 0 ? vb.height : popH
+    const worldW = width * (popW / panelW)
+    const cx = a.x + a.width / 2
+    const cy = frameTop + a.y + a.height / 2
+    const room = opts.screenRoom?.() ?? null
+    const pop = owner.openPopup!({
+      svg: sheet,
+      opener: openerOf(),
+      width: worldW,
+      tip: !o.pickable,
+      chrome: false,
+      draggable: false,
+      dismissOutside: o.dismissOutside,
+      handleClosed: o.handleClosed,
+      offset: {
+        x: (cx / panelW - 0.5) * width,
+        y: (0.5 - cy / panelH) * planeH,
+        z: room != null ? -0.02 : -0.05,
+      },
+    })
+    return { close: () => pop.close() }
+  }
   ;(host as unknown as { tips?: boolean }).tips = true
+  ;(host as unknown as { over?: boolean }).over = true
   ;(host as unknown as { drawsChrome?: boolean }).drawsChrome = true
   // How tall a popup can be here: the screen's height, less margins.
   if (opts.screenRoom != null) {
@@ -351,6 +467,7 @@ export function attachSceneLayer(opts: {
         return r == null ? undefined : Math.max(80, r.bottom - r.top - 16)
       }
   }
-  panelEl.addLayerHost(host)
+  const off = panelEl.addLayerHost(host)
+  opts.detach?.(off)
   return true
 }

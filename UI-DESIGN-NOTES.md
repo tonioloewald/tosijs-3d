@@ -1220,16 +1220,24 @@ bar is always one hold away as a ring:
   by gaze; nothing floats in view until you ask.
 
 **Hierarchy.** Picking an item can open a sub-ring in its place (built: an
-item's `items`; a bar menu becomes a sub-ring of the system ring). The
-centre splits: the top half goes back up a level, the bottom half
-dismisses. B does the same on a pad, so the centre is never something a
-stick must reach. Recognition over recall: every level shows its choices
-with their icons; nothing has to be remembered as a chord.
+item's `items`; a bar menu becomes a sub-ring of the system ring). Going
+back up is a slice at twelve o'clock, **back**, picked like any other. The
+first design split the centre into back (top half) and dismiss (bottom
+half); it failed in use (2026-11-26): a stick cannot pick the middle at all,
+and the halves made a sub-ring work differently from the ring above it. So
+every level takes the same gesture: press what opened the ring (or A),
+point, let go. Letting go in the middle is still the way out. Recognition
+over recall: every level shows its choices with their icons; nothing has to
+be remembered as a chord.
+
+**Show what is current.** A menu of choices wears the current one: a bar
+menu's button shows the chosen option's icon, the system ring's slice for it
+does too, and a ring's centre names the checked item.
 
 **Resting discloses** (Tonio: yes to disclose on holding on an item, and to
 popping on a hold too). Rest on a sub-ring item and it opens with the hold
-kept, a marking menu: one stroke through the levels. Rest on the centre's
-back half and it pops a level. After a level opens by a rest, nothing lights
+kept, a marking menu: one stroke through the levels. Rest on back and it
+pops a level. After a level opens by a rest, nothing lights
 until the pointing returns to the middle.
 
 **Other platforms' gestures are the open question.** Vision Pro (eyes and

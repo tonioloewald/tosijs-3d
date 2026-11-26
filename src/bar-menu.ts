@@ -13,7 +13,12 @@ import { b3d, barMenu, b3dLight, b3dGround } from 'tosijs-3d'
 const weather = barMenu({
   icon: 'sun',
   title: 'Weather',
-  options: ['clear', 'cloudy', 'storm'],
+  options: [
+    { value: 'clear', icon: 'sun' },
+    { value: 'cloudy', icon: 'cloud' },
+    { value: 'storm', icon: 'cloudLightning' },
+  ],
+  layout: 'list',
   value: 'clear',
   handleChange: (v) => console.log(v),
 })
@@ -32,7 +37,9 @@ tosi-b3d { width: 100%; height: 100%; }
 
 It returns the `<tosi-b3d-panel>`: put it in the scene to show the button,
 take it out to hide it. `menu.value` reads or sets the choice (the list marks
-it).
+it). When the chosen option has an icon, the button wears it, so the bar
+shows the weather without opening the menu; otherwise it shows the menu's own
+`icon`.
 
 ## A menu of actions
 
@@ -426,6 +433,7 @@ export function barMenu(config: BarMenuConfig): BarMenu {
           else {
             value = o.value ?? o.label
             config.handleChange?.(value)
+            wear()
           }
           // Done: the menu goes (the scene closes a panel that says so).
           root.dispatchEvent(
@@ -452,6 +460,25 @@ export function barMenu(config: BarMenuConfig): BarMenu {
     chrome: 'none',
   }) as BarMenu
   let drawNow: () => void = () => {}
+  /*
+  THE BUTTON SHOWS WHAT IS CHOSEN: a choice whose option has an icon puts
+  that icon on the bar (storm on a weather menu), so the state is visible
+  without opening it; else the menu's own icon. The scene swaps the
+  button's picture on `panelicon`.
+  */
+  const wear = () => {
+    const chosen = read(config.options).find(
+      (o) =>
+        !o.separator &&
+        o.handleSelect == null &&
+        o.items == null &&
+        (o.value ?? o.label) === value
+    )
+    const icon = chosen?.icon ?? config.icon
+    if (el.icon === icon) return
+    el.icon = icon
+    el.dispatchEvent(new CustomEvent('panelicon', { bubbles: true }))
+  }
   // A new level is a new size: a new SVG, swapped into the same panel.
   const show = () => {
     hover = null
@@ -490,6 +517,7 @@ export function barMenu(config: BarMenuConfig): BarMenu {
                 if (o.handleSelect) return o.handleSelect()
                 value = o.value ?? o.label
                 config.handleChange?.(value)
+                wear()
                 drawNow()
               },
             }),
@@ -497,6 +525,7 @@ export function barMenu(config: BarMenuConfig): BarMenu {
   Object.defineProperty(el, 'radialItems', {
     value: () => asRadial(read(config.options)),
   })
+  wear()
   el.addEventListener('paneltoggle', (e: Event) => {
     if ((e as CustomEvent).detail?.open) reset()
   })
@@ -506,6 +535,7 @@ export function barMenu(config: BarMenuConfig): BarMenu {
     set: (v: string) => {
       if (v === value) return
       value = v
+      wear()
       drawNow()
     },
   })

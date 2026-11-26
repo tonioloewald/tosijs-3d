@@ -359,7 +359,7 @@ or implement your own shape-specific point-in-polygon tests.
 | `placement` | `'camera'` | With `cameraRelative`: `'camera'` keeps it on the camera; `'world'` puts it at a real spot in clear view and eases it back in front of you after a couple of seconds out of sight (right for a modal dialog, see [frame-panel](?frame-panel.ts)) |
 | `castShadow` | `false` | Cast shadows onto the scene |
 | `receiveShadows` | `false` | Take the world's shading. Off, a panel reads the same whatever passes in front of the sun; turn it on for UI that IS in the world, like a cockpit instrument |
-| `pointerEvents` | `'on'` | Map 3D pick hits → SVG pointer events |
+| `pointerEvents` | `'on'` | Map 3D pick hits → SVG pointer events (`handlePointer`): presses, hover moves and a `leave` when the pointer goes off; a press that slides off the plane goes on reporting where its ray meets the plane's extension |
 | `doubleSided` | `'on'` | Render both faces |
 | `cornerRadius` | `0` | Corner radius in WORLD units. `0` = a plain rectangle. Rounds the MESH, so corners cost triangles instead of alpha — see **Keeping panels in order** below |
 | `transparent` | `'on'` | `'off'` drops the opacity texture so the plane writes depth. Pair with `cornerRadius`. `'depth'` blends and writes depth (transparent pixels discarded): ordered by the z-buffer like an opaque panel, and a translucent theme still shows through |
@@ -532,8 +532,46 @@ export class B3dSvgPlane extends AbstractMesh {
   > = null
   // Press state for the coordinate-based (panel3d) routing path.
   private _pressing = false
+  /** The pointer is over the plane with nothing pressed (hover moves go to the SVG). */
+  private _hovering = false
   private _lastSvgX = 0
   private _lastSvgY = 0
+
+  /*
+  OFF THE PLANE, MID-PRESS: where the pointer's ray meets the plane's own
+  infinite extension, as a uv (it may be outside 0..1). A press that slides
+  off the edge (a keyboard ring hanging past the board, a slider dragged
+  wide) keeps a true position instead of freezing at the last one on it.
+  */
+  private _offPlaneUv(
+    info: BABYLON.PointerInfo,
+    scene: BABYLON.Scene
+  ): { x: number; y: number } | null {
+    const mesh = this.mesh
+    if (mesh == null) return null
+    const attrs = this as unknown as { width: number; height: number }
+    let ray = info.pickInfo?.ray ?? null
+    if (ray == null && scene.activeCamera != null) {
+      const main = this.owner?.scene ?? scene
+      ray = scene.createPickingRay(
+        main.pointerX,
+        main.pointerY,
+        BABYLON.Matrix.Identity(),
+        scene.activeCamera
+      )
+    }
+    if (ray == null || !(attrs.width > 0) || !(attrs.height > 0)) return null
+    const inv = mesh.computeWorldMatrix(true).clone().invert()
+    const o = BABYLON.Vector3.TransformCoordinates(ray.origin, inv)
+    const d = BABYLON.Vector3.TransformNormal(ray.direction, inv)
+    if (Math.abs(d.z) < 1e-9) return null
+    const t = -o.z / d.z
+    if (!(t > 0)) return null
+    return {
+      x: (o.x + d.x * t) / attrs.width + 0.5,
+      y: (o.y + d.y * t) / attrs.height + 0.5,
+    }
+  }
 
   /**
    * WORLD-PLACED MODAL, with gaze recovery — the `placement="world"` strategy.
@@ -1063,17 +1101,33 @@ export class B3dSvgPlane extends AbstractMesh {
       // so the same panel is interactive as a DOM overlay, on a flat canvas, and
       // in immersive VR — no DOM events, no elementFromPoint.
       if (handle) {
-        if (uvs && svgEl) {
+        const at =
+          uvs ??
+          (this._pressing && kind !== 'down'
+            ? this._offPlaneUv(pointerInfo, scene)
+            : null)
+        if (at && svgEl) {
           const vb = svgEl.viewBox?.baseVal
-          this._lastSvgX = uvs.x * (vb?.width || this.resolution)
-          this._lastSvgY = (1 - uvs.y) * (vb?.height || this.resolution)
+          this._lastSvgX = at.x * (vb?.width || this.resolution)
+          this._lastSvgY = (1 - at.y) * (vb?.height || this.resolution)
         }
         if (kind === 'down') {
           if (!uvs) return
+          this._hovering = false
           this._pressing = true
           handle('down', this._lastSvgX, this._lastSvgY)
         } else if (kind === 'move') {
           if (this._pressing) handle('move', this._lastSvgX, this._lastSvgY)
+          // Nothing pressed: HOVER, so what is under the pointer can light
+          // (a menu's row, a waiting keyboard ring's choice), and a leave
+          // when it goes off.
+          else if (uvs) {
+            this._hovering = true
+            handle('move', this._lastSvgX, this._lastSvgY)
+          } else if (this._hovering) {
+            this._hovering = false
+            handle('leave', this._lastSvgX, this._lastSvgY)
+          }
         } else {
           if (this._pressing) handle('up', this._lastSvgX, this._lastSvgY)
           this._pressing = false

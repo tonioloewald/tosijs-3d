@@ -46,8 +46,12 @@ a line on what each one settled and a link to the page it shaped.
 - _"At maximum immersion we can have no UI visible by default, we allow
   holding up d pad to spawn the system bar as a radial."_ And: _"Much cleaner
   and more direct"_ than putting the focus on the bar. Holding D-pad up opens
-  the system bar as a ring, and a sub-ring's centre is split into back and
-  dismiss ([radial menu](/radial-menu/)).
+  the system bar as a ring ([radial menu](/radial-menu/)).
+- _"Having a submenu behave differently from menus is odd. I think the split
+  center is actually not working as an idea. Popping out probably needs to be
+  an explicit radial choice (12 o clock perhaps?)"_ A sub-ring's way back is a
+  slice at twelve o'clock, and a sub-ring is picked with the same press,
+  point and let go as the ring above it ([radial menu](/radial-menu/)).
 
 ## Curves and light
 

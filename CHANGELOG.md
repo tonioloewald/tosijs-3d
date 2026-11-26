@@ -12,6 +12,10 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Added: a bar menu's button wears the chosen option's icon when it has one (the weather shows on the bar and on its slice in the system ring). The `cloudLightning` icon.
+- Fixed: the on-screen keyboard's rings are drawn on a surface of their own, whole and centred on the key, instead of cropped to the keyboard; a ring left open lights the choice under the pointer. Panels on planes pass hover to their SVG, and a press that slides off a plane keeps its true position. A popup's own popups and tips open in front of it (`showOverSurface`, `WidgetHost.showOver`).
+- Fixed: holding B on a loadout slot with the pad opens the ring over the slot, not in the middle of the view.
+
 - Fixed: in a headset a ring opened on a panel never closed (the panel's layer took the press, so the scene never heard the release; the ring now reads the trigger). A loadout slot nothing fits opens no ring (it opened one holding only close). A ring on a panel needs a 500 ms hold in a headset, so a trigger click is a click.
 
 - Fixed: in a headset, a ring opened by a press and hold (the loadout, a mesh) is drawn where the press landed, 30 cm wide, and the controller's ray points at it; it hung a metre ahead at modal size and only the thumbsticks reached it. In the loadout an empty slot offers what fits from both halves (it only looked at the slots), and a full slot offers a **swap** sub-ring. A keyboard ring left open lights what the pointer is over. A ring's `handleSelect` hears only its top level.
@@ -24,7 +28,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 - Changed: the on-screen keyboard's long-press alternatives open as a ring centred on the key (slide toward one, or lift and tap; near an edge it fans over the side on the board); the alpha layout has a full stop beside the spacebar, and holding it offers punctuation (`, ? ! ' " : ; - …`). Holding `?123` gives the digits with the symbols as a sub-ring; holding ⌫ gives forward delete, clear, copy, cut and paste (new `KeyAction`s, which `inputField` handles: copy and cut take the whole field, paste replaces it). `holdChoices(key)` (key-layout) is what a hold offers.
 
-- Added: sub-rings. A radial menu item with `items` opens them in its place; the sub-ring's middle is split, top half back up a level, bottom half dismiss, and B goes back. An item's own `handleSelect` is called when it is picked. Resting on a sub-ring item for half a second opens it without letting go (one drag can go down several levels), and resting the pointer on the middle's top half goes back up.
+- Added: sub-rings. A radial menu item with `items` opens them in its place, with **back** as a slice at twelve o'clock (`withBack`). Let go on the item and the sub-ring waits: press what opened the ring (or A) again, point, let go, as in the ring above; B goes back unless B opened it. An item's own `handleSelect` is called when it is picked. Resting on a sub-ring item for half a second opens it without letting go (one drag can go down several levels), and resting on back goes back up.
 - Changed: holding D-pad up opens the system bar as a radial ring (its buttons as slices, a bar menu as a sub-ring) instead of putting the focus on the bar; `b3d.openSystemRing()` opens it from code. In a ring that stays open, A picks and B goes back or dismisses (B used to pick).
 
 - Added: the inventory dock's rings carry a gated **close** at the top (drop is at the bottom), so the pad can put the loadout away from inside it. A framed dock asks its system panel to close with `panelfocus` (`focus: false`).

@@ -177,22 +177,27 @@ junk" or "repair all". `icon` is an icon name. Up to
 eight read well.
 
 **Sub-rings.** An item with `items` (a list, or a function read when it
-opens) opens them in its place, marked by a chevron at its rim. A sub-ring
-stays open to click or to point at and press A. Its middle is split: the top
-half goes back up a level, the bottom half dismisses; B goes back too. An
-item's own `handleSelect` is called when it is picked, as well as the ring's.
+opens) opens them in its place, marked by a chevron at its rim. Its way
+back is a slice of its own at twelve o'clock (**back**), picked like any
+other. Let go on an item with a chevron and the sub-ring waits: press what
+opened the ring again (D-pad up, B, the trigger) or A, point, and let go, the
+same gesture as the ring above; a click picks, with a mouse. B goes back too,
+unless B opened it, and letting go in the middle picks nothing and closes
+it. An item's own `handleSelect` is called when it is picked, as well as the
+ring's.
 
 **Resting opens a level, as in a marking menu.** Rest on a sub-ring item for
 half a second (`RADIAL_DWELL_MS`) and it opens, still held by whatever was
 holding the ring, so one continuous drag (or one held button and a stick)
 can go down several levels and let go on the choice. Come back to the middle
 before pointing in the new level: nothing lights until you do, so the push
-that opened it does not pick in it. Rest the pointer on the middle's top half
-and it goes back up a level, once per rest.
+that opened it does not pick in it. Rest on **back** and it goes back up a
+level the same way.
 
 **The system bar as a ring.** Holding D-pad up opens the scene's system bar
 as a ring, each button a slice with its own icon, and a [bar menu](/bar-menu/)
-a sub-ring. A panel that is showing is ticked, and picking it closes it;
+a sub-ring (a menu of choices shows the current one on the bar and on its
+slice, and in its sub-ring's middle). A panel that is showing is ticked, and picking it closes it;
 with any showing, **close all** sits apart at the bottom. Holding up never
 closes anything by itself. `b3d.openSystemRing()` opens it from code. That is how a scene
 with no visible UI still has all of it a hold away.
@@ -235,8 +240,8 @@ export interface RadialItem {
   [key: string]: unknown
 }
 
-/** The hub's halves, in a sub-ring: back up a level, or dismiss. */
-export type RadialHubZone = 'back' | 'close' | null
+/** The hub under the pointer (a click there dismisses), or not. */
+export type RadialHubZone = 'close' | null
 
 /** The hub's radius (drawing units): a click inside it is the hub's, not a slice's. */
 export const RADIAL_HUB = 64
@@ -267,7 +272,7 @@ export interface RadialMenuSvg extends SVGSVGElement {
   highlight(i: number, armed?: number): void
   /** The lit item, -1 for none. */
   readonly lit: number
-  /** Light a half of the hub (a sub-ring's back and dismiss), or neither. */
+  /** Light the hub (the pointer is over it: a click dismisses), or not. */
   hubLit(zone: RadialHubZone): void
   readonly items: readonly RadialItem[]
 }
@@ -455,8 +460,6 @@ export function radialMenuSvg(
   items: readonly RadialItem[],
   options: {
     title?: string
-    /** A sub-ring: the hub's top half goes back up, its bottom half dismisses. */
-    back?: boolean
   } = {}
 ): RadialMenuSvg {
   const { path, text, g, svg, circle } = svgElements
@@ -602,31 +605,7 @@ export function radialMenuSvg(
   the pointer: each slice carries its own name (under its icon, when it has one).
   */
   const hub = circle({ cx: 0, cy: 0, r: RADIAL_HUB, fill: theme.panelBg })
-  /*
-  A SUB-RING'S HUB is split: the top half goes back up a level, the bottom
-  half dismisses. Each half lights under the pointer; the stick has B.
-  */
-  const R = RADIAL_HUB
-  const upper = path({
-    d: `M ${-R} 0 A ${R} ${R} 0 0 1 ${R} 0 Z`,
-    fill: 'none',
-  })
-  const lower = path({
-    d: `M ${R} 0 A ${R} ${R} 0 0 1 ${-R} 0 Z`,
-    fill: 'none',
-  })
-  const hubKeys = g(
-    path({
-      d: `M ${-R + 10} 0 L ${R - 10} 0`,
-      stroke: 'rgba(255,255,255,0.2)',
-      'stroke-width': 2,
-    }),
-    mark('cornerUpLeft', { color: theme.muted, size: 20, x: -10, y: -54 }),
-    mark('close', { color: theme.muted, size: 20, x: -10, y: 34 })
-  )
-  ring.append(hub)
-  if (options.back) ring.append(upper, lower, hubKeys)
-  ring.append(title, label)
+  ring.append(hub, title, label)
   /*
   THE CENTRE SHOWS WHAT IS CURRENT: the checked item (its name, on its
   colour), since that is what letting go in the middle leaves in place. It
@@ -686,9 +665,7 @@ export function radialMenuSvg(
     if (zone === zoneNow) return
     zoneNow = zone
     if (zone != null) highlight(-1)
-    upper.setAttribute('fill', zone === 'back' ? theme.accent : 'none')
-    lower.setAttribute('fill', zone === 'close' ? theme.accent : 'none')
-    if (!options.back) hub.setAttribute('fill', zone ? halfAccent : hubFill)
+    hub.setAttribute('fill', zone ? halfAccent : hubFill)
     label.textContent = zone ?? currentLabel
     label.setAttribute('fill', zone ? theme.text : hubInk)
   }

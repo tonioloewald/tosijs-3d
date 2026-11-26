@@ -4963,7 +4963,7 @@
       {
         "name": "pointerEvents",
         "default": "'on'",
-        "description": "Map 3D pick hits → SVG pointer events"
+        "description": "Map 3D pick hits → SVG pointer events (`handlePointer`): presses, hover moves and a `leave` when the pointer goes off; a press that slides off the plane goes on reporting where its ray meets the plane's extension"
       },
       {
         "name": "layer",

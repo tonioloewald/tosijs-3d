@@ -274,6 +274,8 @@ export interface PopupSurface {
   vbWidth: number
   vbHeight: number
   chromeLayout: ReturnType<typeof chromeLayout>
+  /** Internal: no chrome and no drag, so every press on it is its content's. */
+  bare?: boolean
   /** Internal: start the move gesture (called after the grip hit test). */
   /**
    * Internal: start a drag, grabbing at `pickedPoint` so the panel keeps the
@@ -660,7 +662,9 @@ function wirePointer(owner: B3d): void {
       drag branch and tore the popup off its opener instead. See `popup-chrome`.
       */
       const pt = uvToViewBox(uv.x, uv.y, target.vbWidth, target.vbHeight)
-      const what = chromeHit(pt.x, pt.y, target.chromeLayout)
+      const what = target.bare
+        ? 'content'
+        : chromeHit(pt.x, pt.y, target.chromeLayout)
       if (what === 'content') return // the panel's own UI must reach it
       /*
       CLAIM THE PRESS. Everything else listening for pointers (the parent
@@ -1166,6 +1170,7 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
       return v && v.height > 0 ? v.height : vbH
     },
     chromeLayout: layout,
+    bare: !chrome && !draggable,
     beginDrag(
       pointerId: number,
       pickedPoint?: BABYLON.Vector3,

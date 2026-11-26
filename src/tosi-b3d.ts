@@ -3094,6 +3094,17 @@ export class B3d extends Component {
     }
     return null
   }
+  /**
+   * Where the pad's focused control is on the page (client x, y of its
+   * middle), when its panel is a system panel shown flat; else null.
+   */
+  private _padFocusClient(
+    box: { x: number; y: number; w: number; h: number } | null | undefined
+  ): { x: number; y: number } | null {
+    const key = this._panelNav?.key
+    if (box == null || !(key instanceof Element)) return null
+    return this._systemContentToClient(key, box.x + box.w / 2, box.y + box.h / 2)
+  }
   /** Draw the focus ring round `box` in `root` (null: none). */
   private _padRingAt(
     root: SVGSVGElement | null,
@@ -3228,8 +3239,11 @@ export class B3d extends Component {
     // Always run (it keeps the edges), apply only in the mode.
     const pulse = this._padPulse(pad, now)
     if (pad.dpadUp) {
-      if (this._padUpSince < 0) this._padUpSince = now
-      else if (!this._padUpFired && now - this._padUpSince >= PAD_UI_HOLD_MS) {
+      if (this._padUpSince < 0) {
+        this._padUpSince = now
+        // A ring already open has this press (it holds a waiting sub-ring).
+        if (this._radial?.isOpen === true) this._padUpFired = true
+      } else if (!this._padUpFired && now - this._padUpSince >= PAD_UI_HOLD_MS) {
         this._padUpFired = true
         // The system bar as a RING, held by up: point a stick, let go to
         // pick. Open panels stay open (the ring ticks them and closes them,
@@ -3268,8 +3282,13 @@ export class B3d extends Component {
     whether it is a hold; everywhere else it acts at once.
     */
     const focused = ui.zone === 'panel' ? nav?.focused : null
+    // A press while a ring is open is the ring's (it may hold a waiting
+    // sub-ring): forgotten here, so its release presses nothing.
+    if (ringOpen) {
+      this._padHold = pressState()
+      return
+    }
     const ev = pressStep(this._padHold, pad.buttonB > 0.5, now)
-    if (ringOpen) return
     if (pulse.activate && focused?.menu == null) {
       if (ui.zone === 'bar') bar.padActivate()
       else nav?.activate()
@@ -3285,7 +3304,9 @@ export class B3d extends Component {
               items: m.items,
               handleSelect: (_item, i) => m.handleSelect(i),
             },
-            { button: 'buttonB' }
+            { button: 'buttonB' },
+            // Centred on the control it is for (the slot), flat.
+            this._padFocusClient(focused.box)
           )
       }
     }
@@ -3355,6 +3376,13 @@ export class B3d extends Component {
           this._openSystemPanel(svg, true)
         })
         this._systemButtonOf.set(svg, b)
+      }
+      // Its picture follows the panel's icon (a bar menu wears its choice).
+      const name = spec.icon ?? ''
+      if (b.dataset.icon !== name) {
+        if (b.dataset.icon != null)
+          b.replaceChildren(icons[name]?.() ?? svgIcons.square())
+        b.dataset.icon = name
       }
       // A panel something else opens has no button of its own; the bars
       // leave out a hidden one.
@@ -6381,6 +6409,8 @@ export class B3d extends Component {
     // A system panel given new content (`el.svg = next`), #111.
     this.addEventListener('panelcontent', this._swapSystemContent)
     this.addEventListener('panelanchor', this._reanchorSystemPanel)
+    // A system panel's icon changed: its button's picture follows.
+    this.addEventListener('panelicon', () => this._systemButtons())
     this.addEventListener('pointerdown', () => this.takeInputFocus())
     window.addEventListener('pointerup', this._freeTouchSlot, true)
     window.addEventListener('pointercancel', this._freeTouchSlot, true)

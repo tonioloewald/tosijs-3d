@@ -18,6 +18,7 @@ import {
   type GatedPickResult,
   pressStep,
   DPAD_HOLD_MS,
+  radialLayout,
   radialPick,
   type GateState,
   type PressState,
@@ -139,8 +140,37 @@ const OPEN_OWNS: (keyof VirtualGamepad)[] = [
   'buttonB',
 ]
 const LEFT_OWNS: (keyof VirtualGamepad)[] = ['leftStickX', 'leftStickY']
-/** How long resting on a sub-ring item opens it (or on the hub's top half goes back), ms. */
+/** How long resting on a sub-ring item opens it (or on back goes back), ms. */
 export const RADIAL_DWELL_MS = 500
+
+/** Is this a sub-ring's back slice (added by the host)? */
+export const isRadialBack = (item: RadialItem | undefined): boolean =>
+  item?.radialBack === true
+
+/*
+A SUB-RING'S WAY BACK is a slice at twelve o'clock: picked the way any
+slice is, so going up a level is the same gesture as everything else. It
+goes in at the gap nearest the top of the ring's own layout, so an item set
+apart still points (about) down, and the ring turns to put it at the top.
+*/
+export function withBack(items: RadialItem[]): RadialItem[] {
+  const back: RadialItem = {
+    label: 'back',
+    icon: 'cornerUpLeft',
+    weight: 0.7,
+    toward: 0,
+    radialBack: true,
+  }
+  if (items.some((it) => it.toward != null)) return [back, ...items]
+  const arcs = radialLayout(items)
+  const TAU = Math.PI * 2
+  const off = (a: number) => Math.abs(((((a + Math.PI) % TAU) + TAU) % TAU) - Math.PI)
+  let at = 0
+  arcs.forEach((a, i) => {
+    if (off(a.from) < off(arcs[at].from) - 1e-9) at = i
+  })
+  return [...items.slice(0, at), back, ...items.slice(at)]
+}
 /** A slice unlit by the stick springing back this recently still picks on release, ms. */
 const RELEASE_GRACE_MS = 150
 
@@ -155,6 +185,8 @@ interface Open {
   title?: string
   /** What holds it open (let go to pick), or null (a click or A picks). */
   heldBy: RadialHold | null
+  /** What opened it (a button or key): pressed again, it holds a level that waits. */
+  opener: RadialHold | null
   /** A and B must be let go of before they pick (the press that opened it). */
   armed: boolean
   /** Where it is drawn (client x, y), or null: the middle of the canvas. */
@@ -165,7 +197,7 @@ interface Open {
   stickGate: GateState
   pointerGate: GateState
   /** What has been pointed at, and since when (a hold on it opens or goes back). */
-  dwell: { target: number | 'back'; since: number } | null
+  dwell: { target: number; since: number } | null
   /** The slice lit until the pointing came back to the middle, and when (release grace). */
   lastLit: number
   unlitAt: number
@@ -306,6 +338,10 @@ export class RadialHost {
       trail: [],
       title: opts.title,
       heldBy,
+      opener:
+        heldBy?.button != null || heldBy?.key != null
+          ? { button: heldBy.button, key: heldBy.key }
+          : null,
       armed: false,
       stickGate: gateState(),
       pointerGate: gateState(),
@@ -326,10 +362,7 @@ export class RadialHost {
   /** Draw `open`'s level (in place of what showed), where it was. */
   private show(open: Open): void {
     open.close?.()
-    const svg = radialMenuSvg(open.items, {
-      title: open.title,
-      back: open.trail.length > 0,
-    })
+    const svg = radialMenuSvg(open.items, { title: open.title })
     open.svg = svg
     open.close =
       this.scene.present(svg, RADIAL_SIZE, open.centre, open.xrAt) ??
@@ -343,23 +376,23 @@ export class RadialHost {
   }
 
   /*
-  HIERARCHY: an item with `items` opens them in its place, a SUB-RING. It
-  stays open to be clicked (or pointed at, with A to pick): whatever held the
-  ring open has been let go to pick the item. Its hub is split, the top half
-  back up a level and the bottom half dismissing; B does the same (back, or
-  dismiss at the top).
+  HIERARCHY: an item with `items` opens them in its place, a SUB-RING, with
+  a way back at twelve o'clock (`withBack`). Let go on the item and the
+  sub-ring waits: press what opened the ring again (or A), point, and let
+  go, the same gesture as the ring above. B goes back too, unless B is what
+  opened it. A click picks, with a mouse.
 
   A HOLD does it too, as a marking menu does: rest on a sub-ring item for
   `RADIAL_DWELL_MS` and it opens, with whatever held the ring still holding
-  it; rest the pointer on the hub's top half and it goes back up. After a
-  hold opens a level, nothing lights until the pointing comes back to the
-  middle, so the push that opened it does not also pick in the new ring.
+  it; rest on back and it goes back up. After a hold opens a level, nothing
+  lights until the pointing comes back to the middle, so the push that
+  opened it does not also pick in the new ring.
   */
   private descend(open: Open, item: RadialItem, byHold = false): void {
     const items = typeof item.items === 'function' ? item.items() : item.items
     if (items == null || items.length === 0) return this.close()
     open.trail.push({ items: open.items, title: open.title })
-    open.items = items
+    open.items = withBack(items)
     open.title = item.label
     if (!byHold) {
       open.heldBy = null
@@ -370,18 +403,20 @@ export class RadialHost {
     this.scene.rumble('tick')
   }
 
-  /** Back up a level (at the top: dismiss). */
-  back(): void {
+  /** Back up a level (at the top: dismiss). `released`: what held it was let go. */
+  back(released = false): void {
     const open = this.open
     if (open == null) return
     const up = open.trail.pop()
     if (up == null) return this.close()
     open.items = up.items
     open.title = up.title
-    open.needCentre = true
+    if (released) {
+      open.heldBy = null
+      this.origin = null
+    }
+    open.needCentre = !released
     this.show(open)
-    // Still resting on the back half: one level per rest, not one per DWELL.
-    open.dwell = { target: 'back', since: Infinity }
     this.scene.rumble('tick')
   }
 
@@ -395,6 +430,7 @@ export class RadialHost {
     const open = this.open
     if (open == null) return
     const item = open.items[pick]
+    if (isRadialBack(item)) return this.back(true)
     if (item?.items != null && !item.disabled) return this.descend(open, item)
     this.open = null
     open.close?.()
@@ -545,24 +581,25 @@ export class RadialHost {
     }
     const zone =
       (open.heldBy == null || open.heldBy.pointer) && at.pick < 0 && !at.blocked
-        ? this.hubZone(open, dz)
+        ? this.hubZone(dz)
         : null
     open.svg.hubLit(zone)
-    // Resting on a sub-ring item opens it; on the hub's top half, goes back.
+    // Resting on a sub-ring item opens it; on back, goes back (still held).
     const litItem = items[open.svg.lit]
     const target =
-      litItem?.items != null && !litItem.disabled
+      (litItem?.items != null || isRadialBack(litItem)) && !litItem?.disabled
         ? open.svg.lit
-        : zone === 'back'
-        ? 'back'
         : null
     if (target !== (open.dwell?.target ?? null))
       open.dwell = target == null ? null : { target, since: now }
-    else if (open.dwell != null && now - open.dwell.since >= RADIAL_DWELL_MS) {
+    else if (
+      open.dwell != null &&
+      target != null &&
+      now - open.dwell.since >= RADIAL_DWELL_MS
+    ) {
       open.dwell = null
-      if (target === 'back') return this.back()
-      if (typeof target === 'number')
-        return this.descend(open, items[target], true)
+      if (isRadialBack(items[target])) return this.back()
+      return this.descend(open, items[target], true)
     }
     const pick = at.pick
     // Pushed straight at a gated slice: nothing lit, so letting go picks nothing.
@@ -578,22 +615,31 @@ export class RadialHost {
       open.unlitAt = now
       open.svg.highlight(-1)
     }
-    // A picks when nothing holds it open; B goes back (at the top, dismisses).
+    /*
+    NOTHING HOLDS IT (a sub-ring, or one opened from code): a new press of
+    what opened it, or of A, holds it again, so letting go picks what is
+    lit, as in the ring above. B goes back (at the top, dismisses) unless B
+    is what opened it.
+    */
     if (open.heldBy != null) return
+    const opener = open.opener
+    const openerDown = opener != null && isDown(opener)
     const a = (pad?.buttonA ?? 0) > 0.5
     const b = (pad?.buttonB ?? 0) > 0.5
-    if (!a && !b) open.armed = true
+    if (!a && !b && !openerDown) open.armed = true
     else if (open.armed) {
-      if (a) this.close(open.svg.lit)
+      open.armed = false
+      if (openerDown) open.heldBy = { ...opener }
+      else if (a) open.heldBy = { button: 'buttonA' }
       else this.back()
     }
   }
 
-  /** Which half of the hub the pointer is over (within `radius` of the middle). */
-  private hubZone(open: Open, radius = RADIAL_HUB): RadialHubZone {
+  /** Is the pointer over the hub (within `radius` of the middle)? A click there dismisses. */
+  private hubZone(radius = RADIAL_HUB): RadialHubZone {
     const p = this.pointer
     if (p == null || Math.hypot(p.x, p.y) >= radius) return null
-    return open.trail.length > 0 && p.y < 0 ? 'back' : 'close'
+    return 'close'
   }
 
   dispose(): void {
@@ -685,10 +731,8 @@ export class RadialHost {
       move(e)
       e.stopPropagation()
       e.preventDefault()
-      // The hub: back up a level (its top half, in a sub-ring), else dismiss.
-      const zone = this.hubZone(open)
-      if (zone === 'back') return this.back()
-      if (zone === 'close') return this.close()
+      // The hub dismisses.
+      if (this.hubZone() === 'close') return this.close()
       const at =
         this.pointer == null
           ? -1

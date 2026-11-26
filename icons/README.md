@@ -42,3 +42,5 @@ In `stroked/filled` a path drawn with `stroke:none` is a fill with no outline (t
 `stroked/feather/upload.svg` is Feather's upload (MIT, 2026-11), for a material input's "choose a picture". `color/color-picker.svg` and `color/cloth-texture.svg` are Tonio's (2026-11): a material input's flat colour, and a picture.
 
 `stroked/rig-{markers,move,alone,turn}.svg` are placeholders (2026-11), the rig tool's drag modes, Feather's 24 grid and 2px stroke; Tonio is drawing the real ones.
+
+`stroked/feather/cloud-lightning.svg` copied from tosijs-ui's feather set (MIT, 2026-11) for the bar menu demo's storm.
