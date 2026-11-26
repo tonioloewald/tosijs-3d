@@ -400,7 +400,11 @@ import {
 import { controlTree, type ControlNode } from './widget-semantics.js'
 import { padNavigator, type PadNavigator } from './pad-ui.js'
 import { createFocusPulse } from './gamepad-focus.js'
-import { HardwareGamepadSource, padUiOwns } from './hardware-gamepad.js'
+import {
+  HardwareGamepadSource,
+  padMenuOwns,
+  padUiOwns,
+} from './hardware-gamepad.js'
 import { ariaMirror, modalFocusTarget, type AriaMirror } from './aria-mirror.js'
 import { describeScene } from './scene-description.js'
 import { watchSceneChecklist } from './b3d-checklist.js'
@@ -5454,10 +5458,26 @@ export class B3d extends Component {
     if (press == null) return null
     const cam = this.xrHelper?.baseExperience?.camera
     if (cam == null) return press.point.clone()
-    // A little toward you, so it is in front of what was pressed.
+    /*
+    A little in front of what was pressed (6 cm of the room: world units are
+    the session's scale of a metre), BACK ALONG THE PRESSING RAY, so the ray
+    meets the ring at its middle. Moved toward the eye instead, it met it a
+    few centimetres low (the hand is below the eye): on the bottom slice,
+    which armed the gated drop, and a move toward swap then confirmed drop.
+    */
+    const k = this.xrHelper?.baseExperience?.sessionManager.worldScalingFactor ?? 1
     const toward = cam.globalPosition.subtract(press.point)
     const d = toward.length()
-    return press.point.add(toward.scale(Math.min(0.06, d * 0.2) / (d || 1)))
+    const step = Math.min(0.06 * k, d * 0.2)
+    const presser = ((this.xrHelper?.input?.controllers ?? []) as any[]).find(
+      (c) => c.inputSource?.gamepad?.buttons?.[0]?.pressed
+    )
+    if (presser?.getWorldPointerRayToRef != null) {
+      const ray = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Forward(), 1)
+      presser.getWorldPointerRayToRef(ray)
+      return press.point.subtract(ray.direction.normalize().scale(step))
+    }
+    return press.point.add(toward.scale(step / (d || 1)))
   }
   private _presentRingAt(
     svg: SVGSVGElement,
@@ -5478,7 +5498,11 @@ export class B3d extends Component {
       reveal: 'always',
       layer: 'modal',
       svg,
-      width: 0.3,
+      // 30 cm of the room, at whatever scale the viewer is (the world frame
+      // is in world units; a passthrough miniature is hundreds a metre).
+      width:
+        0.3 *
+        (this.xrHelper?.baseExperience?.sessionManager.worldScalingFactor ?? 1),
       resolution: 512,
     })
     this._ringPanel = panel
@@ -5499,10 +5523,12 @@ export class B3d extends Component {
     )
     const mesh = panel.drawn
     mesh.computeWorldMatrix(true)
-    const ray = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Forward(), 10)
+    const reach =
+      10 * (this.xrHelper?.baseExperience?.sessionManager.worldScalingFactor ?? 1)
+    const ray = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Forward(), reach)
     for (const c of pressed.length ? pressed : controllers) {
       c.getWorldPointerRayToRef?.(ray)
-      ray.length = 10
+      ray.length = reach
       const hit = ray.intersectsMesh(mesh as BABYLON.AbstractMesh, false)
       const uv = hit.hit ? hit.getTextureCoordinates() : null
       if (uv)
@@ -7803,6 +7829,11 @@ export class B3d extends Component {
     const RESUME_S = 1
     const ZOOM_RATE = 0.8
     const MAX_PEEK = 0.8 // radians of temporary look (right stick X), ~46°
+    /** Each trigger's press: on the UI (withheld from the game), not, or none. */
+    const uiTrigger: { left: boolean | null; right: boolean | null } = {
+      left: null,
+      right: null,
+    }
     /** Both grips held: since when, and where they were (a hold, unless they move). */
     let gripChord: {
       since: number
@@ -7834,6 +7865,41 @@ export class B3d extends Component {
       }
       const dt = Math.min((now - last) * 0.001, 0.1)
       last = now
+      /*
+      A TRIGGER PULLED ON THE UI IS THE UI'S: pressed with its ray on a
+      panel, or while a ring is open, the game reads it as up until it is
+      let go, so pressing a loadout slot does not also fire the gun in your
+      hand. Decided at the press, so a shot already going is not cut off.
+      */
+      for (const h of ['left', 'right'] as const) {
+        const key = h === 'left' ? 'leftTrigger' : 'rightTrigger'
+        const v =
+          ((controllers[h] as Record<string, any> | undefined)?.[
+            'xr-standard-trigger'
+          ]?.value as number | undefined) ?? 0
+        const was = uiTrigger[h]
+        if (v > 0.05 && was == null) {
+          const c = this.xrHelper?.input.controllers.find(
+            (x) => x.inputSource.handedness === h
+          )
+          const under =
+            c != null
+              ? this.xrHelper?.pointerSelection?.getMeshUnderPointer(
+                  c.uniqueId
+                )
+              : null
+          const onUi =
+            this._radial?.isOpen === true ||
+            (under != null &&
+              (isNoCollide(under) || under.getScene() !== this.scene))
+          uiTrigger[h] = onUi
+          if (onUi) padMenuOwns.add(key)
+        } else if (v <= 0.02 && was != null) {
+          uiTrigger[h] = null
+          if (was && this._radial?.claims(key) !== true)
+            padMenuOwns.delete(key)
+        }
+      }
       // Piloting a live controllable → the controllers fly it (via its mapping)
       // and the rig FOLLOWS it: positioned behind/at it AND rotated to face the
       // same way, so turning the entity turns your view (head tracking on top).

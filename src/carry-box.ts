@@ -959,6 +959,11 @@ export function carryOverlay<T>(carry: Carry<T>): { dispose: () => void } {
 export interface CarryPanel {
   /** Feed the panel's pointer events here instead of to the box. */
   handlePointer: (kind: PointerKind, x: number, y: number) => void
+  /**
+   * Forget the press in progress: no tap, no drag (a `leave` mid-press IS a
+   * drag). For a press something else has taken over, as a ring on a hold does.
+   */
+  cancelPress: () => void
   /** Stop listening to the carry (a panel that is rebuilt makes a new one). */
   dispose: () => void
 }
@@ -1029,6 +1034,16 @@ export function carryPanel<T>(
     }
   )
   return {
+    cancelPress() {
+      press = null
+      pressedTile.delete(carry)
+      if (dragging()) {
+        hideGhost()
+        carry.cancel()
+      }
+      // Clear the box's press without activating anything.
+      box.handlePointer('leave', 0, 0)
+    },
     handlePointer(kind, x, y) {
       if (kind === 'down') {
         press = { x, y }

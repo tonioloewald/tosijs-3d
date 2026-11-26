@@ -1,27 +1,8 @@
 /*#
 # Solar System
 
-Our own solar system, built from the parts the rest of this site documents:
-every planet and moon a [planet](/b3d-planet/), the giants banded and
-ringed ([gas-giant](/gas-giant/)), the rocky worlds and moons drawn by
-[rocky-world](/rocky-world/)'s looks (the Moon, Mercury, Mars, Venus, Io,
-Titan, ice moons), Phobos, Deimos, Vesta and Pallas as lumpy rocks, and an
-asteroid belt between Mars and Jupiter.
-
-Pick a body from the **view** menu (the camera on the bar) or click it, and
-the camera flies to it and follows it round its orbit; click the background
-to fly back out to the whole system. Switch on **real maps** in the scene's
-settings and the Earth, the Moon and Mars are drawn from NASA's and NOAA's
-own height and colour maps instead of being made up.
-
-In a headset with passthrough (a Quest), the VR button on the bar offers
-**VR** or **Passthrough**. In passthrough the system sits three metres
-across in your own room, the Sun a step ahead. Walk round it; hold a grip to
-drag it, both grips to make it bigger or smaller and turn it. Point at a
-body and pull the trigger to bring it in front of you; trigger on empty
-space to go back to the whole system.
-
-## Demo
+Our own solar system, every planet, moon and the asteroid belt, built from
+the parts the rest of this site documents.
 
 ```js
 import { b3d, b3dLight, b3dStarSystem, spaceBackdrop, SOL, slider3d, toggle3d, barMenu, sceneDelta, pointerClaimedByPanel } from 'tosijs-3d'
@@ -226,6 +207,27 @@ preview.append(
 ```css
 .preview { height: 100%; }
 ```
+
+Pick a body from the **view** menu (the camera on the bar) or click it, and
+the camera flies to it and follows it round its orbit; click the background
+to fly back out to the whole system. Switch on **real maps** in the scene's
+settings and the Earth, the Moon and Mars are drawn from NASA's and NOAA's
+own height and colour maps instead of being made up.
+
+In a headset with passthrough (a Quest), the VR button on the bar offers
+**VR** or **Passthrough**. In passthrough the system sits three metres
+across in your own room, the Sun a step ahead. Walk round it; hold a grip to
+drag it, both grips to make it bigger or smaller and turn it. Point at a
+body and pull the trigger to bring it in front of you; trigger on empty
+space to go back to the whole system.
+
+## What it is made of
+
+Every planet and moon is a [planet](/b3d-planet/), the giants banded and
+ringed ([gas-giant](/gas-giant/)), the rocky worlds and moons drawn by
+[rocky-world](/rocky-world/)'s looks (the Moon, Mercury, Mars, Venus, Io,
+Titan, ice moons), Phobos, Deimos, Vesta and Pallas as lumpy rocks, and an
+asteroid belt between Mars and Jupiter.
 
 ## What is true and what is not
 

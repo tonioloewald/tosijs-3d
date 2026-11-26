@@ -587,8 +587,11 @@ export class RadialHost {
       if (centred) open.needCentre = false
       else at = { pick: -1, blocked: false, armed: -1 }
     }
+    // The middle lights (a click there dismisses) only when nothing holds
+    // the ring: held, letting go there picks nothing, and the centre keeps
+    // showing what is current (it turned the accent blue over a red box).
     const zone =
-      (open.heldBy == null || open.heldBy.pointer) && at.pick < 0 && !at.blocked
+      open.heldBy == null && at.pick < 0 && !at.blocked
         ? this.hubZone(dz)
         : null
     open.svg.hubLit(zone)

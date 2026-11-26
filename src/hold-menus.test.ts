@@ -48,6 +48,28 @@ describe('holdMenusOn', () => {
     expect(heard).toEqual(['down', 'leave'])
   })
 
+  test('a panel that can cancel a press is told to (a leave would start a carry’s drag)', async () => {
+    const heard: string[] = []
+    const panel = {
+      handlePointer: (kind: string, _x = 0, _y = 0) => void heard.push(kind),
+      cancelPress: () => void heard.push('cancel'),
+      controls: () => [
+        {
+          role: 'button',
+          name: 'Dagger',
+          path: 'dagger',
+          box: { x: 0, y: 0, w: 20, h: 20 },
+          menu: () => ({ title: 'Dagger', items: [{ label: 'drop' }], handleSelect: () => {} }),
+        },
+      ],
+    }
+    holdMenusOn(panel, () => {})
+    panel.handlePointer('down', 10, 10)
+    await wait(DPAD_HOLD_MS + 40)
+    panel.handlePointer('up', 10, 10)
+    expect(heard).toEqual(['down', 'cancel'])
+  })
+
   test('a quick press is the panel’s', async () => {
     const { panel, heard, opened } = fakePanel()
     panel.handlePointer('down', 10, 10)

@@ -1,5 +1,5 @@
 /*
-PRESS AND HOLD ON A PANEL CONTROL: \`holdMenusOn\`, which \`<tosi-b3d>\` puts on
+PRESS AND HOLD ON A PANEL CONTROL: `holdMenusOn`, which `<tosi-b3d>` puts on
 every scene panel it opens. Pure of the DOM and of Babylon, so it is tested
 headless.
 */
@@ -10,6 +10,8 @@ import { DPAD_HOLD_MS } from './radial-layout.js'
 /** What `holdMenusOn` needs of a panel: its pointer entry and its named controls. */
 interface HoldablePanel {
   handlePointer?: (kind: string, x: number, y: number) => void
+  /** Forget the press in progress with no tap and no drag (the inventory's). */
+  cancelPress?: () => void
   controls?: () => ControlNode[]
   __holdMenus?: boolean
 }
@@ -80,7 +82,10 @@ export function holdMenusOn(
           const menu = n.menu?.()
           if (!menu || menu.items.length === 0) return
           fired = true
-          orig.call(el, 'leave', 0, 0)
+          // The panel forgets the press: `cancelPress` where it has one (a
+          // carry reads a `leave` mid-press as a drag), else a `leave`.
+          if (typeof el.cancelPress === 'function') el.cancelPress()
+          else orig.call(el, 'leave', 0, 0)
           open(menu)
         }, holdMs)
       }

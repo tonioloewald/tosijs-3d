@@ -497,6 +497,8 @@ export interface InventoryPanelOptions {
 export interface InventoryPanel {
   /** Pointer input in the host's own coordinates (a plane feeds it this way). */
   handlePointer: (kind: PointerKind, x: number, y: number) => void
+  /** Forget the press in progress, with no tap and no drag (a ring took it over). */
+  cancelPress: () => void
   /**
    * Its things and places as named controls, in the host's coordinates (also
    * on the host as `host.controls`), so a D-pad or Tab reaches them: a press
@@ -1374,6 +1376,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
     handlePointer(kind, x, y) {
       panel?.handlePointer(kind, x, y)
     },
+    cancelPress: () => panel?.cancelPress(),
     controls,
     places: placesFor,
     nameOf,
@@ -1656,6 +1659,14 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
   // `handlePointer`, as it does for a panel3d.
   ;(root as unknown as { handlePointer: typeof handlePointer }).handlePointer =
     handlePointer
+  /*
+  A RING TOOK THE PRESS (a hold on a thing): forget it, with no tap and no
+  drag. A `leave` would not do: mid-press, the carry reads it as a drag.
+  */
+  ;(root as unknown as { cancelPress: () => void }).cancelPress = () => {
+    under?.panel.cancelPress()
+    ghosts.handlePointer('leave', 0, 0)
+  }
   const controls = (): InventoryControl[] => {
     if (!open)
       return [
