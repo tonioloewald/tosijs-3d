@@ -140,6 +140,7 @@ const OPEN_OWNS: (keyof VirtualGamepad)[] = [
   'rightStickY',
   'buttonA',
   'buttonB',
+  'rightStickPress',
 ]
 const LEFT_OWNS: (keyof VirtualGamepad)[] = ['leftStickX', 'leftStickY']
 /** How long resting on a sub-ring item opens it (or on back goes back), ms. */
@@ -175,6 +176,13 @@ export function withBack(items: RadialItem[]): RadialItem[] {
 }
 /** A slice unlit by the stick springing back this recently still picks on release, ms. */
 const RELEASE_GRACE_MS = 150
+/*
+A PICK BLINKS, as a Mac menu's chosen item did. It is lit when picked, then
+off, on, off, on, a thirtieth of a second each (4/30 in all), and then the
+ring goes or moves to the next level: "that one", before the menu is gone.
+*/
+export const RADIAL_BLINK_MS = 1000 / 30
+const BLINK_PHASES = 4
 
 interface Open {
   svg: RadialMenuSvg
@@ -432,10 +440,28 @@ export class RadialHost {
     return this.open != null
   }
 
-  /** Close the ring, picking item `pick` (-1: nothing) of the level on show. */
+  /** A pick blinking before it acts (input waits). */
+  private blink: { open: Open; pick: number; since: number } | null = null
+
+  /**
+   * Close the ring, picking item `pick` (-1: nothing) of the level on show.
+   * A pick blinks first (`RADIAL_BLINK_MS`); nothing picked closes at once.
+   */
   close(pick = -1): void {
     const open = this.open
     if (open == null) return
+    const item = open.items[pick]
+    if (item != null && !item.disabled && this.blink == null) {
+      this.blink = { open, pick, since: realNow() }
+      open.svg.highlight(pick)
+      return
+    }
+    this.blink = null
+    this.act(open, pick)
+  }
+
+  /** What a pick does (or closing with none): a sub-ring, back, or the choice. */
+  private act(open: Open, pick: number): void {
     const item = open.items[pick]
     if (isRadialBack(item)) return this.back(true)
     if (item?.items != null && !item.disabled) return this.descend(open, item)
@@ -455,8 +481,24 @@ export class RadialHost {
   /** Was a headset trigger down last frame (a new press re-holds a sub-ring)? */
   private xrHeldBefore = false
 
+  /** Was a stick clicked last frame (a click picks what is lit)? */
+  private clickedBefore = false
+
   /** Once a frame. */
   tick(): void {
+    // A pick blinking: lit, then off, on, off, on, then it acts. Input waits.
+    const bl = this.blink
+    if (bl != null) {
+      if (this.open !== bl.open) this.blink = null
+      else {
+        const phase = Math.floor((realNow() - bl.since) / RADIAL_BLINK_MS)
+        if (phase >= BLINK_PHASES) {
+          this.blink = null
+          this.act(bl.open, bl.pick)
+        } else bl.open.svg.highlight(phase % 2 === 0 ? -1 : bl.pick)
+        return
+      }
+    }
     if (!this.scene.hasInputFocus) return
     const pad = this.readPad()
     const now = realNow()
@@ -626,6 +668,17 @@ export class RadialHost {
       open.unlitAt = now
       open.svg.highlight(-1)
     }
+    /*
+    A CLICK OF THE RIGHT STICK (either thumbstick in a headset) picks what
+    is lit and closes, held or not; with nothing lit it dismisses.
+    */
+    const clicked =
+      (pad?.rightStickPress ?? 0) > 0.5 ||
+      (this.scene.xrActive &&
+        this.scene.xrGamepads().some((g) => g.buttons?.[3]?.pressed === true))
+    const click = clicked && !this.clickedBefore
+    this.clickedBefore = clicked
+    if (click) return this.close(open.svg.lit)
     /*
     NOTHING HOLDS IT (a sub-ring, or one opened from code): a new press of
     what opened it, or of A, holds it again, so letting go picks what is

@@ -144,6 +144,13 @@ press and hold on a mesh (or its children; or pass a test on the mesh pressed).
 A quick press is `tap`, and a press that moves before the hold turns the view
 as usual, so it costs the camera nothing.
 
+**Clicking the right stick** (either thumbstick in a headset) picks what is
+lit and closes the ring, held or not; with nothing lit it dismisses. **A pick
+blinks** before it acts, as a Mac menu's chosen item did: lit, then off, on,
+off, on, a thirtieth of a second each, then the ring goes or opens the next
+level (`RADIAL_BLINK_MS`). A keyboard ring's pick blinks off and on, shorter,
+because typing waits on it.
+
 Either stick picks, since a ring held open by B leaves only the left thumb
 free. The left stick keeps moving you until you push it past the middle of
 its travel; then it is the ring's until the ring closes.
@@ -633,6 +640,8 @@ export function radialMenuSvg(
       viewBox: `0 0 ${RADIAL_SIZE} ${RADIAL_SIZE}`,
       width: RADIAL_SIZE,
       height: RADIAL_SIZE,
+      // A pick blinks between two pictures: the texture keeps both.
+      'data-texture-flip': '',
     },
     ring
   ) as unknown as RadialMenuSvg

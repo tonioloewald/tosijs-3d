@@ -161,6 +161,7 @@ describe('keyboard — press-hold-drag accents', () => {
     const strip = kb.el.querySelector('[data-kb="popup"]') as SVGGElement
     const { x: cx, y: cy } = accentAt(kb, 3, 7) // ö
     kb.handle!('down', cx, cy)
+    await wait(90) // the pick blinks first
     expect(keys).toEqual(['ö'])
     expect(strip.childNodes.length).toBe(0) // and closes
   })
@@ -188,7 +189,41 @@ describe('keyboard — press-hold-drag accents', () => {
     const { x: cx, y: cy } = accentAt(kb, 3, 7)
     kb.handle!('move', cx, cy)
     kb.handle!('up', cx, cy)
+    await wait(90) // the pick blinks first
     expect(keys).toEqual(['ö'])
+  })
+
+  test('a pick blinks off and on, then types (a fifteenth of a second)', async () => {
+    const { kb, keys } = mk(5)
+    const o = centre('alpha', false, 'o')
+    kb.handle!('down', o.x, o.y)
+    await wait(20)
+    const ring = kb.el.querySelector('[data-kb="popup"] svg') as any
+    const { x: cx, y: cy } = accentAt(kb, 3, 7)
+    kb.handle!('move', cx, cy)
+    expect(ring.lit).toBe(3)
+    kb.handle!('up', cx, cy)
+    expect(keys).toEqual([])
+    expect(ring.lit).toBe(-1) // off
+    await wait(45)
+    expect(ring.lit).toBe(3) // on
+    expect(keys).toEqual([])
+    await wait(45)
+    expect(keys).toEqual(['ö'])
+  })
+
+  test('a press during the blink types the pick first', async () => {
+    const { kb, keys } = mk(5)
+    const o = centre('alpha', false, 'o')
+    kb.handle!('down', o.x, o.y)
+    await wait(20)
+    const { x: cx, y: cy } = accentAt(kb, 3, 7)
+    kb.handle!('move', cx, cy)
+    kb.handle!('up', cx, cy)
+    const q = centre('alpha', false, 'q')
+    kb.handle!('down', q.x, q.y)
+    kb.handle!('up', q.x, q.y)
+    expect(keys).toEqual(['ö', 'q'])
   })
 
   test('releasing BEFORE the hold fires is an ordinary tap', async () => {
@@ -425,6 +460,7 @@ describe('keyboard — the accent ring', () => {
     const p = accentAt(kb, 1, 9) // , ? ! ...
     kb.handle!('move', p.x, p.y)
     kb.handle!('up', p.x, p.y)
+    await wait(90)
     expect(keys).toEqual(['?'])
   })
 
@@ -553,10 +589,12 @@ describe('keyboard — rings on ?123 and backspace', () => {
     const p = accentAt(kb, 10, 11)
     kb.handle!('move', p.x, p.y)
     kb.handle!('up', p.x, p.y)
+    await wait(90)
     const sub = kb.el.querySelector('[data-kb="popup"] svg') as any
     expect(sub.items.find((x: any) => !x.spacer).label).toBe('#')
     const q = accentAt(kb, 0, 12)
     kb.handle!('down', q.x, q.y)
+    await wait(90)
     expect(keys).toEqual(['#'])
   })
 
@@ -568,6 +606,7 @@ describe('keyboard — rings on ?123 and backspace', () => {
     const p = accentAt(kb, 3, 5) // cut
     kb.handle!('move', p.x, p.y)
     kb.handle!('up', p.x, p.y)
+    await wait(90)
     expect(actions).toEqual(['cut'])
   })
 

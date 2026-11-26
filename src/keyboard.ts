@@ -1803,6 +1803,12 @@ export interface KeyboardOptions {
    * caret trackpad. */
   holdMs?: number
   /**
+   * A choice taken from a ring blinks off and on before it acts, each this
+   * long (default a thirtieth of a second, so a fifteenth in all); 0 acts at
+   * once.
+   */
+  pickBlinkMs?: number
+  /**
    * Px of travel per caret step once the **spacebar has become a trackpad** (hold
    * it, then slide). Default 12 — about a character width, so the caret tracks
    * your finger instead of racing it.
@@ -2271,6 +2277,39 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
   }
 
   /*
+  A PICK BLINKS: the choice is lit, goes off, comes on, then acts, a
+  thirtieth of a second each (a fifteenth in all: a menu's blink, kept short
+  because typing waits on it). A press during it finishes it first, so fast
+  typing loses nothing.
+  */
+  let blinking: { timer: ReturnType<typeof setTimeout>; then: () => void } | null =
+    null
+  const flushBlink = (): void => {
+    const b = blinking
+    if (b == null) return
+    blinking = null
+    clearTimeout(b.timer)
+    b.then()
+  }
+  const blinkThen = (ring: AccentRing | null, i: number, then: () => void) => {
+    const ms = config.pickBlinkMs ?? 1000 / 30
+    if (ring == null || i < 0 || !(ms > 0)) return then()
+    ring.svg.highlight(i)
+    let phase = 0
+    const step = () => {
+      phase++
+      if (phase >= 2) {
+        blinking = null
+        return then()
+      }
+      ring.svg.highlight(i)
+      blinking = { timer: setTimeout(step, ms), then }
+    }
+    ring.svg.highlight(-1)
+    blinking = { timer: setTimeout(step, ms), then }
+  }
+
+  /*
   A CHOICE TAKEN from a held key's ring: text is typed, an action is the
   keyboard's `handleAction`, and a sub-ring (the symbols under ?123) opens in
   its place round the same key, waiting for a tap. True when it opened one.
@@ -2384,6 +2423,9 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
       return keyboardHeight(keyLayout(mode, shift).length, KH, GAP)
     },
     handle(kind: PointerKind, x: number, y: number) {
+      // A pick still blinking acts now, before this press.
+      if (kind === 'down') flushBlink()
+      else if (blinking != null) return
       if (kind === 'down') {
         /*
         SELF-HEAL FIRST: a fresh down while a gesture is still "live" means the
@@ -2415,7 +2457,12 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
           const i = onKey ? -1 : accentIndexAt(sticky.ring, x, y, true)
           if (i >= 0) {
             const was = sticky
-            if (choose(was.rect, was.accents[i])) return
+            const c = was.accents[i]
+            sticky = null
+            blinkThen(was.ring, i, () => {
+              if (!choose(was.rect, c)) closePopup()
+            })
+            return
           } else {
             // Tapping the key that OPENED the strip types its plain character —
             // you held for the alternatives, changed your mind, and asked for
@@ -2551,12 +2598,13 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         if (press.accents.length > 0) {
           if (press.pick >= 0) {
             // Slid onto an accent and released — the mouse/VR-ray gesture.
-            const opened = choose(press.rect, press.accents[press.pick])
-            if (!opened) closePopup()
-            else {
-              press = null
-              return
-            }
+            const was = press
+            const c = was.accents[was.pick]
+            press = null
+            blinkThen(was.ring, was.pick, () => {
+              if (!choose(was.rect, c)) closePopup()
+            })
+            return
           } else {
             /*
             Released WITHOUT having slid onto one — so the popup STAYS OPEN and the

@@ -176,6 +176,9 @@ export class SvgTexture {
   private _lastXml = ''
   private _warnedFailure = false
   private _premul = false
+  /** `data-texture-flip`: the picture before this one, kept for going back. */
+  private _prev: { xml: string; canvas: HTMLCanvasElement } | null = null
+  private _spare: HTMLCanvasElement | null = null
 
   constructor(options: SvgTextureOptions) {
     const {
@@ -289,12 +292,50 @@ export class SvgTexture {
       svgTextureCost.ms += realNow() - began
       return
     }
-    this._rendering = true
     // DynamicTexture types this as Babylon's abstract ICanvasRenderingContext,
     // but in browsers it's the real CanvasRenderingContext2D — rasterizeSvg
     // needs the full surface API (drawImage, save, restore).
     const ctx = dt.getContext() as unknown as CanvasRenderingContext2D
     const res = this._resolution
+    /*
+    TWO PICTURES, FLIPPED. An SVG marked `data-texture-flip` keeps the
+    picture before this one, so going back to it is a copy, not a raster: a
+    radial menu's pick blinks between two states four times in 4/30 of a
+    second, and hover moves between two slices; re-rasterising each was four
+    times the work and too slow to keep the beat.
+    */
+    const flip = this._element.hasAttribute('data-texture-flip')
+    if (flip && typeof document !== 'undefined') {
+      const blank = () => {
+        const c = document.createElement('canvas')
+        c.width = res
+        c.height = res
+        return c
+      }
+      if (this._prev?.xml === xml) {
+        const spare = (this._spare ??= blank())
+        const s2 = spare.getContext('2d')!
+        s2.clearRect(0, 0, res, res)
+        s2.drawImage(ctx.canvas as unknown as CanvasImageSource, 0, 0)
+        ctx.clearRect(0, 0, res, res)
+        ctx.drawImage(this._prev.canvas, 0, 0)
+        this._spare = this._prev.canvas
+        this._prev = { xml: this._lastXml, canvas: spare }
+        this._lastXml = xml
+        dt.update(false, this._premul)
+        svgTextureCost.repaints++
+        svgTextureCost.ms += realNow() - began
+        return
+      }
+      if (this._lastXml !== '') {
+        const keep = this._prev?.canvas ?? blank()
+        const k2 = keep.getContext('2d')!
+        k2.clearRect(0, 0, res, res)
+        k2.drawImage(ctx.canvas as unknown as CanvasImageSource, 0, 0)
+        this._prev = { xml: this._lastXml, canvas: keep }
+      }
+    } else this._prev = null
+    this._rendering = true
     rasterizeSvg(xml, ctx, res, res, this._img, (ok) => {
       // Release the latch on BOTH outcomes, and commit `_lastXml` only on
       // success — so a failed frame is retried on the next tick instead of

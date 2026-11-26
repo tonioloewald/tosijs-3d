@@ -12,6 +12,9 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Added: clicking the right stick (either thumbstick in a headset) picks what a radial menu has lit and closes it; with nothing lit it dismisses. A pick blinks before it acts, as a Mac menu's did: off, on, off, on at a thirtieth of a second each (`RADIAL_BLINK_MS`); a keyboard ring's pick blinks off, on (`pickBlinkMs`, 0 to act at once), and a press during it types the pick first.
+- Changed: an SVG texture marked `data-texture-flip` keeps the picture before the current one, so going back to it is a copy rather than a new raster (radial menus set it: a blink or hover between two slices draws each picture once).
+
 - Fixed (headset): the pointer moves to a hand as soon as a finger lands on its trigger (or starts pulling it), so that hand's first press acts; Babylon spent it on switching hands, so a left-hand press on a loadout slot did nothing the first time. Not while the pointing hand's trigger is down.
 
 - Fixed (headset): resting on a sub-ring item opens it without recentring first (the ring sat 6 cm toward your eye, so the ray met it low, on the gated drop, and a move toward swap confirmed drop; it now sits back along the ray). A ring held by the trigger no longer lights its middle in the accent over the current colour. Rings are drawn and pointed at in room centimetres at any world scale. Picking from a loadout ring ends the press (the thing stayed carried; `cancelPress` on the carry, inventory panel and dock). A trigger pulled with its ray on a panel, or while a ring is open, does not reach the game (pressing a loadout slot fired the gun).
