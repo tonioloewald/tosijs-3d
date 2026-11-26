@@ -12,6 +12,12 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Changed: a conversation leaves a short pause between lines (`pause` on the script, 0.4 s by default); a line after a pick still starts at once.
+- Fixed (flat): a speech balloon near the top of the view was cut off. It comes down beside the speaker's head instead, its tail turned to them (`fitBalloon` in balloon-layout).
+- Fixed: a text field kept the keys after you went back to the game, so walking typed into it. A press on the scene, or closing the field's panel, gives them back (`releaseTextFocus`, `activeTextField`).
+- Fixed: typing into a field on a scene panel lagged (shown on the panel's 400 ms redraw); a field asks for the next frame. A pad's press on a text field opens its on-screen keyboard (`edit` in widget semantics) instead of committing it.
+- Fixed: a held key's ring of choices on a scene panel was drawn down and right of the key, and slides were read from where it was not (its surface sat 2 cm in front of the keyboard: parallax). Now 2 mm, 5 mm in a headset.
+
 - Fixed (headset): a trigger pulled on a panel with the hand that was not pointing still reached the game (with a gun drawn it fired): whether a press is on the UI is now read from that hand's own ray, not from Babylon's pick, which follows the hand a frame late. And a trigger pulled with its ray on nothing, while the settings panel or a one-at-a-time system panel (an inventory, a chest, a shop) shows, closes them and does not reach the game; panels that stay beside others (a HUD) stay.
 
 - Changed (flat): a click on the scene closes a one-at-a-time system panel (an inventory, a chest, a shop) as well as the settings panel, as a trigger on nothing does in a headset, and the click that closes them does not reach the game. A press on a panel gives it the keyboard and pad focus (Tab, the D-pad): with the settings panel beside a tool, the one you touched last has it. Frame panels take `handlePress`.

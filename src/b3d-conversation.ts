@@ -30,6 +30,9 @@ A line's `gesture` is one of the biped's states (`yes`, `no`, `give`, `show`,
 `surprise`, `foldArms` in `ualAnimationStates`), or any state you add; without
 one the speaker talks for the line's length. A line with `audio` plays it (a
 URL) and lasts as long as it. While a trade is open the balloons are hidden.
+On a screen a balloon stays in view: with no room above the speaker it comes
+down beside the head, its tail turned to the speaker. Lines that follow one
+another leave a short pause (the script's `pause`, see [[conversation]]).
 
 | Attribute | Default | Description |
 | --- | --- | --- |
@@ -63,6 +66,7 @@ import {
   BALLOON_FONT as FONT,
   BALLOON_PAD as PAD,
   balloonLayout,
+  fitBalloon,
   rowAt,
   type BalloonLayout,
 } from './balloon-layout.js'
@@ -95,6 +99,9 @@ class Balloon {
   private caption = ''
   private replies: ConversationReply[] = []
   pick: (id: string) => void = () => {}
+  /** Where its tail points along its bottom (0 left, 1 right), and the side it last moved aside to. */
+  private tail = 0.5
+  side: -1 | 1 = 1
 
   constructor() {
     this.svg = svg({
@@ -128,6 +135,19 @@ class Balloon {
     this.replies = replies
     this.hover = null
     this.focus = replies[0]?.id ?? null
+    this.draw()
+  }
+
+  /** The drawn part's height (balloon and tail) as a fraction of the plane's. */
+  get drawnFraction(): number {
+    return (BALLOON_H - this.layout.box.y) / BALLOON_H
+  }
+
+  /** Point the tail along the bottom (0 left end, 1 right); redrawn only when it moves visibly. */
+  setTail(at: number): void {
+    const q = Math.round(at * 40) / 40
+    if (q === this.tail) return
+    this.tail = q
     this.draw()
   }
 
@@ -175,8 +195,10 @@ class Balloon {
       return
     }
     const { box } = L
-    const mid = BALLOON_W / 2
     const r = 14
+    // The tail's tip turns toward the speaker; its root stays on the bottom edge.
+    const tip = box.x + this.tail * box.w
+    const mid = Math.max(box.x + r + 14, Math.min(box.x + box.w - r - 14, tip))
     // The outline with its tail, one path, so the tail has no seam.
     const outline =
       `M${box.x + r},${box.y} H${box.x + box.w - r} Q${box.x + box.w},${
@@ -185,7 +207,7 @@ class Balloon {
       ` V${box.y + box.h - r} Q${box.x + box.w},${box.y + box.h} ${
         box.x + box.w - r
       },${box.y + box.h}` +
-      ` H${mid + 14} L${mid},${BALLOON_H - 2} L${mid - 14},${box.y + box.h}` +
+      ` H${mid + 14} L${tip},${BALLOON_H - 2} L${mid - 14},${box.y + box.h}` +
       ` H${box.x + r} Q${box.x},${box.y + box.h} ${box.x},${
         box.y + box.h - r
       }` +
@@ -540,7 +562,62 @@ export class B3dConversation extends B3dChild {
         : 1
     mesh.scaling.set(s, s, 1)
     const h = (w * s * BALLOON_H) / BALLOON_W
-    mesh.position.set(top.x, top.y + 0.1 + h / 2, top.z)
+    const fitted = cam != null ? this._fitInView(b, cam, top, w * s, h) : null
+    if (fitted != null) mesh.position.copyFrom(fitted)
+    else {
+      b.setTail(0.5)
+      mesh.position.set(top.x, top.y + 0.1 + h / 2, top.z)
+    }
+  }
+
+  /*
+  FLAT, A BALLOON STAYS IN VIEW: a speaker near the top of the screen would
+  have it cut off, so it comes down beside the head instead (fitBalloon, in
+  the view's plane at the head). Not in a headset, where you look at it.
+  */
+  private _fitInView(
+    b: Balloon,
+    cam: BABYLON.Camera,
+    top: BABYLON.Vector3,
+    width: number,
+    height: number
+  ): BABYLON.Vector3 | null {
+    const owner = this.owner as unknown as { xrActive?: boolean } | null
+    if (owner?.xrActive || cam.mode !== BABYLON.Camera.PERSPECTIVE_CAMERA)
+      return null
+    const ahead = cam.getForwardRay(1).direction
+    if (BABYLON.Vector3.Dot(top.subtract(cam.globalPosition), ahead) < 0.3)
+      return null
+    const engine = cam.getScene().getEngine()
+    const view = cam.viewport.toGlobal(
+      engine.getRenderWidth(),
+      engine.getRenderHeight()
+    )
+    const vp = cam.getTransformationMatrix()
+    const id = BABYLON.Matrix.IdentityReadOnly
+    const at = (p: BABYLON.Vector3) => BABYLON.Vector3.Project(p, id, vp, view)
+    const p = at(top)
+    // The view's up and right at the head, measured on screen (either handedness).
+    const up = cam.getDirection(BABYLON.Axis.Y)
+    let right = cam.getDirection(BABYLON.Axis.X)
+    const perMetre = (p.y - at(top.add(up.scale(0.5))).y) / 0.5
+    if (!(perMetre > 0)) return null
+    if (at(top.add(right.scale(0.5))).x < p.x) right = right.negate()
+    const room = {
+      left: (p.x - view.x) / perMetre,
+      right: (view.x + view.width - p.x) / perMetre,
+      up: (p.y - view.y) / perMetre,
+      down: (view.y + view.height - p.y) / perMetre,
+    }
+    const fit = fitBalloon(room, width, height * b.drawnFraction, {
+      margin: (0.03 * view.height) / perMetre,
+      side: b.side,
+    })
+    b.side = fit.side
+    b.setTail(fit.tail)
+    return top
+      .add(right.scale(fit.dx))
+      .add(up.scale(fit.dy + height / 2))
   }
 
   private _headTop(who: Talker): BABYLON.Vector3 | null {

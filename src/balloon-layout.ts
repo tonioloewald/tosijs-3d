@@ -89,3 +89,60 @@ export function rowAt(
   if (x < box.x || x > box.x + box.w) return null
   return layout.rows.find((r) => y >= r.y && y <= r.y + r.h)?.id ?? null
 }
+
+/** How far the view's edges are from the speaker's head, in metres in the view's plane there. */
+export interface BalloonRoom {
+  left: number
+  right: number
+  up: number
+  down: number
+}
+
+export interface BalloonFit {
+  /** The balloon's bottom middle (its tail's tip) from the top of the head, along the view's right and up. */
+  dx: number
+  dy: number
+  /** Which side it went to when it had to move aside: -1 left, 1 right. */
+  side: -1 | 1
+  /** Where the tail points along the balloon's bottom: 0 its left end, 1 its right. */
+  tail: number
+}
+
+const smoothstep = (t: number) => {
+  const x = Math.max(0, Math.min(1, t))
+  return x * x * (3 - 2 * x)
+}
+
+/**
+ * Where a balloon goes in a flat view. Over the head when there is room;
+ * when the top of the view is in the way it slides down, and as it comes
+ * down over the head it moves aside (to the side with more room, staying
+ * there unless the other has a good deal more), so it never covers the face;
+ * always inside the view's edges, the top first if it cannot all fit. Its
+ * tail turns to the head. `width` and `height` are the drawn balloon's,
+ * tail included; `head` is the head's height; all in metres. Pure.
+ */
+export function fitBalloon(
+  room: BalloonRoom,
+  width: number,
+  height: number,
+  options: { gap?: number; margin?: number; head?: number; side?: -1 | 1 } = {}
+): BalloonFit {
+  const gap = options.gap ?? 0.1
+  const margin = options.margin ?? 0
+  const head = options.head ?? 0.3
+  const prefer: -1 | 1 = room.right >= room.left ? 1 : -1
+  const prev = options.side
+  const roomOn = (s: -1 | 1) => (s > 0 ? room.right : room.left)
+  const side: -1 | 1 =
+    prev != null && roomOn(prev) >= 0.8 * roomOn(-prev as -1 | 1) ? prev : prefer
+  const down = Math.max(0, gap + height - (room.up - margin))
+  let dy = gap - down
+  let dx = side * smoothstep(down / head) * (width / 2 + head * 0.6)
+  const xMin = -(room.left - margin - width / 2)
+  const xMax = room.right - margin - width / 2
+  dx = xMin > xMax ? (xMin + xMax) / 2 : Math.max(xMin, Math.min(xMax, dx))
+  dy = Math.min(Math.max(dy, -(room.down - margin)), room.up - margin - height)
+  const tail = Math.max(0, Math.min(1, 0.5 - dx / width))
+  return { dx, dy, side, tail }
+}

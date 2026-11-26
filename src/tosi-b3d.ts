@@ -372,7 +372,12 @@ import {
   type RumbleEffect,
   type RumbleName,
 } from './rumble.js'
-import { keyboardShowing, setKeyboardHeadset } from './keyboard.js'
+import {
+  activeTextField,
+  keyboardShowing,
+  releaseTextFocus,
+  setKeyboardHeadset,
+} from './keyboard.js'
 import {
   fitPanel,
   panel3d,
@@ -3982,6 +3987,8 @@ export class B3d extends Component {
     const p = this._sysPanels.get(key)
     if (p == null) return
     this._sysPanels.delete(key)
+    // A field in it gives the keys back (they typed into a closed panel).
+    releaseTextFocus(p.content)
     p.content.dispatchEvent(
       new CustomEvent('panelopen', {
         detail: { open: false },
@@ -9037,7 +9044,10 @@ export class B3d extends Component {
         const exclusiveOpen = [...this._sysPanels.values()].some(
           (p) => p.exclusive
         )
-        if (!this._scenePanelOpen() && !exclusiveOpen) return
+        // A field with the keys lets them go too: walking with WASD typed
+        // into the comment field you had left.
+        const typing = activeTextField() != null
+        if (!this._scenePanelOpen() && !exclusiveOpen && !typing) return
         // A press a panel in the scene took (the settings panel itself, the
         // corner toolbar) is theirs, not the background's.
         if (pointerClaimedByPanel(e)) return
@@ -9064,8 +9074,9 @@ export class B3d extends Component {
         // glass pad beside a chest's panel is walking, not dismissing.
         const onScene = path[0] === this.parts.canvas
         if (!onScene && !this._scenePanelOpen()) return
-        this._closeScenePanel()
+        if (this._scenePanelOpen()) this._closeScenePanel()
         if (onScene && exclusiveOpen) this._closeSystemPanels(true)
+        if (onScene) releaseTextFocus()
         // The press that closed them is not the game's (no jump, no shot):
         // cancelled, it sends no mousedown, which the game's mouse reads.
         if (onScene) e.preventDefault()

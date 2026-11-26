@@ -67,7 +67,10 @@ const script = {
   the effects after it still run.
 
 The replies appear once the last line is "somewhat complete": at 75% of it,
-or 0.7 s before its end if that is later. Every line said goes in
+or 0.7 s before its end if that is later. A line that follows one which ran
+to its end waits a beat first (`pause` on the script, 0.4 s by default), as
+people leave between sentences; one that follows a pick starts at once,
+because that is the player answering. Every line said goes in
 `transcript`. Pure: no DOM, no Babylon, no clock but `tick(dt)`.
 */
 /*{ "parent": "b3d-npc" }*/
@@ -122,7 +125,12 @@ export interface ConversationScript {
   nodes: Record<string, ConversationNode>
   /** Who the player is, in lines and the transcript. Default `'player'`. */
   player?: string
+  /** Seconds of quiet before a line that follows one which ran to its end. Default 0.4. */
+  pause?: number
 }
+
+/** The quiet between two lines when the script does not say. */
+export const LINE_PAUSE = 0.4
 
 export type ConversationEvent =
   | { type: 'line'; line: ConversationLine; seconds: number }
@@ -223,6 +231,11 @@ export function startConversation(
   let effects: ConversationEffect[] = []
   let trading = false
   let ended = false
+  const pause = script.pause ?? LINE_PAUSE
+  // When the last line ran to its end (a cut or a pick clears it), and a line
+  // waiting out the beat after it.
+  let endedAt = -Infinity
+  let pending: ConversationLine | null = null
 
   const holds = (c: ConversationCondition | undefined): boolean => {
     if (c == null) return true
@@ -250,6 +263,11 @@ export function startConversation(
   }
 
   const say = (line: ConversationLine) => {
+    if (clock - endedAt < pause) {
+      pending = line
+      return
+    }
+    pending = null
     current = line
     at = 0
     length =
@@ -268,6 +286,7 @@ export function startConversation(
 
   const finish = () => {
     if (ended) return
+    pending = null
     finishLine(true)
     ended = true
     offered = []
@@ -344,6 +363,8 @@ export function startConversation(
 
   const choose = (reply: ConversationReply) => {
     waiting = null
+    pending = null
+    endedAt = -Infinity
     finishLine(current != null)
     offered = []
     offerable = []
@@ -388,6 +409,10 @@ export function startConversation(
     tick(dt: number) {
       if (ended || dt <= 0) return
       clock += dt
+      if (pending != null) {
+        if (clock - endedAt >= pause) say(pending)
+        return
+      }
       if (current == null) return
       at += dt
       // The last line of a node with replies offers them before it ends.
@@ -398,6 +423,7 @@ export function startConversation(
       )
         offer()
       if (at >= length) {
+        endedAt = clock
         finishLine(false)
         if (waiting != null) return choose(waiting)
         advance()
@@ -417,6 +443,8 @@ export function startConversation(
     end: finish,
     goto(name: string) {
       if (ended) return
+      pending = null
+      endedAt = -Infinity
       finishLine(true)
       trading = false
       effects = []

@@ -1347,3 +1347,34 @@ One rule on every surface, the one windowed desktops already taught everyone:
 
 The glass pad does not dismiss: thumbing a stick while a chest's panel is up
 is walking, not a click on the world.
+
+- A press on the background also stops TYPING: a text field that had the
+  keys gives them back, as clicking off a field blurs it on a page. Without
+  it, walking away from the checklist typed WASD into its comment field.
+  Closing the field's panel does the same.
+
+
+## Pass 7, flat: balloons in view, typing, a key's ring (2026-11-26)
+
+- **A balloon stays in view on a screen.** Tonio: *"The balloon is getting
+  clipped in flat 3d in some cases. We may need smart positioning, e.g. to
+  the side."* With no room above the speaker's head it slides down, and as
+  it comes over the head it moves aside (to the side with more room, kept
+  unless the other has a good deal more, so it does not flip), its tail
+  turned to the speaker, as a comic puts a balloon beside a head near the
+  top of a panel. Continuous, so it never jumps. Not in a headset, where you
+  look at it.
+- **A beat between lines.** Tonio: *"can we have a slight pause between
+  statements."* 0.4 s after a line that ran to its end; none after a pick,
+  because that is the player answering and answering late feels broken.
+- **A pad reaches a text field and can type in it.** A pad has no keys, so
+  its press on a field opens the on-screen keyboard (`edit` in a widget's
+  semantics). Enter from a real keyboard still commits.
+- **Typing shows at once.** Typing is not a press, so a scene panel drew it
+  only on its 400 ms texture timer; a field asks for the next frame.
+- **Surfaces in front of a panel are millimetres in front.** A key's ring
+  sat 2 cm in front of the keyboard, but its slide is read on the keyboard's
+  plane (the board owns the press). On a screen, nearer is drawn further from
+  the middle of the view, so the ring appeared down and right of the key and
+  picks came from where it was not. Depth-writing with clear pixels dropped,
+  2 mm (5 mm in a headset) draws on top with no visible parallax.

@@ -996,6 +996,27 @@ export function keyboardShowing(): boolean {
   return liveKeyboard != null
 }
 
+/** The field the keys type into now, if any. */
+export function activeTextField(): InputField | null {
+  return activeField
+}
+
+/**
+ * Typing stops: the field that has the keys lets them go and its keyboard
+ * closes, so the keys reach the game again. With `within`, only a field
+ * inside it (the panel that is closing). `<tosi-b3d>` calls it on a press
+ * on the scene and when a system panel closes. True if a field let go.
+ */
+export function releaseTextFocus(within?: Node): boolean {
+  const f = activeField
+  if (f == null) return false
+  if (within != null && !within.contains(f.el)) return false
+  f.setActive(false)
+  if (activeField === f) activeField = null
+  for (const g of attachedGroups.keys()) if (g.has(f)) g.blur()
+  return true
+}
+
 export function autoKeyboardEnabled(): boolean {
   // Unset means "not decided yet", so fall back to the sniff — a touch device
   // should not need to be told.
@@ -1284,6 +1305,13 @@ export function inputField(config: InputFieldOptions = {}): InputField {
       const shown = parseColor(state.text) ?? parseColor(lastGood)
       swatch.setAttribute('fill', shown == null ? 'none' : formatColor(shown))
     }
+    // Typing is not a press, so the panel would show it only on its texture
+    // timer (400 ms: typing lagged): ask for the next frame. Bubbles to the
+    // panel, a frame panel listens.
+    const view = el.ownerDocument?.defaultView as
+      | (Window & { Event: typeof Event })
+      | null
+    el.dispatchEvent(new (view?.Event ?? Event)('panelrepaint', { bubbles: true }))
   }
 
   paintRef = paint
@@ -1730,6 +1758,11 @@ export function inputField(config: InputFieldOptions = {}): InputField {
       },
       // Enter, from a screen reader's copy or an agent.
       activate: () => api.action('enter'),
+      // A pad's press: it has no keys, so the on-screen keyboard opens.
+      edit: () => {
+        api.setActive(true)
+        if (kbOpen == null) openKeyboard()
+      },
     }),
     commit: commitField,
     setValue(v: string) {

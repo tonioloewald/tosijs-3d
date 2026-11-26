@@ -125,9 +125,10 @@ export function stepControl(n: ControlNode, dir: number): boolean {
   return false
 }
 
-/** Press a control: a button or section is activated, a toggle flipped. */
+/** Press a control: a button or section is activated, a toggle flipped, a text box's keyboard opened. */
 export function pressControl(n: ControlNode): void {
-  if (n.activate != null) n.activate()
+  if (n.edit != null) n.edit()
+  else if (n.activate != null) n.activate()
   else if (n.role === 'toggle' && n.set != null) n.set(!n.value)
 }
 

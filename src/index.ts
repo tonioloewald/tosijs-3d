@@ -1430,6 +1430,8 @@ import {
   autoKeyboardEnabled,
   setAutoKeyboard,
   keyboardShowing,
+  activeTextField,
+  releaseTextFocus,
 } from './keyboard.js'
 import {
   keyLayout,
@@ -1480,6 +1482,8 @@ export const ui = {
   autoKeyboardEnabled,
   setAutoKeyboard,
   keyboardShowing,
+  activeTextField,
+  releaseTextFocus,
   keyLayout,
   accentsFor,
   hasAccents,

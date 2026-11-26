@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import {
+  LINE_PAUSE,
   startConversation,
   speakingSeconds,
   repliesDueAt,
@@ -114,8 +115,10 @@ describe('conversation', () => {
     expect(w.bag).toEqual({ Potion: 0, gold: 20 })
     expect(talk.flags.get('delivered')).toBe(true)
     expect(talk.node).toBe('thanks')
+    expect(talk.line).toBeNull() // a beat after the player's line
+    run(talk, LINE_PAUSE)
     expect(talk.line?.text).toBe('You remembered!')
-    run(talk, 1.1)
+    run(talk, 1.6)
     // Back to hello; the potion is gone, so it is not offered again.
     expect(talk.node).toBe('hello')
     run(talk, 2)
@@ -199,6 +202,34 @@ describe('conversation', () => {
     walked.end()
     expect(walked.ended).toBe(true)
     expect(walked.transcript[0].cut).toBe(true)
+  })
+
+  test('a line that follows one which ran to its end waits a beat; a pick does not', () => {
+    const script: ConversationScript = {
+      start: 'a',
+      pause: 0.5,
+      nodes: {
+        a: {
+          lines: [
+            { speaker: 'n', text: 'One.', seconds: 1 },
+            { speaker: 'n', text: 'Two.', seconds: 1 },
+          ],
+          replies: [{ id: 'r', label: 'Go on', line: 'Go on.', then: [{ end: true }] }],
+        },
+      },
+    }
+    const w = world()
+    const talk = startConversation(script, w.host)
+    expect(talk.line?.text).toBe('One.') // the first line starts at once
+    run(talk, 1.1)
+    expect(talk.line).toBeNull()
+    expect(w.types().filter((e) => e === 'line').length).toBe(1)
+    run(talk, 0.5)
+    expect(talk.line?.text).toBe('Two.')
+    run(talk, 1)
+    expect(talk.replies.length).toBe(1)
+    expect(talk.pick('r')).toBe(true)
+    expect(talk.line?.text).toBe('Go on.') // the player answers at once
   })
 
   test('a line is as long as its audio when the host knows it', () => {

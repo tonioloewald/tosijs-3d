@@ -453,7 +453,15 @@ export function attachSceneLayer(opts: {
       offset: {
         x: (cx / panelW - 0.5) * width,
         y: (0.5 - cy / panelH) * planeH,
-        z: room != null ? -0.02 : -0.05,
+        /*
+        BARELY in front. A key's ring is held from the KEYBOARD's plane (the
+        press is the board's), so any gap between the planes is parallax:
+        nearer is drawn further from the middle of the view, and 2 cm put
+        the ring down and right of the held key on a screen, with slides
+        read off from where it was not. It depth-writes and drops its clear
+        pixels, so millimetres are enough to draw over the board.
+        */
+        z: room != null ? -0.002 : -0.005,
       },
     })
     return { close: () => pop.close() }
