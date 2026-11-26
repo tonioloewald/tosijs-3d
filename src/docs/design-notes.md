@@ -52,6 +52,10 @@ a line on what each one settled and a link to the page it shaped.
   an explicit radial choice (12 o clock perhaps?)"_ A sub-ring's way back is a
   slice at twelve o'clock, and a sub-ring is picked with the same press,
   point and let go as the ring above it ([radial menu](/radial-menu/)).
+- _"When a floating panel would go out of view we should reduce it to a
+  rounded header at the edge of the visible frustum to avoid tunnel vision
+  issues especially with 3d overlay passthrough."_ A panel out of view in a
+  headset is its header at the edge of the view ([edge-tab](/edge-tab/)).
 
 ## Curves and light
 

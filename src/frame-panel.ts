@@ -114,6 +114,7 @@ import { gazeReveal, type FrameName } from './xr-frames.js'
 import { faceViewer } from './dialog-placement.js'
 import { panelRim } from './panel-rim.js'
 import { orbitFromAim } from './panel-orbit.js'
+import { attachEdgeTab } from './edge-tab-babylon.js'
 
 const XR_FORWARD = new BABYLON.Vector3(0, 0, 1)
 const DEG = Math.PI / 180
@@ -471,6 +472,13 @@ export interface FramePanelSpec {
   exclusive?: boolean
   /** A system panel: open when the scene starts. */
   open?: boolean
+  /**
+   * In a headset, drawn as its header at the edge of the view while it would
+   * be out of view (see [edge-tab](?edge-tab.ts)). `title` and `icon` default
+   * to the panel's; a tap brings it to where you are looking unless
+   * `handleTap` says otherwise.
+   */
+  edgeTab?: { title?: string; icon?: string; handleTap?: () => void }
   /** Custom panel SVG element (live/dynamic content). */
   svg?: SVGSVGElement
   /** Or fetch a static SVG from this URL (e.g. a reticle). */
@@ -718,6 +726,10 @@ export function attachFramePanel(
    * in it. Null when it is not shown, or in a headset (no page to click).
    */
   toClient: (x: number, y: number) => { x: number; y: number } | null
+  /** Drawn as its header at the edge of the view (`edgeTab`), this frame. */
+  readonly folded: boolean
+  /** That header's plane (with `edgeTab`), shown while `folded`. */
+  readonly tab: BABYLON.Mesh | null
 } {
   const anchor: AnchorSpec =
     typeof spec.anchor === 'string' ? PRESETS[spec.anchor] : spec.anchor
@@ -1254,11 +1266,14 @@ export function attachFramePanel(
   }
   let pointerObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.PointerInfo>> = null
   let stopWheel = (): void => {}
+  // A gesture in progress on the panel (set by the pointer wiring).
+  let gesture = () => aimDrag
   if (target != null && typeof target.handlePointer === 'function' && el) {
     scene.constantlyUpdateMeshUnderPointer = true
     const { POINTERDOWN, POINTERUP, POINTERMOVE } = BABYLON.PointerEventTypes
     let pressing = false
     let hovering = false
+    gesture = () => pressing || aimDrag
     endGesture = () => {
       if (pressing || hovering) target?.handlePointer?.('leave', 0, 0)
       pressing = false
@@ -1435,8 +1450,53 @@ export function attachFramePanel(
       wheelHost?.removeEventListener('wheel', onWheel, { capture: true })
   }
 
+  /*
+  OUT OF VIEW, A HEADER AT THE EDGE (`edgeTab`, in a session only). Hidden
+  with `setEnabled`, so the popups hanging from it go too. Never in the middle
+  of a gesture on it: a drag carries it out of view and it folds on release.
+  */
+  const bringHere = () => {
+    const c = scene.activeCamera
+    if (c == null) return
+    const ahead = c.getDirection(
+      new BABYLON.Vector3(0, 0, scene.useRightHandedSystem ? -1 : 1)
+    )
+    const a = aimOf(new BABYLON.Ray(c.globalPosition.clone(), ahead, 100))
+    anchor.azimuthDeg = a.azimuthDeg
+    anchor.elevationDeg = Math.max(-80, Math.min(80, a.elevationDeg))
+    placeAt(anchor)
+  }
+  const edge =
+    spec.edgeTab != null
+      ? attachEdgeTab(scene, {
+          title: spec.edgeTab.title ?? spec.title,
+          icon: spec.edgeTab.icon ?? spec.icon,
+          drawScene,
+          handleTap:
+            spec.edgeTab.handleTap ?? (aimable ? bringHere : undefined),
+        })
+      : null
+  let tabbed = false
+  const edgeCheck = () => {
+    if (edge == null) return
+    const c = scene.activeCamera as BABYLON.Camera | null
+    const xr = c?.getClassName() === 'WebXRCamera'
+    let now = false
+    if (xr && !focused && !gesture() && plane.visibility > 0.5)
+      now = edge.update(plane)
+    else edge.hide()
+    if (now !== tabbed) {
+      tabbed = now
+      shown.setEnabled(!now)
+    }
+  }
+
   // Where it goes and how visible, this frame (the layered copy follows in sync).
   const place = (ctx?: { firstPerson?: boolean }) => {
+    placeShown(ctx)
+    edgeCheck()
+  }
+  const placeShown = (ctx?: { firstPerson?: boolean }) => {
     debug.updates++
     if (spec.screenAnchor && !focused) placeScreen()
     fit()
@@ -1525,6 +1585,10 @@ export function attachFramePanel(
       return el
     },
     setSvg: swapSvg,
+    get folded() {
+      return tabbed
+    },
+    tab: edge?.mesh ?? null,
     // `ctx.firstPerson` is the active camera view (fpv/cockpit vs chase), so a
     // panel can be limited to one. Defaults to visible if no context is given.
     update(ctx?: { firstPerson?: boolean }) {
@@ -1566,6 +1630,7 @@ export function attachFramePanel(
     },
     dispose() {
       if (resync != null) scene.onBeforeCameraRenderObservable.remove(resync)
+      edge?.dispose()
       releaseCamera()
       el?.removeEventListener('panelfocus', onFocus)
       if (pointerObs != null) drawScene.onPointerObservable.remove(pointerObs)

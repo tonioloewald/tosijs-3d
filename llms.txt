@@ -320,6 +320,7 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - [xr-grab](https://3d.tosijs.net/xr-grab/index.md): Grabbing the world in a headset, the AR way: hold a grip and drag, and the scene comes with your hand; hold both and pull apart, and it grows, twist and…
 - [system-bar](https://3d.tosijs.net/system-bar/index.md): The scene's system bar: one row of buttons, flat and in a headset. Flat it sits in the top-left corner of the screen; in a headset, up ahead of you.
 - [bar-menu](https://3d.tosijs.net/bar-menu/index.md): A button on the system bar that is a menu. Press it and a short list opens under the bar; pick one and the list closes.
+- [edge-tab](https://3d.tosijs.net/edge-tab/index.md): In a headset, a panel that would go out of view is drawn as its header: a rounded tab at the edge of what you can see, on the side the panel went.
 - [b3d-svg-plane](https://3d.tosijs.net/b3d-svg-plane/index.md): A plane mesh textured with SVG content. Supports static SVG from a URL or dynamic SVG from a live DOM element (updated on a timer, ideal for tosijs-bound…
 - [svg-texture](https://3d.tosijs.net/svg-texture/index.md): Renders SVG content to a Babylon.js texture via an offscreen canvas.
 - [gamepad-focus](https://3d.tosijs.net/gamepad-focus/index.md): Drives an SVG UI's focus traversal from a VirtualGamepad — the missing wire between "the D-pad registers" and "the D-pad moves the highlight".

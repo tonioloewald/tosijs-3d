@@ -476,10 +476,12 @@ import {
   placeholderPanelSvg,
   setPanelsHidden,
   opacityWeightedGlow,
+  panelLayerScene,
   type FramePanelSpec,
   type ScreenAnchor,
   type ScreenLength,
 } from './frame-panel.js'
+import { attachEdgeTab } from './edge-tab-babylon.js'
 import { runProbe, hydrateProfileFromCache } from './b3d-probe.js'
 import {
   compositeFog,
@@ -3664,6 +3666,8 @@ export class B3d extends Component {
         // Content that grows (the rig tool once a body is rigged) grows
         // down, not up over the bar.
         keepTop: true,
+        // Out of view, its header at the edge of the view (edge-tab).
+        edgeTab: { title: spec?.title, icon: spec?.icon },
       })
     } else {
       const cam = scene.activeCamera
@@ -10005,6 +10009,57 @@ export class B3d extends Component {
     let dragging = false
 
     /*
+    OUT OF VIEW, ITS HEADER AT THE EDGE (edge-tab). A tap seats it on your
+    gaze: a seat names an edge, so the seat is solved for the one whose
+    centre is where you look. Not while it is dragged.
+    */
+    const seatAtGaze = (): void => {
+      const c = scene.activeCamera
+      if (c == null) return
+      const inv = new BABYLON.Matrix()
+      anchorFrame.computeWorldMatrix(true).invertToRef(inv)
+      const o = BABYLON.Vector3.TransformCoordinates(c.globalPosition, inv)
+      const d = BABYLON.Vector3.TransformNormal(
+        c.getDirection(
+          new BABYLON.Vector3(0, 0, scene.useRightHandedSystem ? -1 : 1)
+        ),
+        inv
+      )
+      const gaze = orbitFromAim(
+        { x: o.x, y: o.y, z: o.z },
+        { x: d.x, y: d.y, z: d.z },
+        { ...wanted, radius: D }
+      )
+      const tall = angularHeight(planeH * sy, D)
+      const seat = { ...gaze }
+      for (let i = 0; i < 6; i++)
+        seat.elevationDeg +=
+          gaze.elevationDeg - orbitCentre(seat, tall).elevationDeg
+      springOff?.()
+      wanted = clampOrbit(seat)
+      this._xrPanelSeat = { ...wanted }
+      seatPanel(wanted)
+    }
+    const edge = attachEdgeTab(scene, {
+      title: this.panelTitle || 'Settings',
+      icon: this.panelIcon || 'tosiXr',
+      drawScene: panelLayerScene(scene, 'ui'),
+      handleTap: seatAtGaze,
+    })
+    let folded = false
+    const edgeFrame = base.sessionManager.onXRFrameObservable.add(() => {
+      const now =
+        placed && !dragging && plane.visibility > 0.5
+          ? edge.update(plane)
+          : (edge.hide(), false)
+      if (now !== folded) {
+        folded = now
+        if (now) panelEl.handlePointer?.('leave', 0, 0)
+        plane.setEnabled(!now)
+      }
+    })
+
+    /*
     SEAT THE PANEL WHERE YOU ARE POINTING, on its own sphere.
 
     The ray is world-space and the panel lives in the anchor's space, so the
@@ -10056,10 +10111,13 @@ export class B3d extends Component {
           ? 'nothing (ray ok)'
           : 'NO RAY'
       }
-      // Only interactive while it's actually visible (you're looking at it).
+      // Only interactive while it's actually visible (you're looking at it),
+      // and not while it is folded to its header (the re-pick below would
+      // still find the plane).
       if (
         !kind ||
         plane.visibility < 0.5 ||
+        !plane.isEnabled() ||
         typeof panelEl.handlePointer !== 'function'
       )
         return
@@ -10183,6 +10241,8 @@ export class B3d extends Component {
         // frame, forever — the leak class this file already carries scars about.
         springOff?.()
         base.sessionManager.onXRFrameObservable.remove(frame)
+        base.sessionManager.onXRFrameObservable.remove(edgeFrame)
+        edge.dispose()
         scene.onPointerObservable.remove(obs)
         offDbg()
         this._liveDebug.xr = [] // its <text> nodes die with the panel

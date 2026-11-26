@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Added (headset): a panel that would go out of view is drawn as its header, a rounded tab at the edge of the view on the side it went; turn back and it opens where it was, tap the tab and it comes to where you are looking. System panels and the settings panel do it; any frame panel takes `edgeTab`.
+
 - Fixed (headset): tapping a text field opens the scene keyboard. It followed the shared preference, which a headset's browser does not seed (it is not a touch screen) and closing the keyboard with its × turns off, so in a session a tapped field did nothing.
 
 - Changed: a radial menu opened by a hold lasts as long as the hold: rest on a chevron to go down a level (still held), on back to go up; letting go picks the lit choice or closes, on a chevron or back too (it used to open the sub-ring to wait for another press). A stick click on a chevron opens it at once.

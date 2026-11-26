@@ -1339,6 +1339,11 @@ export type {
 
 // SVG material system
 export { SvgTexture, svgTextureCost, svgTextureCache } from './svg-texture.js'
+export {
+  attachEdgeTab,
+  type EdgeTab,
+  type EdgeTabOptions,
+} from './edge-tab-babylon.js'
 export type { SvgTextureOptions } from './svg-texture.js'
 export { B3dSvgPlane, b3dSvgPlane, panelScene } from './b3d-svg-plane.js'
 export type {

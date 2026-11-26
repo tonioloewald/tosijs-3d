@@ -1251,3 +1251,32 @@ map onto hold, point and let go. Vision Pro cannot be tried here for now
 (the nearest place to try one is Germany). The working bet: the radial ring
 and the system bar convention cover a lot of these situations, since all
 they need is a way to open, a direction, and a release.
+
+## A panel out of view is its header at the edge (2026-11-26)
+
+Tonio: *"When a floating panel would go out of view we should reduce it to a
+rounded header at the edge of the visible frustum to avoid tunnel vision
+issues especially with 3d overlay passthrough like on Xreal Aura."* On
+optical see-through glasses the picture is a small window in what you see,
+so a panel cut by the display's edge draws the window's frame: you see the
+tunnel you are looking through. Android XR's guidance points the same way
+(primary content within about 41°, nothing clipped at a window's edge).
+
+So in a headset a panel that would go out of view folds to a tab at the edge
+of the view (see edge-tab), on the line from the middle of the view toward
+the panel, and opens where it was when you look back. A tap on the tab brings
+the panel to your gaze, which also makes the tab the way to recover a panel
+left behind you.
+
+The thresholds are a choice worth knowing: it folds when more than a tenth
+of it would be past an edge (not at first touch, or a panel being read at
+the edge would fold under you), and opens only once it fits with a margin, so
+it cannot flicker. A panel bigger than the view stays open while the middle
+of the view is on it. The view is both eyes' shared view, and a tab is
+fitted by its real corners: off the axis of a wide headset a tab covers
+nearly twice the tangent its size suggests, and the first version ran off
+the inner edge of one eye in the emulator.
+
+The system bar does not fold (it has no header); it still sits 66° up, out of
+a narrow display's view.
+
