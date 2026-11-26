@@ -7021,8 +7021,9 @@ export class B3d extends Component {
       first to connect (often the left), and the first trigger press on the
       other one only SWITCHES to it: the press itself is dropped. So a
       right-handed player's first press in a session did nothing (seen in the
-      emulated headset as "the first press after entry is lost"). The left
-      hand still takes over the first time it is used.
+      emulated headset as "the first press after entry is lost"). The other
+      hand takes over when a finger lands on its trigger (the session's frame
+      loop), so its first press acts too.
       */
       pointerSelectionOptions: { preferredHandedness: 'right' } as any,
     })
@@ -7829,6 +7830,8 @@ export class B3d extends Component {
     const RESUME_S = 1
     const ZOOM_RATE = 0.8
     const MAX_PEEK = 0.8 // radians of temporary look (right stick X), ~46°
+    /** Was each trigger touched (or pulled) last frame? (The pointer follows a new touch.) */
+    const triggerTouch = { left: false, right: false }
     /** Each trigger's press: on the UI (withheld from the game), not, or none. */
     const uiTrigger: { left: boolean | null; right: boolean | null } = {
       left: null,
@@ -7865,6 +7868,37 @@ export class B3d extends Component {
       }
       const dt = Math.min((now - last) * 0.001, 0.1)
       last = now
+      /*
+      THE POINTER GOES TO THE HAND ABOUT TO PRESS. Babylon points with one
+      hand and spends a press on the other only on switching to it, so a
+      left-hand press on a slot did nothing the first time. A finger landing
+      on a trigger (or starting to pull it) moves the pointer there first,
+      so the press that follows acts. On the edge only, so fingers resting
+      on both triggers do not flick it back and forth, and never while the
+      pointing hand's trigger is down (that would end its press).
+      */
+      {
+        const sel = this.xrHelper?.pointerSelection
+        const attached = sel?.attachedControllerId ?? ''
+        const inputs = this.xrHelper?.input.controllers ?? []
+        const holding = inputs.some(
+          (c) =>
+            c.uniqueId === attached &&
+            c.inputSource.gamepad?.buttons?.[0]?.pressed === true
+        )
+        for (const h of ['left', 'right'] as const) {
+          const t = (controllers[h] as Record<string, any> | undefined)?.[
+            'xr-standard-trigger'
+          ]
+          const on = t?.touched === true || (t?.value ?? 0) > 0.05
+          if (on && !triggerTouch[h] && !holding) {
+            const c = inputs.find((x) => x.inputSource.handedness === h)
+            if (c != null && c.uniqueId !== attached)
+              sel?.setAttachedController(c.uniqueId)
+          }
+          triggerTouch[h] = on
+        }
+      }
       /*
       A TRIGGER PULLED ON THE UI IS THE UI'S: pressed with its ray on a
       panel, or while a ring is open, the game reads it as up until it is
