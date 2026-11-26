@@ -1322,3 +1322,28 @@ over the head, the ring where the ray met what it pressed. Distance still
 declutters (nameplates fade past a few metres), but never by shrinking text
 below legibility.
 
+
+## A press on nothing dismisses; a press on a panel focuses it (2026-11-26)
+
+Tonio, on whether flat should match the headset (where a trigger on nothing
+closed the inventory and a flat click on the scene did not): *"I think they
+should match (i.e. background click dismisses (clicking on another panel, if
+there were one, should focus is)."*
+
+One rule on every surface, the one windowed desktops already taught everyone:
+
+- A press on the BACKGROUND (the scene, not a panel, not the glass pad)
+  closes the transient panels: the settings panel and the one-at-a-time
+  system panels. Panels that live beside others (`exclusive="off"`: a HUD, a
+  tool palette) stay, as a desktop's palettes do.
+- The press that dismisses is spent on dismissing. It does not also jump or
+  fire: you were looking at a menu, and a gun going off as you close it is the
+  worst kind of surprise. In a headset the trigger is claimed; flat, the
+  pointerdown is cancelled, so the game's mouse never sees it.
+- A press on a PANEL brings it to the front and gives it the keyboard and pad
+  focus (Tab, the D-pad). Opening a panel focuses it too. Before, the focus
+  went by a fixed order (settings first, then whichever system panel opened
+  first), so Tab could move the focus in a panel you were not looking at.
+
+The glass pad does not dismiss: thumbing a stick while a chest's panel is up
+is walking, not a click on the world.

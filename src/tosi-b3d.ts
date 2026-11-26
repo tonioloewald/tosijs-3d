@@ -3102,6 +3102,29 @@ export class B3d extends Component {
     const live = this._livePanel() as
       | (SVGSVGElement & { controls?: () => ControlNode[] })
       | null
+    /*
+    THE PANEL LAST PRESSED (or opened) HAS THE FOCUS, while it is open:
+    with the settings panel or a tool beside the inventory, Tab and the pad
+    go to the one you touched, as in any windowed UI.
+    */
+    const focus = this._panelFocus
+    const focused =
+      focus === 'settings' || focus == null
+        ? undefined
+        : (this._sysPanels.get(focus as Element)?.content as
+            | (SVGSVGElement & { controls?: () => ControlNode[] })
+            | undefined)
+    if (focus !== 'settings' && focused?.controls != null)
+      return {
+        key: focus,
+        root: focused,
+        controls: () =>
+          (
+            this._sysPanels.get(focus as Element)?.content as unknown as {
+              controls?: () => ControlNode[]
+            }
+          )?.controls?.() ?? [],
+      }
     // The settings panel is rebuilt as its sections open: one key for it.
     if (live?.controls != null)
       return {
@@ -3393,6 +3416,13 @@ export class B3d extends Component {
   when it is put away: content that opens and closes itself (the
   inventory's dock) does, and a `panelfocus` with `focus: false` from it
   (its own ×) puts the panel away.
+
+  A PRESS ON NOTHING puts the one-at-a-time panels away, and the settings
+  panel with them, the same flat (a click on the scene) and in a headset (a
+  trigger with its ray on nothing). That press is not the game's: no jump,
+  no shot. Panels beside others (`exclusive="off"`) stay. A PRESS ON A PANEL
+  brings it to the front and gives it the keyboard and pad focus (Tab, the
+  D-pad), as a window does; a panel that opens takes the focus too.
   */
   /*
   KEYED BY THE ELEMENT, not by its content (tosijs-3d#111). A host whose rows
@@ -3729,6 +3759,9 @@ export class B3d extends Component {
         keepTop: true,
         // Out of view, its header at the edge of the view (edge-tab).
         edgeTab: { title: spec?.title, icon: spec?.icon },
+        handlePress: () => {
+          this._panelFocus = key
+        },
       })
     } else {
       const cam = scene.activeCamera
@@ -3779,6 +3812,9 @@ export class B3d extends Component {
           resolution: 1024,
           focusable: false,
           screenAnchor: spot,
+          handlePress: () => {
+            this._panelFocus = key
+          },
         }
       )
       panel = p
@@ -3884,6 +3920,8 @@ export class B3d extends Component {
       },
     }
     this._sysPanels.set(key, entry)
+    // What just opened is what you are about to use (not a quiet reopen).
+    if (!this._holdPanelEvents) this._panelFocus = key
     this._syncGamepadCover()
     this._panelToggled(key, true, byUser)
   }
@@ -8994,7 +9032,12 @@ export class B3d extends Component {
       dismiss another's panel.
       */
       this.addEventListener('pointerdown', (e) => {
-        if (!this._scenePanelOpen()) return
+        // The one-at-a-time system panels (the inventory, a chest) go too, as
+        // a trigger pulled on nothing closes them in a headset.
+        const exclusiveOpen = [...this._sysPanels.values()].some(
+          (p) => p.exclusive
+        )
+        if (!this._scenePanelOpen() && !exclusiveOpen) return
         // A press a panel in the scene took (the settings panel itself, the
         // corner toolbar) is theirs, not the background's.
         if (pointerClaimedByPanel(e)) return
@@ -9017,7 +9060,15 @@ export class B3d extends Component {
         // presses them with a real tap, and closing here took the copy away
         // before its click.
         if (path.includes(this.parts.ariaMirrorHost as Element)) return
+        // A system panel goes only for a press on the scene itself: the
+        // glass pad beside a chest's panel is walking, not dismissing.
+        const onScene = path[0] === this.parts.canvas
+        if (!onScene && !this._scenePanelOpen()) return
         this._closeScenePanel()
+        if (onScene && exclusiveOpen) this._closeSystemPanels(true)
+        // The press that closed them is not the game's (no jump, no shot):
+        // cancelled, it sends no mousedown, which the game's mouse reads.
+        if (onScene) e.preventDefault()
       })
     }
     // Reveal the gear when the panel has anything in it: the scenePanel hook's
@@ -9098,6 +9149,8 @@ export class B3d extends Component {
     this._suppressGamepad('in-scene-ui', covered)
   }
   private _holdPanelEvents = false
+  /** The panel pressed or opened last: `'settings'` or a system panel's key. */
+  private _panelFocus: unknown = null
   private _openFlatScenePanel(): boolean {
     const scene = this.scene
     const cam = scene?.activeCamera
@@ -9156,8 +9209,12 @@ export class B3d extends Component {
         width: W,
         resolution: 1024,
         screenAnchor: spot,
+        handlePress: () => {
+          this._panelFocus = 'settings'
+        },
       }
     )
+    this._panelFocus = 'settings'
     const obs = scene.onBeforeCameraRenderObservable.add((rendering) => {
       if (rendering !== cam) return
       frames.update(0)

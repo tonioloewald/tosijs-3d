@@ -506,6 +506,9 @@ export interface FramePanelSpec {
    * a bar uses it, or growing content climbed over the bar.
    */
   keepTop?: boolean
+  /** Called on every press that lands on the panel (a press on it is the
+   * panel you are using: `<tosi-b3d>` gives it the keyboard and pad focus). */
+  handlePress?: () => void
   /**
    * Texture resolution in pixels (square). Default 384, which suits a
    * reticle, the job frame panels were first built for. A MENU wants more:
@@ -1403,6 +1406,7 @@ export function attachFramePanel(
             point: pick.pickedPoint.clone(),
             frame: scene.getFrameId(),
           })
+        spec.handlePress?.()
         const ev = info.event as PointerEvent | undefined
         if (
           spec.screenAnchor != null &&
