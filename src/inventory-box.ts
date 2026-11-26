@@ -486,6 +486,11 @@ export interface InventoryPanelOptions {
   putLabel?: string
   /** Icons on the "put in" and drop targets (`svgIcons` names; a dock uses `lucideBackpack` and `trash`). */
   putIcon?: string
+  /**
+   * What the info floater says about an EMPTY slot (its path, `holder/container/slot`),
+   * pointed at or focused: a title, then lines. A dock says what could go in it.
+   */
+  slotInfo?: (path: string) => string[] | null
   dropIcon?: string
   handleDrop?: (
     item: Item,
@@ -1082,6 +1087,9 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
               look: 'art',
               ...size,
               ...holdingOf(sk.slot, at, size),
+              info: opts.slotInfo
+                ? () => opts.slotInfo!(`${holder}/${cname}/${sk.slot}`)
+                : undefined,
             })
             socket.at = fit.at(sk.x, sk.y)
             disposers.push(socket.dispose)
@@ -1106,6 +1114,9 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
             label: s,
             width: width - 24,
             ...holdingOf(s, at),
+            info: opts.slotInfo
+              ? () => opts.slotInfo!(`${holder}/${cname}/${s}`)
+              : undefined,
           })
           disposers.push(socket.dispose)
           children.push(
@@ -1457,6 +1468,8 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
   const { svg, g, circle, rect } = svgElements
   const root = svg({
     xmlns: 'http://www.w3.org/2000/svg',
+    // Hover and focus come and go: the texture keeps its pictures.
+    'data-texture-cache': '',
   }) as unknown as SVGSVGElement
   // A panel grows from its host's height, so the schematic's starts at 0
   // (it was the list's 540, which made the whole dock that tall).
@@ -1490,12 +1503,40 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
       : undefined,
   }
   const mainHeight = () => Number(mainHost.getAttribute('height')) || 400
-  const main = inventoryPanel({
+  /*
+  WHAT FITS A SLOT, from both halves (worn and carried): every thing whose
+  places include it. The rings use it, and an empty slot's info says it.
+  */
+  const halves = () => (list ? [main, list] : [main])
+  const placesOf = (id: string) => halves().flatMap((h) => h.places(id))
+  const fitting = (path: string, except?: string): string[] => {
+    const ids = new Set<string>()
+    for (const h of halves())
+      for (const c of h.controls())
+        if ((c.thing ?? c.item) != null) ids.add((c.thing ?? c.item)!)
+    return [...ids].filter(
+      (id) => id !== except && placesOf(id).some((q) => q.path === path)
+    )
+  }
+  // An empty slot pointed at: how many things could go in it, and which.
+  const slotInfo = (path: string): string[] => {
+    const name = path.split('/').pop()?.replace(/_/g, ' ') ?? path
+    const ids = fitting(path)
+    if (ids.length === 0) return [name, 'nothing you have fits']
+    const names = ids.slice(0, 4).map((id) => main.nameOf(id))
+    return [
+      name,
+      `${ids.length} ${ids.length === 1 ? 'thing fits' : 'things fit'}`,
+      names.join(', ') + (ids.length > 4 ? ', …' : ''),
+    ]
+  }
+  const main: InventoryPanel = inventoryPanel({
     ...common,
     host: mainHost,
     title: opts.title,
     schematics: { [opts.schematic.container]: opts.schematic.art },
     only: [opts.schematic.container],
+    slotInfo,
   })
   const list =
     listHost && opts.list
@@ -1514,6 +1555,7 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
           putLabel: 'unequip',
           putIcon: 'lucideBackpack',
           dropIcon: 'trash',
+          slotInfo,
         })
       : null
   const closeButton = g(
@@ -1688,27 +1730,15 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
             ...n,
             menu: () => {
               const own = n.menu!()
-              const halves = list ? [main, list] : [main]
-              const placesOf = (id: string) =>
-                halves.flatMap((h) => h.places(id))
-              /*
-              What could go INTO a slot, from both halves (worn and
-              carried): every thing whose places include it. Moving one
-              into a full slot swaps them.
-              */
-              const into = (path: string, except?: string): InventoryPlace[] => {
-                const ids = new Set<string>()
-                for (const h of halves)
-                  for (const c of h.controls())
-                    if ((c.thing ?? c.item) != null) ids.add((c.thing ?? c.item)!)
-                const out: InventoryPlace[] = []
-                for (const id of ids) {
-                  if (id === except || out.length >= 7) continue
-                  const p = placesOf(id).find((q) => q.path === path)
-                  if (p) out.push({ label: main.nameOf(id), go: p.go })
-                }
-                return out
-              }
+              // What could go INTO a slot (moving one into a full slot
+              // swaps them): up to seven, to fit a ring.
+              const into = (path: string, except?: string): InventoryPlace[] =>
+                fitting(path, except)
+                  .slice(0, 7)
+                  .map((id) => ({
+                    label: main.nameOf(id),
+                    go: placesOf(id).find((q) => q.path === path)!.go,
+                  }))
               /*
               A thing: where it can go (from both halves). A FULL SLOT also
               offers a swap: a sub-ring of what could take its place (the

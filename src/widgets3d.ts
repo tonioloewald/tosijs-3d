@@ -4232,6 +4232,8 @@ function buildPanel3d(
       width,
       height,
       'data-w3d': 'panel',
+      // On a plane, hover comes and goes: the texture keeps its pictures.
+      'data-texture-cache': '',
     }),
     'pointer-events:auto;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent'
   ) as unknown as SVGSVGElement

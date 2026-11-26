@@ -387,16 +387,19 @@ export class RadialHost {
 
   /*
   HIERARCHY: an item with `items` opens them in its place, a SUB-RING, with
-  a way back at twelve o'clock (`withBack`). Let go on the item and the
-  sub-ring waits: press what opened the ring again (or A), point, and let
-  go, the same gesture as the ring above. B goes back too, unless B is what
-  opened it. A click picks, with a mouse.
+  a way back at twelve o'clock (`withBack`).
 
-  A HOLD does it too, as a marking menu does: rest on a sub-ring item for
-  `RADIAL_DWELL_MS` and it opens, with whatever held the ring still holding
-  it; rest on back and it goes back up. After a hold opens a level, nothing
+  In a ring opened by a HOLD, the hold lasts the whole way down, as in a
+  marking menu: rest on a sub-ring item for `RADIAL_DWELL_MS` and it opens,
+  still held; rest on back and it goes back up. Letting go picks the lit
+  choice or closes (on a chevron or back too: they are not choices). A
+  stick click on a chevron opens it at once. After a level opens, nothing
   lights until the pointing comes back to the middle, so the push that
   opened it does not also pick in the new ring.
+
+  In a ring nothing holds (opened from code, or clicked), picking a chevron
+  opens its sub-ring the same way; press what opened it again (or A),
+  point, and let go. B goes back, unless B opened it. A click picks.
   */
   private descend(open: Open, item: RadialItem, byHold = false): void {
     const items = typeof item.items === 'function' ? item.items() : item.items
@@ -463,8 +466,12 @@ export class RadialHost {
   /** What a pick does (or closing with none): a sub-ring, back, or the choice. */
   private act(open: Open, pick: number): void {
     const item = open.items[pick]
-    if (isRadialBack(item)) return this.back(true)
-    if (item?.items != null && !item.disabled) return this.descend(open, item)
+    // Still held (a stick click on a chevron while the hold lasts): the next
+    // level stays held too.
+    const held = open.heldBy != null && this.holding
+    if (isRadialBack(item)) return this.back(!held)
+    if (item?.items != null && !item.disabled)
+      return this.descend(open, item, held)
     this.open = null
     open.close?.()
     for (const k of [...OPEN_OWNS, ...LEFT_OWNS])
@@ -483,6 +490,8 @@ export class RadialHost {
 
   /** Was a stick clicked last frame (a click picks what is lit)? */
   private clickedBefore = false
+  /** Is what holds the open ring still down (read each frame)? */
+  private holding = false
 
   /** Once a frame. */
   tick(): void {
@@ -592,7 +601,8 @@ export class RadialHost {
       const p = this.scene.xrPointer?.()
       if (p != null) this.pointer = p
     }
-    if (open.heldBy != null && !isDown(open.heldBy)) {
+    this.holding = open.heldBy != null && isDown(open.heldBy)
+    if (open.heldBy != null && !this.holding) {
       // A stick springing back reaches the middle a moment before the button
       // is let go: what was lit just now still counts.
       const lit =
@@ -601,10 +611,20 @@ export class RadialHost {
           : now - open.unlitAt < RELEASE_GRACE_MS
           ? open.lastLit
           : -1
+      /*
+      A RING OPENED BY A HOLD LASTS AS LONG AS THE HOLD: letting go picks
+      the lit choice, or closes. A chevron or back is not a choice (resting
+      on it opens the level, still held), so letting go there closes too.
+      It used to open the sub-ring to wait for another press, and letting
+      go of D-pad up without losing the ring was hard (Tonio).
+      */
+      const structural =
+        lit >= 0 &&
+        (isRadialBack(open.items[lit]) || open.items[lit]?.items != null)
       // A pointer let go on nothing leaves the ring open to click, except in
       // a headset, where letting go in the middle is the way out.
       if (!(open.heldBy.pointer && lit < 0) || this.scene.xrActive)
-        return this.close(lit)
+        return this.close(structural ? -1 : lit)
       open.heldBy = null
       this.origin = null
       this.pointer = null

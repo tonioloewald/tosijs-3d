@@ -252,6 +252,8 @@ export function barMenu(config: BarMenuConfig): BarMenu {
       viewBox: `0 0 ${WIDTH} ${height}`,
       width: WIDTH,
       height,
+      // Hover lights a row and goes: the texture keeps its pictures.
+      'data-texture-cache': '',
     }) as unknown as SVGSVGElement
     const draw = () => {
       root.textContent = ''

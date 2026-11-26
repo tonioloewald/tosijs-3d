@@ -133,8 +133,7 @@ In a headset, opened from code it hangs ahead of you and either thumbstick
 points. Opened by a press and hold with the trigger (a mesh, a panel control),
 it is drawn where the press landed, a hand-span wide and turned to you, and
 the controller's ray points at it: aim at a slice and let go, or aim at the
-middle and let go to pick nothing. A sub-ring there waits for the next press:
-press, aim, let go. Given
+middle and let go to pick nothing. Rest on a chevron to go down a level. Given
 `pointer` (a press's client x, y, from a `pointerdown` handler), it is drawn
 there and the press holds it open: the drag from that point lights a slice and letting go picks.
 Let go without dragging and it stays open, to click.
@@ -185,13 +184,13 @@ eight read well.
 
 **Sub-rings.** An item with `items` (a list, or a function read when it
 opens) opens them in its place, marked by a chevron at its rim. Its way
-back is a slice of its own at twelve o'clock (**back**), picked like any
-other. Let go on an item with a chevron and the sub-ring waits: press what
-opened the ring again (D-pad up, B, the trigger) or A, point, and let go, the
-same gesture as the ring above; a click picks, with a mouse. B goes back too,
-unless B opened it, and letting go in the middle picks nothing and closes
-it. An item's own `handleSelect` is called when it is picked, as well as the
-ring's.
+back is a slice of its own at twelve o'clock (**back**). In a ring opened by
+a hold (D-pad up, B, the trigger, the grips), the hold lasts the whole way:
+see resting, below; letting go picks the lit choice or closes, on a chevron
+or back too. In a ring nothing holds (opened from code, or clicked), picking
+a chevron opens it; press A (or what opened it) again, point and let go; a
+click picks with a mouse, and B goes back. An item's own `handleSelect` is
+called when it is picked, as well as the ring's.
 
 **Resting opens a level, as in a marking menu.** Rest on a sub-ring item for
 half a second (`RADIAL_DWELL_MS`) and it opens, still held by whatever was
@@ -417,7 +416,13 @@ function gatedWedge(from: number, to: number, reach: number): string {
 }
 
 /** A label in a slice: one line, or two split at the middle space. */
-function labelText(label: string, cx: number, cy: number, ink: string) {
+function labelText(
+  label: string,
+  cx: number,
+  cy: number,
+  ink: string,
+  scale = 1
+) {
   const { text, tspan } = svgElements
   const words = label.split(' ')
   let lines = [label]
@@ -434,7 +439,10 @@ function labelText(label: string, cx: number, cy: number, ink: string) {
     }
     lines = [words.slice(0, best).join(' '), words.slice(best).join(' ')]
   }
-  const size = Math.max(...lines.map((l) => l.length)) > 9 ? 17 : 21
+  // One character (a keyboard's accent, a punctuation mark) is a small glyph:
+  // drawn larger.
+  const longest = Math.max(...lines.map((l) => [...l].length))
+  const size = (longest > 9 ? 17 : longest === 1 ? 26 : 21) * scale
   const top = cy - ((lines.length - 1) * size * 1.1) / 2 + size * 0.35
   return text(
     {
@@ -468,8 +476,20 @@ export function radialMenuSvg(
   items: readonly RadialItem[],
   options: {
     title?: string
+    /**
+     * How big the slices' names are (default 1). A ring of single characters
+     * drawn small (the keyboard's) reads better larger.
+     */
+    fontScale?: number
+    /**
+     * The middle is itself a choice, drawn as a key would be (the keyboard's
+     * ring: a tap in the middle types the plain character): this, large, on
+     * a button's colour, in place of the title.
+     */
+    centre?: string
   } = {}
 ): RadialMenuSvg {
+  const fontScale = options.fontScale ?? 1
   const { path, text, g, svg, circle } = svgElements
   const n = Math.max(1, items.length)
   const half = RADIAL_SIZE / 2
@@ -554,7 +574,7 @@ export function radialMenuSvg(
             item.label
           )
         ) as unknown as SVGElement)
-      : (labelText(item.label, cx, cy, ink) as unknown as SVGElement)
+      : (labelText(item.label, cx, cy, ink, fontScale) as unknown as SVGElement)
     inks.push(glyph)
     ring.append(glyph)
     // A sub-ring: a chevron at the rim says there is more beyond.
@@ -615,13 +635,33 @@ export function radialMenuSvg(
   const hub = circle({ cx: 0, cy: 0, r: RADIAL_HUB, fill: theme.panelBg })
   ring.append(hub, title, label)
   /*
+  A MIDDLE THAT IS A CHOICE (the key a keyboard ring was opened on) looks
+  like one: a key's fill and edge, its character large in full ink. Drawn
+  as the muted title it read as inactive.
+  */
+  if (options.centre != null) {
+    // Large, but inside the middle: a longer name (?123) is drawn smaller.
+    const size = Math.min(56, 34 * fontScale, 170 / [...options.centre].length)
+    title.textContent = options.centre
+    title.setAttribute('y', String(size * 0.35))
+    title.setAttribute('font-size', String(size))
+    title.setAttribute('font-weight', String(theme.headingWeight))
+    title.setAttribute('fill', theme.text)
+    hub.setAttribute('stroke', 'rgba(255,255,255,0.25)')
+    hub.setAttribute('stroke-width', '2')
+  }
+  /*
   THE CENTRE SHOWS WHAT IS CURRENT: the checked item (its name, on its
   colour), since that is what letting go in the middle leaves in place. It
   does not follow the pointer.
   */
   const current = items.findIndex((it) => it.checked && !it.spacer)
   const hubFill =
-    current >= 0 && items[current].color ? fills[current].lit : theme.panelBg
+    current >= 0 && items[current].color
+      ? fills[current].lit
+      : options.centre != null
+      ? theme.buttonBg
+      : theme.panelBg
   const hubInk =
     current >= 0 && items[current].color
       ? fills[current].litInk ?? theme.text
@@ -630,7 +670,7 @@ export function radialMenuSvg(
   hub.setAttribute('fill', hubFill)
   label.textContent = currentLabel
   label.setAttribute('fill', hubInk)
-  if (hubFill !== theme.panelBg) {
+  if (hubFill !== theme.panelBg && options.centre == null) {
     title.setAttribute('fill', hubInk)
     title.setAttribute('opacity', '0.7')
   }
@@ -640,8 +680,8 @@ export function radialMenuSvg(
       viewBox: `0 0 ${RADIAL_SIZE} ${RADIAL_SIZE}`,
       width: RADIAL_SIZE,
       height: RADIAL_SIZE,
-      // A pick blinks between two pictures: the texture keeps both.
-      'data-texture-flip': '',
+      // A pick blinks between two pictures: the texture keeps them.
+      'data-texture-cache': '',
     },
     ring
   ) as unknown as RadialMenuSvg

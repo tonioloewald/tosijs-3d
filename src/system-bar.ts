@@ -85,6 +85,8 @@ export function systemBar(buttons: HTMLButtonElement[]): SystemBar {
   const { svg, g, rect, title } = svgElements
   const root = svg({
     xmlns: 'http://www.w3.org/2000/svg',
+    // Hover lights a button and goes: the texture keeps its pictures.
+    'data-texture-cache': '',
   }) as unknown as SVGSVGElement
   let shown: HTMLButtonElement[] = []
   let pressed = -1

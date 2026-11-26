@@ -1338,7 +1338,7 @@ export type {
 } from './widgets3d-layout.js'
 
 // SVG material system
-export { SvgTexture, svgTextureCost } from './svg-texture.js'
+export { SvgTexture, svgTextureCost, svgTextureCache } from './svg-texture.js'
 export type { SvgTextureOptions } from './svg-texture.js'
 export { B3dSvgPlane, b3dSvgPlane, panelScene } from './b3d-svg-plane.js'
 export type {

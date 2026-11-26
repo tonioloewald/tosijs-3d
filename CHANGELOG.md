@@ -12,8 +12,12 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Changed: a radial menu opened by a hold lasts as long as the hold: rest on a chevron to go down a level (still held), on back to go up; letting go picks the lit choice or closes, on a chevron or back too (it used to open the sub-ring to wait for another press). A stick click on a chevron opens it at once.
+- Changed: keyboard rings draw their choices larger, and their middle as the key itself (a key's colour, its character large), since a tap there types it. `radialMenuSvg` takes `fontScale` and `centre`; a one-character label is drawn larger.
+- Added: an empty loadout slot pointed at or focused says what could go in it (how many, and which), or that nothing you have fits (`slotInfo` on `inventoryPanel`, `info` on `carrySocket`).
+- Changed: SVG textures keep the pictures they draw, so going back to one is a copy, not a raster: one cache for every texture, least recently used first, `svgTextureCache.maxPictures` (32) and `.maxBytes` (32 MB). Opt in with `data-texture-cache`; panels, the system bar, bar menus, the inventory dock and radial menus do. It replaces `data-texture-flip`.
+
 - Added: clicking the right stick (either thumbstick in a headset) picks what a radial menu has lit and closes it; with nothing lit it dismisses. A pick blinks before it acts, as a Mac menu's did: off, on, off, on at a thirtieth of a second each (`RADIAL_BLINK_MS`); a keyboard ring's pick blinks off, on (`pickBlinkMs`, 0 to act at once), and a press during it types the pick first.
-- Changed: an SVG texture marked `data-texture-flip` keeps the picture before the current one, so going back to it is a copy rather than a new raster (radial menus set it: a blink or hover between two slices draws each picture once).
 
 - Fixed (headset): the pointer moves to a hand as soon as a finger lands on its trigger (or starts pulling it), so that hand's first press acts; Babylon spent it on switching hands, so a left-hand press on a loadout slot did nothing the first time. Not while the pointing hand's trigger is down.
 

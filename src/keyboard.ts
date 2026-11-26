@@ -2131,7 +2131,12 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
     const scale = size / RADIAL_SIZE
     const ox = cx - size / 2
     const oy = cy - size / 2
-    const svg = radialMenuSvg(items, { title: r.key.label ?? '' })
+    // Larger names: a key's choices are single characters, drawn small.
+    // The middle is the key itself: a tap there types its plain character.
+    const svg = radialMenuSvg(items, {
+      centre: r.key.label ?? '',
+      fontScale: 1.6,
+    })
     svg.setAttribute('width', String(size))
     svg.setAttribute('height', String(size))
     ;(
@@ -2196,7 +2201,8 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
     // On its own surface: a whole ring, grown until each choice has about
     // three quarters of a key of arc.
     {
-      let size = base
+      // A little bigger than in the board: nothing crops it here.
+      let size = base * 1.25
       const arc = (s: number) =>
         (2 * Math.PI * 132 * (s / RADIAL_SIZE)) / accents.length
       for (let n = 0; n < 8 && arc(size) < minArc; n++) size *= 1.15
@@ -2260,7 +2266,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         toward: Math.atan2(offX, -offY),
       })
     }
-    const svg = radialMenuSvg(items, { title: r.key.label ?? '' })
+    const svg = radialMenuSvg(items, { centre: r.key.label ?? '', fontScale: 1.3 })
     svg.setAttribute('x', String(cx - size / 2))
     svg.setAttribute('y', String(cy - size / 2))
     svg.setAttribute('width', String(size))

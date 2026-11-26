@@ -10,6 +10,17 @@ Renders SVG content to a Babylon.js texture via an offscreen canvas.
   (default 30 ms), capturing changes from tosijs bindings or any other
   DOM mutations. Great for HUDs, radar displays, instrument panels.
 
+## Pictures kept
+
+An SVG marked `data-texture-cache` keeps each picture drawn of it, so going
+back to one (the panel at rest after a hover, a radial menu's pick blinking)
+is a copy rather than a new raster. One cache serves every texture: the least
+recently used picture goes first, and `svgTextureCache.maxPictures` (32) and
+`svgTextureCache.maxBytes` (32 MB; a picture is resolution² × 4) cap it. Set
+either lower on a tight device, or `maxPictures = 0` to keep nothing. Panels,
+the system bar, bar menus, the inventory dock and radial menus are marked; an
+animated SVG (a radar) is better left unmarked, since every picture is new.
+
 ## Example — SVG on a cube
 
 ```js
@@ -161,7 +172,83 @@ function rasterizeSvg(
  * own SVG rasterising happens off this thread and is NOT in it. Perf Stats
  * reads this once a second.
  */
-export const svgTextureCost = { checks: 0, repaints: 0, ms: 0 }
+export const svgTextureCost = { checks: 0, repaints: 0, ms: 0, recalled: 0 }
+
+/*
+PICTURES KEPT, so going back to one is a copy, not a raster. A panel spends
+most of its life at rest and keeps coming back to it; a hover lights a row
+and goes; a radial menu's pick blinks between two states. Each of those
+re-rasterised the whole SVG. An SVG marked `data-texture-cache` keeps every
+picture drawn of it, keyed by its markup, in ONE cache shared by every
+texture, the least recently used going first, capped by count and bytes.
+*/
+export const svgTextureCache = {
+  /** At most this many pictures, across every texture. */
+  maxPictures: 32,
+  /** And at most this many bytes of them (a picture is resolution² × 4). */
+  maxBytes: 32 * 1024 * 1024,
+}
+interface KeptPicture {
+  canvas: HTMLCanvasElement
+  bytes: number
+  owner: object
+}
+const keptPictures = new Map<string, KeptPicture>()
+let keptBytes = 0
+const spareCanvases: HTMLCanvasElement[] = []
+/** Two 32-bit hashes of the markup and its length: the key without the text. */
+function markupKey(xml: string): string {
+  let a = 0x811c9dc5
+  let b = 5381
+  for (let i = 0; i < xml.length; i++) {
+    const c = xml.charCodeAt(i)
+    a = Math.imul(a ^ c, 0x01000193)
+    b = (Math.imul(b, 33) + c) | 0
+  }
+  return `${(a >>> 0).toString(36)}.${(b >>> 0).toString(36)}.${xml.length}`
+}
+function dropPicture(key: string, kept: KeptPicture): void {
+  keptPictures.delete(key)
+  keptBytes -= kept.bytes
+  if (spareCanvases.length < 4) spareCanvases.push(kept.canvas)
+}
+function keepPicture(key: string, from: HTMLCanvasElement, owner: object): void {
+  const { maxPictures, maxBytes } = svgTextureCache
+  const bytes = from.width * from.height * 4
+  if (maxPictures <= 0 || bytes > maxBytes) return
+  const had = keptPictures.get(key)
+  if (had != null) {
+    keptPictures.delete(key)
+    keptPictures.set(key, had)
+    return
+  }
+  // The least recently used go first (a Map keeps insertion order).
+  for (const [k, v] of keptPictures) {
+    if (keptPictures.size < maxPictures && keptBytes + bytes <= maxBytes) break
+    dropPicture(k, v)
+  }
+  const i = spareCanvases.findIndex(
+    (c) => c.width === from.width && c.height === from.height
+  )
+  const canvas =
+    i >= 0 ? spareCanvases.splice(i, 1)[0] : document.createElement('canvas')
+  canvas.width = from.width
+  canvas.height = from.height
+  const c2 = canvas.getContext('2d')!
+  c2.clearRect(0, 0, canvas.width, canvas.height)
+  c2.drawImage(from, 0, 0)
+  keptPictures.set(key, { canvas, bytes, owner })
+  keptBytes += bytes
+}
+function recallPicture(key: string): KeptPicture | undefined {
+  const kept = keptPictures.get(key)
+  if (kept != null) {
+    keptPictures.delete(key)
+    keptPictures.set(key, kept)
+  }
+  return kept
+}
+let textureCount = 0
 
 export class SvgTexture {
   texture: BABYLON.DynamicTexture | BABYLON.Texture
@@ -176,9 +263,8 @@ export class SvgTexture {
   private _lastXml = ''
   private _warnedFailure = false
   private _premul = false
-  /** `data-texture-flip`: the picture before this one, kept for going back. */
-  private _prev: { xml: string; canvas: HTMLCanvasElement } | null = null
-  private _spare: HTMLCanvasElement | null = null
+  /** Its pictures' keys in the shared cache start with this. */
+  private _id = `t${++textureCount}`
 
   constructor(options: SvgTextureOptions) {
     const {
@@ -297,44 +383,21 @@ export class SvgTexture {
     // needs the full surface API (drawImage, save, restore).
     const ctx = dt.getContext() as unknown as CanvasRenderingContext2D
     const res = this._resolution
-    /*
-    TWO PICTURES, FLIPPED. An SVG marked `data-texture-flip` keeps the
-    picture before this one, so going back to it is a copy, not a raster: a
-    radial menu's pick blinks between two states four times in 4/30 of a
-    second, and hover moves between two slices; re-rasterising each was four
-    times the work and too slow to keep the beat.
-    */
-    const flip = this._element.hasAttribute('data-texture-flip')
-    if (flip && typeof document !== 'undefined') {
-      const blank = () => {
-        const c = document.createElement('canvas')
-        c.width = res
-        c.height = res
-        return c
-      }
-      if (this._prev?.xml === xml) {
-        const spare = (this._spare ??= blank())
-        const s2 = spare.getContext('2d')!
-        s2.clearRect(0, 0, res, res)
-        s2.drawImage(ctx.canvas as unknown as CanvasImageSource, 0, 0)
-        ctx.clearRect(0, 0, res, res)
-        ctx.drawImage(this._prev.canvas, 0, 0)
-        this._spare = this._prev.canvas
-        this._prev = { xml: this._lastXml, canvas: spare }
-        this._lastXml = xml
-        dt.update(false, this._premul)
-        svgTextureCost.repaints++
-        svgTextureCost.ms += realNow() - began
-        return
-      }
-      if (this._lastXml !== '') {
-        const keep = this._prev?.canvas ?? blank()
-        const k2 = keep.getContext('2d')!
-        k2.clearRect(0, 0, res, res)
-        k2.drawImage(ctx.canvas as unknown as CanvasImageSource, 0, 0)
-        this._prev = { xml: this._lastXml, canvas: keep }
-      }
-    } else this._prev = null
+    // A picture kept from before: copy it back (see svgTextureCache).
+    const cache =
+      this._element.hasAttribute('data-texture-cache') &&
+      typeof document !== 'undefined'
+    const key = cache ? `${this._id}:${markupKey(xml)}` : ''
+    const kept = cache ? recallPicture(key) : undefined
+    if (kept != null) {
+      ctx.clearRect(0, 0, res, res)
+      ctx.drawImage(kept.canvas, 0, 0)
+      this._lastXml = xml
+      dt.update(false, this._premul)
+      svgTextureCost.recalled++
+      svgTextureCost.ms += realNow() - began
+      return
+    }
     this._rendering = true
     rasterizeSvg(xml, ctx, res, res, this._img, (ok) => {
       // Release the latch on BOTH outcomes, and commit `_lastXml` only on
@@ -347,6 +410,8 @@ export class SvgTexture {
       }
       if (ok) {
         this._lastXml = xml
+        if (cache)
+          keepPicture(key, ctx.canvas as unknown as HTMLCanvasElement, this)
         const upload = realNow()
         dt.update(false, this._premul)
         svgTextureCost.repaints++
@@ -384,6 +449,7 @@ export class SvgTexture {
       clearInterval(this._interval)
       this._interval = 0
     }
+    for (const [k, v] of keptPictures) if (v.owner === this) dropPicture(k, v)
     this.texture?.dispose()
     this.texture = null as any
   }

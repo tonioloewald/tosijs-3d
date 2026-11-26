@@ -417,6 +417,12 @@ export interface CarrySocketOptions<T> {
    * two-handed weapon in the other hand). It can still be picked up here.
    */
   echo?: boolean
+  /**
+   * What the info floater says about it while it is EMPTY, pointed at or
+   * selected and nothing is carried (a title, then lines): what could go in
+   * it, say. Its thing's own info covers it when full.
+   */
+  info?: () => string[] | null
 }
 
 /** A socket that would take what is held, and the one under the pointer. */
@@ -572,6 +578,14 @@ export function carrySocket<T>(
     measure: () => ({ width: w, height: h }),
     setState(s: BoxChildState) {
       hovered = s.hovered || s.focused
+      // Empty, pointed at, nothing in hand: say what could go in it.
+      const layer = infoLayers.get(carry)
+      if (layer && opts.info && holding == null) {
+        const lines =
+          hovered && carry.state.thing == null && !s.pressed ? opts.info() : null
+        if (lines != null && lines.length > 0) layer.show(el, lines)
+        else layer.hide(el)
+      }
       // A press on a filled socket is a press on what it holds: that is how
       // a thing is dragged OUT of a socket.
       holding?.setState?.(s)
