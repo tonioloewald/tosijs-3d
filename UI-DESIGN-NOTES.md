@@ -1259,8 +1259,12 @@ rounded header at the edge of the visible frustum to avoid tunnel vision
 issues especially with 3d overlay passthrough like on Xreal Aura."* On
 optical see-through glasses the picture is a small window in what you see,
 so a panel cut by the display's edge draws the window's frame: you see the
-tunnel you are looking through. Android XR's guidance points the same way
-(primary content within about 41°, nothing clipped at a window's edge).
+tunnel you are looking through.
+
+This is a principle of ours, for every display, not a platform's rule we
+follow: the edge of the display never cuts a panel. Android XR has exactly
+this problem, conspicuously (its panels are cut by the edge of the view), so
+platform guidance is no guide here.
 
 So in a headset a panel that would go out of view folds to a tab at the edge
 of the view (see edge-tab), on the line from the middle of the view toward
