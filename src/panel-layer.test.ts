@@ -2,6 +2,7 @@ import { describe, test, expect } from 'bun:test'
 import {
   attachSceneLayer,
   layerHostable,
+  showOverSurface,
   showTipSurface,
 } from './panel-layer.js'
 
@@ -167,5 +168,54 @@ describe('showTipSurface', () => {
     expect(
       showTipSurface(svg, {} as any, { x: 0, y: 0, width: 1, height: 1 })
     ).toBeNull()
+  })
+})
+
+describe('layers that outlive their panel, and drawings on several surfaces', () => {
+  test('a layer whose panel plane is disposed takes itself off and opens nothing', () => {
+    const hosts: any[] = []
+    const svg: any = {
+      viewBox: { baseVal: { width: 320, height: 620 } },
+      addLayerHost: (fn: any) => {
+        hosts.push(fn)
+        return () => hosts.splice(hosts.indexOf(fn), 1)
+      },
+    }
+    const opened: unknown[] = []
+    let disposed = false
+    attachSceneLayer({
+      svg,
+      owner: { openPopup: (o: any) => (opened.push(o), { close: () => {} }) },
+      openerMesh: { isDisposed: () => disposed },
+      planeW: 1,
+      planeH: 1.94,
+    })
+    disposed = true
+    const sheet: any = { getAttribute: () => '100', viewBox: { baseVal: { width: 100, height: 100 } } }
+    hosts[0](sheet, { anchor: { x: 0, y: 0, width: 10, height: 10 } })
+    expect(opened).toHaveLength(0)
+    expect(hosts).toHaveLength(0)
+  })
+
+  test('one drawing on two surfaces: the first to close closes both, and the owner hears once', () => {
+    const closes: string[] = []
+    const mk = (name: string) => {
+      const h: any = (_s: unknown, c: any) => {
+        h.closed = c.over.handleClosed
+        return { close: () => closes.push(name) }
+      }
+      h.over = true
+      return h
+    }
+    const a = mk('a')
+    const b = mk('b')
+    const root: any = { __layerHosts: [a, b] }
+    let heard = 0
+    showOverSurface(root, {} as any, { x: 0, y: 0, width: 1, height: 1 }, {
+      handleClosed: () => heard++,
+    })
+    a.closed() // copy a closed on its own (a press counted as outside it)
+    expect(closes.sort()).toEqual(['a', 'b'])
+    expect(heard).toBe(1)
   })
 })

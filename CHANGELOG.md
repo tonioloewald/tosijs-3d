@@ -12,6 +12,8 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Fixed: a key's ring (and sometimes a keyboard) could stay up for good, flat and in a headset, two at once at worst. A system panel left a popup layer on its content each time it opened and never took it off, so after a few openings (or a headset session starting or ending) a field's keyboard and a key's ring opened once per layer, the copies hung from long-disposed planes, and a press on one copy closed the others and told the keyboard its ring was gone. A panel takes its layer off when it closes, a layer whose plane is disposed removes itself, and one drawing shown on several surfaces closes on all of them at once.
+
 - Changed: holding the keyboard's ?123 offers the digits, the point and the comma, with arithmetic (+ − × ÷ * / = % ^ ( ) < > ±) and the other symbols (@ # $ & _ - ? ! : ; ~ | \) as sub-rings. The letter boards gain a key that puts the keyboard away, and the symbols board's `done` does too (it did nothing).
 - Added: a text field's edits as a ring: hold a pad's B on it (or the trigger in a headset) for cut, copy, paste, clear, select word and select all (`menu` in widget semantics; `selectWord` in text-edit). Copy and cut take the selection when there is one, and paste goes in at the caret. A selection is drawn under the text.
 - Fixed: a pad could not use the on-screen keyboard: it opened, but the D-pad could not reach its keys or put it away. The pad now walks the keys and presses the one it is on (`move` and `focus` in widget semantics: a control with a D-pad of its own).

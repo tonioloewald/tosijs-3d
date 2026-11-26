@@ -3857,6 +3857,18 @@ export class B3d extends Component {
     cropped inside it. Under a title bar the plane shows the frame, so
     anchors are measured in it.
     */
+    /*
+    TAKEN OFF AGAIN WHEN IT CLOSES. The content is the panel's own SVG, kept
+    from one opening to the next, and a layer left on it from an earlier
+    opening (or from the other side of a headset session) still pointed at
+    that opening's plane, long disposed: a field's keyboard then opened once
+    per layer, and so did a key's ring, and the copies with no plane never
+    went away.
+    */
+    const layerOffs: Array<() => void> = []
+    const dropLayers = () => {
+      for (const off of layerOffs.splice(0)) off()
+    }
     const layerFor = (c: SVGSVGElement) => {
       const shownVb = svg.viewBox.baseVal
       const planeW = this.xrActive ? (shownVb.width || 400) * 0.0018 : 0.3
@@ -3864,6 +3876,7 @@ export class B3d extends Component {
         svg: c,
         owner: this as unknown as PopupOwner,
         openerMesh: (panel as { drawn?: unknown }).drawn,
+        detach: (off) => layerOffs.push(off),
         planeW,
         planeH: planeW * ((shownVb.height || 1) / (shownVb.width || 1)),
         // titled3d nests the content at its bar's height (its `y`).
@@ -3922,9 +3935,11 @@ export class B3d extends Component {
         }
         next.addEventListener('panelfocus', onFocus)
         entry.content = next
+        dropLayers()
         layerFor(next)
       },
       off: () => {
+        dropLayers()
         entry.content.removeEventListener('panelfocus', onFocus)
         titled?.dispose()
         offCamera()

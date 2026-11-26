@@ -1405,3 +1405,10 @@ is walking, not a click on the world.
 - **A panel never opens out of view.** Opened from a ring after a skewed
   reseat, it came up under the bar, off to the side, as a tab: it now opens
   where you are looking. Placement after that is yours.
+- **One thing on several surfaces closes as one.** Rings that never went
+  away (Tonio: *"I even had two dead radials floating above the keyboard"*)
+  were copies: a reused panel had collected a popup layer per opening, each
+  copy closed alone, and the owner heard "closed" from a copy it could not
+  see. Whatever registers a layer on content it does not own takes it off
+  again, a layer whose plane is gone removes itself, and the first copy to
+  close closes the rest.

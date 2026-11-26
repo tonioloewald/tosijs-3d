@@ -151,8 +151,24 @@ export function showOverSurface(
     (root as unknown as { __layerHosts?: Host[] }).__layerHosts ?? []
   ).filter((h) => h.over)
   if (hosts.length === 0) return null
-  const opened = hosts.map((h) => h(sheet, { anchor, over: options }))
-  return { close: () => opened.forEach((o) => o.close()) }
+  /*
+  ONE DRAWING, HOWEVER MANY SURFACES SHOW IT: the first to close closes the
+  rest, and its owner hears once. A copy closed alone (a press on another
+  copy counts as outside it) told the owner it was gone while the copy you
+  could see stayed up, which nothing then closed.
+  */
+  const opened: Array<{ close: () => void }> = []
+  let closing = false
+  const closeAll = () => {
+    if (closing) return
+    closing = true
+    for (const o of opened) o.close()
+    options.handleClosed?.()
+  }
+  for (const h of hosts)
+    opened.push(h(sheet, { anchor, over: { ...options, handleClosed: closeAll } }))
+  if (closing) for (const o of opened) o.close()
+  return { close: closeAll }
 }
 
 /** The bit of `B3d` a layer needs — duck-typed, to stay out of the cycle. */
@@ -222,6 +238,21 @@ export function attachSceneLayer(opts: {
       ? (opts.openerMesh as () => unknown)()
       : opts.openerMesh
   /*
+  A LAYER WHOSE PANEL IS GONE takes itself off and shows nothing. A popup
+  hung from a disposed plane was never closed by it (the plane's dispose had
+  already happened) and stayed where the plane had been, for good.
+  */
+  let offSelf: (() => void) | null = null
+  const openerGone = (): boolean => {
+    const o = openerOf() as { isDisposed?: () => boolean } | null
+    const gone = typeof o?.isDisposed === 'function' && o.isDisposed()
+    if (gone) {
+      offSelf?.()
+      offSelf = null
+    }
+    return gone
+  }
+  /*
   THIS host draws chrome — `popup-surface` puts move and close glyphs into the
   top of whatever SVG it is handed — so the sheet must keep a band clear for
   them. A DOM layer draws none and marks nothing, which is what lets a flat-only
@@ -242,6 +273,7 @@ export function attachSceneLayer(opts: {
       over?: OverOptions
     }
   ) => {
+    if (openerGone()) return { close: () => {} }
     if (config.tip != null) return tip(sheet, config.anchor, config.tip)
     if (config.over != null) return over(sheet, config.anchor, config.over)
     /*
@@ -497,6 +529,7 @@ export function attachSceneLayer(opts: {
   }
   // Where the screen is, in this panel's units (for an over-surface to fit).
   ;(host as unknown as { overRoom: () => RoomRect | null }).overRoom = () => {
+    if (openerGone()) return null
     const f = owner.screenRoomOn?.(openerOf())
     if (f == null) return null
     const frame = opts.inFrame?.()
@@ -522,6 +555,7 @@ export function attachSceneLayer(opts: {
       }
   }
   const off = panelEl.addLayerHost(host)
+  offSelf = off
   opts.detach?.(off)
   return true
 }
