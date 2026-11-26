@@ -6817,7 +6817,7 @@
       {
         "name": "xrPassthrough",
         "default": "'off'",
-        "description": "`'on'`: Enter VR starts an AR session where the device has one (passthrough: your room behind the scene, no sky, no floor grid, transparent clear colour); elsewhere it enters VR. In AR you are scaled to the scene: you arrive with what the flat view showed a step ahead (`xrFrame(centre, radius)` frames something else), one grip drags the scene, both resize and turn it, and the sticks walk at your scale. `passthrough` is true during such a session, `xrSupport` says which sessions the device offers, and the scene dispatches `xrenter` (`detail.passthrough`) and `xrexit` around every session. Read on entering"
+        "description": "`'on'`: Enter VR starts an AR session where the device has one (passthrough: your room behind the scene, no sky, no floor grid, transparent clear colour); elsewhere it enters VR. `'offer'`: where the device has both, the bar's VR button is a menu (VR, Passthrough), a sub-ring in the system ring; where it has one, the button enters it. In AR you are scaled to the scene: you arrive with what the flat view showed a step ahead (`xrFrame(centre, radius)` frames something else), one grip drags the scene, both resize and turn it, and the sticks walk at your scale. `passthrough` is true during such a session, `xrSupport` says which sessions the device offers, and the scene dispatches `xrenter` (`detail.passthrough`) and `xrexit` around every session. Read on entering"
       },
       {
         "name": "groundDetail",

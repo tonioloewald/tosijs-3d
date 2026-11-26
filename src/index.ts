@@ -418,6 +418,7 @@ export {
   opacityWeightedGlow,
   excludeFromGlow,
   viewSpanAt,
+  pointerClaimedByPanel,
 } from './frame-panel.js'
 export type {
   FramePanelSpec,

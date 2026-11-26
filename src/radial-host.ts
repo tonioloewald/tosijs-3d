@@ -70,6 +70,8 @@ export interface RadialHold {
   key?: string
   /** The pointer (a mouse button, a finger, a headset's trigger). */
   pointer?: boolean
+  /** Anything else that holds it (a headset's two grips): read each frame. */
+  test?: () => boolean
 }
 
 /** What a press and hold on a mesh does: a tap, and a ring on a hold. */
@@ -339,8 +341,8 @@ export class RadialHost {
       title: opts.title,
       heldBy,
       opener:
-        heldBy?.button != null || heldBy?.key != null
-          ? { button: heldBy.button, key: heldBy.key }
+        heldBy?.button != null || heldBy?.key != null || heldBy?.test != null
+          ? { button: heldBy.button, key: heldBy.key, test: heldBy.test }
           : null,
       armed: false,
       stickGate: gateState(),
@@ -420,6 +422,11 @@ export class RadialHost {
     this.scene.rumble('tick')
   }
 
+  /** Has a page given `button` a hold (`setHold`, `setDpad`, `holdMenu`)? */
+  claims(button: keyof VirtualGamepad): boolean {
+    return this.holds.some((h) => h.button === button)
+  }
+
   /** Is a ring open? */
   get isOpen(): boolean {
     return this.open != null
@@ -464,7 +471,8 @@ export class RadialHost {
     const isDown = (h: RadialHold) =>
       (h.button != null && (pad?.[h.button] ?? 0) > 0.5) ||
       (h.key != null && this.keys.has(h.key)) ||
-      (h.pointer === true && this.pointerHeld)
+      (h.pointer === true && this.pointerHeld) ||
+      (h.test?.() ?? false)
     // A press on a mesh: a tap if let go soon, nothing if it moved (turning
     // the view), a ring held by the pointer once held long enough.
     const pending = this.pending

@@ -199,7 +199,8 @@ as a ring, each button a slice with its own icon, and a [bar menu](/bar-menu/)
 a sub-ring (a menu of choices shows the current one on the bar and on its
 slice, and in its sub-ring's middle). A panel that is showing is ticked, and picking it closes it;
 with any showing, **close all** sits apart at the bottom. Holding up never
-closes anything by itself. `b3d.openSystemRing()` opens it from code. That is how a scene
+closes anything by itself. In a headset, hold **both grips** still for half a
+second (unless a game has the bumpers); a thumbstick points. `b3d.openSystemRing()` opens it from code. That is how a scene
 with no visible UI still has all of it a hold away.
 
 `radialMenuSvg(items, options)` is the drawing alone (a `highlight(i)` on

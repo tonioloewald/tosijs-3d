@@ -280,7 +280,7 @@ document.body.append(
 | `enterXrOnResume` | `'off'` | `'on'`: resuming enters immersive VR where the device supports it. The Continue tap is the user gesture `enterXRAsync` requires |
 | `reseatFreeze` | `'on'` | Freeze the clock while the re-seat dialog is up. Set `'off'` for a networked world, which cannot stop the other players; the dialog still gates your own input |
 | `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
-| `xrPassthrough` | `'off'` | `'on'`: Enter VR starts an AR session where the device has one (passthrough: your room behind the scene, no sky, no floor grid, transparent clear colour); elsewhere it enters VR. In AR you are scaled to the scene: you arrive with what the flat view showed a step ahead (`xrFrame(centre, radius)` frames something else), one grip drags the scene, both resize and turn it, and the sticks walk at your scale. `passthrough` is true during such a session, `xrSupport` says which sessions the device offers, and the scene dispatches `xrenter` (`detail.passthrough`) and `xrexit` around every session. Read on entering |
+| `xrPassthrough` | `'off'` | `'on'`: Enter VR starts an AR session where the device has one (passthrough: your room behind the scene, no sky, no floor grid, transparent clear colour); elsewhere it enters VR. `'offer'`: where the device has both, the bar's VR button is a menu (VR, Passthrough), a sub-ring in the system ring; where it has one, the button enters it. In AR you are scaled to the scene: you arrive with what the flat view showed a step ahead (`xrFrame(centre, radius)` frames something else), one grip drags the scene, both resize and turn it, and the sticks walk at your scale. `passthrough` is true during such a session, `xrSupport` says which sessions the device offers, and the scene dispatches `xrenter` (`detail.passthrough`) and `xrexit` around every session. Read on entering |
 | `xrMultiview` | `'off'` | ⚠️ Experimental, not working: `'on'` asks for both eyes in one pass (WebXR layers). On a Quest 3 it gave a blank view, and water and sky do not handle multiview |
 | `xrRenderScale` | `0` | In a headset: the fraction of each eye's width and height drawn. `0` is auto (from the device tier: 0.67 on the low tier). Engine hardware scaling does not reach a headset; this does. Read on entering a session |
 | `xrFoveation` | `-1` | In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session |
@@ -354,7 +354,9 @@ import { xrControllers, type TosiXRControllerMap } from './gamepad.js'
 import { pressState, pressStep } from './radial-layout.js'
 import type { VirtualGamepad } from './virtual-gamepad.js'
 import { holdMenusOn } from './hold-menus.js'
+import { barMenu } from './bar-menu.js'
 import {
+  RADIAL_DWELL_MS,
   RadialHost,
   type DpadAction,
   type DpadDirection,
@@ -505,6 +507,7 @@ import {
   frameViewer,
   grabOne,
   grabTwo,
+  roomToWorld,
   worldToRoom,
   type XrVec,
   type XrViewer,
@@ -955,9 +958,11 @@ export class B3d extends Component {
     PASSTHROUGH. 'on' makes Enter VR start an immersive-ar session where the
     device offers one (a Quest's passthrough): the room shows behind the
     scene, the sky and the floor grid are left out and the clear colour is
-    transparent. Elsewhere it enters VR as before. Read on entering.
+    transparent. Elsewhere it enters VR as before. 'offer' lets the person
+    choose: where the device has both, the bar's VR button is a menu (VR,
+    Passthrough); where it has one, the button enters it. Read on entering.
     */
-    xrPassthrough: 'off' as 'on' | 'off',
+    xrPassthrough: 'off' as 'on' | 'off' | 'offer',
     // The ground (biome) shader's form. `auto` is the device tier's: the
     // cheap one on the low tier, and in a headset on the medium tier.
     groundDetail: 'auto' as 'auto' | 'full' | 'lite',
@@ -1720,7 +1725,7 @@ export class B3d extends Component {
   declare maxDistance: number
   declare noXr: boolean
   declare xrMultiview: 'on' | 'off'
-  declare xrPassthrough: 'on' | 'off'
+  declare xrPassthrough: 'on' | 'off' | 'offer'
   declare xrGrid: 'on' | 'off' | 'auto'
   declare xrReticle: 'on' | 'off'
   declare scenePanelOpen: boolean
@@ -6791,11 +6796,18 @@ export class B3d extends Component {
    * wide), by moving and scaling the VIEWER (WebXR's worldScalingFactor). The
    * scene is untouched. The default AR session frames what the flat view was
    * looking at; call it again (on `xrenter`, or from a "look at") to choose.
+   * `ms` eases there from what is in front of you now (the camera glides
+   * rather than jumps); 0 (the default) goes at once.
    */
   xrFrame(
     centre: { x: number; y: number; z: number },
     radius: number,
-    opts: { across?: number; distance?: number; above?: number } = {}
+    opts: {
+      across?: number
+      distance?: number
+      above?: number
+      ms?: number
+    } = {}
   ): void {
     const base = this.xrHelper?.baseExperience
     const rig = this._xrRig
@@ -6806,18 +6818,52 @@ export class B3d extends Component {
     // A changed scale reaches the head a frame late, so settle over a few.
     let frames = 0
     const at = { x: centre.x, y: centre.y, z: centre.z }
+    const ms = Math.max(0, opts.ms ?? 0)
+    const across = opts.across ?? 0.75
+    const distance = opts.distance ?? 1.2
+    const above = opts.above ?? 0.35
+    /*
+    A GLIDE eases the framed centre and size from what is in front of you
+    now (the world point at the spot the frame puts its centre, and the
+    size that fills it) to the target: the centre in a line, the size
+    geometrically, so a trip from the whole system down to a moon is even.
+    */
+    let from: { c: XrVec; r: number } | null = null
+    const started = realNow()
     this._xrFrameObs = sm.onXRFrameObservable.add(() => {
-      if (++frames > 10 && this._xrFrameObs != null) {
-        sm.onXRFrameObservable.remove(this._xrFrameObs)
-        this._xrFrameObs = null
-      }
       if (rig.parent != null) return
       const viewer = rigViewer(rig, sm.worldScalingFactor)
       const cam = base.camera
       const eye = worldToRoom(viewer, cam.globalPosition)
       const look = cam.getDirection(BABYLON.Axis.Z)
       const facing = Math.atan2(look.x, look.z) - viewer.yaw
-      applyViewer(rig, sm, frameViewer(viewer, at, radius, eye, facing, opts))
+      const p = ms > 0 ? Math.min(1, (realNow() - started) / ms) : 1
+      if (p >= 1 && ++frames > 10 && this._xrFrameObs != null) {
+        sm.onXRFrameObservable.remove(this._xrFrameObs)
+        this._xrFrameObs = null
+      }
+      from ??= {
+        c: roomToWorld(viewer, {
+          x: eye.x + Math.sin(facing) * distance,
+          y: eye.y - above,
+          z: eye.z + Math.cos(facing) * distance,
+        }),
+        r: viewer.scale * across,
+      }
+      const e = p * p * (3 - 2 * p)
+      const c =
+        p >= 1
+          ? at
+          : {
+              x: from.c.x + (at.x - from.c.x) * e,
+              y: from.c.y + (at.y - from.c.y) * e,
+              z: from.c.z + (at.z - from.c.z) * e,
+            }
+      const r =
+        p >= 1
+          ? radius
+          : from.r * Math.pow(Math.max(1e-9, radius) / Math.max(1e-9, from.r), e)
+      applyViewer(rig, sm, frameViewer(viewer, c, r, eye, facing, opts))
     })
   }
 
@@ -6825,6 +6871,70 @@ export class B3d extends Component {
   private _xrSessionMode(): XRSessionMode {
     if (this.xrPassthrough === 'on' && this._arSupported) return 'immersive-ar'
     return this._vrSupported ? 'immersive-vr' : 'immersive-ar'
+  }
+
+  /** Start a session (`mode`, else what Enter VR starts), or end the one running. */
+  private async _enterXr(mode?: XRSessionMode): Promise<void> {
+    const base = this.xrHelper?.baseExperience
+    if (base == null) return
+    try {
+      if (this.xrActive) {
+        await base.exitXRAsync()
+      } else {
+        // Flush any pending tosijs renders WHILE flat rAF still works, so no
+        // component's per-element `_renderQueued` flag is left stranded when the
+        // immersive session suspends window.requestAnimationFrame. Otherwise a
+        // component with a render already queued at entry (e.g. the skybox, whose
+        // realtimeScale setInterval constantly queues one) never schedules
+        // another render in-session and its reactive bindings freeze — the
+        // "time-of-day slider dead on first XR entry" bug.
+        await updates()
+        await base.enterXRAsync(mode ?? this._xrSessionMode(), 'local-floor')
+      }
+    } catch (err) {
+      console.warn('XR session change failed', err)
+    }
+  }
+
+  /*
+  MORE THAN ONE WAY IN: with `xrPassthrough="offer"` on a device that has
+  VR and passthrough, the bar's VR button is a bar menu (VR, Passthrough),
+  a sub-ring in the system ring. In a session it is the plain Exit button
+  again: one way out.
+  */
+  private _xrModeMenu: (HTMLElement & { barButton: string }) | null = null
+  private _syncXrModeMenu(): void {
+    const vrButton = this.parts?.enterVrButton as HTMLButtonElement | undefined
+    if (vrButton == null || this.xrHelper == null) return
+    const choose =
+      this.xrPassthrough === 'offer' &&
+      this._vrSupported &&
+      this._arSupported &&
+      !this.xrActive
+    if (choose && this._xrModeMenu == null) {
+      const menu = barMenu({
+        icon: 'xrColor',
+        title: 'Enter VR',
+        layout: 'list',
+        options: [
+          {
+            label: 'VR',
+            handleSelect: () => void this._enterXr('immersive-vr'),
+          },
+          {
+            label: 'Passthrough',
+            handleSelect: () => void this._enterXr('immersive-ar'),
+          },
+        ],
+      }) as unknown as HTMLElement & { barButton: string }
+      this._xrModeMenu = menu
+      this.append(menu)
+    }
+    if (this._xrModeMenu != null) {
+      const want = choose ? 'on' : 'off'
+      if (this._xrModeMenu.barButton !== want) this._xrModeMenu.barButton = want
+    }
+    vrButton.hidden = choose
   }
 
   /**
@@ -6870,7 +6980,7 @@ export class B3d extends Component {
     // A panel may offer AR only where it exists.
     this.refreshScenePanel?.()
     const supported =
-      this._vrSupported || (this._arSupported && this.xrPassthrough === 'on')
+      this._vrSupported || (this._arSupported && this.xrPassthrough !== 'off')
     if (!supported || this.xrHelper != null) return
 
     // Creating the default experience can steal scene.activeCamera (switching
@@ -6973,25 +7083,7 @@ export class B3d extends Component {
     })
 
     const vrButton = this.parts.enterVrButton as HTMLButtonElement
-    vrButton.addEventListener('click', async () => {
-      try {
-        if (this.xrActive) {
-          await base.exitXRAsync()
-        } else {
-          // Flush any pending tosijs renders WHILE flat rAF still works, so no
-          // component's per-element `_renderQueued` flag is left stranded when the
-          // immersive session suspends window.requestAnimationFrame. Otherwise a
-          // component with a render already queued at entry (e.g. the skybox, whose
-          // realtimeScale setInterval constantly queues one) never schedules
-          // another render in-session and its reactive bindings freeze — the
-          // "time-of-day slider dead on first XR entry" bug.
-          await updates()
-          await base.enterXRAsync(this._xrSessionMode(), 'local-floor')
-        }
-      } catch (err) {
-        console.warn('XR session change failed', err)
-      }
-    })
+    vrButton.addEventListener('click', () => void this._enterXr())
     // A live map of XR controller component states (thumbsticks/buttons), built
     // once so we don't double-register listeners across sessions.
     const controllers: TosiXRControllerMap = xrControllers(xr)
@@ -7029,6 +7121,8 @@ export class B3d extends Component {
     base.onStateChangedObservable.add((state) => {
       this.xrActive = state === BABYLON.WebXRState.IN_XR
       setKeyboardHeadset(this.xrActive)
+      // The menu of ways in is the Exit button again in a session.
+      this._syncXrModeMenu()
       // SSAO must be gone BEFORE the headset camera becomes active, which
       // happens during ENTERING_XR, ahead of IN_XR.
       this._xrPresenting = state !== BABYLON.WebXRState.NOT_IN_XR
@@ -7095,6 +7189,15 @@ export class B3d extends Component {
         restoreRaf ??= this._installXrRafPump(base)
         if (base.sessionManager.sessionMode === 'immersive-ar')
           endPassthrough ??= this._enterPassthrough()
+        /*
+        THE NEAR PLANE IS IN ROOM METRES (Babylon hands `minZ` to the headset
+        unscaled). Its 10 cm is right life-size, but in AR you lean in to a
+        miniature: at a solar system a metre and a half across, the inner
+        planets are a few centimetres from the Sun and a 10 cm near plane cut
+        them all away. 1 cm in passthrough; VR keeps 0.1, where a nearer plane
+        would cost a big world its depth precision far off.
+        */
+        base.camera.minZ = this.passthrough ? 0.01 : 0.1
         xrSession ??= this._startDefaultXrExperience(base, controllers)
         // A modal open on the monitor comes into the headset with you.
         this._representModals()
@@ -7161,8 +7264,9 @@ export class B3d extends Component {
     })
     // XR is available — reveal the Enter VR button (grouped next to the gear in the
     // scene toolbar, so it's obvious when VR is available and never clipped by the
-    // panel's scroll).
+    // panel's scroll), or the menu of ways in.
     vrButton.hidden = false
+    this._syncXrModeMenu()
   }
 
   // The built-in XR experience used when no `setupXr` hook is supplied: stand
@@ -7699,6 +7803,12 @@ export class B3d extends Component {
     const RESUME_S = 1
     const ZOOM_RATE = 0.8
     const MAX_PEEK = 0.8 // radians of temporary look (right stick X), ~46°
+    /** Both grips held: since when, and where they were (a hold, unless they move). */
+    let gripChord: {
+      since: number
+      l: BABYLON.Vector3
+      r: BABYLON.Vector3
+    } | null = null
     const frame = base.sessionManager.onXRFrameObservable.add(() => {
       const now = realNow()
       // Re-seat confirmation: capture the yaw from where you are looking WHEN
@@ -8118,8 +8228,14 @@ export class B3d extends Component {
         freeYawNeeded = false
       }
 
-      const left = controllers['left']?.['xr-standard-thumbstick']?.axes
-      const right = controllers['right']?.['xr-standard-thumbstick']?.axes
+      // An open ring points with the sticks: they do not also walk or turn.
+      const ringUp = this._radial?.isOpen === true
+      const left = ringUp
+        ? undefined
+        : controllers['left']?.['xr-standard-thumbstick']?.axes
+      const right = ringUp
+        ? undefined
+        : controllers['right']?.['xr-standard-thumbstick']?.axes
 
       /*
       PANEL SCROLL — the RIGHT stick's Y, and nothing else.
@@ -8191,8 +8307,42 @@ export class B3d extends Component {
           'xr-standard-squeeze'
         ]?.value as number | undefined) ?? 0
       const ar = this.passthrough && rig.parent == null
-      if (ar) arGrab((h) => squeeze(h) > 0.5)
-      const lift = ar ? 0 : squeeze('right') - squeeze('left')
+      /*
+      THE SYSTEM RING ON THE GRIPS: both held together and still for half a
+      second opens it, held by them (a thumbstick points; let go to pick).
+      Each grip alone keeps its job (altitude; in AR, grabbing the room), and
+      both at once, held still, does nothing else. Not while a player is
+      driven (the game has the bumpers) or a page has given a bumper a hold.
+      */
+      const gripsDown = () => squeeze('left') > 0.5 && squeeze('right') > 0.5
+      if (
+        gripsDown() &&
+        !ringUp &&
+        !playerDriven &&
+        this._radial?.claims('leftBumper') !== true &&
+        this._radial?.claims('rightBumper') !== true
+      ) {
+        const l = gripWorld('left')
+        const r = gripWorld('right')
+        const k = 1 / Math.max(1e-6, sm.worldScalingFactor)
+        if (gripChord == null && l != null && r != null)
+          gripChord = { since: now, l: l.clone(), r: r.clone() }
+        else if (gripChord != null && gripChord.since >= 0) {
+          // Moved more than 3 cm: a grab, not a hold.
+          const moved =
+            l == null ||
+            r == null ||
+            BABYLON.Vector3.Distance(l, gripChord.l) * k > 0.03 ||
+            BABYLON.Vector3.Distance(r, gripChord.r) * k > 0.03
+          if (moved) gripChord.since = -1
+          else if (now - gripChord.since >= RADIAL_DWELL_MS) {
+            gripChord.since = -1
+            this.openSystemRing({ test: gripsDown })
+          }
+        }
+      } else if (!gripsDown()) gripChord = null
+      if (ar && !ringUp) arGrab((h) => squeeze(h) > 0.5)
+      const lift = ar || ringUp ? 0 : squeeze('right') - squeeze('left')
       if (Math.abs(lift) > DEAD) rig.position.y += lift * VERT_SPEED * dt
       if (right != null && !rightScroll && Math.abs(right.y) > DEAD) {
         rig.position.y += -right.y * VERT_SPEED * dt // push up to ascend

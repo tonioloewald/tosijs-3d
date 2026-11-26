@@ -12,6 +12,12 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Added: `xr-passthrough="offer"`: where the device has VR and passthrough, the bar's VR button is a menu (VR, Passthrough), and a sub-ring in the system ring; in a session it is the Exit button.
+- Added: in a headset, both grips held still for half a second open the system ring (a thumbstick points, let go to pick); not while a player is driven or when a page has given a bumper a hold. An open ring has the sticks: they do not also walk or turn. `RadialHold` takes a `test`.
+- Added: `xrFrame(centre, radius, { ms })` glides there from what is in front of you. `pointerClaimedByPanel` is exported.
+- Fixed: in passthrough the headset's near plane is 1 cm (it was 10 cm): leaning in to a miniature, a solar system or a model, cut away everything within a hand's width.
+- Changed: Solar System: a **View** menu on the bar replaces "look at" (each planet's moons in its submenu, the whole system first); click a body (in a headset, point and pull the trigger) to fly to it, the background to fly back out; the camera glides. The VR button offers VR or Passthrough, and passthrough opens on the whole system three metres across.
+
 - Added: a bar menu's button wears the chosen option's icon when it has one (the weather shows on the bar and on its slice in the system ring). The `cloudLightning` icon.
 - Fixed: the on-screen keyboard's rings are drawn on a surface of their own, whole and centred on the key, instead of cropped to the keyboard; a ring left open lights the choice under the pointer. Panels on planes pass hover to their SVG, and a press that slides off a plane keeps its true position. A popup's own popups and tips open in front of it (`showOverSurface`, `WidgetHost.showOver`).
 - Fixed: holding B on a loadout slot with the pad opens the ring over the slot, not in the middle of the view.

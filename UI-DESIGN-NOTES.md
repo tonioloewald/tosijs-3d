@@ -1213,11 +1213,15 @@ bar is always one hold away as a ring:
 - **D-pad up, held:** the system bar as a ring (built: `openSystemRing`). It
   replaced putting the pad's focus on the bar, which made you step along a
   row you might not even see. A ring is cleaner and more direct.
+- **Both grips, held still**, in a headset (built, 2026-11-26): the same
+  ring. Each grip alone already has a job (altitude in VR, grabbing the room
+  in AR), and both at once held still has none, so the chord costs nothing.
+  Not while a player is driven: a game has the bumpers.
 - **Either trigger, held**, at maximum immersion only (planned): the same
   ring, where the triggers are not needed for anything else.
-- **A wrist affordance** in a headset (planned): look straight at your wrist
-  and the system bar's ring discloses itself there. Progressive disclosure
-  by gaze; nothing floats in view until you ask.
+- **A wrist affordance** in a headset (planned, #4297): a copy of the system
+  bar pinned to the left wrist, to be tuned on a headset (whether it shows
+  only when you turn your wrist to look is one of the things to settle).
 
 **Hierarchy.** Picking an item can open a sub-ring in its place (built: an
 item's `items`; a bar menu becomes a sub-ring of the system ring). Going
