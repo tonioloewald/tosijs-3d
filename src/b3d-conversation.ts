@@ -674,8 +674,19 @@ export class B3dConversation extends B3dChild {
       canvas != null && canvas.clientHeight > 0
         ? engine.getRenderHeight() / canvas.clientHeight
         : 1
-    const barred =
-      css == null ? free : { ...free, up: (p.y - css.bottom * sy) / perMetre }
+    /*
+    The bar may cover the balloon's top, as far as half the bar's height but
+    never past the balloon's own empty top band, so no word of it is hidden
+    (the bar is drawn over it). No margin from the bar: its edge is one.
+    */
+    const band = ((height * PAD) / BALLOON_H) * perMetre
+    const limit =
+      css == null
+        ? 0
+        : css.bottom * sy - Math.min(((css.bottom - css.top) / 2) * sy, band)
+    const barred = css == null ? free : { ...free, up: (p.y - limit) / perMetre }
+    // Fitted with a margin, it lands with its top right at that limit.
+    const barredFit = { ...barred, up: barred.up + margin }
     const under = (dx: number) =>
       css != null &&
       p.x + (dx - width / 2) * perMetre < css.right * sx + marginPx &&
@@ -683,7 +694,7 @@ export class B3dConversation extends B3dChild {
     let room = free
     let fit = fitBalloon(room, width, drawn, { margin, side: b.side })
     if (under(fit.dx)) {
-      room = barred
+      room = barredFit
       fit = fitBalloon(room, width, drawn, { margin, side: b.side })
     }
     b.side = fit.side
