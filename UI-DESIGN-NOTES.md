@@ -1435,6 +1435,20 @@ is walking, not a click on the world.
   the bar was the first proposal; at phone sizes the balloon's empty band is
   smaller than that, so the band is the limit, and no word is hidden. Tonio:
   *"It actually makes the UI feel more sophisticated."*
+- **A pad's ring opens where the pointer's would, at its size.** B held on
+  a key opened the shared ring at the system ring's size (400 px), centred
+  by mapping the key's box through the panel: but the key is in the
+  keyboard, a popup with its own units, and its box is the whole board. A
+  control's menu now says its ring's size and centre in its own units, and a
+  control in a popup says which surface those are. Tonio: *"huge and not
+  centered on the key"*.
+- **Drawn over the world in the emulator is not drawn over it on a Quest.**
+  Pass 9 put the headset's panels in the UI layer and checked them over a
+  planet in the emulated headset. On a Quest they still stood inside planets
+  (*"every panel popped intersecting earth"*): the layer cleared its depth
+  on the canvas's framebuffer, and a headset draws each eye into the
+  session's. The emulator's session framebuffer is the canvas's, so it could
+  not show it.
 - **The deadband's slack is the margin, not extra room.** Pass 11 landed a
   moved balloon with a sixth of its height to spare as well as the margin,
   which kept it lower than it needed to be: in portrait, on the head. It now

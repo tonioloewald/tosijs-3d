@@ -294,6 +294,14 @@ quirks. The file's header lists four traps, of which the one to remember is
 that OUR rAF pump deadlocks it — the harness stubs `_installXrRafPump`, and
 prints `⚠️ NOT ADVANCING` if the session is not ticking.
 
+**Its session draws into the canvas's own framebuffer** (iwer's layer has no
+framebuffer of its own), and a Quest's does not. So anything that binds or
+clears "the" framebuffer looks right in the emulator and wrong on a device:
+the UI layer cleared its depth on the canvas, panels drew over the world in
+every emulated run, and on a Quest they stood inside planets. A question
+about which framebuffer gets cleared needs a headset, or reading Babylon's
+`_bindFrameBuffer` / `_clearFrameBuffer`.
+
 You cannot spawn Electron on a Quest, so driving the headset's own browser is
 the only way to `eval` against a live immersive session. Every VR finding to
 date has arrived as the user describing symptoms in words, each costing a round
