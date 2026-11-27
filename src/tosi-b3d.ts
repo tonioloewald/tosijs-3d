@@ -1642,14 +1642,20 @@ export class B3d extends Component {
     return B3d._active === null || B3d._active === this
   }
   /**
-   * Flat, how far down from the top of the view the system bar reaches, in CSS
-   * pixels (0 with no bar, and in a headset). Something kept in view on screen
-   * keeps below it, as a conversation's balloon does.
+   * Flat, where the system bar is drawn over the view, in CSS pixels from the
+   * canvas's top left (null with no bar, and in a headset). Something kept in
+   * view on screen keeps out from under it, as a conversation's balloon does.
    */
-  get barInset(): number {
-    return !this.xrActive && (this._sceneBar?.count ?? 0) > 0
-      ? 8 + BAR_HEIGHT
-      : 0
+  get barRect(): {
+    left: number
+    top: number
+    right: number
+    bottom: number
+  } | null {
+    const bar = this._sceneBar
+    if (this.xrActive || bar == null || bar.count === 0) return null
+    const w = bar.svg.viewBox?.baseVal?.width ?? 0
+    return { left: 8, top: 8, right: 8 + w, bottom: 8 + BAR_HEIGHT }
   }
   /** True only once the pointer has entered or pressed this scene (and no
    * other since). Keys it uses are kept from the page only then: before that,

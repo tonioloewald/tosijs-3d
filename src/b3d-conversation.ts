@@ -628,7 +628,7 @@ export class B3dConversation extends B3dChild {
   ): BABYLON.Vector3 | null {
     const owner = this.owner as unknown as {
       xrActive?: boolean
-      barInset?: number
+      barRect?: { left: number; top: number; right: number; bottom: number } | null
     } | null
     if (owner?.xrActive || cam.mode !== BABYLON.Camera.PERSPECTIVE_CAMERA)
       return null
@@ -650,22 +650,42 @@ export class B3dConversation extends B3dChild {
     const perMetre = (p.y - at(top.add(up.scale(0.5))).y) / 0.5
     if (!(perMetre > 0)) return null
     if (at(top.add(right.scale(0.5))).x < p.x) right = right.negate()
-    // Below the system bar: drawn over a balloon, it hid the top of one.
-    const canvas = engine.getRenderingCanvas()
-    const bar =
-      (owner?.barInset ?? 0) *
-      (canvas != null && canvas.clientHeight > 0
-        ? engine.getRenderHeight() / canvas.clientHeight
-        : 1)
-    const room = {
+    const free = {
       left: (p.x - view.x) / perMetre,
       right: (view.x + view.width - p.x) / perMetre,
-      up: (p.y - view.y - bar) / perMetre,
+      up: (p.y - view.y) / perMetre,
       down: (view.y + view.height - p.y) / perMetre,
     }
-    const margin = (0.03 * view.height) / perMetre
+    const marginPx = 0.03 * view.height
+    const margin = marginPx / perMetre
     const drawn = height * b.drawnFraction
-    const fit = fitBalloon(room, width, drawn, { margin, side: b.side })
+    /*
+    OUT FROM UNDER THE SYSTEM BAR, where it is: drawn over a balloon, the bar
+    hid the top of one. A balloon clear of it to the side may go up past it
+    (the bar as a band across the top wasted the room beside it).
+    */
+    const canvas = engine.getRenderingCanvas()
+    const css = owner?.barRect ?? null
+    const sx =
+      canvas != null && canvas.clientWidth > 0
+        ? engine.getRenderWidth() / canvas.clientWidth
+        : 1
+    const sy =
+      canvas != null && canvas.clientHeight > 0
+        ? engine.getRenderHeight() / canvas.clientHeight
+        : 1
+    const barred =
+      css == null ? free : { ...free, up: (p.y - css.bottom * sy) / perMetre }
+    const under = (dx: number) =>
+      css != null &&
+      p.x + (dx - width / 2) * perMetre < css.right * sx + marginPx &&
+      p.x + (dx + width / 2) * perMetre > css.left * sx - marginPx
+    let room = free
+    let fit = fitBalloon(room, width, drawn, { margin, side: b.side })
+    if (under(fit.dx)) {
+      room = barred
+      fit = fitBalloon(room, width, drawn, { margin, side: b.side })
+    }
     b.side = fit.side
     b.room = { ...room, width, height: drawn }
     /*
@@ -674,20 +694,21 @@ export class B3dConversation extends B3dChild {
     went round the head with every step. It moves when it would be cut off,
     or when the fit has gone well away (back over the head, or up from a
     place it was squeezed into: one held anywhere it fitted was left low
-    and on the head). When it moves it lands with room to spare, fitted with
-    a wider margin, or walking closer moved it a little every frame. EASED,
-    NOT SNAPPED.
+    and on the head). It lands a margin in from the edges and stays until it
+    reaches one, so the next step does not move it again (landing with a
+    sixth of its height to spare as well kept it lower than it needed to be).
+    EASED, NOT SNAPPED.
     */
-    const settle = fitBalloon(room, width, drawn, {
-      margin: margin + 0.15 * drawn,
-      side: fit.side,
-    })
     const want = b.placed
-      ? holdBalloon({ dx: b.goal.dx, dy: b.goal.dy }, fit, room, width, drawn, {
-          margin,
-          settle,
-        })
-      : settle
+      ? holdBalloon(
+          { dx: b.goal.dx, dy: b.goal.dy },
+          fit,
+          under(b.goal.dx) ? barred : free,
+          width,
+          drawn,
+          { margin: 0 }
+        )
+      : fit
     b.goal = want
     const k = b.placed ? 1 - Math.exp(-Math.max(0, dt) / 0.25) : 1
     b.dx += (want.dx - b.dx) * k
