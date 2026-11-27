@@ -2032,6 +2032,27 @@ entering and leaving a headset session.
 */
 let headsetTiming = false
 /** Longer holds for a headset's trigger (set by \`<tosi-b3d>\` in a session). */
+/**
+ * How big a key's ring is, in the board's units: about 1.35 keys across its
+ * middle, grown until each choice has three quarters of a key of arc, and a
+ * quarter bigger on a surface of its own (nothing crops it there). The
+ * pointer's hold and a pad's hold both draw it this size.
+ */
+function keyRingSize(
+  r: { width: number; height: number },
+  choices: number,
+  own: boolean
+): number {
+  const minArc = Math.min(r.width, r.height) * 0.75
+  const base =
+    Math.max(r.height, r.width) * 1.35 * (RADIAL_SIZE / (2 * RADIAL_HUB))
+  const arc = (s: number) =>
+    (2 * Math.PI * 132 * (s / RADIAL_SIZE)) / Math.max(1, choices)
+  let size = own ? base * 1.25 : base
+  for (let n = 0; n < 8 && arc(size) < minArc; n++) size *= 1.15
+  return size
+}
+
 export function setKeyboardHeadset(on: boolean): void {
   headsetTiming = on
 }
@@ -2413,20 +2434,9 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
       label: c.label,
       ...(c.items ? { items: [] } : {}),
     }))
-    const minArc = Math.min(r.width, r.height) * 0.75
-    const base =
-      Math.max(r.height, r.width) * 1.35 * (RADIAL_SIZE / (2 * RADIAL_HUB))
-    // Grown until each choice has about three quarters of a key of arc.
-    const grown = (start: number): number => {
-      let size = start
-      const arc = (s: number) =>
-        (2 * Math.PI * 132 * (s / RADIAL_SIZE)) / Math.max(1, accents.length)
-      for (let n = 0; n < 8 && arc(size) < minArc; n++) size *= 1.15
-      return size
-    }
     if (host?.showOver != null) {
       // A little bigger than in the board: nothing crops it here.
-      const size = grown(base * 1.25)
+      const size = keyRingSize(r, accents.length, true)
       const room = host.overRoom?.() ?? null
       const at =
         room != null
@@ -2444,7 +2454,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
     }
     // In the board, which crops what is past its edge: moved over to stay on it.
     const kbH = keyboardHeight(keyLayout(mode, shift).length, KH, GAP)
-    const size = grown(base)
+    const size = keyRingSize(r, accents.length, false)
     const at = fitRingCentre(
       kx,
       ky,
@@ -2660,6 +2670,10 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
             fontScale: 1.25,
             fontWeight: w3dTheme.textWeight,
           },
+          // As big as the pointer's ring on its own surface, in board units,
+          // and on the key (the board's box is the whole board).
+          size: keyRingSize(r, alts.length, true),
+          at: { x: r.x + r.width / 2, y: r.y + r.height / 2 },
         }
       },
     }),

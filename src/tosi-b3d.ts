@@ -3189,12 +3189,45 @@ export class B3d extends Component {
    * Where the pad's focused control is on the page (client x, y of its
    * middle), when its panel is a system panel shown flat; else null.
    */
-  private _padFocusClient(
-    box: { x: number; y: number; w: number; h: number } | null | undefined
-  ): { x: number; y: number } | null {
-    const key = this._panelNav?.key
-    if (box == null || !(key instanceof Element)) return null
-    return this._systemContentToClient(key, box.x + box.w / 2, box.y + box.h / 2)
+  /**
+   * Where a focused control is on screen (its middle, client pixels), and how
+   * big `size` of its own units is there. A control in a popup has its box in
+   * the popup's units, so it is mapped through the popup's own plane: through
+   * the panel, a key's ring opened far from the key.
+   */
+  private _padFocusPlace(
+    node: { box?: { x: number; y: number; w: number; h: number }; surface?: Element },
+    size?: number,
+    at?: { x: number; y: number }
+  ): { x: number; y: number; size?: number } | null {
+    const box = node.box
+    if (box == null) return null
+    let map: ((x: number, y: number) => { x: number; y: number } | null) | null =
+      null
+    if (node.surface != null) {
+      const plane = Array.from(
+        this.querySelectorAll('tosi-b3d-svg-plane')
+      ).find(
+        (p) => (p as unknown as B3dSvgPlane).svgElement === node.surface
+      ) as unknown as B3dSvgPlane | undefined
+      if (plane != null) map = (x, y) => plane.toClient(x, y)
+    } else {
+      const key = this._panelNav?.key
+      if (key instanceof Element)
+        map = (x, y) => this._systemContentToClient(key, x, y)
+    }
+    if (map == null) return null
+    const c = at
+      ? map(box.x + at.x, box.y + at.y)
+      : map(box.x + box.w / 2, box.y + box.h / 2)
+    if (c == null) return null
+    if (!(size != null && size > 0)) return c
+    // Pixels per unit, measured across the box.
+    const a = map(box.x, box.y)
+    const b = map(box.x + box.w, box.y + box.h)
+    const units = Math.hypot(box.w, box.h)
+    if (a == null || b == null || units <= 0) return c
+    return { ...c, size: (size * Math.hypot(b.x - a.x, b.y - a.y)) / units }
   }
   /** Draw the focus ring round `box` in `root` (null: none). */
   private _padRingAt(
@@ -3425,19 +3458,23 @@ export class B3d extends Component {
       else if (ev === 'hold') {
         const m = focused.menu()
         if (m == null || m.items.length === 0) nav?.activate()
-        else
+        else {
+          // Centred on the control it is for (the slot, the key), flat, and
+          // as big as its menu says in its own units.
+          const at = this._padFocusPlace(focused, m.size, m.at)
           this._radialHost().openMenu(
             {
               title: m.title,
               look: m.look,
+              size: at?.size,
               // A control's menu is a ring's items (with no colours or spacers).
               items: m.items as RadialItem[],
               handleSelect: (_item, i) => m.handleSelect(i),
             },
             { button: 'buttonB' },
-            // Centred on the control it is for (the slot), flat.
-            this._padFocusClient(focused.box)
+            at
           )
+        }
       }
     }
   }

@@ -295,6 +295,10 @@ describe('a panel lists its controls, and the popup open from one', () => {
     // Drawn on the popup's own surface, so nothing frames them on the panel.
     expect(open[0].inPopup).toBeUndefined()
     expect(open[1].children!.every((n) => n.inPopup === true)).toBe(true)
+    // And they say which surface their boxes are in.
+    const surfaces = new Set(open[1].children!.map((n) => n.surface))
+    expect(surfaces.size).toBe(1)
+    expect([...surfaces][0]).toBeInstanceOf(Element)
     node(open, 'save…/name').set!('Ada')
     node(open, 'save…/save').activate!()
     expect(saved).toBe('Ada')

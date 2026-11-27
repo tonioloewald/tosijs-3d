@@ -160,6 +160,8 @@ export interface ControlNode {
    * not the panel's, so nothing draws on the panel round it.
    */
   inPopup?: boolean
+  /** The popup's own SVG, whose units `box` is in (with `inPopup`). */
+  surface?: Element
   set?(value: unknown): void
   activate?(): void
   isDefault?: boolean
@@ -208,6 +210,18 @@ export interface ControlMenu {
   handleSelect(index: number): void
   /** How its ring is drawn (`RadialLook`): a key's ring has its character in the middle. */
   look?: { centre?: string; fontScale?: number; fontWeight?: string }
+  /**
+   * How big its ring is, in the units of the control's `box`: a key's ring
+   * is sized from the key, as the pointer's hold draws it. Without it, the
+   * ring is the system ring's size.
+   */
+  size?: number
+  /**
+   * Where its ring is centred, from the top left of the control's `box`, in
+   * its units: a keyboard's box is the whole board, its ring the focused
+   * key's. Without it, the middle of the box.
+   */
+  at?: { x: number; y: number }
 }
 
 const CONTAINERS = new Set<WidgetRole>(['group', 'toolbar', 'list', 'popup'])

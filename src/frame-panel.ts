@@ -227,6 +227,21 @@ export function panelLayerScene(
       // the panel must still end on it).
       u.onlyCheckPointerDownEvents = true
       u.utilityLayerScene.autoClearDepthAndStencil = true
+      /*
+      OVER THE WORLD IN A HEADSET TOO. The layer clears depth once, into
+      whatever is bound when it starts: the canvas's framebuffer. A headset
+      draws each eye into the session's own framebuffer, and Babylon clears
+      that one only for a scene with `autoClear`, which a layer drawn over
+      another cannot have. So panels were depth-tested against the world and
+      stood inside planets on a Quest. In the emulated headset the session's
+      framebuffer IS the canvas's, so it never showed there. Each eye's
+      framebuffer is bound by the time this runs.
+      */
+      const layerScene = u.utilityLayerScene
+      layerScene.onBeforeCameraRenderObservable.add((cam) => {
+        if (cam.outputRenderTarget != null)
+          layerScene.getEngine().clear(null, false, true, true)
+      })
       return u
     }
     pair = { ui: make(), modal: make() }

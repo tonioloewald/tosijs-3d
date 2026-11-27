@@ -61,6 +61,11 @@ export interface RadialMenuOptions {
    * shows the ring a pointer's hold does.
    */
   look?: RadialLook
+  /**
+   * Flat, its height on screen in CSS pixels (default `RADIAL_SIZE`): a key's
+   * ring is drawn the size of the pointer's ring on that key.
+   */
+  size?: number
   handleSelect?: (item: RadialItem, index: number) => void
   /** Told when it closes, picked or not. */
   handleClose?: () => void
@@ -412,7 +417,12 @@ export class RadialHost {
     })
     open.svg = svg
     open.close =
-      this.scene.present(svg, RADIAL_SIZE, open.centre, open.xrPlace) ??
+      this.scene.present(
+        svg,
+        open.opts.size ?? RADIAL_SIZE,
+        open.centre,
+        open.xrPlace
+      ) ??
       this.domFallback(svg)
     open.stickGate = gateState()
     open.pointerGate = gateState()

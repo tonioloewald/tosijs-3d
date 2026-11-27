@@ -968,6 +968,44 @@ export class B3dSvgPlane extends AbstractMesh {
     if (!layered) owner.register({ meshes: [this.mesh] })
   }
 
+  /**
+   * Where a point of its SVG (viewBox units) is on screen, in client pixels:
+   * null when it is not shown, or in a headset (there is no screen).
+   */
+  toClient(x: number, y: number): { x: number; y: number } | null {
+    const mesh = this.mesh
+    const scene = this.owner?.scene
+    const svg = this.svgElement as SVGSVGElement | null
+    const cam = scene?.activeCamera
+    const canvas = scene?.getEngine().getRenderingCanvas()
+    if (mesh == null || scene == null || svg == null || cam == null) return null
+    if (canvas == null || !mesh.isEnabled()) return null
+    if (cam.getClassName() === 'WebXRCamera') return null
+    const attrs = this as any
+    const vb = svg.viewBox?.baseVal
+    // The plane shows the whole viewBox, as the pointer's uv says.
+    const local = new BABYLON.Vector3(
+      (x / (vb?.width || attrs.resolution || 1) - 0.5) * attrs.width,
+      (0.5 - y / (vb?.height || attrs.resolution || 1)) * attrs.height,
+      0
+    )
+    mesh.computeWorldMatrix(true)
+    const world = BABYLON.Vector3.TransformCoordinates(
+      local,
+      mesh.getWorldMatrix()
+    )
+    const e = scene.getEngine()
+    const p = BABYLON.Vector3.Project(
+      world,
+      BABYLON.Matrix.IdentityReadOnly,
+      scene.getTransformMatrix(),
+      cam.viewport.toGlobal(e.getRenderWidth(), e.getRenderHeight())
+    )
+    const r = canvas.getBoundingClientRect()
+    const k = r.width / (e.getRenderWidth() || 1)
+    return { x: r.left + p.x * k, y: r.top + p.y * k }
+  }
+
   sceneDispose() {
     this._offOrigin?.()
     this._offOrigin = null

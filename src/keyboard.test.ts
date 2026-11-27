@@ -722,8 +722,13 @@ describe('keyboard — a pad holds B on a key', () => {
     keys.length = 0
     const menu = kb.semantics!().menu!()!
     expect(menu.items.map((i) => i.label)).toContain('ö')
-    // Drawn as the pointer's ring is: the key in the middle.
+    // Drawn as the pointer's ring is: the key in the middle, as big as it.
     expect(menu.look?.centre).toBe('o')
+    const key = Math.max(o.rect.width, o.rect.height)
+    expect(menu.size!).toBeGreaterThan(1.5 * key)
+    expect(menu.size!).toBeLessThan(8 * key)
+    // Centred on the key, in the board's units.
+    expect(menu.at).toEqual({ x: o.x, y: o.y })
     menu.items.find((i) => i.label === 'ö')!.handleSelect!()
     expect(keys).toEqual(['ö'])
     // Held, so the focus moves to ?123 without switching to the digits.
