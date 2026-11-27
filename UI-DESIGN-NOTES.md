@@ -1447,6 +1447,18 @@ is walking, not a click on the world.
   beside the head went round it with every step the player took. Tonio:
   *"unless the actual constraint (it needs to be to the side or whatever)
   changes it shouldn't be redrawn"*. It keeps its place while it fits.
+- **No arrow keys on the keyboard: the D-pad moves the caret.** Tonio had
+  been weighing arrow keys for the on-screen keyboard; stepping the caret
+  and selection with the D-pad settled it (*"d-pad is way better"*). Keys
+  you aim at are slower than a thumb that is already there. Forward delete
+  stays on a hardware Delete key and behind a hold on ⌫, never a key of its
+  own: delete deletes backward.
+- **What still puts the Quest's own keyboard ahead is the compositor.** Its
+  text is a compositor layer: sampled once onto the display and moved at
+  the display's rate. Ours is drawn into the scene, so it is resampled
+  twice and moves at the scene's frame rate. WebXR quad layers would close
+  most of that for text panels; the cost is depth against the scene (board
+  #4327).
 
 
 ## Pass 9: a radial menu is learned by the hand (2026-11-27)
