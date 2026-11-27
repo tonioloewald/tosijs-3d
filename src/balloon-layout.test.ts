@@ -74,13 +74,24 @@ describe('balloon layout', () => {
     expect(fit.tail).toBe(1) // pointing right, at the head
   })
 
-  test('a little short of room it only slides down a little and barely aside', () => {
+  test('a little short of room it only slides down a little and a little aside', () => {
     const fit = fitBalloon({ left: 3, right: 3, up: 0.68, down: 2 }, 1, 0.6)
     expect(fit.dy).toBeCloseTo(0.08)
-    expect(Math.abs(fit.dx)).toBeLessThan(0.01)
+    expect(Math.abs(fit.dx)).toBeLessThan(0.1)
   })
 
-  test('it stays inside the side edges and keeps its side unless the other has much more room', () => {
+  test('never on the head: below the top of the head, it is all the way aside', () => {
+    // Its bottom 5 cm below the top of the head, with room on both sides.
+    const fit = fitBalloon({ left: 3, right: 3, up: 0.55, down: 2 }, 1, 0.6)
+    expect(fit.dy).toBeLessThan(0)
+    expect(Math.abs(fit.dx)).toBeGreaterThanOrEqual(0.5 + 0.18 - 1e-9)
+    // Still above the head, it is on its way aside, not yet clear of it.
+    const above = fitBalloon({ left: 3, right: 3, up: 0.65, down: 2 }, 1, 0.6)
+    expect(above.dy).toBeGreaterThan(0)
+    expect(Math.abs(above.dx)).toBeLessThan(0.5)
+  })
+
+  test('it stays inside the side edges and keeps its side while it fits there', () => {
     const edge = fitBalloon({ left: 0.2, right: 4, up: 3, down: 2 }, 1, 0.6)
     expect(edge.dx).toBeCloseTo(0.3) // its left edge at the view's
     expect(edge.tail).toBeCloseTo(0.2)
@@ -88,6 +99,13 @@ describe('balloon layout', () => {
     expect(kept.side).toBe(-1)
     const moved = fitBalloon({ left: 0.6, right: 2, up: 0.2, down: 2 }, 1, 0.6, { side: -1 })
     expect(moved.side).toBe(1)
+    // Fitting on its side, it stays, however much more room the other has.
+    const roomy = fitBalloon({ left: 1.3, right: 4, up: 0.2, down: 2 }, 1, 0.6, { side: -1 })
+    expect(roomy.side).toBe(-1)
+    // Not fitting there any more, it changes before the edge pushes it onto
+    // the head, though the other side has barely more room.
+    const squeezed = fitBalloon({ left: 1.1, right: 1.25, up: 0.2, down: 2 }, 1, 0.6, { side: -1 })
+    expect(squeezed.side).toBe(1)
   })
 })
 

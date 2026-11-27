@@ -12,6 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Fixed: a balloon with too little room above the head no longer sits on it half aside while it slides down: it is all the way aside before its bottom passes the top of the head (`fitBalloon`). It keeps its side while it fits there, and changes as soon as it does not and the other side has room (it waited until the other had much more, and an edge pushed it onto the head meanwhile).
 - Changed: a conversation's balloons are drawn in the UI layer, still placed over the speaker's head in the world, so a head, a counter or a wall in between no longer cuts through one. On a screen a balloon keeps below the system bar (`B3d.barInset`, how far down the flat bar reaches).
 - Changed: when the glass pad's centre cluster cannot sit between the others (a d-pad on a phone in portrait), a d-pad is centred on the triggers and bumpers beside it (or, where it does not fit there, just clear of what is under it) rather than lifted above the side clusters.
 - Fixed: a balloon beside the head moved with every step again, and could be left low or on the head after the room came back. It stays while it fits and is near where it would be placed now (`holdBalloon`'s `tolerance`), and when it must move it lands with room to spare (`settle`, a fit with a wider margin). `holdBalloon` no longer takes `gap`.

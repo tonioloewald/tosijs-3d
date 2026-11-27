@@ -74,6 +74,7 @@ import {
   type BalloonLayout,
   followHead,
   type BalloonPoint,
+  type BalloonRoom,
 } from './balloon-layout.js'
 import { emptyInput, type InputProvider } from './control-input.js'
 import { gamepadFocus } from './gamepad-focus.js'
@@ -114,6 +115,8 @@ class Balloon {
   /** Where it is going (what `dx`, `dy` ease toward): kept while it fits. */
   goal = { dx: 0, dy: 0 }
   placed = false
+  /** The room it was last fitted in and its size there, metres (for debugging). */
+  room: (BalloonRoom & { width: number; height: number }) | null = null
   /** What it hangs from: the head, without the head's small movements (`followHead`). */
   anchor: BalloonPoint | null = null
 
@@ -664,6 +667,7 @@ export class B3dConversation extends B3dChild {
     const drawn = height * b.drawnFraction
     const fit = fitBalloon(room, width, drawn, { margin, side: b.side })
     b.side = fit.side
+    b.room = { ...room, width, height: drawn }
     /*
     IT STAYS WHERE IT IS while it fits and is near the fit (`holdBalloon`):
     you walk and the camera follows, and a balloon placed afresh each frame

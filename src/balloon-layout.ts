@@ -116,8 +116,9 @@ const smoothstep = (t: number) => {
 /**
  * Where a balloon goes in a flat view. Over the head when there is room;
  * when the top of the view is in the way it slides down, and as it comes
- * down over the head it moves aside (to the side with more room, staying
- * there unless the other has a good deal more), so it never covers the face;
+ * down to the head it moves aside (to the side with more room, staying
+ * there while it fits there), all the way aside before
+ * its bottom passes the top of the head, so it never sits on the head;
  * always inside the view's edges, the top first if it cannot all fit. Its
  * tail turns to the head. `width` and `height` are the drawn balloon's,
  * tail included; `head` is the head's height; all in metres. Pure.
@@ -134,11 +135,23 @@ export function fitBalloon(
   const prefer: -1 | 1 = room.right >= room.left ? 1 : -1
   const prev = options.side
   const roomOn = (s: -1 | 1) => (s > 0 ? room.right : room.left)
+  // It keeps its side while it fits there clear of the head, and changes as
+  // soon as it does not and the other side has room: kept until the other
+  // had much more room, an edge first pushed it onto the head.
+  const need = width + head * 0.6 + margin
+  const other = -(prev ?? prefer) as -1 | 1
   const side: -1 | 1 =
-    prev != null && roomOn(prev) >= 0.8 * roomOn(-prev as -1 | 1) ? prev : prefer
+    prev == null
+      ? prefer
+      : roomOn(prev) >= need ||
+        (roomOn(other) < need && roomOn(prev) >= 0.8 * roomOn(other))
+      ? prev
+      : prefer
   const down = Math.max(0, gap + height - (room.up - margin))
   let dy = gap - down
-  let dx = side * smoothstep(down / head) * (width / 2 + head * 0.6)
+  // All the way aside by the time its bottom reaches the top of the head:
+  // eased over a head's height instead, it sat on the head half aside.
+  let dx = side * smoothstep(down / Math.max(gap, 1e-6)) * (width / 2 + head * 0.6)
   const xMin = -(room.left - margin - width / 2)
   const xMax = room.right - margin - width / 2
   dx = xMin > xMax ? (xMin + xMax) / 2 : Math.max(xMin, Math.min(xMax, dx))
