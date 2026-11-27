@@ -1413,6 +1413,33 @@ is walking, not a click on the world.
   again, a layer whose plane is gone removes itself, and the first copy to
   close closes the rest.
 
+## Pass 12, flat: a balloon over everything but the bar (2026-11-27)
+
+- **Placed in the world, drawn over it.** On a phone in portrait the
+  shopkeeper's head and the counter cut through his balloon. Tonio: *"put
+  them in the UI layer but position them as though they were in 3d
+  space"*. The balloon keeps its place over the head, so it still reads as
+  his, and nothing in the world comes between you and what he said.
+- **On the head or beside it, never half way.** With too little room above,
+  a balloon slid down and moved aside over a whole head's height, so half way
+  through it sat on the head, and the deadband kept it there. It now goes all
+  the way aside before its bottom passes the top of the head, and keeps its
+  side while it fits there, not until the other side has much more room.
+- **A balloon matters more than the system bar.** Tonio: *"if there's a
+  balloon the user cares about it more than the system bar so the key thing
+  is knowing it's still there and reachable"*. So the bar keeps a balloon out
+  only where the bar is (as a band across the top it kept one beside the bar
+  from going up over the head), and a balloon under it may tuck its empty top
+  band under the bar. The bar stays on top: under a balloon its hidden half
+  would still take presses, and what is drawn must be what is picked. Half
+  the bar was the first proposal; at phone sizes the balloon's empty band is
+  smaller than that, so the band is the limit, and no word is hidden. Tonio:
+  *"It actually makes the UI feel more sophisticated."*
+- **The deadband's slack is the margin, not extra room.** Pass 11 landed a
+  moved balloon with a sixth of its height to spare as well as the margin,
+  which kept it lower than it needed to be: in portrait, on the head. It now
+  lands a margin in from the edges and stays until it reaches one.
+
 ## Pass 11: hysteresis, and one ring (2026-11-27)
 
 - **Holding a place needs two thresholds, not one.** Pass 10 kept a balloon
