@@ -1442,13 +1442,16 @@ is walking, not a click on the world.
   control's menu now says its ring's size and centre in its own units, and a
   control in a popup says which surface those are. Tonio: *"huge and not
   centered on the key"*.
-- **Drawn over the world in the emulator is not drawn over it on a Quest.**
+- **Drawn over the world in the emulator says nothing about a Quest.**
   Pass 9 put the headset's panels in the UI layer and checked them over a
-  planet in the emulated headset. On a Quest they still stood inside planets
-  (*"every panel popped intersecting earth"*): the layer cleared its depth
-  on the canvas's framebuffer, and a headset draws each eye into the
-  session's. The emulator's session framebuffer is the canvas's, so it could
-  not show it.
+  planet in the emulated headset. Reading Babylon then showed the layer
+  clears its depth on the canvas's framebuffer, while a headset draws each
+  eye into the session's, so on a device the panels are depth-tested
+  against the world; the emulator's session framebuffer IS the canvas's, so
+  it cannot show this. The layer now clears depth on each eye's framebuffer.
+  Tonio's report of panels intersecting Earth may have been a misreading of
+  the item, so pass 13 asks it precisely (whole panel over the planet, or
+  cut by it).
 - **The deadband's slack is the margin, not extra room.** Pass 11 landed a
   moved balloon with a sixth of its height to spare as well as the margin,
   which kept it lower than it needed to be: in portrait, on the head. It now
