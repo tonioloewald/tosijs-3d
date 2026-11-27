@@ -318,11 +318,11 @@ export function attachSceneLayer(opts: {
     wants the room. Still one viewBox unit to one, capped at twice the panel.
     */
     const beside = config.side === 'right' || config.side === 'left'
-    const worldW = Math.min(
+    let worldW = Math.min(
       width * (beside ? 2 : 0.95),
       width * (popW / panelVbW)
     )
-    const worldH = worldW * (popH / popW)
+    let worldH = worldW * (popH / popW)
 
     /*
       PROJECT THE ANCHOR into the plane's own space.
@@ -358,17 +358,27 @@ export function attachSceneLayer(opts: {
       keyboard looked a third taller than it was, so it was pushed up over
       the field it types into.
       */
-      const drawnH = (worldH / planeH) * panelH
+      let drawnH = (worldH / planeH) * panelH
       /*
-      NO ROOM BELOW, THEN ABOVE. Only when neither fits is it pushed over
-      the anchor.
+      NO ROOM BELOW, THEN ABOVE. Where neither fits (a short scene on a page),
+      it is drawn smaller, down to half its size, on the side with more room:
+      a keyboard over the field it types into hides what you are typing. Only
+      when even that does not fit is it pushed over the anchor.
       */
       const GAP = 4
+      const roomBelow = room.bottom - MARGIN - topVb
+      const roomAbove = frameTop + a.y - GAP - (room.top + MARGIN)
+      if (!beside && drawnH > roomBelow && drawnH > roomAbove) {
+        const k = Math.max(0.5, Math.max(roomBelow, roomAbove) / drawnH)
+        worldW *= k
+        worldH *= k
+        drawnH *= k
+      }
       const above = frameTop + a.y - GAP - drawnH
       if (
         !beside &&
         topVb + drawnH > room.bottom - MARGIN &&
-        above >= room.top + MARGIN
+        (above >= room.top + MARGIN || roomAbove > roomBelow)
       )
         topVb = above
       topVb = Math.max(

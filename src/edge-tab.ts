@@ -12,8 +12,9 @@ off by the edge of the display shows you where the display ends: you see the
 window you are looking through. It also matters on a wide headset, where a
 panel behind you is otherwise somewhere you have to remember.
 
-Panels opened from the system bar and the settings panel do this in a
-headset, as does any frame panel given `edgeTab`.
+Panels opened from the system bar, the settings panel and the system bar
+itself do this in a headset, as does any frame panel given `edgeTab`. The
+bar's tab opens the bar as a ring where you are looking.
 
 ## When a panel becomes a tab
 
@@ -31,7 +32,8 @@ so a tab is never in one eye only.
 The tab is at the panel's distance, so it sits about as deep as the panel, and
 the same angular size wherever it is (about 2.6° tall). It points toward the
 middle of the panel, along the line from the middle of the view. Two tabs on
-one edge stand side by side.
+one edge stand side by side. A tab at the top stands further in
+(`EDGE_TAB_TOP_INSET`): the top of a headset's view is the hardest to see.
 
 ## Using it
 
@@ -87,6 +89,12 @@ export const EDGE_TAB_OVERHANG = 0.1
  * again; also how far a tab sits in from the edge.
  */
 export const EDGE_TAB_MARGIN = 0.04
+/**
+ * How much further in from the TOP edge a tab stands, as a fraction of the
+ * view: the top of a headset's view is the hardest to see (the lens is softest
+ * there and the brow hides some of it).
+ */
+export const EDGE_TAB_TOP_INSET = 0.08
 /** A tab's height, in radians of view (about 2.6°). */
 export const EDGE_TAB_HEIGHT = 0.045
 

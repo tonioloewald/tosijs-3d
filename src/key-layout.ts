@@ -632,8 +632,8 @@ export function keyAt(rects: KeyRect[], x: number, y: number): KeyRect | null {
  * Where a key's ring of choices is drawn: centred on the key when it fits in
  * `room`, else moved in just far enough to fit (each axis on its own;
  * centred in an axis the room is too small for). The layout never changes,
- * only where it is drawn: a slide picks by its direction from the key, so the
- * hand learns one gesture per choice wherever the key sits.
+ * only where it is drawn, and a slide picks what it is over on the ring as
+ * drawn.
  */
 export function fitRingCentre(
   x: number,

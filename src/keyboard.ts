@@ -256,9 +256,12 @@ gamepadFocus({ poll: () => pad.poll(), target: panel, claim: wrap })
 Holding a key that has alternatives (`a c e i n o s u y z`, and `.` for
 punctuation) opens them as a [radial menu](/radial-menu/) round the key; **slide
 toward one and release** to insert it. A slide counts once it has left the key, and
-then only its direction matters, so it is a flick, not an aim. The ring is its own
-surface in front of the board, so near an edge it hangs past it and the slide
-still counts out there. The whole press is one gesture, the phone convention.
+then only its direction from the ring's middle matters, so it is a flick, not an
+aim. Near the edge of the screen the whole ring is drawn moved in to fit, the same
+layout as anywhere, and a slide picks what it is over on the ring as drawn. The
+ring is its own surface in front of the board, so it can hang past the board's
+edge. The whole press is one gesture, the phone convention. A gamepad gets the
+same choices by holding **B** on a key (a ring picked with a stick).
 
 That gesture is why `BoxChild.handlePointer` **captures**: by the time you have slid
 toward `ö` the pointer is outside the key's own rect, and a hit-test-per-event model
@@ -457,6 +460,7 @@ import {
   type RadialMenuSvg,
 } from './radial-menu.js'
 import { radialPick } from './radial-layout.js'
+import type { ControlMenuItem, FocusVia } from './widget-semantics.js'
 
 /*
 THE CLIPBOARD for a field's copy, cut and paste (backspace's ring). The
@@ -493,12 +497,9 @@ async function clipboardRead(): Promise<string | null> {
 /** The accent ring on show: its drawing and where it is (keyboard units). */
 interface AccentRing {
   svg: RadialMenuSvg
-  /** Where the ring is drawn (its middle), for taps on it. */
+  /** Where the ring is drawn (its middle): slides and taps are read from here. */
   cx: number
   cy: number
-  /** The key it belongs to, where a slide starts: slides pick by direction from here. */
-  fromX: number
-  fromY: number
   hub: number
   out: number
   items: RadialItem[]
@@ -1829,6 +1830,18 @@ export function inputField(config: InputFieldOptions = {}): InputField {
         if (kbOpen == null) openKeyboard()
       },
       /*
+      A PAD THAT STEPS ONTO IT opens its keyboard, as a headset does: a pad
+      has no keys, so a text box it reaches is one it means to type in.
+      Not Tab or an arrow key (there are keys), and not the focus handed
+      back when the keyboard goes (its hide key).
+      */
+      focus: (on: boolean, via?: FocusVia) => {
+        if (on && via === 'pad' && kbOpen == null && kbMode !== 'never') {
+          api.setActive(true)
+          openKeyboard()
+        }
+      },
+      /*
       A pad's B held (a long press in a headset): editing, as a ring. The
       same six every time, in the same places (a ring is learned by the
       hand): with nothing to act on one is dimmed, never gone. Clear takes
@@ -1875,6 +1888,16 @@ export function inputField(config: InputFieldOptions = {}): InputField {
             label: 'select all',
             disabled: empty,
             run: () => api.action('selectAll'),
+          },
+          // The keyboard, put away or brought back (one slot, its label says which).
+          {
+            label: kbOpen != null ? 'hide keyboard' : 'show keyboard',
+            icon: 'keyboard',
+            disabled: kbMode === 'never',
+            run: () => {
+              api.setActive(true)
+              openKeyboard()
+            },
           },
         ]
         return {
@@ -2333,8 +2356,6 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
       svg,
       cx,
       cy,
-      fromX: r.x + r.width / 2,
-      fromY: r.y + r.height / 2,
       hub: RADIAL_HUB * scale,
       out: 190 * scale,
       items,
@@ -2378,9 +2399,9 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
   ONE LAYOUT PER KEY, WHEREVER IT SITS. A radial menu is worth having for the
   muscle memory, so its choices never move round it, come and go, or squeeze
   into an arc: near an edge the whole ring is drawn moved over until it fits
-  (`fitRingCentre`), and a slide is still measured from the key, so the same
-  gesture takes the same choice. On its own surface the room is the screen
-  (none in a headset); drawn in the board, the board.
+  (`fitRingCentre`). A slide and a tap are both read on the ring as drawn, so
+  what lights is what the pointer is over. On its own surface the room is the
+  screen (none in a headset); drawn in the board, the board.
   */
   const openPopup = (r: KeyRect, accents: KeyChoice[]): AccentRing => {
     const kx = r.x + r.width / 2
@@ -2446,8 +2467,6 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
       svg,
       cx: at.x,
       cy: at.y,
-      fromX: kx,
-      fromY: ky,
       hub,
       out,
       items,
@@ -2504,17 +2523,26 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
       sticky = { rect: r, accents: c.items, ring }
       return true
     }
+    typeChoice(c)
+    return false
+  }
+  /** A choice that types or acts (not a sub-ring). */
+  const typeChoice = (c: KeyChoice): void => {
     if (c.text != null) kb$<(t: string) => void>('handleKey', 'onKey')?.(c.text)
     else if (c.action)
       kb$<(a: KeyAction) => void>('handleAction', 'onAction')?.(c.action)
-    return false
   }
+  /** A key's choices as a control's ring (a pad's B held on it), sub-rings and all. */
+  const menuItem = (c: KeyChoice): ControlMenuItem =>
+    c.items
+      ? { label: c.label, items: c.items.map(menuItem) }
+      : { label: c.label, handleSelect: () => typeChoice(c) }
 
   /*
-  The accent ring's hit mapping, in ONE place. A slide picks by DIRECTION
-  past the middle, however far (`bounded` false: Fitts' unbounded targets);
-  a tap after the finger lifted must land on the ring (plus slack), or it is
-  a tap elsewhere that dismisses.
+  The accent ring's hit mapping, in ONE place, on the ring as drawn. A slide
+  picks by DIRECTION from its middle, however far past it (`bounded` false:
+  Fitts' unbounded targets); a tap after the finger lifted must land on the
+  ring (plus slack), or it is a tap elsewhere that dismisses.
   */
   const ACCENT_SLACK = 10
   const accentIndexAt = (
@@ -2524,10 +2552,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
     bounded: boolean
   ): number => {
     if (ring == null) return -1
-    // A tap lands on the ring where it is drawn; a slide is a direction from the key.
-    const p = bounded
-      ? { x: x - ring.cx, y: y - ring.cy }
-      : { x: x - ring.fromX, y: y - ring.fromY }
+    const p = { x: x - ring.cx, y: y - ring.cy }
     const d = Math.hypot(p.x, p.y)
     if (d < ring.hub) return -1
     if (bounded && d > ring.out + ACCENT_SLACK) return -1
@@ -2604,6 +2629,19 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
       focus: (on: boolean) => {
         if (!on) api.focusClear()
         else if (focusIdx < 0) api.focusMove(0, 0)
+      },
+      // B held on a key: its choices (accents, punctuation, ?123's digits)
+      // as a ring, picked with a stick, as the pointer's hold shows them.
+      menu: () => {
+        const r = rects[focusIdx]
+        const alts = r != null ? holdChoices(r.key) : []
+        if (r == null || alts.length === 0) return null
+        return {
+          title: r.key.label ?? '',
+          items: alts.map(menuItem),
+          // Each choice acts itself (a sub-ring's choices too).
+          handleSelect: () => {},
+        }
       },
     }),
     el,

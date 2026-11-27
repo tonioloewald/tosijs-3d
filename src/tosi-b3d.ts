@@ -3230,10 +3230,10 @@ export class B3d extends Component {
         pn.nav.activate()
         e.preventDefault()
       } else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !field) {
-        pn.nav.move(e.key === 'ArrowLeft' ? -1 : 1, 0)
+        pn.nav.move(e.key === 'ArrowLeft' ? -1 : 1, 0, 'key')
         e.preventDefault()
       } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-        pn.nav.move(0, e.key === 'ArrowUp' ? -1 : 1)
+        pn.nav.move(0, e.key === 'ArrowUp' ? -1 : 1, 'key')
         e.preventDefault()
       } else if (e.key === 'Escape') this._keyNav = false
     }
@@ -3408,7 +3408,8 @@ export class B3d extends Component {
           this._radialHost().openMenu(
             {
               title: m.title,
-              items: m.items,
+              // A control's menu is a ring's items (with no colours or spacers).
+              items: m.items as RadialItem[],
               handleSelect: (_item, i) => m.handleSelect(i),
             },
             { button: 'buttonB' },
@@ -3712,7 +3713,7 @@ export class B3d extends Component {
         this._radialPointer()
         this._radialHost().openAtPointer({
           title: menu.title,
-          items: menu.items,
+          items: menu.items as RadialItem[],
           handleSelect: (_item, i) => menu.handleSelect(i),
         })
       },
@@ -5553,12 +5554,16 @@ export class B3d extends Component {
   /**
    * Open the system bar as a ring: its buttons as slices, a bar menu as a
    * sub-ring. Held by D-pad up on a gamepad; `heldBy` is what holds it open
-   * (let go to pick), else it stays open to click. Returns its close.
+   * (let go to pick), else it stays open to click. `opener`, when nothing
+   * holds it, is what pressed again holds it. Returns its close.
    */
-  openSystemRing(heldBy: RadialHold | null = null): () => void {
+  openSystemRing(
+    heldBy: RadialHold | null = null,
+    opener: RadialHold | null = heldBy
+  ): () => void {
     const items = this._systemRingItems()
     if (items.length === 0) return () => {}
-    return this._radialHost().openMenu({ items }, heldBy)
+    return this._radialHost().openMenu({ items }, heldBy, null, opener)
   }
 
   /**
@@ -8066,7 +8071,11 @@ export class B3d extends Component {
       since: number
       l: BABYLON.Vector3
       r: BABYLON.Vector3
+      /** Squeezed together (not a grip held for altitude, then the other): a quick one opens the ring. */
+      together: boolean
     } | null = null
+    /** When each grip closed (-1: open). */
+    const gripSince = { left: -1, right: -1 }
     const frame = base.sessionManager.onXRFrameObservable.add(() => {
       const now = realNow()
       // Re-seat confirmation: capture the yaw from where you are looking WHEN
@@ -8671,19 +8680,30 @@ export class B3d extends Component {
         ]?.value as number | undefined) ?? 0
       const ar = this.passthrough && rig.parent == null
       /*
-      THE SYSTEM RING ON THE GRIPS: both held together and still for half a
-      second opens it, held by them (a thumbstick points; let go to pick).
-      Each grip alone keeps its job (altitude; in AR, grabbing the room), and
-      both at once, held still, does nothing else. Not while a player is
-      driven (the game has the bumpers) or a page has given a bumper a hold.
+      THE SYSTEM RING ON THE GRIPS. Both squeezed and let go quickly opens it
+      to stay: a thumbstick points and its click picks, or the trigger taps a
+      slice; both grips again hold it (let go to pick, nothing lit closes).
+      Both held still for half a second opens it held by them (a thumbstick
+      points; let go to pick). Each grip alone keeps its job (altitude; in
+      AR, grabbing the room), and both at once does nothing else. Not while a
+      player is driven (the game has the bumpers) or a page has given a
+      bumper a hold.
       */
       const gripsDown = () => squeeze('left') > 0.5 && squeeze('right') > 0.5
+      for (const h of ['left', 'right'] as const)
+        if (squeeze(h) <= 0.5) gripSince[h] = -1
+        else if (gripSince[h] < 0) gripSince[h] = now
       if (gripsDown() && !ringUp && !this._gameHasBumpers()) {
         const l = gripWorld('left')
         const r = gripWorld('right')
         const k = 1 / Math.max(1e-6, sm.worldScalingFactor)
         if (gripChord == null && l != null && r != null)
-          gripChord = { since: now, l: l.clone(), r: r.clone() }
+          gripChord = {
+            since: now,
+            l: l.clone(),
+            r: r.clone(),
+            together: Math.abs(gripSince.left - gripSince.right) < 250,
+          }
         else if (gripChord != null && gripChord.since >= 0) {
           /*
           IN PASSTHROUGH both grips drag and scale the room, so there the
@@ -8709,7 +8729,18 @@ export class B3d extends Component {
             this.openSystemRing({ test: gripsDown })
           }
         }
-      } else if (!gripsDown()) gripChord = null
+      } else if (!gripsDown()) {
+        // Let go before the hold: the ring opens to stay.
+        if (
+          gripChord != null &&
+          gripChord.since >= 0 &&
+          gripChord.together &&
+          !ringUp &&
+          !this._gameHasBumpers()
+        )
+          this.openSystemRing(null, { test: gripsDown })
+        gripChord = null
+      }
       if (ar && !ringUp) arGrab((h) => squeeze(h) > 0.5)
       const lift = ar || ringUp ? 0 : squeeze('right') - squeeze('left')
       if (Math.abs(lift) > DEAD) rig.position.y += lift * VERT_SPEED * dt
@@ -9995,6 +10026,19 @@ export class B3d extends Component {
       svg: bar.svg,
       width,
       resolution: 512,
+      /*
+      OUT OF VIEW (looking down at a table, say), A TAB AT THE EDGE, as every
+      panel has. It cannot come to your gaze (its place is up, where you
+      learned it), so a tap opens the bar as a ring where you look: the same
+      buttons, the same picks.
+      */
+      edgeTab: {
+        title: 'System',
+        icon: 'menu',
+        handleTap: () => {
+          if (this._radial?.isOpen !== true) this.openSystemRing()
+        },
+      },
     })
     let checkIn = 30
     return {

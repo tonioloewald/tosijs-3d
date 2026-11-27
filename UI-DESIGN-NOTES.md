@@ -1413,6 +1413,42 @@ is walking, not a click on the world.
   again, a layer whose plane is gone removes itself, and the first copy to
   close closes the rest.
 
+## Pass 10: what you see is what you pick (2026-11-27)
+
+- **A ring moved over is read as drawn.** Pass 9 measured a slide from the
+  key, so the same flick took the same choice wherever the ring was drawn.
+  Tonio, near the edge: *"the slide kind of works but not the center"*,
+  *"slide centering does not match offset"*, while of the ?123 sub-ring,
+  read where it is drawn: *"even centers correctly"*. Muscle memory
+  lives in the ring's layout (each choice's direction from its middle), not
+  in a gesture measured from somewhere the drawing is not. A slide now picks
+  what it is over.
+- **A ring you summon quickly stays.** Holding both grips, then sliding and
+  letting go, is a hard motion on VR controllers. A quick squeeze leaves the
+  ring up, to pick with a stick and its click or a trigger tap on the slice;
+  holding still works. The same pattern as a key's ring on touch: lift to
+  look, then tap.
+- **Nothing UI goes out of view without a tab.** The system bar was the one
+  thing that did not fold to the edge of the view. Its tab cannot bring the
+  bar to your gaze (its place is learned), so a tap opens the bar as a ring
+  where you look: the same buttons. Tabs at the top stand further in: Tonio
+  found the top one hard to see, where the lens is softest.
+- **A field covered by its keyboard is worse than a small keyboard.** In a
+  short scene the keyboard fitted neither above nor below its field and was
+  clamped over it. It is drawn smaller, down to half size, on the side with
+  more room.
+- **A pad that lands on a text box means to type.** Tonio: *"why not just
+  have the keyboard disclose automatically on entry via dpad. It already
+  does it in VR."* A D-pad step onto a field opens its keyboard; Tab and the
+  arrow keys do not (there are keys), nor does the focus handed back when the
+  keyboard is put away. Holding B on a key offers its choices as the pointer's
+  hold does, and the Edit ring can bring the keyboard back.
+- **A balloon moves when it must.** Placed afresh every frame, a balloon
+  beside the head went round it with every step the player took. Tonio:
+  *"unless the actual constraint (it needs to be to the side or whatever)
+  changes it shouldn't be redrawn"*. It keeps its place while it fits.
+
+
 ## Pass 9: a radial menu is learned by the hand (2026-11-27)
 
 - **A ring's layout never changes between openings.** Tonio: *"the primary

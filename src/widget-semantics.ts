@@ -110,8 +110,13 @@ export interface WidgetSemantics {
    * it, false when the step would leave it.
    */
   move?(dx: number, dy: number): boolean
-  /** Told when a D-pad or Tab gives it the focus, and takes it away. */
-  focus?(on: boolean): void
+  /**
+   * Told when a D-pad or Tab gives it the focus, and takes it away. `via` is
+   * how it came: `pad` (a gamepad's D-pad stepped onto it), `key` (Tab or an
+   * arrow key), or `other` (a panel opening, a popup closing and handing it
+   * back).
+   */
+  focus?(on: boolean, via?: FocusVia): void
   /** Controls inside it (a row, a toolbar, a list). */
   children?: SemanticSource[]
   /**
@@ -159,9 +164,9 @@ export interface ControlNode {
   /**
    * Told when a D-pad or Tab gives it the focus (true) and takes it away
    * (false), for what a hover would show: a thing's info, whether a carried
-   * thing fits a slot.
+   * thing fits a slot. `via` says how it came (see `WidgetSemantics.focus`).
    */
-  focus?(on: boolean): void
+  focus?(on: boolean, via?: FocusVia): void
   /**
    * What a press and HOLD offers, as a radial menu (a thing's places to go,
    * say): read when the hold fires. A quick press still `activate`s.
@@ -170,21 +175,31 @@ export interface ControlNode {
   children?: ControlNode[]
 }
 
+/** How a control got the focus: a gamepad's D-pad, Tab or an arrow key, or anything else. */
+export type FocusVia = 'pad' | 'key' | 'other'
+
+/** One choice of a control's radial menu. */
+export interface ControlMenuItem {
+  label: string
+  icon?: string
+  disabled?: boolean
+  checked?: boolean
+  /** Share of the ring (default 1). */
+  weight?: number
+  /** Set apart, opposite the rest (drop). */
+  apart?: boolean
+  /** Reached only round the rim, not straight out (drop). */
+  gated?: boolean
+  /** A sub-ring of choices, each acting itself (`handleSelect`). */
+  items?: ControlMenuItem[]
+  /** Picking it (beside the menu's own `handleSelect`). */
+  handleSelect?: () => void
+}
+
 /** A control's radial menu: its choices and what picking one does. */
 export interface ControlMenu {
   title?: string
-  items: {
-    label: string
-    icon?: string
-    disabled?: boolean
-    checked?: boolean
-    /** Share of the ring (default 1). */
-    weight?: number
-    /** Set apart, opposite the rest (drop). */
-    apart?: boolean
-    /** Reached only round the rim, not straight out (drop). */
-    gated?: boolean
-  }[]
+  items: ControlMenuItem[]
   handleSelect(index: number): void
 }
 

@@ -1562,8 +1562,10 @@ export function attachFramePanel(
   /*
   A PANEL NEVER OPENS OUT OF VIEW. Opened while its place is off to the side
   (from a ring summoned after a skewed reseat, say), it comes to where you
-  are looking instead of opening as a tab you then have to find.
+  are looking instead of opening as a tab you then have to find. Not one
+  whose tab does something else (`edgeTab.handleTap`): it keeps its place.
   */
+  const comesToGaze = aimable && spec.edgeTab?.handleTap == null
   let seenOpen = false
   const edgeCheck = () => {
     if (edge == null) return
@@ -1572,7 +1574,7 @@ export function attachFramePanel(
     let now = false
     if (xr && !focused && !gesture() && plane.visibility > 0.5) {
       now = edge.update(plane)
-      if (now && !seenOpen && aimable) {
+      if (now && !seenOpen && comesToGaze) {
         bringHere()
         now = edge.update(plane)
       }

@@ -24,9 +24,10 @@ semantics): `<tosi-b3d>` opens it as a [radial menu](/radial-menu/) when B is
 held on it, picked with the right stick. A thing in the inventory offers the
 places it can go.
 
-A control can also hear that it gained or lost the focus (`focus(on)` in its
-semantics), to show what a hover would: a thing's info, whether a carried thing
-fits a slot. When the focused control leaves the list (a thing taken across in
+A control can also hear that it gained or lost the focus (`focus(on, via)` in
+its semantics), to show what a hover would: a thing's info, whether a carried
+thing fits a slot. A text box that a gamepad's D-pad steps onto opens its
+on-screen keyboard (a pad has no keys); Tab and the arrow keys do not. When the focused control leaves the list (a thing taken across in
 a trade), the one now in its place takes the focus, so taking one thing after
 another is one press each. The [inventory](/inventory-box/) and
 [trade](/inventory-trade/) panels give their things and places as controls.
@@ -58,7 +59,7 @@ nav.focused        // the control with focus, its box to draw a ring round
 
 import { nearestInDirection } from './flow-layout.js'
 import { walkControls } from './widget-semantics.js'
-import type { ControlNode } from './widget-semantics.js'
+import type { ControlNode, FocusVia } from './widget-semantics.js'
 
 /** The roles a D-pad can land on. */
 const REACHABLE = new Set([
@@ -163,9 +164,11 @@ export interface PadNavigator {
    * One D-pad press. Up and down step through the controls in order and
    * cycle (from the first, up is the last); left and right change a slider,
    * a choice or a caret, else go to the control beside it. False only when
-   * there is nothing to focus.
+   * there is nothing to focus. `via` is what pressed it: a gamepad (`pad`,
+   * the default) or an arrow key (`key`); a text box a pad lands on opens
+   * its keyboard.
    */
-  move: (dx: number, dy: number) => boolean
+  move: (dx: number, dy: number, via?: FocusVia) => boolean
   /** Tab (1) or shift-Tab (-1): the next control in order, cycling. */
   tab: (dir: number) => boolean
   /** The click button. */
@@ -222,13 +225,13 @@ export function padNavigator(read: () => ControlNode[]): PadNavigator {
     path = ring[next].path
     return true
   }
-  /** Tell a control it gained or lost the focus (what a hover would show). */
-  const settle = <R>(r: R): R => {
+  /** Tell a control it gained or lost the focus (what a hover would show), and how. */
+  const settle = <R>(r: R, via: FocusVia = 'other'): R => {
     const { tree, all, i } = current()
     const now = i >= 0 ? all[i] : null
     if (now?.path !== shown?.path) {
-      shown?.focus?.(false)
-      now?.focus?.(true)
+      shown?.focus?.(false, via)
+      now?.focus?.(true, via)
     }
     shown = now
     if (now != null) lastAt = scope(tree, all).indexOf(now)
@@ -239,10 +242,10 @@ export function padNavigator(read: () => ControlNode[]): PadNavigator {
       const { all, i } = current()
       return i >= 0 ? all[i] : null
     },
-    move(dx, dy) {
-      return settle(moveBy(dx, dy))
+    move(dx, dy, via = 'pad') {
+      return settle(moveBy(dx, dy), via)
     },
-    tab: (dir) => settle(step(dir)),
+    tab: (dir) => settle(step(dir), 'key'),
     activate() {
       const { all, i } = current()
       if (i >= 0) pressControl(all[i])

@@ -15,6 +15,7 @@ import {
   EDGE_TAB_HEIGHT,
   EDGE_TAB_MARGIN,
   EDGE_TAB_OVERHANG,
+  EDGE_TAB_TOP_INSET,
   edgeCollapsed,
   edgeTabAvoid,
   edgeTabSpot,
@@ -350,11 +351,13 @@ export function attachEdgeTab(
     const halfW = wM / 2 / dist
     // Each eye sees it from a little to the side: room for that too.
     const parallax = eyeOff / dist
+    // The top of a headset's view is the hardest to see (the lens is softest
+    // there and the brow hides some of it): tabs stand further in from it.
     const inView: TangentBounds = {
       left: view.left + parallax,
       right: view.right - parallax,
       bottom: view.bottom,
-      top: view.top,
+      top: view.top - EDGE_TAB_TOP_INSET * (view.top - view.bottom),
     }
     const spot = edgeTabSpot(ext, inView, halfW, halfH, EDGE_TAB_MARGIN)
     const frame = scene.getFrameId()

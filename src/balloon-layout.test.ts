@@ -4,6 +4,7 @@ import {
   BALLOON_W,
   balloonLayout,
   fitBalloon,
+  holdBalloon,
   rowAt,
   wrapText,
   followHead,
@@ -109,5 +110,36 @@ describe('followHead', () => {
     let a = { x: 0.1, y: 1.8, z: 0 }
     for (let i = 0; i < 600; i++) a = followHead(a, at, 1 / 60)
     expect(Math.abs(a.x)).toBeLessThan(0.002)
+  })
+})
+
+describe('holdBalloon', () => {
+  const room = { left: 3, right: 3, up: 3, down: 2 }
+  test('beside the head, stays where it is while it still fits, as the fit shifts', () => {
+    // Near the top of the view: the fit is aside, and moves as the room does.
+    const near = { left: 3, right: 3, up: 0.45, down: 2 }
+    const fit = fitBalloon(near, 1, 0.6)
+    expect(fit.dx).toBeGreaterThan(0)
+    const at = { dx: fit.dx + 0.1, dy: fit.dy - 0.05 }
+    expect(holdBalloon(at, fit, near, 1, 0.6)).toEqual(at)
+  })
+  test('over the head, it stays over the head', () => {
+    const fit = fitBalloon(room, 1, 0.6)
+    expect(holdBalloon({ dx: 0, dy: 0.1 }, fit, room, 1, 0.6)).toEqual({ dx: 0, dy: 0.1 })
+  })
+  test('moves to the fit once it would be cut off', () => {
+    const tight = { left: 3, right: 3, up: 0.5, down: 2 }
+    const fit = fitBalloon(tight, 1, 0.6)
+    expect(holdBalloon({ dx: 0, dy: 0.1 }, fit, tight, 1, 0.6)).toEqual({ dx: fit.dx, dy: fit.dy })
+  })
+  test('goes back over the head when there is plenty of room there again', () => {
+    const fit = fitBalloon(room, 1, 0.6)
+    expect(fit.dx).toBe(0)
+    expect(holdBalloon({ dx: 0.9, dy: -0.3 }, fit, room, 1, 0.6)).toEqual({ dx: fit.dx, dy: fit.dy })
+    // Only just room over it: it stays beside the head (no flapping at the edge).
+    const just = { left: 3, right: 3, up: 0.75, down: 2 }
+    const f2 = fitBalloon(just, 1, 0.6)
+    expect(f2.dx).toBe(0)
+    expect(holdBalloon({ dx: 0.9, dy: -0.3 }, f2, just, 1, 0.6)).toEqual({ dx: 0.9, dy: -0.3 })
   })
 })

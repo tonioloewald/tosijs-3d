@@ -67,6 +67,7 @@ import {
   BALLOON_PAD as PAD,
   balloonLayout,
   fitBalloon,
+  holdBalloon,
   rowAt,
   type BalloonLayout,
   followHead,
@@ -107,6 +108,8 @@ class Balloon {
   /** Where it sits from the head in view (eased, so it does not swim), and whether that is set. */
   dx = 0
   dy = 0
+  /** Where it is going (what `dx`, `dy` ease toward): kept while it fits. */
+  goal = { dx: 0, dy: 0 }
   placed = false
   /** What it hangs from: the head, without the head's small movements (`followHead`). */
   anchor: BalloonPoint | null = null
@@ -639,19 +642,25 @@ export class B3dConversation extends B3dChild {
       up: (p.y - view.y) / perMetre,
       down: (view.y + view.height - p.y) / perMetre,
     }
-    const fit = fitBalloon(room, width, height * b.drawnFraction, {
-      margin: (0.03 * view.height) / perMetre,
-      side: b.side,
-    })
+    const margin = (0.03 * view.height) / perMetre
+    const drawn = height * b.drawnFraction
+    const fit = fitBalloon(room, width, drawn, { margin, side: b.side })
     b.side = fit.side
     /*
-    EASED, NOT SNAPPED: the head bobs as he talks and the camera follows you,
-    and the fit turns small moves near the top of the view into large ones
-    aside, so a balloon placed afresh each frame swam about.
+    IT STAYS WHERE IT IS while that still fits (`holdBalloon`): you walk and
+    the camera follows, and a balloon placed afresh each frame went round
+    the head with every step. It moves when it would be cut off, or to go
+    back over the head. EASED, NOT SNAPPED when it does.
     */
+    const want = b.placed
+      ? holdBalloon({ dx: b.goal.dx, dy: b.goal.dy }, fit, room, width, drawn, {
+          margin,
+        })
+      : fit
+    b.goal = want
     const k = b.placed ? 1 - Math.exp(-Math.max(0, dt) / 0.25) : 1
-    b.dx += (fit.dx - b.dx) * k
-    b.dy += (fit.dy - b.dy) * k
+    b.dx += (want.dx - b.dx) * k
+    b.dy += (want.dy - b.dy) * k
     b.placed = true
     b.setTail(Math.max(0, Math.min(1, 0.5 - b.dx / width)))
     return top

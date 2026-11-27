@@ -331,11 +331,16 @@ export class RadialHost {
     return close
   }
 
-  /** Open a ring; `at` (client x, y) is where a pointer opened it: it is drawn there. */
+  /**
+   * Open a ring; `at` (client x, y) is where a pointer opened it: it is drawn
+   * there. `opener` is what opened it, when nothing holds it (two grips let go
+   * at once): pressed again, it holds the ring, and letting go picks.
+   */
   openMenu(
     opts: RadialMenuOptions,
     heldBy: RadialHold | null = null,
-    at: { x: number; y: number } | null = null
+    at: { x: number; y: number } | null = null,
+    opener: RadialHold | null = heldBy
   ) {
     this.close()
     if (opts.items.length === 0) return () => {}
@@ -368,8 +373,8 @@ export class RadialHost {
       title: opts.title,
       heldBy,
       opener:
-        heldBy?.button != null || heldBy?.key != null || heldBy?.test != null
-          ? { button: heldBy.button, key: heldBy.key, test: heldBy.test }
+        opener?.button != null || opener?.key != null || opener?.test != null
+          ? { button: opener.button, key: opener.key, test: opener.test }
           : null,
       armed: false,
       stickGate: gateState(),
@@ -618,10 +623,19 @@ export class RadialHost {
     if (xrPressed && open.heldBy == null) open.heldBy = { pointer: true }
     // Let go of what held it open: pick what is lit. A pointer let go with
     // nothing lit (a click, not a drag) leaves it open, to click a slice.
-    // In a headset the pressing controller's ray, where it meets the ring.
-    if (this.scene.xrActive && open.xrAt != null) {
-      const p = this.scene.xrPointer?.()
+    /*
+    In a headset, a controller's ray where it meets the ring: on a ring a
+    press opened, and on one drawn where you look while nothing holds it or
+    a trigger does (a tap on a slice picks it). Not while two grips hold
+    it: letting go of them must not pick what a resting ray is on.
+    */
+    const gazeRing = this.scene.xrActive && open.xrAt == null
+    if (this.scene.xrActive) {
+      const rayPoints =
+        open.xrAt != null || open.heldBy == null || open.heldBy.pointer === true
+      const p = rayPoints ? this.scene.xrPointer?.() ?? null : null
       if (p != null) this.pointer = p
+      else if (gazeRing) this.pointer = null
     }
     this.holding = open.heldBy != null && isDown(open.heldBy)
     if (open.heldBy != null && !this.holding) {
@@ -659,8 +673,9 @@ export class RadialHost {
     const stick = this.stick(pad)
     if (stick != null)
       at = gatedPick(open.stickGate, stick, items, { deadzone: 0.5 })
-    // Clicked rather than dragged, the hub is a target: the deadzone is its size.
-    const dz = open.heldBy?.pointer ? 30 : RADIAL_HUB
+    // Clicked rather than dragged, the hub is a target: the deadzone is its
+    // size. So it is for a ray tapping a ring drawn where you look.
+    const dz = open.heldBy?.pointer && !gazeRing ? 30 : RADIAL_HUB
     if (at.pick < 0 && !at.blocked && this.pointer != null)
       at = gatedPick(open.pointerGate, this.pointer, items, { deadzone: dz })
     // Just opened by a rest: what the pointing is on now waits for it to

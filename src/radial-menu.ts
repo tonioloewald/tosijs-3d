@@ -204,10 +204,14 @@ level the same way.
 as a ring, each button a slice with its own icon, and a [bar menu](/bar-menu/)
 a sub-ring (a menu of choices shows the current one on the bar and on its
 slice, and in its sub-ring's middle). A panel that is showing is ticked, and picking it closes it;
-with any showing, **close all** sits apart at the bottom. Holding up never
+**close all** sits apart at the bottom, dimmed while nothing is open. Holding up never
 closes anything by itself. Holding **both bumpers** (L1 and R1) for half a
 second opens it too, and in a headset **both grips**, unless a game has the
-bumpers; a stick points and letting go picks. In a headset a ring that a
+bumpers; a stick points and letting go picks. In a headset a quick squeeze of
+both grips opens it to stay: point a thumbstick and click it, or tap a slice
+with the trigger (squeeze both again to close it, or tap outside it). When
+you look away from the headset's system bar it folds to a tab at the edge of
+the view, and a tap on the tab opens this ring. In a headset a ring that a
 press did not open is drawn straight ahead of your eyes. `b3d.openSystemRing()` opens it from code. That is how a scene
 with no visible UI still has all of it a hold away.
 

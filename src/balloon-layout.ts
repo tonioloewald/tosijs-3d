@@ -147,6 +147,36 @@ export function fitBalloon(
   return { dx, dy, side, tail }
 }
 
+/**
+ * Where a balloon placed at `at` (`dx`, `dy` as `fitBalloon` gives them)
+ * should go now, given the fit for this frame: where it is, while it still
+ * fits inside the view's edges and is not beside the head when there is now
+ * plenty of room over it; else the fit. So a camera that follows you does
+ * not carry the balloon round the head: it moves only when it must, or
+ * when it can go back over the head. Pure.
+ */
+export function holdBalloon(
+  at: { dx: number; dy: number },
+  fit: BalloonFit,
+  room: BalloonRoom,
+  width: number,
+  height: number,
+  options: { gap?: number; margin?: number } = {}
+): { dx: number; dy: number } {
+  const gap = options.gap ?? 0.1
+  const margin = options.margin ?? 0
+  const fits =
+    at.dx - width / 2 >= -(room.left - margin) &&
+    at.dx + width / 2 <= room.right - margin &&
+    at.dy + height <= room.up - margin &&
+    at.dy >= -(room.down - margin)
+  // Over the head again once there is room for it and a fifth to spare.
+  const aside = Math.abs(at.dx - fit.dx) > 1e-6 && Math.abs(fit.dx) < 1e-6
+  const roomOver = room.up - margin >= gap + height * 1.2
+  if (fits && !(aside && roomOver)) return { dx: at.dx, dy: at.dy }
+  return { dx: fit.dx, dy: fit.dy }
+}
+
 /** A point, for `followHead`. */
 export interface BalloonPoint {
   x: number

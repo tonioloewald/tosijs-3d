@@ -51,20 +51,14 @@ const mk = (holdMs = 5) => {
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /**
- * Where accent `i` of `n` sits on the open ring (keyboard units): a tap
- * there picks it. With `from` (the held key), the point a SLIDE goes to:
- * the same direction, measured from the key, as the ring may be moved over.
+ * Where accent `i` of `n` sits on the open ring as drawn (keyboard units):
+ * a slide to it or a tap on it picks it.
  */
-const accentAt = (
-  kb: any,
-  i: number,
-  n: number,
-  from?: { x: number; y: number }
-) => {
+const accentAt = (kb: any, i: number, n: number) => {
   const ring = kb.el.querySelector('[data-kb="popup"] svg') as any
   const size = Number(ring.getAttribute('width'))
-  const cx = from?.x ?? Number(ring.getAttribute('x')) + size / 2
-  const cy = from?.y ?? Number(ring.getAttribute('y')) + size / 2
+  const cx = Number(ring.getAttribute('x')) + size / 2
+  const cy = Number(ring.getAttribute('y')) + size / 2
   // A key's ring is always whole: the same choices, in the same places.
   expect(ring.items.length).toBe(n)
   const s = radialSlot(i, ring.items)
@@ -195,7 +189,7 @@ describe('keyboard — press-hold-drag accents', () => {
     kb.handle!('down', o.x, o.y)
     await wait(20)
     // A ring round the key: ò ó ô ö õ ø œ. Slide toward index 3 (ö).
-    const { x: cx, y: cy } = accentAt(kb, 3, 7, o)
+    const { x: cx, y: cy } = accentAt(kb, 3, 7)
     kb.handle!('move', cx, cy)
     kb.handle!('up', cx, cy)
     await wait(90) // the pick blinks first
@@ -208,7 +202,7 @@ describe('keyboard — press-hold-drag accents', () => {
     kb.handle!('down', o.x, o.y)
     await wait(20)
     const ring = kb.el.querySelector('[data-kb="popup"] svg') as any
-    const { x: cx, y: cy } = accentAt(kb, 3, 7, o)
+    const { x: cx, y: cy } = accentAt(kb, 3, 7)
     kb.handle!('move', cx, cy)
     expect(ring.lit).toBe(3)
     kb.handle!('up', cx, cy)
@@ -226,7 +220,7 @@ describe('keyboard — press-hold-drag accents', () => {
     const o = centre('alpha', false, 'o')
     kb.handle!('down', o.x, o.y)
     await wait(20)
-    const { x: cx, y: cy } = accentAt(kb, 3, 7, o)
+    const { x: cx, y: cy } = accentAt(kb, 3, 7)
     kb.handle!('move', cx, cy)
     kb.handle!('up', cx, cy)
     const q = centre('alpha', false, 'q')
@@ -460,19 +454,22 @@ describe('keyboard — the accent ring', () => {
       kb.handle!('up', k.x, k.y)
     })
 
-  test('a slide picks by its direction from the key, wherever the ring is drawn', async () => {
+  test('a slide picks what it is over on a ring moved over, not its direction from the key', async () => {
     const { kb, keys } = mk(5)
     const o = centre('alpha', false, 'o') // top row: its ring is moved down
     kb.handle!('down', o.x, o.y)
     await wait(20)
     const ring = kb.el.querySelector('[data-kb="popup"] svg') as any
     const size = Number(ring.getAttribute('width'))
-    expect(Number(ring.getAttribute('y')) + size / 2).toBeGreaterThan(o.y)
-    // Straight up from the key: the first choice (ò), as on an unmoved ring.
-    kb.handle!('move', o.x, o.y - 40)
-    kb.handle!('up', o.x, o.y - 40)
+    const cy = Number(ring.getAttribute('y')) + size / 2
+    expect(cy).toBeGreaterThan(o.y + 10)
+    // ö is drawn below and to the right of the ring's middle: below the key
+    // too, so from the key it points another way. A slide onto it takes it.
+    const p = accentAt(kb, 3, 7)
+    kb.handle!('move', p.x, p.y)
+    kb.handle!('up', p.x, p.y)
     await wait(90)
-    expect(keys).toEqual(['ò'])
+    expect(keys).toEqual(['ö'])
   })
 
   test('holding the full stop offers punctuation', async () => {
@@ -480,7 +477,7 @@ describe('keyboard — the accent ring', () => {
     const k = centre('alpha', false, '.')
     kb.handle!('down', k.x, k.y)
     await wait(20)
-    const p = accentAt(kb, 1, 9, k) // , ? ! ...
+    const p = accentAt(kb, 1, 9) // , ? ! ...
     kb.handle!('move', p.x, p.y)
     kb.handle!('up', p.x, p.y)
     await wait(90)
@@ -616,7 +613,7 @@ describe('keyboard — rings on ?123 and backspace', () => {
     const labels = ring.items.map((x: any) => x.label)
     expect(labels).toEqual([...'0123456789.,', '+−×÷', '@#?'])
     // Slide to arithmetic: a sub-ring opens round the key, waiting for a tap.
-    const p = accentAt(kb, 12, 14, k)
+    const p = accentAt(kb, 12, 14)
     kb.handle!('move', p.x, p.y)
     kb.handle!('up', p.x, p.y)
     await wait(90)
@@ -633,7 +630,7 @@ describe('keyboard — rings on ?123 and backspace', () => {
     const k = centre('alpha', false, '⌫')
     kb.handle!('down', k.x, k.y)
     await wait(20)
-    const p = accentAt(kb, 3, 5, k) // cut
+    const p = accentAt(kb, 3, 5) // cut
     kb.handle!('move', p.x, p.y)
     kb.handle!('up', p.x, p.y)
     await wait(90)
@@ -660,7 +657,7 @@ describe('keyboard — a field edits a selection', () => {
     f.action('cut')
     expect(f.value).toBe('hello  world')
     const menu = f.semantics!().menu!()!
-    expect(menu.items.map((i) => i.label)).toEqual(['cut', 'copy', 'paste', 'clear all', 'select word', 'select all'])
+    expect(menu.items.map((i) => i.label)).toEqual(['cut', 'copy', 'paste', 'clear all', 'select word', 'select all', 'show keyboard'])
     menu.handleSelect(3)
     expect(f.value).toBe('')
   })
@@ -678,8 +675,54 @@ describe('keyboard — a field edits a selection', () => {
   test('an empty field dims what has nothing to act on; nothing moves', () => {
     const f = K.inputField({ value: '' })
     const menu = f.semantics!().menu!()!
-    expect(menu.items.length).toBe(6)
-    expect(menu.items.map((i) => !!i.disabled)).toEqual([true, true, false, true, true, true])
+    expect(menu.items.length).toBe(7)
+    expect(menu.items.map((i) => !!i.disabled)).toEqual([true, true, false, true, true, true, false])
+  })
+
+  test('a pad stepping onto a field opens its keyboard; Tab, an arrow key or the focus handed back do not', () => {
+    let opened = 0
+    const f = K.inputField({ value: '', openKeyboard: () => { opened++; return () => {} } })
+    f.semantics!().focus!(true, 'key')
+    f.semantics!().focus!(true, 'other')
+    expect(opened).toBe(0)
+    f.semantics!().focus!(true, 'pad')
+    expect(opened).toBe(1)
+    // Already up: a second step onto it leaves it.
+    f.semantics!().focus!(true, 'pad')
+    expect(opened).toBe(1)
+    const menu = f.semantics!().menu!()!
+    expect(menu.items[6].label).toBe('hide keyboard')
+  })
+})
+
+describe('keyboard — a pad holds B on a key', () => {
+  test('its choices are a ring, sub-rings and all, each typing itself', async () => {
+    const { kb, keys } = mk(5)
+    const o = centre('alpha', false, 'o')
+    kb.handle!('down', o.x, o.y)
+    kb.handle!('up', o.x, o.y) // focus follows the press
+    keys.length = 0
+    const menu = kb.semantics!().menu!()!
+    expect(menu.items.map((i) => i.label)).toContain('ö')
+    menu.items.find((i) => i.label === 'ö')!.handleSelect!()
+    expect(keys).toEqual(['ö'])
+    // Held, so the focus moves to ?123 without switching to the digits.
+    const q = centre('alpha', false, '?123')
+    kb.handle!('down', q.x, q.y)
+    await wait(20)
+    kb.handle!('up', q.x, q.y)
+    const digits = kb.semantics!().menu!()!
+    const maths = digits.items.find((i) => i.label === '+−×÷')!
+    maths.items!.find((i) => i.label === '×')!.handleSelect!()
+    expect(keys).toContain('×')
+  })
+
+  test('a key with nothing to offer has no ring (the hold presses it)', () => {
+    const { kb } = mk(5)
+    const q = centre('alpha', false, 'q')
+    kb.handle!('down', q.x, q.y)
+    kb.handle!('up', q.x, q.y)
+    expect(kb.semantics!().menu!()).toBe(null)
   })
 })
 
