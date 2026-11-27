@@ -27,8 +27,8 @@ The art is one sheet (`static/glass-gamepad.svg`, built into the library), and t
 cuts it into the clusters, each cropped to what it shows plus each stick's full
 reach. Its paths are labelled by `id` (copied to `data-part` on load). When the
 three do not fit side by side (a d-pad on a phone in portrait), the centre
-cluster is lifted only clear of the parts it is over: a d-pad between the
-bumpers sits just above the face buttons.
+cluster is lifted: a d-pad between the bumpers is centred on them and the
+triggers, or failing that sits just clear of what is under it.
 
 Usually you don't place this yourself: set the `gamepad` attribute on
 [[tosi-b3d]] and it mounts one and wires it into the active input system. Placed
@@ -866,12 +866,14 @@ export class B3dGamepad extends Component implements GamepadSource {
     if (this.clientWidth === 0 || this.clientHeight === 0) return
     const margin = 2
     center.svg.style.bottom = `${margin}cqmin`
-    const rects = (svg?: SVGSVGElement) =>
+    const shown = (svg?: SVGSVGElement) =>
       svg == null
         ? []
-        : Array.from(svg.querySelectorAll('[data-part]'))
-            .filter((el) => el.getAttribute('display') !== 'none')
-            .map((el) => el.getBoundingClientRect())
+        : Array.from(svg.querySelectorAll('[data-part]')).filter(
+            (el) => el.getAttribute('display') !== 'none'
+          )
+    const rects = (svg?: SVGSVGElement) =>
+      shown(svg).map((el) => el.getBoundingClientRect())
     // Corners may touch by a few px (view meets X's corner on an iPhone in
     // portrait); a real overlap lifts the cluster.
     const gap = -4
@@ -879,29 +881,45 @@ export class B3dGamepad extends Component implements GamepadSource {
     const theirs = [...rects(left?.svg), ...rects(right?.svg)]
     const besides = (a: DOMRect, b: DOMRect) =>
       a.left < b.right + gap && b.left < a.right + gap
-    const clash = mine.some((a) =>
-      theirs.some(
-        (b) =>
-          besides(a, b) && a.top < b.bottom + gap && b.top < a.bottom + gap
+    const clashAt = (lift: number) =>
+      mine.some((a) =>
+        theirs.some(
+          (b) =>
+            besides(a, b) &&
+            a.top - lift < b.bottom + gap &&
+            b.top < a.bottom - lift + gap
+        )
       )
-    )
-    if (!clash) return
-    // Lifted as one block, only clear of the parts under it: a d-pad between
-    // the bumpers sits just above the face buttons, not above the whole
-    // cluster, and none of it nestles between them (a thumb meant for Y hit
-    // the d-pad's down arm).
+    if (!clashAt(0)) return
+    // Lifted as one block: centred on the triggers and bumpers beside it when
+    // it fits there, else just clear of the parts under it. Either way none
+    // of it nestles between the face buttons (a thumb meant for Y hit the
+    // d-pad's down arm).
+    const top = Math.min(...mine.map((a) => a.top))
+    const bottom = Math.max(...mine.map((a) => a.bottom))
     const block = new DOMRect(
       Math.min(...mine.map((a) => a.left)),
-      Math.min(...mine.map((a) => a.top)),
-      0,
-      0
+      top,
+      Math.max(...mine.map((a) => a.right)) -
+        Math.min(...mine.map((a) => a.left)),
+      bottom - top
     )
-    block.width = Math.max(...mine.map((a) => a.right)) - block.left
-    block.height = Math.max(...mine.map((a) => a.bottom)) - block.top
-    const under = theirs.filter((b) => besides(block, b))
     const cq = Math.min(this.clientWidth, this.clientHeight) / 100
-    const lift =
+    const under = theirs.filter((b) => besides(block, b))
+    const clear =
       Math.max(...under.map((b) => block.bottom - b.top)) + margin * cq
+    const shoulders = [...shown(left?.svg), ...shown(right?.svg)]
+      .filter((el) => /_(bumper|trigger)$/.test(el.getAttribute('data-part')!))
+      .map((el) => el.getBoundingClientRect())
+    const centred =
+      shoulders.length === 0
+        ? null
+        : (top + bottom) / 2 -
+          (Math.min(...shoulders.map((b) => b.top)) +
+            Math.max(...shoulders.map((b) => b.bottom))) /
+            2
+    const lift =
+      centred != null && centred >= clear && !clashAt(centred) ? centred : clear
     center.svg.style.bottom = `${margin + lift / cq}cqmin`
   }
 
