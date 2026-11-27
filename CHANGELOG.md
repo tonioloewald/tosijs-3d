@@ -12,6 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Changed: when the glass pad's centre cluster cannot sit between the others (a d-pad on a phone in portrait), it is lifted only clear of the parts under it, so a d-pad sits just above the face buttons rather than above the bumpers.
 - Fixed: a balloon beside the head moved with every step again, and could be left low or on the head after the room came back. It stays while it fits and is near where it would be placed now (`holdBalloon`'s `tolerance`), and when it must move it lands with room to spare (`settle`, a fit with a wider margin). `holdBalloon` no longer takes `gap`.
 - Changed: a key's ring lights its middle (the key) while the press is on the key or over the middle, not only once the finger has lifted.
 - Fixed: a pad's B held on a key draws the ring the pointer's hold draws, the key in the middle at the keys' weight (`ControlMenu.look`, `RadialMenuOptions.look`, `RadialLook`). Either thumbstick's click picks from an open ring.

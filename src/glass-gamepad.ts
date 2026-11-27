@@ -27,7 +27,8 @@ The art is one sheet (`static/glass-gamepad.svg`, built into the library), and t
 cuts it into the clusters, each cropped to what it shows plus each stick's full
 reach. Its paths are labelled by `id` (copied to `data-part` on load). When the
 three do not fit side by side (a d-pad on a phone in portrait), the centre
-cluster sits above the others.
+cluster is lifted only clear of the parts it is over: a d-pad between the
+bumpers sits just above the face buttons.
 
 Usually you don't place this yourself: set the `gamepad` attribute on
 [[tosi-b3d]] and it mounts one and wires it into the active input system. Placed
@@ -876,19 +877,32 @@ export class B3dGamepad extends Component implements GamepadSource {
     const gap = -4
     const mine = rects(center.svg)
     const theirs = [...rects(left?.svg), ...rects(right?.svg)]
+    const besides = (a: DOMRect, b: DOMRect) =>
+      a.left < b.right + gap && b.left < a.right + gap
     const clash = mine.some((a) =>
       theirs.some(
         (b) =>
-          a.left < b.right + gap &&
-          b.left < a.right + gap &&
-          a.top < b.bottom + gap &&
-          b.top < a.bottom + gap
+          besides(a, b) && a.top < b.bottom + gap && b.top < a.bottom + gap
       )
     )
-    if (clash) {
-      const above = Math.max(left?.height ?? 0, right?.height ?? 0)
-      center.svg.style.bottom = `${2 * margin + above}cqmin`
-    }
+    if (!clash) return
+    // Lifted as one block, only clear of the parts under it: a d-pad between
+    // the bumpers sits just above the face buttons, not above the whole
+    // cluster, and none of it nestles between them (a thumb meant for Y hit
+    // the d-pad's down arm).
+    const block = new DOMRect(
+      Math.min(...mine.map((a) => a.left)),
+      Math.min(...mine.map((a) => a.top)),
+      0,
+      0
+    )
+    block.width = Math.max(...mine.map((a) => a.right)) - block.left
+    block.height = Math.max(...mine.map((a) => a.bottom)) - block.top
+    const under = theirs.filter((b) => besides(block, b))
+    const cq = Math.min(this.clientWidth, this.clientHeight) / 100
+    const lift =
+      Math.max(...under.map((b) => block.bottom - b.top)) + margin * cq
+    center.svg.style.bottom = `${margin + lift / cq}cqmin`
   }
 
   /** Did the `controls` spec name this part outright (not the default set)? */
