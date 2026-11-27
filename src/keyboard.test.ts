@@ -472,6 +472,24 @@ describe('keyboard — the accent ring', () => {
     expect(keys).toEqual(['ö'])
   })
 
+  test('the middle is lit while the press is on the key, out while a choice is', async () => {
+    const { kb } = mk(5)
+    const o = centre('alpha', false, 'o')
+    kb.handle!('down', o.x, o.y)
+    const hubFill = () => {
+      const svg = kb.el.querySelector('[data-kb="popup"] svg') as any
+      return svg.querySelector('circle[r="64"]').getAttribute('fill')
+    }
+    await wait(20)
+    const lit = hubFill()
+    const p = accentAt(kb, 3, 7)
+    kb.handle!('move', p.x, p.y)
+    expect(hubFill()).not.toBe(lit)
+    kb.handle!('move', o.x, o.y) // back on the key
+    expect(hubFill()).toBe(lit)
+    kb.handle!('up', o.x, o.y)
+  })
+
   test('holding the full stop offers punctuation', async () => {
     const { kb, keys } = mk(5)
     const k = centre('alpha', false, '.')
@@ -704,6 +722,8 @@ describe('keyboard — a pad holds B on a key', () => {
     keys.length = 0
     const menu = kb.semantics!().menu!()!
     expect(menu.items.map((i) => i.label)).toContain('ö')
+    // Drawn as the pointer's ring is: the key in the middle.
+    expect(menu.look?.centre).toBe('o')
     menu.items.find((i) => i.label === 'ö')!.handleSelect!()
     expect(keys).toEqual(['ö'])
     // Held, so the focus moves to ?123 without switching to the digits.

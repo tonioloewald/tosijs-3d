@@ -292,6 +292,9 @@ describe('a panel lists its controls, and the popup open from one', () => {
       'save…/name',
       'save…/save',
     ])
+    // Drawn on the popup's own surface, so nothing frames them on the panel.
+    expect(open[0].inPopup).toBeUndefined()
+    expect(open[1].children!.every((n) => n.inPopup === true)).toBe(true)
     node(open, 'save…/name').set!('Ada')
     node(open, 'save…/save').activate!()
     expect(saved).toBe('Ada')

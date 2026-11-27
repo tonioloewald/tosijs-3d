@@ -155,6 +155,11 @@ export interface ControlNode {
   interactive: boolean
   /** Where it is drawn, in the panel's units, when the panel knows. */
   box?: ControlBox
+  /**
+   * It is in an open popup, its own surface: `box` is in the popup's units,
+   * not the panel's, so nothing draws on the panel round it.
+   */
+  inPopup?: boolean
   set?(value: unknown): void
   activate?(): void
   isDefault?: boolean
@@ -201,6 +206,8 @@ export interface ControlMenu {
   title?: string
   items: ControlMenuItem[]
   handleSelect(index: number): void
+  /** How its ring is drawn (`RadialLook`): a key's ring has its character in the middle. */
+  look?: { centre?: string; fontScale?: number; fontWeight?: string }
 }
 
 const CONTAINERS = new Set<WidgetRole>(['group', 'toolbar', 'list', 'popup'])

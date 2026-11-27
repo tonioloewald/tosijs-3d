@@ -5782,7 +5782,8 @@ function buildPanel3d(
         name,
         path: name,
         interactive: false,
-        children: sheet ? rebase(inner, name) : inner,
+        inPopup: true,
+        children: inPopup(sheet ? rebase(inner, name) : inner),
       })
     }
     return tree
@@ -5797,6 +5798,15 @@ function buildPanel3d(
     }
   }
   return root as unknown as Panel3d
+}
+
+/** A popup's controls, marked as drawn on its own surface. */
+function inPopup(tree: ControlNode[]): ControlNode[] {
+  return tree.map((n) => ({
+    ...n,
+    inPopup: true,
+    ...(n.children ? { children: inPopup(n.children) } : {}),
+  }))
 }
 
 /** A tree built at the top level, moved under `base`. */

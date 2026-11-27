@@ -480,6 +480,16 @@ function armReach(item: RadialItem, from: number, to: number): number {
  * A radial menu as an SVG: a ring of slices with each item's icon (or the
  * start of its label), the lit one's label and the title in the middle.
  */
+/**
+ * How a ring looks, beyond its items: what a control's menu can ask for (the
+ * keyboard's key ring: its character large in the middle, at the keys' weight).
+ */
+export interface RadialLook {
+  centre?: string
+  fontScale?: number
+  fontWeight?: string
+}
+
 export function radialMenuSvg(
   items: readonly RadialItem[],
   options: {

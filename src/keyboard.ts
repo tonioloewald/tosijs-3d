@@ -2575,6 +2575,15 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
       ring != null &&
       Math.hypot(x - (r.x + r.width / 2), y - (r.y + r.height / 2)) > ring.hub
     const pick = away ? accentIndexAt(ring, x, y, false) : -1
+    /*
+    THE MIDDLE LIGHTS while the press is on the key or over the middle, as
+    it does on a waiting ring: it is the key. Letting go there leaves the
+    ring waiting (a tap in the middle then types the key). Lit only once
+    the finger had lifted, it read as a middle that did nothing while held.
+    */
+    const middle =
+      pick < 0 && ring != null && (inHub(ring, x, y) || keyAt(rects, x, y) === r)
+    ring?.svg.hubLit(middle ? 'pick' : null)
     if (pick === press.pick) return
     press.pick = pick
     press.ring?.svg.highlight(pick)
@@ -2644,6 +2653,13 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
           items: alts.map(menuItem),
           // Each choice acts itself (a sub-ring's choices too).
           handleSelect: () => {},
+          // Drawn as the pointer's hold draws it: the key in the middle,
+          // its choices at the keys' weight.
+          look: {
+            centre: r.key.label ?? '',
+            fontScale: 1.25,
+            fontWeight: w3dTheme.textWeight,
+          },
         }
       },
     }),
@@ -2738,7 +2754,10 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         const alts = holdChoices(r.key)
         if (alts.length > 0) {
           press.timer = setTimeout(() => {
-            if (press) openPopup(r, alts)
+            if (press == null) return
+            // Opened under a press still on the key: its middle, the key, is lit.
+            openPopup(r, alts)
+            press?.ring?.svg.hubLit('pick')
           }, holdMs())
         } else if (r.key.action === 'shift') {
           press.timer = setTimeout(() => {

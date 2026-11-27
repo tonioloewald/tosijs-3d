@@ -136,10 +136,43 @@ describe('holdBalloon', () => {
     const fit = fitBalloon(room, 1, 0.6)
     expect(fit.dx).toBe(0)
     expect(holdBalloon({ dx: 0.9, dy: -0.3 }, fit, room, 1, 0.6)).toEqual({ dx: fit.dx, dy: fit.dy })
-    // Only just room over it: it stays beside the head (no flapping at the edge).
-    const just = { left: 3, right: 3, up: 0.75, down: 2 }
-    const f2 = fitBalloon(just, 1, 0.6)
-    expect(f2.dx).toBe(0)
-    expect(holdBalloon({ dx: 0.9, dy: -0.3 }, f2, just, 1, 0.6)).toEqual({ dx: 0.9, dy: -0.3 })
+  })
+  test('is never left well below where it can be', () => {
+    // Slid down beside the head when the view was tight; now there is more
+    // room up, and the fit is higher by more than a third of the balloon.
+    const near = { left: 3, right: 3, up: 0.45, down: 2 }
+    const fit = fitBalloon(near, 1, 0.6)
+    const low = { dx: fit.dx, dy: fit.dy - 0.5 }
+    expect(holdBalloon(low, fit, near, 1, 0.6)).toEqual({ dx: fit.dx, dy: fit.dy })
+  })
+  test('pushed onto the head by a view edge, it comes off once the edge goes', () => {
+    const near = { left: 3, right: 3, up: 0.45, down: 2 }
+    const fit = fitBalloon(near, 1, 0.6)
+    expect(fit.dx).toBeGreaterThan(0.6)
+    const onHead = { dx: 0.05, dy: fit.dy }
+    expect(holdBalloon(onHead, fit, near, 1, 0.6)).toEqual({ dx: fit.dx, dy: fit.dy })
+  })
+  test('when it must move it lands with room to spare, so the next step leaves it', () => {
+    // Walking closer: the room above shrinks a little every frame.
+    const settleAt = (up: number) => {
+      const r = { left: 3, right: 3, up, down: 2 }
+      return {
+        r,
+        fit: fitBalloon(r, 1, 0.6, { margin: 0.02 }),
+        settle: fitBalloon(r, 1, 0.6, { margin: 0.02 + 0.09 }),
+      }
+    }
+    const a = settleAt(0.6)
+    const at = holdBalloon({ dx: 0, dy: 0.1 }, a.fit, a.r, 1, 0.6, { margin: 0.02, settle: a.settle })
+    expect(at).toEqual({ dx: a.settle.dx, dy: a.settle.dy })
+    let moves = 0
+    let held = at
+    for (let up = 0.59; up > 0.52; up -= 0.01) {
+      const b = settleAt(up)
+      const next = holdBalloon(held, b.fit, b.r, 1, 0.6, { margin: 0.02, settle: b.settle })
+      if (next.dx !== held.dx || next.dy !== held.dy) moves++
+      held = next
+    }
+    expect(moves).toBe(0)
   })
 })

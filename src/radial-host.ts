@@ -30,6 +30,7 @@ import {
   RADIAL_SIZE,
   type RadialHubZone,
   type RadialItem,
+  type RadialLook,
   type RadialMenuSvg,
 } from './radial-menu.js'
 
@@ -54,6 +55,12 @@ export interface HoldAction extends DpadAction {
 export interface RadialMenuOptions {
   items: RadialItem[]
   title?: string
+  /**
+   * How the ring is drawn: a key's ring passes its character as the
+   * `centre`, as the keyboard's own ring draws it, so a pad's hold on a key
+   * shows the ring a pointer's hold does.
+   */
+  look?: RadialLook
   handleSelect?: (item: RadialItem, index: number) => void
   /** Told when it closes, picked or not. */
   handleClose?: () => void
@@ -148,6 +155,7 @@ const OPEN_OWNS: (keyof VirtualGamepad)[] = [
   'buttonA',
   'buttonB',
   'rightStickPress',
+  'leftStickPress',
 ]
 const LEFT_OWNS: (keyof VirtualGamepad)[] = ['leftStickX', 'leftStickY']
 /** How long resting on a sub-ring item opens it (or on back goes back), ms. */
@@ -398,7 +406,10 @@ export class RadialHost {
   /** Draw `open`'s level (in place of what showed), where it was. */
   private show(open: Open): void {
     open.close?.()
-    const svg = radialMenuSvg(open.items, { title: open.title })
+    const svg = radialMenuSvg(open.items, {
+      title: open.title,
+      ...open.opts.look,
+    })
     open.svg = svg
     open.close =
       this.scene.present(svg, RADIAL_SIZE, open.centre, open.xrPlace) ??
@@ -729,11 +740,13 @@ export class RadialHost {
       open.svg.highlight(-1)
     }
     /*
-    A CLICK OF THE RIGHT STICK (either thumbstick in a headset) picks what
-    is lit and closes, held or not; with nothing lit it dismisses.
+    A CLICK OF A THUMBSTICK picks what is lit and closes, held or not; with
+    nothing lit it dismisses. Either stick: with a thumb on B, the left one
+    is the one pointing.
     */
     const clicked =
       (pad?.rightStickPress ?? 0) > 0.5 ||
+      (pad?.leftStickPress ?? 0) > 0.5 ||
       (this.scene.xrActive &&
         this.scene.xrGamepads().some((g) => g.buttons?.[3]?.pressed === true))
     const click = clicked && !this.clickedBefore

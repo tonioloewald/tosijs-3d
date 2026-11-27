@@ -650,16 +650,25 @@ export class B3dConversation extends B3dChild {
     const fit = fitBalloon(room, width, drawn, { margin, side: b.side })
     b.side = fit.side
     /*
-    IT STAYS WHERE IT IS while that still fits (`holdBalloon`): you walk and
-    the camera follows, and a balloon placed afresh each frame went round
-    the head with every step. It moves when it would be cut off, or to go
-    back over the head. EASED, NOT SNAPPED when it does.
+    IT STAYS WHERE IT IS while it fits and is near the fit (`holdBalloon`):
+    you walk and the camera follows, and a balloon placed afresh each frame
+    went round the head with every step. It moves when it would be cut off,
+    or when the fit has gone well away (back over the head, or up from a
+    place it was squeezed into: one held anywhere it fitted was left low
+    and on the head). When it moves it lands with room to spare, fitted with
+    a wider margin, or walking closer moved it a little every frame. EASED,
+    NOT SNAPPED.
     */
+    const settle = fitBalloon(room, width, drawn, {
+      margin: margin + 0.15 * drawn,
+      side: fit.side,
+    })
     const want = b.placed
       ? holdBalloon({ dx: b.goal.dx, dy: b.goal.dy }, fit, room, width, drawn, {
           margin,
+          settle,
         })
-      : fit
+      : settle
     b.goal = want
     const k = b.placed ? 1 - Math.exp(-Math.max(0, dt) / 0.25) : 1
     b.dx += (want.dx - b.dx) * k

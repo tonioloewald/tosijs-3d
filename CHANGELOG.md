@@ -12,6 +12,10 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Fixed: a balloon beside the head moved with every step again, and could be left low or on the head after the room came back. It stays while it fits and is near where it would be placed now (`holdBalloon`'s `tolerance`), and when it must move it lands with room to spare (`settle`, a fit with a wider margin). `holdBalloon` no longer takes `gap`.
+- Changed: a key's ring lights its middle (the key) while the press is on the key or over the middle, not only once the finger has lifted.
+- Fixed: a pad's B held on a key draws the ring the pointer's hold draws, the key in the middle at the keys' weight (`ControlMenu.look`, `RadialMenuOptions.look`, `RadialLook`). Either thumbstick's click picks from an open ring.
+- Fixed: the pad's focus ring is not drawn on a panel round a control in one of its popups (it framed the panel at the keyboard's size); such controls carry `inPopup`.
 - Fixed: keys typed into a field in a scene no longer reach the game (Space jumped, F closed the panel as the pad's B, a digit picked a conversation reply). `isTyping(event)` is `isTextEntry` plus whether a scene field has the keys; a key listener of your own should ask it. Closing the settings panel gives the keys back.
 - Changed: a slide on a key's ring that was moved over to fit picks what it is over on the ring as drawn, as a tap does (it picked by its direction from the key, which did not match the drawing).
 - Changed (headset): a quick squeeze of both grips opens the system ring to stay: a thumbstick points and its click picks, or the trigger taps a slice; both grips held still open it held, as before. A ring drawn where you look takes a trigger tap on a slice.

@@ -3291,7 +3291,12 @@ export class B3d extends Component {
     this._padTick(bar)
     const ui = this._padUi
     const pn = this._panelNav
-    const ringed = pn != null && (ui?.zone === 'panel' || this._keyNav)
+    // A control in a popup (the keyboard) is on its own surface and shows
+    // its own focus: a ring at its box drew a keyboard-sized frame on the panel.
+    const ringed =
+      pn != null &&
+      (ui?.zone === 'panel' || this._keyNav) &&
+      pn.nav.focused?.inPopup !== true
     this._padRingAt(
       ringed ? pn.root : null,
       ringed ? pn.nav.focused?.box : null
@@ -3408,6 +3413,7 @@ export class B3d extends Component {
           this._radialHost().openMenu(
             {
               title: m.title,
+              look: m.look,
               // A control's menu is a ring's items (with no colours or spacers).
               items: m.items as RadialItem[],
               handleSelect: (_item, i) => m.handleSelect(i),
@@ -3713,6 +3719,7 @@ export class B3d extends Component {
         this._radialPointer()
         this._radialHost().openAtPointer({
           title: menu.title,
+          look: menu.look,
           items: menu.items as RadialItem[],
           handleSelect: (_item, i) => menu.handleSelect(i),
         })

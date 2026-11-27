@@ -1413,6 +1413,33 @@ is walking, not a click on the world.
   again, a layer whose plane is gone removes itself, and the first copy to
   close closes the rest.
 
+## Pass 11: hysteresis, and one ring (2026-11-27)
+
+- **Holding a place needs two thresholds, not one.** Pass 10 kept a balloon
+  wherever it still fitted and, when it did not, moved it to the tightest
+  place that did. Tonio: *"Still moving. Now sometimes way too low… through
+  the shopkeeper's head and through the countertop at his feet when there
+  was plenty of room."* Both faults are the one rule. Kept anywhere it fits,
+  a place it was squeezed into outlives the squeeze; moved to the edge of
+  fitting, the next step moves it again. Now it stays only while it is
+  near where it would be placed now, and when it moves it lands with room
+  to spare (fitted with a wider margin). That is the deadband a thermostat
+  has.
+- **The middle of a key's ring is the key, held or not.** It lit only once
+  the finger lifted. Tonio: *"I WANT the middle to light"*. It lights while
+  the press is on the key or over the middle, and letting go there still
+  leaves the ring waiting.
+- **One ring, whatever opened it.** A pad's B held on a key opened the
+  shared radial host's ring: a title above the middle and bold labels, so
+  it read as a different menu from the pointer's (*"bold options and the
+  center option is rendered off center"*). A control's menu now says how
+  its ring looks, and the key's ring is drawn the same either way.
+- **A focus ring is drawn on the surface its control is on.** The keyboard
+  is a popup, its own surface, so its box is in its own units; ringed on the
+  panel, it drew a keyboard-sized frame there. It shows its focused key
+  itself.
+
+
 ## Pass 10: what you see is what you pick (2026-11-27)
 
 - **A ring moved over is read as drawn.** Pass 9 measured a slide from the

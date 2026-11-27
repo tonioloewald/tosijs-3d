@@ -149,11 +149,14 @@ export function fitBalloon(
 
 /**
  * Where a balloon placed at `at` (`dx`, `dy` as `fitBalloon` gives them)
- * should go now, given the fit for this frame: where it is, while it still
- * fits inside the view's edges and is not beside the head when there is now
- * plenty of room over it; else the fit. So a camera that follows you does
- * not carry the balloon round the head: it moves only when it must, or
- * when it can go back over the head. Pure.
+ * should go now, given the fit for this frame. It stays where it is while
+ * it still fits inside the view's edges and is NEAR the fit: no more than
+ * `tolerance` of its width to either side of it, and no more than that of
+ * its height below it. So a camera that follows you does not carry it round
+ * the head, and it is never left low beside the head, or on it, once the
+ * fit has moved well away. When it must move it goes to `settle` (default
+ * the fit): the caller passes a fit with a wider margin, so the balloon
+ * lands with room to spare and the next step does not move it again. Pure.
  */
 export function holdBalloon(
   at: { dx: number; dy: number },
@@ -161,20 +164,25 @@ export function holdBalloon(
   room: BalloonRoom,
   width: number,
   height: number,
-  options: { gap?: number; margin?: number } = {}
+  options: {
+    margin?: number
+    tolerance?: number
+    settle?: { dx: number; dy: number }
+  } = {}
 ): { dx: number; dy: number } {
-  const gap = options.gap ?? 0.1
   const margin = options.margin ?? 0
+  const tolerance = options.tolerance ?? 0.3
+  const settle = options.settle ?? fit
   const fits =
     at.dx - width / 2 >= -(room.left - margin) &&
     at.dx + width / 2 <= room.right - margin &&
     at.dy + height <= room.up - margin &&
     at.dy >= -(room.down - margin)
-  // Over the head again once there is room for it and a fifth to spare.
-  const aside = Math.abs(at.dx - fit.dx) > 1e-6 && Math.abs(fit.dx) < 1e-6
-  const roomOver = room.up - margin >= gap + height * 1.2
-  if (fits && !(aside && roomOver)) return { dx: at.dx, dy: at.dy }
-  return { dx: fit.dx, dy: fit.dy }
+  const near =
+    Math.abs(at.dx - fit.dx) <= tolerance * width &&
+    at.dy >= fit.dy - tolerance * height
+  if (fits && near) return { dx: at.dx, dy: at.dy }
+  return { dx: settle.dx, dy: settle.dy }
 }
 
 /** A point, for `followHead`. */
