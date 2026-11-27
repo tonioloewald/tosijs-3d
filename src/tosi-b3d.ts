@@ -1641,6 +1641,16 @@ export class B3d extends Component {
   get hasInputFocus(): boolean {
     return B3d._active === null || B3d._active === this
   }
+  /**
+   * Flat, how far down from the top of the view the system bar reaches, in CSS
+   * pixels (0 with no bar, and in a headset). Something kept in view on screen
+   * keeps below it, as a conversation's balloon does.
+   */
+  get barInset(): number {
+    return !this.xrActive && (this._sceneBar?.count ?? 0) > 0
+      ? 8 + BAR_HEIGHT
+      : 0
+  }
   /** True only once the pointer has entered or pressed this scene (and no
    * other since). Keys it uses are kept from the page only then: before that,
    * an arrow key still scrolls the page past a demo. */

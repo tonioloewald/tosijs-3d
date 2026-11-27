@@ -30,7 +30,9 @@ A line's `gesture` is one of the biped's states (`yes`, `no`, `give`, `show`,
 `surprise`, `foldArms` in `ualAnimationStates`), or any state you add; without
 one the speaker talks for the line's length. A line with `audio` plays it (a
 URL) and lasts as long as it. While a trade is open the balloons are hidden.
-On a screen a balloon stays in view: with no room above the speaker it comes
+A balloon hangs in the world but is drawn over it (the UI layer), so a head,
+a counter or a wall between you and it never cuts through it. On a screen it
+stays in view, below the system bar: with no room above the speaker it comes
 down beside the head, its tail turned to the speaker. Lines that follow one
 another leave a short pause (the script's `pause`, see [[conversation]]).
 
@@ -430,6 +432,9 @@ export class B3dConversation extends B3dChild {
         resolution: 768,
         updateInterval: 50,
         transparent: 'depth',
+        // Placed in the world, drawn over it: a head, a counter or a wall
+        // between you and the spot it hangs at never cuts through it.
+        layer: 'ui',
       }) as B3dSvgPlane
       plane.svgElement = b.svg
       b.plane = plane
@@ -618,7 +623,10 @@ export class B3dConversation extends B3dChild {
     height: number,
     dt: number
   ): BABYLON.Vector3 | null {
-    const owner = this.owner as unknown as { xrActive?: boolean } | null
+    const owner = this.owner as unknown as {
+      xrActive?: boolean
+      barInset?: number
+    } | null
     if (owner?.xrActive || cam.mode !== BABYLON.Camera.PERSPECTIVE_CAMERA)
       return null
     const ahead = cam.getForwardRay(1).direction
@@ -639,10 +647,17 @@ export class B3dConversation extends B3dChild {
     const perMetre = (p.y - at(top.add(up.scale(0.5))).y) / 0.5
     if (!(perMetre > 0)) return null
     if (at(top.add(right.scale(0.5))).x < p.x) right = right.negate()
+    // Below the system bar: drawn over a balloon, it hid the top of one.
+    const canvas = engine.getRenderingCanvas()
+    const bar =
+      (owner?.barInset ?? 0) *
+      (canvas != null && canvas.clientHeight > 0
+        ? engine.getRenderHeight() / canvas.clientHeight
+        : 1)
     const room = {
       left: (p.x - view.x) / perMetre,
       right: (view.x + view.width - p.x) / perMetre,
-      up: (p.y - view.y) / perMetre,
+      up: (p.y - view.y - bar) / perMetre,
       down: (view.y + view.height - p.y) / perMetre,
     }
     const margin = (0.03 * view.height) / perMetre
