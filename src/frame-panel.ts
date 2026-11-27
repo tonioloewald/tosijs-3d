@@ -483,6 +483,15 @@ export interface FramePanelSpec {
    * `handleTap` says otherwise.
    */
   edgeTab?: { title?: string; icon?: string; handleTap?: () => void }
+  /**
+   * Where it goes when brought to your gaze (a tap on its edge tab, or
+   * opening out of view), given where you look: its middle's angles in its
+   * frame. The host keeps it clear of what it would hide behind (the bar).
+   */
+  gazeSeat?: (aim: { azimuthDeg: number; elevationDeg: number }) => {
+    azimuthDeg: number
+    elevationDeg: number
+  }
   /** Custom panel SVG element (live/dynamic content). */
   svg?: SVGSVGElement
   /** Or fetch a static SVG from this URL (e.g. a reticle). */
@@ -1533,7 +1542,8 @@ export function attachFramePanel(
     const ahead = c.getDirection(
       new BABYLON.Vector3(0, 0, scene.useRightHandedSystem ? -1 : 1)
     )
-    const a = aimOf(new BABYLON.Ray(c.globalPosition.clone(), ahead, 100))
+    const aim = aimOf(new BABYLON.Ray(c.globalPosition.clone(), ahead, 100))
+    const a = spec.gazeSeat?.(aim) ?? aim
     anchor.azimuthDeg = a.azimuthDeg
     anchor.elevationDeg = Math.max(-80, Math.min(80, a.elevationDeg))
     placeAt(anchor)

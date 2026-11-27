@@ -6,6 +6,7 @@ import {
   fitBalloon,
   rowAt,
   wrapText,
+  followHead,
 } from './balloon-layout.js'
 
 describe('balloon layout', () => {
@@ -86,5 +87,27 @@ describe('balloon layout', () => {
     expect(kept.side).toBe(-1)
     const moved = fitBalloon({ left: 0.6, right: 2, up: 0.2, down: 2 }, 1, 0.6, { side: -1 })
     expect(moved.side).toBe(1)
+  })
+})
+
+describe('followHead', () => {
+  const at = { x: 0, y: 1.8, z: 0 }
+  test('a head bobbing as he talks barely moves the balloon', () => {
+    let a = { ...at }
+    for (let i = 0; i < 120; i++) {
+      const bob = 0.03 * Math.sin(i * 0.4)
+      a = followHead(a, { x: 0, y: 1.8 + bob, z: bob }, 1 / 60)
+    }
+    expect(Math.abs(a.y - 1.8)).toBeLessThan(0.01)
+  })
+  test('one who walks off takes it along, never further than the dead zone behind', () => {
+    let a = { ...at }
+    for (let i = 1; i <= 60; i++) a = followHead(a, { x: i * 0.05, y: 1.8, z: 0 }, 1 / 60)
+    expect(3 - a.x).toBeLessThanOrEqual(0.12 + 1e-9)
+  })
+  test('standing still, it settles on the head', () => {
+    let a = { x: 0.1, y: 1.8, z: 0 }
+    for (let i = 0; i < 600; i++) a = followHead(a, at, 1 / 60)
+    expect(Math.abs(a.x)).toBeLessThan(0.002)
   })
 })

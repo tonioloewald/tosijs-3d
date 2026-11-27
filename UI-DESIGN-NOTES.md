@@ -1412,3 +1412,40 @@ is walking, not a click on the world.
   see. Whatever registers a layer on content it does not own takes it off
   again, a layer whose plane is gone removes itself, and the first copy to
   close closes the rest.
+
+## Pass 9: a radial menu is learned by the hand (2026-11-27)
+
+- **A ring's layout never changes between openings.** Tonio: *"the primary
+  argument for radial menus includes muscle memory, so we should strive to
+  keep the layout consistent between invocations. This would suggest having
+  items disabled rather than appearing / disappearing and pinning item
+  positions between invocations. It also argues for visually displacing the
+  radial to make sure everything fits as long as the slide direction remains
+  constant."* So: a choice that cannot act now is dimmed, never removed (the
+  Edit ring on an empty field, the system ring's *close all*); a ring near an
+  edge is drawn moved over whole rather than fanned into an arc (fanning
+  moved every choice, and in a corner squeezed them unusably); and a slide is
+  measured from where the press began, so the same flick takes the same
+  choice wherever the ring was drawn. This replaces pass 8's "a ring stays
+  on its key": what has to stay put is the gesture, not the drawing.
+- **A label may change; a slot may not.** Clear takes the selection when
+  there is one, and its label says which (*clear selection*, *clear all*), in
+  the same slot.
+- **A press that dismisses a ring does nothing else.** A tap beside a waiting
+  ring on the keyboard's background left it up, and a tap on the scene closed
+  the ring, the keyboard and the panel behind. A ring is a question; the
+  answer "none of these" should not also be taken as a press on whatever was
+  under it.
+- **UI is drawn over the world, all of it.** The headset's settings panel was
+  the one panel still drawn in the world, so the Solar System's framed planet
+  (1.2 m ahead) stood in front of it (1.4 m). It joins the bar and the system
+  panels in the UI layer, which needs its presses read from that layer's
+  scene: Babylon's utility layer takes a press on its meshes and the world's
+  scene never hears of it.
+- **The ring is the bar you can see.** In a headset the system ring was built
+  from the page's buttons, so its owl opened a panel nobody could see and its
+  VR button said Enter. It mirrors the headset bar now, and a button lights
+  for an open panel whichever attribute says so.
+- **A release acts where its press began.** A pad's B acted on the press on
+  the keyboard, then on the release on the field the focus fell back to: one
+  press closed the keyboard and opened it again.

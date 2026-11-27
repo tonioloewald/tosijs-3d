@@ -16,6 +16,7 @@ import {
   angularHeight,
   seatForCentre,
   hangUnder,
+  clearOfBar,
   xrBarElevation,
   XR_BAR_NOTICE_DEG,
   XR_VIEW_MARGIN_DEG,
@@ -452,5 +453,19 @@ describe('orbitFromAim — the drag, from a ray that starts at your HAND', () =>
     const now = seat(30, 10, 2)
     expect(orbitFromAim(HAND, { x: 0, y: 0, z: 0 }, now)).toEqual(now)
     expect(orbitFromAim(HAND, { x: NaN, y: 0, z: 1 }, now)).toEqual(now)
+  })
+})
+
+describe('clearOfBar', () => {
+  const bar = { elevationDeg: 15, halfDeg: 2, halfWideDeg: 10 }
+  test('a panel well under the bar stays where you look', () => {
+    expect(clearOfBar(0, -5, 15, 8, bar, -45)).toBe(-5)
+  })
+  test('one that would reach over the bar hangs under it instead', () => {
+    const c = clearOfBar(0, 10, 15, 8, bar, -45)
+    expect(c + 8).toBeLessThanOrEqual(15 - 2 - 0.5)
+  })
+  test('off to the side of the bar it may go as high as you look', () => {
+    expect(clearOfBar(40, 14, 15, 8, bar, -45)).toBe(14)
   })
 })

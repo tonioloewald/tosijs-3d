@@ -128,15 +128,19 @@ ring stays up so you can tap the one you want. Tapping the key itself types it p
 one level down, and **hold ⌫** for forward delete, clear, copy, cut and paste
 (copy and cut take what is selected, else the whole field; paste goes in at the
 caret). **Hold ⇧** for caps lock. A ring is drawn on a surface of its own,
-centred on the key, so near the board's edge it hangs past it; near the
-SCREEN's edge it fans its choices over the side that stays on screen rather
-than moving off the key. Let go without sliding and it stays, lighting the
-choice under the pointer (the middle lights when a tap would type the key
-itself), for a tap; a tap anywhere else puts it away. Where the keyboard is
-only on the page, the ring is drawn in the board instead and fans the same way.
+centred on the key, so near the board's edge it hangs past it. A key's ring is
+the same every time, so the hand learns it: near the SCREEN's edge the whole
+ring moves over until it fits, and a slide still picks by its direction from
+the key. Let go without sliding and it stays, lighting the choice under the
+pointer (the middle, or the key, lights when a tap there would type the key
+itself), for a tap; a tap anywhere else puts it away and does nothing more.
+Where the keyboard is only on the page, the ring is drawn in the board instead,
+moved over the same way to stay on it.
 
 **A field's edits** (cut, copy, paste, clear, select word, select all) are a
 ring too: hold a pad's B on the field, or hold the trigger on it in a headset.
+Clear takes the selection if there is one (it says *clear selection*, else
+*clear all*); with the field empty the rest are dimmed, never removed.
 What is selected is drawn under the text. A pad's press on a field opens its
 keyboard, and the pad then walks the keys with its D-pad.
 
@@ -413,6 +417,7 @@ import {
   keyAt,
   holdChoices,
   keyboardHeight,
+  fitRingCentre,
   type KeyChoice,
   type KeyboardMode,
   type KeyAction,
@@ -488,8 +493,12 @@ async function clipboardRead(): Promise<string | null> {
 /** The accent ring on show: its drawing and where it is (keyboard units). */
 interface AccentRing {
   svg: RadialMenuSvg
+  /** Where the ring is drawn (its middle), for taps on it. */
   cx: number
   cy: number
+  /** The key it belongs to, where a slide starts: slides pick by direction from here. */
+  fromX: number
+  fromY: number
   hub: number
   out: number
   items: RadialItem[]
@@ -993,7 +1002,7 @@ function ensureGlobalKeyListener(): void {
     if (intent == null) return
     if ('insert' in intent) activeField.insert(intent.insert)
     else if ('action' in intent) activeField.action(intent.action)
-    else return
+    else activeField.moveCaret(intent.move)
     // Only claim keys a field consumed — Tab still traverses, cmd-R reloads.
     deliveredKeys.add(evt)
     e.preventDefault()
@@ -1819,22 +1828,65 @@ export function inputField(config: InputFieldOptions = {}): InputField {
         api.setActive(true)
         if (kbOpen == null) openKeyboard()
       },
-      // A pad's B held (a long press in a headset): editing, as a ring.
+      /*
+      A pad's B held (a long press in a headset): editing, as a ring. The
+      same six every time, in the same places (a ring is learned by the
+      hand): with nothing to act on one is dimmed, never gone. Clear takes
+      what is selected if anything is, and says which it will do.
+      */
       menu: () => {
-        const acts: [string, KeyAction, string?][] = [
-          ['cut', 'cut', 'scissors'],
-          ['copy', 'copy', 'copy'],
-          ['paste', 'paste'],
-          ['clear', 'clear', 'delete'],
-          ['select word', 'selectWord'],
-          ['select all', 'selectAll'],
+        const sel = hasSelection(state)
+        const empty = state.text.length === 0
+        const acts: {
+          label: string
+          icon?: string
+          disabled?: boolean
+          run: () => void
+        }[] = [
+          {
+            label: 'cut',
+            icon: 'scissors',
+            disabled: empty,
+            run: () => api.action('cut'),
+          },
+          {
+            label: 'copy',
+            icon: 'copy',
+            disabled: empty,
+            run: () => api.action('copy'),
+          },
+          { label: 'paste', run: () => api.action('paste') },
+          {
+            label: sel ? 'clear selection' : 'clear all',
+            icon: 'delete',
+            disabled: empty,
+            run: () => {
+              if (!sel) return api.action('clear')
+              activate()
+              change(editInsert(state, ''))
+            },
+          },
+          {
+            label: 'select word',
+            disabled: empty,
+            run: () => api.action('selectWord'),
+          },
+          {
+            label: 'select all',
+            disabled: empty,
+            run: () => api.action('selectAll'),
+          },
         ]
         return {
           title: 'Edit',
-          items: acts.map(([label, , icon]) => (icon ? { label, icon } : { label })),
+          items: acts.map(({ label, icon, disabled }) => ({
+            label,
+            ...(icon ? { icon } : {}),
+            ...(disabled ? { disabled } : {}),
+          })),
           handleSelect: (i: number) => {
             const act = acts[i]
-            if (act != null) api.action(act[1])
+            if (act != null && !act.disabled) act.run()
           },
         }
       },
@@ -2250,11 +2302,12 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
     r: KeyRect,
     items: RadialItem[],
     size: number,
+    centre: { x: number; y: number },
     stay = false
   ): AccentRing | null => {
     if (host?.showOver == null) return null
-    const cx = r.x + r.width / 2
-    const cy = r.y + r.height / 2
+    const cx = centre.x
+    const cy = centre.y
     const scale = size / RADIAL_SIZE
     const ox = cx - size / 2
     const oy = cy - size / 2
@@ -2280,6 +2333,8 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
       svg,
       cx,
       cy,
+      fromX: r.x + r.width / 2,
+      fromY: r.y + r.height / 2,
       hub: RADIAL_HUB * scale,
       out: 190 * scale,
       items,
@@ -2291,7 +2346,9 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
       {
         pickable: true,
         dismissOutside: true,
-        // Fitted to the screen here (it fans), so not pushed off its key.
+        // A press anywhere off it (the board included) only puts it away.
+        spendDismiss: true,
+        // Fitted to the screen here, so not moved again.
         stay,
         // Gone by a press elsewhere: the keyboard forgets it too.
         handleClosed: () => {
@@ -2313,15 +2370,21 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
   }
 
   /*
-  THE ACCENTS ARE A RING centred on the held key (a radial menu, drawn
-  small): slide toward one and let go, or lift and tap it. Direction is what
-  picks, so a slide anywhere that way takes it; the ring's middle is the key
-  itself (a tap there types the plain character). On its own surface
-  (`ringSurface`) it is whole; drawn in the board, it fans away from an edge.
+  THE ACCENTS ARE A RING round the held key (a radial menu, drawn small):
+  slide toward one and let go, or lift and tap it. Direction is what picks,
+  so a slide anywhere that way takes it; the ring's middle is the key itself
+  (a tap there types the plain character).
+
+  ONE LAYOUT PER KEY, WHEREVER IT SITS. A radial menu is worth having for the
+  muscle memory, so its choices never move round it, come and go, or squeeze
+  into an arc: near an edge the whole ring is drawn moved over until it fits
+  (`fitRingCentre`), and a slide is still measured from the key, so the same
+  gesture takes the same choice. On its own surface the room is the screen
+  (none in a headset); drawn in the board, the board.
   */
   const openPopup = (r: KeyRect, accents: KeyChoice[]): AccentRing => {
-    const cx = r.x + r.width / 2
-    const cy = r.y + r.height / 2
+    const kx = r.x + r.width / 2
+    const ky = r.y + r.height / 2
     const items: RadialItem[] = accents.map((c) => ({
       label: c.label,
       ...(c.items ? { items: [] } : {}),
@@ -2329,69 +2392,23 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
     const minArc = Math.min(r.width, r.height) * 0.75
     const base =
       Math.max(r.height, r.width) * 1.35 * (RADIAL_SIZE / (2 * RADIAL_HUB))
-    /*
-    NEAR AN EDGE THE RING FANS: still centred on the key, its choices spread
-    over the arc that stays inside `b`, with empty space (a `spacer`)
-    pointing past it. The board's edge for a ring drawn in the board, the
-    screen's for one on its own surface.
-    */
-    const fanIn = (
-      size: number,
-      b: { left: number; top: number; right: number; bottom: number },
-      margin: number
-    ) => {
-      const rItem = 132 * (size / RADIAL_SIZE)
-      const STEPS = 72
-      let offX = 0
-      let offY = 0
-      let off = 0
-      for (let k = 0; k < STEPS; k++) {
-        const a = (k / STEPS) * Math.PI * 2
-        const px = cx + Math.sin(a) * rItem
-        const py = cy - Math.cos(a) * rItem
-        if (
-          px < b.left + margin ||
-          px > b.right - margin ||
-          py < b.top + margin ||
-          py > b.bottom - margin
-        ) {
-          off++
-          offX += Math.sin(a)
-          offY += -Math.cos(a)
-        }
-      }
-      const f = off > 0 ? Math.min(0.85, off / STEPS + 0.08) : 0
-      const arc = (2 * Math.PI * rItem * (1 - f)) / accents.length
-      return { off, offX, offY, f, arc }
+    // Grown until each choice has about three quarters of a key of arc.
+    const grown = (start: number): number => {
+      let size = start
+      const arc = (s: number) =>
+        (2 * Math.PI * 132 * (s / RADIAL_SIZE)) / Math.max(1, accents.length)
+      for (let n = 0; n < 8 && arc(size) < minArc; n++) size *= 1.15
+      return size
     }
-    const spaced = (shape: ReturnType<typeof fanIn>): RadialItem[] =>
-      shape.off > 0
-        ? [
-            ...items,
-            {
-              label: '',
-              spacer: true,
-              weight: (items.length * shape.f) / (1 - shape.f),
-              toward: Math.atan2(shape.offX, -shape.offY),
-            },
-          ]
-        : items
-    // On its own surface: a whole ring (fanned only at the screen's edge),
-    // grown until each choice has about three quarters of a key of arc.
     if (host?.showOver != null) {
-      const room = host.overRoom?.() ?? null
-      const shapeAt = (s: number) =>
-        room != null
-          ? fanIn(s, room, 0)
-          : fanIn(s, { left: -1e9, top: -1e9, right: 1e9, bottom: 1e9 }, 0)
       // A little bigger than in the board: nothing crops it here.
-      let size = base * 1.25
-      let shape = shapeAt(size)
-      for (let n = 0; n < 8 && shape.arc < minArc; n++) {
-        size *= 1.15
-        shape = shapeAt(size)
-      }
-      const own = ringSurface(r, spaced(shape), size, room != null)
+      const size = grown(base * 1.25)
+      const room = host.overRoom?.() ?? null
+      const at =
+        room != null
+          ? fitRingCentre(kx, ky, size / 2, room, 4)
+          : { x: kx, y: ky }
+      const own = ringSurface(r, items, size, at, room != null)
       if (own != null) {
         if (press) {
           press.accents = accents
@@ -2401,42 +2418,40 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         return own
       }
     }
-    /*
-    NEAR AN EDGE THE RING FANS: still centred on the key, its choices spread
-    over the arc that stays on the board, with empty space (a `spacer`)
-    pointing off it. Where the board ends the drawing is cropped, so a
-    choice there could not be seen.
-    */
+    // In the board, which crops what is past its edge: moved over to stay on it.
     const kbH = keyboardHeight(keyLayout(mode, shift).length, KH, GAP)
-    /*
-    The hub just covers the key; the slices round it are a key or so deep.
-    A ring with many choices, or fanned into a corner, grows until each
-    choice has about a key's width of arc.
-    */
-    const fan = (size: number) =>
-      fanIn(size, { left: 0, top: 0, right: width, bottom: kbH }, 6)
-    let size = base
-    let shape = fan(size)
-    for (let n = 0; n < 8 && shape.arc < minArc; n++) {
-      size *= 1.15
-      shape = fan(size)
-    }
+    const size = grown(base)
+    const at = fitRingCentre(
+      kx,
+      ky,
+      size / 2,
+      { left: 0, top: 0, right: width, bottom: kbH },
+      0
+    )
     const scale = size / RADIAL_SIZE
     const out = 190 * scale
     const hub = RADIAL_HUB * scale
-    const fanned = spaced(shape)
-    const svg = radialMenuSvg(fanned, {
+    const svg = radialMenuSvg(items, {
       centre: r.key.label ?? '',
       fontScale: 1.15,
       fontWeight: w3dTheme.textWeight,
     })
-    svg.setAttribute('x', String(cx - size / 2))
-    svg.setAttribute('y', String(cy - size / 2))
+    svg.setAttribute('x', String(at.x - size / 2))
+    svg.setAttribute('y', String(at.y - size / 2))
     svg.setAttribute('width', String(size))
     svg.setAttribute('height', String(size))
     svg.setAttribute('pointer-events', 'none')
     popupLayer.replaceChildren(svg)
-    const ring = { svg, cx, cy, hub, out, items: fanned }
+    const ring: AccentRing = {
+      svg,
+      cx: at.x,
+      cy: at.y,
+      fromX: kx,
+      fromY: ky,
+      hub,
+      out,
+      items,
+    }
     if (press) {
       press.accents = accents
       press.ring = ring
@@ -2509,12 +2524,18 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
     bounded: boolean
   ): number => {
     if (ring == null) return -1
-    const p = { x: x - ring.cx, y: y - ring.cy }
+    // A tap lands on the ring where it is drawn; a slide is a direction from the key.
+    const p = bounded
+      ? { x: x - ring.cx, y: y - ring.cy }
+      : { x: x - ring.fromX, y: y - ring.fromY }
     const d = Math.hypot(p.x, p.y)
     if (d < ring.hub) return -1
     if (bounded && d > ring.out + ACCENT_SLACK) return -1
     return radialPick(p, ring.items, { deadzone: 0 })
   }
+  /** In the ring's middle, which is the key: a tap there types it. */
+  const inHub = (ring: AccentRing | null, x: number, y: number): boolean =>
+    ring != null && Math.hypot(x - ring.cx, y - ring.cy) < ring.hub
 
   const trackPopup = (x: number, y: number): void => {
     if (!press || press.accents.length === 0) return
@@ -2630,10 +2651,9 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         // keys behind them stealing the press. A tap on the ring picks by
         // direction (slice gaps included), so a ray's tap on ö is never the key behind.
         if (sticky) {
-          // The held key itself always means its plain character (the ring
-          // may cover it near an edge); anywhere else on the ring, an accent.
-          const onKey = keyAt(rects, x, y) === sticky.rect
-          const i = onKey ? -1 : accentIndexAt(sticky.ring, x, y, true)
+          // A choice where it is drawn; the middle means the key itself.
+          const middle = inHub(sticky.ring, x, y)
+          const i = middle ? -1 : accentIndexAt(sticky.ring, x, y, true)
           if (i >= 0) {
             const was = sticky
             const c = was.accents[i]
@@ -2648,8 +2668,8 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
             // the base letter. Dismiss-only here read as "nothing happens" on a
             // real device. Anywhere ELSE the tap is spent on dismissing rather
             // than also typing whatever was under it, as a popup ought to.
-            const r = keyAt(rects, x, y)
-            if (r === sticky.rect) fireKey(r)
+            if (middle || keyAt(rects, x, y) === sticky.rect)
+              fireKey(sticky.rect)
           }
           closePopup()
           sticky = null
@@ -2723,11 +2743,16 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
       if (!press) {
         // A ring left open by a lifted finger lights what the pointer is over.
         if (kind === 'move' && sticky?.ring) {
-          const onKey = keyAt(rects, x, y) === sticky.rect
-          // Over the key, the middle lights: a tap there types it.
+          // Over the middle (or the key, off the ring), the middle lights:
+          // a tap there types the key.
+          const i = inHub(sticky.ring, x, y)
+            ? -1
+            : accentIndexAt(sticky.ring, x, y, true)
+          const onKey =
+            i < 0 &&
+            (inHub(sticky.ring, x, y) || keyAt(rects, x, y) === sticky.rect)
           sticky.ring.svg.hubLit(onKey ? 'pick' : null)
-          if (!onKey)
-            sticky.ring.svg.highlight(accentIndexAt(sticky.ring, x, y, true))
+          sticky.ring.svg.highlight(i)
         }
         return
       }

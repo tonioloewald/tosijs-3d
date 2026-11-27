@@ -133,6 +133,19 @@ describe('hardware keys reach a field with NO fieldGroup', () => {
     expect(field.value).toBe('ab')
   })
 
+  test('arrow keys move its caret', () => {
+    const field = kb.inputField({ value: '' })
+    const panel: any = w3d.panel3d({ width: 320 }, field)
+    document.body.appendChild(panel)
+    panel.handlePointer('down', 60, 20)
+    panel.handlePointer('up', 60, 20)
+    press('a')
+    press('c')
+    press('ArrowLeft')
+    press('b')
+    expect(field.value).toBe('abc')
+  })
+
   test('typing does NOT leak to a field that lost focus', () => {
     // Two fields, no group: the second tap must move the receiver.
     const a = kb.inputField({ value: '' })

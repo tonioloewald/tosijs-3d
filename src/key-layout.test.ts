@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   accentsFor,
   commitValueForType,
+  fitRingCentre,
   hasAccents,
   isValidForType,
   keyAt,
@@ -451,6 +452,7 @@ describe('keyIntent — a field you can click into must accept characters', () =
     expect(keyIntent(' ')).toEqual({ action: 'space' })
     expect(keyIntent('ArrowLeft')).toEqual({ move: -1 })
     expect(keyIntent('ArrowRight')).toEqual({ move: 1 })
+    expect(keyIntent('Delete')).toEqual({ action: 'deleteForward' })
   })
 
   test('NAMED keys are not the field’s business', () => {
@@ -524,5 +526,21 @@ describe('the color field type', () => {
   test('an empty field is not a wrong field', () => {
     expect(isValidForType('', 'color')).toBe(true)
     expect(commitValueForType('', 'color')).toBe('')
+  })
+})
+
+describe('fitRingCentre', () => {
+  const room = { left: 0, top: 0, right: 400, bottom: 300 }
+  test('a ring that fits stays centred on its key', () => {
+    expect(fitRingCentre(200, 150, 50, room)).toEqual({ x: 200, y: 150 })
+  })
+  test('near an edge the whole ring moves over until it fits', () => {
+    expect(fitRingCentre(390, 150, 50, room, 4)).toEqual({ x: 346, y: 150 })
+  })
+  test('in a corner it moves on both axes', () => {
+    expect(fitRingCentre(395, 295, 50, room)).toEqual({ x: 350, y: 250 })
+  })
+  test('an axis too small for it centres it there', () => {
+    expect(fitRingCentre(10, 20, 200, room)).toEqual({ x: 200, y: 150 })
   })
 })

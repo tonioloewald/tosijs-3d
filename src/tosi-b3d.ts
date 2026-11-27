@@ -455,6 +455,7 @@ import {
   orbitFromAim,
   seatForCentre,
   hangUnder,
+  clearOfBar,
   xrBarElevation,
   XR_BAR_NOTICE_DEG,
   orbitPosition,
@@ -3063,6 +3064,8 @@ export class B3d extends Component {
   }
   /** B's tap or hold, on a control that has a menu. */
   private _padHold = pressState()
+  /** The control (its path) B went down on: its release acts only there. */
+  private _padPressOn: string | null = null
   private _padRing: SVGRectElement | null = null
   /** The pad, not the mouse or keys, was the last thing used. */
   private _padLastUsed = false
@@ -3384,11 +3387,19 @@ export class B3d extends Component {
       this._padHold = pressState()
       return
     }
+    const startedNow = this._padHold.since < 0 && pad.buttonB > 0.5
     const ev = pressStep(this._padHold, pad.buttonB > 0.5, now)
+    if (startedNow) this._padPressOn = focused?.path ?? null
+    /*
+    A RELEASE ACTS ONLY WHERE ITS PRESS BEGAN. The keyboard's hide key acts
+    on the press and the focus falls back to the field, which acts on
+    release: the same press put the keyboard away and opened it again.
+    */
+    const sameControl = focused != null && focused.path === this._padPressOn
     if (pulse.activate && focused?.menu == null) {
       if (ui.zone === 'bar') bar.padActivate()
       else nav?.activate()
-    } else if (focused?.menu != null) {
+    } else if (focused?.menu != null && (ev == null || sameControl)) {
       if (ev === 'tap') nav?.activate()
       else if (ev === 'hold') {
         const m = focused.menu()
@@ -3521,6 +3532,10 @@ export class B3d extends Component {
   private _sysOpened = new WeakSet<Element>()
   /** The headset's settings panel closer, while a session has one. */
   private _closeXrSettings: () => void = noop
+  /** Open or close the headset's settings panel, while a session has one. */
+  private _toggleXrSettings: () => void = noop
+  /** The headset bar's buttons, in order, while a session shows it (the ring is built from them). */
+  private _xrBarButtons: HTMLButtonElement[] | null = null
   private _toggleSystemPanel(el: Element, byUser = false): void {
     if (this._sysPanels.has(el)) this._closeSystemPanel(el)
     else this._openSystemPanel(el, byUser)
@@ -3770,6 +3785,21 @@ export class B3d extends Component {
         keepTop: true,
         // Out of view, its header at the edge of the view (edge-tab).
         edgeTab: { title: spec?.title, icon: spec?.icon },
+        // Brought to your gaze, but never up behind the bar.
+        gazeSeat: (a) => {
+          const now = shown.viewBox.baseVal
+          const deg = (m: number) =>
+            (Math.atan2(m, XR_BAR_DISTANCE) * 180) / Math.PI
+          return {
+            azimuthDeg: a.azimuthDeg,
+            elevationDeg: this._clearOfXrBar(
+              a.azimuthDeg,
+              a.elevationDeg,
+              deg(((now.width || 400) * K) / 2),
+              deg(((now.height || 400) * K) / 2)
+            ),
+          }
+        },
         handlePress: () => {
           this._panelFocus = key
         },
@@ -5468,12 +5498,18 @@ export class B3d extends Component {
       const b = this._systemButtonOf.get(el)
       if (b != null) panelOf.set(b, el)
     }
-    const buttons = [
-      part('scenePanelGear'),
-      ...this._systemButtons(),
-      part('enterVrButton'),
-      part('fullscreenButton'),
-    ].filter((b): b is HTMLButtonElement => b != null && barShows(b))
+    // The bar you can see: in a headset its own buttons (the owl that opens
+    // the headset's panel, Exit VR), not the page's.
+    const buttons = (
+      this.xrActive && this._xrBarButtons != null
+        ? this._xrBarButtons
+        : [
+            part('scenePanelGear'),
+            ...this._systemButtons(),
+            part('enterVrButton'),
+            part('fullscreenButton'),
+          ]
+    ).filter((b): b is HTMLButtonElement => b != null && barShows(b))
     const items: RadialItem[] = buttons.map((b) => {
       const menu = panelOf.get(b) as
         | { radialItems?: () => RadialItem[] }
@@ -5492,18 +5528,25 @@ export class B3d extends Component {
           : { handleSelect: () => b.click() }),
       }
     })
-    // With a panel showing, one more: close them all (set apart, at the bottom).
+    /*
+    One more: close them all (set apart, at the bottom). Always there, dimmed
+    with nothing open: a ring is learned by the hand, so nothing in it comes
+    and goes.
+    */
     const open = [...this._sysPanels.keys()]
-    if (open.length > 0 || this._scenePanelOpen())
-      items.push({
-        label: 'close all',
-        icon: 'close',
-        apart: true,
-        handleSelect: () => {
-          if (this._scenePanelOpen()) this._closeScenePanel()
-          for (const el of open) this._closeSystemPanel(el)
-        },
-      })
+    const settingsOpen =
+      this._scenePanelOpen() || (this.xrActive && this._xrPanelEl != null)
+    items.push({
+      label: 'close all',
+      icon: 'close',
+      apart: true,
+      disabled: open.length === 0 && !settingsOpen,
+      handleSelect: () => {
+        if (this._scenePanelOpen()) this._closeScenePanel()
+        if (this.xrActive) this._closeXrSettings()
+        for (const el of open) this._closeSystemPanel(el)
+      },
+    })
     return items
   }
 
@@ -7603,6 +7646,7 @@ export class B3d extends Component {
       panel = this._attachXrPanel(base, frames.eye)
     }
     this._closeXrSettings = closeXrPanel
+    this._toggleXrSettings = toggleXrPanel
     this._refreshXrPanel = () => {
       if (panel == null) return
       this._whenReleased(this._xrPanelEl as Element | null, () => {
@@ -7613,6 +7657,7 @@ export class B3d extends Component {
     }
     const xrBar = this._xrToolbar(scene, cam, frames, {
       settings: toggleXrPanel,
+      settingsOpen: () => panel != null,
       exit: () => void this.xrHelper?.baseExperience?.exitXRAsync(),
     })
 
@@ -8729,6 +8774,7 @@ export class B3d extends Component {
         this._xrPanelEl = null
         panel?.dispose()
         this._closeXrSettings = noop
+        this._toggleXrSettings = noop
         this._carrySystemPanels(false)
         xrBar.dispose()
         for (const p of bodyPanels) p.dispose()
@@ -9053,11 +9099,18 @@ export class B3d extends Component {
     if (!this._scenePanelWired) {
       this._scenePanelWired = true
       gear.addEventListener('click', () => {
+        // In a headset its panel is the headset's (the page's is not seen).
+        if (this.xrActive) return this._toggleXrSettings()
         if (this._scenePanelOpen()) this._closeScenePanel()
         else this._openScenePanel()
       })
       // Held on the system bar: back where it started, and open.
       gear.addEventListener('systemhold', () => {
+        if (this.xrActive) {
+          this._closeXrSettings()
+          this._xrPanelSeat = null
+          return this._toggleXrSettings()
+        }
         this._flatPanelSpot = null
         this._closeScenePanel()
         this._openScenePanel()
@@ -9832,7 +9885,11 @@ export class B3d extends Component {
     scene: BABYLON.Scene,
     cam: BABYLON.TargetCamera,
     frames: XrFrames,
-    act: { settings: () => void; exit: () => void }
+    act: {
+      settings: () => void
+      settingsOpen: () => boolean
+      exit: () => void
+    }
   ): { update: () => void; dispose: () => void } {
     const mk = (icon: Element, title: string, click: () => void) => {
       const b = button({ type: 'button', title }, icon) as HTMLButtonElement
@@ -9873,13 +9930,16 @@ export class B3d extends Component {
     into the same plane: checked every 30 frames, as the flat bar is.
     */
     let system = this._systemButtons()
+    // The owl is lit while its panel shows, as on the flat bar.
+    const syncOwl = () => {
+      const open = String(act.settingsOpen())
+      if (settingsButton.getAttribute('aria-expanded') !== open)
+        settingsButton.setAttribute('aria-expanded', open)
+    }
+    syncOwl()
     const makeBar = () => {
-      const bar = systemBar([
-        settingsButton,
-        ...system,
-        ...padButtons,
-        exitButton,
-      ])
+      this._xrBarButtons = [settingsButton, ...system, ...padButtons, exitButton]
+      const bar = systemBar(this._xrBarButtons)
       /*
       WHAT A PRESS ON THE BAR DID, to the debug sink: in the aircraft a
       headset lit a button and the press never landed, while the emulated
@@ -9911,6 +9971,8 @@ export class B3d extends Component {
     this._xrBarHalfDeg =
       (Math.atan2((0.0022 * (vb.height || 40)) / 2, XR_BAR_DISTANCE) * 180) /
       Math.PI
+    this._xrBarHalfWideDeg =
+      (Math.atan2(width / 2, XR_BAR_DISTANCE) * 180) / Math.PI
     let measured = false
     const measure = () => {
       const view = headView(cam)
@@ -9938,6 +10000,7 @@ export class B3d extends Component {
     return {
       update: () => {
         if (!measured) measure()
+        syncOwl()
         if (--checkIn <= 0) {
           checkIn = 30
           const now = this._systemButtons()
@@ -9956,6 +10019,7 @@ export class B3d extends Component {
       },
       dispose: () => {
         if (this._xrBarSvg === bar.svg) this._xrBarSvg = null
+        this._xrBarButtons = null
         panel.dispose()
         bar.dispose()
       },
@@ -9985,6 +10049,28 @@ export class B3d extends Component {
   /** Where the headset's system bar is (degrees up) and half its height. */
   private _xrBarElev = XR_BAR_NOTICE_DEG
   private _xrBarHalfDeg = 2
+  /** Half the headset's system bar's width, in degrees. */
+  private _xrBarHalfWideDeg = 6
+  /** A panel's middle (in the eye frame) moved down out from behind the headset's bar, if it was behind it. */
+  private _clearOfXrBar(
+    azimuthDeg: number,
+    elevationDeg: number,
+    halfWideDeg: number,
+    halfDeg: number
+  ): number {
+    return clearOfBar(
+      azimuthDeg,
+      elevationDeg,
+      halfWideDeg,
+      halfDeg,
+      {
+        elevationDeg: this._xrBarElev,
+        halfDeg: this._xrBarHalfDeg,
+        halfWideDeg: this._xrBarHalfWideDeg,
+      },
+      this._xrViewBottomDeg
+    )
+  }
   /** How far down the headset's view reaches, looking level (degrees). */
   private _xrViewBottomDeg = -45
 
@@ -10099,24 +10185,57 @@ export class B3d extends Component {
     // Pointer-pickable, collision-invisible — this panel hangs in front of your
     // face, which in cockpit view is inside the aircraft's impact sweep.
     markUiMesh(plane)
+    /*
+    DRAWN IN THE UI LAYER, over the world, as the bar and the system panels
+    are. In the world it was drawn by depth, so whatever was nearer covered
+    it: a planet framed 1.2 m ahead stood in front of a panel 1.4 m away.
+    `plane` stays here, unseen, riding its frame and doing the placement and
+    the picking as before; `shown`, in the layer, takes its pose each frame
+    (frame-panel's layered copy). Popups open from `shown`, so they are in
+    the layer too.
+    */
+    const drawScene = panelLayerScene(scene, 'ui')
+    const shown = BABYLON.MeshBuilder.CreatePlane(
+      'xr-panel-shown',
+      {
+        width: PLANE_W,
+        height: planeH,
+        sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+      },
+      drawScene
+    )
+    shown.rotationQuaternion = new BABYLON.Quaternion()
+    markUiMesh(shown)
+    plane.isVisible = false
 
     // The panel is near-static, so re-rasterising the SVG at high res every
     // 30ms (the SvgTexture default) was the main XR perf regression — throttle
     // hard and drop the resolution. A settings panel doesn't need 33fps.
     const tex = new SvgTexture({
-      scene,
+      scene: drawScene,
       element: panelEl,
       resolution: 512,
       updateInterval: 200,
     })
-    const mat = new BABYLON.StandardMaterial('xr-panel-mat', scene)
+    const mat = new BABYLON.StandardMaterial('xr-panel-mat', drawScene)
     mat.backFaceCulling = false
     mat.emissiveTexture = tex.texture
     mat.opacityTexture = tex.texture
     mat.diffuseColor = BABYLON.Color3.Black()
     mat.disableLighting = true
-    plane.material = mat
+    shown.material = mat
     plane.visibility = 0
+    shown.visibility = 0
+    const syncShown = (): void => {
+      plane.computeWorldMatrix(true)
+      plane
+        .getWorldMatrix()
+        .decompose(shown.scaling, shown.rotationQuaternion!, shown.position)
+      shown.visibility = plane.visibility
+      const on = plane.isEnabled()
+      if (shown.isEnabled() !== on) shown.setEnabled(on)
+    }
+    const shownSync = scene.onBeforeCameraRenderObservable.add(syncShown)
     // The XR rig is the camera's parent. Make the panel a SECOND child of that
     // rig — the SAME coordinate space as the camera — at a FIXED local pose: the
     // head (camera) rotates within the rig to look at it, while the panel itself
@@ -10142,7 +10261,7 @@ export class B3d extends Component {
     attachSceneLayer({
       svg: panelEl,
       owner: this as unknown as PopupOwner,
-      openerMesh: plane,
+      openerMesh: shown,
       planeW: PLANE_W,
       planeH,
     })
@@ -10332,10 +10451,16 @@ export class B3d extends Component {
         { ...wanted, radius: D }
       )
       const tall = angularHeight(planeH * sy, D)
+      // Where you look, but never up behind the bar.
+      const centre = this._clearOfXrBar(
+        gaze.azimuthDeg,
+        gaze.elevationDeg,
+        (Math.atan2(PLANE_W / 2, D) * 180) / Math.PI,
+        tall / 2
+      )
       const seat = { ...gaze }
       for (let i = 0; i < 6; i++)
-        seat.elevationDeg +=
-          gaze.elevationDeg - orbitCentre(seat, tall).elevationDeg
+        seat.elevationDeg += centre - orbitCentre(seat, tall).elevationDeg
       springOff?.()
       wanted = clampOrbit(seat)
       this._xrPanelSeat = { ...wanted }
@@ -10396,7 +10521,17 @@ export class B3d extends Component {
         `repick ${dbg.repick}  uv ${dbg.uv}`,
       ],
     })
-    const obs = scene.onPointerObservable.add((pi) => {
+    /*
+    BOTH SCENES' POINTER EVENTS. A press on the drawn copy is delivered to the
+    UI layer's scene (Babylon's utility layer takes it and the world never
+    hears of it); one beside it, a drag's moves off it, to the world's.
+    */
+    let lastEvent: unknown = null
+    let lastType = -1
+    const onPanelPointer = (pi: BABYLON.PointerInfo): void => {
+      if (pi.event === lastEvent && pi.type === lastType) return
+      lastEvent = pi.event
+      lastType = pi.type
       const kind =
         pi.type === T.POINTERDOWN
           ? 'down'
@@ -10428,8 +10563,11 @@ export class B3d extends Component {
       )
         return
       const pick = pi.pickInfo
+      // The drawn copy is the same plane, so its texture coordinates are the panel's.
+      const onPanel = (m: BABYLON.Nullable<BABYLON.AbstractMesh> | undefined) =>
+        m === plane || m === shown
       let uv =
-        pick?.hit && pick.pickedMesh === plane
+        pick?.hit && onPanel(pick.pickedMesh)
           ? pick.getTextureCoordinates()
           : null
       /*
@@ -10448,7 +10586,7 @@ export class B3d extends Component {
       const blockedByUi =
         pick?.hit === true &&
         pick.pickedMesh != null &&
-        pick.pickedMesh !== plane &&
+        !onPanel(pick.pickedMesh) &&
         isNoCollide(pick.pickedMesh)
       if (!uv && !blockedByUi && pick?.ray) {
         // A full-length copy: the XR pointer's ray is cut to the distance of
@@ -10461,7 +10599,7 @@ export class B3d extends Component {
           ),
           (m) => m === plane
         )
-        if (p2?.hit) uv = p2.getTextureCoordinates()
+        if (p2?.hit && onPanel(p2.pickedMesh)) uv = p2.getTextureCoordinates()
         if (kind) dbg.repick = p2?.hit ? 'HIT' : 'miss'
       } else if (kind) {
         dbg.repick = uv ? 'n/a (direct)' : 'no ray'
@@ -10509,7 +10647,9 @@ export class B3d extends Component {
       if (kind === 'move' && !uv) panelEl.handlePointer('leave', 0, 0)
       else if (kind === 'down' && !uv) return
       else panelEl.handlePointer(kind, vx, vy)
-    })
+    }
+    const obs = scene.onPointerObservable.add(onPanelPointer)
+    const obsUi = drawScene.onPointerObservable.add(onPanelPointer)
 
     return {
       plane,
@@ -10536,7 +10676,7 @@ export class B3d extends Component {
         attachSceneLayer({
           svg: panelEl,
           owner: this as unknown as PopupOwner,
-          openerMesh: plane,
+          openerMesh: shown,
           planeW: PLANE_W,
           planeH: planeH * sy,
         })
@@ -10550,10 +10690,13 @@ export class B3d extends Component {
         base.sessionManager.onXRFrameObservable.remove(edgeFrame)
         edge.dispose()
         scene.onPointerObservable.remove(obs)
+        drawScene.onPointerObservable.remove(obsUi)
         offDbg()
         this._liveDebug.xr = [] // its <text> nodes die with the panel
+        scene.onBeforeCameraRenderObservable.remove(shownSync)
         tex.dispose()
         mat.dispose()
+        shown.dispose()
         plane.dispose()
       },
     }

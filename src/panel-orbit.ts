@@ -383,3 +383,24 @@ export function orbitClampedBy(wanted: Orbit): number {
     Math.abs(held.elevationDeg - wanted.elevationDeg)
   )
 }
+
+/**
+ * Where a panel's middle goes so the bar is not over it. A panel brought to
+ * your gaze near the bar overlapped it, and the two sit at one distance, so
+ * the bar covered it. Where they would overlap side to side, the panel is
+ * lowered until its top is under the bar, as one hung from the bar is
+ * (`hangUnder`); elsewhere it stays where you look.
+ */
+export function clearOfBar(
+  azimuthDeg: number,
+  elevationDeg: number,
+  halfWideDeg: number,
+  halfDeg: number,
+  bar: { elevationDeg: number; halfDeg: number; halfWideDeg: number },
+  viewBottomDeg: number
+): number {
+  if (Math.abs(azimuthDeg) >= bar.halfWideDeg + halfWideDeg) return elevationDeg
+  const ceiling = bar.elevationDeg - bar.halfDeg - 0.5
+  if (elevationDeg + halfDeg <= ceiling) return elevationDeg
+  return hangUnder(ceiling - 1, halfDeg, viewBottomDeg, ceiling)
+}

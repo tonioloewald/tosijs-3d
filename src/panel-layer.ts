@@ -100,6 +100,8 @@ export interface OverOptions {
   pickable?: boolean
   /** A press on neither it nor its panel closes it. */
   dismissOutside?: boolean
+  /** With `dismissOutside`: a press anywhere off it, its panel included, only closes it. */
+  spendDismiss?: boolean
   /** Told when it goes, however it went. */
   handleClosed?: () => void
   /** Leave it where it was put, even partly off the screen: its owner fitted it (`overRoomOf`). */
@@ -116,8 +118,8 @@ export interface RoomRect {
 
 /**
  * Where the screen ends, in the panel's own units, for a drawing an
- * over-surface will show (so a ring can fan away from an edge instead of
- * being pushed off its key). Null when nothing bounds it (a headset) or no
+ * over-surface will show (so its owner can fit a ring itself rather than
+ * have the surface nudge it). Null when nothing bounds it (a headset) or no
  * presentation can say.
  */
 export function overRoomOf(root: SVGSVGElement): RoomRect | null {
@@ -350,9 +352,28 @@ export function attachSceneLayer(opts: {
     // Beside the panel its top is level with the anchor's; else it hangs below.
     let topVb = frameTop + (beside ? a.y : a.y + a.height)
     if (room != null) {
+      /*
+      AS TALL AS IT IS DRAWN, in the panel's units: a sheet wider than its
+      panel is drawn smaller (`worldW`), and measured in its own units a
+      keyboard looked a third taller than it was, so it was pushed up over
+      the field it types into.
+      */
+      const drawnH = (worldH / planeH) * panelH
+      /*
+      NO ROOM BELOW, THEN ABOVE. Only when neither fits is it pushed over
+      the anchor.
+      */
+      const GAP = 4
+      const above = frameTop + a.y - GAP - drawnH
+      if (
+        !beside &&
+        topVb + drawnH > room.bottom - MARGIN &&
+        above >= room.top + MARGIN
+      )
+        topVb = above
       topVb = Math.max(
         room.top + MARGIN,
-        Math.min(topVb, room.bottom - MARGIN - popH)
+        Math.min(topVb, room.bottom - MARGIN - drawnH)
       )
     }
     const anchorBottomY = (0.5 - topVb / panelH) * planeH
@@ -509,6 +530,7 @@ export function attachSceneLayer(opts: {
       chrome: false,
       draggable: false,
       dismissOutside: o.dismissOutside,
+      spendDismiss: o.spendDismiss,
       handleClosed: o.handleClosed,
       stay: o.stay,
       offset: {

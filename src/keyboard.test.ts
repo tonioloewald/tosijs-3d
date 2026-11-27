@@ -50,14 +50,23 @@ const mk = (holdMs = 5) => {
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-/** Where accent `i` of `n` sits on the open ring (keyboard units). */
-const accentAt = (kb: any, i: number, n: number) => {
+/**
+ * Where accent `i` of `n` sits on the open ring (keyboard units): a tap
+ * there picks it. With `from` (the held key), the point a SLIDE goes to:
+ * the same direction, measured from the key, as the ring may be moved over.
+ */
+const accentAt = (
+  kb: any,
+  i: number,
+  n: number,
+  from?: { x: number; y: number }
+) => {
   const ring = kb.el.querySelector('[data-kb="popup"] svg') as any
   const size = Number(ring.getAttribute('width'))
-  const cx = Number(ring.getAttribute('x')) + size / 2
-  const cy = Number(ring.getAttribute('y')) + size / 2
-  // The ring's own items: near an edge it fans (a spacer after the choices).
-  expect(ring.items.filter((x: any) => !x.spacer).length).toBe(n)
+  const cx = from?.x ?? Number(ring.getAttribute('x')) + size / 2
+  const cy = from?.y ?? Number(ring.getAttribute('y')) + size / 2
+  // A key's ring is always whole: the same choices, in the same places.
+  expect(ring.items.length).toBe(n)
   const s = radialSlot(i, ring.items)
   return { x: cx + s.x * size * 0.33, y: cy + s.y * size * 0.33 }
 }
@@ -186,7 +195,7 @@ describe('keyboard — press-hold-drag accents', () => {
     kb.handle!('down', o.x, o.y)
     await wait(20)
     // A ring round the key: ò ó ô ö õ ø œ. Slide toward index 3 (ö).
-    const { x: cx, y: cy } = accentAt(kb, 3, 7)
+    const { x: cx, y: cy } = accentAt(kb, 3, 7, o)
     kb.handle!('move', cx, cy)
     kb.handle!('up', cx, cy)
     await wait(90) // the pick blinks first
@@ -199,7 +208,7 @@ describe('keyboard — press-hold-drag accents', () => {
     kb.handle!('down', o.x, o.y)
     await wait(20)
     const ring = kb.el.querySelector('[data-kb="popup"] svg') as any
-    const { x: cx, y: cy } = accentAt(kb, 3, 7)
+    const { x: cx, y: cy } = accentAt(kb, 3, 7, o)
     kb.handle!('move', cx, cy)
     expect(ring.lit).toBe(3)
     kb.handle!('up', cx, cy)
@@ -217,7 +226,7 @@ describe('keyboard — press-hold-drag accents', () => {
     const o = centre('alpha', false, 'o')
     kb.handle!('down', o.x, o.y)
     await wait(20)
-    const { x: cx, y: cy } = accentAt(kb, 3, 7)
+    const { x: cx, y: cy } = accentAt(kb, 3, 7, o)
     kb.handle!('move', cx, cy)
     kb.handle!('up', cx, cy)
     const q = centre('alpha', false, 'q')
@@ -430,47 +439,68 @@ describe('keyboard — the accent ring', () => {
   // pointers by child rect — a strip poking above the keyboard lands on the
   // neighbouring widget (the text field), which then eats the tap.
   for (const key of ['o', 'a', 'z', '.'])
-    test(`the ring for '${key}' is centred on its key`, async () => {
+    test(`the ring for '${key}' is whole on the board, on its key where it fits`, async () => {
       const { kb } = mk(5)
       const k = centre('alpha', false, key)
       kb.handle!('down', k.x, k.y)
       await wait(20)
       const ring = kb.el.querySelector('[data-kb="popup"] svg') as any
       const size = Number(ring.getAttribute('width'))
-      expect(Number(ring.getAttribute('x')) + size / 2).toBeCloseTo(k.x, 6)
-      expect(Number(ring.getAttribute('y')) + size / 2).toBeCloseTo(k.y, 6)
-      // Every choice is drawn on the board (a ring near an edge fans).
-      for (let i = 0; i < ring.items.length; i++) {
-        if (ring.items[i].spacer) continue
-        const s = radialSlot(i, ring.items)
-        const px = k.x + s.x * size * 0.33
-        const py = k.y + s.y * size * 0.33
-        expect(px).toBeGreaterThan(0)
-        expect(px).toBeLessThan(W)
-        expect(py).toBeGreaterThan(0)
-      }
+      const kbH = L.keyboardHeight(L.keyLayout('alpha').length, KH, GAP)
+      const at = L.fitRingCentre(k.x, k.y, size / 2, {
+        left: 0,
+        top: 0,
+        right: W,
+        bottom: kbH,
+      })
+      expect(Number(ring.getAttribute('x')) + size / 2).toBeCloseTo(at.x, 6)
+      expect(Number(ring.getAttribute('y')) + size / 2).toBeCloseTo(at.y, 6)
+      // No spacer: the same choices in the same places, wherever the key is.
+      expect(ring.items.some((x: any) => x.spacer)).toBe(false)
       kb.handle!('up', k.x, k.y)
     })
+
+  test('a slide picks by its direction from the key, wherever the ring is drawn', async () => {
+    const { kb, keys } = mk(5)
+    const o = centre('alpha', false, 'o') // top row: its ring is moved down
+    kb.handle!('down', o.x, o.y)
+    await wait(20)
+    const ring = kb.el.querySelector('[data-kb="popup"] svg') as any
+    const size = Number(ring.getAttribute('width'))
+    expect(Number(ring.getAttribute('y')) + size / 2).toBeGreaterThan(o.y)
+    // Straight up from the key: the first choice (ò), as on an unmoved ring.
+    kb.handle!('move', o.x, o.y - 40)
+    kb.handle!('up', o.x, o.y - 40)
+    await wait(90)
+    expect(keys).toEqual(['ò'])
+  })
 
   test('holding the full stop offers punctuation', async () => {
     const { kb, keys } = mk(5)
     const k = centre('alpha', false, '.')
     kb.handle!('down', k.x, k.y)
     await wait(20)
-    const p = accentAt(kb, 1, 9) // , ? ! ...
+    const p = accentAt(kb, 1, 9, k) // , ? ! ...
     kb.handle!('move', p.x, p.y)
     kb.handle!('up', p.x, p.y)
     await wait(90)
     expect(keys).toEqual(['?'])
   })
 
-  test('tapping the ORIGIN key of a sticky strip types the plain letter', async () => {
+  test('tapping the middle of a sticky ring types the plain letter', async () => {
     const { kb, keys } = mk(5)
     const o = centre('alpha', false, 'o')
     kb.handle!('down', o.x, o.y)
     await wait(20)
     kb.handle!('up', o.x, o.y) // lift → sticky strip
-    kb.handle!('down', o.x, o.y) // tap the key you held: the plain character
+    // The middle is the key you held (drawn moved over, near an edge).
+    const ring = kb.el.querySelector('[data-kb="popup"] svg') as any
+    const size = Number(ring.getAttribute('width'))
+    kb.handle!(
+      'down',
+      Number(ring.getAttribute('x')) + size / 2,
+      Number(ring.getAttribute('y')) + size / 2
+    )
     expect(keys).toEqual(['o'])
     const strip = kb.el.querySelector('[data-kb="popup"]') as SVGGElement
     expect(strip.childNodes.length).toBe(0)
@@ -583,15 +613,15 @@ describe('keyboard — rings on ?123 and backspace', () => {
     kb.handle!('down', k.x, k.y)
     await wait(20)
     const ring = kb.el.querySelector('[data-kb="popup"] svg') as any
-    const labels = ring.items.filter((x: any) => !x.spacer).map((x: any) => x.label)
+    const labels = ring.items.map((x: any) => x.label)
     expect(labels).toEqual([...'0123456789.,', '+−×÷', '@#?'])
     // Slide to arithmetic: a sub-ring opens round the key, waiting for a tap.
-    const p = accentAt(kb, 12, 14)
+    const p = accentAt(kb, 12, 14, k)
     kb.handle!('move', p.x, p.y)
     kb.handle!('up', p.x, p.y)
     await wait(90)
     const sub = kb.el.querySelector('[data-kb="popup"] svg') as any
-    expect(sub.items.filter((x: any) => !x.spacer).map((x: any) => x.label)).toEqual([...'+−×÷*/=%^()<>±'])
+    expect(sub.items.map((x: any) => x.label)).toEqual([...'+−×÷*/=%^()<>±'])
     const q = accentAt(kb, 2, 14)
     kb.handle!('down', q.x, q.y)
     await wait(90)
@@ -603,7 +633,7 @@ describe('keyboard — rings on ?123 and backspace', () => {
     const k = centre('alpha', false, '⌫')
     kb.handle!('down', k.x, k.y)
     await wait(20)
-    const p = accentAt(kb, 3, 5) // cut
+    const p = accentAt(kb, 3, 5, k) // cut
     kb.handle!('move', p.x, p.y)
     kb.handle!('up', p.x, p.y)
     await wait(90)
@@ -630,9 +660,26 @@ describe('keyboard — a field edits a selection', () => {
     f.action('cut')
     expect(f.value).toBe('hello  world')
     const menu = f.semantics!().menu!()!
-    expect(menu.items.map((i) => i.label)).toEqual(['cut', 'copy', 'paste', 'clear', 'select word', 'select all'])
+    expect(menu.items.map((i) => i.label)).toEqual(['cut', 'copy', 'paste', 'clear all', 'select word', 'select all'])
     menu.handleSelect(3)
     expect(f.value).toBe('')
+  })
+
+  test('clear takes only the selection when there is one, and says so', () => {
+    const f = K.inputField({ value: 'hello big world' })
+    f.moveCaret(-8)
+    f.action('selectWord')
+    const menu = f.semantics!().menu!()!
+    expect(menu.items[3].label).toBe('clear selection')
+    menu.handleSelect(3)
+    expect(f.value).toBe('hello  world')
+  })
+
+  test('an empty field dims what has nothing to act on; nothing moves', () => {
+    const f = K.inputField({ value: '' })
+    const menu = f.semantics!().menu!()!
+    expect(menu.items.length).toBe(6)
+    expect(menu.items.map((i) => !!i.disabled)).toEqual([true, true, false, true, true, true])
   })
 })
 

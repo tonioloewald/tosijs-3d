@@ -56,6 +56,8 @@ export function keyIntent(
   switch (key) {
     case 'Backspace':
       return { action: 'backspace' }
+    case 'Delete':
+      return { action: 'deleteForward' }
     case 'Enter':
       return { action: 'enter' }
     case ' ':
@@ -624,4 +626,28 @@ export function keyAt(rects: KeyRect[], x: number, y: number): KeyRect | null {
       return r
   }
   return null
+}
+
+/**
+ * Where a key's ring of choices is drawn: centred on the key when it fits in
+ * `room`, else moved in just far enough to fit (each axis on its own;
+ * centred in an axis the room is too small for). The layout never changes,
+ * only where it is drawn: a slide picks by its direction from the key, so the
+ * hand learns one gesture per choice wherever the key sits.
+ */
+export function fitRingCentre(
+  x: number,
+  y: number,
+  half: number,
+  room: { left: number; top: number; right: number; bottom: number },
+  margin = 0
+): { x: number; y: number } {
+  const fit = (v: number, lo: number, hi: number): number =>
+    hi - lo < 2 * (half + margin)
+      ? (lo + hi) / 2
+      : Math.max(lo + margin + half, Math.min(hi - margin - half, v))
+  return {
+    x: fit(x, room.left, room.right),
+    y: fit(y, room.top, room.bottom),
+  }
 }

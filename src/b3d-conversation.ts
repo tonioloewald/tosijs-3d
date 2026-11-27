@@ -69,6 +69,8 @@ import {
   fitBalloon,
   rowAt,
   type BalloonLayout,
+  followHead,
+  type BalloonPoint,
 } from './balloon-layout.js'
 import { emptyInput, type InputProvider } from './control-input.js'
 import { gamepadFocus } from './gamepad-focus.js'
@@ -106,6 +108,8 @@ class Balloon {
   dx = 0
   dy = 0
   placed = false
+  /** What it hangs from: the head, without the head's small movements (`followHead`). */
+  anchor: BalloonPoint | null = null
 
   constructor() {
     this.svg = svg({
@@ -553,12 +557,25 @@ export class B3dConversation extends B3dChild {
   ): void {
     const mesh = b.plane?.mesh
     if (mesh == null) return
-    const top = who != null ? this._headTop(who) : null
-    const visible = show && top != null && !b.empty
+    const head = who != null ? this._headTop(who) : null
+    const visible = show && head != null && !b.empty
     mesh.setEnabled(visible)
     // Shown again, it starts where it belongs rather than gliding from where it was.
-    if (!visible) b.placed = false
-    if (!visible || top == null) return
+    if (!visible) {
+      b.placed = false
+      b.anchor = null
+    }
+    if (!visible || head == null) return
+    /*
+    FROM WHERE THE HEAD IS, NOT WHERE IT BOBS: the talk clip nods and sways
+    the head, and a balloon hung from the bone went with it however its
+    offset was eased. It follows a step, not a nod.
+    */
+    b.anchor =
+      b.anchor == null
+        ? { x: head.x, y: head.y, z: head.z }
+        : followHead(b.anchor, head, dt)
+    const top = new BABYLON.Vector3(b.anchor.x, b.anchor.y, b.anchor.z)
     mesh.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL
     const w = Number(this.balloonWidth) || 1.2
     // UI size: as wide in view at any distance (its plane is built `w` wide).

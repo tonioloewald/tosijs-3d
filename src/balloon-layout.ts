@@ -146,3 +146,38 @@ export function fitBalloon(
   const tail = Math.max(0, Math.min(1, 0.5 - dx / width))
   return { dx, dy, side, tail }
 }
+
+/** A point, for `followHead`. */
+export interface BalloonPoint {
+  x: number
+  y: number
+  z: number
+}
+
+/**
+ * Where a balloon hangs from, given where the head is now: it follows the
+ * head slowly (`tau` seconds) and is dragged along when the head gets more
+ * than `dead` metres away, so a speaker talking, nodding or breathing does
+ * not carry the balloon about, while one who walks off takes it along.
+ * Returns a new point.
+ */
+export function followHead(
+  anchor: BalloonPoint,
+  head: BalloonPoint,
+  dt: number,
+  { dead = 0.12, tau = 1.5 }: { dead?: number; tau?: number } = {}
+): BalloonPoint {
+  const k = 1 - Math.exp(-Math.max(0, dt) / tau)
+  const p = {
+    x: anchor.x + (head.x - anchor.x) * k,
+    y: anchor.y + (head.y - anchor.y) * k,
+    z: anchor.z + (head.z - anchor.z) * k,
+  }
+  const dx = head.x - p.x
+  const dy = head.y - p.y
+  const dz = head.z - p.z
+  const far = Math.hypot(dx, dy, dz)
+  if (far <= dead) return p
+  const pull = (far - dead) / far
+  return { x: p.x + dx * pull, y: p.y + dy * pull, z: p.z + dz * pull }
+}

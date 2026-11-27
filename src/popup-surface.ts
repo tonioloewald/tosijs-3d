@@ -227,6 +227,13 @@ export interface PopupSurfaceOptions {
    */
   dismissOutside?: boolean
   /**
+   * With `dismissOutside`: a press anywhere off it, its opener included,
+   * closes it and does nothing else (a key's ring of choices: a tap beside it
+   * on the keyboard puts it away rather than typing, and one on the scene does
+   * not also close the panel behind).
+   */
+  spendDismiss?: boolean
+  /**
    * Fraction of the panel's height that acts as the TITLE BAR — the only place
    * a drag starts. Default 0.2; `0` makes the whole panel draggable.
    *
@@ -326,6 +333,8 @@ export interface PopupSurface {
   readonly opener?: BABYLON.TransformNode | BABYLON.AbstractMesh | null
   /** Closed by a press on neither it nor its opener (`dismissOutside`). */
   readonly dismissOutside?: boolean
+  /** A press off it, its opener included, only closes it (`spendDismiss`). */
+  readonly spendDismiss?: boolean
   /** Dispose it. Safe to call twice. */
   close(): void
   /**
@@ -692,15 +701,30 @@ function wirePointer(owner: B3d): void {
     it). Closed after the hit test, so the press still lands where it was.
     */
     if (ray != null) {
+      let spent = false
       for (const p of [...list]) {
         if (!p.dismissOutside || p.plane.mesh == null) continue
         if (onPopup === p.plane.mesh) continue
+        if (p.spendDismiss) {
+          p.close()
+          spent = true
+          continue
+        }
         const o = p.opener as BABYLON.AbstractMesh | null | undefined
         const onOpener =
           o != null &&
           typeof o.getScene === 'function' &&
           o.getScene().pickWithRay(ray, (m) => m === o)?.hit === true
         if (!onOpener) p.close()
+      }
+      /*
+      A PRESS THAT ONLY PUT A RING AWAY goes no further: not to the key
+      beside it, not to the scene (whose press closes the panel behind).
+      */
+      if (spent) {
+        claimPointer(info.event as unknown as Event)
+        if (state) state.skipNextObservers = true
+        return
       }
     }
 
@@ -878,6 +902,7 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     handleClosed,
     handleGone,
     dismissOutside = false,
+    spendDismiss = false,
     tip = false,
     stay = false,
   } = opts
@@ -1255,6 +1280,7 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     plane,
     opener,
     dismissOutside,
+    spendDismiss,
     modal,
     get closed() {
       return closed
