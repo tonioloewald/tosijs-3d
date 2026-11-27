@@ -76,6 +76,7 @@ import {
 import { emptyInput, type InputProvider } from './control-input.js'
 import { gamepadFocus } from './gamepad-focus.js'
 import { HardwareGamepadSource } from './hardware-gamepad.js'
+import { isTyping } from './text-entry.js'
 
 const { svg, g, path, text, rect } = svgElements
 
@@ -305,6 +306,8 @@ export class B3dConversation extends B3dChild {
   private _fading: HTMLAudioElement[] = []
   private _durations = new Map<string, number>()
   private _keys = (e: KeyboardEvent) => {
+    // A digit typed into a field is not a reply.
+    if (isTyping(e)) return
     const n = Number(e.key)
     const talk = this.talk
     if (!talk || !(n >= 1 && n <= 9)) return

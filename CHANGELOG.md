@@ -12,6 +12,7 @@ Upgrading across a minor? Start with [Migration](/Migration/).
 
 ## Unreleased
 
+- Fixed: keys typed into a field in a scene no longer reach the game (Space jumped, F closed the panel as the pad's B, a digit picked a conversation reply). `isTyping(event)` is `isTextEntry` plus whether a scene field has the keys; a key listener of your own should ask it. Closing the settings panel gives the keys back.
 - Changed: a slide on a key's ring that was moved over to fit picks what it is over on the ring as drawn, as a tap does (it picked by its direction from the key, which did not match the drawing).
 - Changed (headset): a quick squeeze of both grips opens the system ring to stay: a thumbstick points and its click picks, or the trigger taps a slice; both grips held still open it held, as before. A ring drawn where you look takes a trigger tap on a slice.
 - Added (headset): the system bar folds to a tab at the edge of the view when you look away from it, as panels do; a tap on the tab opens the system ring where you look. A frame panel's `edgeTab.handleTap` keeps it in its place (it is not brought to your gaze when it opens out of view). Tabs at the top of the view stand further in (`EDGE_TAB_TOP_INSET`).

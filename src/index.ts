@@ -936,10 +936,11 @@ export {
 } from './curve.js'
 export { moveMarker, normalizeMarkers, MIN_SPLIT_GAP } from './curve.js'
 /*
-`isTextEntry` — ask before a global listener claims a key. A page is not only a
-scene, and `a` is a strafe key.
+`isTyping` — ask before a global listener claims a key: is the person typing
+into a page's input (`isTextEntry`) or a field in a scene? A page is not only
+a scene, and `a` is a strafe key.
 */
-export { isTextEntry } from './text-entry.js'
+export { isTextEntry, isTyping } from './text-entry.js'
 /*
 Bone masking for layered animation — walk and aim at once. Pure: a hierarchy is
 names and parents.

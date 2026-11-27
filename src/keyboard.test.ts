@@ -792,6 +792,34 @@ describe('inputField — the caret is the focus indicator', () => {
     expect(focusA).toBe(2)
   })
 
+  test('a field with the keys keeps them from the game until it lets go', async () => {
+    // Typing a comment in the checklist jumped on Space and closed the panel
+    // on F (the keyboard's B): a field in a scene has no DOM focus, so the
+    // pad's "is this typing?" had to be told.
+    const { isTyping } = await import('./text-entry.js')
+    const KG = await import('./keyboard-gamepad.js')
+    const pad: any = new (KG.KeyboardGamepadSource as any)()
+    const space = {
+      key: ' ',
+      code: 'Space',
+      target: { tagName: 'CANVAS' },
+      composedPath: () => [],
+      preventDefault: () => {},
+    }
+    K.releaseTextFocus()
+    expect(isTyping(space)).toBe(false)
+    const f = K.inputField({ value: '' })
+    f.layout(200)
+    f.setActive(true)
+    expect(isTyping(space)).toBe(true)
+    pad._handleKeyDown(space)
+    expect(pad.pressedKeys.has('Space'), 'Space jumped').toBe(false)
+    K.releaseTextFocus()
+    expect(isTyping(space)).toBe(false)
+    pad._handleKeyDown(space)
+    expect(pad.pressedKeys.has('Space')).toBe(true)
+  })
+
   test('a tap brightens it too (standalone use, no host box)', () => {
     const f = K.inputField({ value: 'hi' })
     f.layout(200)

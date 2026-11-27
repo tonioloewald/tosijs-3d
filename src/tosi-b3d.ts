@@ -9729,6 +9729,10 @@ export class B3d extends Component {
   }
 
   private _closeScenePanel(): void {
+    // A field in it gives the keys back to the game, as a system panel's does.
+    const drawn = this._flatScenePanel?.el
+    if (drawn != null) releaseTextFocus(drawn)
+    releaseTextFocus(this.parts.scenePanelHost as HTMLElement)
     this._disposeFlatScenePanel()
     ;(this.parts.scenePanelHost as HTMLElement).setAttribute('hidden', '')
     this._syncAriaMirror()

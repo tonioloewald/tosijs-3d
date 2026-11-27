@@ -65,7 +65,7 @@ import {
 } from './virtual-gamepad.js'
 import { HardwareGamepadSource, releaseMenuOwned } from './hardware-gamepad.js'
 import { realNow } from './clock.js'
-import { isTextEntry } from './text-entry.js'
+import { isTyping } from './text-entry.js'
 
 function keycode(evt: KeyboardEvent): string {
   return evt.code.replace(/Key|Digit/, '')
@@ -314,8 +314,9 @@ export class GameController extends Component implements GamepadSource {
   }
 
   private _handleKeyDown = (event: KeyboardEvent) => {
-    // Typing in a field is not steering (see keyboard-gamepad).
-    if (isTextEntry(event)) return
+    // Typing in a field, a page's or one in a scene, is not steering (see
+    // keyboard-gamepad and text-entry).
+    if (isTyping(event)) return
     // A key the scene uses must not also scroll the page (arrows, Space), but
     // only while that scene is the one in use: a page of docs still scrolls
     // past a demo nobody has touched.

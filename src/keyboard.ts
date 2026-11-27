@@ -413,7 +413,7 @@ caret" are the same code path.
 /*{ "parent": "ui-controls", "order": 80 }*/
 
 import { svgElements } from 'tosijs'
-import { isTextEntry } from './text-entry.js'
+import { isTextEntry, setSceneTyping } from './text-entry.js'
 import {
   keyLayout,
   keyRects,
@@ -940,6 +940,9 @@ would double every character, which is worse than the bug being fixed. Fields
 in NO attached group still type through here — see `attachedGroups`.
 */
 let activeField: InputField | null = null
+// While a field has the keys the game's key listeners leave them alone
+// (`isTyping` in text-entry): Space typed a space and jumped.
+setSceneTyping(() => activeField != null)
 let globalKeyListener: ((e: Event) => void) | null = null
 
 /*

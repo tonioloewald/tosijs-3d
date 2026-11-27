@@ -150,7 +150,9 @@ describe('the global listeners actually consult it', () => {
   not take it.
   */
 
-  test('KeyboardGamepad ignores a key typed into an input', () => {
+  test('KeyboardGamepad ignores a key typed into an input', async () => {
+    // A scene field another test left with the keys would count as typing.
+    ;(await import('./keyboard.js')).releaseTextFocus()
     const pad: any = new (KG.KeyboardGamepadSource as any)()
 
     let prevented = 0
@@ -190,5 +192,6 @@ describe('the global listeners actually consult it', () => {
     )
     const up = src.slice(src.indexOf('_handleKeyUp'))
     expect(up.slice(0, 300)).not.toContain('isTextEntry')
+    expect(up.slice(0, 300)).not.toContain('isTyping')
   })
 })

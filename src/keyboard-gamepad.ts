@@ -42,7 +42,7 @@ import { Component } from 'tosijs'
 import type { VirtualGamepad, GamepadSource } from './virtual-gamepad.js'
 import { emptyGamepad } from './virtual-gamepad.js'
 import { releaseMenuOwned } from './hardware-gamepad.js'
-import { isTextEntry } from './text-entry.js'
+import { isTyping } from './text-entry.js'
 import { realNow } from './clock.js'
 
 function keycode(evt: KeyboardEvent): string {
@@ -190,9 +190,10 @@ export class KeyboardGamepadSource extends Component implements GamepadSource {
     preventing regular keyboards from working?"
 
     Yes, we were. Asking the event where it came from is a property read and
-    cannot go stale, which a "input is focused" flag would.
+    cannot go stale, which a "input is focused" flag would. A field in a scene
+    has no DOM focus, so `isTyping` also asks whether one has the keys.
     */
-    if (isTextEntry(event)) return
+    if (isTyping(event)) return
     const code = keycode(event)
     if (this._isMappedKey(code)) event.preventDefault()
     this.pressedKeys.add(code)

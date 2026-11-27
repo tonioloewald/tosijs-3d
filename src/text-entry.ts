@@ -105,3 +105,33 @@ export function isTextEntry(event: unknown): boolean {
   }
   return typesInto(e.target)
 }
+
+/*
+## A field in a scene
+
+A field drawn in a scene (`inputField` on a panel) has no DOM focus: it
+types from a `window` listener, so no event's path ever names it, and
+`isTextEntry` cannot see it. Typing a comment into the checklist then
+jumped on Space and closed the panel on F (the keyboard's B).
+
+So the keyboard module says here whether one of its fields has the keys,
+and `isTyping` asks both. A game's key listener asks `isTyping`; the
+keyboard's own listener asks `isTextEntry` (it is the field, and yields only
+to a real input). The answer is read when the key arrives, from the field
+that has the keys, so it cannot go stale either: a press on the scene or a
+panel closing gives the keys back.
+*/
+let sceneTyping: () => boolean = () => false
+
+/** The keyboard module reports whether a field in a scene has the keys. */
+export function setSceneTyping(has: () => boolean): void {
+  sceneTyping = has
+}
+
+/**
+ * Is the person typing, into a page's input or a field in a scene? Ask it
+ * before a key steers, fires or picks anything.
+ */
+export function isTyping(event: unknown): boolean {
+  return isTextEntry(event) || sceneTyping()
+}

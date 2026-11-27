@@ -11,6 +11,7 @@ moment it is done with them. Shown through the scene's modal presentation
 import type { VirtualGamepad } from './virtual-gamepad.js'
 import { HardwareGamepadSource, padMenuOwns } from './hardware-gamepad.js'
 import { realNow } from './clock.js'
+import { isTyping } from './text-entry.js'
 import {
   pressState,
   gatedPick,
@@ -801,15 +802,8 @@ export class RadialHost {
 
   private listen(): void {
     if (this.offWindow != null || typeof window === 'undefined') return
-    const typing = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null
-      return (
-        t?.isContentEditable ||
-        /^(INPUT|TEXTAREA|SELECT)$/.test(t?.tagName ?? '')
-      )
-    }
     const down = (e: KeyboardEvent) => {
-      if (typing(e) || !this.scene.hasInputFocus) return
+      if (isTyping(e) || !this.scene.hasInputFocus) return
       if (this.holds.some((h) => h.action.key === e.code)) this.keys.add(e.code)
     }
     const up = (e: KeyboardEvent) => this.keys.delete(e.code)
